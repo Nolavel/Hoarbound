@@ -5,6 +5,12 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-04 - Restore opt-in console performance capture (#173)
+
+- Restored `World.print_runtime_debug_stats` and once-per-second PerfMeta/PerfJSON
+  output for author-run HD 620 comparisons. The city mesh-surface traversal
+  remains retired; viewport timing is collected only while the toggle is on.
+
 ### 2026-10-03 - Retire performance audit tooling before commit preparation
 
 - Removed the A/B controller and its production scene binding, temporary
