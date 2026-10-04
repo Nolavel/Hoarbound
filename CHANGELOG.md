@@ -5,6 +5,12 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-04 - Remove duplicate high-tier footprint decals
+
+- FootprintSystem now subscribes to foot plants only on the low snow tier.
+  Medium/high use the deformable SnowShell as the single footprint renderer;
+  the former duplicate decals could appear beside pressed tracks.
+
 ### 2026-10-04 - Restore mapped city props and authored shadow brush (#173)
 
 - File power poles and wires into the existing streamed city chunks, retaining
