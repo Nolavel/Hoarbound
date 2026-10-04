@@ -66,7 +66,6 @@ func _refresh_bindings() -> void:
 			_has_massing_focus = false
 			_ring0_roads_retired = false
 			_streaming_policy_applied = false
-			_last_city_diag_usec = 0
 	if not is_instance_valid(_streaming):
 		## World.gd creates systems with Script.new() as direct children; their
 		## Node.name is not a stable class identifier.
