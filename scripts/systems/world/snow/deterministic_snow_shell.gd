@@ -1,13 +1,7 @@
 class_name DeterministicSnowShell
 extends "res://scripts/systems/world/snow/snow_shell.gd"
 
-## Production contact layer for SnowShell.
-##
-## The base shell still owns the persistent packed field, snow material, item/body
-## contact capture and track storage. This subclass fixes the discrete-foot path:
-## accepted FootContactSensor plants become persistent GPU stamps, so a step cannot
-## disappear merely because no rendered frame happened during the plant.
-
+const GRAPHICS: GDScript = preload("res://scripts/settings/graphics_quality.gd")
 const CONTACT_WINDOW_M: float = 6.4
 const CONTACT_RES: int = 256
 const MAX_STAMPS_PER_PASS: int = 16
@@ -18,22 +12,41 @@ var _plant_normal: Array[Vector3] = [Vector3.UP, Vector3.UP]
 var _plant_forward: Array[Vector3] = [Vector3.FORWARD, Vector3.FORWARD]
 var _foot_stamps: Array[Dictionary] = []
 var _contact_origin: Vector2 = Vector2(INF, INF)
+var _snow_pass_elapsed: float = 0.0
+var _snow_pass_interval: float = 0.25
 
 
 func _ready() -> void:
-	## Build the actual contact target at the production candidate resolution.
-	## The persistent packed field stays at SnowShell.packed_res (896 by default).
+	var profile: Dictionary = GRAPHICS.profile_for(GRAPHICS.load_quality())
+	_apply_startup_profile(profile)
 	contact_res = CONTACT_RES
 	super()
+	add_to_group(&"graphics_quality_consumer")
 	if _surface == null:
 		return
 	contact_res = CONTACT_RES
 	_contact.size = Vector2i(CONTACT_RES, CONTACT_RES)
 	_contact_cam.size = CONTACT_WINDOW_M
+	## Foot plants are persistent stamps now, so the contact viewport no longer
+	## needs to render every display frame. It wakes only for a snow simulation pass.
+	_contact.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	for mat: ShaderMaterial in _accum_mat:
 		mat.set_shader_parameter("field_window_m", window_m)
 		mat.set_shader_parameter("contact_window_m", CONTACT_WINDOW_M)
 		mat.set_shader_parameter("foot_stamp_count", 0)
+
+
+func _apply_startup_profile(profile: Dictionary) -> void:
+	packed_res = int(profile["snow_packed_res"])
+	near_half_m = float(profile["snow_near_half_m"])
+	far_spacing_m = float(profile["snow_far_spacing_m"])
+	_snow_pass_interval = 1.0 / maxf(float(profile["snow_sim_hz"]), 1.0)
+
+
+func apply_graphics_quality(_quality: StringName, profile: Dictionary) -> void:
+	## Cadence changes live. Packed target and generated mesh dimensions are
+	## construction-time resources and receive the complete profile on world load.
+	_snow_pass_interval = 1.0 / maxf(float(profile["snow_sim_hz"]), 1.0)
 
 
 func on_world_ready(context: WorldContext) -> void:
@@ -48,8 +61,6 @@ func on_world_ready(context: WorldContext) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	## Base movement/rebuild logic still runs, but its _place_soles() call dispatches
-	## to the tangent-plane implementation below.
 	super(delta)
 	if _player != null and _contact_cam != null:
 		var at: Vector3 = _player.global_position
@@ -59,16 +70,25 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	if _accum_mat.is_empty():
 		return
-	## Upload before SnowShell schedules this parity's accumulator pass. Uniforms
-	## remain on the material until that SubViewport renders later in the frame.
+	_snow_pass_elapsed += delta
+	var urgent: bool = (
+		not _foot_stamps.is_empty()
+		or _pending_shift != Vector2.ZERO
+		or _pending_collapse != Vector4.ZERO
+		or _warmup > 0
+	)
+	if not urgent and _snow_pass_elapsed < _snow_pass_interval:
+		return
+
+	var pass_delta: float = _snow_pass_elapsed
+	_snow_pass_elapsed = 0.0
+	_contact.render_target_update_mode = SubViewport.UPDATE_ONCE
 	var consumed: int = _upload_pending_stamps(_accum_mat[_parity])
-	super(delta)
+	super(pass_delta)
 	for _i: int in range(consumed):
 		_foot_stamps.pop_front()
 
 
-## FootContactSensor is the one authority for a discrete plant. The event is
-## retained until an accumulator pass has consumed it; render cadence cannot lose it.
 func _on_foot_planted(
 	side: int, position: Vector3, normal: Vector3, forward: Vector3, speed_mps: float
 ) -> void:
@@ -95,9 +115,6 @@ func get_pending_foot_stamp_count() -> int:
 	return _foot_stamps.size()
 
 
-## A 6.4 m contact camera at 256² is 2.5 cm/texel: the old 25.6 m/1024²
-## precision at one sixteenth the pixels. It follows Henry independently of the
-## 25.6 m packed-field origin; the shader remaps world coordinates explicitly.
 func _update_local_contact(centre: Vector2) -> void:
 	if _contact_cam == null:
 		return
@@ -121,9 +138,6 @@ func _update_local_contact(centre: Vector2) -> void:
 			mat.set_shader_parameter("field_origin", field.origin)
 
 
-## Converts one world-space tangent-plane sole into two vec4s containing the
-## inverse 2D footprint basis. The shader then tests an ellipse without assuming
-## global UP, so road crown/camber does not push the print sideways.
 static func stamp_uniforms(
 	position: Vector3,
 	normal: Vector3,
@@ -211,10 +225,6 @@ func _upload_pending_stamps(mat: ShaderMaterial) -> int:
 	return consumed
 
 
-## Base SnowShell already owns sinking, rim displacement, particles and movement
-## penalties. Only the plant anchor/basis changes: a moving step is pinned to the
-## sensor's world-space event and tangent plane instead of being rediscovered from
-## the skeleton after the fact.
 func _place_soles(delta: float) -> void:
 	var standing: bool = _speed < 0.15 and _player is CharacterBody3D and (_player as CharacterBody3D).is_on_floor()
 	for side: int in range(_heels.size()):

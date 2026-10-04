@@ -1,21 +1,18 @@
 class_name CameraSettingsPanel
 extends Control
 
-## Camera options are staged locally. Back discards them; Accept persists and
-## applies them, then closes this frame. The frame itself uses the same living
-## eight-blob ink shader and ink->content choreography as production input hints.
+## Production settings frame. Camera options and the global graphics tier are
+## staged locally; Back discards them and Accept persists/applies them together.
 signal closed(saved: bool)
 
 const STORE: GDScript = preload("res://scripts/settings/camera_user_settings.gd")
+const GRAPHICS: GDScript = preload("res://scripts/settings/graphics_quality.gd")
 const BLOT_SHADER: Shader = preload("res://shaders/ui/key_hints_blot.gdshader")
 const CAMERA_GROUP: StringName = &"tps_camera_user_settings"
 
-const FRAME_SIZE := Vector2(620.0, 360.0)
-const CONTENT_SIZE := Vector2(440.0, 288.0)
-## The source blot was authored to hang down-right. These values centre the
-## visual mass, not merely its ColorRect, and leave enough carrier around the
-## largest radii that their ragged edges are never clipped.
-const BLOT_SIZE := Vector2(1000.0, 600.0)
+const FRAME_SIZE := Vector2(620.0, 430.0)
+const CONTENT_SIZE := Vector2(440.0, 352.0)
+const BLOT_SIZE := Vector2(1000.0, 700.0)
 const BLOT_VISUAL_CENTER_UV := Vector2(0.625, 0.57)
 const BLOT_CANVAS_PADDING: float = 0.22
 const BLOT_FINAL_SCALE: float = 1.15
@@ -38,12 +35,14 @@ const INK_DISSOLVE_DURATION: float = 0.34
 
 var _saved_sensitivity: float = STORE.DEFAULT_MOUSE_SENSITIVITY
 var _saved_invert_y: bool = STORE.DEFAULT_INVERT_Y
+var _saved_quality: StringName = GRAPHICS.DEFAULT_QUALITY
 
 var _frame_root: Control
 var _blot_material: ShaderMaterial
 var _title_label: Label
 var _settings_body: VBoxContainer
 var _buttons_row: HBoxContainer
+var _quality_option: OptionButton
 var _sensitivity_slider: HSlider
 var _sensitivity_value: Label
 var _invert_y: CheckBox
@@ -66,8 +65,10 @@ func open() -> void:
 	var values: Dictionary = STORE.load_camera()
 	_saved_sensitivity = float(values["mouse_sensitivity_multiplier"])
 	_saved_invert_y = bool(values["invert_y"])
+	_saved_quality = GRAPHICS.load_quality()
 	_sensitivity_slider.set_value_no_signal(_saved_sensitivity * 100.0)
 	_invert_y.set_pressed_no_signal(_saved_invert_y)
+	_quality_option.select(GRAPHICS.index_of(_saved_quality))
 	_refresh_value_label()
 	_refresh_dirty_state()
 	_begin_appear()
@@ -89,15 +90,22 @@ func _accept() -> void:
 
 	var sensitivity: float = _sensitivity_slider.value / 100.0
 	var invert_y: bool = _invert_y.button_pressed
-	var error: Error = STORE.save_camera(sensitivity, invert_y)
-	if error != OK:
-		push_warning("CameraSettingsPanel: settings save failed (error %d)" % error)
+	var quality: StringName = GRAPHICS.from_index(_quality_option.selected)
+	var camera_error: Error = STORE.save_camera(sensitivity, invert_y)
+	if camera_error != OK:
+		push_warning("CameraSettingsPanel: camera settings save failed (error %d)" % camera_error)
+		return
+	var graphics_error: Error = GRAPHICS.save_quality(quality)
+	if graphics_error != OK:
+		push_warning("CameraSettingsPanel: graphics settings save failed (error %d)" % graphics_error)
 		return
 
 	_saved_sensitivity = sensitivity
 	_saved_invert_y = invert_y
+	_saved_quality = quality
 	if is_inside_tree():
 		get_tree().call_group(CAMERA_GROUP, &"reload_user_settings")
+		GRAPHICS.apply(get_tree(), quality)
 	_refresh_dirty_state()
 	_begin_hide(true)
 
@@ -150,7 +158,7 @@ func _build() -> void:
 	content.name = "SettingsContent"
 	content.position = (FRAME_SIZE - CONTENT_SIZE) * 0.5
 	content.size = CONTENT_SIZE
-	content.add_theme_constant_override("separation", 20)
+	content.add_theme_constant_override("separation", 16)
 	content.mouse_filter = Control.MOUSE_FILTER_PASS
 	_frame_root.add_child(content)
 
@@ -168,8 +176,35 @@ func _build() -> void:
 	_settings_body.modulate.a = 0.0
 	content.add_child(_settings_body)
 
-	## Keep label, value and slider in one visual group. The previous horizontal
-	## row made the eye jump from copy on the far left to a control on the right.
+	var quality_row := HBoxContainer.new()
+	quality_row.name = "GraphicsQualityRow"
+	quality_row.add_theme_constant_override("separation", 12)
+	_settings_body.add_child(quality_row)
+	var quality_label := Label.new()
+	quality_label.text = "Graphics quality"
+	quality_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	quality_label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.90, 1.0))
+	quality_row.add_child(quality_label)
+	_quality_option = OptionButton.new()
+	_quality_option.name = "GraphicsQuality"
+	_quality_option.custom_minimum_size = Vector2(150.0, 36.0)
+	for quality: StringName in GRAPHICS.ORDER:
+		_quality_option.add_item(String(quality).to_upper())
+	_quality_option.select(GRAPHICS.index_of(GRAPHICS.DEFAULT_QUALITY))
+	_quality_option.item_selected.connect(_on_quality_selected)
+	quality_row.add_child(_quality_option)
+
+	var quality_hint := Label.new()
+	quality_hint.text = "LOW targets integrated GPUs; gameplay and footprint accuracy stay unchanged."
+	quality_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	quality_hint.add_theme_font_size_override("font_size", 13)
+	quality_hint.add_theme_color_override("font_color", Color(0.72, 0.72, 0.70, 0.88))
+	_settings_body.add_child(quality_hint)
+
+	var quality_gap := Control.new()
+	quality_gap.custom_minimum_size.y = 6.0
+	_settings_body.add_child(quality_gap)
+
 	var sensitivity_header := HBoxContainer.new()
 	sensitivity_header.name = "SensitivityHeader"
 	sensitivity_header.add_theme_constant_override("separation", 10)
@@ -200,7 +235,7 @@ func _build() -> void:
 	_settings_body.add_child(_sensitivity_slider)
 
 	var option_gap := Control.new()
-	option_gap.custom_minimum_size.y = 8.0
+	option_gap.custom_minimum_size.y = 4.0
 	_settings_body.add_child(option_gap)
 
 	_invert_y = CheckBox.new()
@@ -264,18 +299,12 @@ func _begin_appear() -> void:
 	_set_blot_progress(0.0)
 	_set_blot_radius_scale(0.0)
 	_blot_material.set_shader_parameter("entrance_seed", randf() * 100.0)
-
 	_transition = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS).set_parallel(true)
-	_transition.tween_method(_set_blot_progress, 0.0, 1.0, INK_APPEAR_DURATION) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	_transition.tween_method(_set_blot_radius_scale, 0.0, BLOT_FINAL_SCALE, INK_SETTLE_DURATION) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
-	_transition.tween_property(_title_label, "modulate:a", 1.0, TITLE_REVEAL_DURATION) \
-		.set_delay(TITLE_REVEAL_DELAY).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	_transition.tween_property(_settings_body, "modulate:a", 1.0, BODY_REVEAL_DURATION) \
-		.set_delay(BODY_REVEAL_DELAY).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	_transition.tween_property(_buttons_row, "modulate:a", 1.0, BUTTONS_REVEAL_DURATION) \
-		.set_delay(BUTTONS_REVEAL_DELAY).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_transition.tween_method(_set_blot_progress, 0.0, 1.0, INK_APPEAR_DURATION).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_transition.tween_method(_set_blot_radius_scale, 0.0, BLOT_FINAL_SCALE, INK_SETTLE_DURATION).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+	_transition.tween_property(_title_label, "modulate:a", 1.0, TITLE_REVEAL_DURATION).set_delay(TITLE_REVEAL_DELAY).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_transition.tween_property(_settings_body, "modulate:a", 1.0, BODY_REVEAL_DURATION).set_delay(BODY_REVEAL_DELAY).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_transition.tween_property(_buttons_row, "modulate:a", 1.0, BUTTONS_REVEAL_DURATION).set_delay(BUTTONS_REVEAL_DELAY).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
 
 func _begin_hide(saved: bool) -> void:
@@ -285,14 +314,8 @@ func _begin_hide(saved: bool) -> void:
 	_transition.tween_property(_buttons_row, "modulate:a", 0.0, CONTENT_FADE_OUT_DURATION)
 	_transition.parallel().tween_property(_settings_body, "modulate:a", 0.0, CONTENT_FADE_OUT_DURATION)
 	_transition.parallel().tween_property(_title_label, "modulate:a", 0.0, CONTENT_FADE_OUT_DURATION)
-	_transition.tween_method(_set_blot_progress, _blot_progress(), 0.0, INK_DISSOLVE_DURATION) \
-		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
-	_transition.parallel().tween_method(
-		_set_blot_radius_scale,
-		_blot_radius_scale(),
-		0.0,
-		INK_DISSOLVE_DURATION
-	).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_SINE)
+	_transition.tween_method(_set_blot_progress, _blot_progress(), 0.0, INK_DISSOLVE_DURATION).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
+	_transition.parallel().tween_method(_set_blot_radius_scale, _blot_radius_scale(), 0.0, INK_DISSOLVE_DURATION).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_SINE)
 	_transition.tween_callback(_finish_hide.bind(saved))
 
 
@@ -312,18 +335,24 @@ func _on_invert_toggled(_pressed: bool) -> void:
 	_refresh_dirty_state()
 
 
+func _on_quality_selected(_index: int) -> void:
+	_refresh_dirty_state()
+
+
 func _refresh_value_label() -> void:
 	if _sensitivity_value != null and _sensitivity_slider != null:
 		_sensitivity_value.text = "%d%%" % int(round(_sensitivity_slider.value))
 
 
 func _refresh_dirty_state() -> void:
-	if _accept_button == null or _sensitivity_slider == null or _invert_y == null:
+	if _accept_button == null or _sensitivity_slider == null or _invert_y == null or _quality_option == null:
 		return
 	var staged_sensitivity: float = _sensitivity_slider.value / 100.0
+	var staged_quality: StringName = GRAPHICS.from_index(_quality_option.selected)
 	var dirty: bool = (
 		not is_equal_approx(staged_sensitivity, _saved_sensitivity)
 		or _invert_y.button_pressed != _saved_invert_y
+		or staged_quality != _saved_quality
 	)
 	_accept_button.disabled = not dirty
 

@@ -1,8 +1,8 @@
 class_name GraphicsQuality
 extends RefCounted
 
-## Production graphics presets. Gameplay/simulation fidelity stays identical;
-## tiers only change rendering cost and presentation density.
+## One production source of truth for renderer quality. Gameplay and simulation
+## fidelity are identical across tiers; only presentation cost changes.
 const CONFIG_PATH: String = "user://settings.cfg"
 const SECTION: String = "graphics"
 const KEY_QUALITY: String = "quality"
@@ -58,6 +58,8 @@ static func profile_for(value: Variant) -> Dictionary:
 
 
 static func load_quality() -> StringName:
+	if ProjectSettings.has_setting("hfn/graphics/quality"):
+		return normalize(ProjectSettings.get_setting("hfn/graphics/quality"))
 	var config := ConfigFile.new()
 	var error: Error = config.load(CONFIG_PATH)
 	if error == ERR_FILE_NOT_FOUND:
@@ -66,6 +68,14 @@ static func load_quality() -> StringName:
 		push_warning("GraphicsQuality: cannot read %s (error %d); using LOW" % [CONFIG_PATH, error])
 		return DEFAULT_QUALITY
 	return normalize(config.get_value(SECTION, KEY_QUALITY, String(DEFAULT_QUALITY)))
+
+
+static func current_quality() -> StringName:
+	return load_quality()
+
+
+static func current_profile() -> Dictionary:
+	return profile_for(current_quality())
 
 
 static func save_quality(value: Variant) -> Error:
@@ -85,15 +95,12 @@ static func from_index(index: int) -> StringName:
 	return ORDER[clampi(index, 0, ORDER.size() - 1)]
 
 
-## Applies all settings that are safe to change live. Snow geometry/packed-target
-## dimensions are read by DeterministicSnowShell at construction, so a newly
-## loaded world always receives the complete selected profile.
 static func apply(tree: SceneTree, value: Variant) -> Dictionary:
 	var quality: StringName = normalize(value)
 	var profile: Dictionary = profile_for(quality)
 	ProjectSettings.set_setting("hfn/graphics/quality", String(quality))
-	## The legacy snow switch remains internal. LOW graphics still keeps the full
-	## deformable snow system; only its representation becomes cheaper.
+	## Keep the old switch as an internal compatibility flag. LOW graphics retains
+	## the full deformable snow gameplay; its representation is simply cheaper.
 	ProjectSettings.set_setting("hfn/snow/quality", "high")
 
 	if tree != null and tree.root != null:

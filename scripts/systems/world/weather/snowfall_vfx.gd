@@ -1,23 +1,10 @@
 extends Node3D
 class_name SnowfallVFX
 
-## Local production snowfall volume around Henry.
-## WeatherController is the only authority for wind direction, gusts and
-## snowfall density; this scene only visualizes those live conditions.
-##
-## Two layers are intentional:
-## - WorldSnow: many small flakes around Henry.
-## - ForegroundSnow: a very small number of larger flakes close to the camera.
+const GRAPHICS: GDScript = preload("res://scripts/settings/graphics_quality.gd")
+const SNOW_SHADER: Shader = preload("res://shaders/environment/weather/wind_driven_snow.gdshader")
+const WEATHER_CONTROLLER_SCRIPT: GDScript = preload("res://scripts/systems/world/WeatherController.gd")
 
-const SNOW_SHADER: Shader = preload(
-	"res://shaders/environment/weather/wind_driven_snow.gdshader"
-)
-const WEATHER_CONTROLLER_SCRIPT: GDScript = preload(
-	"res://scripts/systems/world/WeatherController.gd"
-)
-
-# Production limits validated on the island preview. Keep these fixed unless a
-# dedicated performance pass proves a change is safe.
 const WORLD_MAX_PARTICLES: int = 3072
 const WORLD_EMITTER_HEIGHT: float = 6.0
 const MAX_UPWIND_OFFSET: float = 9.0
@@ -29,19 +16,17 @@ const FOREGROUND_HEIGHT: float = 1.0
 var weather_controller: WeatherController
 var follow_target: Node3D
 var foreground_target: Node3D
-
 var particles: GPUParticles3D
 var foreground_particles: GPUParticles3D
-
 var _process_material: ShaderMaterial
 var _foreground_material: ShaderMaterial
 var _visual_wind_velocity: Vector3 = Vector3.ZERO
 var _last_direction: Vector3 = Vector3.FORWARD
-
 var heightfield_service: SnowHeightFieldService
 var _snow_door: HingedDoor
 var _door_check_left: float = 0.0
 var _runtime_visuals_enabled: bool = true
+var _quality_density_scale: float = 1.0
 
 
 func on_world_ready(context: WorldContext) -> void:
@@ -59,15 +44,21 @@ func on_world_ready(context: WorldContext) -> void:
 
 
 func _ready() -> void:
-	## Emitters follow Henry and the camera every rendered frame, not per tick.
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_runtime_visuals_enabled = DisplayServer.get_name() != "headless"
+	_quality_density_scale = float(GRAPHICS.profile_for(GRAPHICS.load_quality())["snow_particle_density"])
+	add_to_group(&"graphics_quality_consumer")
 	if not _runtime_visuals_enabled:
 		set_process(false)
 		return
 	_ensure_heightfield_service()
 	_build_particles()
 	_bind_weather()
+
+
+func apply_graphics_quality(_quality: StringName, profile: Dictionary) -> void:
+	_quality_density_scale = float(profile["snow_particle_density"])
+	sync_from_weather()
 
 
 func _ensure_heightfield_service() -> void:
@@ -84,7 +75,6 @@ func _process(delta: float) -> void:
 	_update_door_barrier(delta)
 	if is_instance_valid(follow_target):
 		global_position = follow_target.global_position + Vector3.UP * WORLD_EMITTER_HEIGHT
-
 	if foreground_particles != null and is_instance_valid(foreground_target):
 		var camera_forward: Vector3 = -foreground_target.global_transform.basis.z.normalized()
 		foreground_particles.global_position = (
@@ -96,59 +86,33 @@ func _process(delta: float) -> void:
 
 
 func _build_particles() -> void:
-	_process_material = _make_process_material(
-		Vector3(24.0, 1.8, 18.0),
-		0.55,
-		1.00
-	)
+	_process_material = _make_process_material(Vector3(24.0, 1.8, 18.0), 0.55, 1.00)
 	particles = _make_particle_layer(
-		"WorldSnow",
-		WORLD_MAX_PARTICLES,
-		6.5,
-		0.012,
+		"WorldSnow", WORLD_MAX_PARTICLES, 6.5, 0.012,
 		_build_snowflake_mesh(0.010, 0.0016, 0.0042, 0.00115, false),
 		_process_material
 	)
-	particles.transform_align = (
-		GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
-	)
+	particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
 	_process_material.set_shader_parameter("velocity_stretch_enabled", true)
 	_process_material.set_shader_parameter("stretch_speed_start", 4.0)
 	_process_material.set_shader_parameter("stretch_speed_full", 7.0)
 	_process_material.set_shader_parameter("stretch_max", 1.90)
-	particles.visibility_aabb = AABB(
-		Vector3(-48.0, -26.0, -48.0),
-		Vector3(96.0, 52.0, 96.0)
-	)
+	particles.visibility_aabb = AABB(Vector3(-48.0, -26.0, -48.0), Vector3(96.0, 52.0, 96.0))
 	add_child(particles)
 
-	_foreground_material = _make_process_material(
-		Vector3(4.2, 2.0, 2.8),
-		0.66,
-		1.10
-	)
+	_foreground_material = _make_process_material(Vector3(4.2, 2.0, 2.8), 0.66, 1.10)
 	foreground_particles = _make_particle_layer(
-		"ForegroundSnow",
-		FOREGROUND_MAX_PARTICLES,
-		3.4,
-		0.026,
+		"ForegroundSnow", FOREGROUND_MAX_PARTICLES, 3.4, 0.026,
 		_build_snowflake_mesh(0.022, 0.0030, 0.0085, 0.0022, true),
 		_foreground_material
 	)
 	foreground_particles.randomness = 0.42
 	_foreground_material.set_shader_parameter("velocity_stretch_enabled", false)
-	foreground_particles.visibility_aabb = AABB(
-		Vector3(-10.0, -8.0, -10.0),
-		Vector3(20.0, 16.0, 20.0)
-	)
+	foreground_particles.visibility_aabb = AABB(Vector3(-10.0, -8.0, -10.0), Vector3(20.0, 16.0, 20.0))
 	add_child(foreground_particles)
 
 
-func _make_process_material(
-	emit_size: Vector3,
-	size_min: float,
-	size_max: float
-) -> ShaderMaterial:
+func _make_process_material(emit_size: Vector3, size_min: float, size_max: float) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = SNOW_SHADER
 	material.set_shader_parameter("box_emit_size", emit_size)
@@ -190,34 +154,19 @@ func _build_snowflake_mesh(
 ) -> ArrayMesh:
 	var vertices := PackedVector3Array()
 	var indices := PackedInt32Array()
-
 	for arm_index: int in range(6):
 		var angle: float = deg_to_rad(float(arm_index) * 60.0)
 		var direction := Vector2(cos(angle), sin(angle))
-		_append_strip(
-			vertices,
-			indices,
-			Vector2.ZERO,
-			direction * arm_length,
-			arm_width
-		)
-
+		_append_strip(vertices, indices, Vector2.ZERO, direction * arm_length, arm_width)
 		var branch_root: Vector2 = direction * arm_length * 0.56
 		for side: float in [-1.0, 1.0]:
 			var branch_direction: Vector2 = direction.rotated(deg_to_rad(42.0 * side))
-			_append_strip(
-				vertices,
-				indices,
-				branch_root,
-				branch_root + branch_direction * branch_length,
-				branch_width
-			)
+			_append_strip(vertices, indices, branch_root, branch_root + branch_direction * branch_length, branch_width)
 
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_INDEX] = indices
-
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
@@ -231,9 +180,6 @@ func _build_snowflake_mesh(
 		material.cull_mode = BaseMaterial3D.CULL_DISABLED
 		mesh.surface_set_material(0, material)
 	else:
-		# WorldSnow already uses GPUParticles velocity alignment. Stretch only
-		# the rendered vertices using INSTANCE_CUSTOM.z; particle collision and
-		# transform scale remain unchanged.
 		var material := ShaderMaterial.new()
 		var draw_shader := Shader.new()
 		draw_shader.code = """
@@ -268,10 +214,7 @@ func _append_strip(
 	vertices.append(Vector3(from.x - normal.x, from.y - normal.y, 0.0))
 	vertices.append(Vector3(to.x - normal.x, to.y - normal.y, 0.0))
 	vertices.append(Vector3(to.x + normal.x, to.y + normal.y, 0.0))
-	indices.append_array(PackedInt32Array([
-		base, base + 1, base + 2,
-		base, base + 2, base + 3,
-	]))
+	indices.append_array(PackedInt32Array([base, base + 1, base + 2, base, base + 2, base + 3]))
 
 
 func _bind_weather() -> void:
@@ -287,10 +230,7 @@ func _bind_weather() -> void:
 func sync_from_weather() -> void:
 	if not is_instance_valid(weather_controller) or _process_material == null:
 		return
-	_apply_conditions(
-		weather_controller.get_wind_speed_mps(),
-		weather_controller.get_snowfall_density()
-	)
+	_apply_conditions(weather_controller.get_wind_speed_mps(), weather_controller.get_snowfall_density())
 
 
 func restart_particles() -> void:
@@ -304,48 +244,31 @@ func _on_weather_changed(_profile: WeatherProfile) -> void:
 	sync_from_weather()
 
 
-func _on_conditions_updated(
-	_ambient_offset_c: float,
-	wind_speed_mps: float,
-	snowfall_density: float
-) -> void:
+func _on_conditions_updated(_ambient_offset_c: float, wind_speed_mps: float, snowfall_density: float) -> void:
 	_apply_conditions(wind_speed_mps, snowfall_density)
 
 
 func _apply_conditions(wind_speed_mps: float, snowfall_density: float) -> void:
 	if _process_material == null or particles == null:
 		return
-
 	var direction: Vector3 = weather_controller.get_wind_direction().normalized()
 	var density: float = clampf(snowfall_density, 0.0, 1.0)
 	var speed: float = maxf(wind_speed_mps, 0.0)
-
-	var visual_speed: float = minf(
-		speed * 0.26 + sqrt(speed) * 0.20,
-		7.2
-	)
+	var visual_speed: float = minf(speed * 0.26 + sqrt(speed) * 0.20, 7.2)
 	_last_direction = direction
 	_visual_wind_velocity = direction * visual_speed
-
 	for material: ShaderMaterial in [_process_material, _foreground_material]:
 		material.set_shader_parameter("wind_velocity", _visual_wind_velocity)
-		material.set_shader_parameter(
-			"turbulence_strength",
-			lerpf(0.10, 1.20, clampf(speed / 28.0, 0.0, 1.0))
-		)
+		material.set_shader_parameter("turbulence_strength", lerpf(0.10, 1.20, clampf(speed / 28.0, 0.0, 1.0)))
 
 	var upwind_offset: float = minf(visual_speed * 1.25, MAX_UPWIND_OFFSET)
 	particles.position = -direction * upwind_offset
-	particles.amount_ratio = density
-	particles.emitting = density > 0.005
+	particles.amount_ratio = density * _quality_density_scale
+	particles.emitting = particles.amount_ratio > 0.005
 	if heightfield_service != null:
 		heightfield_service.set_active(density > 0.005)
 
-	var foreground_ratio: float = clampf(
-		density * FOREGROUND_DENSITY_SCALE,
-		0.0,
-		1.0
-	)
+	var foreground_ratio: float = clampf(density * FOREGROUND_DENSITY_SCALE * _quality_density_scale, 0.0, 1.0)
 	foreground_particles.amount_ratio = foreground_ratio
 	foreground_particles.emitting = foreground_ratio > 0.005
 

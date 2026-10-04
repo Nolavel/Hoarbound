@@ -1,11 +1,8 @@
 extends SceneTree
 
-## Regression coverage for #197: persistent step events, tangent-plane contacts,
-## pre-modifier pose sampling, and the 6.4 m / 256² local contact capture.
-## Run: godot --headless --script tests/systems/test_snow_contact_pipeline.gd
-
 const SENSOR_SCRIPT: GDScript = preload("res://scripts/actors/player/henry/components/foot_contact_sensor.gd")
 const SHELL_SCRIPT: GDScript = preload("res://scripts/systems/world/snow/deterministic_snow_shell.gd")
+const GRAPHICS: GDScript = preload("res://scripts/settings/graphics_quality.gd")
 
 var _failures: int = 0
 
@@ -21,6 +18,7 @@ func _run() -> void:
 	_test_twenty_plants_are_retained_without_rendering()
 	_test_local_contact_target_keeps_packed_field_large()
 	_test_sensor_uses_pre_modifier_probe()
+	_test_quality_profiles_keep_contact_precision()
 	if _failures > 0:
 		push_error("snow contact pipeline: %d check(s) failed" % _failures)
 		quit(1)
@@ -65,7 +63,6 @@ func _test_stamp_basis_is_tangent_plane() -> void:
 	)
 	_check(encoded.size() == 2, "stamp basis did not encode two rows")
 	_check(is_equal_approx(encoded[1].z, 0.08), "stamp depth was not preserved")
-	## The encoded inverse basis must map the centre to local (0,0).
 	var centre_uv := (Vector2(4.0, -3.0) - Vector2(-12.8, -12.8)) / 25.6
 	var d := centre_uv - Vector2(encoded[0].x, encoded[0].y)
 	var local := Vector2(d.dot(Vector2(encoded[0].z, encoded[0].w)), d.dot(Vector2(encoded[1].x, encoded[1].y)))
@@ -82,7 +79,9 @@ func _test_twenty_plants_are_retained_without_rendering() -> void:
 
 
 func _test_local_contact_target_keeps_packed_field_large() -> void:
-	var before: Variant = ProjectSettings.get_setting("hfn/snow/quality", "high")
+	var before_graphics: Variant = ProjectSettings.get_setting("hfn/graphics/quality", "low")
+	var before_snow: Variant = ProjectSettings.get_setting("hfn/snow/quality", "high")
+	ProjectSettings.set_setting("hfn/graphics/quality", "high")
 	ProjectSettings.set_setting("hfn/snow/quality", "high")
 	var shell: Node3D = SHELL_SCRIPT.new()
 	root.add_child(shell)
@@ -91,9 +90,10 @@ func _test_local_contact_target_keeps_packed_field_large() -> void:
 	var camera := contact.get_node("Camera3D") as Camera3D
 	_check(contact.size == Vector2i(256, 256), "contact target is not 256²")
 	_check(is_equal_approx(camera.size, 6.4), "contact camera does not cover 6.4 m")
-	_check(packed.size == Vector2i(896, 896), "packed field no longer keeps its 896² history")
+	_check(packed.size == Vector2i(896, 896), "HIGH packed field is not 896²")
 	shell.free()
-	ProjectSettings.set_setting("hfn/snow/quality", before)
+	ProjectSettings.set_setting("hfn/graphics/quality", before_graphics)
+	ProjectSettings.set_setting("hfn/snow/quality", before_snow)
 
 
 func _test_sensor_uses_pre_modifier_probe() -> void:
@@ -102,3 +102,16 @@ func _test_sensor_uses_pre_modifier_probe() -> void:
 	_check(not source.contains("get_lift(side)"), "sensor still subtracts SnowFootModifier output")
 	var probe: String = FileAccess.get_file_as_string("res://scripts/actors/player/henry/components/foot_pose_probe.gd")
 	_check(probe.contains("extends SkeletonModifier3D"), "pre-modifier probe is not in the modifier chain")
+
+
+func _test_quality_profiles_keep_contact_precision() -> void:
+	var low: Dictionary = GRAPHICS.profile_for(&"low")
+	var medium: Dictionary = GRAPHICS.profile_for(&"medium")
+	var high: Dictionary = GRAPHICS.profile_for(&"high")
+	_check(int(low["snow_packed_res"]) == 640, "LOW packed target changed")
+	_check(int(medium["snow_packed_res"]) == 768, "MEDIUM packed target changed")
+	_check(int(high["snow_packed_res"]) == 896, "HIGH packed target changed")
+	_check(float(low["render_scale"]) < float(medium["render_scale"]), "render tiers are not ordered")
+	_check(float(medium["render_scale"]) < float(high["render_scale"]), "render tiers are not ordered")
+	_check(SHELL_SCRIPT.CONTACT_RES == 256, "quality tier changed contact precision")
+	_check(is_equal_approx(SHELL_SCRIPT.CONTACT_WINDOW_M, 6.4), "quality tier changed contact window")
