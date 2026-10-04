@@ -7,6 +7,8 @@ extends RefCounted
 static var colliders: Dictionary = {}
 ## Small props per city chunk id, shown only while that chunk streams in.
 static var visuals: Dictionary = {}
+## Terrain-following crossing meshes keyed by the same streamed city chunks.
+static var crossings: Dictionary = {}
 
 const CHUNK_SIZE_M: float = 512.0
 ## Faded paint of abandoned cars and moored boats.
@@ -67,7 +69,7 @@ static func build(terrain: IslandTerrain, enrichment: Dictionary, roads: Array) 
 		(points[key] as Array).append(Vector2(float(c[0]), float(c[1])))
 
 	var pole := _cyl_shape(0.15, 8.0)
-	_add_facing(holder, "PowerPoles", points.get("osm_pole", []), _power_pole_mesh(mats), index, terrain, false, [pole, Vector3(0, 4.0, 0)], false)
+	_add_facing(holder, "PowerPoles", points.get("osm_pole", []), _power_pole_mesh(mats), index, terrain, false, [pole, Vector3(0, 4.0, 0)])
 	_add_facing(holder, "StreetLamps", points.get("osm_lamp", []), _lamp_mesh(mats), index, terrain, true, [_cyl_shape(0.1, 6.0), Vector3(0, 3.0, 0)])
 	_add_facing(holder, "TrafficSignals", points.get("traffic_signals", []), _signal_mesh(mats), index, terrain, true, [_cyl_shape(0.15, 5.0), Vector3(0, 2.5, 0)])
 	var post := [_cyl_shape(0.06, 2.2), Vector3(0, 1.1, 0)]
@@ -131,7 +133,7 @@ static func nearest_road(index: Dictionary, p: Vector2) -> Dictionary:
 
 ## Places a prop at each point; its local +Z looks at the nearest road.
 static func _add_facing(parent: Node3D, node_name: String, pts: Array, mesh: Mesh, index: Dictionary,
-		terrain: IslandTerrain, face_road: bool, collider: Array = [], streamed: bool = true) -> void:
+		terrain: IslandTerrain, face_road: bool, collider: Array = []) -> void:
 	if pts.is_empty():
 		return
 	var xfs: Array[Transform3D] = []
@@ -150,16 +152,14 @@ static func _add_facing(parent: Node3D, node_name: String, pts: Array, mesh: Mes
 			var d: Vector2 = road["dir"]
 			yaw = atan2(d.x, d.y)
 		xfs.append(Transform3D(Basis(Vector3.UP, yaw), _ground(terrain, p)))
-	_add_transforms(parent, node_name, mesh, xfs, streamed)
+	_add_transforms(parent, node_name, mesh, xfs)
 	if not collider.is_empty():
 		_add_bodies(parent, node_name + "Collision", collider[0], collider[1], xfs)
 
 
 ## Zebra stripes across the road at each mapped crossing.
-static func _add_crossings(parent: Node3D, pts: Array, index: Dictionary, terrain: IslandTerrain) -> void:
-	var v := PackedVector3Array()
-	var n := PackedVector3Array()
-	var ind := PackedInt32Array()
+static func _add_crossings(_parent: Node3D, pts: Array, index: Dictionary, terrain: IslandTerrain) -> void:
+	var chunk_geometry: Dictionary = {}
 	for p: Vector2 in pts:
 		var road: Dictionary = nearest_road(index, p)
 		if road.is_empty() or float(road["dist"]) > 3.0:
@@ -167,27 +167,36 @@ static func _add_crossings(parent: Node3D, pts: Array, index: Dictionary, terrai
 		var dir: Vector2 = road["dir"]
 		var side := Vector2(-dir.y, dir.x)
 		var centre: Vector2 = road["point"]
+		var key: String = chunk_key(centre)
+		if not chunk_geometry.has(key):
+			chunk_geometry[key] = [PackedVector3Array(), PackedVector3Array(), PackedInt32Array()]
+		var geometry: Array = chunk_geometry[key]
+		var v: PackedVector3Array = geometry[0]
+		var n: PackedVector3Array = geometry[1]
+		var ind: PackedInt32Array = geometry[2]
 		var half: float = maxf(float(road["width"]) * 0.5 - 0.4, 1.5)
 		var s: float = -half
 		while s < half:
 			var at: Vector2 = centre + side * (s + 0.25)
 			KeyWestCityVisuals._append_ribbon(v, n, ind, at - dir * CROSSING_LENGTH_M * 0.5, at + dir * CROSSING_LENGTH_M * 0.5, 0.25, 0.4, terrain)
 			s += 1.0
-	if v.is_empty():
-		return
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = v
-	arrays[Mesh.ARRAY_NORMAL] = n
-	arrays[Mesh.ARRAY_INDEX] = ind
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var paint := StylizedEnvironmentMaterial.make_unshaded(Color(0.93, 0.94, 0.9))
-	mesh.surface_set_material(0, paint)
-	var inst := MeshInstance3D.new()
-	inst.name = "Crossings"
-	inst.mesh = mesh
-	parent.add_child(inst)
+		geometry[0] = v
+		geometry[1] = n
+		geometry[2] = ind
+	for key: String in chunk_geometry:
+		var chunk_arrays: Array = chunk_geometry[key]
+		var mesh_vertices: PackedVector3Array = chunk_arrays[0]
+		if mesh_vertices.is_empty():
+			continue
+		var arrays: Array = []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = mesh_vertices
+		arrays[Mesh.ARRAY_NORMAL] = chunk_arrays[1]
+		arrays[Mesh.ARRAY_INDEX] = chunk_arrays[2]
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh.surface_set_material(0, StylizedEnvironmentMaterial.make_unshaded(Color(0.93, 0.94, 0.9)))
+		crossings[key] = mesh
 
 
 ## Mapped trees, tree rows, woods and scrub; palms dominate as in the old town.
@@ -250,8 +259,8 @@ static func _add_vegetation(parent: Node3D, index: Dictionary, terrain: IslandTe
 		var h: int = absi(hash(p))
 		var s: float = 0.6 + float(h % 70) * 0.01
 		bush_xf.append(Transform3D(Basis(Vector3.UP, float(h % 628) * 0.01).scaled(Vector3(s, s * 0.7, s)), _ground(terrain, p)))
-	_add_transforms(parent, "Palms", _palm_mesh(mats), palms, false)
-	_add_transforms(parent, "BareTrees", _bare_tree_mesh(mats), broad, false)
+	_add_transforms(parent, "Palms", _palm_mesh(mats), palms)
+	_add_transforms(parent, "BareTrees", _bare_tree_mesh(mats), broad)
 	_add_transforms(parent, "Scrub", _bush_mesh(mats), bush_xf)
 	var trunk := _cyl_shape(0.22, 3.0)
 	_add_bodies(parent, "PalmCollision", trunk, Vector3(0, 1.5, 0), _unscaled(palms))
@@ -461,7 +470,7 @@ static func _add_wires(parent: Node3D, enrichment: Dictionary, terrain: IslandTe
 					var z: Vector3 = to - from
 					var basis := Basis.looking_at(z.normalized(), Vector3.UP).scaled_local(Vector3(1, 1, z.length()))
 					spans.append(Transform3D(basis, (from + to) * 0.5 + shift))
-	_add_transforms(parent, "PowerWires", _compose([[_box(Vector3(0.03, 0.03, 1.0)), Transform3D.IDENTITY, mats["wire"]]]), spans, false)
+	_add_transforms(parent, "PowerWires", _compose([[_box(Vector3(0.03, 0.03, 1.0)), Transform3D.IDENTITY, mats["wire"]]]), spans)
 
 
 ## Mapped storage tanks and water towers as cylinders sized to their outline.
@@ -481,7 +490,7 @@ static func _add_tanks(parent: Node3D, enrichment: Dictionary, terrain: IslandTe
 		var r: float = clampf((hi - lo).length() * 0.35, 2.0, 30.0)
 		var h: float = 30.0 if kind == "water_tower" else clampf(r * 0.8, 4.0, 14.0)
 		tanks.append(Transform3D(Basis.IDENTITY.scaled(Vector3(r, h, r)), _ground(terrain, (lo + hi) * 0.5)))
-	_add_transforms(parent, "StorageTanks", _compose([[_cyl(1.0, 1.0, 16), _at(0, 0.5, 0), mats["tank"]]]), tanks, false)
+	_add_transforms(parent, "StorageTanks", _compose([[_cyl(1.0, 1.0, 16), _at(0, 0.5, 0), mats["tank"]]]), tanks)
 	for xf: Transform3D in tanks:
 		var shape := CylinderShape3D.new()
 		shape.radius = xf.basis.x.length()
@@ -565,26 +574,11 @@ static func _ground(terrain: IslandTerrain, p: Vector2) -> Vector3:
 	return Vector3(p.x, maxf(terrain.get_height(p.x, p.y), 0.0), p.y)
 
 
-static func _multimesh(mesh: Mesh, count: int) -> MultiMesh:
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
-	mm.instance_count = count
-	return mm
-
-
-## Tall silhouettes go in one island-wide instance; small props are filed per chunk.
-static func _add_transforms(parent: Node3D, node_name: String, mesh: Mesh, xfs: Array[Transform3D],
-		streamed: bool = true) -> void:
+## All mapped props are filed into their streamed city chunk.
+static func _add_transforms(_parent: Node3D, node_name: String, mesh: Mesh, xfs: Array[Transform3D]) -> void:
 	if xfs.is_empty():
 		return
-	if streamed:
-		_stream(node_name, mesh, xfs)
-		return
-	var mm := _multimesh(mesh, xfs.size())
-	for i: int in range(xfs.size()):
-		mm.set_instance_transform(i, xfs[i])
-	_add_instance(parent, node_name, mm)
+	_stream(node_name, mesh, xfs)
 
 
 static func _stream(node_name: String, mesh: Mesh, xfs: Array[Transform3D], colors: Array[Color] = []) -> void:
@@ -605,10 +599,15 @@ static func _stream(node_name: String, mesh: Mesh, xfs: Array[Transform3D], colo
 ## Small props of one streamed chunk, or null when it holds none.
 static func build_chunk_visuals(chunk_id: String) -> Node3D:
 	var kinds: Dictionary = visuals.get(chunk_id, {})
-	if kinds.is_empty():
+	if kinds.is_empty() and not crossings.has(chunk_id):
 		return null
 	var holder := Node3D.new()
 	holder.name = "StreetPropsChunk"
+	if crossings.has(chunk_id):
+		var crossing := MeshInstance3D.new()
+		crossing.name = "Crossings"
+		crossing.mesh = crossings[chunk_id]
+		holder.add_child(crossing)
 	for node_name: String in kinds:
 		var entry: Array = kinds[node_name]
 		var xfs: Array = entry[1]

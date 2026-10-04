@@ -5,6 +5,17 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-04 - Restore mapped city props and authored shadow brush (#173)
+
+- File power poles and wires into the existing streamed city chunks, retaining
+  their collision and keeping wire shadows disabled. The temporary global prop
+  builder previously freed both visual layers immediately after indexing.
+- Restore palms, bare trees, storage tanks and terrain-following crossings lost
+  through the same temporary-node path; crossings are now meshed per chunk.
+- Re-enable the configured dry-brush shadow mask by restoring its blend range.
+  The former zero-width clamp silently ignored `stylized_shadow_brush_mix = 1`.
+  Runtime appearance and performance await the author's HD 620 comparison.
+
 ### 2026-10-04 - Restore opt-in console performance capture (#173)
 
 - Restored `World.print_runtime_debug_stats` and once-per-second PerfMeta/PerfJSON

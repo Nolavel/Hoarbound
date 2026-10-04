@@ -1052,6 +1052,7 @@ func _build_airport_chunk(chunk: Dictionary) -> Node3D:
 func _build_global_visual_index() -> void:
 	KeyWestStreetProps.colliders.clear()
 	KeyWestStreetProps.visuals.clear()
+	KeyWestStreetProps.crossings.clear()
 	var props_index: Node3D = KeyWestStreetProps.build(terrain, _enrichment, _roads)
 	props_index.free()
 
