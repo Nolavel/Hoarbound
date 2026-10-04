@@ -187,9 +187,17 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   Henry's moving window adds packed tracks. The local ray-derived lee, scour
   and blurred bed remain for scenes without the baked map. Baked prevailing wind
   fixes settled ridge orientation; current gusts drive weather effects instead.
-  Cover changes rebuild the field even while Henry stands still. The near mesh
-  still samples terrain more finely than the 2 m chunk cover, so an edge may
-  retain a small LOD difference pending a representative runtime capture.
+  Cover changes rebuild the field even while Henry stands still. The local
+  mesh keeps its 3 cm core for prints, then grows to 50 cm spacing at its rim.
+  In the outer 6 m it approaches the same two-triangle interpolation as the
+  static 2 m chunk mesh; a small grid of far-cover vertex inputs is refreshed
+  when that 2 m lattice shifts. This matches the geometry at the square edge
+  while keeping the detailed surface and packed tracks close to Henry.
+  SnowField also prepares a 40 cm settled-normal image row by row under its
+  existing rebuild budget, publishing it with the matching height image.
+  The fragment shader uses those normals in the core and computes the slope
+  directly across the outer transition. Height, normal and far-grid textures
+  update in place when their dimensions are unchanged.
 - **Geometry presses the snow.** Anything on render layer 20 (`CONTACT_LAYER`)
   packs the snow where it is lower than the snow top: Henry's whole mesh, and
   resting `ItemPickup`s, tagged by `tag_contact()`. A print is the real boot

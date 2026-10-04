@@ -18,6 +18,7 @@ const STAGE_BED: int = 4
 const STAGE_WALL: int = 5
 const STAGE_DEPTH: int = 6
 const STAGE_OUTPUT: int = 7
+const STAGE_NORMAL: int = 8
 
 ## Ground height and obstacle flag at a world point, as Vector2(height, 0 or 1).
 var ground_sampler: Callable
@@ -35,6 +36,9 @@ var smooth_m: float = 1.0
 
 ## R: snow top (world y), G: depth, B: 1 where cut away, A: city wind factor.
 var image: Image
+## Optional settled-surface normal map, published with the height image.
+var normal_image: Image
+var build_normal_image: bool = false
 var origin: Vector2 = Vector2(INF, INF)
 
 ## City-scale wind field (R prevailing, G storm depth factor); null outside a city.
@@ -81,6 +85,8 @@ var _job_upwind: Array[Vector2i] = []
 var _job_depth: PackedFloat32Array = []
 var _job_weight: PackedFloat32Array = []
 var _job_px: PackedFloat32Array = []
+var _job_normal_heights: PackedFloat32Array = []
+var _job_normal_px: PackedFloat32Array = []
 var _noise: FastNoiseLite = FastNoiseLite.new()
 var _density_noise: FastNoiseLite = FastNoiseLite.new()
 
@@ -274,6 +280,17 @@ func step_rebuild(budget_usec: int) -> bool:
 				_job_px.resize(res * res * 4)
 			if _job_cursor < res:
 				_output_row(_job_cursor)
+				_job_cursor += 1
+			elif build_normal_image:
+				_next_stage()
+			else:
+				_finish()
+				return true
+		elif _job_stage == STAGE_NORMAL:
+			if _job_cursor == 0:
+				_begin_normal_image()
+			if _job_cursor < (res >> 1):
+				_normal_row(_job_cursor)
 				_job_cursor += 1
 			else:
 				_finish()
@@ -582,10 +599,43 @@ func _output_row(ty: int) -> void:
 		_job_px[o + 3] = lerpf(_prevail[k], _storm[k], _job_storm)
 
 
+func _begin_normal_image() -> void:
+	var half: int = res >> 1
+	var height_image := Image.create_empty(res, res, false, Image.FORMAT_RGBAF)
+	height_image.set_data(res, res, false, Image.FORMAT_RGBAF, _job_px.to_byte_array())
+	height_image.resize(half, half, Image.INTERPOLATE_BILINEAR)
+	_job_normal_heights = height_image.get_data().to_float32_array()
+	_job_normal_px.resize(half * half * 4)
+
+
+## Normal rows share the same rebuild budget as the settled height rows.
+func _normal_row(z: int) -> void:
+	var n: int = res >> 1
+	var lo_z: int = maxi(z - 1, 0)
+	var hi_z: int = mini(z + 1, n - 1)
+	var step_m: float = window_m / float(n)
+	for x: int in range(n):
+		var lo_x: int = maxi(x - 1, 0)
+		var hi_x: int = mini(x + 1, n - 1)
+		var dx: float = (_job_normal_heights[(z * n + hi_x) * 4] - _job_normal_heights[(z * n + lo_x) * 4]) / (float(hi_x - lo_x) * step_m)
+		var dz: float = (_job_normal_heights[(hi_z * n + x) * 4] - _job_normal_heights[(lo_z * n + x) * 4]) / (float(hi_z - lo_z) * step_m)
+		var normal: Vector3 = Vector3(-dx, 1.0, -dz).normalized()
+		var i: int = (z * n + x) * 4
+		_job_normal_px[i] = normal.x * 0.5 + 0.5
+		_job_normal_px[i + 1] = normal.y * 0.5 + 0.5
+		_job_normal_px[i + 2] = normal.z * 0.5 + 0.5
+		_job_normal_px[i + 3] = 1.0
+
+
 func _finish() -> void:
 	if image == null or image.get_width() != res:
 		image = Image.create_empty(res, res, false, Image.FORMAT_RGBAF)
 	image.set_data(res, res, false, Image.FORMAT_RGBAF, _job_px.to_byte_array())
+	if build_normal_image:
+		var half: int = res >> 1
+		if normal_image == null or normal_image.get_width() != half:
+			normal_image = Image.create_empty(half, half, false, Image.FORMAT_RGBAF)
+		normal_image.set_data(half, half, false, Image.FORMAT_RGBAF, _job_normal_px.to_byte_array())
 	origin = _job_origin
 	_job_active = false
 

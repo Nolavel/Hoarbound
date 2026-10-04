@@ -35,7 +35,7 @@ const CONTACT_LAYER: int = RenderLayers.SNOW_CONTACT
 ## Half width of that dense core; spacing grows towards the window edge.
 @export var near_half_m: float = 2.75
 ## Mesh spacing at the window edge, in metres.
-@export var far_spacing_m: float = 0.25
+@export var far_spacing_m: float = 0.5
 ## Texels along one side of the settled field.
 @export_range(32, 256) var field_res: int = 128
 ## Texels along one side of the packed-snow field.
@@ -136,6 +136,13 @@ static var active: SnowShell
 var field: SnowField = SnowField.new()
 
 var _field_tex: ImageTexture
+## Static settled-snow normals are made when the field changes, not recomputed
+## from four height samples for every on-screen snow pixel.
+var _settled_normal_tex: ImageTexture
+## Coarse city-cover vertices around the live window. The edge shader uses their
+## triangle interpolation, so its outside rim sits on the baked 2 m mesh.
+var _far_grid_tex: ImageTexture
+var _far_grid_origin: Vector2 = Vector2(INF, INF)
 var _surface: ShaderMaterial
 var _mesh: MeshInstance3D
 var _contact: SubViewport
@@ -207,6 +214,7 @@ func _ready() -> void:
 		contact_res = MEDIUM_CONTACT_RES
 	field.window_m = window_m
 	field.res = field_res
+	field.build_normal_image = true
 	field.sea_level_m = sea_level_m
 	field.cover_depth_m = cover_depth_m
 	field.drift_m = drift_m
@@ -573,8 +581,10 @@ func _apply_window(old: Vector2, wanted: Vector2, cover: float, wind: Vector2) -
 	RenderingServer.global_shader_parameter_set(&"snow_drift_m", field.drift_amplitude(cover))
 	var settled_wind: Vector2 = field.settled_wind if field.use_baked_baseline else wind
 	RenderingServer.global_shader_parameter_set(&"snow_wind", settled_wind.normalized() if settled_wind.length_squared() > 0.0001 else Vector2(0, -1))
-	_field_tex.set_image(field.image)
+	_field_tex.update(field.image)
+	_refresh_settled_normals()
 	_surface.set_shader_parameter("origin", wanted)
+	_refresh_far_grid(wanted)
 	_mesh.global_position = Vector3(wanted.x + half, 0.0, wanted.y + half)
 	_contact_cam.global_transform = Transform3D(
 		Basis(Vector3.RIGHT, Vector3.BACK, Vector3.DOWN),
@@ -584,6 +594,52 @@ func _apply_window(old: Vector2, wanted: Vector2, cover: float, wind: Vector2) -
 	## Switch the far-cover hole only after the new local texture and mesh are ready.
 	live_window = Vector4(wanted.x, wanted.y, window_m, 1.0)
 	RenderingServer.global_shader_parameter_set(&"snow_window", live_window)
+
+
+func _refresh_settled_normals() -> void:
+	var image: Image = field.normal_image
+	if image == null:
+		_surface.set_shader_parameter("use_settled_normal_field", false)
+		return
+	var n: int = image.get_width()
+	if _settled_normal_tex == null or _settled_normal_tex.get_width() != n:
+		_settled_normal_tex = ImageTexture.create_from_image(image)
+		_surface.set_shader_parameter("settled_normal_field", _settled_normal_tex)
+	else:
+		_settled_normal_tex.update(image)
+	_surface.set_shader_parameter("use_settled_normal_field", true)
+
+
+## The far cover is a 2 m triangle grid, not the bilinear 20 cm SnowField.
+## Store just the nearby vertex heights and both baked wind factors. Its size is
+## independent of the city's 512 m chunks, and rebuilding it needs ~300 samples.
+func _refresh_far_grid(window_origin: Vector2) -> void:
+	if _terrain == null or not field.use_baked_baseline:
+		_surface.set_shader_parameter("use_far_grid", false)
+		_far_grid_origin = Vector2(INF, INF)
+		return
+	var step_m: float = SnowChunkCover.STEP_M
+	var grid_origin := Vector2(floorf(window_origin.x / step_m), floorf(window_origin.y / step_m)) * step_m - Vector2.ONE * step_m
+	if grid_origin == _far_grid_origin:
+		return
+	var n: int = ceili(window_m / step_m) + 4
+	var image := Image.create_empty(n, n, false, Image.FORMAT_RGBAF)
+	for z: int in range(n):
+		for x: int in range(n):
+			var at: Vector2 = grid_origin + Vector2(x, z) * step_m
+			var ground: float = _terrain.get_height(at.x, at.y)
+			var shore: float = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, ground)
+			var wind: Vector2 = field.wind_factors(at)
+			image.set_pixel(x, z, Color(ground, wind.x * shore, wind.y * shore, shore))
+	if _far_grid_tex == null or _far_grid_tex.get_width() != n:
+		_far_grid_tex = ImageTexture.create_from_image(image)
+		_surface.set_shader_parameter("far_grid", _far_grid_tex)
+	else:
+		_far_grid_tex.update(image)
+	_surface.set_shader_parameter("far_grid_origin", grid_origin)
+	_surface.set_shader_parameter("far_grid_step", step_m)
+	_surface.set_shader_parameter("use_far_grid", true)
+	_far_grid_origin = grid_origin
 
 
 func _build_surface() -> void:
@@ -666,7 +722,7 @@ func _graded_grid() -> ArrayMesh:
 	var step: float = near_spacing_m
 	while at < half:
 		if at >= near_half_m:
-			step = minf(step * 1.04, far_spacing_m)
+			step = minf(step * 1.08, far_spacing_m)
 		at = minf(at + step, half)
 		side.append(at)
 	var axis: PackedFloat32Array = []
