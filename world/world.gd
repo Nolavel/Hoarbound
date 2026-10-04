@@ -29,6 +29,7 @@ const WORLD_READY_METHOD: StringName = &"on_world_ready"
 const APPLY_WORLD_PROFILE_METHOD: StringName = &"apply_world_profile"
 
 ## Node systems — .new(), parented to World.
+## DeterministicSnowShell extends res://scripts/systems/world/snow/snow_shell.gd.
 const WORLD_SYSTEM_SCRIPTS: Array[GDScript] = [
 	preload("res://scripts/systems/time/simulation_clock.gd"),
 	preload("res://scripts/systems/actions/time_costed_action_system.gd"),
@@ -36,7 +37,7 @@ const WORLD_SYSTEM_SCRIPTS: Array[GDScript] = [
 	preload("res://scripts/systems/world/weather/snowfall_vfx.gd"),
 	preload("res://scripts/systems/world/snow/snow_presentation_system.gd"),
 	preload("res://scripts/systems/world/snow/footprint_system.gd"),
-	preload("res://scripts/systems/world/snow/snow_shell.gd"),
+	preload("res://scripts/systems/world/snow/deterministic_snow_shell.gd"),
 	preload("res://scripts/systems/save/save_manager.gd"),
 	preload("res://core/world/streaming_system.gd"),
 	preload("res://scripts/systems/survival/thermal_manager.gd"),

@@ -13,6 +13,17 @@ uniform sampler2D contact_tex : filter_nearest, repeat_disable;
 // Settled field: R snow top (world y), G depth, B cut away.
 uniform sampler2D field : filter_linear, repeat_disable;
 uniform float base_y = 0.0;
+// The packed field and contact capture have independent world windows.
+uniform vec2 field_origin = vec2(0.0);
+uniform float field_window_m = 25.6;
+uniform vec2 contact_origin = vec2(0.0);
+uniform float contact_window_m = 6.4;
+// Discrete accepted plants survive until this accumulator pass consumes them.
+// A: centre uv, first row of the inverse footprint basis.
+// B: second inverse-basis row, press depth, active marker.
+uniform int foot_stamp_count = 0;
+uniform vec4 foot_stamp_a[16];
+uniform vec4 foot_stamp_b[16];
 // UV offset applied once when the window moves.
 uniform vec2 shift_uv = vec2(0.0);
 // Share of the packing that fills back in this frame.
@@ -53,10 +64,42 @@ float powder_at(float b) {
 	return smoothstep(0.45, 0.95, b / 0.49);
 }
 
+// Map a packed-field UV through world XZ into the small contact capture.
+// Outside the 6.4 m window there is deliberately no live contact.
+float contact_height(vec2 field_uv) {
+	vec2 world_xz = field_origin + field_uv * field_window_m;
+	vec2 contact_uv = (world_xz - contact_origin) / contact_window_m;
+	if (contact_uv.x < 0.0 || contact_uv.y < 0.0 || contact_uv.x > 1.0 || contact_uv.y > 1.0) {
+		return base_y + 1000.0;
+	}
+	return texture(contact_tex, vec2(contact_uv.x, 1.0 - contact_uv.y)).r + base_y;
+}
+
+// A persistent plant event. Its inverse 2D basis was built from the foot's
+// tangent-plane forward/right vectors, so road slope and camber are preserved.
+float foot_stamp_depth(vec2 uv) {
+	float pressed = 0.0;
+	for (int i = 0; i < 16; i++) {
+		if (i >= foot_stamp_count) {
+			break;
+		}
+		vec4 a = foot_stamp_a[i];
+		vec4 b = foot_stamp_b[i];
+		vec2 d = uv - a.xy;
+		vec2 local = vec2(dot(d, a.zw), dot(d, b.xy));
+		float r2 = dot(local, local);
+		if (r2 <= 1.0 && b.w > 0.5) {
+			float edge = 1.0 - smoothstep(0.82, 1.0, r2);
+			pressed = max(pressed, b.z * edge);
+		}
+	}
+	return pressed;
+}
+
 // True where something on the contact layer holds the snow down at this texel:
 // a wall touching a boot keeps its inside slope (Sumner's inside angle).
 bool held(vec2 uv, vec3 settled) {
-	float contact = texture(contact_tex, vec2(uv.x, 1.0 - uv.y)).r + base_y;
+	float contact = contact_height(uv);
 	return contact < settled.r + 0.02 && contact > settled.r - settled.g - 0.3;
 }
 
@@ -143,25 +186,27 @@ void fragment() {
 	}
 	// B below 0.5 is softness (x0.49): wind crust holds a foot, powder lets it sink.
 	float give = settled.g * max_pack * clamp(settled.b / 0.49, 0.0, 1.0);
-	packed = clamp(packed, -min(rim_max, settled.g + 0.05), give);
 	if (!snow) {
 		packed = 0.0;
-	}
-	// The contact camera looks up, so its image runs +x east and down-screen north.
-	// Four sub-texel taps: a boot edge covers part of a texel and presses part-way,
-	// so print outlines come out smooth instead of stair-stepped.
-	if (snow) {
-		vec2 half_texel = 0.35 / vec2(textureSize(contact_tex, 0));
-		float pressed = 0.0;
+	} else {
+		// Guaranteed discrete plant path. This does not depend on a rendered contact
+		// frame existing at the exact instant the animated boot touched down.
+		packed = max(packed, min(foot_stamp_depth(uv), give));
+		// Continuous body/item/sole capture. The contact camera is local, so its
+		// sub-texel taps are converted back into packed-field UV distance.
+		float contact_texel_m = contact_window_m / float(textureSize(contact_tex, 0).x);
+		vec2 half_texel = vec2(0.35 * contact_texel_m / field_window_m);
+		float live_pressed = 0.0;
 		for (int i = 0; i < 4; i++) {
 			vec2 o = vec2(float(i % 2) * 2.0 - 1.0, float(i / 2) * 2.0 - 1.0) * half_texel;
-			float contact = texture(contact_tex, vec2(uv.x, 1.0 - uv.y) + o).r + base_y;
+			float contact = contact_height(uv + o);
 			float into = settled.r - contact;
 			if (into > 0.0 && contact > settled.r - settled.g - 0.3) {
-				pressed += min(into, give);
+				live_pressed += min(into, give);
 			}
 		}
-		packed = max(packed, pressed * 0.25);
+		packed = max(packed, live_pressed * 0.25);
+		packed = clamp(packed, -min(rim_max, settled.g + 0.05), give);
 	}
 	COLOR = vec4(packed, 0.0, 0.0, 1.0);
 }
