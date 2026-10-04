@@ -64,9 +64,7 @@ func on_world_ready(context: WorldContext) -> void:
 		_city = null
 		return
 	## Only buildings the house itself stands on give way; the lot is chosen empty.
-	var house_outline := PackedVector2Array()
-	for corner: Vector2 in [Vector2(-4.5, -5.5), Vector2(4.5, -5.5), Vector2(4.5, 10.5), Vector2(-4.5, 10.5)]:
-		house_outline.append(SHELTER_XZ + corner.rotated(-deg_to_rad(SHELTER_YAW_DEG)))
+	var house_outline: PackedVector2Array = shelter_snow_outline()
 	_city.exclude_buildings_overlapping(house_outline)
 	_city.register_snow_obstacle(&"first_exit_shelter", house_outline)
 	var streaming := context.get_system(STREAMING_SCRIPT) as StreamingSystem
@@ -80,6 +78,13 @@ func on_world_ready(context: WorldContext) -> void:
 
 func get_bunker_xz() -> Vector2:
 	return BUNKER_XZ
+
+
+static func shelter_snow_outline() -> PackedVector2Array:
+	var outline := PackedVector2Array()
+	for corner: Vector2 in [Vector2(-4.5, -5.5), Vector2(4.5, -5.5), Vector2(4.5, 10.5), Vector2(-4.5, 10.5)]:
+		outline.append(SHELTER_XZ + corner.rotated(-deg_to_rad(SHELTER_YAW_DEG)))
+	return outline
 
 
 func get_shelter_xz() -> Vector2:

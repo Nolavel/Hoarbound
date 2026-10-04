@@ -33,13 +33,13 @@ const CONTACT_LAYER: int = RenderLayers.SNOW_CONTACT
 ## Mesh spacing around Henry, where prints are read up close, in metres.
 @export var near_spacing_m: float = 0.03
 ## Half width of that dense core; spacing grows towards the window edge.
-@export var near_half_m: float = 3.5
+@export var near_half_m: float = 2.75
 ## Mesh spacing at the window edge, in metres.
 @export var far_spacing_m: float = 0.25
 ## Texels along one side of the settled field.
 @export_range(32, 256) var field_res: int = 128
 ## Texels along one side of the packed-snow field.
-@export_range(128, 2048) var packed_res: int = 1024
+@export_range(128, 2048) var packed_res: int = 896
 ## Texels along one side of the contact capture, rendered every frame.
 @export_range(128, 2048) var contact_res: int = 1024
 ## The window moves in steps of this size, so the snow never swims.
@@ -666,7 +666,7 @@ func _graded_grid() -> ArrayMesh:
 	var step: float = near_spacing_m
 	while at < half:
 		if at >= near_half_m:
-			step = minf(step * 1.025, far_spacing_m)
+			step = minf(step * 1.04, far_spacing_m)
 		at = minf(at + step, half)
 		side.append(at)
 	var axis: PackedFloat32Array = []

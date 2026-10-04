@@ -107,13 +107,17 @@ void fragment() {
 				if (n_from.x < 0.0 || n_from.y < 0.0 || n_from.x > 1.0 || n_from.y > 1.0) {
 					continue;
 				}
+				float there = texture(previous, n_from).r;
+				float run = length(dir);
+				// No snow can move across this edge at any softness.
+				if (abs(there - here) <= min(talus_powder, talus_crust) * run) {
+					continue;
+				}
 				vec3 n_settled = texture(field, n_uv).rgb;
 				if (n_settled.b >= 0.5 || held(n_uv, n_settled)) {
 					continue;
 				}
-				float there = texture(previous, n_from).r;
 				float soft = 0.5 * (soft_here + powder_at(n_settled.b));
-				float run = length(dir);
 				float talus = mix(talus_crust, talus_powder, soft) * run;
 				float k_edge = erode_rate / run * mix(1.0, 2.0 * edge_hash(pix * 2.0 + dir, frame_seed), roughness);
 				// Out: this texel stands higher (less packed) and sheds into there.

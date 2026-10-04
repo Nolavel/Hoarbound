@@ -16,10 +16,11 @@ const WALL_SINK_M: float = 0.3
 const PARAPET_M: float = 0.45
 ## Frame time spent building chunk snow while it streams in.
 const SNOW_BUDGET_USEC: int = 4000
-## Chunks this close to Henry's snow window get their snow the same frame.
+## Missing-bake fallback: chunks near Henry's window build in the same frame.
 const SNOW_SYNC_MARGIN_M: float = 256.0
 ## Source footprints are indexed in smaller world cells than rendered city chunks.
 const SNOW_FOOTPRINT_CELL_M: float = 32.0
+const SNOW_BAKE_DIR: String = "res://data/world/key_west/snow_chunk"
 
 var terrain: IslandTerrain
 var data: Dictionary = {}
@@ -49,6 +50,7 @@ var _snow_authored_obstacles: Dictionary = {}
 var _helper_collision_chunks: Dictionary = {}
 ## Chunk snow built a slice per frame, keyed by chunk id.
 var _snow_jobs: Dictionary = {}
+var _baked_snow: Dictionary = {}
 
 var _massing_material: Material
 var _detail_material: Material
@@ -80,6 +82,7 @@ func configure(terrain_node: IslandTerrain, data_path: String, enrichment_path: 
 	_make_materials()
 	_create_chunk_states()
 	_index_snow_footprints()
+	_load_baked_snow_index()
 	_build_global_visual_index()
 	return true
 
@@ -398,8 +401,17 @@ func _near_snow_window(origin: Vector2) -> bool:
 	return window.w < 0.5 or rect.has_point(Vector2(window.x, window.y) + Vector2.ONE * window.z * 0.5)
 
 
-## Cached chunks and those Henry stands near get snow at once; the rest build in slices.
+## Load static geometry at activation; source builds remain a development fallback.
 func _start_snow(cid: String, state: Dictionary) -> void:
+	if _baked_snow.has(cid):
+		var baked_file: String = String(_baked_snow[cid])
+		if baked_file.is_empty():
+			return
+		var baked_mesh: ArrayMesh = ResourceLoader.load(SNOW_BAKE_DIR.path_join(baked_file)) as ArrayMesh
+		if baked_mesh != null:
+			_attach_snow(state, SnowChunkCover.from_baked(baked_mesh))
+			return
+		push_warning("ChunkedCityMassing: missing baked snow for %s; rebuilding from source" % cid)
 	var o: Array = (state["data"] as Dictionary).get("origin", [0, 0])
 	var origin := Vector2(float(o[0]), float(o[1]))
 	if SnowChunkCover.is_cached(origin):
@@ -409,6 +421,22 @@ func _start_snow(cid: String, state: Dictionary) -> void:
 		_attach_snow(state, SnowChunkCover.build(terrain, origin, chunk_size_m, self))
 		return
 	_snow_jobs[cid] = SnowChunkCover.begin(terrain, origin, chunk_size_m, self)
+
+
+func _load_baked_snow_index() -> void:
+	_baked_snow.clear()
+	var path: String = SNOW_BAKE_DIR.path_join("manifest.json")
+	if not FileAccess.file_exists(path):
+		return
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not parsed is Dictionary:
+		return
+	var manifest: Dictionary = parsed as Dictionary
+	if int(manifest.get("version", -1)) != SnowChunkCover.BAKE_VERSION \
+		or not is_equal_approx(float(manifest.get("chunk_size_m", -1.0)), chunk_size_m):
+		push_warning("ChunkedCityMassing: incompatible snow bake; rebuilding from source")
+		return
+	_baked_snow = manifest.get("chunks", {}) as Dictionary
 
 
 func _attach_snow(state: Dictionary, snow: MeshInstance3D) -> void:
