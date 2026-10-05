@@ -1,8 +1,7 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=10 format=3]
 
-[ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_interaction_lab_pose_to_pose.gd" id="1_lab"]
+[ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd" id="1_lab"]
 [ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="2_henry"]
-[ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_target_3d.gd" id="3_target"]
 [ext_resource type="PackedScene" path="res://scenes/game/systems/camera/tps_camera.tscn" id="4_camera"]
 
 [sub_resource type="CapsuleShape3D" id="Capsule_henry"]
@@ -29,30 +28,6 @@ roughness = 0.55
 material = SubResource("Mat_pedestal")
 size = Vector3(0.58, 1.15, 0.2)
 
-[sub_resource type="StandardMaterial3D" id="Mat_body_target"]
-transparency = 1
-albedo_color = Color(0.2, 0.95, 0.48, 0.42)
-emission_enabled = true
-emission = Color(0.1, 0.7, 0.3, 1)
-emission_energy_multiplier = 1.4
-
-[sub_resource type="CylinderMesh" id="Mesh_body_target"]
-material = SubResource("Mat_body_target")
-top_radius = 0.43
-bottom_radius = 0.43
-height = 0.018
-
-[sub_resource type="StandardMaterial3D" id="Mat_hand_target"]
-albedo_color = Color(1, 0.58, 0.12, 1)
-emission_enabled = true
-emission = Color(1, 0.28, 0.02, 1)
-emission_energy_multiplier = 1.8
-
-[sub_resource type="SphereMesh" id="Mesh_hand_target"]
-material = SubResource("Mat_hand_target")
-radius = 0.085
-height = 0.17
-
 [node name="EmbodiedInteractionLab" type="Node3D"]
 
 [node name="Floor" type="StaticBody3D" parent="."]
@@ -68,28 +43,7 @@ position = Vector3(0, 0.575, 0.72)
 visible = false
 mesh = SubResource("Mesh_pedestal")
 
-[node name="Targets" type="Node3D" parent="."]
-visible = false
-
-[node name="BodyTarget" type="Marker3D" parent="Targets"]
-position = Vector3(0, 0, -0.38)
-script = ExtResource("3_target")
-target_id = &"demo_body"
-authoring_note = "Legacy marker only. V6 computes stance/body/hand alignment at runtime."
-
-[node name="Disc" type="MeshInstance3D" parent="Targets/BodyTarget"]
-position = Vector3(0, 0.052, 0)
-mesh = SubResource("Mesh_body_target")
-
-[node name="RightHandTarget" type="Marker3D" parent="Targets"]
-position = Vector3(0.31, 1.08, 0.58)
-script = ExtResource("3_target")
-role = 2
-target_id = &"demo_right_hand"
-authoring_note = "Legacy marker. V6 chooses hand after stance and body alignment from measured shoulder side."
-
-[node name="Sphere" type="MeshInstance3D" parent="Targets/RightHandTarget"]
-mesh = SubResource("Mesh_hand_target")
+[node name="InteractionRig" type="Node3D" parent="."]
 
 [node name="Henry" type="CharacterBody3D" parent="."]
 position = Vector3(-0.55, 0, -1.75)
@@ -129,15 +83,15 @@ layout_mode = 2
 [node name="Title" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "EMBODIED INTERACTION — POSE-TO-POSE PICKUP / IDLE PRESENT / RETURN / HANDOFF"
+text = "EMBODIED INTERACTION — AUTHORED PICKUP / IDLE HOLD / RETURN / HANDOFF"
 
 [node name="Stage" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
-text = "1 / POSE-TO-POSE PICKUP"
+text = "1 / AUTHORED PICKUP"
 
 [node name="Detail" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.82, 0.86, 1)
 theme_override_font_sizes/font_size = 18
-text = "stance / neutral body align / measured hand side / partial authored pose / wrist IK / grip pose"
+text = "measured hand selection / full UAL action / stock TwoBoneIK3D contact correction"

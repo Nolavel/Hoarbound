@@ -14,23 +14,11 @@ Animation and physics present the action. Deterministic gameplay state remains a
 
 - Godot world `+Y` is up.
 - Henry's authored visual forward is `+Z` (the current UAL/Henry contract).
-- `EmbodiedTarget3D.global_transform.origin` is the desired contact/alignment point.
-- For a BODY target, the marker basis represents the desired final body facing.
-- Hand/foot targets are contact hints relative to world geometry; they do not move gameplay state by themselves.
+- The interaction object's world transform supplies the contact point.
+- Body alignment is a collision-checked `CharacterBody3D` stance in front of that object.
+- Hand targets are short-lived IK hints; they do not move gameplay state by themselves.
 
 Do not introduce per-feature axis conventions. A door, ledge, backpack and tool all expose targets using the same transform meaning.
-
-## Target roles
-
-The initial authoring primitive supports:
-
-- `BODY` — final body alignment transform.
-- `LEFT_HAND`, `RIGHT_HAND` — contact/IK hints.
-- `LEFT_FOOT`, `RIGHT_FOOT` — optional grounding/traversal hints.
-- `EXIT` — authored action exit transform.
-- `ITEM_PLACEMENT` — deterministic item-placement anchor/volume seed.
-
-A target is metadata. It must not run an action or move Henry on its own.
 
 ## Character ownership
 
@@ -42,7 +30,7 @@ Initial phases:
 
 `IDLE -> APPROACH -> ALIGN -> ACTION -> RELEASE -> IDLE`
 
-The current prep lab demonstrates the seam only; it is not production traversal and does not replace `MovementController` or `HenryUALAnimation`.
+The current lab drives the production `HenryUALAnimation` action path. It does not replace `MovementController`, inventory ownership, or production item fitting.
 
 ## Skeleton contract
 
@@ -76,17 +64,20 @@ The markers define presentation transforms only. Inventory/container state remai
 - no procedural climbing framework;
 - no runtime mesh fracture;
 - no physical backpack solver;
-- no production IK/warping implementation yet.
+- no custom arm or finger solver;
+- no motion-matching or GASP clone;
+- no semantic success rule based on rendered fingertip pixels.
 
-## Prep proof acceptance
+## Pickup proof acceptance
 
-The isolated lab should visibly demonstrate:
+The isolated lab must visibly and semantically demonstrate:
 
-1. Henry begins outside the BODY target.
-2. BODY and RIGHT_HAND targets are visible independently of Henry.
-3. Henry aligns to the BODY target using a bounded authored transition.
-4. The existing `interact` animation starts only after alignment.
-5. The action ends and control returns to the normal/idle owner.
-6. Skeleton validation reports missing semantic bones instead of silently failing.
+1. Five cylinders at head, chest, waist, knee, and floor context.
+2. Henry chooses left or right from measured live arm reach and target side.
+3. A complete existing UAL action plays through contact and back to idle.
+4. Godot `TwoBoneIK3D` only corrects the selected wrist near contact.
+5. Henry holds each cylinder in idle, then returns the first four to their origins.
+6. The floor cylinder is lifted while Henry rises, then transferred right-to-left.
+7. Skeleton validation and a machine-readable capture report fail loudly on an incomplete sequence.
 
-This proof exists to validate the seam before mantle, backpack, pry-door or thin-ice gameplay is built.
+This proof validates the narrow production path before the same pattern is applied to mantle, backpack, pry-door, or thin-ice gameplay.

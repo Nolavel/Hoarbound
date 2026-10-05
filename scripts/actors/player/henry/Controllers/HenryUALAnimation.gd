@@ -37,7 +37,9 @@ const CARRY_WALK_ALIASES: Array[StringName] = [&"UAL2/Walk_Carry", &"Walk_Carry_
 const LOWER_BODY_BONES: Array[StringName] = [&"root", &"pelvis", &"spine_01", &"thigh_l", &"calf_l",
 	&"foot_l", &"ball_l", &"thigh_r", &"calf_r", &"foot_r", &"ball_r", &"ball_leaf_l", &"ball_leaf_r"]
 ## Full-body actions during which Henry stands still.
-const LOCKING_ACTIONS: Array[StringName] = [&"interact", &"pickup", &"fix", &"chest_open"]
+const LOCKING_ACTIONS: Array[StringName] = [
+	&"interact", &"pickup", &"pickup_right_shelf", &"pickup_right_low", &"fix", &"chest_open",
+]
 ## Walking speed of the authored carry cycle, m/s.
 const CARRY_WALK_SPEED: float = 1.5
 ## Kenny's feet sit this far below his origin; he is lifted by it when set down.
@@ -48,6 +50,10 @@ const PACK_INSPECT_SCRIPT: String = "res://scripts/actors/player/henry/pack/pack
 const ACTION_ALIASES: Dictionary = {
 	&"interact": [&"Interact"],
 	&"pickup": [&"PickUp_Table", &"Pickup_Table"],
+	## Complete UAL actions used by the embodied-interaction proof. These are not
+	## pose samples: AnimationTree owns the full enter/contact/return motion.
+	&"pickup_right_shelf": [&"UAL2/Farm_Watering", &"Farm_Watering"],
+	&"pickup_right_low": [&"UAL2/Farm_Harvest", &"Farm_Harvest"],
 	&"fix": [&"Fixing_Kneeling"],
 	&"consume": [&"Consume", &"UAL2/Consume"],
 	&"chest_open": [&"Chest_Open", &"UAL2/Chest_Open"],
@@ -429,7 +435,7 @@ func _has_carry_state() -> bool:
 	return _resolved_carry_walk != &""
 
 
-func play_action(action: StringName) -> bool:
+func play_action(action: StringName, speed: float = 1.0) -> bool:
 	if animation_tree == null or _action_node == null or _work_pose != WorkPose.NONE:
 		return false
 	var clip_name: StringName = _resolve_action_clip(action)
@@ -440,8 +446,28 @@ func play_action(action: StringName) -> bool:
 		animation.loop_mode = Animation.LOOP_NONE
 	_action_node.animation = clip_name
 	_current_action = action
+	animation_tree.set("parameters/action_pace/scale", maxf(0.05, speed))
 	animation_tree.set("parameters/actions/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 	return true
+
+
+func is_action_active() -> bool:
+	if animation_tree == null:
+		return false
+	return bool(animation_tree.get("parameters/actions/active")) \
+		or int(animation_tree.get("parameters/actions/request")) == AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE
+
+
+func get_action_clip_name(action: StringName) -> StringName:
+	return _resolve_action_clip(action)
+
+
+func get_action_length(action: StringName) -> float:
+	var clip_name: StringName = _resolve_action_clip(action)
+	if clip_name == &"":
+		return 0.0
+	var clip: Animation = animation_player.get_animation(clip_name)
+	return clip.length if clip != null else 0.0
 
 
 func abort_action() -> void:
@@ -1013,9 +1039,11 @@ func _setup_animation_tree() -> void:
 	tree_root.connect_node(&"hold_pose", 0, &"base")
 	tree_root.connect_node(&"hold_pose", 1, &"hold_clip")
 	tree_root.add_node(&"action_clip", _action_node, Vector2(-360.0, 220.0))
+	tree_root.add_node(&"action_pace", AnimationNodeTimeScale.new(), Vector2(-220.0, 220.0))
 	tree_root.add_node(&"actions", actions, Vector2(-80.0, 0.0))
 	tree_root.connect_node(&"actions", 0, &"hold_pose")
-	tree_root.connect_node(&"actions", 1, &"action_clip")
+	tree_root.connect_node(&"action_pace", 0, &"action_clip")
+	tree_root.connect_node(&"actions", 1, &"action_pace")
 	_work_clip = _clip(_resolved_idle)
 	tree_root.add_node(&"work_clip", _work_clip, Vector2(-560.0, 440.0))
 	tree_root.add_node(&"work_seek", AnimationNodeTimeSeek.new(), Vector2(-360.0, 440.0))
@@ -1033,6 +1061,7 @@ func _setup_animation_tree() -> void:
 	add_child(animation_tree)
 	animation_tree.anim_player = animation_tree.get_path_to(animation_player)
 	animation_tree.active = true
+	animation_tree.set("parameters/action_pace/scale", 1.0)
 	animation_tree.set("parameters/work_pace/scale", 0.0)
 	animation_tree.set("parameters/base/Grounded/loco/blend_position", 0.0)
 	animation_tree.set("parameters/base/Crouch/blend_position", 0.0)

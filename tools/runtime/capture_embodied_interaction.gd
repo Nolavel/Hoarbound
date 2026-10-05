@@ -1,13 +1,13 @@
 extends SceneTree
 
-## Captures issue #198's pose-to-pose embodied-interaction lab through the
+## Captures issue #198's production-path embodied-interaction lab through the
 ## production TPS camera. The renderer may run slower than the requested movie
 ## rate on CI, so frame output is time-quantized and ffmpeg preserves duration.
 ##
 ## Semantic proof is intentionally animation/gameplay oriented: a green run means
-## all five cases chose a hand, aligned the body, reached with a bounded arm,
-## committed an authored grip, stood to idle/presented, returned where required,
-## and completed the final handoff. Gaze angle and fingertip CCD are diagnostics.
+## all five cases chose a live feasible arm, played a complete authored action,
+## stood to idle holding the can, returned it where required, and completed the
+## final floor-pick-to-handoff sequence. Stock TwoBoneIK3D is contact correction.
 
 const SCENE: String = "res://scenes/debug/embodied_interaction_lab.tscn"
 const OUT_DIR: String = "res://docs/runtime_previews/embodied_interaction"
@@ -27,10 +27,13 @@ var _capturing: bool = false
 var _hero_saved: bool = false
 var _saved_pickup_cases: Dictionary = {}
 var _handoff_saved: bool = false
+var _headless: bool = false
 
 
 func _initialize() -> void:
-	Engine.max_fps = CAPTURE_FPS
+	_headless = DisplayServer.get_name() == "headless"
+	Engine.max_fps = 0 if _headless else CAPTURE_FPS
+	Engine.time_scale = 8.0 if _headless else 1.0
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(FRAME_DIR))
 	_scene = (load(SCENE) as PackedScene).instantiate()
 	root.add_child(_scene)
@@ -73,10 +76,11 @@ func _capture_time_quantized(delta: float) -> void:
 	if copies <= 0:
 		return
 	_frame_credit -= float(copies)
-	var image: Image = root.get_texture().get_image()
+	var image := _viewport_image()
 	for _copy: int in range(copies):
-		image.save_png("%s/frame_%04d.png" % [FRAME_DIR, _frame_index])
-		_frame_index += 1
+		if image != null:
+			image.save_png("%s/frame_%04d.png" % [FRAME_DIR, _frame_index])
+			_frame_index += 1
 
 
 func _capture_pickup_keyframe() -> void:
@@ -86,9 +90,10 @@ func _capture_pickup_keyframe() -> void:
 	if case_index < 0 or _saved_pickup_cases.has(case_index):
 		return
 	_saved_pickup_cases[case_index] = true
-	var image: Image = root.get_texture().get_image()
-	image.save_png("%s/pickup_case_%02d.png" % [OUT_DIR, case_index + 1])
-	if not _hero_saved:
+	var image := _viewport_image()
+	if image != null:
+		image.save_png("%s/pickup_case_%02d.png" % [OUT_DIR, case_index + 1])
+	if not _hero_saved and image != null:
 		image.save_png(OUT_DIR + "/alignment_action.png")
 		_hero_saved = true
 
@@ -97,7 +102,15 @@ func _capture_handoff_keyframe() -> void:
 	if _actor == null or _handoff_saved or _actor.get_handoff_phase() != "CONTACT":
 		return
 	_handoff_saved = true
-	root.get_texture().get_image().save_png(OUT_DIR + "/handoff_contact.png")
+	var image := _viewport_image()
+	if image != null:
+		image.save_png(OUT_DIR + "/handoff_contact.png")
+
+
+func _viewport_image() -> Image:
+	if _headless or root.get_texture() == null:
+		return null
+	return root.get_texture().get_image()
 
 
 func _write_report() -> Dictionary:
