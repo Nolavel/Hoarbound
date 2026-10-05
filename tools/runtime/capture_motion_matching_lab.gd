@@ -91,9 +91,9 @@ func _run_phase1_capture() -> void:
 			await process_frame
 			await RenderingServer.frame_post_draw
 			var save_keyframe := local_frame == frame_count / 2
-			await _capture_frame(String(segment["label"]), segment_index, save_keyframe)
+			await _capture_frame(str(segment["label"]), segment_index, save_keyframe)
 		_report_segments.append({
-			"label": String(segment["label"]),
+			"label": str(segment["label"]),
 			"input": [input_vector.x, input_vector.y],
 			"snapshot": _henry.get_debug_snapshot(),
 		})
@@ -234,24 +234,29 @@ func _run_cmu_matcher_probe(cmu_lab: CMUUALRetargetLab, database: MotionDatabase
 		if best_match.is_empty():
 			push_error("CMURetargetCapture: brute-force matcher returned no frame.")
 			return false
-		best_match["query_label"] = String(command["label"])
+		best_match["query_label"] = str(command["label"])
 		best_match["desired_local_velocity"] = [desired_velocity.x, desired_velocity.y]
 		matches.append(best_match)
-		unique_samples[String(best_match["sample_index"])] = true
-		print("[MOTION_MATCH] %-13s -> %s @ %.3fs sample=%d total=%.3f pose=%.3f traj=%.3f" % [
-			String(command["label"]),
-			String(best_match["clip"]),
+		unique_samples[str(best_match["sample_index"])] = true
+		print("[MOTION_MATCH] %-13s -> %s @ %.3fs sample=%d total=%.3f pose=%.3f velocity=%.3f traj=%.3f facing=%.3f" % [
+			str(command["label"]),
+			str(best_match["clip"]),
 			float(best_match["time"]),
 			int(best_match["sample_index"]),
 			float(best_match["total_cost"]),
 			float(best_match["pose_cost"]),
+			float(best_match["velocity_cost"]),
 			float(best_match["trajectory_cost"]),
+			float(best_match["facing_cost"]),
 		])
 
 	_matcher_probe_report = {
 		"query_source": "live Henry UAL skeleton + current CMU motion + desired future trajectory",
 		"probe_time": probe_time,
 		"command_speed_mps": command_speed,
+		"current_root_velocity": [root_velocity.x, root_velocity.y, root_velocity.z],
+		"current_root_angular_velocity": root_angular_velocity,
+		"current_facing": [current_facing.x, current_facing.y],
 		"query_feature_count": database.feature_count,
 		"search": "brute_force_all_frames",
 		"searched_samples_per_query": database.get_sample_count(),
