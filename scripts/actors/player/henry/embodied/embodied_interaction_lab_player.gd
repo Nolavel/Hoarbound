@@ -2,27 +2,18 @@ extends "res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd"
 
 ## Player-facing policy for the embodied interaction lab.
 ##
-## The production InteractComponent is the authority for whether F accepted a
-## focused can. Reach/facing/path measurements remain visible diagnostics and
-## capture metadata; they must not become a second hidden veto after F.
-##
-## Once a can is held, the lab owns a small explicit held-state:
-## - RMB transfers it between hands;
-## - G returns it to the authored home position;
-## - F cannot pick a second lab can while one is already held.
-##
-## Authored pickup clips are intentionally trimmed at physical contact. Their
-## post-contact recovery is useful for a one-shot pickup-to-inventory action,
-## but wrong for this proof: the can is already in Henry's hand and must blend
-## directly into the persistent held state instead of floating through the
-## remainder of the source animation.
+## Production InteractComponent owns F acceptance. The lab owns only the
+## presentation: authored standing pickup, crouch-preserving low reach,
+## persistent held state, hand transfer and return.
 
 const CONTACT_TO_HELD_SECONDS: float = 0.22
+const LOW_CROUCH_REACH_SECONDS: float = 0.34
 const LOW_TARGET_FOCUS_CONE_DEG: float = 28.0
 const KNEE_FOCUS_RADIUS_M: float = 0.15
 const FLOOR_FOCUS_RADIUS_M: float = 0.18
 
 var _handoff_requested: bool = false
+var _low_reach_start: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
@@ -50,7 +41,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
 	if _item_attached and _stage == Stage.MANUAL:
-		_set_hand_ik(_active_hand, _held_target(_active_hand), 0.68)
+		## Persistent held state must not keep TwoBoneIK alive. The prop is already
+		## on hand_l/hand_r, so the normal idle/crouch animation owns wrist rotation.
+		_disable_all_ik()
 		if _pickup_phase == &"HELD":
 			_manual_prompt = _held_prompt()
 			_update_labels()
@@ -93,13 +86,46 @@ func _begin_pickup_case(index: int) -> void:
 		"pre_facing": facing,
 		"pre_wrist_path_clear": clear_path,
 		"pre_measured_reach": bool(chosen.get("feasible", false)),
+		"crouch_preserved": is_crouching() and _is_low_case(index),
 	}
-	print("[EmbodiedReadyPath] case=%s hand=%s action=%s facing=%s wrist_path=%s candidates=%s" % [
+	print("[EmbodiedReadyPath] case=%s hand=%s action=%s facing=%s wrist_path=%s crouch=%s candidates=%s" % [
 		case_data["name"], String(_active_hand), String(_active_action), facing, clear_path,
-		JSON.stringify(_candidate_report)])
+		is_crouching(), JSON.stringify(_candidate_report)])
+
+	if is_crouching() and _is_low_case(index):
+		_low_reach_start = _bone_world(&"hand_l" if _active_hand == &"LEFT" else &"hand_r")
+		_pickup_phase = &"CROUCH_PICK"
+		_phase_time = 0.0
+		velocity = Vector3.ZERO
+		return
 	_start_action(&"PICK_ACTION")
 
 
+func _update_pickup(delta: float) -> void:
+	match _pickup_phase:
+		&"CROUCH_PICK":
+			_update_crouch_pick(delta)
+		&"CROUCH_RETURN":
+			_update_crouch_return(delta)
+		_:
+			super._update_pickup(delta)
+
+
+func _update_crouch_pick(delta: float) -> void:
+	_phase_time += delta
+	var t := smoothstep(0.0, LOW_CROUCH_REACH_SECONDS, _phase_time)
+	_set_hand_ik(_active_hand, _low_reach_start.lerp(_active_contact_position(), t), t * 0.92)
+	if t < 1.0:
+		return
+	_attach_item(_active_hand)
+	_item_attached = true
+	_record_pickup_result()
+	_pickup_phase = &"IDLE_PRESENT"
+	_phase_time = 0.0
+
+
+## Standing authored actions are cut at physical contact. Their recovery tails
+## are wrong once the prop has already moved onto the hand socket.
 func _update_pick_action(delta: float) -> void:
 	_action_time += delta
 	var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
@@ -126,6 +152,7 @@ func _update_idle_present() -> void:
 	var cycle: Dictionary = _cycle_results[String(case_data["name"])]
 	cycle["stood_to_idle"] = true
 	cycle["idle_presented"] = true
+	_disable_all_ik()
 	_stage = Stage.MANUAL
 	_pickup_phase = &"HELD"
 	_phase_time = 0.0
@@ -198,7 +225,29 @@ func _start_return_from_held() -> void:
 	_disable_all_ik()
 	_stage = Stage.PICKUP
 	_manual_prompt = ""
+	if is_crouching() and _is_low_case(_pickup_case_index):
+		_low_reach_start = _bone_world(&"hand_l" if _active_hand == &"LEFT" else &"hand_r")
+		_pickup_phase = &"CROUCH_RETURN"
+		_phase_time = 0.0
+		return
 	_start_action(&"RETURN_ACTION")
+
+
+func _update_crouch_return(delta: float) -> void:
+	_phase_time += delta
+	var t := smoothstep(0.0, LOW_CROUCH_REACH_SECONDS, _phase_time)
+	_set_hand_ik(_active_hand, _low_reach_start.lerp(_active_contact_position(), t), t * 0.92)
+	if t < 1.0:
+		return
+	_restore_active_item()
+	_return_released = true
+	var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
+	var cycle: Dictionary = _cycle_results[String(case_data["name"])]
+	cycle["returned"] = true
+	cycle["released"] = true
+	_disable_all_ik()
+	_pickup_phase = &"SETTLE"
+	_phase_time = 0.0
 
 
 func _update_return_action(delta: float) -> void:
@@ -268,7 +317,6 @@ func _refresh_manual_diagnostics() -> void:
 	if index < 0 or index >= _items.size() or not lab_target.available:
 		_manual_prompt = "crosshair target: unavailable"
 		return
-
 	var case_data: Dictionary = PICKUP_CASES[index]
 	var contact := _contact_for(index)
 	var hand := _select_hand(contact)
@@ -291,6 +339,10 @@ func _refresh_manual_diagnostics() -> void:
 func _contact_for(index: int) -> Vector3:
 	var case_data: Dictionary = PICKUP_CASES[index]
 	return interaction_rig.to_global(_item_home[index].origin + Vector3.UP * float(case_data.get("grip_y", 0.0)))
+
+
+func _is_low_case(index: int) -> bool:
+	return index >= 3
 
 
 func _configure_low_target_focus() -> void:
