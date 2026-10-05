@@ -253,7 +253,7 @@ func _update_handoff(delta: float) -> void:
 	var source_side := 0.07 if _handoff_source_hand == &"LEFT" else -0.07
 	var transfer := global_position + Vector3(source_side, 1.24, 0.36)
 	_set_hand_ik(_handoff_source_hand, transfer, minf(1.0, _phase_time / 0.45) * 0.82)
-	if _phase_time >= 0.48:
+	if _phase_time >= 0.48 and _handoff_result.is_empty():
 		_handoff_phase = &"RECEIVER_REACH"
 		_set_hand_ik(_handoff_receiver_hand, _active_item.global_position, smoothstep(0.48, 0.98, _phase_time) * 0.90)
 	if _phase_time >= HANDOFF_CONTACT_SECONDS and _handoff_result.is_empty():
