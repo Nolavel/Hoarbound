@@ -1,0 +1,97 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd" id="1_lab"]
+[ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="2_henry"]
+[ext_resource type="PackedScene" path="res://scenes/game/systems/camera/tps_camera.tscn" id="4_camera"]
+
+[sub_resource type="CapsuleShape3D" id="Capsule_henry"]
+radius = 0.35
+height = 2.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.12, 0.14, 0.16, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="Mesh_floor"]
+material = SubResource("Mat_floor")
+size = Vector3(6, 0.08, 6)
+
+[sub_resource type="BoxShape3D" id="Shape_floor"]
+size = Vector3(6, 0.08, 6)
+
+[sub_resource type="StandardMaterial3D" id="Mat_pedestal"]
+albedo_color = Color(0.28, 0.3, 0.32, 1)
+metallic = 0.15
+roughness = 0.55
+
+[sub_resource type="BoxMesh" id="Mesh_pedestal"]
+material = SubResource("Mat_pedestal")
+size = Vector3(0.58, 1.15, 0.2)
+
+[node name="EmbodiedInteractionLab" type="Node3D"]
+
+[node name="Floor" type="StaticBody3D" parent="."]
+
+[node name="Mesh" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("Mesh_floor")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
+shape = SubResource("Shape_floor")
+
+[node name="InteractionPedestal" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.575, 0.72)
+visible = false
+mesh = SubResource("Mesh_pedestal")
+
+[node name="InteractionRig" type="Node3D" parent="."]
+
+[node name="Henry" type="CharacterBody3D" parent="."]
+position = Vector3(-0.55, 0, -1.75)
+rotation = Vector3(0, 0.24, 0)
+script = ExtResource("1_lab")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Henry"]
+position = Vector3(0, 1.0, 0)
+shape = SubResource("Capsule_henry")
+
+[node name="HenryUALVisual" parent="Henry" instance=ExtResource("2_henry")]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-48, -28, 0)
+light_energy = 1.35
+shadow_enabled = true
+
+[node name="PlayerCamera" parent="." node_paths=PackedStringArray("player") instance=ExtResource("4_camera")]
+player = NodePath("../Henry")
+auto_recenter = false
+whisker_max_deg = 0.0
+assist_max_yaw_deg = 0.0
+assist_max_pitch_deg = 0.0
+breathing_amplitude_deg = 0.0
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+
+[node name="Margin" type="MarginContainer" parent="UILayer"]
+offset_left = 36.0
+offset_top = 32.0
+offset_right = 1260.0
+offset_bottom = 180.0
+
+[node name="VBox" type="VBoxContainer" parent="UILayer/Margin"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="UILayer/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "EMBODIED INTERACTION — AUTHORED PICKUP / IDLE HOLD / RETURN / HANDOFF"
+
+[node name="Stage" type="Label" parent="UILayer/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "1 / AUTHORED PICKUP"
+
+[node name="Detail" type="Label" parent="UILayer/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.82, 0.86, 1)
+theme_override_font_sizes/font_size = 18
+text = "measured hand selection / full UAL action / stock TwoBoneIK3D contact correction"
