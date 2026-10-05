@@ -3,6 +3,8 @@ extends RefCounted
 
 ## Builds the same 33-feature schema used by MotionDatabaseBaker, but from the
 ## live canonical Henry/UAL skeleton plus current motion and desired trajectory.
+## Desired trajectory and desired facing are intentionally independent: a
+## sideways/backward locomotion request must not implicitly rotate the body.
 
 const FUTURE_HORIZONS := [0.2, 0.5, 0.8]
 
@@ -29,7 +31,8 @@ func build_query(
 		root_velocity_world: Vector3,
 		root_angular_velocity: float,
 		current_facing_world: Vector2,
-		desired_local_velocity: Vector2
+		desired_local_velocity: Vector2,
+		desired_local_facing: Vector2 = Vector2(0.0, 1.0)
 	) -> PackedFloat32Array:
 	var values := PackedFloat32Array()
 	if previous_pose.is_empty() or current_pose.is_empty() or delta <= 0.000001:
@@ -59,9 +62,7 @@ func build_query(
 		values.append(desired_local_velocity.x * float(horizon))
 		values.append(desired_local_velocity.y * float(horizon))
 
-	var desired_facing := Vector2(0.0, 1.0)
-	if desired_local_velocity.length_squared() > 0.000001:
-		desired_facing = desired_local_velocity.normalized()
+	var desired_facing := _safe_local_facing(desired_local_facing)
 	for _horizon in FUTURE_HORIZONS:
 		values.append(desired_facing.x)
 		values.append(desired_facing.y)
@@ -72,6 +73,14 @@ func build_query(
 func _safe_facing(facing: Vector2) -> Vector2:
 	if facing.length_squared() <= 0.000001:
 		return Vector2(0.0, -1.0)
+	return facing.normalized()
+
+
+func _safe_local_facing(facing: Vector2) -> Vector2:
+	# MotionDatabaseBaker stores facing relative to the current heading, where
+	# unchanged body heading is local +Z = (0, +1).
+	if facing.length_squared() <= 0.000001:
+		return Vector2(0.0, 1.0)
 	return facing.normalized()
 
 
