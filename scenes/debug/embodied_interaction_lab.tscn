@@ -26,7 +26,7 @@ roughness = 0.55
 
 [sub_resource type="BoxMesh" id="Mesh_pedestal"]
 material = SubResource("Mat_pedestal")
-size = Vector3(0.8, 1.35, 0.3)
+size = Vector3(0.58, 1.15, 0.2)
 
 [sub_resource type="StandardMaterial3D" id="Mat_body_target"]
 transparency = 1
@@ -63,7 +63,7 @@ mesh = SubResource("Mesh_floor")
 shape = SubResource("Shape_floor")
 
 [node name="InteractionPedestal" type="MeshInstance3D" parent="."]
-position = Vector3(0, 0.675, 0.72)
+position = Vector3(0, 0.575, 0.72)
 mesh = SubResource("Mesh_pedestal")
 
 [node name="Targets" type="Node3D" parent="."]
@@ -77,15 +77,8 @@ authoring_note = "Desired body alignment in front of the interaction surface."
 [node name="Disc" type="MeshInstance3D" parent="Targets/BodyTarget"]
 mesh = SubResource("Mesh_body_target")
 
-[node name="Label3D" type="Label3D" parent="Targets/BodyTarget"]
-position = Vector3(0, 0.08, 0)
-text = "BODY TARGET"
-font_size = 24
-outline_size = 6
-modulate = Color(0.45, 1, 0.65, 1)
-
 [node name="RightHandTarget" type="Marker3D" parent="Targets"]
-position = Vector3(0.31, 1.13, 0.55)
+position = Vector3(0.31, 1.08, 0.58)
 script = ExtResource("3_target")
 role = 2
 target_id = &"demo_right_hand"
@@ -93,13 +86,6 @@ authoring_note = "Future hand/IK contact hint. The prep proof only visualizes it
 
 [node name="Sphere" type="MeshInstance3D" parent="Targets/RightHandTarget"]
 mesh = SubResource("Mesh_hand_target")
-
-[node name="Label3D" type="Label3D" parent="Targets/RightHandTarget"]
-position = Vector3(0, 0.17, 0)
-text = "RIGHT HAND TARGET"
-font_size = 18
-outline_size = 5
-modulate = Color(1, 0.72, 0.32, 1)
 
 [node name="Henry" type="CharacterBody3D" parent="."]
 position = Vector3(-0.55, 0, -1.75)
@@ -118,8 +104,8 @@ light_energy = 1.35
 shadow_enabled = true
 
 [node name="Camera3D" type="Camera3D" parent="."]
-position = Vector3(3.15, 2.15, 4.3)
-fov = 48.0
+position = Vector3(2.45, 1.72, -3.25)
+fov = 39.0
 current = true
 
 [node name="UILayer" type="CanvasLayer" parent="."]
@@ -127,7 +113,7 @@ current = true
 [node name="Margin" type="MarginContainer" parent="UILayer"]
 offset_left = 36.0
 offset_top = 32.0
-offset_right = 1060.0
+offset_right = 1110.0
 offset_bottom = 180.0
 
 [node name="VBox" type="VBoxContainer" parent="UILayer/Margin"]
@@ -147,4 +133,4 @@ text = "1 / IDLE"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.82, 0.86, 1)
 theme_override_font_sizes/font_size = 18
-text = "green ring = BODY TARGET   amber sphere = RIGHT HAND TARGET"
+text = "green disc = BODY TARGET   amber sphere = RIGHT HAND TARGET"
