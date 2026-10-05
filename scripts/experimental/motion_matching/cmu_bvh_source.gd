@@ -62,20 +62,25 @@ func load_bvh(path: String) -> bool:
 func seek_seconds(seconds: float) -> void:
 	if not setup_ok or motion_frame_count <= 0:
 		return
-	var motion_index := 0
-	if frame_time > 0.0:
-		motion_index = clampi(int(floor(maxf(seconds, 0.0) / frame_time)), 0, motion_frame_count - 1)
-	_apply_frame(motion_index + 1)
+	_apply_frame(_motion_frame_index(seconds) + 1)
 
 
 func get_raw_root_position(seconds: float) -> Vector3:
 	if frame_count < 2:
 		return Vector3.ZERO
-	var motion_index := 0
-	if frame_time > 0.0:
-		motion_index = clampi(int(floor(maxf(seconds, 0.0) / frame_time)), 0, motion_frame_count - 1)
-	var local := _frame_local_transform(motion_index + 1, 0).origin
+	var local := _frame_local_transform(_motion_frame_index(seconds) + 1, 0).origin
 	return local - _first_motion_root_local
+
+
+func get_raw_root_facing(seconds: float) -> Vector3:
+	if frame_count < 2:
+		return Vector3.FORWARD
+	var basis := _frame_local_transform(_motion_frame_index(seconds) + 1, 0).basis
+	var facing := basis * Vector3.FORWARD
+	facing.y = 0.0
+	if facing.length_squared() <= 0.000001:
+		return Vector3.FORWARD
+	return facing.normalized()
 
 
 func get_report() -> Dictionary:
@@ -91,7 +96,14 @@ func get_report() -> Dictionary:
 		"synthetic_tpose_frames_skipped": 1,
 		"source_bone_pose_space": "absolute_local",
 		"root_playback": "in_place_xz",
+		"root_facing_axis": "Godot -Z from raw BVH root basis",
 	}
+
+
+func _motion_frame_index(seconds: float) -> int:
+	if frame_time <= 0.0 or motion_frame_count <= 0:
+		return 0
+	return clampi(int(floor(maxf(seconds, 0.0) / frame_time)), 0, motion_frame_count - 1)
 
 
 func _parse_hierarchy(hierarchy_text: String) -> bool:

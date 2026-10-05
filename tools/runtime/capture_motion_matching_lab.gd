@@ -1,8 +1,8 @@
 extends SceneTree
 
 ## Deterministic Phase 1 capture for issue #201. When CI-only motion sources are
-## present, the same harness switches to isolated issue #202 retarget spikes
-## instead of creating extra workflows.
+## present, the same harness switches to isolated issue #202 retarget/database
+## spikes instead of creating extra workflows.
 
 const SCENE_PATH := "res://tests/motion_matching/motion_matching_lab.tscn"
 const ROKOKO_SCENE_PATH := "res://tests/motion_matching/rokoko_ual_retarget_lab.tscn"
@@ -16,6 +16,7 @@ const CAPTURE_HEIGHT := 720
 const PHYSICS_STEPS_PER_FRAME := 2
 const ROKOKO_VIDEO_FRAMES := 150
 const CMU_VIDEO_FRAMES := 240
+const MOTION_DATABASE_RATE_HZ := 30.0
 
 const SEQUENCE: Array[Dictionary] = [
 	{"label": "idle", "input": Vector2.ZERO, "frames": 18},
@@ -130,6 +131,20 @@ func _run_rokoko_capture() -> void:
 func _run_cmu_capture() -> void:
 	if not await _prepare_retarget_scene(CMU_SCENE_PATH, "CMURetargetCapture", 20):
 		return
+
+	var cmu_lab := _scene as CMUUALRetargetLab
+	if cmu_lab == null:
+		push_error("CMURetargetCapture: scene is not CMUUALRetargetLab.")
+		quit(23)
+		return
+	var database: MotionDatabase = await cmu_lab.bake_motion_database(MOTION_DATABASE_RATE_HZ)
+	if database == null or not database.is_consistent():
+		push_error("CMURetargetCapture: MotionDatabase bake failed.")
+		quit(24)
+		return
+	print("[MOTION_DATABASE_BAKE] %d real samples × %d features @ %.1f Hz" % [
+		database.get_sample_count(), database.feature_count, database.sample_rate_hz
+	])
 
 	var key_indices := {0: 0, 60: 1, 120: 2, 180: 3, 239: 4}
 	for frame in range(CMU_VIDEO_FRAMES):

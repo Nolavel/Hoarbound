@@ -58,6 +58,7 @@ var _source: CMUBVHSource
 var _target_skeleton: Skeleton3D
 var _proxy_skeleton: Skeleton3D
 var _retarget_modifier: RetargetModifier3D
+var _motion_database: MotionDatabase
 var _setup_ok := false
 var _mapped_count := 0
 var _mapping: Dictionary = {}
@@ -127,6 +128,28 @@ func is_ready_for_capture() -> bool:
 
 func get_clip_length() -> float:
 	return 0.0 if _source == null else _source.clip_length
+
+
+func bake_motion_database(sample_rate_hz: float = 30.0) -> MotionDatabase:
+	if not _setup_ok or _source == null or _target_skeleton == null:
+		return null
+	var baker := MotionDatabaseBaker.new()
+	var database: MotionDatabase = await baker.bake_seekable_skeleton(
+		_target_skeleton,
+		&"CMU_41_02",
+		_source.clip_length,
+		Callable(self, "seek_capture_time"),
+		Callable(_source, "get_raw_root_position"),
+		Callable(_source, "get_raw_root_facing"),
+		sample_rate_hz
+	)
+	if database == null or not database.is_consistent():
+		push_error("CMUUALRetargetLab: MotionDatabase bake failed.")
+		return null
+	_motion_database = database
+	_report["motion_database_baker"] = "post_retarget_ual_exact_time"
+	_report["motion_database"] = _motion_database.get_report()
+	return _motion_database
 
 
 func seek_capture_time(seconds: float) -> void:
