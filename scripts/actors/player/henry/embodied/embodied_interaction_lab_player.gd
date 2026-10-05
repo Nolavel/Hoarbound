@@ -10,8 +10,29 @@ extends "res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd"
 ## - RMB transfers it between hands;
 ## - G returns it to the authored home position;
 ## - F cannot pick a second lab can while one is already held.
+##
+## Authored pickup clips are intentionally trimmed at physical contact. Their
+## post-contact recovery is useful for a one-shot pickup-to-inventory action,
+## but wrong for this proof: the can is already in Henry's hand and must blend
+## directly into the persistent held state instead of floating through the
+## remainder of the source animation.
+
+const CONTACT_TO_HELD_SECONDS: float = 0.22
+const LOW_TARGET_FOCUS_CONE_DEG: float = 28.0
+const KNEE_FOCUS_RADIUS_M: float = 0.15
+const FLOOR_FOCUS_RADIUS_M: float = 0.18
 
 var _handoff_requested: bool = false
+
+
+func _ready() -> void:
+	super._ready()
+	var interact := get_node_or_null(^"InteractComponent") as InteractComponent
+	if interact != null:
+		## Lab-only forgiveness: from a normal standing TPS frame the knee/floor
+		## cans must be selectable without first crouching just to expose them.
+		interact.focus_angle_deg = maxf(interact.focus_angle_deg, LOW_TARGET_FOCUS_CONE_DEG)
+	_configure_low_target_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -83,11 +104,32 @@ func _begin_pickup_case(index: int) -> void:
 	_start_action(&"PICK_ACTION")
 
 
-## The item no longer auto-returns after the presentation beat. It becomes a
-## persistent held object so hand transfer and return can be inspected manually.
+## Contact is the semantic end of the pickup action. The source clip may contain
+## a return/recovery section, but allowing that section to keep playing after the
+## prop has been socketed makes the can visibly wander in space.
+func _update_pick_action(delta: float) -> void:
+	_action_time += delta
+	var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
+	var contact_time := float(case_data["contact"]) / float(case_data["speed"])
+	var contact_weight := smoothstep(contact_time - 0.28, contact_time, _action_time)
+	_set_hand_ik(_active_hand, _active_contact_position(), contact_weight)
+	if _item_attached or _action_time < contact_time:
+		return
+	_attach_item(_active_hand)
+	_item_attached = true
+	_record_pickup_result()
+	visual.abort_action()
+	_pickup_phase = &"IDLE_PRESENT"
+	_phase_time = 0.0
+
+
+## Blend the contacted wrist to the persistent held pose over a short bridge.
+## This replaces both the old full clip tail and the old 0.85 s floating beat.
 func _update_idle_present() -> void:
-	_set_hand_ik(_active_hand, _held_target(_active_hand), 0.68)
-	if _phase_time < IDLE_HOLD_SECONDS:
+	var blend := smoothstep(0.0, CONTACT_TO_HELD_SECONDS, _phase_time)
+	var target := _active_contact_position().lerp(_held_target(_active_hand), blend)
+	_set_hand_ik(_active_hand, target, lerpf(0.92, 0.68, blend))
+	if _phase_time < CONTACT_TO_HELD_SECONDS:
 		return
 	var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
 	var cycle: Dictionary = _cycle_results[String(case_data["name"])]
@@ -164,6 +206,9 @@ func _attach_item(hand: StringName) -> void:
 		visual.hold_in_offhand(_active_item)
 
 
+## Return reuses only the approach-to-contact half of the same authored action.
+## At contact the prop is restored and the remaining recovery section is cut,
+## so low items produce one bend/crouch instead of crouch -> stand -> crouch.
 func _start_return_from_held() -> void:
 	if not _item_attached or _pickup_case_index < 0 or _pickup_case_index >= PICKUP_CASES.size():
 		return
@@ -174,6 +219,25 @@ func _start_return_from_held() -> void:
 	_stage = Stage.PICKUP
 	_manual_prompt = ""
 	_start_action(&"RETURN_ACTION")
+
+
+func _update_return_action(delta: float) -> void:
+	_action_time += delta
+	var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
+	var contact_time := float(case_data["contact"]) / float(case_data["speed"])
+	var contact_weight := smoothstep(contact_time - 0.28, contact_time, _action_time)
+	_set_hand_ik(_active_hand, _active_contact_position(), contact_weight)
+	if _return_released or _action_time < contact_time:
+		return
+	_restore_active_item()
+	_return_released = true
+	var cycle: Dictionary = _cycle_results[String(case_data["name"])]
+	cycle["returned"] = true
+	cycle["released"] = true
+	visual.abort_action()
+	_disable_all_ik()
+	_pickup_phase = &"SETTLE"
+	_phase_time = 0.0
 
 
 func _held_prompt() -> String:
@@ -252,3 +316,28 @@ func _refresh_manual_diagnostics() -> void:
 func _contact_for(index: int) -> Vector3:
 	var case_data: Dictionary = PICKUP_CASES[index]
 	return interaction_rig.to_global(_item_home[index].origin + Vector3.UP * float(case_data.get("grip_y", 0.0)))
+
+
+func _configure_low_target_focus() -> void:
+	## These proxies are intentionally only for the two low cases. They sit on
+	## the visible front/top of the can so a standing over-the-shoulder camera can
+	## acquire it without requiring a crouch just to move Henry's silhouette.
+	for index: int in [3, 4]:
+		if index < 0 or index >= _targets.size():
+			continue
+		var target := _targets[index]
+		var case_data: Dictionary = PICKUP_CASES[index]
+		var marker := Marker3D.new()
+		marker.name = "StandingFocus_%s" % String(case_data["name"])
+		var lift := 0.07 if index == 3 else 0.14
+		marker.position = _item_home[index].origin + Vector3(0.0, lift, -0.08)
+		interaction_rig.add_child(marker)
+		target.focus_anchor = marker
+		for child: Node in target.get_children():
+			var collision := child as CollisionShape3D
+			if collision == null:
+				continue
+			var sphere := SphereShape3D.new()
+			sphere.radius = KNEE_FOCUS_RADIUS_M if index == 3 else FLOOR_FOCUS_RADIUS_M
+			collision.shape = sphere
+			break
