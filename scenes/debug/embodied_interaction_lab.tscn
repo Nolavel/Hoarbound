@@ -1,8 +1,9 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd" id="1_lab"]
 [ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="2_henry"]
 [ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_target_3d.gd" id="3_target"]
+[ext_resource type="PackedScene" path="res://scenes/game/systems/camera/tps_camera.tscn" id="4_camera"]
 
 [sub_resource type="CapsuleShape3D" id="Capsule_henry"]
 radius = 0.35
@@ -83,7 +84,7 @@ position = Vector3(0.31, 1.08, 0.58)
 script = ExtResource("3_target")
 role = 2
 target_id = &"demo_right_hand"
-authoring_note = "Future hand/IK contact hint. The prep proof only visualizes it."
+authoring_note = "Legacy alignment proof marker. Hidden during tactile pickup."
 
 [node name="Sphere" type="MeshInstance3D" parent="Targets/RightHandTarget"]
 mesh = SubResource("Mesh_hand_target")
@@ -104,17 +105,15 @@ rotation_degrees = Vector3(-48, -28, 0)
 light_energy = 1.35
 shadow_enabled = true
 
-[node name="Camera3D" type="Camera3D" parent="."]
-position = Vector3(2.45, 1.72, -3.25)
-fov = 39.0
-current = true
+[node name="PlayerCamera" parent="." node_paths=PackedStringArray("player") instance=ExtResource("4_camera")]
+player = NodePath("../Henry")
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
 [node name="Margin" type="MarginContainer" parent="UILayer"]
 offset_left = 36.0
 offset_top = 32.0
-offset_right = 1110.0
+offset_right = 1200.0
 offset_bottom = 180.0
 
 [node name="VBox" type="VBoxContainer" parent="UILayer/Margin"]
@@ -123,15 +122,15 @@ layout_mode = 2
 [node name="Title" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "EMBODIED INTERACTION — FOUNDATION PROOF"
+text = "EMBODIED INTERACTION — TACTILE GRIP PROOF"
 
 [node name="Stage" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 34
+theme_override_font_sizes/font_size = 32
 text = "1 / IDLE"
 
 [node name="Detail" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.82, 0.86, 1)
 theme_override_font_sizes/font_size = 18
-text = "green disc = BODY TARGET   amber sphere = RIGHT HAND TARGET"
+text = "production TpsCamera / over-shoulder"
