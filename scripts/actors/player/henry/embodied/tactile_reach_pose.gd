@@ -1,12 +1,11 @@
 class_name TactileReachPose
 extends SkeletonModifier3D
 
-## Lab-only authored-pose layer for issue #198.
+## Lab-only authored pose layer for issue #198.
 ##
-## Important: this NEVER plays a full-body action. It samples a short window from
-## an existing UAL clip and applies only a small upper-body/active-arm subset.
-## Locomotion/crouch stay authoritative; TactileArmReach then solves the wrist and
-## TactileHandGrip settles the fingers on the prop.
+## This NEVER plays a full action. It samples a contact-preparation pose from an
+## existing UAL clip and blends only torso + active arm bones. Base locomotion /
+## crouch remain authoritative; TactileArmReach only makes the final wrist correction.
 
 @export_range(1.0, 20.0, 0.5) var blend_in_rate: float = 8.0
 @export_range(1.0, 20.0, 0.5) var blend_out_rate: float = 10.0
@@ -55,22 +54,12 @@ func _process_modification() -> void:
 	if animation == null or animation.length <= 0.001:
 		return
 
-	## We intentionally use only the useful contact-preparation window. The rest of
-	## the imported clip (legs, root, long enter/exit) is never evaluated here.
-	var start_share: float = 0.18 if _profile == &"PICKUP" else 0.24
-	var end_share: float = 0.54 if _profile == &"PICKUP" else 0.58
-	var sample_time: float = lerpf(animation.length * start_share, animation.length * end_share, _phase)
+	var window: Vector2 = _sample_window(_profile)
+	var sample_time: float = lerpf(animation.length * window.x, animation.length * window.y, _phase)
 	var sampled: Dictionary = _sample_rotations(animation, sample_time)
 	var suffix: String = "l" if _hand == &"LEFT" else "r"
 	var opposite: String = "r" if suffix == "l" else "l"
-	var targets := {
-		"spine_02": 0.16,
-		"spine_03": 0.24,
-		"clavicle_" + suffix: 0.42,
-		"upperarm_" + suffix: 0.72,
-		"lowerarm_" + suffix: 0.80,
-		"hand_" + suffix: 0.58,
-	}
+	var targets: Dictionary = _profile_targets(_profile, suffix)
 	for bone_text: String in targets:
 		var bone_idx: int = skeleton.find_bone(StringName(bone_text))
 		if bone_idx < 0:
@@ -86,6 +75,51 @@ func _process_modification() -> void:
 		var current: Quaternion = skeleton.get_bone_pose_rotation(bone_idx)
 		var bone_weight: float = float(targets[bone_text]) * _weight
 		skeleton.set_bone_pose_rotation(bone_idx, current.slerp(desired.normalized(), clampf(bone_weight, 0.0, 1.0)))
+
+
+func _sample_window(profile: StringName) -> Vector2:
+	match profile:
+		&"TABLE":
+			## Later PickUp_Table frames carry more hip/spine hinge for waist-height contact.
+			return Vector2(0.32, 0.68)
+		&"LOW":
+			return Vector2(0.30, 0.64)
+		_:
+			return Vector2(0.18, 0.54)
+
+
+func _profile_targets(profile: StringName, suffix: String) -> Dictionary:
+	match profile:
+		&"TABLE":
+			return {
+				"spine_01": 0.34,
+				"spine_02": 0.52,
+				"spine_03": 0.64,
+				"clavicle_" + suffix: 0.50,
+				"upperarm_" + suffix: 0.78,
+				"lowerarm_" + suffix: 0.84,
+				"hand_" + suffix: 0.64,
+			}
+		&"LOW":
+			return {
+				"spine_01": 0.58,
+				"spine_02": 0.74,
+				"spine_03": 0.84,
+				"clavicle_" + suffix: 0.58,
+				"upperarm_" + suffix: 0.82,
+				"lowerarm_" + suffix: 0.88,
+				"hand_" + suffix: 0.68,
+			}
+		_:
+			## Head/chest interaction stays deliberately mild; these already prove cleanly.
+			return {
+				"spine_02": 0.16,
+				"spine_03": 0.24,
+				"clavicle_" + suffix: 0.42,
+				"upperarm_" + suffix: 0.72,
+				"lowerarm_" + suffix: 0.80,
+				"hand_" + suffix: 0.58,
+			}
 
 
 func _sample_rotations(animation: Animation, sample_time: float) -> Dictionary:
@@ -104,18 +138,15 @@ func _sample_rotations(animation: Animation, sample_time: float) -> Dictionary:
 func _resolve_clip(profile: StringName) -> StringName:
 	if _resolved.has(profile):
 		return StringName(_resolved[profile])
-	## Godot 4.8-dev6 does not preserve typed Array[String] through a ternary
-	## literal expression at runtime. PackedStringArray keeps the alias table
-	## explicitly typed and prevents the capture-time assignment error from #437.
 	var aliases := PackedStringArray(["PickUp_Table", "Pickup_Table"])
-	if profile != &"PICKUP":
+	if profile == &"LOW":
 		aliases = PackedStringArray(["Fixing_Kneeling"])
 	for candidate: StringName in _player.get_animation_list():
 		var text: String = String(candidate)
 		for alias: String in aliases:
 			if text == alias or text.ends_with("/" + alias):
 				_resolved[profile] = candidate
-				print("[TactileReachPose] profile=%s clip=%s partial_upper_body=true" % [String(profile), text])
+				print("[TactileReachPose] profile=%s clip=%s partial_pose=true" % [String(profile), text])
 				return candidate
 	_resolved[profile] = &""
 	push_warning("TactileReachPose: no clip for profile %s" % String(profile))

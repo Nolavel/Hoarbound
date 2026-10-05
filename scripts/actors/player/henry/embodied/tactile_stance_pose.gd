@@ -3,14 +3,15 @@ extends SkeletonModifier3D
 
 ## Lab-only stance prior for issue #198.
 ##
-## This does not play a full action. Grounded/Crouch locomotion remains owned by
-## HenryUALAnimation. For a floor pickup we sample one static pose from the
-## existing Fixing_Kneeling clip and blend only pelvis/spine/leg bones. Root
-## motion is never sampled, so CharacterBody3D stays authoritative.
+## No action playback: one authored Fixing_Kneeling frame is sampled and blended
+## into the evaluated base pose. CharacterBody3D still owns translation/root.
+## CROUCH receives only a partial lower-body/torso contribution; KNEEL receives
+## the full static prior. This gives low reaches a real body pose before wrist IK.
 
 @export_range(1.0, 12.0, 0.5) var blend_in_rate: float = 4.0
 @export_range(1.0, 12.0, 0.5) var blend_out_rate: float = 4.5
 @export_range(0.0, 1.0, 0.05) var pelvis_vertical_weight: float = 0.85
+@export_range(0.0, 1.0, 0.05) var crouch_prior_weight: float = 0.48
 
 const KNEEL_SAMPLE_SECONDS: float = 2.6
 const KNEEL_ROTATION_BONES: PackedStringArray = [
@@ -32,7 +33,13 @@ var _sampled: bool = false
 
 func set_stance(stance: StringName) -> void:
 	_stance = stance
-	_goal_weight = 1.0 if stance == &"KNEEL" else 0.0
+	match stance:
+		&"KNEEL":
+			_goal_weight = 1.0
+		&"CROUCH":
+			_goal_weight = crouch_prior_weight
+		_:
+			_goal_weight = 0.0
 
 
 func get_weight() -> float:
@@ -43,6 +50,7 @@ func get_debug() -> Dictionary:
 	return {
 		"stance": String(_stance),
 		"weight": _weight,
+		"goal_weight": _goal_weight,
 		"clip": String(_clip_name),
 		"sample_time": _sample_time,
 		"sampled_bones": _rotations.size(),
@@ -71,8 +79,8 @@ func _process_modification() -> void:
 		var desired: Quaternion = _rotations[bone_text] as Quaternion
 		skeleton.set_bone_pose_rotation(bone_idx, current.slerp(desired.normalized(), _weight))
 
-	## Keep horizontal/root ownership with CharacterBody3D. Only the pelvis height
-	## from the authored kneel is useful here; X/Z animation drift is discarded.
+	## Keep horizontal/root ownership with CharacterBody3D. Only authored pelvis Y
+	## is borrowed, and scaled with stance influence.
 	if _positions.has("pelvis"):
 		var pelvis_idx: int = skeleton.find_bone(&"pelvis")
 		if pelvis_idx >= 0:
@@ -113,8 +121,8 @@ func _sample_kneel_pose(skeleton: Skeleton3D) -> void:
 				_rotations[bone_text] = animation.rotation_track_interpolate(track, _sample_time).normalized()
 			Animation.TYPE_POSITION_3D:
 				_positions[bone_text] = animation.position_track_interpolate(track, _sample_time)
-	print("[TactileStancePose] clip=%s t=%.2f bones=%d static_sample=true" % [
-		String(_clip_name), _sample_time, _rotations.size()])
+	print("[TactileStancePose] clip=%s t=%.2f bones=%d static_sample=true crouch_prior=%.2f" % [
+		String(_clip_name), _sample_time, _rotations.size(), crouch_prior_weight])
 
 
 func _find_animation_player_near(skeleton: Skeleton3D) -> AnimationPlayer:
