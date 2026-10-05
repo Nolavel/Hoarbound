@@ -9,7 +9,7 @@ extends Node
 ## lands the hand several centimetres lateral to a standing affordance target,
 ## so the body target must shift with stance instead of twisting fingers harder.
 
-const FLOOR_BODY_SHIFT_M: float = 0.105
+const FLOOR_BODY_SHIFT_M: float = 0.165
 
 var _last_mode: StringName = &""
 
