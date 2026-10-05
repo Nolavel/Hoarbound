@@ -1,6 +1,6 @@
 [gd_scene load_steps=14 format=3]
 
-[ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd" id="1_lab"]
+[ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_interaction_lab_v3.gd" id="1_lab"]
 [ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="2_henry"]
 [ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_target_3d.gd" id="3_target"]
 [ext_resource type="PackedScene" path="res://scenes/game/systems/camera/tps_camera.tscn" id="4_camera"]
@@ -75,7 +75,7 @@ visible = false
 position = Vector3(0, 0, -0.38)
 script = ExtResource("3_target")
 target_id = &"demo_body"
-authoring_note = "Legacy debug marker only. V2 computes hand/stance body goals at runtime."
+authoring_note = "Legacy debug marker only. V3 computes collision-safe hand/stance body goals at runtime."
 
 [node name="Disc" type="MeshInstance3D" parent="Targets/BodyTarget"]
 position = Vector3(0, 0.052, 0)
@@ -86,7 +86,7 @@ position = Vector3(0.31, 1.08, 0.58)
 script = ExtResource("3_target")
 role = 2
 target_id = &"demo_right_hand"
-authoring_note = "Legacy debug marker. V2 chooses LEFT/RIGHT from context."
+authoring_note = "Legacy debug marker. V3 chooses LEFT/RIGHT from gaze context and actual hand distance."
 
 [node name="Sphere" type="MeshInstance3D" parent="Targets/RightHandTarget"]
 mesh = SubResource("Mesh_hand_target")
@@ -129,15 +129,15 @@ layout_mode = 2
 [node name="Title" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "EMBODIED INTERACTION — CONTEXT / REACH / TACTILE LAB"
+text = "EMBODIED INTERACTION — PARTIAL-POSE GRASP / RETURN / HANDOFF"
 
 [node name="Stage" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 30
-text = "1 / CONTEXT GRASP"
+text = "1 / GRASP CYCLE"
 
 [node name="Detail" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.82, 0.86, 1)
 theme_override_font_sizes/font_size = 18
-text = "production TpsCamera / collision-aware body / bounded arm"
+text = "production TpsCamera / collision body / partial UAL pose / bounded IK"
