@@ -1,14 +1,18 @@
 extends SceneTree
 
-## Deterministic Phase 1 capture for issue #201. The lab is scene-authored; this
-## driver only feeds movement queries and records what the real viewport renders.
+## Deterministic Phase 1 capture for issue #201. When the CI-only official
+## Rokoko sample is present, the same capture harness switches to the isolated
+## issue #202 direct-Godot retarget spike instead of creating another workflow.
 
 const SCENE_PATH := "res://tests/motion_matching/motion_matching_lab.tscn"
+const ROKOKO_SCENE_PATH := "res://tests/motion_matching/rokoko_ual_retarget_lab.tscn"
+const ROKOKO_SOURCE_PATH := "res://tests/motion_matching/_runtime_rokoko/rokoko_unreal_sample.fbx"
 const OUT_DIR := "res://docs/runtime_previews/motion_matching_lab"
 const FRAME_DIR := OUT_DIR + "/frames"
 const CAPTURE_WIDTH := 1280
 const CAPTURE_HEIGHT := 720
 const PHYSICS_STEPS_PER_FRAME := 2
+const ROKOKO_VIDEO_FRAMES := 150
 
 const SEQUENCE: Array[Dictionary] = [
 	{"label": "idle", "input": Vector2.ZERO, "frames": 18},
@@ -39,6 +43,14 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	_prepare_output()
+	if FileAccess.file_exists(ROKOKO_SOURCE_PATH):
+		await _run_rokoko_capture()
+	else:
+		await _run_phase1_capture()
+
+
+func _run_phase1_capture() -> void:
 	var packed := load(SCENE_PATH) as PackedScene
 	if packed == null:
 		push_error("MotionMatchingCapture: cannot load %s" % SCENE_PATH)
@@ -58,7 +70,6 @@ func _run() -> void:
 		quit(4)
 		return
 
-	_prepare_output()
 	for _index in range(36):
 		await process_frame
 
@@ -81,8 +92,50 @@ func _run() -> void:
 		})
 
 	_henry.set_capture_input(Vector2.ZERO)
-	await _write_report()
+	_write_phase1_report()
 	print("[MOTION_MATCHING_CAPTURE] %d frames written to %s" % [_frame_index, ProjectSettings.globalize_path(OUT_DIR)])
+	quit(0)
+
+
+func _run_rokoko_capture() -> void:
+	var packed := load(ROKOKO_SCENE_PATH) as PackedScene
+	if packed == null:
+		push_error("RokokoRetargetCapture: cannot load %s" % ROKOKO_SCENE_PATH)
+		quit(10)
+		return
+	_scene = packed.instantiate() as Node3D
+	if _scene == null or not _scene.has_method("is_ready_for_capture"):
+		push_error("RokokoRetargetCapture: lab root is invalid.")
+		quit(11)
+		return
+	root.add_child(_scene)
+	root.size = Vector2i(CAPTURE_WIDTH, CAPTURE_HEIGHT)
+
+	for _index in range(48):
+		await process_frame
+	if not bool(_scene.call("is_ready_for_capture")):
+		push_error("RokokoRetargetCapture: lab setup failed: %s" % JSON.stringify(_scene.call("get_retarget_report")))
+		quit(12)
+		return
+
+	var key_indices := {0: 0, 37: 1, 75: 2, 112: 3, 149: 4}
+	for frame in range(ROKOKO_VIDEO_FRAMES):
+		var capture_time := float(frame) / 30.0
+		_scene.call("seek_capture_time", capture_time)
+		await process_frame
+		await RenderingServer.frame_post_draw
+		var save_keyframe := key_indices.has(frame)
+		var key_index: int = int(key_indices.get(frame, 0))
+		await _capture_frame("rokoko_%02d" % key_index, key_index, save_keyframe)
+
+	var report: Dictionary = _scene.call("get_retarget_report")
+	report["issue"] = 202
+	report["mode"] = "rokoko_direct_godot_spike"
+	report["resolution"] = [CAPTURE_WIDTH, CAPTURE_HEIGHT]
+	report["frame_count"] = _frame_index
+	report["video_seconds"] = float(ROKOKO_VIDEO_FRAMES) / 30.0
+	_write_json_report(report)
+	print("[ROKOKO_RETARGET_CAPTURE] %d frames written to %s" % [_frame_index, ProjectSettings.globalize_path(OUT_DIR)])
 	quit(0)
 
 
@@ -108,9 +161,10 @@ func _capture_frame(label: String, segment_index: int, save_keyframe: bool) -> v
 	_frame_index += 1
 
 
-func _write_report() -> void:
+func _write_phase1_report() -> void:
 	var report := {
 		"issue": 201,
+		"mode": "directional_search_phase1",
 		"scene": SCENE_PATH,
 		"resolution": [CAPTURE_WIDTH, CAPTURE_HEIGHT],
 		"physics_steps_per_video_frame": PHYSICS_STEPS_PER_FRAME,
@@ -122,6 +176,10 @@ func _write_report() -> void:
 			"facing_arrow": "amber",
 		},
 	}
+	_write_json_report(report)
+
+
+func _write_json_report(report: Dictionary) -> void:
 	var file := FileAccess.open(OUT_DIR + "/report.json", FileAccess.WRITE)
 	if file == null:
 		push_error("MotionMatchingCapture: cannot write report.json")
