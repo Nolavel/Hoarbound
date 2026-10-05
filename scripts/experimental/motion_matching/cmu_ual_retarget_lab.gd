@@ -5,6 +5,11 @@ extends Node3D
 ## CI downloads a public BVH trial into an ignored runtime directory. The BVH
 ## parser builds a source Skeleton3D, uses the synthetic frame-0 T-pose as rest,
 ## and drives Henry through Godot's RetargetModifier3D. No Blender or Mixamo.
+##
+## CMU translation is intentionally NOT copied into Henry's bones: UAL remains
+## the canonical skeleton for bone lengths / offsets, while CMU rotations drive
+## the pose. Raw CMU root translation is retained separately for trajectory
+## features and CharacterBody3D remains authoritative for world movement.
 
 const SOURCE_BVH_PATH := "res://tests/motion_matching/_runtime_cmu/41_02.bvh"
 
@@ -40,6 +45,10 @@ const REQUIRED_TARGET_BONES: Array[StringName] = [
 	&"clavicle_r", &"upperarm_r", &"lowerarm_r", &"hand_r",
 	&"thigh_l", &"calf_l", &"foot_l", &"ball_l",
 	&"thigh_r", &"calf_r", &"foot_r", &"ball_r",
+]
+
+const DIAGNOSTIC_BONES: Array[StringName] = [
+	&"pelvis", &"Head", &"foot_l", &"foot_r",
 ]
 
 @onready var henry_animation: HenryUALAnimation = $Henry/HenryUALVisual as HenryUALAnimation
@@ -97,7 +106,9 @@ func _setup() -> void:
 	_setup_ok = true
 	_report = _source.get_report()
 	_report["setup_ok"] = true
-	_report["retarget_mode"] = "CMU_BVH_RetargetModifier3D_proxy"
+	_report["retarget_mode"] = "CMU_BVH_RetargetModifier3D_proxy_rotation_only"
+	_report["retarget_position_enabled"] = false
+	_report["retarget_rotation_enabled"] = true
 	_report["mapped_profile_bones"] = _mapped_count
 	_report["target_bone_count"] = _target_skeleton.get_bone_count()
 	_report["target_source_mapping"] = _mapping.duplicate(true)
@@ -132,6 +143,8 @@ func get_retarget_report() -> Dictionary:
 	var result := _report.duplicate(true)
 	result["setup_ok"] = _setup_ok
 	result["source_scene"] = SOURCE_BVH_PATH
+	if _setup_ok:
+		result["target_diagnostics"] = _collect_target_diagnostics()
 	return result
 
 
@@ -200,7 +213,9 @@ func _install_runtime_retarget() -> bool:
 	_retarget_modifier.profile = profile
 	_retarget_modifier.use_global_pose = false
 	_retarget_modifier.copy_bone_skin_scale = false
-	_retarget_modifier.set_position_enabled(true)
+	# Preserve UAL translations/bone lengths. CMU root motion stays in the raw
+	# trajectory channel and is not allowed to displace or rescale Henry's rig.
+	_retarget_modifier.set_position_enabled(false)
 	_retarget_modifier.set_rotation_enabled(true)
 	_retarget_modifier.set_scale_enabled(false)
 	_retarget_modifier.add_child(_proxy_skeleton)
@@ -224,10 +239,76 @@ func _disable_target_modifiers(node: Node) -> void:
 		_disable_target_modifiers(child)
 
 
+func _collect_target_diagnostics() -> Dictionary:
+	var result: Dictionary = {}
+	result["henry_global_position"] = _vec3_to_array($Henry.global_position)
+	result["visual_global_position"] = _vec3_to_array(henry_animation.global_position)
+	result["skeleton_global_position"] = _vec3_to_array(_target_skeleton.global_position)
+
+	var bone_positions: Dictionary = {}
+	for bone_name in DIAGNOSTIC_BONES:
+		var bone_index := _target_skeleton.find_bone(String(bone_name))
+		if bone_index < 0:
+			bone_positions[String(bone_name)] = "missing"
+			continue
+		var bone_world := _target_skeleton.global_transform * _target_skeleton.get_bone_global_pose(bone_index).origin
+		bone_positions[String(bone_name)] = _vec3_to_array(bone_world)
+	result["bone_world_positions"] = bone_positions
+
+	var bounds := _collect_visual_world_bounds(henry_animation)
+	result["mesh_instance_count"] = int(bounds["count"])
+	result["mesh_world_aabb_min"] = bounds["min"]
+	result["mesh_world_aabb_max"] = bounds["max"]
+	return result
+
+
+func _collect_visual_world_bounds(node: Node) -> Dictionary:
+	var found := false
+	var min_point := Vector3.ZERO
+	var max_point := Vector3.ZERO
+	var mesh_count := 0
+	var stack: Array[Node] = [node]
+	while not stack.is_empty():
+		var current := stack.pop_back()
+		for child in current.get_children():
+			stack.append(child)
+		if current is MeshInstance3D:
+			var mesh_instance := current as MeshInstance3D
+			if mesh_instance.mesh == null or not mesh_instance.visible:
+				continue
+			mesh_count += 1
+			var local_aabb := mesh_instance.get_aabb()
+			for x_index in range(2):
+				for y_index in range(2):
+					for z_index in range(2):
+						var corner := local_aabb.position + Vector3(
+							local_aabb.size.x * float(x_index),
+							local_aabb.size.y * float(y_index),
+							local_aabb.size.z * float(z_index)
+						)
+						var world_corner := mesh_instance.global_transform * corner
+						if not found:
+							min_point = world_corner
+							max_point = world_corner
+							found = true
+						else:
+							min_point = min_point.min(world_corner)
+							max_point = max_point.max(world_corner)
+	return {
+		"count": mesh_count,
+		"min": _vec3_to_array(min_point) if found else [],
+		"max": _vec3_to_array(max_point) if found else [],
+	}
+
+
+func _vec3_to_array(value: Vector3) -> Array[float]:
+	return [value.x, value.y, value.z]
+
+
 func _update_readout() -> void:
 	if readout == null or _source == null:
 		return
-	readout.text = "CMU 41_02 → GODOT → UAL\n%.1f FPS  %d motion frames  %.1fs\nRetargetModifier3D  mapped %d/%d\nroot: in-place playback / raw trajectory retained\nBlender: NONE  Mixamo: NONE" % [
+	readout.text = "CMU 41_02 → GODOT → UAL\n%.1f FPS  %d motion frames  %.1fs\nRetargetModifier3D  rotation-only  mapped %d/%d\nroot: in-place playback / raw trajectory retained\nBlender: NONE  Mixamo: NONE" % [
 		0.0 if _source.frame_time <= 0.0 else 1.0 / _source.frame_time,
 		_source.motion_frame_count,
 		_source.clip_length,
