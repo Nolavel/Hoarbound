@@ -93,7 +93,7 @@ func _set_hand_ik(hand: StringName, target_position: Vector3, weight: float) -> 
 
 func _refresh_manual_diagnostics() -> void:
 	var interact := get_node_or_null(^"InteractComponent") as InteractComponent
-	if interact == null or not is_instance_valid(interact.current_target) or not interact.current_target is EmbodiedLabTarget:
+	if interact == null or not is_instance_valid(interact.current_target) or not (interact.current_target is EmbodiedLabTarget):
 		_manual_prompt = "crosshair target: NONE | aim at a can | WASD move | F pick up | Esc pause"
 		return
 	var lab_target := interact.current_target as EmbodiedLabTarget
