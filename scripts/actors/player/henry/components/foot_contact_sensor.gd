@@ -4,86 +4,87 @@ extends Node
 ## Watches Henry's animated feet and reports each moment a foot is planted on
 ## the ground. The honest source for footprints, footstep audio and ice load.
 
-## Emitted when a foot lands. Position is on the ground under the sole; normal
-## is the ground's; forward runs heel to toe along that ground.
 signal foot_planted(
 	side: Side, position: Vector3, normal: Vector3, forward: Vector3, speed_mps: float
 )
 
 enum Side { LEFT, RIGHT }
 
-## Bones on the UAL rig: ankle, ball of the foot, and the toe tip.
+const POSE_PROBE_SCRIPT: GDScript = preload("res://scripts/actors/player/henry/components/foot_pose_probe.gd")
 const BONES: Dictionary = {
 	Side.LEFT: {"heel": &"foot_l", "ball": &"ball_l", "toe": &"ball_leaf_l"},
 	Side.RIGHT: {"heel": &"foot_r", "ball": &"ball_r", "toe": &"ball_leaf_r"},
 }
 
 @export_group("Wiring")
-## The body whose floor contact and speed gate the prints.
 @export var body: CharacterBody3D
-## Henry's animated visual; its skeleton is read, never written.
 @export var visual: HenryUALAnimation
 
 @export_group("Contact")
-## Ball of the foot this close to the ground counts as planted, in metres.
 @export var contact_height_m: float = 0.06
-## Absolute ground clearance that definitely rearms a foot. This remains a
-## conservative fallback for tests and unusual poses.
 @export var lift_height_m: float = 0.09
-## A blended UAL step may never reach 9 cm of world-space clearance. Rearm from
-## the animated ball bone rising relative to its own last planted pose instead.
-## This observation is independent of the ground ray, so a one-frame probe miss
-## at a terrain seam cannot silently lose the next step.
 @export var animated_rearm_rise_m: float = 0.045
-## Slower than this and Henry is standing, not stepping.
 @export var min_speed_mps: float = 0.35
-## How far below the ball of the foot the ground is searched for.
 @export var probe_depth_m: float = 1.2
 
 var _lifted: Dictionary = {Side.LEFT: true, Side.RIGHT: true}
 var _bone_index: Dictionary = {}
-## Latest animated ball height in Player-local space, and the height at the
-## previous accepted plant. Local space removes terrain/body elevation changes.
 var _sampled_local_y: Dictionary = {}
 var _last_planted_local_y: Dictionary = {}
+var _raw_pose_local: Array[Dictionary] = [{}, {}]
+var _pose_probe: FootPoseProbe
 
 
 func _physics_process(_delta: float) -> void:
 	var skeleton: Skeleton3D = _skeleton()
 	if skeleton == null or body == null:
 		return
+	_ensure_pose_probe(skeleton)
 	var speed: float = Vector2(body.velocity.x, body.velocity.z).length()
 	for side: int in Side.values():
-		var feet: Dictionary = _sample(skeleton, side)
+		var feet: Dictionary = _sample_pre_modifier_pose(skeleton, side)
 		if feet.is_empty():
 			continue
 		var ball: Vector3 = feet["ball"]
-		## Observe the animation before the ground ray. A raycast can briefly
-		## miss at a terrain/collider seam; foot phase must survive that miss.
 		observe_foot_motion(side, body.to_local(ball).y)
-
-		var hit: Dictionary = _ground_below(ball)
-		if hit.is_empty():
+		var contact: Dictionary = _contact_below(feet)
+		if contact.is_empty():
 			continue
-
-		var normal: Vector3 = hit["normal"]
-		if normal.length_squared() <= 0.0001:
-			normal = Vector3.UP
-		else:
-			normal = normal.normalized()
-
-		var height: float = surface_clearance(ball, hit["position"], normal)
-		var centre: Vector3 = (feet["heel"] + feet["toe"]) * 0.5
-		## Put the heel/toe centre on the local surface plane rather than only
-		## copying world Y; this keeps slope contacts and decals coherent.
-		centre -= normal * (centre - hit["position"]).dot(normal)
-		var forward: Vector3 = feet["toe"] - feet["heel"]
-		update_foot(side, height, centre, forward, body.is_on_floor(), speed, normal)
+		var normal: Vector3 = contact["normal"]
+		var height: float = surface_clearance(ball, contact["ball_ground"], normal)
+		update_foot(
+			side,
+			height,
+			contact["position"],
+			(feet["toe"] as Vector3) - (feet["heel"] as Vector3),
+			body.is_on_floor(),
+			speed,
+			normal
+		)
 
 
-## Records animated foot phase even when there is no valid ground hit this tick.
-## Relative Player-local rise is deliberately separate from absolute clearance:
-## blend transitions can compress the gait while still producing a real step.
+## Inserts a read-only modifier before Wade/SnowFeet. Godot invokes modifiers
+## after AnimationMixer playback, in Skeleton3D child order, so this is the exact
+## locomotion pose before snow IK can feed back into the sensor.
+func _ensure_pose_probe(skeleton: Skeleton3D) -> void:
+	if is_instance_valid(_pose_probe):
+		return
+	_pose_probe = skeleton.get_node_or_null(^"FootPoseProbe") as FootPoseProbe
+	if _pose_probe == null:
+		_pose_probe = POSE_PROBE_SCRIPT.new() as FootPoseProbe
+		_pose_probe.name = "FootPoseProbe"
+		skeleton.add_child(_pose_probe)
+		skeleton.move_child(_pose_probe, 0)
+	if not _pose_probe.pose_sampled.is_connected(_on_pre_modifier_pose):
+		_pose_probe.pose_sampled.connect(_on_pre_modifier_pose)
+
+
+func _on_pre_modifier_pose(side: int, heel: Vector3, ball: Vector3, toe: Vector3) -> void:
+	if side < 0 or side >= _raw_pose_local.size():
+		return
+	_raw_pose_local[side] = {"heel": heel, "ball": ball, "toe": toe}
+
+
 func observe_foot_motion(side: int, animated_local_y: float) -> void:
 	_sampled_local_y[side] = animated_local_y
 	if _lifted[side] or not _last_planted_local_y.has(side):
@@ -92,8 +93,6 @@ func observe_foot_motion(side: int, animated_local_y: float) -> void:
 		_lifted[side] = true
 
 
-## Distance from the animated ball to the sampled surface measured along that
-## surface's normal, not world Y. This is the contact quantity used on slopes.
 func surface_clearance(point: Vector3, ground_point: Vector3, ground_normal: Vector3) -> float:
 	var normal: Vector3 = (
 		ground_normal.normalized()
@@ -103,8 +102,45 @@ func surface_clearance(point: Vector3, ground_point: Vector3, ground_normal: Vec
 	return maxf((point - ground_point).dot(normal), 0.0)
 
 
-## The contact rule, kept free of scene access so it can be tested directly.
-## Returns true on the frame the foot is planted.
+## Resolve heel/ball/toe probes into one contact plane. Averaging the valid probe
+## normals makes the footprint follow sloped/crowned streets instead of global UP.
+static func resolve_contact_from_hits(feet: Dictionary, hits: Dictionary) -> Dictionary:
+	if feet.is_empty() or hits.is_empty():
+		return {}
+	var normal_sum := Vector3.ZERO
+	var point_sum := Vector3.ZERO
+	var valid: int = 0
+	for key: String in ["heel", "ball", "toe"]:
+		if not hits.has(key):
+			continue
+		var hit: Dictionary = hits[key]
+		if hit.is_empty():
+			continue
+		var normal: Vector3 = hit.get("normal", Vector3.UP)
+		if normal.length_squared() <= 0.0001:
+			normal = Vector3.UP
+		normal_sum += normal.normalized()
+		point_sum += hit["position"] as Vector3
+		valid += 1
+	if valid == 0:
+		return {}
+	var normal: Vector3 = normal_sum.normalized()
+	if normal.length_squared() <= 0.0001:
+		normal = Vector3.UP
+	var anchor: Vector3 = point_sum / float(valid)
+	if hits.has("ball") and not (hits["ball"] as Dictionary).is_empty():
+		anchor = hits["ball"]["position"] as Vector3
+	var centre: Vector3 = ((feet["heel"] as Vector3) + (feet["toe"] as Vector3)) * 0.5
+	centre -= normal * (centre - anchor).dot(normal)
+	var ball: Vector3 = feet["ball"]
+	var ball_ground: Vector3
+	if hits.has("ball") and not (hits["ball"] as Dictionary).is_empty():
+		ball_ground = hits["ball"]["position"] as Vector3
+	else:
+		ball_ground = ball - normal * (ball - anchor).dot(normal)
+	return {"position": centre, "normal": normal, "ball_ground": ball_ground}
+
+
 func update_foot(
 	side: int, height_m: float, ground_point: Vector3, forward: Vector3,
 	on_floor: bool, speed_mps: float, ground_normal: Vector3 = Vector3.UP
@@ -120,7 +156,6 @@ func update_foot(
 	if _sampled_local_y.has(side):
 		_last_planted_local_y[side] = float(_sampled_local_y[side])
 	var normal: Vector3 = ground_normal.normalized() if ground_normal.length_squared() > 0.0001 else Vector3.UP
-	## Heel to toe, laid along the ground rather than the horizontal.
 	var along: Vector3 = forward - normal * forward.dot(normal)
 	if along.length_squared() < 0.0001:
 		along = Vector3.FORWARD - normal * Vector3.FORWARD.dot(normal)
@@ -128,17 +163,15 @@ func update_foot(
 	return true
 
 
-## True from the moment a foot is planted until it lifts again.
 func is_planted(side: int) -> bool:
 	return not bool(_lifted[side])
 
 
-## World heel, ball and toe of one foot, or empty when the rig is not ready.
 func get_foot(side: int) -> Dictionary:
 	var skeleton: Skeleton3D = _skeleton()
 	if skeleton == null:
 		return {}
-	return _sample(skeleton, side)
+	return _sample_pre_modifier_pose(skeleton, side)
 
 
 func _skeleton() -> Skeleton3D:
@@ -147,20 +180,17 @@ func _skeleton() -> Skeleton3D:
 	return visual.skeleton
 
 
-## World positions of heel, ball and toe for one foot, or empty on a rig
-## that lacks the bones.
-func _sample(skeleton: Skeleton3D, side: int) -> Dictionary:
-	var names: Dictionary = BONES[side]
-	var out: Dictionary = {}
-	## The walk clip's foot, not the one snow lifted: contact must not feed on itself.
-	var feet := skeleton.get_node_or_null(^"SnowFeet") as SnowFootModifier
-	var lift: Vector3 = Vector3.UP * feet.get_lift(side) if feet != null else Vector3.ZERO
-	for key: String in names:
-		var index: int = _index_of(skeleton, names[key])
-		if index < 0:
-			return {}
-		out[key] = skeleton.global_transform * skeleton.get_bone_global_pose(index).origin - lift
-	return out
+## Cached probe samples are Skeleton3D-local; applying the current skeleton world
+## transform here removes body-translation latency between animation and physics.
+func _sample_pre_modifier_pose(skeleton: Skeleton3D, side: int) -> Dictionary:
+	if side < 0 or side >= _raw_pose_local.size() or _raw_pose_local[side].is_empty():
+		return {}
+	var raw: Dictionary = _raw_pose_local[side]
+	return {
+		"heel": skeleton.global_transform * (raw["heel"] as Vector3),
+		"ball": skeleton.global_transform * (raw["ball"] as Vector3),
+		"toe": skeleton.global_transform * (raw["toe"] as Vector3),
+	}
 
 
 func _index_of(skeleton: Skeleton3D, bone: StringName) -> int:
@@ -169,7 +199,15 @@ func _index_of(skeleton: Skeleton3D, bone: StringName) -> int:
 	return _bone_index[bone]
 
 
-## The ground under a point, found by a short ray that ignores Henry himself.
+func _contact_below(feet: Dictionary) -> Dictionary:
+	var hits: Dictionary = {}
+	for key: String in ["heel", "ball", "toe"]:
+		var hit: Dictionary = _ground_below(feet[key])
+		if not hit.is_empty():
+			hits[key] = hit
+	return resolve_contact_from_hits(feet, hits)
+
+
 func _ground_below(point: Vector3) -> Dictionary:
 	var space: PhysicsDirectSpaceState3D = body.get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(

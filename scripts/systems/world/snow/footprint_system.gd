@@ -33,6 +33,12 @@ var _weather: WeatherController
 
 func on_world_ready(context: WorldContext) -> void:
 	_weather = context.get_system(WEATHER_SCRIPT) as WeatherController
+	## The deformable SnowShell owns prints on medium/high. A second decal from
+	## the same foot event projects onto a different surface and reads as a ghost
+	## print beside the pressed snow, especially while the window is moving.
+	if SnowField.high_quality():
+		set_process(false)
+		return
 	var sensor := context.find_in_scene(SENSOR_SCRIPT) as FootContactSensor
 	if sensor != null and not sensor.foot_planted.is_connected(stamp):
 		sensor.foot_planted.connect(stamp)

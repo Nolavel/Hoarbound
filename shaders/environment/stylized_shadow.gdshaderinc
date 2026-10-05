@@ -91,7 +91,7 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 	vec3 noise = hfn_shadow_fbm3(noise_pos, HFN_SHADOW_OFFSET_FREQ, pixel_m);
 	vec3 tangent = noise - n * dot(noise, n);
 	vec3 offset = (view * vec4(tangent * HFN_SHADOW_OFFSET_M * offset_scale * strength, 0.0)).xyz;
-	float brush_mix = clamp(stylized_shadow_brush_mix, 0.0, 0.0);
+	float brush_mix = clamp(stylized_shadow_brush_mix, 0.0, 1.0);
 	float spray = 0.0;
 	if (brush_mix < 1.0) {
 		spray = hfn_shadow_fbm3(noise_pos + vec3(41.3, -7.9, 23.1), HFN_SHADOW_SPRAY_FREQ, pixel_m).x;

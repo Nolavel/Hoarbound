@@ -6,6 +6,7 @@ extends RefCounted
 const WIND_FIELD_PATH: String = "res://data/world/key_west/snow_wind.png"
 const SHADER: Shader = preload("res://shaders/environment/snow/snow_chunk_cover.gdshader")
 const STEP_M: float = 2.0
+const BAKE_VERSION: int = 1
 const CLIP_EPS: float = 0.0001
 const MIN_PIECE_AREA_M2: float = 0.00001
 ## Snow thins to nothing this close above the sea, as SnowField does.
@@ -60,6 +61,13 @@ static func cached(origin: Vector2) -> MeshInstance3D:
 	var mesh: ArrayMesh = _cache.get(origin)
 	_touch(origin)
 	return _instance(mesh) if mesh != null else null
+
+
+## Applies the live snow material to a geometry-only mesh baked in the editor.
+static func from_baked(mesh: ArrayMesh) -> MeshInstance3D:
+	_ensure_shared()
+	mesh.surface_set_material(0, _material)
+	return _instance(mesh)
 
 
 static func begin(terrain: IslandTerrain, origin: Vector2, size_m: float, city: Object = null) -> Job:

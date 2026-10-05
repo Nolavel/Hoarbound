@@ -5,6 +5,29 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-04 - Remove duplicate high-tier footprint decals
+
+- FootprintSystem now subscribes to foot plants only on the low snow tier.
+  Medium/high use the deformable SnowShell as the single footprint renderer;
+  the former duplicate decals could appear beside pressed tracks.
+
+### 2026-10-04 - Restore mapped city props and authored shadow brush (#173)
+
+- File power poles and wires into the existing streamed city chunks, retaining
+  their collision and keeping wire shadows disabled. The temporary global prop
+  builder previously freed both visual layers immediately after indexing.
+- Restore palms, bare trees, storage tanks and terrain-following crossings lost
+  through the same temporary-node path; crossings are now meshed per chunk.
+- Re-enable the configured dry-brush shadow mask by restoring its blend range.
+  The former zero-width clamp silently ignored `stylized_shadow_brush_mix = 1`.
+  Runtime appearance and performance await the author's HD 620 comparison.
+
+### 2026-10-04 - Restore opt-in console performance capture (#173)
+
+- Restored `World.print_runtime_debug_stats` and once-per-second PerfMeta/PerfJSON
+  output for author-run HD 620 comparisons. The city mesh-surface traversal
+  remains retired; viewport timing is collected only while the toggle is on.
+
 ### 2026-10-03 - Retire performance audit tooling before commit preparation
 
 - Removed the A/B controller and its production scene binding, temporary

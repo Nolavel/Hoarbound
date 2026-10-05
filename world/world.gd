@@ -1,34 +1,13 @@
 # =============================================================================
 # world.gd — the composition root.
-#
-# Everything alive at runtime is created and wired here, in one place, and
-# THIS FILE DOES NOT GROW AS SYSTEMS ARE ADDED. Three declarative lists say
-# what exists; the loops below are fixed.
-#
-# Adding a system, a 3D entity or a UI scene is ONE LINE in the relevant
-# array, plus an optional on_world_ready(context) in the thing itself.
-#
-# The three lists are separate because the three categories are built
-# differently and parented differently:
-#   1) WORLD_SYSTEM_SCRIPTS — Node classes via .new(), parented to World.
-#   2) WORLD_3D_ENTITY_SCENES — .tscn via instantiate(), under StreamContainer.
-#   3) WORLD_UI_SCENES — Control scenes, under a dedicated CanvasLayer.
-#
-# What this file is NOT about: world CONTENT. Chunks and their contents belong
-# to the streaming pipeline, which is independent of this lifecycle.
-#
-# Borrowed wholesale from the ADT project's world.gd. See
-# docs/technical/WORLD_ARCHITECTURE.md for what was taken and why.
 # =============================================================================
 class_name World
 extends Node3D
 
-## Optional lifecycle hook. Anything in the three lists below, plus the
-## player, may implement it; nodes that do not are skipped silently.
 const WORLD_READY_METHOD: StringName = &"on_world_ready"
 const APPLY_WORLD_PROFILE_METHOD: StringName = &"apply_world_profile"
+const GRAPHICS_QUALITY: GDScript = preload("res://scripts/settings/graphics_quality.gd")
 
-## Node systems — .new(), parented to World.
 const WORLD_SYSTEM_SCRIPTS: Array[GDScript] = [
 	preload("res://scripts/systems/time/simulation_clock.gd"),
 	preload("res://scripts/systems/actions/time_costed_action_system.gd"),
@@ -36,7 +15,7 @@ const WORLD_SYSTEM_SCRIPTS: Array[GDScript] = [
 	preload("res://scripts/systems/world/weather/snowfall_vfx.gd"),
 	preload("res://scripts/systems/world/snow/snow_presentation_system.gd"),
 	preload("res://scripts/systems/world/snow/footprint_system.gd"),
-	preload("res://scripts/systems/world/snow/snow_shell.gd"),
+	preload("res://scripts/systems/world/snow/deterministic_snow_shell.gd"),
 	preload("res://scripts/systems/save/save_manager.gd"),
 	preload("res://core/world/streaming_system.gd"),
 	preload("res://scripts/systems/survival/thermal_manager.gd"),
@@ -47,10 +26,7 @@ const WORLD_SYSTEM_SCRIPTS: Array[GDScript] = [
 	preload("res://scripts/systems/save/session_state.gd"),
 ]
 
-## Standalone 3D scenes — instantiate(), parented to StreamContainer.
 const WORLD_3D_ENTITY_SCENES: Array[PackedScene] = []
-
-## Screen-space UI scenes — instantiate(), parented to a shared CanvasLayer.
 const WORLD_UI_SCENES: Array[PackedScene] = [
 	preload("res://tools/StatsDisplay/StatsDisplay.tscn"),
 	preload("res://scenes/ui/debug/dev_diorama_map.tscn"),
@@ -60,29 +36,19 @@ const WORLD_UI_SCENES: Array[PackedScene] = [
 ]
 
 const UI_CANVAS_LAYER_INDEX: int = 40
-## Lift above the spawn marker, so the capsule does not start inside the floor.
 const SPAWN_CLEARANCE: float = 1.0
 
 @export_group("Scene wiring")
-## A playable scene may pin its dataset independently of developer test defaults.
 @export var world_profile: WorldProfile
-## Container the streaming pipeline fills. Created if absent.
 @export var stream_container: Node3D
-## Player already present in the scene; one is not spawned when this is set.
 @export var player: Node3D
-## Camera already present in the scene.
 @export var camera: Camera3D
-## Where the player starts. Freed after use, as the old GameRouter did.
 @export var first_spawner_marker: Marker3D
-## Start at the shelter entrance instead of the authored scenario spawn.
 @export var spawn_at_shelter: bool = false
-## Off for a scene with its own floor, such as TestScene, so the island's
-## chunks are not streamed on top of it.
 @export var streaming_enabled: bool = true
 @export_group("Developer tools")
-## Shows the runtime performance panel. Enabled by default for development builds/scenes.
 @export var enable_runtime_debug_panel: bool = true
-## Allows M to show/hide the debug diorama map in runtime debug builds.
+@export var print_runtime_debug_stats: bool = false
 @export var enable_runtime_dev_map: bool = false
 
 var _systems: Array[Node] = []
@@ -92,6 +58,8 @@ var _profile_content: Node3D
 
 
 func _ready() -> void:
+	## Apply before the first rendered world frame. With no user config this is LOW.
+	GRAPHICS_QUALITY.apply(get_tree(), GRAPHICS_QUALITY.load_quality())
 	_profile = world_profile if world_profile != null else WorldProfileCatalog.load_selected()
 	if _profile != null and _profile.prewarm_before_first_frame:
 		initialize()
@@ -100,8 +68,6 @@ func _ready() -> void:
 	initialize()
 
 
-## Builds the world. Public and idempotent so tests can drive it directly
-## instead of waiting for a frame.
 func initialize() -> void:
 	if _context != null:
 		return
@@ -110,6 +76,9 @@ func initialize() -> void:
 		_profile = world_profile if world_profile != null else WorldProfileCatalog.load_selected()
 	_apply_profile_terrain()
 	_apply_profile_content()
+	## Profile content may introduce directional lights; apply the tier again before
+	## expensive runtime systems (snow/weather/streaming) are constructed.
+	GRAPHICS_QUALITY.apply(get_tree(), GRAPHICS_QUALITY.load_quality())
 	_build_systems()
 	_place_player()
 	_context = _build_context()
@@ -124,12 +93,10 @@ func initialize() -> void:
 	print("[World] initialized with %d systems" % _systems.size())
 
 
-## The context handed to every system; null before initialize() has run.
 func get_context() -> WorldContext:
 	return _context
 
 
-## Finds the container and the player/camera the scene already carries.
 func _resolve_scene_nodes() -> void:
 	if stream_container == null:
 		stream_container = get_node_or_null("StreamContainer") as Node3D
@@ -199,7 +166,6 @@ func _build_systems() -> void:
 		_systems.append(instance)
 
 
-## Moves the player onto the spawn marker, then drops the marker.
 func _place_player() -> void:
 	if spawn_at_shelter:
 		var shelter_spawn := find_child("ShelterSpawnPoint", true, false) as Marker3D
@@ -211,9 +177,7 @@ func _place_player() -> void:
 			push_warning("World: ShelterSpawnPoint is missing; using the scenario spawn")
 	if player == null or first_spawner_marker == null:
 		return
-	player.global_position = (
-		first_spawner_marker.global_position + Vector3(0.0, SPAWN_CLEARANCE, 0.0)
-	)
+	player.global_position = first_spawner_marker.global_position + Vector3(0.0, SPAWN_CLEARANCE, 0.0)
 	player.global_rotation.y = first_spawner_marker.global_rotation.y
 	player.reset_physics_interpolation()
 	var follow_camera := camera as TpsCamera
@@ -255,8 +219,6 @@ func _build_ui() -> void:
 		_notify(instance)
 
 
-## Offers the optional lifecycle hook to a node and everything under it, so a
-## HUD indicator deep in the player scene can ask for what it needs too.
 func _notify(node: Node) -> void:
 	if node == null:
 		return

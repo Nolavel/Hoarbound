@@ -187,9 +187,17 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   Henry's moving window adds packed tracks. The local ray-derived lee, scour
   and blurred bed remain for scenes without the baked map. Baked prevailing wind
   fixes settled ridge orientation; current gusts drive weather effects instead.
-  Cover changes rebuild the field even while Henry stands still. The near mesh
-  still samples terrain more finely than the 2 m chunk cover, so an edge may
-  retain a small LOD difference pending a representative runtime capture.
+  Cover changes rebuild the field even while Henry stands still. The local
+  mesh keeps its 3 cm core for prints, then grows to 50 cm spacing at its rim.
+  In the outer 6 m it approaches the same two-triangle interpolation as the
+  static 2 m chunk mesh; a small grid of far-cover vertex inputs is refreshed
+  when that 2 m lattice shifts. This matches the geometry at the square edge
+  while keeping the detailed surface and packed tracks close to Henry.
+  SnowField also prepares a 40 cm settled-normal image row by row under its
+  existing rebuild budget, publishing it with the matching height image.
+  The fragment shader uses those normals in the core and computes the slope
+  directly across the outer transition. Height, normal and far-grid textures
+  update in place when their dimensions are unchanged.
 - **Geometry presses the snow.** Anything on render layer 20 (`CONTACT_LAYER`)
   packs the snow where it is lower than the snow top: Henry's whole mesh, and
   resting `ItemPickup`s, tagged by `tag_contact()`. A print is the real boot
@@ -290,9 +298,14 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   marks in shallow snow, drag furrows where the swing stays low. Nothing
   presses while the toe is above the surface.
 - **Window.** 25.6 m, moved in 3.2 m steps; packing is shifted with it. The
-  mesh is 3 cm near Henry and coarsens to 25 cm at the edge; packing is 2.5 cm.
-- **Cost.** One extra 1024² render of layer 19 (`snow_contact`) and one 1024² 2D
-  pass per frame (`packed_res`), plus a CPU field rebuild each time the window moves.
+  mesh remains 3 cm in a 2.75 m half-width core and coarsens to 25 cm at the
+  edge. This is 113,569 vertices instead of 167,281 with the former 3.5 m core.
+- **Cost.** Contact capture remains 1024². Packed snow and each of its three
+  shape passes are 896² (2.86 cm per texel, formerly 1024² / 2.5 cm), reducing
+  each pass's pixel area by 23.4%. The accumulator skips neighbour field and
+  contact samples when the packed-height difference cannot overcome either
+  material's talus. These are source-level changes; GPU/FPS results await a
+  representative HD 620 runtime comparison.
 - **Measured budget** (lavapipe CPU box, `main@9ec6f03`, Key West):
 
   | Place | `SnowField.rebuild` avg / max | Ground samples | `SnowChunkCover.build` |
@@ -311,9 +324,15 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
 
 ### Chunk snow streaming
 
-Chunk cover meshes are cached (12 chunks, LRU) and built in 4 ms slices per
-frame; chunks near `SnowShell.live_window` are built at once so Henry never
-stands on a chunk without snow. Key West uses exact city source polygons and
+Chunk cover geometry is baked with `tools/world/bake_key_west_chunk_snow.gd`
+and stored per city chunk under `data/world/key_west/snow_chunk/`. The runtime
+loads only active chunk meshes, then applies the live weather material. Source
+generation remains a fallback for missing or incompatible bake files: it uses
+the 12-chunk LRU and 4 ms slices, with a synchronous near-window build to avoid
+a missing cover. Re-bake when terrain heights, footprints, authored exclusions,
+or the cover geometry algorithm change. Run the bake with Godot 4.8 dev6 .NET:
+`Godot_v4.8-dev6_mono_win64_console.exe --headless --path . --script res://tools/world/bake_key_west_chunk_snow.gd`.
+Key West uses exact city source polygons and
 authored exclusions for cover holes; the First Exit shelter registers its own
 outline after the overlapping OSM buildings are excluded. Each polygon is
 triangulated once per build; its triangles are indexed into the 2 m cells they

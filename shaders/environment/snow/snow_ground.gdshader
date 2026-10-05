@@ -10,6 +10,14 @@ render_mode cull_back, depth_draw_opaque;
 uniform sampler2D field : filter_linear, repeat_disable;
 // R: metres packed down, walls shaped to the repose slope and softened.
 uniform sampler2D packed_field : filter_linear, repeat_disable;
+uniform sampler2D settled_normal_field : filter_linear, repeat_disable;
+uniform bool use_settled_normal_field = false;
+// Nearby vertices of the baked city cover: ground, prevailing*shore,
+// storm*shore, shore. Only the outer transition samples this tiny texture.
+uniform sampler2D far_grid : filter_nearest, repeat_disable;
+uniform vec2 far_grid_origin = vec2(0.0);
+uniform float far_grid_step = 2.0;
+uniform bool use_far_grid = false;
 uniform vec2 origin = vec2(0.0);
 uniform float window_m = 25.6;
 uniform float packed_texel_m = 0.05;
@@ -50,6 +58,25 @@ float baked_city_at(vec2 xz) {
 	}
 	vec4 factors = texture(wind_tex, wind_uv);
 	return mix(factors.r, factors.g, snow_storm_share) * wind_max;
+}
+
+// Reconstruct the same two triangles as SnowChunkCover._shade_row. Bilinear
+// sampling differs from that mesh wherever the four terrain heights twist.
+vec4 far_grid_at(vec2 xz) {
+	vec2 p = (xz - far_grid_origin) / far_grid_step;
+	ivec2 cell = clamp(ivec2(floor(p)), ivec2(0), textureSize(far_grid, 0) - ivec2(2));
+	vec2 f = clamp(p - vec2(cell), vec2(0.0), vec2(1.0));
+	vec4 a = texelFetch(far_grid, cell, 0);
+	vec4 b = texelFetch(far_grid, cell + ivec2(1, 0), 0);
+	vec4 c = texelFetch(far_grid, cell + ivec2(0, 1), 0);
+	vec4 d = texelFetch(far_grid, cell + ivec2(1, 1), 0);
+	return f.x + f.y <= 1.0
+		? a + (b - a) * f.x + (c - a) * f.y
+		: d + (c - d) * (1.0 - f.x) + (b - d) * (1.0 - f.y);
+}
+
+float far_grid_top(vec4 far) {
+	return far.r + snow_settled_depth * mix(far.g, far.b, snow_storm_share);
 }
 
 float packed_at(vec2 uv) {
@@ -122,7 +149,17 @@ float settled_top(vec2 xz) {
 	if (use_baked_baseline) {
 		float ground = f.r - f.g;
 		float shore = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, ground);
-		return ground + snow_base_depth(xz, baked_city_at(xz) * shore);
+		float local_top = ground + snow_base_depth(xz, baked_city_at(xz) * shore);
+		if (use_far_grid) {
+			vec2 to_edge = min(uv, 1.0 - uv) * window_m;
+			float edge = smoothstep(0.0, 6.0, min(to_edge.x, to_edge.y));
+			if (edge < 1.0) {
+				vec4 far = far_grid_at(xz);
+				float far_top = far.r + snow_base_depth(xz, baked_city_at(xz) * far.a);
+				return mix(far_top, local_top, edge);
+			}
+		}
+		return local_top;
 	}
 	vec2 to_edge = min(uv, 1.0 - uv) * window_m;
 	float edge = smoothstep(0.0, 6.0, min(to_edge.x, to_edge.y));
@@ -157,8 +194,17 @@ void vertex() {
 	float base = snow_base_geom(f.a);
 	v_depth = use_baked_baseline ? snow_base_depth(world.xz, v_city) : mix(snow_base_depth(world.xz, f.a), f.g, v_edge);
 	float top = use_baked_baseline ? ground + snow_base_geom(v_city) + (-v_packed + v_rim) * v_edge : ground + mix(base, f.g - v_packed + v_rim, v_edge);
-	VERTEX.y = max(top, ground + 0.004) - MODEL_MATRIX[3].y;
-	v_world = vec3(world.x, top, world.z);
+	if (use_baked_baseline && use_far_grid && v_edge < 1.0) {
+		vec4 far = far_grid_at(world.xz);
+		float far_shore_city = baked_city_at(world.xz) * far.a;
+		v_ground = mix(far.r, ground, v_edge);
+		v_city = mix(far_shore_city, v_city, v_edge);
+		v_depth = mix(snow_base_depth(world.xz, far_shore_city), v_depth, v_edge);
+		top = mix(far_grid_top(far), top, v_edge);
+	}
+	float drawn_top = max(top, v_ground + 0.004);
+	VERTEX.y = drawn_top - MODEL_MATRIX[3].y;
+	v_world = vec3(world.x, drawn_top, world.z);
 }
 
 void fragment() {
@@ -174,25 +220,42 @@ void fragment() {
 		discard;
 	}
 	// Pit walls are sharper than the mesh, so they also come in through the normal.
-	vec2 raw_slope = packed_slope(uv + v_jag);
-	vec2 slope = raw_slope * v_edge;
-	float wall = smoothstep(0.35, 1.6, length(raw_slope)) * v_edge;
 	float packed_height = v_packed * v_edge;
 	float rim_height = v_rim * v_edge;
+	vec2 raw_slope = vec2(0.0);
+	if (abs(v_packed) > 0.0005 || v_rim > 0.0005) {
+		raw_slope = packed_slope(uv + v_jag);
+	}
+	vec2 slope = raw_slope * v_edge;
+	float wall = smoothstep(0.35, 1.6, length(raw_slope)) * v_edge;
 	// Settled surface slope over ±0.4 m: the mesh facets at the 20 cm field texel
 	// would band the ridges, so shade from the smoothed field instead.
-	float e = 0.4;
-	float sx = settled_top(v_world.xz + vec2(e, 0.0)) - settled_top(v_world.xz - vec2(e, 0.0));
-	float sz = settled_top(v_world.xz + vec2(0.0, e)) - settled_top(v_world.xz - vec2(0.0, e));
+	float normal_cache_share = use_settled_normal_field ? smoothstep(0.85, 0.98, v_edge) : 0.0;
+	vec3 smooth_n = vec3(0.0, 1.0, 0.0);
+	if (normal_cache_share < 1.0) {
+		float e = 0.4;
+		float sx = settled_top(v_world.xz + vec2(e, 0.0)) - settled_top(v_world.xz - vec2(e, 0.0));
+		float sz = settled_top(v_world.xz + vec2(0.0, e)) - settled_top(v_world.xz - vec2(0.0, e));
+		smooth_n = normalize(vec3(-sx / (2.0 * e), 1.0, -sz / (2.0 * e)));
+	}
+	if (normal_cache_share > 0.0) {
+		vec3 cached = texture(settled_normal_field, uv).rgb * 2.0 - 1.0;
+		smooth_n = normalize(mix(smooth_n, cached, normal_cache_share));
+	}
 	vec2 ripple = snow_ripple_slope(v_world.xz, v_city) * (1.0 - smoothstep(0.02, 0.08, packed_height));
-	vec3 smooth_n = normalize(vec3(-sx / (2.0 * e) - ripple.x, 1.0, -sz / (2.0 * e) - ripple.y));
+	smooth_n = normalize(smooth_n - vec3(ripple.x, 0.0, ripple.y));
 	// Near kerbs and walls the real mesh edge still matters.
 	vec3 geo = normalize(cross(dFdy(v_world), dFdx(v_world)));
 	vec3 n = normalize(mix(smooth_n, geo, smoothstep(0.6, 1.2, ground_slope)) + vec3(slope.x, 0.0, slope.y) * 0.6);
 	// Crust breaks along cracks that run out from a print's lip into the slab.
 	float lip = smoothstep(0.003, 0.02, rim_height) + wall * 0.5 * (1.0 - smoothstep(0.02, 0.06, packed_height));
-	float crack = (1.0 - smoothstep(0.015, 0.05, crack_distance(v_world.xz * 14.0))) * clamp(lip, 0.0, 1.0) * v_crust;
-	n = normalize(n + vec3(snow_noise(v_world.xz * 40.0) - 0.5, 0.0, snow_noise(v_world.xz * 40.0 + 7.0) - 0.5) * crack * 0.6);
+	float crack = 0.0;
+	if (lip > 0.0 && v_crust > 0.0) {
+		crack = (1.0 - smoothstep(0.015, 0.05, crack_distance(v_world.xz * 14.0))) * clamp(lip, 0.0, 1.0) * v_crust;
+		if (crack > 0.0) {
+			n = normalize(n + vec3(snow_noise(v_world.xz * 40.0) - 0.5, 0.0, snow_noise(v_world.xz * 40.0 + 7.0) - 0.5) * crack * 0.6);
+		}
+	}
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 
 	float packed = smoothstep(0.01, 0.08, packed_height);
