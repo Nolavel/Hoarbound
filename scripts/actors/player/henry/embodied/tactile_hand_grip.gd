@@ -3,23 +3,34 @@ extends SkeletonModifier3D
 
 ## Lab-only object-aware grip proof for #198.
 ##
-## DoorHandIK owns arm/wrist reach. This modifier keeps Henry's authored UAL
-## closed-hand pose as an anatomical prior, then settles each evaluated finger
-## chain onto the real cylinder volume. The prop transform is therefore part of
-## the solve, not merely a scalar controlling how closed the fist looks.
+## The animation remains the anatomical prior. This modifier only corrects the
+## evaluated wrist/finger pose far enough to land real fingertip proxies on the
+## tested cylinder. The solver is deliberately bounded: a few CCD iterations,
+## a maximum joint step, and no persistent physics state.
 
 @export_range(1.0, 20.0, 0.5) var blend_in_rate: float = 10.0
 @export_range(1.0, 20.0, 0.5) var blend_out_rate: float = 7.0
 @export_range(0.02, 0.12, 0.005) var fully_closed_radius_m: float = 0.035
 @export_range(0.04, 0.20, 0.005) var open_hand_radius_m: float = 0.11
-@export_range(0.0, 1.0, 0.05) var hand_orient_weight: float = 0.65
-@export_range(0.0, 1.0, 0.05) var contact_settle_weight: float = 0.82
-@export_range(1, 6, 1) var contact_iterations: int = 4
+@export_range(0.0, 1.0, 0.05) var hand_orient_weight: float = 0.35
+@export_range(0.0, 1.0, 0.05) var contact_settle_weight: float = 0.95
+@export_range(1, 10, 1) var contact_iterations: int = 7
+@export_range(2.0, 25.0, 1.0) var max_joint_step_deg: float = 14.0
 
-const FINGER_WRAP_ANGLE_RAD: float = 1.658063 # 95 degrees
-const THUMB_WRAP_ANGLE_RAD: float = 1.134464 # 65 degrees, opposite direction
 const FINGER_TIP_EXTENSION_SHARE: float = 0.66
 const THUMB_TIP_EXTENSION_SHARE: float = 0.72
+const CONTACT_SKIN_CLEARANCE_M: float = 0.002
+
+## Contact angles around the can relative to the palm-side radial. The four
+## fingers wrap progressively around the far side; the thumb takes the opposing
+## near-side contact. Mirroring is handled by the hand sign.
+const FINGER_CONTACT_ANGLES_DEG: Dictionary = {
+	"index": 78.0,
+	"middle": 92.0,
+	"ring": 106.0,
+	"pinky": 118.0,
+	"thumb": -42.0,
+}
 
 var _hand: StringName = &"RIGHT"
 var _item_xf_world := Transform3D.IDENTITY
@@ -31,6 +42,7 @@ var _closed_pose: Dictionary = {}
 var _index: Dictionary = {}
 var _missing_reported: Dictionary = {}
 var _pose_scan_done: bool = false
+var _debug: Dictionary = {}
 
 
 func set_closed_pose(pose_by_bone: Dictionary) -> void:
@@ -58,6 +70,10 @@ func get_closed_pose_count() -> int:
 	return _closed_pose.size()
 
 
+func get_contact_debug() -> Dictionary:
+	return _debug.duplicate(true)
+
+
 func _process_modification() -> void:
 	var skeleton: Skeleton3D = get_skeleton()
 	if skeleton == null:
@@ -71,6 +87,7 @@ func _process_modification() -> void:
 	var rate: float = blend_in_rate if _goal_weight > _weight else blend_out_rate
 	_weight = move_toward(_weight, _goal_weight, rate * delta)
 	if _weight <= 0.001:
+		_debug = {}
 		return
 
 	var suffix: String = "l" if _hand == &"LEFT" else "r"
@@ -84,11 +101,21 @@ func _process_modification() -> void:
 	var to_rig: Transform3D = skeleton.global_transform.affine_inverse()
 	var center: Vector3 = to_rig * _item_xf_world.origin
 	var axis: Vector3 = (to_rig.basis * _item_xf_world.basis.y.normalized()).normalized()
+
+	## The DoorHandIK reach only gets the wrist close. Use the evaluated palm to
+	## derive a stable cylindrical frame, then keep the additional wrist turn small.
+	var hand_pose: Transform3D = skeleton.get_bone_global_pose(hand_idx)
+	var palm_radial: Vector3 = hand_pose.origin - center
+	palm_radial -= axis * palm_radial.dot(axis)
+	if palm_radial.length_squared() < 1e-8:
+		palm_radial = Vector3.BACK
+	palm_radial = palm_radial.normalized()
+
 	var orient_weight: float = smoothstep(0.0, 1.0, _weight) * hand_orient_weight
 	_orient_hand_to_cylinder(skeleton, hand_idx, middle_idx, index_idx, pinky_idx, center, axis, orient_weight)
 
-	## First use a real authored grip as the anatomical prior. Radius only decides
-	## how far we move toward that closed pose; it does not claim contact.
+	## First blend toward an actual authored UAL fist. This keeps the hand readable
+	## and prevents the contact solver from inventing an anatomical pose from zero.
 	var radius_close: float = 1.0 - inverse_lerp(fully_closed_radius_m, open_hand_radius_m, _radius_m)
 	var grip_weight: float = smoothstep(0.0, 1.0, _weight) * clampf(radius_close, 0.0, 1.0)
 	for finger: String in ["thumb", "index", "middle", "ring", "pinky"]:
@@ -103,16 +130,12 @@ func _process_modification() -> void:
 			var closed := _closed_pose[bone_name] as Quaternion
 			skeleton.set_bone_pose_rotation(bone_idx, current.slerp(closed, grip_weight))
 
-	## Then use the evaluated bones, not an assumed local flex axis, to settle the
-	## fingertips against the measured cylinder. This is intentionally a tiny CCD
-	## correction, not a replacement procedural hand animation system.
-	var settle: float = smoothstep(0.25, 1.0, _weight) * contact_settle_weight
+	var settle: float = smoothstep(0.20, 1.0, _weight) * contact_settle_weight
 	if settle > 0.001:
-		_settle_finger_to_cylinder(skeleton, suffix, "index", center, axis, settle, false)
-		_settle_finger_to_cylinder(skeleton, suffix, "middle", center, axis, settle, false)
-		_settle_finger_to_cylinder(skeleton, suffix, "ring", center, axis, settle, false)
-		_settle_finger_to_cylinder(skeleton, suffix, "pinky", center, axis, settle, false)
-		_settle_finger_to_cylinder(skeleton, suffix, "thumb", center, axis, settle, true)
+		for finger: String in ["index", "middle", "ring", "pinky", "thumb"]:
+			_settle_finger_to_cylinder(skeleton, suffix, finger, center, axis, palm_radial, settle)
+
+	_update_contact_debug(skeleton, suffix, center, axis, palm_radial)
 
 
 func _orient_hand_to_cylinder(
@@ -159,8 +182,8 @@ func _settle_finger_to_cylinder(
 		finger: String,
 		center: Vector3,
 		axis: Vector3,
-		weight: float,
-		is_thumb: bool) -> void:
+		palm_radial: Vector3,
+		weight: float) -> void:
 	var b1: int = _bone(skeleton, StringName("%s_01_%s" % [finger, suffix]))
 	var b2: int = _bone(skeleton, StringName("%s_02_%s" % [finger, suffix]))
 	var b3: int = _bone(skeleton, StringName("%s_03_%s" % [finger, suffix]))
@@ -168,28 +191,16 @@ func _settle_finger_to_cylinder(
 		return
 
 	var p1: Vector3 = skeleton.get_bone_global_pose(b1).origin
-	var p2: Vector3 = skeleton.get_bone_global_pose(b2).origin
-	var root_radial: Vector3 = p1 - center
-	root_radial -= axis * root_radial.dot(axis)
-	if root_radial.length_squared() < 1e-8:
-		return
-	root_radial = root_radial.normalized()
-	var tangent: Vector3 = axis.cross(root_radial)
-	if tangent.length_squared() < 1e-8:
-		return
-	tangent = tangent.normalized()
-	var first_segment: Vector3 = p2 - p1
-	var direction_sign: float = 1.0 if first_segment.dot(tangent) >= 0.0 else -1.0
-	if is_thumb:
-		direction_sign *= -1.0
-	var wrap_angle: float = THUMB_WRAP_ANGLE_RAD if is_thumb else FINGER_WRAP_ANGLE_RAD
-	var target_radial: Vector3 = Basis(Quaternion(axis, wrap_angle * direction_sign)) * root_radial
 	var axial: float = clampf((p1 - center).dot(axis), -_half_height_m * 0.78, _half_height_m * 0.78)
-	var skin_clearance: float = 0.003 if is_thumb else 0.002
-	var target: Vector3 = center + axis * axial + target_radial * (_radius_m + skin_clearance)
-	var extension_share: float = THUMB_TIP_EXTENSION_SHARE if is_thumb else FINGER_TIP_EXTENSION_SHARE
+	var side_sign: float = -1.0 if _hand == &"RIGHT" else 1.0
+	var angle_deg: float = float(FINGER_CONTACT_ANGLES_DEG[finger])
+	var target_radial: Vector3 = Basis(Quaternion(axis, deg_to_rad(angle_deg) * side_sign)) * palm_radial
+	var target: Vector3 = center + axis * axial + target_radial.normalized() * (_radius_m + CONTACT_SKIN_CLEARANCE_M)
+	var extension_share: float = THUMB_TIP_EXTENSION_SHARE if finger == "thumb" else FINGER_TIP_EXTENSION_SHARE
 
-	var joints: Array[int] = [b2, b1]
+	## Distal-to-proximal CCD. The terminal joint is included because UAL has no
+	## fingertip leaf bone; rotating b3 moves the extrapolated soft-tip proxy.
+	var joints: Array[int] = [b3, b2, b1]
 	for _iteration: int in range(contact_iterations):
 		for joint_idx: int in joints:
 			var tip: Vector3 = _finger_tip_proxy(skeleton, b2, b3, extension_share)
@@ -198,10 +209,60 @@ func _settle_finger_to_cylinder(
 			var desired_vec: Vector3 = target - pose.origin
 			if current_vec.length_squared() < 1e-8 or desired_vec.length_squared() < 1e-8:
 				continue
+			var angle: float = current_vec.angle_to(desired_vec)
+			if angle <= 0.0001:
+				continue
 			var turn := Quaternion(current_vec.normalized(), desired_vec.normalized())
-			var step: Quaternion = Quaternion.IDENTITY.slerp(turn, clampf(weight * 0.62, 0.0, 1.0))
+			var bounded: float = minf(1.0, deg_to_rad(max_joint_step_deg) / angle)
+			var step_weight: float = clampf(weight * bounded, 0.0, 1.0)
+			var step: Quaternion = Quaternion.IDENTITY.slerp(turn, step_weight)
 			pose.basis = Basis(step) * pose.basis
 			skeleton.set_bone_global_pose(joint_idx, pose)
+
+
+func _update_contact_debug(
+		skeleton: Skeleton3D,
+		suffix: String,
+		center: Vector3,
+		axis: Vector3,
+		palm_radial: Vector3) -> void:
+	var errors: Dictionary = {}
+	var tips: Dictionary = {}
+	var targets: Dictionary = {}
+	for finger: String in ["index", "middle", "ring", "pinky", "thumb"]:
+		var b1: int = _bone(skeleton, StringName("%s_01_%s" % [finger, suffix]))
+		var b2: int = _bone(skeleton, StringName("%s_02_%s" % [finger, suffix]))
+		var b3: int = _bone(skeleton, StringName("%s_03_%s" % [finger, suffix]))
+		if b1 < 0 or b2 < 0 or b3 < 0:
+			continue
+		var extension_share: float = THUMB_TIP_EXTENSION_SHARE if finger == "thumb" else FINGER_TIP_EXTENSION_SHARE
+		var tip: Vector3 = _finger_tip_proxy(skeleton, b2, b3, extension_share)
+		var axial: float = clampf((skeleton.get_bone_global_pose(b1).origin - center).dot(axis), -_half_height_m * 0.78, _half_height_m * 0.78)
+		var side_sign: float = -1.0 if _hand == &"RIGHT" else 1.0
+		var angle_deg: float = float(FINGER_CONTACT_ANGLES_DEG[finger])
+		var target_radial: Vector3 = Basis(Quaternion(axis, deg_to_rad(angle_deg) * side_sign)) * palm_radial
+		var target: Vector3 = center + axis * axial + target_radial.normalized() * (_radius_m + CONTACT_SKIN_CLEARANCE_M)
+		errors[finger] = _cylinder_surface_error(tip, center, axis)
+		tips[finger] = skeleton.global_transform * tip
+		targets[finger] = skeleton.global_transform * target
+	_debug = {
+		"hand": String(_hand),
+		"weight": _weight,
+		"errors_m": errors,
+		"tips_world": tips,
+		"targets_world": targets,
+	}
+
+
+func _cylinder_surface_error(point: Vector3, center: Vector3, axis: Vector3) -> float:
+	var local: Vector3 = point - center
+	var axial: float = local.dot(axis)
+	var radial_vec: Vector3 = local - axis * axial
+	var radial: float = radial_vec.length()
+	var q := Vector2(radial - _radius_m, absf(axial) - _half_height_m)
+	var outside := Vector2(maxf(q.x, 0.0), maxf(q.y, 0.0)).length()
+	var inside: float = minf(maxf(q.x, q.y), 0.0)
+	return absf(outside + inside)
 
 
 func _finger_tip_proxy(skeleton: Skeleton3D, b2: int, b3: int, extension_share: float) -> Vector3:
@@ -275,8 +336,7 @@ func _find_animation_player_near(skeleton: Skeleton3D) -> AnimationPlayer:
 		if root.get_parent() == null:
 			break
 		root = root.get_parent()
-	var found: AnimationPlayer = _find_animation_player_recursive(root)
-	return found
+	return _find_animation_player_recursive(root)
 
 
 func _find_animation_player_recursive(node: Node) -> AnimationPlayer:

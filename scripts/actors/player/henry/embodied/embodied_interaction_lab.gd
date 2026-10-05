@@ -1,34 +1,45 @@
 class_name EmbodiedInteractionLabActor
 extends CharacterBody3D
 
-## Isolated proof for issue #198. Production pickup/inventory remain untouched.
-## The pickup pass has a strict tactile rule: the arm reaches the prop, the
-## fingers close around its actual cylinder volume, thumb opposes the fingers,
-## and only measured fingertip contact transfers the prop to Henry's hand socket.
+## Isolated issue #198 laboratory. Production pickup/inventory remain untouched.
+##
+## Acceptance for this pass:
+## - production TpsCamera frames the whole proof;
+## - one physical can is presented on one shelf at five authored heights;
+## - Henry uses standing / crouch / kneeling body poses instead of stretching a
+##   detached arm through the entire vertical reach envelope;
+## - ownership transfers only after measured thumb + finger surface contact;
+## - the final floor pickup is followed by a right-to-left handoff.
 
-enum Stage { IDLE, ALIGN, ACTION, RELEASE, PICKUP_REACH, DONE }
+enum Stage { BODY_ALIGN, PICKUP_REACH, HANDOFF, DONE }
 
-const IDLE_END: float = 1.2
-const ALIGN_END: float = 3.2
-const ACTION_END: float = 5.5
-const RELEASE_END: float = 7.2
-const PICKUP_BEGIN: float = 7.6
-const PICKUP_CASE_SECONDS: float = 3.2
-const PICKUP_SETUP_END: float = 0.42
-const PICKUP_REACH_END: float = 1.20
-const PICKUP_GRASP_END: float = 2.05
-const PICKUP_HOLD_END: float = 2.90
+const BODY_ALIGN_SECONDS: float = 1.0
+const PICKUP_CASE_SECONDS: float = 4.0
+const PICKUP_SETUP_END: float = 0.55
+const PICKUP_REACH_END: float = 1.35
+const PICKUP_GRASP_END: float = 2.35
+const PICKUP_HOLD_END: float = 3.35
+const HANDOFF_SECONDS: float = 5.2
+const HANDOFF_RECEIVER_BEGIN: float = 1.15
+const HANDOFF_GRASP_END: float = 2.65
+const HANDOFF_HOLD_END: float = 4.55
+
 const ITEM_RADIUS_M: float = 0.045
 const ITEM_HALF_HEIGHT_M: float = 0.07
+const SHELF_HALF_THICKNESS_M: float = 0.025
 const FINGER_SURFACE_TOLERANCE_M: float = 0.018
-const TIP_EXTENSION_SHARE: float = 0.66
 const MAX_PREVIEW_SPEED: float = 1.5
+const STAND_CAPSULE_HEIGHT: float = 2.0
+const CROUCH_CAPSULE_HEIGHT: float = 1.30
 
-## Same prop and height, mirrored side/hand. This pass tests tactile ownership,
-## not the vertical reach envelope from the previous rejected preview.
+## The same shelf and the same can move vertically between cases. The order is
+## chosen so the final floor pickup can flow directly into stand-up + handoff.
 const PICKUP_CASES := [
-	{"name": "RIGHT TACTILE GRAB", "position": Vector3(0.25, 1.42, 0.18), "hand": &"RIGHT"},
-	{"name": "LEFT TACTILE GRAB", "position": Vector3(-0.25, 1.42, 0.18), "hand": &"LEFT"},
+	{"name": "HEAD SHELF", "height": 1.76, "stance": &"STAND"},
+	{"name": "CHEST SHELF", "height": 1.42, "stance": &"STAND"},
+	{"name": "WAIST SHELF", "height": 1.04, "stance": &"STAND"},
+	{"name": "KNEE SHELF", "height": 0.66, "stance": &"CROUCH"},
+	{"name": "FLOOR SHELF", "height": 0.18, "stance": &"KNEEL"},
 ]
 
 @onready var visual: HenryUALAnimation = $HenryUALVisual
@@ -38,25 +49,28 @@ const PICKUP_CASES := [
 @onready var detail_label: Label = get_node("../UILayer/Margin/VBox/Detail") as Label
 @onready var camera: TpsCamera = get_node("../PlayerCamera") as TpsCamera
 @onready var pedestal: MeshInstance3D = get_node("../InteractionPedestal") as MeshInstance3D
+@onready var collision_shape: CollisionShape3D = $CollisionShape3D
 
 var _elapsed: float = 0.0
-var _stage: Stage = Stage.IDLE
+var _stage: Stage = Stage.BODY_ALIGN
 var _alignment_start_position: Vector3
 var _alignment_start_yaw: float
-var _release_start_position: Vector3
-var _action_started: bool = false
 var _skeleton_missing := PackedStringArray()
+var _base_playback: AnimationNodeStateMachinePlayback
 
 var _pickup_root: Node3D
+var _pickup_shelf: MeshInstance3D
 var _pickup_item: MeshInstance3D
-var _pickup_ik: DoorHandIK
-var _tactile_grip: TactileHandGrip
+var _source_ik: DoorHandIK
+var _receiver_ik: DoorHandIK
+var _source_grip: TactileHandGrip
+var _receiver_grip: TactileHandGrip
 var _left_socket: BoneAttachment3D
 var _right_socket: BoneAttachment3D
-var _contact_markers: Dictionary = {}
+
 var _pickup_case_index: int = -1
 var _pickup_phase: StringName = &""
-var _pickup_hand: StringName = &"RIGHT"
+var _handoff_phase: StringName = &""
 var _pickup_reach_started: bool = false
 var _pickup_result_recorded: bool = false
 var _pickup_attached: bool = false
@@ -64,7 +78,13 @@ var _pickup_contact_count: int = 0
 var _pickup_finger_contacts: int = 0
 var _pickup_thumb_contact: bool = false
 var _pickup_surface_error: float = INF
+var _pickup_per_finger: Dictionary = {}
 var _pickup_results: Array[Dictionary] = []
+var _handoff_result: Dictionary = {}
+var _handoff_started: bool = false
+var _handoff_transferred: bool = false
+var _work_pose_requested: bool = false
+var _stance: StringName = &"STAND"
 
 
 func _ready() -> void:
@@ -75,44 +95,42 @@ func _ready() -> void:
 		print("[EmbodiedLab] Henry skeleton contract OK: %s" % [HenrySkeletonContract.describe(visual.skeleton)])
 	else:
 		push_warning("[EmbodiedLab] Missing skeleton roles: %s" % [_skeleton_missing])
+	if visual.animation_tree != null:
+		_base_playback = visual.animation_tree.get("parameters/base/playback") as AnimationNodeStateMachinePlayback
 	_build_pickup_rack()
+	_set_target_debug_visible(false)
+	pedestal.visible = false
+	_pickup_root.visible = true
 	_update_labels()
 
 
 func _process(delta: float) -> void:
 	_elapsed += delta
 	var previous_position: Vector3 = global_position
+	var pickup_duration: float = PICKUP_CASES.size() * PICKUP_CASE_SECONDS
+	var pickup_end: float = BODY_ALIGN_SECONDS + pickup_duration
+	var handoff_end: float = pickup_end + HANDOFF_SECONDS
 
-	if _elapsed < IDLE_END:
-		_set_stage(Stage.IDLE)
-	elif _elapsed < ALIGN_END:
-		_set_stage(Stage.ALIGN)
-		var t: float = clampf((_elapsed - IDLE_END) / (ALIGN_END - IDLE_END), 0.0, 1.0)
+	if _elapsed < BODY_ALIGN_SECONDS:
+		_set_stage(Stage.BODY_ALIGN)
+		var t: float = clampf(_elapsed / BODY_ALIGN_SECONDS, 0.0, 1.0)
 		var eased: float = t * t * (3.0 - 2.0 * t)
 		global_position = _alignment_start_position.lerp(body_target.global_position, eased)
 		rotation.y = lerp_angle(_alignment_start_yaw, body_target.global_rotation.y, eased)
-	elif _elapsed < ACTION_END:
-		_set_stage(Stage.ACTION)
+		if _pickup_case_index < 0:
+			_begin_pickup_case(0)
+	elif _elapsed < pickup_end:
+		_set_stage(Stage.PICKUP_REACH)
 		global_position = body_target.global_position
 		rotation.y = body_target.global_rotation.y
-		if not _action_started:
-			_action_started = true
-			var played: bool = visual.play_action(&"interact")
-			print("[EmbodiedLab] action interact started=%s body_error=%.4f" % [played, global_position.distance_to(body_target.global_position)])
-	elif _elapsed < RELEASE_END:
-		if _stage != Stage.RELEASE:
-			_release_start_position = global_position
-		_set_stage(Stage.RELEASE)
-		var t: float = clampf((_elapsed - ACTION_END) / (RELEASE_END - ACTION_END), 0.0, 1.0)
-		var released_position: Vector3 = body_target.global_position - body_target.global_transform.basis.z.normalized() * 0.38
-		global_position = _release_start_position.lerp(released_position, t)
-	elif _elapsed < PICKUP_BEGIN:
-		_set_stage(Stage.RELEASE)
-	elif _elapsed < PICKUP_BEGIN + PICKUP_CASES.size() * PICKUP_CASE_SECONDS:
-		_set_stage(Stage.PICKUP_REACH)
-		_update_pickup_reach(_elapsed - PICKUP_BEGIN)
+		_update_pickup_reach(_elapsed - BODY_ALIGN_SECONDS)
+	elif _elapsed < handoff_end:
+		_set_stage(Stage.HANDOFF)
+		global_position = body_target.global_position
+		rotation.y = body_target.global_rotation.y
+		_update_handoff(_elapsed - pickup_end)
 	else:
-		_finish_pickup_sequence()
+		_finish_sequence()
 		_set_stage(Stage.DONE)
 
 	velocity = (global_position - previous_position) / maxf(delta, 0.0001)
@@ -125,28 +143,19 @@ func _set_stage(next_stage: Stage) -> void:
 	if _stage == next_stage:
 		return
 	_stage = next_stage
-	if next_stage == Stage.PICKUP_REACH:
-		pedestal.visible = false
-		_set_target_debug_visible(false)
-		_pickup_root.visible = true
-		visual.abort_action()
 	print("[EmbodiedLab] stage=%s" % [_stage_name()])
 
 
 func _stage_name() -> String:
 	match _stage:
-		Stage.IDLE:
-			return "1 / IDLE — gameplay camera owns framing"
-		Stage.ALIGN:
-			return "2 / ALIGN — BODY TARGET acquired"
-		Stage.ACTION:
-			return "3 / ACTION — authored interact at target"
-		Stage.RELEASE:
-			return "4 / RELEASE — ownership returns"
+		Stage.BODY_ALIGN:
+			return "1 / ALIGN — gameplay body + production TPS camera"
 		Stage.PICKUP_REACH:
-			return "5 / TACTILE PICKUP — object-aware fingers"
+			return "2 / SHELF GRASP — five heights / one can"
+		Stage.HANDOFF:
+			return "3 / HANDOFF — right hand to left hand"
 		_:
-			return "6 / DONE — production pickup still untouched"
+			return "4 / DONE — production pickup remains untouched"
 
 
 func _update_labels() -> void:
@@ -154,50 +163,63 @@ func _update_labels() -> void:
 		stage_label.text = _stage_name()
 	if detail_label == null:
 		return
-	if _stage != Stage.PICKUP_REACH:
-		var body_error: float = global_position.distance_to(body_target.global_position)
-		detail_label.text = "production TpsCamera / over-shoulder\nbody error: %.3f m" % body_error
+	if _stage == Stage.BODY_ALIGN:
+		detail_label.text = "production TpsCamera / body alignment"
 		return
-	var case_name: String = "—"
-	if _pickup_case_index >= 0 and _pickup_case_index < PICKUP_CASES.size():
-		case_name = String(PICKUP_CASES[_pickup_case_index]["name"])
-	var error_text: String = "—" if is_inf(_pickup_surface_error) else "%.3f m" % _pickup_surface_error
-	var verdict: String = "TACTILE HOLD" if _pickup_attached else ("NO CONTACT" if _pickup_phase == &"MISS" else "closing fingers")
-	detail_label.text = "test %d/%d: %s   hand=%s   phase=%s\ncontacts=%d (fingers=%d thumb=%s)   tip surface error=%s   %s" % [
-		_pickup_case_index + 1, PICKUP_CASES.size(), case_name, String(_pickup_hand), String(_pickup_phase),
-		_pickup_contact_count, _pickup_finger_contacts, _pickup_thumb_contact, error_text, verdict]
+	if _stage == Stage.HANDOFF:
+		var verdict: String = "TRANSFERRED" if _handoff_transferred else "receiver closing"
+		detail_label.text = "right → left   phase=%s   %s\nreceiver contacts=%d (fingers=%d thumb=%s)   best surface error=%s" % [
+			String(_handoff_phase), verdict, _pickup_contact_count, _pickup_finger_contacts,
+			_pickup_thumb_contact, _error_text(_pickup_surface_error)]
+		return
+	if _stage == Stage.PICKUP_REACH:
+		var case_name: String = "—"
+		if _pickup_case_index >= 0 and _pickup_case_index < PICKUP_CASES.size():
+			case_name = String(PICKUP_CASES[_pickup_case_index]["name"])
+		var verdict: String = "TACTILE HOLD" if _pickup_attached else ("NO CONTACT" if _pickup_phase == &"MISS" else "closing fingers")
+		detail_label.text = "test %d/%d: %s   stance=%s   phase=%s\ncontacts=%d (fingers=%d thumb=%s)   best surface error=%s   %s" % [
+			_pickup_case_index + 1, PICKUP_CASES.size(), case_name, String(_stance), String(_pickup_phase),
+			_pickup_contact_count, _pickup_finger_contacts, _pickup_thumb_contact,
+			_error_text(_pickup_surface_error), verdict]
+		return
+	detail_label.text = "lab complete"
+
+
+func _error_text(value: float) -> String:
+	return "—" if is_inf(value) else "%.3f m" % value
 
 
 func _build_pickup_rack() -> void:
 	_pickup_root = Node3D.new()
 	_pickup_root.name = "PickupTactileRig"
-	_pickup_root.visible = false
 	get_parent().add_child.call_deferred(_pickup_root)
 
 	var rack_material := StandardMaterial3D.new()
 	rack_material.albedo_color = Color(0.20, 0.23, 0.25)
 	rack_material.roughness = 0.88
+
 	var shelf_mesh := BoxMesh.new()
-	shelf_mesh.size = Vector3(1.35, 0.05, 0.38)
+	shelf_mesh.size = Vector3(1.35, SHELF_HALF_THICKNESS_M * 2.0, 0.38)
 	shelf_mesh.material = rack_material
-	var shelf := MeshInstance3D.new()
-	shelf.mesh = shelf_mesh
-	shelf.position = Vector3(0.0, 1.34, 0.28)
-	_pickup_root.add_child(shelf)
+	_pickup_shelf = MeshInstance3D.new()
+	_pickup_shelf.name = "MovingShelf"
+	_pickup_shelf.mesh = shelf_mesh
+	_pickup_root.add_child(_pickup_shelf)
+
 	for x: float in [-0.66, 0.66]:
 		var post_mesh := BoxMesh.new()
-		post_mesh.size = Vector3(0.05, 1.75, 0.05)
+		post_mesh.size = Vector3(0.05, 2.10, 0.05)
 		post_mesh.material = rack_material
 		var post := MeshInstance3D.new()
 		post.mesh = post_mesh
-		post.position = Vector3(x, 0.875, 0.40)
+		post.position = Vector3(x, 1.05, 0.40)
 		_pickup_root.add_child(post)
 
 	var can_mesh := CylinderMesh.new()
 	can_mesh.top_radius = ITEM_RADIUS_M
 	can_mesh.bottom_radius = ITEM_RADIUS_M
 	can_mesh.height = ITEM_HALF_HEIGHT_M * 2.0
-	can_mesh.radial_segments = 24
+	can_mesh.radial_segments = 32
 	var can_material := StandardMaterial3D.new()
 	can_material.albedo_color = Color(0.88, 0.58, 0.14)
 	can_material.metallic = 0.35
@@ -210,38 +232,34 @@ func _build_pickup_rack() -> void:
 
 	if visual == null or visual.skeleton == null:
 		return
-	_pickup_ik = visual.skeleton.get_node_or_null(^"DoorHand") as DoorHandIK
-	if _pickup_ik != null:
-		## DoorHandIK only places the wrist. Put the palm onto the object; the
-		## following modifier owns the actual finger closure.
-		_pickup_ik.elbow_drop = 0.14
-		_pickup_ik.palm_flatten = 0.35
-		_pickup_ik.palm_offset_m = 0.0
-		_pickup_ik.wrist_back_m = 0.045
-		_pickup_ik.blend_in_rate = 8.0
+	_source_ik = visual.skeleton.get_node_or_null(^"DoorHand") as DoorHandIK
+	if _source_ik != null:
+		_tune_arm_solver(_source_ik)
 
-	## Production sockets exist before contact, so ownership transfer cannot sample
-	## a just-created/stale BoneAttachment transform.
+	_receiver_ik = DoorHandIK.new()
+	_receiver_ik.name = "TactileHandoffIK"
+	_tune_arm_solver(_receiver_ik)
+	visual.skeleton.add_child(_receiver_ik)
+
 	_left_socket = visual.get_hand_socket()
 	_right_socket = visual.get_offhand_socket()
 
-	_tactile_grip = TactileHandGrip.new()
-	_tactile_grip.name = "TactileGripProof"
-	visual.skeleton.add_child(_tactile_grip)
-	_build_contact_markers()
+	_source_grip = TactileHandGrip.new()
+	_source_grip.name = "TactileGripRight"
+	visual.skeleton.add_child(_source_grip)
+	_receiver_grip = TactileHandGrip.new()
+	_receiver_grip.name = "TactileGripLeft"
+	visual.skeleton.add_child(_receiver_grip)
 
 
-func _build_contact_markers() -> void:
-	## UAL has no fingertip leaf bones. Keep final-evaluated 02/03 attachments and
-	## extrapolate the actual distal tip from that phalanx after all modifiers run.
-	for finger: String in ["index", "middle", "ring", "pinky", "thumb"]:
-		for joint: int in [2, 3]:
-			var key: String = "%s_%02d" % [finger, joint]
-			var marker := BoneAttachment3D.new()
-			marker.name = "TactileContact_%s" % key
-			marker.bone_name = StringName("%s_r" % key)
-			visual.skeleton.add_child(marker)
-			_contact_markers[key] = marker
+func _tune_arm_solver(ik: DoorHandIK) -> void:
+	ik.elbow_drop = 0.12
+	ik.palm_flatten = 0.18
+	ik.palm_offset_m = 0.0
+	ik.wrist_back_m = 0.040
+	ik.blend_in_rate = 8.0
+	ik.blend_out_rate = 6.0
+	ik.follow_rate = 22.0
 
 
 func _update_pickup_reach(local_time: float) -> void:
@@ -256,30 +274,26 @@ func _update_pickup_reach(local_time: float) -> void:
 
 	if not _pickup_reach_started:
 		_pickup_reach_started = true
-		_configure_pickup_hand(_pickup_hand)
-		visual.play_action(&"pickup")
+		_configure_arm_for_hand(_source_ik, &"RIGHT")
 
-	_update_arm_goal()
+	_update_arm_goal(_source_ik, &"RIGHT", _pickup_item.global_transform)
 	if case_time < PICKUP_REACH_END:
 		_pickup_phase = &"REACH"
-		if _tactile_grip != null:
-			_tactile_grip.release()
+		_source_grip.release()
 		return
 
 	var close_t: float = clampf((case_time - PICKUP_REACH_END) / (PICKUP_GRASP_END - PICKUP_REACH_END), 0.0, 1.0)
 	close_t = close_t * close_t * (3.0 - 2.0 * close_t)
-	if _tactile_grip != null:
-		_tactile_grip.set_goal(_pickup_hand, _pickup_item.global_transform, ITEM_RADIUS_M, ITEM_HALF_HEIGHT_M, close_t)
-	_update_tactile_metrics()
+	_source_grip.set_goal(&"RIGHT", _pickup_item.global_transform, ITEM_RADIUS_M, ITEM_HALF_HEIGHT_M, close_t)
+	_update_tactile_metrics(_source_grip)
 
-	## A single accidental brush is not a grasp. Require opposition: the thumb plus
-	## at least two non-thumb fingertips must meet the same object volume.
 	if not _pickup_attached and close_t >= 0.72 and _pickup_thumb_contact and _pickup_finger_contacts >= 2:
-		_attach_pickup_to_hand()
+		_attach_pickup_to_socket(_right_socket)
 		_record_pickup_result(true)
 
 	if _pickup_attached:
 		_pickup_phase = &"CONTACT"
+		_source_grip.set_goal(&"RIGHT", _pickup_item.global_transform, ITEM_RADIUS_M, ITEM_HALF_HEIGHT_M, 1.0)
 	elif case_time < PICKUP_GRASP_END:
 		_pickup_phase = &"GRASP"
 	else:
@@ -287,81 +301,106 @@ func _update_pickup_reach(local_time: float) -> void:
 		if not _pickup_result_recorded:
 			_record_pickup_result(false)
 
-	if case_time >= PICKUP_HOLD_END and not _pickup_attached and _pickup_ik != null:
-		_pickup_ik.release()
+	if case_time >= PICKUP_HOLD_END and case_index < PICKUP_CASES.size() - 1:
+		_source_ik.release()
+		_source_grip.release()
 
 
 func _begin_pickup_case(index: int) -> void:
-	_restore_pickup_item_to_rack()
-	if _pickup_ik != null:
-		_pickup_ik.release()
-	if _tactile_grip != null:
-		_tactile_grip.release()
+	if _pickup_case_index >= 0 and _pickup_case_index < PICKUP_CASES.size() - 1:
+		_restore_pickup_item_to_rack()
+	if _source_ik != null:
+		_source_ik.release()
+	if _receiver_ik != null:
+		_receiver_ik.release()
+	if _source_grip != null:
+		_source_grip.release()
+	if _receiver_grip != null:
+		_receiver_grip.release()
+	if _work_pose_requested:
+		visual.end_work_pose()
+		_work_pose_requested = false
 	visual.abort_action()
+
 	_pickup_case_index = index
 	_pickup_phase = &"SETUP"
 	_pickup_reach_started = false
 	_pickup_result_recorded = false
 	_pickup_attached = false
-	_pickup_contact_count = 0
-	_pickup_finger_contacts = 0
-	_pickup_thumb_contact = false
-	_pickup_surface_error = INF
+	_reset_contact_metrics()
+
 	var case_data: Dictionary = PICKUP_CASES[index]
-	_pickup_item.transform = Transform3D(Basis.IDENTITY, case_data["position"] as Vector3)
-	_pickup_hand = case_data["hand"] as StringName
+	var height: float = float(case_data["height"])
+	_pickup_shelf.position = Vector3(0.0, maxf(SHELF_HALF_THICKNESS_M, height - ITEM_HALF_HEIGHT_M - SHELF_HALF_THICKNESS_M), 0.28)
+	_pickup_item.transform = Transform3D(Basis.IDENTITY, Vector3(0.25, height, 0.18))
+	_set_stance(StringName(case_data["stance"]))
+	print("[EmbodiedLab] case=%s height=%.2f stance=%s" % [case_data["name"], height, _stance])
 
 
-func _configure_pickup_hand(hand: StringName) -> void:
-	var suffix: String = "l" if hand == &"LEFT" else "r"
-	if _pickup_ik != null:
-		_pickup_ik.upper_bone = StringName("upperarm_" + suffix)
-		_pickup_ik.lower_bone = StringName("lowerarm_" + suffix)
-		_pickup_ik.hand_bone = StringName("hand_" + suffix)
-		_pickup_ik.middle_bone = StringName("middle_01_" + suffix)
-		_pickup_ik.index_bone = StringName("index_01_" + suffix)
-		_pickup_ik.pinky_bone = StringName("pinky_01_" + suffix)
-		_pickup_ik.left_hand = hand == &"LEFT"
-	for key: String in _contact_markers:
-		var marker := _contact_markers[key] as BoneAttachment3D
-		if marker != null:
-			marker.bone_name = StringName("%s_%s" % [key, suffix])
+func _set_stance(stance: StringName) -> void:
+	_stance = stance
+	var crouched: bool = stance != &"STAND"
+	_set_capsule_height(CROUCH_CAPSULE_HEIGHT if crouched else STAND_CAPSULE_HEIGHT)
+	if _base_playback != null:
+		_base_playback.travel(&"Crouch" if stance == &"CROUCH" else &"Grounded")
+	if stance == &"KNEEL":
+		_work_pose_requested = visual.begin_work_pose()
 
 
-func _update_arm_goal() -> void:
-	if _pickup_ik == null or _pickup_item == null:
+func _set_capsule_height(height: float) -> void:
+	if collision_shape == null:
 		return
-	var axis: Vector3 = _pickup_item.global_transform.basis.y.normalized()
-	var outward: Vector3 = global_position + Vector3.UP * 1.25 - _pickup_item.global_position
+	var capsule := collision_shape.shape as CapsuleShape3D
+	if capsule == null:
+		return
+	capsule.height = height
+	collision_shape.position.y = height * 0.5
+
+
+func _configure_arm_for_hand(ik: DoorHandIK, hand: StringName) -> void:
+	if ik == null:
+		return
+	var suffix: String = "l" if hand == &"LEFT" else "r"
+	ik.upper_bone = StringName("upperarm_" + suffix)
+	ik.lower_bone = StringName("lowerarm_" + suffix)
+	ik.hand_bone = StringName("hand_" + suffix)
+	ik.middle_bone = StringName("middle_01_" + suffix)
+	ik.index_bone = StringName("index_01_" + suffix)
+	ik.pinky_bone = StringName("pinky_01_" + suffix)
+	ik.left_hand = hand == &"LEFT"
+
+
+func _update_arm_goal(ik: DoorHandIK, hand: StringName, item_xf: Transform3D) -> void:
+	if ik == null:
+		return
+	var axis: Vector3 = item_xf.basis.y.normalized()
+	var shoulder_height: float = 1.30 if _stance == &"STAND" else (0.92 if _stance == &"CROUCH" else 0.72)
+	var outward: Vector3 = global_position + Vector3.UP * shoulder_height - item_xf.origin
 	outward -= axis * outward.dot(axis)
 	if outward.length_squared() < 0.0001:
 		outward = -global_transform.basis.z
 	outward = outward.normalized()
-	## Put the palm skin onto the can rather than leaving the wrist solver's old
-	## diagnostic air gap. Ten millimetres inside the analytic radius approximates
-	## soft hand volume; finger contact still uses the visible tip surface metric.
-	var palm_surface: Vector3 = _pickup_item.global_position + outward * (ITEM_RADIUS_M - 0.010)
-	_pickup_ik.set_goal(palm_surface, outward, 1.0)
+	if hand == &"LEFT":
+		outward = (outward + global_transform.basis.x * -0.12).normalized()
+	else:
+		outward = (outward + global_transform.basis.x * 0.12).normalized()
+	var palm_surface: Vector3 = item_xf.origin + outward * (ITEM_RADIUS_M - 0.006)
+	ik.set_goal(palm_surface, outward, 1.0)
 
 
-func _update_tactile_metrics() -> void:
-	_pickup_contact_count = 0
-	_pickup_finger_contacts = 0
-	_pickup_thumb_contact = false
-	_pickup_surface_error = INF
+func _update_tactile_metrics(grip: TactileHandGrip) -> void:
+	_reset_contact_metrics()
+	if grip == null:
+		return
+	var debug: Dictionary = grip.get_contact_debug()
+	var errors := debug.get("errors_m", {}) as Dictionary
 	for finger: String in ["index", "middle", "ring", "pinky", "thumb"]:
-		var marker_02 := _contact_markers.get("%s_02" % finger) as BoneAttachment3D
-		var marker_03 := _contact_markers.get("%s_03" % finger) as BoneAttachment3D
-		if marker_02 == null or marker_03 == null:
+		if not errors.has(finger):
 			continue
-		var segment: Vector3 = marker_03.global_position - marker_02.global_position
-		var tip: Vector3 = marker_03.global_position
-		if segment.length_squared() > 1e-8:
-			tip += segment * TIP_EXTENSION_SHARE
-		var error: float = _cylinder_surface_error(tip)
+		var error: float = float(errors[finger])
+		_pickup_per_finger[finger] = error
 		_pickup_surface_error = minf(_pickup_surface_error, error)
-		var contacting: bool = error <= FINGER_SURFACE_TOLERANCE_M
-		if contacting:
+		if error <= FINGER_SURFACE_TOLERANCE_M:
 			_pickup_contact_count += 1
 			if finger == "thumb":
 				_pickup_thumb_contact = true
@@ -369,25 +408,17 @@ func _update_tactile_metrics() -> void:
 				_pickup_finger_contacts += 1
 
 
-func _cylinder_surface_error(world_point: Vector3) -> float:
-	if _pickup_item == null:
-		return INF
-	var p: Vector3 = _pickup_item.global_transform.affine_inverse() * world_point
-	var radial: float = Vector2(p.x, p.z).length()
-	var q := Vector2(radial - ITEM_RADIUS_M, absf(p.y) - ITEM_HALF_HEIGHT_M)
-	var outside := Vector2(maxf(q.x, 0.0), maxf(q.y, 0.0)).length()
-	var inside: float = minf(maxf(q.x, q.y), 0.0)
-	return absf(outside + inside)
+func _reset_contact_metrics() -> void:
+	_pickup_contact_count = 0
+	_pickup_finger_contacts = 0
+	_pickup_thumb_contact = false
+	_pickup_surface_error = INF
+	_pickup_per_finger = {}
 
 
-func _attach_pickup_to_hand() -> void:
-	if _pickup_item == null:
+func _attach_pickup_to_socket(socket: BoneAttachment3D) -> void:
+	if _pickup_item == null or socket == null:
 		return
-	var socket: BoneAttachment3D = _left_socket if _pickup_hand == &"LEFT" else _right_socket
-	if socket == null:
-		return
-	## Preserve the exact world contact pose; no HeldFit offset may snap the proof
-	## item into a fist after the tactile gate has already succeeded.
 	var contact_xf: Transform3D = _pickup_item.global_transform
 	_pickup_item.reparent(socket, true)
 	_pickup_item.global_transform = contact_xf
@@ -398,19 +429,22 @@ func _record_pickup_result(contact: bool) -> void:
 	if _pickup_result_recorded:
 		return
 	_pickup_result_recorded = true
+	var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
 	var result := {
-		"name": String(PICKUP_CASES[_pickup_case_index]["name"]),
-		"hand": String(_pickup_hand),
+		"name": String(case_data["name"]),
+		"height_m": float(case_data["height"]),
+		"stance": String(case_data["stance"]),
 		"contact": contact,
 		"contacts": _pickup_contact_count,
 		"finger_contacts": _pickup_finger_contacts,
 		"thumb_contact": _pickup_thumb_contact,
 		"best_tip_surface_error_m": _pickup_surface_error,
-		"tactile_weight": _tactile_grip.get_weight() if _tactile_grip != null else 0.0,
+		"per_finger_error_m": _pickup_per_finger.duplicate(true),
+		"tactile_weight": _source_grip.get_weight() if _source_grip != null else 0.0,
 	}
 	_pickup_results.append(result)
-	print("[EmbodiedTactile] %s hand=%s contact=%s contacts=%d fingers=%d thumb=%s tip_error=%.3f" % [
-		PICKUP_CASES[_pickup_case_index]["name"], _pickup_hand, contact, _pickup_contact_count,
+	print("[EmbodiedTactile] %s h=%.2f contact=%s contacts=%d fingers=%d thumb=%s best=%.3f" % [
+		case_data["name"], float(case_data["height"]), contact, _pickup_contact_count,
 		_pickup_finger_contacts, _pickup_thumb_contact, _pickup_surface_error])
 
 
@@ -421,12 +455,81 @@ func _restore_pickup_item_to_rack() -> void:
 		_pickup_item.reparent(_pickup_root, true)
 
 
-func _finish_pickup_sequence() -> void:
-	if _pickup_ik != null:
-		_pickup_ik.release()
-	if _tactile_grip != null:
-		_tactile_grip.release()
-	visual.abort_action()
+func _update_handoff(local_time: float) -> void:
+	if not _handoff_started:
+		_handoff_started = true
+		_handoff_phase = &"RISE"
+		if _work_pose_requested:
+			visual.end_work_pose()
+			_work_pose_requested = false
+		_set_capsule_height(STAND_CAPSULE_HEIGHT)
+		_stance = &"STAND"
+		if _base_playback != null:
+			_base_playback.travel(&"Grounded")
+		if _source_ik != null:
+			_source_ik.release()
+		_configure_arm_for_hand(_receiver_ik, &"LEFT")
+
+	if not _pickup_attached:
+		_handoff_phase = &"SKIPPED_NO_SOURCE_GRIP"
+		return
+
+	_source_grip.set_goal(&"RIGHT", _pickup_item.global_transform, ITEM_RADIUS_M, ITEM_HALF_HEIGHT_M, 1.0)
+	if local_time < HANDOFF_RECEIVER_BEGIN:
+		_handoff_phase = &"RISE"
+		return
+
+	_update_arm_goal(_receiver_ik, &"LEFT", _pickup_item.global_transform)
+	var close_t: float = clampf((local_time - HANDOFF_RECEIVER_BEGIN) / (HANDOFF_GRASP_END - HANDOFF_RECEIVER_BEGIN), 0.0, 1.0)
+	close_t = close_t * close_t * (3.0 - 2.0 * close_t)
+	_receiver_grip.set_goal(&"LEFT", _pickup_item.global_transform, ITEM_RADIUS_M, ITEM_HALF_HEIGHT_M, close_t)
+	_update_tactile_metrics(_receiver_grip)
+
+	if not _handoff_transferred and close_t >= 0.72 and _pickup_thumb_contact and _pickup_finger_contacts >= 2:
+		_attach_pickup_to_socket(_left_socket)
+		_handoff_transferred = true
+		_source_grip.release()
+		_handoff_phase = &"CONTACT"
+		_handoff_result = {
+			"contact": true,
+			"contacts": _pickup_contact_count,
+			"finger_contacts": _pickup_finger_contacts,
+			"thumb_contact": _pickup_thumb_contact,
+			"best_tip_surface_error_m": _pickup_surface_error,
+			"per_finger_error_m": _pickup_per_finger.duplicate(true),
+		}
+		print("[EmbodiedHandoff] transferred right_to_left contacts=%d fingers=%d thumb=%s best=%.3f" % [
+			_pickup_contact_count, _pickup_finger_contacts, _pickup_thumb_contact, _pickup_surface_error])
+
+	if _handoff_transferred:
+		_handoff_phase = &"CONTACT"
+		_receiver_grip.set_goal(&"LEFT", _pickup_item.global_transform, ITEM_RADIUS_M, ITEM_HALF_HEIGHT_M, 1.0)
+	elif local_time < HANDOFF_GRASP_END:
+		_handoff_phase = &"RECEIVER_GRASP"
+	else:
+		_handoff_phase = &"MISS"
+		if _handoff_result.is_empty():
+			_handoff_result = {
+				"contact": false,
+				"contacts": _pickup_contact_count,
+				"finger_contacts": _pickup_finger_contacts,
+				"thumb_contact": _pickup_thumb_contact,
+				"best_tip_surface_error_m": _pickup_surface_error,
+				"per_finger_error_m": _pickup_per_finger.duplicate(true),
+			}
+
+	if local_time >= HANDOFF_HOLD_END:
+		_receiver_ik.release()
+
+
+func _finish_sequence() -> void:
+	if _source_ik != null:
+		_source_ik.release()
+	if _receiver_ik != null:
+		_receiver_ik.release()
+	if _work_pose_requested:
+		visual.end_work_pose()
+		_work_pose_requested = false
 
 
 func _set_target_debug_visible(visible: bool) -> void:
@@ -448,7 +551,7 @@ func get_crouch_speed_ratio() -> float:
 
 
 func is_crouching() -> bool:
-	return false
+	return _stance != &"STAND"
 
 
 func get_view_direction() -> Vector3:
@@ -465,20 +568,24 @@ func get_pickup_phase() -> String:
 	return String(_pickup_phase)
 
 
+func get_handoff_phase() -> String:
+	return String(_handoff_phase)
+
+
 func get_capture_report() -> Dictionary:
 	return {
 		"stage": _stage_name(),
 		"skeleton_missing": Array(_skeleton_missing),
 		"skeleton_roles": HenrySkeletonContract.describe(visual.skeleton),
 		"camera": "production TpsCamera scene",
-		"uses_existing_interact_action": true,
-		"uses_existing_pickup_action": true,
-		"arm_solver": "DoorHandIK wrist reach",
-		"finger_solver": "TactileHandGrip reachable cylinder arc + distal phalanx",
+		"test_geometry": "one shelf + one cylindrical can, shelf moved through five heights",
+		"body_pose_policy": "Grounded idle / Crouch idle / Fixing_Kneeling work pose",
+		"arm_solver": "DoorHandIK as lab wrist reach only",
+		"finger_solver": "TactileHandGrip authored Idle_Torch prior + bounded CCD surface settle",
 		"contact_rule": "thumb + >=2 non-thumb anatomical tip proxies at cylinder surface",
 		"finger_surface_tolerance_m": FINGER_SURFACE_TOLERANCE_M,
-		"tip_extension_share": TIP_EXTENSION_SHARE,
 		"pickup_results": _pickup_results,
+		"handoff": _handoff_result,
 		"production_movement_replaced": false,
 		"production_item_pickup_replaced": false,
 		"production_held_fit_changed": false,
