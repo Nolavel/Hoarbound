@@ -3,6 +3,8 @@ extends "res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd"
 ## Player-facing policy for the embodied interaction lab.
 ## The production InteractComponent owns F acceptance; the lab owns only the
 ## authored pickup presentation, persistent held state, hand transfer and return.
+## Pickup/return clips are deliberately cut at prop contact; their recovery tails
+## must not play while the can is already socketed or already back on the rack.
 
 const CONTACT_TO_HELD_SECONDS: float = 0.22
 const LOW_TARGET_FOCUS_CONE_DEG: float = 28.0
@@ -86,8 +88,6 @@ func _begin_pickup_case(index: int) -> void:
 	_start_action(&"PICK_ACTION")
 
 
-## The source action is useful only up to physical contact. Once the can is
-## socketed, cut the authored recovery tail and blend directly into held idle.
 func _update_pick_action(delta: float) -> void:
 	_action_time += delta
 	var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
@@ -104,8 +104,6 @@ func _update_pick_action(delta: float) -> void:
 	_phase_time = 0.0
 
 
-## Short contact->held bridge keeps the prop attached to the hand while the
-## full-body action fades out, instead of letting the remaining clip swing it.
 func _update_idle_present() -> void:
 	var blend := smoothstep(0.0, CONTACT_TO_HELD_SECONDS, _phase_time)
 	var target := _active_contact_position().lerp(_held_target(_active_hand), blend)
@@ -179,9 +177,6 @@ func _attach_item(hand: StringName) -> void:
 		visual.hold_in_offhand(_active_item)
 
 
-## G plays only the approach-to-contact half of the same source action. The can
-## is released at contact and the recovery tail is faded, so low return is one
-## bend/crouch instead of a second full pickup performance.
 func _start_return_from_held() -> void:
 	if not _item_attached or _pickup_case_index < 0 or _pickup_case_index >= PICKUP_CASES.size():
 		return
@@ -284,9 +279,6 @@ func _contact_for(index: int) -> Vector3:
 	return interaction_rig.to_global(_item_home[index].origin + Vector3.UP * float(case_data.get("grip_y", 0.0)))
 
 
-## Lab-only aim proxies for knee/floor cans. They sit on the visible front/top
-## of the prop and enlarge only those Area shapes; production pickup targeting is
-## unchanged.
 func _configure_low_target_focus() -> void:
 	for index: int in [3, 4]:
 		if index < 0 or index >= _targets.size():
