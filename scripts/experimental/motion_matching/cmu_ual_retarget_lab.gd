@@ -61,6 +61,7 @@ var _retarget_modifier: RetargetModifier3D
 var _setup_ok := false
 var _mapped_count := 0
 var _mapping: Dictionary = {}
+var _mapped_target_indices: Array[int] = []
 var _unmapped_required: Array[String] = []
 var _report: Dictionary = {}
 
@@ -109,6 +110,7 @@ func _setup() -> void:
 	_report["retarget_mode"] = "CMU_BVH_RetargetModifier3D_proxy_rotation_only"
 	_report["retarget_position_enabled"] = false
 	_report["retarget_rotation_enabled"] = true
+	_report["target_copy_mode"] = "mapped_rotation_only_preserve_ual_positions"
 	_report["mapped_profile_bones"] = _mapped_count
 	_report["target_bone_count"] = _target_skeleton.get_bone_count()
 	_report["target_source_mapping"] = _mapping.duplicate(true)
@@ -175,8 +177,8 @@ func _install_runtime_retarget() -> bool:
 	_proxy_skeleton.name = "UALRestProxy"
 
 	var mapped_source_names: Array[StringName] = []
-	var mapped_target_indices: Array[int] = []
 	var used_source_names: Dictionary = {}
+	_mapped_target_indices.clear()
 
 	for target_index in range(_target_skeleton.get_bone_count()):
 		var target_name := _target_skeleton.get_bone_name(target_index)
@@ -187,7 +189,7 @@ func _install_runtime_retarget() -> bool:
 			proxy_name = source_name
 			used_source_names[source_name] = true
 			mapped_source_names.append(StringName(source_name))
-			mapped_target_indices.append(target_index)
+			_mapped_target_indices.append(target_index)
 		elif not source_name.is_empty():
 			source_name = ""
 
@@ -203,7 +205,7 @@ func _install_runtime_retarget() -> bool:
 	profile.bone_size = mapped_source_names.size()
 	for profile_index in range(mapped_source_names.size()):
 		var source_name := mapped_source_names[profile_index]
-		var target_index := mapped_target_indices[profile_index]
+		var target_index := _mapped_target_indices[profile_index]
 		profile.set_bone_name(profile_index, source_name)
 		profile.set_reference_pose(profile_index, _target_skeleton.get_bone_rest(target_index))
 
@@ -227,9 +229,15 @@ func _install_runtime_retarget() -> bool:
 func _copy_proxy_pose_to_henry() -> void:
 	if _proxy_skeleton == null or _target_skeleton == null:
 		return
-	var count := mini(_proxy_skeleton.get_bone_count(), _target_skeleton.get_bone_count())
-	for bone_index in range(count):
-		_target_skeleton.set_bone_pose(bone_index, _proxy_skeleton.get_bone_pose(bone_index))
+	# RetargetModifier3D is rotation-only here. Its proxy translations are not
+	# valid target poses, so copying the full Transform3D collapses UAL offsets.
+	# Keep Henry's rest-derived local positions/scales and copy only mapped
+	# retargeted rotations; unmapped terminal bones remain on their UAL rests.
+	for bone_index in _mapped_target_indices:
+		_target_skeleton.set_bone_pose_rotation(
+			bone_index,
+			_proxy_skeleton.get_bone_pose_rotation(bone_index)
+		)
 
 
 func _disable_target_modifiers(node: Node) -> void:
