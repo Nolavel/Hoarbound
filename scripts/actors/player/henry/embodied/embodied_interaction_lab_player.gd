@@ -29,8 +29,6 @@ func _ready() -> void:
 	super._ready()
 	var interact := get_node_or_null(^"InteractComponent") as InteractComponent
 	if interact != null:
-		## Lab-only forgiveness: from a normal standing TPS frame the knee/floor
-		## cans must be selectable without first crouching just to expose them.
 		interact.focus_angle_deg = maxf(interact.focus_angle_deg, LOW_TARGET_FOCUS_CONE_DEG)
 	_configure_low_target_focus()
 
@@ -62,8 +60,6 @@ func _physics_process(delta: float) -> void:
 		_update_labels()
 
 
-## F has already been accepted by InteractComponent when this is called. Measure
-## the stance for the report, but never silently cancel the authored action here.
 func _begin_pickup_case(index: int) -> void:
 	_disable_all_ik()
 	visual.abort_action()
@@ -84,7 +80,6 @@ func _begin_pickup_case(index: int) -> void:
 	var clear_path := _rack_reach_is_clear(_active_hand, contact)
 	var chosen := _candidate_report.get(String(_active_hand), {}) as Dictionary
 	_body_aligned = bool(chosen.get("feasible", false)) and clear_path and facing
-
 	_stage = Stage.PICKUP
 	_targets[index].available = false
 	_manual_prompt = ""
@@ -104,9 +99,6 @@ func _begin_pickup_case(index: int) -> void:
 	_start_action(&"PICK_ACTION")
 
 
-## Contact is the semantic end of the pickup action. The source clip may contain
-## a return/recovery section, but allowing that section to keep playing after the
-## prop has been socketed makes the can visibly wander in space.
 func _update_pick_action(delta: float) -> void:
 	_action_time += delta
 	var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
@@ -123,8 +115,6 @@ func _update_pick_action(delta: float) -> void:
 	_phase_time = 0.0
 
 
-## Blend the contacted wrist to the persistent held pose over a short bridge.
-## This replaces both the old full clip tail and the old 0.85 s floating beat.
 func _update_idle_present() -> void:
 	var blend := smoothstep(0.0, CONTACT_TO_HELD_SECONDS, _phase_time)
 	var target := _active_contact_position().lerp(_held_target(_active_hand), blend)
@@ -141,9 +131,6 @@ func _update_idle_present() -> void:
 	_manual_prompt = _held_prompt()
 
 
-## Base proof used F only for the final floor-can transfer. The player-facing lab
-## deliberately requires RMB, so an ordinary world-interact press can never
-## accidentally move the object between hands.
 func _begin_handoff() -> void:
 	if not _handoff_requested or not _item_attached or _stage != Stage.MANUAL:
 		return
@@ -152,8 +139,6 @@ func _begin_handoff() -> void:
 	super._begin_handoff()
 
 
-## Generic handoff: any held can may be transferred, repeatedly. Completion
-## returns to HELD instead of ending the lab so RMB can toggle LEFT <-> RIGHT.
 func _update_handoff(delta: float) -> void:
 	_phase_time += delta
 	var left_shoulder := _bone_world(&"upperarm_l")
@@ -192,9 +177,6 @@ func _update_handoff(delta: float) -> void:
 		_manual_prompt = _held_prompt()
 
 
-## HenryUALAnimation's primary HandSocket is hand_l and OffhandSocket is hand_r.
-## The previous lab mapping was reversed, which made the authored animation reach
-## with one hand while the cylinder teleported into the other.
 func _attach_item(hand: StringName) -> void:
 	if visual.get_held_prop() == _active_item:
 		visual.release_hand()
@@ -206,9 +188,6 @@ func _attach_item(hand: StringName) -> void:
 		visual.hold_in_offhand(_active_item)
 
 
-## Return reuses only the approach-to-contact half of the same authored action.
-## At contact the prop is restored and the remaining recovery section is cut,
-## so low items produce one bend/crouch instead of crouch -> stand -> crouch.
 func _start_return_from_held() -> void:
 	if not _item_attached or _pickup_case_index < 0 or _pickup_case_index >= PICKUP_CASES.size():
 		return
@@ -248,16 +227,11 @@ func _held_prompt() -> String:
 		case_name, String(_active_hand)]
 
 
-## The hand does not travel shoulder -> object. The actionable clearance segment
-## is wrist -> contact; the elbow and shoulder are already represented by the
-## measured two-bone chain and the authored animation.
 func _rack_reach_is_clear(hand: StringName, target: Vector3) -> bool:
 	var wrist := _bone_world(&"hand_l" if hand == &"LEFT" else &"hand_r")
 	return _rack_safe_endpoint(wrist, target).distance_to(target) < 0.005
 
 
-## Same stock TwoBoneIK3D correction as the base proof, but rack collision clamps
-## the actual wrist path instead of an artificial shoulder-to-can chord.
 func _set_hand_ik(hand: StringName, target_position: Vector3, weight: float) -> void:
 	var ik := _left_ik if hand == &"LEFT" else _right_ik
 	var target := _left_target if hand == &"LEFT" else _right_target
@@ -293,7 +267,6 @@ func _refresh_manual_diagnostics() -> void:
 	if index < 0 or index >= _items.size() or not lab_target.available:
 		_manual_prompt = "crosshair target: unavailable"
 		return
-
 	var case_data: Dictionary = PICKUP_CASES[index]
 	var contact := _contact_for(index)
 	var hand := _select_hand(contact)
@@ -319,9 +292,6 @@ func _contact_for(index: int) -> Vector3:
 
 
 func _configure_low_target_focus() -> void:
-	## These proxies are intentionally only for the two low cases. They sit on
-	## the visible front/top of the can so a standing over-the-shoulder camera can
-	## acquire it without requiring a crouch just to move Henry's silhouette.
 	for index: int in [3, 4]:
 		if index < 0 or index >= _targets.size():
 			continue
