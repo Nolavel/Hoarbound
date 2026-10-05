@@ -232,8 +232,11 @@ func _apply_frame(frame_index: int) -> void:
 			current.origin.x = rest.origin.x
 			current.origin.z = rest.origin.z
 			current.origin.y = rest.origin.y + (current.origin.y - _first_motion_root_local.y)
-		var pose := rest.affine_inverse() * current
-		set_bone_pose(bone_index, pose)
+		# Skeleton3D bone poses are absolute local transforms, not rest-space
+		# deltas. RetargetModifier3D performs the rest-space extraction itself.
+		# Feeding rest^-1 * current here collapses child translations toward zero
+		# and effectively subtracts the source rest twice during retargeting.
+		set_bone_pose(bone_index, current)
 
 
 func _frame_local_transform(frame_index: int, bone_index: int) -> Transform3D:
