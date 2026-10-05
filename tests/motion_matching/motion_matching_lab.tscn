@@ -10,10 +10,10 @@ roughness = 0.9
 
 [sub_resource type="BoxMesh" id="MeshFloor"]
 material = SubResource("MatFloor")
-size = Vector3(24, 0.2, 24)
+size = Vector3(80, 0.2, 80)
 
 [sub_resource type="BoxShape3D" id="ShapeFloor"]
-size = Vector3(24, 0.2, 24)
+size = Vector3(80, 0.2, 80)
 
 [sub_resource type="StandardMaterial3D" id="MatAxis"]
 albedo_color = Color(0.34, 0.37, 0.40, 1)
@@ -21,11 +21,11 @@ roughness = 0.85
 
 [sub_resource type="BoxMesh" id="MeshAxisX"]
 material = SubResource("MatAxis")
-size = Vector3(23.5, 0.012, 0.035)
+size = Vector3(79.5, 0.012, 0.035)
 
 [sub_resource type="BoxMesh" id="MeshAxisZ"]
 material = SubResource("MatAxis")
-size = Vector3(0.035, 0.012, 23.5)
+size = Vector3(0.035, 0.012, 79.5)
 
 [sub_resource type="CapsuleShape3D" id="ShapeHenry"]
 radius = 0.5
