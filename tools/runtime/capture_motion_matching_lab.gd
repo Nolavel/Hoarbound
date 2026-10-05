@@ -1,18 +1,21 @@
 extends SceneTree
 
-## Deterministic Phase 1 capture for issue #201. When the CI-only official
-## Rokoko sample is present, the same capture harness switches to the isolated
-## issue #202 direct-Godot retarget spike instead of creating another workflow.
+## Deterministic Phase 1 capture for issue #201. When CI-only motion sources are
+## present, the same harness switches to isolated issue #202 retarget spikes
+## instead of creating extra workflows.
 
 const SCENE_PATH := "res://tests/motion_matching/motion_matching_lab.tscn"
 const ROKOKO_SCENE_PATH := "res://tests/motion_matching/rokoko_ual_retarget_lab.tscn"
 const ROKOKO_SOURCE_PATH := "res://tests/motion_matching/_runtime_rokoko/rokoko_unreal_sample.fbx"
+const CMU_SCENE_PATH := "res://tests/motion_matching/cmu_ual_retarget_lab.tscn"
+const CMU_SOURCE_PATH := "res://tests/motion_matching/_runtime_cmu/41_02.bvh"
 const OUT_DIR := "res://docs/runtime_previews/motion_matching_lab"
 const FRAME_DIR := OUT_DIR + "/frames"
 const CAPTURE_WIDTH := 1280
 const CAPTURE_HEIGHT := 720
 const PHYSICS_STEPS_PER_FRAME := 2
 const ROKOKO_VIDEO_FRAMES := 150
+const CMU_VIDEO_FRAMES := 240
 
 const SEQUENCE: Array[Dictionary] = [
 	{"label": "idle", "input": Vector2.ZERO, "frames": 18},
@@ -44,7 +47,9 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_prepare_output()
-	if FileAccess.file_exists(ROKOKO_SOURCE_PATH):
+	if FileAccess.file_exists(CMU_SOURCE_PATH):
+		await _run_cmu_capture()
+	elif FileAccess.file_exists(ROKOKO_SOURCE_PATH):
 		await _run_rokoko_capture()
 	else:
 		await _run_phase1_capture()
@@ -98,24 +103,7 @@ func _run_phase1_capture() -> void:
 
 
 func _run_rokoko_capture() -> void:
-	var packed := load(ROKOKO_SCENE_PATH) as PackedScene
-	if packed == null:
-		push_error("RokokoRetargetCapture: cannot load %s" % ROKOKO_SCENE_PATH)
-		quit(10)
-		return
-	_scene = packed.instantiate() as Node3D
-	if _scene == null or not _scene.has_method("is_ready_for_capture"):
-		push_error("RokokoRetargetCapture: lab root is invalid.")
-		quit(11)
-		return
-	root.add_child(_scene)
-	root.size = Vector2i(CAPTURE_WIDTH, CAPTURE_HEIGHT)
-
-	for _index in range(48):
-		await process_frame
-	if not bool(_scene.call("is_ready_for_capture")):
-		push_error("RokokoRetargetCapture: lab setup failed: %s" % JSON.stringify(_scene.call("get_retarget_report")))
-		quit(12)
+	if not await _prepare_retarget_scene(ROKOKO_SCENE_PATH, "RokokoRetargetCapture", 10):
 		return
 
 	var key_indices := {0: 0, 37: 1, 75: 2, 112: 3, 149: 4}
@@ -137,6 +125,54 @@ func _run_rokoko_capture() -> void:
 	_write_json_report(report)
 	print("[ROKOKO_RETARGET_CAPTURE] %d frames written to %s" % [_frame_index, ProjectSettings.globalize_path(OUT_DIR)])
 	quit(0)
+
+
+func _run_cmu_capture() -> void:
+	if not await _prepare_retarget_scene(CMU_SCENE_PATH, "CMURetargetCapture", 20):
+		return
+
+	var key_indices := {0: 0, 60: 1, 120: 2, 180: 3, 239: 4}
+	for frame in range(CMU_VIDEO_FRAMES):
+		var capture_time := float(frame) / 30.0
+		_scene.call("seek_capture_time", capture_time)
+		await process_frame
+		await RenderingServer.frame_post_draw
+		var save_keyframe := key_indices.has(frame)
+		var key_index: int = int(key_indices.get(frame, 0))
+		await _capture_frame("cmu_%02d" % key_index, key_index, save_keyframe)
+
+	var report: Dictionary = _scene.call("get_retarget_report")
+	report["issue"] = 202
+	report["mode"] = "cmu_subject41_direct_godot_spike"
+	report["resolution"] = [CAPTURE_WIDTH, CAPTURE_HEIGHT]
+	report["frame_count"] = _frame_index
+	report["video_seconds"] = float(CMU_VIDEO_FRAMES) / 30.0
+	_write_json_report(report)
+	print("[CMU_RETARGET_CAPTURE] %d frames written to %s" % [_frame_index, ProjectSettings.globalize_path(OUT_DIR)])
+	quit(0)
+
+
+func _prepare_retarget_scene(scene_path: String, label: String, error_base: int) -> bool:
+	var packed := load(scene_path) as PackedScene
+	if packed == null:
+		push_error("%s: cannot load %s" % [label, scene_path])
+		quit(error_base)
+		return false
+	_scene = packed.instantiate() as Node3D
+	if _scene == null or not _scene.has_method("is_ready_for_capture"):
+		push_error("%s: lab root is invalid." % label)
+		quit(error_base + 1)
+		return false
+	root.add_child(_scene)
+	root.size = Vector2i(CAPTURE_WIDTH, CAPTURE_HEIGHT)
+
+	for _index in range(48):
+		await process_frame
+	if not bool(_scene.call("is_ready_for_capture")):
+		push_error("%s: lab setup failed: %s" % [label, JSON.stringify(_scene.call("get_retarget_report"))])
+		quit(error_base + 2)
+		return false
+	return true
 
 
 func _prepare_output() -> void:

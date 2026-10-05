@@ -7,10 +7,10 @@ GODOT="${GODOT:-$HOME/.local/bin/godot}"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LOG="$(mktemp)"
 
-## The Rokoko retarget spike uses an official public sample without committing
-## third-party FBX data. The existing motion-matching workflow is selected by
-## [motion-matching-preview]; this extra marker only stages the sample before the
-## normal Godot import passes. Local/default import-gate behavior is unchanged.
+## Motion-matching retarget spikes stage public source motion only in CI and
+## never commit third-party animation binaries. Marker-specific staging runs
+## before the normal import passes; local/default import-gate behavior is
+## unchanged.
 if [[ "${GITHUB_ACTIONS:-}" == "true" && -n "${GITHUB_EVENT_PATH:-}" && -f "${GITHUB_EVENT_PATH:-}" ]]; then
 	EVENT_MESSAGE="$(python3 - "$GITHUB_EVENT_PATH" <<'PY'
 import json, sys
@@ -24,6 +24,9 @@ PY
 )"
 	if [[ "$EVENT_MESSAGE" == *"[rokoko-retarget-preview]"* ]]; then
 		bash "$PROJECT_DIR/tools/ci/prepare_rokoko_sample.sh" || exit $?
+	fi
+	if [[ "$EVENT_MESSAGE" == *"[cmu-retarget-preview]"* ]]; then
+		bash "$PROJECT_DIR/tools/ci/prepare_cmu_sample.sh" || exit $?
 	fi
 fi
 
