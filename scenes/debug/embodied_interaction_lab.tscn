@@ -107,6 +107,11 @@ shadow_enabled = true
 
 [node name="PlayerCamera" parent="." node_paths=PackedStringArray("player") instance=ExtResource("4_camera")]
 player = NodePath("../Henry")
+auto_recenter = false
+whisker_max_deg = 0.0
+assist_max_yaw_deg = 0.0
+assist_max_pitch_deg = 0.0
+breathing_amplitude_deg = 0.0
 
 [node name="UILayer" type="CanvasLayer" parent="."]
 
