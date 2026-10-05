@@ -3,20 +3,28 @@ extends SkeletonModifier3D
 
 ## Lab-only object-aware grip proof for #198.
 ##
-## DoorHandIK owns arm/wrist reach. This modifier owns the final hand frame and
-## finger local poses. The hand frame is aligned to the actual cylinder before
-## the fingers blend into Henry's authored UAL Idle_Torch fist. This keeps the
-## authored anatomy while making the grip depend on the prop transform/volume.
+## DoorHandIK owns arm/wrist reach. This modifier keeps Henry's authored UAL
+## closed-hand pose as an anatomical prior, then settles each evaluated finger
+## chain onto the real cylinder volume. The prop transform is therefore part of
+## the solve, not merely a scalar controlling how closed the fist looks.
 
 @export_range(1.0, 20.0, 0.5) var blend_in_rate: float = 10.0
 @export_range(1.0, 20.0, 0.5) var blend_out_rate: float = 7.0
 @export_range(0.02, 0.12, 0.005) var fully_closed_radius_m: float = 0.035
 @export_range(0.04, 0.20, 0.005) var open_hand_radius_m: float = 0.11
-@export_range(0.0, 1.0, 0.05) var hand_orient_weight: float = 1.0
+@export_range(0.0, 1.0, 0.05) var hand_orient_weight: float = 0.65
+@export_range(0.0, 1.0, 0.05) var contact_settle_weight: float = 0.82
+@export_range(1, 6, 1) var contact_iterations: int = 4
+
+const FINGER_WRAP_ANGLE_RAD: float = 1.658063 # 95 degrees
+const THUMB_WRAP_ANGLE_RAD: float = 1.134464 # 65 degrees, opposite direction
+const FINGER_TIP_EXTENSION_SHARE: float = 0.66
+const THUMB_TIP_EXTENSION_SHARE: float = 0.72
 
 var _hand: StringName = &"RIGHT"
 var _item_xf_world := Transform3D.IDENTITY
 var _radius_m: float = 0.045
+var _half_height_m: float = 0.07
 var _goal_weight: float = 0.0
 var _weight: float = 0.0
 var _closed_pose: Dictionary = {}
@@ -30,10 +38,11 @@ func set_closed_pose(pose_by_bone: Dictionary) -> void:
 	_pose_scan_done = true
 
 
-func set_goal(hand: StringName, item_xf_world: Transform3D, radius_m: float, _half_height_m: float, weight: float = 1.0) -> void:
+func set_goal(hand: StringName, item_xf_world: Transform3D, radius_m: float, half_height_m: float, weight: float = 1.0) -> void:
 	_hand = hand
 	_item_xf_world = item_xf_world
 	_radius_m = maxf(radius_m, 0.01)
+	_half_height_m = maxf(half_height_m, 0.02)
 	_goal_weight = clampf(weight, 0.0, 1.0)
 
 
@@ -72,22 +81,16 @@ func _process_modification() -> void:
 	if hand_idx < 0 or middle_idx < 0 or index_idx < 0 or pinky_idx < 0:
 		return
 
-	## DoorHandIK is a door-plane solver and naturally points the fingers upward.
-	## A vertical cylindrical grip needs the finger direction around the cylinder,
-	## with the cylinder axis running across the knuckles. Reframe the whole hand
-	## here, after arm reach, before applying the authored finger curl.
 	var to_rig: Transform3D = skeleton.global_transform.affine_inverse()
 	var center: Vector3 = to_rig * _item_xf_world.origin
 	var axis: Vector3 = (to_rig.basis * _item_xf_world.basis.y.normalized()).normalized()
 	var orient_weight: float = smoothstep(0.0, 1.0, _weight) * hand_orient_weight
 	_orient_hand_to_cylinder(skeleton, hand_idx, middle_idx, index_idx, pinky_idx, center, axis, orient_weight)
 
-	## A 9 cm diameter tin should be nearly closed; a large bottle/box keeps a
-	## visibly wider grip. Radius affects finger closure, while the real item
-	## transform above determines the wrist/hand frame.
+	## First use a real authored grip as the anatomical prior. Radius only decides
+	## how far we move toward that closed pose; it does not claim contact.
 	var radius_close: float = 1.0 - inverse_lerp(fully_closed_radius_m, open_hand_radius_m, _radius_m)
 	var grip_weight: float = smoothstep(0.0, 1.0, _weight) * clampf(radius_close, 0.0, 1.0)
-
 	for finger: String in ["thumb", "index", "middle", "ring", "pinky"]:
 		for joint: int in [1, 2, 3]:
 			var bone_name := StringName("%s_%02d_%s" % [finger, joint, suffix])
@@ -99,6 +102,17 @@ func _process_modification() -> void:
 			var current: Quaternion = skeleton.get_bone_pose_rotation(bone_idx)
 			var closed := _closed_pose[bone_name] as Quaternion
 			skeleton.set_bone_pose_rotation(bone_idx, current.slerp(closed, grip_weight))
+
+	## Then use the evaluated bones, not an assumed local flex axis, to settle the
+	## fingertips against the measured cylinder. This is intentionally a tiny CCD
+	## correction, not a replacement procedural hand animation system.
+	var settle: float = smoothstep(0.25, 1.0, _weight) * contact_settle_weight
+	if settle > 0.001:
+		_settle_finger_to_cylinder(skeleton, suffix, "index", center, axis, settle, false)
+		_settle_finger_to_cylinder(skeleton, suffix, "middle", center, axis, settle, false)
+		_settle_finger_to_cylinder(skeleton, suffix, "ring", center, axis, settle, false)
+		_settle_finger_to_cylinder(skeleton, suffix, "pinky", center, axis, settle, false)
+		_settle_finger_to_cylinder(skeleton, suffix, "thumb", center, axis, settle, true)
 
 
 func _orient_hand_to_cylinder(
@@ -117,21 +131,18 @@ func _orient_hand_to_cylinder(
 	var across: Vector3 = skeleton.get_bone_global_pose(index_idx).origin - skeleton.get_bone_global_pose(pinky_idx).origin
 	if along.length_squared() < 1e-8 or across.length_squared() < 1e-8:
 		return
-
 	var palm: Vector3 = along.cross(across) * (-1.0 if _hand == &"LEFT" else 1.0)
 	var radial: Vector3 = hand_pose.origin - center
 	radial -= axis * radial.dot(axis)
 	if radial.length_squared() < 1e-8:
 		return
 	radial = radial.normalized()
-
 	var tangent: Vector3 = axis.cross(radial)
 	if tangent.length_squared() < 1e-8:
 		return
 	tangent = tangent.normalized()
 	if tangent.dot(along) < 0.0:
 		tangent = -tangent
-
 	var have: Basis = _frame(along, palm)
 	var want: Basis = _frame(tangent, -radial)
 	if have == Basis() or want == Basis():
@@ -140,6 +151,63 @@ func _orient_hand_to_cylinder(
 	var blended: Quaternion = Quaternion.IDENTITY.slerp(turn, clampf(weight, 0.0, 1.0))
 	hand_pose.basis = Basis(blended) * hand_pose.basis
 	skeleton.set_bone_global_pose(hand_idx, hand_pose)
+
+
+func _settle_finger_to_cylinder(
+		skeleton: Skeleton3D,
+		suffix: String,
+		finger: String,
+		center: Vector3,
+		axis: Vector3,
+		weight: float,
+		is_thumb: bool) -> void:
+	var b1: int = _bone(skeleton, StringName("%s_01_%s" % [finger, suffix]))
+	var b2: int = _bone(skeleton, StringName("%s_02_%s" % [finger, suffix]))
+	var b3: int = _bone(skeleton, StringName("%s_03_%s" % [finger, suffix]))
+	if b1 < 0 or b2 < 0 or b3 < 0:
+		return
+
+	var p1: Vector3 = skeleton.get_bone_global_pose(b1).origin
+	var p2: Vector3 = skeleton.get_bone_global_pose(b2).origin
+	var root_radial: Vector3 = p1 - center
+	root_radial -= axis * root_radial.dot(axis)
+	if root_radial.length_squared() < 1e-8:
+		return
+	root_radial = root_radial.normalized()
+	var tangent: Vector3 = axis.cross(root_radial)
+	if tangent.length_squared() < 1e-8:
+		return
+	tangent = tangent.normalized()
+	var first_segment: Vector3 = p2 - p1
+	var direction_sign: float = 1.0 if first_segment.dot(tangent) >= 0.0 else -1.0
+	if is_thumb:
+		direction_sign *= -1.0
+	var wrap_angle: float = THUMB_WRAP_ANGLE_RAD if is_thumb else FINGER_WRAP_ANGLE_RAD
+	var target_radial: Vector3 = Basis(Quaternion(axis, wrap_angle * direction_sign)) * root_radial
+	var axial: float = clampf((p1 - center).dot(axis), -_half_height_m * 0.78, _half_height_m * 0.78)
+	var skin_clearance: float = 0.003 if is_thumb else 0.002
+	var target: Vector3 = center + axis * axial + target_radial * (_radius_m + skin_clearance)
+	var extension_share: float = THUMB_TIP_EXTENSION_SHARE if is_thumb else FINGER_TIP_EXTENSION_SHARE
+
+	var joints: Array[int] = [b2, b1]
+	for _iteration: int in range(contact_iterations):
+		for joint_idx: int in joints:
+			var tip: Vector3 = _finger_tip_proxy(skeleton, b2, b3, extension_share)
+			var pose: Transform3D = skeleton.get_bone_global_pose(joint_idx)
+			var current_vec: Vector3 = tip - pose.origin
+			var desired_vec: Vector3 = target - pose.origin
+			if current_vec.length_squared() < 1e-8 or desired_vec.length_squared() < 1e-8:
+				continue
+			var turn := Quaternion(current_vec.normalized(), desired_vec.normalized())
+			var step: Quaternion = Quaternion.IDENTITY.slerp(turn, clampf(weight * 0.62, 0.0, 1.0))
+			pose.basis = Basis(step) * pose.basis
+			skeleton.set_bone_global_pose(joint_idx, pose)
+
+
+func _finger_tip_proxy(skeleton: Skeleton3D, b2: int, b3: int, extension_share: float) -> Vector3:
+	var p2: Vector3 = skeleton.get_bone_global_pose(b2).origin
+	var p3: Vector3 = skeleton.get_bone_global_pose(b3).origin
+	return p3 + (p3 - p2) * extension_share
 
 
 func _sample_authored_fist_pose(skeleton: Skeleton3D) -> void:
