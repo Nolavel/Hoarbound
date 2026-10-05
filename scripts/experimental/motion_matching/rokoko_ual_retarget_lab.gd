@@ -1,11 +1,15 @@
 class_name RokokoUALRetargetLab
 extends Node3D
 
-## Isolated direct-Godot Rokoko -> UAL compatibility spike for issue #202.
-## The official sample FBX is downloaded by CI and never committed. We first
-## measure whether Rokoko's Unreal export and UAL share enough bone/rest data to
-## bind the imported animation directly. The visual playback deliberately keeps
-## this test independent from the production locomotion AnimationTree.
+## Direct-Godot Rokoko -> UAL compatibility spike for issue #202.
+## The official sample FBX is downloaded by CI and never committed.
+##
+## Pass 1 proved that simply rebinding Rokoko UE animation tracks to UAL bone
+## names is invalid because the skeletons have very different Bone Rest axes.
+## This pass uses Godot's RetargetModifier3D for the rest-space correction. A
+## meshless proxy skeleton has Henry/UAL's exact rests and source-compatible bone
+## names; the modifier writes the corrected pose there, then that pose is copied
+## by bone index to Henry's real skeleton.
 
 const SOURCE_SCENE_PATH := "res://tests/motion_matching/_runtime_rokoko/rokoko_unreal_sample.fbx"
 const CORE_BONES: Array[StringName] = [
@@ -24,11 +28,13 @@ var _source_scene: Node
 var _source_skeleton: Skeleton3D
 var _source_player: AnimationPlayer
 var _target_skeleton: Skeleton3D
-var _playback: AnimationPlayer
+var _proxy_skeleton: Skeleton3D
+var _retarget_modifier: RetargetModifier3D
 var _clip_name: StringName = &""
 var _clip_length: float = 0.0
-var _mapped_tracks: int = 0
 var _setup_ok: bool = false
+var _mapped_bone_count: int = 0
+var _unmapped_target_bones: Array[String] = []
 var _report: Dictionary = {}
 
 
@@ -49,6 +55,7 @@ func _setup() -> void:
 		henry_animation.animation_tree.active = false
 	if henry_animation.animation_player != null:
 		henry_animation.animation_player.stop(true)
+	_disable_target_modifiers(_target_skeleton)
 	_target_skeleton.reset_bone_poses()
 
 	var packed := load(SOURCE_SCENE_PATH) as PackedScene
@@ -78,14 +85,20 @@ func _setup() -> void:
 		return
 
 	_report = _audit_compatibility()
-	if not _install_direct_binding(source_animation):
+	if not _install_runtime_retarget():
 		return
+
 	_clip_length = source_animation.length
+	_source_player.play(_clip_name)
+	_source_player.pause()
 	_setup_ok = true
 	_report["setup_ok"] = true
+	_report["retarget_mode"] = "RetargetModifier3D_proxy"
 	_report["source_animation"] = String(_clip_name)
 	_report["clip_length_seconds"] = _clip_length
-	_report["mapped_tracks"] = _mapped_tracks
+	_report["mapped_profile_bones"] = _mapped_bone_count
+	_report["unmapped_target_bones"] = _unmapped_target_bones
+	_report["source_transform_tracks"] = _count_transform_tracks(source_animation)
 	_update_readout()
 	seek_capture_time(0.0)
 
@@ -99,12 +112,12 @@ func get_clip_length() -> float:
 
 
 func seek_capture_time(seconds: float) -> void:
-	if not _setup_ok or _playback == null:
+	if not _setup_ok or _source_player == null:
 		return
 	var sample_time := 0.0
 	if _clip_length > 0.0001:
 		sample_time = fposmod(seconds, _clip_length)
-	_playback.seek(sample_time, true, true)
+	_source_player.seek(sample_time, true, true)
 	_report["last_capture_time"] = sample_time
 
 
@@ -115,46 +128,81 @@ func get_retarget_report() -> Dictionary:
 	return result
 
 
-func _install_direct_binding(source_animation: Animation) -> bool:
-	var remapped := source_animation.duplicate(true) as Animation
-	if remapped == null:
-		_fail("Could not duplicate Rokoko animation for track rebinding.")
-		return false
-	var target_path := get_path_to(_target_skeleton)
-	_mapped_tracks = 0
-	for track_index in range(remapped.get_track_count() - 1, -1, -1):
-		var track_type := remapped.track_get_type(track_index)
-		if track_type != Animation.TYPE_POSITION_3D \
-				and track_type != Animation.TYPE_ROTATION_3D \
-				and track_type != Animation.TYPE_SCALE_3D:
-			remapped.remove_track(track_index)
-			continue
-		var source_path := remapped.track_get_path(track_index)
-		if source_path.get_subname_count() < 1:
-			remapped.remove_track(track_index)
-			continue
-		var bone_name := StringName(source_path.get_subname(source_path.get_subname_count() - 1))
-		if _target_skeleton.find_bone(String(bone_name)) < 0:
-			remapped.remove_track(track_index)
-			continue
-		remapped.track_set_path(track_index, NodePath("%s:%s" % [String(target_path), String(bone_name)]))
-		_mapped_tracks += 1
+func _install_runtime_retarget() -> bool:
+	## RetargetModifier3D maps by exact profile bone names. Build a proxy with
+	## Henry's rests/hierarchy but use the matching Rokoko source spelling for
+	## each bone (e.g. Rokoko `head` can drive UAL `Head`).
+	var source_names_by_lower: Dictionary = {}
+	for source_index in range(_source_skeleton.get_bone_count()):
+		var source_name := StringName(_source_skeleton.get_bone_name(source_index))
+		source_names_by_lower[String(source_name).to_lower()] = source_name
 
-	if _mapped_tracks == 0:
-		_fail("Rokoko animation contained no transform tracks matching UAL bone names.")
-		return false
-	remapped.loop_mode = Animation.LOOP_LINEAR
+	_proxy_skeleton = Skeleton3D.new()
+	_proxy_skeleton.name = "UALRestProxy"
+	var proxy_names: Array[StringName] = []
+	var mapped_source_names: Array[StringName] = []
+	var mapped_target_indices: Array[int] = []
+	var used_proxy_names: Dictionary = {}
 
-	_playback = AnimationPlayer.new()
-	_playback.name = "RokokoDirectPlayback"
-	_playback.root_node = NodePath("..")
-	add_child(_playback)
-	var library := AnimationLibrary.new()
-	library.add_animation(&"sample", remapped)
-	_playback.add_animation_library(&"rokoko", library)
-	_playback.play(&"rokoko/sample")
-	_playback.pause()
+	for target_index in range(_target_skeleton.get_bone_count()):
+		var target_name := StringName(_target_skeleton.get_bone_name(target_index))
+		var source_name: StringName = &""
+		if _source_skeleton.find_bone(String(target_name)) >= 0:
+			source_name = target_name
+		else:
+			source_name = StringName(source_names_by_lower.get(String(target_name).to_lower(), &""))
+
+		var proxy_name := source_name if not source_name.is_empty() else target_name
+		if used_proxy_names.has(String(proxy_name)):
+			## A proxy bone must be unique. Keep the target rest/hierarchy but leave
+			## the duplicate unmapped rather than creating an ambiguous profile key.
+			proxy_name = StringName("__unmapped_%d_%s" % [target_index, String(target_name)])
+			source_name = &""
+		used_proxy_names[String(proxy_name)] = true
+		proxy_names.append(proxy_name)
+		_proxy_skeleton.add_bone(String(proxy_name))
+		_proxy_skeleton.set_bone_parent(target_index, _target_skeleton.get_bone_parent(target_index))
+		_proxy_skeleton.set_bone_rest(target_index, _target_skeleton.get_bone_rest(target_index))
+
+		if source_name.is_empty():
+			_unmapped_target_bones.append(String(target_name))
+		else:
+			mapped_source_names.append(source_name)
+			mapped_target_indices.append(target_index)
+
+	if mapped_source_names.size() < 16:
+		_fail("Too few common Rokoko/UAL bones for runtime retarget: %d" % mapped_source_names.size())
+		return false
+
+	var profile := SkeletonProfile.new()
+	profile.bone_size = mapped_source_names.size()
+	for profile_index in range(mapped_source_names.size()):
+		var source_name := mapped_source_names[profile_index]
+		var target_index := mapped_target_indices[profile_index]
+		profile.set_bone_name(profile_index, source_name)
+		profile.set_reference_pose(profile_index, _target_skeleton.get_bone_rest(target_index))
+
+	_retarget_modifier = RetargetModifier3D.new()
+	_retarget_modifier.name = "RokokoToUALRetarget"
+	_source_skeleton.add_child(_retarget_modifier)
+	_retarget_modifier.profile = profile
+	_retarget_modifier.use_global_pose = false
+	_retarget_modifier.copy_bone_skin_scale = false
+	_retarget_modifier.set_position_enabled(true)
+	_retarget_modifier.set_rotation_enabled(true)
+	_retarget_modifier.set_scale_enabled(false)
+	_retarget_modifier.add_child(_proxy_skeleton)
+	_retarget_modifier.modification_processed.connect(_copy_proxy_pose_to_henry)
+	_mapped_bone_count = mapped_source_names.size()
 	return true
+
+
+func _copy_proxy_pose_to_henry() -> void:
+	if _proxy_skeleton == null or _target_skeleton == null:
+		return
+	var count := mini(_proxy_skeleton.get_bone_count(), _target_skeleton.get_bone_count())
+	for bone_index in range(count):
+		_target_skeleton.set_bone_pose(bone_index, _proxy_skeleton.get_bone_pose(bone_index))
 
 
 func _audit_compatibility() -> Dictionary:
@@ -166,23 +214,26 @@ func _audit_compatibility() -> Dictionary:
 	var rest_rotation_samples := 0
 	var length_ratio_sum := 0.0
 	var length_ratio_samples := 0
+	var target_names_by_lower: Dictionary = {}
+	for target_index in range(_target_skeleton.get_bone_count()):
+		target_names_by_lower[String(_target_skeleton.get_bone_name(target_index)).to_lower()] = target_index
 
-	for bone_name in CORE_BONES:
-		var source_index := _source_skeleton.find_bone(String(bone_name))
-		var target_index := _target_skeleton.find_bone(String(bone_name))
+	for requested_name in CORE_BONES:
+		var source_index := _find_bone_case_insensitive(_source_skeleton, requested_name)
+		var target_index := int(target_names_by_lower.get(String(requested_name).to_lower(), -1))
 		if source_index < 0:
-			missing_source.append(String(bone_name))
+			missing_source.append(String(requested_name))
 			continue
 		if target_index < 0:
-			missing_target.append(String(bone_name))
+			missing_target.append(String(requested_name))
 			continue
 
 		var source_parent := _source_skeleton.get_bone_parent(source_index)
 		var target_parent := _target_skeleton.get_bone_parent(target_index)
-		var source_parent_name := "" if source_parent < 0 else _source_skeleton.get_bone_name(source_parent)
-		var target_parent_name := "" if target_parent < 0 else _target_skeleton.get_bone_name(target_parent)
+		var source_parent_name := "" if source_parent < 0 else _source_skeleton.get_bone_name(source_parent).to_lower()
+		var target_parent_name := "" if target_parent < 0 else _target_skeleton.get_bone_name(target_parent).to_lower()
 		if source_parent_name != target_parent_name:
-			hierarchy_mismatches.append("%s: %s != %s" % [bone_name, source_parent_name, target_parent_name])
+			hierarchy_mismatches.append("%s: %s != %s" % [requested_name, source_parent_name, target_parent_name])
 
 		var source_rest := _source_skeleton.get_bone_rest(source_index)
 		var target_rest := _target_skeleton.get_bone_rest(target_index)
@@ -224,6 +275,17 @@ func _audit_compatibility() -> Dictionary:
 	}
 
 
+func _find_bone_case_insensitive(skeleton: Skeleton3D, requested_name: StringName) -> int:
+	var exact := skeleton.find_bone(String(requested_name))
+	if exact >= 0:
+		return exact
+	var lower := String(requested_name).to_lower()
+	for bone_index in range(skeleton.get_bone_count()):
+		if skeleton.get_bone_name(bone_index).to_lower() == lower:
+			return bone_index
+	return -1
+
+
 func _select_longest_animation(player: AnimationPlayer) -> StringName:
 	var best_name: StringName = &""
 	var best_length := -1.0
@@ -235,6 +297,17 @@ func _select_longest_animation(player: AnimationPlayer) -> StringName:
 			best_length = animation.length
 			best_name = animation_name
 	return best_name
+
+
+func _count_transform_tracks(animation: Animation) -> int:
+	var count := 0
+	for track_index in range(animation.get_track_count()):
+		var track_type := animation.track_get_type(track_index)
+		if track_type == Animation.TYPE_POSITION_3D \
+				or track_type == Animation.TYPE_ROTATION_3D \
+				or track_type == Animation.TYPE_SCALE_3D:
+			count += 1
+	return count
 
 
 func _find_skeleton(node: Node) -> Skeleton3D:
@@ -264,18 +337,23 @@ func _hide_geometry(node: Node) -> void:
 		_hide_geometry(child)
 
 
+func _disable_target_modifiers(node: Node) -> void:
+	for child in node.get_children():
+		if child is SkeletonModifier3D:
+			(child as SkeletonModifier3D).active = false
+		_disable_target_modifiers(child)
+
+
 func _update_readout() -> void:
 	if readout == null:
 		return
-	readout.text = "ROKOKO → UAL (direct Godot)\n%s  %.2fs\ntracks %d  rest max %.2f°\nmissing %d/%d  hierarchy %d\ndirect candidate: %s" % [
+	readout.text = "ROKOKO → GODOT → UAL\n%s  %.2fs\nRetargetModifier3D  mapped %d/%d\nraw rest mismatch: max %.1f°  mean %.1f°\nBlender: NONE" % [
 		String(_clip_name),
 		_clip_length,
-		_mapped_tracks,
+		_mapped_bone_count,
+		_target_skeleton.get_bone_count(),
 		float(_report.get("rest_rotation_max_deg", 0.0)),
-		(_report.get("missing_source", []) as Array).size(),
-		(_report.get("missing_target", []) as Array).size(),
-		(_report.get("hierarchy_mismatches", []) as Array).size(),
-		"YES" if bool(_report.get("direct_bind_candidate", false)) else "NO — inspect pose",
+		float(_report.get("rest_rotation_mean_deg", 0.0)),
 	]
 
 
