@@ -63,7 +63,7 @@ start_pitch_deg = -8.0
 
 [node name="Readout" type="Label3D" parent="Debug"]
 position = Vector3(0, 1.25, 0)
-text = "CMU 41_02 → UAL\nloading BVH..."
+text = "CMU 41_02 → UAL\nloading BVH (absolute-local pose)..."
 font_size = 28
 outline_size = 8
 billboard = 1
