@@ -3,17 +3,19 @@ extends SkeletonModifier3D
 
 ## Lab-only object-aware grip proof for #198.
 ##
-## DoorHandIK owns arm/wrist reach. This modifier owns only finger local poses.
-## Its closed pose is sampled from Henry's authored UAL Idle_Torch fist, then
-## mirrored to the opposite hand. The prop radius controls how far each local
-## phalanx moves toward that authored closed pose.
+## DoorHandIK owns arm/wrist reach. This modifier owns the final hand frame and
+## finger local poses. The hand frame is aligned to the actual cylinder before
+## the fingers blend into Henry's authored UAL Idle_Torch fist. This keeps the
+## authored anatomy while making the grip depend on the prop transform/volume.
 
 @export_range(1.0, 20.0, 0.5) var blend_in_rate: float = 10.0
 @export_range(1.0, 20.0, 0.5) var blend_out_rate: float = 7.0
 @export_range(0.02, 0.12, 0.005) var fully_closed_radius_m: float = 0.035
 @export_range(0.04, 0.20, 0.005) var open_hand_radius_m: float = 0.11
+@export_range(0.0, 1.0, 0.05) var hand_orient_weight: float = 1.0
 
 var _hand: StringName = &"RIGHT"
+var _item_xf_world := Transform3D.IDENTITY
 var _radius_m: float = 0.045
 var _goal_weight: float = 0.0
 var _weight: float = 0.0
@@ -28,8 +30,9 @@ func set_closed_pose(pose_by_bone: Dictionary) -> void:
 	_pose_scan_done = true
 
 
-func set_goal(hand: StringName, _item_xf_world: Transform3D, radius_m: float, _half_height_m: float, weight: float = 1.0) -> void:
+func set_goal(hand: StringName, item_xf_world: Transform3D, radius_m: float, _half_height_m: float, weight: float = 1.0) -> void:
 	_hand = hand
+	_item_xf_world = item_xf_world
 	_radius_m = maxf(radius_m, 0.01)
 	_goal_weight = clampf(weight, 0.0, 1.0)
 
@@ -61,11 +64,29 @@ func _process_modification() -> void:
 	if _weight <= 0.001:
 		return
 
+	var suffix: String = "l" if _hand == &"LEFT" else "r"
+	var hand_idx: int = _bone(skeleton, StringName("hand_" + suffix))
+	var middle_idx: int = _bone(skeleton, StringName("middle_01_" + suffix))
+	var index_idx: int = _bone(skeleton, StringName("index_01_" + suffix))
+	var pinky_idx: int = _bone(skeleton, StringName("pinky_01_" + suffix))
+	if hand_idx < 0 or middle_idx < 0 or index_idx < 0 or pinky_idx < 0:
+		return
+
+	## DoorHandIK is a door-plane solver and naturally points the fingers upward.
+	## A vertical cylindrical grip needs the finger direction around the cylinder,
+	## with the cylinder axis running across the knuckles. Reframe the whole hand
+	## here, after arm reach, before applying the authored finger curl.
+	var to_rig: Transform3D = skeleton.global_transform.affine_inverse()
+	var center: Vector3 = to_rig * _item_xf_world.origin
+	var axis: Vector3 = (to_rig.basis * _item_xf_world.basis.y.normalized()).normalized()
+	var orient_weight: float = smoothstep(0.0, 1.0, _weight) * hand_orient_weight
+	_orient_hand_to_cylinder(skeleton, hand_idx, middle_idx, index_idx, pinky_idx, center, axis, orient_weight)
+
 	## A 9 cm diameter tin should be nearly closed; a large bottle/box keeps a
-	## visibly wider grip. This is the volume-aware part of the pose.
+	## visibly wider grip. Radius affects finger closure, while the real item
+	## transform above determines the wrist/hand frame.
 	var radius_close: float = 1.0 - inverse_lerp(fully_closed_radius_m, open_hand_radius_m, _radius_m)
 	var grip_weight: float = smoothstep(0.0, 1.0, _weight) * clampf(radius_close, 0.0, 1.0)
-	var suffix: String = "l" if _hand == &"LEFT" else "r"
 
 	for finger: String in ["thumb", "index", "middle", "ring", "pinky"]:
 		for joint: int in [1, 2, 3]:
@@ -75,12 +96,50 @@ func _process_modification() -> void:
 			var bone_idx: int = _bone(skeleton, bone_name)
 			if bone_idx < 0:
 				continue
-			## AnimationMixer + PickUp_Table have already populated the local pose.
-			## Blend from that current authored state into the UAL closed-hand local
-			## rotation. Local pose rotation propagates through the real hierarchy.
 			var current: Quaternion = skeleton.get_bone_pose_rotation(bone_idx)
 			var closed := _closed_pose[bone_name] as Quaternion
 			skeleton.set_bone_pose_rotation(bone_idx, current.slerp(closed, grip_weight))
+
+
+func _orient_hand_to_cylinder(
+		skeleton: Skeleton3D,
+		hand_idx: int,
+		middle_idx: int,
+		index_idx: int,
+		pinky_idx: int,
+		center: Vector3,
+		axis: Vector3,
+		weight: float) -> void:
+	if weight <= 0.001:
+		return
+	var hand_pose: Transform3D = skeleton.get_bone_global_pose(hand_idx)
+	var along: Vector3 = skeleton.get_bone_global_pose(middle_idx).origin - hand_pose.origin
+	var across: Vector3 = skeleton.get_bone_global_pose(index_idx).origin - skeleton.get_bone_global_pose(pinky_idx).origin
+	if along.length_squared() < 1e-8 or across.length_squared() < 1e-8:
+		return
+
+	var palm: Vector3 = along.cross(across) * (-1.0 if _hand == &"LEFT" else 1.0)
+	var radial: Vector3 = hand_pose.origin - center
+	radial -= axis * radial.dot(axis)
+	if radial.length_squared() < 1e-8:
+		return
+	radial = radial.normalized()
+
+	var tangent: Vector3 = axis.cross(radial)
+	if tangent.length_squared() < 1e-8:
+		return
+	tangent = tangent.normalized()
+	if tangent.dot(along) < 0.0:
+		tangent = -tangent
+
+	var have: Basis = _frame(along, palm)
+	var want: Basis = _frame(tangent, -radial)
+	if have == Basis() or want == Basis():
+		return
+	var turn: Quaternion = (want * have.inverse()).get_rotation_quaternion()
+	var blended: Quaternion = Quaternion.IDENTITY.slerp(turn, clampf(weight, 0.0, 1.0))
+	hand_pose.basis = Basis(blended) * hand_pose.basis
+	skeleton.set_bone_global_pose(hand_idx, hand_pose)
 
 
 func _sample_authored_fist_pose(skeleton: Skeleton3D) -> void:
@@ -130,9 +189,16 @@ func _is_left_finger_bone(bone: String) -> bool:
 
 
 static func _mirror_quaternion_x(q: Quaternion) -> Quaternion:
-	## Reflection through Henry's sagittal plane. Rotation is an axial vector, so
-	## an X reflection maps quaternion vector (x,y,z) -> (x,-y,-z), scalar intact.
 	return Quaternion(q.x, -q.y, -q.z, q.w)
+
+
+static func _frame(primary: Vector3, secondary: Vector3) -> Basis:
+	var y: Vector3 = primary.normalized()
+	var x: Vector3 = y.cross(secondary)
+	if x.length_squared() < 1e-8:
+		return Basis()
+	x = x.normalized()
+	return Basis(x, y, x.cross(y))
 
 
 func _find_animation_player_near(skeleton: Skeleton3D) -> AnimationPlayer:
