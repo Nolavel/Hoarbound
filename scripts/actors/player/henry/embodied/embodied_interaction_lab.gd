@@ -56,6 +56,7 @@ var _skeleton_missing := PackedStringArray()
 var _pickup_root: Node3D
 var _pickup_item: MeshInstance3D
 var _pickup_ik: DoorHandIK
+var _pickup_measure_attachment: BoneAttachment3D
 var _pickup_case_index: int = -1
 var _pickup_phase: StringName = &""
 var _pickup_hand: StringName = &"RIGHT"
@@ -224,6 +225,12 @@ func _build_pickup_rack() -> void:
 			_pickup_ik.elbow_drop = 0.18
 			_pickup_ik.palm_flatten = 0.20
 			_pickup_ik.wrist_back_m = 0.035
+		## BoneAttachment3D follows the final evaluated skeleton, unlike reading
+		## get_bone_global_pose() from this actor's _process before modifiers run.
+		_pickup_measure_attachment = BoneAttachment3D.new()
+		_pickup_measure_attachment.name = "PickupReachMeasure"
+		_pickup_measure_attachment.bone_name = &"hand_r"
+		visual.skeleton.add_child(_pickup_measure_attachment)
 
 
 func _update_pickup_reach(local_time: float) -> void:
@@ -309,24 +316,22 @@ func _configure_pickup_hand(hand: StringName) -> void:
 	if _pickup_ik == null:
 		return
 	var suffix: String = "l" if hand == &"LEFT" else "r"
+	var hand_bone := StringName("hand_" + suffix)
 	_pickup_ik.upper_bone = StringName("upperarm_" + suffix)
 	_pickup_ik.lower_bone = StringName("lowerarm_" + suffix)
-	_pickup_ik.hand_bone = StringName("hand_" + suffix)
+	_pickup_ik.hand_bone = hand_bone
 	_pickup_ik.middle_bone = StringName("middle_01_" + suffix)
 	_pickup_ik.index_bone = StringName("index_01_" + suffix)
 	_pickup_ik.pinky_bone = StringName("pinky_01_" + suffix)
 	_pickup_ik.left_hand = hand == &"LEFT"
+	if _pickup_measure_attachment != null:
+		_pickup_measure_attachment.bone_name = hand_bone
 
 
 func _measure_pickup_hand_error() -> float:
-	if visual == null or visual.skeleton == null or _pickup_item == null or _pickup_case_index < 0:
+	if _pickup_measure_attachment == null or _pickup_item == null or _pickup_case_index < 0:
 		return -1.0
-	var bone_name: StringName = &"hand_l" if _pickup_hand == &"LEFT" else &"hand_r"
-	var bone: int = visual.skeleton.find_bone(bone_name)
-	if bone < 0:
-		return -1.0
-	var wrist_world: Vector3 = visual.skeleton.global_transform * visual.skeleton.get_bone_global_pose(bone).origin
-	return wrist_world.distance_to(_pickup_item.global_position)
+	return _pickup_measure_attachment.global_position.distance_to(_pickup_item.global_position)
 
 
 func _attach_pickup_to_hand() -> void:
@@ -402,6 +407,7 @@ func get_capture_report() -> Dictionary:
 		"uses_existing_interact_action": true,
 		"uses_existing_pickup_action": true,
 		"pickup_solver_reused": "DoorHandIK (lab-only reconfiguration)",
+		"pickup_measurement": "BoneAttachment3D final evaluated hand transform",
 		"pickup_contact_tolerance_m": PICKUP_CONTACT_TOLERANCE_M,
 		"pickup_results": _pickup_results,
 		"production_movement_replaced": false,
