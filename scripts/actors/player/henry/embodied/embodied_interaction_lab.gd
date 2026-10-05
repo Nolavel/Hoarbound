@@ -343,6 +343,10 @@ func _attach_pickup_to_hand() -> void:
 	_pickup_attachment.bone_name = bone_name
 	visual.skeleton.add_child(_pickup_attachment)
 	_pickup_item.reparent(_pickup_attachment, true)
+	## The ownership transfer happens only after measured contact. Once the item
+	## belongs to the hand, its transform is hand-local; keeping its old world
+	## transform would turn into a large offset on the next skeleton evaluation.
+	_pickup_item.transform = Transform3D(Basis.IDENTITY, Vector3(0.0, 0.07, 0.0))
 	_pickup_attached = true
 
 
