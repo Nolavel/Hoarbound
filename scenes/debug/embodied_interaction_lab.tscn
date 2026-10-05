@@ -1,10 +1,9 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd" id="1_lab"]
 [ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="2_henry"]
 [ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_target_3d.gd" id="3_target"]
 [ext_resource type="PackedScene" path="res://scenes/game/systems/camera/tps_camera.tscn" id="4_camera"]
-[ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/tactile_lab_extreme_tuner.gd" id="5_tuner"]
 
 [sub_resource type="CapsuleShape3D" id="Capsule_henry"]
 radius = 0.35
@@ -66,15 +65,17 @@ shape = SubResource("Shape_floor")
 
 [node name="InteractionPedestal" type="MeshInstance3D" parent="."]
 position = Vector3(0, 0.575, 0.72)
+visible = false
 mesh = SubResource("Mesh_pedestal")
 
 [node name="Targets" type="Node3D" parent="."]
+visible = false
 
 [node name="BodyTarget" type="Marker3D" parent="Targets"]
-position = Vector3(0, 0, 0.05)
+position = Vector3(0, 0, -0.38)
 script = ExtResource("3_target")
 target_id = &"demo_body"
-authoring_note = "Desired body alignment in front of the interaction surface."
+authoring_note = "Legacy debug marker only. V2 computes hand/stance body goals at runtime."
 
 [node name="Disc" type="MeshInstance3D" parent="Targets/BodyTarget"]
 position = Vector3(0, 0.052, 0)
@@ -85,7 +86,7 @@ position = Vector3(0.31, 1.08, 0.58)
 script = ExtResource("3_target")
 role = 2
 target_id = &"demo_right_hand"
-authoring_note = "Legacy alignment proof marker. Hidden during tactile pickup."
+authoring_note = "Legacy debug marker. V2 chooses LEFT/RIGHT from context."
 
 [node name="Sphere" type="MeshInstance3D" parent="Targets/RightHandTarget"]
 mesh = SubResource("Mesh_hand_target")
@@ -100,9 +101,6 @@ position = Vector3(0, 1.0, 0)
 shape = SubResource("Capsule_henry")
 
 [node name="HenryUALVisual" parent="Henry" instance=ExtResource("2_henry")]
-
-[node name="TactileLabExtremeTuner" type="Node" parent="."]
-script = ExtResource("5_tuner")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-48, -28, 0)
@@ -122,7 +120,7 @@ breathing_amplitude_deg = 0.0
 [node name="Margin" type="MarginContainer" parent="UILayer"]
 offset_left = 36.0
 offset_top = 32.0
-offset_right = 1200.0
+offset_right = 1260.0
 offset_bottom = 180.0
 
 [node name="VBox" type="VBoxContainer" parent="UILayer/Margin"]
@@ -131,15 +129,15 @@ layout_mode = 2
 [node name="Title" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "EMBODIED INTERACTION — TACTILE GRIP PROOF"
+text = "EMBODIED INTERACTION — CONTEXT / REACH / TACTILE LAB"
 
 [node name="Stage" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 32
-text = "1 / ALIGN"
+theme_override_font_sizes/font_size = 30
+text = "1 / CONTEXT GRASP"
 
 [node name="Detail" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.82, 0.86, 1)
 theme_override_font_sizes/font_size = 18
-text = "production TpsCamera / over-shoulder"
+text = "production TpsCamera / collision-aware body / bounded arm"

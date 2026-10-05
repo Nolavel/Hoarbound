@@ -1,15 +1,14 @@
 extends SceneTree
 
-## Captures issue #198's vertical tactile-grasp lab through the production TPS
-## camera. The renderer may run slower than the requested movie rate on CI, so
-## frame output is time-quantized: slow rendered frames are duplicated as needed
-## and the ffmpeg 10 fps encode keeps the intended simulation duration.
+## Captures issue #198's context-aware tactile-grasp lab through the production
+## TPS camera. The renderer may run slower than the requested movie rate on CI,
+## so frame output is time-quantized and ffmpeg preserves simulation duration.
 
 const SCENE: String = "res://scenes/debug/embodied_interaction_lab.tscn"
 const OUT_DIR: String = "res://docs/runtime_previews/embodied_interaction"
 const FRAME_DIR: String = OUT_DIR + "/frames"
 const WARMUP_SECONDS: float = 1.0
-const CAPTURE_SECONDS: float = 27.0
+const CAPTURE_SECONDS: float = 32.0
 const CAPTURE_FPS: int = 10
 
 var _scene: Node
@@ -87,7 +86,7 @@ func _capture_handoff_keyframe() -> void:
 	if _actor == null or _handoff_saved or _actor.get_handoff_phase() != "CONTACT":
 		return
 	_handoff_saved = true
-	root.get_texture().get_image().save_png(OUT_DIR + "/handoff_right_to_left.png")
+	root.get_texture().get_image().save_png(OUT_DIR + "/handoff_contact.png")
 
 
 func _write_report() -> void:
