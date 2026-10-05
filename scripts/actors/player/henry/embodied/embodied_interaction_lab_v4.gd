@@ -7,20 +7,33 @@ extends EmbodiedInteractionLabV3
 ## distance only; anatomical shoulder position is used for body alignment, never
 ## as a penalty that can override the nearer hand.
 
+const TPS_AIM_CORRECTION_SHARE: float = 0.72
+const V4_BODY_CLEARANCE_M: float = 0.04
+
+
 func _aim_camera_at(point: Vector3) -> void:
 	if camera == null:
 		return
-	## Aim from the ACTUAL gameplay ray origin (the shoulder TPS camera), not from
-	## Henry's eye/pivot. Re-evaluated every physics tick so shoulder-boom motion
-	## converges while the body approaches the shelf.
+	## Closed-loop correction around the ACTUAL gameplay centre ray. Setting an
+	## absolute yaw from the previous frame's shoulder-camera origin caused #437's
+	## feedback drift as the production TPS boom moved during body approach.
 	var origin: Vector3 = TpsCamera.aim_origin(camera)
+	var current: Vector3 = TpsCamera.aim_direction(camera)
 	var wanted: Vector3 = point - origin
-	if wanted.length_squared() < 0.0001:
+	if wanted.length_squared() < 0.0001 or current.length_squared() < 0.0001:
 		return
+	current = current.normalized()
 	wanted = wanted.normalized()
-	var yaw: float = atan2(-wanted.x, -wanted.z)
-	var pitch_deg: float = rad_to_deg(asin(clampf(wanted.y, -1.0, 1.0)))
-	camera.set_look(yaw, pitch_deg)
+	var current_yaw: float = atan2(-current.x, -current.z)
+	var wanted_yaw: float = atan2(-wanted.x, -wanted.z)
+	var yaw_error: float = wrapf(wanted_yaw - current_yaw, -PI, PI)
+	var current_pitch: float = asin(clampf(current.y, -1.0, 1.0))
+	var wanted_pitch: float = asin(clampf(wanted.y, -1.0, 1.0))
+	var pitch_error_deg: float = rad_to_deg(wanted_pitch - current_pitch)
+	camera.set_look(
+		camera.get_yaw() + yaw_error * TPS_AIM_CORRECTION_SHARE,
+		camera.get_view_pitch_deg() + pitch_error_deg * TPS_AIM_CORRECTION_SHARE
+	)
 
 
 func _select_hand_from_context() -> void:
@@ -62,11 +75,13 @@ func _select_hand_from_context() -> void:
 
 func _body_goal_for_hand(hand: StringName) -> Vector3:
 	## Put the chosen shoulder under the item using the measured skeleton, not a
-	## hardcoded LEFT=-X / RIGHT=+X convention. This keeps body/arm geometry sane
-	## even if the imported rig's local axes differ from gameplay axes.
+	## hardcoded LEFT=-X / RIGHT=+X convention. The requested depth is intentionally
+	## close to the shelf; move_and_slide() remains authoritative and will stop the
+	## capsule before geometry. This gives the arm its natural reach instead of
+	## compensating with stretch while still preserving body collision.
 	var shoulder: Vector3 = _shoulder_world(hand)
 	var shoulder_offset_x: float = clampf(shoulder.x - global_position.x, -0.30, 0.30)
-	var z: float = SHELF_FRONT_Z_M - BODY_RADIUS_M - BODY_CLEARANCE_M
+	var z: float = SHELF_FRONT_Z_M - BODY_RADIUS_M - V4_BODY_CLEARANCE_M
 	return Vector3(_pickup_item.global_position.x - shoulder_offset_x * 0.82, 0.0, z)
 
 
@@ -91,8 +106,8 @@ func _anatomical_side_axis(hand: StringName) -> Vector3:
 
 func get_capture_report() -> Dictionary:
 	var report: Dictionary = super()
-	report["lab_revision"] = "V4 gaze-ray + nearest-hand correction"
-	report["camera_target_policy"] = "production TpsCamera centre-ray origin -> can centre; 7 degree gate unchanged"
+	report["lab_revision"] = "V4.1 closed-loop TPS aim + nearest-hand + partial-pose runtime fix"
+	report["camera_target_policy"] = "production TpsCamera centre ray; damped closed-loop yaw/pitch correction; 7 degree gate unchanged"
 	report["hand_selection_policy"] = "gaze must be valid first; choose minimum measured hand-to-can distance; no side penalty"
-	report["body_alignment_policy"] = "chosen shoulder lateral offset measured from loaded UAL skeleton"
+	report["body_alignment_policy"] = "chosen shoulder lateral offset measured from loaded UAL skeleton; close target remains collision-authoritative through move_and_slide"
 	return report

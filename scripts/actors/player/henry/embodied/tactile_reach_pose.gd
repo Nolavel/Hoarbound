@@ -104,7 +104,12 @@ func _sample_rotations(animation: Animation, sample_time: float) -> Dictionary:
 func _resolve_clip(profile: StringName) -> StringName:
 	if _resolved.has(profile):
 		return StringName(_resolved[profile])
-	var aliases: Array[String] = ["PickUp_Table", "Pickup_Table"] if profile == &"PICKUP" else ["Fixing_Kneeling"]
+	## Godot 4.8-dev6 does not preserve typed Array[String] through a ternary
+	## literal expression at runtime. PackedStringArray keeps the alias table
+	## explicitly typed and prevents the capture-time assignment error from #437.
+	var aliases := PackedStringArray(["PickUp_Table", "Pickup_Table"])
+	if profile != &"PICKUP":
+		aliases = PackedStringArray(["Fixing_Kneeling"])
 	for candidate: StringName in _player.get_animation_list():
 		var text: String = String(candidate)
 		for alias: String in aliases:
