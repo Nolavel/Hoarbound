@@ -82,9 +82,7 @@ func _begin_pickup_case(index: int) -> void:
 		"pre_wrist_path_clear": clear_path,
 		"pre_measured_reach": bool(chosen.get("feasible", false)),
 	}
-	print("[EmbodiedReadyPath] case=%s hand=%s action=%s facing=%s wrist_path=%s candidates=%s" % [
-		case_data["name"], String(_active_hand), String(_active_action), facing, clear_path,
-		JSON.stringify(_candidate_report)])
+	print("[EmbodiedReadyPath] case=%s hand=%s action=%s facing=%s wrist_path=%s candidates=%s" % [case_data["name"], String(_active_hand), String(_active_action), facing, clear_path, JSON.stringify(_candidate_report)])
 	_start_action(&"PICK_ACTION")
 
 
@@ -144,15 +142,7 @@ func _update_handoff(delta: float) -> void:
 		var receiver_arm := _arm_candidate(_handoff_receiver_hand, transfer)
 		var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
 		var cycle: Dictionary = _cycle_results.get(String(case_data["name"]), {}) as Dictionary
-		_handoff_result = {
-			"contact": true,
-			"case": String(case_data["name"]),
-			"source_hand": String(_handoff_source_hand),
-			"receiver_hand": String(_handoff_receiver_hand),
-			"receiver_arm": receiver_arm,
-			"transfer_height_m": transfer.y,
-			"stood_before_transfer": bool(cycle.get("stood_to_idle", false)),
-		}
+		_handoff_result = {"contact": true, "case": String(case_data["name"]), "source_hand": String(_handoff_source_hand), "receiver_hand": String(_handoff_receiver_hand), "receiver_arm": receiver_arm, "transfer_height_m": transfer.y, "stood_before_transfer": bool(cycle.get("stood_to_idle", false))}
 	if not _handoff_result.is_empty():
 		_set_hand_ik(_handoff_source_hand, transfer + global_transform.basis * Vector3(0.0, 0.0, -0.08), maxf(0.0, 0.82 - (_phase_time - HANDOFF_CONTACT_SECONDS) * 1.8))
 		_set_hand_ik(_handoff_receiver_hand, transfer, 0.78)
@@ -262,15 +252,7 @@ func _refresh_manual_diagnostics() -> void:
 	var facing := _body_faces(contact)
 	var path_clear := _rack_reach_is_clear(hand, contact)
 	var action := "F PICK UP" if interact.is_target_in_reach() else "F APPROACH + PICK UP"
-	_manual_prompt = "%s | chosen=%s | L reach=%.2fx %s | R reach=%.2fx %s | facing=%s | wrist path=%s | %s" % [
-		String(case_data["name"]),
-		String(hand),
-		float(left.get("reach_ratio", INF)), "OK" if bool(left.get("feasible", false)) else "LIMIT",
-		float(right.get("reach_ratio", INF)), "OK" if bool(right.get("feasible", false)) else "LIMIT",
-		"OK" if facing else "TURN",
-		"OK" if path_clear else "BLOCKED",
-		action,
-	]
+	_manual_prompt = "%s | chosen=%s | L reach=%.2fx %s | R reach=%.2fx %s | facing=%s | wrist path=%s | %s" % [String(case_data["name"]), String(hand), float(left.get("reach_ratio", INF)), "OK" if bool(left.get("feasible", false)) else "LIMIT", float(right.get("reach_ratio", INF)), "OK" if bool(right.get("feasible", false)) else "LIMIT", "OK" if facing else "TURN", "OK" if path_clear else "BLOCKED", action]
 
 
 func _contact_for(index: int) -> Vector3:
