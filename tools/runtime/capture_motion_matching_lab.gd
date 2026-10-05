@@ -40,6 +40,7 @@ var _scene: Node3D
 var _henry: MotionMatchingLab
 var _frame_index: int = 0
 var _report_segments: Array[Dictionary] = []
+var _matcher_probe_report: Dictionary = {}
 
 
 func _initialize() -> void:
@@ -146,6 +147,10 @@ func _run_cmu_capture() -> void:
 		database.get_sample_count(), database.feature_count, database.sample_rate_hz
 	])
 
+	if not await _run_cmu_matcher_probe(cmu_lab, database):
+		quit(25)
+		return
+
 	var key_indices := {0: 0, 60: 1, 120: 2, 180: 3, 239: 4}
 	for frame in range(CMU_VIDEO_FRAMES):
 		var capture_time := float(frame) / 30.0
@@ -162,9 +167,100 @@ func _run_cmu_capture() -> void:
 	report["resolution"] = [CAPTURE_WIDTH, CAPTURE_HEIGHT]
 	report["frame_count"] = _frame_index
 	report["video_seconds"] = float(CMU_VIDEO_FRAMES) / 30.0
+	report["motion_matcher_probe"] = _matcher_probe_report
 	_write_json_report(report)
 	print("[CMU_RETARGET_CAPTURE] %d frames written to %s" % [_frame_index, ProjectSettings.globalize_path(OUT_DIR)])
 	quit(0)
+
+
+func _run_cmu_matcher_probe(cmu_lab: CMUUALRetargetLab, database: MotionDatabase) -> bool:
+	var henry_animation := cmu_lab.get_node_or_null(^"Henry/HenryUALVisual") as HenryUALAnimation
+	var source := cmu_lab.get_node_or_null(^"SourceData/CMU_41_02") as CMUBVHSource
+	if henry_animation == null or henry_animation.skeleton == null or source == null:
+		push_error("CMURetargetCapture: runtime query dependencies are missing.")
+		return false
+
+	var builder := MotionRuntimeQueryBuilder.new()
+	var matcher := MotionMatcher.new()
+	var sample_dt := 1.0 / database.sample_rate_hz
+	var probe_time := minf(12.0, maxf(sample_dt, cmu_lab.get_clip_length() * 0.33))
+	var previous_time := maxf(0.0, probe_time - sample_dt)
+
+	cmu_lab.seek_capture_time(previous_time)
+	await process_frame
+	var previous_pose := builder.capture_pose(henry_animation.skeleton)
+	cmu_lab.seek_capture_time(probe_time)
+	await process_frame
+	var current_pose := builder.capture_pose(henry_animation.skeleton)
+	if previous_pose.is_empty() or current_pose.is_empty():
+		push_error("CMURetargetCapture: could not capture Henry query pose.")
+		return false
+
+	var previous_root := source.get_raw_root_position(previous_time)
+	var current_root := source.get_raw_root_position(probe_time)
+	var root_velocity := (current_root - previous_root) / maxf(probe_time - previous_time, 0.000001)
+	var previous_facing_3d := source.get_raw_root_facing(previous_time)
+	var current_facing_3d := source.get_raw_root_facing(probe_time)
+	var previous_facing := Vector2(previous_facing_3d.x, previous_facing_3d.z).normalized()
+	var current_facing := Vector2(current_facing_3d.x, current_facing_3d.z).normalized()
+	var root_angular_velocity := previous_facing.angle_to(current_facing) / maxf(probe_time - previous_time, 0.000001)
+	var command_speed := clampf(Vector2(root_velocity.x, root_velocity.z).length(), 0.9, 2.2)
+
+	var commands: Array[Dictionary] = [
+		{"label": "forward", "direction": Vector2(0.0, 1.0)},
+		{"label": "forward_right", "direction": Vector2(1.0, 1.0).normalized()},
+		{"label": "right", "direction": Vector2(1.0, 0.0)},
+		{"label": "back", "direction": Vector2(0.0, -1.0)},
+		{"label": "left", "direction": Vector2(-1.0, 0.0)},
+	]
+	var matches: Array[Dictionary] = []
+	var unique_samples: Dictionary = {}
+	for command in commands:
+		var direction: Vector2 = command["direction"]
+		var desired_velocity := direction * command_speed
+		var query := builder.build_query(
+			previous_pose,
+			current_pose,
+			maxf(probe_time - previous_time, 0.000001),
+			root_velocity,
+			root_angular_velocity,
+			current_facing,
+			desired_velocity
+		)
+		if query.size() != database.feature_count:
+			push_error("CMURetargetCapture: runtime query schema mismatch (%d != %d)." % [query.size(), database.feature_count])
+			return false
+		var match := matcher.find_best(database, query)
+		if match.is_empty():
+			push_error("CMURetargetCapture: brute-force matcher returned no frame.")
+			return false
+		match["query_label"] = String(command["label"])
+		match["desired_local_velocity"] = [desired_velocity.x, desired_velocity.y]
+		matches.append(match)
+		unique_samples[String(match["sample_index"])] = true
+		print("[MOTION_MATCH] %-13s -> %s @ %.3fs sample=%d total=%.3f pose=%.3f traj=%.3f" % [
+			String(command["label"]),
+			String(match["clip"]),
+			float(match["time"]),
+			int(match["sample_index"]),
+			float(match["total_cost"]),
+			float(match["pose_cost"]),
+			float(match["trajectory_cost"]),
+		])
+
+	_matcher_probe_report = {
+		"query_source": "live Henry UAL skeleton + current CMU motion + desired future trajectory",
+		"probe_time": probe_time,
+		"command_speed_mps": command_speed,
+		"query_feature_count": database.feature_count,
+		"search": "brute_force_all_frames",
+		"searched_samples_per_query": database.get_sample_count(),
+		"unique_best_samples": unique_samples.size(),
+		"queries": matches,
+	}
+	cmu_lab.seek_capture_time(probe_time)
+	await process_frame
+	return matches.size() == commands.size()
 
 
 func _prepare_retarget_scene(scene_path: String, label: String, error_base: int) -> bool:
