@@ -8,13 +8,13 @@ extends CharacterBody3D
 const SAMPLE_DIRECTIONS: Array[Dictionary] = [
 	{"name": &"Idle", "direction": Vector2.ZERO},
 	{"name": &"F", "direction": Vector2(0.0, -1.0)},
-	{"name": &"FR", "direction": Vector2(1.0, -1.0).normalized()},
+	{"name": &"FR", "direction": Vector2(0.70710678, -0.70710678)},
 	{"name": &"R", "direction": Vector2(1.0, 0.0)},
-	{"name": &"BR", "direction": Vector2(1.0, 1.0).normalized()},
+	{"name": &"BR", "direction": Vector2(0.70710678, 0.70710678)},
 	{"name": &"B", "direction": Vector2(0.0, 1.0)},
-	{"name": &"BL", "direction": Vector2(-1.0, 1.0).normalized()},
+	{"name": &"BL", "direction": Vector2(-0.70710678, 0.70710678)},
 	{"name": &"L", "direction": Vector2(-1.0, 0.0)},
-	{"name": &"FL", "direction": Vector2(-1.0, -1.0).normalized()},
+	{"name": &"FL", "direction": Vector2(-0.70710678, -0.70710678)},
 ]
 
 @export_group("Movement")
