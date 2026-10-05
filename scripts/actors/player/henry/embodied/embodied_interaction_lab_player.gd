@@ -132,8 +132,7 @@ func _update_handoff(delta: float) -> void:
 	_phase_time += delta
 	var left_shoulder := _bone_world(&"upperarm_l")
 	var right_shoulder := _bone_world(&"upperarm_r")
-	var transfer := (left_shoulder + right_shoulder) * 0.5 \
-		+ Vector3.DOWN * 0.24 - global_transform.basis.z * 0.25
+	var transfer := (left_shoulder + right_shoulder) * 0.5 + Vector3.DOWN * 0.24 - global_transform.basis.z * 0.25
 	_set_hand_ik(_handoff_source_hand, transfer, minf(1.0, _phase_time / 0.45) * 0.82)
 	if _phase_time >= 0.48 and _handoff_result.is_empty():
 		_handoff_phase = &"RECEIVER_REACH"
