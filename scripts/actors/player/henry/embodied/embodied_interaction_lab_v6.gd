@@ -3,13 +3,12 @@ extends EmbodiedInteractionLabV5
 
 ## Issue #198 pose-to-pose lab pass.
 ##
-## V6 deliberately stops treating pickup as a robotics/contact-solver problem.
-## The readable authored pose owns the action; runtime IK only corrects the wrist.
+## Readable authored poses own the action; runtime IK only corrects the wrist.
 ## Finger CCD and gaze remain diagnostics, never semantic success gates.
 ##
 ## Per height:
-## target -> stance -> hand -> body align -> partial authored pose -> wrist IK ->
-## authored cylindrical grip -> stand to Grounded idle -> present -> return.
+## target -> stance -> neutral body align -> hand choice -> partial authored pose ->
+## wrist IK -> authored cylindrical grip -> stand to Grounded idle -> present -> return.
 ## FLOOR ends as: pickup -> stand -> present -> receiver reaches -> ownership transfer.
 ## No full-body action clip is played and no root motion owns CharacterBody3D.
 
@@ -22,14 +21,13 @@ const V6_TRANSFER_RADIUS_M: float = 0.14
 
 func _ready() -> void:
 	super()
-	## The grip modifier is used as an authored fist/cylindrical pose only. The old
-	## per-finger CCD remains available for diagnostics, but does not touch V6 pose.
+	## Authored fist only. The old per-finger CCD remains available as a diagnostic
+	## implementation but is disabled for V6 pose evaluation and success semantics.
 	for grip: TactileHandGrip in [_left_grip, _right_grip]:
 		if grip == null:
 			continue
 		grip.hand_orient_weight = 0.0
 		grip.contact_settle_weight = 0.0
-	## Near-straight arms are valid; >100% extension is still impossible.
 	for reach: TactileArmReach in [_left_reach, _right_reach]:
 		if reach == null:
 			continue
@@ -38,24 +36,29 @@ func _ready() -> void:
 		reach.max_midline_cross_m = 0.055
 	if _stance_pose != null:
 		_stance_pose.pelvis_vertical_weight = 1.0
-	print("[EmbodiedLabV6] pose_to_pose=true finger_ccd_gate=false gaze_gate=false full_action_playback=false")
+	print("[EmbodiedLabV6] pose_to_pose=true order=stance->body->hand->pose->wrist->grip finger_ccd_gate=false gaze_gate=false")
 
 
 func _stage_name() -> String:
 	match _stage:
 		Stage.PICKUP:
-			return "1 / POSE-TO-POSE PICKUP — stance → reach → grip → idle present → return"
+			return "1 / POSE-TO-POSE PICKUP — stance → body → hand → reach → grip → idle present → return"
 		Stage.HANDOFF:
 			return "2 / HANDOFF — donor presents → receiver grip pose → ownership transfer"
 		_:
 			return "3 / DONE — authored pose + selective IK only"
 
 
+func _neutral_body_goal() -> Vector3:
+	## Henry approaches the rack as a body first, before committing an arm. Keeping
+	## one stable body lane also prevents five height tests from becoming five
+	## unrelated lateral locomotion tests.
+	var z: float = SHELF_FRONT_Z_M - BODY_RADIUS_M - V5_BODY_CLEARANCE_M
+	return Vector3(0.0, 0.0, z)
+
+
 func _select_hand_from_context() -> void:
-	## Hand choice happens only after the requested stance is actually visible.
-	## We use the loaded skeleton to infer which anatomical shoulder owns the side
-	## of the target. Current fingertip position is only a small tie breaker.
-	if not _stance_is_ready():
+	if not _stance_is_ready() or not _body_aligned:
 		_active_hand = &""
 		_candidate_report = {}
 		return
@@ -86,15 +89,14 @@ func _select_hand_from_context() -> void:
 		var score: float = lateral_error + hand_distance * 0.08
 		if not same_side:
 			score += V6_HAND_SIDE_PENALTY
-		var body_goal: Vector3 = _body_goal_for_hand(hand)
 		candidates[String(hand)] = {
 			"feasible": true,
-			"reason": "stance_and_side",
+			"reason": "aligned_stance_side",
 			"same_side": same_side,
 			"target_side_m": target_side,
 			"lateral_error_m": lateral_error,
 			"hand_distance_m": hand_distance,
-			"body_goal": _vec3_array(body_goal),
+			"body_goal": _vec3_array(_body_goal),
 			"body_yaw_deg": 0.0,
 			"score": score,
 		}
@@ -105,46 +107,17 @@ func _select_hand_from_context() -> void:
 	_candidate_report = candidates
 	_active_hand = best_hand
 	_chosen_body_yaw = 0.0
-	print("[EmbodiedHandV6] case=%s stance=%s gaze=%.2f side=%.3f chosen=%s L=%s R=%s" % [
-		String(PICKUP_CASES[_pickup_case_index]["name"]), String(_case_pickup_stance), _gaze_angle_deg,
-		target_side, String(best_hand), str(candidates.get("LEFT", {})), str(candidates.get("RIGHT", {}))])
+	print("[EmbodiedHandV6] case=%s stance=%s body=%.3f gaze=%.2f side=%.3f chosen=%s L=%s R=%s" % [
+		String(PICKUP_CASES[_pickup_case_index]["name"]), String(_case_pickup_stance), _body_error_m,
+		_gaze_angle_deg, target_side, String(best_hand), str(candidates.get("LEFT", {})), str(candidates.get("RIGHT", {}))])
 
 
 func _update_pickup_case_v3(case_time: float, delta: float) -> void:
 	var timing: Dictionary = V5_CASES[_pickup_case_index]
 	_aim_camera_at(_pickup_item.global_position)
-	_update_focus_gate() # diagnostic only in V6
+	_update_focus_gate() # staging/diagnostic only
 
-	if not _hand_locked:
-		_select_hand_from_context()
-		if _active_hand != &"":
-			_hand_locked = true
-	if _active_hand == &"":
-		_cycle_phase = &"STANCE_SETTLE"
-		_pickup_phase = &"STANCE_SETTLE"
-		velocity = Vector3.ZERO
-		if case_time >= float(timing["grasp_end"]):
-			_record_pickup_result(false, "stance_or_hand_selection_failed")
-		return
-
-	_body_goal = _body_goal_for_hand(_active_hand)
-	_body_goal_yaw = 0.0
 	var align_end: float = float(timing["align_end"])
-	if case_time < align_end or not _body_aligned:
-		_cycle_phase = &"BODY_ALIGN"
-		_pickup_phase = &"BODY_ALIGN"
-		_move_body_toward_goal(delta)
-		if case_time > align_end + 0.85 and not _body_aligned:
-			_record_pickup_result(false, "body_alignment_failed")
-		return
-
-	velocity = Vector3.ZERO
-	_body_error_m = Vector2(global_position.x - _body_goal.x, global_position.z - _body_goal.z).length()
-	_body_aligned = _body_error_m <= BODY_ALIGN_TOLERANCE_M
-
-	var reach: TactileArmReach = _reach_for_hand(_active_hand)
-	var grip: TactileHandGrip = _grip_for_hand(_active_hand)
-	var profile: StringName = &"LOW" if _case_pickup_stance != &"STAND" else &"PICKUP"
 	var reach_end: float = float(timing["reach_end"])
 	var grasp_end: float = float(timing["grasp_end"])
 	var rise_end: float = float(timing["rise_end"])
@@ -152,6 +125,52 @@ func _update_pickup_case_v3(case_time: float, delta: float) -> void:
 	var return_stance_end: float = float(timing["return_stance_end"])
 	var return_end: float = float(timing["return_end"])
 	var release_end: float = float(timing["release_end"])
+
+	## Returned is terminal for this case. The old V5 code detached the item and
+	## then immediately satisfied `not _pickup_attached`, causing a second GRASP.
+	if _returned_to_shelf:
+		var returned_reach: TactileArmReach = _reach_for_hand(_active_hand) if _active_hand != &"" else null
+		var returned_grip: TactileHandGrip = _grip_for_hand(_active_hand) if _active_hand != &"" else null
+		if returned_reach != null:
+			returned_reach.release()
+		if returned_grip != null:
+			returned_grip.release()
+		_reach_pose.release()
+		_mark_cycle("released", true)
+		_cycle_phase = &"RELEASE"
+		_pickup_phase = &"RELEASE" if case_time < release_end else &"RESET"
+		if case_time >= release_end and _stance != &"STAND":
+			_set_stance(&"STAND")
+		velocity = Vector3.ZERO
+		return
+
+	## Body alignment is deliberately independent of hand choice. First get Henry
+	## into the stable interaction lane; only then ask which shoulder/hand should act.
+	_body_goal = _neutral_body_goal()
+	_body_goal_yaw = 0.0
+	if not _body_aligned:
+		_cycle_phase = &"BODY_ALIGN"
+		_pickup_phase = &"BODY_ALIGN"
+		_move_body_toward_goal(delta)
+		return
+	velocity = Vector3.ZERO
+	_body_error_m = Vector2(global_position.x - _body_goal.x, global_position.z - _body_goal.z).length()
+	_body_aligned = _body_error_m <= BODY_ALIGN_TOLERANCE_M
+
+	if not _hand_locked:
+		_select_hand_from_context()
+		if _active_hand != &"":
+			_hand_locked = true
+	if _active_hand == &"":
+		_cycle_phase = &"HAND_SELECT"
+		_pickup_phase = &"HAND_SELECT"
+		if case_time >= grasp_end:
+			_record_pickup_result(false, "hand_selection_failed")
+		return
+
+	var reach: TactileArmReach = _reach_for_hand(_active_hand)
+	var grip: TactileHandGrip = _grip_for_hand(_active_hand)
+	var profile: StringName = &"LOW" if _case_pickup_stance != &"STAND" else &"PICKUP"
 
 	if not _pickup_attached:
 		_cycle_phase = &"AUTHORED_REACH"
@@ -185,8 +204,7 @@ func _update_pickup_case_v3(case_time: float, delta: float) -> void:
 			_record_pickup_result(false, "wrist_%s" % String(arm_debug.get("reason", "not_settled")))
 		return
 
-	## Ownership is deterministic once the authored grip commits. From here the
-	## object follows the hand socket; IK only poses the arm for presentation.
+	## Deterministic ownership after grip commit. IK only poses the arm around it.
 	grip.set_goal(_active_hand, _pickup_item.global_transform, ITEM_RADIUS_M, ITEM_HALF_HEIGHT_M, 1.0)
 	_reach_pose.release()
 	if _stance != &"STAND":
@@ -227,23 +245,11 @@ func _update_pickup_case_v3(case_time: float, delta: float) -> void:
 		_move_owned_item_with_hand(reach, _rack_item_world.origin)
 		return
 
-	if not _returned_to_shelf:
-		_place_item_back_on_shelf()
-		_returned_to_shelf = true
-		_mark_cycle("returned", true)
-		print("[EmbodiedCycleV6] %s hand=%s RETURN" % [
-			String(PICKUP_CASES[_pickup_case_index]["name"]), String(_active_hand)])
-	if case_time < release_end:
-		_cycle_phase = &"RELEASE"
-		_pickup_phase = &"RELEASE"
-		reach.release()
-		grip.release()
-		_reach_pose.release()
-		_mark_cycle("released", true)
-	else:
-		if _stance != &"STAND":
-			_set_stance(&"STAND")
-		_pickup_phase = &"RESET"
+	_place_item_back_on_shelf()
+	_returned_to_shelf = true
+	_mark_cycle("returned", true)
+	print("[EmbodiedCycleV6] %s hand=%s RETURN" % [
+		String(PICKUP_CASES[_pickup_case_index]["name"]), String(_active_hand)])
 
 
 func _update_handoff_v3(local_time: float) -> void:
@@ -328,11 +334,11 @@ func _update_handoff_v3(local_time: float) -> void:
 
 func get_capture_report() -> Dictionary:
 	var report: Dictionary = super()
-	report["lab_revision"] = "V6 pose-to-pose authored interaction; wrist IK correction; authored grip pose; no fingertip/gaze semantic gates"
+	report["lab_revision"] = "V6 pose-to-pose authored interaction; neutral body alignment before hand choice; wrist IK correction; authored grip pose"
 	report["motion_policy"] = "base locomotion remains authoritative; static/partial UAL samples only; no full action playback and no root-motion ownership"
-	report["hand_selection_policy"] = "after stance settles, infer target side from measured shoulders; ipsilateral preference; current hand distance only tie-breaker"
+	report["hand_selection_policy"] = "stance + neutral body alignment first; infer target side from measured shoulders; ipsilateral preference; hand distance only tie-breaker"
 	report["grip_policy"] = "Idle_Torch authored fist/cylindrical prior; finger CCD and fingertip contact are diagnostic only"
-	report["success_gate"] = "stance + collision-safe body alignment + bounded wrist reach + authored grip commit + deterministic ownership"
+	report["success_gate"] = "stance + collision-safe neutral body alignment + bounded wrist reach + authored grip commit + deterministic ownership"
 	report["gaze_policy"] = "production TPS aims for readable staging; gaze angle is recorded but does not veto an otherwise valid authored interaction"
 	report["finger_ccd_required"] = false
 	return report
