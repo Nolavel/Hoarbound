@@ -5,23 +5,33 @@ extends "res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd"
 ## Production InteractComponent owns F acceptance. The lab owns only the
 ## presentation: authored standing pickup, crouch-preserving low reach,
 ## persistent held state, hand transfer and return.
+##
+## The lab deliberately adds two authoring assists which production interactions
+## also need conceptually: forgiving target acquisition and a hard body-clearance
+## plane. Hands may reach into the rack; Henry's core may not pass through it.
 
 const CONTACT_TO_HELD_SECONDS: float = 0.22
 const LOW_CROUCH_REACH_SECONDS: float = 0.34
-const LOW_TARGET_FOCUS_CONE_DEG: float = 28.0
-const KNEE_FOCUS_RADIUS_M: float = 0.15
-const FLOOR_FOCUS_RADIUS_M: float = 0.18
+const LAB_TARGET_FOCUS_CONE_DEG: float = 44.0
+const DEFAULT_FOCUS_RADIUS_M: float = 0.18
+const FLOOR_FOCUS_RADIUS_M: float = 0.22
+const RACK_FRONT_LOCAL_Z: float = RACK_Z_M - 0.20
+const BODY_CLEARANCE_M: float = 0.08
+const BODY_GUARD_BONES: Array[StringName] = [&"pelvis", &"spine_01", &"spine_03", &"Head"]
 
 var _handoff_requested: bool = false
 var _low_reach_start: Vector3 = Vector3.ZERO
+var _clearance_push_total_m: float = 0.0
 
 
 func _ready() -> void:
 	super._ready()
 	var interact := get_node_or_null(^"InteractComponent") as InteractComponent
 	if interact != null:
-		interact.focus_angle_deg = maxf(interact.focus_angle_deg, LOW_TARGET_FOCUS_CONE_DEG)
-	_configure_low_target_focus()
+		## This is a soft selection cone, not an instruction to put the item on the
+		## exact centre pixel. The normal visibility/occlusion tests still apply.
+		interact.focus_angle_deg = maxf(interact.focus_angle_deg, LAB_TARGET_FOCUS_CONE_DEG)
+	_configure_target_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -40,6 +50,13 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
+	if _stage == Stage.PICKUP:
+		## Animation may lean after its first frame. Enforce the rack plane every
+		## physics tick, after the skeleton has evaluated the current action pose.
+		if not _enforce_rack_body_clearance():
+			_abort_for_rack_clearance()
+			_update_labels()
+			return
 	if _item_attached and _stage == Stage.MANUAL:
 		## Persistent held state must not keep TwoBoneIK alive. The prop is already
 		## on hand_l/hand_r, so the normal idle/crouch animation owns wrist rotation.
@@ -63,6 +80,7 @@ func _begin_pickup_case(index: int) -> void:
 	_action_started = false
 	_item_attached = false
 	_return_released = false
+	_clearance_push_total_m = 0.0
 	_active_item = _items[index]
 	var case_data: Dictionary = PICKUP_CASES[index]
 	var contact := _contact_for(index)
@@ -92,6 +110,11 @@ func _begin_pickup_case(index: int) -> void:
 		case_data["name"], String(_active_hand), String(_active_action), facing, clear_path,
 		is_crouching(), JSON.stringify(_candidate_report)])
 
+	## Neutral pose must already respect the rack plane. If there is free space
+	## behind Henry the guard makes the tiny corrective step before the action.
+	if not _enforce_rack_body_clearance():
+		_abort_for_rack_clearance()
+		return
 	if is_crouching() and _is_low_case(index):
 		_low_reach_start = _bone_world(&"hand_l" if _active_hand == &"LEFT" else &"hand_r")
 		_pickup_phase = &"CROUCH_PICK"
@@ -152,6 +175,7 @@ func _update_idle_present() -> void:
 	var cycle: Dictionary = _cycle_results[String(case_data["name"])]
 	cycle["stood_to_idle"] = true
 	cycle["idle_presented"] = true
+	cycle["rack_clearance_push_m"] = _clearance_push_total_m
 	_disable_all_ik()
 	_stage = Stage.MANUAL
 	_pickup_phase = &"HELD"
@@ -222,9 +246,13 @@ func _start_return_from_held() -> void:
 	var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
 	_active_action = case_data["action_left"] if _active_hand == &"LEFT" else case_data["action_right"]
 	_return_released = false
+	_clearance_push_total_m = 0.0
 	_disable_all_ik()
 	_stage = Stage.PICKUP
 	_manual_prompt = ""
+	if not _enforce_rack_body_clearance():
+		_abort_for_rack_clearance()
+		return
 	if is_crouching() and _is_low_case(_pickup_case_index):
 		_low_reach_start = _bone_world(&"hand_l" if _active_hand == &"LEFT" else &"hand_r")
 		_pickup_phase = &"CROUCH_RETURN"
@@ -245,6 +273,7 @@ func _update_crouch_return(delta: float) -> void:
 	var cycle: Dictionary = _cycle_results[String(case_data["name"])]
 	cycle["returned"] = true
 	cycle["released"] = true
+	cycle["rack_clearance_push_m"] = _clearance_push_total_m
 	_disable_all_ik()
 	_pickup_phase = &"SETTLE"
 	_phase_time = 0.0
@@ -263,6 +292,7 @@ func _update_return_action(delta: float) -> void:
 	var cycle: Dictionary = _cycle_results[String(case_data["name"])]
 	cycle["returned"] = true
 	cycle["released"] = true
+	cycle["rack_clearance_push_m"] = _clearance_push_total_m
 	visual.abort_action()
 	_disable_all_ik()
 	_pickup_phase = &"SETTLE"
@@ -307,10 +337,54 @@ func _set_hand_ik(hand: StringName, target_position: Vector3, weight: float) -> 
 	ik.active = ik.influence > 0.001
 
 
+## Keep the core silhouette out of the shelf volume while still allowing hands
+## and forearms to reach in. This is evaluated in rack-local space, so it does
+## not depend on the world orientation of the test scene.
+func _enforce_rack_body_clearance() -> bool:
+	if visual == null or visual.skeleton == null:
+		return true
+	var limit_z := RACK_FRONT_LOCAL_Z - BODY_CLEARANCE_M
+	var max_core_z := -INF
+	for bone_name: StringName in BODY_GUARD_BONES:
+		max_core_z = maxf(max_core_z, interaction_rig.to_local(_bone_world(bone_name)).z)
+	if max_core_z <= limit_z + 0.002:
+		return true
+	var correction := max_core_z - limit_z
+	var local_position := interaction_rig.to_local(global_position)
+	var desired_local := local_position
+	desired_local.z -= correction
+	var motion := interaction_rig.to_global(desired_local) - global_position
+	motion.y = 0.0
+	if motion.length_squared() > 0.000001:
+		var before := global_position
+		move_and_collide(motion)
+		_clearance_push_total_m += before.distance_to(global_position)
+	max_core_z = -INF
+	for bone_name: StringName in BODY_GUARD_BONES:
+		max_core_z = maxf(max_core_z, interaction_rig.to_local(_bone_world(bone_name)).z)
+	return max_core_z <= limit_z + 0.01
+
+
+func _abort_for_rack_clearance() -> void:
+	visual.abort_action()
+	_disable_all_ik()
+	velocity = Vector3.ZERO
+	if _item_attached:
+		_stage = Stage.MANUAL
+		_pickup_phase = &"HELD"
+		_manual_prompt = "RACK BLOCKED: no safe body clearance behind Henry | item stays held | step back, then G to return"
+		return
+	if _pickup_case_index >= 0 and _pickup_case_index < _targets.size():
+		_targets[_pickup_case_index].available = true
+	_stage = Stage.MANUAL
+	_pickup_phase = &"RACK_BLOCKED"
+	_manual_prompt = "RACK BLOCKED: Henry cannot keep torso outside the shelf | step back slightly and press F again"
+
+
 func _refresh_manual_diagnostics() -> void:
 	var interact := get_node_or_null(^"InteractComponent") as InteractComponent
 	if interact == null or not is_instance_valid(interact.current_target) or not (interact.current_target is EmbodiedLabTarget):
-		_manual_prompt = "crosshair target: NONE | aim at a can | WASD move | F pick up | Esc pause"
+		_manual_prompt = "SOFT TARGET: aim near a can, not pixel-perfect centre | highlighted can = active | F pick up | WASD move"
 		return
 	var lab_target := interact.current_target as EmbodiedLabTarget
 	var index := lab_target.case_index
@@ -325,7 +399,7 @@ func _refresh_manual_diagnostics() -> void:
 	var facing := _body_faces(contact)
 	var path_clear := _rack_reach_is_clear(hand, contact)
 	var action := "F PICK UP" if interact.is_target_in_reach() else "F APPROACH + PICK UP"
-	_manual_prompt = "%s | chosen=%s | L reach=%.2fx %s | R reach=%.2fx %s | facing=%s | wrist path=%s | %s" % [
+	_manual_prompt = "LOCKED %s | chosen=%s | L reach=%.2fx %s | R reach=%.2fx %s | facing=%s | wrist path=%s | %s" % [
 		String(case_data["name"]),
 		String(hand),
 		float(left.get("reach_ratio", INF)), "OK" if bool(left.get("feasible", false)) else "LIMIT",
@@ -345,16 +419,21 @@ func _is_low_case(index: int) -> bool:
 	return index >= 3
 
 
-func _configure_low_target_focus() -> void:
-	for index: int in [3, 4]:
-		if index < 0 or index >= _targets.size():
-			continue
+## Give every can a small front-biased target volume. The cone decides which can
+## wins; the larger Area only means the centre ray no longer has to hit a 9 cm
+## cylinder exactly. Visibility still comes from InteractComponent.
+func _configure_target_focus() -> void:
+	for index: int in range(_targets.size()):
 		var target := _targets[index]
 		var case_data: Dictionary = PICKUP_CASES[index]
 		var marker := Marker3D.new()
-		marker.name = "StandingFocus_%s" % String(case_data["name"])
-		var lift := 0.07 if index == 3 else 0.14
-		marker.position = _item_home[index].origin + Vector3(0.0, lift, -0.08)
+		marker.name = "SoftFocus_%s" % String(case_data["name"])
+		var lift := 0.04
+		if index == 3:
+			lift = 0.07
+		elif index == 4:
+			lift = 0.14
+		marker.position = _item_home[index].origin + Vector3(0.0, lift, -0.07)
 		interaction_rig.add_child(marker)
 		target.focus_anchor = marker
 		for child: Node in target.get_children():
@@ -362,6 +441,6 @@ func _configure_low_target_focus() -> void:
 			if collision == null:
 				continue
 			var sphere := SphereShape3D.new()
-			sphere.radius = KNEE_FOCUS_RADIUS_M if index == 3 else FLOOR_FOCUS_RADIUS_M
+			sphere.radius = FLOOR_FOCUS_RADIUS_M if index == 4 else DEFAULT_FOCUS_RADIUS_M
 			collision.shape = sphere
 			break
