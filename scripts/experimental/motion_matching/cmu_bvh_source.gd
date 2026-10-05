@@ -89,6 +89,7 @@ func get_report() -> Dictionary:
 		"source_fps": 0.0 if frame_time <= 0.0 else 1.0 / frame_time,
 		"clip_length_seconds": clip_length,
 		"synthetic_tpose_frames_skipped": 1,
+		"source_bone_pose_space": "absolute_local",
 		"root_playback": "in_place_xz",
 	}
 
