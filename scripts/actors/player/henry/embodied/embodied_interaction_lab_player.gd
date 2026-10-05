@@ -5,10 +5,37 @@ extends "res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd"
 ## The production InteractComponent is the authority for whether F accepted a
 ## focused can. Reach/facing/path measurements remain visible diagnostics and
 ## capture metadata; they must not become a second hidden veto after F.
+##
+## Once a can is held, the lab owns a small explicit held-state:
+## - RMB transfers it between hands;
+## - G returns it to the authored home position;
+## - F cannot pick a second lab can while one is already held.
+
+var _handoff_requested: bool = false
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _item_attached or _stage != Stage.MANUAL or event.is_echo():
+		return
+	var mouse := event as InputEventMouseButton
+	if mouse != null and mouse.pressed and mouse.button_index == MOUSE_BUTTON_RIGHT:
+		_handoff_requested = true
+		_begin_handoff()
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed(&"drop_carried"):
+		_start_return_from_held()
+		get_viewport().set_input_as_handled()
 
 
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
+	if _item_attached and _stage == Stage.MANUAL:
+		_set_hand_ik(_active_hand, _held_target(_active_hand), 0.68)
+		if _pickup_phase == &"HELD":
+			_manual_prompt = _held_prompt()
+			_update_labels()
+		return
 	if _stage == Stage.MANUAL and not _item_attached:
 		_refresh_manual_diagnostics()
 		_update_labels()
@@ -54,6 +81,107 @@ func _begin_pickup_case(index: int) -> void:
 		case_data["name"], String(_active_hand), String(_active_action), facing, clear_path,
 		JSON.stringify(_candidate_report)])
 	_start_action(&"PICK_ACTION")
+
+
+## The item no longer auto-returns after the presentation beat. It becomes a
+## persistent held object so hand transfer and return can be inspected manually.
+func _update_idle_present() -> void:
+	_set_hand_ik(_active_hand, _held_target(_active_hand), 0.68)
+	if _phase_time < IDLE_HOLD_SECONDS:
+		return
+	var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
+	var cycle: Dictionary = _cycle_results[String(case_data["name"])]
+	cycle["stood_to_idle"] = true
+	cycle["idle_presented"] = true
+	_stage = Stage.MANUAL
+	_pickup_phase = &"HELD"
+	_phase_time = 0.0
+	_manual_prompt = _held_prompt()
+
+
+## Base proof used F only for the final floor-can transfer. The player-facing lab
+## deliberately requires RMB, so an ordinary world-interact press can never
+## accidentally move the object between hands.
+func _begin_handoff() -> void:
+	if not _handoff_requested or not _item_attached or _stage != Stage.MANUAL:
+		return
+	_handoff_requested = false
+	_handoff_result = {}
+	super._begin_handoff()
+
+
+## Generic handoff: any held can may be transferred, repeatedly. Completion
+## returns to HELD instead of ending the lab so RMB can toggle LEFT <-> RIGHT.
+func _update_handoff(delta: float) -> void:
+	_phase_time += delta
+	var left_shoulder := _bone_world(&"upperarm_l")
+	var right_shoulder := _bone_world(&"upperarm_r")
+	var transfer := (left_shoulder + right_shoulder) * 0.5 \
+		+ Vector3.DOWN * 0.24 - global_transform.basis.z * 0.25
+	_set_hand_ik(_handoff_source_hand, transfer, minf(1.0, _phase_time / 0.45) * 0.82)
+	if _phase_time >= 0.48 and _handoff_result.is_empty():
+		_handoff_phase = &"RECEIVER_REACH"
+		_set_hand_ik(_handoff_receiver_hand, _active_item.global_position, smoothstep(0.48, 0.98, _phase_time) * 0.90)
+	if _phase_time >= HANDOFF_CONTACT_SECONDS and _handoff_result.is_empty():
+		_attach_item(_handoff_receiver_hand)
+		_active_hand = _handoff_receiver_hand
+		_handoff_phase = &"CONTACT"
+		var receiver_arm := _arm_candidate(_handoff_receiver_hand, transfer)
+		var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
+		var cycle: Dictionary = _cycle_results.get(String(case_data["name"]), {}) as Dictionary
+		_handoff_result = {
+			"contact": true,
+			"case": String(case_data["name"]),
+			"source_hand": String(_handoff_source_hand),
+			"receiver_hand": String(_handoff_receiver_hand),
+			"receiver_arm": receiver_arm,
+			"transfer_height_m": transfer.y,
+			"stood_before_transfer": bool(cycle.get("stood_to_idle", false)),
+		}
+	if not _handoff_result.is_empty():
+		_set_hand_ik(_handoff_source_hand, transfer + global_transform.basis * Vector3(0.0, 0.0, -0.08), maxf(0.0, 0.82 - (_phase_time - HANDOFF_CONTACT_SECONDS) * 1.8))
+		_set_hand_ik(_handoff_receiver_hand, transfer, 0.78)
+	if _phase_time >= HANDOFF_DONE_SECONDS:
+		_stage = Stage.MANUAL
+		_pickup_phase = &"HELD"
+		_handoff_phase = &"COMPLETE"
+		_phase_time = 0.0
+		_disable_all_ik()
+		_manual_prompt = _held_prompt()
+
+
+## HenryUALAnimation's primary HandSocket is hand_l and OffhandSocket is hand_r.
+## The previous lab mapping was reversed, which made the authored animation reach
+## with one hand while the cylinder teleported into the other.
+func _attach_item(hand: StringName) -> void:
+	if visual.get_held_prop() == _active_item:
+		visual.release_hand()
+	if visual.get_offhand_prop() == _active_item:
+		visual.release_offhand()
+	if hand == &"LEFT":
+		visual.hold_in_hand(_active_item)
+	else:
+		visual.hold_in_offhand(_active_item)
+
+
+func _start_return_from_held() -> void:
+	if not _item_attached or _pickup_case_index < 0 or _pickup_case_index >= PICKUP_CASES.size():
+		return
+	var case_data: Dictionary = PICKUP_CASES[_pickup_case_index]
+	_active_action = case_data["action_left"] if _active_hand == &"LEFT" else case_data["action_right"]
+	_return_released = false
+	_disable_all_ik()
+	_stage = Stage.PICKUP
+	_manual_prompt = ""
+	_start_action(&"RETURN_ACTION")
+
+
+func _held_prompt() -> String:
+	var case_name := "CAN"
+	if _pickup_case_index >= 0 and _pickup_case_index < PICKUP_CASES.size():
+		case_name = String((PICKUP_CASES[_pickup_case_index] as Dictionary)["name"])
+	return "%s HELD IN %s | RMB transfer hand <-> hand | G return to rack | F cannot take another can" % [
+		case_name, String(_active_hand)]
 
 
 ## The hand does not travel shoulder -> object. The actionable clearance segment
