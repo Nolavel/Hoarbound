@@ -269,7 +269,7 @@ func _collect_visual_world_bounds(node: Node) -> Dictionary:
 	var mesh_count := 0
 	var stack: Array[Node] = [node]
 	while not stack.is_empty():
-		var current := stack.pop_back()
+		var current: Node = stack.pop_back() as Node
 		for child in current.get_children():
 			stack.append(child)
 		if current is MeshInstance3D:
