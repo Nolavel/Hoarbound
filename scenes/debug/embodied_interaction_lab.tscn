@@ -1,12 +1,9 @@
 [gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd" id="1_lab"]
-[ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="2_henry"]
+[ext_resource type="PackedScene" path="res://scenes/actors/player/player.tscn" id="2_henry"]
 [ext_resource type="PackedScene" path="res://scenes/game/systems/camera/tps_camera.tscn" id="4_camera"]
-
-[sub_resource type="CapsuleShape3D" id="Capsule_henry"]
-radius = 0.35
-height = 2.0
+[ext_resource type="PackedScene" path="res://scenes/ui/menu/pause_menu.tscn" id="5_pause"]
 
 [sub_resource type="StandardMaterial3D" id="Mat_floor"]
 albedo_color = Color(0.12, 0.14, 0.16, 1)
@@ -45,16 +42,10 @@ mesh = SubResource("Mesh_pedestal")
 
 [node name="InteractionRig" type="Node3D" parent="."]
 
-[node name="Henry" type="CharacterBody3D" parent="."]
-position = Vector3(-0.55, 0, -1.75)
-rotation = Vector3(0, 0.24, 0)
+[node name="Henry" parent="." instance=ExtResource("2_henry")]
+position = Vector3(0, 1, -0.35)
+rotation = Vector3(0, 3.1415927, 0)
 script = ExtResource("1_lab")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Henry"]
-position = Vector3(0, 1.0, 0)
-shape = SubResource("Capsule_henry")
-
-[node name="HenryUALVisual" parent="Henry" instance=ExtResource("2_henry")]
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-48, -28, 0)
@@ -95,3 +86,5 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.82, 0.86, 1)
 theme_override_font_sizes/font_size = 18
 text = "measured hand selection / full UAL action / stock TwoBoneIK3D contact correction"
+
+[node name="PauseMenu" parent="UILayer" instance=ExtResource("5_pause")]
