@@ -69,12 +69,13 @@ mesh = SubResource("Mesh_pedestal")
 [node name="Targets" type="Node3D" parent="."]
 
 [node name="BodyTarget" type="Marker3D" parent="Targets"]
-position = Vector3(0, 0.012, 0.05)
+position = Vector3(0, 0, 0.05)
 script = ExtResource("3_target")
 target_id = &"demo_body"
 authoring_note = "Desired body alignment in front of the interaction surface."
 
 [node name="Disc" type="MeshInstance3D" parent="Targets/BodyTarget"]
+position = Vector3(0, 0.052, 0)
 mesh = SubResource("Mesh_body_target")
 
 [node name="RightHandTarget" type="Marker3D" parent="Targets"]
