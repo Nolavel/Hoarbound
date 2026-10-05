@@ -8,8 +8,15 @@ extends Node
 ## additionally proves a body-alignment requirement: the authored kneeling clip
 ## lands the hand several centimetres lateral to a standing affordance target,
 ## so the body target must shift with stance instead of twisting fingers harder.
+##
+## Handoff follows the same deterministic grammar: the source hand presents the
+## owned can into a small shared transfer volume; the receiver solves to the
+## moving can; ownership changes only after measured receiver contact.
 
 const FLOOR_BODY_SHIFT_M: float = 0.165
+const HANDOFF_HEIGHT_M: float = 1.22
+const HANDOFF_FORWARD_M: float = 0.27
+const HANDOFF_SOURCE_SIDE_M: float = 0.06
 
 var _last_mode: StringName = &""
 
@@ -38,6 +45,11 @@ func _process(_delta: float) -> void:
 	if not handoff.is_empty():
 		_apply_floor_body_alignment(actor)
 		_apply_source(source_ik, source_grip, &"HANDOFF_SOURCE")
+		if handoff == "CONTACT":
+			## Once ownership commits to the receiver, stop driving the donor arm.
+			source_ik.release()
+		else:
+			_present_source_for_handoff(actor, source_ik)
 		if receiver_ik != null and receiver_grip != null:
 			_apply_receiver(receiver_ik, receiver_grip)
 		_report_mode(&"HANDOFF")
@@ -62,6 +74,21 @@ func _apply_floor_body_alignment(actor: EmbodiedInteractionLabActor) -> void:
 	actor.global_position += actor.global_transform.basis.x.normalized() * FLOOR_BODY_SHIFT_M
 
 
+func _present_source_for_handoff(actor: EmbodiedInteractionLabActor, ik: DoorHandIK) -> void:
+	## Henry's authored visual forward is +Z. Keep the donor wrist slightly on its
+	## own side so the two wrists do not collapse into one point, while presenting
+	## the can near the sternum where either hand has comfortable reach.
+	var side: Vector3 = actor.global_transform.basis.x.normalized()
+	var forward: Vector3 = actor.global_transform.basis.z.normalized()
+	var point: Vector3 = actor.global_position + Vector3.UP * HANDOFF_HEIGHT_M
+	point += forward * HANDOFF_FORWARD_M + side * HANDOFF_SOURCE_SIDE_M
+	ik.elbow_drop = 0.06
+	ik.palm_flatten = 0.0
+	ik.palm_offset_m = 0.0
+	ik.wrist_back_m = 0.0
+	ik.set_goal(point, -forward, 1.0)
+
+
 func _apply_source(ik: DoorHandIK, grip: TactileHandGrip, mode: StringName) -> void:
 	if mode == &"HEAD":
 		ik.elbow_drop = 0.08
@@ -82,6 +109,8 @@ func _apply_source(ik: DoorHandIK, grip: TactileHandGrip, mode: StringName) -> v
 		grip.contact_iterations = 9
 		grip.max_joint_step_deg = 16.0
 	elif mode == &"HANDOFF_SOURCE":
+		ik.palm_flatten = 0.0
+		ik.wrist_back_m = 0.0
 		grip.hand_orient_weight = 0.55
 		grip.contact_settle_weight = 0.95
 		grip.contact_iterations = 8
