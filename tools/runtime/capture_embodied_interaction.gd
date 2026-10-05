@@ -1,13 +1,13 @@
 extends SceneTree
 
-## Captures the isolated Embodied Interaction foundation proof plus the follow-up
-## pickup reach envelope. CI turns the frame sequence into one short MP4.
+## Captures the isolated embodied interaction proof. The pickup section now
+## records two bilateral tactile grabs through the production TPS camera.
 
 const SCENE: String = "res://scenes/debug/embodied_interaction_lab.tscn"
 const OUT_DIR: String = "res://docs/runtime_previews/embodied_interaction"
 const FRAME_DIR: String = OUT_DIR + "/frames"
 const WARMUP_SECONDS: float = 1.2
-const CAPTURE_SECONDS: float = 20.8
+const CAPTURE_SECONDS: float = 14.8
 const CAPTURE_FPS: int = 10
 
 var _scene: Node
