@@ -230,22 +230,22 @@ func _run_cmu_matcher_probe(cmu_lab: CMUUALRetargetLab, database: MotionDatabase
 		if query.size() != database.feature_count:
 			push_error("CMURetargetCapture: runtime query schema mismatch (%d != %d)." % [query.size(), database.feature_count])
 			return false
-		var match := matcher.find_best(database, query)
-		if match.is_empty():
+		var best_match := matcher.find_best(database, query)
+		if best_match.is_empty():
 			push_error("CMURetargetCapture: brute-force matcher returned no frame.")
 			return false
-		match["query_label"] = String(command["label"])
-		match["desired_local_velocity"] = [desired_velocity.x, desired_velocity.y]
-		matches.append(match)
-		unique_samples[String(match["sample_index"])] = true
+		best_match["query_label"] = String(command["label"])
+		best_match["desired_local_velocity"] = [desired_velocity.x, desired_velocity.y]
+		matches.append(best_match)
+		unique_samples[String(best_match["sample_index"])] = true
 		print("[MOTION_MATCH] %-13s -> %s @ %.3fs sample=%d total=%.3f pose=%.3f traj=%.3f" % [
 			String(command["label"]),
-			String(match["clip"]),
-			float(match["time"]),
-			int(match["sample_index"]),
-			float(match["total_cost"]),
-			float(match["pose_cost"]),
-			float(match["trajectory_cost"]),
+			String(best_match["clip"]),
+			float(best_match["time"]),
+			int(best_match["sample_index"]),
+			float(best_match["total_cost"]),
+			float(best_match["pose_cost"]),
+			float(best_match["trajectory_cost"]),
 		])
 
 	_matcher_probe_report = {
