@@ -3,9 +3,9 @@ extends SkeletonModifier3D
 
 ## Lab-only two-bone reach for issue #198.
 ##
-## Unlike DoorHandIK this modifier does not flatten a palm onto a plane. It owns
-## only shoulder/elbow/wrist reach and refuses anatomically implausible targets:
-## over-extension, over-compression and elbow crossing through Henry's midline.
+## This modifier owns only shoulder/elbow/wrist reach. It refuses impossible
+## extension/compression and keeps the elbow on the anatomical side of the torso.
+## LEFT/RIGHT are resolved from the loaded skeleton, never assumed from rig X.
 
 @export var upper_bone: StringName = &"upperarm_r"
 @export var lower_bone: StringName = &"lowerarm_r"
@@ -97,7 +97,15 @@ func _process_modification() -> void:
 
 	var dir: Vector3 = reach.normalized() if reach.length_squared() > 1e-8 else (wrist - shoulder).normalized()
 	var clip_bend: Vector3 = (elbow - shoulder) - dir * (elbow - shoulder).dot(dir)
-	var side_sign: float = -1.0 if _hand == &"LEFT" else 1.0
+
+	## Do not assume UAL's LEFT is -X / RIGHT is +X. The imported skeleton used by
+	## Henry can be mirrored relative to that convention. Derive anatomical side
+	## from this shoulder relative to pelvis in the evaluated rig pose.
+	var pelvis_idx: int = skeleton.find_bone(&"pelvis")
+	var pelvis_x: float = skeleton.get_bone_global_pose(pelvis_idx).origin.x if pelvis_idx >= 0 else 0.0
+	var side_sign: float = signf(shoulder.x - pelvis_x)
+	if absf(side_sign) < 0.5:
+		side_sign = -1.0 if _hand == &"LEFT" else 1.0
 	var outward: Vector3 = Vector3.RIGHT * side_sign + Vector3.DOWN * 0.20
 	outward -= dir * outward.dot(dir)
 	if outward.length_squared() < 1e-8:
@@ -118,9 +126,9 @@ func _process_modification() -> void:
 	var new_elbow: Vector3 = shoulder + dir * a * cos_a + bend * a * sin_a
 	var new_wrist: Vector3 = shoulder + dir * d
 
-	## UAL rig X is lateral. Keep the elbow on its anatomical side; a small cross
-	## allowance handles near-centre targets without permitting a torso stab-through.
-	if new_elbow.x * side_sign < -max_midline_cross_m:
+	## Compare against pelvis-relative midline in rig space. This is invariant to a
+	## mirrored import and fixes the old false elbow_crosses_midline rejection.
+	if (new_elbow.x - pelvis_x) * side_sign < -max_midline_cross_m:
 		_set_debug(skeleton, false, "elbow_crosses_midline", reach_ratio, shoulder, new_elbow, new_wrist, target)
 		return
 

@@ -1,12 +1,13 @@
 extends SceneTree
 
-## Captures issue #198's context-aware tactile-grasp lab through the production
-## TPS camera. The renderer may run slower than the requested movie rate on CI,
-## so frame output is time-quantized and ffmpeg preserves simulation duration.
+## Captures issue #198's pose-to-pose embodied-interaction lab through the
+## production TPS camera. The renderer may run slower than the requested movie
+## rate on CI, so frame output is time-quantized and ffmpeg preserves duration.
 ##
-## This script is also the semantic CI gate: a green embodied-preview means all
-## five pickup cycles, their idle presentation/returns and the final handoff were
-## actually proven. Rendering a movie without interaction success exits non-zero.
+## Semantic proof is intentionally animation/gameplay oriented: a green run means
+## all five cases chose a hand, aligned the body, reached with a bounded arm,
+## committed an authored grip, stood to idle/presented, returned where required,
+## and completed the final handoff. Gaze angle and fingertip CCD are diagnostics.
 
 const SCENE: String = "res://scenes/debug/embodied_interaction_lab.tscn"
 const OUT_DIR: String = "res://docs/runtime_previews/embodied_interaction"
@@ -107,10 +108,15 @@ func _write_report() -> Dictionary:
 	var handoff: Dictionary = proof.get("handoff", {}) as Dictionary
 	if not bool(handoff.get("contact", false)):
 		failures.append("handoff_contact")
+	var receiver_arm: Dictionary = handoff.get("receiver_arm", {}) as Dictionary
+	if bool(handoff.get("contact", false)) and not bool(receiver_arm.get("feasible", false)):
+		failures.append("handoff_receiver_arm")
 	if _saved_pickup_cases.size() != EXPECTED_CASES.size():
 		failures.append("pickup_keyframes_%d_of_%d" % [_saved_pickup_cases.size(), EXPECTED_CASES.size()])
 	if not _handoff_saved:
 		failures.append("handoff_keyframe")
+	if bool(proof.get("finger_ccd_required", true)):
+		failures.append("finger_ccd_still_semantic")
 
 	var semantic_pass: bool = failures.is_empty()
 	var report: Dictionary = {
@@ -148,15 +154,13 @@ func _validate_pickups(proof: Dictionary, failures: PackedStringArray) -> void:
 		var result: Dictionary = by_name[case_name]
 		if not bool(result.get("contact", false)):
 			failures.append("%s_%s" % [case_name, String(result.get("reason", "no_contact"))])
-		if not bool(result.get("gaze_focus", false)):
-			failures.append("%s_gaze" % case_name)
+		if String(result.get("chosen_hand", "")).is_empty():
+			failures.append("%s_no_hand" % case_name)
 		if not bool(result.get("body_aligned", false)):
 			failures.append("%s_body" % case_name)
 		var arm: Dictionary = result.get("arm", {}) as Dictionary
 		if not bool(arm.get("feasible", false)):
 			failures.append("%s_arm_%s" % [case_name, String(arm.get("reason", "invalid"))])
-		if int(result.get("finger_contacts", 0)) < 2 or not bool(result.get("thumb_contact", false)):
-			failures.append("%s_tactile" % case_name)
 
 
 func _validate_cycles(proof: Dictionary, failures: PackedStringArray) -> void:
