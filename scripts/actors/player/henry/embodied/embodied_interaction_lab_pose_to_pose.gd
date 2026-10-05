@@ -3,10 +3,30 @@ extends EmbodiedInteractionLabV6
 
 ## Concrete pose-to-pose lab driver for issue #198.
 ##
-## Two lab-specific responsibilities live here:
-## 1) body alignment is allowed before a hand is committed;
-## 2) target height selects an authored contact-pose profile before wrist IK.
+## Body alignment is allowed before hand commitment; target height selects an
+## authored contact-pose profile before wrist IK. The final FLOOR case is staged
+## on the actual floor in front of Henry, not on the rack's lowest shelf.
 ## Production movement / pickup are untouched.
+
+const FLOOR_SURFACE_Y_M: float = 0.04
+const FLOOR_FORWARD_FROM_BODY_M: float = 0.13
+
+
+func _begin_pickup_case(index: int) -> void:
+	super(index)
+	if index != PICKUP_CASES.size() - 1:
+		return
+	## Previous lab revisions called this FLOOR while still placing the can on a
+	## dynamically lowered rack shelf at y=0.18 and behind the shelf lip. That made
+	## the arm solve a different problem. Put the cylinder on the actual floor,
+	## slightly ahead of Henry between his reachable kneeling workspace.
+	var floor_xf: Transform3D = _pickup_item.global_transform
+	floor_xf.origin.x = float(PICKUP_CASES[index]["x"])
+	floor_xf.origin.y = FLOOR_SURFACE_Y_M + ITEM_HALF_HEIGHT_M
+	floor_xf.origin.z = global_position.z + FLOOR_FORWARD_FROM_BODY_M
+	_pickup_item.global_transform = floor_xf
+	_rack_item_world = floor_xf
+	print("[EmbodiedFloorV6] actual_floor=true pos=%s body_z=%.3f" % [str(floor_xf.origin), global_position.z])
 
 
 func _move_body_toward_goal(delta: float) -> void:
@@ -131,12 +151,13 @@ func _update_pickup_case_v3(case_time: float, delta: float) -> void:
 				float(arm_debug.get("reach_ratio", 0.0)), _gaze_angle_deg])
 			return
 		if case_time >= grasp_end:
-			print("[EmbodiedReachFailV6] %s profile=%s hand=%s reason=%s ratio=%.3f pose_weight=%.2f" % [
-				String(PICKUP_CASES[_pickup_case_index]["name"]), String(profile), String(_active_hand),
-				String(arm_debug.get("reason", "not_settled")), float(arm_debug.get("reach_ratio", 0.0)),
-				_reach_pose.get_weight()])
-			_record_pickup_result(false, "wrist_%s" % String(arm_debug.get("reason", "not_settled")))
-		return
+			if not _pickup_result_recorded:
+				print("[EmbodiedReachFailV6] %s profile=%s hand=%s reason=%s ratio=%.3f pose_weight=%.2f" % [
+					String(PICKUP_CASES[_pickup_case_index]["name"]), String(profile), String(_active_hand),
+					String(arm_debug.get("reason", "not_settled")), float(arm_debug.get("reach_ratio", 0.0)),
+					_reach_pose.get_weight()])
+				_record_pickup_result(false, "wrist_%s" % String(arm_debug.get("reason", "not_settled")))
+			return
 
 	grip.set_goal(_active_hand, _pickup_item.global_transform, ITEM_RADIUS_M, ITEM_HALF_HEIGHT_M, 1.0)
 	_reach_pose.release()
