@@ -20,10 +20,12 @@ var _weight: float = 0.0
 var _closed_pose: Dictionary = {}
 var _index: Dictionary = {}
 var _missing_reported: Dictionary = {}
+var _pose_scan_done: bool = false
 
 
 func set_closed_pose(pose_by_bone: Dictionary) -> void:
 	_closed_pose = pose_by_bone.duplicate(true)
+	_pose_scan_done = true
 
 
 func set_goal(hand: StringName, _item_xf_world: Transform3D, radius_m: float, _half_height_m: float, weight: float = 1.0) -> void:
@@ -46,15 +48,20 @@ func get_closed_pose_count() -> int:
 
 func _process_modification() -> void:
 	var skeleton: Skeleton3D = get_skeleton()
-	if skeleton == null or _closed_pose.is_empty():
+	if skeleton == null:
 		return
+	if not _pose_scan_done:
+		_sample_authored_fist_pose(skeleton)
+	if _closed_pose.is_empty():
+		return
+
 	var delta: float = clampf(get_process_delta_time(), 0.001, 0.05)
 	var rate: float = blend_in_rate if _goal_weight > _weight else blend_out_rate
 	_weight = move_toward(_weight, _goal_weight, rate * delta)
 	if _weight <= 0.001:
 		return
 
-	## A 7 cm diameter tin should be nearly closed; a large bottle/box keeps a
+	## A 9 cm diameter tin should be nearly closed; a large bottle/box keeps a
 	## visibly wider grip. This is the volume-aware part of the pose.
 	var radius_close: float = 1.0 - inverse_lerp(fully_closed_radius_m, open_hand_radius_m, _radius_m)
 	var grip_weight: float = smoothstep(0.0, 1.0, _weight) * clampf(radius_close, 0.0, 1.0)
@@ -70,10 +77,82 @@ func _process_modification() -> void:
 				continue
 			## AnimationMixer + PickUp_Table have already populated the local pose.
 			## Blend from that current authored state into the UAL closed-hand local
-			## rotation. set_bone_pose_rotation propagates through the finger chain.
+			## rotation. Local pose rotation propagates through the real hierarchy.
 			var current: Quaternion = skeleton.get_bone_pose_rotation(bone_idx)
 			var closed := _closed_pose[bone_name] as Quaternion
 			skeleton.set_bone_pose_rotation(bone_idx, current.slerp(closed, grip_weight))
+
+
+func _sample_authored_fist_pose(skeleton: Skeleton3D) -> void:
+	_pose_scan_done = true
+	var player: AnimationPlayer = _find_animation_player_near(skeleton)
+	if player == null:
+		push_warning("TactileHandGrip: no AnimationPlayer near Henry skeleton; authored fist unavailable")
+		return
+	var clip_name: StringName = &""
+	for candidate: StringName in player.get_animation_list():
+		var text: String = String(candidate)
+		if text == "Idle_Torch" or text.ends_with("/Idle_Torch") or text == "Idle_Torch_Loop" or text.ends_with("/Idle_Torch_Loop"):
+			clip_name = candidate
+			break
+	if clip_name == &"":
+		push_warning("TactileHandGrip: Idle_Torch clip unavailable; authored fist unavailable")
+		return
+	var animation: Animation = player.get_animation(clip_name)
+	if animation == null:
+		return
+	var sample_time: float = animation.length * 0.5
+	var left_tracks: int = 0
+	for track: int in animation.get_track_count():
+		if animation.track_get_type(track) != Animation.TYPE_ROTATION_3D:
+			continue
+		var path: NodePath = animation.track_get_path(track)
+		var bone_text: String = path.get_concatenated_subnames()
+		if not _is_left_finger_bone(bone_text):
+			continue
+		var left_name := StringName(bone_text)
+		var left_rotation: Quaternion = animation.rotation_track_interpolate(track, sample_time)
+		_closed_pose[left_name] = left_rotation.normalized()
+		var right_name := StringName(bone_text.trim_suffix("_l") + "_r")
+		_closed_pose[right_name] = _mirror_quaternion_x(left_rotation).normalized()
+		left_tracks += 1
+	print("[TactileHandGrip] authored_fist=%s left_tracks=%d bilateral_tracks=%d sample=%.3f" % [
+		clip_name, left_tracks, _closed_pose.size(), sample_time])
+
+
+func _is_left_finger_bone(bone: String) -> bool:
+	if not bone.ends_with("_l"):
+		return false
+	for finger: String in ["thumb_", "index_", "middle_", "ring_", "pinky_"]:
+		if bone.begins_with(finger):
+			return bone.contains("_01_") or bone.contains("_02_") or bone.contains("_03_")
+	return false
+
+
+static func _mirror_quaternion_x(q: Quaternion) -> Quaternion:
+	## Reflection through Henry's sagittal plane. Rotation is an axial vector, so
+	## an X reflection maps quaternion vector (x,y,z) -> (x,-y,-z), scalar intact.
+	return Quaternion(q.x, -q.y, -q.z, q.w)
+
+
+func _find_animation_player_near(skeleton: Skeleton3D) -> AnimationPlayer:
+	var root: Node = skeleton
+	for _step: int in range(5):
+		if root.get_parent() == null:
+			break
+		root = root.get_parent()
+	var found: AnimationPlayer = _find_animation_player_recursive(root)
+	return found
+
+
+func _find_animation_player_recursive(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node as AnimationPlayer
+	for child: Node in node.get_children():
+		var found: AnimationPlayer = _find_animation_player_recursive(child)
+		if found != null:
+			return found
+	return null
 
 
 func _bone(skeleton: Skeleton3D, bone: StringName) -> int:
