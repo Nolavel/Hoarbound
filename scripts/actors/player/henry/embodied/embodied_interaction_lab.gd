@@ -2,8 +2,8 @@ class_name EmbodiedInteractionLabActor
 extends CharacterBody3D
 
 ## Isolated proof for issue #198. Production pickup/inventory remain untouched.
-## The pickup pass now has a strict acceptance rule: the arm reaches the prop,
-## the fingers close around its actual cylinder volume, thumb opposes the fingers,
+## The pickup pass has a strict tactile rule: the arm reaches the prop, the
+## fingers close around its actual cylinder volume, thumb opposes the fingers,
 ## and only measured fingertip contact transfers the prop to Henry's hand socket.
 
 enum Stage { IDLE, ALIGN, ACTION, RELEASE, PICKUP_REACH, DONE }
@@ -20,7 +20,8 @@ const PICKUP_GRASP_END: float = 2.05
 const PICKUP_HOLD_END: float = 2.90
 const ITEM_RADIUS_M: float = 0.045
 const ITEM_HALF_HEIGHT_M: float = 0.07
-const FINGER_SURFACE_TOLERANCE_M: float = 0.040
+const FINGER_SURFACE_TOLERANCE_M: float = 0.018
+const TIP_EXTENSION_SHARE: float = 0.66
 const MAX_PREVIEW_SPEED: float = 1.5
 
 ## Same prop and height, mirrored side/hand. This pass tests tactile ownership,
@@ -162,7 +163,7 @@ func _update_labels() -> void:
 		case_name = String(PICKUP_CASES[_pickup_case_index]["name"])
 	var error_text: String = "—" if is_inf(_pickup_surface_error) else "%.3f m" % _pickup_surface_error
 	var verdict: String = "TACTILE HOLD" if _pickup_attached else ("NO CONTACT" if _pickup_phase == &"MISS" else "closing fingers")
-	detail_label.text = "test %d/%d: %s   hand=%s   phase=%s\ncontacts=%d (fingers=%d thumb=%s)   best surface error=%s   %s" % [
+	detail_label.text = "test %d/%d: %s   hand=%s   phase=%s\ncontacts=%d (fingers=%d thumb=%s)   tip surface error=%s   %s" % [
 		_pickup_case_index + 1, PICKUP_CASES.size(), case_name, String(_pickup_hand), String(_pickup_phase),
 		_pickup_contact_count, _pickup_finger_contacts, _pickup_thumb_contact, error_text, verdict]
 
@@ -211,15 +212,16 @@ func _build_pickup_rack() -> void:
 		return
 	_pickup_ik = visual.skeleton.get_node_or_null(^"DoorHand") as DoorHandIK
 	if _pickup_ik != null:
-		## Reuse only the proven arm-to-wrist reach. Finger ownership is below.
+		## DoorHandIK only places the wrist. Put the palm onto the object; the
+		## following modifier owns the actual finger closure.
 		_pickup_ik.elbow_drop = 0.14
 		_pickup_ik.palm_flatten = 0.35
-		_pickup_ik.palm_offset_m = 0.012
-		_pickup_ik.wrist_back_m = 0.035
+		_pickup_ik.palm_offset_m = 0.0
+		_pickup_ik.wrist_back_m = 0.045
 		_pickup_ik.blend_in_rate = 8.0
 
-	## Production sockets are deliberately created before contact, so ownership
-	## transfer cannot sample a just-created/stale BoneAttachment transform.
+	## Production sockets exist before contact, so ownership transfer cannot sample
+	## a just-created/stale BoneAttachment transform.
 	_left_socket = visual.get_hand_socket()
 	_right_socket = visual.get_offhand_socket()
 
@@ -230,12 +232,16 @@ func _build_pickup_rack() -> void:
 
 
 func _build_contact_markers() -> void:
-	for finger: String in ["index", "middle", "ring", "thumb"]:
-		var marker := BoneAttachment3D.new()
-		marker.name = "TactileContact_%s" % finger
-		marker.bone_name = StringName("%s_03_r" % finger)
-		visual.skeleton.add_child(marker)
-		_contact_markers[finger] = marker
+	## UAL has no fingertip leaf bones. Keep final-evaluated 02/03 attachments and
+	## extrapolate the actual distal tip from that phalanx after all modifiers run.
+	for finger: String in ["index", "middle", "ring", "pinky", "thumb"]:
+		for joint: int in [2, 3]:
+			var key: String = "%s_%02d" % [finger, joint]
+			var marker := BoneAttachment3D.new()
+			marker.name = "TactileContact_%s" % key
+			marker.bone_name = StringName("%s_r" % key)
+			visual.skeleton.add_child(marker)
+			_contact_markers[key] = marker
 
 
 func _update_pickup_reach(local_time: float) -> void:
@@ -266,7 +272,9 @@ func _update_pickup_reach(local_time: float) -> void:
 		_tactile_grip.set_goal(_pickup_hand, _pickup_item.global_transform, ITEM_RADIUS_M, ITEM_HALF_HEIGHT_M, close_t)
 	_update_tactile_metrics()
 
-	if not _pickup_attached and close_t >= 0.72 and _pickup_thumb_contact and _pickup_finger_contacts >= 1:
+	## A single accidental brush is not a grasp. Require opposition: the thumb plus
+	## at least two non-thumb fingertips must meet the same object volume.
+	if not _pickup_attached and close_t >= 0.72 and _pickup_thumb_contact and _pickup_finger_contacts >= 2:
 		_attach_pickup_to_hand()
 		_record_pickup_result(true)
 
@@ -279,7 +287,6 @@ func _update_pickup_reach(local_time: float) -> void:
 		if not _pickup_result_recorded:
 			_record_pickup_result(false)
 
-	## Hold the successful tactile pose long enough for the gameplay camera proof.
 	if case_time >= PICKUP_HOLD_END and not _pickup_attached and _pickup_ik != null:
 		_pickup_ik.release()
 
@@ -315,10 +322,10 @@ func _configure_pickup_hand(hand: StringName) -> void:
 		_pickup_ik.index_bone = StringName("index_01_" + suffix)
 		_pickup_ik.pinky_bone = StringName("pinky_01_" + suffix)
 		_pickup_ik.left_hand = hand == &"LEFT"
-	for finger: String in _contact_markers:
-		var marker := _contact_markers[finger] as BoneAttachment3D
+	for key: String in _contact_markers:
+		var marker := _contact_markers[key] as BoneAttachment3D
 		if marker != null:
-			marker.bone_name = StringName("%s_03_%s" % [finger, suffix])
+			marker.bone_name = StringName("%s_%s" % [key, suffix])
 
 
 func _update_arm_goal() -> void:
@@ -330,7 +337,10 @@ func _update_arm_goal() -> void:
 	if outward.length_squared() < 0.0001:
 		outward = -global_transform.basis.z
 	outward = outward.normalized()
-	var palm_surface: Vector3 = _pickup_item.global_position + outward * (ITEM_RADIUS_M + 0.004)
+	## Put the palm skin onto the can rather than leaving the wrist solver's old
+	## diagnostic air gap. Ten millimetres inside the analytic radius approximates
+	## soft hand volume; finger contact still uses the visible tip surface metric.
+	var palm_surface: Vector3 = _pickup_item.global_position + outward * (ITEM_RADIUS_M - 0.010)
 	_pickup_ik.set_goal(palm_surface, outward, 1.0)
 
 
@@ -339,11 +349,16 @@ func _update_tactile_metrics() -> void:
 	_pickup_finger_contacts = 0
 	_pickup_thumb_contact = false
 	_pickup_surface_error = INF
-	for finger: String in _contact_markers:
-		var marker := _contact_markers[finger] as BoneAttachment3D
-		if marker == null:
+	for finger: String in ["index", "middle", "ring", "pinky", "thumb"]:
+		var marker_02 := _contact_markers.get("%s_02" % finger) as BoneAttachment3D
+		var marker_03 := _contact_markers.get("%s_03" % finger) as BoneAttachment3D
+		if marker_02 == null or marker_03 == null:
 			continue
-		var error: float = _cylinder_surface_error(marker.global_position)
+		var segment: Vector3 = marker_03.global_position - marker_02.global_position
+		var tip: Vector3 = marker_03.global_position
+		if segment.length_squared() > 1e-8:
+			tip += segment * TIP_EXTENSION_SHARE
+		var error: float = _cylinder_surface_error(tip)
 		_pickup_surface_error = minf(_pickup_surface_error, error)
 		var contacting: bool = error <= FINGER_SURFACE_TOLERANCE_M
 		if contacting:
@@ -371,8 +386,8 @@ func _attach_pickup_to_hand() -> void:
 	var socket: BoneAttachment3D = _left_socket if _pickup_hand == &"LEFT" else _right_socket
 	if socket == null:
 		return
-	## Both sockets have existed since setup. Preserve the exact world contact pose;
-	## no authored offset is allowed to teleport the proof item into the fist.
+	## Preserve the exact world contact pose; no HeldFit offset may snap the proof
+	## item into a fist after the tactile gate has already succeeded.
 	var contact_xf: Transform3D = _pickup_item.global_transform
 	_pickup_item.reparent(socket, true)
 	_pickup_item.global_transform = contact_xf
@@ -390,11 +405,11 @@ func _record_pickup_result(contact: bool) -> void:
 		"contacts": _pickup_contact_count,
 		"finger_contacts": _pickup_finger_contacts,
 		"thumb_contact": _pickup_thumb_contact,
-		"best_surface_error_m": _pickup_surface_error,
+		"best_tip_surface_error_m": _pickup_surface_error,
 		"tactile_weight": _tactile_grip.get_weight() if _tactile_grip != null else 0.0,
 	}
 	_pickup_results.append(result)
-	print("[EmbodiedTactile] %s hand=%s contact=%s contacts=%d fingers=%d thumb=%s surface_error=%.3f" % [
+	print("[EmbodiedTactile] %s hand=%s contact=%s contacts=%d fingers=%d thumb=%s tip_error=%.3f" % [
 		PICKUP_CASES[_pickup_case_index]["name"], _pickup_hand, contact, _pickup_contact_count,
 		_pickup_finger_contacts, _pickup_thumb_contact, _pickup_surface_error])
 
@@ -459,9 +474,10 @@ func get_capture_report() -> Dictionary:
 		"uses_existing_interact_action": true,
 		"uses_existing_pickup_action": true,
 		"arm_solver": "DoorHandIK wrist reach",
-		"finger_solver": "TactileHandGrip cylinder-volume modifier",
-		"contact_rule": "thumb + >=1 non-thumb fingertip within cylinder surface tolerance",
+		"finger_solver": "TactileHandGrip reachable cylinder arc + distal phalanx",
+		"contact_rule": "thumb + >=2 non-thumb anatomical tip proxies at cylinder surface",
 		"finger_surface_tolerance_m": FINGER_SURFACE_TOLERANCE_M,
+		"tip_extension_share": TIP_EXTENSION_SHARE,
 		"pickup_results": _pickup_results,
 		"production_movement_replaced": false,
 		"production_item_pickup_replaced": false,
