@@ -1,9 +1,10 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd" id="1_lab"]
 [ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="2_henry"]
 [ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/embodied_target_3d.gd" id="3_target"]
 [ext_resource type="PackedScene" path="res://scenes/game/systems/camera/tps_camera.tscn" id="4_camera"]
+[ext_resource type="Script" path="res://scripts/actors/player/henry/embodied/tactile_lab_extreme_tuner.gd" id="5_tuner"]
 
 [sub_resource type="CapsuleShape3D" id="Capsule_henry"]
 radius = 0.35
@@ -100,6 +101,9 @@ shape = SubResource("Capsule_henry")
 
 [node name="HenryUALVisual" parent="Henry" instance=ExtResource("2_henry")]
 
+[node name="TactileLabExtremeTuner" type="Node" parent="."]
+script = ExtResource("5_tuner")
+
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-48, -28, 0)
 light_energy = 1.35
@@ -132,7 +136,7 @@ text = "EMBODIED INTERACTION — TACTILE GRIP PROOF"
 [node name="Stage" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "1 / IDLE"
+text = "1 / ALIGN"
 
 [node name="Detail" type="Label" parent="UILayer/Margin/VBox"]
 layout_mode = 2
