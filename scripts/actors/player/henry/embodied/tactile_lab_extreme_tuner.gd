@@ -4,11 +4,20 @@ extends Node
 ##
 ## The production DoorHandIK is intentionally a flat-surface solver. At the
 ## head/floor limits it fights the cylindrical grip by forcing its door-palm
-## frame. This tuner leaves the three already-good middle cases untouched and
-## makes DoorHandIK position-only-ish at the two extremes; TactileHandGrip then
-## owns the wrist/finger orientation. Nothing here is on a production path.
+## frame. The head case can be solved by reducing that ownership. The floor case
+## additionally proves a body-alignment requirement: the authored kneeling clip
+## lands the hand several centimetres lateral to a standing affordance target,
+## so the body target must shift with stance instead of twisting fingers harder.
+
+const FLOOR_BODY_SHIFT_M: float = 0.075
 
 var _last_mode: StringName = &""
+
+
+func _ready() -> void:
+	## Henry's lab driver writes the canonical body target at priority 0. Apply the
+	## stance-specific alignment afterwards, before the skeleton modifiers evaluate.
+	process_priority = 100
 
 
 func _process(_delta: float) -> void:
@@ -27,6 +36,7 @@ func _process(_delta: float) -> void:
 
 	var handoff: String = actor.get_handoff_phase()
 	if not handoff.is_empty():
+		_apply_floor_body_alignment(actor)
 		_apply_source(source_ik, source_grip, &"HANDOFF_SOURCE")
 		if receiver_ik != null and receiver_grip != null:
 			_apply_receiver(receiver_ik, receiver_grip)
@@ -38,11 +48,18 @@ func _process(_delta: float) -> void:
 			_apply_source(source_ik, source_grip, &"HEAD")
 			_report_mode(&"HEAD")
 		4:
+			_apply_floor_body_alignment(actor)
 			_apply_source(source_ik, source_grip, &"FLOOR")
 			_report_mode(&"FLOOR")
 		_:
 			_apply_source(source_ik, source_grip, &"BASELINE")
 			_report_mode(&"BASELINE")
+
+
+func _apply_floor_body_alignment(actor: EmbodiedInteractionLabActor) -> void:
+	## The can is authored to Henry's +X side. Moving the whole stance preserves
+	## natural shoulder/elbow geometry and keeps the same shelf/item placement.
+	actor.global_position += actor.global_transform.basis.x.normalized() * FLOOR_BODY_SHIFT_M
 
 
 func _apply_source(ik: DoorHandIK, grip: TactileHandGrip, mode: StringName) -> void:
@@ -55,16 +72,16 @@ func _apply_source(ik: DoorHandIK, grip: TactileHandGrip, mode: StringName) -> v
 		grip.contact_iterations = 10
 		grip.max_joint_step_deg = 18.0
 	elif mode == &"FLOOR":
-		ik.elbow_drop = 0.03
-		ik.palm_flatten = 0.0
+		## Once the body is actually aligned, the wrist only needs a moderate
+		## cylinder correction. Stronger rotation was measurably worse for fingers.
+		ik.elbow_drop = 0.08
+		ik.palm_flatten = 0.04
 		ik.wrist_back_m = 0.0
-		grip.hand_orient_weight = 0.95
+		grip.hand_orient_weight = 0.52
 		grip.contact_settle_weight = 1.0
-		grip.contact_iterations = 10
-		grip.max_joint_step_deg = 20.0
+		grip.contact_iterations = 9
+		grip.max_joint_step_deg = 16.0
 	elif mode == &"HANDOFF_SOURCE":
-		## Keep the already-owned can stable while Henry rises. The right-hand grip
-		## may orient around the moving prop, but the arm is released by the lab.
 		grip.hand_orient_weight = 0.55
 		grip.contact_settle_weight = 0.95
 		grip.contact_iterations = 8
