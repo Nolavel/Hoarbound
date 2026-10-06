@@ -3,13 +3,19 @@ extends SceneTree
 ## Issue #203 interaction-commit proof using the existing diegetic inventory CI job.
 ## Production Henry + production TPS camera + real MealTable/tinned stew.
 ## Three cases in one movie:
-## 1) near-edge item while Henry is at the table collision limit -> pre-focus surface close-in -> F -> small settle back -> pickup;
+## 1) near-edge item from the closest centre-ray-solvable stance -> F -> small authored stance settle -> pickup;
 ## 2) far-edge item -> stance solve -> authored reach + TwoBoneIK contact correction;
 ## 3) same far item beyond the settle budget -> crosshair focus is valid but no F prompt.
+##
+## Important geometry constraint from the failed z=0.70 experiment: with the accepted
+## 0.85 m TPS shoulder and no lateral interaction recompose, a near-edge target only
+## ~0.58 m from Henry's root cannot lie on the centre ray for any yaw. The proof must
+## not fake that impossible state by restoring shoulder recompose or moving the body
+## before F. z=1.08 keeps the accepted camera grammar and still requires a visible,
+## bounded post-F stance adjustment.
 
 const SCENE: PackedScene = preload("res://tests/diegetic_inventory/diegetic_inventory_stage.tscn")
 const LAB_SCRIPT: Script = preload("res://scripts/experimental/diegetic_inventory/table_interaction_solver_lab.gd")
-const SURFACE_CAMERA_SCRIPT: Script = preload("res://scripts/experimental/diegetic_inventory/near_surface_camera_intent_lab.gd")
 ## Keep the established output path so the existing workflow can encode/upload it.
 const OUT_DIR: String = "res://docs/runtime_previews/diegetic_inventory_stage"
 const FRAME_DIR: String = OUT_DIR + "/frames"
@@ -18,10 +24,10 @@ const DURATION_S: float = 10.0
 const FRAME_COUNT: int = int(DURATION_S * FPS)
 const NEAR_END_S: float = 3.8
 const FAR_END_S: float = 7.7
-## Player capsule radius is ~0.5 m and the table front is ~z=0.20. A root at
-## z=0.56 was inside the table volume, not a valid "standing flush" scenario.
-## z=0.70 models the closest physically plausible body stance at the table edge.
-const NEAR_COLLISION_LIMIT_Z_M: float = 0.70
+## Closest practical proof stance for the front-edge can with the accepted 0.85 m
+## shoulder and fixed centre Enso. This is still well inside the lab's 0.35 m
+## post-F settle budget; unlike z=0.70 it has a real centre-ray solution.
+const NEAR_FOCUSABLE_ROOT_Z_M: float = 1.08
 const MIN_VISIBLE_NEAR_SETTLE_M: float = 0.075
 
 ## The capture represents a player moving the mouse toward the item. Because the
@@ -34,14 +40,12 @@ const AIM_MAX_PITCH_STEP_DEG: float = 4.0
 
 var _stage: DiegeticInventoryStage
 var _lab: TableInteractionSolverLab
-var _surface_camera: NearSurfaceCameraIntentLab
 var _near_pressed := false
 var _far_pressed := false
 var _near_prompt_seen := false
 var _far_prompt_seen := false
 var _out_focus_frames := 0
 var _out_prompt_frames := 0
-var _surface_engaged_frames := 0
 var _saved: Dictionary = {}
 var _press_position: Dictionary = {}
 var _settled_position: Dictionary = {}
@@ -72,15 +76,11 @@ func _run() -> void:
 		if other.item_id != &"tinned_stew":
 			other.global_position = Vector3(50.0, -10.0, 50.0)
 
-	_surface_camera = SURFACE_CAMERA_SCRIPT.new() as NearSurfaceCameraIntentLab
-	_stage.add_child(_surface_camera)
-	_surface_camera.setup(_stage)
-
 	_lab = LAB_SCRIPT.new() as TableInteractionSolverLab
 	_stage.add_child(_lab)
 	_lab.setup(_stage)
 	_lab.prepare_case(&"NEAR_TOO_CLOSE")
-	_set_collision_valid_near_pose()
+	_set_focusable_near_edge_pose()
 	_reset_aim_controller()
 	_last_state = _lab.state
 
@@ -101,14 +101,14 @@ func _run() -> void:
 		push_error("interaction settle capture failed: %s" % ", ".join(failures))
 		quit(1)
 		return
-	print("[interaction-settle] PASS near=%s far=%s out_focus_frames=%d out_prompt_frames=%d surface_frames=%d" % [
-		JSON.stringify(report["near"]), JSON.stringify(report["far"]), _out_focus_frames, _out_prompt_frames, _surface_engaged_frames
+	print("[interaction-settle] PASS near=%s far=%s out_focus_frames=%d out_prompt_frames=%d" % [
+		JSON.stringify(report["near"]), JSON.stringify(report["far"]), _out_focus_frames, _out_prompt_frames
 	])
 	quit(0)
 
 
-func _set_collision_valid_near_pose() -> void:
-	_stage.player.global_position = Vector3(0.02, 1.0, NEAR_COLLISION_LIMIT_Z_M)
+func _set_focusable_near_edge_pose() -> void:
+	_stage.player.global_position = Vector3(0.02, 1.0, NEAR_FOCUSABLE_ROOT_Z_M)
 	_stage.player.velocity = Vector3.ZERO
 	_stage.player.reset_physics_interpolation()
 	_stage.lock_demo_body_to_table()
@@ -157,8 +157,6 @@ func _drive(t: float) -> void:
 
 
 func _record_state(t: float) -> void:
-	if is_instance_valid(_surface_camera) and _surface_camera.engaged:
-		_surface_engaged_frames += 1
 	if _lab.current_case == &"NEAR_TOO_CLOSE" and _lab.prompt_visible:
 		_near_prompt_seen = true
 	elif _lab.current_case == &"FAR_EDGE" and _lab.prompt_visible:
@@ -175,10 +173,9 @@ func _record_state(t: float) -> void:
 
 	if int(round(t * float(FPS))) % 15 == 0:
 		var desired := _stage.get_demo_look_for_item(&"tinned_stew")
-		print("[interaction-settle] t=%.2f case=%s stable=%s crosshair=%.2f prompt=%s surface=%s boom=%.2f state=%s pos=%s view_pitch=%.2f desired=(%.2f,%.2f) cmd=(%.2f,%.2f) solution=%s rejection=%s" % [
+		print("[interaction-settle] t=%.2f case=%s stable=%s crosshair=%.2f prompt=%s boom=%.2f state=%s pos=%s view_pitch=%.2f desired=(%.2f,%.2f) cmd=(%.2f,%.2f) solution=%s rejection=%s" % [
 			t, String(_lab.current_case), String(_stage.get_stable_interact_target_id()),
 			_stage.get_item_crosshair_error_px(&"tinned_stew"), _lab.prompt_visible,
-			_surface_camera.engaged if is_instance_valid(_surface_camera) else false,
 			_stage.camera.get_boom_length(), TableInteractionSolverLab.State.keys()[_lab.state], _stage.player.global_position,
 			_stage.camera.get_view_pitch_deg(), desired.x, desired.y, _aim_yaw_offset_deg, _aim_pitch_deg,
 			JSON.stringify(_lab.solution), JSON.stringify(_lab.rejection)
@@ -188,13 +185,13 @@ func _record_state(t: float) -> void:
 func _capture_keyframes(image: Image, t: float) -> void:
 	if _lab.current_case == &"NEAR_TOO_CLOSE":
 		if _lab.prompt_visible and not _saved.has("near_focus"):
-			image.save_png(OUT_DIR + "/01_near_too_close_focus.png")
+			image.save_png(OUT_DIR + "/01_near_edge_focus.png")
 			_saved["near_focus"] = true
 		if _lab.state == TableInteractionSolverLab.State.SETTLE and not _saved.has("near_settle"):
-			image.save_png(OUT_DIR + "/02_near_settle_back.png")
+			image.save_png(OUT_DIR + "/02_near_edge_stance_settle.png")
 			_saved["near_settle"] = true
 		if _case_has_contact("NEAR_TOO_CLOSE") and not _saved.has("near_contact"):
-			image.save_png(OUT_DIR + "/03_near_pickup_contact.png")
+			image.save_png(OUT_DIR + "/03_near_edge_pickup_contact.png")
 			_saved["near_contact"] = true
 	elif _lab.current_case == &"FAR_EDGE":
 		if _lab.prompt_visible and not _saved.has("far_focus"):
@@ -231,11 +228,12 @@ func _write_report() -> Dictionary:
 		"production_interact_component_changed": false,
 		"focus_moves_body": false,
 		"aim_automation_after_F": false,
+		"near_case_semantic": "front-edge item from closest centre-ray-solvable stance with accepted 0.85 m shoulder",
 		"near_start_is_collision_valid": true,
-		"near_start_root_z_m": NEAR_COLLISION_LIMIT_Z_M,
-		"near_surface_camera_intent": _surface_camera.get_report() if is_instance_valid(_surface_camera) else {},
-		"surface_intent_engaged_frames": _surface_engaged_frames,
-		"commit_pipeline": "surface intent -> exact focus -> F -> solve stance -> small settle -> authored pickup -> TwoBoneIK contact correction",
+		"near_start_root_z_m": NEAR_FOCUSABLE_ROOT_Z_M,
+		"failed_flush_stance_root_z_m": 0.70,
+		"failed_flush_stance_reason": "no centre-ray yaw solution with fixed 0.85 m shoulder; lateral recompose remains disabled",
+		"commit_pipeline": "exact focus -> F -> solve stance -> small authored settle -> pickup animation -> TwoBoneIK contact correction",
 		"near_prompt_seen": _near_prompt_seen,
 		"far_prompt_seen": _far_prompt_seen,
 		"near": near,
@@ -262,20 +260,19 @@ func _add_motion_delta(result: Dictionary, case_name: String) -> void:
 	result["settle_delta_x_m"] = delta.x
 	result["settle_delta_z_m"] = delta.z
 	result["settled_distance_m"] = Vector2(delta.x, delta.z).length()
+	result["settle_direction"] = "back" if delta.z > 0.01 else ("forward" if delta.z < -0.01 else "lateral")
 
 
 func _validate(report: Dictionary) -> PackedStringArray:
 	var failures := PackedStringArray()
 	var near: Dictionary = report["near"] as Dictionary
 	var far: Dictionary = report["far"] as Dictionary
-	if _surface_engaged_frames < 10:
-		failures.append("near_surface_intent_never_engaged")
 	if not _near_prompt_seen or not _near_pressed:
 		failures.append("near_F_never_became_valid")
 	if not bool(near.get("contact", false)):
 		failures.append("near_pickup_no_contact")
-	if float(near.get("settle_delta_z_m", 0.0)) < MIN_VISIBLE_NEAR_SETTLE_M:
-		failures.append("near_case_did_not_settle_back")
+	if absf(float(near.get("settle_delta_z_m", 0.0))) < MIN_VISIBLE_NEAR_SETTLE_M:
+		failures.append("near_case_did_not_visibly_settle")
 	if not _far_prompt_seen or not _far_pressed:
 		failures.append("far_F_never_became_valid")
 	if not bool(far.get("contact", false)):
