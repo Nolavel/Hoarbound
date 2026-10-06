@@ -35,9 +35,8 @@ const FOCUS_NEAR_DISTANCE: float = 0.88
 const FOCUS_FAR_DISTANCE: float = 2.15
 
 ## Lab-only intent hysteresis. Acquisition is still the shipping centre-ray query.
-## Once acquired, the item follows the player's *control look*, not the final
-## camera projection. This prevents the framing camera's own physical movement
-## from cancelling the target it just framed.
+## Once acquired, the item follows the player's control look. The proof now keeps
+## the crosshair physically on the item as the close-in changes the camera origin.
 const SMALL_ITEM_RETENTION_YAW_DEG: float = 3.5
 const SMALL_ITEM_RETENTION_PITCH_DEG: float = 3.0
 ## After a decisive look-away, the same legacy pickup Area cannot immediately
@@ -74,6 +73,8 @@ var _released_item: ItemPickup
 var _released_control_yaw: float = 0.0
 var _released_control_pitch: float = 0.0
 var _stage_crosshair: TextureRect
+var _demo_body_locked: bool = false
+var _demo_body_yaw: float = 0.0
 
 
 func _ready() -> void:
@@ -90,6 +91,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _demo_body_locked:
+		## The tabletop pass deliberately tests LOOK without BODY ALIGNMENT.
+		## Henry may look across the table, but his torso/root heading stays authored.
+		player.global_rotation.y = _demo_body_yaw
 	_stabilize_small_item_focus()
 	_update_item_focus(delta)
 	_update_stage_crosshair(delta)
@@ -98,7 +103,7 @@ func _process(delta: float) -> void:
 	focus_weight = move_toward(focus_weight, wanted, maxf(delta, 0.0) * rate)
 
 	## Only the scene instance is changed. TpsCamera still owns smoothing, collision,
-	## passage handling and the final physical rig.
+	## passage handling and the final physical rig. Focus changes boom distance only.
 	camera.near_distance = lerpf(_base_near_distance, FOCUS_NEAR_DISTANCE, focus_weight)
 	camera.far_distance = lerpf(_base_far_distance, FOCUS_FAR_DISTANCE, focus_weight)
 
@@ -107,6 +112,7 @@ func _process(delta: float) -> void:
 ## capture camera. The player stays a normal production Player when this scene is
 ## opened interactively in Godot.
 func prepare_capture_pose(index: int) -> void:
+	_demo_body_locked = false
 	var positions: Array[Vector3] = [
 		Vector3(0.0, 1.0, 2.45),
 		Vector3(0.72, 1.0, 1.62),
@@ -132,6 +138,8 @@ func prepare_focus_demo() -> void:
 	player.velocity = Vector3.ZERO
 	var yaw: float = _table_yaw()
 	player.global_rotation.y = yaw
+	_demo_body_yaw = yaw
+	_demo_body_locked = true
 	player.reset_physics_interpolation()
 	camera.set_look(yaw, -10.0)
 	if camera.has_method(&"snap_to_target"):
@@ -142,6 +150,58 @@ func prepare_focus_demo() -> void:
 ## orbited around Henry by the experiment itself.
 func set_demo_look(yaw_offset_deg: float, pitch_deg: float) -> void:
 	camera.set_look(_table_yaw() + deg_to_rad(yaw_offset_deg), pitch_deg)
+
+
+## Return the control look which makes the centre gameplay ray point at this
+## item's production focus point from the camera's current physical position.
+## Re-querying this every frame keeps the visible centre ring on the item while
+## the boom closes in, without rotating Henry's body.
+func get_demo_look_for_item(item_id: StringName) -> Vector2:
+	var item := get_item_by_id(item_id)
+	if not is_instance_valid(item):
+		return Vector2.ZERO
+	var origin: Vector3 = TpsCamera.aim_origin(camera)
+	var toward: Vector3 = get_item_focus_point(item) - origin
+	if toward.length_squared() < 0.000001:
+		return Vector2.ZERO
+	var direction: Vector3 = toward.normalized()
+	var world_yaw: float = atan2(-direction.x, -direction.z)
+	var yaw_offset_deg: float = rad_to_deg(wrapf(world_yaw - _table_yaw(), -PI, PI))
+	var pitch_deg: float = rad_to_deg(asin(clampf(direction.y, -1.0, 1.0)))
+	return Vector2(yaw_offset_deg, pitch_deg)
+
+
+func get_item_by_id(item_id: StringName) -> ItemPickup:
+	for item: ItemPickup in items:
+		if is_instance_valid(item) and item.item_id == item_id:
+			return item
+	return null
+
+
+func get_item_focus_point(item: ItemPickup) -> Vector3:
+	if not is_instance_valid(item):
+		return Vector3.ZERO
+	if is_instance_valid(item.focus_anchor):
+		return item.focus_anchor.global_position
+	var mesh: MeshInstance3D = item.interactive_mesh
+	if is_instance_valid(mesh) and mesh.mesh != null:
+		return mesh.to_global(mesh.mesh.get_aabb().get_center())
+	return item.global_position + Vector3.UP * 0.12
+
+
+func get_item_crosshair_error_px(item_id: StringName) -> float:
+	var item := get_item_by_id(item_id)
+	if not is_instance_valid(item):
+		return INF
+	var point: Vector3 = get_item_focus_point(item)
+	if camera.is_position_behind(point):
+		return INF
+	var centre: Vector2 = camera.get_viewport().get_visible_rect().size * 0.5
+	return camera.unproject_position(point).distance_to(centre)
+
+
+func get_body_yaw_deg() -> float:
+	return rad_to_deg(player.global_rotation.y)
 
 
 func get_focus_target_id() -> StringName:
@@ -156,8 +216,14 @@ func has_stage_crosshair() -> bool:
 	return is_instance_valid(_stage_crosshair) and _stage_crosshair.visible
 
 
+func is_lateral_interaction_framing_enabled() -> bool:
+	return is_instance_valid(_interaction_framing) and _interaction_framing.process_mode != Node.PROCESS_MODE_DISABLED
+
+
 func _configure_stage_only_camera() -> void:
-	## Deliberately unchanged from proof #484. This pass evaluates focus only.
+	## Keep the #484 close-in rates and boom target, but remove only the interaction
+	## layer's lateral shoulder override. The production camera and its normal 0.85 m
+	## shoulder remain intact. This isolates whether close-in alone solves table read.
 	camera.auto_recenter = false
 	camera.whisker_max_deg = 0.0
 	camera.assist_max_yaw_deg = 0.0
@@ -165,11 +231,7 @@ func _configure_stage_only_camera() -> void:
 	camera.open_out_rate = 2.2
 	_interaction_framing = camera.get_node_or_null(^"InteractionFraming") as TpsInteractionFraming
 	if _interaction_framing != null:
-		_interaction_framing.max_shoulder_offset = 1.22
-		_interaction_framing.screen_clearance_fraction = 0.16
-		_interaction_framing.vertical_window_fraction = 0.34
-		_interaction_framing.swap_threshold = 0.90
-		_interaction_framing.target_hold_seconds = 0.30
+		_interaction_framing.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 func _stabilize_small_item_focus() -> void:
@@ -183,8 +245,9 @@ func _stabilize_small_item_focus() -> void:
 	var raw_target := interact.call(&"_find_crosshair_target") as InteractiveArea
 	var raw_item := raw_target as ItemPickup
 
-	## A selected small item is owned by the player's control intent. Physical
-	## shoulder/boom movement cannot cancel it. Only a meaningful look delta does.
+	## A selected small item is owned by the player's control intent. The capture
+	## additionally steers the centre ray back onto the visible focus point every
+	## frame, so this leash only absorbs hand-like micro motion.
 	if is_instance_valid(_stable_interact_target):
 		if (
 			_flat_distance_to(_stable_interact_target) <= FOCUS_DISTANCE_M
