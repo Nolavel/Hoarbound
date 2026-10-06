@@ -65,4 +65,5 @@ position = Vector3(0, 0, 0)
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 
-[node name="PlayerCamera" parent="." instance=ExtResource("3_camera")]
+[node name="PlayerCamera" parent="." node_paths=PackedStringArray("player") instance=ExtResource("3_camera")]
+player = NodePath("../Player")
