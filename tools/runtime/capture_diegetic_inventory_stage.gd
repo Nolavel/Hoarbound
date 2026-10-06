@@ -3,7 +3,7 @@ extends SceneTree
 ## Issue #203 interaction-commit proof using the existing diegetic inventory CI job.
 ## Production Henry + production TPS camera + real MealTable/tinned stew.
 ## Three cases in one movie:
-## 1) near-edge item while Henry is too close -> F -> small settle back -> pickup;
+## 1) near-edge item while Henry is at the table collision limit -> F -> small settle back -> pickup;
 ## 2) far-edge item -> stance solve -> authored reach + TwoBoneIK contact correction;
 ## 3) same far item beyond the settle budget -> crosshair focus is valid but no F prompt.
 
@@ -17,6 +17,11 @@ const DURATION_S: float = 10.0
 const FRAME_COUNT: int = int(DURATION_S * FPS)
 const NEAR_END_S: float = 3.8
 const FAR_END_S: float = 7.7
+## Player capsule radius is ~0.5 m and the table front is ~z=0.20. A root at
+## z=0.56 was inside the table volume, not a valid "standing flush" scenario.
+## z=0.70 models the closest physically plausible body stance at the table edge.
+const NEAR_COLLISION_LIMIT_Z_M: float = 0.70
+const MIN_VISIBLE_NEAR_SETTLE_M: float = 0.075
 
 var _stage: DiegeticInventoryStage
 var _lab: TableInteractionSolverLab
@@ -48,10 +53,8 @@ func _run() -> void:
 		return
 
 	## This proof isolates one requested can. The previous four-item staging layout
-	## is useful for focus arbitration, but here neighbouring production pickups can
+	## is useful for focus arbitration, but neighbouring production pickups can
 	## physically overlap the near/far test coordinates and steal the centre ray.
-	## Move only those unrelated staging pickups away; the stew and MealTable stay
-	## the real production nodes/visuals/scripts.
 	for other: ItemPickup in _stage.items:
 		if other.item_id != &"tinned_stew":
 			other.global_position = Vector3(50.0, -10.0, 50.0)
@@ -60,6 +63,7 @@ func _run() -> void:
 	_stage.add_child(_lab)
 	_lab.setup(_stage)
 	_lab.prepare_case(&"NEAR_TOO_CLOSE")
+	_set_collision_valid_near_pose()
 	_last_state = _lab.state
 
 	for frame: int in range(FRAME_COUNT):
@@ -82,6 +86,15 @@ func _run() -> void:
 		JSON.stringify(report["near"]), JSON.stringify(report["far"]), _out_focus_frames, _out_prompt_frames
 	])
 	quit(0)
+
+
+func _set_collision_valid_near_pose() -> void:
+	_stage.player.global_position = Vector3(0.02, 1.0, NEAR_COLLISION_LIMIT_Z_M)
+	_stage.player.velocity = Vector3.ZERO
+	_stage.player.reset_physics_interpolation()
+	_stage.lock_demo_body_to_table()
+	if _stage.camera.has_method(&"snap_to_target"):
+		_stage.camera.call(&"snap_to_target")
 
 
 func _drive(t: float) -> void:
@@ -121,11 +134,11 @@ func _record_state(t: float) -> void:
 	_last_state = _lab.state
 
 	if int(round(t * float(FPS))) % 15 == 0:
-		print("[interaction-settle] t=%.2f case=%s stable=%s crosshair=%.2f prompt=%s state=%s pos=%s solution=%s" % [
+		print("[interaction-settle] t=%.2f case=%s stable=%s crosshair=%.2f prompt=%s state=%s pos=%s solution=%s rejection=%s" % [
 			t, String(_lab.current_case), String(_stage.get_stable_interact_target_id()),
 			_stage.get_item_crosshair_error_px(&"tinned_stew"), _lab.prompt_visible,
 			TableInteractionSolverLab.State.keys()[_lab.state], _stage.player.global_position,
-			JSON.stringify(_lab.solution)
+			JSON.stringify(_lab.solution), JSON.stringify(_lab.rejection)
 		])
 
 
@@ -174,6 +187,8 @@ func _write_report() -> Dictionary:
 		"production_camera_changed": false,
 		"production_interact_component_changed": false,
 		"focus_moves_body": false,
+		"near_start_is_collision_valid": true,
+		"near_start_root_z_m": NEAR_COLLISION_LIMIT_Z_M,
 		"commit_pipeline": "focus -> F -> solve stance -> small settle -> authored pickup -> TwoBoneIK contact correction",
 		"near_prompt_seen": _near_prompt_seen,
 		"far_prompt_seen": _far_prompt_seen,
@@ -211,7 +226,7 @@ func _validate(report: Dictionary) -> PackedStringArray:
 		failures.append("near_F_never_became_valid")
 	if not bool(near.get("contact", false)):
 		failures.append("near_pickup_no_contact")
-	if float(near.get("settle_delta_z_m", 0.0)) < 0.10:
+	if float(near.get("settle_delta_z_m", 0.0)) < MIN_VISIBLE_NEAR_SETTLE_M:
 		failures.append("near_case_did_not_settle_back")
 	if not _far_prompt_seen or not _far_pressed:
 		failures.append("far_F_never_became_valid")
