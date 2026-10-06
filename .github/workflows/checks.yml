@@ -96,7 +96,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   color-grade-preview:
-    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]')
+    if: github.event_name == 'push' && github.ref_name != 'claudeflow' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
