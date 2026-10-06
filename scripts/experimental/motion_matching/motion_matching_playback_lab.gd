@@ -4,7 +4,7 @@ extends Node3D
 ## Presentation scene for the lab: real Henry, authored floor, light, camera.
 ## Henry's production AnimationTree is off; the matched pose is the only source.
 
-const CAMERA_OFFSET := Vector3(2.2, 2.3, 4.2)
+const CAMERA_OFFSET := Vector3(1.8, 1.7, 3.2)
 const CAMERA_FOLLOW_RATE := 4.0
 
 @onready var henry_animation: HenryUALAnimation = $Henry/HenryUALVisual as HenryUALAnimation
