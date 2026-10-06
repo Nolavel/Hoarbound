@@ -125,10 +125,20 @@ func _drive_demo(t: float) -> void:
 		_set_look(lerpf(-4.0, 14.0, a), -21.0)
 		return
 
-	## 4.70-6.0 s: unmistakable look-away. Intent hysteresis must break; only the
-	## already-existing camera smoothing is allowed to remain.
-	var out_a: float = inverse_lerp(RELEASE_START_S, DURATION_S, t)
-	_set_look(lerpf(_locked_yaw_offset, _locked_yaw_offset + 34.0, out_a), lerpf(-21.0, -9.0, out_a))
+	## 4.70-5.05 s: leave the tabletop vertically first. This is a real look-away,
+	## not a sweep across the neighbouring pickups that would legitimately acquire
+	## the hammer or flask and invalidate a "no target" release check.
+	if t < 5.05:
+		var up_a: float = inverse_lerp(RELEASE_START_S, 5.05, t)
+		_set_look(
+			lerpf(_locked_yaw_offset, _locked_yaw_offset + 6.0, up_a),
+			lerpf(-21.0, 2.0, up_a)
+		)
+		return
+
+	## 5.05-6.0 s: continue looking into empty space beside/above the table.
+	var out_a: float = inverse_lerp(5.05, DURATION_S, t)
+	_set_look(lerpf(_locked_yaw_offset + 6.0, _locked_yaw_offset + 34.0, out_a), 2.0)
 
 
 func _set_look(yaw_offset_deg: float, pitch_deg: float) -> void:
