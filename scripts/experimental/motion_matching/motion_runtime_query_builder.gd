@@ -5,6 +5,7 @@ extends RefCounted
 ## live canonical Henry/UAL skeleton plus current motion and desired trajectory.
 ## Desired trajectory and desired facing are intentionally independent: a
 ## sideways/backward locomotion request must not implicitly rotate the body.
+## CMU dataset facing is normalized upstream before it is compared in this local basis.
 
 const FUTURE_HORIZONS := [0.2, 0.5, 0.8]
 
