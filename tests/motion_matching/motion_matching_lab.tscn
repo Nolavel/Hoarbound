@@ -1,0 +1,166 @@
+[gd_scene load_steps=17 format=3]
+
+[ext_resource type="Script" path="res://scripts/experimental/motion_matching/motion_matching_lab.gd" id="1_lab"]
+[ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="2_henry"]
+[ext_resource type="PackedScene" path="res://scenes/game/systems/camera/tps_camera.tscn" id="3_camera"]
+
+[sub_resource type="StandardMaterial3D" id="MatFloor"]
+albedo_color = Color(0.17, 0.19, 0.21, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="MeshFloor"]
+material = SubResource("MatFloor")
+size = Vector3(80, 0.2, 80)
+
+[sub_resource type="BoxShape3D" id="ShapeFloor"]
+size = Vector3(80, 0.2, 80)
+
+[sub_resource type="StandardMaterial3D" id="MatAxis"]
+albedo_color = Color(0.34, 0.37, 0.40, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="MeshAxisX"]
+material = SubResource("MatAxis")
+size = Vector3(79.5, 0.012, 0.035)
+
+[sub_resource type="BoxMesh" id="MeshAxisZ"]
+material = SubResource("MatAxis")
+size = Vector3(0.035, 0.012, 79.5)
+
+[sub_resource type="CapsuleShape3D" id="ShapeHenry"]
+radius = 0.5
+height = 2.0
+
+[sub_resource type="StandardMaterial3D" id="MatDesired"]
+shading_mode = 0
+albedo_color = Color(0.25, 0.95, 0.40, 1)
+
+[sub_resource type="StandardMaterial3D" id="MatSelected"]
+shading_mode = 0
+albedo_color = Color(0.25, 0.65, 1, 1)
+
+[sub_resource type="StandardMaterial3D" id="MatFacing"]
+shading_mode = 0
+albedo_color = Color(1, 0.68, 0.22, 1)
+
+[sub_resource type="BoxMesh" id="MeshArrowShaft"]
+size = Vector3(0.055, 0.035, 1)
+
+[sub_resource type="CylinderMesh" id="MeshArrowHead"]
+top_radius = 0.0
+bottom_radius = 0.12
+height = 0.28
+radial_segments = 16
+rings = 1
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMaterial"]
+sky_top_color = Color(0.12, 0.17, 0.23, 1)
+sky_horizon_color = Color(0.46, 0.51, 0.55, 1)
+ground_bottom_color = Color(0.08, 0.09, 0.10, 1)
+ground_horizon_color = Color(0.30, 0.32, 0.34, 1)
+
+[sub_resource type="Sky" id="Sky"]
+sky_material = SubResource("SkyMaterial")
+
+[sub_resource type="Environment" id="Environment"]
+background_mode = 2
+sky = SubResource("Sky")
+ambient_light_source = 3
+ambient_light_color = Color(0.55, 0.60, 0.66, 1)
+ambient_light_energy = 0.55
+
+[node name="MotionMatchingLab" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-48, -32, 0)
+light_energy = 1.2
+shadow_enabled = true
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.1, 0)
+mesh = SubResource("MeshFloor")
+
+[node name="FloorBody" type="StaticBody3D" parent="."]
+position = Vector3(0, -0.1, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="FloorBody"]
+shape = SubResource("ShapeFloor")
+
+[node name="AxisX" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.006, 0)
+mesh = SubResource("MeshAxisX")
+
+[node name="AxisZ" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.006, 0)
+mesh = SubResource("MeshAxisZ")
+
+[node name="Henry" type="CharacterBody3D" parent="."]
+position = Vector3(0, 1, 0)
+script = ExtResource("1_lab")
+
+[node name="HenryUALVisual" parent="Henry" instance=ExtResource("2_henry")]
+position = Vector3(0, -1, 0)
+rotation = Vector3(0, 3.1415927, 0)
+
+[node name="Main_Collision" type="CollisionShape3D" parent="Henry"]
+shape = SubResource("ShapeHenry")
+
+[node name="PlayerCamera" parent="." node_paths=PackedStringArray("player") instance=ExtResource("3_camera")]
+player = NodePath("../Henry")
+far_distance = 4.2
+near_distance = 1.25
+shoulder_offset = 0.72
+start_pitch_deg = -16.0
+
+[node name="Debug" type="Node3D" parent="."]
+
+[node name="DesiredVelocity" type="Node3D" parent="Debug"]
+
+[node name="Shaft" type="MeshInstance3D" parent="Debug/DesiredVelocity"]
+material_override = SubResource("MatDesired")
+mesh = SubResource("MeshArrowShaft")
+cast_shadow = 0
+
+[node name="Head" type="MeshInstance3D" parent="Debug/DesiredVelocity"]
+rotation = Vector3(1.5707964, 0, 0)
+material_override = SubResource("MatDesired")
+mesh = SubResource("MeshArrowHead")
+cast_shadow = 0
+
+[node name="SelectedSample" type="Node3D" parent="Debug"]
+
+[node name="Shaft" type="MeshInstance3D" parent="Debug/SelectedSample"]
+material_override = SubResource("MatSelected")
+mesh = SubResource("MeshArrowShaft")
+cast_shadow = 0
+
+[node name="Head" type="MeshInstance3D" parent="Debug/SelectedSample"]
+rotation = Vector3(1.5707964, 0, 0)
+material_override = SubResource("MatSelected")
+mesh = SubResource("MeshArrowHead")
+cast_shadow = 0
+
+[node name="Facing" type="Node3D" parent="Debug"]
+
+[node name="Shaft" type="MeshInstance3D" parent="Debug/Facing"]
+material_override = SubResource("MatFacing")
+mesh = SubResource("MeshArrowShaft")
+cast_shadow = 0
+
+[node name="Head" type="MeshInstance3D" parent="Debug/Facing"]
+rotation = Vector3(1.5707964, 0, 0)
+material_override = SubResource("MatFacing")
+mesh = SubResource("MeshArrowHead")
+cast_shadow = 0
+
+[node name="Readout" type="Label3D" parent="Debug"]
+text = "motion matching lab"
+font_size = 30
+outline_size = 8
+billboard = 1
+no_depth_test = true
+fixed_size = true
+pixel_size = 0.0024

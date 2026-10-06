@@ -7,6 +7,29 @@ GODOT="${GODOT:-$HOME/.local/bin/godot}"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LOG="$(mktemp)"
 
+## Motion-matching retarget spikes stage public source motion only in CI and
+## never commit third-party animation binaries. Marker-specific staging runs
+## before the normal import passes; local/default import-gate behavior is
+## unchanged.
+if [[ "${GITHUB_ACTIONS:-}" == "true" && -n "${GITHUB_EVENT_PATH:-}" && -f "${GITHUB_EVENT_PATH:-}" ]]; then
+	EVENT_MESSAGE="$(python3 - "$GITHUB_EVENT_PATH" <<'PY'
+import json, sys
+try:
+    with open(sys.argv[1], 'r', encoding='utf-8') as fh:
+        data = json.load(fh)
+    print((data.get('head_commit') or {}).get('message') or '')
+except Exception:
+    print('')
+PY
+)"
+	if [[ "$EVENT_MESSAGE" == *"[rokoko-retarget-preview]"* ]]; then
+		bash "$PROJECT_DIR/tools/ci/prepare_rokoko_sample.sh" || exit $?
+	fi
+	if [[ "$EVENT_MESSAGE" == *"[cmu-retarget-preview]"* ]]; then
+		bash "$PROJECT_DIR/tools/ci/prepare_cmu_sample.sh" || exit $?
+	fi
+fi
+
 "$GODOT" --headless --path "$PROJECT_DIR" --import --quit >/dev/null 2>&1
 "$GODOT" --headless --path "$PROJECT_DIR" --import --quit >"$LOG" 2>&1
 

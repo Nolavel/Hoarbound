@@ -30,6 +30,12 @@ on:
       - "scripts/actors/player/henry/embodied/**"
       - "scenes/debug/embodied_interaction_lab.tscn"
       - "tools/runtime/capture_embodied_interaction.gd"
+      - "scripts/experimental/motion_matching/**"
+      - "tests/motion_matching/**"
+      - "tools/runtime/capture_motion_matching_lab.gd"
+      - "scripts/experimental/diegetic_inventory/**"
+      - "tests/diegetic_inventory/**"
+      - "tools/runtime/capture_diegetic_inventory_stage.gd"
       - ".github/workflows/checks.yml"
       - "scripts/world/key_west_first_exit.gd"
       - "scenes/world/key_west/key_west_first_exit.tscn"
@@ -96,7 +102,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   color-grade-preview:
-    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[embodied-preview]')
+    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]') && !contains(github.event.head_commit.message, '[diegetic-inventory-stage]') && !contains(github.event.head_commit.message, '[embodied-preview]')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -178,6 +184,66 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+  motion-matching-preview:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[motion-matching-preview]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Capture motion matching lab frames
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 1280x720 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script tools/runtime/capture_motion_matching_lab.gd
+
+      - name: Encode preview video
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -y \
+            -framerate 30 \
+            -i docs/runtime_previews/motion_matching_lab/frames/%04d.png \
+            -c:v libx264 \
+            -preset veryfast \
+            -crf 22 \
+            -pix_fmt yuv420p \
+            docs/runtime_previews/motion_matching_lab/motion_matching_phase1.mp4
+          rm -rf docs/runtime_previews/motion_matching_lab/frames
+
+      - name: Upload motion matching preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-motion-matching-phase1
+          path: |
+            docs/runtime_previews/motion_matching_lab/*.mp4
+            docs/runtime_previews/motion_matching_lab/*.png
+            docs/runtime_previews/motion_matching_lab/report.json
+          if-no-files-found: error
+          retention-days: 3
+
   dev-map-preview:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[dev-map-preview]')
     runs-on: ubuntu-latest
@@ -216,6 +282,67 @@ jobs:
         with:
           name: hoarbound-dev-diorama-map
           path: docs/runtime_previews/dev_diorama_map/*.png
+          if-no-files-found: error
+          retention-days: 3
+
+  diegetic-inventory-stage-preview:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[diegetic-inventory-stage]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Capture 6-second diegetic inventory focus demo
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 1280x720 \
+            --fixed-fps 30 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script tools/runtime/capture_diegetic_inventory_stage.gd
+
+      - name: Encode diegetic inventory focus video
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -y \
+            -framerate 30 \
+            -i docs/runtime_previews/diegetic_inventory_stage/frames/%04d.png \
+            -c:v libx264 \
+            -preset veryfast \
+            -crf 21 \
+            -pix_fmt yuv420p \
+            docs/runtime_previews/diegetic_inventory_stage/focus_framing_6s.mp4
+          rm -rf docs/runtime_previews/diegetic_inventory_stage/frames
+
+      - name: Upload diegetic inventory focus proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-diegetic-inventory-stage
+          path: |
+            docs/runtime_previews/diegetic_inventory_stage/*.mp4
+            docs/runtime_previews/diegetic_inventory_stage/*.png
+            docs/runtime_previews/diegetic_inventory_stage/report.json
           if-no-files-found: error
           retention-days: 3
 
@@ -274,6 +401,7 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+
   key-west-preview:
     if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[key-west-preview]') || contains(github.event.head_commit.message, '[key-west-tps]') || contains(github.event.head_commit.message, '[key-west-first-exit]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]'))
     runs-on: ubuntu-latest
@@ -292,7 +420,7 @@ jobs:
         run: tools/ci/setup_env.sh
 
       - name: Install terrain conversion tools
-        if: "!contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]')"
+        if: "!contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]' )"
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq gdal-bin python3-numpy python3-pil python3-pyproj
