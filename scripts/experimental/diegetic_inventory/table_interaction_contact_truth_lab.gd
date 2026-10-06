@@ -7,7 +7,8 @@ extends TableInteractionSolverLab
 ## reached the can, then spawned a second held can while the original visual was
 ## still partly visible on the table. This subclass keeps the same interaction
 ## contract but makes the proof physically falsifiable:
-## - contact is sampled from the post-modifier hand pose for several frames;
+## - contact is measured while TwoBoneIK3D emits modification_processed, which is
+##   the only point where Skeleton3D exposes the modifier's transient bone pose;
 ## - contact only passes inside the measured arm + hand-error limits;
 ## - the actual world visual is transferred to the hand socket (no duplicate);
 ## - far-edge alignment uses the same bounded post-F settle budget, but places
@@ -17,7 +18,6 @@ extends TableInteractionSolverLab
 ## are untouched.
 
 const CONTACT_ERROR_MAX_M: float = 0.10
-const CONTACT_SAMPLE_FRAMES: int = 5
 const FAR_FRONT_CLEARANCE_TRUTH_M: float = 0.38
 const FAR_TARGET_LOCAL_X_M: float = 0.05
 
@@ -139,61 +139,63 @@ func _record_contact(target: Vector3) -> void:
 	var ticket := _verify_serial
 	var case_key := String(current_case)
 	var hand := _active_hand
-	_verify_contact_window(target, hand, case_key, ticket)
+	var ik: TwoBoneIK3D = _left_ik if hand == &"LEFT" else _right_ik
+	if not is_instance_valid(ik):
+		_record_modifier_contact_failure(case_key, "missing_active_ik")
+		return
+
+	## SkeletonModifier3D bone changes are transient. Reading the skeleton on the
+	## next process frame returns the animation pose again. The API explicitly
+	## exposes modification_processed for inspecting the modified pose, so verify
+	## the wrist synchronously inside that signal instead.
+	var callback := _on_contact_modifier_processed.bind(target, hand, case_key, ticket)
+	ik.modification_processed.connect(callback, Object.CONNECT_ONE_SHOT)
 
 
-func _verify_contact_window(target: Vector3, hand: StringName, case_key: String, ticket: int) -> void:
-	var best_error := INF
-	var best_ratio := INF
-	var best_frame := -1
+func _on_contact_modifier_processed(target: Vector3, hand: StringName, case_key: String, ticket: int) -> void:
+	if ticket != _verify_serial or String(current_case) != case_key:
+		return
+	var hand_bone := &"hand_l" if hand == &"LEFT" else &"hand_r"
+	var shoulder_bone := &"upperarm_l" if hand == &"LEFT" else &"upperarm_r"
+	var elbow_bone := &"lowerarm_l" if hand == &"LEFT" else &"lowerarm_r"
+	var hand_pos := _bone_world(hand_bone)
+	var shoulder := _bone_world(shoulder_bone)
+	var elbow := _bone_world(elbow_bone)
+	var arm_length := shoulder.distance_to(elbow) + elbow.distance_to(hand_pos)
+	var error := hand_pos.distance_to(target)
+	var ratio := shoulder.distance_to(target) / maxf(arm_length, 0.001)
+	var result: Dictionary = case_results.get(case_key, {}) as Dictionary
+	result["contact_error_m"] = error
+	result["actual_reach_ratio"] = ratio
+	result["hard_arm_fraction"] = HARD_ARM_FRACTION
+	result["contact_sample"] = "TwoBoneIK3D.modification_processed"
+	result["world_visual_transferred"] = false
 
-	## TwoBoneIK3D is a SkeletonModifier3D. The modifier is applied after the lab's
-	## process callback, so measuring in the same callback reads the old wrist pose.
-	## Sample subsequent rendered poses instead of declaring contact at the timer.
-	for frame: int in range(CONTACT_SAMPLE_FRAMES):
-		await get_tree().process_frame
-		if ticket != _verify_serial or String(current_case) != case_key:
-			return
-		var hand_bone := &"hand_l" if hand == &"LEFT" else &"hand_r"
-		var shoulder_bone := &"upperarm_l" if hand == &"LEFT" else &"upperarm_r"
-		var elbow_bone := &"lowerarm_l" if hand == &"LEFT" else &"lowerarm_r"
-		var hand_pos := _bone_world(hand_bone)
-		var shoulder := _bone_world(shoulder_bone)
-		var elbow := _bone_world(elbow_bone)
-		var arm_length := shoulder.distance_to(elbow) + elbow.distance_to(hand_pos)
-		var error := hand_pos.distance_to(target)
-		var ratio := shoulder.distance_to(target) / maxf(arm_length, 0.001)
-		if error < best_error:
-			best_error = error
-			best_ratio = ratio
-			best_frame = frame + 1
-		if error <= CONTACT_ERROR_MAX_M and ratio <= HARD_ARM_FRACTION:
-			var passed: Dictionary = case_results.get(case_key, {}) as Dictionary
-			passed["contact"] = true
-			passed["contact_error_m"] = error
-			passed["actual_reach_ratio"] = ratio
-			passed["hard_arm_fraction"] = HARD_ARM_FRACTION
-			passed["contact_verified_after_frames"] = frame + 1
-			passed["world_visual_transferred"] = false
-			case_results[case_key] = passed
-			_transfer_world_visual(hand, case_key)
-			print("[interaction-contact-truth] PASS case=%s hand=%s error=%.3f ratio=%.3f frame=%d" % [
-				case_key, String(hand), error, ratio, frame + 1
-			])
-			return
+	if error <= CONTACT_ERROR_MAX_M and ratio <= HARD_ARM_FRACTION:
+		result["contact"] = true
+		case_results[case_key] = result
+		## Avoid reparents while Skeleton3D is iterating modifiers. The verified
+		## result is already captured; handoff happens immediately after the cycle.
+		call_deferred(&"_transfer_world_visual", hand, case_key)
+		print("[interaction-contact-truth] PASS case=%s hand=%s error=%.3f ratio=%.3f source=modifier_signal" % [
+			case_key, String(hand), error, ratio
+		])
+		return
 
-	var failed: Dictionary = case_results.get(case_key, {}) as Dictionary
-	failed["contact"] = false
-	failed["contact_error_m"] = best_error
-	failed["actual_reach_ratio"] = best_ratio
-	failed["hard_arm_fraction"] = HARD_ARM_FRACTION
-	failed["contact_verified_after_frames"] = best_frame
-	failed["world_visual_transferred"] = false
-	failed["contact_failure"] = "hand_never_entered_verified_contact_window"
-	case_results[case_key] = failed
-	print("[interaction-contact-truth] FAIL case=%s hand=%s best_error=%.3f ratio=%.3f" % [
-		case_key, String(hand), best_error, best_ratio
+	result["contact"] = false
+	result["contact_failure"] = "modified_hand_pose_missed_target"
+	case_results[case_key] = result
+	print("[interaction-contact-truth] FAIL case=%s hand=%s error=%.3f ratio=%.3f source=modifier_signal" % [
+		case_key, String(hand), error, ratio
 	])
+
+
+func _record_modifier_contact_failure(case_key: String, reason: String) -> void:
+	var result: Dictionary = case_results.get(case_key, {}) as Dictionary
+	result["contact"] = false
+	result["contact_failure"] = reason
+	result["world_visual_transferred"] = false
+	case_results[case_key] = result
 
 
 func _show_held_prop(_hand: StringName) -> void:
@@ -266,8 +268,8 @@ func get_report() -> Dictionary:
 	var report := super.get_report()
 	report["contact_truth"] = {
 		"max_hand_error_m": CONTACT_ERROR_MAX_M,
+		"sample_source": "TwoBoneIK3D.modification_processed",
 		"max_reach_ratio": HARD_ARM_FRACTION,
-		"sample_frames": CONTACT_SAMPLE_FRAMES,
 		"world_handoff": "actual world SurvivalItemVisual holder -> verified hand socket",
 		"duplicate_held_prop_spawn": false,
 	}
