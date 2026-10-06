@@ -30,9 +30,17 @@ const NEAR_FRONT_CLEARANCE_M: float = 0.62
 const FAR_FRONT_CLEARANCE_M: float = 0.46
 const MAX_LATERAL_STANCE_M: float = 0.16
 
-## Authored pickup motion may bring the shoulder forward. IK is not allowed to
-## invent infinite reach; this small allowance represents torso/shoulder motion
-## that the full-body clip owns before contact.
+## F is gated by the authored pickup family's interaction envelope AFTER stance
+## solve, not by a neutral-idle arm sphere. PickUp_Table/Farm_Harvest own torso
+## bend and shoulder travel; the IK pass only corrects contact near the end.
+const ACTION_MIN_FORWARD_M: float = 0.35
+const ACTION_MAX_FORWARD_M: float = 0.96
+const ACTION_MAX_LATERAL_M: float = 0.40
+const ACTION_MIN_HEIGHT_FROM_ROOT_M: float = -0.72
+const ACTION_MAX_HEIGHT_FROM_ROOT_M: float = 0.30
+
+## Neutral arm measurements stay useful for hand choice and diagnostics. They no
+## longer incorrectly veto a low-table clip before that clip has bent the torso.
 const AUTHORED_TORSO_REACH_M: float = 0.18
 const COMFORT_ARM_FRACTION: float = 0.92
 const HARD_ARM_FRACTION: float = 1.03
@@ -42,6 +50,12 @@ const CONTACT_SECONDS_SOURCE: float = 0.80
 const IK_BLEND_IN_SECONDS: float = 0.24
 const IK_BLEND_OUT_SECONDS: float = 0.26
 const HOLD_SECONDS: float = 0.80
+
+## Close-table camera collision changes the physical ray origin while we aim.
+## Steer toward the newly solved look instead of hard-snapping to it each frame;
+## this is the same principle that made #494 stable under close-in.
+const AIM_YAW_STEP_DEG: float = 0.58
+const AIM_PITCH_STEP_DEG: float = 0.70
 
 var stage: DiegeticInventoryStage
 var player: Player
@@ -54,6 +68,7 @@ var current_case: StringName = &""
 var prompt_visible: bool = false
 var solution: Dictionary = {}
 var case_results: Dictionary = {}
+var rejection: Dictionary = {}
 
 var _state_time: float = 0.0
 var _settle_from: Vector3 = Vector3.ZERO
@@ -77,6 +92,8 @@ var _held_prop: Node3D
 var _world_mesh_was_visible: bool = true
 var _prompt_label: Label
 var _case_label: Label
+var _aim_yaw_offset_deg: float = 0.0
+var _aim_pitch_deg: float = -22.0
 
 
 func setup(stage_node: DiegeticInventoryStage) -> void:
@@ -103,7 +120,10 @@ func prepare_case(case_name: StringName) -> void:
 	_contact_done = false
 	_active_hand = &""
 	_active_action = &""
+	_aim_yaw_offset_deg = 0.0
+	_aim_pitch_deg = -22.0
 	solution.clear()
+	rejection.clear()
 	case_results.erase(String(case_name))
 	stage.call(&"_reset_focus")
 
@@ -137,7 +157,9 @@ func aim_at_item() -> void:
 	if not is_instance_valid(stage) or not is_instance_valid(item):
 		return
 	var look: Vector2 = stage.get_demo_look_for_item(ITEM_ID)
-	stage.set_demo_look(look.x, look.y)
+	_aim_yaw_offset_deg = move_toward(_aim_yaw_offset_deg, look.x, AIM_YAW_STEP_DEG)
+	_aim_pitch_deg = move_toward(_aim_pitch_deg, look.y, AIM_PITCH_STEP_DEG)
+	stage.set_demo_look(_aim_yaw_offset_deg, _aim_pitch_deg)
 
 
 func press_interact() -> bool:
@@ -162,6 +184,9 @@ func press_interact() -> bool:
 		"settle_distance_m": float(solution["settle_distance_m"]),
 		"settle_yaw_deg": float(solution["settle_yaw_deg"]),
 		"predicted_reach_ratio": float(solution["predicted_reach_ratio"]),
+		"action_forward_m": float(solution["action_forward_m"]),
+		"action_lateral_m": float(solution["action_lateral_m"]),
+		"action_height_m": float(solution["action_height_m"]),
 		"contact": false,
 		"contact_error_m": INF,
 		"actual_reach_ratio": INF,
@@ -175,10 +200,15 @@ func get_report() -> Dictionary:
 		"current_case": String(current_case),
 		"prompt_visible": prompt_visible,
 		"solution": solution.duplicate(true),
+		"rejection": rejection.duplicate(true),
 		"case_results": case_results.duplicate(true),
 		"principle": "focus_does_not_move_body; F commits stance settle + authored action + IK contact correction",
 		"max_settle_m": MAX_SETTLE_M,
-		"authored_torso_reach_m": AUTHORED_TORSO_REACH_M,
+		"action_envelope": {
+			"forward_m": [ACTION_MIN_FORWARD_M, ACTION_MAX_FORWARD_M],
+			"lateral_abs_m": ACTION_MAX_LATERAL_M,
+			"height_from_root_m": [ACTION_MIN_HEIGHT_FROM_ROOT_M, ACTION_MAX_HEIGHT_FROM_ROOT_M],
+		},
 	}
 
 
@@ -187,7 +217,7 @@ func is_case_complete() -> bool:
 
 
 func get_item_depth_m() -> float:
-	return float(solution.get("item_depth_m", 0.0))
+	return float(solution.get("item_depth_m", rejection.get("item_depth_m", 0.0)))
 
 
 func _process(delta: float) -> void:
@@ -213,12 +243,11 @@ func _process(delta: float) -> void:
 func _update_solution() -> void:
 	prompt_visible = false
 	solution.clear()
+	rejection.clear()
 	if current_case == &"" or not is_instance_valid(item) or not is_instance_valid(visual):
 		return
-	if current_case == &"OUT_OF_REACH":
-		## Still solve honestly; the distance budget below must reject it.
-		pass
 	if stage.get_stable_interact_target_id() != ITEM_ID:
+		rejection = {"reason": "no_stable_item_focus"}
 		return
 
 	var contact := stage.get_item_focus_point(item)
@@ -238,18 +267,37 @@ func _update_solution() -> void:
 	var left := _arm_candidate(&"LEFT", contact, stance, stance_yaw)
 	var right := _arm_candidate(&"RIGHT", contact, stance, stance_yaw)
 	var chosen: Dictionary = left if float(left["score"]) <= float(right["score"]) else right
-	if not bool(chosen["feasible"]) and bool((right if chosen == left else left)["feasible"]):
-		chosen = right if chosen == left else left
-	var reachable := (
-		settle_distance <= MAX_SETTLE_M
-		and settle_yaw_deg <= MAX_SETTLE_YAW_DEG
-		and bool(chosen["feasible"])
-	)
-	if not reachable:
-		return
-
 	var hand := StringName(chosen["hand"])
 	var action: StringName = &"pickup" if hand == &"LEFT" else &"pickup_right_low"
+
+	var action_local := _point_local_to_pose(contact, stance, stance_yaw)
+	var action_forward := -action_local.z
+	var action_lateral := absf(action_local.x)
+	var action_height := contact.y - stance.y
+	var action_envelope_ok := (
+		action_forward >= ACTION_MIN_FORWARD_M
+		and action_forward <= ACTION_MAX_FORWARD_M
+		and action_lateral <= ACTION_MAX_LATERAL_M
+		and action_height >= ACTION_MIN_HEIGHT_FROM_ROOT_M
+		and action_height <= ACTION_MAX_HEIGHT_FROM_ROOT_M
+	)
+	var stance_ok := settle_distance <= MAX_SETTLE_M and settle_yaw_deg <= MAX_SETTLE_YAW_DEG
+
+	rejection = {
+		"reason": "" if stance_ok and action_envelope_ok else ("stance_budget" if not stance_ok else "action_envelope"),
+		"item_depth_m": depth,
+		"stance_position": stance,
+		"settle_distance_m": settle_distance,
+		"settle_yaw_deg": settle_yaw_deg,
+		"action_forward_m": action_forward,
+		"action_lateral_m": action_lateral,
+		"action_height_m": action_height,
+		"neutral_left": left,
+		"neutral_right": right,
+	}
+	if not stance_ok or not action_envelope_ok:
+		return
+
 	solution = {
 		"stance_position": stance,
 		"stance_yaw": stance_yaw,
@@ -261,9 +309,11 @@ func _update_solution() -> void:
 		"predicted_reach_ratio": float(chosen["reach_ratio"]),
 		"predicted_distance_m": float(chosen["distance_m"]),
 		"arm_length_m": float(chosen["arm_length_m"]),
-		"torso_allowance_m": AUTHORED_TORSO_REACH_M,
-		"left": left,
-		"right": right,
+		"action_forward_m": action_forward,
+		"action_lateral_m": action_lateral,
+		"action_height_m": action_height,
+		"neutral_left": left,
+		"neutral_right": right,
 	}
 	prompt_visible = true
 
@@ -286,10 +336,10 @@ func _arm_candidate(hand: StringName, target: Vector3, stance: Vector3, stance_y
 	var cross_body_penalty := 0.16 if target_side != 0.0 and shoulder_side != target_side else 0.0
 	return {
 		"hand": String(hand),
-		"feasible": distance <= effective_reach and ratio >= 0.25,
+		"neutral_feasible": distance <= effective_reach and ratio >= 0.25,
 		"distance_m": distance,
 		"arm_length_m": arm_length,
-		"effective_reach_m": effective_reach,
+		"neutral_effective_reach_m": effective_reach,
 		"reach_ratio": ratio,
 		"score": ratio + cross_body_penalty,
 		"cross_body_penalty": cross_body_penalty,
@@ -330,7 +380,7 @@ func _update_action(delta: float) -> void:
 		_contact_done = true
 		_record_contact(target)
 		_show_held_prop(_active_hand)
-	if _action_time >= maxf(_action_length + 0.20, _contact_time + 0.45) or not visual.is_action_active() and _action_time > 0.25:
+	if _action_time >= maxf(_action_length + 0.20, _contact_time + 0.45) or (not visual.is_action_active() and _action_time > 0.25):
 		_disable_all_ik()
 		state = State.HOLD
 		_state_time = 0.0
