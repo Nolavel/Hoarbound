@@ -1,7 +1,7 @@
 class_name CMUMultiClipDatabaseBuilder
 extends RefCounted
 
-## Issue #202 canonical CMU curation + merged post-retarget database bake.
+## Issue #202 canonical BVH curation + merged post-retarget database bake.
 ## Long raw captures are analyzed cheaply first; only clean semantic ranges are
 ## sent through the expensive UAL retarget baker and runtime search database.
 
@@ -10,7 +10,11 @@ const CACHE_DIR := "res://tests/motion_matching/_runtime_cache"
 const CACHE_PATH := CACHE_DIR + "/canonical_motion_database.res"
 const CACHE_SIGNATURE_PATH := CACHE_DIR + "/canonical_motion_database.signature"
 const SOURCE_MANIFEST_PATH := SOURCE_ROOT + "source_manifest.tsv"
-const CURATION_VERSION := "cmu-semantic-v5"
+const CURATION_VERSION := "cmu-semantic-v8"
+const STEADY_DIRECTION_ROLES := [
+	"walk_f", "walk_fr", "walk_r", "walk_br",
+	"walk_b", "walk_bl", "walk_l", "walk_fl",
+]
 
 # MotionDatabaseBaker historically used the raw BVH root facing, whose forward
 # axis is 180 degrees opposite the visual CMU character forward. Retarget pose
@@ -32,7 +36,7 @@ func build(lab_scene: PackedScene, parent: Node, sample_rate_hz: float = 30.0) -
 		return {"ok": false, "error": "SceneTree unavailable"}
 	var source_defs := _load_source_defs()
 	if source_defs.is_empty():
-		return {"ok": false, "error": "CMU source manifest is missing/empty"}
+		return {"ok": false, "error": "motion source manifest is missing/empty"}
 
 	var signature := _build_signature()
 	var cached := _load_cache(signature)
@@ -40,12 +44,19 @@ func build(lab_scene: PackedScene, parent: Node, sample_rate_hz: float = 30.0) -
 		var cached_lab := await _create_presentation_lab(lab_scene, parent, tree, source_defs)
 		if cached_lab == null:
 			return {"ok": false, "error": "cached database loaded but presentation lab failed"}
+		var cached_missing_steady := _missing_steady_roles(cached)
 		print("[MM_CACHE_HIT] %d samples / %d clips" % [cached.get_sample_count(), cached.clip_names.size()])
 		return {
 			"ok": true, "database": cached, "lab": cached_lab,
 			"source_reports": [], "proof_source_count": cached.clip_names.size(),
 			"cache_hit": true,
-			"curation_report": {"signature": signature, "cache_hit": true},
+			"curation_report": {
+				"signature": signature,
+				"cache_hit": true,
+				"steady_direction_roles": STEADY_DIRECTION_ROLES.duplicate(),
+				"missing_steady_direction_roles": cached_missing_steady,
+				"steady_direction_gate_passed": cached_missing_steady.is_empty(),
+			},
 		}
 
 	var segmenter := CMUMotionSegmenter.new()
@@ -59,7 +70,8 @@ func build(lab_scene: PackedScene, parent: Node, sample_rate_hz: float = 30.0) -
 			source_path,
 			String(source_def["clip"]),
 			String(source_def["trial"]),
-			String(source_def["description"])
+			String(source_def["description"]),
+			source_def.get("import_options", {})
 		)
 		if not bool(analyzed.get("ok", false)):
 			return {"ok": false, "error": "segment analysis failed for %s: %s" % [source_def["clip"], analyzed.get("error", "unknown")]}
@@ -69,9 +81,21 @@ func build(lab_scene: PackedScene, parent: Node, sample_rate_hz: float = 30.0) -
 	var selection := segmenter.select_canonical(all_candidates)
 	var segments: Array[Dictionary] = []
 	segments.assign(selection.get("segments", []))
+	var selected_roles: Array[String] = []
+	for segment in segments:
+		selected_roles.append(String(segment.get("role", "")))
+	var missing_steady_roles: Array[String] = []
+	for role in STEADY_DIRECTION_ROLES:
+		if not selected_roles.has(role):
+			missing_steady_roles.append(role)
 	if segments.size() < 5:
 		return {"ok": false, "error": "semantic curation found only %d usable segments" % segments.size()}
-	print("[MM_CURATE] candidates=%d selected=%d missing=%s" % [all_candidates.size(), segments.size(), JSON.stringify(selection.get("missing_roles", []))])
+	print("[MM_CURATE] candidates=%d selected=%d missing=%s steady_missing=%s" % [
+		all_candidates.size(),
+		segments.size(),
+		JSON.stringify(selection.get("missing_roles", [])),
+		JSON.stringify(missing_steady_roles),
+	])
 	for segment in segments:
 		print("[MM_SEGMENT] %-12s %s %.3f..%.3f" % [segment["role"], segment["source"], segment["start"], segment["end"]])
 
@@ -83,7 +107,8 @@ func build(lab_scene: PackedScene, parent: Node, sample_rate_hz: float = 30.0) -
 		var provenance := "%s#%.3f-%.3f" % [String(segment["source_path"]), float(segment["start"]), float(segment["end"])]
 		if not lab.configure_source(
 			String(segment["source_path"]), StringName(segment["clip"]),
-			String(segment["trial"]), String(segment["description"]), String(segment["role"])
+			String(segment["trial"]), String(segment["description"]), String(segment["role"]),
+			segment.get("import_options", {})
 		):
 			lab.free()
 			return {"ok": false, "error": "failed to configure %s" % String(segment["clip"])}
@@ -127,6 +152,9 @@ func build(lab_scene: PackedScene, parent: Node, sample_rate_hz: float = 30.0) -
 			"candidate_count": all_candidates.size(),
 			"selected_segments": segments,
 			"missing_roles": selection.get("missing_roles", []),
+			"steady_direction_roles": STEADY_DIRECTION_ROLES.duplicate(),
+			"missing_steady_direction_roles": missing_steady_roles,
+			"steady_direction_gate_passed": missing_steady_roles.is_empty(),
 		},
 	}
 
@@ -155,11 +183,22 @@ func _load_source_defs() -> Array[Dictionary]:
 			continue
 		var clip := String(fields[0])
 		var subject := String(fields[1])
+		var dataset := String(fields[6]) if fields.size() > 6 else "CMU"
+		var position_scale := float(fields[7]) if fields.size() > 7 else CMUBVHSource.DEFAULT_POSITION_SCALE
+		var rest_mode := String(fields[8]) if fields.size() > 8 else "frame_zero_skip"
+		var retarget_mode := String(fields[9]) if fields.size() > 9 else "local"
 		result.append({
 			"file": clip + ".bvh",
-			"clip": "CMU_" + clip,
-			"trial": "CMU Subject %s / %s" % [subject.trim_prefix("0"), clip],
+			"clip": dataset + "_" + clip,
+			"trial": ("CMU Subject %s / %s" % [subject.trim_prefix("0"), clip]) if dataset == "CMU" else (dataset + " / " + clip),
 			"description": String(fields[3]),
+			"import_options": {
+				"dataset": dataset,
+				"position_scale": position_scale,
+				"detect_rest_frame": rest_mode == "auto_include",
+				"include_first_frame": rest_mode == "auto_include",
+				"use_global_pose": retarget_mode == "global",
+			},
 		})
 	return result
 
@@ -175,7 +214,8 @@ func _create_presentation_lab(lab_scene: PackedScene, parent: Node, tree: SceneT
 		return null
 	if not lab.configure_source(
 		SOURCE_ROOT + String(definition["file"]), StringName(definition["clip"]),
-		String(definition["trial"]), String(definition["description"]), "idle_neutral"
+		String(definition["trial"]), String(definition["description"]), "idle_neutral",
+		definition.get("import_options", {})
 	):
 		lab.free()
 		return null
@@ -212,6 +252,17 @@ func _save_cache(database: MotionDatabase, signature: String) -> void:
 	if file != null:
 		file.store_string(signature + "\n")
 	print("[MM_CACHE_SAVE] %s" % ProjectSettings.globalize_path(CACHE_PATH))
+
+
+func _missing_steady_roles(database: MotionDatabase) -> Array[String]:
+	var present: Dictionary = {}
+	for sample_index in range(database.get_sample_count()):
+		present[database.get_sample_role(sample_index)] = true
+	var missing: Array[String] = []
+	for role in STEADY_DIRECTION_ROLES:
+		if not present.has(role):
+			missing.append(role)
+	return missing
 
 
 func _wait_until_ready(lab: CMUUALRetargetLab, tree: SceneTree) -> bool:

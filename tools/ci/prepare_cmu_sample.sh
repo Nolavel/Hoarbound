@@ -6,6 +6,8 @@ TARGET_DIR="$PROJECT_DIR/tests/motion_matching/_runtime_cmu"
 BASE_URL="https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/master/data"
 OFFICIAL_URL="https://mocap.cs.cmu.edu/"
 MIRROR_README_URL="https://github.com/una-dinosauria/cmu-mocap/blob/master/READMEFIRST.txt"
+STYLE_OFFICIAL_URL="https://www.ianxmason.com/100style/"
+STYLE_LICENSE_URL="https://creativecommons.org/licenses/by/4.0/"
 MANIFEST="$TARGET_DIR/source_manifest.tsv"
 
 # Real CMU source pool for #202 semantic segmentation. Long captures are NOT
@@ -27,6 +29,17 @@ done
 for clip in 40_02 40_03 40_04 40_05 41_02 41_03 41_04 41_05 41_06; do
 	SOURCES+=("${clip%%_*}|$clip|multidirectional_pool|Forward/backward/sideways/diagonal navigation candidate")
 done
+
+# Dedicated lateral captures are deliberately staged in addition to the long
+# navigate/turn pools. The latter contain useful transitions, but their steady
+# side-walk ranges are short and easy to fragment at turn boundaries. These
+# trials are authored as navigation or sideways walking and therefore give the
+# kinematic segmenter real sustained lateral material to validate.
+SOURCES+=("009|09_12|lateral_dedicated|Navigate - walk forward, backward, sideways")
+for clip in 113_17 113_18; do
+	SOURCES+=("113|$clip|lateral_dedicated|Walk sideways")
+done
+SOURCES+=("143|143_40|lateral_dedicated|Walk sideways")
 for clip in 69_16 69_17 69_18 69_19; do
 	SOURCES+=("069|$clip|pivot_pool|Turn in place candidate")
 done
@@ -35,8 +48,7 @@ for clip in 69_20 69_21 69_22 69_23 69_24 69_25 69_26 69_27 69_28 69_29 69_30 69
 done
 
 mkdir -p "$TARGET_DIR"
-find "$TARGET_DIR" -maxdepth 1 -type f -name '*.bvh' -delete
-printf 'clip\tsubject\trole\tdescription\tsha256\tsource_url\n' > "$MANIFEST"
+printf 'clip\tsubject\trole\tdescription\tsha256\tsource_url\tdataset\tposition_scale\trest_mode\tretarget_mode\n' > "$MANIFEST"
 
 for entry in "${SOURCES[@]}"; do
 	IFS='|' read -r subject clip role description <<< "$entry"
@@ -48,8 +60,12 @@ for entry in "${SOURCES[@]}"; do
 	target="$TARGET_DIR/$filename"
 	source_url="$BASE_URL/$subject/$filename"
 
-	echo "[cmu] downloading $clip ($role)"
-	curl --fail --location --retry 3 --retry-delay 2 --output "$target" "$source_url"
+	if [[ -s "$target" ]] && head -n 1 "$target" | grep -q '^HIERARCHY' && grep -q '^MOTION' "$target"; then
+		echo "[cmu] reusing $clip ($role)"
+	else
+		echo "[cmu] downloading $clip ($role)"
+		curl --fail --location --retry 3 --retry-delay 2 --output "$target" "$source_url"
+	fi
 	if [[ ! -s "$target" ]]; then
 		echo "[cmu] staged BVH is empty: $filename" >&2
 		exit 2
@@ -63,9 +79,43 @@ for entry in "${SOURCES[@]}"; do
 		exit 4
 	fi
 	sha256="$(sha256sum "$target" | awk '{print $1}')"
-	printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-		"$clip" "$subject" "$role" "$description" "$sha256" "$source_url" >> "$MANIFEST"
+	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+		"$clip" "$subject" "$role" "$description" "$sha256" "$source_url" \
+		"CMU" "0.0254" "frame_zero_skip" "local" >> "$MANIFEST"
 	echo "[cmu] staged $filename sha256=$sha256"
+done
+
+# 100STYLE's neutral sidestep and transition captures fill the steady diagonal
+# gaps that CMU does not contain. They are staged only for the lab and retargeted
+# after import; the source BVHs are not committed or shipped.
+STYLE_SOURCES=(
+	"Neutral_SW|1HzUccloKCjQgpObQ0ZXTEDW7-RllNwHX|07225ded6df11c4eb97a7b42e6121a9e985ae7e8d0f56f9ca971429f9c507ad9|neutral_directional|Neutral sidestep walking"
+	"Neutral_TR1|1AnK7HGtuQR4aSVkyWKnZObgapd41KE1N|11e5f654daae97e3cc80432a7a89965749337b32571cad6ad71a1d1e6e8ff746|neutral_transitions|Neutral locomotion transitions"
+)
+for entry in "${STYLE_SOURCES[@]}"; do
+	IFS='|' read -r clip file_id expected_sha256 role description <<< "$entry"
+	filename="$clip.bvh"
+	target="$TARGET_DIR/$filename"
+	source_url="https://drive.google.com/uc?id=$file_id&export=download"
+	if [[ -s "$target" ]] && head -n 1 "$target" | grep -q '^HIERARCHY' && grep -q '^MOTION' "$target"; then
+		echo "[100style] reusing $clip ($role)"
+	else
+		echo "[100style] downloading $clip ($role)"
+		curl --fail --location --retry 3 --retry-delay 2 --output "$target" "$source_url"
+	fi
+	if [[ ! -s "$target" ]] || ! head -n 1 "$target" | grep -q '^HIERARCHY' || ! grep -q '^MOTION' "$target"; then
+		echo "[100style] staged file is not a valid BVH: $filename" >&2
+		exit 5
+	fi
+	sha256="$(sha256sum "$target" | awk '{print $1}')"
+	if [[ "$sha256" != "$expected_sha256" ]]; then
+		echo "[100style] checksum mismatch for $filename: $sha256" >&2
+		exit 6
+	fi
+	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+		"$clip" "Neutral" "$role" "$description" "$sha256" "$source_url" \
+		"100STYLE" "0.01" "auto_include" "global" >> "$MANIFEST"
+	echo "[100style] staged $filename sha256=$sha256"
 done
 
 cat > "$TARGET_DIR/source_policy.txt" <<EOF
@@ -76,6 +126,11 @@ bvh_conversion_mirror=https://github.com/una-dinosauria/cmu-mocap
 conversion_rights_url=$MIRROR_README_URL
 staging=CI/lab only; third-party BVH files are ignored by git and are not shipped from this repository
 selection=kinematic semantic segmentation; no synthetic direction rotation, mirroring, reversal, or generated locomotion clips
+secondary_source=100STYLE Neutral locomotion by Ian Mason
+secondary_official_url=$STYLE_OFFICIAL_URL
+secondary_license=Creative Commons Attribution 4.0 International
+secondary_license_url=$STYLE_LICENSE_URL
+secondary_credit=The 100STYLE Dataset - Ian Mason
 EOF
 
-echo "[cmu] canonical candidate set staged: ${#SOURCES[@]} real captures"
+echo "[motion-data] canonical candidate set staged: ${#SOURCES[@]} CMU + ${#STYLE_SOURCES[@]} 100STYLE real captures"

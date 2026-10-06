@@ -1,14 +1,14 @@
 class_name CMUBVHSource
 extends Skeleton3D
 
-## Minimal BVH source player for the CMU Motion Matching lab.
-## The CMU MotionBuilder-friendly conversion inserts a synthetic T-pose as
-## frame 0. We use that frame as Skeleton3D rest and expose only frames 1..N
-## as motion. Horizontal root translation is removed from playback so Henry's
+## Minimal BVH source player for the Motion Matching lab.
+## CMU's conversion supplies a synthetic T-pose at frame 0; other datasets can
+## ask the importer to locate their lowest-rotation rest frame and retain frame
+## 0 as motion. Horizontal root translation is removed from playback so Henry's
 ## CharacterBody remains authoritative; the raw root trajectory remains
 ## available for the MotionDatabase baker.
 
-const POSITION_SCALE := 0.0254 # CMU/ASF lengths are inches -> Godot meters.
+const DEFAULT_POSITION_SCALE := 0.0254 # CMU/ASF lengths are inches -> Godot meters.
 
 var frame_count: int = 0
 var frame_time: float = 0.0
@@ -17,6 +17,10 @@ var clip_length: float = 0.0
 var source_path: String = ""
 var setup_ok: bool = false
 var error_message: String = ""
+var position_scale: float = DEFAULT_POSITION_SCALE
+var rest_frame_index: int = 0
+var motion_start_frame: int = 1
+var auto_detected_rest: bool = false
 
 var _bone_names: Array[String] = []
 var _parents: Array[int] = []
@@ -28,6 +32,17 @@ var _values := PackedFloat32Array()
 var _tokens := PackedStringArray()
 var _token_index: int = 0
 var _first_motion_root_local := Vector3.ZERO
+var _detect_rest_frame := false
+var _include_first_frame_in_motion := false
+
+
+func configure_import(scale_to_meters: float, detect_rest_frame: bool, include_first_frame_in_motion: bool) -> bool:
+	if setup_ok or frame_count > 0:
+		return false
+	position_scale = maxf(scale_to_meters, 0.000001)
+	_detect_rest_frame = detect_rest_frame
+	_include_first_frame_in_motion = include_first_frame_in_motion
+	return true
 
 
 func load_bvh(path: String) -> bool:
@@ -50,10 +65,13 @@ func load_bvh(path: String) -> bool:
 	if frame_count < 2:
 		return _fail("BVH needs synthetic rest frame + at least one motion frame")
 
+	rest_frame_index = _find_rest_frame_index() if _detect_rest_frame else 0
+	auto_detected_rest = _detect_rest_frame
+	motion_start_frame = 0 if _include_first_frame_in_motion else 1
 	_build_skeleton_from_tpose()
-	motion_frame_count = frame_count - 1
+	motion_frame_count = frame_count - motion_start_frame
 	clip_length = float(maxi(0, motion_frame_count - 1)) * frame_time
-	_first_motion_root_local = _frame_local_transform(1, 0).origin
+	_first_motion_root_local = _frame_local_transform(motion_start_frame, 0).origin
 	setup_ok = true
 	seek_seconds(0.0)
 	return true
@@ -62,20 +80,20 @@ func load_bvh(path: String) -> bool:
 func seek_seconds(seconds: float) -> void:
 	if not setup_ok or motion_frame_count <= 0:
 		return
-	_apply_frame(_motion_frame_index(seconds) + 1)
+	_apply_frame(_source_frame_index(seconds))
 
 
 func get_raw_root_position(seconds: float) -> Vector3:
 	if frame_count < 2:
 		return Vector3.ZERO
-	var local := _frame_local_transform(_motion_frame_index(seconds) + 1, 0).origin
+	var local := _frame_local_transform(_source_frame_index(seconds), 0).origin
 	return local - _first_motion_root_local
 
 
 func get_raw_root_facing(seconds: float) -> Vector3:
 	if frame_count < 2:
 		return Vector3.FORWARD
-	var basis := _frame_local_transform(_motion_frame_index(seconds) + 1, 0).basis
+	var basis := _frame_local_transform(_source_frame_index(seconds), 0).basis
 	var facing := basis * Vector3.FORWARD
 	facing.y = 0.0
 	if facing.length_squared() <= 0.000001:
@@ -93,10 +111,14 @@ func get_report() -> Dictionary:
 		"motion_frame_count": motion_frame_count,
 		"source_fps": 0.0 if frame_time <= 0.0 else 1.0 / frame_time,
 		"clip_length_seconds": clip_length,
-		"synthetic_tpose_frames_skipped": 1,
+		"motion_frames_skipped": motion_start_frame,
 		"source_bone_pose_space": "absolute_local",
 		"root_playback": "in_place_xz",
 		"root_facing_axis": "Godot -Z from raw BVH root basis",
+		"position_scale_to_meters": position_scale,
+		"rest_frame_index": rest_frame_index,
+		"rest_frame_auto_detected": auto_detected_rest,
+		"motion_start_frame": motion_start_frame,
 	}
 
 
@@ -104,6 +126,10 @@ func _motion_frame_index(seconds: float) -> int:
 	if frame_time <= 0.0 or motion_frame_count <= 0:
 		return 0
 	return clampi(int(floor(maxf(seconds, 0.0) / frame_time)), 0, motion_frame_count - 1)
+
+
+func _source_frame_index(seconds: float) -> int:
+	return motion_start_frame + _motion_frame_index(seconds)
 
 
 func _parse_hierarchy(hierarchy_text: String) -> bool:
@@ -151,7 +177,7 @@ func _parse_joint(parent_index: int) -> int:
 					float(_next_token()),
 					float(_next_token()),
 					float(_next_token())
-				) * POSITION_SCALE
+				) * position_scale
 			"CHANNELS":
 				_next_token()
 				var count := int(_next_token())
@@ -230,8 +256,27 @@ func _build_skeleton_from_tpose() -> void:
 	for bone_index in range(_bone_names.size()):
 		set_bone_parent(bone_index, _parents[bone_index])
 	for bone_index in range(_bone_names.size()):
-		set_bone_rest(bone_index, _frame_local_transform(0, bone_index))
+		set_bone_rest(bone_index, _frame_local_transform(rest_frame_index, bone_index))
 	reset_bone_poses()
+
+
+func _find_rest_frame_index() -> int:
+	var best_frame := 0
+	var best_score := INF
+	for frame_index in range(frame_count):
+		var score := 0.0
+		for bone_index in range(1, _bone_names.size()):
+			var value_index := frame_index * _channel_count + _channel_starts[bone_index]
+			var bone_channels := _channels[bone_index]
+			for channel_offset in range(bone_channels.size()):
+				if not String(bone_channels[channel_offset]).ends_with("rotation"):
+					continue
+				var angle := wrapf(float(_values[value_index + channel_offset]), -180.0, 180.0)
+				score += absf(angle)
+		if score < best_score:
+			best_score = score
+			best_frame = frame_index
+	return best_frame
 
 
 func _apply_frame(frame_index: int) -> void:
@@ -262,11 +307,11 @@ func _frame_local_transform(frame_index: int, bone_index: int) -> Transform3D:
 		var value := float(_values[value_index + channel_offset])
 		match channel:
 			"Xposition":
-				origin.x += value * POSITION_SCALE
+				origin.x += value * position_scale
 			"Yposition":
-				origin.y += value * POSITION_SCALE
+				origin.y += value * position_scale
 			"Zposition":
-				origin.z += value * POSITION_SCALE
+				origin.z += value * position_scale
 			"Xrotation":
 				basis = basis * Basis(Vector3.RIGHT, deg_to_rad(value))
 			"Yrotation":

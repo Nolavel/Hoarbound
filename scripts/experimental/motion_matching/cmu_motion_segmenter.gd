@@ -2,10 +2,11 @@ class_name CMUMotionSegmenter
 extends RefCounted
 
 ## Kinematic curation pass for issue #202.
-## Reads only raw CMU root motion, so noisy/mixed parts of long captures never
+## Reads only raw BVH root motion, so noisy/mixed parts of long captures never
 ## enter the expensive UAL retarget bake or runtime search database.
 
 const ANALYSIS_RATE_HZ := 30.0
+const KINEMATIC_HALF_WINDOW_SECONDS := 0.10
 const IDLE_SPEED_MAX := 0.18
 const MOVE_SPEED_MIN := 0.36
 const MOVE_YAW_MAX := 1.15
@@ -13,7 +14,7 @@ const PIVOT_SPEED_MAX := 0.34
 const PIVOT_YAW_MIN := 0.45
 const MIN_IDLE_SECONDS := 0.65
 const MIN_WALK_SECONDS := 0.45
-const MIN_SIDE_DIAGONAL_SECONDS := 0.28
+const MIN_SIDE_DIAGONAL_SECONDS := 0.50
 const MIN_PIVOT_SECONDS := 0.28
 const WALK_MAX_SECONDS := 1.65
 const IDLE_MAX_SECONDS := 1.35
@@ -33,8 +34,21 @@ const ROLE_ORDER := [
 ]
 
 
-func analyze_file(source_path: String, source_id: String, trial: String, description: String) -> Dictionary:
+func analyze_file(
+		source_path: String,
+		source_id: String,
+		trial: String,
+		description: String,
+		import_options: Dictionary = {}
+	) -> Dictionary:
 	var source := CMUBVHSource.new()
+	if not source.configure_import(
+		float(import_options.get("position_scale", CMUBVHSource.DEFAULT_POSITION_SCALE)),
+		bool(import_options.get("detect_rest_frame", false)),
+		bool(import_options.get("include_first_frame", false))
+	):
+		source.free()
+		return {"ok": false, "error": "failed to configure BVH source", "source": source_id}
 	if not source.load_bvh(source_path):
 		var error := source.error_message
 		source.free()
@@ -43,12 +57,16 @@ func analyze_file(source_path: String, source_id: String, trial: String, descrip
 	var candidates: Array[Dictionary] = []
 	candidates.append_array(_stable_candidates(metrics, source, source_path, source_id, trial, description))
 	candidates.append_array(_transition_candidates(metrics, source, source_path, source_id, trial, description))
+	for candidate in candidates:
+		candidate["import_options"] = import_options.duplicate(true)
 	var report := {
 		"source": source_id,
 		"source_path": source_path,
+		"dataset": String(import_options.get("dataset", "CMU")),
 		"duration": source.clip_length,
 		"analysis_samples": metrics.size(),
 		"candidate_count": candidates.size(),
+		"source_import": source.get_report(),
 	}
 	source.free()
 	return {"ok": true, "candidates": candidates, "report": report}
@@ -80,8 +98,11 @@ func _sample_metrics(source: CMUBVHSource) -> Array[Dictionary]:
 	var count := maxi(2, int(floor(source.clip_length * ANALYSIS_RATE_HZ)) + 1)
 	for index in range(count):
 		var time := minf(source.clip_length, float(index) * dt)
-		var previous_time := maxf(0.0, time - dt)
-		var next_time := minf(source.clip_length, time + dt)
+		# Root channels contain capture jitter at one-frame derivatives. A 200 ms
+		# centered window preserves authored direction changes while preventing a
+		# real diagonal gait from flickering between adjacent 45-degree sectors.
+		var previous_time := maxf(0.0, time - KINEMATIC_HALF_WINDOW_SECONDS)
+		var next_time := minf(source.clip_length, time + KINEMATIC_HALF_WINDOW_SECONDS)
 		var duration := maxf(next_time - previous_time, dt)
 		var previous_position := source.get_raw_root_position(previous_time)
 		var next_position := source.get_raw_root_position(next_time)

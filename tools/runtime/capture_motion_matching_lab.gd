@@ -139,6 +139,13 @@ func _run_cmu_capture() -> void:
 		push_error("CMUMultiClipCapture: %s" % String(build_result.get("error", "unknown build error")))
 		quit(21)
 		return
+	var curation: Dictionary = build_result.get("curation_report", {})
+	if not bool(curation.get("steady_direction_gate_passed", false)):
+		push_error("CMUMultiClipCapture: steady directional coverage regressed: %s" % JSON.stringify(
+			curation.get("missing_steady_direction_roles", [])
+		))
+		quit(26)
+		return
 
 	var database := build_result.get("database") as MotionDatabase
 	var cmu_lab := build_result.get("lab") as CMUUALRetargetLab
@@ -208,6 +215,7 @@ func _run_cmu_capture() -> void:
 	report["command_speed_mps"] = command_speed
 	report["proof_source_count"] = int(build_result.get("proof_source_count", 0))
 	report["source_reports"] = build_result.get("source_reports", [])
+	report["curation"] = curation
 	report["motion_database"] = database.get_report()
 	report["motion_matching_playback"] = controller.get_report()
 	report["proof_samples"] = proof_samples

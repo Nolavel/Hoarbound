@@ -1,7 +1,7 @@
 class_name CMUUALRetargetLab
 extends Node3D
 
-## Direct-Godot CMU BVH -> canonical Henry UAL retarget lab for issue #202.
+## Direct-Godot BVH -> canonical Henry UAL retarget lab for issue #202.
 ## Source BVHs are staged only for CI/lab use. UAL translations/bone lengths
 ## remain canonical; mapped source rotations drive the pose while raw CMU root
 ## motion is retained separately for motion-matching trajectory features.
@@ -11,27 +11,27 @@ const DEFAULT_CLIP_NAME := &"CMU_41_02"
 
 const TARGET_SOURCE_ALIASES := {
 	"pelvis": ["Hips"],
-	"spine_01": ["LowerBack"],
-	"spine_02": ["Spine"],
-	"spine_03": ["Spine1"],
+	"spine_01": ["LowerBack", "Chest"],
+	"spine_02": ["Spine", "Chest2"],
+	"spine_03": ["Spine1", "Chest3"],
 	"neck_01": ["Neck1", "Neck"],
 	"Head": ["Head"],
-	"clavicle_l": ["LeftShoulder"],
-	"upperarm_l": ["LeftArm"],
-	"lowerarm_l": ["LeftForeArm"],
-	"hand_l": ["LeftHand"],
-	"thigh_l": ["LeftUpLeg"],
-	"calf_l": ["LeftLeg"],
-	"foot_l": ["LeftFoot"],
-	"ball_l": ["LeftToeBase"],
-	"clavicle_r": ["RightShoulder"],
-	"upperarm_r": ["RightArm"],
-	"lowerarm_r": ["RightForeArm"],
-	"hand_r": ["RightHand"],
-	"thigh_r": ["RightUpLeg"],
-	"calf_r": ["RightLeg"],
-	"foot_r": ["RightFoot"],
-	"ball_r": ["RightToeBase"],
+	"clavicle_l": ["LeftCollar", "LeftShoulder"],
+	"upperarm_l": ["LeftArm", "LeftShoulder"],
+	"lowerarm_l": ["LeftForeArm", "LeftElbow"],
+	"hand_l": ["LeftHand", "LeftWrist"],
+	"thigh_l": ["LeftUpLeg", "LeftHip"],
+	"calf_l": ["LeftLeg", "LeftKnee"],
+	"foot_l": ["LeftFoot", "LeftAnkle"],
+	"ball_l": ["LeftToeBase", "LeftToe"],
+	"clavicle_r": ["RightCollar", "RightShoulder"],
+	"upperarm_r": ["RightArm", "RightShoulder"],
+	"lowerarm_r": ["RightForeArm", "RightElbow"],
+	"hand_r": ["RightHand", "RightWrist"],
+	"thigh_r": ["RightUpLeg", "RightHip"],
+	"calf_r": ["RightLeg", "RightKnee"],
+	"foot_r": ["RightFoot", "RightAnkle"],
+	"ball_r": ["RightToeBase", "RightToe"],
 }
 
 const REQUIRED_TARGET_BONES: Array[StringName] = [
@@ -55,6 +55,11 @@ var _source_clip_name: StringName = DEFAULT_CLIP_NAME
 var _source_trial := "CMU Subject 41 / 41_02"
 var _source_description := "navigate: forward, backward, sideways, diagonally"
 var _source_role := "multidirectional_reference"
+var _source_dataset := "CMU"
+var _source_position_scale := CMUBVHSource.DEFAULT_POSITION_SCALE
+var _source_detect_rest_frame := false
+var _source_include_first_frame := false
+var _source_use_global_pose := false
 
 var _source: CMUBVHSource
 var _target_skeleton: Skeleton3D
@@ -75,7 +80,8 @@ func configure_source(
 		clip_name: StringName,
 		trial: String = "",
 		description: String = "",
-		role: String = ""
+		role: String = "",
+		import_options: Dictionary = {}
 	) -> bool:
 	if _setup_started or is_inside_tree():
 		push_error("CMUUALRetargetLab: configure_source must run before the lab enters the tree.")
@@ -88,6 +94,11 @@ func configure_source(
 		_source_description = description
 	if not role.is_empty():
 		_source_role = role
+	_source_dataset = String(import_options.get("dataset", _source_dataset))
+	_source_position_scale = float(import_options.get("position_scale", _source_position_scale))
+	_source_detect_rest_frame = bool(import_options.get("detect_rest_frame", _source_detect_rest_frame))
+	_source_include_first_frame = bool(import_options.get("include_first_frame", _source_include_first_frame))
+	_source_use_global_pose = bool(import_options.get("use_global_pose", _source_use_global_pose))
 	return true
 
 
@@ -115,6 +126,13 @@ func _setup() -> void:
 	_source = CMUBVHSource.new()
 	_source.name = String(_source_clip_name)
 	$SourceData.add_child(_source)
+	if not _source.configure_import(
+		_source_position_scale,
+		_source_detect_rest_frame,
+		_source_include_first_frame
+	):
+		_fail("failed to configure BVH source import")
+		return
 	if not _source.load_bvh(_source_bvh_path):
 		_fail(_source.error_message)
 		return
@@ -133,7 +151,8 @@ func _setup() -> void:
 	_setup_ok = true
 	_report = _source.get_report()
 	_report["setup_ok"] = true
-	_report["retarget_mode"] = "CMU_BVH_RetargetModifier3D_proxy_rotation_only"
+	_report["retarget_mode"] = "BVH_RetargetModifier3D_proxy_rotation_only"
+	_report["retarget_use_global_pose"] = _source_use_global_pose
 	_report["retarget_position_enabled"] = false
 	_report["retarget_rotation_enabled"] = true
 	_report["target_copy_mode"] = "mapped_rotation_only_preserve_ual_positions"
@@ -144,6 +163,7 @@ func _setup() -> void:
 	_report["source_trial"] = _source_trial
 	_report["source_description"] = _source_description
 	_report["source_role"] = _source_role
+	_report["source_dataset"] = _source_dataset
 	_report["source_clip_name"] = String(_source_clip_name)
 	_update_readout()
 	seek_capture_time(0.0)
@@ -273,7 +293,7 @@ func _install_runtime_retarget() -> bool:
 		_proxy_skeleton.set_bone_rest(target_index, _target_skeleton.get_bone_rest(target_index))
 
 	if mapped_source_names.size() < REQUIRED_TARGET_BONES.size():
-		_fail("Too few CMU/UAL mapped bones: %d" % mapped_source_names.size())
+		_fail("Too few BVH/UAL mapped bones: %d" % mapped_source_names.size())
 		return false
 
 	var profile := SkeletonProfile.new()
@@ -288,7 +308,7 @@ func _install_runtime_retarget() -> bool:
 	_retarget_modifier.name = "CMUToUALRetarget"
 	_source.add_child(_retarget_modifier)
 	_retarget_modifier.profile = profile
-	_retarget_modifier.use_global_pose = false
+	_retarget_modifier.use_global_pose = _source_use_global_pose
 	_retarget_modifier.copy_bone_skin_scale = false
 	_retarget_modifier.set_position_enabled(false)
 	_retarget_modifier.set_rotation_enabled(true)
