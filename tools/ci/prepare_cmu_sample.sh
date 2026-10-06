@@ -47,6 +47,23 @@ for clip in 69_20 69_21 69_22 69_23 69_24 69_25 69_26 69_27 69_28 69_29 69_30 69
 	SOURCES+=("069|$clip|turn_90_pool|Forward 90-degree turn candidate")
 done
 
+# Henry walks at 1.5 m/s in the game; the pools above stop near 1.0 m/s. These
+# trials are natural walks at 1.4-1.75 m/s source speed (CMU index titles).
+for clip in 02_02 07_09 07_10 07_11 08_01 08_02 08_03 08_06 08_08 08_09 08_10 16_21 16_22; do
+	SOURCES+=("${clip%%_*}|$clip|brisk_walk_pool|walk")
+done
+for clip in 39_01 39_02 39_03 39_04 39_05 39_06 39_07 39_08 39_09 39_10; do
+	SOURCES+=("039|$clip|brisk_walk_pool|walk")
+done
+SOURCES+=("016|16_23|brisk_turn_pool|walk, veer left")
+SOURCES+=("016|16_24|brisk_turn_pool|walk, veer left")
+SOURCES+=("016|16_25|brisk_turn_pool|walk, veer right")
+SOURCES+=("016|16_26|brisk_turn_pool|walk, veer right")
+SOURCES+=("016|16_27|brisk_turn_pool|walk, 90-degree left turn")
+SOURCES+=("016|16_28|brisk_turn_pool|walk, 90-degree left turn")
+SOURCES+=("016|16_29|brisk_turn_pool|walk, 90-degree right turn")
+SOURCES+=("016|16_30|brisk_turn_pool|walk, 90-degree right turn")
+
 mkdir -p "$TARGET_DIR"
 # Import conventions (units, reference pose, axes) live in per-family
 # SourceRetargetProfile code, not in this manifest.

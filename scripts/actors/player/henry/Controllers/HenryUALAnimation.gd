@@ -42,6 +42,8 @@ const LOCKING_ACTIONS: Array[StringName] = [
 ]
 ## Walking speed of the authored carry cycle, m/s.
 const CARRY_WALK_SPEED: float = 1.5
+## Base states that own the whole pose; airtime itself is judged by the caller.
+const NON_LOCOMOTION_STATES: Array[StringName] = [&"JumpStart", &"Crouch", &"Carry", &"SitEnter", &"SitLoop", &"SitExit"]
 ## Kenny's feet sit this far below his origin; he is lifted by it when set down.
 const KENNY_SEAT_HEIGHT: float = 0.19
 const INTERACTIVE_SCENE: String = "res://scenes/environment/interactive/InteractiveArea.tscn"
@@ -429,6 +431,16 @@ func is_action_locking() -> bool:
 	## FIRE has not necessarily been evaluated when F arrives before a physics tick.
 	return bool(animation_tree.get("parameters/actions/active")) \
 		or int(animation_tree.get("parameters/actions/request")) == AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE
+
+
+## True while the pose is plain locomotion: no action, work pose, held prop,
+## carried load, sit, crouch or jump take-off. Motion Matching may stand in then.
+func is_plain_locomotion() -> bool:
+	if _state_playback == null or _sitting or _carried != null or is_action_active() or is_action_locking():
+		return false
+	if is_instance_valid(_held_prop) or is_instance_valid(_offhand_prop) or _hold_pose > 0.001:
+		return false
+	return not NON_LOCOMOTION_STATES.has(_state_playback.get_current_node())
 
 
 func _has_carry_state() -> bool:

@@ -44,6 +44,18 @@ func sync_position(body_ground_position: Vector3) -> void:
 	position = Vector3(body_ground_position.x, 0.0, body_ground_position.z)
 
 
+## Mirrors a body that another controller moves (the game); the springs are
+## not stepped, only their state follows the body.
+func mirror(body_position: Vector3, body_velocity: Vector3, body_yaw: float, dt: float) -> void:
+	var flat_velocity := Vector3(body_velocity.x, 0.0, body_velocity.z)
+	var step := maxf(dt, 0.000001)
+	acceleration = (flat_velocity - velocity) / step
+	angular_velocity = wrapf(body_yaw - yaw, -PI, PI) / step
+	position = Vector3(body_position.x, 0.0, body_position.z)
+	velocity = flat_velocity
+	yaw = body_yaw
+
+
 ## Future positions/forwards (world) at FUTURE_HORIZONS for the same intent.
 func predict(desired_velocity: Vector3, desired_forward: Vector3) -> Dictionary:
 	var goal := Vector3(desired_velocity.x, 0.0, desired_velocity.z)

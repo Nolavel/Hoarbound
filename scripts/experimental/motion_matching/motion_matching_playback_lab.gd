@@ -14,6 +14,9 @@ const CAMERA_FOLLOW_RATE := 4.0
 @onready var debug_view: MotionMatchingDebugView = $DebugView
 
 var skeleton: Skeleton3D
+var camera_offset := CAMERA_OFFSET
+## Height above the visual root the camera looks at, metres.
+var camera_focus_height := 0.85
 var _camera_focus := Vector3.ZERO
 
 
@@ -24,7 +27,7 @@ func _ready() -> void:
 	if henry_animation.animation_player != null:
 		henry_animation.animation_player.stop(true)
 	_disable_modifiers(skeleton)
-	_camera_focus = body.global_position
+	_camera_focus = body.global_position + Vector3(0.0, camera_focus_height - 1.0, 0.0)
 	_place_camera()
 
 
@@ -34,13 +37,12 @@ func is_ready_for_capture() -> bool:
 
 func follow_camera(dt: float) -> void:
 	var weight := 1.0 - exp(-CAMERA_FOLLOW_RATE * dt)
-	_camera_focus = _camera_focus.lerp(visual.global_position + Vector3(0.0, 1.0, 0.0), weight)
+	_camera_focus = _camera_focus.lerp(visual.global_position + Vector3(0.0, camera_focus_height, 0.0), weight)
 	_place_camera()
 
 
 func _place_camera() -> void:
-	var focus := _camera_focus - Vector3(0.0, 0.15, 0.0)
-	camera.look_at_from_position(focus + CAMERA_OFFSET, focus)
+	camera.look_at_from_position(_camera_focus + camera_offset, _camera_focus)
 
 
 func _disable_modifiers(node: Node) -> void:

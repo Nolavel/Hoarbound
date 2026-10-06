@@ -46,3 +46,4 @@ __pycache__/
 # Motion Matching lab render output (regenerated locally / in CI)
 docs/runtime_previews/motion_matching_lab/
 docs/runtime_previews/motion_retarget_diagnostics/
+docs/runtime_previews/motion_matching_player*/

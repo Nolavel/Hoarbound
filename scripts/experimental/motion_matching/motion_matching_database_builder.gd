@@ -10,7 +10,7 @@ const CACHE_DIR := "res://tests/motion_matching/_runtime_cache"
 const CACHE_PATH := CACHE_DIR + "/canonical_motion_database.res"
 const CACHE_SIGNATURE_PATH := CACHE_DIR + "/canonical_motion_database.signature"
 const HENRY_MODEL_PATH := "res://assets/characters/henry/henry_outfit.glb"
-const BUILD_VERSION := "root-space-v4"
+const BUILD_VERSION := "root-space-v6"
 
 
 func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false, use_cache: bool = true) -> Dictionary:

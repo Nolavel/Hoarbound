@@ -61,6 +61,8 @@ var _debug_label: Label = null
 var _was_on_floor_last_frame: bool = false
 var _crouching: bool = false
 var _carry_inventory: InventoryComponent
+var _target_velocity: Vector3 = Vector3.ZERO
+var _velocity_rate: float = 0.0
 var _status_provider: Node
 
 func _ready() -> void:
@@ -114,6 +116,8 @@ func process_movement(
 	if movement_locked:
 		player.velocity.x = 0.0
 		player.velocity.z = 0.0
+		_target_velocity = Vector3.ZERO
+		_velocity_rate = INF
 		_jump_hold_armed = false
 		_sprint_blend = 1.0
 		_sprint_inertia_timer = 0.0
@@ -206,6 +210,8 @@ func process_movement(
 	# ВАЖНО: используем move_toward для более точного контроля
 	var current_planar_vel = Vector3(player.velocity.x, 0.0, player.velocity.z)
 	var new_planar_vel = current_planar_vel.move_toward(target_vel, rate * delta * max(walk_speed, 1.0))
+	_target_velocity = target_vel
+	_velocity_rate = rate * max(walk_speed, 1.0)
 	
 	player.velocity.x = new_planar_vel.x
 	player.velocity.z = new_planar_vel.z
@@ -222,6 +228,16 @@ func process_movement(
 		if on_floor_now:
 			floor_angle = rad_to_deg(acos(clamp(player.get_floor_normal().y, 0.0, 1.0)))
 		_debug_label.text = "Speed: %.2f | Angle: %.1f° | Slope: %.2fx" % [speed, floor_angle, slope_modifier]
+
+## Planar velocity this tick steers toward, for animation that predicts the body.
+func get_target_velocity() -> Vector3:
+	return _target_velocity
+
+
+## Planar acceleration of that approach, m/s^2 (INF when movement is locked).
+func get_velocity_rate() -> float:
+	return _velocity_rate
+
 
 ## Smooth physical cost of carried weight. The hard pickup limit remains the
 ## final boundary; this makes the approach to it readable before refusal.

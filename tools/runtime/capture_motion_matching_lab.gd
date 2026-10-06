@@ -139,10 +139,16 @@ func _run_motion_matching_capture() -> void:
 		push_error("MotionMatchingCapture: playback lab is not ready.")
 		quit(22)
 		return
+	# MM_CAMERA=feet frames the legs closely to judge planted feet.
+	if OS.get_environment("MM_CAMERA") == "feet":
+		lab.camera_offset = Vector3(1.1, 0.55, 1.9)
+		lab.camera_focus_height = 0.35
 	print("[MOTION_DATABASE] %d real samples x %d features x %d ranges @ %.0f Hz" % [
 		database.get_sample_count(), database.feature_count, database.clip_names.size(), database.sample_rate_hz,
 	])
 	var controller := MotionMatchingDatabasePlaybackController.new()
+	# MM_FOOT_LOCK=0 renders the same run without the lock (A/B evidence).
+	controller.foot_lock_enabled = OS.get_environment("MM_FOOT_LOCK") != "0"
 	if not controller.setup(database, lab.skeleton, lab.body, lab.visual, lab.debug_view, _first_idle_sample(database)):
 		push_error("MotionMatchingCapture: playback setup failed.")
 		quit(23)
@@ -154,14 +160,29 @@ func _run_motion_matching_capture() -> void:
 	# MM_HEADLESS_PROOF=1 runs the identical simulation without frames.
 	var headless_proof := OS.get_environment("MM_HEADLESS_PROOF") == "1"
 	_walk_speed = _median_speed(database, 0.0)
+	# MM_PROOF_WALK=<m/s> replays the program at a fixed pace (dataset A/B).
+	if not OS.get_environment("MM_PROOF_WALK").is_empty():
+		_walk_speed = OS.get_environment("MM_PROOF_WALK").to_float()
 	_strafe_speed = _median_speed(database, PI * 0.5)
 	var facing := Vector3.FORWARD
 	var timeline: Array[Dictionary] = []
+	# MM_FOOT_TRACE=<file> writes the drawn ankles per frame (CSV) for slide plots.
+	var foot_trace: FileAccess = null
+	if not OS.get_environment("MM_FOOT_TRACE").is_empty():
+		foot_trace = FileAccess.open(OS.get_environment("MM_FOOT_TRACE"), FileAccess.WRITE)
+		foot_trace.store_line("t,contacts,left_x,left_z,right_x,right_z")
 	for frame in range(frame_count):
 		var t := float(frame) * dt
 		var intent := _proof_intent(t, facing)
 		facing = intent["facing"]
 		var state := controller.step(dt, intent["velocity"], facing, intent["label"])
+		if foot_trace != null:
+			var skeleton := lab.skeleton
+			var feet := PackedStringArray(["%.4f" % t, str(int(state["contacts"]))])
+			for bone in ["foot_l", "foot_r"]:
+				var ankle := skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone(bone)).origin
+				feet.append_array(["%.4f" % ankle.x, "%.4f" % ankle.z])
+			foot_trace.store_line(",".join(feet))
 		lab.follow_camera(dt)
 		await process_frame
 		if not headless_proof:
@@ -196,9 +217,10 @@ func _run_motion_matching_capture() -> void:
 	}
 	_write_json_report(report)
 	var playback := controller.get_report()
-	print("[MM_CAPTURE] %d frames / %d switches (%d forced) / slide %.3f m/s -> %s" % [
+	print("[MM_CAPTURE] %d frames / %d switches (%d forced) / slide %.3f m/s drawn, %.3f animated, lock %s -> %s" % [
 		_frame_index, int(playback["switch_count"]), int(playback["forced_switch_count"]),
-		float(playback["mean_contact_foot_slide_m_s"]), ProjectSettings.globalize_path(OUT_DIR),
+		float(playback["mean_contact_foot_slide_m_s"]), float(playback["animated_mean_contact_foot_slide_m_s"]),
+		"on" if bool(playback["foot_lock_enabled"]) else "off", ProjectSettings.globalize_path(OUT_DIR),
 	])
 	quit(0)
 

@@ -7,6 +7,8 @@ extends RefCounted
 const SPEED_IDLE := 0.15
 const SPEED_TURN := 0.35
 const SPEED_WALK := 0.45
+## Henry's game walk is 1.5 m/s; forward walking from here up is its own tier.
+const SPEED_BRISK := 1.2
 const SPEED_TOO_FAST := 2.2
 const YAW_TURN := 0.4
 const YAW_WALK_MAX := 1.2
@@ -17,13 +19,14 @@ const GLITCH_MARGIN_SECONDS := 0.25
 const WINDOW_SECONDS := 8.0
 const WINDOW_HOP_SECONDS := 2.0
 const MIN_WINDOW_SECONDS := 2.0
-const TOTAL_BUDGET_SECONDS := 360.0
+const TOTAL_BUDGET_SECONDS := 460.0
 const MIN_USEFUL_SECONDS := 0.5
 const SECTORS := ["walk_f", "walk_fl", "walk_l", "walk_bl", "walk_b", "walk_br", "walk_r", "walk_fr"]
 const BUDGET_SECONDS := {
-	"idle": 10.0, "turn": 25.0, "start": 15.0, "stop": 15.0, "transition": 40.0,
+	"idle": 25.0, "turn": 25.0, "start": 15.0, "stop": 15.0, "transition": 40.0,
 	"walk_f": 20.0, "walk_b": 20.0, "walk_l": 15.0, "walk_r": 15.0,
 	"walk_fl": 12.0, "walk_fr": 12.0, "walk_bl": 12.0, "walk_br": 12.0,
+	"walk_f_brisk": 50.0, "turn_brisk": 20.0,
 }
 
 
@@ -124,7 +127,9 @@ func _classify(velocity: Vector3, speed: float, yaw_rate: float) -> String:
 	if speed >= SPEED_WALK and absf(yaw_rate) < YAW_WALK_MAX:
 		# Model space: +Z forward, +X left; sectors run counter-clockwise.
 		var sector := posmod(int(round(atan2(velocity.x, velocity.z) / (PI * 0.25))), 8)
-		return SECTORS[sector]
+		return SECTORS[sector] + ("_brisk" if sector == 0 and speed >= SPEED_BRISK else "")
+	if speed >= SPEED_BRISK:
+		return "turn_brisk"
 	return "transition"
 
 

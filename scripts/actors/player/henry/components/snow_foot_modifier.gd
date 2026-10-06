@@ -133,44 +133,10 @@ func _pin(skeleton: Skeleton3D, side: int) -> Vector3:
 	return _lock_offset[side] * smoothstep(0.0, 1.0, weight)
 
 
-## Two-bone solve: moves the ankle by `offset`, bending the knee in its own plane
-## and keeping the boot's orientation. Returns how far the ankle really moved.
+## Two-bone solve (`LegTwoBoneIK`): moves the ankle by `offset`, keeping the
+## boot's orientation. Returns how far the ankle really moved.
 func _reach(skeleton: Skeleton3D, side: int, offset: Vector3) -> Vector3:
-	var t: int = _bone(skeleton, THIGHS[side])
-	var c: int = _bone(skeleton, CALVES[side])
-	var f: int = _bone(skeleton, FEET[side])
-	if t < 0 or c < 0 or f < 0:
-		return Vector3.ZERO
-	var hip_pose: Transform3D = skeleton.get_bone_global_pose(t)
-	var knee_pose: Transform3D = skeleton.get_bone_global_pose(c)
-	var foot_pose: Transform3D = skeleton.get_bone_global_pose(f)
-	var hip: Vector3 = hip_pose.origin
-	var knee: Vector3 = knee_pose.origin
-	var ankle: Vector3 = foot_pose.origin
-	var upper: float = hip.distance_to(knee)
-	var lower: float = knee.distance_to(ankle)
-	var target: Vector3 = ankle + offset
-	var reach: Vector3 = target - hip
-	var d: float = clampf(reach.length(), 0.01, upper + lower - 0.001)
-	var dir: Vector3 = reach.normalized()
-	var bend: Vector3 = (knee - hip) - dir * (knee - hip).dot(dir)
-	if bend.length_squared() < 1e-8:
-		return Vector3.ZERO
-	bend = bend.normalized()
-	var cos_a: float = clampf((upper * upper + d * d - lower * lower) / (2.0 * upper * d), -1.0, 1.0)
-	var new_knee: Vector3 = hip + dir * upper * cos_a + bend * upper * sqrt(1.0 - cos_a * cos_a)
-	var new_ankle: Vector3 = hip + dir * d
-	var turn_thigh := Quaternion((knee - hip).normalized(), (new_knee - hip).normalized())
-	hip_pose.basis = Basis(turn_thigh) * hip_pose.basis
-	skeleton.set_bone_global_pose(t, hip_pose)
-	var old_shin: Vector3 = Basis(turn_thigh) * (ankle - knee)
-	var turn_shin := Quaternion(old_shin.normalized(), (new_ankle - new_knee).normalized())
-	knee_pose.basis = Basis(turn_shin) * Basis(turn_thigh) * knee_pose.basis
-	knee_pose.origin = new_knee
-	skeleton.set_bone_global_pose(c, knee_pose)
-	foot_pose.origin = new_ankle
-	skeleton.set_bone_global_pose(f, foot_pose)
-	return new_ankle - ankle
+	return LegTwoBoneIK.reach(skeleton, _bone(skeleton, THIGHS[side]), _bone(skeleton, CALVES[side]), _bone(skeleton, FEET[side]), offset)
 
 
 ## Lift that lets the clip's swinging boot pass over the snow under it.
