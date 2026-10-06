@@ -34,6 +34,11 @@ const FOCUS_OUT_RATE: float = 2.4
 const FOCUS_NEAR_DISTANCE: float = 0.88
 const FOCUS_FAR_DISTANCE: float = 2.15
 
+## Lab-only visual acquisition gate. The shipping selector may hit an oversized
+## legacy pickup Area before the visible ring is actually on the object. For this
+## proof, a small item becomes focusable only when its focus point is inside the
+## centre Enso ring. This is staging behaviour only, not a production change.
+const SMALL_ITEM_ACQUIRE_RADIUS_PX: float = 18.0
 ## Lab-only intent hysteresis. Acquisition is still the shipping centre-ray query.
 ## Once acquired, the item follows the player's control look. The proof now keeps
 ## the crosshair physically on the item as the close-in changes the camera origin.
@@ -254,6 +259,14 @@ func _stabilize_small_item_focus() -> void:
 	var raw_target := interact.call(&"_find_crosshair_target") as InteractiveArea
 	var raw_item := raw_target as ItemPickup
 
+	## The production fallback Area can be larger than the visible item. Do not let
+	## that invisible volume trigger focus before the centre ring visually reaches
+	## the item's focus point. Non-item interactions are left untouched.
+	if is_instance_valid(raw_item) and items.has(raw_item):
+		if get_item_crosshair_error_px(raw_item.item_id) > SMALL_ITEM_ACQUIRE_RADIUS_PX:
+			raw_target = null
+			raw_item = null
+
 	## A selected small item is owned by the player's control intent. The capture
 	## additionally steers the centre ray back onto the visible focus point every
 	## frame, so this leash only absorbs hand-like micro motion.
@@ -285,8 +298,8 @@ func _stabilize_small_item_focus() -> void:
 			raw_target = null
 			raw_item = null
 
-	## Acquisition remains the real production crosshair result. The lab adds no
-	## proximity or cone target of its own.
+	## Acquisition remains the real production crosshair result plus the visual
+	## ring-contact gate above. The lab adds no proximity or cone target of its own.
 	if (
 		is_instance_valid(raw_item)
 		and items.has(raw_item)
