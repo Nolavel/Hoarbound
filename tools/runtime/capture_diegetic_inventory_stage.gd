@@ -15,7 +15,7 @@ extends SceneTree
 ## bounded post-F stance adjustment.
 
 const SCENE: PackedScene = preload("res://tests/diegetic_inventory/diegetic_inventory_stage.tscn")
-const LAB_SCRIPT: Script = preload("res://scripts/experimental/diegetic_inventory/table_interaction_solver_lab.gd")
+const LAB_SCRIPT: Script = preload("res://scripts/experimental/diegetic_inventory/table_interaction_contact_truth_lab.gd")
 ## Keep the established output path so the existing workflow can encode/upload it.
 const OUT_DIR: String = "res://docs/runtime_previews/diegetic_inventory_stage"
 const FRAME_DIR: String = OUT_DIR + "/frames"
@@ -233,7 +233,7 @@ func _write_report() -> Dictionary:
 		"near_start_root_z_m": NEAR_FOCUSABLE_ROOT_Z_M,
 		"failed_flush_stance_root_z_m": 0.70,
 		"failed_flush_stance_reason": "no centre-ray yaw solution with fixed 0.85 m shoulder; lateral recompose remains disabled",
-		"commit_pipeline": "exact focus -> F -> solve stance -> small authored settle -> pickup animation -> TwoBoneIK contact correction",
+		"commit_pipeline": "exact focus -> F -> solve stance -> small authored settle -> pickup animation -> TwoBoneIK contact correction -> verified world visual handoff",
 		"near_prompt_seen": _near_prompt_seen,
 		"far_prompt_seen": _far_prompt_seen,
 		"near": near,
@@ -270,13 +270,17 @@ func _validate(report: Dictionary) -> PackedStringArray:
 	if not _near_prompt_seen or not _near_pressed:
 		failures.append("near_F_never_became_valid")
 	if not bool(near.get("contact", false)):
-		failures.append("near_pickup_no_contact")
+		failures.append("near_pickup_no_verified_contact")
+	if not bool(near.get("world_visual_transferred", false)):
+		failures.append("near_world_visual_was_not_transferred")
 	if absf(float(near.get("settle_delta_z_m", 0.0))) < MIN_VISIBLE_NEAR_SETTLE_M:
 		failures.append("near_case_did_not_visibly_settle")
 	if not _far_prompt_seen or not _far_pressed:
 		failures.append("far_F_never_became_valid")
 	if not bool(far.get("contact", false)):
-		failures.append("far_pickup_no_contact")
+		failures.append("far_pickup_no_verified_contact")
+	if not bool(far.get("world_visual_transferred", false)):
+		failures.append("far_world_visual_was_not_transferred")
 	if float(far.get("item_depth_m", 0.0)) < 0.28:
 		failures.append("far_item_was_not_actually_far_edge")
 	if _out_focus_frames < 20:
