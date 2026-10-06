@@ -38,7 +38,8 @@ func _run() -> void:
 			"dataset": dataset,
 			"position_scale": float(fields[7]) if fields.size() > 7 else CMUBVHSource.DEFAULT_POSITION_SCALE,
 			"detect_rest_frame": rest_mode == "auto_include",
-			"include_first_frame": rest_mode == "auto_include",
+			"include_first_frame": rest_mode.ends_with("_include"),
+			"zero_rotation_rest": rest_mode == "zero_rotation_include",
 			"use_global_pose": String(fields[9]) == "global" if fields.size() > 9 else false,
 		}
 		var analyzed := segmenter.analyze_file(

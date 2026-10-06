@@ -196,7 +196,8 @@ func _load_source_defs() -> Array[Dictionary]:
 				"dataset": dataset,
 				"position_scale": position_scale,
 				"detect_rest_frame": rest_mode == "auto_include",
-				"include_first_frame": rest_mode == "auto_include",
+				"include_first_frame": rest_mode.ends_with("_include"),
+				"zero_rotation_rest": rest_mode == "zero_rotation_include",
 				"use_global_pose": retarget_mode == "global",
 			},
 		})

@@ -45,7 +45,8 @@ func analyze_file(
 	if not source.configure_import(
 		float(import_options.get("position_scale", CMUBVHSource.DEFAULT_POSITION_SCALE)),
 		bool(import_options.get("detect_rest_frame", false)),
-		bool(import_options.get("include_first_frame", false))
+		bool(import_options.get("include_first_frame", false)),
+		bool(import_options.get("zero_rotation_rest", false))
 	):
 		source.free()
 		return {"ok": false, "error": "failed to configure BVH source", "source": source_id}

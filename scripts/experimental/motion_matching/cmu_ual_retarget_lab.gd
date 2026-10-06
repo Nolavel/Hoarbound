@@ -59,6 +59,7 @@ var _source_dataset := "CMU"
 var _source_position_scale := CMUBVHSource.DEFAULT_POSITION_SCALE
 var _source_detect_rest_frame := false
 var _source_include_first_frame := false
+var _source_zero_rotation_rest := false
 var _source_use_global_pose := false
 
 var _source: CMUBVHSource
@@ -98,6 +99,7 @@ func configure_source(
 	_source_position_scale = float(import_options.get("position_scale", _source_position_scale))
 	_source_detect_rest_frame = bool(import_options.get("detect_rest_frame", _source_detect_rest_frame))
 	_source_include_first_frame = bool(import_options.get("include_first_frame", _source_include_first_frame))
+	_source_zero_rotation_rest = bool(import_options.get("zero_rotation_rest", _source_zero_rotation_rest))
 	_source_use_global_pose = bool(import_options.get("use_global_pose", _source_use_global_pose))
 	return true
 
@@ -129,7 +131,8 @@ func _setup() -> void:
 	if not _source.configure_import(
 		_source_position_scale,
 		_source_detect_rest_frame,
-		_source_include_first_frame
+		_source_include_first_frame,
+		_source_zero_rotation_rest
 	):
 		_fail("failed to configure BVH source import")
 		return

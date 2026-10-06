@@ -114,7 +114,7 @@ for entry in "${STYLE_SOURCES[@]}"; do
 	fi
 	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
 		"$clip" "Neutral" "$role" "$description" "$sha256" "$source_url" \
-		"100STYLE" "0.01" "auto_include" "global" >> "$MANIFEST"
+		"100STYLE" "0.01" "zero_rotation_include" "local" >> "$MANIFEST"
 	echo "[100style] staged $filename sha256=$sha256"
 done
 

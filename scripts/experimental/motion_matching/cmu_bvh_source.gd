@@ -2,11 +2,11 @@ class_name CMUBVHSource
 extends Skeleton3D
 
 ## Minimal BVH source player for the Motion Matching lab.
-## CMU's conversion supplies a synthetic T-pose at frame 0; other datasets can
-## ask the importer to locate their lowest-rotation rest frame and retain frame
-## 0 as motion. Horizontal root translation is removed from playback so Henry's
-## CharacterBody remains authoritative; the raw root trajectory remains
-## available for the MotionDatabase baker.
+## CMU's conversion supplies a synthetic T-pose at frame 0; datasets whose BVH
+## offsets already define the bind pose can use an identity-rotation rest and
+## retain frame 0 as motion. Horizontal root translation is removed from
+## playback so Henry's CharacterBody remains authoritative; the raw root
+## trajectory remains available for the MotionDatabase baker.
 
 const DEFAULT_POSITION_SCALE := 0.0254 # CMU/ASF lengths are inches -> Godot meters.
 
@@ -34,14 +34,21 @@ var _token_index: int = 0
 var _first_motion_root_local := Vector3.ZERO
 var _detect_rest_frame := false
 var _include_first_frame_in_motion := false
+var _use_zero_rotation_rest := false
 
 
-func configure_import(scale_to_meters: float, detect_rest_frame: bool, include_first_frame_in_motion: bool) -> bool:
+func configure_import(
+		scale_to_meters: float,
+		detect_rest_frame: bool,
+		include_first_frame_in_motion: bool,
+		use_zero_rotation_rest: bool = false
+	) -> bool:
 	if setup_ok or frame_count > 0:
 		return false
 	position_scale = maxf(scale_to_meters, 0.000001)
 	_detect_rest_frame = detect_rest_frame
 	_include_first_frame_in_motion = include_first_frame_in_motion
+	_use_zero_rotation_rest = use_zero_rotation_rest
 	return true
 
 
@@ -65,10 +72,14 @@ func load_bvh(path: String) -> bool:
 	if frame_count < 2:
 		return _fail("BVH needs synthetic rest frame + at least one motion frame")
 
-	rest_frame_index = _find_rest_frame_index() if _detect_rest_frame else 0
-	auto_detected_rest = _detect_rest_frame
+	rest_frame_index = 0
+	if _use_zero_rotation_rest:
+		rest_frame_index = -1
+	elif _detect_rest_frame:
+		rest_frame_index = _find_rest_frame_index()
+	auto_detected_rest = _detect_rest_frame and not _use_zero_rotation_rest
 	motion_start_frame = 0 if _include_first_frame_in_motion else 1
-	_build_skeleton_from_tpose()
+	_build_skeleton_from_rest_pose()
 	motion_frame_count = frame_count - motion_start_frame
 	clip_length = float(maxi(0, motion_frame_count - 1)) * frame_time
 	_first_motion_root_local = _frame_local_transform(motion_start_frame, 0).origin
@@ -118,6 +129,7 @@ func get_report() -> Dictionary:
 		"position_scale_to_meters": position_scale,
 		"rest_frame_index": rest_frame_index,
 		"rest_frame_auto_detected": auto_detected_rest,
+		"rest_pose_mode": "zero_rotation_offsets" if _use_zero_rotation_rest else "motion_frame",
 		"motion_start_frame": motion_start_frame,
 	}
 
@@ -250,13 +262,16 @@ func _parse_motion(motion_text: String) -> bool:
 	return true
 
 
-func _build_skeleton_from_tpose() -> void:
+func _build_skeleton_from_rest_pose() -> void:
 	for bone_index in range(_bone_names.size()):
 		add_bone(_bone_names[bone_index])
 	for bone_index in range(_bone_names.size()):
 		set_bone_parent(bone_index, _parents[bone_index])
 	for bone_index in range(_bone_names.size()):
-		set_bone_rest(bone_index, _frame_local_transform(rest_frame_index, bone_index))
+		var rest := Transform3D(Basis.IDENTITY, _offsets[bone_index])
+		if not _use_zero_rotation_rest:
+			rest = _frame_local_transform(rest_frame_index, bone_index)
+		set_bone_rest(bone_index, rest)
 	reset_bone_poses()
 
 
