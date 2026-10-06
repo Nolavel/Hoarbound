@@ -23,6 +23,14 @@ const FAR_END_S: float = 7.7
 const NEAR_COLLISION_LIMIT_Z_M: float = 0.70
 const MIN_VISIBLE_NEAR_SETTLE_M: float = 0.075
 
+## The capture represents a player moving the mouse toward the item. Because the
+## physical TPS camera origin changes as collision/boom settles, solve the newly
+## measured look with a damped proportional correction rather than hard-snapping
+## to last frame's answer. Once F commits, this automation stops completely.
+const AIM_GAIN: float = 0.42
+const AIM_MAX_YAW_STEP_DEG: float = 4.0
+const AIM_MAX_PITCH_STEP_DEG: float = 4.0
+
 var _stage: DiegeticInventoryStage
 var _lab: TableInteractionSolverLab
 var _near_pressed := false
@@ -35,6 +43,8 @@ var _saved: Dictionary = {}
 var _press_position: Dictionary = {}
 var _settled_position: Dictionary = {}
 var _last_state: int = -1
+var _aim_yaw_offset_deg: float = 0.0
+var _aim_pitch_deg: float = -22.0
 
 
 func _initialize() -> void:
@@ -64,12 +74,14 @@ func _run() -> void:
 	_lab.setup(_stage)
 	_lab.prepare_case(&"NEAR_TOO_CLOSE")
 	_set_collision_valid_near_pose()
+	_reset_aim_controller()
 	_last_state = _lab.state
 
 	for frame: int in range(FRAME_COUNT):
 		var t := float(frame) / float(FPS)
 		_drive(t)
-		_lab.aim_at_item()
+		if _lab.state == TableInteractionSolverLab.State.IDLE:
+			_steer_crosshair_to_item()
 		await process_frame
 		_record_state(t)
 		var image := root.get_texture().get_image()
@@ -97,6 +109,20 @@ func _set_collision_valid_near_pose() -> void:
 		_stage.camera.call(&"snap_to_target")
 
 
+func _reset_aim_controller() -> void:
+	_aim_yaw_offset_deg = 0.0
+	_aim_pitch_deg = -22.0
+
+
+func _steer_crosshair_to_item() -> void:
+	var desired: Vector2 = _stage.get_demo_look_for_item(&"tinned_stew")
+	var yaw_error := desired.x - _aim_yaw_offset_deg
+	var pitch_error := desired.y - _aim_pitch_deg
+	_aim_yaw_offset_deg += clampf(yaw_error * AIM_GAIN, -AIM_MAX_YAW_STEP_DEG, AIM_MAX_YAW_STEP_DEG)
+	_aim_pitch_deg += clampf(pitch_error * AIM_GAIN, -AIM_MAX_PITCH_STEP_DEG, AIM_MAX_PITCH_STEP_DEG)
+	_stage.set_demo_look(_aim_yaw_offset_deg, _aim_pitch_deg)
+
+
 func _drive(t: float) -> void:
 	if t < NEAR_END_S:
 		if not _near_pressed and t >= 0.85 and _lab.prompt_visible:
@@ -107,6 +133,7 @@ func _drive(t: float) -> void:
 	if t < FAR_END_S:
 		if _lab.current_case != &"FAR_EDGE":
 			_lab.prepare_case(&"FAR_EDGE")
+			_reset_aim_controller()
 			_last_state = _lab.state
 		if not _far_pressed and t >= NEAR_END_S + 0.85 and _lab.prompt_visible:
 			_press_position["FAR_EDGE"] = _stage.player.global_position
@@ -115,6 +142,7 @@ func _drive(t: float) -> void:
 
 	if _lab.current_case != &"OUT_OF_REACH":
 		_lab.prepare_case(&"OUT_OF_REACH")
+		_reset_aim_controller()
 		_last_state = _lab.state
 
 
@@ -134,10 +162,12 @@ func _record_state(t: float) -> void:
 	_last_state = _lab.state
 
 	if int(round(t * float(FPS))) % 15 == 0:
-		print("[interaction-settle] t=%.2f case=%s stable=%s crosshair=%.2f prompt=%s state=%s pos=%s solution=%s rejection=%s" % [
+		var desired := _stage.get_demo_look_for_item(&"tinned_stew")
+		print("[interaction-settle] t=%.2f case=%s stable=%s crosshair=%.2f prompt=%s state=%s pos=%s view_pitch=%.2f desired=(%.2f,%.2f) cmd=(%.2f,%.2f) solution=%s rejection=%s" % [
 			t, String(_lab.current_case), String(_stage.get_stable_interact_target_id()),
 			_stage.get_item_crosshair_error_px(&"tinned_stew"), _lab.prompt_visible,
 			TableInteractionSolverLab.State.keys()[_lab.state], _stage.player.global_position,
+			_stage.camera.get_view_pitch_deg(), desired.x, desired.y, _aim_yaw_offset_deg, _aim_pitch_deg,
 			JSON.stringify(_lab.solution), JSON.stringify(_lab.rejection)
 		])
 
@@ -187,6 +217,7 @@ func _write_report() -> Dictionary:
 		"production_camera_changed": false,
 		"production_interact_component_changed": false,
 		"focus_moves_body": false,
+		"aim_automation_after_F": false,
 		"near_start_is_collision_valid": true,
 		"near_start_root_z_m": NEAR_COLLISION_LIMIT_Z_M,
 		"commit_pipeline": "focus -> F -> solve stance -> small settle -> authored pickup -> TwoBoneIK contact correction",
