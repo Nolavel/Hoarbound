@@ -17,6 +17,8 @@ SOURCES=(
 	"069|69_34|walk_b_pool|Walk backwards and turn; extract authored backward windows"
 	"069|69_42|walk_lateral_a_pool|Walk sideways and turn; determine signed side from root trajectory"
 	"069|69_48|walk_lateral_b_pool|Opposite sideways capture; determine signed side from root trajectory"
+	"069|69_50|lateral_back_pool|Walk sideways and backwards; proof-set mixed lateral/back coverage"
+	"069|69_56|lateral_opposite_pool|Walk sideways and turn opposite direction; proof-set opposite lateral coverage"
 	"040|40_02|diagonal_pool|Navigate forward/backward/on a diagonal"
 	"040|40_03|diagonal_pool|Navigate forward/backward/on a diagonal"
 	"040|40_04|diagonal_pool|Navigate forward/backward/on a diagonal"
