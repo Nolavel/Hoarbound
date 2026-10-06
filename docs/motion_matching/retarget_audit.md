@@ -55,14 +55,21 @@ Gaze is task-contaminated in the "navigate" captures: head forward tilt
 (Head → End Site against the heading frame) is 50–88° for subject 41
 (41_02, 41_05), 24–42° for subject 40, 5–33° for subject 09 and 6–10° for the
 standing subject 111. The subjects watched floor marks; this is source truth,
-not a retarget error, and is reproduced faithfully on Henry. Whether a gaze
-layer should own neck/head is an open design decision.
+not a retarget error, and is reproduced faithfully on Henry. Author decision:
+the production head-look layer owns `neck_01`/`Head` at playback; the baked
+data keeps the source gaze.
 
 Rest deltas against UAL (model space, degrees): thigh 1.1, calf 4.7,
 upper arm / forearm 8.0 (aligned by the profile); foot ankle→ball pitch differs
 by joint placement only and is calibrated flat-to-flat from stance data.
 
 ### 100STYLE (Ian Mason, CC BY 4.0) — NOT VERIFIED
+
+CI run 37431589341 (diagnostics only, never baked) measured on the real files:
+mapping matches, reference forward agreement 1.000, zero-rotation pose is a
+T-pose (upper arm 1.0°, thigh 0.4°, calf 4.7° from UAL), scale 0.954.
+`Neutral_SW` passes the audit (ground median −0.5 cm); `Neutral_TR1` has 12
+`not_upright` samples (torso > 35° from vertical) still to be inspected.
 
 The profile in code (`style100_bvh`) records the *assumed* conventions:
 centimetres, zero-rotation offsets as reference, frame 0 is motion, joint names

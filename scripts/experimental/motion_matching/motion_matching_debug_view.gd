@@ -82,7 +82,7 @@ func _hud_text(database: MotionDatabase, snapshot: Dictionary) -> String:
 		lines.append("BEST     %s @ %.2fs  #%d  [%s]" % [best["clip"], float(best["time"]), int(best["sample_index"]), best["role"]])
 		lines.append("         cost %.2f = pose %.2f  vel %.2f  traj %.2f  face %.2f  contact %.2f" % [float(best["total_cost"]), float(best["pose_cost"]), float(best["velocity_cost"]), float(best["trajectory_cost"]), float(best["facing_cost"]), float(best["contact_cost"])])
 	lines.append("DECISION %s   contacts L%d R%d" % [snapshot["decision"], int(snapshot["contacts"]) & 1, (int(snapshot["contacts"]) >> 1) & 1])
-	lines.append("green: simulation path+facing  blue: current frame  yellow: best frame  orange: animated facing  [role] = metadata only")
+	lines.append("green: simulation path+facing  blue: current frame  yellow: best frame  orange: animated facing  [role] = metadata only  neck/head: gaze layer")
 	return "\n".join(lines)
 
 

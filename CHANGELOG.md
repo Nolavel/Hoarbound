@@ -30,6 +30,8 @@ Maintained per branch; entries are added by whoever makes the change.
   `claudeflow`. Production locomotion is untouched.
 - Follow-up: live/baked foot-contact features, UE-style pose reselect history
   against tail ping-pong, and audit-failing frames cut out of baked ranges.
+- Author decision: `neck_01`/`Head` are left to the production head-look
+  layer at playback; baked data keeps the source gaze.
 
 ### 2026-10-04 - Remove duplicate high-tier footprint decals
 

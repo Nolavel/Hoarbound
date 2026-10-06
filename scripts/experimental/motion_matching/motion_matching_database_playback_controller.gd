@@ -21,6 +21,9 @@ const ADJUST_MAX_RATIO := 0.5
 const CLAMP_MAX_DISTANCE := 0.15
 const CLAMP_MAX_ANGLE := PI * 0.5
 const LN2 := 0.69314718056
+## Bones left to the production head-look layer (author decision, #202): the
+## database keeps the source gaze, presentation does not apply it.
+const GAZE_LAYER_BONES := ["neck_01", "Head"]
 
 var _database: MotionDatabase
 var _skeleton: Skeleton3D
@@ -33,6 +36,7 @@ var _ground_offset := 1.0
 var _clamp_events := 0
 var _pelvis_bone := -1
 var _pose_targets := PackedInt32Array()
+var _gaze_rest: Dictionary = {}
 var _builder := MotionRuntimeQueryBuilder.new()
 var _matcher := MotionMatcher.new()
 var _debug: MotionMatchingDebugView
@@ -89,6 +93,11 @@ func setup(database: MotionDatabase, skeleton: Skeleton3D, body: CharacterBody3D
 			return false
 		_pose_targets[pose_index] = bone
 	_pelvis_bone = skeleton.find_bone("pelvis")
+	for bone_name in GAZE_LAYER_BONES:
+		var pose_index := database.pose_bone_names.find(bone_name)
+		var bone := skeleton.find_bone(bone_name)
+		if pose_index >= 0 and bone >= 0:
+			_gaze_rest[pose_index] = skeleton.get_bone_rest(bone).basis.get_rotation_quaternion()
 	_current = {"sample": clampi(initial_sample, 0, database.get_sample_count() - 1), "phase": 0.0}
 	_entry_sample = _current["sample"]
 	_apply_pose()
@@ -203,6 +212,7 @@ func get_report() -> Dictionary:
 		"switch_min_ratio": SWITCH_MIN_RATIO,
 		"pose_jump_threshold_s": POSE_JUMP_THRESHOLD_SECONDS,
 		"pose_reselect_history_s": POSE_RESELECT_HISTORY_SECONDS,
+		"gaze_layer_bones": GAZE_LAYER_BONES,
 		"end_margin_samples": _matcher.end_margin_samples,
 		"feature_groups": _matcher.get_group_report(),
 		"evaluations": _evaluations,
@@ -355,6 +365,9 @@ func _apply_pose() -> void:
 	var alpha := _smooth(get_blend_alpha())
 	var blending := alpha < 1.0
 	for pose_index in range(_pose_targets.size()):
+		if _gaze_rest.has(pose_index):
+			_skeleton.set_bone_pose_rotation(_pose_targets[pose_index], _gaze_rest[pose_index])
+			continue
 		var rotation := _slot_rotation(_current, pose_index)
 		if blending:
 			rotation = _slot_rotation(_previous, pose_index).slerp(rotation, alpha)

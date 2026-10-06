@@ -43,12 +43,12 @@ controllers. In the game the body already moves; the controller would read
    (GDScript brute force here: ~7 ms per search over 9.2 k samples, one
    search per 0.1 s).
 
-## Open decision for the author
+## Gaze ownership (author decision, 2026-10-06)
 
-Neck/head: subjects 40/41 look at the floor (see retarget_audit.md). Options:
-keep source gaze; let the production head-look layer own `neck_01`/`Head`
-(data stays untouched, presentation layers over it); or prefer captures with
-natural gaze in curation.
+Neck and head belong to the production head-look layer
+(`HenryUALAnimation` `LookAtModifier3D`). Motion Matching writes `neck_01` and
+`Head` at UAL rest; the database keeps the source gaze untouched. Reason: CMU
+subjects 40/41 look at the floor in the navigate captures (retarget_audit.md).
 
 ## Not yet covered
 
