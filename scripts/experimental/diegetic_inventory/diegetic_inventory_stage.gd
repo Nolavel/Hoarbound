@@ -34,11 +34,16 @@ const FOCUS_OUT_RATE: float = 2.4
 const FOCUS_NEAR_DISTANCE: float = 0.88
 const FOCUS_FAR_DISTANCE: float = 2.15
 
-## Lab-only two-zone hysteresis. Acquisition is still the shipping centre-ray
-## query. Once acquired, a tiny pickup may wander this many pixels from the
-## visible ring before selection is released. This absorbs camera-composition
-## parallax and hand-sized mouse jitter without making a real look-away sticky.
-const SMALL_ITEM_RETENTION_RADIUS_PX: float = 96.0
+## Lab-only intent hysteresis. Acquisition is still the shipping centre-ray query.
+## Once acquired, the item follows the player's *control look*, not the final
+## camera projection. This prevents the framing camera's own physical movement
+## from cancelling the target it just framed.
+const SMALL_ITEM_RETENTION_YAW_DEG: float = 3.5
+const SMALL_ITEM_RETENTION_PITCH_DEG: float = 3.0
+## After a decisive look-away, the same legacy pickup Area cannot immediately
+## reacquire through its oversized fallback volume. Looking back unlocks it.
+const SMALL_ITEM_REACQUIRE_YAW_DEG: float = 4.0
+const SMALL_ITEM_REACQUIRE_PITCH_DEG: float = 3.5
 
 ## The clean staging capture keeps the production HUD disabled, but the centre
 ## targeting ring remains because the whole experiment is about visual aim.
@@ -63,6 +68,11 @@ var _candidate_time: float = 0.0
 var _release_hold: float = 0.0
 var _interaction_framing: TpsInteractionFraming
 var _stable_interact_target: ItemPickup
+var _stable_control_yaw: float = 0.0
+var _stable_control_pitch: float = 0.0
+var _released_item: ItemPickup
+var _released_control_yaw: float = 0.0
+var _released_control_pitch: float = 0.0
 var _stage_crosshair: TextureRect
 
 
@@ -168,29 +178,51 @@ func _stabilize_small_item_focus() -> void:
 		_clear_stable_interact_target()
 		return
 
-	## Important: query the shipping selector directly. Do not read
-	## interact.current_target here because this lab may have restored that value
-	## on the previous render frame; reading it back would self-renew the hold.
+	## Query the shipping selector directly. Never read back a value this lab may
+	## have restored on the previous render frame; that would self-renew focus.
 	var raw_target := interact.call(&"_find_crosshair_target") as InteractiveArea
 	var raw_item := raw_target as ItemPickup
 
-	## Outer zone: once a small item owns focus, keep it while its visible centre
-	## remains near the ring. A neighbouring raw hit cannot steal selection during
-	## tiny mouse motion; the old item has to leave the retention zone first.
+	## A selected small item is owned by the player's control intent. Physical
+	## shoulder/boom movement cannot cancel it. Only a meaningful look delta does.
 	if is_instance_valid(_stable_interact_target):
-		if _can_retain_small_item(_stable_interact_target):
+		if (
+			_flat_distance_to(_stable_interact_target) <= FOCUS_DISTANCE_M
+			and _control_look_within(
+				_stable_control_yaw,
+				_stable_control_pitch,
+				SMALL_ITEM_RETENTION_YAW_DEG,
+				SMALL_ITEM_RETENTION_PITCH_DEG
+			)
+		):
 			_apply_stable_target(interact)
 			return
-		_clear_stable_interact_target(interact)
+		_release_stable_target(interact)
 
-	## Inner zone: acquisition still requires the real production centre-ray
-	## result. The lab does not proximity-select arbitrary items.
+	## A released legacy pickup may have an oversized Area fallback. Do not allow
+	## that same object to snap back on while the player is plainly looking away.
+	if is_instance_valid(_released_item):
+		if _control_look_within(
+			_released_control_yaw,
+			_released_control_pitch,
+			SMALL_ITEM_REACQUIRE_YAW_DEG,
+			SMALL_ITEM_REACQUIRE_PITCH_DEG
+		):
+			_released_item = null
+		elif raw_item == _released_item:
+			raw_target = null
+			raw_item = null
+
+	## Acquisition remains the real production crosshair result. The lab adds no
+	## proximity or cone target of its own.
 	if (
 		is_instance_valid(raw_item)
 		and items.has(raw_item)
 		and _flat_distance_to(raw_item) <= FOCUS_DISTANCE_M
 	):
 		_stable_interact_target = raw_item
+		_stable_control_yaw = camera.get_yaw()
+		_stable_control_pitch = camera.get_view_pitch_deg()
 		_apply_stable_target(interact)
 		return
 
@@ -211,27 +243,19 @@ func _apply_stable_target(interact: InteractComponent) -> void:
 	_stable_interact_target.set_target_state(true, in_prompt)
 
 
-func _can_retain_small_item(item: ItemPickup) -> bool:
-	if not is_instance_valid(item) or item.is_queued_for_deletion() or not item.can_interact():
-		return false
-	if not items.has(item) or _flat_distance_to(item) > FOCUS_DISTANCE_M:
-		return false
-	var point: Vector3 = _item_focus_point(item)
-	if camera.is_position_behind(point):
-		return false
-	var screen_point: Vector2 = camera.unproject_position(point)
-	var viewport_size: Vector2 = camera.get_viewport().get_visible_rect().size
-	var centre: Vector2 = viewport_size * 0.5
-	return screen_point.distance_to(centre) <= SMALL_ITEM_RETENTION_RADIUS_PX
+func _release_stable_target(interact: InteractComponent) -> void:
+	if not is_instance_valid(_stable_interact_target):
+		return
+	_released_item = _stable_interact_target
+	_released_control_yaw = _stable_control_yaw
+	_released_control_pitch = _stable_control_pitch
+	_clear_stable_interact_target(interact)
 
 
-func _item_focus_point(item: ItemPickup) -> Vector3:
-	if is_instance_valid(item.focus_anchor):
-		return item.focus_anchor.global_position
-	var mesh: MeshInstance3D = item.interactive_mesh
-	if is_instance_valid(mesh) and mesh.mesh != null:
-		return mesh.to_global(mesh.mesh.get_aabb().get_center())
-	return item.global_position + Vector3.UP * 0.12
+func _control_look_within(anchor_yaw: float, anchor_pitch: float, yaw_deg: float, pitch_deg: float) -> bool:
+	var yaw_delta: float = absf(rad_to_deg(wrapf(camera.get_yaw() - anchor_yaw, -PI, PI)))
+	var pitch_delta: float = absf(camera.get_view_pitch_deg() - anchor_pitch)
+	return yaw_delta <= yaw_deg and pitch_delta <= pitch_deg
 
 
 func _clear_stable_interact_target(interact: InteractComponent = null) -> void:
@@ -323,6 +347,7 @@ func _reset_focus() -> void:
 	_candidate_time = 0.0
 	_release_hold = 0.0
 	focus_weight = 0.0
+	_released_item = null
 	_clear_stable_interact_target()
 	camera.near_distance = _base_near_distance
 	camera.far_distance = _base_far_distance

@@ -125,7 +125,7 @@ func _drive_demo(t: float) -> void:
 		_set_look(lerpf(-4.0, 14.0, a), -21.0)
 		return
 
-	## 4.70-6.0 s: unmistakable look-away. Retention zone must break; only the
+	## 4.70-6.0 s: unmistakable look-away. Intent hysteresis must break; only the
 	## already-existing camera smoothing is allowed to remain.
 	var out_a: float = inverse_lerp(RELEASE_START_S, DURATION_S, t)
 	_set_look(lerpf(_locked_yaw_offset, _locked_yaw_offset + 34.0, out_a), lerpf(-21.0, -9.0, out_a))
@@ -188,7 +188,9 @@ func _write_report() -> void:
 		"locked_item_id": String(_locked_item_id),
 		"acquired_time_s": _acquired_time_s,
 		"acquired_yaw_offset_deg": _locked_yaw_offset,
-		"small_item_retention_radius_px": DiegeticInventoryStage.SMALL_ITEM_RETENTION_RADIUS_PX,
+		"small_item_retention_yaw_deg": DiegeticInventoryStage.SMALL_ITEM_RETENTION_YAW_DEG,
+		"small_item_retention_pitch_deg": DiegeticInventoryStage.SMALL_ITEM_RETENTION_PITCH_DEG,
+		"small_item_reacquire_yaw_deg": DiegeticInventoryStage.SMALL_ITEM_REACQUIRE_YAW_DEG,
 		"stable_window_frames": _stable_window_frames,
 		"stable_drop_frames": _stable_drop_frames,
 		"stable_transitions": _stable_transitions,
