@@ -4,6 +4,8 @@ extends SceneTree
 ## Issue #201 Phase 1 remains available without staged mocap. Issue #202 reuses
 ## this same workflow for direct retarget, merged multi-clip database bake and
 ## canonical-pose playback; no parallel render pipeline is created.
+## CI proof commits use both [motion-matching-preview] and [cmu-retarget-preview]
+## so import_gate.sh stages the public CMU BVH pool before this script runs.
 
 const SCENE_PATH := "res://tests/motion_matching/motion_matching_lab.tscn"
 const ROKOKO_SCENE_PATH := "res://tests/motion_matching/rokoko_ual_retarget_lab.tscn"
