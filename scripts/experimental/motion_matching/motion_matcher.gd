@@ -4,6 +4,8 @@ extends RefCounted
 ## Brute-force frame matcher for issue #202.
 ## Search quality comes first; with a few thousand samples a linear scan is
 ## intentionally preferable to adding an acceleration structure too early.
+## Optional role filtering prevents a clean stop/pivot/start segment from
+## competing with steady locomotion solely because one pose happens to be close.
 
 @export var velocity_weight: float = 0.75
 @export var pose_weight: float = 0.75
@@ -11,7 +13,11 @@ extends RefCounted
 @export var facing_weight: float = 1.25
 
 
-func find_best(database: MotionDatabase, query: PackedFloat32Array) -> Dictionary:
+func find_best(
+		database: MotionDatabase,
+		query: PackedFloat32Array,
+		allowed_roles: PackedStringArray = PackedStringArray()
+	) -> Dictionary:
 	if not _validate(database, query):
 		return {}
 
@@ -19,6 +25,8 @@ func find_best(database: MotionDatabase, query: PackedFloat32Array) -> Dictionar
 	var best_total := INF
 	var best_costs: Dictionary = {}
 	for sample_index in range(database.get_sample_count()):
+		if not allowed_roles.is_empty() and not allowed_roles.has(database.get_sample_role(sample_index)):
+			continue
 		var costs := _sample_cost(database, sample_index, query)
 		var total := float(costs["total"])
 		if total < best_total:
@@ -31,6 +39,7 @@ func find_best(database: MotionDatabase, query: PackedFloat32Array) -> Dictionar
 	return {
 		"sample_index": best_sample,
 		"clip": database.get_sample_clip_name(best_sample),
+		"role": database.get_sample_role(best_sample),
 		"time": database.get_sample_time(best_sample),
 		"velocity_cost": best_costs["velocity"],
 		"pose_cost": best_costs["pose"],
@@ -40,11 +49,7 @@ func find_best(database: MotionDatabase, query: PackedFloat32Array) -> Dictionar
 	}
 
 
-func score_sample(
-		database: MotionDatabase,
-		sample_index: int,
-		query: PackedFloat32Array
-	) -> Dictionary:
+func score_sample(database: MotionDatabase, sample_index: int, query: PackedFloat32Array) -> Dictionary:
 	if not _validate(database, query):
 		return {}
 	if sample_index < 0 or sample_index >= database.get_sample_count():
@@ -71,7 +76,6 @@ func _sample_cost(database: MotionDatabase, sample_index: int, query: PackedFloa
 	var trajectory_cost := 0.0
 	var facing_cost := 0.0
 	var start := sample_index * database.feature_count
-
 	for feature_index in range(database.feature_count):
 		var sigma := maxf(absf(database.feature_stddevs[feature_index]), 0.001)
 		var delta := (query[feature_index] - database.features[start + feature_index]) / sigma
@@ -84,21 +88,9 @@ func _sample_cost(database: MotionDatabase, sample_index: int, query: PackedFloa
 			trajectory_cost += squared
 		else:
 			facing_cost += squared
-
 	velocity_cost /= 3.0
 	pose_cost /= 18.0
 	trajectory_cost /= 6.0
 	facing_cost /= 6.0
-	var total := (
-		velocity_cost * velocity_weight
-		+ pose_cost * pose_weight
-		+ trajectory_cost * trajectory_weight
-		+ facing_cost * facing_weight
-	)
-	return {
-		"velocity": velocity_cost,
-		"pose": pose_cost,
-		"trajectory": trajectory_cost,
-		"facing": facing_cost,
-		"total": total,
-	}
+	var total := velocity_cost * velocity_weight + pose_cost * pose_weight + trajectory_cost * trajectory_weight + facing_cost * facing_weight
+	return {"velocity": velocity_cost, "pose": pose_cost, "trajectory": trajectory_cost, "facing": facing_cost, "total": total}

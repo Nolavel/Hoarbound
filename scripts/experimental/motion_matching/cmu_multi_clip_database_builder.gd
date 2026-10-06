@@ -1,172 +1,180 @@
 class_name CMUMultiClipDatabaseBuilder
 extends RefCounted
 
-## Issue #202 multi-capture bake coordinator.
-## It reuses the existing CMU->UAL lab one source at a time, merges the dense
-## post-retarget databases, then creates one final presentation lab whose Henry
-## is driven only from canonical database poses.
+## Issue #202 canonical CMU curation + merged post-retarget database bake.
+## Long raw captures are analyzed cheaply first; only clean semantic ranges are
+## sent through the expensive UAL retarget baker and runtime search database.
 
 const SOURCE_ROOT := "res://tests/motion_matching/_runtime_cmu/"
+const CACHE_DIR := "res://tests/motion_matching/_runtime_cache"
+const CACHE_PATH := CACHE_DIR + "/canonical_motion_database.res"
+const CACHE_SIGNATURE_PATH := CACHE_DIR + "/canonical_motion_database.signature"
+const SOURCE_MANIFEST_PATH := SOURCE_ROOT + "source_manifest.tsv"
+const CURATION_VERSION := "cmu-semantic-v3"
 
-# First real multi-clip proof set. The wider staged pool remains available for
-# the segmentation pass, but this set stays bounded enough for one CI run.
-# Every proof source below must also be present in prepare_cmu_sample.sh.
-const PROOF_SOURCES: Array[Dictionary] = [
-	{
-		"file": "111_28.bvh", "clip": "CMU_111_28", "role": "idle_neutral",
-		"trial": "CMU Subject 111 / 111_28", "description": "standing still",
-		"start": 0.20, "end": 2.70,
-	},
-	{
-		"file": "69_01.bvh", "clip": "CMU_69_01", "role": "walk_f",
-		"trial": "CMU Subject 69 / 69_01", "description": "walk forward",
-		"start": 0.20, "end": -1.0,
-	},
-	{
-		"file": "69_50.bvh", "clip": "CMU_69_50", "role": "lateral_back_pool",
-		"trial": "CMU Subject 69 / 69_50", "description": "walk sideways and backwards",
-		"start": 0.20, "end": -1.0,
-	},
-	{
-		"file": "69_56.bvh", "clip": "CMU_69_56", "role": "lateral_opposite_pool",
-		"trial": "CMU Subject 69 / 69_56", "description": "walk sideways and turn opposite direction",
-		"start": 0.20, "end": -1.0,
-	},
-	{
-		"file": "16_33.bvh", "clip": "CMU_16_33", "role": "stop_f",
-		"trial": "CMU Subject 16 / 16_33", "description": "slow walk, stop",
-		"start": 0.20, "end": -1.0,
-	},
-	{
-		"file": "69_16.bvh", "clip": "CMU_69_16", "role": "pivot_pool_a",
-		"trial": "CMU Subject 69 / 69_16", "description": "turn in place",
-		"start": 0.20, "end": -1.0,
-	},
-	{
-		"file": "69_18.bvh", "clip": "CMU_69_18", "role": "pivot_pool_b",
-		"trial": "CMU Subject 69 / 69_18", "description": "opposite turn in place",
-		"start": 0.20, "end": -1.0,
-	},
-	{
-		"file": "69_20.bvh", "clip": "CMU_69_20", "role": "turn_90_pool_a",
-		"trial": "CMU Subject 69 / 69_20", "description": "walk forward, 90-degree turn",
-		"start": 0.20, "end": -1.0,
-	},
-	{
-		"file": "69_24.bvh", "clip": "CMU_69_24", "role": "turn_90_pool_b",
-		"trial": "CMU Subject 69 / 69_24", "description": "walk forward, opposite 90-degree turn",
-		"start": 0.20, "end": -1.0,
-	},
-	{
-		"file": "41_02.bvh", "clip": "CMU_41_02", "role": "multidirectional_reference",
-		"trial": "CMU Subject 41 / 41_02", "description": "forward/backward/sideways/diagonal navigation",
-		"start": 0.20, "end": -1.0,
-	},
+const SOURCE_DEFS: Array[Dictionary] = [
+	{"file":"111_28.bvh","clip":"CMU_111_28","trial":"CMU Subject 111 / 111_28","description":"standing still"},
+	{"file":"69_01.bvh","clip":"CMU_69_01","trial":"CMU Subject 69 / 69_01","description":"walk forward"},
+	{"file":"69_34.bvh","clip":"CMU_69_34","trial":"CMU Subject 69 / 69_34","description":"walk backwards and turn"},
+	{"file":"69_42.bvh","clip":"CMU_69_42","trial":"CMU Subject 69 / 69_42","description":"walk sideways and turn"},
+	{"file":"69_48.bvh","clip":"CMU_69_48","trial":"CMU Subject 69 / 69_48","description":"opposite sideways capture"},
+	{"file":"69_50.bvh","clip":"CMU_69_50","trial":"CMU Subject 69 / 69_50","description":"walk sideways and backwards"},
+	{"file":"69_56.bvh","clip":"CMU_69_56","trial":"CMU Subject 69 / 69_56","description":"walk sideways and turn opposite"},
+	{"file":"40_02.bvh","clip":"CMU_40_02","trial":"CMU Subject 40 / 40_02","description":"navigate diagonal"},
+	{"file":"40_03.bvh","clip":"CMU_40_03","trial":"CMU Subject 40 / 40_03","description":"navigate diagonal"},
+	{"file":"40_04.bvh","clip":"CMU_40_04","trial":"CMU Subject 40 / 40_04","description":"navigate diagonal"},
+	{"file":"40_05.bvh","clip":"CMU_40_05","trial":"CMU Subject 40 / 40_05","description":"navigate diagonal"},
+	{"file":"16_33.bvh","clip":"CMU_16_33","trial":"CMU Subject 16 / 16_33","description":"slow walk, stop"},
+	{"file":"69_16.bvh","clip":"CMU_69_16","trial":"CMU Subject 69 / 69_16","description":"turn in place"},
+	{"file":"69_18.bvh","clip":"CMU_69_18","trial":"CMU Subject 69 / 69_18","description":"opposite turn in place"},
+	{"file":"69_20.bvh","clip":"CMU_69_20","trial":"CMU Subject 69 / 69_20","description":"walk forward, 90-degree turn"},
+	{"file":"69_24.bvh","clip":"CMU_69_24","trial":"CMU Subject 69 / 69_24","description":"walk forward, opposite 90-degree turn"},
+	{"file":"41_02.bvh","clip":"CMU_41_02","trial":"CMU Subject 41 / 41_02","description":"multidirectional navigation"},
 ]
 
 
-func build(
-		lab_scene: PackedScene,
-		parent: Node,
-		sample_rate_hz: float = 30.0
-	) -> Dictionary:
+func build(lab_scene: PackedScene, parent: Node, sample_rate_hz: float = 30.0) -> Dictionary:
 	if lab_scene == null or parent == null:
 		return {"ok": false, "error": "invalid scene/parent"}
-
 	var tree := parent.get_tree()
 	if tree == null:
 		return {"ok": false, "error": "SceneTree unavailable"}
 
-	var master := MotionDatabase.new()
-	var source_reports: Array[Dictionary] = []
+	var signature := _build_signature()
+	var cached := _load_cache(signature)
+	if cached != null:
+		var cached_lab := await _create_presentation_lab(lab_scene, parent, tree)
+		if cached_lab == null:
+			return {"ok": false, "error": "cached database loaded but presentation lab failed"}
+		print("[MM_CACHE_HIT] %d samples / %d clips" % [cached.get_sample_count(), cached.clip_names.size()])
+		return {
+			"ok": true, "database": cached, "lab": cached_lab,
+			"source_reports": [], "proof_source_count": cached.clip_names.size(),
+			"cache_hit": true, "curation_report": {"signature": signature, "cache_hit": true},
+		}
 
-	for source_def in PROOF_SOURCES:
+	var segmenter := CMUMotionSegmenter.new()
+	var all_candidates: Array[Dictionary] = []
+	var source_reports: Array[Dictionary] = []
+	for source_def in SOURCE_DEFS:
+		var source_path := SOURCE_ROOT + String(source_def["file"])
+		if not FileAccess.file_exists(source_path):
+			continue
+		var analyzed := segmenter.analyze_file(
+			source_path,
+			String(source_def["clip"]),
+			String(source_def["trial"]),
+			String(source_def["description"])
+		)
+		if not bool(analyzed.get("ok", false)):
+			return {"ok": false, "error": "segment analysis failed for %s: %s" % [source_def["clip"], analyzed.get("error", "unknown")]}
+		all_candidates.append_array(analyzed.get("candidates", []))
+		source_reports.append(analyzed.get("report", {}))
+
+	var selection := segmenter.select_canonical(all_candidates)
+	var segments: Array[Dictionary] = []
+	segments.assign(selection.get("segments", []))
+	if segments.size() < 5:
+		return {"ok": false, "error": "semantic curation found only %d usable segments" % segments.size()}
+	print("[MM_CURATE] candidates=%d selected=%d missing=%s" % [all_candidates.size(), segments.size(), JSON.stringify(selection.get("missing_roles", []))])
+	for segment in segments:
+		print("[MM_SEGMENT] %-12s %s %.3f..%.3f" % [segment["role"], segment["source"], segment["start"], segment["end"]])
+
+	var master := MotionDatabase.new()
+	for segment in segments:
 		var lab := lab_scene.instantiate() as CMUUALRetargetLab
 		if lab == null:
 			return {"ok": false, "error": "CMU lab scene has wrong root type"}
-		var source_path := SOURCE_ROOT + String(source_def["file"])
+		var provenance := "%s#%.3f-%.3f" % [String(segment["source_path"]), float(segment["start"]), float(segment["end"])]
 		if not lab.configure_source(
-			source_path,
-			StringName(source_def["clip"]),
-			String(source_def["trial"]),
-			String(source_def["description"]),
-			String(source_def["role"])
+			String(segment["source_path"]), StringName(segment["clip"]),
+			String(segment["trial"]), String(segment["description"]), String(segment["role"])
 		):
 			lab.free()
-			return {"ok": false, "error": "failed to configure %s" % String(source_def["clip"])}
-
+			return {"ok": false, "error": "failed to configure %s" % String(segment["clip"])}
 		parent.add_child(lab)
 		if not await _wait_until_ready(lab, tree):
 			var failed_report := lab.get_retarget_report()
 			lab.queue_free()
 			await tree.process_frame
-			return {
-				"ok": false,
-				"error": "retarget setup failed for %s" % String(source_def["clip"]),
-				"source_report": failed_report,
-			}
-
+			return {"ok": false, "error": "retarget setup failed for %s" % String(segment["clip"]), "source_report": failed_report}
 		var clip_database: MotionDatabase = await lab.bake_motion_database(
-			sample_rate_hz,
-			float(source_def["start"]),
-			float(source_def["end"]),
-			String(source_def["role"]),
-			source_path
+			sample_rate_hz, float(segment["start"]), float(segment["end"]), String(segment["role"]), provenance
 		)
-		if clip_database == null or not clip_database.is_consistent():
+		if clip_database == null or not clip_database.is_consistent() or not master.append_database(clip_database):
 			lab.queue_free()
 			await tree.process_frame
-			return {"ok": false, "error": "database bake failed for %s" % String(source_def["clip"])}
-		if not master.append_database(clip_database):
-			lab.queue_free()
-			await tree.process_frame
-			return {"ok": false, "error": "database merge failed for %s" % String(source_def["clip"])}
-
-		var report := lab.get_retarget_report()
-		report["baked_samples"] = clip_database.get_sample_count()
-		report["baked_start"] = float(source_def["start"])
-		report["baked_end"] = float(source_def["end"])
-		source_reports.append(report)
-		print("[MM_MULTI_BAKE] %s role=%s samples=%d" % [
-			String(source_def["clip"]),
-			String(source_def["role"]),
-			clip_database.get_sample_count(),
-		])
-
+			return {"ok": false, "error": "database bake/merge failed for %s" % String(segment["clip"])}
+		print("[MM_CURATED_BAKE] %s role=%s samples=%d" % [segment["clip"], segment["role"], clip_database.get_sample_count()])
 		lab.queue_free()
 		await tree.process_frame
 
 	master.rebuild_statistics()
 	if not master.is_consistent() or master.clip_names.size() < 2:
-		return {"ok": false, "error": "merged database is inconsistent or still single-clip"}
+		return {"ok": false, "error": "curated merged database invalid"}
+	_save_cache(master, signature)
 
-	# Presentation scene uses a real staged source only to create the same Henry,
-	# camera and lighting. Its retarget modifier is disabled by database playback.
-	var presentation_def: Dictionary = PROOF_SOURCES[0]
-	var presentation_lab := lab_scene.instantiate() as CMUUALRetargetLab
+	var presentation_lab := await _create_presentation_lab(lab_scene, parent, tree)
 	if presentation_lab == null:
-		return {"ok": false, "error": "failed to instantiate presentation lab"}
-	presentation_lab.configure_source(
-		SOURCE_ROOT + String(presentation_def["file"]),
-		StringName(presentation_def["clip"]),
-		String(presentation_def["trial"]),
-		String(presentation_def["description"]),
-		String(presentation_def["role"])
-	)
-	parent.add_child(presentation_lab)
-	if not await _wait_until_ready(presentation_lab, tree):
-		var presentation_report := presentation_lab.get_retarget_report()
-		presentation_lab.queue_free()
-		await tree.process_frame
-		return {"ok": false, "error": "presentation lab failed", "source_report": presentation_report}
-
+		return {"ok": false, "error": "presentation lab failed"}
 	return {
-		"ok": true,
-		"database": master,
-		"lab": presentation_lab,
-		"source_reports": source_reports,
-		"proof_source_count": PROOF_SOURCES.size(),
+		"ok": true, "database": master, "lab": presentation_lab,
+		"source_reports": source_reports, "proof_source_count": segments.size(),
+		"cache_hit": false,
+		"curation_report": {
+			"signature": signature,
+			"cache_hit": false,
+			"candidate_count": all_candidates.size(),
+			"selected_segments": segments,
+			"missing_roles": selection.get("missing_roles", []),
+		},
 	}
+
+
+func _create_presentation_lab(lab_scene: PackedScene, parent: Node, tree: SceneTree) -> CMUUALRetargetLab:
+	var definition: Dictionary = SOURCE_DEFS[0]
+	var lab := lab_scene.instantiate() as CMUUALRetargetLab
+	if lab == null:
+		return null
+	if not lab.configure_source(
+		SOURCE_ROOT + String(definition["file"]), StringName(definition["clip"]),
+		String(definition["trial"]), String(definition["description"]), "idle_neutral"
+	):
+		lab.free()
+		return null
+	parent.add_child(lab)
+	if not await _wait_until_ready(lab, tree):
+		lab.queue_free()
+		await tree.process_frame
+		return null
+	return lab
+
+
+func _build_signature() -> String:
+	var manifest := FileAccess.get_file_as_string(SOURCE_MANIFEST_PATH) if FileAccess.file_exists(SOURCE_MANIFEST_PATH) else ""
+	return "%s:%d" % [CURATION_VERSION, manifest.hash()]
+
+
+func _load_cache(signature: String) -> MotionDatabase:
+	if not FileAccess.file_exists(CACHE_PATH) or not FileAccess.file_exists(CACHE_SIGNATURE_PATH):
+		return null
+	if FileAccess.get_file_as_string(CACHE_SIGNATURE_PATH).strip_edges() != signature:
+		return null
+	var resource := ResourceLoader.load(CACHE_PATH)
+	var database := resource as MotionDatabase
+	return database if database != null and database.is_consistent() else null
+
+
+func _save_cache(database: MotionDatabase, signature: String) -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CACHE_DIR))
+	var error := ResourceSaver.save(database, CACHE_PATH)
+	if error != OK:
+		push_warning("CMUMultiClipDatabaseBuilder: cache save failed (%d)." % error)
+		return
+	var file := FileAccess.open(CACHE_SIGNATURE_PATH, FileAccess.WRITE)
+	if file != null:
+		file.store_string(signature + "\n")
+	print("[MM_CACHE_SAVE] %s" % ProjectSettings.globalize_path(CACHE_PATH))
 
 
 func _wait_until_ready(lab: CMUUALRetargetLab, tree: SceneTree) -> bool:
