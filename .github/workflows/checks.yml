@@ -302,24 +302,44 @@ jobs:
       - name: Import gate
         run: tools/ci/import_gate.sh
 
-      - name: Capture diegetic inventory staging frames
+      - name: Capture 6-second diegetic inventory focus demo
         run: |
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export XDG_RUNTIME_DIR=/tmp/xdg
           mkdir -p "$XDG_RUNTIME_DIR"
           xvfb-run -a "$HOME/.local/bin/godot" \
             --path . \
-            --resolution 1600x1000 \
+            --resolution 1280x720 \
+            --fixed-fps 30 \
             --rendering-driver vulkan \
             --rendering-method forward_plus \
             --audio-driver Dummy \
             --script tools/runtime/capture_diegetic_inventory_stage.gd
 
-      - name: Upload diegetic inventory staging frames
+      - name: Encode diegetic inventory focus video
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -y \
+            -framerate 30 \
+            -i docs/runtime_previews/diegetic_inventory_stage/frames/%04d.png \
+            -c:v libx264 \
+            -preset veryfast \
+            -crf 21 \
+            -pix_fmt yuv420p \
+            docs/runtime_previews/diegetic_inventory_stage/focus_framing_6s.mp4
+          rm -rf docs/runtime_previews/diegetic_inventory_stage/frames
+
+      - name: Upload diegetic inventory focus proof
         uses: actions/upload-artifact@v4
         with:
           name: hoarbound-diegetic-inventory-stage
-          path: docs/runtime_previews/diegetic_inventory_stage/*.png
+          path: |
+            docs/runtime_previews/diegetic_inventory_stage/*.mp4
+            docs/runtime_previews/diegetic_inventory_stage/*.png
+            docs/runtime_previews/diegetic_inventory_stage/report.json
           if-no-files-found: error
           retention-days: 3
 
@@ -341,7 +361,7 @@ jobs:
         run: tools/ci/setup_env.sh
 
       - name: Install terrain conversion tools
-        if: "!contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]')"
+        if: "!contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]' )"
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq gdal-bin python3-numpy python3-pil python3-pyproj
