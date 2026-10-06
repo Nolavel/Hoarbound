@@ -47,6 +47,15 @@ func _run() -> void:
 		quit(1)
 		return
 
+	## This proof isolates one requested can. The previous four-item staging layout
+	## is useful for focus arbitration, but here neighbouring production pickups can
+	## physically overlap the near/far test coordinates and steal the centre ray.
+	## Move only those unrelated staging pickups away; the stew and MealTable stay
+	## the real production nodes/visuals/scripts.
+	for other: ItemPickup in _stage.items:
+		if other.item_id != &"tinned_stew":
+			other.global_position = Vector3(50.0, -10.0, 50.0)
+
 	_lab = LAB_SCRIPT.new() as TableInteractionSolverLab
 	_stage.add_child(_lab)
 	_lab.setup(_stage)
@@ -96,7 +105,7 @@ func _drive(t: float) -> void:
 		_last_state = _lab.state
 
 
-func _record_state(_t: float) -> void:
+func _record_state(t: float) -> void:
 	if _lab.current_case == &"NEAR_TOO_CLOSE" and _lab.prompt_visible:
 		_near_prompt_seen = true
 	elif _lab.current_case == &"FAR_EDGE" and _lab.prompt_visible:
@@ -110,6 +119,14 @@ func _record_state(_t: float) -> void:
 	if _last_state == TableInteractionSolverLab.State.SETTLE and _lab.state == TableInteractionSolverLab.State.ACTION:
 		_settled_position[String(_lab.current_case)] = _stage.player.global_position
 	_last_state = _lab.state
+
+	if int(round(t * float(FPS))) % 15 == 0:
+		print("[interaction-settle] t=%.2f case=%s stable=%s crosshair=%.2f prompt=%s state=%s pos=%s solution=%s" % [
+			t, String(_lab.current_case), String(_stage.get_stable_interact_target_id()),
+			_stage.get_item_crosshair_error_px(&"tinned_stew"), _lab.prompt_visible,
+			TableInteractionSolverLab.State.keys()[_lab.state], _stage.player.global_position,
+			JSON.stringify(_lab.solution)
+		])
 
 
 func _capture_keyframes(image: Image, t: float) -> void:
