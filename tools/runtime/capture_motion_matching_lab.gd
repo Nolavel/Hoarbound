@@ -44,7 +44,7 @@ const CMU_MM_SEQUENCE: Array[Dictionary] = [
 	{"label": "RIGHT", "direction": Vector2(1.0, 0.0), "frames": 42},
 	{"label": "BACK", "direction": Vector2(0.0, -1.0), "frames": 42},
 	{"label": "LEFT", "direction": Vector2(-1.0, 0.0), "frames": 42},
-	{"label": "FORWARD-RIGHT", "direction": Vector2(1.0, 1.0).normalized(), "frames": 36},
+	{"label": "FORWARD-RIGHT", "direction": Vector2(0.70710678, 0.70710678), "frames": 36},
 	{"label": "FORWARD", "direction": Vector2(0.0, 1.0), "frames": 42},
 ]
 
@@ -190,9 +190,6 @@ func _run_cmu_capture() -> void:
 				push_error("CMURetargetCapture: live MM playback step failed.")
 				quit(27)
 				return
-			# Controller updates world debug after its source-pose process frame;
-			# one render frame guarantees CURRENT/BEST and both trajectory arrows
-			# are actually present in the PNG/video being captured.
 			await process_frame
 			await RenderingServer.frame_post_draw
 			var save_keyframe := local_frame == frame_count / 2

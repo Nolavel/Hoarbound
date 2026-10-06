@@ -201,8 +201,8 @@ func _evaluate_and_maybe_switch(
 	var improvement := current_total - best_total
 	var required_improvement := maxf(SWITCH_MIN_ABSOLUTE, current_total * SWITCH_MIN_RATIO)
 	var best_sample := int(_last_best["sample_index"])
-	var separated_sample := abs(best_sample - _current_sample) > 2
-	var should_switch := (
+	var separated_sample: bool = best_sample < _current_sample - 2 or best_sample > _current_sample + 2
+	var should_switch: bool = (
 		_cooldown_remaining <= 0.0
 		and separated_sample
 		and improvement > required_improvement
