@@ -134,16 +134,25 @@ func prepare_capture_pose(index: int) -> void:
 ## normal production controller; no teleport is used once capture begins.
 func prepare_focus_demo() -> void:
 	_reset_focus()
+	_demo_body_locked = false
 	player.global_position = Vector3(0.72, 1.0, 3.05)
 	player.velocity = Vector3.ZERO
 	var yaw: float = _table_yaw()
 	player.global_rotation.y = yaw
-	_demo_body_yaw = yaw
-	_demo_body_locked = true
 	player.reset_physics_interpolation()
 	camera.set_look(yaw, -10.0)
 	if camera.has_method(&"snap_to_target"):
 		camera.call(&"snap_to_target")
+
+
+## Freeze Henry only after the approach is over. The capture calls this at the
+## table so the body starts from the correct facing and then remains unchanged
+## while camera/look selects items.
+func lock_demo_body_to_table() -> void:
+	_demo_body_yaw = _table_yaw()
+	player.global_rotation.y = _demo_body_yaw
+	player.velocity = Vector3.ZERO
+	_demo_body_locked = true
 
 
 ## The capture driver changes only the player's control look. The camera is never
