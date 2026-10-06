@@ -27,9 +27,6 @@ on:
       - "scenes/ui/debug/**"
       - "tools/runtime/capture_dev_diorama_map.gd"
       - "tests/systems/test_dev_diorama_map.gd"
-      - "scripts/actors/player/henry/embodied/**"
-      - "scenes/debug/embodied_interaction_lab.tscn"
-      - "tools/runtime/capture_embodied_interaction.gd"
       - "scripts/experimental/motion_matching/**"
       - "tests/motion_matching/**"
       - "tools/runtime/capture_motion_matching_lab.gd"
@@ -102,7 +99,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   color-grade-preview:
-    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]') && !contains(github.event.head_commit.message, '[diegetic-inventory-stage]') && !contains(github.event.head_commit.message, '[embodied-preview]')
+    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]') && !contains(github.event.head_commit.message, '[diegetic-inventory-stage]')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -345,62 +342,6 @@ jobs:
             docs/runtime_previews/diegetic_inventory_stage/report.json
           if-no-files-found: error
           retention-days: 3
-
-  embodied-preview:
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[embodied-preview]')
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache Godot
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.local/opt/godot-mono
-          key: godot-4.8-dev6-v2
-
-      - name: Provision Godot + CPU Vulkan
-        run: tools/ci/setup_env.sh
-
-      - name: Import gate
-        run: tools/ci/import_gate.sh
-
-      - name: Capture embodied interaction frames
-        run: |
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR"
-          xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . \
-            --resolution 1280x720 \
-            --rendering-driver vulkan \
-            --rendering-method forward_plus \
-            --audio-driver Dummy \
-            --script tools/runtime/capture_embodied_interaction.gd
-
-      - name: Encode short embodied interaction video
-        run: |
-          if ! command -v ffmpeg >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq ffmpeg
-          fi
-          ffmpeg -y -framerate 10 \
-            -i docs/runtime_previews/embodied_interaction/frames/frame_%04d.png \
-            -c:v libx264 -pix_fmt yuv420p -movflags +faststart \
-            docs/runtime_previews/embodied_interaction/embodied_alignment.mp4
-
-      - name: Upload embodied interaction proof
-        uses: actions/upload-artifact@v4
-        with:
-          name: hoarbound-embodied-interaction
-          path: |
-            docs/runtime_previews/embodied_interaction/embodied_alignment.mp4
-            docs/runtime_previews/embodied_interaction/alignment_action.png
-            docs/runtime_previews/embodied_interaction/report.json
-          if-no-files-found: error
-          retention-days: 3
-
 
   key-west-preview:
     if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[key-west-preview]') || contains(github.event.head_commit.message, '[key-west-tps]') || contains(github.event.head_commit.message, '[key-west-first-exit]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]'))
