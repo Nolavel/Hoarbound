@@ -10,6 +10,7 @@ const SOURCE_ROOT := "res://tests/motion_matching/_runtime_cmu/"
 
 # First real multi-clip proof set. The wider staged pool remains available for
 # the segmentation pass, but this set stays bounded enough for one CI run.
+# Every proof source below must also be present in prepare_cmu_sample.sh.
 const PROOF_SOURCES: Array[Dictionary] = [
 	{
 		"file": "111_28.bvh", "clip": "CMU_111_28", "role": "idle_neutral",
