@@ -27,22 +27,21 @@ const ITEM_POSITIONS: Array[Vector3] = [
 ## Camera experiment: focus only after the centre-ray has held a nearby item.
 const FOCUS_DISTANCE_M: float = 1.95
 const FOCUS_DWELL_S: float = 0.16
-## Raw focus loss is handled by the small-item retention leash below. The framing
-## layer itself no longer adds a second sticky release timer.
+## The selection layer owns hysteresis. Framing itself adds no extra release hold.
 const FOCUS_RELEASE_HOLD_S: float = 0.0
 const FOCUS_IN_RATE: float = 3.8
 const FOCUS_OUT_RATE: float = 2.4
 const FOCUS_NEAR_DISTANCE: float = 0.88
 const FOCUS_FAR_DISTANCE: float = 2.15
 
-## Lab-only acquisition hysteresis. A tiny pickup may miss the centre ray for a
-## couple of frames while the player is still visually on it. Retain only while
-## it remains inside a slightly wider angular leash; a real look-away clears now.
-const SMALL_ITEM_RETENTION_S: float = 0.20
-const SMALL_ITEM_RETENTION_FULL_ANGLE_DEG: float = 22.0
+## Lab-only two-zone hysteresis. Acquisition is still the shipping centre-ray
+## query. Once acquired, a tiny pickup may wander this many pixels from the
+## visible ring before selection is released. This absorbs camera-composition
+## parallax and hand-sized mouse jitter without making a real look-away sticky.
+const SMALL_ITEM_RETENTION_RADIUS_PX: float = 96.0
 
 ## The clean staging capture keeps the production HUD disabled, but the centre
-## targeting ring must remain visible because the whole experiment is about aim.
+## targeting ring remains because the whole experiment is about visual aim.
 const CROSSHAIR_SIZE_PX: float = 18.0
 const CROSSHAIR_IDLE: Color = Color(0.62, 0.64, 0.66, 0.75)
 const CROSSHAIR_TARGET: Color = Color(1.0, 1.0, 1.0, 0.95)
@@ -64,7 +63,6 @@ var _candidate_time: float = 0.0
 var _release_hold: float = 0.0
 var _interaction_framing: TpsInteractionFraming
 var _stable_interact_target: ItemPickup
-var _stable_until_ms: int = 0
 var _stage_crosshair: TextureRect
 
 
@@ -170,30 +168,44 @@ func _stabilize_small_item_focus() -> void:
 		_clear_stable_interact_target()
 		return
 
-	var raw_target: InteractiveArea = interact.current_target
-	var live := raw_target as ItemPickup
-	if is_instance_valid(live) and items.has(live) and _flat_distance_to(live) <= FOCUS_DISTANCE_M:
-		_stable_interact_target = live
-		_stable_until_ms = Time.get_ticks_msec() + int(SMALL_ITEM_RETENTION_S * 1000.0)
+	## Important: query the shipping selector directly. Do not read
+	## interact.current_target here because this lab may have restored that value
+	## on the previous render frame; reading it back would self-renew the hold.
+	var raw_target := interact.call(&"_find_crosshair_target") as InteractiveArea
+	var raw_item := raw_target as ItemPickup
+
+	## Outer zone: once a small item owns focus, keep it while its visible centre
+	## remains near the ring. A neighbouring raw hit cannot steal selection during
+	## tiny mouse motion; the old item has to leave the retention zone first.
+	if is_instance_valid(_stable_interact_target):
+		if _can_retain_small_item(_stable_interact_target):
+			_apply_stable_target(interact)
+			return
+		_clear_stable_interact_target(interact)
+
+	## Inner zone: acquisition still requires the real production centre-ray
+	## result. The lab does not proximity-select arbitrary items.
+	if (
+		is_instance_valid(raw_item)
+		and items.has(raw_item)
+		and _flat_distance_to(raw_item) <= FOCUS_DISTANCE_M
+	):
+		_stable_interact_target = raw_item
+		_apply_stable_target(interact)
 		return
 
-	## A genuine different interaction wins immediately; retention never steals it.
-	if is_instance_valid(raw_target) and not (raw_target is ItemPickup):
-		_clear_stable_interact_target()
-		return
-	if is_instance_valid(live) and live != _stable_interact_target:
-		_clear_stable_interact_target()
-		return
+	## Nothing is retained. Mirror the fresh shipping query so the camera/framing
+	## does not see a value restored by this lab on the prior render frame.
+	if is_instance_valid(interact.current_target) and interact.current_target != raw_target:
+		interact.current_target.set_target_state(false, false)
+	interact.current_target = raw_target
 
+
+func _apply_stable_target(interact: InteractComponent) -> void:
 	if not is_instance_valid(_stable_interact_target):
-		_clear_stable_interact_target()
 		return
-	if Time.get_ticks_msec() > _stable_until_ms or not _can_retain_small_item(_stable_interact_target):
-		_clear_stable_interact_target()
-		return
-
-	## Render-time repair for this lab only. InteractComponent remains the source
-	## of acquisition; the lab bridges only sub-200 ms centre-ray misses.
+	if is_instance_valid(interact.current_target) and interact.current_target != _stable_interact_target:
+		interact.current_target.set_target_state(false, false)
 	interact.current_target = _stable_interact_target
 	var in_prompt: bool = _flat_distance_to(_stable_interact_target) <= interact.prompt_distance
 	_stable_interact_target.set_target_state(true, in_prompt)
@@ -204,13 +216,13 @@ func _can_retain_small_item(item: ItemPickup) -> bool:
 		return false
 	if not items.has(item) or _flat_distance_to(item) > FOCUS_DISTANCE_M:
 		return false
-	var from: Vector3 = TpsCamera.aim_origin(camera)
-	var direction: Vector3 = TpsCamera.aim_direction(camera)
-	var toward: Vector3 = _item_focus_point(item) - from
-	if toward.length_squared() < 0.0001:
+	var point: Vector3 = _item_focus_point(item)
+	if camera.is_position_behind(point):
 		return false
-	var half_angle: float = deg_to_rad(SMALL_ITEM_RETENTION_FULL_ANGLE_DEG * 0.5)
-	return direction.angle_to(toward.normalized()) <= half_angle
+	var screen_point: Vector2 = camera.unproject_position(point)
+	var viewport_size: Vector2 = camera.get_viewport().get_visible_rect().size
+	var centre: Vector2 = viewport_size * 0.5
+	return screen_point.distance_to(centre) <= SMALL_ITEM_RETENTION_RADIUS_PX
 
 
 func _item_focus_point(item: ItemPickup) -> Vector3:
@@ -222,9 +234,12 @@ func _item_focus_point(item: ItemPickup) -> Vector3:
 	return item.global_position + Vector3.UP * 0.12
 
 
-func _clear_stable_interact_target() -> void:
+func _clear_stable_interact_target(interact: InteractComponent = null) -> void:
+	var previous: ItemPickup = _stable_interact_target
 	_stable_interact_target = null
-	_stable_until_ms = 0
+	if interact != null and is_instance_valid(previous) and interact.current_target == previous:
+		previous.set_target_state(false, false)
+		interact.current_target = null
 
 
 func _update_item_focus(delta: float) -> void:
