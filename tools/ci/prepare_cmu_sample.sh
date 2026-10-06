@@ -48,7 +48,9 @@ for clip in 69_20 69_21 69_22 69_23 69_24 69_25 69_26 69_27 69_28 69_29 69_30 69
 done
 
 mkdir -p "$TARGET_DIR"
-printf 'clip\tsubject\trole\tdescription\tsha256\tsource_url\tdataset\tposition_scale\trest_mode\tretarget_mode\n' > "$MANIFEST"
+# Import conventions (units, reference pose, axes) live in per-family
+# SourceRetargetProfile code, not in this manifest.
+printf 'clip\tsubject\tdataset\tpool\tdescription\tsha256\turl\tlicense\n' > "$MANIFEST"
 
 for entry in "${SOURCES[@]}"; do
 	IFS='|' read -r subject clip role description <<< "$entry"
@@ -79,9 +81,9 @@ for entry in "${SOURCES[@]}"; do
 		exit 4
 	fi
 	sha256="$(sha256sum "$target" | awk '{print $1}')"
-	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-		"$clip" "$subject" "$role" "$description" "$sha256" "$source_url" \
-		"CMU" "0.0254" "frame_zero_skip" "local" >> "$MANIFEST"
+	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+		"$clip" "$subject" "CMU" "$role" "$description" "$sha256" "$source_url" \
+		"CMU: free for all uses" >> "$MANIFEST"
 	echo "[cmu] staged $filename sha256=$sha256"
 done
 
@@ -92,6 +94,7 @@ STYLE_SOURCES=(
 	"Neutral_SW|1HzUccloKCjQgpObQ0ZXTEDW7-RllNwHX|07225ded6df11c4eb97a7b42e6121a9e985ae7e8d0f56f9ca971429f9c507ad9|neutral_directional|Neutral sidestep walking"
 	"Neutral_TR1|1AnK7HGtuQR4aSVkyWKnZObgapd41KE1N|11e5f654daae97e3cc80432a7a89965749337b32571cad6ad71a1d1e6e8ff746|neutral_transitions|Neutral locomotion transitions"
 )
+STYLE_STAGED=0
 for entry in "${STYLE_SOURCES[@]}"; do
 	IFS='|' read -r clip file_id expected_sha256 role description <<< "$entry"
 	filename="$clip.bvh"
@@ -101,7 +104,13 @@ for entry in "${STYLE_SOURCES[@]}"; do
 		echo "[100style] reusing $clip ($role)"
 	else
 		echo "[100style] downloading $clip ($role)"
-		curl --fail --location --retry 3 --retry-delay 2 --output "$target" "$source_url"
+		# 100STYLE has no verified retarget profile yet, so an unreachable host
+		# only skips it; a reachable file must still match its pinned hash.
+		if ! curl --fail --location --retry 3 --retry-delay 2 --output "$target" "$source_url"; then
+			rm -f "$target"
+			echo "[100style] WARNING: $clip unreachable; skipped" >&2
+			continue
+		fi
 	fi
 	if [[ ! -s "$target" ]] || ! head -n 1 "$target" | grep -q '^HIERARCHY' || ! grep -q '^MOTION' "$target"; then
 		echo "[100style] staged file is not a valid BVH: $filename" >&2
@@ -112,10 +121,11 @@ for entry in "${STYLE_SOURCES[@]}"; do
 		echo "[100style] checksum mismatch for $filename: $sha256" >&2
 		exit 6
 	fi
-	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-		"$clip" "Neutral" "$role" "$description" "$sha256" "$source_url" \
-		"100STYLE" "0.01" "zero_rotation_include" "local" >> "$MANIFEST"
+	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+		"$clip" "Neutral" "100STYLE" "$role" "$description" "$sha256" "$source_url" \
+		"CC BY 4.0 (Ian Mason)" >> "$MANIFEST"
 	echo "[100style] staged $filename sha256=$sha256"
+	STYLE_STAGED=$((STYLE_STAGED + 1))
 done
 
 cat > "$TARGET_DIR/source_policy.txt" <<EOF
@@ -133,4 +143,4 @@ secondary_license_url=$STYLE_LICENSE_URL
 secondary_credit=The 100STYLE Dataset - Ian Mason
 EOF
 
-echo "[motion-data] canonical candidate set staged: ${#SOURCES[@]} CMU + ${#STYLE_SOURCES[@]} 100STYLE real captures"
+echo "[motion-data] canonical candidate set staged: ${#SOURCES[@]} CMU + $STYLE_STAGED/${#STYLE_SOURCES[@]} 100STYLE real captures"

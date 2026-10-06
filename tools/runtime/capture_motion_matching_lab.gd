@@ -1,25 +1,21 @@
 extends SceneTree
 
-## Deterministic motion-matching capture harness.
-## Issue #201 Phase 1 remains available without staged mocap. Issue #202 reuses
-## this same workflow for direct retarget, merged multi-clip database bake and
-## canonical-pose playback; no parallel render pipeline is created.
-## CI proof commits use both [motion-matching-preview] and [cmu-retarget-preview]
-## so import_gate.sh stages the public CMU BVH pool before this script runs.
+## Motion Matching capture harness: Phase 1 lab without staged mocap, otherwise
+## curated database bake and the continuous analog proof (CI: both markers).
 
 const SCENE_PATH := "res://tests/motion_matching/motion_matching_lab.tscn"
 const ROKOKO_SCENE_PATH := "res://tests/motion_matching/rokoko_ual_retarget_lab.tscn"
 const ROKOKO_SOURCE_PATH := "res://tests/motion_matching/_runtime_rokoko/rokoko_unreal_sample.fbx"
-const CMU_SCENE_PATH := "res://tests/motion_matching/cmu_ual_retarget_lab.tscn"
-const CMU_SOURCE_PATH := "res://tests/motion_matching/_runtime_cmu/41_02.bvh"
+const LAB_SCENE_PATH := "res://tests/motion_matching/motion_matching_playback_lab.tscn"
+const SOURCE_MANIFEST_PATH := "res://tests/motion_matching/_runtime_cmu/source_manifest.tsv"
 const OUT_DIR := "res://docs/runtime_previews/motion_matching_lab"
 const FRAME_DIR := OUT_DIR + "/frames"
 const CAPTURE_WIDTH := 1280
 const CAPTURE_HEIGHT := 720
 const PHYSICS_STEPS_PER_FRAME := 2
 const ROKOKO_VIDEO_FRAMES := 150
-const CMU_VIDEO_FRAMES := 300
 const MOTION_DATABASE_RATE_HZ := 30.0
+const PROOF_SECONDS := 26.5
 
 const SEQUENCE: Array[Dictionary] = [
 	{"label": "idle", "input": Vector2.ZERO, "frames": 18},
@@ -40,6 +36,8 @@ const SEQUENCE: Array[Dictionary] = [
 ]
 
 var _scene: Node3D
+var _walk_speed := 1.0
+var _strafe_speed := 0.8
 var _henry: MotionMatchingLab
 var _frame_index := 0
 var _report_segments: Array[Dictionary] = []
@@ -51,8 +49,8 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_prepare_output()
-	if FileAccess.file_exists(CMU_SOURCE_PATH):
-		await _run_cmu_capture()
+	if FileAccess.file_exists(SOURCE_MANIFEST_PATH):
+		await _run_motion_matching_capture()
 	elif FileAccess.file_exists(ROKOKO_SOURCE_PATH):
 		await _run_rokoko_capture()
 	else:
@@ -125,155 +123,193 @@ func _run_rokoko_capture() -> void:
 	quit(0)
 
 
-func _run_cmu_capture() -> void:
-	var packed := load(CMU_SCENE_PATH) as PackedScene
-	if packed == null:
-		push_error("CMUMultiClipCapture: cannot load %s" % CMU_SCENE_PATH)
-		quit(20)
-		return
+func _run_motion_matching_capture() -> void:
 	root.size = Vector2i(CAPTURE_WIDTH, CAPTURE_HEIGHT)
-
-	var multi_builder := CMUMultiClipDatabaseBuilder.new()
-	var build_result: Dictionary = await multi_builder.build(packed, root, MOTION_DATABASE_RATE_HZ)
-	if not bool(build_result.get("ok", false)):
-		push_error("CMUMultiClipCapture: %s" % String(build_result.get("error", "unknown build error")))
+	var build: Dictionary = MotionMatchingDatabaseBuilder.new().build(MOTION_DATABASE_RATE_HZ)
+	if not bool(build.get("ok", false)):
+		push_error("MotionMatchingCapture: %s" % String(build.get("error", "database build failed")))
 		quit(21)
 		return
-	var curation: Dictionary = build_result.get("curation_report", {})
-	if not bool(curation.get("steady_direction_gate_passed", false)):
-		push_error("CMUMultiClipCapture: steady directional coverage regressed: %s" % JSON.stringify(
-			curation.get("missing_steady_direction_roles", [])
-		))
-		quit(26)
-		return
-
-	var database := build_result.get("database") as MotionDatabase
-	var cmu_lab := build_result.get("lab") as CMUUALRetargetLab
-	if database == null or cmu_lab == null or not database.is_consistent():
-		push_error("CMUMultiClipCapture: merged database/presentation lab invalid.")
+	var database := build["database"] as MotionDatabase
+	var lab := (load(LAB_SCENE_PATH) as PackedScene).instantiate() as MotionMatchingPlaybackLab
+	root.add_child(lab)
+	for _frame in range(8):
+		await process_frame
+	if not lab.is_ready_for_capture():
+		push_error("MotionMatchingCapture: playback lab is not ready.")
 		quit(22)
 		return
-	_scene = cmu_lab
-	print("[MOTION_DATABASE_MULTI] %d real samples × %d features × %d clips @ %.1f Hz pose_bones=%d" % [
-		database.get_sample_count(),
-		database.feature_count,
-		database.clip_names.size(),
-		database.sample_rate_hz,
-		database.pose_bone_names.size(),
+	print("[MOTION_DATABASE] %d real samples x %d features x %d ranges @ %.0f Hz" % [
+		database.get_sample_count(), database.feature_count, database.clip_names.size(), database.sample_rate_hz,
 	])
-
-	var initial_sample := _find_first_role(database, "idle_neutral")
-	if initial_sample < 0:
-		initial_sample = 0
-	var command_speed := _estimate_command_speed(database)
 	var controller := MotionMatchingDatabasePlaybackController.new()
-	if not await controller.setup(cmu_lab, database, initial_sample):
-		push_error("CMUMultiClipCapture: database playback setup failed.")
+	if not controller.setup(database, lab.skeleton, lab.body, lab.visual, lab.debug_view, _first_idle_sample(database)):
+		push_error("MotionMatchingCapture: playback setup failed.")
 		quit(23)
 		return
 
-	# This proof intentionally avoids a scripted F/R/B/L state list. Every video
-	# frame supplies a continuous analog command; the debug label is constant and
-	# cannot influence matching. The path contains a full directional sweep,
-	# a hard reversal, a diagonal bend, stop/deceleration and a restart curve.
-	var proof_samples: Array[Dictionary] = []
-	for frame in range(CMU_VIDEO_FRAMES):
-		var desired_velocity := _analog_command_for_frame(frame, command_speed)
-		var state := await controller.step(
-			1.0 / 30.0,
-			desired_velocity,
-			"LIVE ANALOG",
-			Vector2(0.0, 1.0)
-		)
-		if state.is_empty():
-			push_error("CMUMultiClipCapture: live unconstrained playback step failed.")
-			quit(24)
-			return
+	# The intent label goes to the report only, never to the matcher.
+	var dt := 1.0 / 30.0
+	var frame_count := int(PROOF_SECONDS * 30.0)
+	# MM_HEADLESS_PROOF=1 runs the identical simulation without frames.
+	var headless_proof := OS.get_environment("MM_HEADLESS_PROOF") == "1"
+	_walk_speed = _median_speed(database, 0.0)
+	_strafe_speed = _median_speed(database, PI * 0.5)
+	var facing := Vector3.FORWARD
+	var timeline: Array[Dictionary] = []
+	for frame in range(frame_count):
+		var t := float(frame) * dt
+		var intent := _proof_intent(t, facing)
+		facing = intent["facing"]
+		var state := controller.step(dt, intent["velocity"], facing, intent["label"])
+		lab.follow_camera(dt)
 		await process_frame
-		await RenderingServer.frame_post_draw
-		var save_keyframe := frame % 50 == 0 or frame == CMU_VIDEO_FRAMES - 1
-		await _capture_frame("mm_live_%03d" % frame, frame / 50, save_keyframe)
-		if save_keyframe:
-			proof_samples.append({
-				"frame": frame,
-				"desired_velocity": [desired_velocity.x, desired_velocity.y],
-				"state": state,
+		if not headless_proof:
+			await RenderingServer.frame_post_draw
+			await _capture_frame("mm_%05.2fs" % t, frame / 60, frame % 60 == 0)
+		if frame % 5 == 0:
+			timeline.append({
+				"t": t, "label": intent["label"],
+				"desired_velocity": [intent["velocity"].x, intent["velocity"].z],
+				"desired_facing": [facing.x, facing.z],
+				"clip": state["current_clip"], "time": state["current_time"],
+				"speed": state["root_speed"], "decision": state["decision"],
+				"velocity": [state["root_velocity_world"][0], state["root_velocity_world"][2]],
+				"actual_facing": _flat_forward(lab.skeleton),
+				"desired_local": _to_model_xz(lab.skeleton, intent["velocity"]),
+				"frame_root_motion": state["frame_root_motion"],
+				"clamp_events": state["clamp_events"],
 			})
 
-	if _frame_index != CMU_VIDEO_FRAMES:
-		push_error("CMUMultiClipCapture: expected %d frames, captured %d." % [CMU_VIDEO_FRAMES, _frame_index])
-		quit(25)
-		return
-
-	var report := cmu_lab.get_retarget_report()
-	report["issue"] = 202
-	report["mode"] = "cmu_unconstrained_live_runtime_motion_matching"
-	report["proof_mode"] = "continuous_analog_no_direction_labels"
-	report["resolution"] = [CAPTURE_WIDTH, CAPTURE_HEIGHT]
-	report["frame_count"] = _frame_index
-	report["video_seconds"] = float(_frame_index) / 30.0
-	report["command_speed_mps"] = command_speed
-	report["proof_source_count"] = int(build_result.get("proof_source_count", 0))
-	report["source_reports"] = build_result.get("source_reports", [])
-	report["curation"] = curation
-	report["motion_database"] = database.get_report()
-	report["motion_matching_playback"] = controller.get_report()
-	report["proof_samples"] = proof_samples
+	var report := {
+		"issue": 202,
+		"mode": "live_root_space_motion_matching_proof",
+		"proof": "continuous_analog_intent_independent_facing",
+		"resolution": [CAPTURE_WIDTH, CAPTURE_HEIGHT],
+		"frame_count": _frame_index,
+		"simulated_seconds": PROOF_SECONDS,
+		"proof_speeds_from_database": {"walk": _walk_speed, "strafe": _strafe_speed},
+		"database": database.get_report(),
+		"database_build": build.get("report", {}),
+		"playback": controller.get_report(),
+		"timeline": timeline,
+	}
 	_write_json_report(report)
-	var playback_report := controller.get_report()
-	print("[MM_LIVE_CAPTURE] %d frames / %d switches / %d cross-clip / search=%s written to %s" % [
-		_frame_index,
-		int(playback_report["switch_count"]),
-		int(playback_report["cross_clip_switch_count"]),
-		String(playback_report["search_scope"]),
-		ProjectSettings.globalize_path(OUT_DIR),
+	var playback := controller.get_report()
+	print("[MM_CAPTURE] %d frames / %d switches (%d forced) / slide %.3f m/s -> %s" % [
+		_frame_index, int(playback["switch_count"]), int(playback["forced_switch_count"]),
+		float(playback["mean_contact_foot_slide_m_s"]), ProjectSettings.globalize_path(OUT_DIR),
 	])
 	quit(0)
 
 
-func _analog_command_for_frame(frame: int, speed: float) -> Vector2:
-	if frame < 24:
-		var ramp := float(frame) / 23.0
-		return Vector2(0.0, speed * ramp)
-	if frame < 144:
-		var phase := float(frame - 24) / 120.0 * TAU
-		return Vector2(sin(phase), cos(phase)) * speed
-	if frame < 174:
-		# Intent flips in one frame after the completed sweep.
-		return Vector2(0.0, -speed)
-	if frame < 224:
-		var bend := float(frame - 174) / 50.0
-		var angle := lerpf(PI, PI * 0.25, bend)
-		return Vector2(sin(angle), cos(angle)) * speed
-	if frame < 254:
-		var decel := 1.0 - float(frame - 224) / 29.0
-		return Vector2(0.70710678, 0.70710678) * speed * maxf(0.0, decel)
-	var restart := clampf(float(frame - 254) / 20.0, 0.0, 1.0)
-	var restart_phase := float(frame - 254) / 46.0 * PI * 0.75
-	return Vector2(sin(restart_phase), cos(restart_phase)) * speed * restart
+## Analog stress program (world space). Facing either follows the velocity or
+## is held, independently of the trajectory.
+func _proof_intent(t: float, previous_facing: Vector3) -> Dictionary:
+	var start_facing := Vector3.FORWARD
+	var bent := start_facing.rotated(Vector3.UP, PI * 0.5)
+	var reversed := -bent
+	var pivoted := reversed.rotated(Vector3.UP, -PI * 0.5)
+	var label := ""
+	var velocity := Vector3.ZERO
+	var facing := previous_facing
+	var follow := true
+	if t < 2.0:
+		label = "idle"
+	elif t < 4.0:
+		label = "gradual acceleration"
+		velocity = start_facing * _walk_speed * _smooth((t - 2.0) / 2.0)
+	elif t < 6.0:
+		label = "straight walk"
+		velocity = start_facing * _walk_speed
+	elif t < 9.0:
+		label = "smooth bend left"
+		velocity = start_facing.rotated(Vector3.UP, PI * 0.5 * _smooth((t - 6.0) / 3.0)) * _walk_speed
+	elif t < 11.5:
+		label = "lateral intent (strafe right, facing held)"
+		follow = false
+		facing = bent
+		velocity = bent.rotated(Vector3.UP, -PI * 0.5) * _strafe_speed
+	elif t < 13.5:
+		label = "diagonal back-left (facing held)"
+		follow = false
+		facing = bent
+		velocity = bent.rotated(Vector3.UP, PI * 0.75) * _strafe_speed
+	elif t < 15.5:
+		label = "sharp reversal (facing follows)"
+		velocity = reversed * _walk_speed
+	elif t < 17.5:
+		label = "walk"
+		velocity = reversed * _walk_speed
+	elif t < 19.0:
+		label = "deceleration"
+		velocity = reversed * _walk_speed * (1.0 - _smooth((t - 17.5) / 1.5))
+	elif t < 20.5:
+		label = "stop"
+	elif t < 21.5:
+		label = "pivot 90 right in place"
+		follow = false
+		facing = pivoted
+	elif t < 23.5:
+		label = "restart"
+		velocity = pivoted * _walk_speed * _smooth((t - 21.5) / 1.0)
+	elif t < 25.0:
+		label = "backward walk (facing held)"
+		follow = false
+		facing = pivoted
+		velocity = -pivoted * _strafe_speed
+	else:
+		label = "stop"
+	if follow and velocity.length() > 0.1:
+		facing = velocity.normalized()
+	return {"label": label, "velocity": velocity, "facing": facing}
 
 
-func _find_first_role(database: MotionDatabase, role: String) -> int:
-	for sample_index in range(database.get_sample_count()):
-		if database.get_sample_role(sample_index) == role:
-			return sample_index
-	return -1
+func _to_model_xz(skeleton: Skeleton3D, world: Vector3) -> Array:
+	var local := skeleton.global_transform.basis.orthonormalized().inverse() * world
+	return [local.x, local.z]
 
 
-func _estimate_command_speed(database: MotionDatabase) -> float:
-	var speed_sum := 0.0
-	var count := 0
-	for sample_index in range(database.get_sample_count()):
-		var row := database.get_feature_row(sample_index)
-		if row.size() < 2:
+func _flat_forward(skeleton: Skeleton3D) -> Array:
+	var forward := skeleton.global_transform.basis * Vector3.BACK
+	return [forward.x, forward.z]
+
+
+func _smooth(t: float) -> float:
+	var x := clampf(t, 0.0, 1.0)
+	return x * x * (3.0 - 2.0 * x)
+
+
+## Median database speed within 30 degrees of a local direction (0 forward,
+## PI/2 sideways); the proof asks only for speeds the real material contains.
+func _median_speed(database: MotionDatabase, local_angle: float) -> float:
+	var speeds: Array[float] = []
+	for sample in range(database.get_sample_count()):
+		var row := database.get_feature_row(sample)
+		var velocity := Vector2(row[0], row[1])
+		if velocity.length() < 0.45:
 			continue
-		var speed := Vector2(row[0], row[1]).length()
-		if speed > 0.35 and speed < 3.5:
-			speed_sum += speed
-			count += 1
-	if count <= 0:
-		return 1.35
-	return clampf(speed_sum / float(count), 0.8, 2.2)
+		var angle := absf(atan2(velocity.x, velocity.y))
+		if absf(angle - local_angle) < deg_to_rad(30.0):
+			speeds.append(velocity.length())
+	if speeds.is_empty():
+		return 0.8
+	speeds.sort()
+	return speeds[int(speeds.size() * 0.5)]
+
+
+func _first_idle_sample(database: MotionDatabase) -> int:
+	var best := 0
+	var best_speed := INF
+	for sample in range(database.get_sample_count()):
+		if database.get_samples_to_range_end(sample) < 60:
+			continue
+		var row := database.get_feature_row(sample)
+		var speed := Vector2(row[0], row[1]).length() + absf(row[2])
+		if speed < best_speed:
+			best_speed = speed
+			best = sample
+	return best
 
 
 func _prepare_retarget_scene(scene_path: String, label: String, error_base: int) -> bool:
@@ -300,6 +336,8 @@ func _prepare_retarget_scene(scene_path: String, label: String, error_base: int)
 
 func _prepare_output() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(FRAME_DIR))
+	# Keep the editor importer away from thousands of capture PNGs.
+	FileAccess.open(OUT_DIR + "/.gdignore", FileAccess.WRITE)
 
 
 func _capture_frame(label: String, segment_index: int, save_keyframe: bool) -> void:

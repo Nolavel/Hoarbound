@@ -42,3 +42,7 @@ shots/
 # Python
 __pycache__/
 *.pyc
+
+# Motion Matching lab render output (regenerated locally / in CI)
+docs/runtime_previews/motion_matching_lab/
+docs/runtime_previews/motion_retarget_diagnostics/

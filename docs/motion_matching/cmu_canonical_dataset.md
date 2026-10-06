@@ -37,45 +37,32 @@ Hard rules:
 | 90° turn pool B | `69_24` | Walk forward, opposite 90-degree turn. |
 | Multidirectional reference | `41_02` | Existing forward/backward/sideways/diagonal capture used by the current single-clip baseline. |
 
-## Canonical roles still require segmentation, not invention
+## Curation (current)
 
-The source descriptions identify useful captures, but the database should not label a frame `Walk_L`, `Start_R`, `Pivot_180_L`, etc. merely from a filename.
+`MotionDatasetCurator` labels every 30 Hz sample of the *normalized* root track
+(Henry scale, after `SourceRetargetProfile` units) as idle / turn / start /
+stop / one of eight walk sectors / transition / too fast. Labels pick ranges
+and are written as debug metadata only; the runtime matcher never reads them.
 
-The next ingestion pass must classify real windows from root kinematics:
+- windows of up to 8 s (hop 2 s) keep real transitions between directions;
+- greedy selection against per-label budgets (seconds of real material), total
+  cap 360 s, rarer labels weighted higher;
+- source capture glitches (any joint > 20 rad/s between 30 Hz samples) are cut
+  out with a 0.25 s margin instead of being smoothed over;
+- selected windows of one source are merged into contiguous ranges, and each
+  range is baked as its own clip `CMU_<trial>@<start>-<end>`.
 
-- local horizontal velocity direction and speed;
-- start: stable low speed -> locomotion speed;
-- stop: locomotion speed -> stable low speed;
-- turn/pivot: accumulated facing delta plus low translation;
-- diagonal: local velocity angle relative to facing;
-- left/right sign from canonical local-space trajectory.
+The CMU pool alone covers idle, starts, stops, turns and all eight steady
+directions once the correct unit (1/0.45 inch) is used; forward diagonals are
+the thinnest (FR ~5 s). Before the unit fix the sideways captures (113_17,
+113_18, 143_40) moved at 45% speed and never qualified as lateral walking.
 
-A segment stores at minimum:
+`tools/runtime/audit_motion_dataset.gd` rebuilds the database headless and
+fails when any baked range breaks the structural retarget audit or a label has
+no material. Its JSON lists covered/available seconds per label and per range.
 
-```text
-canonical_role
-source_clip
-source_start_time
-source_end_time
-source_subject
-source_sha256
-```
+## Hard rules (unchanged)
 
-If a clean `Start_B`, `Start_L`, or `Start_R` cannot be demonstrated from the neutral captures, the role remains `missing` and another permissive real-mocap source is researched. It is not synthesized.
-
-## First multi-clip acceptance gate
-
-Before visual tuning resumes:
-
-- [ ] one dense `MotionDatabase` contains samples from multiple source clips;
-- [ ] exact `clip + time` remains attached to every sample;
-- [ ] playback can switch across source clips, not only re-seek inside `41_02`;
-- [ ] neutral idle exists in the database;
-- [ ] F/B/L/R each have real authored source coverage;
-- [ ] four diagonal sectors each have real captured coverage;
-- [ ] start/stop segments are source-backed and kinematically validated;
-- [ ] 90° and 180° pivot/turn segments are source-backed and classified by facing delta;
-- [ ] workflow video visibly tests abrupt F/R/B/L/diagonal/start/stop/turn requests;
-- [ ] report includes per-role source provenance and selection cost.
-
-Do not tune matcher weights around missing motion coverage. Dataset coverage is the blocker first.
+No rotated, mirrored, reversed or generated locomotion; no paid or
+account-gated packs; every sample is baked after retarget onto Henry's UAL
+skeleton; third-party files stay out of Git.

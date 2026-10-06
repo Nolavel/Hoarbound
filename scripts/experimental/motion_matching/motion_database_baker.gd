@@ -1,13 +1,14 @@
 class_name MotionDatabaseBaker
 extends RefCounted
 
-## Offline dense feature baker for the motion-matching lab.
-## Source rigs are sampled only after retarget onto the canonical UAL skeleton.
-## Every row stores search features, exact source time, root facing and the full
-## canonical UAL rotation pose so runtime can switch between unrelated captures.
+## Bakes features in Henry model space: root at origin, +Z forward, +X left.
+## Velocities are world velocities seen from the root, at Henry scale.
 
 const DEFAULT_SAMPLE_RATE_HZ := 30.0
 const FUTURE_HORIZONS := [0.2, 0.5, 0.8]
+const CONTACT_SPEED := 0.30
+## Henry's ankle joint rests 0.104 m above the floor; 7 cm of lift still counts.
+const CONTACT_ANKLE_HEIGHT := 0.17
 
 const FEATURE_NAMES := [
 	"root_velocity_x", "root_velocity_z", "root_angular_velocity",
@@ -25,185 +26,129 @@ const FEATURE_NAMES := [
 	"facing_0_8_x", "facing_0_8_z",
 ]
 
+var last_quality: Dictionary = {}
 
-func bake_seekable_skeleton(
-		skeleton: Skeleton3D,
+
+func bake_range(
+		retargeter: MotionRetargeter,
 		clip_name: StringName,
-		clip_length: float,
-		seek_pose: Callable,
-		root_position_at_time: Callable,
-		root_facing_at_time: Callable,
-		sample_rate_hz: float = DEFAULT_SAMPLE_RATE_HZ,
-		start_time: float = 0.0,
-		end_time: float = -1.0,
+		start_time: float,
+		end_time: float,
 		role: String = "",
-		source_id: String = ""
+		source_id: String = "",
+		sample_rate_hz: float = DEFAULT_SAMPLE_RATE_HZ
 	) -> MotionDatabase:
-	if skeleton == null:
-		push_error("MotionDatabaseBaker: target skeleton is null.")
+	var target := retargeter.target
+	var duration := retargeter.get_duration()
+	var segment_start := clampf(start_time, 0.0, duration)
+	var segment_end := clampf(end_time, segment_start, duration)
+	var count := int(floor((segment_end - segment_start) * sample_rate_hz)) + 1
+	if count < 2:
+		push_error("MotionDatabaseBaker: empty segment for %s." % String(clip_name))
 		return null
-	if not seek_pose.is_valid() or not root_position_at_time.is_valid() or not root_facing_at_time.is_valid():
-		push_error("MotionDatabaseBaker: source callbacks are invalid.")
-		return null
-	if clip_length <= 0.0 or sample_rate_hz <= 0.0:
-		push_error("MotionDatabaseBaker: invalid clip length/rate.")
-		return null
+	var dt := 1.0 / sample_rate_hz
+	var pelvis := target.find_bone("pelvis")
+	var foot_l := target.find_bone("foot_l")
+	var foot_r := target.find_bone("foot_r")
 
-	var pelvis_index := skeleton.find_bone("pelvis")
-	var left_foot_index := skeleton.find_bone("foot_l")
-	var right_foot_index := skeleton.find_bone("foot_r")
-	if pelvis_index < 0 or left_foot_index < 0 or right_foot_index < 0:
-		push_error("MotionDatabaseBaker: target skeleton needs pelvis/foot_l/foot_r.")
-		return null
-
-	var segment_start := clampf(start_time, 0.0, clip_length)
-	var segment_end := clip_length if end_time <= segment_start else clampf(end_time, segment_start, clip_length)
-	var segment_length := segment_end - segment_start
-	if segment_length <= 0.0001:
-		push_error("MotionDatabaseBaker: empty source segment for %s." % String(clip_name))
-		return null
+	# One extra sample on each side (inside the clip) feeds central differences.
+	var poses: Array[Dictionary] = []
+	var model_positions: Array[Dictionary] = []
+	var world_positions: Array[Dictionary] = []
+	var times := PackedFloat32Array()
+	for index in range(-1, count + 1):
+		var time := clampf(segment_start + float(index) * dt, 0.0, duration)
+		var pose := retargeter.retarget_at(time)
+		var globals := target.forward_kinematics(pose["rotations"], pose["pelvis_position"])
+		var track := retargeter.track_index(time)
+		var yaw := Basis(Vector3.UP, atan2(retargeter.root_forwards[track].x, retargeter.root_forwards[track].z))
+		var root := retargeter.root_positions[track]
+		var model := {
+			"pelvis": globals[pelvis].origin,
+			"foot_l": globals[foot_l].origin,
+			"foot_r": globals[foot_r].origin,
+		}
+		var world := {}
+		for key in model.keys():
+			world[key] = root + yaw * (model[key] as Vector3)
+		times.append(time)
+		poses.append({"pose": pose, "globals": globals})
+		model_positions.append(model)
+		world_positions.append(world)
 
 	var database := MotionDatabase.new()
 	database.configure_schema(PackedStringArray(FEATURE_NAMES), sample_rate_hz)
-	var pose_bones := PackedStringArray()
-	for bone_index in range(skeleton.get_bone_count()):
-		pose_bones.append(skeleton.get_bone_name(bone_index))
-	if not database.configure_pose_schema(pose_bones):
-		return null
+	database.configure_pose_schema(target.bone_names)
 	database.set_clip_metadata(clip_name, role, source_id)
+	var audit := MotionRetargetAudit.new(target)
 
-	var sample_count := maxi(2, int(floor(segment_length * sample_rate_hz)))
-	var sample_dt := 1.0 / sample_rate_hz
-	var times := PackedFloat32Array()
-	var pelvis_positions: Array[Vector3] = []
-	var left_foot_positions: Array[Vector3] = []
-	var right_foot_positions: Array[Vector3] = []
-	var root_positions: Array[Vector3] = []
-	var root_facings: Array[Vector2] = []
-	var pose_rows: Array[PackedFloat32Array] = []
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null:
-		push_error("MotionDatabaseBaker: SceneTree is unavailable.")
-		return null
-
-	for sample_index in range(sample_count):
-		var sample_time := minf(segment_end, segment_start + float(sample_index) * sample_dt)
-		seek_pose.call(sample_time)
-		await tree.process_frame
-
-		times.append(sample_time)
-		pelvis_positions.append(skeleton.get_bone_global_pose(pelvis_index).origin)
-		left_foot_positions.append(skeleton.get_bone_global_pose(left_foot_index).origin)
-		right_foot_positions.append(skeleton.get_bone_global_pose(right_foot_index).origin)
-		var root_position: Vector3 = root_position_at_time.call(sample_time)
-		var root_facing_3d: Vector3 = root_facing_at_time.call(sample_time)
-		root_positions.append(root_position)
-		root_facings.append(_safe_facing(Vector2(root_facing_3d.x, root_facing_3d.z)))
-		pose_rows.append(_capture_pose_rotations(skeleton))
-
-	var left_relative: Array[Vector3] = []
-	var right_relative: Array[Vector3] = []
-	for sample_index in range(sample_count):
-		left_relative.append(left_foot_positions[sample_index] - pelvis_positions[sample_index])
-		right_relative.append(right_foot_positions[sample_index] - pelvis_positions[sample_index])
-
-	for sample_index in range(sample_count):
-		var facing := root_facings[sample_index]
+	for index in range(1, count + 1):
+		var time := times[index]
+		var track := retargeter.track_index(time)
+		var forward := retargeter.root_forwards[track]
+		var yaw_inverse := Basis(Vector3.UP, atan2(forward.x, forward.z)).inverse()
 		var values := PackedFloat32Array()
 
-		var root_velocity := _derivative_vec3(root_positions, sample_index, sample_dt)
-		var root_velocity_local := _to_facing_space(root_velocity, facing)
-		values.append(root_velocity_local.x)
-		values.append(root_velocity_local.z)
-		values.append(_angular_velocity(root_facings, sample_index, sample_dt))
+		var previous_track := retargeter.track_index(times[index - 1])
+		var next_track := retargeter.track_index(times[index + 1])
+		var span := maxf(float(next_track - previous_track) / retargeter.track_rate_hz, dt)
+		var root_velocity := yaw_inverse * (retargeter.root_positions[next_track] - retargeter.root_positions[previous_track]) / span
+		values.append(root_velocity.x)
+		values.append(root_velocity.z)
+		values.append(_yaw_delta(retargeter.root_forwards[previous_track], retargeter.root_forwards[next_track]) / span)
 
-		_append_vec3(values, _to_facing_space(pelvis_positions[sample_index], facing))
-		_append_vec3(values, _to_facing_space(_derivative_vec3(pelvis_positions, sample_index, sample_dt), facing))
-		_append_vec3(values, _to_facing_space(left_relative[sample_index], facing))
-		_append_vec3(values, _to_facing_space(_derivative_vec3(left_relative, sample_index, sample_dt), facing))
-		_append_vec3(values, _to_facing_space(right_relative[sample_index], facing))
-		_append_vec3(values, _to_facing_space(_derivative_vec3(right_relative, sample_index, sample_dt), facing))
-
-		for horizon in FUTURE_HORIZONS:
-			var future_index := mini(sample_count - 1, sample_index + int(round(float(horizon) * sample_rate_hz)))
-			var future_delta := root_positions[future_index] - root_positions[sample_index]
-			var local_delta := _to_facing_xz(future_delta, facing)
-			values.append(local_delta.x)
-			values.append(local_delta.y)
+		var contacts := 0
+		for key in ["pelvis", "foot_l", "foot_r"]:
+			var position: Vector3 = model_positions[index][key]
+			var velocity := yaw_inverse * ((world_positions[index + 1][key] as Vector3) - (world_positions[index - 1][key] as Vector3)) / (2.0 * dt)
+			_append_vec3(values, position)
+			_append_vec3(values, velocity)
+			if key != "pelvis" and position.y < CONTACT_ANKLE_HEIGHT and Vector2(velocity.x, velocity.z).length() < CONTACT_SPEED:
+				contacts |= 1 if key == "foot_l" else 2
 
 		for horizon in FUTURE_HORIZONS:
-			var future_index := mini(sample_count - 1, sample_index + int(round(float(horizon) * sample_rate_hz)))
-			var local_facing := _relative_facing(root_facings[future_index], facing)
+			var future := retargeter.track_index(time + float(horizon))
+			var delta := yaw_inverse * (retargeter.root_positions[future] - retargeter.root_positions[track])
+			values.append(delta.x)
+			values.append(delta.z)
+		for horizon in FUTURE_HORIZONS:
+			var future := retargeter.track_index(time + float(horizon))
+			var local_facing := yaw_inverse * retargeter.root_forwards[future]
 			values.append(local_facing.x)
-			values.append(local_facing.y)
+			values.append(local_facing.z)
 
+		var pose: Dictionary = poses[index]["pose"]
+		audit.add_sample(poses[index]["globals"], pose["rotations"], poses[index - 1]["pose"]["rotations"], dt)
 		if not database.append_sample(
 			clip_name,
-			times[sample_index],
+			time,
 			values,
-			pose_rows[sample_index],
-			root_facings[sample_index]
+			_pack_rotations(pose["rotations"]),
+			Vector2(forward.x, forward.z),
+			pose["pelvis_position"],
+			contacts
 		):
 			return null
 
 	database.rebuild_statistics()
+	last_quality = audit.get_report()
 	return database
 
 
-func _capture_pose_rotations(skeleton: Skeleton3D) -> PackedFloat32Array:
+func _pack_rotations(rotations: Array[Quaternion]) -> PackedFloat32Array:
 	var values := PackedFloat32Array()
-	values.resize(skeleton.get_bone_count() * 4)
-	for bone_index in range(skeleton.get_bone_count()):
-		var rotation := skeleton.get_bone_pose_rotation(bone_index).normalized()
-		var start := bone_index * 4
-		values[start] = rotation.x
-		values[start + 1] = rotation.y
-		values[start + 2] = rotation.z
-		values[start + 3] = rotation.w
+	values.resize(rotations.size() * 4)
+	for bone_index in range(rotations.size()):
+		var rotation := rotations[bone_index]
+		values[bone_index * 4] = rotation.x
+		values[bone_index * 4 + 1] = rotation.y
+		values[bone_index * 4 + 2] = rotation.z
+		values[bone_index * 4 + 3] = rotation.w
 	return values
 
 
-func _derivative_vec3(values: Array[Vector3], index: int, sample_dt: float) -> Vector3:
-	var previous := maxi(0, index - 1)
-	var following := mini(values.size() - 1, index + 1)
-	var duration := float(following - previous) * sample_dt
-	if duration <= 0.000001:
-		return Vector3.ZERO
-	return (values[following] - values[previous]) / duration
-
-
-func _angular_velocity(facings: Array[Vector2], index: int, sample_dt: float) -> float:
-	var previous := maxi(0, index - 1)
-	var following := mini(facings.size() - 1, index + 1)
-	var duration := float(following - previous) * sample_dt
-	if duration <= 0.000001:
-		return 0.0
-	return facings[previous].angle_to(facings[following]) / duration
-
-
-func _safe_facing(facing: Vector2) -> Vector2:
-	if facing.length_squared() <= 0.000001:
-		return Vector2(0.0, -1.0)
-	return facing.normalized()
-
-
-func _to_facing_xz(value: Vector3, facing: Vector2) -> Vector2:
-	var forward := _safe_facing(facing)
-	var right := Vector2(-forward.y, forward.x)
-	var xz := Vector2(value.x, value.z)
-	return Vector2(xz.dot(right), xz.dot(forward))
-
-
-func _to_facing_space(value: Vector3, facing: Vector2) -> Vector3:
-	var xz := _to_facing_xz(value, facing)
-	return Vector3(xz.x, value.y, xz.y)
-
-
-func _relative_facing(future: Vector2, current: Vector2) -> Vector2:
-	var forward := _safe_facing(current)
-	var right := Vector2(-forward.y, forward.x)
-	var future_safe := _safe_facing(future)
-	return Vector2(future_safe.dot(right), future_safe.dot(forward))
+func _yaw_delta(from_forward: Vector3, to_forward: Vector3) -> float:
+	return wrapf(atan2(to_forward.x, to_forward.z) - atan2(from_forward.x, from_forward.z), -PI, PI)
 
 
 func _append_vec3(values: PackedFloat32Array, value: Vector3) -> void:

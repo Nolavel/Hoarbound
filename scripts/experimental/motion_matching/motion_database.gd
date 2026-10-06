@@ -1,13 +1,8 @@
 class_name MotionDatabase
 extends Resource
 
-## Dense frame database for the motion-matching lab.
-## One Resource owns the whole matrix; samples are rows, never per-frame
-## Resources. Metadata keeps exact clip + animation time for playback.
-##
-## Multi-clip databases also retain the canonical post-retarget UAL rotation
-## pose and source root facing for every sample. Runtime playback therefore does
-## not need the original third-party BVH once the database has been baked.
+## Dense frame database: one feature matrix, exact clip + time per row, plus the
+## root-space UAL pose and foot contacts, so playback never needs the source.
 
 @export var sample_rate_hz: float = 30.0
 @export var feature_count: int = 0
@@ -21,6 +16,10 @@ extends Resource
 @export var sample_root_facings: PackedFloat32Array = PackedFloat32Array()
 @export var pose_bone_names: PackedStringArray = PackedStringArray()
 @export var pose_rotations: PackedFloat32Array = PackedFloat32Array()
+@export var pose_pelvis_positions: PackedFloat32Array = PackedFloat32Array()
+## Bit 0 = left foot contact, bit 1 = right foot contact.
+@export var sample_contacts: PackedByteArray = PackedByteArray()
+@export var samples_to_range_end: PackedInt32Array = PackedInt32Array()
 @export var feature_means: PackedFloat32Array = PackedFloat32Array()
 @export var feature_stddevs: PackedFloat32Array = PackedFloat32Array()
 
@@ -38,6 +37,8 @@ func configure_schema(names: PackedStringArray, rate_hz: float) -> void:
 	sample_root_facings.clear()
 	pose_bone_names.clear()
 	pose_rotations.clear()
+	pose_pelvis_positions.clear()
+	sample_contacts.clear()
 	feature_means.clear()
 	feature_stddevs.clear()
 
@@ -48,6 +49,7 @@ func configure_pose_schema(bone_names: PackedStringArray) -> bool:
 		return false
 	pose_bone_names = bone_names
 	pose_rotations.clear()
+	pose_pelvis_positions.clear()
 	return not pose_bone_names.is_empty()
 
 
@@ -67,7 +69,9 @@ func append_sample(
 		exact_time: float,
 		values: PackedFloat32Array,
 		pose_values: PackedFloat32Array = PackedFloat32Array(),
-		root_facing: Vector2 = Vector2(0.0, -1.0)
+		root_facing: Vector2 = Vector2(0.0, 1.0),
+		pelvis_position: Vector3 = Vector3.ZERO,
+		contacts: int = 0
 	) -> bool:
 	if feature_count <= 0 or values.size() != feature_count:
 		push_error("MotionDatabase: feature row has %d values, expected %d." % [values.size(), feature_count])
@@ -84,9 +88,13 @@ func append_sample(
 	features.append_array(values)
 	if expected_pose_values > 0:
 		pose_rotations.append_array(pose_values)
+	pose_pelvis_positions.append(pelvis_position.x)
+	pose_pelvis_positions.append(pelvis_position.y)
+	pose_pelvis_positions.append(pelvis_position.z)
+	sample_contacts.append(contacts)
 	sample_clip_indices.append(clip_index)
 	sample_times.append(exact_time)
-	var facing := root_facing.normalized() if root_facing.length_squared() > 0.000001 else Vector2(0.0, -1.0)
+	var facing := root_facing.normalized() if root_facing.length_squared() > 0.000001 else Vector2(0.0, 1.0)
 	sample_root_facings.append(facing.x)
 	sample_root_facings.append(facing.y)
 	return true
@@ -124,7 +132,9 @@ func append_database(other: MotionDatabase) -> bool:
 			other.get_sample_time(sample_index),
 			other.get_feature_row(sample_index),
 			other.get_pose_row(sample_index),
-			other.get_sample_root_facing(sample_index)
+			other.get_sample_root_facing(sample_index),
+			other.get_pelvis_position(sample_index),
+			other.get_sample_contacts(sample_index)
 		):
 			return false
 	return true
@@ -177,9 +187,29 @@ func get_pose_rotation(sample_index: int, pose_bone_index: int) -> Quaternion:
 func get_sample_root_facing(sample_index: int) -> Vector2:
 	var start := sample_index * 2
 	if sample_index < 0 or sample_index >= get_sample_count() or start + 1 >= sample_root_facings.size():
-		return Vector2(0.0, -1.0)
+		return Vector2(0.0, 1.0)
 	var facing := Vector2(sample_root_facings[start], sample_root_facings[start + 1])
-	return facing.normalized() if facing.length_squared() > 0.000001 else Vector2(0.0, -1.0)
+	return facing.normalized() if facing.length_squared() > 0.000001 else Vector2(0.0, 1.0)
+
+
+func get_pelvis_position(sample_index: int) -> Vector3:
+	var start := sample_index * 3
+	if sample_index < 0 or start + 2 >= pose_pelvis_positions.size():
+		return Vector3.ZERO
+	return Vector3(pose_pelvis_positions[start], pose_pelvis_positions[start + 1], pose_pelvis_positions[start + 2])
+
+
+func get_sample_contacts(sample_index: int) -> int:
+	if sample_index < 0 or sample_index >= sample_contacts.size():
+		return 0
+	return sample_contacts[sample_index]
+
+
+## Samples left in the same contiguous clip range after this one.
+func get_samples_to_range_end(sample_index: int) -> int:
+	if sample_index < 0 or sample_index >= samples_to_range_end.size():
+		return 0
+	return samples_to_range_end[sample_index]
 
 
 func get_sample_clip_index(sample_index: int) -> int:
@@ -240,6 +270,12 @@ func get_next_sample_in_clip(sample_index: int) -> int:
 
 
 func rebuild_statistics() -> void:
+	samples_to_range_end.resize(get_sample_count())
+	var remaining := 0
+	for sample_index in range(get_sample_count() - 1, -1, -1):
+		var continues := sample_index + 1 < get_sample_count() and sample_clip_indices[sample_index + 1] == sample_clip_indices[sample_index]
+		remaining = remaining + 1 if continues else 0
+		samples_to_range_end[sample_index] = remaining
 	feature_means.clear()
 	feature_stddevs.clear()
 	if feature_count <= 0 or get_sample_count() <= 0:
@@ -273,6 +309,8 @@ func is_consistent() -> bool:
 		return false
 	if sample_root_facings.size() != get_sample_count() * 2:
 		return false
+	if pose_pelvis_positions.size() != get_sample_count() * 3 or sample_contacts.size() != get_sample_count():
+		return false
 	if clip_roles.size() != clip_names.size() or clip_sources.size() != clip_names.size():
 		return false
 	if not pose_bone_names.is_empty():
@@ -301,6 +339,7 @@ func get_report() -> Dictionary:
 		"pose_float_count": pose_rotations.size(),
 		"pose_bytes": pose_rotations.size() * 4,
 		"root_facing_float_count": sample_root_facings.size(),
+		"pose_space": "character_root_local_ual",
 		"statistics_ready": feature_means.size() == feature_count and feature_stddevs.size() == feature_count,
 		"first_sample_time": 0.0 if sample_count == 0 else sample_times[0],
 		"last_sample_time": 0.0 if sample_count == 0 else sample_times[sample_count - 1],

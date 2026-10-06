@@ -5,6 +5,30 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-06 - Motion Matching lab: root-space retarget, curated CMU database, simulation-led playback (#202)
+
+- Replace the CMU/100STYLE retarget glue with per-family `SourceRetargetProfile`s,
+  a pure-data `BVHClip` and `MotionRetargeter` (model-space rest delta as in
+  `RetargetModifier3D` global mode, Holden simulation root, flat-foot and
+  arm/leg reference matching, scaled pelvis translation).
+- Fix root causes found by measurement: CMU unit was 0.0254 instead of
+  0.0254/0.45 (walks at 45% speed, lateral clips never qualified); poses carried
+  the capture's world yaw (Henry spun on every cross-clip switch); range ends
+  froze the pose; #476's horizontal Henry came from an un-reset proxy skeleton.
+- Curate up to 360 s of real CMU ranges with transitions, excluding source
+  marker glitches; 100STYLE is staged but refused until its profile is verified
+  (the session network cannot reach its host).
+- Matcher: per-quantity normalization (pose positions share one scale),
+  range-tail exclusion and UE-style pose-jump threshold. Playback: spring
+  simulation drives the CharacterBody; the animated root follows by root
+  motion with velocity-limited adjustment and clamping; two-slot crossfade.
+- New `MotionRetargetAudit`, `audit_motion_dataset.gd` (headless gate) and
+  `capture_motion_retarget_diagnostics.gd` (raw / normalized / Henry columns).
+  Removed the obsolete CMU segmenter, multi-clip builder, BVH skeleton source,
+  retarget lab scene and unused playback controller.
+- Proof capture is a 26.5 s continuous analog program; CI job also runs on
+  `claudeflow`. Production locomotion is untouched.
+
 ### 2026-10-04 - Remove duplicate high-tier footprint decals
 
 - FootprintSystem now subscribes to foot plants only on the low snow tier.

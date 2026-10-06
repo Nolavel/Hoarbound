@@ -34,8 +34,10 @@ builds.
   that its motion data is free for all uses. The lab uses the public BVH
   conversion mirror documented in `tools/ci/prepare_cmu_sample.sh`.
 - The 100STYLE Dataset — Ian Mason. Only the original `Neutral_SW` and
-  `Neutral_TR1` captures are staged. Licensed under Creative Commons
-  Attribution 4.0 International; <https://www.ianxmason.com/100style/>.
+  `Neutral_TR1` captures are staged (pinned SHA-256). Licensed under Creative
+  Commons Attribution 4.0 International; <https://www.ianxmason.com/100style/>.
+  Not baked into the lab database until its retarget profile is verified
+  (see `docs/motion_matching/retarget_audit.md`).
 
 ## Audio — provenance not yet recorded
 
