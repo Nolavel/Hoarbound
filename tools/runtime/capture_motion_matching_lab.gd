@@ -16,7 +16,7 @@ const CAPTURE_WIDTH := 1280
 const CAPTURE_HEIGHT := 720
 const PHYSICS_STEPS_PER_FRAME := 2
 const ROKOKO_VIDEO_FRAMES := 150
-const CMU_VIDEO_FRAMES := 240
+const CMU_VIDEO_FRAMES := 300
 const MOTION_DATABASE_RATE_HZ := 30.0
 
 const SEQUENCE: Array[Dictionary] = [
@@ -35,21 +35,6 @@ const SEQUENCE: Array[Dictionary] = [
 	{"label": "snap_left", "input": Vector2(-1.0, 0.0), "frames": 14},
 	{"label": "snap_forward", "input": Vector2(0.0, -1.0), "frames": 14},
 	{"label": "stop", "input": Vector2.ZERO, "frames": 18},
-]
-
-# 240 frames / 8 seconds. STOP -> START_F is deliberate so the merged database
-# is asked to leave locomotion and then re-enter it rather than only strafing.
-const CMU_MM_SEQUENCE: Array[Dictionary] = [
-	{"label": "IDLE", "direction": Vector2.ZERO, "frames": 18},
-	{"label": "FORWARD", "direction": Vector2(0.0, 1.0), "frames": 30},
-	{"label": "RIGHT", "direction": Vector2(1.0, 0.0), "frames": 30},
-	{"label": "BACK", "direction": Vector2(0.0, -1.0), "frames": 30},
-	{"label": "LEFT", "direction": Vector2(-1.0, 0.0), "frames": 30},
-	{"label": "FORWARD-RIGHT", "direction": Vector2(0.70710678, 0.70710678), "frames": 24},
-	{"label": "BACK-LEFT", "direction": Vector2(-0.70710678, -0.70710678), "frames": 24},
-	{"label": "STOP", "direction": Vector2.ZERO, "frames": 18},
-	{"label": "START-F", "direction": Vector2(0.0, 1.0), "frames": 18},
-	{"label": "FORWARD-END", "direction": Vector2(0.0, 1.0), "frames": 18},
 ]
 
 var _scene: Node3D
@@ -178,32 +163,33 @@ func _run_cmu_capture() -> void:
 		quit(23)
 		return
 
-	var captured_segments: Array[Dictionary] = []
-	for segment_index in range(CMU_MM_SEQUENCE.size()):
-		var segment: Dictionary = CMU_MM_SEQUENCE[segment_index]
-		var direction: Vector2 = segment["direction"]
-		var desired_velocity := direction * command_speed
-		var frame_count := int(segment["frames"])
-		var segment_last_state: Dictionary = {}
-		for local_frame in range(frame_count):
-			segment_last_state = await controller.step(1.0 / 30.0, desired_velocity, str(segment["label"]))
-			if segment_last_state.is_empty():
-				push_error("CMUMultiClipCapture: live database playback step failed.")
-				quit(24)
-				return
-			await process_frame
-			await RenderingServer.frame_post_draw
-			await _capture_frame(
-				"mm_%02d_%s" % [segment_index, str(segment["label"]).to_lower().replace("-", "_")],
-				segment_index,
-				local_frame == frame_count / 2
-			)
-		captured_segments.append({
-			"label": str(segment["label"]),
-			"desired_velocity": [desired_velocity.x, desired_velocity.y],
-			"frames": frame_count,
-			"end_state": segment_last_state,
-		})
+	# This proof intentionally avoids a scripted F/R/B/L state list. Every video
+	# frame supplies a continuous analog command; the debug label is constant and
+	# cannot influence matching. The path contains a full directional sweep,
+	# a hard reversal, a diagonal bend, stop/deceleration and a restart curve.
+	var proof_samples: Array[Dictionary] = []
+	for frame in range(CMU_VIDEO_FRAMES):
+		var desired_velocity := _analog_command_for_frame(frame, command_speed)
+		var state := await controller.step(
+			1.0 / 30.0,
+			desired_velocity,
+			"LIVE ANALOG",
+			Vector2(0.0, 1.0)
+		)
+		if state.is_empty():
+			push_error("CMUMultiClipCapture: live unconstrained playback step failed.")
+			quit(24)
+			return
+		await process_frame
+		await RenderingServer.frame_post_draw
+		var save_keyframe := frame % 50 == 0 or frame == CMU_VIDEO_FRAMES - 1
+		await _capture_frame("mm_live_%03d" % frame, frame / 50, save_keyframe)
+		if save_keyframe:
+			proof_samples.append({
+				"frame": frame,
+				"desired_velocity": [desired_velocity.x, desired_velocity.y],
+				"state": state,
+			})
 
 	if _frame_index != CMU_VIDEO_FRAMES:
 		push_error("CMUMultiClipCapture: expected %d frames, captured %d." % [CMU_VIDEO_FRAMES, _frame_index])
@@ -212,7 +198,8 @@ func _run_cmu_capture() -> void:
 
 	var report := cmu_lab.get_retarget_report()
 	report["issue"] = 202
-	report["mode"] = "cmu_multi_clip_motion_matching_playback"
+	report["mode"] = "cmu_unconstrained_live_runtime_motion_matching"
+	report["proof_mode"] = "continuous_analog_no_direction_labels"
 	report["resolution"] = [CAPTURE_WIDTH, CAPTURE_HEIGHT]
 	report["frame_count"] = _frame_index
 	report["video_seconds"] = float(_frame_index) / 30.0
@@ -221,16 +208,39 @@ func _run_cmu_capture() -> void:
 	report["source_reports"] = build_result.get("source_reports", [])
 	report["motion_database"] = database.get_report()
 	report["motion_matching_playback"] = controller.get_report()
-	report["playback_segments"] = captured_segments
+	report["proof_samples"] = proof_samples
 	_write_json_report(report)
 	var playback_report := controller.get_report()
-	print("[MM_MULTI_CAPTURE] %d frames / %d switches / %d cross-clip written to %s" % [
+	print("[MM_LIVE_CAPTURE] %d frames / %d switches / %d cross-clip / search=%s written to %s" % [
 		_frame_index,
 		int(playback_report["switch_count"]),
 		int(playback_report["cross_clip_switch_count"]),
+		String(playback_report["search_scope"]),
 		ProjectSettings.globalize_path(OUT_DIR),
 	])
 	quit(0)
+
+
+func _analog_command_for_frame(frame: int, speed: float) -> Vector2:
+	if frame < 24:
+		var ramp := float(frame) / 23.0
+		return Vector2(0.0, speed * ramp)
+	if frame < 144:
+		var phase := float(frame - 24) / 120.0 * TAU
+		return Vector2(sin(phase), cos(phase)) * speed
+	if frame < 174:
+		# Intent flips in one frame after the completed sweep.
+		return Vector2(0.0, -speed)
+	if frame < 224:
+		var bend := float(frame - 174) / 50.0
+		var angle := lerpf(PI, PI * 0.25, bend)
+		return Vector2(sin(angle), cos(angle)) * speed
+	if frame < 254:
+		var decel := 1.0 - float(frame - 224) / 29.0
+		return Vector2(0.70710678, 0.70710678) * speed * maxf(0.0, decel)
+	var restart := clampf(float(frame - 254) / 20.0, 0.0, 1.0)
+	var restart_phase := float(frame - 254) / 46.0 * PI * 0.75
+	return Vector2(sin(restart_phase), cos(restart_phase)) * speed * restart
 
 
 func _find_first_role(database: MotionDatabase, role: String) -> int:
@@ -244,13 +254,11 @@ func _estimate_command_speed(database: MotionDatabase) -> float:
 	var speed_sum := 0.0
 	var count := 0
 	for sample_index in range(database.get_sample_count()):
-		if database.get_sample_role(sample_index) != "walk_f":
-			continue
 		var row := database.get_feature_row(sample_index)
 		if row.size() < 2:
 			continue
 		var speed := Vector2(row[0], row[1]).length()
-		if speed > 0.25:
+		if speed > 0.35 and speed < 3.5:
 			speed_sum += speed
 			count += 1
 	if count <= 0:
