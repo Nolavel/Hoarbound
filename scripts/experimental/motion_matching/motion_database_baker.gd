@@ -2,9 +2,9 @@ class_name MotionDatabaseBaker
 extends RefCounted
 
 ## Offline dense feature baker for the motion-matching lab.
-## The source only needs to expose exact-time seek plus root trajectory/facing;
-## pose features are always sampled from the canonical target Skeleton3D after
-## retargeting. This keeps database rows independent of source rig naming.
+## Source rigs are sampled only after retarget onto the canonical UAL skeleton.
+## Every row stores search features, exact source time, root facing and the full
+## canonical UAL rotation pose so runtime can switch between unrelated captures.
 
 const DEFAULT_SAMPLE_RATE_HZ := 30.0
 const FUTURE_HORIZONS := [0.2, 0.5, 0.8]
@@ -33,7 +33,11 @@ func bake_seekable_skeleton(
 		seek_pose: Callable,
 		root_position_at_time: Callable,
 		root_facing_at_time: Callable,
-		sample_rate_hz: float = DEFAULT_SAMPLE_RATE_HZ
+		sample_rate_hz: float = DEFAULT_SAMPLE_RATE_HZ,
+		start_time: float = 0.0,
+		end_time: float = -1.0,
+		role: String = "",
+		source_id: String = ""
 	) -> MotionDatabase:
 	if skeleton == null:
 		push_error("MotionDatabaseBaker: target skeleton is null.")
@@ -52,10 +56,23 @@ func bake_seekable_skeleton(
 		push_error("MotionDatabaseBaker: target skeleton needs pelvis/foot_l/foot_r.")
 		return null
 
+	var segment_start := clampf(start_time, 0.0, clip_length)
+	var segment_end := clip_length if end_time <= segment_start else clampf(end_time, segment_start, clip_length)
+	var segment_length := segment_end - segment_start
+	if segment_length <= 0.0001:
+		push_error("MotionDatabaseBaker: empty source segment for %s." % String(clip_name))
+		return null
+
 	var database := MotionDatabase.new()
 	database.configure_schema(PackedStringArray(FEATURE_NAMES), sample_rate_hz)
+	var pose_bones := PackedStringArray()
+	for bone_index in range(skeleton.get_bone_count()):
+		pose_bones.append(skeleton.get_bone_name(bone_index))
+	if not database.configure_pose_schema(pose_bones):
+		return null
+	database.set_clip_metadata(clip_name, role, source_id)
 
-	var sample_count := maxi(2, int(floor(clip_length * sample_rate_hz)))
+	var sample_count := maxi(2, int(floor(segment_length * sample_rate_hz)))
 	var sample_dt := 1.0 / sample_rate_hz
 	var times := PackedFloat32Array()
 	var pelvis_positions: Array[Vector3] = []
@@ -63,16 +80,15 @@ func bake_seekable_skeleton(
 	var right_foot_positions: Array[Vector3] = []
 	var root_positions: Array[Vector3] = []
 	var root_facings: Array[Vector2] = []
+	var pose_rows: Array[PackedFloat32Array] = []
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null:
 		push_error("MotionDatabaseBaker: SceneTree is unavailable.")
 		return null
 
 	for sample_index in range(sample_count):
-		var sample_time := float(sample_index) * sample_dt
+		var sample_time := minf(segment_end, segment_start + float(sample_index) * sample_dt)
 		seek_pose.call(sample_time)
-		# RetargetModifier3D applies after source pose changes; one process frame
-		# matches the same path used by the visual capture harness.
 		await tree.process_frame
 
 		times.append(sample_time)
@@ -83,6 +99,7 @@ func bake_seekable_skeleton(
 		var root_facing_3d: Vector3 = root_facing_at_time.call(sample_time)
 		root_positions.append(root_position)
 		root_facings.append(_safe_facing(Vector2(root_facing_3d.x, root_facing_3d.z)))
+		pose_rows.append(_capture_pose_rotations(skeleton))
 
 	var left_relative: Array[Vector3] = []
 	var right_relative: Array[Vector3] = []
@@ -120,11 +137,30 @@ func bake_seekable_skeleton(
 			values.append(local_facing.x)
 			values.append(local_facing.y)
 
-		if not database.append_sample(clip_name, times[sample_index], values):
+		if not database.append_sample(
+			clip_name,
+			times[sample_index],
+			values,
+			pose_rows[sample_index],
+			root_facings[sample_index]
+		):
 			return null
 
 	database.rebuild_statistics()
 	return database
+
+
+func _capture_pose_rotations(skeleton: Skeleton3D) -> PackedFloat32Array:
+	var values := PackedFloat32Array()
+	values.resize(skeleton.get_bone_count() * 4)
+	for bone_index in range(skeleton.get_bone_count()):
+		var rotation := skeleton.get_bone_pose_rotation(bone_index).normalized()
+		var start := bone_index * 4
+		values[start] = rotation.x
+		values[start + 1] = rotation.y
+		values[start + 2] = rotation.z
+		values[start + 3] = rotation.w
+	return values
 
 
 func _derivative_vec3(values: Array[Vector3], index: int, sample_dt: float) -> Vector3:

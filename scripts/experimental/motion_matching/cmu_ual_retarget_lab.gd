@@ -1,17 +1,13 @@
 class_name CMUUALRetargetLab
 extends Node3D
 
-## CMU Subject 41 direct-Godot retarget spike for issue #202.
-## CI downloads a public BVH trial into an ignored runtime directory. The BVH
-## parser builds a source Skeleton3D, uses the synthetic frame-0 T-pose as rest,
-## and drives Henry through Godot's RetargetModifier3D. No Blender or Mixamo.
-##
-## CMU translation is intentionally NOT copied into Henry's bones: UAL remains
-## the canonical skeleton for bone lengths / offsets, while CMU rotations drive
-## the pose. Raw CMU root translation is retained separately for trajectory
-## features and CharacterBody3D remains authoritative for world movement.
+## Direct-Godot CMU BVH -> canonical Henry UAL retarget lab for issue #202.
+## Source BVHs are staged only for CI/lab use. UAL translations/bone lengths
+## remain canonical; mapped source rotations drive the pose while raw CMU root
+## motion is retained separately for motion-matching trajectory features.
 
-const SOURCE_BVH_PATH := "res://tests/motion_matching/_runtime_cmu/41_02.bvh"
+const DEFAULT_SOURCE_BVH_PATH := "res://tests/motion_matching/_runtime_cmu/41_02.bvh"
+const DEFAULT_CLIP_NAME := &"CMU_41_02"
 
 const TARGET_SOURCE_ALIASES := {
 	"pelvis": ["Hips"],
@@ -54,12 +50,19 @@ const DIAGNOSTIC_BONES: Array[StringName] = [
 @onready var henry_animation: HenryUALAnimation = $Henry/HenryUALVisual as HenryUALAnimation
 @onready var readout: Label3D = $Debug/Readout
 
+var _source_bvh_path := DEFAULT_SOURCE_BVH_PATH
+var _source_clip_name: StringName = DEFAULT_CLIP_NAME
+var _source_trial := "CMU Subject 41 / 41_02"
+var _source_description := "navigate: forward, backward, sideways, diagonally"
+var _source_role := "multidirectional_reference"
+
 var _source: CMUBVHSource
 var _target_skeleton: Skeleton3D
 var _proxy_skeleton: Skeleton3D
 var _retarget_modifier: RetargetModifier3D
 var _motion_database: MotionDatabase
 var _setup_ok := false
+var _setup_started := false
 var _mapped_count := 0
 var _mapping: Dictionary = {}
 var _mapped_target_indices: Array[int] = []
@@ -67,13 +70,35 @@ var _unmapped_required: Array[String] = []
 var _report: Dictionary = {}
 
 
+func configure_source(
+		bvh_path: String,
+		clip_name: StringName,
+		trial: String = "",
+		description: String = "",
+		role: String = ""
+	) -> bool:
+	if _setup_started or is_inside_tree():
+		push_error("CMUUALRetargetLab: configure_source must run before the lab enters the tree.")
+		return false
+	_source_bvh_path = bvh_path
+	_source_clip_name = clip_name
+	if not trial.is_empty():
+		_source_trial = trial
+	if not description.is_empty():
+		_source_description = description
+	if not role.is_empty():
+		_source_role = role
+	return true
+
+
 func _ready() -> void:
 	call_deferred("_setup")
 
 
 func _setup() -> void:
-	if not FileAccess.file_exists(SOURCE_BVH_PATH):
-		_fail("CMU BVH was not staged before capture.")
+	_setup_started = true
+	if not FileAccess.file_exists(_source_bvh_path):
+		_fail("CMU BVH was not staged before capture: %s" % _source_bvh_path)
 		return
 	if henry_animation == null or henry_animation.skeleton == null:
 		_fail("Henry UAL skeleton is unavailable.")
@@ -88,9 +113,9 @@ func _setup() -> void:
 	_target_skeleton.reset_bone_poses()
 
 	_source = CMUBVHSource.new()
-	_source.name = "CMU_41_02"
+	_source.name = String(_source_clip_name)
 	$SourceData.add_child(_source)
-	if not _source.load_bvh(SOURCE_BVH_PATH):
+	if not _source.load_bvh(_source_bvh_path):
 		_fail(_source.error_message)
 		return
 
@@ -116,8 +141,10 @@ func _setup() -> void:
 	_report["target_bone_count"] = _target_skeleton.get_bone_count()
 	_report["target_source_mapping"] = _mapping.duplicate(true)
 	_report["unmapped_required_bones"] = _unmapped_required
-	_report["source_trial"] = "CMU Subject 41 / 41_02"
-	_report["source_description"] = "navigate: forward, backward, sideways, diagonally"
+	_report["source_trial"] = _source_trial
+	_report["source_description"] = _source_description
+	_report["source_role"] = _source_role
+	_report["source_clip_name"] = String(_source_clip_name)
 	_update_readout()
 	seek_capture_time(0.0)
 
@@ -130,24 +157,49 @@ func get_clip_length() -> float:
 	return 0.0 if _source == null else _source.clip_length
 
 
-func bake_motion_database(sample_rate_hz: float = 30.0) -> MotionDatabase:
+func get_source_clip_name() -> String:
+	return String(_source_clip_name)
+
+
+func get_target_skeleton() -> Skeleton3D:
+	return _target_skeleton
+
+
+func set_retarget_active(enabled: bool) -> void:
+	if _retarget_modifier != null:
+		_retarget_modifier.active = enabled
+
+
+func bake_motion_database(
+		sample_rate_hz: float = 30.0,
+		start_time: float = 0.0,
+		end_time: float = -1.0,
+		role: String = "",
+		source_id: String = ""
+	) -> MotionDatabase:
 	if not _setup_ok or _source == null or _target_skeleton == null:
 		return null
 	var baker := MotionDatabaseBaker.new()
+	var effective_role := _source_role if role.is_empty() else role
+	var effective_source := _source_bvh_path if source_id.is_empty() else source_id
 	var database: MotionDatabase = await baker.bake_seekable_skeleton(
 		_target_skeleton,
-		&"CMU_41_02",
+		_source_clip_name,
 		_source.clip_length,
 		Callable(self, "seek_capture_time"),
 		Callable(_source, "get_raw_root_position"),
 		Callable(_source, "get_raw_root_facing"),
-		sample_rate_hz
+		sample_rate_hz,
+		start_time,
+		end_time,
+		effective_role,
+		effective_source
 	)
 	if database == null or not database.is_consistent():
-		push_error("CMUUALRetargetLab: MotionDatabase bake failed.")
+		push_error("CMUUALRetargetLab: MotionDatabase bake failed for %s." % String(_source_clip_name))
 		return null
 	_motion_database = database
-	_report["motion_database_baker"] = "post_retarget_ual_exact_time"
+	_report["motion_database_baker"] = "post_retarget_ual_exact_time_with_canonical_pose"
 	_report["motion_database"] = _motion_database.get_report()
 	return _motion_database
 
@@ -167,7 +219,7 @@ func seek_capture_time(seconds: float) -> void:
 func get_retarget_report() -> Dictionary:
 	var result := _report.duplicate(true)
 	result["setup_ok"] = _setup_ok
-	result["source_scene"] = SOURCE_BVH_PATH
+	result["source_scene"] = _source_bvh_path
 	if _setup_ok:
 		result["target_diagnostics"] = _collect_target_diagnostics()
 	return result
@@ -238,8 +290,6 @@ func _install_runtime_retarget() -> bool:
 	_retarget_modifier.profile = profile
 	_retarget_modifier.use_global_pose = false
 	_retarget_modifier.copy_bone_skin_scale = false
-	# Preserve UAL translations/bone lengths. CMU root motion stays in the raw
-	# trajectory channel and is not allowed to displace or rescale Henry's rig.
 	_retarget_modifier.set_position_enabled(false)
 	_retarget_modifier.set_rotation_enabled(true)
 	_retarget_modifier.set_scale_enabled(false)
@@ -252,10 +302,6 @@ func _install_runtime_retarget() -> bool:
 func _copy_proxy_pose_to_henry() -> void:
 	if _proxy_skeleton == null or _target_skeleton == null:
 		return
-	# RetargetModifier3D is rotation-only here. Its proxy translations are not
-	# valid target poses, so copying the full Transform3D collapses UAL offsets.
-	# Keep Henry's rest-derived local positions/scales and copy only mapped
-	# retargeted rotations; unmapped terminal bones remain on their UAL rests.
 	for bone_index in _mapped_target_indices:
 		_target_skeleton.set_bone_pose_rotation(
 			bone_index,
@@ -339,12 +385,14 @@ func _vec3_to_array(value: Vector3) -> Array[float]:
 func _update_readout() -> void:
 	if readout == null or _source == null:
 		return
-	readout.text = "CMU 41_02 → GODOT → UAL\n%.1f FPS  %d motion frames  %.1fs\nRetargetModifier3D  rotation-only  mapped %d/%d\nroot: in-place playback / raw trajectory retained\nBlender: NONE  Mixamo: NONE" % [
+	readout.text = "%s → GODOT → UAL\n%.1f FPS  %d motion frames  %.1fs\nRetargetModifier3D  rotation-only  mapped %d/%d\nrole: %s\nBlender: NONE  synthetic direction: NONE" % [
+		String(_source_clip_name),
 		0.0 if _source.frame_time <= 0.0 else 1.0 / _source.frame_time,
 		_source.motion_frame_count,
 		_source.clip_length,
 		_mapped_count,
 		_target_skeleton.get_bone_count(),
+		_source_role,
 	]
 
 
