@@ -1,8 +1,8 @@
 class_name MotionMatcher
 extends RefCounted
 
-## Brute-force real-frame matcher; skips only range tails and the playing pose's
-## neighbourhood. Normalization per quantity, after orangeduck/Motion-Matching.
+## Brute-force real-frame matcher; skips only range tails and caller-excluded
+## intervals. Normalization per quantity, after orangeduck/Motion-Matching.
 
 const GROUPS := [
 	{"name": "root_velocity", "first": 0, "count": 2, "weight": 1.0, "category": "velocity", "quantity": "root_velocity"},
@@ -15,8 +15,9 @@ const GROUPS := [
 	{"name": "right_foot_velocity", "first": 18, "count": 3, "weight": 1.0, "category": "pose", "quantity": "pose_velocity"},
 	{"name": "trajectory_position", "first": 21, "count": 6, "weight": 1.0, "category": "trajectory", "quantity": "trajectory_position"},
 	{"name": "trajectory_facing", "first": 27, "count": 6, "weight": 1.5, "category": "facing", "quantity": "trajectory_facing"},
+	{"name": "foot_contacts", "first": 33, "count": 2, "weight": 1.0, "category": "contact", "quantity": "foot_contact"},
 ]
-const CATEGORIES := ["velocity", "pose", "trajectory", "facing"]
+const CATEGORIES := ["velocity", "pose", "trajectory", "facing", "contact"]
 ## Frames that cannot finish a crossfade before their range ends.
 const DEFAULT_END_MARGIN_SAMPLES := 10
 
@@ -29,8 +30,8 @@ var _normalized := PackedFloat32Array()
 var _category_of_feature := PackedInt32Array()
 
 
-## exclude_first..exclude_last: sample interval skipped (the playing neighbourhood).
-func find_best(database: MotionDatabase, query: PackedFloat32Array, exclude_first: int = -1, exclude_last: int = -1) -> Dictionary:
+## excluded: inclusive sample intervals that may not be selected (x..y).
+func find_best(database: MotionDatabase, query: PackedFloat32Array, excluded: Array[Vector2i] = []) -> Dictionary:
 	if not _prepare(database, query):
 		return {}
 	var feature_count := database.feature_count
@@ -41,7 +42,7 @@ func find_best(database: MotionDatabase, query: PackedFloat32Array, exclude_firs
 	for sample_index in range(database.get_sample_count()):
 		if database.samples_to_range_end[sample_index] < end_margin_samples:
 			continue
-		if sample_index >= exclude_first and sample_index <= exclude_last:
+		if _is_excluded(sample_index, excluded):
 			continue
 		candidate_count += 1
 		var start := sample_index * feature_count
@@ -84,8 +85,16 @@ func score_sample(database: MotionDatabase, sample_index: int, query: PackedFloa
 		"pose_cost": costs[1],
 		"trajectory_cost": costs[2],
 		"facing_cost": costs[3],
+		"contact_cost": costs[4],
 		"total_cost": total,
 	}
+
+
+func _is_excluded(sample_index: int, excluded: Array[Vector2i]) -> bool:
+	for interval in excluded:
+		if sample_index >= interval.x and sample_index <= interval.y:
+			return true
+	return false
 
 
 func get_group_report() -> Array:

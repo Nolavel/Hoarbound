@@ -207,15 +207,20 @@ jobs:
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export XDG_RUNTIME_DIR=/tmp/xdg
           mkdir -p "$XDG_RUNTIME_DIR"
-          for script in capture_motion_retarget_diagnostics capture_motion_matching_lab; do
+          run_godot() {
             MM_DIAG_VIDEO=0 xvfb-run -a "$HOME/.local/bin/godot" \
               --path . \
               --resolution 1280x720 \
               --rendering-driver vulkan \
               --rendering-method forward_plus \
               --audio-driver Dummy \
-              --script "tools/runtime/$script.gd"
-          done
+              --script "$@"
+          }
+          # 100STYLE is unverified: diagnostics only, never baked.
+          run_godot tools/runtime/capture_motion_retarget_diagnostics.gd -- \
+            CMU:09_12 CMU:113_17 CMU:41_02 CMU:111_28 CMU:69_18 CMU:40_04 \
+            100STYLE:Neutral_SW 100STYLE:Neutral_TR1
+          run_godot tools/runtime/capture_motion_matching_lab.gd
 
       - name: Encode preview video
         run: |

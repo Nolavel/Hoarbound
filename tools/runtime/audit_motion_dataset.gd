@@ -20,6 +20,8 @@ func _run() -> void:
 	var database: MotionDatabase = build["database"]
 	var failed: Array[String] = []
 	for range_report in report.get("ranges", []):
+		if range_report.has("split_for_audit"):
+			continue # Re-baked without the failing frames.
 		if not bool(range_report["audit"].get("passed", false)):
 			failed.append(String(range_report["clip"]))
 	var missing: Array = report.get("selection", {}).get("missing_labels", [])

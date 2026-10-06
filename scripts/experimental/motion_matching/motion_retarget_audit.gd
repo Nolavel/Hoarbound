@@ -24,6 +24,8 @@ var _indices: Dictionary = {}
 var _ball_rest_height := 0.0
 var _samples := 0
 var _failures: Dictionary = {}
+var _failed_samples := PackedInt32Array()
+var _sample_failed := false
 var _crossed_feet := 0
 var _ground_errors: Array[float] = []
 var _max_angular_speed := 0.0
@@ -47,6 +49,9 @@ func _init(target: UALSkeletonModel) -> void:
 
 
 func add_sample(globals: Array[Transform3D], rotations: Array[Quaternion], previous_rotations: Array[Quaternion], dt: float) -> void:
+	if _sample_failed:
+		_failed_samples.append(_samples - 1)
+	_sample_failed = false
 	_samples += 1
 	var pelvis := globals[_indices["pelvis"]]
 	var head := globals[_indices["Head"]].origin
@@ -106,6 +111,14 @@ func add_sample(globals: Array[Transform3D], rotations: Array[Quaternion], previ
 	_ground_errors.append(lowest - _ball_rest_height)
 
 
+## Sample indices (in add order) that broke at least one structural check.
+func get_failed_samples() -> PackedInt32Array:
+	var result := _failed_samples.duplicate()
+	if _sample_failed:
+		result.append(_samples - 1)
+	return result
+
+
 func get_report() -> Dictionary:
 	var sorted := _ground_errors.duplicate()
 	sorted.sort()
@@ -130,8 +143,10 @@ func get_report() -> Dictionary:
 		"max_angular_bone": _max_angular_bone,
 		"max_angular_sample": _max_angular_sample,
 		"passed": hard_failures == 0 and ground_ok,
+		"failed_sample_count": get_failed_samples().size(),
 	}
 
 
 func _fail(check: String) -> void:
 	_failures[check] = int(_failures.get(check, 0)) + 1
+	_sample_failed = true

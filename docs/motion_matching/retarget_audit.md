@@ -51,6 +51,13 @@ contribute, because each target bone reads its source *global* rotation.
 | Hierarchy | 31 joints: Hips, L/RHipJoint, Up/Leg/Foot/ToeBase, LowerBack, Spine, Spine1, Neck, Neck1, Head, L/R Shoulder/Arm/ForeArm/Hand + finger/thumb ends | header |
 | Known data artifact | occasional 1–3 frame toe/foot marker glitches (e.g. `09_12` 7.80 s, toe −45°) | raw channel trace; curator excludes ±0.25 s around any > 20 rad/s joint jump |
 
+Gaze is task-contaminated in the "navigate" captures: head forward tilt
+(Head → End Site against the heading frame) is 50–88° for subject 41
+(41_02, 41_05), 24–42° for subject 40, 5–33° for subject 09 and 6–10° for the
+standing subject 111. The subjects watched floor marks; this is source truth,
+not a retarget error, and is reproduced faithfully on Henry. Whether a gaze
+layer should own neck/head is an open design decision.
+
 Rest deltas against UAL (model space, degrees): thigh 1.1, calf 4.7,
 upper arm / forearm 8.0 (aligned by the profile); foot ankle→ball pitch differs
 by joint placement only and is calibrated flat-to-flat from stance data.

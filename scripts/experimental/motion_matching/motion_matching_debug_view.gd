@@ -77,10 +77,10 @@ func _hud_text(database: MotionDatabase, snapshot: Dictionary) -> String:
 	lines.append("ROOT  speed %.2f m/s   yaw rate %+.2f rad/s   blend %.2f   anim-sim %.2f m %+.0f deg" % [float(snapshot["root_speed"]), float(snapshot["angular_velocity"]), float(snapshot["blend_alpha"]), float(snapshot["anim_to_simulation_m"]), rad_to_deg(float(snapshot["anim_to_simulation_yaw"]))])
 	lines.append("CURRENT  %s @ %.2fs  #%d  [%s]" % [snapshot["current_clip"], float(snapshot["current_time"]), int(snapshot["current_sample"]), snapshot["current_role_metadata"]])
 	if not current_cost.is_empty():
-		lines.append("         cost %.2f = pose %.2f  vel %.2f  traj %.2f  face %.2f" % [float(current_cost["total_cost"]), float(current_cost["pose_cost"]), float(current_cost["velocity_cost"]), float(current_cost["trajectory_cost"]), float(current_cost["facing_cost"])])
+		lines.append("         cost %.2f = pose %.2f  vel %.2f  traj %.2f  face %.2f  contact %.2f" % [float(current_cost["total_cost"]), float(current_cost["pose_cost"]), float(current_cost["velocity_cost"]), float(current_cost["trajectory_cost"]), float(current_cost["facing_cost"]), float(current_cost["contact_cost"])])
 	if not best.is_empty():
 		lines.append("BEST     %s @ %.2fs  #%d  [%s]" % [best["clip"], float(best["time"]), int(best["sample_index"]), best["role"]])
-		lines.append("         cost %.2f = pose %.2f  vel %.2f  traj %.2f  face %.2f" % [float(best["total_cost"]), float(best["pose_cost"]), float(best["velocity_cost"]), float(best["trajectory_cost"]), float(best["facing_cost"])])
+		lines.append("         cost %.2f = pose %.2f  vel %.2f  traj %.2f  face %.2f  contact %.2f" % [float(best["total_cost"]), float(best["pose_cost"]), float(best["velocity_cost"]), float(best["trajectory_cost"]), float(best["facing_cost"]), float(best["contact_cost"])])
 	lines.append("DECISION %s   contacts L%d R%d" % [snapshot["decision"], int(snapshot["contacts"]) & 1, (int(snapshot["contacts"]) >> 1) & 1])
 	lines.append("green: simulation path+facing  blue: current frame  yellow: best frame  orange: animated facing  [role] = metadata only")
 	return "\n".join(lines)

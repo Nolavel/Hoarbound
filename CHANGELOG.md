@@ -28,6 +28,8 @@ Maintained per branch; entries are added by whoever makes the change.
   retarget lab scene and unused playback controller.
 - Proof capture is a 26.5 s continuous analog program; CI job also runs on
   `claudeflow`. Production locomotion is untouched.
+- Follow-up: live/baked foot-contact features, UE-style pose reselect history
+  against tail ping-pong, and audit-failing frames cut out of baked ranges.
 
 ### 2026-10-04 - Remove duplicate high-tier footprint decals
 

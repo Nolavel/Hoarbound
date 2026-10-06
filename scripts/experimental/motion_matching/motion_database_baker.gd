@@ -6,6 +6,7 @@ extends RefCounted
 
 const DEFAULT_SAMPLE_RATE_HZ := 30.0
 const FUTURE_HORIZONS := [0.2, 0.5, 0.8]
+## Shared with the live query so baked and runtime contacts mean the same.
 const CONTACT_SPEED := 0.30
 ## Henry's ankle joint rests 0.104 m above the floor; 7 cm of lift still counts.
 const CONTACT_ANKLE_HEIGHT := 0.17
@@ -24,9 +25,12 @@ const FEATURE_NAMES := [
 	"facing_0_2_x", "facing_0_2_z",
 	"facing_0_5_x", "facing_0_5_z",
 	"facing_0_8_x", "facing_0_8_z",
+	"left_foot_contact", "right_foot_contact",
 ]
 
 var last_quality: Dictionary = {}
+## Source times of the last bake's samples that failed the structural audit.
+var last_failed_times := PackedFloat32Array()
 
 
 func bake_range(
@@ -116,6 +120,8 @@ func bake_range(
 			var local_facing := yaw_inverse * retargeter.root_forwards[future]
 			values.append(local_facing.x)
 			values.append(local_facing.z)
+		values.append(1.0 if contacts & 1 else 0.0)
+		values.append(1.0 if contacts & 2 else 0.0)
 
 		var pose: Dictionary = poses[index]["pose"]
 		audit.add_sample(poses[index]["globals"], pose["rotations"], poses[index - 1]["pose"]["rotations"], dt)
@@ -132,6 +138,9 @@ func bake_range(
 
 	database.rebuild_statistics()
 	last_quality = audit.get_report()
+	last_failed_times.clear()
+	for failed in audit.get_failed_samples():
+		last_failed_times.append(times[failed + 1])
 	return database
 
 

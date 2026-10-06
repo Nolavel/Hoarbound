@@ -43,6 +43,7 @@ func _run() -> void:
 		var parts := String(entry).split(":")
 		var clip_report := await _capture_clip(parts[0], parts[1])
 		report["clips"].append(clip_report)
+		_print_clip(clip_report)
 		all_passed = all_passed and bool(clip_report.get("audit", {}).get("passed", false))
 	report["all_passed"] = all_passed
 	var file := FileAccess.open(OUT_DIR + "/report.json", FileAccess.WRITE)
@@ -56,10 +57,10 @@ func _capture_clip(dataset: String, clip_name: String) -> Dictionary:
 	var profile := SourceRetargetProfile.for_dataset(dataset)
 	var clip := BVHClip.new()
 	if profile == null or not clip.load_file(SOURCE_ROOT + clip_name + ".bvh", profile.units_to_meters):
-		return {"clip": clip_name, "error": "cannot load"}
+		return {"dataset": dataset, "clip": clip_name, "error": "cannot load"}
 	var retargeter := MotionRetargeter.new()
 	if not retargeter.setup(clip, profile, _model):
-		return {"clip": clip_name, "error": retargeter.error_message}
+		return {"dataset": dataset, "clip": clip_name, "error": retargeter.error_message}
 	var baker := MotionDatabaseBaker.new()
 	var database := baker.bake_range(retargeter, StringName(clip_name), 0.0, retargeter.get_duration())
 	var duration := retargeter.get_duration()
@@ -96,6 +97,23 @@ func _capture_clip(dataset: String, clip_name: String) -> Dictionary:
 		"video_start": video_start,
 		"video_frames": video_frames,
 	}
+
+
+## One log line per clip so CI logs carry the verdict without the artifact.
+func _print_clip(clip_report: Dictionary) -> void:
+	if clip_report.has("error"):
+		print("[RETARGET_CLIP] %s %s ERROR %s" % [clip_report.get("dataset", "?"), clip_report.get("clip", "?"), clip_report["error"]])
+		return
+	var retarget: Dictionary = clip_report["retarget"]
+	var audit: Dictionary = clip_report["audit"]
+	print("[RETARGET_CLIP] %s %s passed=%s failures=%s ground=%s forward_agreement=%.3f scale=%.3f segment_deg=%s feet=%s" % [
+		clip_report["dataset"], clip_report["clip"], audit["passed"],
+		JSON.stringify(audit["failures"]), JSON.stringify(audit["ground_error_m"]),
+		float(retarget.get("reference_forward_agreement", 0.0)),
+		float(retarget.get("motion_scale_henry_over_source_leg", 0.0)),
+		JSON.stringify(retarget.get("segment_alignment_degrees", {})),
+		JSON.stringify(retarget.get("foot_calibration", {})),
+	])
 
 
 func _most_extreme_time(database: MotionDatabase) -> float:

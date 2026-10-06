@@ -11,6 +11,8 @@ const SWITCH_MIN_ABSOLUTE := 0.25
 const SWITCH_MIN_RATIO := 0.10
 ## Same-range poses closer than this to the playing pose are not candidates.
 const POSE_JUMP_THRESHOLD_SECONDS := 0.5
+## Poses played within this window are not reselected (UE PoseReselectHistory).
+const POSE_RESELECT_HISTORY_SECONDS := 1.0
 ## Remaining samples at which the playing range forces a search.
 const FORCE_SEARCH_SAMPLES := 4
 const ADJUST_POSITION_HALFLIFE := 0.1
@@ -56,6 +58,12 @@ var _blocked: Dictionary = {}
 var _forced_switches := 0
 var _foot_slide_sum := 0.0
 var _foot_slide_frames := 0
+var _steady_slide_sum := 0.0
+var _steady_slide_frames := 0
+var _since_switch := 1.0
+var _clock := 0.0
+var _history: Array[Dictionary] = []
+var _entry_sample := 0
 var _previous_contact_feet: Dictionary = {}
 
 
@@ -82,6 +90,7 @@ func setup(database: MotionDatabase, skeleton: Skeleton3D, body: CharacterBody3D
 		_pose_targets[pose_index] = bone
 	_pelvis_bone = skeleton.find_bone("pelvis")
 	_current = {"sample": clampi(initial_sample, 0, database.get_sample_count() - 1), "phase": 0.0}
+	_entry_sample = _current["sample"]
 	_apply_pose()
 	_previous_state = _builder.capture(skeleton)
 	return not _previous_state.is_empty()
@@ -91,6 +100,8 @@ func setup(database: MotionDatabase, skeleton: Skeleton3D, body: CharacterBody3D
 func step(dt: float, desired_velocity_world: Vector3, desired_forward_world: Vector3, debug_label: String = "") -> Dictionary:
 	_cooldown = maxf(0.0, _cooldown - dt)
 	_blend_elapsed += dt
+	_since_switch += dt
+	_clock += dt
 	_step_simulation(dt, desired_velocity_world, desired_forward_world)
 	_integrate_root_motion(dt)
 	_advance(_current, dt)
@@ -191,6 +202,7 @@ func get_report() -> Dictionary:
 		"switch_min_absolute": SWITCH_MIN_ABSOLUTE,
 		"switch_min_ratio": SWITCH_MIN_RATIO,
 		"pose_jump_threshold_s": POSE_JUMP_THRESHOLD_SECONDS,
+		"pose_reselect_history_s": POSE_RESELECT_HISTORY_SECONDS,
 		"end_margin_samples": _matcher.end_margin_samples,
 		"feature_groups": _matcher.get_group_report(),
 		"evaluations": _evaluations,
@@ -199,6 +211,8 @@ func get_report() -> Dictionary:
 		"forced_switch_count": _forced_switches,
 		"blocked": _blocked.duplicate(),
 		"mean_contact_foot_slide_m_s": 0.0 if _foot_slide_frames == 0 else _foot_slide_sum / float(_foot_slide_frames),
+		"steady_contact_foot_slide_m_s": 0.0 if _steady_slide_frames == 0 else _steady_slide_sum / float(_steady_slide_frames),
+		"steady_contact_frame_fraction": 0.0 if _foot_slide_frames == 0 else float(_steady_slide_frames) / float(_foot_slide_frames),
 		"switch_events": _switches.duplicate(true),
 	}
 
@@ -207,14 +221,12 @@ func _evaluate(forced: bool, desired_velocity_world: Vector3, debug_label: Strin
 	_evaluations += 1
 	var playing: int = _current["sample"]
 	var jump := int(round(POSE_JUMP_THRESHOLD_SECONDS * _database.sample_rate_hz))
-	var exclude_first := playing
-	var exclude_last := playing
-	for _step in range(jump):
-		if exclude_first > 0 and _database.get_sample_clip_index(exclude_first - 1) == _database.get_sample_clip_index(playing):
-			exclude_first -= 1
-		exclude_last = _database.get_next_sample_in_clip(exclude_last)
+	var excluded: Array[Vector2i] = [_range_around(playing, jump)]
+	for entry in _history:
+		if _clock - float(entry["time"]) <= POSE_RESELECT_HISTORY_SECONDS:
+			excluded.append(entry["interval"])
 	_last_current_cost = _matcher.score_sample(_database, playing, _last_query)
-	_last_best = _matcher.find_best(_database, _last_query, exclude_first, exclude_last)
+	_last_best = _matcher.find_best(_database, _last_query, excluded)
 	if _last_best.is_empty() or _last_current_cost.is_empty():
 		_last_decision = "NO MATCH"
 		return
@@ -249,11 +261,28 @@ func _evaluate(forced: bool, desired_velocity_world: Vector3, debug_label: Strin
 		"desired_velocity": _vec3(desired_velocity_world),
 		"candidates": _last_best.get("candidate_count", 0),
 	})
+	var played := Vector2i(_range_around(_entry_sample, jump).x, _range_around(_current["sample"], jump).y)
+	_history.append({"interval": played, "time": _clock})
+	_history = _history.filter(func(entry: Dictionary) -> bool: return _clock - float(entry["time"]) <= POSE_RESELECT_HISTORY_SECONDS)
 	_previous = _current.duplicate()
 	_current = {"sample": best_sample, "phase": 0.0}
+	_entry_sample = best_sample
 	_blend_elapsed = 0.0
+	_since_switch = 0.0
 	_cooldown = SWITCH_COOLDOWN
 	_last_switched = true
+
+
+## Samples of the same range within `radius` samples of `sample`.
+func _range_around(sample: int, radius: int) -> Vector2i:
+	var first := sample
+	var last := sample
+	var clip := _database.get_sample_clip_index(sample)
+	for _step in range(radius):
+		if first > 0 and _database.get_sample_clip_index(first - 1) == clip:
+			first -= 1
+		last = _database.get_next_sample_in_clip(last)
+	return Vector2i(first, last)
 
 
 func _advance(slot: Dictionary, dt: float) -> void:
@@ -359,6 +388,9 @@ func _measure_foot_slide(state: Dictionary, dt: float) -> void:
 			var slide := Vector2(position.x - _previous_contact_feet[key].x, position.z - _previous_contact_feet[key].z).length() / dt
 			_foot_slide_sum += slide
 			_foot_slide_frames += 1
+			if _since_switch > CROSSFADE_DURATION + 0.1:
+				_steady_slide_sum += slide
+				_steady_slide_frames += 1
 		if contacts & bit:
 			_previous_contact_feet[key] = position
 		else:

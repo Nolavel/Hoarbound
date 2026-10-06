@@ -43,6 +43,11 @@ func build(previous: Dictionary, current: Dictionary, dt: float, prediction: Dic
 		var local_forward := _flat(to_model.basis * (forward as Vector3))
 		values.append(local_forward.x)
 		values.append(local_forward.z)
+	for key in ["foot_l", "foot_r"]:
+		var foot_model := to_model * (current[key] as Vector3)
+		var foot_velocity := to_model.basis * (((current[key] as Vector3) - (previous[key] as Vector3)) / dt)
+		var planted := foot_model.y < MotionDatabaseBaker.CONTACT_ANKLE_HEIGHT and Vector2(foot_velocity.x, foot_velocity.z).length() < MotionDatabaseBaker.CONTACT_SPEED
+		values.append(1.0 if planted else 0.0)
 	return values
 
 

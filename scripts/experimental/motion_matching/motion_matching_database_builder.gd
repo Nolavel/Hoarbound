@@ -10,7 +10,7 @@ const CACHE_DIR := "res://tests/motion_matching/_runtime_cache"
 const CACHE_PATH := CACHE_DIR + "/canonical_motion_database.res"
 const CACHE_SIGNATURE_PATH := CACHE_DIR + "/canonical_motion_database.signature"
 const HENRY_MODEL_PATH := "res://assets/characters/henry/henry_outfit.glb"
-const BUILD_VERSION := "root-space-v2"
+const BUILD_VERSION := "root-space-v4"
 
 
 func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false, use_cache: bool = true) -> Dictionary:
@@ -62,16 +62,28 @@ func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false
 		var source_id := String(range_entry["source"])
 		var entry: Dictionary = retargeters[source_id]
 		var source: Dictionary = entry["source"]
-		var clip_name := "%s@%.2f-%.2f" % [source_id, float(range_entry["start"]), float(range_entry["end"])]
 		var provenance := "%s|sha256=%s|%s" % [source.get("url", ""), source.get("sha256", ""), source.get("description", "")]
-		var database := baker.bake_range(entry["retargeter"], StringName(clip_name), float(range_entry["start"]), float(range_entry["end"]), String(range_entry["role"]), provenance, sample_rate_hz)
-		if database == null or not master.append_database(database):
-			return {"ok": false, "error": "bake failed for %s" % clip_name}
-		range_reports.append({
-			"clip": clip_name, "role_metadata": range_entry["role"], "samples": database.get_sample_count(),
-			"label_seconds": range_entry["label_seconds"], "audit": baker.last_quality,
-		})
-		print("[MM_BAKE] %-34s role(meta)=%-8s samples=%d audit=%s" % [clip_name, range_entry["role"], database.get_sample_count(), baker.last_quality.get("passed", false)])
+		# Frames that fail the structural audit are cut out, never let through.
+		var pieces: Array[Vector2] = [Vector2(float(range_entry["start"]), float(range_entry["end"]))]
+		while not pieces.is_empty():
+			var piece: Vector2 = pieces.pop_front()
+			if piece.y - piece.x < MotionDatasetCurator.MIN_WINDOW_SECONDS:
+				continue
+			var clip_name := "%s@%.2f-%.2f" % [source_id, piece.x, piece.y]
+			var database := baker.bake_range(entry["retargeter"], StringName(clip_name), piece.x, piece.y, String(range_entry["role"]), provenance, sample_rate_hz)
+			if database == null:
+				return {"ok": false, "error": "bake failed for %s" % clip_name}
+			if not baker.last_failed_times.is_empty():
+				pieces.append_array(_split_around(piece, baker.last_failed_times))
+				range_reports.append({"clip": clip_name, "split_for_audit": Array(baker.last_failed_times), "audit": baker.last_quality})
+				continue
+			if not master.append_database(database):
+				return {"ok": false, "error": "database merge failed for %s" % clip_name}
+			range_reports.append({
+				"clip": clip_name, "role_metadata": range_entry["role"], "samples": database.get_sample_count(),
+				"label_seconds": range_entry["label_seconds"], "audit": baker.last_quality,
+			})
+			print("[MM_BAKE] %-34s role(meta)=%-8s samples=%d" % [clip_name, range_entry["role"], database.get_sample_count()])
 	master.rebuild_statistics()
 	if not master.is_consistent() or master.get_sample_count() == 0:
 		return {"ok": false, "error": "merged database invalid"}
@@ -94,6 +106,20 @@ func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false
 			"ranges": range_reports,
 		},
 	}
+
+
+## Splits a time range around failing sample times with the curator's margin.
+func _split_around(piece: Vector2, failed_times: PackedFloat32Array) -> Array[Vector2]:
+	var result: Array[Vector2] = []
+	var cursor := piece.x
+	for time in failed_times:
+		var cut_start := time - MotionDatasetCurator.GLITCH_MARGIN_SECONDS
+		if cut_start > cursor:
+			result.append(Vector2(cursor, cut_start))
+		cursor = maxf(cursor, time + MotionDatasetCurator.GLITCH_MARGIN_SECONDS)
+	if cursor < piece.y:
+		result.append(Vector2(cursor, piece.y))
+	return result
 
 
 static func load_henry_model() -> UALSkeletonModel:
