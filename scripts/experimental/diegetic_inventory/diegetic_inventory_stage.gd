@@ -10,7 +10,6 @@ extends Node3D
 ## parameters; production TpsCamera/TpsInteractionFraming defaults are untouched.
 
 const FIRST_EXIT_SOURCE: PackedScene = preload("res://scenes/world/first_exit/first_exit_blockout.tscn")
-const CURSOR_ENSO_PATH: String = "res://assets/ui/hud/dynamic_cursor/enso_cursor_ring.svg"
 const ITEM_NAMES: Array[StringName] = [
 	&"FlaskShelterTest",
 	&"PineappleShelterTest",
@@ -27,7 +26,7 @@ const ITEM_POSITIONS: Array[Vector3] = [
 ## Camera experiment: focus only after the centre-ray has held a nearby item.
 const FOCUS_DISTANCE_M: float = 1.95
 const FOCUS_DWELL_S: float = 0.16
-## The selection layer owns hysteresis. Framing itself adds no extra release hold.
+## Framing adds no release hold after the authoritative target disappears.
 const FOCUS_RELEASE_HOLD_S: float = 0.0
 const FOCUS_IN_RATE: float = 3.8
 const FOCUS_OUT_RATE: float = 2.4
@@ -39,23 +38,6 @@ const FOCUS_FAR_DISTANCE: float = 2.15
 ## proof, a small item becomes focusable only when its focus point is inside the
 ## centre Enso ring. This is staging behaviour only, not a production change.
 const SMALL_ITEM_ACQUIRE_RADIUS_PX: float = 18.0
-## Lab-only intent hysteresis. Acquisition is still the shipping centre-ray query.
-## Once acquired, the item follows the player's control look. The proof now keeps
-## the crosshair physically on the item as the close-in changes the camera origin.
-const SMALL_ITEM_RETENTION_YAW_DEG: float = 3.5
-const SMALL_ITEM_RETENTION_PITCH_DEG: float = 3.0
-## After a decisive look-away, the same legacy pickup Area cannot immediately
-## reacquire through its oversized fallback volume. Looking back unlocks it.
-const SMALL_ITEM_REACQUIRE_YAW_DEG: float = 4.0
-const SMALL_ITEM_REACQUIRE_PITCH_DEG: float = 3.5
-
-## The clean staging capture keeps the production HUD disabled, but the centre
-## targeting ring remains because the whole experiment is about visual aim.
-const CROSSHAIR_SIZE_PX: float = 18.0
-const CROSSHAIR_IDLE: Color = Color(0.62, 0.64, 0.66, 0.75)
-const CROSSHAIR_TARGET: Color = Color(1.0, 1.0, 1.0, 0.95)
-const CROSSHAIR_COLOR_SPEED: float = 10.0
-
 @onready var player: Player = $Player
 @onready var camera: TpsCamera = $PlayerCamera
 @onready var stage_items: Node3D = $StageItems
@@ -71,13 +53,6 @@ var _focus_target: ItemPickup
 var _candidate_time: float = 0.0
 var _release_hold: float = 0.0
 var _interaction_framing: TpsInteractionFraming
-var _stable_interact_target: ItemPickup
-var _stable_control_yaw: float = 0.0
-var _stable_control_pitch: float = 0.0
-var _released_item: ItemPickup
-var _released_control_yaw: float = 0.0
-var _released_control_pitch: float = 0.0
-var _stage_crosshair: TextureRect
 var _demo_body_locked: bool = false
 var _demo_body_yaw: float = 0.0
 
@@ -89,10 +64,23 @@ func _ready() -> void:
 	_base_near_distance = camera.near_distance
 	_base_far_distance = camera.far_distance
 	_disable_player_ui(player)
-	_build_stage_crosshair()
 	_extract_production_props()
+	var interact := player.get_node(^"InteractComponent") as InteractComponent
+	var pickup_action := preload("res://scripts/experimental/diegetic_inventory/table_pickup_interaction.gd").new()
+	pickup_action.name = "TablePickupInteraction"
+	add_child(pickup_action)
+	pickup_action.setup_live(self)
+	interact.pickup_focus_radius_px = SMALL_ITEM_ACQUIRE_RADIUS_PX
 	_configure_stage_only_camera()
 	prepare_capture_pose(0)
+
+
+## Temporary escape hatch for this standalone lab scene.
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		get_viewport().set_input_as_handled()
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		get_tree().quit()
 
 
 func _process(delta: float) -> void:
@@ -100,9 +88,7 @@ func _process(delta: float) -> void:
 		## The tabletop pass deliberately tests LOOK without BODY ALIGNMENT.
 		## Henry may look across the table, but his torso/root heading stays authored.
 		player.global_rotation.y = _demo_body_yaw
-	_stabilize_small_item_focus()
 	_update_item_focus(delta)
-	_update_stage_crosshair(delta)
 	var wanted: float = 1.0 if is_instance_valid(_focus_target) else 0.0
 	var rate: float = FOCUS_IN_RATE if wanted > focus_weight else FOCUS_OUT_RATE
 	focus_weight = move_toward(focus_weight, wanted, maxf(delta, 0.0) * rate)
@@ -223,11 +209,15 @@ func get_focus_target_id() -> StringName:
 
 
 func get_stable_interact_target_id() -> StringName:
-	return _stable_interact_target.item_id if is_instance_valid(_stable_interact_target) else &""
+	var interact := player.get_node(^"InteractComponent") as InteractComponent
+	if is_instance_valid(interact.current_target) and interact.current_target is ItemPickup:
+		return (interact.current_target as ItemPickup).item_id
+	return &""
 
 
-func has_stage_crosshair() -> bool:
-	return is_instance_valid(_stage_crosshair) and _stage_crosshair.visible
+func has_stage_interaction_ui() -> bool:
+	var cursor_ui := player.get_node_or_null(^"MouseCursorUI") as MouseCursorUI
+	return is_instance_valid(cursor_ui) and cursor_ui.visible and cursor_ui.process_mode != Node.PROCESS_MODE_DISABLED
 
 
 func is_lateral_interaction_framing_enabled() -> bool:
@@ -248,112 +238,11 @@ func _configure_stage_only_camera() -> void:
 		_interaction_framing.process_mode = Node.PROCESS_MODE_DISABLED
 
 
-func _stabilize_small_item_focus() -> void:
-	var interact := player.get_node_or_null(^"InteractComponent") as InteractComponent
-	if interact == null:
-		_clear_stable_interact_target()
-		return
-
-	## Query the shipping selector directly. Never read back a value this lab may
-	## have restored on the previous render frame; that would self-renew focus.
-	var raw_target := interact.call(&"_find_crosshair_target") as InteractiveArea
-	var raw_item := raw_target as ItemPickup
-
-	## The production fallback Area can be larger than the visible item. Do not let
-	## that invisible volume trigger focus before the centre ring visually reaches
-	## the item's focus point. Non-item interactions are left untouched.
-	if is_instance_valid(raw_item) and items.has(raw_item):
-		if get_item_crosshair_error_px(raw_item.item_id) > SMALL_ITEM_ACQUIRE_RADIUS_PX:
-			raw_target = null
-			raw_item = null
-
-	## A selected small item is owned by the player's control intent. The capture
-	## additionally steers the centre ray back onto the visible focus point every
-	## frame, so this leash only absorbs hand-like micro motion.
-	if is_instance_valid(_stable_interact_target):
-		if (
-			_flat_distance_to(_stable_interact_target) <= FOCUS_DISTANCE_M
-			and _control_look_within(
-				_stable_control_yaw,
-				_stable_control_pitch,
-				SMALL_ITEM_RETENTION_YAW_DEG,
-				SMALL_ITEM_RETENTION_PITCH_DEG
-			)
-		):
-			_apply_stable_target(interact)
-			return
-		_release_stable_target(interact)
-
-	## A released legacy pickup may have an oversized Area fallback. Do not allow
-	## that same object to snap back on while the player is plainly looking away.
-	if is_instance_valid(_released_item):
-		if _control_look_within(
-			_released_control_yaw,
-			_released_control_pitch,
-			SMALL_ITEM_REACQUIRE_YAW_DEG,
-			SMALL_ITEM_REACQUIRE_PITCH_DEG
-		):
-			_released_item = null
-		elif raw_item == _released_item:
-			raw_target = null
-			raw_item = null
-
-	## Acquisition remains the real production crosshair result plus the visual
-	## ring-contact gate above. The lab adds no proximity or cone target of its own.
-	if (
-		is_instance_valid(raw_item)
-		and items.has(raw_item)
-		and _flat_distance_to(raw_item) <= FOCUS_DISTANCE_M
-	):
-		_stable_interact_target = raw_item
-		_stable_control_yaw = camera.get_yaw()
-		_stable_control_pitch = camera.get_view_pitch_deg()
-		_apply_stable_target(interact)
-		return
-
-	## Nothing is retained. Mirror the fresh shipping query so the camera/framing
-	## does not see a value restored by this lab on the prior render frame.
-	if is_instance_valid(interact.current_target) and interact.current_target != raw_target:
-		interact.current_target.set_target_state(false, false)
-	interact.current_target = raw_target
-
-
-func _apply_stable_target(interact: InteractComponent) -> void:
-	if not is_instance_valid(_stable_interact_target):
-		return
-	if is_instance_valid(interact.current_target) and interact.current_target != _stable_interact_target:
-		interact.current_target.set_target_state(false, false)
-	interact.current_target = _stable_interact_target
-	var in_prompt: bool = _flat_distance_to(_stable_interact_target) <= interact.prompt_distance
-	_stable_interact_target.set_target_state(true, in_prompt)
-
-
-func _release_stable_target(interact: InteractComponent) -> void:
-	if not is_instance_valid(_stable_interact_target):
-		return
-	_released_item = _stable_interact_target
-	_released_control_yaw = _stable_control_yaw
-	_released_control_pitch = _stable_control_pitch
-	_clear_stable_interact_target(interact)
-
-
-func _control_look_within(anchor_yaw: float, anchor_pitch: float, yaw_deg: float, pitch_deg: float) -> bool:
-	var yaw_delta: float = absf(rad_to_deg(wrapf(camera.get_yaw() - anchor_yaw, -PI, PI)))
-	var pitch_delta: float = absf(camera.get_view_pitch_deg() - anchor_pitch)
-	return yaw_delta <= yaw_deg and pitch_delta <= pitch_deg
-
-
-func _clear_stable_interact_target(interact: InteractComponent = null) -> void:
-	var previous: ItemPickup = _stable_interact_target
-	_stable_interact_target = null
-	if interact != null and is_instance_valid(previous) and interact.current_target == previous:
-		previous.set_target_state(false, false)
-		interact.current_target = null
-
-
 func _update_item_focus(delta: float) -> void:
 	var interact := player.get_node_or_null(^"InteractComponent") as InteractComponent
-	var live := interact.current_target as ItemPickup if interact != null else null
+	var live: ItemPickup = null
+	if interact != null and is_instance_valid(interact.current_target):
+		live = interact.current_target as ItemPickup
 	if live != null and (not items.has(live) or _flat_distance_to(live) > FOCUS_DISTANCE_M):
 		live = null
 
@@ -373,41 +262,6 @@ func _update_item_focus(delta: float) -> void:
 		return
 
 	_focus_target = null
-
-
-func _build_stage_crosshair() -> void:
-	var layer := CanvasLayer.new()
-	layer.name = "StageCrosshairLayer"
-	layer.layer = 100
-	add_child(layer)
-
-	var canvas := Control.new()
-	canvas.name = "StageCrosshairCanvas"
-	canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(canvas)
-
-	_stage_crosshair = TextureRect.new()
-	_stage_crosshair.name = "StageCrosshair"
-	_stage_crosshair.texture = load(CURSOR_ENSO_PATH) as Texture2D
-	_stage_crosshair.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	_stage_crosshair.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_stage_crosshair.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_stage_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_stage_crosshair.set_anchors_preset(Control.PRESET_CENTER)
-	_stage_crosshair.position = Vector2.ONE * (-CROSSHAIR_SIZE_PX * 0.5)
-	_stage_crosshair.size = Vector2.ONE * CROSSHAIR_SIZE_PX
-	_stage_crosshair.modulate = CROSSHAIR_IDLE
-	canvas.add_child(_stage_crosshair)
-
-
-func _update_stage_crosshair(delta: float) -> void:
-	if not is_instance_valid(_stage_crosshair):
-		return
-	var wanted: Color = CROSSHAIR_TARGET if is_instance_valid(_stable_interact_target) else CROSSHAIR_IDLE
-	_stage_crosshair.modulate = _stage_crosshair.modulate.lerp(
-		wanted, clampf(CROSSHAIR_COLOR_SPEED * maxf(delta, 0.0), 0.0, 1.0)
-	)
 
 
 func _flat_distance_to(node: Node3D) -> float:
@@ -432,8 +286,6 @@ func _reset_focus() -> void:
 	_candidate_time = 0.0
 	_release_hold = 0.0
 	focus_weight = 0.0
-	_released_item = null
-	_clear_stable_interact_target()
 	camera.near_distance = _base_near_distance
 	camera.far_distance = _base_far_distance
 
@@ -466,11 +318,16 @@ func _extract_production_props() -> void:
 
 func _disable_player_ui(node: Node) -> void:
 	for child: Node in node.get_children():
+		## Reuse the production centre cursor and pickup prompt in this stage.
+		## Other HUD widgets remain hidden so they do not obscure the tabletop.
+		if child is MouseCursorUI:
+			child.visible = true
+			child.process_mode = Node.PROCESS_MODE_INHERIT
+			continue
 		if child is CanvasItem:
 			(child as CanvasItem).visible = false
-			## Production HUD scripts (notably MouseCursorUI) may set visible=true
-			## every frame. Stop only UI processing in this clean staging scene;
-			## Henry movement, camera and interaction components remain untouched.
+			## Stop only UI processing in this clean staging scene; Henry movement,
+			## camera and interaction components remain untouched.
 			child.process_mode = Node.PROCESS_MODE_DISABLED
 		elif child is CanvasLayer:
 			(child as CanvasLayer).visible = false
