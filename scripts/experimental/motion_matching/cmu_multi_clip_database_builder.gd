@@ -10,26 +10,17 @@ const CACHE_DIR := "res://tests/motion_matching/_runtime_cache"
 const CACHE_PATH := CACHE_DIR + "/canonical_motion_database.res"
 const CACHE_SIGNATURE_PATH := CACHE_DIR + "/canonical_motion_database.signature"
 const SOURCE_MANIFEST_PATH := SOURCE_ROOT + "source_manifest.tsv"
-const CURATION_VERSION := "cmu-semantic-v3"
+const CURATION_VERSION := "cmu-semantic-v5"
 
-const SOURCE_DEFS: Array[Dictionary] = [
-	{"file":"111_28.bvh","clip":"CMU_111_28","trial":"CMU Subject 111 / 111_28","description":"standing still"},
-	{"file":"69_01.bvh","clip":"CMU_69_01","trial":"CMU Subject 69 / 69_01","description":"walk forward"},
-	{"file":"69_34.bvh","clip":"CMU_69_34","trial":"CMU Subject 69 / 69_34","description":"walk backwards and turn"},
-	{"file":"69_42.bvh","clip":"CMU_69_42","trial":"CMU Subject 69 / 69_42","description":"walk sideways and turn"},
-	{"file":"69_48.bvh","clip":"CMU_69_48","trial":"CMU Subject 69 / 69_48","description":"opposite sideways capture"},
-	{"file":"69_50.bvh","clip":"CMU_69_50","trial":"CMU Subject 69 / 69_50","description":"walk sideways and backwards"},
-	{"file":"69_56.bvh","clip":"CMU_69_56","trial":"CMU Subject 69 / 69_56","description":"walk sideways and turn opposite"},
-	{"file":"40_02.bvh","clip":"CMU_40_02","trial":"CMU Subject 40 / 40_02","description":"navigate diagonal"},
-	{"file":"40_03.bvh","clip":"CMU_40_03","trial":"CMU Subject 40 / 40_03","description":"navigate diagonal"},
-	{"file":"40_04.bvh","clip":"CMU_40_04","trial":"CMU Subject 40 / 40_04","description":"navigate diagonal"},
-	{"file":"40_05.bvh","clip":"CMU_40_05","trial":"CMU Subject 40 / 40_05","description":"navigate diagonal"},
-	{"file":"16_33.bvh","clip":"CMU_16_33","trial":"CMU Subject 16 / 16_33","description":"slow walk, stop"},
-	{"file":"69_16.bvh","clip":"CMU_69_16","trial":"CMU Subject 69 / 69_16","description":"turn in place"},
-	{"file":"69_18.bvh","clip":"CMU_69_18","trial":"CMU Subject 69 / 69_18","description":"opposite turn in place"},
-	{"file":"69_20.bvh","clip":"CMU_69_20","trial":"CMU Subject 69 / 69_20","description":"walk forward, 90-degree turn"},
-	{"file":"69_24.bvh","clip":"CMU_69_24","trial":"CMU Subject 69 / 69_24","description":"walk forward, opposite 90-degree turn"},
-	{"file":"41_02.bvh","clip":"CMU_41_02","trial":"CMU Subject 41 / 41_02","description":"multidirectional navigation"},
+# MotionDatabaseBaker historically used the raw BVH root facing, whose forward
+# axis is 180 degrees opposite the visual CMU character forward. Retarget pose
+# rotations are correct, so fix only the already-baked search basis here.
+const FACING_BASIS_FEATURES := [
+	0, 1,
+	3, 5, 6, 8,
+	9, 11, 12, 14,
+	15, 17, 18, 20,
+	21, 22, 23, 24, 25, 26,
 ]
 
 
@@ -39,24 +30,28 @@ func build(lab_scene: PackedScene, parent: Node, sample_rate_hz: float = 30.0) -
 	var tree := parent.get_tree()
 	if tree == null:
 		return {"ok": false, "error": "SceneTree unavailable"}
+	var source_defs := _load_source_defs()
+	if source_defs.is_empty():
+		return {"ok": false, "error": "CMU source manifest is missing/empty"}
 
 	var signature := _build_signature()
 	var cached := _load_cache(signature)
 	if cached != null:
-		var cached_lab := await _create_presentation_lab(lab_scene, parent, tree)
+		var cached_lab := await _create_presentation_lab(lab_scene, parent, tree, source_defs)
 		if cached_lab == null:
 			return {"ok": false, "error": "cached database loaded but presentation lab failed"}
 		print("[MM_CACHE_HIT] %d samples / %d clips" % [cached.get_sample_count(), cached.clip_names.size()])
 		return {
 			"ok": true, "database": cached, "lab": cached_lab,
 			"source_reports": [], "proof_source_count": cached.clip_names.size(),
-			"cache_hit": true, "curation_report": {"signature": signature, "cache_hit": true},
+			"cache_hit": true,
+			"curation_report": {"signature": signature, "cache_hit": true},
 		}
 
 	var segmenter := CMUMotionSegmenter.new()
 	var all_candidates: Array[Dictionary] = []
 	var source_reports: Array[Dictionary] = []
-	for source_def in SOURCE_DEFS:
+	for source_def in source_defs:
 		var source_path := SOURCE_ROOT + String(source_def["file"])
 		if not FileAccess.file_exists(source_path):
 			continue
@@ -101,10 +96,15 @@ func build(lab_scene: PackedScene, parent: Node, sample_rate_hz: float = 30.0) -
 		var clip_database: MotionDatabase = await lab.bake_motion_database(
 			sample_rate_hz, float(segment["start"]), float(segment["end"]), String(segment["role"]), provenance
 		)
-		if clip_database == null or not clip_database.is_consistent() or not master.append_database(clip_database):
+		if clip_database == null or not clip_database.is_consistent():
 			lab.queue_free()
 			await tree.process_frame
-			return {"ok": false, "error": "database bake/merge failed for %s" % String(segment["clip"])}
+			return {"ok": false, "error": "database bake failed for %s" % String(segment["clip"])}
+		_flip_facing_basis(clip_database)
+		if not master.append_database(clip_database):
+			lab.queue_free()
+			await tree.process_frame
+			return {"ok": false, "error": "database merge failed for %s" % String(segment["clip"])}
 		print("[MM_CURATED_BAKE] %s role=%s samples=%d" % [segment["clip"], segment["role"], clip_database.get_sample_count()])
 		lab.queue_free()
 		await tree.process_frame
@@ -114,7 +114,7 @@ func build(lab_scene: PackedScene, parent: Node, sample_rate_hz: float = 30.0) -
 		return {"ok": false, "error": "curated merged database invalid"}
 	_save_cache(master, signature)
 
-	var presentation_lab := await _create_presentation_lab(lab_scene, parent, tree)
+	var presentation_lab := await _create_presentation_lab(lab_scene, parent, tree, source_defs)
 	if presentation_lab == null:
 		return {"ok": false, "error": "presentation lab failed"}
 	return {
@@ -131,8 +131,45 @@ func build(lab_scene: PackedScene, parent: Node, sample_rate_hz: float = 30.0) -
 	}
 
 
-func _create_presentation_lab(lab_scene: PackedScene, parent: Node, tree: SceneTree) -> CMUUALRetargetLab:
-	var definition: Dictionary = SOURCE_DEFS[0]
+func _flip_facing_basis(database: MotionDatabase) -> void:
+	for sample_index in range(database.get_sample_count()):
+		var base := sample_index * database.feature_count
+		for feature_index in FACING_BASIS_FEATURES:
+			database.features[base + feature_index] = -database.features[base + feature_index]
+	for value_index in range(database.sample_root_facings.size()):
+		database.sample_root_facings[value_index] = -database.sample_root_facings[value_index]
+	database.rebuild_statistics()
+
+
+func _load_source_defs() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if not FileAccess.file_exists(SOURCE_MANIFEST_PATH):
+		return result
+	var lines := FileAccess.get_file_as_string(SOURCE_MANIFEST_PATH).split("\n", false)
+	for line_index in range(1, lines.size()):
+		var line := lines[line_index].strip_edges()
+		if line.is_empty():
+			continue
+		var fields := line.split("\t", false)
+		if fields.size() < 4:
+			continue
+		var clip := String(fields[0])
+		var subject := String(fields[1])
+		result.append({
+			"file": clip + ".bvh",
+			"clip": "CMU_" + clip,
+			"trial": "CMU Subject %s / %s" % [subject.trim_prefix("0"), clip],
+			"description": String(fields[3]),
+		})
+	return result
+
+
+func _create_presentation_lab(lab_scene: PackedScene, parent: Node, tree: SceneTree, source_defs: Array[Dictionary]) -> CMUUALRetargetLab:
+	var definition: Dictionary = source_defs[0]
+	for candidate in source_defs:
+		if String(candidate["file"]) == "111_28.bvh":
+			definition = candidate
+			break
 	var lab := lab_scene.instantiate() as CMUUALRetargetLab
 	if lab == null:
 		return null

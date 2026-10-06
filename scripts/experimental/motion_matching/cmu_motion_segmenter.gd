@@ -12,7 +12,8 @@ const MOVE_YAW_MAX := 1.15
 const PIVOT_SPEED_MAX := 0.34
 const PIVOT_YAW_MIN := 0.45
 const MIN_IDLE_SECONDS := 0.65
-const MIN_WALK_SECONDS := 0.50
+const MIN_WALK_SECONDS := 0.45
+const MIN_SIDE_DIAGONAL_SECONDS := 0.28
 const MIN_PIVOT_SECONDS := 0.28
 const WALK_MAX_SECONDS := 1.65
 const IDLE_MAX_SECONDS := 1.35
@@ -38,7 +39,6 @@ func analyze_file(source_path: String, source_id: String, trial: String, descrip
 		var error := source.error_message
 		source.free()
 		return {"ok": false, "error": error, "source": source_id}
-
 	var metrics := _sample_metrics(source)
 	var candidates: Array[Dictionary] = []
 	candidates.append_array(_stable_candidates(metrics, source, source_path, source_id, trial, description))
@@ -86,10 +86,13 @@ func _sample_metrics(source: CMUBVHSource) -> Array[Dictionary]:
 		var previous_position := source.get_raw_root_position(previous_time)
 		var next_position := source.get_raw_root_position(next_time)
 		var velocity_world_3d := (next_position - previous_position) / duration
-		var facing_3d := source.get_raw_root_facing(time)
+		# CMU's BVH character forward is opposite Godot's -Z basis used by the
+		# original parser. Flip only the semantic root-facing channel; bone pose
+		# rotations/retarget are untouched.
+		var facing_3d := -source.get_raw_root_facing(time)
 		var facing := _safe_facing(Vector2(facing_3d.x, facing_3d.z))
-		var previous_facing_3d := source.get_raw_root_facing(previous_time)
-		var next_facing_3d := source.get_raw_root_facing(next_time)
+		var previous_facing_3d := -source.get_raw_root_facing(previous_time)
+		var next_facing_3d := -source.get_raw_root_facing(next_time)
 		var previous_facing := _safe_facing(Vector2(previous_facing_3d.x, previous_facing_3d.z))
 		var next_facing := _safe_facing(Vector2(next_facing_3d.x, next_facing_3d.z))
 		var yaw_rate := previous_facing.angle_to(next_facing) / duration
@@ -141,10 +144,12 @@ func _stable_candidates(
 		if label == "idle_neutral" and duration >= MIN_IDLE_SECONDS:
 			var window := _trim_window(start_time, end_time, IDLE_MAX_SECONDS)
 			result.append(_candidate(label, window.x, window.y, duration, source_path, source_id, trial, description, duration))
-		elif label.begins_with("walk_") and duration >= MIN_WALK_SECONDS:
-			var window := _trim_window(start_time, end_time, WALK_MAX_SECONDS)
-			var stability := _run_stability(metrics, run_start, run_end)
-			result.append(_candidate(label, window.x, window.y, duration, source_path, source_id, trial, description, duration + stability))
+		elif label.begins_with("walk_"):
+			var minimum := MIN_WALK_SECONDS if label == "walk_f" or label == "walk_b" else MIN_SIDE_DIAGONAL_SECONDS
+			if duration >= minimum:
+				var window := _trim_window(start_time, end_time, WALK_MAX_SECONDS)
+				var stability := _run_stability(metrics, run_start, run_end)
+				result.append(_candidate(label, window.x, window.y, duration, source_path, source_id, trial, description, duration + stability))
 		elif label == "pivot_raw" and duration >= MIN_PIVOT_SECONDS:
 			result.append_array(_pivot_candidates(metrics, run_start, run_end, source, source_path, source_id, trial, description))
 		run_start = run_end + 1
@@ -160,21 +165,18 @@ func _transition_candidates(
 		description: String
 	) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	var dt := 1.0 / ANALYSIS_RATE_HZ
 	var pre_idle := maxi(2, int(round(START_IDLE_SECONDS * ANALYSIS_RATE_HZ)))
 	var post_move := maxi(3, int(round(START_MOVE_SECONDS * ANALYSIS_RATE_HZ)))
 	var pre_move := maxi(3, int(round(STOP_MOVE_SECONDS * ANALYSIS_RATE_HZ)))
 	var post_idle := maxi(2, int(round(STOP_IDLE_SECONDS * ANALYSIS_RATE_HZ)))
 	var last_event_time: Dictionary = {}
-
 	for index in range(maxi(pre_idle, pre_move), metrics.size() - maxi(post_move, post_idle)):
 		var time := float(metrics[index]["time"])
 		var before_idle := _average_speed(metrics, index - pre_idle, index - 1) <= IDLE_SPEED_MAX
 		var after_move := _average_speed(metrics, index + 1, index + post_move) >= MOVE_SPEED_MIN
 		if before_idle and after_move:
 			var local := _average_local_velocity(metrics, index + 1, index + post_move)
-			var walk_role := _walk_role(local)
-			var cardinal := _cardinal_suffix(walk_role)
+			var cardinal := _cardinal_suffix(_walk_role(local))
 			if not cardinal.is_empty():
 				var role := "start_" + cardinal
 				if time - float(last_event_time.get(role, -10.0)) > 1.0:
@@ -182,13 +184,11 @@ func _transition_candidates(
 					var end := minf(source.clip_length, start + EVENT_MAX_SECONDS)
 					result.append(_candidate(role, start, end, end - start, source_path, source_id, trial, description, 3.0 + local.length()))
 					last_event_time[role] = time
-
 		var before_move := _average_speed(metrics, index - pre_move, index - 1) >= MOVE_SPEED_MIN
 		var after_idle := _average_speed(metrics, index + 1, index + post_idle) <= IDLE_SPEED_MAX
 		if before_move and after_idle:
 			var local_before := _average_local_velocity(metrics, index - pre_move, index - 1)
-			var walk_before := _walk_role(local_before)
-			var cardinal_before := _cardinal_suffix(walk_before)
+			var cardinal_before := _cardinal_suffix(_walk_role(local_before))
 			if not cardinal_before.is_empty():
 				var stop_role := "stop_" + cardinal_before
 				if time - float(last_event_time.get(stop_role, -10.0)) > 1.0:
@@ -200,14 +200,9 @@ func _transition_candidates(
 
 
 func _pivot_candidates(
-		metrics: Array[Dictionary],
-		start_index: int,
-		end_index: int,
-		source: CMUBVHSource,
-		source_path: String,
-		source_id: String,
-		trial: String,
-		description: String
+		metrics: Array[Dictionary], start_index: int, end_index: int,
+		source: CMUBVHSource, source_path: String, source_id: String,
+		trial: String, description: String
 	) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var dt := 1.0 / ANALYSIS_RATE_HZ
@@ -235,27 +230,11 @@ func _pivot_candidates(
 	return result
 
 
-func _candidate(
-		role: String,
-		start_time: float,
-		end_time: float,
-		duration: float,
-		source_path: String,
-		source_id: String,
-		trial: String,
-		description: String,
-		score: float
-	) -> Dictionary:
+func _candidate(role: String, start_time: float, end_time: float, duration: float, source_path: String, source_id: String, trial: String, description: String, score: float) -> Dictionary:
 	return {
-		"role": role,
-		"start": start_time,
-		"end": end_time,
-		"duration": duration,
-		"source_path": source_path,
-		"source": source_id,
-		"trial": trial,
-		"description": description,
-		"score": score,
+		"role": role, "start": start_time, "end": end_time, "duration": duration,
+		"source_path": source_path, "source": source_id, "trial": trial,
+		"description": description, "score": score,
 	}
 
 
@@ -299,8 +278,7 @@ func _walk_role(local_velocity: Vector2) -> String:
 	if local_velocity.length_squared() <= 0.000001:
 		return "transition"
 	var angle := atan2(local_velocity.x, local_velocity.y)
-	var sector := int(round(angle / (PI * 0.25)))
-	sector = posmod(sector, 8)
+	var sector := posmod(int(round(angle / (PI * 0.25))), 8)
 	match sector:
 		0: return "walk_f"
 		1: return "walk_fr"

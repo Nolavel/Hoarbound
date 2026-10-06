@@ -8,45 +8,48 @@ OFFICIAL_URL="https://mocap.cs.cmu.edu/"
 MIRROR_README_URL="https://github.com/una-dinosauria/cmu-mocap/blob/master/READMEFIRST.txt"
 MANIFEST="$TARGET_DIR/source_manifest.tsv"
 
-# Curated real-mocap source pool for issue #202. Roles are candidates until the
-# kinematic segmentation pass confirms exact direction / start-stop windows.
-# No clip is mirrored, reversed, or generated from another direction.
+# Real CMU source pool for #202 semantic segmentation. Long captures are NOT
+# baked wholesale: cmu_motion_segmenter.gd extracts only stable authored ranges.
+# No clip is mirrored, reversed or synthetically rotated.
 SOURCES=(
 	"111|111_28|idle_neutral|Standing still"
-	"069|69_01|walk_f|Walk forward"
-	"069|69_34|walk_b_pool|Walk backwards and turn; extract authored backward windows"
-	"069|69_42|walk_lateral_a_pool|Walk sideways and turn; determine signed side from root trajectory"
-	"069|69_48|walk_lateral_b_pool|Opposite sideways capture; determine signed side from root trajectory"
-	"069|69_50|lateral_back_pool|Walk sideways and backwards; proof-set mixed lateral/back coverage"
-	"069|69_56|lateral_opposite_pool|Walk sideways and turn opposite direction; proof-set opposite lateral coverage"
-	"040|40_02|diagonal_pool|Navigate forward/backward/on a diagonal"
-	"040|40_03|diagonal_pool|Navigate forward/backward/on a diagonal"
-	"040|40_04|diagonal_pool|Navigate forward/backward/on a diagonal"
-	"040|40_05|diagonal_pool|Navigate forward/backward/on a diagonal"
-	"016|16_33|stop_f|Slow walk, stop"
-	"069|69_16|pivot_pool_a|Turn in place; classify 90/180 windows from facing delta"
-	"069|69_18|pivot_pool_b|Opposite turn in place; classify 90/180 windows from facing delta"
-	"069|69_20|turn_90_pool_a|Walk forward, 90-degree turn"
-	"069|69_24|turn_90_pool_b|Walk forward, opposite 90-degree turn"
-	"041|41_02|multidirectional_reference|Existing forward/backward/sideways/diagonal baseline"
+	"069|69_01|walk_f_reference|Walk forward"
+	"016|16_33|stop_pool|Slow walk, stop"
+	"016|16_34|stop_pool|Slow walk, stop"
 )
 
-mkdir -p "$TARGET_DIR"
-# Keep stale staged BVHs from silently participating in a canonical-set run.
-find "$TARGET_DIR" -maxdepth 1 -type f -name '*.bvh' -delete
+for clip in 69_34 69_35 69_36 69_37 69_38 69_39; do
+	SOURCES+=("069|$clip|backward_pool|Walk backwards / backward turn candidate")
+done
+for clip in 69_42 69_43 69_44 69_45 69_46 69_47 69_48 69_49 69_50 69_56; do
+	SOURCES+=("069|$clip|lateral_pool|Sideways/backwards/turn locomotion candidate")
+done
+for clip in 40_02 40_03 40_04 40_05 41_02 41_03 41_04 41_05 41_06; do
+	SOURCES+=("${clip%%_*}|$clip|multidirectional_pool|Forward/backward/sideways/diagonal navigation candidate")
+done
+for clip in 69_16 69_17 69_18 69_19; do
+	SOURCES+=("069|$clip|pivot_pool|Turn in place candidate")
+done
+for clip in 69_20 69_21 69_22 69_23 69_24 69_25 69_26 69_27 69_28 69_29 69_30 69_31 69_32 69_33; do
+	SOURCES+=("069|$clip|turn_90_pool|Forward 90-degree turn candidate")
+done
 
+mkdir -p "$TARGET_DIR"
+find "$TARGET_DIR" -maxdepth 1 -type f -name '*.bvh' -delete
 printf 'clip\tsubject\trole\tdescription\tsha256\tsource_url\n' > "$MANIFEST"
 
 for entry in "${SOURCES[@]}"; do
 	IFS='|' read -r subject clip role description <<< "$entry"
+	# Subject directories in the mirror are zero-padded to three digits.
+	if [[ "$subject" =~ ^[0-9]+$ ]]; then
+		subject="$(printf '%03d' "$((10#$subject))")"
+	fi
 	filename="$clip.bvh"
 	target="$TARGET_DIR/$filename"
 	source_url="$BASE_URL/$subject/$filename"
 
 	echo "[cmu] downloading $clip ($role)"
-	curl --fail --location --retry 3 --retry-delay 2 \
-		--output "$target" "$source_url"
-
+	curl --fail --location --retry 3 --retry-delay 2 --output "$target" "$source_url"
 	if [[ ! -s "$target" ]]; then
 		echo "[cmu] staged BVH is empty: $filename" >&2
 		exit 2
@@ -59,7 +62,6 @@ for entry in "${SOURCES[@]}"; do
 		echo "[cmu] staged BVH has no MOTION section: $filename" >&2
 		exit 4
 	fi
-
 	sha256="$(sha256sum "$target" | awk '{print $1}')"
 	printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
 		"$clip" "$subject" "$role" "$description" "$sha256" "$source_url" >> "$MANIFEST"
@@ -73,7 +75,7 @@ rights=CMU states that the motion dataset is free for all uses
 bvh_conversion_mirror=https://github.com/una-dinosauria/cmu-mocap
 conversion_rights_url=$MIRROR_README_URL
 staging=CI/lab only; third-party BVH files are ignored by git and are not shipped from this repository
-selection=no synthetic direction rotation, mirroring, reversal, or generated locomotion clips
+selection=kinematic semantic segmentation; no synthetic direction rotation, mirroring, reversal, or generated locomotion clips
 EOF
 
 echo "[cmu] canonical candidate set staged: ${#SOURCES[@]} real captures"
