@@ -113,7 +113,8 @@ func _run() -> void:
 	_camera.fov = 55.0
 	_view.add_child(_camera)
 	_camera.make_current()
-	_focus = START
+	_focus = _player.animation_component.global_position + Vector3(0.0, 0.9, 0.0)
+	_camera.look_at_from_position(_focus + CAMERA_OFFSET, _focus)
 	for side in ["l", "r"]:
 		_feet.append(_player.animation_component.skeleton.find_bone("foot_" + side))
 		_balls.append(_player.animation_component.skeleton.find_bone("ball_" + side))

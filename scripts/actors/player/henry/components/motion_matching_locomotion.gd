@@ -163,6 +163,8 @@ func _physics_process(delta: float) -> void:
 	_weight = move_toward(_weight, 1.0 if wanted else 0.0, delta / handover_seconds)
 	var teleported := _player.global_position.distance_to(_last_body_position) > TELEPORT_DISTANCE
 	_last_body_position = _player.global_position
+	if debug_view != null:
+		debug_view.visible = _weight > 0.0
 	if _weight <= 0.0:
 		if _active:
 			_active = false
