@@ -3,12 +3,13 @@ extends SceneTree
 ## Issue #203 interaction-commit proof using the existing diegetic inventory CI job.
 ## Production Henry + production TPS camera + real MealTable/tinned stew.
 ## Three cases in one movie:
-## 1) near-edge item while Henry is at the table collision limit -> F -> small settle back -> pickup;
+## 1) near-edge item while Henry is at the table collision limit -> pre-focus surface close-in -> F -> small settle back -> pickup;
 ## 2) far-edge item -> stance solve -> authored reach + TwoBoneIK contact correction;
 ## 3) same far item beyond the settle budget -> crosshair focus is valid but no F prompt.
 
 const SCENE: PackedScene = preload("res://tests/diegetic_inventory/diegetic_inventory_stage.tscn")
 const LAB_SCRIPT: Script = preload("res://scripts/experimental/diegetic_inventory/table_interaction_solver_lab.gd")
+const SURFACE_CAMERA_SCRIPT: Script = preload("res://scripts/experimental/diegetic_inventory/near_surface_camera_intent_lab.gd")
 ## Keep the established output path so the existing workflow can encode/upload it.
 const OUT_DIR: String = "res://docs/runtime_previews/diegetic_inventory_stage"
 const FRAME_DIR: String = OUT_DIR + "/frames"
@@ -33,12 +34,14 @@ const AIM_MAX_PITCH_STEP_DEG: float = 4.0
 
 var _stage: DiegeticInventoryStage
 var _lab: TableInteractionSolverLab
+var _surface_camera: NearSurfaceCameraIntentLab
 var _near_pressed := false
 var _far_pressed := false
 var _near_prompt_seen := false
 var _far_prompt_seen := false
 var _out_focus_frames := 0
 var _out_prompt_frames := 0
+var _surface_engaged_frames := 0
 var _saved: Dictionary = {}
 var _press_position: Dictionary = {}
 var _settled_position: Dictionary = {}
@@ -69,6 +72,10 @@ func _run() -> void:
 		if other.item_id != &"tinned_stew":
 			other.global_position = Vector3(50.0, -10.0, 50.0)
 
+	_surface_camera = SURFACE_CAMERA_SCRIPT.new() as NearSurfaceCameraIntentLab
+	_stage.add_child(_surface_camera)
+	_surface_camera.setup(_stage)
+
 	_lab = LAB_SCRIPT.new() as TableInteractionSolverLab
 	_stage.add_child(_lab)
 	_lab.setup(_stage)
@@ -94,8 +101,8 @@ func _run() -> void:
 		push_error("interaction settle capture failed: %s" % ", ".join(failures))
 		quit(1)
 		return
-	print("[interaction-settle] PASS near=%s far=%s out_focus_frames=%d out_prompt_frames=%d" % [
-		JSON.stringify(report["near"]), JSON.stringify(report["far"]), _out_focus_frames, _out_prompt_frames
+	print("[interaction-settle] PASS near=%s far=%s out_focus_frames=%d out_prompt_frames=%d surface_frames=%d" % [
+		JSON.stringify(report["near"]), JSON.stringify(report["far"]), _out_focus_frames, _out_prompt_frames, _surface_engaged_frames
 	])
 	quit(0)
 
@@ -116,9 +123,12 @@ func _reset_aim_controller() -> void:
 
 func _steer_crosshair_to_item() -> void:
 	var desired: Vector2 = _stage.get_demo_look_for_item(&"tinned_stew")
-	var yaw_error := desired.x - _aim_yaw_offset_deg
+	var yaw_error := wrapf(desired.x - _aim_yaw_offset_deg, -180.0, 180.0)
 	var pitch_error := desired.y - _aim_pitch_deg
-	_aim_yaw_offset_deg += clampf(yaw_error * AIM_GAIN, -AIM_MAX_YAW_STEP_DEG, AIM_MAX_YAW_STEP_DEG)
+	_aim_yaw_offset_deg = wrapf(
+		_aim_yaw_offset_deg + clampf(yaw_error * AIM_GAIN, -AIM_MAX_YAW_STEP_DEG, AIM_MAX_YAW_STEP_DEG),
+		-180.0, 180.0
+	)
 	_aim_pitch_deg += clampf(pitch_error * AIM_GAIN, -AIM_MAX_PITCH_STEP_DEG, AIM_MAX_PITCH_STEP_DEG)
 	_stage.set_demo_look(_aim_yaw_offset_deg, _aim_pitch_deg)
 
@@ -147,6 +157,8 @@ func _drive(t: float) -> void:
 
 
 func _record_state(t: float) -> void:
+	if is_instance_valid(_surface_camera) and _surface_camera.engaged:
+		_surface_engaged_frames += 1
 	if _lab.current_case == &"NEAR_TOO_CLOSE" and _lab.prompt_visible:
 		_near_prompt_seen = true
 	elif _lab.current_case == &"FAR_EDGE" and _lab.prompt_visible:
@@ -163,10 +175,11 @@ func _record_state(t: float) -> void:
 
 	if int(round(t * float(FPS))) % 15 == 0:
 		var desired := _stage.get_demo_look_for_item(&"tinned_stew")
-		print("[interaction-settle] t=%.2f case=%s stable=%s crosshair=%.2f prompt=%s state=%s pos=%s view_pitch=%.2f desired=(%.2f,%.2f) cmd=(%.2f,%.2f) solution=%s rejection=%s" % [
+		print("[interaction-settle] t=%.2f case=%s stable=%s crosshair=%.2f prompt=%s surface=%s boom=%.2f state=%s pos=%s view_pitch=%.2f desired=(%.2f,%.2f) cmd=(%.2f,%.2f) solution=%s rejection=%s" % [
 			t, String(_lab.current_case), String(_stage.get_stable_interact_target_id()),
 			_stage.get_item_crosshair_error_px(&"tinned_stew"), _lab.prompt_visible,
-			TableInteractionSolverLab.State.keys()[_lab.state], _stage.player.global_position,
+			_surface_camera.engaged if is_instance_valid(_surface_camera) else false,
+			_stage.camera.get_boom_length(), TableInteractionSolverLab.State.keys()[_lab.state], _stage.player.global_position,
 			_stage.camera.get_view_pitch_deg(), desired.x, desired.y, _aim_yaw_offset_deg, _aim_pitch_deg,
 			JSON.stringify(_lab.solution), JSON.stringify(_lab.rejection)
 		])
@@ -220,7 +233,9 @@ func _write_report() -> Dictionary:
 		"aim_automation_after_F": false,
 		"near_start_is_collision_valid": true,
 		"near_start_root_z_m": NEAR_COLLISION_LIMIT_Z_M,
-		"commit_pipeline": "focus -> F -> solve stance -> small settle -> authored pickup -> TwoBoneIK contact correction",
+		"near_surface_camera_intent": _surface_camera.get_report() if is_instance_valid(_surface_camera) else {},
+		"surface_intent_engaged_frames": _surface_engaged_frames,
+		"commit_pipeline": "surface intent -> exact focus -> F -> solve stance -> small settle -> authored pickup -> TwoBoneIK contact correction",
 		"near_prompt_seen": _near_prompt_seen,
 		"far_prompt_seen": _far_prompt_seen,
 		"near": near,
@@ -253,6 +268,8 @@ func _validate(report: Dictionary) -> PackedStringArray:
 	var failures := PackedStringArray()
 	var near: Dictionary = report["near"] as Dictionary
 	var far: Dictionary = report["far"] as Dictionary
+	if _surface_engaged_frames < 10:
+		failures.append("near_surface_intent_never_engaged")
 	if not _near_prompt_seen or not _near_pressed:
 		failures.append("near_F_never_became_valid")
 	if not bool(near.get("contact", false)):
