@@ -91,6 +91,11 @@ func _disable_player_ui(node: Node) -> void:
 	for child: Node in node.get_children():
 		if child is CanvasItem:
 			(child as CanvasItem).visible = false
+			## Production HUD scripts (notably MouseCursorUI) may set visible=true
+			## every frame. Stop only UI processing in this clean staging scene;
+			## Henry movement, camera and interaction components remain untouched.
+			child.process_mode = Node.PROCESS_MODE_DISABLED
 		elif child is CanvasLayer:
 			(child as CanvasLayer).visible = false
+			child.process_mode = Node.PROCESS_MODE_DISABLED
 		_disable_player_ui(child)
