@@ -5,6 +5,25 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-06 - Motion Matching: foot locking and a feature-flagged Player layer (#202)
+
+- Foot locking on database contacts (`MotionFootLock`, Holden contact_update
+  with inertialized transitions, drag instead of a hard unlock) and a two-bone
+  leg solve shared with `SnowFootModifier` (`LegTwoBoneIK`, identical output).
+  Lab: drawn planted slide 0.184 → 0.032 m/s with unchanged matching.
+- `Player/MotionMatchingLocomotion`, off by default (`HOARBOUND_MOTION_MATCHING=1`
+  or the export): the body stays authoritative, the matched pose is blended over
+  the AnimationTree, which keeps actions, carry, sit, crouch, air, sprint and
+  long idle. Additive hooks in `MovementController` and `HenryUALAnimation`.
+- 31 CMU walks at game pace and the standing capture `111_28` join the
+  database (11.3 k samples, audit clean); UE5-style steering of the root.
+- `capture_motion_matching_player.gd`: deterministic in-game A/B on TestScene,
+  also run headless by the existing Motion Matching CI job.
+  Found: every walk start plays the jump-landing clip in production (start
+  impulse lifts the body for one tick) — left for the jump rework.
+- The runtime core moves from `scripts/experimental/motion_matching/` to
+  `scripts/systems/motion_matching/`; the lab scenes stay experimental.
+
 ### 2026-10-06 - Motion Matching lab: root-space retarget, curated CMU database, simulation-led playback (#202)
 
 - Replace the CMU/100STYLE retarget glue with per-family `SourceRetargetProfile`s,

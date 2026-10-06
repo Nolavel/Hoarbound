@@ -36,6 +36,8 @@ Hard rules:
 | 90° turn pool A | `69_20` | Walk forward, 90-degree turn. |
 | 90° turn pool B | `69_24` | Walk forward, opposite 90-degree turn. |
 | Multidirectional reference | `41_02` | Existing forward/backward/sideways/diagonal capture used by the current single-clip baseline. |
+| Brisk walk (game pace) | `02_02`, `07_09`–`07_11`, `08_01`–`08_03`, `08_06`, `08_08`–`08_10`, `16_21`, `16_22`, `39_01`–`39_10` | "walk" in the CMU index; measured source speed 1.4–1.75 m/s. `08_07` (exaggerated stride) is left out. |
+| Brisk turns | `16_23`–`16_30` | "walk, veer left/right", "walk, 90-degree left/right turn" at 1.4–1.7 m/s. |
 
 ## Curation (current)
 
@@ -46,7 +48,10 @@ and are written as debug metadata only; the runtime matcher never reads them.
 
 - windows of up to 8 s (hop 2 s) keep real transitions between directions;
 - greedy selection against per-label budgets (seconds of real material), total
-  cap 360 s, rarer labels weighted higher;
+  cap 460 s, rarer labels weighted higher; forward walking at or above
+  1.2 m/s (Henry scale) is its own tier (`walk_f_brisk`, `turn_brisk`) so the
+  game's 1.5 m/s walk is covered; idle has 25 s so the true standing capture
+  `111_28` is baked next to the standing parts of the pivot captures;
 - source capture glitches (any joint > 20 rad/s between 30 Hz samples) are cut
   out with a 0.25 s margin instead of being smoothed over;
 - selected windows of one source are merged into contiguous ranges, and each

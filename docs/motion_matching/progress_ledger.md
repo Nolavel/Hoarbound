@@ -12,6 +12,11 @@ Evidence-based status. A green workflow alone never moves an item up.
   no role gate; trajectory and facing are independent query channels.
 - Pure playback of one range reproduces the data's own foot slide
   (0.075 vs 0.079 m/s) — playback/root motion are consistent.
+- Foot locking (`MotionFootLock` + `LegTwoBoneIK`): lab A/B with identical
+  matching, drawn planted slide 0.184 → 0.032 m/s; top-down ankle traces and
+  side-by-side video. Query reads the pose before the lock.
+- Brisk walking coverage: 31 CMU natural walks at 1.4–1.75 m/s (index titles),
+  database p99 root speed 1.75 m/s (was 1.05), audit clean.
 
 ## Mechanically working, visually disputed
 
@@ -21,6 +26,15 @@ Evidence-based status. A green workflow alone never moves an item up.
 
 ## Regressed / rejected
 
+- Holden's hard unlock at 0.2 m: the foot snapped back ~20 cm in ~0.2 s.
+  Replaced by a drag at the radius plus a reach pull.
+- IK length buffer applied to an already straight leg: it lifted idle feet by
+  ~1 cm. The buffer never shortens an animated leg now.
+- Rotation adjustment limited only by the clip's own angular speed: in game the
+  visual stayed 63° off the body for seconds on a straight sideways clip.
+  Added UE5-style steering (≤ 2 rad/s while the clip moves).
+- Matched pose over the AnimationTree without resetting bone translations:
+  idle feet floated 2–3 cm (the tree's `root` translation leaked in).
 - Global `RetargetModifier3D` via an un-reset proxy (#476): Henry horizontal.
   Cause: proxy poses never reset to rest, not the global formula.
 - Lab body via `move_and_slide()` outside the physics tick: body moved 2–3×
@@ -32,14 +46,16 @@ Evidence-based status. A green workflow alone never moves an item up.
 - 4 s role windows: no direction transitions in the data. Replaced by 8 s
   windows with transition budget.
 
-## Experimental (lab only)
+## Experimental
 
 - Spring simulation + adjustment/clamping playback, two-slot crossfade,
-  pose-jump threshold, pose reselect history, contact features.
-- Curated 9.2 k-sample CMU database (rebuilt from staged sources, not in Git).
+  pose-jump threshold, pose reselect history, contact features (lab).
+- Curated 11.3 k-sample CMU database (rebuilt from staged sources, not in Git).
 - 100STYLE profile (unverified, refused by the builder).
+- Opt-in data-matched body dynamics (game feel: author's decision).
 
-## Ready for integration
+## Integrated behind a flag (off by default)
 
-- Nothing yet. See `integration_plan.md` for the proposed layer and open
-  decisions (gaze ownership, foot locking, 100STYLE).
+- `MotionMatchingLocomotion` under Player: body authoritative, tree owns
+  actions/carry/sit/crouch/air/sprint/long idle, neck/head with head look.
+  In-game numbers and open decisions: `integration_plan.md`.

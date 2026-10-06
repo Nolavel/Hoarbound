@@ -1,7 +1,7 @@
 # Motion Matching — source retarget audit
 
 Issue: #202. Owner of the conventions in code: `SourceRetargetProfile`
-(`scripts/experimental/motion_matching/source_retarget_profile.gd`).
+(`scripts/systems/motion_matching/source_retarget_profile.gd`).
 
 Every source family has its own measured profile. There is no shared flag set
 that "almost works" for several skeleton families.

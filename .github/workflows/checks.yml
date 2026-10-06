@@ -28,8 +28,12 @@ on:
       - "tools/runtime/capture_dev_diorama_map.gd"
       - "tests/systems/test_dev_diorama_map.gd"
       - "scripts/experimental/motion_matching/**"
+      - "scripts/systems/motion_matching/**"
+      - "scripts/actors/player/henry/components/motion_matching_locomotion.gd"
       - "tests/motion_matching/**"
       - "tools/runtime/capture_motion_matching_lab.gd"
+      - "tools/runtime/capture_motion_matching_player.gd"
+      - "tools/ci/prepare_cmu_sample.sh"
       - ".github/workflows/checks.yml"
       - "scripts/world/key_west_first_exit.gd"
       - "scenes/world/key_west/key_west_first_exit.tscn"
@@ -222,6 +226,15 @@ jobs:
             100STYLE:Neutral_SW 100STYLE:Neutral_TR1
           run_godot tools/runtime/capture_motion_matching_lab.gd
 
+      - name: In-game A/B on the real Player (headless, tree vs Motion Matching)
+        run: |
+          for flag in 0 1; do
+            HOARBOUND_MOTION_MATCHING=$flag MM_HEADLESS_PROOF=1 \
+              MM_OUT_DIR=res://docs/runtime_previews/motion_matching_player_$flag \
+              "$HOME/.local/bin/godot" --headless --fixed-fps 30 --path . \
+              --script res://tools/runtime/capture_motion_matching_player.gd
+          done
+
       - name: Encode preview video
         run: |
           if ! command -v ffmpeg >/dev/null 2>&1; then
@@ -248,6 +261,7 @@ jobs:
             docs/runtime_previews/motion_matching_lab/*.json
             docs/runtime_previews/motion_retarget_diagnostics/*.png
             docs/runtime_previews/motion_retarget_diagnostics/report.json
+            docs/runtime_previews/motion_matching_player_*/report.json
           if-no-files-found: error
           retention-days: 7
 

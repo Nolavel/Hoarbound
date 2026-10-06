@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/experimental/motion_matching/motion_matching_playback_lab.gd" id="1_lab"]
 [ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="2_henry"]
-[ext_resource type="Script" path="res://scripts/experimental/motion_matching/motion_matching_debug_view.gd" id="3_debug"]
+[ext_resource type="Script" path="res://scripts/systems/motion_matching/motion_matching_debug_view.gd" id="3_debug"]
 
 [sub_resource type="Shader" id="GridShader"]
 code = "shader_type spatial;
