@@ -1,8 +1,9 @@
 extends SceneTree
 
-## Deterministic Phase 1 capture for issue #201. When CI-only motion sources are
-## present, the same harness switches to isolated issue #202 retarget/database
-## spikes instead of creating extra workflows.
+## Deterministic motion-matching capture harness.
+## Issue #201 Phase 1 remains available when no CI-only mocap source is staged.
+## Issue #202 reuses the same workflow for Rokoko/CMU retarget, database, matcher,
+## and now visible BEST-frame playback instead of adding another CI pipeline.
 
 const SCENE_PATH := "res://tests/motion_matching/motion_matching_lab.tscn"
 const ROKOKO_SCENE_PATH := "res://tests/motion_matching/rokoko_ual_retarget_lab.tscn"
@@ -34,6 +35,17 @@ const SEQUENCE: Array[Dictionary] = [
 	{"label": "snap_left", "input": Vector2(-1.0, 0.0), "frames": 14},
 	{"label": "snap_forward", "input": Vector2(0.0, -1.0), "frames": 14},
 	{"label": "stop", "input": Vector2.ZERO, "frames": 18},
+]
+
+## Deliberately sharp desired-trajectory changes for visible issue #202 playback.
+## The six segments total exactly 240 captured frames = 8 seconds at 30 FPS.
+const CMU_MM_SEQUENCE: Array[Dictionary] = [
+	{"label": "FORWARD", "direction": Vector2(0.0, 1.0), "frames": 36},
+	{"label": "RIGHT", "direction": Vector2(1.0, 0.0), "frames": 42},
+	{"label": "BACK", "direction": Vector2(0.0, -1.0), "frames": 42},
+	{"label": "LEFT", "direction": Vector2(-1.0, 0.0), "frames": 42},
+	{"label": "FORWARD-RIGHT", "direction": Vector2(1.0, 1.0).normalized(), "frames": 36},
+	{"label": "FORWARD", "direction": Vector2(0.0, 1.0), "frames": 42},
 ]
 
 var _scene: Node3D
@@ -138,6 +150,7 @@ func _run_cmu_capture() -> void:
 		push_error("CMURetargetCapture: scene is not CMUUALRetargetLab.")
 		quit(23)
 		return
+
 	var database: MotionDatabase = await cmu_lab.bake_motion_database(MOTION_DATABASE_RATE_HZ)
 	if database == null or not database.is_consistent():
 		push_error("CMURetargetCapture: MotionDatabase bake failed.")
@@ -151,25 +164,71 @@ func _run_cmu_capture() -> void:
 		quit(25)
 		return
 
-	var key_indices := {0: 0, 60: 1, 120: 2, 180: 3, 239: 4}
-	for frame in range(CMU_VIDEO_FRAMES):
-		var capture_time := float(frame) / 30.0
-		_scene.call("seek_capture_time", capture_time)
-		await process_frame
-		await RenderingServer.frame_post_draw
-		var save_keyframe := key_indices.has(frame)
-		var key_index: int = int(key_indices.get(frame, 0))
-		await _capture_frame("cmu_%02d" % key_index, key_index, save_keyframe)
+	var controller := MotionMatchingPlaybackController.new()
+	var initial_time := float(_matcher_probe_report.get("probe_time", 7.633))
+	if not await controller.setup(cmu_lab, database, initial_time):
+		push_error("CMURetargetCapture: MotionMatchingPlaybackController setup failed.")
+		quit(26)
+		return
+
+	var command_speed := float(_matcher_probe_report.get("command_speed_mps", 1.35))
+	var captured_segments: Array[Dictionary] = []
+	for segment_index in range(CMU_MM_SEQUENCE.size()):
+		var segment: Dictionary = CMU_MM_SEQUENCE[segment_index]
+		var direction: Vector2 = segment["direction"]
+		var desired_velocity := direction * command_speed
+		var frame_count := int(segment["frames"])
+		var segment_last_state: Dictionary = {}
+
+		for local_frame in range(frame_count):
+			segment_last_state = await controller.step(
+				1.0 / 30.0,
+				desired_velocity,
+				str(segment["label"])
+			)
+			if segment_last_state.is_empty():
+				push_error("CMURetargetCapture: live MM playback step failed.")
+				quit(27)
+				return
+			# Controller updates world debug after its source-pose process frame;
+			# one render frame guarantees CURRENT/BEST and both trajectory arrows
+			# are actually present in the PNG/video being captured.
+			await process_frame
+			await RenderingServer.frame_post_draw
+			var save_keyframe := local_frame == frame_count / 2
+			await _capture_frame(
+				"mm_%02d_%s" % [segment_index, str(segment["label"]).to_lower().replace("-", "_")],
+				segment_index,
+				save_keyframe
+			)
+
+		captured_segments.append({
+			"label": str(segment["label"]),
+			"desired_velocity": [desired_velocity.x, desired_velocity.y],
+			"frames": frame_count,
+			"end_state": segment_last_state,
+		})
+
+	if _frame_index != CMU_VIDEO_FRAMES:
+		push_error("CMURetargetCapture: expected %d MM frames, captured %d." % [CMU_VIDEO_FRAMES, _frame_index])
+		quit(28)
+		return
 
 	var report: Dictionary = _scene.call("get_retarget_report")
 	report["issue"] = 202
-	report["mode"] = "cmu_subject41_direct_godot_spike"
+	report["mode"] = "cmu_motion_matching_live_playback"
 	report["resolution"] = [CAPTURE_WIDTH, CAPTURE_HEIGHT]
 	report["frame_count"] = _frame_index
-	report["video_seconds"] = float(CMU_VIDEO_FRAMES) / 30.0
+	report["video_seconds"] = float(_frame_index) / 30.0
 	report["motion_matcher_probe"] = _matcher_probe_report
+	report["motion_matching_playback"] = controller.get_report()
+	report["playback_segments"] = captured_segments
 	_write_json_report(report)
-	print("[CMU_RETARGET_CAPTURE] %d frames written to %s" % [_frame_index, ProjectSettings.globalize_path(OUT_DIR)])
+	print("[MM_PLAYBACK_CAPTURE] %d frames / %d switches written to %s" % [
+		_frame_index,
+		int(controller.get_report()["switch_count"]),
+		ProjectSettings.globalize_path(OUT_DIR)
+	])
 	quit(0)
 
 

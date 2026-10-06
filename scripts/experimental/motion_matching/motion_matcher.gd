@@ -12,14 +12,7 @@ extends RefCounted
 
 
 func find_best(database: MotionDatabase, query: PackedFloat32Array) -> Dictionary:
-	if database == null or not database.is_consistent():
-		push_error("MotionMatcher: database is invalid.")
-		return {}
-	if query.size() != database.feature_count:
-		push_error("MotionMatcher: query has %d features, expected %d." % [query.size(), database.feature_count])
-		return {}
-	if database.feature_stddevs.size() != database.feature_count:
-		push_error("MotionMatcher: database statistics are missing.")
+	if not _validate(database, query):
 		return {}
 
 	var best_sample := -1
@@ -45,6 +38,31 @@ func find_best(database: MotionDatabase, query: PackedFloat32Array) -> Dictionar
 		"facing_cost": best_costs["facing"],
 		"total_cost": best_total,
 	}
+
+
+func score_sample(
+		database: MotionDatabase,
+		sample_index: int,
+		query: PackedFloat32Array
+	) -> Dictionary:
+	if not _validate(database, query):
+		return {}
+	if sample_index < 0 or sample_index >= database.get_sample_count():
+		return {}
+	return _sample_cost(database, sample_index, query)
+
+
+func _validate(database: MotionDatabase, query: PackedFloat32Array) -> bool:
+	if database == null or not database.is_consistent():
+		push_error("MotionMatcher: database is invalid.")
+		return false
+	if query.size() != database.feature_count:
+		push_error("MotionMatcher: query has %d features, expected %d." % [query.size(), database.feature_count])
+		return false
+	if database.feature_stddevs.size() != database.feature_count:
+		push_error("MotionMatcher: database statistics are missing.")
+		return false
+	return true
 
 
 func _sample_cost(database: MotionDatabase, sample_index: int, query: PackedFloat32Array) -> Dictionary:
