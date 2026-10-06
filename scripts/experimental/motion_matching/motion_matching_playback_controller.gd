@@ -15,12 +15,18 @@ const SWITCH_COOLDOWN := 0.28
 const CROSSFADE_DURATION := 0.16
 const SWITCH_MIN_ABSOLUTE := 1.0
 const SWITCH_MIN_RATIO := 0.12
+## A re-seek into the same clip within this window is not a meaningful motion
+## transition; natural continuation wins instead. This prevents local loop-back
+## chatter without changing feature weights or suppressing distant directional
+## matches.
+const SAME_CLIP_NEIGHBORHOOD_SECONDS := 1.50
 const DESIRED_COLOR := Color(0.18, 1.0, 0.30, 1.0)
 const SELECTED_COLOR := Color(0.15, 0.55, 1.0, 1.0)
-const TRAJECTORY_Y := -0.965
-const RIBBON_HALF_WIDTH := 0.028
-const ARROW_LENGTH := 0.22
-const ARROW_HALF_WIDTH := 0.10
+const TRAJECTORY_Y := -0.92
+const SELECTED_Y_OFFSET := 0.035
+const RIBBON_HALF_WIDTH := 0.045
+const ARROW_LENGTH := 0.26
+const ARROW_HALF_WIDTH := 0.14
 
 var _lab: CMUUALRetargetLab
 var _database: MotionDatabase
@@ -42,6 +48,7 @@ var _last_query_label := ""
 var _last_best: Dictionary = {}
 var _last_current_cost: Dictionary = {}
 var _last_switched := false
+var _last_gate_reason := "START"
 
 var _blend_active := false
 var _blend_elapsed := 0.0
@@ -53,6 +60,7 @@ var _desired_material: StandardMaterial3D
 var _selected_material: StandardMaterial3D
 
 var _match_evaluations := 0
+var _continuity_blocks := 0
 var _switch_events: Array[Dictionary] = []
 
 
@@ -68,6 +76,11 @@ func setup(lab: CMUUALRetargetLab, database: MotionDatabase, initial_time: float
 	if _tree == null or _henry_animation == null or _henry_animation.skeleton == null or _source == null:
 		return false
 	_skeleton = _henry_animation.skeleton
+	if _readout != null:
+		# Keep debug readable without covering Henry's upper body.
+		_readout.position = Vector3(0.0, 1.62, 0.0)
+		_readout.font_size = 22
+		_readout.outline_size = 6
 	_prepare_debug_meshes()
 
 	_playback_time = _wrap_time(initial_time)
@@ -130,6 +143,7 @@ func get_snapshot() -> Dictionary:
 		"blend_alpha": 1.0 if not _blend_active else clampf(_blend_elapsed / CROSSFADE_DURATION, 0.0, 1.0),
 		"last_query_label": _last_query_label,
 		"last_switched": _last_switched,
+		"gate_reason": _last_gate_reason,
 		"last_best": _last_best.duplicate(true),
 		"current_cost": _last_current_cost.duplicate(true),
 	}
@@ -143,14 +157,16 @@ func get_report() -> Dictionary:
 		"crossfade_seconds": CROSSFADE_DURATION,
 		"switch_min_absolute_improvement": SWITCH_MIN_ABSOLUTE,
 		"switch_min_ratio": SWITCH_MIN_RATIO,
+		"same_clip_neighborhood_seconds": SAME_CLIP_NEIGHBORHOOD_SECONDS,
 		"match_evaluations": _match_evaluations,
+		"continuity_blocks": _continuity_blocks,
 		"switch_count": _switch_events.size(),
 		"switch_events": _switch_events.duplicate(true),
 		"last_snapshot": get_snapshot(),
 		"debug": {
 			"desired_trajectory": "green",
 			"selected_best_trajectory": "blue",
-			"readout": "CURRENT / BEST / costs",
+			"readout": "CURRENT / BEST / costs / gate",
 		},
 	}
 
@@ -194,6 +210,7 @@ func _evaluate_and_maybe_switch(
 	_last_current_cost = _matcher.score_sample(_database, _current_sample, query)
 	_last_best = _matcher.find_best(_database, query)
 	if _last_best.is_empty() or _last_current_cost.is_empty():
+		_last_gate_reason = "NO MATCH"
 		return
 
 	var current_total := float(_last_current_cost["total"])
@@ -201,10 +218,24 @@ func _evaluate_and_maybe_switch(
 	var improvement := current_total - best_total
 	var required_improvement := maxf(SWITCH_MIN_ABSOLUTE, current_total * SWITCH_MIN_RATIO)
 	var best_sample := int(_last_best["sample_index"])
+	var best_time := float(_last_best["time"])
 	var separated_sample: bool = best_sample < _current_sample - 2 or best_sample > _current_sample + 2
+	var same_clip := str(_last_best["clip"]) == _database.get_sample_clip_name(_current_sample)
+	var local_reseek := same_clip and _cyclic_time_distance(_playback_time, best_time) < SAME_CLIP_NEIGHBORHOOD_SECONDS
+
+	_last_gate_reason = "HOLD"
+	if local_reseek:
+		_last_gate_reason = "CONTINUE"
+		_continuity_blocks += 1
+	elif _cooldown_remaining > 0.0:
+		_last_gate_reason = "COOLDOWN"
+	elif not separated_sample:
+		_last_gate_reason = "CONTINUE"
+
 	var should_switch: bool = (
 		_cooldown_remaining <= 0.0
 		and separated_sample
+		and not local_reseek
 		and improvement > required_improvement
 	)
 
@@ -212,13 +243,14 @@ func _evaluate_and_maybe_switch(
 		var from_time := _playback_time
 		var from_sample := _current_sample
 		_begin_crossfade()
-		_playback_time = _wrap_time(float(_last_best["time"]))
+		_playback_time = _wrap_time(best_time)
 		_current_sample = best_sample
 		_lab.seek_capture_time(_playback_time)
 		await _tree.process_frame
 		_apply_crossfade_to_current_source_pose()
 		_cooldown_remaining = SWITCH_COOLDOWN
 		_last_switched = true
+		_last_gate_reason = "SWITCH"
 		var event := {
 			"query": query_label,
 			"from_sample": from_sample,
@@ -280,6 +312,13 @@ func _wrap_time(time_seconds: float) -> float:
 	return fposmod(time_seconds, _source.clip_length)
 
 
+func _cyclic_time_distance(a: float, b: float) -> float:
+	var distance := absf(a - b)
+	if _source == null or _source.clip_length <= 0.0001:
+		return distance
+	return minf(distance, maxf(0.0, _source.clip_length - distance))
+
+
 func _safe_facing(value: Vector2) -> Vector2:
 	if value.length_squared() <= 0.000001:
 		return Vector2(0.0, -1.0)
@@ -329,7 +368,7 @@ func _update_debug(
 		var velocity_cost := 0.0 if best.is_empty() else float(best["velocity_cost"])
 		var trajectory_cost := 0.0 if best.is_empty() else float(best["trajectory_cost"])
 		var facing_cost := 0.0 if best.is_empty() else float(best["facing_cost"])
-		var gate := "SWITCH" if switched else "HOLD"
+		var gate := "SWITCH" if switched else _last_gate_reason
 		_readout.text = "MOTION MATCHING — LIVE\nINPUT  %s\nCURRENT  sample %d  t %.3f  cost %.2f\nBEST     sample %d  t %.3f  cost %.2f\npose %.2f  vel %.2f  traj %.2f  facing %.2f\n%s   cooldown %.2f   blend %.2f" % [
 			query_label,
 			_current_sample,
@@ -356,14 +395,15 @@ func _update_debug(
 		))
 	_draw_ribbon_arrow(_desired_mesh_instance, _desired_material, desired_points, DESIRED_COLOR)
 
-	var selected_points: Array[Vector3] = [Vector3(0.0, TRAJECTORY_Y + 0.018, 0.0)]
+	var selected_y := TRAJECTORY_Y + SELECTED_Y_OFFSET
+	var selected_points: Array[Vector3] = [Vector3(0.0, selected_y, 0.0)]
 	if not best.is_empty():
 		var row := _database.get_feature_row(int(best["sample_index"]))
 		if row.size() >= 27:
 			for feature_index in [21, 23, 25]:
 				selected_points.append(Vector3(
 					row[feature_index],
-					TRAJECTORY_Y + 0.018,
+					selected_y,
 					row[feature_index + 1]
 				))
 	_draw_ribbon_arrow(_selected_mesh_instance, _selected_material, selected_points, SELECTED_COLOR)
@@ -382,6 +422,19 @@ func _draw_ribbon_arrow(
 		return
 	mesh.clear_surfaces()
 	if points.size() < 2:
+		return
+
+	# ImmediateMesh rejects surface_end() if no vertices were submitted. START
+	# has a deliberate zero desired velocity, so test for a drawable segment
+	# before opening the surface.
+	var has_drawable_segment := false
+	for segment_index in range(points.size() - 1):
+		var test_direction := points[segment_index + 1] - points[segment_index]
+		test_direction.y = 0.0
+		if test_direction.length_squared() > 0.000001:
+			has_drawable_segment = true
+			break
+	if not has_drawable_segment:
 		return
 
 	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, material)
