@@ -132,6 +132,10 @@ func _hand_visual_to_pack() -> void:
 	var hub: PlayerHubComponent = player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent if player != null else null
 	if hub == null or visual == null or not is_ancestor_of(visual):
 		return
+	# SurvivalItemVisual stores body and label meshes under one holder.
+	# Transfer that complete visual, not only interactive_mesh (its first child).
+	while visual.get_parent() is Node3D and visual.get_parent() != self:
+		visual = visual.get_parent() as Node3D
 	visual.reparent(get_tree().current_scene if get_tree().current_scene != null else get_tree().root)
 	hub.stow_visual(visual, item_id)
 

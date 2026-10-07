@@ -1,0 +1,105 @@
+name: Key West MM street review
+
+# One-shot visual review utility for PR #205. It is intentionally isolated from
+# production CI: the game checkout is the exact claudeflow PR head, while the
+# capture harness lives on codex and is copied into the workspace at runtime.
+on:
+  push:
+    branches: [codex]
+    paths:
+      - ".github/workflows/key-west-mm-street-review.yml"
+      - "tools/runtime/capture_key_west_mm_street_review.gd"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: key-west-mm-street-review
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout codex capture harness
+        uses: actions/checkout@v4
+        with:
+          ref: codex
+          path: harness
+
+      - name: Checkout Claude PR head exactly
+        uses: actions/checkout@v4
+        with:
+          ref: ab551bf357a61b9a6a9006cd68fada8f93283687
+          path: game
+
+      - name: Inject review-only capture harness
+        run: |
+          cp harness/tools/runtime/capture_key_west_mm_street_review.gd \
+             game/tools/runtime/capture_key_west_mm_street_review.gd
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        working-directory: game
+        run: tools/ci/setup_env.sh
+
+      - name: Import gate on claudeflow PR head
+        working-directory: game
+        run: tools/ci/import_gate.sh
+
+      - name: Capture 10.5 second Key West street review
+        working-directory: game
+        env:
+          HOARBOUND_MOTION_MATCHING: "1"
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 1280x720 \
+            --fixed-fps 30 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script tools/runtime/capture_key_west_mm_street_review.gd
+
+      - name: Encode MP4 and keep review stills
+        working-directory: game
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          OUT=docs/runtime_previews/key_west_mm_street_review
+          cp "$OUT/frames/0060.png" "$OUT/01_walk.png"
+          cp "$OUT/frames/0150.png" "$OUT/02_jump_landing.png"
+          cp "$OUT/frames/0240.png" "$OUT/03_sprint.png"
+          ffmpeg -y \
+            -framerate 30 \
+            -i "$OUT/frames/%04d.png" \
+            -c:v libx264 \
+            -preset veryfast \
+            -crf 20 \
+            -pix_fmt yuv420p \
+            -movflags +faststart \
+            "$OUT/claudeflow_key_west_mm_street_ab551bf.mp4"
+          rm -rf "$OUT/frames"
+
+      - name: Upload Key West Motion Matching street review
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-claudeflow-key-west-mm-street-ab551bf
+          path: |
+            game/docs/runtime_previews/key_west_mm_street_review/*.mp4
+            game/docs/runtime_previews/key_west_mm_street_review/*.png
+            game/docs/runtime_previews/key_west_mm_street_review/report.json
+          if-no-files-found: error
+          retention-days: 7

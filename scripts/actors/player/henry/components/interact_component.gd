@@ -35,6 +35,12 @@ signal interaction_performed(target: InteractiveArea)
 ## Gives up a walk that stops making progress, seconds.
 @export var approach_timeout: float = 4.0
 
+## Optional scene-owned authored pickup. Query returns a feasible action or {}.
+var pickup_reach_query: Callable
+var pickup_request: Callable
+## Zero keeps the normal angular selector. The tabletop uses its visible ring.
+@export var pickup_focus_radius_px: float = 0.0
+
 var current_target: InteractiveArea = null
 
 var _player: CharacterBody3D
@@ -73,16 +79,20 @@ func detect_target() -> void:
 	var found: InteractiveArea = _find_seated_target() if seated else _find_crosshair_target()
 	var distance: float = _flat_distance_to(found) if found != null else INF
 	var in_reach: bool = distance <= _reach()
+	if pickup_reach_query.is_valid() and found is ItemPickup:
+		in_reach = not get_pickup_reach_solution(found as ItemPickup).is_empty()
 	var in_prompt: bool = distance <= prompt_distance
+	if pickup_reach_query.is_valid() and found is ItemPickup:
+		in_prompt = in_reach
 	var changed: bool = found != current_target
 	if changed:
 		if current_target != null:
 			current_target.set_target_state(false, false)
 		current_target = found
 		if found != null:
-			found.set_target_state(true, in_prompt)
+			found.set_target_state(in_prompt if pickup_reach_query.is_valid() and found is ItemPickup else true, in_prompt)
 	elif found != null and in_prompt != _last_in_prompt:
-		found.set_target_state(true, in_prompt)
+		found.set_target_state(in_prompt if pickup_reach_query.is_valid() and found is ItemPickup else true, in_prompt)
 	if changed or in_reach != _last_in_reach or in_prompt != _last_in_prompt:
 		interact_target_changed.emit(current_target, in_reach)
 	_last_in_reach = in_reach
@@ -90,7 +100,11 @@ func detect_target() -> void:
 
 
 func is_target_in_reach() -> bool:
-	return is_instance_valid(current_target) and _flat_distance_to(current_target) <= _reach()
+	if not is_instance_valid(current_target):
+		return false
+	if pickup_reach_query.is_valid() and current_target is ItemPickup:
+		return not get_pickup_reach_solution(current_target as ItemPickup).is_empty()
+	return _flat_distance_to(current_target) <= _reach()
 
 
 ## Clears the authoritative focus state, not just its visuals. This is used when
@@ -117,6 +131,16 @@ func try_interact() -> void:
 	if current_target.is_queued_for_deletion() or not current_target.can_interact():
 		_clear_current_target()
 		return
+	if pickup_reach_query.is_valid():
+		# Re-query at input time: no stale render-frame target may accept F.
+		detect_target()
+		if not is_instance_valid(current_target):
+			return
+		if current_target is ItemPickup:
+			_stop_approach()
+			if is_target_in_reach():
+				_perform(current_target)
+			return
 	if _flat_distance_to(current_target) <= _reach():
 		_stop_approach()
 		_perform(current_target)
@@ -127,6 +151,13 @@ func try_interact() -> void:
 
 func _perform(target: InteractiveArea) -> void:
 	if not is_instance_valid(target):
+		return
+	if pickup_reach_query.is_valid() and target is ItemPickup:
+		if get_pickup_reach_solution(target as ItemPickup).is_empty():
+			_clear_current_target()
+			return
+		if pickup_request.is_valid():
+			pickup_request.call(target)
 		return
 	## Pickups request their animation only after inventory acceptance.
 	if not (target is ItemPickup) and _player != null and _player.has_method(&"play_action_animation"):
@@ -232,11 +263,15 @@ func _find_crosshair_target() -> InteractiveArea:
 	return best
 
 
-## Returns the first *interactive* Area on the centre ray, skipping unrelated
-## trigger Areas (thermal zones, shelter volumes, etc.) instead of letting one
-## of them hide the actual handle/door/pickup behind it.
+## Returns the centre-ray target, skipping unrelated trigger Areas (thermal
+## zones, shelter volumes, etc.). Overlapping pickup Areas are ranked by their
+## visible focus points so one broad legacy pickup volume cannot hide its
+## neighbours on a table or shelf.
 func _first_interactive_area_on_ray(from: Vector3, to: Vector3) -> Dictionary:
 	var excluded: Array[RID] = [_player.get_rid()]
+	var best_pickup_hit: Dictionary = {}
+	var best_pickup_angle: float = INF
+	var best_pickup_distance: float = INF
 	for _i: int in range(12):
 		var ray := PhysicsRayQueryParameters3D.create(from, to)
 		ray.collide_with_areas = true
@@ -244,7 +279,7 @@ func _first_interactive_area_on_ray(from: Vector3, to: Vector3) -> Dictionary:
 		ray.exclude = excluded
 		var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(ray)
 		if hit.is_empty():
-			return {}
+			return best_pickup_hit
 		var area: InteractiveArea = _resolve_focus(_area_from(hit.get("collider")), from, (to - from).normalized())
 		if (
 			area != null and _flat_distance_to(area) <= intent_radius
@@ -252,12 +287,34 @@ func _first_interactive_area_on_ray(from: Vector3, to: Vector3) -> Dictionary:
 			and _focus_hit_is_visible(from, hit.get("position", area.global_position), area)
 			and _has_focus_line(get_viewport().get_camera_3d(), area)
 		):
+			if area is ItemPickup:
+				var toward_focus: Vector3 = _focus_point(area) - from
+				var focus_angle: float = (to - from).normalized().angle_to(toward_focus.normalized())
+				var hit_position: Vector3 = hit.get("position", area.global_position)
+				var hit_distance: float = from.distance_to(hit_position)
+				if (
+					focus_angle < best_pickup_angle
+					or (is_equal_approx(focus_angle, best_pickup_angle) and hit_distance < best_pickup_distance)
+				):
+					best_pickup_hit = hit
+					best_pickup_angle = focus_angle
+					best_pickup_distance = hit_distance
+				## Legacy pickup Areas can be much larger than their visible items.
+				## Inspect overlapping pickup Areas so the visible centre nearest the
+				## reticle wins instead of whichever Area happens to be hit first.
+				var pickup_collider := hit.get("collider") as CollisionObject3D
+				if pickup_collider == null:
+					return best_pickup_hit
+				excluded.append(pickup_collider.get_rid())
+				continue
+			if not best_pickup_hit.is_empty():
+				return best_pickup_hit
 			return hit
 		var collider := hit.get("collider") as CollisionObject3D
 		if collider == null:
 			return {}
 		excluded.append(collider.get_rid())
-	return {}
+	return best_pickup_hit
 
 
 ## The Area hit grants focus only when no unrelated solid surface is closer.
@@ -540,6 +597,17 @@ func is_crosshair_focused() -> bool:
 func _resolve_focus(area: InteractiveArea, from: Vector3, direction: Vector3) -> InteractiveArea:
 	if not is_instance_valid(area) or area.is_queued_for_deletion():
 		return null
+	if area is ItemPickup:
+		if not area.can_interact():
+			return null
+		if pickup_focus_radius_px > 0.0:
+			var camera := get_viewport().get_camera_3d()
+			var point := _focus_point(area)
+			if camera == null or camera.is_position_behind(point):
+				return null
+			var centre := get_viewport().get_visible_rect().size * 0.5
+			if camera.unproject_position(point).distance_to(centre) > pickup_focus_radius_px:
+				return null
 	if area is HeatSourceFeed:
 		return (area as HeatSourceFeed).resolve_focus(from, direction)
 	if area is StoveDoorControl:
@@ -555,3 +623,16 @@ func _owns_focus_body(owner_area: InteractiveArea, target: InteractiveArea) -> b
 	return owner_area == target \
 		or (target is StoveDoorControl and (target as StoveDoorControl).feed == owner_area) \
 		or (owner_area is StoveDoorControl and (owner_area as StoveDoorControl).feed == target)
+
+
+## The scene action owner evaluates the authored contact pose, not an idle arm sphere.
+func get_pickup_reach_solution(item: ItemPickup) -> Dictionary:
+	if not is_instance_valid(item) or item.is_queued_for_deletion() or not pickup_reach_query.is_valid():
+		return {}
+	return pickup_reach_query.call(item)
+
+
+## Called only after the scene action has verified contact and committed ownership.
+func complete_authored_pickup(target: ItemPickup) -> void:
+	_clear_current_target()
+	interaction_performed.emit(target)
