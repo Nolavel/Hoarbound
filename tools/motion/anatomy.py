@@ -240,3 +240,40 @@ def bone_twist(local, rest, names):
             angle = 2.0 * np.degrees(np.arctan2(delta[:, 1], delta[:, 3]))
             out["%s_%s_twist" % (side, bone)] = (angle + 180.0) % 360.0 - 180.0
     return out
+
+
+def matrix_twist(relative, axis):
+    """Twist (degrees) of rotation matrices [n, 3, 3] about a unit axis in their frame."""
+    m = relative
+    w = np.sqrt(np.maximum(1.0 + m[:, 0, 0] + m[:, 1, 1] + m[:, 2, 2], 1e-12)) / 2.0
+    x = (m[:, 2, 1] - m[:, 1, 2]) / (4.0 * w)
+    y = (m[:, 0, 2] - m[:, 2, 0]) / (4.0 * w)
+    z = (m[:, 1, 0] - m[:, 0, 1]) / (4.0 * w)
+    along = x * axis[0] + y * axis[1] + z * axis[2]
+    angle = 2.0 * np.degrees(np.arctan2(along, w))
+    return (angle + 180.0) % 360.0 - 180.0
+
+
+# Source limb joint -> child joint, for the source's own axial roll (100STYLE names).
+SOURCE_TWIST = {
+    "100STYLE": {"thigh": ("LeftHip", "LeftKnee", "RightHip", "RightKnee"),
+                 "calf": ("LeftKnee", "LeftAnkle", "RightKnee", "RightAnkle")},
+}
+
+
+def source_twist(bvh, frames, family, reference_local=None):
+    """Axial roll of source thigh and calf relative to their parents, from the reference
+    pose, about the segment axis: the same quantity bone_twist measures on Henry."""
+    if family not in SOURCE_TWIST:
+        return {}
+    local = bvh.local_rotations(frames)
+    out = {}
+    for bone, (left, left_child, right, right_child) in SOURCE_TWIST[family].items():
+        for side, joint, child in (("l", left, left_child), ("r", right, right_child)):
+            j = bvh.index(joint)
+            axis = bvh.offsets[bvh.index(child)]
+            axis = axis / np.linalg.norm(axis)
+            ref = np.eye(3) if reference_local is None else reference_local[j]
+            relative = np.einsum("ji,njk->nik", ref, local[:, j])
+            out["%s_%s_twist" % (side, bone)] = matrix_twist(relative, axis)
+    return out

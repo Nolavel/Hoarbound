@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Quad review (front/side/rear/feet or hand) of <dataset>:<clip> retarget-only, UAL:<clip>
-## or TRACE:<path>; env MM_OUT_DIR, MM_START, MM_SECONDS, MM_DIAG_VARIANT, MM_CLOSEUP.
+## or TRACE:<path>; env MM_OUT_DIR, MM_START, MM_SECONDS, MM_SLOWMO, MM_DIAG_VARIANT, MM_CLOSEUP.
 
 const Dump := preload("res://tools/runtime/dump_retarget_layers.gd")
 const HENRY_MODEL := "res://assets/characters/henry/henry_outfit.glb"
@@ -52,6 +52,7 @@ func _run() -> void:
 	await process_frame
 	var start := OS.get_environment("MM_START").to_float()
 	var seconds := OS.get_environment("MM_SECONDS").to_float() if not OS.get_environment("MM_SECONDS").is_empty() else 4.0
+	var slowmo := maxf(OS.get_environment("MM_SLOWMO").to_float(), 1.0)
 	var layer := OS.get_environment("MM_DIAG_VARIANT") if not OS.get_environment("MM_DIAG_VARIANT").is_empty() else "L4_full"
 	var retargeter: MotionRetargeter = null
 	var trace: Array = []
@@ -90,8 +91,8 @@ func _run() -> void:
 		else ("Henry's own clip" if retargeter == null else "retarget-only " + layer)]
 	if not OS.get_environment("MM_TITLE").is_empty():
 		title = OS.get_environment("MM_TITLE")
-	for frame in range(int(seconds * FPS)):
-		var t := start + float(frame) / FPS
+	for frame in range(int(seconds * FPS * slowmo)):
+		var t := start + float(frame) / (FPS * slowmo)
 		if not trace.is_empty():
 			_show_trace(trace[clampi(int(round(t * FPS)), 0, trace.size() - 1)])
 		elif retargeter != null:
@@ -104,7 +105,7 @@ func _run() -> void:
 		await process_frame
 		await RenderingServer.frame_post_draw
 		_compose().save_png("%s/%04d.png" % [out_dir, frame])
-	print("[RETARGET_QUAD] %s frames %d -> %s" % [title, int(seconds * FPS), out_dir])
+	print("[RETARGET_QUAD] %s frames %d -> %s" % [title, int(seconds * FPS * slowmo), out_dir])
 	quit(0)
 
 

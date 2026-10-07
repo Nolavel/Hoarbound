@@ -39,6 +39,9 @@ const TWIST_PAIRS := [["lowerarm_l", "hand_l"], ["lowerarm_r", "hand_r"]]
 ## Anatomical elbow flexion limit: Henry's standing elbow bend fades out towards it.
 const ELBOW_FLEX_LIMIT_DEGREES := 145.0
 const SPINE_CHAIN_TARGETS := ["pelvis", "spine_01", "spine_02", "spine_03", "neck_01"]
+## Calf without axial roll on the thigh (Henry's knee as a hinge); joint positions and
+## the foot's global rotation are unchanged. Opt-in: the roll is the source's own.
+const STAGE_LEG_PLANE := 128
 const PROBE_BONES := [
 	"pelvis", "spine_03", "Head", "foot_l", "foot_r", "ball_l", "ball_r",
 	"calf_l", "calf_r", "thigh_l", "thigh_r", "hand_l", "hand_r",
@@ -83,6 +86,8 @@ var _straight_source_inverse: Dictionary = {}
 var _straight_target: Dictionary = {}
 var _soft_elbow_side: Dictionary = {}
 var _elbow_joints: Array[Vector3i] = []
+## Per side: Henry calf and foot bones, for STAGE_LEG_PLANE.
+var _leg_bones: Array[Vector2i] = []
 var _hips_index: int = -1
 var _reference_leg_vertical: float = 0.0
 var _ankle_stance_height: float = 0.0
@@ -122,6 +127,10 @@ func setup(source_clip: BVHClip, source_profile: SourceRetargetProfile, target_m
 		_apply_neutral_pose(reference)
 	if stages & STAGE_SPINE_CHAIN:
 		_build_spine_chain(reference)
+	_leg_bones.clear()
+	if stages & STAGE_LEG_PLANE:
+		for side in ["l", "r"]:
+			_leg_bones.append(Vector2i(target.find_bone("calf_" + side), target.find_bone("foot_" + side)))
 	_twist_indices.clear()
 	if stages & STAGE_TWIST_SPLIT:
 		for pair in TWIST_PAIRS:
@@ -213,6 +222,8 @@ func retarget_at(seconds: float) -> Dictionary:
 		else:
 			local_rotations[bone_index] = _unmapped_local[bone_index]
 			global_rotations[bone_index] = (parent_rotation * _unmapped_local[bone_index]).normalized()
+	for leg in _leg_bones:
+		_unroll_calf(local_rotations, leg.x, leg.y)
 	for pair in _twist_indices:
 		_split_twist(local_rotations, pair.x, pair.y)
 
@@ -259,8 +270,20 @@ func raw_source_positions(seconds: float) -> PackedVector3Array:
 	return result
 
 
+## Removes the calf's roll about its own +Y (relative to rest, as bone twist is measured);
+## the foot sits on that axis, so it keeps its position and global rotation.
+func _unroll_calf(local_rotations: Array[Quaternion], calf: int, foot: int) -> void:
+	var relative := (_target_rest_local[calf].inverse() * local_rotations[calf]).normalized()
+	var twist := Quaternion(0.0, relative.y, 0.0, relative.w)
+	if twist.length_squared() < 0.000001:
+		return
+	twist = twist.normalized()
+	local_rotations[calf] = (local_rotations[calf] * twist.inverse()).normalized()
+	local_rotations[foot] = (twist * local_rotations[foot]).normalized()
+
+
 ## Moves the hand's roll about the forearm axis (+Y of the lowerarm) onto the lowerarm;
-## the hand keeps its global rotation and position (it sits on that axis).
+## the hand sits on that axis (tools/motion/test_rig_contract.py), so it stays put.
 func _split_twist(local_rotations: Array[Quaternion], lowerarm: int, hand: int) -> void:
 	var delta := (local_rotations[hand] * _target_rest_local[hand].inverse()).normalized()
 	var twist := Quaternion(0.0, delta.y, 0.0, delta.w)

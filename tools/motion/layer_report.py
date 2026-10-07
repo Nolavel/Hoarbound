@@ -70,6 +70,7 @@ def clip_report(key, clip, henry_bones, henry_rest, neutral):
     reference_positions = bvh.rest_positions() if dataset in ZERO_POSE_REFERENCE else bvh.positions([0])
     reference = anatomy.canonical(reference_positions, bvh.names, dataset)
     source = anatomy.frame_metrics(anatomy.canonical(oracle, bvh.names, dataset), reference)
+    source.update(anatomy.source_twist(bvh, clip["source_frames"], dataset))
     layers = {}
     for layer, data in clip["layers"].items():
         if "error" in data:

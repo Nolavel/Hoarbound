@@ -17,6 +17,7 @@ const VARIANTS := {
 	"B4_twist": MotionRetargeter.STAGE_ALL | MotionRetargeter.STAGE_TWIST_SPLIT,
 	"B4_spine": MotionRetargeter.STAGE_ALL | MotionRetargeter.STAGE_SPINE_CHAIN,
 	"B4_full": B4,
+	"B4_legplane": B4 | MotionRetargeter.STAGE_LEG_PLANE,
 	"B2_global": "global",
 	"B2_local": "local",
 }

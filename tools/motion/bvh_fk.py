@@ -79,6 +79,19 @@ class BVH:
         finally:
             self.values = saved
 
+    def local_rotations(self, frames=None):
+        """Joint local rotation matrices [frames, joints, 3, 3] (channel order)."""
+        rows = self.values if frames is None else self.values[np.asarray(frames)]
+        n = rows.shape[0]
+        result = np.repeat(np.repeat(np.eye(3)[None, None], n, axis=0), len(self.names), axis=1)
+        column = 0
+        for j, channels in enumerate(self.channels):
+            for channel in channels:
+                if channel.endswith("rotation"):
+                    result[:, j] = result[:, j] @ _axis_matrix(channel[0], rows[:, column])
+                column += 1
+        return result
+
     def positions(self, frames=None):
         """World joint positions [frames, joints, 3] in meters."""
         rows = self.values if frames is None else self.values[np.asarray(frames)]
