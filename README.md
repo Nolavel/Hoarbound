@@ -4,46 +4,45 @@
 
 # Hoarbound
 
-**Third-person systemic survival / Системный сурвайвал от третьего лица**
+**Third-person systemic survival · Godot 4.8-dev6 .NET · PC**
 
-## EN
+Hoarbound is a survival game set in a frozen **Key West**. Henry leaves a bunker with limited supplies and must turn an abandoned house into a shelter capable of surviving the night.
 
-**Hoarbound** is a survival game set in a frozen **Key West**.  
-Henry leaves a bunker with limited supplies and must turn an abandoned house into a place that can survive the night.
+Cold, wind, wet clothing, carried weight, fatigue, fuel and time are connected systems. The design goal is not to maintain meters for their own sake, but to make those systems change the player's route, priorities and willingness to take risks.
 
-Cold, wind, wet clothing, carried weight, fuel and time are connected systems. The goal is not simply to make mechanics work — it is to make them **change the player's decisions**.
+## Current production target — First Exit A
 
-**Current milestone — First Exit**
-- bunker → route choice → supplies → worsening weather;
-- shelter repair → stove → recovery;
-- sleep/save → coherent reload;
-- one continuous 10–15 minute human playtest without debug workarounds.
+One continuous 10–15 minute loop:
 
-## RU
+`bunker -> route choice -> supplies -> worsening weather -> shelter -> repair -> stove -> recover/dry -> sleep/save -> reload`
 
-**Hoarbound** — сурвайвал на замёрзшем **Key West**.  
-Генри выходит из бункера с ограниченными запасами и должен превратить заброшенный дом в убежище, способное пережить ночь.
+The current closing work is human validation: a new player should be able to complete that loop without debug workarounds and understand at least one survival-driven change of plan.
 
-Холод, ветер, мокрая одежда, вес груза, топливо и время связаны между собой. Наша цель — не просто заставить механики работать, а сделать так, чтобы они **меняли решения игрока**.
+## Project direction
 
-**Текущая цель — First Exit**
-- бункер → выбор маршрута → ресурсы → ухудшение погоды;
-- ремонт убежища → печь → восстановление;
-- сон/save → согласованная загрузка;
-- один непрерывный 10–15-минутный плейтест без debug-костылей.
+- **Systemic survival:** weather, body state, carried load and time interact rather than living as isolated meters.
+- **Shelter as an action:** a building is not automatically safe; the player repairs openings, manages fuel and creates usable warmth.
+- **Physical interaction:** equipment, Quick Access and the backpack are moving toward readable diegetic handling rather than abstract menu-first interaction.
+- **Real geography:** NOAA / OSM data underpins the Key West terrain and city; authored gameplay is layered on top.
+- **Winter presentation:** streamed snow, local deformation, footprints, weather and stylized rendering share one production world.
 
-## Tech / Технологии
+## Runtime
 
-**Godot 4.8-dev6 .NET · Forward+ / Vulkan · PC**
+- Engine: **Godot 4.8-dev6 .NET**
+- Renderer: **Forward+ / Vulkan**
+- Main scene: `res://scenes/world/key_west/key_west.tscn`
+- Current world: **Key West**
 
-Real-world NOAA/OSM data underpins the Key West terrain and city. Production work currently focuses on systemic survival, streamed winter environments, deformable snow and stylized rendering.
+## Project documents
 
-Main scene: `res://scenes/world/key_west/key_west.tscn`
+- [`PRD.md`](PRD.md) — product direction and current milestone
+- [`docs/game_design/VERTICAL_SLICE.md`](docs/game_design/VERTICAL_SLICE.md) — First Exit A scope contract
+- [`docs/GDD.md`](docs/GDD.md) — code-grounded gameplay / systems snapshot
+- [`AGENTS.md`](AGENTS.md) — repository and agent workflow rules
+- [`CONTRIBUTING_DECOMPOSITION.md`](CONTRIBUTING_DECOMPOSITION.md) — issue / milestone decomposition rules
 
-See `PRD.md`, `docs/game_design/VERTICAL_SLICE.md`, `AGENTS.md` and `CHANGELOG.md`.
+## Status
 
-## Status / Статус
+**Active development — vertical slice.**
 
-**Active development — vertical slice. / Активная разработка — vertical slice.**
-
-Copyright © 2025–2026 Nolavel. All rights reserved. See `LICENSE`.
+Copyright © 2025–2026 Nolavel. All rights reserved. See [`LICENSE`](LICENSE).

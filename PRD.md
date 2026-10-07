@@ -1,103 +1,109 @@
-# Hoarbound — Product Requirements Document (PRD)
+# Hoarbound — Product Requirements Document
 
-> Живой документ. Обновляется при закрытии milestone или смене приоритета.  
-> Владелец: Nolavel.  
-> Технические соисполнители: Claude Code (`claudeflow`), Codex (`codex`).  
-> Scope control, audits, vertical-slice readiness: Grok (`grok`) — предлагает, не реализует gameplay.
+> **Living product contract.** Update this document when the current milestone, product direction or major scope boundary changes.
+>
+> Owner: Nolavel. Repository / branch rules live in `AGENTS.md`.
 
-См. также: [AGENTS.md](AGENTS.md), [docs/game_design/VERTICAL_SLICE.md](docs/game_design/VERTICAL_SLICE.md), [CONTRIBUTING_DECOMPOSITION.md](CONTRIBUTING_DECOMPOSITION.md).
+See also: [`README.md`](README.md), [`docs/game_design/VERTICAL_SLICE.md`](docs/game_design/VERTICAL_SLICE.md), [`docs/GDD.md`](docs/GDD.md), and [`CONTRIBUTING_DECOMPOSITION.md`](CONTRIBUTING_DECOMPOSITION.md).
 
----
+## 1. Product vision
 
-## 1. Vision
+Hoarbound is a third-person systemic survival game set in a frozen Key West after a climate catastrophe.
 
-Сурвайвал-экшен от третьего лица о выживании в замёрзшем апокалипсисе.  
-Бывший тропический остров Key West замёрз. Генри выходит из бункера и должен дойти до дома, который сможет удержать ночь: найти топливо, заколотить окна, поддерживать печь и оставаться сухим.
+Henry leaves a bunker with little margin for error. He must read the landscape, choose a route, carry useful supplies, prepare an unsafe house for the night, maintain heat and reach a safe sleep state.
 
-Соло-проект, прототип. Движок: Godot 4.8-dev6 .NET (Forward+, GDScript).
+The project is a solo-developed PC game built in Godot 4.8-dev6 .NET / Forward+.
 
-## 2. Player fantasy и core loop
+## 2. Core player experience
 
-```
-запертый бункер → выбор land-маршрута → scarce resources → ухудшение погоды
-→ убежище → ремонт (boarding) → огонь → просушка → сон / save
-```
+The current survival grammar is:
 
-Ключевые ощущения, которые должны считываться без подсказок:
+`bunker -> land-route choice -> scarce resources -> worsening weather -> shelter -> repair -> fire -> dry/recover -> sleep/save`
 
-- **scarcity** — доски, топливо, еда и время ограничены;
-- **shelter-as-verb** — убежище не готово по умолчанию, его нужно *сделать*;
-- **sleep = save** — сон завершает цикл и создаёт точку сохранения;
-- **Kenny-as-weight** — переносимый груз ощутимо влияет на решения.
+The important design outcomes are:
 
-Референс по decision pressure: *The Long Dark*. Тон: *The Road*.
+- **Scarcity changes decisions.** Boards, fuel, food, carried mass and safe time compete with each other.
+- **Shelter is a verb.** A discovered building is not automatically safe; the player must make it usable.
+- **Sleep is save.** Reaching a safe sleep state closes the loop and creates the reliable checkpoint.
+- **The world is part of the survival model.** Route, wind exposure, weather and shelter quality should matter as much as inventory values.
+- **Physical handling supports readability.** Backpack, Quick Access, carried items and tools should feel connected to Henry rather than existing only as abstract UI.
 
-## 3. Текущий продуктовый рубеж
+Primary decision-pressure reference: *The Long Dark*. Tone reference: *The Road*.
 
-Runtime update 2026-09-29: Key West is the default playable world; Graciosa is
-preserved in `archive/graciosa/`. The current route is Whitehead Spit -> Fort Street.
+## 3. Current milestone — First Exit A
 
-**First Exit A — One Land Night** (milestone First Exit, north-star issues #24 / #42).
+**First Exit A: One Land Night** is the current production target.
 
-Один непрерывный 10–15-минутный playable loop в основной сцене Key West без телепортации между тестовыми сценами.
+The goal is one continuous **10–15 minute** playable run in the main Key West scene with no debug teleporting or manual repair of the flow.
 
-Thin ice и coastal geography вынесены в отдельный последующий slice **Coast / Thin Ice (B)**.
+Expected route:
 
-## 4. Success criteria верхнего уровня (First Exit A)
+`bunker / Whitehead Spit -> road / exposed shore / ruins -> supplies -> weather turn -> Fort Street shelter -> repair -> stove -> recovery -> sleep/save -> reload`
 
-Milestone считается закрытым, когда:
+Coastal thin ice is intentionally deferred to a later Coast / Thin Ice slice.
 
-- [ ] Новый игрок проходит bunker → shelter → sleep/save за ~10–15 минут без debug-телепортов и консольных костылей.
-- [ ] Существуют три осмысленных **land**-пути: road / shore / ruins, которые отличаются по времени, холоду, весу и риску.
-- [ ] Weather turn реально заставляет пересмотреть обратный маршрут или набор ресурсов.
-- [ ] Shelter остаётся выбором (4 repairable windows + operable door, ограниченное количество boards), а не автоматическим safe room.
-- [ ] Sleep/load восстанавливает согласованное состояние: shelter, fuel, weather, bedroll, inventory и consumed world pickups.
-- [ ] README, `VERTICAL_SLICE.md` и `FIRST_EXIT.md` описывают один и тот же scope.
-- [ ] Thin ice нигде не блокирует прохождение и не обещается как маршрут A.
+## 4. First Exit A success criteria
 
-## 5. Дорожная карта (Now / Next / Later)
+First Exit A is ready to close when:
 
-| Эпик / Milestone                        | Статус | Роль |
-|-----------------------------------------|--------|------|
-| **First Exit A**                        | Основные действия реализованы; живой прогон не подтверждён | Now. Доказывает основной survival-loop. |
-| **Diegetic Inventory + Player Hub**     | Физические предметы и Quick Access реализованы; проверка новым игроком впереди | Now/Next. Даёт физический доступ к предметам. |
-| **Coast / Thin Ice (B)**                | 0%     | Next. Signature-выбор: короткий рискованный лёд vs длинный безопасный берег. |
-| Survival Pressure Polish                | Later  | Route audio, readability, wetness feedback, publisher captures. |
+- [ ] A new player reaches the shelter and completes sleep/save in roughly 10–15 minutes without debug help.
+- [ ] At least two land routes are readable without a map; the target grammar supports road / shore / ruins.
+- [ ] Weather, carried load, wetness or time causes at least one understandable change of plan.
+- [ ] Shelter preparation requires action and prioritisation rather than acting as an automatic safe room.
+- [ ] Sleep/reload restores coherent shelter, fuel, weather, bedroll, inventory and consumed-world-loot state.
+- [ ] README, this PRD and `VERTICAL_SLICE.md` describe the same current slice.
+- [ ] Thin ice is not required or implied as a First Exit A route.
 
-Уточнение автора от 2026-09-28: в текущем кандидате остаются прежние запасы,
-бонусные стопки и второй комплект у убежища (33 доски, 66 гвоздей, 12 поленьев).
-Старт возвращён к бункеру. Прогон проверяет готовые действия и понятность пути;
-баланс исторического дефицита 15 досок / 30 гвоздей этим прогоном не подтверждается.
+## 5. Current product state
 
-## 6. Out of scope (для текущего рубежа First Exit A)
+### Now
 
-- Coastal thin-ice geography и вся presentation-цепочка льда
-- Combat / enemies
-- Активные способности Kenny
-- Новые need-meters
-- Heavy snow deformation
-- Расширение острова за пределы First Exit route
-- Новые самостоятельные менеджеры систем
-- Полноценный HUD-редизайн
-- Отдельные shader-эксперименты
+**First Exit A** — the core actions and systemic foundation exist; continuous stranger-play acceptance remains the main closing gate.
 
-## 7. Ограничения разработки
+**Diegetic inventory / embodied interaction** — Player Hub, physical Quick Access and item ownership already exist. Current work is proving controlled 3D placement and more tactile interaction without creating duplicate inventory or simulation systems.
 
-- Автор + два implementation-агента (Claude / Codex) + Grok (planning & audits only).
-- `AGENTS.md` — единый свод правил по веткам и ролям.
-- Ничего не попадает в `main` без автора.
-- Координация агентов — в issue #1 (handoffs).
-- CI: 29+ headless test suites, render pipeline.
-- Data-driven layout (`first_exit_layout.json`) — source of truth для позиций.
+### Next
 
-## 8. Как этот документ связан с декомпозицией
+**Coast / Thin Ice** — a later signature route problem: a shorter risky coastal / ice option versus safer longer travel.
 
-```
-PRD (этот документ)
- └─ Epic         = GitHub Milestone (+ опционально epic-issue)
-	 └─ User Story = issue «Как игрок, я хочу…» + acceptance checklist
-		 └─ Task     = дочерний issue / PR
-			 └─ Subtask = пункт чек-листа Task (= один коммит/дифф + тест где возможно)
-```
+### Later
 
-Подробные правила и шаблоны — в `CONTRIBUTING_DECOMPOSITION.md` и `.github/ISSUE_TEMPLATE/`.
+Broader survival-pressure polish, route audio/readability, content expansion and publisher-facing capture should follow the proof of the First Exit loop rather than delay it.
+
+## 6. Current supply note
+
+The current First Exit candidate intentionally retains the author-approved increased supplies, including the existing bonus stacks. The working documents record **33 boards, 66 nails and 12 logs** for this candidate.
+
+That run validates interaction flow, readability and systemic pressure. It does **not** revalidate the older reduced-stock scarcity target.
+
+## 7. Out of scope for First Exit A
+
+- coastal thin-ice gameplay;
+- combat and enemies;
+- active Kenny abilities;
+- new survival meters added for completeness;
+- island expansion unrelated to the First Exit route;
+- large crafting trees;
+- major HUD redesign;
+- new standalone managers when an existing owner can handle the behaviour;
+- technology or shader experiments that do not help close the playable loop.
+
+Snow and rendering work may continue where it is already part of the production world, but visual technology must not replace human playability as the slice gate.
+
+## 8. Production constraints
+
+- `AGENTS.md` is authoritative for branch and agent workflow.
+- `main` is production / integration; agent work follows the repository's persistent-branch rules.
+- Issue #1 is the concise handoff thread for overlapping agent work.
+- Existing CI / capture infrastructure should be extended rather than duplicated.
+- Authored First Exit placement remains data-driven; do not create a second competing layout source.
+
+## 9. Work decomposition
+
+Use this hierarchy:
+
+`PRD -> Epic / Milestone -> User Story -> Task / PR -> checklist subtasks`
+
+An Epic defines a product outcome. A Story defines one player-facing value. A Task defines one bounded implementation unit. Checklist items are not separate issues unless they become independently owned work.
+
+Detailed rules and templates live in `CONTRIBUTING_DECOMPOSITION.md` and `.github/ISSUE_TEMPLATE/`.
