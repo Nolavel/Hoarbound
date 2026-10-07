@@ -5,6 +5,19 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Motion Matching walks without the limp: mirrored walking (#202)
+
+- Straight forward walking is baked as captured and mirrored (author decision):
+  CMU subject 39's left-long gait no longer sets Henry's rhythm. Steady walking
+  in game: step length symmetry +6.7% -> -0.3%, step time +8.7% -> -0.9%,
+  pelvis 8.5 mm lower over the left leg -> 1.0 mm (AnimationTree: -0.5%,
+  -1.2%, 2.1 mm). Skating unchanged (0.438 -> 0.435 m/s).
+- `BVHClip.mirrored()` and the builder's `MIRRORED_ROLES`; database
+  `root-space-v10` (16 636 samples, 10.7 MB). New suite
+  `tests/systems/test_bvh_mirror.gd`.
+- `tools/runtime/capture_motion_matching_street.gd`: production review on
+  Southard Street in the real Key West scene (walk, sprint, stop).
+
 ### 2026-10-07 - Gait symmetry: measured limp, retarget stance-height fix (#202)
 
 - `MotionRetargeter` levels the planted feet: a source subject's unequal legs
@@ -16,7 +29,8 @@ Maintained per branch; entries are added by whoever makes the change.
   and `MM_FOOT_LOCK=0` for gait-symmetry captures.
 - The reported left-leg limp is measured (step length +6.7%, step time +8.7%,
   pelvis 8.5 mm lower over the left leg) and traced to the walking source, CMU
-  subject 39; see `docs/motion_matching/integration_plan.md`. Not yet resolved.
+  subject 39; see `docs/motion_matching/integration_plan.md`. Resolved by the
+  mirrored walking entry above.
 
 ### 2026-10-07 - Movement owns its dynamics; fatigue tuning neutral (#202 hardening)
 

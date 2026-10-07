@@ -10,10 +10,13 @@ const CACHE_DIR := "res://tests/motion_matching/_runtime_cache"
 const CACHE_PATH := CACHE_DIR + "/canonical_motion_database.res"
 const CACHE_SIGNATURE_PATH := CACHE_DIR + "/canonical_motion_database.signature"
 const HENRY_MODEL_PATH := "res://assets/characters/henry/henry_outfit.glb"
-const BUILD_VERSION := "root-space-v9"
+const BUILD_VERSION := "root-space-v10"
 ## The baked database the game loads (derived from CMU; committed by author
 ## decision, 2026-10-07). Regenerate: audit_motion_dataset.gd, MM_WRITE_DATABASE=1.
 const COMMITTED_DATABASE_PATH := "res://data/motion_matching/henry_cmu_locomotion.res"
+## Straight forward walking is baked twice, as captured and mirrored: one walker's
+## left/right asymmetry would read as a limp (author decision, 2026-10-07).
+const MIRRORED_ROLES: Array[String] = ["walk_f", "walk_f_brisk"]
 
 
 func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false, use_cache: bool = true) -> Dictionary:
@@ -61,11 +64,23 @@ func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false
 	var master := MotionDatabase.new()
 	var baker := MotionDatabaseBaker.new()
 	var range_reports: Array[Dictionary] = []
+	var bake_list: Array[Dictionary] = []
 	for range_entry in selection["ranges"]:
+		bake_list.append({"range": range_entry, "mirrored": false})
+		if MIRRORED_ROLES.has(String(range_entry["role"])):
+			bake_list.append({"range": range_entry, "mirrored": true})
+	for item in bake_list:
+		var range_entry: Dictionary = item["range"]
 		var source_id := String(range_entry["source"])
 		var entry: Dictionary = retargeters[source_id]
 		var source: Dictionary = entry["source"]
 		var provenance := "%s|sha256=%s|%s" % [source.get("url", ""), source.get("sha256", ""), source.get("description", "")]
+		if bool(item["mirrored"]):
+			entry = _mirrored_entry(retargeters, source_id, target, sample_rate_hz)
+			if entry.is_empty():
+				return {"ok": false, "error": "mirrored retarget failed for %s" % source_id}
+			source_id += "~mirrored"
+			provenance += "|mirrored across the sagittal plane"
 		# Frames that fail the structural audit are cut out, never let through.
 		var whole := Vector2(float(range_entry["start"]), float(range_entry["end"]))
 		var pieces: Array[Vector2] = [whole]
@@ -113,6 +128,19 @@ func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false
 			"ranges": range_reports,
 		},
 	}
+
+
+## The source's mirrored retarget, set up once and kept beside the original.
+func _mirrored_entry(retargeters: Dictionary, source_id: String, target: UALSkeletonModel, sample_rate_hz: float) -> Dictionary:
+	var key := source_id + "~mirrored"
+	if not retargeters.has(key):
+		var original: Dictionary = retargeters[source_id]
+		var retargeter := MotionRetargeter.new()
+		var source_retargeter: MotionRetargeter = original["retargeter"]
+		if not retargeter.setup(source_retargeter.clip.mirrored(), source_retargeter.profile, target, sample_rate_hz):
+			return {}
+		retargeters[key] = {"retargeter": retargeter, "source": original["source"]}
+	return retargeters[key]
 
 
 ## Build version plus the hashes of the sources actually baked: identical on

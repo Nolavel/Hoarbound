@@ -83,6 +83,56 @@ func local_transform(frame_index: int, bone_index: int) -> Transform3D:
 	return Transform3D(basis, origin)
 
 
+## The same capture reflected across the sagittal plane (x -> -x): left and right
+## joints swap channels and offsets; Y and Z rotations and the X position flip sign.
+func mirrored() -> BVHClip:
+	var copy := BVHClip.new()
+	copy.source_path = source_path + "#mirrored"
+	copy.frame_count = frame_count
+	copy.frame_time = frame_time
+	copy.units_to_meters = units_to_meters
+	copy.bone_names = bone_names
+	copy.parents = parents
+	copy._channels = _channels
+	copy._channel_starts = _channel_starts
+	copy._channel_count = _channel_count
+	var partners := PackedInt32Array()
+	for bone_index in range(bone_names.size()):
+		var partner := find_bone(mirror_name(bone_names[bone_index]))
+		partners.append(partner if partner >= 0 else bone_index)
+	for bone_index in range(bone_names.size()):
+		var offset := offsets[partners[bone_index]]
+		copy.offsets.append(Vector3(-offset.x, offset.y, offset.z))
+	copy._values.resize(_values.size())
+	for frame in range(frame_count):
+		var row := frame * _channel_count
+		for bone_index in range(bone_names.size()):
+			var channels := _channels[bone_index]
+			var partner_channels := _channels[partners[bone_index]]
+			for channel in range(channels.size()):
+				var source_channel := partner_channels.find(channels[channel])
+				var value := _values[row + _channel_starts[partners[bone_index]] + source_channel] if source_channel >= 0 \
+					else _values[row + _channel_starts[bone_index] + channel]
+				if channels[channel] in ["Xposition", "Yrotation", "Zrotation"]:
+					value = -value
+				copy._values[row + _channel_starts[bone_index] + channel] = value
+	return copy
+
+
+## Joint name on the other side: Left*/Right* and the L*/R* short forms (LHipJoint).
+static func mirror_name(bone_name: String) -> String:
+	if bone_name.begins_with("Left"):
+		return "Right" + bone_name.substr(4)
+	if bone_name.begins_with("Right"):
+		return "Left" + bone_name.substr(5)
+	if bone_name.length() > 1 and bone_name[1] != bone_name[1].to_lower():
+		if bone_name[0] == "L":
+			return "R" + bone_name.substr(1)
+		if bone_name[0] == "R":
+			return "L" + bone_name.substr(1)
+	return bone_name
+
+
 ## Global (model-space) transforms of every joint for one frame.
 func global_transforms(frame_index: int) -> Array[Transform3D]:
 	var result: Array[Transform3D] = []
