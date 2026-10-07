@@ -5,6 +5,17 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Motion Matching: retargeted feet stand on the ground
+
+- `MotionRetargeter` removes each clip's median ground error (Henry's lower
+  ball joint against its flat-foot rest height) from the pelvis. CMU subjects
+  02, 07, 08 and 113 stood 2.5–3.5 cm above the floor on Henry; every range
+  now has a median of 0 (max 2 cm on sub-ranges). Database rebuilt as
+  `root-space-v7` and recommitted.
+- In-game A/B over four stick scales (new `MM_STICK_SCALE` in
+  `capture_motion_matching_player.gd`): whole run 0.625 → 0.594, walk after
+  sprint 1.22 → 0.92; stop 0.44 → 0.49 within the run-to-run spread.
+
 ### 2026-10-07 - Data-matched body rates only while walking (#202 follow-up 2)
 
 - `MotionMatchingLocomotion` applies the data-matched acceleration, braking and

@@ -19,6 +19,9 @@ const FLAT_BALL_HEIGHT_M := 0.015
 
 ## MM_OUT_DIR=<res:// dir> lets two runs (tree and matched) render side by side.
 var _out_dir := DEFAULT_OUT_DIR
+## MM_STICK_SCALE scales every stick magnitude: neighbouring runs of a chaotic
+## matcher, so one program is not read as the whole truth.
+var _stick_scale := 1.0
 var _scene: Node
 var _player: Player
 var _locomotion: MotionMatchingLocomotion
@@ -56,6 +59,8 @@ func _run() -> void:
 	if not OS.get_environment("MM_OUT_DIR").is_empty():
 		_out_dir = OS.get_environment("MM_OUT_DIR")
 	var headless := OS.get_environment("MM_HEADLESS_PROOF") == "1"
+	if not OS.get_environment("MM_STICK_SCALE").is_empty():
+		_stick_scale = clampf(OS.get_environment("MM_STICK_SCALE").to_float(), 0.5, 1.0)
 	_scene = (load(SCENE_PATH) as PackedScene).instantiate()
 	_player = _scene.get_node_or_null(^"Player") as Player
 	_locomotion = _player.get_node_or_null(^"MotionMatchingLocomotion") as MotionMatchingLocomotion if _player != null else null
@@ -150,6 +155,7 @@ func _run() -> void:
 		"issue": 202,
 		"scene": SCENE_PATH,
 		"snow": OS.get_environment("MM_KEEP_SNOW") == "1",
+		"stick_scale": _stick_scale,
 		"motion_matching": _locomotion.get_report(),
 		"frames": frame_count,
 		"fps": FPS,
@@ -213,7 +219,7 @@ func _program(t: float) -> Dictionary:
 	else:
 		magnitude = 0.0
 		label = "stop, idle"
-	return {"direction": _heading.rotated(Vector3.UP, angle) * magnitude, "sprint": sprint, "label": label}
+	return {"direction": _heading.rotated(Vector3.UP, angle) * magnitude * _stick_scale, "sprint": sprint, "label": label}
 
 
 ## Player turns WASD by the TpsCamera's control yaw (fixed without a mouse);

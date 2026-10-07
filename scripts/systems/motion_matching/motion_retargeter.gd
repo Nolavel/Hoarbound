@@ -36,6 +36,8 @@ var _reference_leg_vertical: float = 0.0
 var _ankle_stance_height: float = 0.0
 var _pelvis_rest_model := Vector3.ZERO
 var _pelvis_parent_rest_inverse := Transform3D.IDENTITY
+## Constant vertical error the subject's proportions leave on Henry, metres.
+var _ground_offset: float = 0.0
 
 
 func setup(source_clip: BVHClip, source_profile: SourceRetargetProfile, target_model: UALSkeletonModel, rate_hz: float = 30.0) -> bool:
@@ -61,6 +63,9 @@ func setup(source_clip: BVHClip, source_profile: SourceRetargetProfile, target_m
 	_pelvis_rest_model = target.rest_global[pelvis].origin
 	var pelvis_parent := target.parents[pelvis]
 	_pelvis_parent_rest_inverse = Transform3D.IDENTITY if pelvis_parent < 0 else target.rest_global[pelvis_parent].affine_inverse()
+	_ground_offset = 0.0  # measured on the unaligned retarget
+	_ground_offset = _measure_ground_offset()
+	report["ground_offset_m"] = _ground_offset
 	report["dataset"] = profile.dataset
 	report["source_path"] = clip.source_path
 	report["source_fps"] = 1.0 / clip.frame_time
@@ -110,7 +115,7 @@ func retarget_at(seconds: float) -> Dictionary:
 	var height_delta := hips_local.y / motion_scale - _ankle_stance_height - _reference_leg_vertical
 	var pelvis_model := Vector3(
 		_pelvis_rest_model.x + hips_local.x,
-		_pelvis_rest_model.y + height_delta * motion_scale,
+		_pelvis_rest_model.y + height_delta * motion_scale - _ground_offset,
 		_pelvis_rest_model.z + hips_local.z
 	)
 	return {
@@ -359,6 +364,22 @@ func _poly_fit_at(values: Array[Vector3], first: int, last: int, center: int, or
 				matrix[row][column] -= factor * matrix[pivot][column]
 			rhs[row] -= rhs[pivot] * factor
 	return rhs[0] / matrix[0][0]
+
+
+## Ground alignment: median over the clip of Henry's lower ball joint against its
+## flat-foot rest height (the audit's ground error), removed from the pelvis.
+func _measure_ground_offset() -> float:
+	var ball_l := target.find_bone("ball_l")
+	var ball_r := target.find_bone("ball_r")
+	if ball_l < 0 or ball_r < 0 or root_positions.is_empty():
+		return 0.0
+	var rest_height := target.rest_global[ball_l].origin.y
+	var errors: Array[float] = []
+	for sample in range(0, root_positions.size(), 3):
+		var pose := retarget_at(float(sample) / track_rate_hz)
+		var globals := target.forward_kinematics(pose["rotations"], pose["pelvis_position"])
+		errors.append(minf(globals[ball_l].origin.y, globals[ball_r].origin.y) - rest_height)
+	return _median(errors)
 
 
 func _median(values: Array[float]) -> float:

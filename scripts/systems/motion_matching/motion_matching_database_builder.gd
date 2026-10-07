@@ -10,7 +10,7 @@ const CACHE_DIR := "res://tests/motion_matching/_runtime_cache"
 const CACHE_PATH := CACHE_DIR + "/canonical_motion_database.res"
 const CACHE_SIGNATURE_PATH := CACHE_DIR + "/canonical_motion_database.signature"
 const HENRY_MODEL_PATH := "res://assets/characters/henry/henry_outfit.glb"
-const BUILD_VERSION := "root-space-v6"
+const BUILD_VERSION := "root-space-v7"
 ## The baked database the game loads (derived from CMU; committed by author
 ## decision, 2026-10-07). Regenerate: audit_motion_dataset.gd, MM_WRITE_DATABASE=1.
 const COMMITTED_DATABASE_PATH := "res://data/motion_matching/henry_cmu_locomotion.res"

@@ -88,18 +88,27 @@ Zhang et al. 2018 (MANN) — ball-joint speed weighted by
 `clamp(2 - 2^(h/0.025), 0, 1)`; the raw CMU database scores 0.27 m/s on it, so
 only relative values matter.
 
+Matching is chaotic: one program is one sample (a sub-centimetre data change on
+the clips in play moved one run's "stop" from 0.26 to 0.64). Numbers are means over four stick scales
+(`MM_STICK_SCALE` = 1.0, 0.97, 0.94, 0.91), database `root-space-v7`, per-state
+body rates:
+
 | segment | tree | MM, production body | MM + data-matched body (default) |
 | --- | --- | --- | --- |
 | idle (tree owns idle) | 0.009 | 0.009 | 0.009 |
-| walk forward (start from idle) | 1.137 | 0.849 | 0.782 |
-| smooth curve left | 0.603 | 0.689 | 0.671 |
-| walk | 0.594 | 0.598 | 0.626 |
-| stop | 0.298 | 0.473 | 0.255 |
-| start 90 deg right | 1.411 | 0.928 | 1.135 |
-| sharp reversal | 0.649 | 0.992 | 0.553 |
-| walk after sprint | 1.082 | 0.933 | 0.841 |
-| half stick | 0.344 | 0.220 | 0.341 |
-| whole run | 0.680 | 0.614 | 0.578 |
+| walk forward (start from idle) | 1.091 | 0.776 | 0.780 |
+| smooth curve left | 0.560 | 0.580 | 0.542 |
+| walk | 0.549 | 0.465 | 0.465 |
+| stop | 0.310 | 0.474 | 0.494 |
+| start 90 deg right | 1.515 | 1.041 | 1.209 |
+| sharp reversal | 0.604 | 0.817 | 0.613 |
+| walk after sprint | 0.989 | 0.937 | 0.920 |
+| half stick | 0.327 | 0.306 | 0.268 |
+| whole run | 0.682 | 0.604 | 0.594 |
+
+Stop stays above the tree: the 0.25 s crossfade into the tree's idle slides
+planted feet (1–4 m/s at ground height during the blend); inertialization is
+follow-up 6.
 
 With Motion Matching keeping idle (`idle_to_tree_seconds = 0`) the start from
 idle scores 0.569 but idle itself 0.185: CMU standing ranges are short and the
@@ -120,6 +129,11 @@ matcher hops between them and pivot-capture standing frames (111_28 alone is
 3. **Sprint** stays with the tree (no run data in the database yet); its foot
    skating is 2–5 m/s in this metric.
 4. **Snow and wading** with Motion Matching are untested (next stage).
+5. **Retargeted feet floated** 2.5–3.5 cm on CMU subjects 02, 07, 08 and 113
+   (their proportions differ from Henry's). Fixed in `MotionRetargeter`: each
+   clip's median ground error (lower ball joint against its flat-foot rest
+   height) is removed from the pelvis; every range now has a median of 0.
+   Walk after sprint 1.22 → 0.92, whole run 0.625 → 0.594 (four-scale means).
 
 ## Known conflicts with `data_matched_body` on
 
@@ -137,8 +151,9 @@ Motion Matching flag is on; production with the flag off is unchanged.
    (production 0.49 m). Walking segments are unchanged.
 3. **Snow multiplies the reduced acceleration** (`snow_accel_multiplier`):
    deep-snow starts become slower still. Untested.
-4. **Not a uniform win:** stop 0.47 → 0.26 and reversal 0.99 → 0.55 improve,
-   start at 90° worsens 0.93 → 1.14, curve and walk change by ±0.03.
+4. **Not a uniform win** (four-scale means, v7): reversal 0.82 → 0.61, curve
+   and half stick improve; start at 90° worsens 1.04 → 1.21; stop and walk are
+   unchanged.
 5. **The start hop** (finding 2) stays: matching ignores airtime up to 0.2 s,
    the tree still plays its landing whenever it owns Henry.
 6. **Branches:** `.github/workflows/checks.yml` (Motion Matching job and path
