@@ -5,6 +5,15 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Scripted walks brake onto their target (#202 follow-up 1)
+
+- `Player._walk_direction` limits the commanded speed to √(2·a·d) at the
+  body's braking rate (`MovementController.get_braking_rate()`), so interaction
+  approaches and the door step-out stop on target at any braking rate.
+  Rest error with the data-matched body 0.272 → 0.012 m; production
+  0.019 → 0.012 m with unchanged timing. New suite
+  `tests/systems/test_scripted_walk_braking.gd` fails on the old code.
+
 ### 2026-10-06 - Motion Matching: foot locking and a feature-flagged Player layer (#202)
 
 - Foot locking on database contacts (`MotionFootLock`, Holden contact_update

@@ -126,10 +126,10 @@ matcher hops between them and pivot-capture standing frames (111_28 alone is
 Measured on TestScene unless marked computed. All of them exist only while the
 Motion Matching flag is on; production with the flag off is unchanged.
 
-1. **Scripted walks overshoot.** `Player.move_to_position` drops its input
-   5 cm before the target; braking at 3.5 m/s² then carries Henry **0.27 m**
-   past it (production: 0.02 m). Interaction approaches (`InteractComponent`)
-   end past the item.
+1. ~~**Scripted walks overshoot.**~~ Fixed (follow-up 1): `Player._walk_direction`
+   now commands at most √(2·a·d) at the body's braking rate. Rest error went
+   0.272 → 0.012 m (3 m walk) and 0.146 → 0.008 m (0.3 m) with data rates,
+   0.019 → 0.012 m in production; `tests/systems/test_scripted_walk_braking.gd`.
 2. **The override is global while the node runs.** `MovementController` uses
    the reduced rates in every state, including the ones the tree animates:
    stopping from a 4.5 m/s sprint takes ~2.9 m instead of ~0.56 m (computed,
@@ -145,9 +145,7 @@ Motion Matching flag is on; production with the flag off is unchanged.
 
 ## Follow-up fixes, in order
 
-1. Distance-based braking for scripted walks (`Player._walk_direction`: scale
-   the input by remaining distance over v²/2a) so approaches stop on target
-   with any braking rate.
+1. ~~Distance-based braking for scripted walks.~~ Done.
 2. Per-state dynamics with the author: data rates for walking only, or tuned
    sprint/air/carry rates.
 3. Jump rework, including the walk-start hop and real landing ownership.

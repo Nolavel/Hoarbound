@@ -319,13 +319,17 @@ func is_walking_to_target() -> bool:
 	return _walking_to_target
 
 
+## Heads for the walk target and brakes onto it: the input shrinks so the
+## commanded speed never exceeds sqrt(2 a d) at the body's braking rate.
 func _walk_direction() -> Vector3:
 	var offset: Vector3 = _walk_target - global_position
 	offset.y = 0.0
-	if offset.length() < 0.05:
+	var distance: float = offset.length()
+	if distance < 0.05:
 		stop_moving()
 		return Vector3.ZERO
-	return offset.normalized()
+	var braking_speed: float = sqrt(2.0 * movement.get_braking_rate() * distance)
+	return offset / distance * minf(1.0, braking_speed / maxf(movement.walk_speed, 0.001))
 
 
 ## Turns a local WASD vector into a world direction by the active camera yaw.

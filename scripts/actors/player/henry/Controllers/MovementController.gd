@@ -239,6 +239,11 @@ func get_velocity_rate() -> float:
 	return _velocity_rate
 
 
+## Planar deceleration when the target speed drops, m/s^2.
+func get_braking_rate() -> float:
+	return decel_rate * maxf(walk_speed, 1.0)
+
+
 ## Smooth physical cost of carried weight. The hard pickup limit remains the
 ## final boundary; this makes the approach to it readable before refusal.
 func get_load_speed_multiplier() -> float:
