@@ -70,6 +70,15 @@ class BVH:
     def index(self, name):
         return self.names.index(name)
 
+    def rest_positions(self):
+        """Joint positions of the zero-rotation pose (offsets only), [1, joints, 3]."""
+        saved = self.values
+        self.values = np.zeros((1, saved.shape[1]))
+        try:
+            return self.positions([0])
+        finally:
+            self.values = saved
+
     def positions(self, frames=None):
         """World joint positions [frames, joints, 3] in meters."""
         rows = self.values if frames is None else self.values[np.asarray(frames)]

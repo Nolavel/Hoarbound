@@ -16,7 +16,13 @@ import bvh_fk  # noqa: E402
 import gltf_fk  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-CMU_DIR = os.path.join(ROOT, "tests", "motion_matching", "_runtime_cmu")
+SOURCE_DIRS = {
+    "CMU": os.path.join(ROOT, "tests", "motion_matching", "_runtime_cmu"),
+    "CMU_V2": os.path.join(ROOT, "tests", "motion_matching", "_runtime_cmu"),
+    "100STYLE": os.path.join(ROOT, "tests", "motion_matching", "_runtime_100style"),
+}
+# Reference pose per family: CMU frame 0, 100STYLE the zero-rotation T-pose.
+ZERO_POSE_REFERENCE = ("100STYLE",)
 HENRY_GLB = os.path.join(ROOT, "assets", "characters", "henry", "henry_outfit.glb")
 UAL_CLIPS = ("Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Idle_Loop")
 # Metrics printed in the table, with the statistic that tells the story.
@@ -56,15 +62,19 @@ def ual_envelope(neutral):
 
 def clip_report(key, clip, henry_bones, henry_rest, neutral):
     dataset, name = key.split(":")
-    bvh = bvh_fk.BVH(os.path.join(CMU_DIR, name + ".bvh"), clip["units_to_meters"])
+    bvh = bvh_fk.BVH(os.path.join(SOURCE_DIRS[dataset], name + ".bvh"), clip["units_to_meters"])
     oracle = bvh.positions(clip["source_frames"])
     godot = np.array(clip["source"]).reshape(len(clip["source_frames"]), -1, 3)
     shared = [bvh.index(n) for n in clip["source_bones"]]
     oracle_error = float(np.max(np.linalg.norm(oracle[:, shared] - godot, axis=-1)))
-    reference = anatomy.canonical(bvh.positions([0]), bvh.names, dataset)
+    reference_positions = bvh.rest_positions() if dataset in ZERO_POSE_REFERENCE else bvh.positions([0])
+    reference = anatomy.canonical(reference_positions, bvh.names, dataset)
     source = anatomy.frame_metrics(anatomy.canonical(oracle, bvh.names, dataset), reference)
     layers = {}
     for layer, data in clip["layers"].items():
+        if "error" in data:
+            print(key, layer, "ERROR", data["error"])
+            continue
         positions = np.array(data["frames"]).reshape(len(data["frames"]), -1, 3)
         layers[layer] = anatomy.frame_metrics(anatomy.canonical(positions, henry_bones, "UAL"), neutral)
         rotations = np.array(data["rotations"]).reshape(len(data["rotations"]), -1, 4)
@@ -112,10 +122,13 @@ def main():
             "difference_to_source": diffs,
             "failures": {n: anatomy.failures(m) for n, m in columns.items()},
         }
-        print("median |layer - source| (deg; hand_clear cm):")
-        worst = sorted(diffs["L4_full"].items(), key=lambda kv: -kv[1]["median"])[:12]
+        print("median |variant - source| (deg; hand_clear cm):")
+        names = list(diffs.keys())
+        print("  %-22s" % "" + "".join("%11s" % n[:11] for n in names))
+        first = diffs[names[0]] if names else {}
+        worst = sorted(first.items(), key=lambda kv: -kv[1]["median"])[:14]
         for metric, _ in worst:
-            print("  %-22s" % metric + "".join("  %s %5.1f" % (layer[:2], diffs[layer][metric]["median"]) for layer in diffs))
+            print("  %-22s" % metric + "".join("%11.1f" % diffs[n].get(metric, {"median": float("nan")})["median"] for n in names))
     if len(sys.argv) > 2:
         json.dump(result, open(sys.argv[2], "w"), indent=1)
 

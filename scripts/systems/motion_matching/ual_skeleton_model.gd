@@ -73,3 +73,25 @@ func leg_length() -> float:
 		total += rest_global[thigh].origin.distance_to(rest_global[calf].origin)
 		total += rest_global[calf].origin.distance_to(rest_global[foot].origin)
 	return total * 0.5
+
+
+## Mean local rotation per bone over a clip (rest where a bone has no track): Henry's
+## relaxed standing pose when given his own idle.
+func mean_pose(animation: Animation, samples: int = 30) -> Array[Quaternion]:
+	var result := rest_rotations()
+	if animation == null:
+		return result
+	for track in range(animation.get_track_count()):
+		if animation.track_get_type(track) != Animation.TYPE_ROTATION_3D:
+			continue
+		var bone := find_bone(String(animation.track_get_path(track).get_concatenated_subnames()))
+		if bone < 0:
+			continue
+		var total := Quaternion(0.0, 0.0, 0.0, 0.0)
+		for sample in range(samples):
+			var rotation := animation.rotation_track_interpolate(track, animation.length * float(sample) / float(samples))
+			if total.dot(rotation) < 0.0:
+				rotation = -rotation
+			total = Quaternion(total.x + rotation.x, total.y + rotation.y, total.z + rotation.z, total.w + rotation.w)
+		result[bone] = total.normalized()
+	return result

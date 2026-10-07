@@ -37,6 +37,11 @@ extends Resource
 @export var frozen_reference: bool = false
 ## Human-readable conventions, mirrored in docs/motion_matching/retarget_audit.md.
 @export_multiline var conventions: String = ""
+## Folder holding the family's staged source files (never committed).
+@export var source_dir: String = ""
+## Relaxed standing clip and frame range, the source half of the neutral retarget pose.
+@export var neutral_clip: String = ""
+@export var neutral_frames: Vector2i = Vector2i.ZERO
 
 const UAL_SEGMENT_CHILD := {
 	"upperarm_l": "lowerarm_l", "lowerarm_l": "hand_l",
@@ -72,6 +77,7 @@ static func cmu_bvh() -> SourceRetargetProfile:
 	profile.segment_aligned_bones = PackedStringArray(UAL_SEGMENT_CHILD.keys())
 	profile.verified = false # Visually rejected by the author after #206: see acceptance_gates.md.
 	profile.frozen_reference = true
+	profile.source_dir = "res://tests/motion_matching/_runtime_cmu/"
 	profile.conventions = "Y-up, right-handed; frame 0 reference pose (not all-zero) facing +Z, left +X; ZYX Euler (Zrotation Yrotation Xrotation); root 6 channels; units 1/0.45 inch."
 	return profile
 
@@ -99,8 +105,22 @@ static func style100_bvh() -> SourceRetargetProfile:
 	profile.left_toe = "LeftToe"
 	profile.right_toe = "RightToe"
 	profile.segment_aligned_bones = PackedStringArray(UAL_SEGMENT_CHILD.keys())
-	profile.verified = false # Unmeasured here: see docs/motion_matching/retarget_audit.md.
-	profile.conventions = "Assumed: Y-up, centimetres, zero-rotation offsets as reference, frame 0 is motion. Unverified."
+	profile.verified = false # Not visually approved yet: see acceptance_gates.md.
+	profile.source_dir = "res://tests/motion_matching/_runtime_100style/"
+	profile.neutral_clip = "Neutral_ID"
+	profile.neutral_frames = Vector2i(655, 1555) # Frame_Cuts.csv, Neutral ID_START/ID_STOP.
+	profile.conventions = "Measured on Neutral_*: Y-up, centimetres, 60 fps, 23 joints; zero-rotation offsets are an exact T-pose facing +Z, left +X; frame 0 is motion."
+	return profile
+
+
+## CMU with the wrist bend joint on Henry's hand (LeftHand is CMU's forearm twist):
+## diagnostics only, never baked.
+static func cmu_bvh_v2() -> SourceRetargetProfile:
+	var profile := cmu_bvh()
+	profile.dataset = "CMU_V2"
+	profile.frozen_reference = false
+	profile.bone_map["hand_l"] = "LeftFingerBase"
+	profile.bone_map["hand_r"] = "RightFingerBase"
 	return profile
 
 
@@ -115,4 +135,6 @@ static func for_dataset(dataset_id: String) -> SourceRetargetProfile:
 			return cmu_bvh()
 		"100STYLE":
 			return style100_bvh()
+		"CMU_V2":
+			return cmu_bvh_v2()
 	return null

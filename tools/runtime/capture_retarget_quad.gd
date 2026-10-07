@@ -1,18 +1,12 @@
 extends SceneTree
 
-## Quad review (front/side/rear/feet or hand) of CMU:<clip> retarget-only, UAL:<clip>
-## or TRACE:<path>; env MM_OUT_DIR, MM_START, MM_SECONDS, MM_DIAG_LAYER, MM_CLOSEUP.
+## Quad review (front/side/rear/feet or hand) of <dataset>:<clip> retarget-only, UAL:<clip>
+## or TRACE:<path>; env MM_OUT_DIR, MM_START, MM_SECONDS, MM_DIAG_VARIANT, MM_CLOSEUP.
 
-const SOURCE_ROOT := "res://tests/motion_matching/_runtime_cmu/"
+const Dump := preload("res://tools/runtime/dump_retarget_layers.gd")
 const HENRY_MODEL := "res://assets/characters/henry/henry_outfit.glb"
 const PANEL := Vector2i(960, 540)
 const FPS := 30.0
-const LAYER_STAGES := {
-	"L1": 0,
-	"L2": MotionRetargeter.STAGE_SEGMENT_SWING,
-	"L3": MotionRetargeter.STAGE_SEGMENT_SWING | MotionRetargeter.STAGE_FOOT_PITCH,
-	"L4": MotionRetargeter.STAGE_ALL,
-}
 ## Panel name -> [eye, target]; Henry faces +Z, his left is +X.
 const VIEWS := {
 	"front": [Vector3(0.0, 1.05, 3.4), Vector3(0.0, 0.92, 0.0)],
@@ -28,6 +22,7 @@ const BONE_HALF_WIDTH := 0.006
 var _skeleton: Skeleton3D
 var _player: AnimationPlayer
 var _model := UALSkeletonModel.new()
+var _backend: ModifierRetargetBackend
 var _overlay: MeshInstance3D
 var _material: StandardMaterial3D
 var _views: Array[SubViewport] = []
@@ -57,7 +52,7 @@ func _run() -> void:
 	await process_frame
 	var start := OS.get_environment("MM_START").to_float()
 	var seconds := OS.get_environment("MM_SECONDS").to_float() if not OS.get_environment("MM_SECONDS").is_empty() else 4.0
-	var layer := OS.get_environment("MM_DIAG_LAYER") if not OS.get_environment("MM_DIAG_LAYER").is_empty() else "L4"
+	var layer := OS.get_environment("MM_DIAG_VARIANT") if not OS.get_environment("MM_DIAG_VARIANT").is_empty() else "L4_full"
 	var retargeter: MotionRetargeter = null
 	var trace: Array = []
 	if parts[0] == "TRACE":
@@ -70,13 +65,24 @@ func _run() -> void:
 	else:
 		var profile := SourceRetargetProfile.for_dataset(parts[0])
 		var clip := BVHClip.new()
-		clip.load_file(SOURCE_ROOT + parts[1] + ".bvh", profile.units_to_meters)
+		clip.load_file(profile.source_dir + parts[1] + ".bvh", profile.units_to_meters)
+		var variant: Variant = Dump.VARIANTS[layer]
 		retargeter = MotionRetargeter.new()
-		retargeter.stages = int(LAYER_STAGES[layer])
+		retargeter.stages = int(variant) if variant is int else MotionRetargeter.STAGE_ALL
+		retargeter.target_neutral_local = _model.mean_pose(_player.get_animation(Dump.HENRY_IDLE) if _player != null else null)
+		if not profile.neutral_clip.is_empty():
+			retargeter.source_neutral_clip = BVHClip.new()
+			retargeter.source_neutral_clip.load_file(profile.source_dir + profile.neutral_clip + ".bvh", profile.units_to_meters)
 		if not retargeter.setup(clip, profile, _model):
 			push_error("RetargetQuad: %s" % retargeter.error_message)
 			quit(2)
 			return
+		if variant is String:
+			_backend = ModifierRetargetBackend.new()
+			if not _backend.setup(clip, profile, _skeleton, variant == "global", root):
+				push_error("RetargetQuad: %s" % _backend.error_message)
+				quit(2)
+				return
 		if _player != null:
 			_player.stop()
 	DirAccess.make_dir_recursive_absolute(out_dir)
@@ -89,7 +95,7 @@ func _run() -> void:
 		if not trace.is_empty():
 			_show_trace(trace[clampi(int(round(t * FPS)), 0, trace.size() - 1)])
 		elif retargeter != null:
-			_show_retarget(retargeter, t)
+			await _show_retarget(retargeter, t)
 		else:
 			_player.seek(fmod(t, _player.current_animation_length), true)
 			_draw_lines(PackedVector3Array())
@@ -105,6 +111,8 @@ func _run() -> void:
 func _show_retarget(retargeter: MotionRetargeter, t: float) -> void:
 	var pose := retargeter.retarget_at(t)
 	var rotations: Array[Quaternion] = pose["rotations"]
+	if _backend != null:
+		rotations = await _backend.pose_at(retargeter.clip.frame_at_time(t, retargeter.profile.first_motion_frame), self, retargeter.root_space_basis(t))
 	for bone in range(rotations.size()):
 		_skeleton.set_bone_pose_rotation(bone, rotations[bone])
 		_skeleton.set_bone_pose_position(bone, _model.rest_local[bone].origin)

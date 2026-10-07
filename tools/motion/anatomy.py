@@ -30,6 +30,15 @@ JOINT_MAPS = {
     },
 }
 
+JOINT_MAPS["CMU_V2"] = JOINT_MAPS["CMU"]
+JOINT_MAPS["100STYLE"] = {
+    "hips": "Hips", "chest": "Chest4", "neck": "Neck", "head": "Head",
+    "l_shoulder": "LeftShoulder", "l_elbow": "LeftElbow", "l_wrist": "LeftWrist", "l_index": "LeftWrist_end",
+    "r_shoulder": "RightShoulder", "r_elbow": "RightElbow", "r_wrist": "RightWrist", "r_index": "RightWrist_end",
+    "l_hip": "LeftHip", "l_knee": "LeftKnee", "l_ankle": "LeftAnkle", "l_ball": "LeftToe", "l_toe": "LeftToe_end",
+    "r_hip": "RightHip", "r_knee": "RightKnee", "r_ankle": "RightAnkle", "r_ball": "RightToe", "r_toe": "RightToe_end",
+}
+
 UP = np.array([0.0, 1.0, 0.0])
 # A hinge bent less than this has no measurable bend plane.
 PLANE_MIN_FLEX = 15.0
