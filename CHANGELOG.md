@@ -5,6 +5,16 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Motion Matching mocap data request (#202)
+
+- `docs/motion_matching/mocap_data_request.md` specifies the data production
+  Motion Matching needs:
+  - licence rules and a manifest per folder;
+  - 100STYLE Neutral now, then 100STYLE state styles;
+  - the gaps to source elsewhere;
+  - a manifest for the owner's existing Drive set;
+  - a full shot list for a dedicated capture session (performer in a winter coat).
+
 ### 2026-10-07 - Motion Matching layer bisection tools and findings (#202)
 
 - Anatomy metrics from joint positions (`tools/motion/`): signed knee/elbow
