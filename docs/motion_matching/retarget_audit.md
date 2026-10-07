@@ -36,7 +36,13 @@ contribute, because each target bone reads its source *global* rotation.
 
 ## Families
 
-### CMU Graphics Lab (BVH conversion `una-dinosauria/cmu-mocap`) — VERIFIED
+### CMU Graphics Lab (BVH conversion `una-dinosauria/cmu-mocap`) — NOT VERIFIED
+
+Visually rejected by the author after #206 (see `acceptance_gates.md`). The
+profile is `verified = false`, `frozen_reference = true`: the builder still
+rebuilds the committed `root-space-v10` database as a regression reference.
+The earlier "verified" rested on structural checks and on a wrong reading of
+frame 0 (corrected below).
 
 | Property | Value | Evidence |
 | --- | --- | --- |
@@ -46,9 +52,11 @@ contribute, because each target bone reads its source *global* rotation.
 | Channels | root 6 (`Xposition Yposition Zposition Zrotation Yrotation Xrotation`), joints 3 (`ZYX`) | header |
 | Rotation composition | `R = Rz · Ry · Rx` (channel order, column vectors) | BVH convention |
 | Root translation | absolute capture position, floor ≈ y 0 | toe heights in stance ≈ 0 |
-| Reference pose | frame 0 = synthetic T-pose (all rotations 0, legs vertical via the conversion) | legs 1° from vertical, arms 8° below horizontal on all 51 clips |
+| Reference pose | frame 0 = reference pose, **not** all-zero: `L/RUpLeg` Z ∓21°, `L/RArm` Z ∓8°, `Neck`/`Neck1`/`Head` X −16/+21/+11° | raw channels of frame 0 (e.g. `39_04`); legs come out 1° from vertical, arms 8° below horizontal |
 | Frame 0 | not motion; motion starts at frame 1 | as above |
 | Hierarchy | 31 joints: Hips, L/RHipJoint, Up/Leg/Foot/ToeBase, LowerBack, Spine, Spine1, Neck, Neck1, Head, L/R Shoulder/Arm/ForeArm/Hand + finger/thumb ends | header |
+| Clavicles | `L/RShoulder` channels are 0 in every frame; reference directions differ from UAL by ~37–60° | raw channel ranges |
+| Hand | `L/RHand` has one moving channel (X, about −35..+71°): forearm twist. Wrist bend is `L/RFingerBase`, which the profile does not map | raw channel ranges (`39_04`, `02_02`) |
 | Known data artifact | occasional 1–3 frame toe/foot marker glitches (e.g. `09_12` 7.80 s, toe −45°) | raw channel trace; curator excludes ±0.25 s around any > 20 rad/s joint jump |
 
 Gaze is task-contaminated in the "navigate" captures: head forward tilt

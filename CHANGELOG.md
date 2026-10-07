@@ -5,6 +5,19 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Motion Matching frozen after the visual review of #206 (#202)
+
+- The author rejected Motion Matching visually on `main` `3f67c9b` (torso lean,
+  pinned arms, running, knees bending backwards). It stays off by default and
+  frozen; `docs/motion_matching/acceptance_gates.md` lists gates A-G, each
+  passed only by the author's visual approval.
+- CMU retarget profile: `verified = false`, new `visual_approval` and
+  `frozen_reference`. The builder still rebuilds `root-space-v10` as a
+  regression reference; the game is unchanged.
+- `retarget_audit.md` corrected: CMU frame 0 is not an all-zero pose, the
+  clavicles never move, and `L/RHand` is forearm twist (wrist bend is the
+  unmapped `L/RFingerBase`).
+
 ### 2026-10-07 - Motion Matching walks without the limp: mirrored walking (#202)
 
 - Straight forward walking is baked as captured and mirrored (author decision):

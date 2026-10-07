@@ -29,8 +29,12 @@ extends Resource
 @export var right_toe: String = ""
 ## UAL bones whose anatomical segment is aligned to the source reference pose.
 @export var segment_aligned_bones: PackedStringArray = PackedStringArray()
-## True only after the family passed the retarget audit on real data.
+## True only after the author visually approved a retarget-only proof (gates B and C).
 @export var verified: bool = false
+## Link to the author's visual approval (issue comment, date, SHA); empty until given.
+@export var visual_approval: String = ""
+## Unverified, but its committed database is kept as a frozen regression reference.
+@export var frozen_reference: bool = false
 ## Human-readable conventions, mirrored in docs/motion_matching/retarget_audit.md.
 @export_multiline var conventions: String = ""
 
@@ -66,8 +70,9 @@ static func cmu_bvh() -> SourceRetargetProfile:
 	profile.left_toe = "LeftToeBase"
 	profile.right_toe = "RightToeBase"
 	profile.segment_aligned_bones = PackedStringArray(UAL_SEGMENT_CHILD.keys())
-	profile.verified = true
-	profile.conventions = "Y-up, right-handed; frame 0 synthetic T-pose facing +Z, left +X; ZYX Euler (Zrotation Yrotation Xrotation); root 6 channels; units 1/0.45 inch."
+	profile.verified = false # Visually rejected by the author after #206: see acceptance_gates.md.
+	profile.frozen_reference = true
+	profile.conventions = "Y-up, right-handed; frame 0 reference pose (not all-zero) facing +Z, left +X; ZYX Euler (Zrotation Yrotation Xrotation); root 6 channels; units 1/0.45 inch."
 	return profile
 
 
@@ -97,6 +102,11 @@ static func style100_bvh() -> SourceRetargetProfile:
 	profile.verified = false # Unmeasured here: see docs/motion_matching/retarget_audit.md.
 	profile.conventions = "Assumed: Y-up, centimetres, zero-rotation offsets as reference, frame 0 is motion. Unverified."
 	return profile
+
+
+## True when the database builder may bake this family into the committed database.
+func can_bake(allow_unverified: bool) -> bool:
+	return verified or frozen_reference or allow_unverified
 
 
 static func for_dataset(dataset_id: String) -> SourceRetargetProfile:

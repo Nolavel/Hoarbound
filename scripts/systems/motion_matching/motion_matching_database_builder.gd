@@ -41,7 +41,7 @@ func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false
 	for source in sources:
 		var profile := SourceRetargetProfile.for_dataset(String(source["dataset"]))
 		var source_id := "%s_%s" % [source["dataset"], source["clip"]]
-		if profile == null or (not profile.verified and not allow_unverified_profiles):
+		if profile == null or not profile.can_bake(allow_unverified_profiles):
 			skipped.append({"source": source_id, "reason": "no verified retarget profile for %s" % source["dataset"]})
 			continue
 		var path := SOURCE_ROOT + String(source["clip"]) + ".bvh"
