@@ -22,6 +22,8 @@ extends Resource
 @export var samples_to_range_end: PackedInt32Array = PackedInt32Array()
 @export var feature_means: PackedFloat32Array = PackedFloat32Array()
 @export var feature_stddevs: PackedFloat32Array = PackedFloat32Array()
+## Build version and baked-source hashes, for provenance logs.
+@export var build_signature: String = ""
 
 
 func configure_schema(names: PackedStringArray, rate_hz: float) -> void:

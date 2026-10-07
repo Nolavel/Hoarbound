@@ -23,6 +23,12 @@ Maintained per branch; entries are added by whoever makes the change.
   impulse lifts the body for one tick) — left for the jump rework.
 - The runtime core moves from `scripts/experimental/motion_matching/` to
   `scripts/systems/motion_matching/`; the lab scenes stay experimental.
+- Author decisions: the baked database is committed
+  (`data/motion_matching/henry_cmu_locomotion.res`, 7.3 MB compressed, CMU only)
+  and the audit fails when it no longer matches a rebuild; `data_matched_body`
+  is on while Motion Matching runs. Known conflicts (scripted walks overshoot
+  0.27 m, global rates while the flag is on) and follow-ups are listed in
+  `docs/motion_matching/integration_plan.md`.
 
 ### 2026-10-06 - Motion Matching lab: root-space retarget, curated CMU database, simulation-led playback (#202)
 

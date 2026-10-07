@@ -70,4 +70,7 @@ no material. Its JSON lists covered/available seconds per label and per range.
 
 No rotated, mirrored, reversed or generated locomotion; no paid or
 account-gated packs; every sample is baked after retarget onto Henry's UAL
-skeleton; third-party files stay out of Git.
+skeleton; source BVH files stay out of Git. The derived database
+`data/motion_matching/henry_cmu_locomotion.res` is committed (author decision,
+2026-10-07); `audit_motion_dataset.gd` fails when it no longer matches a
+rebuild, and `MM_WRITE_DATABASE=1` regenerates it.

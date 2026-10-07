@@ -25,9 +25,9 @@ const LANDING_SECONDS := 0.4
 @export_range(0.0, 5.0, 0.1) var idle_to_tree_seconds: float = 0.6
 
 @export_group("Body dynamics")
-## Opt-in, changes game feel: retunes the body's acceleration and turning toward
-## the captured data (Holden, Code vs Data Driven Displacement). Author's call.
-@export var data_matched_body: bool = false
+## While matching runs, the body accelerates and turns like the captured data
+## (Holden, Code vs Data Driven Displacement). On by author decision, 2026-10-07.
+@export var data_matched_body: bool = true
 ## Data p95 is about 1.8 m/s^2 either way; production is 12 / 18 m/s^2.
 @export var data_accel_m_s2: float = 3.0
 @export var data_decel_m_s2: float = 3.5
@@ -60,8 +60,12 @@ func _ready() -> void:
 	set_physics_process(false)
 	if OS.get_environment("HOARBOUND_MOTION_MATCHING") == "1":
 		enabled = true
-	if OS.get_environment("HOARBOUND_MM_DATA_BODY") == "1":
-		data_matched_body = true
+	# HOARBOUND_MM_DATA_BODY=0 keeps the production dynamics for A/B captures.
+	match OS.get_environment("HOARBOUND_MM_DATA_BODY"):
+		"0":
+			data_matched_body = false
+		"1":
+			data_matched_body = true
 	if enabled:
 		# After HenryUALAnimation has built its AnimationTree.
 		_start.call_deferred()
@@ -101,12 +105,15 @@ func _start() -> void:
 		_ready_state = "unavailable: Player wiring"
 		push_warning("MotionMatchingLocomotion: %s." % _ready_state)
 		return
-	var build: Dictionary = MotionMatchingDatabaseBuilder.new().build(30.0)
-	if not bool(build.get("ok", false)):
-		_ready_state = "unavailable: %s" % String(build.get("error", "no database"))
-		push_warning("MotionMatchingLocomotion: %s; the AnimationTree keeps locomotion." % _ready_state)
-		return
-	var database := build["database"] as MotionDatabase
+	# The committed bake first; a rebuild from staged CMU only in development.
+	var database := MotionMatchingDatabaseBuilder.load_committed()
+	if database == null:
+		var build: Dictionary = MotionMatchingDatabaseBuilder.new().build(30.0)
+		if not bool(build.get("ok", false)):
+			_ready_state = "unavailable: %s" % String(build.get("error", "no database"))
+			push_warning("MotionMatchingLocomotion: %s; the AnimationTree keeps locomotion." % _ready_state)
+			return
+		database = build["database"] as MotionDatabase
 	_coverage_speed = _covered_speed(database)
 	_controller = MotionMatchingDatabasePlaybackController.new()
 	_controller.drive_body = false
@@ -129,7 +136,7 @@ func _start() -> void:
 		_movement.decel_rate = data_decel_m_s2 / scale
 		_player.turn_rate = data_turn_rate
 	_ready_state = "ready (covers <= %.2f m/s%s)" % [_coverage_speed, ", data-matched body" if data_matched_body else ""]
-	print("[MOTION_MATCHING_LOCOMOTION] %s, %d samples" % [_ready_state, database.get_sample_count()])
+	print("[MOTION_MATCHING_LOCOMOTION] %s, %d samples, %s" % [_ready_state, database.get_sample_count(), database.build_signature])
 	set_physics_process(true)
 
 

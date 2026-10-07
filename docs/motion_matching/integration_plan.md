@@ -8,13 +8,17 @@ Production locomotion (`HenryUALAnimation` AnimationTree + `MovementController`
 
 - `Player/MotionMatchingLocomotion.enabled` (export), or the environment
   variable `HOARBOUND_MOTION_MATCHING=1`.
-- The database is built from the staged CMU sources
-  (`tools/ci/prepare_cmu_sample.sh`) and cached in
-  `tests/motion_matching/_runtime_cache/` (both ignored by Git). Without it the
-  node logs `unavailable` and the AnimationTree keeps locomotion.
-- Shipping the baked database (~11 MB, derived from CMU, "free for all uses")
-  is an open decision for the author: commit the derived resource, or bake it
-  in the build pipeline.
+- The node loads the committed database
+  `data/motion_matching/henry_cmu_locomotion.res` (7.3 MB compressed, CMU only;
+  author decision, 2026-10-07). Without it, it rebuilds from staged CMU sources
+  (development only); failing that it logs `unavailable` and the AnimationTree
+  keeps locomotion.
+- `tools/runtime/audit_motion_dataset.gd` rebuilds from the sources and exits 4
+  when the committed file differs from the rebuild; `MM_WRITE_DATABASE=1`
+  rewrites it. The CI Motion Matching job runs that check.
+- `data_matched_body` is on (author decision, 2026-10-07): while the node runs,
+  the body accelerates at 3 m/s², brakes at 3.5 m/s² and turns at rate 4.
+  `HOARBOUND_MM_DATA_BODY=0` restores the production dynamics for A/B work.
 
 ## Runtime ownership
 
@@ -84,7 +88,7 @@ Zhang et al. 2018 (MANN) — ball-joint speed weighted by
 `clamp(2 - 2^(h/0.025), 0, 1)`; the raw CMU database scores 0.27 m/s on it, so
 only relative values matter.
 
-| segment | tree | MM | MM + data-matched body |
+| segment | tree | MM, production body | MM + data-matched body (default) |
 | --- | --- | --- | --- |
 | idle (tree owns idle) | 0.009 | 0.009 | 0.009 |
 | walk forward (start from idle) | 1.137 | 0.849 | 0.782 |
@@ -102,14 +106,13 @@ idle scores 0.569 but idle itself 0.185: CMU standing ranges are short and the
 matcher hops between them and pivot-capture standing frames (111_28 alone is
 0.005–0.012 in the data).
 
-## Findings that need the author
+## Findings
 
 1. **Body dynamics vs. captured humans.** The production body accelerates at
    12 m/s², brakes at 18 m/s² and starts a 90° turn at ~15 rad/s; the CMU data
    is at 1.8 / 1.9 m/s² (p95) and 2.7 rad/s (p99). No real motion matches a
-   0.07 s stop, so starts, stops and reversals clamp and drag. This is Holden's
-   "code vs data driven displacement" choice and a game-feel decision:
-   `data_matched_body` (opt-in) tries 3 / 3.5 m/s² and turn rate 4.
+   0.07 s stop, so starts, stops and reversals clamp and drag (Holden, "code vs
+   data driven displacement"). Resolved by the author: `data_matched_body` on.
 2. **Production defect found on the way:** every walk start applies
    `start_jump_impulse`, the body leaves the floor for one tick and the tree
    plays AirLoop → Land (~1.3 s landing clip while walking). Visible in the
@@ -117,6 +120,42 @@ matcher hops between them and pivot-capture standing frames (111_28 alone is
 3. **Sprint** stays with the tree (no run data in the database yet); its foot
    skating is 2–5 m/s in this metric.
 4. **Snow and wading** with Motion Matching are untested (next stage).
+
+## Known conflicts with `data_matched_body` on
+
+Measured on TestScene unless marked computed. All of them exist only while the
+Motion Matching flag is on; production with the flag off is unchanged.
+
+1. **Scripted walks overshoot.** `Player.move_to_position` drops its input
+   5 cm before the target; braking at 3.5 m/s² then carries Henry **0.27 m**
+   past it (production: 0.02 m). Interaction approaches (`InteractComponent`)
+   end past the item.
+2. **The override is global while the node runs.** `MovementController` uses
+   the reduced rates in every state, including the ones the tree animates:
+   stopping from a 4.5 m/s sprint takes ~2.9 m instead of ~0.56 m (computed,
+   v²/2a); air steering, carry and crouch respond more slowly.
+3. **Snow multiplies the reduced acceleration** (`snow_accel_multiplier`):
+   deep-snow starts become slower still. Untested.
+4. **Not a uniform win:** stop 0.47 → 0.26 and reversal 0.99 → 0.55 improve,
+   start at 90° worsens 0.93 → 1.14, curve and walk change by ±0.03.
+5. **The start hop** (finding 2) stays: matching ignores airtime up to 0.2 s,
+   the tree still plays its landing whenever it owns Henry.
+6. **Branches:** `.github/workflows/checks.yml` (Motion Matching job and path
+   filter) will conflict when `codex` next merges `main`; keep both sides' jobs.
+
+## Follow-up fixes, in order
+
+1. Distance-based braking for scripted walks (`Player._walk_direction`: scale
+   the input by remaining distance over v²/2a) so approaches stop on target
+   with any braking rate.
+2. Per-state dynamics with the author: data rates for walking only, or tuned
+   sprint/air/carry rates.
+3. Jump rework, including the walk-start hop and real landing ownership.
+4. Snow and wading with Motion Matching (`WadeModifier` / `SnowFootModifier`
+   over the locked feet; snow multipliers on the data rates).
+5. Run data and sprint build-up with fatigue (`StaminaManager`).
+6. Inertialization for switches and handovers; an arm layer so held props do
+   not hand the whole body back to the tree.
 
 ## Not covered yet
 

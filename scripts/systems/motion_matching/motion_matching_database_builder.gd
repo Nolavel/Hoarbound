@@ -11,6 +11,9 @@ const CACHE_PATH := CACHE_DIR + "/canonical_motion_database.res"
 const CACHE_SIGNATURE_PATH := CACHE_DIR + "/canonical_motion_database.signature"
 const HENRY_MODEL_PATH := "res://assets/characters/henry/henry_outfit.glb"
 const BUILD_VERSION := "root-space-v6"
+## The baked database the game loads (derived from CMU; committed by author
+## decision, 2026-10-07). Regenerate: audit_motion_dataset.gd, MM_WRITE_DATABASE=1.
+const COMMITTED_DATABASE_PATH := "res://data/motion_matching/henry_cmu_locomotion.res"
 
 
 func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false, use_cache: bool = true) -> Dictionary:
@@ -87,6 +90,7 @@ func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false
 	master.rebuild_statistics()
 	if not master.is_consistent() or master.get_sample_count() == 0:
 		return {"ok": false, "error": "merged database invalid"}
+	master.build_signature = _content_signature(retargeters)
 	_save_cache(master, signature)
 	return {
 		"ok": true,
@@ -108,6 +112,16 @@ func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false
 	}
 
 
+## Build version plus the hashes of the sources actually baked: identical on
+## every machine, unlike the staged manifest (an unreachable host drops rows).
+func _content_signature(retargeters: Dictionary) -> String:
+	var hashes := PackedStringArray()
+	for source_id in retargeters:
+		hashes.append("%s=%s" % [source_id, (retargeters[source_id]["source"] as Dictionary).get("sha256", "")])
+	hashes.sort()
+	return "%s:%d:%s" % [BUILD_VERSION, hashes.size(), ",".join(hashes).sha256_text().left(16)]
+
+
 ## Splits a time range around failing sample times with the curator's margin.
 func _split_around(piece: Vector2, failed_times: PackedFloat32Array) -> Array[Vector2]:
 	var result: Array[Vector2] = []
@@ -120,6 +134,35 @@ func _split_around(piece: Vector2, failed_times: PackedFloat32Array) -> Array[Ve
 	if cursor < piece.y:
 		result.append(Vector2(cursor, piece.y))
 	return result
+
+
+static func load_committed() -> MotionDatabase:
+	if not ResourceLoader.exists(COMMITTED_DATABASE_PATH):
+		return null
+	var database := ResourceLoader.load(COMMITTED_DATABASE_PATH) as MotionDatabase
+	return database if database != null and database.is_consistent() else null
+
+
+static func save_committed(database: MotionDatabase) -> Error:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(COMMITTED_DATABASE_PATH.get_base_dir()))
+	return ResourceSaver.save(database, COMMITTED_DATABASE_PATH, ResourceSaver.FLAG_COMPRESS)
+
+
+## Largest absolute difference between two databases' baked arrays; INF when
+## their layout (samples, ranges, bones) differs.
+static func difference(a: MotionDatabase, b: MotionDatabase) -> float:
+	if a.get_sample_count() != b.get_sample_count() or a.clip_names != b.clip_names \
+			or a.pose_bone_names != b.pose_bone_names or a.sample_contacts != b.sample_contacts:
+		return INF
+	var worst := 0.0
+	for pair in [[a.features, b.features], [a.pose_rotations, b.pose_rotations], [a.pose_pelvis_positions, b.pose_pelvis_positions]]:
+		var left: PackedFloat32Array = pair[0]
+		var right: PackedFloat32Array = pair[1]
+		if left.size() != right.size():
+			return INF
+		for index in range(left.size()):
+			worst = maxf(worst, absf(left[index] - right[index]))
+	return worst
 
 
 static func load_henry_model() -> UALSkeletonModel:

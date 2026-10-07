@@ -52,10 +52,11 @@ Evidence-based status. A green workflow alone never moves an item up.
   pose-jump threshold, pose reselect history, contact features (lab).
 - Curated 11.3 k-sample CMU database (rebuilt from staged sources, not in Git).
 - 100STYLE profile (unverified, refused by the builder).
-- Opt-in data-matched body dynamics (game feel: author's decision).
 
 ## Integrated behind a flag (off by default)
 
 - `MotionMatchingLocomotion` under Player: body authoritative, tree owns
   actions/carry/sit/crouch/air/sprint/long idle, neck/head with head look.
-  In-game numbers and open decisions: `integration_plan.md`.
+  Loads the committed `data/motion_matching/henry_cmu_locomotion.res` (audit
+  fails when it drifts from a rebuild); `data_matched_body` on by author
+  decision. In-game numbers, known conflicts and follow-ups: `integration_plan.md`.

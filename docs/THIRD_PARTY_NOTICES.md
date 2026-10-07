@@ -24,15 +24,18 @@ Mannequin, armature and animation clips in `assets/animation/ual/`. CC0 1.0
 and provenance in [`assets/animation/ual/NOTICE.md`](../assets/animation/ual/NOTICE.md).
 Henry's outfit GLB is derived from the UAL1 mannequin.
 
-## Motion Matching lab capture data
+## Motion Matching capture data
 
-The CI-only Motion Matching lab stages source BVH captures at run time. The
-source files and baked lab cache are ignored by Git and are not shipped in game
-builds.
+Source BVH captures are staged at run time (CI and local tools) and stay out of
+Git. The baked locomotion database derived from them,
+`data/motion_matching/henry_cmu_locomotion.res`, is committed and ships with
+the game (author decision, 2026-10-07): poses retargeted onto Henry's UAL
+skeleton plus matching features, with each range's source URL and SHA-256.
 
 - Carnegie Mellon University Graphics Lab Motion Capture Database — CMU states
-  that its motion data is free for all uses. The lab uses the public BVH
-  conversion mirror documented in `tools/ci/prepare_cmu_sample.sh`.
+  that its motion data is free for all uses. The tools use the public BVH
+  conversion mirror documented in `tools/ci/prepare_cmu_sample.sh`. The
+  committed database contains CMU material only.
 - The 100STYLE Dataset — Ian Mason. Only the original `Neutral_SW` and
   `Neutral_TR1` captures are staged (pinned SHA-256). Licensed under Creative
   Commons Attribution 4.0 International; <https://www.ianxmason.com/100style/>.
