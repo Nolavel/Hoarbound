@@ -10,7 +10,7 @@ const CACHE_DIR := "res://tests/motion_matching/_runtime_cache"
 const CACHE_PATH := CACHE_DIR + "/canonical_motion_database.res"
 const CACHE_SIGNATURE_PATH := CACHE_DIR + "/canonical_motion_database.signature"
 const HENRY_MODEL_PATH := "res://assets/characters/henry/henry_outfit.glb"
-const BUILD_VERSION := "root-space-v7"
+const BUILD_VERSION := "root-space-v8"
 ## The baked database the game loads (derived from CMU; committed by author
 ## decision, 2026-10-07). Regenerate: audit_motion_dataset.gd, MM_WRITE_DATABASE=1.
 const COMMITTED_DATABASE_PATH := "res://data/motion_matching/henry_cmu_locomotion.res"
@@ -67,10 +67,13 @@ func build(sample_rate_hz: float = 30.0, allow_unverified_profiles: bool = false
 		var source: Dictionary = entry["source"]
 		var provenance := "%s|sha256=%s|%s" % [source.get("url", ""), source.get("sha256", ""), source.get("description", "")]
 		# Frames that fail the structural audit are cut out, never let through.
-		var pieces: Array[Vector2] = [Vector2(float(range_entry["start"]), float(range_entry["end"]))]
+		var whole := Vector2(float(range_entry["start"]), float(range_entry["end"]))
+		var pieces: Array[Vector2] = [whole]
 		while not pieces.is_empty():
 			var piece: Vector2 = pieces.pop_front()
-			if piece.y - piece.x < MotionDatasetCurator.MIN_WINDOW_SECONDS:
+			# A whole short capture may stay short; audit cuts keep the long minimum.
+			var minimum := MotionDatasetCurator.MIN_WHOLE_CLIP_SECONDS if piece == whole else MotionDatasetCurator.MIN_WINDOW_SECONDS
+			if piece.y - piece.x < minimum:
 				continue
 			var clip_name := "%s@%.2f-%.2f" % [source_id, piece.x, piece.y]
 			var database := baker.bake_range(entry["retargeter"], StringName(clip_name), piece.x, piece.y, String(range_entry["role"]), provenance, sample_rate_hz)

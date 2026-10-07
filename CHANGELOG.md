@@ -5,6 +5,16 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Motion Matching: run data, honest trajectory ends (#202 follow-up 5)
+
+- 36 CMU run trials join the database (`root-space-v8`, 12 490 samples,
+  8.1 MB); Motion Matching now covers up to 3.58 m/s and keeps most of the
+  sprint (skating 2.63 → 1.45 m/s). Whole in-game program 0.539 → 0.474
+  (tree 0.507).
+- Future trajectories past a clip's end continue at its end velocity instead of
+  faking a stop (UE5 Pose Search extrapolation); the audit's feet-above-pelvis
+  check now judges the supporting foot, so running strides pass.
+
 ### 2026-10-07 - Snow and wading with Motion Matching (#202 follow-up 4)
 
 - `FootContactSensor` takes the animation's own contacts when it has them:

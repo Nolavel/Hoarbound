@@ -6,6 +6,10 @@ extends RefCounted
 
 const POSITION_SMOOTH_SECONDS := 0.5
 const DIRECTION_SMOOTH_SECONDS := 1.0
+## Root velocity over this much of a clip's end carries on past it; slower than
+## the minimum speed counts as standing still, so noise never drifts.
+const EXTRAPOLATION_WINDOW_SECONDS := 0.25
+const EXTRAPOLATION_MIN_SPEED := 0.1
 const SAVGOL_ORDER := 3
 const STANCE_TOE_SPEED := 0.20
 const STANCE_HEIGHT_BAND := 0.03
@@ -38,6 +42,8 @@ var _pelvis_rest_model := Vector3.ZERO
 var _pelvis_parent_rest_inverse := Transform3D.IDENTITY
 ## Constant vertical error the subject's proportions leave on Henry, metres.
 var _ground_offset: float = 0.0
+## Root velocity over the clip's last moments, carried on past its end.
+var _end_velocity := Vector3.ZERO
 
 
 func setup(source_clip: BVHClip, source_profile: SourceRetargetProfile, target_model: UALSkeletonModel, rate_hz: float = 30.0) -> bool:
@@ -81,6 +87,16 @@ func get_duration() -> float:
 
 func track_index(seconds: float) -> int:
 	return clampi(int(round(seconds * track_rate_hz)), 0, root_positions.size() - 1)
+
+
+## Root position, continued at the end velocity past the clip (UE5 Pose Search
+## root-motion extrapolation): a capture leaving the volume is not a stop.
+func root_position_at(seconds: float) -> Vector3:
+	var last := root_positions.size() - 1
+	var index := maxi(int(round(seconds * track_rate_hz)), 0)
+	if index <= last:
+		return root_positions[index]
+	return root_positions[last] + _end_velocity * (float(index - last) / track_rate_hz)
 
 
 ## Henry local rotations + pelvis local position for one source time.
@@ -231,6 +247,11 @@ func _build_root_track() -> void:
 	for forward in smoothed_forwards:
 		var flat := Vector3(forward.x, 0.0, forward.z)
 		root_forwards.append(flat.normalized() if flat.length_squared() > 0.000001 else Vector3.BACK)
+	var window := mini(int(round(EXTRAPOLATION_WINDOW_SECONDS * track_rate_hz)), root_positions.size() - 1)
+	_end_velocity = Vector3.ZERO
+	if window > 0:
+		var velocity := (root_positions[-1] - root_positions[-1 - window]) * (track_rate_hz / float(window))
+		_end_velocity = velocity if velocity.length() >= EXTRAPOLATION_MIN_SPEED else Vector3.ZERO
 
 
 func _calibrate_feet_and_height(reference: Array[Transform3D]) -> void:

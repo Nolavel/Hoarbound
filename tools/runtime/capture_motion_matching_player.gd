@@ -138,6 +138,8 @@ func _run() -> void:
 	_tps = root.get_camera_3d() as TpsCamera
 	_camera = Camera3D.new()
 	_camera.fov = 55.0
+	# The snow shell hides its contact-capture layer from the main camera only.
+	_camera.cull_mask &= ~SnowShell.CONTACT_LAYER
 	_view.add_child(_camera)
 	_camera.make_current()
 	_focus = _player.animation_component.global_position + Vector3(0.0, 0.9, 0.0)
@@ -235,7 +237,7 @@ func _program(t: float) -> Dictionary:
 	elif t < 21.0:
 		angle = PI
 		sprint = true
-		label = "sprint (tree owns it)"
+		label = "sprint"
 	elif t < 24.0:
 		angle = PI
 		label = "walk after sprint"

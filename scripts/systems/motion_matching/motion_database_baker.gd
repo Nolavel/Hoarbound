@@ -111,8 +111,7 @@ func bake_range(
 				contacts |= 1 if key == "foot_l" else 2
 
 		for horizon in FUTURE_HORIZONS:
-			var future := retargeter.track_index(time + float(horizon))
-			var delta := yaw_inverse * (retargeter.root_positions[future] - retargeter.root_positions[track])
+			var delta := yaw_inverse * (retargeter.root_position_at(time + float(horizon)) - retargeter.root_positions[track])
 			values.append(delta.x)
 			values.append(delta.z)
 		for horizon in FUTURE_HORIZONS:

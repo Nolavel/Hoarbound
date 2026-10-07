@@ -9,7 +9,7 @@ Production locomotion (`HenryUALAnimation` AnimationTree + `MovementController`
 - `Player/MotionMatchingLocomotion.enabled` (export), or the environment
   variable `HOARBOUND_MOTION_MATCHING=1`.
 - The node loads the committed database
-  `data/motion_matching/henry_cmu_locomotion.res` (7.3 MB compressed, CMU only;
+  `data/motion_matching/henry_cmu_locomotion.res` (8.1 MB compressed, CMU only;
   author decision, 2026-10-07). Without it, it rebuilds from staged CMU sources
   (development only); failing that it logs `unavailable` and the AnimationTree
   keeps locomotion.
@@ -47,7 +47,7 @@ HeadLook. Footprints and audio see the locked feet.
 
 The tree keeps: actions and work poses, held props (`hold_pose`), carry, sit,
 crouch, jump take-off, airtime and landing (its air states after the 0.15 s fall
-timeout), sprint above the covered speed (1.75 m/s, database p99), and idle after
+timeout), sprint above the covered speed (3.58 m/s, database p99), and idle after
 0.6 s standing still.
 Neck and head stay with the tree clip and the `LookAtModifier3D` head look
 (author decision).
@@ -134,8 +134,9 @@ matcher hops between them and pivot-capture standing frames (111_28 alone is
    `start_jump_impulse`, the body leaves the floor for one tick and the tree
    plays AirLoop → Land (~1.3 s landing clip while walking).~~ Fixed
    (follow-up 3), see below.
-3. **Sprint** stays with the tree (no run data in the database yet); its foot
-   skating is 2–5 m/s in this metric.
+3. ~~**Sprint** stays with the tree (no run data).~~ Run data added
+   (follow-up 5): Motion Matching keeps sprint up to 3.94 m/s; the tree's own
+   sprint skates at 2–5 m/s in this metric.
 4. ~~**Snow and wading** with Motion Matching are untested.~~ Measured and
    fixed (follow-up 4), see "Snow and wading".
 5. **Retargeted feet floated** 2.5–3.5 cm on CMU subjects 02, 07, 08 and 113
@@ -257,6 +258,48 @@ sprint handover); inertialized handovers (follow-up 6) remove the cause. Deep
 open snow does not exist in the game (settled cover tops out at 0.25 m); wading
 happens in drifts, which the drift program covers.
 
+## Run data (follow-up 5, part 1)
+
+- 36 CMU run trials staged with their index titles (`run_pool`, `run_turn_pool`
+  in `prepare_cmu_sample.sh`): 02_03, 09_01–09_11, 16_08/16_57 (sudden stop),
+  16_35–16_56 jog/run and veers, 35_17–35_26. They cross the capture volume in
+  1.1–2.2 s at 2.0–4.1 m/s.
+- The curator labels forward running from 2.2 m/s (`run_f`, `turn_run`; too
+  fast only above 5 m/s) and keeps a whole short capture of at least 1 s as one
+  window; the builder no longer drops such whole ranges.
+- **Future trajectories were faked as stops** at every clip end:
+  `track_index` clamps, so the last 0.8 s of each source (556 samples, 4.8% of
+  v7, mostly the game-pace walks) had a shrinking future. The baker now uses
+  `MotionRetargeter.root_position_at`, which continues past the end at the last
+  0.25 s velocity (UE5 Pose Search root-motion extrapolation; slower than
+  0.1 m/s counts as standing). Lab at 0.55–1.0 m/s, v7 → v8 without runs: drawn
+  0.057 → 0.043, animated 0.198 → 0.173 m/s.
+- **The audit refused every run**: `feet_above_pelvis` compared the hips with
+  the higher foot, and a running swing heel kicks up to within 0.4 m of them.
+  Rendered diagnostics (09_01, 35_25, 16_45) show clean strides. The check now
+  keeps the supporting (lower) foot a leg below the hips and fails any foot
+  above them. 16_55 is still cut (leans past 35°).
+- Database `root-space-v8`: 12 490 samples, 86 ranges (29 running), 8.1 MB,
+  covered speed 3.58 m/s (was 1.75).
+
+Four-scale in-game means (data-matched body):
+
+| segment | tree | MM v7 | MM v8 + runs |
+| --- | --- | --- | --- |
+| walk forward | 0.604 | 0.671 | 0.652 |
+| smooth curve left | 0.555 | 0.542 | 0.530 |
+| walk | 0.537 | 0.465 | 0.466 |
+| stop | 0.260 | 0.493 | 0.579 |
+| start 90 deg right | 0.815 | 0.673 | 0.694 |
+| sharp reversal | 0.676 | 0.586 | 0.558 |
+| sprint | 2.628 | 2.514 | 1.454 |
+| walk after sprint | 0.724 | 0.935 | 0.686 |
+| half stick | 0.332 | 0.274 | 0.275 |
+| whole run | 0.507 | 0.539 | 0.474 |
+
+Motion Matching's share of the sprint segment went 0.10 → 0.76 and the
+sprint-to-walk handover mostly disappeared. Stops stay worse (idle handover).
+
 ## Follow-up fixes, in order
 
 1. ~~Distance-based braking for scripted walks.~~ Done.
@@ -271,6 +314,9 @@ happens in drifts, which the drift program covers.
 
 ## Not covered yet
 
-- Run/sprint data, crouch, carry and held-prop arm layering, slopes, stairs.
+- Sprint above 3.94 m/s (CMU's fastest run is ~4.1 m/s; Henry sprints at 4.5),
+  crouch, carry and held-prop arm layering, slopes, stairs.
+- Gait-specific normalization or databases (UE5 Pose Search chooser): with run
+  data in the same database the walking lab drifts back to its v7 level.
 - Inertialization instead of crossfade for switches and handovers.
 - 100STYLE (host blocked from this environment).

@@ -82,7 +82,9 @@ func add_sample(globals: Array[Transform3D], rotations: Array[Quaternion], previ
 
 	if head.y - pelvis.origin.y < HEAD_OVER_PELVIS_MIN:
 		_fail("head_below_pelvis")
-	if pelvis.origin.y - maxf(foot_l.y, foot_r.y) < PELVIS_OVER_FEET_MIN:
+	# The supporting foot stays a leg below the hips; a running swing heel may kick
+	# up behind (CMU runs), but no foot ever rises past the pelvis.
+	if pelvis.origin.y - minf(foot_l.y, foot_r.y) < PELVIS_OVER_FEET_MIN or maxf(foot_l.y, foot_r.y) > pelvis.origin.y:
 		_fail("feet_above_pelvis")
 	if rad_to_deg((head - pelvis.origin).angle_to(Vector3.UP)) > UPRIGHT_MAX_DEG:
 		_fail("not_upright")
