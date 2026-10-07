@@ -55,7 +55,7 @@ HeadLook. Footprints and audio see the locked feet.
 
 The tree keeps: actions and work poses, a held prop's arm (`hold_pose`), carry, sit,
 crouch, jump take-off, airtime and landing (its air states after the 0.15 s fall
-timeout), sprint above the covered speed (3.58 m/s, database p99), and idle after
+timeout), sprint above the covered speed (3.52 m/s since v10, database p99), and idle after
 0.6 s standing still.
 Neck and head stay with the tree clip and the `LookAtModifier3D` head look
 (author decision).
@@ -320,7 +320,7 @@ happens in drifts, which the drift program covers.
   Rendered diagnostics (09_01, 35_25, 16_45) show clean strides. The check now
   keeps the supporting (lower) foot a leg below the hips and fails any foot
   above them. 16_55 is still cut (leans past 35°).
-- Database `root-space-v8`: 12 490 samples, 86 ranges (29 running), 8.1 MB,
+- Database `root-space-v8` (now v10, see the gait section): 12 490 samples, 86 ranges (29 running), 8.1 MB,
   covered speed 3.58 m/s (was 1.75).
 
 Four-scale in-game means (data-matched body):
@@ -426,6 +426,62 @@ Settle and hold change only standing segments. The entry's direct effect is
 start 90° (it starts from standing): 0.66 → 0.56; curve, walk and reversal come
 much later and differ by a changed clip chain (±0.05). `HOARBOUND_MM_INERTIAL_ENTRY=0`
 restores the crossfade for A/B.
+
+## Gait symmetry: the left-leg limp (after #205)
+
+Reported on a manual Key West review: Henry seems to limp on the left leg in plain
+walking. Measured with `capture_motion_matching_player.gd`, `MM_PROGRAM=walk`
+(9 s out, 9 s back) and `MM_GAIT_TRACE=1` (per-frame feet, pelvis, clip, locks),
+four stick scales, about 100 steps per run set.
+
+| metric (steady walking) | AnimationTree | Motion Matching v8 | v9 | v10 (mirrored) |
+| --- | --- | --- | --- | --- |
+| step length SI, planted-foot positions | -0.5% | **+6.7%** | +6.3% | **-0.3%** |
+| step time SI, stance starts | -1.2% | **+8.7%** | +7.5% | **-0.9%** |
+| half-stride time SI, pelvis minima | +1.1% | **+9.5%** | +9.7% | **-2.5%** |
+| pelvis peak over left minus right | -2.1 mm | **-8.5 mm** | -8.8 mm | **+1.0 mm** |
+| stance ankle height left / right | | 101.0 / 103.6 mm | 101.1 / 101.6 mm | |
+| step time variability (CV) L / R | 5.1 / 4.4% | 4.5 / 5.4% | | 5.1 / 4.6% |
+
+SI = 200 (L - R) / (L + R). Positive: the step onto the left foot is longer and
+slower, and the body rides lower over the left leg: a mild left limp.
+
+Where it comes from:
+- **Not the runtime.** With the foot lock off (`MM_FOOT_LOCK=0`) pelvis and
+  timing are identical; matching, crossfades and the lock carry the motion as is.
+- **Not the retarget's timing or placement.** Offline, Henry's planted-foot
+  positions match the source within 0.5 points of SI for every clip.
+- **The source.** All steady walking at Henry's 1.5 m/s plays CMU subject 39.
+  Measured on the raw BVH, 13 of its trials are left-long: step length +3.1%,
+  step time about +7.7% on average (per-trial spread about 4 points).
+- **A retarget leak, now fixed (v9).** Subject 39's skeleton has a left leg
+  4.9 mm shorter. The retarget copies the pelvis height onto Henry's equal legs,
+  so his left stance foot stood lower. `MotionRetargeter` now measures each
+  side's planted ball height and shifts the pelvis by its offset, blended by
+  which ankle carries the weight. Offline, subject 39's stance-height gap fell
+  from 2-5 mm to 0.2-1.6 mm and its pelvis asymmetry from -6.4 to -3.8 mm. In
+  game the stance feet are level; the limp itself is the source gait above.
+- A survey of 138 CMU walking trials (`MM_GAIT_TRACE` metrics on the raw BVH,
+  steady straight spans) found no subject at that pace symmetric in timing,
+  step length and pelvis bob at once. Subject 16 steps evenly but its pelvis
+  bob differs by about 15 mm side to side.
+
+**Mirrored walking (v10, author decision 2026-10-07).** Every selected straight
+forward-walking range (`walk_f`, `walk_f_brisk`) is baked twice: as captured and
+mirrored across the sagittal plane (`BVHClip.mirrored()`: left and right joints
+swap channels and offsets, Y/Z rotations and the X position flip sign; then the
+same retarget). Matching now draws on both walkers, so the left-long and
+right-long steps balance out; the original-mirror pairs are exact (`39_04`:
+step length SI +6.3% / -6.3%, step time +17.0% / -17.0%). Mirroring stays
+limited to straight walking: turns, starts, stops and runs are as captured.
+
+- Database `root-space-v10`: 16 636 samples (+33%), 115 ranges (29 mirrored),
+  10.7 MB; audit clean.
+- Four-scale in-game skating unchanged: whole run 0.435 (v8 0.438) m/s; drift
+  0.178 (0.189) m/s.
+- Search cost of the matcher grows with the samples: 12.4 -> 13.7 ms per search
+  (headless, this machine), ten searches a second.
+- `tests/systems/test_bvh_mirror.gd` covers the reflection.
 
 ## Follow-up fixes, in order
 

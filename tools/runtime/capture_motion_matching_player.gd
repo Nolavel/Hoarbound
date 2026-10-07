@@ -30,6 +30,12 @@ var _out_dir := DEFAULT_OUT_DIR
 ## matcher, so one program is not read as the whole truth.
 var _stick_scale := 1.0
 var _drift := false
+## MM_PROGRAM=walk: long straight walks out and back, for gait symmetry.
+var _walk := false
+## MM_GAIT_TRACE=1 records every frame's feet, pelvis, clip and locks into the report.
+var _trace_gait := false
+var _gait_trace: Array[Dictionary] = []
+var _pelvis := -1
 var _scene: Node
 var _player: Player
 var _locomotion: MotionMatchingLocomotion
@@ -128,6 +134,8 @@ func _run() -> void:
 		elif noise is CanvasLayer:
 			(noise as CanvasLayer).visible = false
 	_drift = OS.get_environment("MM_PROGRAM") == "drift"
+	_walk = OS.get_environment("MM_PROGRAM") == "walk"
+	_trace_gait = OS.get_environment("MM_GAIT_TRACE") == "1"
 	_player.global_position = DRIFT_START if _drift else START
 	# MM_HOLD_PROP=1: a stand-in light in the main hand raises the held-arm pose.
 	if OS.get_environment("MM_HOLD_PROP") == "1":
@@ -155,11 +163,15 @@ func _run() -> void:
 	for side in ["l", "r"]:
 		_feet.append(_player.animation_component.skeleton.find_bone("foot_" + side))
 		_balls.append(_player.animation_component.skeleton.find_bone("ball_" + side))
+	_pelvis = _player.animation_component.skeleton.find_bone("pelvis")
 	if not headless:
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir + "/frames"))
 		FileAccess.open(_out_dir + "/.gdignore", FileAccess.WRITE)
 	for _frame in range(30):
 		await process_frame
+	# MM_FOOT_LOCK=0 draws the matched pose without the contact lock, for A/B.
+	if OS.get_environment("MM_FOOT_LOCK") == "0" and _locomotion.get_controller() != null:
+		_locomotion.get_controller().foot_lock_enabled = false
 
 	var timeline: Array[Dictionary] = []
 	# MM_SECONDS shortens a rendered review to the part being looked at.
@@ -174,6 +186,8 @@ func _run() -> void:
 		await process_frame
 		_follow_camera()
 		_measure()
+		if _trace_gait:
+			_record_gait(t, intent["label"])
 		_label.text = _hud_text(t, intent["label"])
 		if not headless:
 			await RenderingServer.frame_post_draw
@@ -202,6 +216,8 @@ func _run() -> void:
 		"segments": _segment_report(),
 		"timeline": timeline,
 	}
+	if _trace_gait:
+		report["gait_trace"] = _gait_trace
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir))
 	var file := FileAccess.open(_out_dir + "/report.json", FileAccess.WRITE)
 	file.store_string(JSON.stringify(report, "  "))
@@ -219,6 +235,8 @@ func _run() -> void:
 func _program(t: float) -> Dictionary:
 	if _drift:
 		return _drift_program(t)
+	if _walk:
+		return _walk_program(t)
 	var angle := 0.0
 	var magnitude := 1.0
 	var sprint := false
@@ -275,6 +293,23 @@ func _drift_program(t: float) -> Dictionary:
 		angle = PI
 	elif t >= 24.0:
 		label = "drift, stop and idle"
+	return {"direction": _heading.rotated(Vector3.UP, angle) * magnitude * _stick_scale, "sprint": false, "label": label}
+
+
+## Plain walking out and back: the steady gait cycles a limp would show in.
+func _walk_program(t: float) -> Dictionary:
+	var label := "idle"
+	var magnitude := 0.0
+	var angle := 0.0
+	if t >= 2.0 and t < 11.0:
+		label = "walk out"
+		magnitude = 1.0
+	elif t >= 11.0 and t < 20.0:
+		label = "walk back"
+		magnitude = 1.0
+		angle = PI
+	elif t >= 20.0:
+		label = "stop, idle"
 	return {"direction": _heading.rotated(Vector3.UP, angle) * magnitude * _stick_scale, "sprint": false, "label": label}
 
 
@@ -338,6 +373,37 @@ func _measure() -> void:
 				_moving_skate_weight += weight
 		_previous_balls[side] = ball
 	_measure_snow()
+
+
+## One frame of the drawn gait: both feet, pelvis, body and what matching plays.
+func _record_gait(t: float, label: String) -> void:
+	var entry := {
+		"t": t, "label": label,
+		"speed": Vector2(_player.velocity.x, _player.velocity.z).length(),
+		"floor_y": _player.global_position.y - 1.0,
+		"body": _vec(_player.global_position), "yaw": _player.global_rotation.y,
+		"pelvis": _vec(_joint(_pelvis)),
+		"ball": [_vec(_joint(_balls[0])), _vec(_joint(_balls[1]))],
+		"foot": [_vec(_joint(_feet[0])), _vec(_joint(_feet[1]))],
+		"weight": _locomotion.get_weight(),
+	}
+	var controller := _locomotion.get_controller()
+	if controller != null and _locomotion.get_weight() > 0.0:
+		var snapshot := controller.get_snapshot()
+		var lock := controller.get_foot_lock()
+		entry["clip"] = snapshot["current_clip"]
+		entry["clip_time"] = snapshot["current_time"]
+		entry["sample"] = snapshot["current_sample"]
+		entry["alpha"] = snapshot["blend_alpha"]
+		entry["switched"] = snapshot["switched"]
+		entry["contacts"] = snapshot["contacts"]
+		entry["locked"] = [lock != null and lock.is_locked(0), lock != null and lock.is_locked(1)]
+		entry["lock_offset"] = [_vec(controller.get_lock_offset(0)), _vec(controller.get_lock_offset(1))]
+	_gait_trace.append(entry)
+
+
+func _vec(value: Vector3) -> Array:
+	return [snappedf(value.x, 0.0001), snappedf(value.y, 0.0001), snappedf(value.z, 0.0001)]
 
 
 ## In snow MANN undercounts (boots ride on the snow top): a boot the shell holds

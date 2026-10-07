@@ -120,6 +120,7 @@ var _lock_offset_frames := 0
 var _lock_offset_max := 0.0
 var _out_of_reach_frames := 0
 var _reach_shortfall_max := 0.0
+var _lock_offsets: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
 
 
 func setup(database: MotionDatabase, skeleton: Skeleton3D, body: CharacterBody3D, visual: Node3D, debug_view: MotionMatchingDebugView, initial_sample: int) -> bool:
@@ -290,6 +291,11 @@ func get_prediction() -> Dictionary:
 
 func get_foot_lock() -> MotionFootLock:
 	return _foot_lock if foot_lock_enabled else null
+
+
+## World offset the foot lock moved `side`'s ankle by this tick (diagnostics).
+func get_lock_offset(side: int) -> Vector3:
+	return _lock_offsets[side] if foot_lock_enabled else Vector3.ZERO
 
 
 func get_blend_alpha() -> float:
@@ -617,6 +623,7 @@ func _lock_feet(state: Dictionary, dt: float) -> void:
 		var target := _foot_lock.update(side, animated, contacts & (1 << side) != 0, dt, leash)
 		# A planted foot holds through a handover; only a swinging one fades with it.
 		var offset := (target - animated) * (1.0 if _foot_lock.is_locked(side) else weight)
+		_lock_offsets[side] = offset
 		if not _reach_foot(side, state, offset):
 			continue
 		if _foot_lock.is_locked(side):
