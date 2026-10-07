@@ -5,6 +5,19 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Snow and wading with Motion Matching (#202 follow-up 4)
+
+- `FootContactSensor` takes the animation's own contacts when it has them:
+  Motion Matching registers as `contact_source` and its database contacts
+  replace the height guess, which read low real-gait swings (1–2 cm clearance)
+  as plants. Snow print slide with Motion Matching fell 1.0 → 0.35 m/s while
+  walking (tree 0.46); extra footprints and footsteps are gone. The tree path is
+  unchanged.
+- `capture_motion_matching_player.gd`: snow captures are reproducible (seeded
+  weather, rebuilds that finish in one step), report print slide, depth and
+  wade, and `MM_PROGRAM=drift` crosses TestScene's deepest drift. The CI
+  Motion Matching job runs the drift A/B.
+
 ### 2026-10-07 - Airtime and landings (#202 follow-up 3)
 
 - Walk starts no longer hop: `MovementController` drops `start_jump_impulse`,

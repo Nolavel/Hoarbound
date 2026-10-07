@@ -136,7 +136,8 @@ matcher hops between them and pivot-capture standing frames (111_28 alone is
    (follow-up 3), see below.
 3. **Sprint** stays with the tree (no run data in the database yet); its foot
    skating is 2–5 m/s in this metric.
-4. **Snow and wading** with Motion Matching are untested (next stage).
+4. ~~**Snow and wading** with Motion Matching are untested.~~ Measured and
+   fixed (follow-up 4), see "Snow and wading".
 5. **Retargeted feet floated** 2.5–3.5 cm on CMU subjects 02, 07, 08 and 113
    (their proportions differ from Henry's). Fixed in `MotionRetargeter`: each
    clip's median ground error (lower ball joint against its flat-foot rest
@@ -157,8 +158,11 @@ Motion Matching flag is on; production with the flag off is unchanged.
    no sprint build-up); sprint, air, crouch, carry and actions keep production
    rates. Sprint stop from 4.35 m/s: 2.67 m with global data rates, 0.49 m now
    (production 0.49 m). Walking segments are unchanged.
-3. **Snow multiplies the reduced acceleration** (`snow_accel_multiplier`):
-   deep-snow starts become slower still. Untested.
+3. ~~**Snow multiplies the reduced acceleration.**~~ Not a defect (computed
+   over a step cycle): a deep-snow start takes ~0.42 s against 0.5 s on bare
+   ground, so snow still slows Henry by the same share; at full wade the
+   per-step surge dips 17% less deep (0.37 against 0.33 m/s at the bottom),
+   mean speed unchanged.
 4. **Not a uniform win** (four-scale means, v7): reversal 0.82 → 0.61, curve
    and half stick improve; start at 90° worsens 1.04 → 1.21; stop and walk are
    unchanged.
@@ -196,6 +200,63 @@ airtime (a standing human jump is about 0.4–0.5 m); the UAL set has no fall
 loop, so `AirLoop` replays `Jump_Start` from the take-off when Henry walks off a
 ledge.
 
+## Snow and wading (follow-up 4)
+
+Measured with `MM_KEEP_SNOW=1` on TestScene's snow (0.15–0.19 m along the main
+program) and with `MM_PROGRAM=drift` through its deepest drift (0.34–0.40 m,
+wade ~0.18). In snow MANN undercounts (the boot rides on the snow top), so the
+capture also reports `snow_print_slide_m_s`: ball speed while the snow holds
+the boot on its print.
+
+Snow captures were not reproducible: the field rebuilds within a wall-clock
+budget (`Time.get_ticks_usec`) and `WeatherController` picks its profile with
+the unseeded global RNG, so depth differed between runs before Henry moved
+(0.145–0.216 m at spawn). The capture now seeds the RNG and lets field rebuilds
+finish in the step they start; two runs are identical.
+
+Found: `FootContactSensor` plants a foot by height alone. Real gait clears the
+ground by 1–2 cm, so a Motion Matching swing passing 2 cm over the floor read
+as a plant at 4–5 m/s, and a low swing never rose enough to re-arm: the snow
+pinned swinging boots to false prints, and footprints, footstep audio and ice
+load got extra steps (15 plants in "walk forward" against the tree's 8). The
+UAL clips swing high, so the tree never showed it; their stance feet also
+glide close to body speed in sprint, so no speed rule separates stance from
+swing for both systems.
+
+Fixed at the source: while Motion Matching owns most of the pose it registers
+as the sensor's `contact_source`, and the database contacts behind the foot lock
+(Holden's contact labels) replace the height guess. A contact flickering inside
+a 0.1 m print (the `SnowFootModifier` lock reach) is the same step; the print
+holds until the foot has left it. The tree path is untouched: its plants are
+identical per segment and its numbers below unchanged.
+
+Print slide in TestScene snow, four-scale means, m/s:
+
+| segment | tree | MM before | MM after |
+| --- | --- | --- | --- |
+| walk forward | 0.443 | 1.008 | 0.348 |
+| smooth curve left | 0.480 | 1.139 | 0.348 |
+| walk | 0.458 | 0.974 | 0.379 |
+| stop | 0.224 | 0.618 | 0.553 |
+| start 90 deg right | 0.778 | 1.259 | 0.607 |
+| sharp reversal | 0.749 | 1.054 | 0.375 |
+| walk after sprint | 0.623 | 1.091 | 0.573 |
+| half stick | 0.261 | 0.773 | 0.243 |
+
+Plants on bare ground (tree / MM before / MM after): walk forward 8 / 15 / 9,
+curve 4 / 9 / 6, walk 3 / 7 / 4, walk after sprint 6 / 11 / 6.
+
+In the drift Motion Matching keeps the pose (weight 0.99 while walking at
+~0.85 m/s), the wade gait engages as with the tree (0.18–0.19), and print
+slide matches the tree (0.34 / 0.36 against 0.32 / 0.40 in and out); planted
+slide is lower (0.32 / 0.37 against 0.36 / 0.44). Stops stay worse (handover).
+
+Left: during a tree ↔ Motion Matching handover the crossfaded pose can drag a
+foot fast enough for the height rule to plant twice (3 extra plants at the
+sprint handover); inertialized handovers (follow-up 6) remove the cause. Deep
+open snow does not exist in the game (settled cover tops out at 0.25 m); wading
+happens in drifts, which the drift program covers.
+
 ## Follow-up fixes, in order
 
 1. ~~Distance-based braking for scripted walks.~~ Done.
@@ -203,8 +264,7 @@ ledge.
    sprint/air/carry separately later).
 3. ~~Jump rework, including the walk-start hop and real landing ownership.~~
    Done (see "Airtime and landing"); jump height and feel stay with the author.
-4. Snow and wading with Motion Matching (`WadeModifier` / `SnowFootModifier`
-   over the locked feet; snow multipliers on the data rates).
+4. ~~Snow and wading with Motion Matching.~~ Done (see "Snow and wading").
 5. Run data and sprint build-up with fatigue (`StaminaManager`).
 6. Inertialization for switches and handovers; an arm layer so held props do
    not hand the whole body back to the tree.

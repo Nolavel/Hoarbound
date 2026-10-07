@@ -35,6 +35,7 @@ var debug_view: MotionMatchingDebugView
 
 var _player: Player
 var _visual: HenryUALAnimation
+var _sensor: FootContactSensor
 var _movement: MovementController
 var _controller: MotionMatchingDatabasePlaybackController
 var _tree_callback_mode := AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE
@@ -78,6 +79,16 @@ func get_weight() -> float:
 
 func get_controller() -> MotionMatchingDatabasePlaybackController:
 	return _controller
+
+
+## FootContactSensor contact source: the database contacts behind the foot lock
+## stand for the drawn feet while matching owns most of the pose.
+func drives_foot_contacts() -> bool:
+	return _active and _weight >= 0.5 and _controller.get_foot_lock() != null
+
+
+func is_foot_planted(side: int) -> bool:
+	return _controller.get_foot_lock().is_locked(side)
 
 
 func get_report() -> Dictionary:
@@ -126,6 +137,10 @@ func _start() -> void:
 	_visual.animation_tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	if data_matched_body:
 		_production_dynamics = [_movement.accel_rate, _movement.decel_rate, _player.turn_rate]
+	# Footprints, footstep audio and snow prints follow the database contacts.
+	_sensor = _player.get_node_or_null(^"FootContactSensor") as FootContactSensor
+	if _sensor != null:
+		_sensor.contact_source = self
 	_ready_state = "ready (covers <= %.2f m/s%s)" % [_coverage_speed, ", data-matched body" if data_matched_body else ""]
 	print("[MOTION_MATCHING_LOCOMOTION] %s, %d samples, %s" % [_ready_state, database.get_sample_count(), database.build_signature])
 	set_physics_process(true)
@@ -136,6 +151,8 @@ func _exit_tree() -> void:
 		_visual.animation_tree.callback_mode_process = _tree_callback_mode
 	if is_instance_valid(_movement) and is_instance_valid(_player):
 		_set_body_rates(false)
+	if is_instance_valid(_sensor) and _sensor.contact_source == self:
+		_sensor.contact_source = null
 
 
 func _physics_process(delta: float) -> void:
