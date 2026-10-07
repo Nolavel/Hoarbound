@@ -5,6 +5,19 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Motion Matching layer bisection tools and findings (#202)
+
+- Anatomy metrics from joint positions (`tools/motion/`): signed knee/elbow
+  flexion and bend plane, trunk/neck, arm abduction, forearm and hand twist,
+  wrist, feet; BVH and glb FK oracles; layer and in-game trace reports.
+- `MotionRetargeter.stages` switches retarget stages off one at a time (default
+  all; database unchanged). `dump_retarget_layers.gd`, `capture_retarget_quad.gd`
+  (front/side/rear/feet or hand) and `MM_POSE_TRACE` in the player capture.
+- Findings in `docs/motion_matching/retarget_bisection.md`:
+  - the core retarget and the CMU bone map break arms, hands and spine;
+  - the foot-lock IK flips knees backwards;
+  - the gaze layer throws the head back.
+
 ### 2026-10-07 - Motion Matching frozen after the visual review of #206 (#202)
 
 - The author rejected Motion Matching visually on `main` `3f67c9b` (torso lean,

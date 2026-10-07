@@ -17,6 +17,12 @@ const STANCE_HEIGHT_BAND := 0.03
 const STANCE_SPEED_SHARE := 0.25
 ## Ankle height gap over which body weight shifts from one foot to the other, m.
 const WEIGHT_SHIFT_HEIGHT := 0.02
+## Retarget stages on top of the S·R⁻¹·G core; the diagnostics switch them off one by one.
+const STAGE_SEGMENT_SWING := 1
+const STAGE_FOOT_PITCH := 2
+const STAGE_GROUND := 4
+const STAGE_STANCE := 8
+const STAGE_ALL := 15
 const PROBE_BONES := [
 	"pelvis", "spine_03", "Head", "foot_l", "foot_r", "ball_l", "ball_r",
 	"calf_l", "calf_r", "thigh_l", "thigh_r", "hand_l", "hand_r",
@@ -27,6 +33,8 @@ var clip: BVHClip
 var target: UALSkeletonModel
 var error_message: String = ""
 var report: Dictionary = {}
+## Enabled STAGE_* bits; set before setup(). Baking always uses STAGE_ALL.
+var stages: int = STAGE_ALL
 
 ## Henry-scale root track over the whole clip at track_rate_hz.
 var track_rate_hz: float = 30.0
@@ -80,9 +88,11 @@ func setup(source_clip: BVHClip, source_profile: SourceRetargetProfile, target_m
 	_ankle_indices = [clip.find_bone(profile.left_ankle), clip.find_bone(profile.right_ankle)]
 	_ground_offset = 0.0  # both measured on the unaligned retarget
 	_stance_offsets = [0.0, 0.0]
-	_stance_offsets = _measure_stance_offsets()
+	if stages & STAGE_STANCE:
+		_stance_offsets = _measure_stance_offsets()
 	report["stance_offsets_m"] = _stance_offsets.duplicate()
-	_ground_offset = _measure_ground_offset()
+	if stages & STAGE_GROUND:
+		_ground_offset = _measure_ground_offset()
 	report["ground_offset_m"] = _ground_offset
 	report["dataset"] = profile.dataset
 	report["source_path"] = clip.source_path
@@ -220,7 +230,7 @@ func _build_reference_rotations(reference: Array[Transform3D]) -> void:
 			continue
 		var source_reference := Quaternion(_alignment * reference[source_index].basis.orthonormalized())
 		var bone_name := target.bone_names[bone_index]
-		if profile.segment_aligned_bones.has(bone_name):
+		if stages & STAGE_SEGMENT_SWING and profile.segment_aligned_bones.has(bone_name):
 			var child_name := String(SourceRetargetProfile.UAL_SEGMENT_CHILD[bone_name])
 			var source_child := clip.find_bone(String(profile.bone_map[child_name]))
 			var target_child := target.find_bone(child_name)
@@ -304,7 +314,7 @@ func _calibrate_feet_and_height(reference: Array[Transform3D]) -> void:
 		var horizontal := Vector3(reference_dir.x, 0.0, reference_dir.z).normalized()
 		var flat_dir := horizontal * cos(flat_pitch) + Vector3.UP * sin(flat_pitch)
 		# Pose match, not segment match: ankle placement differs per skeleton.
-		var correction := Quaternion(reference_dir.normalized(), flat_dir.normalized())
+		var correction := Quaternion(reference_dir.normalized(), flat_dir.normalized()) if stages & STAGE_FOOT_PITCH else Quaternion.IDENTITY
 		var reference_rotation := _source_reference_inverse[target_index].inverse()
 		_source_reference_inverse[target_index] = (correction * reference_rotation).inverse()
 		foot_report[side] = {
