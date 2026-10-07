@@ -5,6 +5,21 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Movement owns its dynamics; fatigue tuning neutral (#202 hardening)
+
+- `MovementController` offers dynamics profiles (`LocomotionDynamicsProfile`,
+  `data/characters/henry_dynamics_data_matched.tres`) through
+  `request_dynamics_profile` / `release_dynamics_profile`; it applies one only
+  in grounded walking. Motion Matching asks for `data_matched` and no longer
+  writes `accel_rate`, `decel_rate` or `Player.turn_rate`. Without a request
+  walking computes the same rates as before. New suite
+  `test_locomotion_dynamics_profile.gd`.
+- Sprint fatigue defaults are neutral (`exhausted_sprint_ramp_factor` 1.0,
+  `winded_sprint_share` 1.0): the sprint is the old one until the author picks
+  the tuning. The proposed values (×2.0, winded below 30%, 40% share) are in
+  `docs/motion_matching/integration_plan.md` and covered by
+  `test_sprint_fatigue.gd`.
+
 ### 2026-10-07 - Motion Matching handovers and held props (#202 follow-up 6)
 
 - Stopping into the tree's idle no longer slides: settling freezes the search
@@ -19,12 +34,13 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ### 2026-10-07 - Sprint build-up and top speed follow tiredness (#202 follow-up 5)
 
-- `MovementController`: the sprint builds up up to twice as slowly as energy
-  runs out (`exhausted_sprint_ramp_factor`), and below 30% stamina the top
-  sprint fades to a laboured jog (`winded_sprint_share`) instead of running at
-  full speed into a wall at zero. Rested with stamina to spare nothing changes
-  (90% speed after 1.87 s either way). New suite
-  `tests/systems/test_sprint_fatigue.gd`.
+- `MovementController`: the sprint can build up more slowly as energy runs
+  out (`exhausted_sprint_ramp_factor`), and below a stamina share the top
+  sprint can fade to a laboured jog (`winded_sprint_share`) instead of running
+  at full speed into a wall at zero. Rested with stamina to spare nothing
+  changes (90% speed after 1.87 s either way). New suite
+  `tests/systems/test_sprint_fatigue.gd`. Defaults made neutral in the
+  hardening pass above.
 
 ### 2026-10-07 - Motion Matching: run data, honest trajectory ends (#202 follow-up 5)
 

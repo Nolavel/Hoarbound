@@ -23,12 +23,14 @@ class_name MovementController
 @export var sprint_release_boost: float = 0.5
 
 @export_group("Sprint and fatigue")
-## Sprint build-up takes this many times longer with no energy left (rested: 1).
-@export_range(1.0, 4.0, 0.1) var exhausted_sprint_ramp_factor: float = 2.0
-## Below this stamina share Henry is winded and his top sprint fades.
+## Sprint build-up takes this many times longer with no energy left. 1 keeps
+## the old sprint; 2.0 is proposed and awaits the author's decision.
+@export_range(1.0, 4.0, 0.1) var exhausted_sprint_ramp_factor: float = 1.0
+## Below this stamina share Henry is winded and his top sprint fades (proposed 0.3).
 @export_range(0.0, 1.0, 0.05) var winded_stamina_ratio: float = 0.3
-## Share of the sprint's extra speed left on an empty tank: a laboured jog.
-@export_range(0.0, 1.0, 0.05) var winded_sprint_share: float = 0.4
+## Share of the sprint's extra speed left on an empty tank. 1 keeps the old
+## sprint; 0.4, a laboured jog, is proposed and awaits the author's decision.
+@export_range(0.0, 1.0, 0.05) var winded_sprint_share: float = 1.0
 
 # === ПАРАМЕТРЫ ПРЫЖКА НА УДЕРЖАНИЕ ===
 @export_group("Прыжок на удержание")
@@ -40,6 +42,13 @@ class_name MovementController
 @export var decel_rate: float = 12.0
 @export var slope_speed_multiplier: float = 1.3  # ИЗМЕНЕНО: множитель скорости на спуске
 @export var slope_slowdown_multiplier: float = 0.7  # НОВОЕ: замедление при подъёме
+
+@export_group("Dynamics profiles")
+## Walking dynamics other systems may request by id (Motion Matching asks for
+## &"data_matched"); this controller owns the values and where they apply.
+@export var dynamics_profiles: Array[LocomotionDynamicsProfile] = [
+	preload("res://data/characters/henry_dynamics_data_matched.tres"),
+]
 
 @export_group("Carry load")
 ## A partly loaded pack still feels normal. Above this fraction weight begins
@@ -71,6 +80,9 @@ var _target_velocity: Vector3 = Vector3.ZERO
 var _velocity_rate: float = 0.0
 var _status_provider: Node
 var _fatigue: FatigueComponent
+var _requested_profile: LocomotionDynamicsProfile
+var _profile_requester: Object
+var _profile_applies: bool = false
 
 func _ready() -> void:
 	if walk_speed <= 0.0:
@@ -125,6 +137,7 @@ func process_movement(
 		player.velocity.z = 0.0
 		_target_velocity = Vector3.ZERO
 		_velocity_rate = INF
+		_profile_applies = false
 		_jump_hold_armed = false
 		_sprint_blend = 1.0
 		_sprint_inertia_timer = 0.0
@@ -210,14 +223,19 @@ func process_movement(
 	var target_vel: Vector3 = planar_dir * target_speed
 
 	# === 8) Разгон / торможение ===
+	## A requested profile only governs grounded walking; everything else keeps this tuning.
+	_profile_applies = _requested_profile != null and is_instance_valid(_profile_requester) \
+		and on_floor_now and not _crouching and get_sprint_blend() < 0.01
+	var accel_m_s2: float = _requested_profile.walk_accel_m_s2 if _profile_applies else accel_rate * max(walk_speed, 1.0)
+	var decel_m_s2: float = _requested_profile.walk_decel_m_s2 if _profile_applies else decel_rate * max(walk_speed, 1.0)
 	var current_planar_speed: float = Vector3(player.velocity.x, 0.0, player.velocity.z).length()
-	var rate: float = accel_rate * get_load_accel_multiplier() * snow_accel_multiplier if target_vel.length() > current_planar_speed else decel_rate
+	var rate: float = accel_m_s2 * get_load_accel_multiplier() * snow_accel_multiplier if target_vel.length() > current_planar_speed else decel_m_s2
 
 	# ВАЖНО: используем move_toward для более точного контроля
 	var current_planar_vel = Vector3(player.velocity.x, 0.0, player.velocity.z)
-	var new_planar_vel = current_planar_vel.move_toward(target_vel, rate * delta * max(walk_speed, 1.0))
+	var new_planar_vel = current_planar_vel.move_toward(target_vel, rate * delta)
 	_target_velocity = target_vel
-	_velocity_rate = rate * max(walk_speed, 1.0)
+	_velocity_rate = rate
 	
 	player.velocity.x = new_planar_vel.x
 	player.velocity.z = new_planar_vel.z
@@ -242,7 +260,37 @@ func get_velocity_rate() -> float:
 
 ## Planar deceleration when the target speed drops, m/s^2.
 func get_braking_rate() -> float:
-	return decel_rate * maxf(walk_speed, 1.0)
+	return _requested_profile.walk_decel_m_s2 if _profile_applies else decel_rate * maxf(walk_speed, 1.0)
+
+
+## Asks to walk with the profile `id` while `requester` holds it; false if this
+## controller has no such profile. Movement decides where it applies.
+func request_dynamics_profile(id: StringName, requester: Object) -> bool:
+	for profile: LocomotionDynamicsProfile in dynamics_profiles:
+		if profile != null and profile.id == id:
+			_requested_profile = profile
+			_profile_requester = requester
+			return true
+	return false
+
+
+## Drops `requester`'s profile; walking returns to this controller's own tuning.
+func release_dynamics_profile(requester: Object) -> void:
+	if _profile_requester != requester:
+		return
+	_requested_profile = null
+	_profile_requester = null
+	_profile_applies = false
+
+
+## Id of the profile that governed the last tick, or &"".
+func get_applied_dynamics_profile() -> StringName:
+	return _requested_profile.id if _profile_applies else &""
+
+
+## Turn damping rate in effect: the applied profile's, else `base_rate`.
+func get_turn_rate(base_rate: float) -> float:
+	return _requested_profile.turn_rate if _profile_applies else base_rate
 
 
 ## Smooth physical cost of carried weight. The hard pickup limit remains the

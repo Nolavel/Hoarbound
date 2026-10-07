@@ -347,7 +347,8 @@ func _face_towards(world_dir: Vector3, delta: float) -> void:
 	if world_dir.length_squared() < 0.0001:
 		return
 	var target_yaw: float = atan2(-world_dir.x, -world_dir.z)
-	rotation.y = lerp_angle(rotation.y, target_yaw, 1.0 - exp(-turn_rate * delta))
+	var rate: float = movement.get_turn_rate(turn_rate) if movement != null else turn_rate
+	rotation.y = lerp_angle(rotation.y, target_yaw, 1.0 - exp(-rate * delta))
 
 
 ## Horizontal movement ratio for the animation component, 0..1.

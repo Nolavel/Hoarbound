@@ -27,14 +27,11 @@ const TELEPORT_DISTANCE := 1.0
 @export var inertial_entry: bool = true
 
 @export_group("Body dynamics")
-## Walking accelerates and turns like the captured data (Holden, Code vs Data
-## Driven Displacement); sprint, air, crouch and carry keep production rates.
+## While matching animates walking it asks MovementController for walking that
+## moves like the captured data (Holden, Code vs Data Driven Displacement).
 @export var data_matched_body: bool = true
-## Data p95 is about 1.8 m/s^2 either way; production is 12 / 18 m/s^2.
-@export var data_accel_m_s2: float = 3.0
-@export var data_decel_m_s2: float = 3.5
-## Player.turn_rate while matched; production 10 starts a 90-degree turn at 15 rad/s.
-@export var data_turn_rate: float = 4.0
+## The movement-owned profile asked for; its values live with MovementController.
+@export var dynamics_profile: StringName = &"data_matched"
 
 var debug_view: MotionMatchingDebugView
 
@@ -53,8 +50,7 @@ var _handovers := 0
 var _active_seconds := 0.0
 var _total_seconds := 0.0
 var _last_body_position := Vector3.ZERO
-var _production_dynamics: Array[float] = []
-var _data_rates_on := false
+var _profile_requested := false
 var _still_time := 0.0
 var _tree_standing := false
 var _hold_share := 0.0
@@ -147,8 +143,10 @@ func _start() -> void:
 	# The tree is advanced here, every physics tick, right before the matched pose.
 	_tree_callback_mode = _visual.animation_tree.callback_mode_process
 	_visual.animation_tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
-	if data_matched_body:
-		_production_dynamics = [_movement.accel_rate, _movement.decel_rate, _player.turn_rate]
+	if data_matched_body and not _movement.request_dynamics_profile(dynamics_profile, self):
+		push_warning("MotionMatchingLocomotion: movement has no '%s' profile; walking keeps its tuning." % dynamics_profile)
+		data_matched_body = false
+	_movement.release_dynamics_profile(self)
 	# Footprints, footstep audio and snow prints follow the database contacts.
 	_sensor = _player.get_node_or_null(^"FootContactSensor") as FootContactSensor
 	if _sensor != null:
@@ -161,8 +159,8 @@ func _start() -> void:
 func _exit_tree() -> void:
 	if is_instance_valid(_visual) and _visual.animation_tree != null and _controller != null:
 		_visual.animation_tree.callback_mode_process = _tree_callback_mode
-	if is_instance_valid(_movement) and is_instance_valid(_player):
-		_set_body_rates(false)
+	if is_instance_valid(_movement):
+		_movement.release_dynamics_profile(self)
 	if is_instance_valid(_sensor) and _sensor.contact_source == self:
 		_sensor.contact_source = null
 
@@ -173,8 +171,7 @@ func _physics_process(delta: float) -> void:
 	var speed := Vector2(_player.velocity.x, _player.velocity.z).length()
 	var limit := _coverage_speed * (1.0 + (coverage_margin if _active else 0.0))
 	var plain := _visual.is_plain_locomotion()
-	var walking := plain and not _player.is_crouching() and _movement.get_sprint_blend() < 0.01
-	_set_body_rates(data_matched_body and walking)
+	_request_profile(data_matched_body and plain)
 	var still := speed < 0.05 and _movement.get_target_velocity().length() < 0.01
 	_still_time = _still_time + delta if still else 0.0
 	var standing := idle_to_tree_seconds > 0.0 and _still_time > idle_to_tree_seconds
@@ -216,17 +213,16 @@ func _physics_process(delta: float) -> void:
 	_controller.follow(delta, _predict(), _movement.get_target_velocity())
 
 
-## Data rates while walking, the stored production rates otherwise; applied to
-## the next tick (this node runs after Player).
-func _set_body_rates(data: bool) -> void:
-	if _production_dynamics.size() != 3 or data == _data_rates_on:
+## Holds the movement profile while matching animates plain locomotion; movement
+## itself applies it only in grounded walking (next tick: this node runs last).
+func _request_profile(wanted: bool) -> void:
+	if wanted == _profile_requested:
 		return
-	_data_rates_on = data
-	# MovementController scales its rates by max(walk_speed, 1).
-	var scale := maxf(_movement.walk_speed, 1.0)
-	_movement.accel_rate = data_accel_m_s2 / scale if data else _production_dynamics[0]
-	_movement.decel_rate = data_decel_m_s2 / scale if data else _production_dynamics[1]
-	_player.turn_rate = data_turn_rate if data else _production_dynamics[2]
+	_profile_requested = wanted
+	if wanted:
+		_movement.request_dynamics_profile(dynamics_profile, self)
+	else:
+		_movement.release_dynamics_profile(self)
 
 
 ## The body's own future at the matcher horizons: MovementController's
@@ -251,7 +247,7 @@ func _predict() -> Dictionary:
 		if a > 0.0:
 			position += direction * (0.5 * rate * a * a)
 		positions.append(position)
-		var turned := goal_yaw + wrapf(yaw - goal_yaw, -PI, PI) * exp(-_player.turn_rate * t)
+		var turned := goal_yaw + wrapf(yaw - goal_yaw, -PI, PI) * exp(-_movement.get_turn_rate(_player.turn_rate) * t)
 		forwards.append(Vector3(sin(turned), 0.0, cos(turned)))
 	return {"positions": positions, "forwards": forwards}
 

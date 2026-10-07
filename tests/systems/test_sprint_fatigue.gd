@@ -1,8 +1,12 @@
 extends SceneTree
 
-## Sprint build-up and top speed follow Henry's state: rested and fresh he
-## sprints as before, exhausted he builds up slower, winded his top speed fades.
+## The default fatigue tuning keeps the old sprint; with the proposed values
+## exhausted Henry builds up slower and winded his top speed fades.
 ## Run: godot --headless --script tests/systems/test_sprint_fatigue.gd
+
+## Proposed tuning awaiting the author: exhausted build-up factor, winded
+## stamina share, sprint share left on an empty tank.
+const PROPOSED: Array[float] = [2.0, 0.3, 0.4]
 
 var _failures: int = 0
 var _player: Player
@@ -26,14 +30,24 @@ func _run() -> void:
 	var movement := _player.movement
 	var fatigue := _player.get_node(^"FatigueComponent") as FatigueComponent
 
+	var full: float = movement.sprint_speed
 	var rested := await _sprint(1.0, 1.0)
 	var exhausted := await _sprint(0.0, 1.0)
 	var winded := await _sprint(1.0, 0.1)
-	print("sprint fatigue: rested 90%% after %.2f s, top %.2f m/s" % [rested[0], rested[1]])
-	print("sprint fatigue: exhausted 90%% after %.2f s, top %.2f m/s" % [exhausted[0], exhausted[1]])
-	print("sprint fatigue: winded top %.2f m/s" % winded[1])
-	var full: float = movement.sprint_speed
+	_report("default", rested, exhausted, winded)
 	_check(absf(rested[1] - full) < 0.1, "rested sprint does not reach %.2f m/s" % full)
+	_check(absf(exhausted[0] - rested[0]) < 0.05, "the default tuning changes the exhausted build-up")
+	_check(absf(winded[1] - full) < 0.1, "the default tuning slows a winded sprint")
+
+	movement.exhausted_sprint_ramp_factor = PROPOSED[0]
+	movement.winded_stamina_ratio = PROPOSED[1]
+	movement.winded_sprint_share = PROPOSED[2]
+	var proposed_rested := await _sprint(1.0, 1.0)
+	exhausted = await _sprint(0.0, 1.0)
+	winded = await _sprint(1.0, 0.1)
+	_report("proposed", proposed_rested, exhausted, winded)
+	_check(absf(proposed_rested[0] - rested[0]) < 0.05 and absf(proposed_rested[1] - full) < 0.1,
+		"the proposed tuning changes a rested sprint")
 	_check(exhausted[0] > rested[0] * 1.6, "exhaustion does not slow the build-up")
 	_check(winded[1] < full * 0.75 and winded[1] > movement.walk_speed * 1.2, "a winded sprint is not a laboured jog")
 	_check(is_equal_approx(movement.get_sprint_ramp_factor(), lerpf(movement.exhausted_sprint_ramp_factor, 1.0, fatigue.progress())),
@@ -82,6 +96,11 @@ func _sprint(energy: float, stamina_share: float) -> Array:
 	Input.action_release(&"move_forward")
 	stamina.stamina_deplete_rate = deplete
 	return [reached if reached >= 0.0 else INF, top]
+
+
+func _report(label: String, rested: Array, exhausted: Array, winded: Array) -> void:
+	print("sprint fatigue (%s): rested 90%% after %.2f s, top %.2f m/s; exhausted 90%% after %.2f s, top %.2f m/s; winded top %.2f m/s"
+		% [label, rested[0], rested[1], exhausted[0], exhausted[1], winded[1]])
 
 
 func _check(condition: bool, message: String) -> void:

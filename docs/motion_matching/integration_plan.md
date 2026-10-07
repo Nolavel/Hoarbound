@@ -16,15 +16,18 @@ Production locomotion (`HenryUALAnimation` AnimationTree + `MovementController`
 - `tools/runtime/audit_motion_dataset.gd` rebuilds from the sources and exits 4
   when the committed file differs from the rebuild; `MM_WRITE_DATABASE=1`
   rewrites it. The CI Motion Matching job runs that check.
-- `data_matched_body` is on (author decision, 2026-10-07): while the node runs,
-  the body accelerates at 3 m/s², brakes at 3.5 m/s² and turns at rate 4.
-  `HOARBOUND_MM_DATA_BODY=0` restores the production dynamics for A/B work.
+- `data_matched_body` is on (author decision, 2026-10-07): while the node runs
+  it requests `MovementController`'s `data_matched` dynamics profile, under
+  which walking accelerates at 3 m/s², brakes at 3.5 m/s² and turns at rate 4
+  (see "Dynamics contract"). `HOARBOUND_MM_DATA_BODY=0` keeps the production
+  dynamics for A/B work.
 
 ## Runtime ownership
 
 ```text
-Player._physics_process (unchanged)
+Player._physics_process
   input -> MovementController (velocity) -> move_and_slide -> body is authoritative
+           owns all tuning; applies a requested dynamics profile in walking only
   HenryUALAnimation.update_animation_blend/state/head_look (unchanged)
         |
 MotionMatchingLocomotion._physics_process (child of Player, runs after it)
@@ -36,6 +39,7 @@ MotionMatchingLocomotion._physics_process (child of Player, runs after it)
   handover out: 0.25 s; settling to stand freezes the search and holds both
               feet, which the tree's idle then keeps standing on
   held prop: the socket arm stays the tree's held pose (layer by hold weight)
+  requests the movement dynamics profile while the tree reports plain locomotion
   controller.follow(dt, prediction, target velocity)
     query    = live pose before the foot lock + the body's own future
     search   = all frames, no role gate
@@ -57,10 +61,43 @@ Neck and head stay with the tree clip and the `LookAtModifier3D` head look
 (author decision).
 
 Prediction mirrors the production body exactly: `MovementController`'s
-constant-rate approach to its target velocity and `Player`'s exponential turn.
-Additive hooks only: `MovementController.get_target_velocity()` /
-`get_velocity_rate()` and `HenryUALAnimation.is_plain_locomotion()`, which now
-also covers the air and landing states (follow-up 3).
+constant-rate approach to its target velocity and `Player`'s exponential turn
+at `MovementController.get_turn_rate()`. Additive hooks only:
+`MovementController.get_target_velocity()` / `get_velocity_rate()`, the
+dynamics contract below and `HenryUALAnimation.is_plain_locomotion()`, which
+now also covers the air and landing states (follow-up 3).
+
+## Dynamics contract (hardening pass)
+
+Motion Matching no longer writes `MovementController.accel_rate` /
+`decel_rate` or `Player.turn_rate`. The movement layer owns every tuning value
+and decides where a profile applies; Motion Matching only asks for one by id.
+
+```text
+LocomotionDynamicsProfile (Resource)      id, walk_accel_m_s2, walk_decel_m_s2, turn_rate
+  data/characters/henry_dynamics_data_matched.tres   data_matched: 3.0 / 3.5 / 4.0
+MovementController.dynamics_profiles      profiles it offers (export, movement-owned)
+  request_dynamics_profile(id, requester) -> bool    false: no such profile
+  release_dynamics_profile(requester)                only the holder can release
+  get_applied_dynamics_profile() -> id    the profile that governed the last tick, or &""
+  get_turn_rate(base) / get_braking_rate() profile-aware; Player and _walk_direction use them
+MotionMatchingLocomotion
+  requests data_matched while the tree reports plain locomotion; releases otherwise,
+  on exit and when the node is freed (a freed requester never holds a profile)
+```
+
+A requested profile governs only grounded walking: on the floor, not crouching,
+no sprint build-up, movement not locked. Sprint, air, crouch, carry and actions
+keep `MovementController`'s own rates. One requester at a time; a new request
+replaces the old one. Without a requester the code path computes the same rates
+as before (`accel_rate · max(walk_speed, 1)`, in m/s²).
+
+`tests/systems/test_locomotion_dynamics_profile.gd`: measured walking rates are
+12 / 18 m/s² without a request and 3.0 / 3.5 m/s² with `data_matched`; the
+profile stays off in sprint, crouch and air; a stranger cannot release it, a
+freed requester loses it; with Motion Matching on, matched walking runs on the
+profile for 120 of 120 ticks and `accel_rate`, `decel_rate` and `turn_rate`
+are unchanged after walking and sprinting.
 
 ## Foot locking
 
@@ -308,26 +345,29 @@ sprint-to-walk handover mostly disappeared. Stops stay worse (idle handover).
 
 Production gameplay, flag on or off. Before, tiredness never touched the sprint:
 it built up the same at any energy and ran at full speed until stamina hit
-zero, then stopped. Now (`MovementController`, group "Sprint and fatigue"):
+zero, then stopped. `MovementController` (group "Sprint and fatigue") now has
+the mechanism:
 
 - the build-up time constant grows with tiredness (`FatigueComponent`
-  energy): ×1 rested, ×`exhausted_sprint_ramp_factor` (2.0) at no energy;
-- below `winded_stamina_ratio` (30% stamina) the top sprint fades towards
-  `winded_sprint_share` (40%) of the sprint's extra speed, so Henry slows into a
+  energy): ×1 rested, ×`exhausted_sprint_ramp_factor` at no energy;
+- below `winded_stamina_ratio` stamina the top sprint fades towards
+  `winded_sprint_share` of the sprint's extra speed, so Henry slows into a
   laboured jog before stamina runs out instead of hitting a wall.
+
+**Tuning awaits the author.** The defaults are neutral (factor 1.0, share 1.0):
+the sprint is the old one at any energy and stamina. The proposed values are
+×2.0 build-up at no energy, winded below 30% stamina, 40% of the extra speed
+left on an empty tank.
 
 Measured (`tests/systems/test_sprint_fatigue.gd`, real Player, 8 s sprints):
 
-| state | 90% of sprint speed after | top speed |
+| state | defaults: 90% after / top | proposed: 90% after / top |
 | --- | --- | --- |
-| rested, full stamina | 1.87 s (unchanged) | 4.50 m/s |
-| no energy | 3.77 s | 4.45 m/s |
-| winded, 10% stamina | — | 3.30 m/s |
+| rested, full stamina | 1.87 s / 4.50 m/s | 1.87 s / 4.50 m/s |
+| no energy | 1.87 s / 4.50 m/s | 3.77 s / 4.45 m/s |
+| winded, 10% stamina | — / 4.50 m/s | — / 3.30 m/s |
 
-Rested and above 30% stamina the code path is the old one (in-game program:
-tree 0.515, Motion Matching 0.474, unchanged). The three numbers are the
-author's to tune; the reference is The Long Dark, where fatigue shortens and
-weakens the sprint.
+The reference is The Long Dark, where fatigue shortens and weakens the sprint.
 
 ## Handovers and held props (follow-up 6)
 
@@ -399,6 +439,8 @@ restores the crossfade for A/B.
    "Sprint build-up and fatigue").
 6. ~~Inertialization for switches and handovers; an arm layer for held
    props.~~ Done (see "Handovers and held props").
+7. ~~Hardening: movement-owned dynamics, neutral fatigue defaults.~~ Done
+   (see "Dynamics contract" and "Sprint build-up and fatigue").
 
 ## Not covered yet
 

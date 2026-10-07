@@ -1,13 +1,13 @@
 extends SceneTree
 
 ## Scripted walks (move_to_position, used by interaction approaches and the door
-## step-out) stop on their target at production and data-matched braking rates.
+## step-out) stop on their target with production and data-matched walking.
 ## Run: godot --headless --script tests/systems/test_scripted_walk_braking.gd
 
 ## Farthest a scripted walk may come to rest past or short of its target, metres.
 const TOLERANCE_M: float = 0.06
-## [label, acceleration, deceleration] in m/s^2; production and data-matched body.
-const PROFILES: Array = [["production", 12.0, 18.0], ["data-matched", 3.0, 3.5]]
+## Movement dynamics profiles walked: none (production tuning) and data-matched.
+const PROFILES: Array[StringName] = [&"", &"data_matched"]
 const DISTANCES: Array[float] = [0.3, 3.0]
 
 var _failures: int = 0
@@ -31,12 +31,11 @@ func _run() -> void:
 	_player = (load("res://scenes/actors/player/player.tscn") as PackedScene).instantiate() as Player
 	root.add_child(_player)
 	_player.movement_stopped.connect(func() -> void: _stopped = true)
-	for profile: Array in PROFILES:
-		var scale: float = maxf(_player.movement.walk_speed, 1.0)
-		_player.movement.accel_rate = float(profile[1]) / scale
-		_player.movement.decel_rate = float(profile[2]) / scale
+	for profile: StringName in PROFILES:
+		_player.movement.release_dynamics_profile(self)
+		_check(profile == &"" or _player.movement.request_dynamics_profile(profile, self), "no '%s' profile" % profile)
 		for distance: float in DISTANCES:
-			await _walk(String(profile[0]), distance)
+			await _walk("production" if profile == &"" else String(profile), distance)
 	if _failures > 0:
 		push_error("scripted walk braking: %d check(s) failed" % _failures)
 		quit(1)
