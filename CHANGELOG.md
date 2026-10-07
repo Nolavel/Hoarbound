@@ -5,6 +5,17 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Motion Matching retarget backend comparison (#202)
+
+- `MotionRetargeter` gets three opt-in stages (off by default, database unchanged):
+  - `STAGE_NEUTRAL_POSE`: relaxed standing retarget pose from the source's and Henry's idle, with a straight-elbow blend for flexed arms;
+  - `STAGE_TWIST_SPLIT`: forearm roll on the lowerarm;
+  - `STAGE_SPINE_CHAIN`: spine sampled by chain length.
+- `UALSkeletonModel.mean_pose()` gives Henry's mean pose over a clip.
+- Profiles: `source_dir` and standing clip per family; `cmu_bvh_v2()` with `hand ← L/RFingerBase` for diagnostics; the 100STYLE conventions are now measured.
+- `ModifierRetargetBackend` runs Godot's `RetargetModifier3D` as a comparison backend. `dump_retarget_layers.gd` and `capture_retarget_quad.gd` take named variants (`MM_DUMP_VARIANTS`, `MM_DIAG_VARIANT`).
+- Results in `docs/motion_matching/retarget_backends.md`.
+
 ### 2026-10-07 - Motion Matching mocap data request (#202)
 
 - `docs/motion_matching/mocap_data_request.md` specifies the data production
