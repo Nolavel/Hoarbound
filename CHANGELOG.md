@@ -5,6 +5,18 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-08 - Direction reset: 10-step build plan, First Exit A spine
+
+- `docs/BUILD_PLAN.md`: single ordered build sequence (10 checkpoints) replacing the
+  scattered backlog, plus a one-year plan to the summer-2027 vertical slice. Grammar
+  rule written down: no system ships unless it visibly changes a survival decision.
+- ADR: the interaction crosshair is a readability aid only, decoupled from the
+  embodied-interaction condition (#198) — presentation never gates whether an
+  interaction is possible.
+- Embodied / motion-matching work sequenced to the end of the path (step 10). Issues
+  #197, #199, #201, #202, #203 frozen (`status: frozen`), preserved not cancelled.
+- `PRD.md`, `README.md`: link the build plan as source of truth.
+
 ### 2026-10-07 - Motion Matching gate C: six styles, leg-roll diagnosis (#202)
 
 - One B4 retarget setup on eight 100STYLE clips (Neutral, Rushed, StartStop,

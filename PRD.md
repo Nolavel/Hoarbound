@@ -4,7 +4,7 @@
 >
 > Owner: Nolavel. Repository / branch rules live in `AGENTS.md`.
 
-See also: [`README.md`](README.md), [`docs/game_design/VERTICAL_SLICE.md`](docs/game_design/VERTICAL_SLICE.md), [`docs/GDD.md`](docs/GDD.md), and [`CONTRIBUTING_DECOMPOSITION.md`](CONTRIBUTING_DECOMPOSITION.md).
+See also: [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) (the ordered 10-step build sequence and one-year plan), [`README.md`](README.md), [`docs/game_design/VERTICAL_SLICE.md`](docs/game_design/VERTICAL_SLICE.md), [`docs/GDD.md`](docs/GDD.md), and [`CONTRIBUTING_DECOMPOSITION.md`](CONTRIBUTING_DECOMPOSITION.md).
 
 ## 1. Product vision
 
