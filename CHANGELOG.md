@@ -5,6 +5,19 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Gait symmetry: measured limp, retarget stance-height fix (#202)
+
+- `MotionRetargeter` levels the planted feet: a source subject's unequal legs
+  no longer leave one of Henry's stance feet lower. Each side's planted ball
+  height is measured and removed from the pelvis while that foot carries the
+  weight. Database `root-space-v9` (same 12 490 samples, audit clean); in-game
+  skating unchanged (0.438 -> 0.439 m/s).
+- `capture_motion_matching_player.gd`: `MM_PROGRAM=walk`, `MM_GAIT_TRACE=1`
+  and `MM_FOOT_LOCK=0` for gait-symmetry captures.
+- The reported left-leg limp is measured (step length +6.7%, step time +8.7%,
+  pelvis 8.5 mm lower over the left leg) and traced to the walking source, CMU
+  subject 39; see `docs/motion_matching/integration_plan.md`. Not yet resolved.
+
 ### 2026-10-07 - Movement owns its dynamics; fatigue tuning neutral (#202 hardening)
 
 - `MovementController` offers dynamics profiles (`LocomotionDynamicsProfile`,

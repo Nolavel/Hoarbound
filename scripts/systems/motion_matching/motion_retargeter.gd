@@ -13,6 +13,10 @@ const EXTRAPOLATION_MIN_SPEED := 0.1
 const SAVGOL_ORDER := 3
 const STANCE_TOE_SPEED := 0.20
 const STANCE_HEIGHT_BAND := 0.03
+## A foot is planted while it moves slower than this share of the body speed.
+const STANCE_SPEED_SHARE := 0.25
+## Ankle height gap over which body weight shifts from one foot to the other, m.
+const WEIGHT_SHIFT_HEIGHT := 0.02
 const PROBE_BONES := [
 	"pelvis", "spine_03", "Head", "foot_l", "foot_r", "ball_l", "ball_r",
 	"calf_l", "calf_r", "thigh_l", "thigh_r", "hand_l", "hand_r",
@@ -42,6 +46,10 @@ var _pelvis_rest_model := Vector3.ZERO
 var _pelvis_parent_rest_inverse := Transform3D.IDENTITY
 ## Constant vertical error the subject's proportions leave on Henry, metres.
 var _ground_offset: float = 0.0
+## Per side, how far Henry's planted ball sits from the mean of both, m: the
+## source's unequal legs on Henry's equal ones. Removed from the pelvis in stance.
+var _stance_offsets: Array[float] = [0.0, 0.0]
+var _ankle_indices: Array[int] = [-1, -1]
 ## Root velocity over the clip's last moments, carried on past its end.
 var _end_velocity := Vector3.ZERO
 
@@ -69,7 +77,11 @@ func setup(source_clip: BVHClip, source_profile: SourceRetargetProfile, target_m
 	_pelvis_rest_model = target.rest_global[pelvis].origin
 	var pelvis_parent := target.parents[pelvis]
 	_pelvis_parent_rest_inverse = Transform3D.IDENTITY if pelvis_parent < 0 else target.rest_global[pelvis_parent].affine_inverse()
-	_ground_offset = 0.0  # measured on the unaligned retarget
+	_ankle_indices = [clip.find_bone(profile.left_ankle), clip.find_bone(profile.right_ankle)]
+	_ground_offset = 0.0  # both measured on the unaligned retarget
+	_stance_offsets = [0.0, 0.0]
+	_stance_offsets = _measure_stance_offsets()
+	report["stance_offsets_m"] = _stance_offsets.duplicate()
 	_ground_offset = _measure_ground_offset()
 	report["ground_offset_m"] = _ground_offset
 	report["dataset"] = profile.dataset
@@ -131,7 +143,7 @@ func retarget_at(seconds: float) -> Dictionary:
 	var height_delta := hips_local.y / motion_scale - _ankle_stance_height - _reference_leg_vertical
 	var pelvis_model := Vector3(
 		_pelvis_rest_model.x + hips_local.x,
-		_pelvis_rest_model.y + height_delta * motion_scale - _ground_offset,
+		_pelvis_rest_model.y + height_delta * motion_scale - _ground_offset - _stance_correction(source),
 		_pelvis_rest_model.z + hips_local.z
 	)
 	return {
@@ -385,6 +397,53 @@ func _poly_fit_at(values: Array[Vector3], first: int, last: int, center: int, or
 				matrix[row][column] -= factor * matrix[pivot][column]
 			rhs[row] -= rhs[pivot] * factor
 	return rhs[0] / matrix[0][0]
+
+
+## Pelvis shift that sets the weight-bearing foot on the same ground as the other:
+## its stance offset, blended by which ankle is lower (equal in double support).
+func _stance_correction(source: Array[Transform3D]) -> float:
+	if _ankle_indices[0] < 0 or _ankle_indices[1] < 0:
+		return 0.0
+	var left := (_alignment * source[_ankle_indices[0]].origin).y * motion_scale
+	var right := (_alignment * source[_ankle_indices[1]].origin).y * motion_scale
+	var left_weight := 1.0 / (1.0 + exp((left - right) / WEIGHT_SHIFT_HEIGHT))
+	return left_weight * _stance_offsets[0] + (1.0 - left_weight) * _stance_offsets[1]
+
+
+## Median height of each planted ball (slower than STANCE_SPEED_SHARE of the root),
+## minus the mean of both sides; zero when a side never plants.
+func _measure_stance_offsets() -> Array[float]:
+	var balls := [target.find_bone("ball_l"), target.find_bone("ball_r")]
+	if balls[0] < 0 or balls[1] < 0 or root_positions.size() < 3:
+		return [0.0, 0.0]
+	var heights: Array = [[], []]
+	var previous: Array[Vector3] = []
+	for sample in range(root_positions.size()):
+		var pose := retarget_at(float(sample) / track_rate_hz)
+		var globals := target.forward_kinematics(pose["rotations"], pose["pelvis_position"])
+		var basis := _yaw_basis(root_forwards[sample])
+		var current: Array[Vector3] = []
+		for side in range(2):
+			current.append(root_positions[sample] + basis * globals[balls[side]].origin)
+		if not previous.is_empty():
+			var body_speed := Vector2(root_positions[sample].x - root_positions[sample - 1].x, root_positions[sample].z - root_positions[sample - 1].z).length() * track_rate_hz
+			for side in range(2):
+				var speed := Vector2(current[side].x - previous[side].x, current[side].z - previous[side].z).length() * track_rate_hz
+				if body_speed > 0.3 and speed < STANCE_SPEED_SHARE * body_speed:
+					(heights[side] as Array).append(globals[balls[side]].origin.y)
+		previous = current
+	if (heights[0] as Array).size() < 3 or (heights[1] as Array).size() < 3:
+		return [0.0, 0.0]
+	var left := _median_of(heights[0])
+	var right := _median_of(heights[1])
+	var mean := (left + right) * 0.5
+	return [left - mean, right - mean]
+
+
+func _median_of(values: Array) -> float:
+	var sorted := values.duplicate()
+	sorted.sort()
+	return float(sorted[sorted.size() / 2])
 
 
 ## Ground alignment: median over the clip of Henry's lower ball joint against its
