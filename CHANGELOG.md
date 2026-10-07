@@ -5,6 +5,15 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Sprint build-up and top speed follow tiredness (#202 follow-up 5)
+
+- `MovementController`: the sprint builds up up to twice as slowly as energy
+  runs out (`exhausted_sprint_ramp_factor`), and below 30% stamina the top
+  sprint fades to a laboured jog (`winded_sprint_share`) instead of running at
+  full speed into a wall at zero. Rested with stamina to spare nothing changes
+  (90% speed after 1.87 s either way). New suite
+  `tests/systems/test_sprint_fatigue.gd`.
+
 ### 2026-10-07 - Motion Matching: run data, honest trajectory ends (#202 follow-up 5)
 
 - 36 CMU run trials join the database (`root-space-v8`, 12 490 samples,

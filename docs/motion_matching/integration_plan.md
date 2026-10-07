@@ -300,6 +300,31 @@ Four-scale in-game means (data-matched body):
 Motion Matching's share of the sprint segment went 0.10 → 0.76 and the
 sprint-to-walk handover mostly disappeared. Stops stay worse (idle handover).
 
+## Sprint build-up and fatigue (follow-up 5, part 2)
+
+Production gameplay, flag on or off. Before, tiredness never touched the sprint:
+it built up the same at any energy and ran at full speed until stamina hit
+zero, then stopped. Now (`MovementController`, group "Sprint and fatigue"):
+
+- the build-up time constant grows with tiredness (`FatigueComponent`
+  energy): ×1 rested, ×`exhausted_sprint_ramp_factor` (2.0) at no energy;
+- below `winded_stamina_ratio` (30% stamina) the top sprint fades towards
+  `winded_sprint_share` (40%) of the sprint's extra speed, so Henry slows into a
+  laboured jog before stamina runs out instead of hitting a wall.
+
+Measured (`tests/systems/test_sprint_fatigue.gd`, real Player, 8 s sprints):
+
+| state | 90% of sprint speed after | top speed |
+| --- | --- | --- |
+| rested, full stamina | 1.87 s (unchanged) | 4.50 m/s |
+| no energy | 3.77 s | 4.45 m/s |
+| winded, 10% stamina | — | 3.30 m/s |
+
+Rested and above 30% stamina the code path is the old one (in-game program:
+tree 0.515, Motion Matching 0.474, unchanged). The three numbers are the
+author's to tune; the reference is The Long Dark, where fatigue shortens and
+weakens the sprint.
+
 ## Follow-up fixes, in order
 
 1. ~~Distance-based braking for scripted walks.~~ Done.
@@ -308,7 +333,8 @@ sprint-to-walk handover mostly disappeared. Stops stay worse (idle handover).
 3. ~~Jump rework, including the walk-start hop and real landing ownership.~~
    Done (see "Airtime and landing"); jump height and feel stay with the author.
 4. ~~Snow and wading with Motion Matching.~~ Done (see "Snow and wading").
-5. Run data and sprint build-up with fatigue (`StaminaManager`).
+5. ~~Run data and sprint build-up with fatigue.~~ Done (see "Run data" and
+   "Sprint build-up and fatigue").
 6. Inertialization for switches and handovers; an arm layer so held props do
    not hand the whole body back to the tree.
 

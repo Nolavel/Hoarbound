@@ -22,6 +22,14 @@ class_name MovementController
 @export var sprint_inertia_time: float = 0.6
 @export var sprint_release_boost: float = 0.5
 
+@export_group("Sprint and fatigue")
+## Sprint build-up takes this many times longer with no energy left (rested: 1).
+@export_range(1.0, 4.0, 0.1) var exhausted_sprint_ramp_factor: float = 2.0
+## Below this stamina share Henry is winded and his top sprint fades.
+@export_range(0.0, 1.0, 0.05) var winded_stamina_ratio: float = 0.3
+## Share of the sprint's extra speed left on an empty tank: a laboured jog.
+@export_range(0.0, 1.0, 0.05) var winded_sprint_share: float = 0.4
+
 # === ПАРАМЕТРЫ ПРЫЖКА НА УДЕРЖАНИЕ ===
 @export_group("Прыжок на удержание")
 @export var jump_velocity: float = 5.0
@@ -62,6 +70,7 @@ var _carry_inventory: InventoryComponent
 var _target_velocity: Vector3 = Vector3.ZERO
 var _velocity_rate: float = 0.0
 var _status_provider: Node
+var _fatigue: FatigueComponent
 
 func _ready() -> void:
 	if walk_speed <= 0.0:
@@ -174,8 +183,8 @@ func process_movement(
 		stamina_manager.stop_consuming_stamina()
 
 	if should_sprint:
-		var up_rate: float = delta / sprint_ramp_time
-		_sprint_blend = lerp(_sprint_blend, sprint_multiplier, up_rate)
+		var up_rate: float = delta / (sprint_ramp_time * get_sprint_ramp_factor())
+		_sprint_blend = lerp(_sprint_blend, get_sprint_ceiling(sprint_multiplier), up_rate)
 		_sprint_inertia_timer = 0.0
 	elif _sprint_blend > 1.0:
 		if sprint_just_released and has_input and on_floor_now:
@@ -300,6 +309,21 @@ func get_jump_release_fired() -> bool:
 
 func set_sprint_allowed(allowed: bool) -> void:
 	_sprint_allowed = allowed
+
+## How much longer the sprint build-up takes from tiredness: 1 when rested.
+func get_sprint_ramp_factor() -> float:
+	if _fatigue == null and get_parent() != null:
+		_fatigue = get_parent().get_node_or_null(^"FatigueComponent") as FatigueComponent
+	var energy: float = _fatigue.progress() if _fatigue != null else 1.0
+	return lerpf(exhausted_sprint_ramp_factor, 1.0, energy)
+
+
+## Top sprint multiplier for the stamina left: full until winded, then fading
+## to `winded_sprint_share` of the sprint's extra speed.
+func get_sprint_ceiling(sprint_multiplier: float) -> float:
+	var breath: float = clampf(get_stamina_ratio() / maxf(winded_stamina_ratio, 0.001), 0.0, 1.0)
+	return 1.0 + (sprint_multiplier - 1.0) * lerpf(winded_sprint_share, 1.0, breath)
+
 
 func get_stamina_ratio() -> float:
 	if stamina_manager:
