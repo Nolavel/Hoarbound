@@ -29,6 +29,7 @@ on:
       - "tests/systems/test_dev_diorama_map.gd"
       - "scripts/experimental/motion_matching/**"
       - "scripts/systems/motion_matching/**"
+      - "data/motion_matching/**"
       - "scripts/actors/player/henry/components/motion_matching_locomotion.gd"
       - "tests/motion_matching/**"
       - "tools/runtime/capture_motion_matching_lab.gd"
