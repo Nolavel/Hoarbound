@@ -25,7 +25,6 @@ class_name MovementController
 # === ПАРАМЕТРЫ ПРЫЖКА НА УДЕРЖАНИЕ ===
 @export_group("Прыжок на удержание")
 @export var jump_velocity: float = 5.0
-@export var start_jump_impulse: float = 0.1
 
 # === ЖИВОЙ РАЗГОН / ТОРМОЖЕНИЕ ===
 @export_group("Живой разгон / торможение")
@@ -51,7 +50,6 @@ class_name MovementController
 var snow_speed_multiplier: float = 1.0
 ## Set by SnowShell: deep snow is slow to get going in; 1.0 on bare ground.
 var snow_accel_multiplier: float = 1.0
-var _was_idle: bool = true
 var _sprint_blend: float = 1.0
 var _sprint_inertia_timer: float = 0.0
 var _jump_hold_armed: bool = false
@@ -121,7 +119,6 @@ func process_movement(
 		_jump_hold_armed = false
 		_sprint_blend = 1.0
 		_sprint_inertia_timer = 0.0
-		_was_idle = true
 		if stamina_manager != null and stamina_manager.is_consuming_stamina:
 			stamina_manager.stop_consuming_stamina()
 		return
@@ -216,12 +213,7 @@ func process_movement(
 	player.velocity.x = new_planar_vel.x
 	player.velocity.z = new_planar_vel.z
 
-	# === 9) Лёгкий толчок при старте ===
-	if _was_idle and has_input and on_floor_now:
-		player.velocity.y += start_jump_impulse
-	_was_idle = not has_input
-
-	# === 10) DEBUG: вывод скорости ===
+	# === 9) DEBUG: вывод скорости ===
 	if debug_show_speed and _debug_label != null:
 		var speed: float = Vector3(player.velocity.x, 0.0, player.velocity.z).length()
 		var floor_angle: float = 0.0

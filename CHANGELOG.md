@@ -5,6 +5,18 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Airtime and landings (#202 follow-up 3)
+
+- Walk starts no longer hop: `MovementController` drops `start_jump_impulse`,
+  whose only effect was one tick off the floor and a 1.17 s landing clip on
+  every start. The AnimationTree's own foot skating fell 0.682 → 0.507 m/s over
+  the in-game program (start from idle 1.09 → 0.60).
+- `HenryUALAnimation` enters AirLoop after a 0.15 s fall timeout or a jump, and
+  picks the landing by touch-down speed: soft landings walk on, hard ones play
+  `Land` standing or the new `LandMoving` (impact, then the walk) on the move.
+  Motion Matching follows these states instead of its own airtime timers.
+- New suite `tests/systems/test_landing.gd`.
+
 ### 2026-10-07 - Motion Matching: retargeted feet stand on the ground
 
 - `MotionRetargeter` removes each clip's median ground error (Henry's lower

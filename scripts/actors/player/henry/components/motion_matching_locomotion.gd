@@ -3,15 +3,12 @@ extends Node
 
 ## Feature-flagged Motion Matching for Henry's plain locomotion (#202). The body
 ## stays authoritative; actions, carry, sit, crouch, air and sprint keep the tree.
+## Airtime and landing are the tree's verdict (HenryUALAnimation.is_plain_locomotion).
 
 ## Percentile of database root speeds treated as covered.
 const COVERAGE_PERCENTILE := 0.99
 ## A body jump longer than this in one tick is a teleport: matching re-anchors.
 const TELEPORT_DISTANCE := 1.0
-## Airtime up to this (MovementController's start hop) keeps matching.
-const AIR_GRACE_SECONDS := 0.2
-## After real airtime the tree's landing plays before matching returns.
-const LANDING_SECONDS := 0.4
 
 ## Off by default: production locomotion is untouched until the author opts in.
 ## The HOARBOUND_MOTION_MATCHING=1 environment variable also switches it on.
@@ -50,10 +47,8 @@ var _handovers := 0
 var _active_seconds := 0.0
 var _total_seconds := 0.0
 var _last_body_position := Vector3.ZERO
-var _air_time := 0.0
 var _production_dynamics: Array[float] = []
 var _data_rates_on := false
-var _landing_left := 0.0
 var _still_time := 0.0
 
 
@@ -148,22 +143,13 @@ func _physics_process(delta: float) -> void:
 	_total_seconds += delta
 	var speed := Vector2(_player.velocity.x, _player.velocity.z).length()
 	var limit := _coverage_speed * (1.0 + (coverage_margin if _active else 0.0))
-	if _player.is_on_floor():
-		if _air_time > AIR_GRACE_SECONDS:
-			_landing_left = LANDING_SECONDS
-		_air_time = 0.0
-	else:
-		_air_time += delta
-	_landing_left = maxf(0.0, _landing_left - delta)
-	var grounded := _air_time <= AIR_GRACE_SECONDS and _landing_left <= 0.0
-	var walking := grounded and not _player.is_crouching() and _visual.is_plain_locomotion() \
-		and _movement.get_sprint_blend() < 0.01
+	var plain := _visual.is_plain_locomotion()
+	var walking := plain and not _player.is_crouching() and _movement.get_sprint_blend() < 0.01
 	_set_body_rates(data_matched_body and walking)
 	var still := speed < 0.05 and _movement.get_target_velocity().length() < 0.01
 	_still_time = _still_time + delta if still else 0.0
 	var standing := idle_to_tree_seconds > 0.0 and _still_time > idle_to_tree_seconds
-	var wanted := grounded and not standing and not _player.is_crouching() and speed <= limit \
-		and _visual.is_plain_locomotion()
+	var wanted := plain and not standing and not _player.is_crouching() and speed <= limit
 	_weight = move_toward(_weight, 1.0 if wanted else 0.0, delta / handover_seconds)
 	var teleported := _player.global_position.distance_to(_last_body_position) > TELEPORT_DISTANCE
 	_last_body_position = _player.global_position

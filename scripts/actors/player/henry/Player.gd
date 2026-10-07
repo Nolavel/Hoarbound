@@ -169,7 +169,9 @@ func _physics_process(delta: float) -> void:
 
 	if is_instance_valid(animation_component):
 		animation_component.update_animation_blend(delta)
-		animation_component.update_animation_state(jump_started, cam_landed_this_frame)
+		## Downward speed before move_and_slide() is the touch-down speed.
+		var impact_speed: float = maxf(-attempted_door_push_velocity.y, 0.0)
+		animation_component.update_animation_state(jump_started, cam_landed_this_frame, impact_speed)
 		animation_component.update_head_look(delta)
 
 	cam_jump_hold_active = on_floor_now and jump_is_pressed

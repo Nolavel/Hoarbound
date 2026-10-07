@@ -29,8 +29,8 @@ Player._physics_process (unchanged)
         |
 MotionMatchingLocomotion._physics_process (child of Player, runs after it)
   AnimationTree.advance(dt)                       tree pose first (MANUAL mode)
-  gate: grounded (airtime <= 0.2 s), plain locomotion, speed <= covered speed,
-        not standing still > 0.6 s
+  gate: plain locomotion (the tree's verdict: no air or landing state, no
+        action/carry/sit/crouch), speed <= covered speed, not standing still > 0.6 s
   weight -> 1 / 0 over 0.25 s (handover)
   controller.follow(dt, prediction, target velocity)
     query    = live pose before the foot lock + the body's own future
@@ -46,15 +46,17 @@ HeadLook. Footprints and audio see the locked feet.
 ```
 
 The tree keeps: actions and work poses, held props (`hold_pose`), carry, sit,
-crouch, jump take-off and real airtime (landing plays 0.4 s), sprint above the
-covered speed (1.75 m/s, database p99), and idle after 0.6 s standing still.
+crouch, jump take-off, airtime and landing (its air states after the 0.15 s fall
+timeout), sprint above the covered speed (1.75 m/s, database p99), and idle after
+0.6 s standing still.
 Neck and head stay with the tree clip and the `LookAtModifier3D` head look
 (author decision).
 
 Prediction mirrors the production body exactly: `MovementController`'s
 constant-rate approach to its target velocity and `Player`'s exponential turn.
 Additive hooks only: `MovementController.get_target_velocity()` /
-`get_velocity_rate()` and `HenryUALAnimation.is_plain_locomotion()`.
+`get_velocity_rate()` and `HenryUALAnimation.is_plain_locomotion()`, which now
+also covers the air and landing states (follow-up 3).
 
 ## Foot locking
 
@@ -89,26 +91,32 @@ Zhang et al. 2018 (MANN) — ball-joint speed weighted by
 only relative values matter.
 
 Matching is chaotic: one program is one sample (a sub-centimetre data change on
-the clips in play moved one run's "stop" from 0.26 to 0.64). Numbers are means over four stick scales
-(`MM_STICK_SCALE` = 1.0, 0.97, 0.94, 0.91), database `root-space-v7`, per-state
-body rates:
+the clips in play moved one run's "stop" from 0.26 to 0.64). Numbers are means
+over four stick scales (`MM_STICK_SCALE` = 1.0, 0.97, 0.94, 0.91), database
+`root-space-v7`, per-state body rates, after follow-up 3 removed the walk-start
+hop (it also made the tree play its landing clip on every start):
 
 | segment | tree | MM, production body | MM + data-matched body (default) |
 | --- | --- | --- | --- |
 | idle (tree owns idle) | 0.009 | 0.009 | 0.009 |
-| walk forward (start from idle) | 1.091 | 0.776 | 0.780 |
-| smooth curve left | 0.560 | 0.580 | 0.542 |
-| walk | 0.549 | 0.465 | 0.465 |
-| stop | 0.310 | 0.474 | 0.494 |
-| start 90 deg right | 1.515 | 1.041 | 1.209 |
-| sharp reversal | 0.604 | 0.817 | 0.613 |
-| walk after sprint | 0.989 | 0.937 | 0.920 |
-| half stick | 0.327 | 0.306 | 0.268 |
-| whole run | 0.682 | 0.604 | 0.594 |
+| walk forward (start from idle) | 0.604 | 0.702 | 0.671 |
+| smooth curve left | 0.555 | 0.576 | 0.542 |
+| walk | 0.537 | 0.491 | 0.465 |
+| stop | 0.260 | 0.422 | 0.493 |
+| start 90 deg right | 0.815 | 0.769 | 0.673 |
+| sharp reversal | 0.676 | 0.773 | 0.586 |
+| walk after sprint | 0.724 | 0.722 | 0.935 |
+| half stick | 0.332 | 0.275 | 0.274 |
+| stop, idle | 0.082 | 0.117 | 0.117 |
+| whole run | 0.507 | 0.549 | 0.539 |
 
-Stop stays above the tree: the 0.25 s crossfade into the tree's idle slides
-planted feet (1–4 m/s at ground height during the blend); inertialization is
-follow-up 6.
+Before follow-up 3 the tree scored 0.682 on the whole run (walk forward 1.09,
+start 90° 1.52) and Motion Matching looked better overall; most of that lead was
+the tree's landing clip. Motion Matching now wins continuous walking and turning
+(walk, curve, start 90°, reversal, half stick) and loses every handover with the
+tree (start from idle, stop, walk after sprint): the 0.25 s crossfade slides
+planted feet (1–4 m/s at ground height during the blend). Inertialized handovers
+are follow-up 6.
 
 With Motion Matching keeping idle (`idle_to_tree_seconds = 0`) the start from
 idle scores 0.569 but idle itself 0.185: CMU standing ranges are short and the
@@ -122,10 +130,10 @@ matcher hops between them and pivot-capture standing frames (111_28 alone is
    is at 1.8 / 1.9 m/s² (p95) and 2.7 rad/s (p99). No real motion matches a
    0.07 s stop, so starts, stops and reversals clamp and drag (Holden, "code vs
    data driven displacement"). Resolved by the author: `data_matched_body` on.
-2. **Production defect found on the way:** every walk start applies
+2. ~~**Production defect found on the way:** every walk start applies
    `start_jump_impulse`, the body leaves the floor for one tick and the tree
-   plays AirLoop → Land (~1.3 s landing clip while walking). Visible in the
-   in-game video. Not fixed here: it belongs to the jump rework.
+   plays AirLoop → Land (~1.3 s landing clip while walking).~~ Fixed
+   (follow-up 3), see below.
 3. **Sprint** stays with the tree (no run data in the database yet); its foot
    skating is 2–5 m/s in this metric.
 4. **Snow and wading** with Motion Matching are untested (next stage).
@@ -154,17 +162,47 @@ Motion Matching flag is on; production with the flag off is unchanged.
 4. **Not a uniform win** (four-scale means, v7): reversal 0.82 → 0.61, curve
    and half stick improve; start at 90° worsens 1.04 → 1.21; stop and walk are
    unchanged.
-5. **The start hop** (finding 2) stays: matching ignores airtime up to 0.2 s,
-   the tree still plays its landing whenever it owns Henry.
+5. ~~**The start hop** (finding 2) stays.~~ Fixed (follow-up 3); Motion
+   Matching now follows the tree's air and landing states.
 6. **Branches:** `.github/workflows/checks.yml` (Motion Matching job and path
    filter) will conflict when `codex` next merges `main`; keep both sides' jobs.
+
+## Airtime and landing (follow-up 3)
+
+Measured on a flat floor with a 0.3 m step (production, flag off):
+
+| case | before | after |
+| --- | --- | --- |
+| walk start | 2 ticks airborne, AirLoop, Land 1.17 s while walking | stays Grounded |
+| 0.3 m step-down while walking | Land 1.15 s while walking | soft landing, walks on |
+| jump while walking | Land 1.15 s while the body walks on (~1.7 m, computed) | LandMoving: impact, walk after 0.35 s |
+| standing jump | JumpStart, Land 1.15 s | unchanged |
+
+- `MovementController` no longer adds `start_jump_impulse` (0.1 m/s up on every
+  walk start; its only effect was the false airtime).
+- `HenryUALAnimation` judges airtime once: AirLoop only after the 0.15 s fall
+  timeout (Unity Starter Assets `FallTimeout`) or a jump; a landing plays only
+  after real air. Touch-down speed picks it: below `hard_landing_speed`
+  (3 m/s, a ~0.46 m drop) Henry blends straight back to locomotion; above it,
+  standing plays `Land`, moving plays `LandMoving` (the first 0.6 s of
+  `Jump_Land`, then a 0.25 s blend to the walk), as Lyra hands a moving landing
+  back to locomotion.
+- `MotionMatchingLocomotion` dropped its own airtime grace and landing timer and
+  follows those states.
+- `tests/systems/test_landing.gd` covers the four cases and fails on the old code.
+
+Left for the author: `jump_velocity` 5 m/s gives a 1.28 m apex and 1.0 s of
+airtime (a standing human jump is about 0.4–0.5 m); the UAL set has no fall
+loop, so `AirLoop` replays `Jump_Start` from the take-off when Henry walks off a
+ledge.
 
 ## Follow-up fixes, in order
 
 1. ~~Distance-based braking for scripted walks.~~ Done.
 2. ~~Per-state dynamics.~~ Done: data rates for walking only (author may tune
    sprint/air/carry separately later).
-3. Jump rework, including the walk-start hop and real landing ownership.
+3. ~~Jump rework, including the walk-start hop and real landing ownership.~~
+   Done (see "Airtime and landing"); jump height and feel stay with the author.
 4. Snow and wading with Motion Matching (`WadeModifier` / `SnowFootModifier`
    over the locked feet; snow multipliers on the data rates).
 5. Run data and sprint build-up with fatigue (`StaminaManager`).
