@@ -25,8 +25,8 @@ const LANDING_SECONDS := 0.4
 @export_range(0.0, 5.0, 0.1) var idle_to_tree_seconds: float = 0.6
 
 @export_group("Body dynamics")
-## While matching runs, the body accelerates and turns like the captured data
-## (Holden, Code vs Data Driven Displacement). On by author decision, 2026-10-07.
+## Walking accelerates and turns like the captured data (Holden, Code vs Data
+## Driven Displacement); sprint, air, crouch and carry keep production rates.
 @export var data_matched_body: bool = true
 ## Data p95 is about 1.8 m/s^2 either way; production is 12 / 18 m/s^2.
 @export var data_accel_m_s2: float = 3.0
@@ -52,6 +52,7 @@ var _total_seconds := 0.0
 var _last_body_position := Vector3.ZERO
 var _air_time := 0.0
 var _production_dynamics: Array[float] = []
+var _data_rates_on := false
 var _landing_left := 0.0
 var _still_time := 0.0
 
@@ -130,11 +131,6 @@ func _start() -> void:
 	_visual.animation_tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	if data_matched_body:
 		_production_dynamics = [_movement.accel_rate, _movement.decel_rate, _player.turn_rate]
-		# MovementController scales its rates by max(walk_speed, 1).
-		var scale := maxf(_movement.walk_speed, 1.0)
-		_movement.accel_rate = data_accel_m_s2 / scale
-		_movement.decel_rate = data_decel_m_s2 / scale
-		_player.turn_rate = data_turn_rate
 	_ready_state = "ready (covers <= %.2f m/s%s)" % [_coverage_speed, ", data-matched body" if data_matched_body else ""]
 	print("[MOTION_MATCHING_LOCOMOTION] %s, %d samples, %s" % [_ready_state, database.get_sample_count(), database.build_signature])
 	set_physics_process(true)
@@ -143,10 +139,8 @@ func _start() -> void:
 func _exit_tree() -> void:
 	if is_instance_valid(_visual) and _visual.animation_tree != null and _controller != null:
 		_visual.animation_tree.callback_mode_process = _tree_callback_mode
-	if _production_dynamics.size() == 3 and is_instance_valid(_movement) and is_instance_valid(_player):
-		_movement.accel_rate = _production_dynamics[0]
-		_movement.decel_rate = _production_dynamics[1]
-		_player.turn_rate = _production_dynamics[2]
+	if is_instance_valid(_movement) and is_instance_valid(_player):
+		_set_body_rates(false)
 
 
 func _physics_process(delta: float) -> void:
@@ -162,6 +156,9 @@ func _physics_process(delta: float) -> void:
 		_air_time += delta
 	_landing_left = maxf(0.0, _landing_left - delta)
 	var grounded := _air_time <= AIR_GRACE_SECONDS and _landing_left <= 0.0
+	var walking := grounded and not _player.is_crouching() and _visual.is_plain_locomotion() \
+		and _movement.get_sprint_blend() < 0.01
+	_set_body_rates(data_matched_body and walking)
 	var still := speed < 0.05 and _movement.get_target_velocity().length() < 0.01
 	_still_time = _still_time + delta if still else 0.0
 	var standing := idle_to_tree_seconds > 0.0 and _still_time > idle_to_tree_seconds
@@ -188,6 +185,19 @@ func _physics_process(delta: float) -> void:
 	_active_seconds += delta
 	_controller.weight = smoothstep(0.0, 1.0, _weight)
 	_controller.follow(delta, _predict(), _movement.get_target_velocity())
+
+
+## Data rates while walking, the stored production rates otherwise; applied to
+## the next tick (this node runs after Player).
+func _set_body_rates(data: bool) -> void:
+	if _production_dynamics.size() != 3 or data == _data_rates_on:
+		return
+	_data_rates_on = data
+	# MovementController scales its rates by max(walk_speed, 1).
+	var scale := maxf(_movement.walk_speed, 1.0)
+	_movement.accel_rate = data_accel_m_s2 / scale if data else _production_dynamics[0]
+	_movement.decel_rate = data_decel_m_s2 / scale if data else _production_dynamics[1]
+	_player.turn_rate = data_turn_rate if data else _production_dynamics[2]
 
 
 ## The body's own future at the matcher horizons: MovementController's

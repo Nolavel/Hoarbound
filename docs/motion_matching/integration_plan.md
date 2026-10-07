@@ -130,10 +130,11 @@ Motion Matching flag is on; production with the flag off is unchanged.
    now commands at most √(2·a·d) at the body's braking rate. Rest error went
    0.272 → 0.012 m (3 m walk) and 0.146 → 0.008 m (0.3 m) with data rates,
    0.019 → 0.012 m in production; `tests/systems/test_scripted_walk_braking.gd`.
-2. **The override is global while the node runs.** `MovementController` uses
-   the reduced rates in every state, including the ones the tree animates:
-   stopping from a 4.5 m/s sprint takes ~2.9 m instead of ~0.56 m (computed,
-   v²/2a); air steering, carry and crouch respond more slowly.
+2. ~~**The override is global while the node runs.**~~ Fixed (follow-up 2):
+   data rates apply only while walking (grounded plain locomotion, no crouch,
+   no sprint build-up); sprint, air, crouch, carry and actions keep production
+   rates. Sprint stop from 4.35 m/s: 2.67 m with global data rates, 0.49 m now
+   (production 0.49 m). Walking segments are unchanged.
 3. **Snow multiplies the reduced acceleration** (`snow_accel_multiplier`):
    deep-snow starts become slower still. Untested.
 4. **Not a uniform win:** stop 0.47 → 0.26 and reversal 0.99 → 0.55 improve,
@@ -146,8 +147,8 @@ Motion Matching flag is on; production with the flag off is unchanged.
 ## Follow-up fixes, in order
 
 1. ~~Distance-based braking for scripted walks.~~ Done.
-2. Per-state dynamics with the author: data rates for walking only, or tuned
-   sprint/air/carry rates.
+2. ~~Per-state dynamics.~~ Done: data rates for walking only (author may tune
+   sprint/air/carry separately later).
 3. Jump rework, including the walk-start hop and real landing ownership.
 4. Snow and wading with Motion Matching (`WadeModifier` / `SnowFootModifier`
    over the locked feet; snow multipliers on the data rates).

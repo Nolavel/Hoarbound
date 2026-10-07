@@ -5,6 +5,13 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Data-matched body rates only while walking (#202 follow-up 2)
+
+- `MotionMatchingLocomotion` applies the data-matched acceleration, braking and
+  turn rate only in plain grounded walking; sprint (and its build-up), air,
+  crouch, carry and actions keep the production rates. Sprint stop from
+  4.35 m/s went 2.67 m → 0.49 m (production value); walking is unchanged.
+
 ### 2026-10-07 - Scripted walks brake onto their target (#202 follow-up 1)
 
 - `Player._walk_direction` limits the commanded speed to √(2·a·d) at the
