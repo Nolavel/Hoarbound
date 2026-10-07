@@ -169,7 +169,9 @@ func _physics_process(delta: float) -> void:
 
 	if is_instance_valid(animation_component):
 		animation_component.update_animation_blend(delta)
-		animation_component.update_animation_state(jump_started, cam_landed_this_frame)
+		## Downward speed before move_and_slide() is the touch-down speed.
+		var impact_speed: float = maxf(-attempted_door_push_velocity.y, 0.0)
+		animation_component.update_animation_state(jump_started, cam_landed_this_frame, impact_speed)
 		animation_component.update_head_look(delta)
 
 	cam_jump_hold_active = on_floor_now and jump_is_pressed
@@ -319,13 +321,17 @@ func is_walking_to_target() -> bool:
 	return _walking_to_target
 
 
+## Heads for the walk target and brakes onto it: the input shrinks so the
+## commanded speed never exceeds sqrt(2 a d) at the body's braking rate.
 func _walk_direction() -> Vector3:
 	var offset: Vector3 = _walk_target - global_position
 	offset.y = 0.0
-	if offset.length() < 0.05:
+	var distance: float = offset.length()
+	if distance < 0.05:
 		stop_moving()
 		return Vector3.ZERO
-	return offset.normalized()
+	var braking_speed: float = sqrt(2.0 * movement.get_braking_rate() * distance)
+	return offset / distance * minf(1.0, braking_speed / maxf(movement.walk_speed, 0.001))
 
 
 ## Turns a local WASD vector into a world direction by the active camera yaw.
@@ -341,7 +347,8 @@ func _face_towards(world_dir: Vector3, delta: float) -> void:
 	if world_dir.length_squared() < 0.0001:
 		return
 	var target_yaw: float = atan2(-world_dir.x, -world_dir.z)
-	rotation.y = lerp_angle(rotation.y, target_yaw, 1.0 - exp(-turn_rate * delta))
+	var rate: float = movement.get_turn_rate(turn_rate) if movement != null else turn_rate
+	rotation.y = lerp_angle(rotation.y, target_yaw, 1.0 - exp(-rate * delta))
 
 
 ## Horizontal movement ratio for the animation component, 0..1.

@@ -42,8 +42,14 @@ const LOCKING_ACTIONS: Array[StringName] = [
 ]
 ## Walking speed of the authored carry cycle, m/s.
 const CARRY_WALK_SPEED: float = 1.5
-## Base states that own the whole pose; airtime itself is judged by the caller.
-const NON_LOCOMOTION_STATES: Array[StringName] = [&"JumpStart", &"Crouch", &"Carry", &"SitEnter", &"SitLoop", &"SitExit"]
+## Base states that own the whole pose, air and landing included.
+const NON_LOCOMOTION_STATES: Array[StringName] = [&"JumpStart", &"AirLoop", &"Land", &"LandMoving", &"Crouch",
+	&"Carry", &"SitEnter", &"SitLoop", &"SitExit"]
+## Airtime before Henry reads as falling (Unity Starter Assets FallTimeout): steps
+## and bumps keep the walk.
+const FALL_TIMEOUT_SECONDS: float = 0.15
+## Planar speed above which a hard landing hands back to the walk after impact, m/s.
+const MOVING_LANDING_SPEED: float = 0.3
 ## Kenny's feet sit this far below his origin; he is lifted by it when set down.
 const KENNY_SEAT_HEIGHT: float = 0.19
 const INTERACTIVE_SCENE: String = "res://scenes/environment/interactive/InteractiveArea.tscn"
@@ -72,6 +78,13 @@ const ACTION_ALIASES: Dictionary = {
 ## Jog sits between walk and full sprint. This is a feel point rather than a
 ## separate gameplay speed tier: MovementController still owns actual speed.
 @export_range(0.5, 0.95, 0.01) var jog_blend_position: float = 0.67
+
+@export_group("Landing")
+## Touch-down speed from which the landing clip plays; softer landings blend
+## straight back to locomotion. 3 m/s is a drop of about 0.46 m.
+@export var hard_landing_speed: float = 3.0
+## Part of the landing clip kept on the move: impact and most of the recovery.
+@export var moving_landing_seconds: float = 0.6
 
 @export_group("Visual")
 @export var portrait_render_layers: int = 16
@@ -167,6 +180,10 @@ var _head_target: Node3D
 var _head_influence: float = 0.0
 
 var _blend_position: float = 0.0
+## Continuous time off the floor, seconds.
+var _air_seconds: float = 0.0
+## &"JumpStart" or &"AirLoop" while airborne, &"" on the ground.
+var _air_state: StringName = &""
 var _resolved_idle: StringName = &""
 var _resolved_walk: StringName = &""
 var _resolved_jog: StringName = &""
@@ -183,6 +200,8 @@ var _held_prop: Node3D
 var _offhand_socket: BoneAttachment3D
 var _offhand_prop: Node3D
 var _hold_pose: float = 0.0
+## Bones the held pose raises (the socket arm), for layers drawn over the tree.
+var _hold_pose_bones := PackedStringArray()
 var _current_action: StringName = &""
 var _work_pose: WorkPose = WorkPose.NONE
 var _work_pose_time: float = 0.0
@@ -268,10 +287,14 @@ func update_animation_blend(_delta: float) -> void:
 	animation_tree.set("parameters/base/Carry/move/blend_amount", clampf(speed / 0.3, 0.0, 1.0))
 
 
-func update_animation_state(jump_started: bool, landed: bool) -> void:
+## Picks the base state after move_and_slide(). impact_speed is the downward speed
+## at touch-down; without it a landing counts as hard.
+func update_animation_state(jump_started: bool, landed: bool, impact_speed: float = INF) -> void:
 	if _state_playback == null or player == null:
 		return
 	var current: StringName = _state_playback.get_current_node()
+	var airborne: bool = not player.is_on_floor()
+	_air_seconds = _air_seconds + get_physics_process_delta_time() if airborne else 0.0
 	if _has_sit_state():
 		if _sitting:
 			_state_playback.travel(&"SitLoop")
@@ -281,17 +304,22 @@ func update_animation_state(jump_started: bool, landed: bool) -> void:
 			return
 		if current == &"SitExit":
 			return
-	if landed:
-		_state_playback.travel(&"Land")
-		return
-	if current == &"Land":
+	if _air_state != &"" and (landed or not airborne):
+		_air_state = &""
+		if impact_speed >= hard_landing_speed:
+			var moving: bool = Vector2(player.velocity.x, player.velocity.z).length() > MOVING_LANDING_SPEED
+			_state_playback.travel(&"LandMoving" if moving else &"Land")
+			return
+	if current == &"Land" or current == &"LandMoving":
 		return
 	if jump_started:
+		_air_state = &"JumpStart"
 		_state_playback.travel(&"JumpStart")
 		return
-	if current == &"JumpStart":
+	if _air_state == &"JumpStart":
 		return
-	if not player.is_on_floor():
+	if airborne and (_air_state == &"AirLoop" or _air_seconds > FALL_TIMEOUT_SECONDS):
+		_air_state = &"AirLoop"
 		_state_playback.travel(&"AirLoop")
 		return
 	var crouching: bool = player.has_method("is_crouching") and bool(player.call("is_crouching"))
@@ -433,14 +461,18 @@ func is_action_locking() -> bool:
 		or int(animation_tree.get("parameters/actions/request")) == AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE
 
 
-## True while the pose is plain locomotion: no action, work pose, held prop,
-## carried load, sit, crouch or jump take-off. Motion Matching may stand in then.
+## True while the pose is plain grounded locomotion: no action, carry, sit,
+## crouch, airtime or landing. Motion Matching may stand in then; a held prop's
+## arm stays the tree's (get_hold_layer).
 func is_plain_locomotion() -> bool:
 	if _state_playback == null or _sitting or _carried != null or is_action_active() or is_action_locking():
 		return false
-	if is_instance_valid(_held_prop) or is_instance_valid(_offhand_prop) or _hold_pose > 0.001:
-		return false
 	return not NON_LOCOMOTION_STATES.has(_state_playback.get_current_node())
+
+
+## The held-prop arm as a layer: its bones and how far the held pose is raised.
+func get_hold_layer() -> Dictionary:
+	return {"bones": _hold_pose_bones, "weight": _hold_pose}
 
 
 func _has_carry_state() -> bool:
@@ -990,6 +1022,13 @@ func _setup_animation_tree() -> void:
 	base.add_node(&"JumpStart", _clip(_resolved_jump_start), Vector2(260.0, -120.0))
 	base.add_node(&"AirLoop", _clip(_resolved_jump_loop), Vector2(520.0, -120.0))
 	base.add_node(&"Land", _clip(_resolved_jump_land), Vector2(780.0, 0.0))
+	## Landing on the move keeps the impact, then the walk takes over.
+	var land_moving := _clip(_resolved_jump_land)
+	land_moving.use_custom_timeline = true
+	land_moving.timeline_length = moving_landing_seconds
+	land_moving.stretch_time_scale = false
+	land_moving.loop_mode = Animation.LOOP_NONE
+	base.add_node(&"LandMoving", land_moving, Vector2(780.0, 120.0))
 	_add_state_transition(base, &"Grounded", &"Crouch", 0.12)
 	_add_state_transition(base, &"Crouch", &"Grounded", 0.12)
 	_add_state_transition(base, &"Grounded", &"JumpStart", 0.06)
@@ -1001,6 +1040,14 @@ func _setup_animation_tree() -> void:
 	_add_state_transition(base, &"AirLoop", &"Land", 0.08)
 	_add_state_transition(base, &"Land", &"Grounded", 0.10, true)
 	_add_state_transition(base, &"Land", &"Crouch", 0.10)
+	_add_state_transition(base, &"JumpStart", &"LandMoving", 0.05)
+	_add_state_transition(base, &"AirLoop", &"LandMoving", 0.08)
+	_add_state_transition(base, &"LandMoving", &"Grounded", 0.25, true)
+	_add_state_transition(base, &"LandMoving", &"Crouch", 0.10)
+	## Soft landings go straight back to locomotion.
+	for air: StringName in [&"JumpStart", &"AirLoop"]:
+		_add_state_transition(base, air, &"Grounded", 0.15)
+		_add_state_transition(base, air, &"Crouch", 0.15)
 	if _has_carry_state():
 		_force_locomotion_loop(_resolved_carry_walk)
 		base.add_node(&"Carry", _build_carry_tree(), Vector2(0.0, -180.0))
@@ -1010,6 +1057,9 @@ func _setup_animation_tree() -> void:
 		_add_state_transition(base, &"Carry", &"JumpStart", 0.06)
 		_add_state_transition(base, &"Carry", &"AirLoop", 0.08)
 		_add_state_transition(base, &"Land", &"Carry", 0.10)
+		_add_state_transition(base, &"LandMoving", &"Carry", 0.10)
+		_add_state_transition(base, &"JumpStart", &"Carry", 0.15)
+		_add_state_transition(base, &"AirLoop", &"Carry", 0.15)
 
 	if _has_sit_state() and _resolved_sit_enter != &"" and _resolved_sit_exit != &"":
 		_force_locomotion_loop(_resolved_sit_loop)
@@ -1046,6 +1096,7 @@ func _setup_animation_tree() -> void:
 		var bone := StringName(path.get_concatenated_subnames())
 		if String(bone).ends_with(side_suffix) and not LOWER_BODY_BONES.has(bone):
 			hold_pose.set_filter_path(path, true)
+			_hold_pose_bones.append(String(bone))
 	tree_root.add_node(&"hold_clip", _clip(torch_clip), Vector2(-560.0, 220.0))
 	tree_root.add_node(&"hold_pose", hold_pose, Vector2(-320.0, 0.0))
 	tree_root.connect_node(&"hold_pose", 0, &"base")

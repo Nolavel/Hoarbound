@@ -26,6 +26,8 @@ const STEERING_MAX_RATE := 2.0
 const CLAMP_MAX_DISTANCE := 0.15
 const CLAMP_MAX_ANGLE := PI * 0.5
 const LN2 := 0.69314718056
+## Halflife of the pose difference left by an inertialized handover, seconds.
+const ENTRY_HALFLIFE := 0.1
 ## Bones left to the production head-look layer (author decision, #202): the
 ## database keeps the source gaze, presentation does not apply it.
 const GAZE_LAYER_BONES := ["neck_01", "Head"]
@@ -44,6 +46,21 @@ var drive_body := true
 var write_gaze_rest := true
 ## Share of the matched pose over the pose already on the skeleton (the tree's).
 var weight := 1.0
+## Henry is settling to stand: no new searches, both feet held where they are, so
+## handing the pose to a standing animation slides nothing.
+var settle := false
+## Pose targets left to the pose already on the skeleton, by share (a held
+## prop's arm stays the AnimationTree's).
+var tree_layer: Dictionary = {}
+
+## Inertialized entry: per pose target the remaining rotation difference (axis
+## times angle) and its velocity; the pelvis difference likewise.
+var _entry_pending := false
+var _entry_active := false
+var _entry_rotation: Array[Vector3] = []
+var _entry_rotation_velocity: Array[Vector3] = []
+var _entry_pelvis := Vector3.ZERO
+var _entry_pelvis_velocity := Vector3.ZERO
 
 var _database: MotionDatabase
 var _skeleton: Skeleton3D
@@ -121,6 +138,8 @@ func setup(database: MotionDatabase, skeleton: Skeleton3D, body: CharacterBody3D
 	_ground_offset = body.global_position.y - model.origin.y
 	_simulation.reset(body.global_position, _anim_yaw)
 	_pose_targets.resize(database.pose_bone_names.size())
+	_entry_rotation.resize(database.pose_bone_names.size())
+	_entry_rotation_velocity.resize(database.pose_bone_names.size())
 	_rest_positions.clear()
 	for pose_index in range(database.pose_bone_names.size()):
 		var bone := skeleton.find_bone(database.pose_bone_names[pose_index])
@@ -166,22 +185,51 @@ func follow(dt: float, prediction: Dictionary, desired_velocity_world: Vector3, 
 
 
 ## Re-anchors on the visual's current transform and pose (e.g. after the tree
-## owned Henry); the next step searches without a cost gate or crossfade.
-func restart() -> void:
+## owned Henry); `keep_feet` carries held foot locks over, a teleport drops them.
+func restart(keep_feet: bool = false) -> void:
 	var forward := _visual.global_transform.basis * Vector3.BACK
 	_anim_yaw = atan2(forward.x, forward.z)
 	_anim_position = Vector3(_visual.global_position.x, 0.0, _visual.global_position.z)
 	_previous = {"sample": -1, "phase": 0.0}
-	_foot_lock.reset()
+	if not keep_feet:
+		_foot_lock.reset()
 	_previous_contact_feet.clear()
 	_previous_animated_feet.clear()
 	_restart_pending = true
+
+
+## Leaves `bones` to the pose already on the skeleton by `share` (0 clears).
+func set_tree_layer(bones: PackedStringArray, share: float) -> void:
+	tree_layer.clear()
+	if share <= 0.0:
+		return
+	for pose_index in range(_pose_targets.size()):
+		if bones.has(_skeleton.get_bone_name(_pose_targets[pose_index])):
+			tree_layer[pose_index] = clampf(share, 0.0, 1.0)
+
+
+## Takes over from the pose on the skeleton at once: the next matched pose plays
+## in full and the difference decays (Bollo's inertialization, Gears of War).
+func begin_inertial_entry() -> void:
+	_entry_pending = true
 
 
 ## Tracks the live pose while another system animates, so the first matched
 ## step has real velocities.
 func observe() -> void:
 	_previous_state = _builder.capture(_skeleton)
+
+
+## While another system animates Henry standing still, planted feet stay on their
+## lock points; `hold` false releases them through the lock's inertialization.
+func hold_feet(dt: float, hold: bool) -> void:
+	if not foot_lock_enabled:
+		return
+	var state := _builder.capture(_skeleton)
+	for side in range(2):
+		var animated: Vector3 = state[LEG_BONES[side][2]]
+		var target := _foot_lock.update(side, animated, hold and _foot_lock.is_locked(side), dt, MotionFootLock.HOLD_LEASH_RADIUS)
+		_reach_foot(side, state, target - animated)
 
 
 func _play(dt: float, prediction: Dictionary, desired_velocity_world: Vector3, debug_label: String) -> Dictionary:
@@ -193,6 +241,7 @@ func _play(dt: float, prediction: Dictionary, desired_velocity_world: Vector3, d
 	_advance(_current, dt)
 	if _previous["sample"] >= 0:
 		_advance(_previous, dt)
+	_decay_entry(dt)
 	_apply_pose()
 
 	# Matching data is the animation; the foot lock below only changes what is drawn.
@@ -207,7 +256,7 @@ func _play(dt: float, prediction: Dictionary, desired_velocity_world: Vector3, d
 	_match_timer += dt
 	_last_switched = false
 	var forced := _restart_pending or _database.get_samples_to_range_end(_current["sample"]) <= FORCE_SEARCH_SAMPLES
-	if _match_timer >= MATCH_INTERVAL or forced:
+	if (_match_timer >= MATCH_INTERVAL and not settle) or forced:
 		_match_timer = 0.0
 		_last_query = _builder.build(_previous_state, state, dt, _prediction)
 		if _last_query.size() == _database.feature_count:
@@ -481,8 +530,14 @@ func _apply_pose() -> void:
 		var rotation := _slot_rotation(_current, pose_index)
 		if blending:
 			rotation = _slot_rotation(_previous, pose_index).slerp(rotation, alpha)
-		if layered:
-			rotation = _skeleton.get_bone_pose_rotation(bone).slerp(rotation, weight)
+		if _entry_pending:
+			_entry_rotation[pose_index] = _rotation_vector(_skeleton.get_bone_pose_rotation(bone) * rotation.inverse())
+			_entry_rotation_velocity[pose_index] = Vector3.ZERO
+		if _entry_active or _entry_pending:
+			rotation = _vector_rotation(_entry_rotation[pose_index]) * rotation
+		var keep: float = 1.0 - weight * (1.0 - float(tree_layer.get(pose_index, 0.0)))
+		if keep > 0.0:
+			rotation = rotation.slerp(_skeleton.get_bone_pose_rotation(bone), keep)
 		_skeleton.set_bone_pose_rotation(bone, rotation)
 		# Over an AnimationTree the clip's bone translations must not leak in.
 		if not drive_body and bone != _pelvis_bone:
@@ -490,11 +545,55 @@ func _apply_pose() -> void:
 	var pelvis := _slot_pelvis(_current)
 	if blending:
 		pelvis = _slot_pelvis(_previous).lerp(pelvis, alpha)
+	if _entry_pending:
+		_entry_pelvis = _skeleton.get_bone_pose_position(_pelvis_bone) - pelvis
+		_entry_pelvis_velocity = Vector3.ZERO
+		_entry_pending = false
+		_entry_active = true
+	if _entry_active:
+		pelvis += _entry_pelvis
 	if layered:
 		pelvis = _skeleton.get_bone_pose_position(_pelvis_bone).lerp(pelvis, weight)
 	_skeleton.set_bone_pose_position(_pelvis_bone, pelvis)
 	if not blending:
 		_previous = {"sample": -1, "phase": 0.0}
+
+
+## Decays what is left of an inertialized entry; ends it once nothing shows.
+func _decay_entry(dt: float) -> void:
+	if not _entry_active:
+		return
+	var largest := 0.0
+	for pose_index in range(_entry_rotation.size()):
+		var decayed := _spring_decay(_entry_rotation[pose_index], _entry_rotation_velocity[pose_index], dt)
+		_entry_rotation[pose_index] = decayed[0]
+		_entry_rotation_velocity[pose_index] = decayed[1]
+		largest = maxf(largest, decayed[0].length())
+	var pelvis := _spring_decay(_entry_pelvis, _entry_pelvis_velocity, dt)
+	_entry_pelvis = pelvis[0]
+	_entry_pelvis_velocity = pelvis[1]
+	_entry_active = largest > 0.001 or _entry_pelvis.length() > 0.0005
+
+
+## Critically damped decay of an offset and its velocity (Holden's
+## decay_spring_damper_exact), at ENTRY_HALFLIFE.
+static func _spring_decay(offset: Vector3, velocity: Vector3, dt: float) -> Array[Vector3]:
+	var y := 2.0 * LN2 / ENTRY_HALFLIFE
+	var j := velocity + offset * y
+	var e := exp(-y * dt)
+	return [e * (offset + j * dt), e * (velocity - j * y * dt)]
+
+
+## Shortest rotation as axis times angle, and back.
+static func _rotation_vector(rotation: Quaternion) -> Vector3:
+	var q := -rotation if rotation.w < 0.0 else rotation
+	var angle := q.get_angle()
+	return q.get_axis() * angle if angle > 0.000001 else Vector3.ZERO
+
+
+static func _vector_rotation(vector: Vector3) -> Quaternion:
+	var angle := vector.length()
+	return Quaternion(vector / angle, angle) if angle > 0.000001 else Quaternion.IDENTITY
 
 
 func _slot_rotation(slot: Dictionary, pose_index: int) -> Quaternion:
@@ -511,25 +610,35 @@ func _slot_pelvis(slot: Dictionary) -> Vector3:
 
 ## Holds planted ankles on their lock points with a two-bone leg solve.
 func _lock_feet(state: Dictionary, dt: float) -> void:
-	var contacts := _database.get_sample_contacts(_current["sample"])
-	var to_rig: Basis = (state["model"] as Transform3D).basis.inverse()
+	var contacts := 3 if settle else _database.get_sample_contacts(_current["sample"])
 	for side in range(2):
 		var animated: Vector3 = state[LEG_BONES[side][2]]
-		var target := _foot_lock.update(side, animated, contacts & (1 << side) != 0, dt)
-		var offset := (target - animated) * weight
-		if offset.length_squared() < 0.00000001:
+		var leash := MotionFootLock.HOLD_LEASH_RADIUS if settle else MotionFootLock.LEASH_RADIUS
+		var target := _foot_lock.update(side, animated, contacts & (1 << side) != 0, dt, leash)
+		# A planted foot holds through a handover; only a swinging one fades with it.
+		var offset := (target - animated) * (1.0 if _foot_lock.is_locked(side) else weight)
+		if not _reach_foot(side, state, offset):
 			continue
-		var leg := _leg_targets[side]
-		var moved := LegTwoBoneIK.reach(_skeleton, leg[0], leg[1], leg[2], to_rig * offset, LEG_LENGTH_BUFFER)
-		var missed := (state["model"] as Transform3D).basis * moved - offset
-		_reach_shortfall_max = maxf(_reach_shortfall_max, missed.length())
-		if missed.length() > REACH_TOLERANCE:
-			_out_of_reach_frames += 1
-			_foot_lock.pull(side, missed)
 		if _foot_lock.is_locked(side):
 			_lock_offset_sum += offset.length()
 			_lock_offset_frames += 1
 			_lock_offset_max = maxf(_lock_offset_max, offset.length())
+
+
+## Moves the ankle by `offset` (world) with the leg solve; a lock the leg cannot
+## reach is pulled along. False when there was nothing to move.
+func _reach_foot(side: int, state: Dictionary, offset: Vector3) -> bool:
+	if offset.length_squared() < 0.00000001:
+		return false
+	var leg := _leg_targets[side]
+	var to_rig: Basis = (state["model"] as Transform3D).basis.inverse()
+	var moved := LegTwoBoneIK.reach(_skeleton, leg[0], leg[1], leg[2], to_rig * offset, LEG_LENGTH_BUFFER)
+	var missed := (state["model"] as Transform3D).basis * moved - offset
+	_reach_shortfall_max = maxf(_reach_shortfall_max, missed.length())
+	if missed.length() > REACH_TOLERANCE:
+		_out_of_reach_frames += 1
+		_foot_lock.pull(side, missed)
+	return true
 
 
 ## Planted-foot slide as drawn (after the lock) and as animated (before it).

@@ -9,7 +9,9 @@ const SPEED_TURN := 0.35
 const SPEED_WALK := 0.45
 ## Henry's game walk is 1.5 m/s; forward walking from here up is its own tier.
 const SPEED_BRISK := 1.2
-const SPEED_TOO_FAST := 2.2
+## Running starts here; Henry's sprint is 4.5 m/s, faster captures are not him.
+const SPEED_RUN := 2.2
+const SPEED_TOO_FAST := 5.0
 const YAW_TURN := 0.4
 const YAW_WALK_MAX := 1.2
 const TRANSITION_SECONDS := 0.6
@@ -19,7 +21,9 @@ const GLITCH_MARGIN_SECONDS := 0.25
 const WINDOW_SECONDS := 8.0
 const WINDOW_HOP_SECONDS := 2.0
 const MIN_WINDOW_SECONDS := 2.0
-const TOTAL_BUDGET_SECONDS := 460.0
+## A whole short capture (CMU runs cross the volume in ~1.2 s) is one window.
+const MIN_WHOLE_CLIP_SECONDS := 1.0
+const TOTAL_BUDGET_SECONDS := 520.0
 const MIN_USEFUL_SECONDS := 0.5
 const SECTORS := ["walk_f", "walk_fl", "walk_l", "walk_bl", "walk_b", "walk_br", "walk_r", "walk_fr"]
 const BUDGET_SECONDS := {
@@ -27,6 +31,7 @@ const BUDGET_SECONDS := {
 	"walk_f": 20.0, "walk_b": 20.0, "walk_l": 15.0, "walk_r": 15.0,
 	"walk_fl": 12.0, "walk_fr": 12.0, "walk_bl": 12.0, "walk_br": 12.0,
 	"walk_f_brisk": 50.0, "turn_brisk": 20.0,
+	"run_f": 45.0, "turn_run": 12.0,
 }
 
 
@@ -127,7 +132,11 @@ func _classify(velocity: Vector3, speed: float, yaw_rate: float) -> String:
 	if speed >= SPEED_WALK and absf(yaw_rate) < YAW_WALK_MAX:
 		# Model space: +Z forward, +X left; sectors run counter-clockwise.
 		var sector := posmod(int(round(atan2(velocity.x, velocity.z) / (PI * 0.25))), 8)
+		if sector == 0 and speed >= SPEED_RUN:
+			return "run_f"
 		return SECTORS[sector] + ("_brisk" if sector == 0 and speed >= SPEED_BRISK else "")
+	if speed >= SPEED_RUN:
+		return "turn_run"
 	if speed >= SPEED_BRISK:
 		return "turn_brisk"
 	return "transition"
@@ -184,7 +193,8 @@ func _windows(labels: PackedStringArray, glitches: PackedByteArray, rate: float,
 		var end := start
 		while end < count and end - start < window and glitches[end] == 0 and labels[end] != "too_fast":
 			end += 1
-		if end - start >= minimum:
+		var whole_clip := start == 0 and end == count and float(count) / rate >= MIN_WHOLE_CLIP_SECONDS
+		if end - start >= minimum or whole_clip:
 			result.append({
 				"source": source_id,
 				"start": float(start) / rate,

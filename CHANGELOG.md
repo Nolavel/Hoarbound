@@ -5,6 +5,105 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Movement owns its dynamics; fatigue tuning neutral (#202 hardening)
+
+- `MovementController` offers dynamics profiles (`LocomotionDynamicsProfile`,
+  `data/characters/henry_dynamics_data_matched.tres`) through
+  `request_dynamics_profile` / `release_dynamics_profile`; it applies one only
+  in grounded walking. Motion Matching asks for `data_matched` and no longer
+  writes `accel_rate`, `decel_rate` or `Player.turn_rate`. Without a request
+  walking computes the same rates as before. New suite
+  `test_locomotion_dynamics_profile.gd`.
+- Sprint fatigue defaults are neutral (`exhausted_sprint_ramp_factor` 1.0,
+  `winded_sprint_share` 1.0): the sprint is the old one until the author picks
+  the tuning. The proposed values (×2.0, winded below 30%, 40% share) are in
+  `docs/motion_matching/integration_plan.md` and covered by
+  `test_sprint_fatigue.gd`.
+
+### 2026-10-07 - Motion Matching handovers and held props (#202 follow-up 6)
+
+- Stopping into the tree's idle no longer slides: settling freezes the search
+  and holds both feet, which stay planted (leash of a leg's reach) while the
+  tree stands Henry still. Stop 0.58 → 0.23 m/s, standing 0.13 → 0.05 (tree
+  0.26 / 0.08).
+- From standing, Motion Matching takes over by inertialization instead of a
+  crossfade (start 90° 0.66 → 0.56); from motion it still crossfades.
+- A held prop keeps only its arm on the tree's held pose; Motion Matching walks
+  the rest (new suite `test_motion_matching_hold_layer.gd`). Whole in-game
+  program 0.474 → 0.438 m/s (tree 0.507).
+
+### 2026-10-07 - Sprint build-up and top speed follow tiredness (#202 follow-up 5)
+
+- `MovementController`: the sprint can build up more slowly as energy runs
+  out (`exhausted_sprint_ramp_factor`), and below a stamina share the top
+  sprint can fade to a laboured jog (`winded_sprint_share`) instead of running
+  at full speed into a wall at zero. Rested with stamina to spare nothing
+  changes (90% speed after 1.87 s either way). New suite
+  `tests/systems/test_sprint_fatigue.gd`. Defaults made neutral in the
+  hardening pass above.
+
+### 2026-10-07 - Motion Matching: run data, honest trajectory ends (#202 follow-up 5)
+
+- 36 CMU run trials join the database (`root-space-v8`, 12 490 samples,
+  8.1 MB); Motion Matching now covers up to 3.58 m/s and keeps most of the
+  sprint (skating 2.63 → 1.45 m/s). Whole in-game program 0.539 → 0.474
+  (tree 0.507).
+- Future trajectories past a clip's end continue at its end velocity instead of
+  faking a stop (UE5 Pose Search extrapolation); the audit's feet-above-pelvis
+  check now judges the supporting foot, so running strides pass.
+
+### 2026-10-07 - Snow and wading with Motion Matching (#202 follow-up 4)
+
+- `FootContactSensor` takes the animation's own contacts when it has them:
+  Motion Matching registers as `contact_source` and its database contacts
+  replace the height guess, which read low real-gait swings (1–2 cm clearance)
+  as plants. Snow print slide with Motion Matching fell 1.0 → 0.35 m/s while
+  walking (tree 0.46); extra footprints and footsteps are gone. The tree path is
+  unchanged.
+- `capture_motion_matching_player.gd`: snow captures are reproducible (seeded
+  weather, rebuilds that finish in one step), report print slide, depth and
+  wade, and `MM_PROGRAM=drift` crosses TestScene's deepest drift. The CI
+  Motion Matching job runs the drift A/B.
+
+### 2026-10-07 - Airtime and landings (#202 follow-up 3)
+
+- Walk starts no longer hop: `MovementController` drops `start_jump_impulse`,
+  whose only effect was one tick off the floor and a 1.17 s landing clip on
+  every start. The AnimationTree's own foot skating fell 0.682 → 0.507 m/s over
+  the in-game program (start from idle 1.09 → 0.60).
+- `HenryUALAnimation` enters AirLoop after a 0.15 s fall timeout or a jump, and
+  picks the landing by touch-down speed: soft landings walk on, hard ones play
+  `Land` standing or the new `LandMoving` (impact, then the walk) on the move.
+  Motion Matching follows these states instead of its own airtime timers.
+- New suite `tests/systems/test_landing.gd`.
+
+### 2026-10-07 - Motion Matching: retargeted feet stand on the ground
+
+- `MotionRetargeter` removes each clip's median ground error (Henry's lower
+  ball joint against its flat-foot rest height) from the pelvis. CMU subjects
+  02, 07, 08 and 113 stood 2.5–3.5 cm above the floor on Henry; every range
+  now has a median of 0 (max 2 cm on sub-ranges). Database rebuilt as
+  `root-space-v7` and recommitted.
+- In-game A/B over four stick scales (new `MM_STICK_SCALE` in
+  `capture_motion_matching_player.gd`): whole run 0.625 → 0.594, walk after
+  sprint 1.22 → 0.92; stop 0.44 → 0.49 within the run-to-run spread.
+
+### 2026-10-07 - Data-matched body rates only while walking (#202 follow-up 2)
+
+- `MotionMatchingLocomotion` applies the data-matched acceleration, braking and
+  turn rate only in plain grounded walking; sprint (and its build-up), air,
+  crouch, carry and actions keep the production rates. Sprint stop from
+  4.35 m/s went 2.67 m → 0.49 m (production value); walking is unchanged.
+
+### 2026-10-07 - Scripted walks brake onto their target (#202 follow-up 1)
+
+- `Player._walk_direction` limits the commanded speed to √(2·a·d) at the
+  body's braking rate (`MovementController.get_braking_rate()`), so interaction
+  approaches and the door step-out stop on target at any braking rate.
+  Rest error with the data-matched body 0.272 → 0.012 m; production
+  0.019 → 0.012 m with unchanged timing. New suite
+  `tests/systems/test_scripted_walk_braking.gd` fails on the old code.
+
 ### 2026-10-06 - Motion Matching: foot locking and a feature-flagged Player layer (#202)
 
 - Foot locking on database contacts (`MotionFootLock`, Holden contact_update

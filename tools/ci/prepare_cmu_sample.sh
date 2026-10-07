@@ -64,6 +64,29 @@ SOURCES+=("016|16_28|brisk_turn_pool|walk, 90-degree left turn")
 SOURCES+=("016|16_29|brisk_turn_pool|walk, 90-degree right turn")
 SOURCES+=("016|16_30|brisk_turn_pool|walk, 90-degree right turn")
 
+# Henry runs at up to 4.5 m/s. CMU run trials cross the capture volume in
+# 1.1-2.2 s; titles are the CMU index's. 16_08/16_57 end in a sudden stop.
+SOURCES+=("002|02_03|run_pool|run/jog")
+for clip in 09_01 09_02 09_03 09_04 09_05 09_06 09_07 09_08 09_09 09_11; do
+	SOURCES+=("009|$clip|run_pool|run")
+done
+SOURCES+=("016|16_08|run_pool|run/jog, sudden stop")
+SOURCES+=("016|16_57|run_pool|run/jog, sudden stop")
+for clip in 16_35 16_36 16_45 16_46 16_56; do
+	SOURCES+=("016|$clip|run_pool|run/jog")
+done
+SOURCES+=("016|16_55|run_pool|run")
+SOURCES+=("016|16_37|run_turn_pool|run/jog, veer left")
+SOURCES+=("016|16_38|run_turn_pool|run/jog, veer left")
+SOURCES+=("016|16_39|run_turn_pool|run/jog, veer right")
+SOURCES+=("016|16_40|run_turn_pool|run/jog, veer right")
+SOURCES+=("016|16_48|run_turn_pool|run, veer left")
+SOURCES+=("016|16_49|run_turn_pool|run, veer right")
+SOURCES+=("016|16_50|run_turn_pool|run, veer right")
+for clip in 35_17 35_18 35_19 35_20 35_21 35_22 35_23 35_24 35_25 35_26; do
+	SOURCES+=("035|$clip|run_pool|run/jog")
+done
+
 mkdir -p "$TARGET_DIR"
 # Import conventions (units, reference pose, axes) live in per-family
 # SourceRetargetProfile code, not in this manifest.

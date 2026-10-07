@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="LocomotionDynamicsProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/actors/player/henry/Controllers/locomotion_dynamics_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+id = &"data_matched"
+walk_accel_m_s2 = 3.0
+walk_decel_m_s2 = 3.5
+turn_rate = 4.0

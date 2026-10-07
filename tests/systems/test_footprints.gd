@@ -16,6 +16,7 @@ func _run() -> void:
 	_test_a_step_plants_once()
 	_test_blended_lift_rearms_through_probe_gap()
 	_test_small_foot_jitter_does_not_rearm()
+	_test_driven_contacts_plant_once_per_print()
 	_test_surface_clearance_follows_the_slope_normal()
 	_test_standing_still_leaves_nothing()
 	_test_the_air_leaves_nothing()
@@ -108,6 +109,28 @@ func _test_small_foot_jitter_does_not_rearm() -> void:
 		not sensor.update_foot(side, 0.02, Vector3.ZERO, Vector3.FORWARD, true, 1.5),
 		"a 3 cm planted-foot jitter rearmed a duplicate footprint"
 	)
+	_dispose(sensor)
+
+
+## Contacts reported by the animation (Motion Matching): one plant per print; a
+## contact flickering within the print is the same step, and the print holds
+## until the foot has left it.
+func _test_driven_contacts_plant_once_per_print() -> void:
+	var sensor := _sensor()
+	var side: int = FootContactSensor.Side.LEFT
+	var at := Vector3(0.0, 0.0, -1.0)
+	_check(sensor.update_driven_foot(side, true, at, Vector3.FORWARD, true, 1.5), "a driven contact did not plant")
+	_check(not sensor.update_driven_foot(side, true, at, Vector3.FORWARD, true, 1.5), "a held contact planted again")
+	sensor.update_driven_foot(side, false, at + Vector3(0.0, 0.0, -0.03), Vector3.FORWARD, true, 1.5)
+	_check(sensor.is_planted(side), "a contact gap on the print dropped the print")
+	_check(not sensor.update_driven_foot(side, true, at + Vector3(0.0, 0.0, -0.04), Vector3.FORWARD, true, 1.5),
+		"a contact flicker on the same print planted a second step")
+	sensor.update_driven_foot(side, false, at + Vector3(0.0, 0.0, -0.3), Vector3.FORWARD, true, 1.5)
+	_check(not sensor.is_planted(side), "a foot that left its print still holds it")
+	_check(sensor.update_driven_foot(side, true, at + Vector3(0.0, 0.0, -0.8), Vector3.FORWARD, true, 1.5),
+		"the next print did not plant")
+	_check(not sensor.update_driven_foot(FootContactSensor.Side.RIGHT, true, Vector3.ZERO, Vector3.FORWARD, true, 0.1),
+		"a driven contact while standing planted a step")
 	_dispose(sensor)
 
 

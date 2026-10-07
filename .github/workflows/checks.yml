@@ -235,6 +235,15 @@ jobs:
               --script res://tools/runtime/capture_motion_matching_player.gd
           done
 
+      - name: In-game A/B in a snow drift (headless, tree vs Motion Matching)
+        run: |
+          for flag in 0 1; do
+            HOARBOUND_MOTION_MATCHING=$flag MM_HEADLESS_PROOF=1 MM_KEEP_SNOW=1 MM_PROGRAM=drift \
+              MM_OUT_DIR=res://docs/runtime_previews/motion_matching_drift_$flag \
+              "$HOME/.local/bin/godot" --headless --fixed-fps 30 --path . \
+              --script res://tools/runtime/capture_motion_matching_player.gd
+          done
+
       - name: Encode preview video
         run: |
           if ! command -v ffmpeg >/dev/null 2>&1; then
@@ -262,6 +271,7 @@ jobs:
             docs/runtime_previews/motion_retarget_diagnostics/*.png
             docs/runtime_previews/motion_retarget_diagnostics/report.json
             docs/runtime_previews/motion_matching_player_*/report.json
+            docs/runtime_previews/motion_matching_drift_*/report.json
           if-no-files-found: error
           retention-days: 7
 

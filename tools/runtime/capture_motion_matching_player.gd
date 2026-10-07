@@ -10,15 +10,26 @@ const RENDER_SIZE := Vector2i(960, 540)
 const PROGRAM_SECONDS := 30.0
 const FPS := 30.0
 const START := Vector3(20.0, 1.0, 20.0)
+## MM_PROGRAM=drift: TestScene's deepest drift (0.34-0.40 m, lee of a wall),
+## crossed facing -Z and back. Needs MM_KEEP_SNOW=1.
+const DRIFT_START := Vector3(3.5, 1.0, -2.0)
+## The drift lies along a wall on +X: the side view looks from -X.
+const DRIFT_CAMERA_OFFSET := Vector3(-3.2, 1.2, 0.8)
 const CAMERA_OFFSET := Vector3(2.4, 1.3, 2.9)
 const CAMERA_FOLLOW_RATE := 4.0
 ## Foot skating after Zhang et al. 2018 (MANN): horizontal ball-joint speed
 ## weighted by clamp(2 - 2^(h/H), 0, 1), h above the flat-foot ball height.
 const SKATE_HEIGHT_M := 0.025
 const FLAT_BALL_HEIGHT_M := 0.015
+## SnowFootModifier's ankle height above the sole, metres.
+const SNOW_ANKLE_M := 0.08
 
 ## MM_OUT_DIR=<res:// dir> lets two runs (tree and matched) render side by side.
 var _out_dir := DEFAULT_OUT_DIR
+## MM_STICK_SCALE scales every stick magnitude: neighbouring runs of a chaotic
+## matcher, so one program is not read as the whole truth.
+var _stick_scale := 1.0
+var _drift := false
 var _scene: Node
 var _player: Player
 var _locomotion: MotionMatchingLocomotion
@@ -34,6 +45,7 @@ var _frame_index := 0
 var _feet: Array[int] = []
 var _balls: Array[int] = []
 var _previous_balls: Dictionary = {}
+var _previous_snow_balls: Dictionary = {}
 var _skate_sum := 0.0
 var _skate_weight := 0.0
 var _skate_frames := 0
@@ -42,6 +54,9 @@ var _moving_skate_weight := 0.0
 var _stance_height_sum := 0.0
 ## Per program segment: [weighted slide sum, weight, mm weight sum, frames].
 var _segments: Dictionary = {}
+## With the snow shell kept, per segment: [print slide sum, planted samples,
+## |sole - print floor| sum, depth sum, wade sum, frames].
+var _snow_segments: Dictionary = {}
 var _segment := ""
 ## Last strength per action: Input only hears changes, never a repeated release
 ## (that reads as just_released every frame and fires the sprint release boost).
@@ -56,6 +71,10 @@ func _run() -> void:
 	if not OS.get_environment("MM_OUT_DIR").is_empty():
 		_out_dir = OS.get_environment("MM_OUT_DIR")
 	var headless := OS.get_environment("MM_HEADLESS_PROOF") == "1"
+	if not OS.get_environment("MM_STICK_SCALE").is_empty():
+		_stick_scale = clampf(OS.get_environment("MM_STICK_SCALE").to_float(), 0.5, 1.0)
+	# Weather picks its profile with the global RNG: one seed, one snow cover.
+	seed(202)
 	_scene = (load(SCENE_PATH) as PackedScene).instantiate()
 	_player = _scene.get_node_or_null(^"Player") as Player
 	_locomotion = _player.get_node_or_null(^"MotionMatchingLocomotion") as MotionMatchingLocomotion if _player != null else null
@@ -81,9 +100,14 @@ func _run() -> void:
 	root.add_child(_view)
 	_view.add_child(hud)
 	root.disable_3d = true
-	# Bare ground by default: the snow shell's GPU readback is not deterministic
-	# headless. MM_KEEP_SNOW=1 keeps it (deep-snow work is a later stage).
-	if OS.get_environment("MM_KEEP_SNOW") != "1":
+	# Bare ground by default. MM_KEEP_SNOW=1 keeps the shell; its field rebuilds
+	# then finish in the step they start (wall-clock budgets vary by machine).
+	if OS.get_environment("MM_KEEP_SNOW") == "1":
+		for node in root.find_children("*", "", true, false):
+			if node is SnowShell:
+				node.rebuild_budget_usec = 1 << 30
+				node.urgent_budget_usec = 1 << 30
+	else:
 		for _frame in range(3):
 			await process_frame
 		for node in root.find_children("*", "", true, false):
@@ -103,7 +127,18 @@ func _run() -> void:
 			(noise as CanvasItem).visible = false
 		elif noise is CanvasLayer:
 			(noise as CanvasLayer).visible = false
-	_player.global_position = START
+	_drift = OS.get_environment("MM_PROGRAM") == "drift"
+	_player.global_position = DRIFT_START if _drift else START
+	# MM_HOLD_PROP=1: a stand-in light in the main hand raises the held-arm pose.
+	if OS.get_environment("MM_HOLD_PROP") == "1":
+		var prop := MeshInstance3D.new()
+		prop.mesh = CylinderMesh.new()
+		(prop.mesh as CylinderMesh).top_radius = 0.02
+		(prop.mesh as CylinderMesh).bottom_radius = 0.02
+		(prop.mesh as CylinderMesh).height = 0.25
+		_player.animation_component.hold_in_hand(prop)
+	if _drift:
+		_player.rotation.y = 0.0
 	_player.velocity = Vector3.ZERO
 	_player.reset_physics_interpolation()
 	_heading = -_player.global_transform.basis.z
@@ -111,10 +146,12 @@ func _run() -> void:
 	_tps = root.get_camera_3d() as TpsCamera
 	_camera = Camera3D.new()
 	_camera.fov = 55.0
+	# The snow shell hides its contact-capture layer from the main camera only.
+	_camera.cull_mask &= ~SnowShell.CONTACT_LAYER
 	_view.add_child(_camera)
 	_camera.make_current()
 	_focus = _player.animation_component.global_position + Vector3(0.0, 0.9, 0.0)
-	_camera.look_at_from_position(_focus + CAMERA_OFFSET, _focus)
+	_camera.look_at_from_position(_focus + (DRIFT_CAMERA_OFFSET if _drift else CAMERA_OFFSET), _focus)
 	for side in ["l", "r"]:
 		_feet.append(_player.animation_component.skeleton.find_bone("foot_" + side))
 		_balls.append(_player.animation_component.skeleton.find_bone("ball_" + side))
@@ -125,7 +162,10 @@ func _run() -> void:
 		await process_frame
 
 	var timeline: Array[Dictionary] = []
-	var frame_count := int(PROGRAM_SECONDS * FPS)
+	# MM_SECONDS shortens a rendered review to the part being looked at.
+	var seconds := clampf(OS.get_environment("MM_SECONDS").to_float(), 1.0, PROGRAM_SECONDS) \
+		if not OS.get_environment("MM_SECONDS").is_empty() else PROGRAM_SECONDS
+	var frame_count := int(seconds * FPS)
 	for frame in range(frame_count):
 		var t := float(frame) / FPS
 		var intent := _program(t)
@@ -150,6 +190,7 @@ func _run() -> void:
 		"issue": 202,
 		"scene": SCENE_PATH,
 		"snow": OS.get_environment("MM_KEEP_SNOW") == "1",
+		"stick_scale": _stick_scale,
 		"motion_matching": _locomotion.get_report(),
 		"frames": frame_count,
 		"fps": FPS,
@@ -176,6 +217,8 @@ func _run() -> void:
 
 ## World-space analog program relative to Henry's spawn facing.
 func _program(t: float) -> Dictionary:
+	if _drift:
+		return _drift_program(t)
 	var angle := 0.0
 	var magnitude := 1.0
 	var sprint := false
@@ -202,7 +245,7 @@ func _program(t: float) -> Dictionary:
 	elif t < 21.0:
 		angle = PI
 		sprint = true
-		label = "sprint (tree owns it)"
+		label = "sprint"
 	elif t < 24.0:
 		angle = PI
 		label = "walk after sprint"
@@ -213,7 +256,26 @@ func _program(t: float) -> Dictionary:
 	else:
 		magnitude = 0.0
 		label = "stop, idle"
-	return {"direction": _heading.rotated(Vector3.UP, angle) * magnitude, "sprint": sprint, "label": label}
+	return {"direction": _heading.rotated(Vector3.UP, angle) * magnitude * _stick_scale, "sprint": sprint, "label": label}
+
+
+## Into the drift and back out: plain walking where wading should show.
+func _drift_program(t: float) -> Dictionary:
+	var label := "idle"
+	var magnitude := 0.0
+	var angle := 0.0
+	if t >= 2.0 and t < 12.0:
+		label = "drift, walking in"
+		magnitude = 1.0
+	elif t >= 12.0 and t < 14.0:
+		label = "drift, stop"
+	elif t >= 14.0 and t < 24.0:
+		label = "drift, walking back"
+		magnitude = 1.0
+		angle = PI
+	elif t >= 24.0:
+		label = "drift, stop and idle"
+	return {"direction": _heading.rotated(Vector3.UP, angle) * magnitude * _stick_scale, "sprint": false, "label": label}
 
 
 ## Player turns WASD by the TpsCamera's control yaw (fixed without a mouse);
@@ -247,7 +309,7 @@ func _release_input() -> void:
 func _follow_camera() -> void:
 	var visual := _player.animation_component.global_position
 	_focus = _focus.lerp(visual + Vector3(0.0, 0.9, 0.0), 1.0 - exp(-CAMERA_FOLLOW_RATE / FPS))
-	_camera.look_at_from_position(_focus + CAMERA_OFFSET, _focus)
+	_camera.look_at_from_position(_focus + (DRIFT_CAMERA_OFFSET if _drift else CAMERA_OFFSET), _focus)
 
 
 ## Planted-foot slide of the drawn pose, the same rule for both systems. TestScene
@@ -275,17 +337,51 @@ func _measure() -> void:
 				_moving_skate_sum += speed * weight
 				_moving_skate_weight += weight
 		_previous_balls[side] = ball
+	_measure_snow()
+
+
+## In snow MANN undercounts (boots ride on the snow top): a boot the shell holds
+## on its print should not slide, and its sole should sit on the print floor.
+func _measure_snow() -> void:
+	var shell := SnowShell.active
+	if not is_instance_valid(shell):
+		return
+	var at := _player.global_position
+	var snow: Array = _snow_segments.get(_segment, [0.0, 0, 0.0, 0.0, 0.0, 0])
+	snow[3] += maxf(shell.field.get_depth(at.x, at.z), 0.0)
+	var wade := _player.animation_component.skeleton.get_node_or_null(^"Wade") as WadeModifier
+	snow[4] += wade.wade if wade != null else 0.0
+	snow[5] += 1
+	for side in range(2):
+		var top := shell.get_foot_snow_top(side)
+		var ball := _joint(_balls[side])
+		var previous: Variant = _previous_snow_balls.get(side)
+		_previous_snow_balls[side] = ball if top != -INF else null
+		if top == -INF or previous == null:
+			continue
+		snow[0] += Vector2(ball.x - (previous as Vector3).x, ball.z - (previous as Vector3).z).length() * FPS
+		snow[1] += 1
+		var sole := _joint(_feet[side]).y - SNOW_ANKLE_M
+		snow[2] += absf(sole - (top - shell.get_foot_sink(side)))
+	_snow_segments[_segment] = snow
 
 
 func _segment_report() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for label in _segments:
 		var segment: Array = _segments[label]
-		result.append({
+		var entry := {
 			"segment": label,
 			"planted_slide_m_s": _ratio(segment[0], segment[1]),
 			"motion_matching_weight": _ratio(segment[2], float(segment[3])),
-		})
+		}
+		if _snow_segments.has(label):
+			var snow: Array = _snow_segments[label]
+			entry["snow_print_slide_m_s"] = _ratio(snow[0], float(snow[1]))
+			entry["snow_sole_error_m"] = _ratio(snow[2], float(snow[1]))
+			entry["snow_depth_m"] = _ratio(snow[3], float(snow[5]))
+			entry["snow_wade"] = _ratio(snow[4], float(snow[5]))
+		result.append(entry)
 	return result
 
 

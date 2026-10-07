@@ -2,16 +2,14 @@ class_name MotionMatchingLocomotion
 extends Node
 
 ## Feature-flagged Motion Matching for Henry's plain locomotion (#202). The body
-## stays authoritative; actions, carry, sit, crouch, air and sprint keep the tree.
+## stays authoritative; actions, carry, sit, crouch, air and fast sprint keep the
+## tree, and a held prop's arm stays its held pose.
+## Airtime and landing are the tree's verdict (HenryUALAnimation.is_plain_locomotion).
 
 ## Percentile of database root speeds treated as covered.
 const COVERAGE_PERCENTILE := 0.99
 ## A body jump longer than this in one tick is a teleport: matching re-anchors.
 const TELEPORT_DISTANCE := 1.0
-## Airtime up to this (MovementController's start hop) keeps matching.
-const AIR_GRACE_SECONDS := 0.2
-## After real airtime the tree's landing plays before matching returns.
-const LANDING_SECONDS := 0.4
 
 ## Off by default: production locomotion is untouched until the author opts in.
 ## The HOARBOUND_MOTION_MATCHING=1 environment variable also switches it on.
@@ -23,21 +21,23 @@ const LANDING_SECONDS := 0.4
 ## Standing still longer than this hands idle to the tree's loop (0 keeps it): the
 ## CMU idle is short ranges, the tree's Idle_Loop stays still for minutes.
 @export_range(0.0, 5.0, 0.1) var idle_to_tree_seconds: float = 0.6
+## From standing, matching takes over at once and the tree's pose difference
+## decays (Bollo's inertialization); from motion it crossfades.
+## HOARBOUND_MM_INERTIAL_ENTRY=0/1.
+@export var inertial_entry: bool = true
 
 @export_group("Body dynamics")
-## While matching runs, the body accelerates and turns like the captured data
-## (Holden, Code vs Data Driven Displacement). On by author decision, 2026-10-07.
+## While matching animates walking it asks MovementController for walking that
+## moves like the captured data (Holden, Code vs Data Driven Displacement).
 @export var data_matched_body: bool = true
-## Data p95 is about 1.8 m/s^2 either way; production is 12 / 18 m/s^2.
-@export var data_accel_m_s2: float = 3.0
-@export var data_decel_m_s2: float = 3.5
-## Player.turn_rate while matched; production 10 starts a 90-degree turn at 15 rad/s.
-@export var data_turn_rate: float = 4.0
+## The movement-owned profile asked for; its values live with MovementController.
+@export var dynamics_profile: StringName = &"data_matched"
 
 var debug_view: MotionMatchingDebugView
 
 var _player: Player
 var _visual: HenryUALAnimation
+var _sensor: FootContactSensor
 var _movement: MovementController
 var _controller: MotionMatchingDatabasePlaybackController
 var _tree_callback_mode := AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE
@@ -50,10 +50,10 @@ var _handovers := 0
 var _active_seconds := 0.0
 var _total_seconds := 0.0
 var _last_body_position := Vector3.ZERO
-var _air_time := 0.0
-var _production_dynamics: Array[float] = []
-var _landing_left := 0.0
+var _profile_requested := false
 var _still_time := 0.0
+var _tree_standing := false
+var _hold_share := 0.0
 
 
 func _ready() -> void:
@@ -66,6 +66,11 @@ func _ready() -> void:
 			data_matched_body = false
 		"1":
 			data_matched_body = true
+	match OS.get_environment("HOARBOUND_MM_INERTIAL_ENTRY"):
+		"0":
+			inertial_entry = false
+		"1":
+			inertial_entry = true
 	if enabled:
 		# After HenryUALAnimation has built its AnimationTree.
 		_start.call_deferred()
@@ -82,6 +87,16 @@ func get_weight() -> float:
 
 func get_controller() -> MotionMatchingDatabasePlaybackController:
 	return _controller
+
+
+## FootContactSensor contact source: the database contacts behind the foot lock
+## stand for the drawn feet while matching owns most of the pose.
+func drives_foot_contacts() -> bool:
+	return _active and _weight >= 0.5 and _controller.get_foot_lock() != null
+
+
+func is_foot_planted(side: int) -> bool:
+	return _controller.get_foot_lock().is_locked(side)
 
 
 func get_report() -> Dictionary:
@@ -128,13 +143,14 @@ func _start() -> void:
 	# The tree is advanced here, every physics tick, right before the matched pose.
 	_tree_callback_mode = _visual.animation_tree.callback_mode_process
 	_visual.animation_tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
-	if data_matched_body:
-		_production_dynamics = [_movement.accel_rate, _movement.decel_rate, _player.turn_rate]
-		# MovementController scales its rates by max(walk_speed, 1).
-		var scale := maxf(_movement.walk_speed, 1.0)
-		_movement.accel_rate = data_accel_m_s2 / scale
-		_movement.decel_rate = data_decel_m_s2 / scale
-		_player.turn_rate = data_turn_rate
+	if data_matched_body and not _movement.request_dynamics_profile(dynamics_profile, self):
+		push_warning("MotionMatchingLocomotion: movement has no '%s' profile; walking keeps its tuning." % dynamics_profile)
+		data_matched_body = false
+	_movement.release_dynamics_profile(self)
+	# Footprints, footstep audio and snow prints follow the database contacts.
+	_sensor = _player.get_node_or_null(^"FootContactSensor") as FootContactSensor
+	if _sensor != null:
+		_sensor.contact_source = self
 	_ready_state = "ready (covers <= %.2f m/s%s)" % [_coverage_speed, ", data-matched body" if data_matched_body else ""]
 	print("[MOTION_MATCHING_LOCOMOTION] %s, %d samples, %s" % [_ready_state, database.get_sample_count(), database.build_signature])
 	set_physics_process(true)
@@ -143,10 +159,10 @@ func _start() -> void:
 func _exit_tree() -> void:
 	if is_instance_valid(_visual) and _visual.animation_tree != null and _controller != null:
 		_visual.animation_tree.callback_mode_process = _tree_callback_mode
-	if _production_dynamics.size() == 3 and is_instance_valid(_movement) and is_instance_valid(_player):
-		_movement.accel_rate = _production_dynamics[0]
-		_movement.decel_rate = _production_dynamics[1]
-		_player.turn_rate = _production_dynamics[2]
+	if is_instance_valid(_movement):
+		_movement.release_dynamics_profile(self)
+	if is_instance_valid(_sensor) and _sensor.contact_source == self:
+		_sensor.contact_source = null
 
 
 func _physics_process(delta: float) -> void:
@@ -154,19 +170,12 @@ func _physics_process(delta: float) -> void:
 	_total_seconds += delta
 	var speed := Vector2(_player.velocity.x, _player.velocity.z).length()
 	var limit := _coverage_speed * (1.0 + (coverage_margin if _active else 0.0))
-	if _player.is_on_floor():
-		if _air_time > AIR_GRACE_SECONDS:
-			_landing_left = LANDING_SECONDS
-		_air_time = 0.0
-	else:
-		_air_time += delta
-	_landing_left = maxf(0.0, _landing_left - delta)
-	var grounded := _air_time <= AIR_GRACE_SECONDS and _landing_left <= 0.0
+	var plain := _visual.is_plain_locomotion()
+	_request_profile(data_matched_body and plain)
 	var still := speed < 0.05 and _movement.get_target_velocity().length() < 0.01
 	_still_time = _still_time + delta if still else 0.0
 	var standing := idle_to_tree_seconds > 0.0 and _still_time > idle_to_tree_seconds
-	var wanted := grounded and not standing and not _player.is_crouching() and speed <= limit \
-		and _visual.is_plain_locomotion()
+	var wanted := plain and not standing and not _player.is_crouching() and speed <= limit
 	_weight = move_toward(_weight, 1.0 if wanted else 0.0, delta / handover_seconds)
 	var teleported := _player.global_position.distance_to(_last_body_position) > TELEPORT_DISTANCE
 	_last_body_position = _player.global_position
@@ -177,17 +186,43 @@ func _physics_process(delta: float) -> void:
 			_active = false
 			_visual.transform = _visual_rest
 			_visual.reset_physics_interpolation()
+		if teleported:
+			_controller.restart()
 		_controller.observe()
+		# The tree's idle stands on the feet matching planted: nothing slides.
+		_tree_standing = standing and plain
+		_controller.hold_feet(delta, _tree_standing)
 		return
 	if not _active or teleported:
 		if not _active:
 			_handovers += 1
+			if inertial_entry and _tree_standing:
+				_weight = 1.0
+				_controller.begin_inertial_entry()
 		_active = true
 		_visual.transform = _visual_rest
-		_controller.restart()
+		_controller.restart(not teleported)
 	_active_seconds += delta
 	_controller.weight = smoothstep(0.0, 1.0, _weight)
+	_controller.settle = standing and plain
+	# A held prop's arm stays the tree's held pose over the matched body.
+	var hold: Dictionary = _visual.get_hold_layer()
+	if not is_equal_approx(float(hold["weight"]), _hold_share):
+		_hold_share = float(hold["weight"])
+		_controller.set_tree_layer(hold["bones"], _hold_share)
 	_controller.follow(delta, _predict(), _movement.get_target_velocity())
+
+
+## Holds the movement profile while matching animates plain locomotion; movement
+## itself applies it only in grounded walking (next tick: this node runs last).
+func _request_profile(wanted: bool) -> void:
+	if wanted == _profile_requested:
+		return
+	_profile_requested = wanted
+	if wanted:
+		_movement.request_dynamics_profile(dynamics_profile, self)
+	else:
+		_movement.release_dynamics_profile(self)
 
 
 ## The body's own future at the matcher horizons: MovementController's
@@ -212,7 +247,7 @@ func _predict() -> Dictionary:
 		if a > 0.0:
 			position += direction * (0.5 * rate * a * a)
 		positions.append(position)
-		var turned := goal_yaw + wrapf(yaw - goal_yaw, -PI, PI) * exp(-_player.turn_rate * t)
+		var turned := goal_yaw + wrapf(yaw - goal_yaw, -PI, PI) * exp(-_movement.get_turn_rate(_player.turn_rate) * t)
 		forwards.append(Vector3(sin(turned), 0.0, cos(turned)))
 	return {"positions": positions, "forwards": forwards}
 
