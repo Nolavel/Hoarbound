@@ -1,170 +1,84 @@
-# Vision Document — Hoarbound
+# Hoarbound — Legacy Vision Notes
 
-> **Статус документа / Scope lock для Act I**
+> **Status: historical / non-authoritative design context.**  
+> This file is preserved because it contains early ideas that may still be useful as reference. It is **not** the current production requirements document.
 >
-> Это долгосрочный vision document, а не список обязательных механик текущего
-> vertical slice. Для **First Exit / Act I** каноничны
-> `docs/game_design/VERTICAL_SLICE.md` и `docs/world/FIRST_EXIT.md`.
->
-> В First Exit **не входят**: combat, radiation gameplay, active companion
-> abilities, большие craft trees и coastal thin ice. В первом акте рядом с
-> Генри находится **Kenny** — робот-медведь без батареи, закреплённый на рюкзаке
-> и пока являющийся переносимым грузом, а не ability companion. Упоминания
-> Gizmo, combat и radiation ниже относятся к историческому/дальнему видению и
-> не должны использоваться агентами как разрешение добавлять эти системы в
-> First Exit.
->
-> **EN:** This is a long-range vision document. First Exit / Act I scope is
-> governed by `VERTICAL_SLICE.md` and `FIRST_EXIT.md`. Combat, radiation
-> gameplay, active companion abilities, large crafting trees and coastal thin
-> ice are out of scope for First Exit. Kenny is the Act I carried companion:
-> unpowered, attached to the backpack and mechanically a burden rather than an
-> ability dispenser.
+> For current work use:
+> - `PRD.md` — product direction and milestone scope;
+> - `docs/game_design/VERTICAL_SLICE.md` — First Exit A contract;
+> - `docs/GDD.md` — code-grounded runtime/design snapshot.
 
-## 1. Название и жанр
+## Why this file is legacy
 
-**RU:**
-- **Название:** Hoarbound
-- **Жанр:** Сурвайвал-экшн, атмосферный adventure
-- **Платформа:** PC
-- **Камера:** От третьего лица с кинематографическими эффектами
-- **Дополнительно:** Реалистичная графика, акцент на атмосферу и погружение
+This document originated before the current Key West / First Exit production direction stabilised. It contains concepts that are no longer part of the current vertical slice and, in some cases, are not implemented at all.
 
-**EN:**
-- **Title:** Hoarbound
-- **Genre:** Survival-action, atmospheric adventure
-- **Platform:** PC
-- **Camera:** Third-person with cinematic effects
-- **Additional:** Realistic graphics, focus on atmosphere and immersion
+Historical ideas include:
 
-## 2. Elevator Pitch
+- a 2159 nuclear-winter framing;
+- underground cities such as Fernvale and Lorong;
+- Gizmo as an active miniature robot companion;
+- tactical combat and enemy encounters;
+- radiation avoidance;
+- large crafting / resource systems;
+- non-linear narrative and moral-choice structures;
+- cursor-following / snap-turn control concepts from earlier prototypes.
 
-**RU:**
-В 2159 году, в мире, погружённом в ядерную зиму, юный Генри Мосс оказывается изгнанным из подземного бункера на поверхность. Наивный и неопытный, он вынужден выживать в враждебной постапокалиптической среде, опираясь на помощь своего спутника — миниатюрного робота Гизмо. Вместе они ищут новое убежище, сталкиваясь с опасностями, моральными дилеммами и редкими моментами тепла и юмора.
+None of those concepts should be treated as permission to expand First Exit A.
 
-**EN:**
-In the year 2159, in a world plunged into nuclear winter, young Henry Moss is cast out of an underground bunker and forced to the surface. Naïve and inexperienced, he must survive in a hostile post-apocalyptic environment, relying on the aid of his companion — a miniature robot named Gizmo. Together, they search for a new refuge, facing dangers, moral dilemmas, and rare moments of warmth and humor.
+## Ideas that still overlap with current Hoarbound
 
-## 3. Целевая аудитория
+Some early pillars survived in a different form:
 
-**RU:**
-- Мужчины 25–45 лет
-- Игроки, готовые погрузиться в атмосферный, сурвайвал геймплей
-- Любители глубоких сюжетов, эмоциональных связей между персонажами и медитативного исследования мира
-- Фанаты кинематографических игр с упором на атмосферу
+- **Henry is forced out of protected shelter** and must learn to survive on the surface.
+- **Third-person survival** remains the core format.
+- **Physical inventory / item handling** remains an important presentation goal.
+- **Sleep is tied to saving** and reaching a viable shelter state.
+- **Cold, food, water and environmental pressure** remain central survival concerns.
+- **Atmosphere and deliberate pacing** matter more than constant combat.
 
-**EN:**
-- Males aged 25–45
-- Players ready to immerse themselves in atmospheric survival gameplay
-- Fans of deep narratives, emotional bonds between characters, and meditative world exploration
-- Enthusiasts of cinematic games with focus on atmosphere
+The current implementation expresses these ideas through frozen Key West, First Exit, shelter repair, systemic weather / thermal pressure, diegetic equipment and the Kenny companion concept.
 
-## 4. Уникальное торговое предложение (USP)
+## Historical high concept
 
-**RU:**
-- **Два протагониста:** Динамика «отец–сын» в эмоциональном ключе
-- **Кинематографическое управление:** Плавная система поворотов за курсором с умной камерой
-- **3D-инвентарь:** Физическое взаимодействие с предметами
-- **Иммерсивный сурвайвал:** Атмосферный геймплей с акцентом на исследование
-- **Нелинейный сюжет:** Моральные дилеммы влияют на развитие истории
-- **Система сохранений:** Только через сон в безопасных условиях
+The earlier pitch described young Henry Moss being cast out of an underground bunker into a world dominated by prolonged nuclear winter. He would search for refuge while travelling with an active robot companion and eventually encounter combat, radiation and narrative choices.
 
-**EN:**
-- **Two protagonists:** "Father–son" dynamic in an emotional context
-- **Cinematic controls:** Smooth cursor-following rotation system with smart camera
-- **3D inventory:** Physical interaction with items
-- **Immersive survival:** Atmospheric gameplay focused on exploration
-- **Non-linear storyline:** Moral dilemmas affect story development
-- **Save system:** Tied to sleeping in safe conditions only
+That pitch is useful as provenance, but it is **not** the current opening game contract.
 
-## 5. Тон и атмосфера
+## Historical design themes
 
-**RU:**
-- **Визуальный стиль:** Киберпанк + постапокалипсис + минимализм, зимние оттенки
-- **Музыка:** Гитарные сэмплы, ломанные ударные, скрипка, гармошка
-- **Эмоции:** Сплочённость, поиск света в разрушенном мире
-- **Геймплей:** Медитативное исследование, моменты напряжения, эмоциональная глубина
+### Atmosphere
 
-**EN:**
-- **Visual style:** Cyberpunk + post-apocalypse + minimalism, winter tones
-- **Music:** Guitar samples, broken beats, violin, accordion
-- **Emotions:** Togetherness, searching for light in a ruined world
-- **Gameplay:** Meditative exploration, moments of tension, emotional depth
+The early direction combined post-apocalyptic winter, cinematic third-person presentation, meditative exploration and occasional high-pressure encounters.
 
-## 6. Геймплейное ядро
+### Survival
 
-**RU:**
-- **Механики:** Исследование, тактический бой, поиск и крафт предметов, выживание (тепло, еда, вода), избегание радиации
-- **Особенности управления:** 
-  - Плавные повороты персонажа за курсором мыши
-  - Кинематографическая камера с эффектами спринта и прыжков
-  - Система "фиксации курсора в пространстве" для точного позиционирования
-  - Snap-повороты на 180° для быстрой смены направления
+The old concept already emphasized body warmth, food, water, resource gathering and safe sleep. Current Hoarbound keeps those systemic concerns but tests them through a smaller, more grounded route-and-shelter loop.
 
-**Цикл игрока:**
-1. Исследует территорию с кинематографической камерой
-2. Собирает ресурсы или крафтит предметы
-3. Ведет тактический бой или избегает столкновений
-4. Поддерживает тепло тела и следит за показателями
-5. Ищет безопасное место для сна (сохранение)
+### Physical interaction
 
-**EN:**
-- **Mechanics:** Exploration, tactical combat, resource gathering and crafting, survival (warmth, food, water), radiation avoidance
-- **Control features:**
-  - Smooth character rotation following mouse cursor
-  - Cinematic camera with sprint and jump effects
-  - "World cursor lock" system for precise positioning
-  - 180° snap-turns for quick direction changes
+The legacy design called for a physical 3D inventory and close interaction with carried objects. This remains relevant and is now pursued through the existing inventory / equipment ownership model and the embodied interaction workstream.
 
-**Player loop:**
-1. Explore the area with cinematic camera
-2. Gather resources or craft items
-3. Engage in tactical combat or avoid encounters
-4. Maintain body warmth and monitor vitals
-5. Find a safe place to sleep (save)
+### Save structure
 
-## 7. Сеттинг
+Safe sleep as a save rule remains one of the clearest ideas carried forward into production.
 
-**RU:**
-- **Год:** 2159
-- **Мир:** Ядерная зима, продолжающаяся десятилетиями
-- **Локации:**
-  - Подземный город Fernvale
-  - Подземный город Lorong
-  - Система скоростных поездов между бункерами
-- **Главные персонажи:** Генри Мосс, Гизмо, Мистер Голд
+## Explicit non-authority
 
-**EN:**
-- **Year:** 2159
-- **World:** Nuclear winter lasting for decades
-- **Locations:**
-  - Underground city Fernvale
-  - Underground city Lorong
-  - High-speed rail system between bunkers
-- **Main characters:** Henry Moss, Gizmo, Mr. Gold
+Do not use this file to justify adding, during First Exit A:
 
-## 8. Техническое видение
+- combat or enemies;
+- radiation gameplay;
+- active Gizmo abilities;
+- large crafting trees;
+- new story-choice systems;
+- old control schemes that conflict with the current TPS camera / input grammar.
 
-**RU:**
-- **Движок:** Godot 4.8-dev6
-- **Игровые референсы:** Fallout, S.T.A.L.K.E.R., The Long Dark, Frostpunk
-- **Управление:** Resident Evil 4 (remake), Dead Space, The Last of Us
-- **Литературные референсы:** «Дорога» (Cormac McCarthy)
+If a legacy idea returns, it should be reintroduced through a current product decision and a new scoped issue rather than by citing this document.
 
-**EN:**
-- **Engine:** Godot 4.8-dev6
-- **Game references:** Fallout, S.T.A.L.K.E.R., The Long Dark, Frostpunk
-- **Controls:** Resident Evil 4 (remake), Dead Space, The Last of Us
-- **Literary references:** The Road (Cormac McCarthy)
+## Current references
 
-## 9. Метрики успеха
-
-**RU:**
-- **Этап 1:** Играбельная демка, положительные отзывы, спрос на релиз
-- **Этап 2:** Продажи и отзывы после релиза
-- **Критерии качества:** Плавность управления, атмосферность, эмоциональная вовлеченность
-
-**EN:**
-- **Stage 1:** Playable demo, positive feedback, demand for release
-- **Stage 2:** Sales and reviews after release
-- **Quality criteria:** Control smoothness, atmosphere, emotional engagement
+- [`../../PRD.md`](../../PRD.md)
+- [`VERTICAL_SLICE.md`](VERTICAL_SLICE.md)
+- [`../GDD.md`](../GDD.md)
+- GitHub issue #42 — First Exit A
+- GitHub issue #198 — Embodied Interaction Stack

@@ -1,167 +1,126 @@
-# Vertical slice — First Exit A: One Land Night
+# Vertical Slice — First Exit A: One Land Night
 
-Status: **current production target; live candidate awaiting a stranger run**, updated 2026-09-29.
-Reference: *The Long Dark* for survival decision pressure; *The Road* for tone.
+**Status:** current production target; core implementation exists, human end-to-end acceptance is still open.
 
-This document is the current scope contract for the first playable slice.
-World coordinates, route lengths and authored placement live in
-`docs/world/KEY_WEST_FIRST_EXIT.md`. The shared First Exit template retains its
-authored local layout in `data/world/first_exit_layout.json`; the older Graciosa
-route measurements are preserved in `docs/world/FIRST_EXIT.md`.
+This document is the scope contract for the first playable Hoarbound slice. Product intent lives in `PRD.md`; code-grounded implementation status lives in `docs/GDD.md`; world coordinates and authored placement live in the Key West world data / docs.
 
-## 1. Split: A now, B later
+Reference for decision pressure: *The Long Dark*. Tone reference: *The Road*.
 
-The old "One Night on the Ice" target has been split.
+## 1. Scope split
 
-### A — First Exit: land night
+### First Exit A — land night
 
-The current milestone is one uninterrupted land survival run on Key West:
+One uninterrupted survival run in the current **Key West** production world:
 
-```
-bunker exit
-  -> choose road / exposed shore / ruins
-  -> collect scarce boards, tinder, fuel and food
-  -> weather worsens and changes the return decision
-  -> reach the suburb shelter
-  -> choose which breaches to board (4 windows; placement quality matters)
-  -> light and feed the stove
-  -> recover / dry
-  -> sleep -> save
-```
+`bunker exit -> choose road / exposed shore / ruins -> collect useful supplies -> weather worsens -> reach Fort Street shelter -> repair openings -> light/feed stove -> recover/dry -> sleep/save -> reload`
 
-There is **no inland lagoon and no thin-ice route in A**.
+There is **no required thin-ice route in First Exit A**.
 
-The historical scarcity target is 15 boards / 30 nails. For the current live
-candidate the author explicitly retains all existing supplies: 33 boards,
-66 nails, 12 logs, both starter kits and the shelter bonus stacks. This run
-checks the complete interaction loop; it does not validate the reduced-stock
-balance. Do not silently remove these supplies when regenerating the scene.
+### Coast / Thin Ice — later slice
 
-### B — Coast / Thin Ice
-
-Coastal ice is a later slice built on real maritime geography: shore-fast ice,
-shoals, frozen straits, small offshore islets/atolls and ice-locked ships.
-
-The ice simulation already exists in the codebase, but `IceField` is not in
-the current `world.gd` runtime system list and is not instantiated by the
-Graciosa First Exit scene. That separation is intentional.
+Coastal ice is a later gameplay problem built on the maritime geography around Key West. Ice simulation code may exist in the repository, but it is not part of the First Exit A completion contract.
 
 ## 2. Player fantasy
 
-Henry has been expelled from a bunker into a frozen version of a formerly
-tropical island. He is inexperienced, exposed and running out of safe time.
-The first problem is not combat. It is whether he can read the landscape,
-carry enough useful material, prepare one bad house for the night and survive
-the weather change.
+Henry has been forced out of a protected bunker into a frozen version of a place that was never built for permanent cold.
 
-Kenny is strapped to Henry's backpack during Act I. He has no battery and no
-active abilities; his weight is part of what Henry chooses to keep carrying.
+The opening problem is environmental rather than combat-driven: can he read the landscape, carry enough useful material, react to worsening weather and make one bad house survivable before he loses the safe window?
 
-## 3. What already exists in production
+Kenny is carried on Henry's backpack during this phase. He is not an active ability companion in First Exit A; his physical presence and weight matter before his future functionality does.
 
-- Key West runs on `IslandTerrain` built from NOAA-derived height data; the
-  archived Graciosa terrain and scene are retained in `archive/graciosa/`.
-- First Exit is a data-driven suburb/route blockout with resolved coordinates.
-- The current Key West route is about 713 m from Whitehead Spit to Fort Street.
-  The archived Graciosa route measurements (road 4.8 min, shore 5.5 min, ruins
-  5.7 min) remain historical; the new continuous route still needs a playtest.
-- Thermal model: ambient cold, wind chill, shelter, wetness and heat.
-- Weather profiles: calm, snowfall, windy and blizzard.
-- Hunger, thirst, energy and carry-weight pressure.
-- First Exit shelter: four repairable windows and an operable door, carried-board placement, stove and mattress.
-- Route and shelter pickups are authored and tested; current quantities are
-  recorded above and in FIRST_EXIT.
-- Shelter state persists boarded breaches and stove fuel.
-- Sleep is contextual through `F` and sleeping saves.
-- Field bedroll exists and persists while laid out.
-- Weather profile and remaining duration persist.
-- Kenny is visible on the pack and contributes weight.
-- Henry has skinned cold-weather clothing with wetness darkening.
-- Carry/work animations, cabinet interaction and breach kneeling are wired.
-- Held road flare is integrated with hand pose, light, sparks, smoke and wind.
-- Player Hub foundation exists: pack opens on Henry; real garment pockets are
-  Quick Access zones; items can move pack <-> pocket without duplication.
-- Quick Access draws physical tools, a finite flask and food tins. Pineapple
-  opens with an owned knife before eating; carried wood can be put down with G.
-- WeatherBeat requests the existing WeatherController's blizzard transition
-  after 200 m from the bunker or a 300-second fallback. Shelter defers the beat;
-  after the 180-second blizzard the route becomes windy. The beat state saves.
-- The pickup ledger preserves consumed authored loot across save/load; loose
-  wood and its contents restore without duplication.
+## 3. Current production foundation
 
-## 4. Remaining A blockers
+The slice already has substantial system support:
 
-### Implemented — authored weather turn; live decision pressure unverified
+- Key West terrain and city generated from real geographic data;
+- data-driven First Exit route / content placement;
+- road / shore / ruins route grammar;
+- Henry third-person locomotion, camera and interaction path;
+- thermal model with ambient cold, wind, shelter, wetness, clothing and heat;
+- weather profiles and authored WeatherBeat;
+- hunger, hydration, fatigue and carried-load pressure;
+- Player Hub, Quick Access, held items and physical carry rules;
+- shelter with four repairable windows and an operable door;
+- boards, nails, hammer work and breach state;
+- stove, fuel, cooking / water / warming workflows;
+- contextual rest / sleep and sleep-driven save;
+- persistence for inventory, equipment, shelter, weather, bedroll and consumed authored pickups;
+- snow / snowfall / footprint presentation integrated with the world.
 
-WeatherBeat already uses WeatherController as the sole weather authority.
-Focused tests cover its triggers and persistence. The remaining proof is whether
-the actual route/weather timing changes a new player's decision.
+Implementation existence is not the final gate: the loop still needs to work coherently for a person who does not know the project.
 
-Acceptance: during a normal 10–15 minute run, worsening wind/snow makes the
-return leg materially colder and forces the player to reconsider time, route
-or supplies.
+## 4. Current supply candidate
 
-### Implemented — save closure for world pickups; continuous run unverified
+The live candidate intentionally keeps the currently authored increased supply pool, including bonus stacks. Current production docs record **33 boards, 66 nails and 12 logs**.
 
-Inventory, equipment, weather, shelter, laid bedroll and consumed world pickups
-persist. Focused tests cover the pickup ledger; the stranger run must still
-confirm the complete sleep/save/reload sequence in the actual island scene.
+This run validates the complete interaction loop and decision readability. It does **not** prove the older reduced-stock scarcity balance.
 
-Acceptance: pick up authored First Exit loot -> sleep/save -> reload -> the
-same world pickup stays gone while the inventory result remains correct.
+Do not silently remove supplies while rebuilding / regenerating the scene unless the owner explicitly reopens balance.
 
-### P0 — one continuous stranger playtest
+## 5. Remaining blockers
 
-The proof is the real Graciosa scene, not TestScene and not debug teleporting.
+### Weather turn — implementation complete, decision effect unproven
 
-Required path:
+`WeatherBeat` already uses the existing weather authority and persists its state. The remaining question is whether its timing materially changes a new player's return decision.
+
+Tracked in #78.
+
+### Systemic pressure — implementation largely complete, player read unproven
+
+Weight, wetness, fatigue and exposure already affect simulation. The remaining question is whether they interrupt the fixed “collect everything, then do the checklist” behaviour.
+
+Tracked in #134.
+
+### Continuous stranger run — P0 closing gate
+
+Tracked in #80.
+
+Required run:
+
 1. start at the bunker;
-2. understand at least two route choices without a map;
-3. find, carry and use supplies; record whether the retained stock erases choice;
-4. experience the weather turn;
-5. reach the shelter;
-6. board a subset of the four repairable windows;
-7. light/feed the stove;
-8. sleep and save;
-9. reload into a coherent world state.
+2. recognise at least two route options without a map;
+3. find, carry and use supplies;
+4. experience the authored weather turn;
+5. reach the Fort Street shelter;
+6. make meaningful repair / fuel decisions;
+7. light and maintain the stove;
+8. warm / dry / recover enough to sleep;
+9. sleep and save;
+10. reload into a coherent world state.
 
-If a required step needs a debug teleport or console repair, it is still an A
-blocker.
+If a required step needs a debug teleport, console call, TestScene shortcut or manual state repair, it remains a blocker.
 
-## 5. Readability / P1 quality pass
+## 6. Readability / P1 quality
 
-These improve the slice but should not grow into new subsystem work before the
-P0 loop closes:
+After the P0 loop closes, improve the slice without creating new subsystems:
 
-- verify the bus/van/beach wreck silhouettes at 40–60 m;
-- verify Kenny reads as a carried robot-bear mass from rear and 3/4 views;
-- add a minimal route audio bed driven by existing exposure/weather concepts;
-- capture a fixed publisher proof set after the continuous playtest passes.
+- verify major route landmarks at normal TPS distance;
+- verify Kenny reads clearly as carried physical mass;
+- improve route-specific environmental audio using existing exposure / weather ownership;
+- capture a small publisher-proof image / video set from the accepted run.
 
-Prefer scale, pose, spacing and audio routing over a texture-heavy art pass.
+Prefer better placement, scale, pose, timing and feedback over broad new technology.
 
-## 6. First Exit A is done when
+## 7. First Exit A is done when
 
-1. A new player can go bunker -> shelter -> sleep/save in roughly 10–15 min.
-2. The player can make a bad decision around time, greed or weather and
-   understand why it hurt.
-3. Road, shore and ruins read as different land routes without a map.
-4. Shelter preparation is a sequence of choices, not an automatic safe room.
-5. Sleep/load restores a coherent world: shelter/fuel/weather/bedroll and
-   consumed route loot agree.
-6. README, this document and FIRST_EXIT describe the same scope.
-7. Thin ice neither blocks the run nor appears as a promised route in A.
+- [ ] A new player completes bunker -> shelter -> sleep/save in roughly 10–15 minutes.
+- [ ] At least two land routes are readable without a map.
+- [ ] The player can make a poor decision around time, greed, weather or carried load and understand the consequence.
+- [ ] Shelter preparation requires choices rather than functioning as an automatic safe room.
+- [ ] Sleep/reload restores coherent shelter, fuel, weather, bedroll, inventory and consumed-loot state.
+- [ ] The run requires no debug workaround.
+- [ ] `README.md`, `PRD.md`, this document and #42 describe the same slice.
+- [ ] Thin ice neither blocks nor masquerades as a promised A-route.
 
-## 7. Explicitly out of A
+## 8. Explicitly out of First Exit A
 
-- coastal thin-ice geography and its presentation chain;
+- coastal thin-ice route / fracture presentation as a required feature;
 - combat and enemies;
 - radiation gameplay;
-- active Kenny/Gizmo abilities;
+- active Kenny abilities;
 - large crafting trees;
-- full wardrobe/fashion systems;
-- heavy snow deformation;
-- island expansion beyond what the First Exit route needs.
+- additional survival meters added for completeness;
+- island expansion unrelated to the route;
+- technology work that does not improve the playable loop.
 
-Those may become later milestones. They are not reasons to delay closing the
-land-night slice.
+Later milestones may add these systems. They are not reasons to keep the land-night slice open.

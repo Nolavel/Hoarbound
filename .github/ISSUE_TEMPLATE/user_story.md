@@ -1,51 +1,47 @@
 ---
 name: User Story
-about: Одна ценность для игрока внутри эпика. Одна фраза «Как игрок, я хочу…»
+about: One player-facing value inside an Epic. Keep it independently testable.
 title: "[STORY] "
 labels: story
 ---
 
-## Родительский эпик
-
-<!-- Ссылка на milestone / epic issue -->
+## Parent Epic / Milestone
 
 Epic / Milestone: #
 
-## История
+## Player outcome
 
-Как **игрок**,
-я хочу **...**,
-чтобы **...**.
+As a **player**,
+I want **...**,
+so that **...**.
 
-## Приоритет относительно текущего slice
+## Priority
 
-- [ ] Blocking for First Exit A (P0)
+- [ ] P0 / blocks First Exit A
 - [ ] P1 quality / readability
-- [ ] Later / next epic
+- [ ] Later / next milestone
 
-## Контекст
+## Current state
 
-<!-- Что уже есть в коде и на что story опирается (компоненты, системы, ассеты) -->
+<!-- What already exists in code/content and what this Story builds on. -->
 
 ## Acceptance Criteria
 
-<!-- Проверяемые, буквально то, что тестер/автор отметит галочкой -->
+<!-- Observable player-facing outcomes. -->
 
 - [ ]
 - [ ]
 - [ ]
 
-## Вне scope этой story
+## Out of scope
 
-<!-- Что явно откладываем на следующую story/эпик -->
+<!-- Explicitly deferred work. -->
 
-## Задачи (Tasks)
-
-<!-- Заполняется по мере декомпозиции story на tasks -->
+## Tasks
 
 - [ ] #
 - [ ] #
 
-## Риски / открытые вопросы
+## Risks / open decisions
 
 -

@@ -1,42 +1,43 @@
 ---
 name: Epic
-about: Крупный продуктовый рубеж. Обычно заводится как Milestone; это описание эпика.
+about: A product-level outcome spanning multiple stories or tasks. Usually paired with a Milestone.
 title: "[EPIC] "
 labels: epic
 ---
 
-## Зачем этот эпик существует
+## Purpose
 
-<!-- Одна-две фразы: какую продуктовую проблему решает, на что опирается из PRD -->
+<!-- One or two sentences: what product problem this Epic owns and which PRD goal it supports. -->
 
-## Цель
+## Goal
 
-<!-- Что должно быть верно в игре/продукте, когда эпик закрыт -->
+<!-- What must be true in the game/product when this Epic is complete? -->
 
-## Критерии готовности (Definition of Done)
+## Current state
+
+<!-- What already exists? Avoid repeating implementation history unless it changes the remaining work. -->
+
+## Definition of Done
 
 - [ ]
 - [ ]
 - [ ]
 
-## Вне scope
+## Out of scope
 
-<!-- Явно перечислить, что НЕ делаем в рамках этого эпика,
-     даже если оно кажется логичным продолжением -->
+<!-- Explicitly list work that may look related but is not part of this Epic. -->
 
-## Зависимости
+## Dependencies
 
-<!-- От каких других эпиков/issue зависит; что должно быть закрыто до старта -->
+<!-- Other milestones/issues that must land first or that this Epic depends on. -->
 
-## Связанные User Stories
-
-<!-- Список ссылок на issues со story-шаблоном, растёт по мере декомпозиции -->
+## Related Stories / Tasks
 
 - [ ] #
 - [ ] #
 
-## Открытые вопросы дизайна
+## Open decisions
 
-<!-- Вопросы, на которые нужно ответить до/во время реализации -->
+<!-- Only unresolved decisions that materially affect scope or implementation. -->
 
 1.
