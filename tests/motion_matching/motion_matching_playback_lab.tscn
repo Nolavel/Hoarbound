@@ -1,0 +1,106 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/experimental/motion_matching/motion_matching_playback_lab.gd" id="1_lab"]
+[ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="2_henry"]
+[ext_resource type="Script" path="res://scripts/systems/motion_matching/motion_matching_debug_view.gd" id="3_debug"]
+
+[sub_resource type="Shader" id="GridShader"]
+code = "shader_type spatial;
+render_mode specular_disabled;
+
+uniform vec3 base_color = vec3(0.17, 0.19, 0.21);
+uniform vec3 line_color = vec3(0.36, 0.39, 0.43);
+varying vec3 world_position;
+
+void vertex() {
+	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+
+void fragment() {
+	vec2 minor_cell = abs(fract(world_position.xz - 0.5) - 0.5) / fwidth(world_position.xz);
+	float minor = 1.0 - min(min(minor_cell.x, minor_cell.y), 1.0);
+	vec2 major_cell = abs(fract(world_position.xz * 0.2 - 0.5) - 0.5) / fwidth(world_position.xz * 0.2);
+	float major = 1.0 - min(min(major_cell.x, major_cell.y), 1.0);
+	ALBEDO = mix(base_color, line_color, max(minor * 0.55, major));
+	ROUGHNESS = 0.95;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="GridMaterial"]
+shader = SubResource("GridShader")
+
+[sub_resource type="BoxMesh" id="FloorMesh"]
+material = SubResource("GridMaterial")
+size = Vector3(80, 0.2, 80)
+
+[sub_resource type="BoxShape3D" id="FloorShape"]
+size = Vector3(80, 0.2, 80)
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMaterial"]
+sky_top_color = Color(0.1, 0.15, 0.21, 1)
+sky_horizon_color = Color(0.47, 0.52, 0.57, 1)
+ground_bottom_color = Color(0.07, 0.08, 0.09, 1)
+ground_horizon_color = Color(0.29, 0.31, 0.33, 1)
+
+[sub_resource type="Sky" id="Sky"]
+sky_material = SubResource("SkyMaterial")
+
+[sub_resource type="Environment" id="Environment"]
+background_mode = 2
+sky = SubResource("Sky")
+ambient_light_source = 3
+ambient_light_color = Color(0.55, 0.6, 0.66, 1)
+ambient_light_energy = 0.7
+
+[sub_resource type="StyleBoxFlat" id="HudPanel"]
+bg_color = Color(0.03, 0.04, 0.05, 0.72)
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+
+[node name="MotionMatchingPlaybackLab" type="Node3D"]
+script = ExtResource("1_lab")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-52, -30, 0)
+light_energy = 1.2
+shadow_enabled = true
+
+[node name="Floor" type="StaticBody3D" parent="."]
+position = Vector3(0, -0.1, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("FloorMesh")
+
+[node name="Collision" type="CollisionShape3D" parent="Floor"]
+shape = SubResource("FloorShape")
+
+[node name="Henry" type="CharacterBody3D" parent="."]
+position = Vector3(0, 1, 0)
+
+[node name="HenryUALVisual" parent="Henry" instance=ExtResource("2_henry")]
+position = Vector3(0, -1, 0)
+rotation = Vector3(0, 3.1415927, 0)
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.87, 0.49, 0, -0.49, 0.87, 0, 3, 5)
+fov = 55.0
+
+[node name="DebugView" type="Node3D" parent="." node_paths=PackedStringArray("hud_label")]
+script = ExtResource("3_debug")
+hud_label = NodePath("../Hud/Label")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+
+[node name="Label" type="Label" parent="Hud"]
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 900.0
+offset_bottom = 200.0
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("HudPanel")
+text = "motion matching lab"

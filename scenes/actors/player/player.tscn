@@ -27,6 +27,7 @@
 [ext_resource type="Script" path="res://scripts/actors/player/henry/components/wood_work_component.gd" id="98_wood"]
 [ext_resource type="Script" uid="uid://0rnwid612a8i" path="res://scripts/systems/survival/consumption_controller.gd" id="92_consume"]
 [ext_resource type="Script" uid="uid://ddo2xkwqouann" path="res://scripts/actors/player/henry/components/foot_contact_sensor.gd" id="94_feet"]
+[ext_resource type="Script" path="res://scripts/actors/player/henry/components/motion_matching_locomotion.gd" id="95_motion"]
 [ext_resource type="Resource" path="res://data/equipment/player_layout.tres" id="93_layout"]
 [ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="50_ual"]
 
@@ -146,6 +147,9 @@ bio_monitor = NodePath("../BioMonitorManager")
 script = ExtResource("94_feet")
 body = NodePath("..")
 visual = NodePath("../HenryUALVisual")
+
+[node name="MotionMatchingLocomotion" type="Node" parent="."]
+script = ExtResource("95_motion")
 
 [node name="MouseCursorUI" parent="." instance=ExtResource("49_cursor")]
 

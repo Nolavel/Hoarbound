@@ -5,7 +5,7 @@ name: checks
 ## No rendering here; render locally with tools/ci/render.sh.
 on:
   push:
-    branches: [codex]
+    branches: [codex, claudeflow]
     paths:
       - "scripts/systems/world/ColorGradeController.gd"
       - "scripts/systems/world/DayNightManager.gd"
@@ -27,6 +27,13 @@ on:
       - "scenes/ui/debug/**"
       - "tools/runtime/capture_dev_diorama_map.gd"
       - "tests/systems/test_dev_diorama_map.gd"
+      - "scripts/experimental/motion_matching/**"
+      - "scripts/systems/motion_matching/**"
+      - "scripts/actors/player/henry/components/motion_matching_locomotion.gd"
+      - "tests/motion_matching/**"
+      - "tools/runtime/capture_motion_matching_lab.gd"
+      - "tools/runtime/capture_motion_matching_player.gd"
+      - "tools/ci/prepare_cmu_sample.sh"
       - ".github/workflows/checks.yml"
       - "scripts/world/key_west_first_exit.gd"
       - "scenes/world/key_west/key_west_first_exit.tscn"
@@ -93,7 +100,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   color-grade-preview:
-    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]')
+    if: github.event_name == 'push' && github.ref_name != 'claudeflow' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -131,7 +138,6 @@ jobs:
           path: docs/runtime_previews/color_grading/*.png
           if-no-files-found: error
           retention-days: 3
-
 
   settings-preview:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[settings-preview]')
@@ -175,6 +181,89 @@ jobs:
             docs/runtime_previews/camera_settings/report.json
           if-no-files-found: error
           retention-days: 3
+
+  motion-matching-preview:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[motion-matching-preview]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Dataset and retarget audit (headless)
+        run: |
+          "$HOME/.local/bin/godot" --headless --path . --script res://tools/runtime/audit_motion_dataset.gd
+
+      - name: Capture retarget diagnostics and motion matching proof
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          run_godot() {
+            MM_DIAG_VIDEO=0 xvfb-run -a "$HOME/.local/bin/godot" \
+              --path . \
+              --resolution 1280x720 \
+              --rendering-driver vulkan \
+              --rendering-method forward_plus \
+              --audio-driver Dummy \
+              --script "$@"
+          }
+          # 100STYLE is unverified: diagnostics only, never baked.
+          run_godot tools/runtime/capture_motion_retarget_diagnostics.gd -- \
+            CMU:09_12 CMU:113_17 CMU:41_02 CMU:111_28 CMU:69_18 CMU:40_04 \
+            100STYLE:Neutral_SW 100STYLE:Neutral_TR1
+          run_godot tools/runtime/capture_motion_matching_lab.gd
+
+      - name: In-game A/B on the real Player (headless, tree vs Motion Matching)
+        run: |
+          for flag in 0 1; do
+            HOARBOUND_MOTION_MATCHING=$flag MM_HEADLESS_PROOF=1 \
+              MM_OUT_DIR=res://docs/runtime_previews/motion_matching_player_$flag \
+              "$HOME/.local/bin/godot" --headless --fixed-fps 30 --path . \
+              --script res://tools/runtime/capture_motion_matching_player.gd
+          done
+
+      - name: Encode preview video
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -y \
+            -framerate 30 \
+            -i docs/runtime_previews/motion_matching_lab/frames/%04d.png \
+            -c:v libx264 \
+            -preset veryfast \
+            -crf 22 \
+            -pix_fmt yuv420p \
+            docs/runtime_previews/motion_matching_lab/motion_matching_proof.mp4
+          rm -rf docs/runtime_previews/motion_matching_lab/frames
+
+      - name: Upload motion matching preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-motion-matching-proof
+          path: |
+            docs/runtime_previews/motion_matching_lab/*.mp4
+            docs/runtime_previews/motion_matching_lab/*.png
+            docs/runtime_previews/motion_matching_lab/*.json
+            docs/runtime_previews/motion_retarget_diagnostics/*.png
+            docs/runtime_previews/motion_retarget_diagnostics/report.json
+            docs/runtime_previews/motion_matching_player_*/report.json
+          if-no-files-found: error
+          retention-days: 7
 
   dev-map-preview:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[dev-map-preview]')
