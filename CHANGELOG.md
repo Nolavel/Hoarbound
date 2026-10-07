@@ -5,6 +5,18 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Motion Matching handovers and held props (#202 follow-up 6)
+
+- Stopping into the tree's idle no longer slides: settling freezes the search
+  and holds both feet, which stay planted (leash of a leg's reach) while the
+  tree stands Henry still. Stop 0.58 → 0.23 m/s, standing 0.13 → 0.05 (tree
+  0.26 / 0.08).
+- From standing, Motion Matching takes over by inertialization instead of a
+  crossfade (start 90° 0.66 → 0.56); from motion it still crossfades.
+- A held prop keeps only its arm on the tree's held pose; Motion Matching walks
+  the rest (new suite `test_motion_matching_hold_layer.gd`). Whole in-game
+  program 0.474 → 0.438 m/s (tree 0.507).
+
 ### 2026-10-07 - Sprint build-up and top speed follow tiredness (#202 follow-up 5)
 
 - `MovementController`: the sprint builds up up to twice as slowly as energy

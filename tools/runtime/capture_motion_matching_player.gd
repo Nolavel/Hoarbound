@@ -129,6 +129,14 @@ func _run() -> void:
 			(noise as CanvasLayer).visible = false
 	_drift = OS.get_environment("MM_PROGRAM") == "drift"
 	_player.global_position = DRIFT_START if _drift else START
+	# MM_HOLD_PROP=1: a stand-in light in the main hand raises the held-arm pose.
+	if OS.get_environment("MM_HOLD_PROP") == "1":
+		var prop := MeshInstance3D.new()
+		prop.mesh = CylinderMesh.new()
+		(prop.mesh as CylinderMesh).top_radius = 0.02
+		(prop.mesh as CylinderMesh).bottom_radius = 0.02
+		(prop.mesh as CylinderMesh).height = 0.25
+		_player.animation_component.hold_in_hand(prop)
 	if _drift:
 		_player.rotation.y = 0.0
 	_player.velocity = Vector3.ZERO

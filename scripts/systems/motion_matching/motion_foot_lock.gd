@@ -7,6 +7,9 @@ extends RefCounted
 ## Farthest a lock holds against the animation (Holden's 0.2 m); past it the point
 ## is dragged along, as SnowFootModifier's lock reach, instead of snapping free.
 const LEASH_RADIUS := 0.2
+## Standing still the animation's feet say nothing about where the boots are:
+## a held foot keeps its spot up to a leg's reach (the leg solve pulls past it).
+const HOLD_LEASH_RADIUS := 0.5
 ## Halflife of the offset decay after a lock or unlock transition, seconds.
 const BLEND_HALFLIFE := 0.1
 const LN2 := 0.69314718056
@@ -30,7 +33,7 @@ func reset() -> void:
 
 ## Presented ankle position for `side` from the animated one. Only the ground
 ## plane is held; height stays the animation's, so heel and toe roll survive.
-func update(side: int, animated: Vector3, contact: bool, dt: float) -> Vector3:
+func update(side: int, animated: Vector3, contact: bool, dt: float, leash: float = LEASH_RADIUS) -> Vector3:
 	var flat := Vector3(animated.x, 0.0, animated.z)
 	if not _initialized[side]:
 		_initialized[side] = true
@@ -45,8 +48,8 @@ func update(side: int, animated: Vector3, contact: bool, dt: float) -> Vector3:
 	var input_velocity := (flat - _input[side]) / maxf(dt, 0.000001)
 	_input[side] = flat
 	_decay(side, dt)
-	if _locked[side] and _point[side].distance_to(flat) > LEASH_RADIUS:
-		_point[side] = flat + (_point[side] - flat).normalized() * LEASH_RADIUS
+	if _locked[side] and _point[side].distance_to(flat) > leash:
+		_point[side] = flat + (_point[side] - flat).normalized() * leash
 		leash_frames += 1
 	var source := _point[side] if _locked[side] else flat
 	_position[side] = source + _offset[side]

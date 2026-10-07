@@ -31,7 +31,11 @@ MotionMatchingLocomotion._physics_process (child of Player, runs after it)
   AnimationTree.advance(dt)                       tree pose first (MANUAL mode)
   gate: plain locomotion (the tree's verdict: no air or landing state, no
         action/carry/sit/crouch), speed <= covered speed, not standing still > 0.6 s
-  weight -> 1 / 0 over 0.25 s (handover)
+  handover in: from standing, inertialized (matching owns the pose at once,
+              the tree's difference decays, halflife 0.1 s); from motion, 0.25 s
+  handover out: 0.25 s; settling to stand freezes the search and holds both
+              feet, which the tree's idle then keeps standing on
+  held prop: the socket arm stays the tree's held pose (layer by hold weight)
   controller.follow(dt, prediction, target velocity)
     query    = live pose before the foot lock + the body's own future
     search   = all frames, no role gate
@@ -45,7 +49,7 @@ Skeleton modifiers (unchanged order): FootPoseProbe, Wade, SnowFeet, DoorHand,
 HeadLook. Footprints and audio see the locked feet.
 ```
 
-The tree keeps: actions and work poses, held props (`hold_pose`), carry, sit,
+The tree keeps: actions and work poses, a held prop's arm (`hold_pose`), carry, sit,
 crouch, jump take-off, airtime and landing (its air states after the 0.15 s fall
 timeout), sprint above the covered speed (3.58 m/s, database p99), and idle after
 0.6 s standing still.
@@ -325,6 +329,64 @@ tree 0.515, Motion Matching 0.474, unchanged). The three numbers are the
 author's to tune; the reference is The Long Dark, where fatigue shortens and
 weakens the sprint.
 
+## Handovers and held props (follow-up 6)
+
+Measured first: one in-game run split by phase (MANN skating, data body, v8):
+
+| phase | frames | mean m/s | share of skating |
+| --- | --- | --- | --- |
+| tree ↔ Motion Matching handover | 3% | 1.42 | 12% |
+| switch crossfade inside matching | 45% | 0.25 | 29% |
+| steady matching | 29% | 0.38 | 29% |
+| tree | 23% | 0.51 | 30% |
+
+Handovers were the worst frames by far; switch crossfades were not worse than
+steady playback, so they stay. Causes and fixes:
+
+- **Stop into the tree's idle.** During the fade-out the matcher kept
+  switching; the new clip released a planted foot, which slid at 1.4–3.2 m/s
+  at ground height while the poses blended. Then the lock's 0.2 m leash
+  (Holden's, meant for moving feet) dragged a held foot towards the tree
+  idle's stance, which is farther away. Now, settling to stand freezes the
+  search and locks both feet (standing still is two planted feet); while the
+  tree stands Henry still, `hold_feet` keeps them on their spots with a leash
+  of a leg's reach (0.5 m); an action, carry or jump releases them through
+  the lock's inertialized decay; matching taking over again keeps them.
+  Henry stands where he stopped.
+- **Start from standing.** A matched swing foot crossfaded with the idle's
+  planted foot dragged low over the ground. From standing, matching now takes
+  the pose at once and the tree's difference decays (Bollo's inertialization,
+  Gears of War; Holden's `inertialize_pose_transition`). From motion (after a
+  tree-owned sprint) the inertialized entry was worse (walk after sprint
+  0.69 → 0.84), so that handover keeps its crossfade.
+- **Held props** no longer hand the whole body to the tree: the socket arm's
+  bones (the held-pose filter) stay the tree's by the hold weight, matching
+  walks the rest. `tests/systems/test_motion_matching_hold_layer.gd`: with a
+  held light the weight stays 1.0 (was 0.0) and the hand stays raised
+  (lowest 1.38 m against 0.84 m swinging).
+
+Four-scale in-game means (data body):
+
+| segment | tree | MM before | settle + hold | + entry (default) |
+| --- | --- | --- | --- | --- |
+| idle | 0.009 | 0.009 | 0.002 | 0.001 |
+| walk forward | 0.604 | 0.652 | 0.629 | 0.628 |
+| smooth curve left | 0.555 | 0.530 | 0.530 | 0.582 |
+| walk | 0.537 | 0.466 | 0.466 | 0.501 |
+| stop | 0.260 | 0.579 | 0.306 | 0.227 |
+| start 90 deg right | 0.815 | 0.694 | 0.661 | 0.558 |
+| sharp reversal | 0.676 | 0.558 | 0.558 | 0.600 |
+| sprint | 2.628 | 1.454 | 1.454 | 1.497 |
+| walk after sprint | 0.724 | 0.686 | 0.685 | 0.685 |
+| half stick | 0.332 | 0.275 | 0.275 | 0.275 |
+| stop, idle | 0.082 | 0.126 | 0.047 | 0.047 |
+| whole run | 0.507 | 0.474 | 0.439 | 0.438 |
+
+Settle and hold change only standing segments. The entry's direct effect is
+start 90° (it starts from standing): 0.66 → 0.56; curve, walk and reversal come
+much later and differ by a changed clip chain (±0.05). `HOARBOUND_MM_INERTIAL_ENTRY=0`
+restores the crossfade for A/B.
+
 ## Follow-up fixes, in order
 
 1. ~~Distance-based braking for scripted walks.~~ Done.
@@ -335,14 +397,16 @@ weakens the sprint.
 4. ~~Snow and wading with Motion Matching.~~ Done (see "Snow and wading").
 5. ~~Run data and sprint build-up with fatigue.~~ Done (see "Run data" and
    "Sprint build-up and fatigue").
-6. Inertialization for switches and handovers; an arm layer so held props do
-   not hand the whole body back to the tree.
+6. ~~Inertialization for switches and handovers; an arm layer for held
+   props.~~ Done (see "Handovers and held props").
 
 ## Not covered yet
 
 - Sprint above 3.94 m/s (CMU's fastest run is ~4.1 m/s; Henry sprints at 4.5),
-  crouch, carry and held-prop arm layering, slopes, stairs.
+  crouch, carry, slopes, stairs.
 - Gait-specific normalization or databases (UE5 Pose Search chooser): with run
   data in the same database the walking lab drifts back to its v7 level.
-- Inertialization instead of crossfade for switches and handovers.
+- Inertialized switches inside Motion Matching: their 0.2 s crossfades skate
+  less than steady playback in this metric (0.21–0.26 against 0.38 m/s), so
+  they were left as they are.
 - 100STYLE (host blocked from this environment).

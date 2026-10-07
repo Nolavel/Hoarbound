@@ -2,7 +2,8 @@ class_name MotionMatchingLocomotion
 extends Node
 
 ## Feature-flagged Motion Matching for Henry's plain locomotion (#202). The body
-## stays authoritative; actions, carry, sit, crouch, air and sprint keep the tree.
+## stays authoritative; actions, carry, sit, crouch, air and fast sprint keep the
+## tree, and a held prop's arm stays its held pose.
 ## Airtime and landing are the tree's verdict (HenryUALAnimation.is_plain_locomotion).
 
 ## Percentile of database root speeds treated as covered.
@@ -20,6 +21,10 @@ const TELEPORT_DISTANCE := 1.0
 ## Standing still longer than this hands idle to the tree's loop (0 keeps it): the
 ## CMU idle is short ranges, the tree's Idle_Loop stays still for minutes.
 @export_range(0.0, 5.0, 0.1) var idle_to_tree_seconds: float = 0.6
+## From standing, matching takes over at once and the tree's pose difference
+## decays (Bollo's inertialization); from motion it crossfades.
+## HOARBOUND_MM_INERTIAL_ENTRY=0/1.
+@export var inertial_entry: bool = true
 
 @export_group("Body dynamics")
 ## Walking accelerates and turns like the captured data (Holden, Code vs Data
@@ -51,6 +56,8 @@ var _last_body_position := Vector3.ZERO
 var _production_dynamics: Array[float] = []
 var _data_rates_on := false
 var _still_time := 0.0
+var _tree_standing := false
+var _hold_share := 0.0
 
 
 func _ready() -> void:
@@ -63,6 +70,11 @@ func _ready() -> void:
 			data_matched_body = false
 		"1":
 			data_matched_body = true
+	match OS.get_environment("HOARBOUND_MM_INERTIAL_ENTRY"):
+		"0":
+			inertial_entry = false
+		"1":
+			inertial_entry = true
 	if enabled:
 		# After HenryUALAnimation has built its AnimationTree.
 		_start.call_deferred()
@@ -177,16 +189,30 @@ func _physics_process(delta: float) -> void:
 			_active = false
 			_visual.transform = _visual_rest
 			_visual.reset_physics_interpolation()
+		if teleported:
+			_controller.restart()
 		_controller.observe()
+		# The tree's idle stands on the feet matching planted: nothing slides.
+		_tree_standing = standing and plain
+		_controller.hold_feet(delta, _tree_standing)
 		return
 	if not _active or teleported:
 		if not _active:
 			_handovers += 1
+			if inertial_entry and _tree_standing:
+				_weight = 1.0
+				_controller.begin_inertial_entry()
 		_active = true
 		_visual.transform = _visual_rest
-		_controller.restart()
+		_controller.restart(not teleported)
 	_active_seconds += delta
 	_controller.weight = smoothstep(0.0, 1.0, _weight)
+	_controller.settle = standing and plain
+	# A held prop's arm stays the tree's held pose over the matched body.
+	var hold: Dictionary = _visual.get_hold_layer()
+	if not is_equal_approx(float(hold["weight"]), _hold_share):
+		_hold_share = float(hold["weight"])
+		_controller.set_tree_layer(hold["bones"], _hold_share)
 	_controller.follow(delta, _predict(), _movement.get_target_velocity())
 
 

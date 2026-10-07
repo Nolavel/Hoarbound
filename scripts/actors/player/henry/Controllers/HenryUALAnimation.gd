@@ -200,6 +200,8 @@ var _held_prop: Node3D
 var _offhand_socket: BoneAttachment3D
 var _offhand_prop: Node3D
 var _hold_pose: float = 0.0
+## Bones the held pose raises (the socket arm), for layers drawn over the tree.
+var _hold_pose_bones := PackedStringArray()
 var _current_action: StringName = &""
 var _work_pose: WorkPose = WorkPose.NONE
 var _work_pose_time: float = 0.0
@@ -459,14 +461,18 @@ func is_action_locking() -> bool:
 		or int(animation_tree.get("parameters/actions/request")) == AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE
 
 
-## True while the pose is plain grounded locomotion: no action, held prop, carry,
-## sit, crouch, airtime or landing. Motion Matching may stand in then.
+## True while the pose is plain grounded locomotion: no action, carry, sit,
+## crouch, airtime or landing. Motion Matching may stand in then; a held prop's
+## arm stays the tree's (get_hold_layer).
 func is_plain_locomotion() -> bool:
 	if _state_playback == null or _sitting or _carried != null or is_action_active() or is_action_locking():
 		return false
-	if is_instance_valid(_held_prop) or is_instance_valid(_offhand_prop) or _hold_pose > 0.001:
-		return false
 	return not NON_LOCOMOTION_STATES.has(_state_playback.get_current_node())
+
+
+## The held-prop arm as a layer: its bones and how far the held pose is raised.
+func get_hold_layer() -> Dictionary:
+	return {"bones": _hold_pose_bones, "weight": _hold_pose}
 
 
 func _has_carry_state() -> bool:
@@ -1090,6 +1096,7 @@ func _setup_animation_tree() -> void:
 		var bone := StringName(path.get_concatenated_subnames())
 		if String(bone).ends_with(side_suffix) and not LOWER_BODY_BONES.has(bone):
 			hold_pose.set_filter_path(path, true)
+			_hold_pose_bones.append(String(bone))
 	tree_root.add_node(&"hold_clip", _clip(torch_clip), Vector2(-560.0, 220.0))
 	tree_root.add_node(&"hold_pose", hold_pose, Vector2(-320.0, 0.0))
 	tree_root.connect_node(&"hold_pose", 0, &"base")
