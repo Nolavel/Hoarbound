@@ -5,6 +5,19 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-07 - Motion Matching gate C: six styles, leg-roll diagnosis (#202)
+
+- One B4 retarget setup on eight 100STYLE clips (Neutral, Rushed, StartStop,
+  Crouched, BentForward, Old):
+  - no knee bends backwards;
+  - no hyperextended elbows (the source has up to 177 frames);
+  - knee plane follows the source.
+- Henry's thigh and calf axial roll (~18°) is the performer's own; the
+  retarget matches it within a degree.
+- Opt-in `STAGE_LEG_PLANE` removes the calf roll.
+- `test_rig_contract.py` checks the limb +Y axis contract.
+- Results in `docs/motion_matching/gate_c.md`.
+
 ### 2026-10-07 - Motion Matching retarget backend comparison (#202)
 
 - `MotionRetargeter` gets three opt-in stages (off by default, database unchanged):
