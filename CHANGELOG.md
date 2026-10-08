@@ -5,6 +5,21 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - CI: the cheap gate runs on push again
+
+- **`checks` job.** Its `if: github.event_name != 'push'` meant the import,
+  input-map and filename gate never ran on a push to `main` (5 runs in the last
+  60, all PR or manual). It now runs on every push and PR.
+- **Path filter.** The 60-entry `push.paths` whitelist is replaced by the same
+  `paths-ignore` (docs, Markdown) as pull requests. Pushes that touched no
+  listed file, such as gameplay scripts, used to skip CI entirely.
+- **`color-grade-preview`** ran on every untagged push and acted as an
+  accidental main gate. Its 10-tag exclusion list was already stale (no
+  `[cmu-retarget-preview]`, `[rokoko-retarget-preview]`). It is now
+  tag-gated by `[color-grade-preview]`, like every other preview job.
+- **Expected after this change:** `checks` will report the existing Import gate
+  failure on every push until the cold-cache import abort is fixed.
+
 ### 2026-10-09 - Remove dead tool instances from the robot test scene
 
 - `tests/scenes/Test_scene_robot.tscn` still instanced

@@ -1,76 +1,14 @@
 name: checks
 
-## Cheap gate for main: import, input map and filename hygiene. Test suites are
-## run locally until mechanics settle; they churn too fast to gate main.
-## No rendering here; render locally with tools/ci/render.sh.
+## `checks` is the cheap gate on every push and PR: import, input map, filenames.
+## Test suites run locally until mechanics settle; they churn too fast to gate main.
+## Preview/render jobs run only for a commit tagged with their [marker].
 on:
   push:
     branches: [main, codex, claudeflow]
-    paths:
-      - "scripts/systems/world/ColorGradeController.gd"
-      - "scripts/systems/world/DayNightManager.gd"
-      - "scripts/systems/world/DayNightSettings.gd"
-      - "scripts/systems/world/WeatherController.gd"
-      - "scenes/game/systems/world/WorldEnvironmentSystem.tscn"
-      - "resources/environment/color_grading/**"
-      - "assets/textures/color_grading/**"
-      - "tools/runtime/capture_color_grading.gd"
-      - "tools/runtime/capture_key_west.gd"
-      - "tools/runtime/capture_key_west_tps.gd"
-      - "tools/runtime/capture_key_west_first_exit.gd"
-      - "tools/runtime/capture_sky_weather.gd"
-      - "shaders/environment/freemans_parallax_clouds.gdshader"
-      - "scripts/ui/debug/**"
-      - "scripts/ui/menu/camera_settings_panel.gd"
-      - "scripts/settings/**"
-      - "tools/runtime/capture_camera_settings.gd"
-      - "scenes/ui/debug/**"
-      - "tools/runtime/capture_dev_diorama_map.gd"
-      - "tests/systems/test_dev_diorama_map.gd"
-      - "scripts/experimental/motion_matching/**"
-      - "scripts/systems/motion_matching/**"
-      - "data/motion_matching/**"
-      - "scripts/actors/player/henry/components/motion_matching_locomotion.gd"
-      - "tests/motion_matching/**"
-      - "tools/runtime/capture_motion_matching_lab.gd"
-      - "tools/runtime/capture_motion_matching_player.gd"
-      - "tools/ci/prepare_cmu_sample.sh"
-      - "Jenova/**"
-      - "scripts/experimental/jenova_frost/**"
-      - "scenes/experimental/jenova_frost_lab.tscn"
-      - "tools/ci/bootstrap_jenova_linux.sh"
-      - "tools/ci/bootstrap_jenova_windows.ps1"
-      - "tools/jenova/**"
-      - "docs/technical/JENOVA.md"
-      - "tools/ci/build_jenova_project.gd"
-      - "tools/runtime/capture_jenova_frost.gd"
-      - ".github/workflows/checks.yml"
-      - "scripts/world/key_west_first_exit.gd"
-      - "scenes/world/key_west/key_west_first_exit.tscn"
-      - "core/world/resources/world_profile.gd"
-      - "core/world/streaming_system.gd"
-      - "world/world.gd"
-      - "data/world_profiles/key_west_test.tres"
-      - "tests/systems/test_key_west_first_exit.gd"
-      - "tests/systems/test_streaming.gd"
-      - "scripts/systems/world/city/chunked_city_massing.gd"
-      - "tools/world/build_key_west_preview.sh"
-      - "tools/world/build_key_west_city_preview.py"
-      - "project.godot"
-      - "shaders/environment/stylized_shadow.gdshaderinc"
-      - "shaders/environment/stylized_shadows.gdshader"
-      - "shaders/environment/materials/**"
-      - "shaders/environment/terrain/island_terrain.gdshader"
-      - "shaders/environment/snow/**"
-      - "shaders/environment/ice/**"
-      - "scripts/systems/world/materials/**"
-      - "scripts/systems/world/city/key_west_city_visuals.gd"
-      - "scripts/systems/world/city/key_west_street_props.gd"
-      - "scripts/environment/interactive/hinged_door.gd"
-      - "scripts/environment/interactive/meal_table.gd"
-      - "scripts/systems/survival/shelter_breach.gd"
-      - "tools/runtime/capture_stylized_shadows.gd"
-      - "tests/systems/test_stylized_shadows.gd"
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   pull_request:
     branches: [main]
     paths-ignore:
@@ -84,7 +22,6 @@ concurrency:
 
 jobs:
   checks:
-    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -110,7 +47,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   color-grade-preview:
-    if: github.event_name == 'push' && github.ref_name != 'claudeflow' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]') && !contains(github.event.head_commit.message, '[jenova-frost-preview]') && !contains(github.event.head_commit.message, '[jenova-windows-build]')
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[color-grade-preview]')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
