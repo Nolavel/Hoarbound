@@ -31,9 +31,18 @@ PY
 popd >/dev/null
 
 # Dump both high- and low-level GDExtension APIs from the exact engine Hoarbound uses.
+# Use a clean temporary project: these APIs are properties of the engine build, and
+# dumping from the Hoarbound root before import unnecessarily depends on .godot data.
+cat > "$API/project.godot" <<'EOF'
+[application]
+config/name="Hoarbound Jenova API Dump"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+EOF
 pushd "$API" >/dev/null
-"$GODOT_BIN" --headless --path "$ROOT" --dump-extension-api
-"$GODOT_BIN" --headless --path "$ROOT" --dump-gdextension-interface-json
+"$GODOT_BIN" --headless --path "$API" --dump-extension-api
+"$GODOT_BIN" --headless --path "$API" --dump-gdextension-interface-json
 popd >/dev/null
 
 test -s "$API/extension_api.json"
