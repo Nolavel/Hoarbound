@@ -5,6 +5,18 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Remove dead tool instances from the robot test scene
+
+- `tests/scenes/Test_scene_robot.tscn` still instanced
+  `tools/ScanFolderFiles/ScanFolderFiles.tscn` and
+  `tools/InputDebugger/InputDebugger.tscn`, deleted in fc3b886. Each editor load
+  logged `Failed loading resource`. The two nodes and their ext_resources are
+  removed (`load_steps` 9 → 7); nothing else referenced them.
+- The failing Import gate on `main` is a separate issue. The first headless
+  import pass aborts (core dump) on a cold cache, so the second pass misses the
+  translations and the project font. It started when Jenova was vendored. Not
+  fixed here.
+
 ### 2026-10-09 - Reproducible Jenova builds for Windows and Linux
 
 - `docs/technical/JENOVA.md` documents how Jenova works in Hoarbound:
