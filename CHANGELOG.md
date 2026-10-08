@@ -70,7 +70,7 @@ Maintained per branch; entries are added by whoever makes the change.
 
 - `docs/technical/JENOVA.md` documents how Jenova works in Hoarbound:
   - pinned inputs (Jenova `63ecdcb`, dependency bundle 4.7, Godot 4.8-dev6 API,
-    AiO Toolchain v1.0 with SHA-256);
+	AiO Toolchain v1.0 with SHA-256);
   - the `Jenova/` layout;
   - Hoarbound's source patches;
   - developer setup per OS;
