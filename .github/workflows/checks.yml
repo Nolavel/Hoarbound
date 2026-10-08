@@ -277,7 +277,7 @@ jobs:
           retention-days: 7
 
   jenova-windows-build:
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[jenova-windows-build]')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[jenova-windows-build]'))
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
