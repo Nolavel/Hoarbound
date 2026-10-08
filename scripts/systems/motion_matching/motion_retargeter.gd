@@ -17,6 +17,31 @@ const STANCE_HEIGHT_BAND := 0.03
 const STANCE_SPEED_SHARE := 0.25
 ## Ankle height gap over which body weight shifts from one foot to the other, m.
 const WEIGHT_SHIFT_HEIGHT := 0.02
+## Retarget stages on top of the S·R⁻¹·G core; the diagnostics switch them off one by one.
+const STAGE_SEGMENT_SWING := 1
+const STAGE_FOOT_PITCH := 2
+const STAGE_GROUND := 4
+const STAGE_STANCE := 8
+const STAGE_ALL := 15
+## Arms and trunk retargeted from a relaxed standing pair (source idle, Henry idle)
+## instead of the T-pose: UE IK Retargeter's retarget pose. Needs both neutral inputs.
+const STAGE_NEUTRAL_POSE := 16
+## Forearm roll moved from the hand onto the lowerarm, as Henry's own clips carry it.
+const STAGE_TWIST_SPLIT := 32
+## Spine bones sample the source trunk by length share (UE chain "Interpolated").
+const STAGE_SPINE_CHAIN := 64
+const NEUTRAL_POSE_BONES := [
+	"spine_01", "spine_02", "spine_03", "neck_01", "Head",
+	"clavicle_l", "upperarm_l", "lowerarm_l", "hand_l",
+	"clavicle_r", "upperarm_r", "lowerarm_r", "hand_r",
+]
+const TWIST_PAIRS := [["lowerarm_l", "hand_l"], ["lowerarm_r", "hand_r"]]
+## Anatomical elbow flexion limit: Henry's standing elbow bend fades out towards it.
+const ELBOW_FLEX_LIMIT_DEGREES := 145.0
+const SPINE_CHAIN_TARGETS := ["pelvis", "spine_01", "spine_02", "spine_03", "neck_01"]
+## Calf without axial roll on the thigh (Henry's knee as a hinge); joint positions and
+## the foot's global rotation are unchanged. Opt-in: the roll is the source's own.
+const STAGE_LEG_PLANE := 128
 const PROBE_BONES := [
 	"pelvis", "spine_03", "Head", "foot_l", "foot_r", "ball_l", "ball_r",
 	"calf_l", "calf_r", "thigh_l", "thigh_r", "hand_l", "hand_r",
@@ -27,6 +52,12 @@ var clip: BVHClip
 var target: UALSkeletonModel
 var error_message: String = ""
 var report: Dictionary = {}
+## Enabled STAGE_* bits; set before setup(). Baking always uses STAGE_ALL.
+var stages: int = STAGE_ALL
+## Henry's relaxed standing pose (local rotation per bone) for STAGE_NEUTRAL_POSE.
+var target_neutral_local: Array[Quaternion] = []
+## The source family's relaxed standing clip; frames come from the profile.
+var source_neutral_clip: BVHClip
 
 ## Henry-scale root track over the whole clip at track_rate_hz.
 var track_rate_hz: float = 30.0
@@ -39,6 +70,24 @@ var _source_index_by_target: PackedInt32Array = PackedInt32Array()
 var _source_reference_inverse: Array[Quaternion] = []
 var _target_reference: Array[Quaternion] = []
 var _target_rest_local: Array[Quaternion] = []
+## Local rotation of bones without a source joint (rest, or Henry's neutral fingers).
+var _unmapped_local: Array[Quaternion] = []
+## Source trunk joints (hips to neck) and their reference inverses, for STAGE_SPINE_CHAIN.
+var _chain_joints: PackedInt32Array = PackedInt32Array()
+var _chain_reference_inverse: Array[Quaternion] = []
+## Target bone -> [chain segment, share along it].
+var _chain_samples: Dictionary = {}
+var _twist_indices: Array[Vector2i] = []
+## Source joints' mean standing rotation (body frame); empty unless STAGE_NEUTRAL_POSE ran.
+var _source_neutral: Array[Quaternion] = []
+## Forearm and hand references with a straight elbow on Henry's standing shoulder: the
+## standing pose's elbow bend is blended out as the source elbow flexes.
+var _straight_source_inverse: Dictionary = {}
+var _straight_target: Dictionary = {}
+var _soft_elbow_side: Dictionary = {}
+var _elbow_joints: Array[Vector3i] = []
+## Per side: Henry calf and foot bones, for STAGE_LEG_PLANE.
+var _leg_bones: Array[Vector2i] = []
 var _hips_index: int = -1
 var _reference_leg_vertical: float = 0.0
 var _ankle_stance_height: float = 0.0
@@ -73,6 +122,19 @@ func setup(source_clip: BVHClip, source_profile: SourceRetargetProfile, target_m
 	_build_root_track()
 	_calibrate_feet_and_height(reference)
 	_target_rest_local = target.rest_rotations()
+	_unmapped_local = _target_rest_local.duplicate()
+	if stages & STAGE_NEUTRAL_POSE:
+		_apply_neutral_pose(reference)
+	if stages & STAGE_SPINE_CHAIN:
+		_build_spine_chain(reference)
+	_leg_bones.clear()
+	if stages & STAGE_LEG_PLANE:
+		for side in ["l", "r"]:
+			_leg_bones.append(Vector2i(target.find_bone("calf_" + side), target.find_bone("foot_" + side)))
+	_twist_indices.clear()
+	if stages & STAGE_TWIST_SPLIT:
+		for pair in TWIST_PAIRS:
+			_twist_indices.append(Vector2i(target.find_bone(pair[0]), target.find_bone(pair[1])))
 	var pelvis := target.pelvis_index
 	_pelvis_rest_model = target.rest_global[pelvis].origin
 	var pelvis_parent := target.parents[pelvis]
@@ -80,9 +142,11 @@ func setup(source_clip: BVHClip, source_profile: SourceRetargetProfile, target_m
 	_ankle_indices = [clip.find_bone(profile.left_ankle), clip.find_bone(profile.right_ankle)]
 	_ground_offset = 0.0  # both measured on the unaligned retarget
 	_stance_offsets = [0.0, 0.0]
-	_stance_offsets = _measure_stance_offsets()
+	if stages & STAGE_STANCE:
+		_stance_offsets = _measure_stance_offsets()
 	report["stance_offsets_m"] = _stance_offsets.duplicate()
-	_ground_offset = _measure_ground_offset()
+	if stages & STAGE_GROUND:
+		_ground_offset = _measure_ground_offset()
 	report["ground_offset_m"] = _ground_offset
 	report["dataset"] = profile.dataset
 	report["source_path"] = clip.source_path
@@ -120,6 +184,16 @@ func retarget_at(seconds: float) -> Dictionary:
 	var yaw_inverse := _yaw_basis(root_forwards[index]).inverse()
 	var to_root := yaw_inverse * _alignment
 
+	var chain_deltas: Array[Quaternion] = []
+	for chain_index in range(_chain_joints.size()):
+		var joint_rotation := Quaternion(to_root * source[_chain_joints[chain_index]].basis.orthonormalized())
+		chain_deltas.append((joint_rotation * _chain_reference_inverse[chain_index]).normalized())
+	var elbow_weights: Array[float] = []
+	for joints in _elbow_joints:
+		var upper := source[joints.y].origin - source[joints.x].origin
+		var fore := source[joints.z].origin - source[joints.y].origin
+		var flex := rad_to_deg(upper.angle_to(fore)) if upper.length_squared() > 0.0 and fore.length_squared() > 0.0 else 0.0
+		elbow_weights.append(clampf(1.0 - flex / ELBOW_FLEX_LIMIT_DEGREES, 0.0, 1.0))
 	var bone_count := target.get_bone_count()
 	var local_rotations: Array[Quaternion] = []
 	local_rotations.resize(bone_count)
@@ -129,14 +203,29 @@ func retarget_at(seconds: float) -> Dictionary:
 		var parent := target.parents[bone_index]
 		var parent_rotation := Quaternion.IDENTITY if parent < 0 else global_rotations[parent]
 		var source_index := _source_index_by_target[bone_index]
-		if source_index >= 0:
+		if _chain_samples.has(bone_index):
+			var sample: Vector2 = _chain_samples[bone_index]
+			var delta := chain_deltas[int(sample.x)].slerp(chain_deltas[int(sample.x) + 1], sample.y)
+			var target_global := (delta * _target_reference[bone_index]).normalized()
+			local_rotations[bone_index] = (parent_rotation.inverse() * target_global).normalized()
+			global_rotations[bone_index] = target_global
+		elif source_index >= 0:
 			var source_rotation := Quaternion(to_root * source[source_index].basis.orthonormalized())
 			var target_global := (source_rotation * _source_reference_inverse[bone_index] * _target_reference[bone_index]).normalized()
+			if _soft_elbow_side.has(bone_index):
+				var straight_inverse: Quaternion = _straight_source_inverse[bone_index]
+				var straight_target: Quaternion = _straight_target[bone_index]
+				var straight := (source_rotation * straight_inverse * straight_target).normalized()
+				target_global = straight.slerp(target_global, elbow_weights[int(_soft_elbow_side[bone_index])])
 			local_rotations[bone_index] = (parent_rotation.inverse() * target_global).normalized()
 			global_rotations[bone_index] = target_global
 		else:
-			local_rotations[bone_index] = _target_rest_local[bone_index]
-			global_rotations[bone_index] = (parent_rotation * _target_rest_local[bone_index]).normalized()
+			local_rotations[bone_index] = _unmapped_local[bone_index]
+			global_rotations[bone_index] = (parent_rotation * _unmapped_local[bone_index]).normalized()
+	for leg in _leg_bones:
+		_unroll_calf(local_rotations, leg.x, leg.y)
+	for pair in _twist_indices:
+		_split_twist(local_rotations, pair.x, pair.y)
 
 	var hips_world := _alignment * source[_hips_index].origin * motion_scale
 	var hips_local := yaw_inverse * (hips_world - root)
@@ -150,6 +239,11 @@ func retarget_at(seconds: float) -> Dictionary:
 		"rotations": local_rotations,
 		"pelvis_position": _pelvis_parent_rest_inverse * pelvis_model,
 	}
+
+
+## Source model space -> Henry root space (alignment, then the root yaw) at one time.
+func root_space_basis(seconds: float) -> Basis:
+	return _yaw_basis(root_forwards[track_index(seconds)]).inverse() * _alignment
 
 
 ## Source joints in Henry's root frame and scale, for side-by-side diagnostics.
@@ -174,6 +268,183 @@ func raw_source_positions(seconds: float) -> PackedVector3Array:
 	for transform in source:
 		result.append(_alignment * transform.origin - start - Vector3(0.0, _ankle_stance_height, 0.0))
 	return result
+
+
+## Removes the calf's roll about its own +Y (relative to rest, as bone twist is measured);
+## the foot sits on that axis, so it keeps its position and global rotation.
+func _unroll_calf(local_rotations: Array[Quaternion], calf: int, foot: int) -> void:
+	var relative := (_target_rest_local[calf].inverse() * local_rotations[calf]).normalized()
+	var twist := Quaternion(0.0, relative.y, 0.0, relative.w)
+	if twist.length_squared() < 0.000001:
+		return
+	twist = twist.normalized()
+	local_rotations[calf] = (local_rotations[calf] * twist.inverse()).normalized()
+	local_rotations[foot] = (twist * local_rotations[foot]).normalized()
+
+
+## Moves the hand's roll about the forearm axis (+Y of the lowerarm) onto the lowerarm;
+## the hand sits on that axis (tools/motion/test_rig_contract.py), so it stays put.
+func _split_twist(local_rotations: Array[Quaternion], lowerarm: int, hand: int) -> void:
+	var delta := (local_rotations[hand] * _target_rest_local[hand].inverse()).normalized()
+	var twist := Quaternion(0.0, delta.y, 0.0, delta.w)
+	if twist.length_squared() < 0.000001:
+		return
+	twist = twist.normalized()
+	local_rotations[lowerarm] = (local_rotations[lowerarm] * twist).normalized()
+	local_rotations[hand] = (twist.inverse() * local_rotations[hand]).normalized()
+
+
+## Arms and trunk take their reference from the relaxed standing pair; fingers keep
+## Henry's own neutral hand pose. Heading is taken out of both standing poses.
+func _apply_neutral_pose(reference: Array[Transform3D]) -> void:
+	if target_neutral_local.size() != target.get_bone_count() or source_neutral_clip == null \
+			or source_neutral_clip.bone_names != clip.bone_names or profile.neutral_frames.y <= profile.neutral_frames.x:
+		report["neutral_pose"] = "skipped: missing or mismatched neutral inputs"
+		return
+	var source_neutral := _average_source_neutral()
+	_source_neutral = source_neutral
+	var target_neutral := _target_neutral_globals()
+	for bone_name in NEUTRAL_POSE_BONES:
+		var bone_index := target.find_bone(bone_name)
+		var source_index := _source_index_by_target[bone_index] if bone_index >= 0 else -1
+		if source_index < 0:
+			continue
+		_source_reference_inverse[bone_index] = source_neutral[source_index].inverse()
+		_target_reference[bone_index] = target_neutral[bone_index]
+	for side in ["l", "r"]:
+		var hand := target.find_bone("hand_" + side)
+		for bone_index in range(target.get_bone_count()):
+			if _is_descendant(bone_index, hand):
+				_unmapped_local[bone_index] = target_neutral_local[bone_index]
+	_build_straight_elbow_references(reference, source_neutral, target_neutral)
+	report["neutral_pose"] = "%s frames %d-%d" % [profile.neutral_clip, profile.neutral_frames.x, profile.neutral_frames.y]
+
+
+## Same standing shoulder, elbow and wrist straight as in the reference pose, on both sides.
+func _build_straight_elbow_references(reference: Array[Transform3D], source_neutral: Array[Quaternion], target_neutral: Array[Quaternion]) -> void:
+	_straight_source_inverse.clear()
+	_straight_target.clear()
+	_soft_elbow_side.clear()
+	_elbow_joints.clear()
+	for side in ["l", "r"]:
+		var bones := [target.find_bone("upperarm_" + side), target.find_bone("lowerarm_" + side), target.find_bone("hand_" + side)]
+		var joints := Vector3i(_source_index_by_target[bones[0]], _source_index_by_target[bones[1]], _source_index_by_target[bones[2]])
+		if joints.x < 0 or joints.y < 0 or joints.z < 0:
+			continue
+		var rest: Array[Quaternion] = []
+		var source_reference: Array[Quaternion] = []
+		for index in range(3):
+			rest.append(target.rest_global[bones[index]].basis.get_rotation_quaternion())
+			source_reference.append(Quaternion(_alignment * reference[joints[index]].basis.orthonormalized()))
+		var target_lower := target_neutral[bones[0]] * rest[0].inverse() * rest[1]
+		var target_hand := target_lower * rest[1].inverse() * rest[2]
+		var source_lower := source_neutral[joints.x] * source_reference[0].inverse() * source_reference[1]
+		var source_hand := source_lower * source_reference[1].inverse() * source_reference[2]
+		_straight_target[bones[1]] = target_lower.normalized()
+		_straight_target[bones[2]] = target_hand.normalized()
+		_straight_source_inverse[bones[1]] = source_lower.normalized().inverse()
+		_straight_source_inverse[bones[2]] = source_hand.normalized().inverse()
+		_soft_elbow_side[bones[1]] = _elbow_joints.size()
+		_soft_elbow_side[bones[2]] = _elbow_joints.size()
+		_elbow_joints.append(joints)
+
+
+func _average_source_neutral() -> Array[Quaternion]:
+	var sums: Array[Quaternion] = []
+	for frame in range(profile.neutral_frames.x, mini(profile.neutral_frames.y, source_neutral_clip.frame_count)):
+		var transforms := source_neutral_clip.global_transforms(frame)
+		var forward := _alignment * _heading_forward(transforms)
+		var to_body := _yaw_basis(forward if forward != Vector3.ZERO else Vector3.BACK).inverse() * _alignment
+		for joint in range(transforms.size()):
+			var rotation := Quaternion(to_body * transforms[joint].basis.orthonormalized())
+			if sums.size() <= joint:
+				sums.append(rotation)
+			else:
+				sums[joint] = _accumulate(sums[joint], rotation)
+	var result: Array[Quaternion] = []
+	for total in sums:
+		result.append(total.normalized())
+	return result
+
+
+func _target_neutral_globals() -> Array[Quaternion]:
+	var globals := target.forward_kinematics(target_neutral_local, target.rest_local[target.pelvis_index].origin)
+	var across := Vector3.ZERO
+	for pair in [["thigh_l", "thigh_r"], ["upperarm_l", "upperarm_r"]]:
+		across += (globals[target.find_bone(pair[0])].origin - globals[target.find_bone(pair[1])].origin).normalized()
+	var forward := across.cross(Vector3.UP)
+	forward.y = 0.0
+	var to_body := _yaw_basis(forward.normalized() if forward.length_squared() > 0.000001 else Vector3.BACK).inverse()
+	var result: Array[Quaternion] = []
+	for transform in globals:
+		result.append(Quaternion(to_body * transform.basis.orthonormalized()).normalized())
+	return result
+
+
+## Sign-aligned running sum, normalised by the caller: a mean of nearby rotations.
+func _accumulate(total: Quaternion, rotation: Quaternion) -> Quaternion:
+	var aligned := rotation if total.dot(rotation) >= 0.0 else -rotation
+	return Quaternion(total.x + aligned.x, total.y + aligned.y, total.z + aligned.z, total.w + aligned.w)
+
+
+func _is_descendant(bone_index: int, ancestor: int) -> bool:
+	var parent := target.parents[bone_index]
+	while parent >= 0:
+		if parent == ancestor:
+			return true
+		parent = target.parents[parent]
+	return false
+
+
+## Source trunk from hips to the joint on Henry's neck; each Henry spine bone samples
+## the trunk at its own share of the chain length (both in their reference poses).
+func _build_spine_chain(reference: Array[Transform3D]) -> void:
+	_chain_samples.clear()
+	_chain_joints = PackedInt32Array()
+	_chain_reference_inverse.clear()
+	var neck := clip.find_bone(String(profile.bone_map.get("neck_01", "")))
+	if neck < 0 or _hips_index < 0:
+		report["spine_chain"] = "skipped: no neck joint"
+		return
+	var joint := neck
+	while joint >= 0:
+		_chain_joints.insert(0, joint)
+		if joint == _hips_index:
+			break
+		joint = clip.parents[joint]
+	if _chain_joints[0] != _hips_index or _chain_joints.size() < 3:
+		report["spine_chain"] = "skipped: neck is not under the hips"
+		return
+	var source_shares := _chain_shares(_chain_joints, func(index: int) -> Vector3: return reference[index].origin)
+	var target_chain := PackedInt32Array()
+	for bone_name in SPINE_CHAIN_TARGETS:
+		target_chain.append(target.find_bone(bone_name))
+	var target_shares := _chain_shares(target_chain, func(index: int) -> Vector3: return target.rest_global[index].origin)
+	# One reference for the whole trunk: the standing pose when it ran, else the T-pose.
+	for chain_joint in _chain_joints:
+		var reference_rotation := _source_neutral[chain_joint] if not _source_neutral.is_empty() \
+			else Quaternion(_alignment * reference[chain_joint].basis.orthonormalized())
+		_chain_reference_inverse.append(reference_rotation.inverse())
+	for target_index in range(1, target_chain.size() - 1):
+		var share := target_shares[target_index]
+		var segment := 0
+		while segment < source_shares.size() - 2 and source_shares[segment + 1] <= share:
+			segment += 1
+		var span := maxf(source_shares[segment + 1] - source_shares[segment], 0.000001)
+		_chain_samples[target_chain[target_index]] = Vector2(segment, clampf((share - source_shares[segment]) / span, 0.0, 1.0))
+	report["spine_chain"] = {"source_shares": source_shares, "target_shares": target_shares}
+
+
+func _chain_shares(chain: PackedInt32Array, position_of: Callable) -> PackedFloat32Array:
+	var lengths := PackedFloat32Array([0.0])
+	for index in range(1, chain.size()):
+		var step: float = (position_of.call(chain[index]) as Vector3).distance_to(position_of.call(chain[index - 1]))
+		lengths.append(lengths[-1] + step)
+	var total := maxf(lengths[-1], 0.000001)
+	var shares := PackedFloat32Array()
+	for length in lengths:
+		shares.append(length / total)
+	return shares
 
 
 func _build_mapping() -> bool:
@@ -220,7 +491,7 @@ func _build_reference_rotations(reference: Array[Transform3D]) -> void:
 			continue
 		var source_reference := Quaternion(_alignment * reference[source_index].basis.orthonormalized())
 		var bone_name := target.bone_names[bone_index]
-		if profile.segment_aligned_bones.has(bone_name):
+		if stages & STAGE_SEGMENT_SWING and profile.segment_aligned_bones.has(bone_name):
 			var child_name := String(SourceRetargetProfile.UAL_SEGMENT_CHILD[bone_name])
 			var source_child := clip.find_bone(String(profile.bone_map[child_name]))
 			var target_child := target.find_bone(child_name)
@@ -304,7 +575,7 @@ func _calibrate_feet_and_height(reference: Array[Transform3D]) -> void:
 		var horizontal := Vector3(reference_dir.x, 0.0, reference_dir.z).normalized()
 		var flat_dir := horizontal * cos(flat_pitch) + Vector3.UP * sin(flat_pitch)
 		# Pose match, not segment match: ankle placement differs per skeleton.
-		var correction := Quaternion(reference_dir.normalized(), flat_dir.normalized())
+		var correction := Quaternion(reference_dir.normalized(), flat_dir.normalized()) if stages & STAGE_FOOT_PITCH else Quaternion.IDENTITY
 		var reference_rotation := _source_reference_inverse[target_index].inverse()
 		_source_reference_inverse[target_index] = (correction * reference_rotation).inverse()
 		foot_report[side] = {

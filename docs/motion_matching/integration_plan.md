@@ -1,6 +1,9 @@
 # Motion Matching — Player integration (#202)
 
 Status: integration layer implemented behind a flag, **off by default**.
+**Frozen** since the author's visual rejection after #206: no new Motion
+Matching features, database versions or `main` changes until the gates in
+`acceptance_gates.md` pass.
 Production locomotion (`HenryUALAnimation` AnimationTree + `MovementController`
 + `Player`) is unchanged while the flag is off.
 
@@ -497,6 +500,19 @@ limited to straight walking: turns, starts, stops and runs are as captured.
    props.~~ Done (see "Handovers and held props").
 7. ~~Hardening: movement-owned dynamics, neutral fatigue defaults.~~ Done
    (see "Dynamics contract" and "Sprint build-up and fatigue").
+
+## Freeze after the visual review of #206
+
+The author played `main` `3f67c9b` and rejected Motion Matching visually. The
+"limp fixed" result measured symmetry, not whether Henry moves like a person.
+What changes:
+
+- CMU profile `verified = false`, `frozen_reference = true`; v10 stays only as
+  a regression reference that the audit still rebuilds bit for bit.
+- Not done while frozen: a v11 database, more mirroring, matcher cost work,
+  enabling Motion Matching by default, Motion Matching changes in `main`.
+- Next: a retarget-only proof of one good clip, then a comparison of retarget
+  pipelines, then data. Gates and their record: `acceptance_gates.md`.
 
 ## Not covered yet
 

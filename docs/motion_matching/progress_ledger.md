@@ -2,11 +2,18 @@
 
 Evidence-based status. A green workflow alone never moves an item up.
 
-## Proven working (code + data + visual evidence)
+## Visually rejected by the author (after #206, 2026-10-07)
 
-- CMU → Henry UAL retarget (`SourceRetargetProfile.cmu_bvh` + `MotionRetargeter`):
-  six clips checked side by side (raw / root-normalized / Henry) and by
-  `MotionRetargetAudit`; feet on the ground (median error within ±3 cm).
+- CMU → Henry UAL retarget (`SourceRetargetProfile.cmu_bvh` + `MotionRetargeter`)
+  and Motion Matching on top of it: wrong torso lean, pinned arms, poor running,
+  twitching legs, knees bending backwards. Six clips side by side and a clean
+  `MotionRetargetAudit` were not enough. The profile is now `verified = false`.
+- Mirrored walking (`root-space-v10`): fixed the limp metric, not the motion.
+  Frozen as a regression reference; not a baseline.
+- Work is frozen until the gates in `acceptance_gates.md` pass.
+
+## Mechanically working (no visual acceptance)
+
 - Root-space pose storage: no yaw pops on cross-clip switches (#477 defect).
 - All-frame brute-force search returning exact `clip @ time` + sample index,
   no role gate; trajectory and facing are independent query channels.

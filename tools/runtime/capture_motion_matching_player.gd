@@ -35,6 +35,10 @@ var _walk := false
 ## MM_GAIT_TRACE=1 records every frame's feet, pelvis, clip and locks into the report.
 var _trace_gait := false
 var _gait_trace: Array[Dictionary] = []
+## MM_POSE_TRACE=<path> writes every frame's drawn skeleton (all joints, local
+## rotations) for tools/motion/trace_report.py.
+var _pose_trace_path := ""
+var _pose_trace: Array = []
 var _pelvis := -1
 var _scene: Node
 var _player: Player
@@ -136,6 +140,7 @@ func _run() -> void:
 	_drift = OS.get_environment("MM_PROGRAM") == "drift"
 	_walk = OS.get_environment("MM_PROGRAM") == "walk"
 	_trace_gait = OS.get_environment("MM_GAIT_TRACE") == "1"
+	_pose_trace_path = OS.get_environment("MM_POSE_TRACE")
 	_player.global_position = DRIFT_START if _drift else START
 	# MM_HOLD_PROP=1: a stand-in light in the main hand raises the held-arm pose.
 	if OS.get_environment("MM_HOLD_PROP") == "1":
@@ -188,6 +193,8 @@ func _run() -> void:
 		_measure()
 		if _trace_gait:
 			_record_gait(t, intent["label"])
+		if not _pose_trace_path.is_empty():
+			_record_pose(t, intent["label"])
 		_label.text = _hud_text(t, intent["label"])
 		if not headless:
 			await RenderingServer.frame_post_draw
@@ -218,6 +225,8 @@ func _run() -> void:
 	}
 	if _trace_gait:
 		report["gait_trace"] = _gait_trace
+	if not _pose_trace_path.is_empty():
+		_write_pose_trace()
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir))
 	var file := FileAccess.open(_out_dir + "/report.json", FileAccess.WRITE)
 	file.store_string(JSON.stringify(report, "  "))
@@ -400,6 +409,40 @@ func _record_gait(t: float, label: String) -> void:
 		entry["locked"] = [lock != null and lock.is_locked(0), lock != null and lock.is_locked(1)]
 		entry["lock_offset"] = [_vec(controller.get_lock_offset(0)), _vec(controller.get_lock_offset(1))]
 	_gait_trace.append(entry)
+
+
+func _record_pose(t: float, label: String) -> void:
+	var skeleton := _player.animation_component.skeleton
+	var positions := PackedFloat32Array()
+	var rotations := PackedFloat32Array()
+	for bone in range(skeleton.get_bone_count()):
+		var origin := skeleton.get_bone_global_pose(bone).origin
+		positions.append_array([origin.x, origin.y, origin.z])
+		var rotation := skeleton.get_bone_pose_rotation(bone)
+		rotations.append_array([rotation.x, rotation.y, rotation.z, rotation.w])
+	var entry := {"t": t, "label": label, "positions": positions, "rotations": rotations,
+		"weight": _locomotion.get_weight() if _locomotion != null else 0.0,
+		"speed": Vector2(_player.velocity.x, _player.velocity.z).length()}
+	var controller := _locomotion.get_controller() if _locomotion != null else null
+	if controller != null and _locomotion.get_weight() > 0.0:
+		var snapshot := controller.get_snapshot()
+		entry["clip"] = snapshot["current_clip"]
+		entry["switched"] = snapshot["switched"]
+		entry["alpha"] = snapshot["blend_alpha"]
+	_pose_trace.append(entry)
+
+
+func _write_pose_trace() -> void:
+	var skeleton := _player.animation_component.skeleton
+	var names := PackedStringArray()
+	var rest := PackedFloat32Array()
+	for bone in range(skeleton.get_bone_count()):
+		names.append(skeleton.get_bone_name(bone))
+		var rotation := skeleton.get_bone_rest(bone).basis.get_rotation_quaternion()
+		rest.append_array([rotation.x, rotation.y, rotation.z, rotation.w])
+	var file := FileAccess.open(_pose_trace_path, FileAccess.WRITE)
+	file.store_string(JSON.stringify({"bones": names, "rest_rotations": rest, "fps": FPS, "frames": _pose_trace}))
+	file.close()
 
 
 func _vec(value: Vector3) -> Array:

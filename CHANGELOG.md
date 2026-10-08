@@ -5,6 +5,78 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-08 - Direction reset: 10-step build plan, First Exit A spine
+
+- `docs/BUILD_PLAN.md`: single ordered build sequence (10 checkpoints) replacing the
+  scattered backlog, plus a one-year plan to the summer-2027 vertical slice. Grammar
+  rule written down: no system ships unless it visibly changes a survival decision.
+- ADR: the interaction crosshair is a readability aid only, decoupled from the
+  embodied-interaction condition (#198) — presentation never gates whether an
+  interaction is possible.
+- Embodied / motion-matching work sequenced to the end of the path (step 10). Issues
+  #197, #199, #201, #202, #203 frozen (`status: frozen`), preserved not cancelled.
+- `PRD.md`, `README.md`: link the build plan as source of truth.
+
+### 2026-10-07 - Motion Matching gate C: six styles, leg-roll diagnosis (#202)
+
+- One B4 retarget setup on eight 100STYLE clips (Neutral, Rushed, StartStop,
+  Crouched, BentForward, Old):
+  - no knee bends backwards;
+  - no hyperextended elbows (the source has up to 177 frames);
+  - knee plane follows the source.
+- Henry's thigh and calf axial roll (~18°) is the performer's own; the
+  retarget matches it within a degree.
+- Opt-in `STAGE_LEG_PLANE` removes the calf roll.
+- `test_rig_contract.py` checks the limb +Y axis contract.
+- Results in `docs/motion_matching/gate_c.md`.
+
+### 2026-10-07 - Motion Matching retarget backend comparison (#202)
+
+- `MotionRetargeter` gets three opt-in stages (off by default, database unchanged):
+  - `STAGE_NEUTRAL_POSE`: relaxed standing retarget pose from the source's and Henry's idle, with a straight-elbow blend for flexed arms;
+  - `STAGE_TWIST_SPLIT`: forearm roll on the lowerarm;
+  - `STAGE_SPINE_CHAIN`: spine sampled by chain length.
+- `UALSkeletonModel.mean_pose()` gives Henry's mean pose over a clip.
+- Profiles: `source_dir` and standing clip per family; `cmu_bvh_v2()` with `hand ← L/RFingerBase` for diagnostics; the 100STYLE conventions are now measured.
+- `ModifierRetargetBackend` runs Godot's `RetargetModifier3D` as a comparison backend. `dump_retarget_layers.gd` and `capture_retarget_quad.gd` take named variants (`MM_DUMP_VARIANTS`, `MM_DIAG_VARIANT`).
+- Results in `docs/motion_matching/retarget_backends.md`.
+
+### 2026-10-07 - Motion Matching mocap data request (#202)
+
+- `docs/motion_matching/mocap_data_request.md` specifies the data production
+  Motion Matching needs:
+  - licence rules and a manifest per folder;
+  - 100STYLE Neutral now, then 100STYLE state styles;
+  - the gaps to source elsewhere;
+  - a manifest for the owner's existing Drive set;
+  - a full shot list for a dedicated capture session (performer in a winter coat).
+
+### 2026-10-07 - Motion Matching layer bisection tools and findings (#202)
+
+- Anatomy metrics from joint positions (`tools/motion/`): signed knee/elbow
+  flexion and bend plane, trunk/neck, arm abduction, forearm and hand twist,
+  wrist, feet; BVH and glb FK oracles; layer and in-game trace reports.
+- `MotionRetargeter.stages` switches retarget stages off one at a time (default
+  all; database unchanged). `dump_retarget_layers.gd`, `capture_retarget_quad.gd`
+  (front/side/rear/feet or hand) and `MM_POSE_TRACE` in the player capture.
+- Findings in `docs/motion_matching/retarget_bisection.md`:
+  - the core retarget and the CMU bone map break arms, hands and spine;
+  - the foot-lock IK flips knees backwards;
+  - the gaze layer throws the head back.
+
+### 2026-10-07 - Motion Matching frozen after the visual review of #206 (#202)
+
+- The author rejected Motion Matching visually on `main` `3f67c9b` (torso lean,
+  pinned arms, running, knees bending backwards). It stays off by default and
+  frozen; `docs/motion_matching/acceptance_gates.md` lists gates A-G, each
+  passed only by the author's visual approval.
+- CMU retarget profile: `verified = false`, new `visual_approval` and
+  `frozen_reference`. The builder still rebuilds `root-space-v10` as a
+  regression reference; the game is unchanged.
+- `retarget_audit.md` corrected: CMU frame 0 is not an all-zero pose, the
+  clavicles never move, and `L/RHand` is forearm twist (wrist bend is the
+  unmapped `L/RFingerBase`).
+
 ### 2026-10-07 - Motion Matching walks without the limp: mirrored walking (#202)
 
 - Straight forward walking is baked as captured and mirrored (author decision):

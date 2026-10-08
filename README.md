@@ -18,6 +18,8 @@ One continuous 10–15 minute loop:
 
 The current closing work is human validation: a new player should be able to complete that loop without debug workarounds and understand at least one survival-driven change of plan.
 
+The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
+
 ## Project direction
 
 - **Systemic survival:** weather, body state, carried load and time interact rather than living as isolated meters.
