@@ -5,7 +5,7 @@ name: checks
 ## No rendering here; render locally with tools/ci/render.sh.
 on:
   push:
-    branches: [codex, claudeflow]
+    branches: [main, codex, claudeflow]
     paths:
       - "scripts/systems/world/ColorGradeController.gd"
       - "scripts/systems/world/DayNightManager.gd"
@@ -35,6 +35,12 @@ on:
       - "tools/runtime/capture_motion_matching_lab.gd"
       - "tools/runtime/capture_motion_matching_player.gd"
       - "tools/ci/prepare_cmu_sample.sh"
+      - "Jenova/**"
+      - "scripts/experimental/jenova_frost/**"
+      - "scenes/experimental/jenova_frost_lab.tscn"
+      - "tools/ci/bootstrap_jenova_linux.sh"
+      - "tools/ci/build_jenova_project.gd"
+      - "tools/runtime/capture_jenova_frost.gd"
       - ".github/workflows/checks.yml"
       - "scripts/world/key_west_first_exit.gd"
       - "scenes/world/key_west/key_west_first_exit.tscn"
@@ -101,7 +107,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   color-grade-preview:
-    if: github.event_name == 'push' && github.ref_name != 'claudeflow' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]')
+    if: github.event_name == 'push' && github.ref_name != 'claudeflow' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]') && !contains(github.event.head_commit.message, '[jenova-frost-preview]')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -182,6 +188,94 @@ jobs:
             docs/runtime_previews/camera_settings/report.json
           if-no-files-found: error
           retention-days: 3
+
+  jenova-frost-preview:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[jenova-frost-preview]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Install Jenova native build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-19 lld-19 cmake ninja-build libssl-dev libzstd-dev ffmpeg
+          echo "CC=/usr/bin/clang-19" >> "$GITHUB_ENV"
+          echo "CXX=/usr/bin/clang++-19" >> "$GITHUB_ENV"
+          sudo ln -sf /usr/bin/clang-19 /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
+          clang++ --version | head -n 1
+
+      - name: Build Jenova Runtime + Godot 4.8-dev6 SDK
+        run: bash tools/ci/bootstrap_jenova_linux.sh
+
+      - name: Build C++ scripts through Jenova BuildProject
+        run: |
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" \
+            --editor \
+            --path . \
+            --rendering-driver opengl3 \
+            --audio-driver Dummy \
+            --script tools/ci/build_jenova_project.gd 2>&1 | tee /tmp/jenova-build.log
+          grep -q "JENOVA_BUILD_OK" /tmp/jenova-build.log
+
+      - name: Capture 6.5 second frost pass
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 1280x720 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script tools/runtime/capture_jenova_frost.gd
+
+      - name: Encode frost video and retain proof frames
+        run: |
+          D=docs/runtime_previews/jenova_frost
+          cp "$D/frames/0000.png" "$D/frost_00_clear.png"
+          cp "$D/frames/0065.png" "$D/frost_33_percent.png"
+          cp "$D/frames/0130.png" "$D/frost_66_percent.png"
+          cp "$D/frames/0195.png" "$D/frost_100_percent.png"
+          ffmpeg -y -framerate 30 -i "$D/frames/%04d.png" \
+            -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p \
+            -movflags +faststart "$D/jenova_frost_6_5s.mp4"
+          ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$D/jenova_frost_6_5s.mp4"
+          rm -rf "$D/frames"
+
+      - name: Upload Jenova frost proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-frost-proof
+          path: |
+            docs/runtime_previews/jenova_frost/*.mp4
+            docs/runtime_previews/jenova_frost/*.png
+            docs/runtime_previews/jenova_frost/report.json
+            Jenova/HOARBOUND_JENOVA_BUILD.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Linux Jenova vendor candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-linux-vendor
+          path: Jenova/**
+          if-no-files-found: error
+          retention-days: 7
 
   motion-matching-preview:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[motion-matching-preview]')
