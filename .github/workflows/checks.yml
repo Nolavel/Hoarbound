@@ -108,7 +108,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   color-grade-preview:
-    if: github.event_name == 'push' && github.ref_name != 'claudeflow' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]') && !contains(github.event.head_commit.message, '[jenova-frost-preview]')
+    if: github.event_name == 'push' && github.ref_name != 'claudeflow' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]') && !contains(github.event.head_commit.message, '[jenova-frost-preview]') && !contains(github.event.head_commit.message, '[jenova-windows-build]')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -305,7 +305,7 @@ jobs:
             -Uri "https://github.com/godotengine/godot-builds/releases/download/4.8-dev6/Godot_v4.8-dev6_mono_win64.zip" `
             -OutFile $archive
           Expand-Archive -LiteralPath $archive -DestinationPath $install
-          $godot = Join-Path $install "Godot_v4.8-dev6_mono_win64/Godot_v4.8-dev6_mono_win64.exe"
+          $godot = Join-Path $install "Godot_v4.8-dev6_mono_win64.exe"
           if (-not (Test-Path $godot -PathType Leaf)) {
             throw "Godot 4.8-dev6 Mono executable was not found in the release archive."
           }

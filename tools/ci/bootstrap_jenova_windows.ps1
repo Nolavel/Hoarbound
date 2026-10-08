@@ -177,7 +177,7 @@ foreach ($requiredFile in @(
 	"GodotSDK/libGodot.x64.lib",
 	"GodotSDK/libGodot.x64.a",
 	"JenovaSDK/JenovaSDK.h",
-	"JenovaSDK/Jenova.SDK.x64.lib",
+	"JenovaSDK/Jenova.SDK.x64.lib"
 )) {
 	if (-not (Test-Path (Join-Path $vendorRoot $requiredFile) -PathType Leaf)) {
 		throw "Jenova vendor layout is incomplete: missing Jenova/$requiredFile"
