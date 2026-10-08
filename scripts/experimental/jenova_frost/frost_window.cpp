@@ -37,7 +37,7 @@ namespace FrostLab
 // file is deliberate: this spike tests Jenova as the single authoring surface.
 static const char* kFrostShader = R"JENOVA_SHADER(
 shader_type spatial;
-render_mode unshaded, cull_disabled, blend_mix, depth_draw_alpha_prepass;
+render_mode unshaded, cull_disabled, blend_mix, depth_prepass_alpha;
 
 uniform float frost_amount : hint_range(0.0, 1.0) = 0.0;
 uniform vec4 frost_tint : source_color = vec4(0.88, 0.94, 0.98, 1.0);
@@ -133,6 +133,11 @@ void SetFrostAmount(double value)
 {
     auto_play = false;
     ApplyFrost(value);
+}
+
+double GetFrostAmount()
+{
+    return FrostLab::amount;
 }
 
 void RestartFrostDemo()

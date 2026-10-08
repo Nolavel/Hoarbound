@@ -43,9 +43,8 @@ func _build() -> void:
 	settings.set_setting("jenova/compiler_model", 1)
 	settings.set_setting("jenova/multi_threaded_compilation", true)
 	settings.set_setting("jenova/generate_debug_information", false)
-	settings.save()
 
-	var plugin = JenovaEditorPlugin.GetInstance()
+	var plugin: Object = ClassDB.class_call_static(&"JenovaEditorPlugin", &"GetInstance")
 	if plugin == null:
 		push_error("[jenova-ci] JenovaEditorPlugin singleton is null")
 		quit(21)

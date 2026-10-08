@@ -209,7 +209,7 @@ jobs:
       - name: Install Jenova native build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang-19 lld-19 cmake ninja-build libssl-dev libzstd-dev ffmpeg
+          sudo apt-get install -y -qq clang-19 lld-19 cmake ninja-build libssl-dev libzstd-dev libidn2-dev ffmpeg
           echo "CC=/usr/bin/clang-19" >> "$GITHUB_ENV"
           echo "CXX=/usr/bin/clang++-19" >> "$GITHUB_ENV"
           sudo ln -sf /usr/bin/clang-19 /usr/local/bin/clang
@@ -221,6 +221,7 @@ jobs:
 
       - name: Build C++ scripts through Jenova BuildProject
         run: |
+          set -o pipefail
           export XDG_RUNTIME_DIR=/tmp/xdg
           mkdir -p "$XDG_RUNTIME_DIR"
           xvfb-run -a "$HOME/.local/bin/godot" \
@@ -247,10 +248,6 @@ jobs:
       - name: Encode frost video and retain proof frames
         run: |
           D=docs/runtime_previews/jenova_frost
-          cp "$D/frames/0000.png" "$D/frost_00_clear.png"
-          cp "$D/frames/0065.png" "$D/frost_33_percent.png"
-          cp "$D/frames/0130.png" "$D/frost_66_percent.png"
-          cp "$D/frames/0195.png" "$D/frost_100_percent.png"
           ffmpeg -y -framerate 30 -i "$D/frames/%04d.png" \
             -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p \
             -movflags +faststart "$D/jenova_frost_6_5s.mp4"
@@ -264,6 +261,7 @@ jobs:
           path: |
             docs/runtime_previews/jenova_frost/*.mp4
             docs/runtime_previews/jenova_frost/*.png
+            docs/runtime_previews/jenova_frost/stages/*.png
             docs/runtime_previews/jenova_frost/report.json
             Jenova/HOARBOUND_JENOVA_BUILD.txt
           if-no-files-found: error

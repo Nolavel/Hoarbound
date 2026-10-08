@@ -71,6 +71,20 @@ linux = linux.replace(old, new)
 p.write_text(head + linux, encoding="utf-8")
 PY
 
+# Jenova's static libcurl enables IDN2; resolve its symbols in the runtime binary.
+python3 - "$SRC/Jenova.Builder.py" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text(encoding="utf-8-sig")
+old = ' -Wl,-Bdynamic -ldl -lrt -lzstd "'
+new = ' -Wl,-Bdynamic -ldl -lrt -lzstd -lidn2 "'
+count = s.count(old)
+if count != 1:
+  raise SystemExit(f"expected one Linux runtime link command, found {count}")
+p.write_text(s.replace(old, new), encoding="utf-8")
+PY
+
 # Jenova's official Linux build uses Clang; build runtime + a generated GodotSDK
 # from our patched 4.8-dev6 bindings.
 pushd "$SRC" >/dev/null

@@ -5,6 +5,13 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-08 - Jenova frost Linux build fixes
+
+- `tools/ci/bootstrap_jenova_linux.sh` links the static curl IDN2 dependency into
+  the Jenova runtime.
+- `tools/ci/build_jenova_project.gd` resolves the editor plugin dynamically so the
+  harness can parse before GDExtension class registration.
+
 ### 2026-10-08 - Direction reset: 10-step build plan, First Exit A spine
 
 - `docs/BUILD_PLAN.md`: single ordered build sequence (10 checkpoints) replacing the

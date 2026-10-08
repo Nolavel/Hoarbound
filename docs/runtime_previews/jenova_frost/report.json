@@ -1,0 +1,37 @@
+{
+	"controller": "res://scripts/experimental/jenova_frost/frost_window.cpp",
+	"first_frame": "res://docs/runtime_previews/jenova_frost/frames/0000.png",
+	"fps": 30,
+	"frames": 196,
+	"freeze_seconds": 6.5,
+	"last_frame": "res://docs/runtime_previews/jenova_frost/frames/0195.png",
+	"runtime": "Jenova C++",
+	"scene": "res://scenes/experimental/jenova_frost_lab.tscn",
+	"shader_owner": "embedded in Jenova C++ source; no .gdshader",
+	"stages": [
+		{
+			"amount": 0.0,
+			"name": "frost_00_clear"
+		},
+		{
+			"amount": 0.25,
+			"name": "frost_25_percent"
+		},
+		{
+			"amount": 0.5,
+			"name": "frost_50_percent"
+		},
+		{
+			"amount": 0.75,
+			"name": "frost_75_percent"
+		},
+		{
+			"amount": 0.95,
+			"name": "frost_95_percent"
+		},
+		{
+			"amount": 1.0,
+			"name": "frost_100_percent"
+		}
+	]
+}
