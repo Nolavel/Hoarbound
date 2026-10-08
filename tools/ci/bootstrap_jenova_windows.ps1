@@ -67,19 +67,33 @@ config/name="Hoarbound Jenova API Dump"
 renderer/rendering_method="gl_compatibility"
 '@ | Set-Content -LiteralPath (Join-Path $apiRoot "project.godot") -Encoding ASCII
 
-Push-Location $apiRoot
-try {
-	& $GodotExe --headless --path $apiRoot --dump-extension-api
-	if ($LASTEXITCODE -ne 0) {
-		throw "Godot failed to dump the GDExtension API."
+function Invoke-GodotApiDump([string[]]$GodotArguments) {
+	$startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+	$startInfo.FileName = $GodotExe
+	$startInfo.WorkingDirectory = $apiRoot
+	$startInfo.UseShellExecute = $false
+	$startInfo.RedirectStandardOutput = $true
+	$startInfo.RedirectStandardError = $true
+	foreach ($argument in $GodotArguments) {
+		$startInfo.ArgumentList.Add($argument)
 	}
-	& $GodotExe --headless --path $apiRoot --dump-gdextension-interface-json
-	if ($LASTEXITCODE -ne 0) {
-		throw "Godot failed to dump the GDExtension interface."
+	$process = [System.Diagnostics.Process]::Start($startInfo)
+	$stdout = $process.StandardOutput.ReadToEnd()
+	$stderr = $process.StandardError.ReadToEnd()
+	$process.WaitForExit()
+	if ($stdout) {
+		Write-Host $stdout
 	}
-} finally {
-	Pop-Location
+	if ($stderr) {
+		Write-Host $stderr
+	}
+	if ($process.ExitCode -ne 0) {
+		throw "Godot failed with exit code $($process.ExitCode): $($GodotArguments -join ' ')"
+	}
 }
+
+Invoke-GodotApiDump @("--headless", "--path", $apiRoot, "--dump-extension-api")
+Invoke-GodotApiDump @("--headless", "--path", $apiRoot, "--dump-gdextension-interface-json")
 
 $extensionApi = Join-Path $apiRoot "extension_api.json"
 $interfaceApi = Join-Path $apiRoot "gdextension_interface.json"
