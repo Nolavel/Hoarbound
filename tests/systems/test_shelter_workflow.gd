@@ -63,7 +63,7 @@ func _test_tools() -> void:
 		_check(_house.to_local(pickup.global_position).y > 1.7, "%s is buried under the floor/bench" % node_name)
 		var id: StringName = pickup.item_id
 		var count: int = pickup.count
-		await _aim(pickup, pickup.global_position + _house.global_basis.z * 0.8, _interact._focus_point(pickup))
+		await _aim(pickup, pickup.global_position + _house.global_basis.z * 0.8, pickup.get_focus_point(_player.global_position))
 		_check_target(pickup, node_name)
 		_press(&"interact")
 		_check(pickup.is_queued_for_deletion() and _inventory.get_count(id) == count, "%s did not pick up with real F" % node_name)
@@ -81,7 +81,7 @@ func _test_tools() -> void:
 	floor_item.add_child(col)
 	root.add_child(floor_item)
 	await _aim(floor_item, floor_item.global_position + _house.global_basis.z * 0.65 + Vector3.UP,
-		_interact._focus_point(floor_item))
+		floor_item.get_focus_point(_player.global_position))
 	_check_target(floor_item, "floor item with shifted TPS camera")
 	var lighter_count: int = _inventory.get_count(&"lighter")
 	_press(&"interact")
@@ -94,7 +94,7 @@ func _test_supplies() -> void:
 		var pickup: ItemPickup = _scene.get_node(NodePath(node_name)) as ItemPickup
 		_check(String(pickup.get_interaction_prompt_data()["detail"]).contains(pickup.item_name),
 			"supply pickup prompt hides the item name behind its status")
-		await _aim(pickup, pickup.global_position + _house.global_basis.z * 0.8, _interact._focus_point(pickup))
+		await _aim(pickup, pickup.global_position + _house.global_basis.z * 0.8, pickup.get_focus_point(_player.global_position))
 		_check_target(pickup, "supply bench " + node_name)
 		_press(&"interact")
 		_check(pickup.is_queued_for_deletion(), "food/water could not be picked up with F")
@@ -107,7 +107,7 @@ func _test_supplies() -> void:
 		"sealed pineapple did not require a knife")
 	_check(_inventory.get_count(&"tinned_pineapple") == 2, "missing knife spent pineapple")
 	var knife: ItemPickup = _scene.get_node(^"KnifeShelterTest") as ItemPickup
-	await _aim(knife, knife.global_position + _house.global_basis.z * 0.8, _interact._focus_point(knife))
+	await _aim(knife, knife.global_position + _house.global_basis.z * 0.8, knife.get_focus_point(_player.global_position))
 	_check_target(knife, "knife on tool bench")
 	_press(&"interact")
 	_check(_inventory.has_item(&"knife"), "F did not pick up the knife")
@@ -201,7 +201,7 @@ func _test_dismantle() -> void:
 	work.load_save_data(state)
 	_check(work._logs == logs, "repeated restore duplicated salvaged logs")
 	hammer.put_away()
-	await _aim(logs, logs.global_position + _house.global_basis.z * 0.8 + Vector3.UP, _interact._focus_point(logs))
+	await _aim(logs, logs.global_position + _house.global_basis.z * 0.8 + Vector3.UP, logs.get_focus_point(_player.global_position))
 	_check_target(logs, "salvaged logs")
 	_press(&"interact")
 	_check(logs.is_queued_for_deletion() and _inventory.get_count(&"firewood") == 3, "F could not carry the salvaged logs")
@@ -250,7 +250,7 @@ func _test_dismantle() -> void:
 func _test_boards() -> void:
 	var pickup: ItemPickup = _scene.get_node(^"BoardsShelterInside") as ItemPickup
 	await _aim(pickup, pickup.global_position + _house.global_basis.z * 0.7 + Vector3.UP,
-		_interact._focus_point(pickup))
+		pickup.get_focus_point(_player.global_position))
 	_press(&"interact")
 	_check(_inventory.get_count(&"boards") == 3, "real board stack did not reach the hands")
 	var breach: ShelterBreach = _house.get_node(^"ShelterZone/FrontWindow1") as ShelterBreach
@@ -326,7 +326,7 @@ func _test_boards() -> void:
 		await _place_board(area, y)
 	(_player.get_node(^"HammerComponent") as HammerComponent).put_away()
 	var next_stack: ItemPickup = _scene.get_node(^"BoardsShelterTest1") as ItemPickup
-	await _aim(next_stack, next_stack.global_position + Vector3(0, 1, 0.7), _interact._focus_point(next_stack))
+	await _aim(next_stack, next_stack.global_position + Vector3(0, 1, 0.7), next_stack.get_focus_point(_player.global_position))
 	_press(&"interact")
 	_check(_inventory.get_count(&"boards") == 3, "next board armful could not be carried")
 	await _aim(area, breach.to_global(Vector3(0, -0.35, 1.45)), area.focus_anchor.global_position)
@@ -356,7 +356,7 @@ func _test_stove() -> void:
 	## lighter behaviour belongs to its dedicated component tests; do not revive
 	## the retired SPARK/SPARK/FLAME fixture here.
 	var pickup: ItemPickup = _scene.get_node(^"FirewoodShelter") as ItemPickup
-	await _aim(pickup, pickup.global_position + Vector3(0, 1, 0.7), _interact._focus_point(pickup))
+	await _aim(pickup, pickup.global_position + Vector3(0, 1, 0.7), pickup.get_focus_point(_player.global_position))
 	_press(&"interact")
 	_check(_inventory.get_count(&"firewood") == 3, "three logs did not enter the hands")
 
@@ -404,7 +404,7 @@ func _test_table() -> void:
 		_check(food != null, "carried food/water was not presented on the meal table: %s" % id)
 		if food == null:
 			continue
-		_point_camera(_interact._focus_point(food))
+		_point_camera(food.get_focus_point(_player.global_position))
 		await physics_frame
 		_interact.detect_target()
 		_check_target(food, "seated food with real projection")
@@ -463,7 +463,7 @@ func _has_pocket(id: StringName) -> bool:
 
 
 ## Keeps independent workflow steps independent: finish the previous staged
-## presentation/action clip, then rebuild crosshair focus before the next aim.
+## presentation/action clip, then rebuild target focus before the next aim.
 ## This prevents one successful interaction from poisoning every assertion after it.
 func _settle_interaction_fixture() -> void:
 	## Finish/cancel whatever the previous isolated workflow step owned. Manual
@@ -496,6 +496,10 @@ func _aim(target: InteractiveArea, from: Vector3, point: Vector3) -> void:
 		from.y = maxf(from.y, _house.to_global(Vector3(0, 1.91, 0)).y)
 	_player.global_position = from
 	_player.velocity = Vector3.ZERO
+	## Henry faces what he walked up to; body facing is part of the target score.
+	var flat_point := Vector3(point.x, from.y, point.z)
+	if from.distance_to(flat_point) > 0.01:
+		_player.look_at(flat_point, Vector3.UP)
 	_camera.global_position = from + Vector3.UP * 0.65
 	_point_camera(point)
 	await physics_frame
@@ -533,7 +537,7 @@ func _on_action_started(action_id: StringName, _duration_h: float) -> void:
 
 
 func _check_target(target: InteractiveArea, context: String) -> void:
-	_check(_interact.current_target == target and target.shape_cast_detected,
+	_check(_interact.current_target == target and target.prompt_shown,
 		"%s selected %s" % [context, _interact.current_target])
 
 

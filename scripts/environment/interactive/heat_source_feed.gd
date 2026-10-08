@@ -144,7 +144,7 @@ func _input(event: InputEvent) -> void:
 			cancel_act()
 			_report(transfer_logs(2, true))
 		get_viewport().set_input_as_handled()
-	elif _targeted and shape_cast_detected and _door_open and _in_reach():
+	elif _targeted and prompt_shown and _door_open and _in_reach():
 		if mouse.pressed and mouse.button_index == MOUSE_BUTTON_RIGHT and not is_acting():
 			_report(transfer_logs(2, true))
 		get_viewport().set_input_as_handled()
@@ -535,6 +535,11 @@ func _report(refusal: Refusal) -> void:
 	if refusal != Refusal.NONE:
 		feed_refused.emit(refusal)
 		show_message(tr(describe_refusal(refusal)))
+
+
+## A running load or ignition holds focus so the door cannot steal it mid-action.
+func keeps_focus() -> bool:
+	return is_acting()
 
 
 func resolve_focus(from: Vector3, direction: Vector3) -> InteractiveArea:

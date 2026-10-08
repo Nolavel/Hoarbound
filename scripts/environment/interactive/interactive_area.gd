@@ -45,8 +45,12 @@ enum PickupSubtype {
 @export var focus_anchor: Node3D
 ## Explicit solid owners when the object's bodies are siblings of this Area.
 @export var focus_bodies: Array[CollisionObject3D] = []
+## Added to the InteractComponent score: doors and stoves above, junk below.
+@export var focus_priority: float = 0.0
 
 const FOCUS_OWNER_META: StringName = &"interactive_focus_owner"
+## Every InteractiveArea joins it; InteractComponent picks candidates from here.
+const GROUP: StringName = &"interactive"
 
 # === НАСТРОЙКИ ОТОБРАЖЕНИЯ ===
 @export_group("Настройки отображения")
@@ -75,8 +79,12 @@ var ground_raycast: RayCast3D
 
 # === ВНУТРЕННИЕ ПЕРЕМЕННЫЕ ===
 var player_in_area := false
-var shape_cast_detected := false
+## True while this object is the current target inside prompt range (F shown).
+var prompt_shown := false
 var _targeted: bool = false
+var _hinted: bool = false
+var _marker_shown: bool = false
+var _shake_serial: int = 0
 var _message_serial: int = 0
 var _feedback_text: String = ""
 var _feedback_until_ms: int = 0
@@ -100,6 +108,7 @@ const SHAKE_TIME: float = 2.0  # Длительность шейка
 const SHAKE_STRENGTH: float = 0.1  # Сила тряски
 
 func _ready() -> void:
+	add_to_group(GROUP)
 	if not body_entered.is_connected(_on_body_entered):
 		body_entered.connect(_on_body_entered)
 	if not body_exited.is_connected(_on_body_exited):
@@ -181,65 +190,85 @@ func _setup_shake_timer() -> void:
 	shake_timer.timeout.connect(_start_shake)
 	add_child(shake_timer)
 
+## The trigger Area only records who stands in it; markers follow set_hint_state.
 func _on_body_entered(body: Node) -> void:
 	if body.is_in_group("player"):
 		player_in_area = true
 		player_reference = body
-		# Proximity owns the old world marker (the check mark). Crosshair focus
-		# owns the F prompt. Keeping these separate prevents the marker from
-		# disappearing merely because Henry is not aiming at the item yet.
-		if can_interact() and not shape_cast_detected:
-			_show_icon_sprite()
-			_start_shake_cycle()
 
 func _on_body_exited(body: Node) -> void:
 	if body.is_in_group("player"):
 		player_in_area = false
 		player_reference = null
-		_stop_shake_cycle()
-		_hide_icon_sprite_with_lift()
-		_hide_info_label()
-		if object_on_ground:
-			_hide_highlight_circle()
 
 
-## Crosshair focus owns the F prompt. Proximity owns the world marker.
+## InteractComponent's choice owns the F prompt; the hint layer owns the marker.
 func set_target_state(targeted: bool, in_prompt_range: bool) -> void:
-	var was_prompt: bool = shape_cast_detected
-	var was_targeted: bool = _targeted
+	var was_prompt: bool = prompt_shown
 	_targeted = targeted
-	shape_cast_detected = targeted and in_prompt_range
-
-	if not targeted:
-		_hide_info_label()
-		if was_prompt and object_on_ground:
-			_hide_highlight_circle()
-		if player_in_area and can_interact():
-			if was_targeted or not icon_sprite or not icon_sprite.visible:
-				_show_icon_sprite()
-			_start_shake_cycle()
-		else:
-			_stop_shake_cycle()
-			if was_targeted:
-				_hide_icon_sprite_with_lift()
-		return
-
-	if shape_cast_detected and not was_prompt:
+	prompt_shown = targeted and in_prompt_range
+	if prompt_shown and not was_prompt:
 		_stop_shake_cycle()
+		_marker_shown = false
 		_hide_icon_sprite_with_lift_then_show_info()
 		if object_on_ground:
 			_show_highlight_circle()
-	elif not shape_cast_detected and (was_prompt or not was_targeted):
+		return
+	if was_prompt and not prompt_shown:
 		_hide_info_label()
-		if was_prompt and object_on_ground:
+		if object_on_ground:
 			_hide_highlight_circle()
+	_refresh_marker()
+
+
+## Far signal layer: the check-mark marker by distance to the focus point.
+func set_hint_state(hinted: bool) -> void:
+	_hinted = hinted
+	_refresh_marker()
+
+
+## Where Henry acts and is seen to act; observer picks the near side of two-sided objects.
+func get_focus_point(_observer: Vector3) -> Vector3:
+	if is_instance_valid(focus_anchor):
+		return focus_anchor.global_position
+	var mesh: MeshInstance3D = interactive_mesh
+	if is_instance_valid(mesh) and mesh.mesh != null:
+		var bounds: AABB = mesh.get_aabb()
+		var point: Vector3 = mesh.to_global(bounds.get_center())
+		var axes: Basis = mesh.global_basis
+		var height: float = absf(axes.x.y) * bounds.size.x + absf(axes.y.y) * bounds.size.y + absf(axes.z.y) * bounds.size.z
+		var safe_lift: float = clampf(height * 0.35, 0.025, 0.20)  # keeps the supporting surface out of LOS
+		point.y = maxf(point.y, global_position.y + safe_lift)
+		return point
+	return global_position + Vector3.UP * 0.15
+
+
+## Extra gate on the camera aim, for objects selectable only on a part of themselves.
+func accepts_focus(_from: Vector3, _direction: Vector3) -> bool:
+	return true
+
+
+## The object that should take focus when this one is chosen along the given aim.
+func resolve_focus(_from: Vector3, _direction: Vector3) -> InteractiveArea:
+	return self
+
+
+## True while a running action must not lose focus to a neighbour.
+func keeps_focus() -> bool:
+	return false
+
+
+func _refresh_marker() -> void:
+	var wanted: bool = _hinted and not prompt_shown and can_interact()
+	if wanted == _marker_shown:
+		return
+	_marker_shown = wanted
+	if wanted:
 		_show_icon_sprite()
 		_start_shake_cycle()
-
-
-## Kept for callers of the old manager: detected means targeted and in prompt range.
-func set_shape_cast_detected(detected: bool) -> void:
-	set_target_state(detected, detected)
+	else:
+		_stop_shake_cycle()
+		_hide_icon_sprite_with_lift()
 
 
 ## Replaces the prompt with a short message, e.g. why F was refused.
@@ -258,7 +287,7 @@ func show_message(text: String, seconds: float = 2.5) -> void:
 	await get_tree().create_timer(seconds).timeout
 	if serial != _message_serial or not is_instance_valid(info_label):
 		return
-	if shape_cast_detected:
+	if prompt_shown:
 		info_label.text = _get_interaction_text()
 	else:
 		_hide_info_label()
@@ -520,17 +549,17 @@ func _on_interaction_performed() -> void:
 
 # === СИСТЕМА ТРЯСКИ СПРАЙТА ===
 func _start_shake_cycle() -> void:
-	if shake_timer and player_in_area and not shape_cast_detected:
+	if shake_timer and _marker_shown:
 		shake_timer.start()
 
 func _stop_shake_cycle() -> void:
+	_shake_serial += 1
 	if shake_timer:
 		shake_timer.stop()
 	_stop_shake()
 
 func _start_shake() -> void:
-	# Marker animation follows proximity, not crosshair focus.
-	if not player_in_area or shape_cast_detected:
+	if not _marker_shown:
 		return
 	
 	if not icon_sprite or not icon_sprite.visible:
@@ -551,7 +580,11 @@ func _start_shake() -> void:
 	tween_icon.tween_property(icon_sprite, "position:y", original_icon_position.y, 0.1)
 	
 	# Останавливаем тряску через 2 секунды
+	_shake_serial += 1
+	var serial: int = _shake_serial
 	await get_tree().create_timer(SHAKE_TIME).timeout
+	if serial != _shake_serial:
+		return
 	_stop_shake()
 	_restart_shake_cycle()
 
@@ -569,8 +602,7 @@ func _stop_shake() -> void:
 		icon_sprite.position = original_icon_position
 
 func _restart_shake_cycle() -> void:
-	# Перезапускаем цикл если игрок все еще в области
-	if player_in_area and not shape_cast_detected:
+	if _marker_shown:
 		_start_shake_cycle()
 
 # Методы для обновления кэша при изменении параметров

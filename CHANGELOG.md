@@ -5,6 +5,47 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-08 - Third-person interaction targeting by score around Henry
+
+- `InteractComponent._find_best_target()` replaces `_find_crosshair_target` and
+  `_find_seated_target`. Candidates come from the `interactive` group with no
+  physics queries. A candidate's flat distance to `get_focus_point` must be
+  within `intent_radius` (seated: `seated_reach`), and `accepts_focus` must pass.
+  Score = closeness + `facing_weight`·body facing + `camera_weight`·camera aim +
+  `focus_priority`, plus `hysteresis_bonus` for the current target. Line of sight
+  goes from Henry's chest (+1.3 m) to the focus point, for the top 3 only.
+  The object's own bodies never block it.
+- Standing: a candidate behind both Henry and the camera is ignored. Seated
+  (facing 0.1, camera 1.0): it must lie within `seated_aim_deg` of the camera aim.
+- `HeatSourceFeed.keeps_focus()` holds the stove target while `is_acting()`.
+- `InteractiveArea`: joins group `interactive`; new `focus_priority`,
+  `get_focus_point()` (moved from the component), `accepts_focus()`,
+  `resolve_focus()`, `keeps_focus()`, and `set_hint_state()`. The far
+  check-mark marker now follows distance to the focus point, not the trigger
+  Area. `shape_cast_detected` is renamed `prompt_shown`, and
+  `set_shape_cast_detected` is removed (it had no callers). The marker shake
+  `await` is guarded by a serial.
+- Overrides replace `is` branches: `HingedDoor.get_focus_point` (nearest
+  handle), `BreachBoardUp.accepts_focus` (aim on opening),
+  `StoveDoorControl.accepts_focus` (aim on door) and
+  `StoveDoorControl.resolve_focus` (firebox while acting).
+- `TpsInteractionFraming` uses `get_focus_point` instead of its own copy.
+- Removed: `_first_interactive_area_on_ray`, `_focus_hit_is_visible`,
+  `_is_focus_aligned`, `_has_focus_line`, `_focus_point`, `_find_intent_target`,
+  `_is_ahead` and `_resolve_focus`. Removed exports: `focus_length`,
+  `focus_radius`, `focus_angle_deg` and `intent_angle_deg`. No scene overrode
+  them. The embodied lab's `focus_angle_deg` assist is gone.
+- New exports (starting values, to be tuned by feel): `facing_weight` 0.6,
+  `camera_weight` 0.4, `hysteresis_bonus` 0.25, `hint_radius` 4.5 (marker pass
+  every 0.1 s). `seated_aim_deg` (35) is kept as the seated camera gate.
+- Tests: `test_interaction.gd` now checks the new contract. The item in front is
+  targeted with the camera turned away, and an item behind both Henry and the
+  camera is ignored. `test_shelter_workflow.gd` uses `get_focus_point` and
+  `prompt_shown`, and `_aim` turns Henry towards the target.
+- Unverified: nothing was run in Godot (no import, compile, test suites or
+  render). Feel, weights and the eight manual scenarios need the author's
+  in-game check.
+
 ### 2026-10-08 - Jenova frost Linux build fixes
 
 - `tools/ci/bootstrap_jenova_linux.sh` links the static curl IDN2 dependency into

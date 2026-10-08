@@ -1,7 +1,7 @@
 class_name InteractComponent
 extends Node3D
 
-## The crosshair chooses the target when F is pressed.
+## Scores interactive objects around Henry: distance, his facing and the camera.
 ## A requested pickup stays selected for arrival even as the walking camera moves.
 
 ## What is targeted and whether it is already within arm's reach.
@@ -9,19 +9,27 @@ signal interact_target_changed(target: InteractiveArea, in_reach: bool)
 ## Emitted after F acted on a target.
 signal interaction_performed(target: InteractiveArea)
 
-@export_group("Focus")
-## Ray length through the exact screen centre. Selection is still capped by
-## intent_radius, so distant scenery cannot become actionable.
-@export var focus_length: float = 12.0
-@export var focus_radius: float = 0.0
-## Fallback only for cameras already inside an interaction Area: full cone width.
-@export var focus_angle_deg: float = 16.0
+## Line of sight starts at Henry's chest, not at the camera.
+const CHEST_HEIGHT: float = 1.3
+## Only this many best-scored candidates pay for a line-of-sight ray.
+const SIGHT_CHECKS: int = 3
+## Seconds between passes of the far marker layer.
+const HINT_INTERVAL: float = 0.1
+## Seated Henry does not turn: the camera decides.
+const SEATED_FACING_WEIGHT: float = 0.1
+const SEATED_CAMERA_WEIGHT: float = 1.0
 
 @export_group("Intent")
-## Maximum distance at which a crosshair-focused object can become current_target.
+## Flat distance to an object's focus point at which it can become current_target.
 @export var intent_radius: float = 2.5
-## Kept for scene compatibility; cone fallback is intentionally disabled.
-@export var intent_angle_deg: float = 240.0
+## Score weight of Henry's body facing towards the object.
+@export var facing_weight: float = 0.6
+## Score weight of the camera looking at the object; a weight, never a requirement.
+@export var camera_weight: float = 0.4
+## Score bonus that keeps the current target until another clearly wins.
+@export var hysteresis_bonus: float = 0.25
+## Objects whose focus point is this close show the far check-mark marker.
+@export var hint_radius: float = 4.5
 
 @export_group("Approach")
 ## F acts on the spot inside this flat distance, otherwise Henry walks over.
@@ -30,7 +38,7 @@ signal interaction_performed(target: InteractiveArea)
 @export var prompt_distance: float = 2.0
 ## Seated, Henry leans: this far, picked by where the camera looks (stove ring, table).
 @export var seated_reach: float = 2.0
-## Seated, a target must lie within this angle of the view direction.
+## Seated, a target must lie within this angle of the camera aim.
 @export var seated_aim_deg: float = 35.0
 ## Gives up a walk that stops making progress, seconds.
 @export var approach_timeout: float = 4.0
@@ -43,6 +51,7 @@ var _last_in_prompt: bool = false
 var _pending: InteractiveArea = null
 var _approach_elapsed: float = 0.0
 var _approach_stopped: bool = false
+var _hint_elapsed: float = 0.0
 
 
 func _ready() -> void:
@@ -59,6 +68,10 @@ func _physics_process(delta: float) -> void:
 		return
 	detect_target()
 	_update_approach(delta)
+	_hint_elapsed += delta
+	if _hint_elapsed >= HINT_INTERVAL:
+		_hint_elapsed = 0.0
+		_update_hints()
 
 
 ## Re-picks the target now; normally run every physics frame.
@@ -69,8 +82,7 @@ func detect_target() -> void:
 		current_target = null
 	elif current_target.is_queued_for_deletion() or not current_target.can_interact():
 		_clear_current_target()
-	var seated: bool = _is_seated()
-	var found: InteractiveArea = _find_seated_target() if seated else _find_crosshair_target()
+	var found: InteractiveArea = _find_best_target()
 	var distance: float = _flat_distance_to(found) if found != null else INF
 	var in_reach: bool = distance <= _reach()
 	var in_prompt: bool = distance <= prompt_distance
@@ -143,240 +155,94 @@ func _perform(target: InteractiveArea) -> void:
 	interaction_performed.emit(target)
 
 
-func _find_crosshair_target() -> InteractiveArea:
+## Picks the best-scored candidate around Henry that he can actually see.
+func _find_best_target() -> InteractiveArea:
+	var seated: bool = _is_seated()
+	var radius: float = seated_reach if seated else intent_radius
+	if is_instance_valid(current_target) and current_target.keeps_focus() \
+		and current_target.can_interact() and _flat_distance_to(current_target) <= radius:
+		return current_target
 	var viewport := get_viewport()
 	var camera: Camera3D = viewport.get_camera_3d() if viewport != null else null
-	if camera == null or _player == null:
-		return null
-	var from: Vector3 = TpsCamera.aim_origin(camera)
-	var direction: Vector3 = TpsCamera.aim_direction(camera)
-	var to: Vector3 = from + direction * focus_length
-
-	# The interaction volume owns selection. Query Areas first so a door leaf,
-	# handle or frame cannot steal the centre ray from its InteractiveArea.
-	# Physical bodies are checked separately below for honest occlusion.
-	var area_hit := _first_interactive_area_on_ray(from, to)
-	if not area_hit.is_empty():
-		var direct := _resolve_focus(_area_from(area_hit.get("collider")), from, direction)
-		if (
-			direct != null
-			and _flat_distance_to(direct) <= intent_radius
-			and _is_focus_aligned(from, direction, direct)
-		):
-			var hit_position: Vector3 = area_hit.get("position", direct.global_position)
-			if _focus_hit_is_visible(from, hit_position, direct):
-				return direct
-
-	## Keep the selected stove authoritative while the ray stays on its body or moving door.
-	if is_instance_valid(current_target) and current_target is HeatSourceFeed \
-		and (current_target as HeatSourceFeed).is_acting() \
-		and _flat_distance_to(current_target) <= intent_radius and _is_focus_aligned(from, direction, current_target):
-		return current_target
-
-	# Solid geometry still counts when it belongs to the InteractiveArea itself.
-	# This keeps small/legacy Areas usable without allowing focus through walls.
-	var body_ray := PhysicsRayQueryParameters3D.create(from, to)
-	body_ray.collide_with_areas = false
-	body_ray.collide_with_bodies = true
-	body_ray.exclude = [_player.get_rid()]
-	var body_hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(body_ray)
-	if not body_hit.is_empty():
-		var body_target := _resolve_focus(_area_from(body_hit.get("collider")), from, direction)
-		if body_target != null and _flat_distance_to(body_target) <= intent_radius:
-			return body_target
-		# Do not abort on terrain/walls here. A pickup has no physics body of its
-		# own, so the centre ray often reaches the ground just behind it. The
-		# nearby-Area fallback below still performs its own line-of-sight test.
-
-	# Some legacy InteractiveAreas envelop the camera. Rays do not report a
-	# shape containing their origin, so recover only candidates genuinely under
-	# the crosshair and with clear line of sight.
-	var shape := SphereShape3D.new()
-	shape.radius = intent_radius
-	var query := PhysicsShapeQueryParameters3D.new()
-	query.shape = shape
-	query.transform = Transform3D(Basis.IDENTITY, _player.global_position)
-	query.collide_with_areas = true
-	query.collide_with_bodies = false
-	var best: InteractiveArea = null
-	var best_angle := deg_to_rad(focus_angle_deg * 0.5)
-	var best_distance := INF
-	for result: Dictionary in get_world_3d().direct_space_state.intersect_shape(query, 32):
-		var area := _resolve_focus(_area_from(result.get("collider")), from, direction)
-		if area == null:
+	var view_from: Vector3 = TpsCamera.aim_origin(camera) if camera != null else _chest()
+	var view_direction: Vector3 = TpsCamera.aim_direction(camera) if camera != null else _flat_view_direction()
+	var facing: Vector3 = get_facing_direction()
+	var facing_w: float = SEATED_FACING_WEIGHT if seated else facing_weight
+	var camera_w: float = SEATED_CAMERA_WEIGHT if seated else camera_weight
+	var seated_cos: float = cos(deg_to_rad(seated_aim_deg))
+	var scores: Dictionary = {}
+	for node: Node in get_tree().get_nodes_in_group(InteractiveArea.GROUP):
+		var raw := node as InteractiveArea
+		if not _is_available(raw) or not raw.accepts_focus(view_from, view_direction):
 			continue
-		var flat_distance := _flat_distance_to(area)
-		if flat_distance > intent_radius:
+		var area: InteractiveArea = raw.resolve_focus(view_from, view_direction)
+		if not _is_available(area):
 			continue
-		# Legacy pickup Areas are intentionally much larger than the visible item,
-		# so the camera can start inside them. Aim at the visible mesh instead of
-		# Area3D.global_position: ground-level origins were being occluded by the
-		# terrain itself, which made pickups impossible to focus.
-		var focus_point: Vector3 = _focus_point(area)
-		var toward: Vector3 = focus_point - from
-		if toward.length() < 0.01:
+		var point: Vector3 = area.get_focus_point(_player.global_position)
+		var to_point: Vector3 = point - _player.global_position
+		to_point.y = 0.0
+		var distance: float = to_point.length()
+		if distance > radius:
 			continue
-		var angle := direction.angle_to(toward.normalized())
-		if area is BreachBoardUp:
-			if not (area as BreachBoardUp).is_aim_on_opening(from, direction):
-				continue
-			angle = 0.0
-		if angle > best_angle:
+		var body_dot: float = facing.dot(to_point / distance) if distance > 0.001 else 1.0
+		var from_view: Vector3 = point - view_from
+		if camera == null:
+			from_view.y = 0.0  # the fallback view is flat
+		var view_dot: float = view_direction.dot(from_view.normalized()) if from_view.length() > 0.001 else 1.0
+		if seated and view_dot < seated_cos:
 			continue
-		if not _has_focus_line(camera, area):
-			continue
-		if angle < best_angle or (is_equal_approx(angle, best_angle) and flat_distance < best_distance):
-			best = area
-			best_angle = angle
-			best_distance = flat_distance
-	return best
+		if not seated and body_dot < 0.0 and view_dot < 0.0:
+			continue  # behind both Henry and the camera
+		var score: float = (1.0 - distance / radius) + facing_w * body_dot + camera_w * view_dot + area.focus_priority
+		if area == current_target:
+			score += hysteresis_bonus
+		if score > float(scores.get(area, -INF)):
+			scores[area] = score
+	var ranked: Array = scores.keys()
+	ranked.sort_custom(func(a: InteractiveArea, b: InteractiveArea) -> bool: return scores[a] > scores[b])
+	for index: int in range(mini(ranked.size(), SIGHT_CHECKS)):
+		var candidate: InteractiveArea = ranked[index]
+		if _has_line_of_sight(candidate):
+			return candidate
+	return null
 
 
-## Returns the first *interactive* Area on the centre ray, skipping unrelated
-## trigger Areas (thermal zones, shelter volumes, etc.) instead of letting one
-## of them hide the actual handle/door/pickup behind it.
-func _first_interactive_area_on_ray(from: Vector3, to: Vector3) -> Dictionary:
-	var excluded: Array[RID] = [_player.get_rid()]
-	for _i: int in range(12):
-		var ray := PhysicsRayQueryParameters3D.create(from, to)
-		ray.collide_with_areas = true
-		ray.collide_with_bodies = false
-		ray.exclude = excluded
-		var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(ray)
-		if hit.is_empty():
-			return {}
-		var area: InteractiveArea = _resolve_focus(_area_from(hit.get("collider")), from, (to - from).normalized())
-		if (
-			area != null and _flat_distance_to(area) <= intent_radius
-			and _is_focus_aligned(from, (to - from).normalized(), area)
-			and _focus_hit_is_visible(from, hit.get("position", area.global_position), area)
-			and _has_focus_line(get_viewport().get_camera_3d(), area)
-		):
-			return hit
-		var collider := hit.get("collider") as CollisionObject3D
-		if collider == null:
-			return {}
-		excluded.append(collider.get_rid())
-	return {}
+## Without a camera (headless tests), Henry's own flat view stands in for the aim.
+func _flat_view_direction() -> Vector3:
+	var view: Vector3 = _player.call(&"get_view_direction") if _player.has_method(&"get_view_direction") else get_facing_direction()
+	view.y = 0.0
+	return view.normalized() if view.length() > 0.001 else get_facing_direction()
 
 
-## The Area hit grants focus only when no unrelated solid surface is closer.
-## A body owned by the same InteractiveArea is allowed: that is the physical
-## door/pickup itself, not an occluder.
-func _focus_hit_is_visible(from: Vector3, hit_position: Vector3, target: InteractiveArea) -> bool:
-	var offset := hit_position - from
-	if offset.length() <= 0.01:
-		return true
-	var ray := PhysicsRayQueryParameters3D.create(from, hit_position)
+## Henry's chest to the focus point; the object's own bodies never occlude it.
+func _has_line_of_sight(area: InteractiveArea) -> bool:
+	var ray := PhysicsRayQueryParameters3D.create(_chest(), area.get_focus_point(_player.global_position))
 	ray.collide_with_areas = false
 	ray.collide_with_bodies = true
 	ray.exclude = [_player.get_rid()]
 	var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(ray)
 	if hit.is_empty():
 		return true
-	return _owns_focus_body(_area_from(hit.get("collider")), target)
-
-
-func _is_focus_aligned(from: Vector3, direction: Vector3, area: InteractiveArea) -> bool:
-	if not is_instance_valid(area) or area.is_queued_for_deletion():
-		return false
-	if area is HingedDoor:
-		return is_finite((area as HingedDoor).get_handle_aim_distance(from, direction))
-	if area is HeatSourceFeed and (area as HeatSourceFeed).is_acting():
-		var door: StoveDoorControl = (area as HeatSourceFeed).door_control
-		if is_instance_valid(door):
-			var door_distance: float = door.get_aim_distance(from, direction)
-			if is_finite(door_distance) and door_distance <= focus_length:
-				return _focus_hit_is_visible(from, from + direction * door_distance, area)
-		var ray := PhysicsRayQueryParameters3D.create(from, from + direction * focus_length)
-		ray.collide_with_areas = false
-		ray.collide_with_bodies = true
-		ray.exclude = [_player.get_rid()]
-		var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(ray)
-		if not hit.is_empty():
-			return _owns_focus_body(_area_from(hit.get("collider")), area)
-		return false
-	if area is StoveDoorControl:
-		return (area as StoveDoorControl).is_aim_on_door(from, direction)
-	if area is BreachBoardUp:
-		return (area as BreachBoardUp).is_aim_on_opening(from, direction)
-	var toward: Vector3 = _focus_point(area) - from
-	if toward.length() < 0.01:
-		return false
-	return direction.angle_to(toward.normalized()) <= deg_to_rad(focus_angle_deg * 0.5)
-
-
-func _has_focus_line(camera: Camera3D, area: InteractiveArea) -> bool:
-	if not is_instance_valid(camera) or not is_instance_valid(area):
-		return false
-	var from: Vector3 = TpsCamera.aim_origin(camera)
-	var to := _focus_point(area)
-	var ray := PhysicsRayQueryParameters3D.create(from, to)
-	ray.collide_with_areas = false
-	ray.collide_with_bodies = true
-	ray.exclude = [_player.get_rid()]
-	var hit := _player.get_world_3d().direct_space_state.intersect_ray(ray)
-	if hit.is_empty():
-		return true
 	return _owns_focus_body(_area_from(hit.get("collider")), area)
 
 
-## A focus anchor should represent what the player can actually see. Many old
-## pickup Areas have their origin on the floor and a 6 m trigger sphere; using
-## that origin for line-of-sight makes the terrain occlude the pickup itself.
-func _focus_point(area: InteractiveArea) -> Vector3:
-	if not is_instance_valid(area):
-		return Vector3.ZERO
-	if area is HingedDoor:
-		var camera := get_viewport().get_camera_3d()
-		var observer: Vector3 = camera.global_position if camera != null else (_player.global_position if _player != null else area.global_position)
-		return (area as HingedDoor).get_preferred_handle_position(observer)
-	if is_instance_valid(area.focus_anchor):
-		return area.focus_anchor.global_position
-	var mesh: MeshInstance3D = area.interactive_mesh
-	if is_instance_valid(mesh) and mesh.mesh != null:
-		var bounds: AABB = mesh.get_aabb()
-		var point: Vector3 = mesh.to_global(bounds.get_center())
-		# Keep tiny/rotated ground props (flare, cup, food) a few centimetres
-		# above the authored root so their own supporting surface cannot win LOS.
-		var axes: Basis = mesh.global_basis
-		var height: float = absf(axes.x.y) * bounds.size.x + absf(axes.y.y) * bounds.size.y + absf(axes.z.y) * bounds.size.z
-		var safe_lift: float = clampf(height * 0.35, 0.025, 0.20)
-		point.y = maxf(point.y, area.global_position.y + safe_lift)
-		return point
-	return area.global_position + Vector3.UP * 0.15
+## Far marker layer: every object within hint_radius of Henry shows its check mark.
+func _update_hints() -> void:
+	for node: Node in get_tree().get_nodes_in_group(InteractiveArea.GROUP):
+		var area := node as InteractiveArea
+		if area == null or area.is_queued_for_deletion():
+			continue
+		var offset: Vector3 = area.get_focus_point(_player.global_position) - _player.global_position
+		offset.y = 0.0
+		area.set_hint_state(offset.length() <= hint_radius)
 
 
-## Legacy cone helper retained for compatibility/reference only.
-## Nearest available area inside intent_radius and the forward cone.
-func _find_intent_target() -> InteractiveArea:
-	if intent_radius <= 0.0:
-		return null
-	var shape := SphereShape3D.new()
-	shape.radius = intent_radius
-	var query := PhysicsShapeQueryParameters3D.new()
-	query.shape = shape
-	query.transform = Transform3D(Basis.IDENTITY, _player.global_position)
-	query.collide_with_areas = true
-	query.collide_with_bodies = false
-	var facing: Vector3 = get_facing_direction()
-	var half_angle: float = deg_to_rad(intent_angle_deg) * 0.5
-	var best: InteractiveArea = null
-	var best_distance: float = INF
-	for hit: Dictionary in get_world_3d().direct_space_state.intersect_shape(query, 32):
-		var area := _area_from(hit.get("collider"))
-		if area == null:
-			continue
-		var to_area: Vector3 = area.global_position - _player.global_position
-		to_area.y = 0.0
-		var distance: float = to_area.length()
-		if distance > intent_radius or distance >= best_distance:
-			continue
-		if distance > 0.01 and facing.angle_to(to_area / distance) > half_angle:
-			continue
-		best = area
-		best_distance = distance
-	return best
+func _chest() -> Vector3:
+	return _player.global_position + Vector3.UP * CHEST_HEIGHT
+
+
+func _is_available(area: InteractiveArea) -> bool:
+	return is_instance_valid(area) and not area.is_queued_for_deletion() and area.can_interact()
 
 
 func _is_seated() -> bool:
@@ -388,50 +254,11 @@ func _reach() -> float:
 	return seated_reach if _is_seated() else pickup_distance
 
 
-## Seated: the area within seated_reach closest to where the camera looks.
-func _find_seated_target() -> InteractiveArea:
-	if get_viewport().get_camera_3d() != null:
-		var focused: InteractiveArea = _find_crosshair_target()
-		return focused if focused != null and _flat_distance_to(focused) <= seated_reach else null
-	var shape := SphereShape3D.new()
-	shape.radius = seated_reach
-	var query := PhysicsShapeQueryParameters3D.new()
-	query.shape = shape
-	query.transform = Transform3D(Basis.IDENTITY, _player.global_position)
-	query.collide_with_areas = true
-	query.collide_with_bodies = false
-	var view: Vector3 = _player.call(&"get_view_direction") if _player.has_method(&"get_view_direction") else get_facing_direction()
-	view.y = 0.0
-	view = view.normalized() if view.length() > 0.001 else get_facing_direction()
-	var best: InteractiveArea = null
-	var best_angle: float = deg_to_rad(seated_aim_deg)
-	for hit: Dictionary in get_world_3d().direct_space_state.intersect_shape(query, 32):
-		var area := _area_from(hit.get("collider"))
-		if area == null:
-			continue
-		var to_area: Vector3 = area.global_position - _player.global_position
-		to_area.y = 0.0
-		if to_area.length() > seated_reach or to_area.length() < 0.01:
-			continue
-		var angle: float = view.angle_to(to_area.normalized())
-		if angle < best_angle:
-			best = area
-			best_angle = angle
-	return best
-
-
 ## Henry's flat forward; the body faces -Z.
 func get_facing_direction() -> Vector3:
 	var forward: Vector3 = -_player.global_transform.basis.z
 	forward.y = 0.0
 	return forward.normalized() if forward.length() > 0.001 else Vector3.FORWARD
-
-
-## A cast starting inside a big area reports it even when it lies behind.
-func _is_ahead(area: Node3D) -> bool:
-	var to_area: Vector3 = area.global_position - _player.global_position
-	to_area.y = 0.0
-	return to_area.length() < 0.01 or get_facing_direction().dot(to_area) > 0.0
 
 
 func _area_from(collider: Variant) -> InteractiveArea:
@@ -535,18 +362,6 @@ func _is_blocked() -> bool:
 
 func is_crosshair_focused() -> bool:
 	return is_instance_valid(current_target)
-
-
-func _resolve_focus(area: InteractiveArea, from: Vector3, direction: Vector3) -> InteractiveArea:
-	if not is_instance_valid(area) or area.is_queued_for_deletion():
-		return null
-	if area is HeatSourceFeed:
-		return (area as HeatSourceFeed).resolve_focus(from, direction)
-	if area is StoveDoorControl:
-		var feed: HeatSourceFeed = (area as StoveDoorControl).feed
-		if is_instance_valid(feed) and feed.is_acting():
-			return feed
-	return area
 
 
 func _owns_focus_body(owner_area: InteractiveArea, target: InteractiveArea) -> bool:

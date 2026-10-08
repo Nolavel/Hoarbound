@@ -235,7 +235,7 @@ func _focused_prompt_target() -> InteractiveArea:
 	if _interact_component == null or not is_instance_valid(_interact_component.current_target):
 		return null
 	var target := _interact_component.current_target
-	if not target.can_interact() or not target.shape_cast_detected:
+	if not target.can_interact() or not target.prompt_shown:
 		return null
 	return target
 
