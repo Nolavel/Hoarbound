@@ -50,7 +50,7 @@ enum PickupSubtype {
 
 const FOCUS_OWNER_META: StringName = &"interactive_focus_owner"
 ## Every InteractiveArea joins it; InteractComponent picks candidates from here.
-const GROUP: StringName = &"interactive"
+const INTERACTIVE_GROUP: StringName = &"interactive"
 
 # === НАСТРОЙКИ ОТОБРАЖЕНИЯ ===
 @export_group("Настройки отображения")
@@ -108,7 +108,7 @@ const SHAKE_TIME: float = 2.0  # Длительность шейка
 const SHAKE_STRENGTH: float = 0.1  # Сила тряски
 
 func _ready() -> void:
-	add_to_group(GROUP)
+	add_to_group(INTERACTIVE_GROUP)
 	if not body_entered.is_connected(_on_body_entered):
 		body_entered.connect(_on_body_entered)
 	if not body_exited.is_connected(_on_body_exited):

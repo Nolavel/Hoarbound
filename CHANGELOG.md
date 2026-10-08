@@ -18,7 +18,8 @@ Maintained per branch; entries are added by whoever makes the change.
 - Standing: a candidate behind both Henry and the camera is ignored. Seated
   (facing 0.1, camera 1.0): it must lie within `seated_aim_deg` of the camera aim.
 - `HeatSourceFeed.keeps_focus()` holds the stove target while `is_acting()`.
-- `InteractiveArea`: joins group `interactive`; new `focus_priority`,
+- `InteractiveArea`: joins group `interactive` (`INTERACTIVE_GROUP`; plain `GROUP`
+  would clash with `HingedDoor.GROUP`); new `focus_priority`,
   `get_focus_point()` (moved from the component), `accepts_focus()`,
   `resolve_focus()`, `keeps_focus()`, and `set_hint_state()`. The far
   check-mark marker now follows distance to the focus point, not the trigger

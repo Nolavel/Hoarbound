@@ -171,7 +171,7 @@ func _find_best_target() -> InteractiveArea:
 	var camera_w: float = SEATED_CAMERA_WEIGHT if seated else camera_weight
 	var seated_cos: float = cos(deg_to_rad(seated_aim_deg))
 	var scores: Dictionary = {}
-	for node: Node in get_tree().get_nodes_in_group(InteractiveArea.GROUP):
+	for node: Node in get_tree().get_nodes_in_group(InteractiveArea.INTERACTIVE_GROUP):
 		var raw := node as InteractiveArea
 		if not _is_available(raw) or not raw.accepts_focus(view_from, view_direction):
 			continue
@@ -228,7 +228,7 @@ func _has_line_of_sight(area: InteractiveArea) -> bool:
 
 ## Far marker layer: every object within hint_radius of Henry shows its check mark.
 func _update_hints() -> void:
-	for node: Node in get_tree().get_nodes_in_group(InteractiveArea.GROUP):
+	for node: Node in get_tree().get_nodes_in_group(InteractiveArea.INTERACTIVE_GROUP):
 		var area := node as InteractiveArea
 		if area == null or area.is_queued_for_deletion():
 			continue
