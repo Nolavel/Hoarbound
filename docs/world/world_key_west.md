@@ -1,123 +1,161 @@
-# world_key_west — Key West world attributes
+<!--
+  Этот мир-документ намеренно ведётся на РУССКОМ по решению автора (Nolavel),
+  в отступление от англоязычной политики docs в CLAUDE.md. Это единый документ
+  мира Ки-Уэст. Прочие агенты: это проектная/нарративная зона автора.
+-->
 
-> **Living world document.** This is the single registry of *what Key West is in
-> Hoarbound*: the attributes the author wants to see in the game, built up over the
-> course of development. It sits beside `KEY_WEST_FIRST_EXIT.md` (the route) and
-> `WORLD_PROFILES.md` (the runtime wiring).
+# world_key_west — атрибутика мира Ки-Уэст
+
+> **Живой документ мира.** Единый реестр того, *чем Ки-Уэст является в Hoarbound* —
+> атрибутика, которую автор хочет видеть в игре, наполняется по ходу разработки.
+> Соседи: `KEY_WEST_FIRST_EXIT.md` (маршрут) и `WORLD_PROFILES.md` (рантайм-связки).
 >
-> Two kinds of line:
-> - **[geo]** — geographic source-of-truth from NOAA/OSM. Do not casually change it
->   (see #138). Authored gameplay sits *on top* of it.
-> - **[game]** — authored attribute: the game-world decision. `← author` marks a slot
->   waiting on Nolavel.
+> Две категории строк:
+> - **[geo]** — географическая правда из снапшота NOAA/OSM. Просто так не меняем (#138);
+>   авторский геймплей ложится *поверх*.
+> - **[game]** — авторский атрибут, решение по игровому миру. `← автор` = слот ждёт решения.
 >
-> Owner: Nolavel · Started 2026-10-08 · Policy: English per `CLAUDE.md` (give inputs
-> in any language; they are folded in here in English).
+> Владелец: Nolavel · Начат 2026-10-08.
 
 ---
 
-## 1. Identity
+## 1. Идентичность
 
-- **[game]** Hoarbound's world is a **frozen Key West after a climate catastrophe** —
-  the southernmost city in the continental US, now locked in ice and blizzard.
-- **[game]** One-line feel: `← author` (the single sentence a player should leave with).
-- **[game]** What makes it *this* place and not a generic snow map: the real street
-  grid, the airport, the marinas and the causeways still read through the snow.
+- **[game]** Мир Hoarbound — **замёрзший Ки-Уэст после климатической катастрофы**:
+  самый южный город континентальных США, скованный льдом и метелью.
+- **[game]** **Одна строка ощущения:** всё окружение непривычное — пёстрые дома с
+  пальмами, утонувшие в снегу и инее; **холод чувствуется через экран**.
+- **[game]** Что делает это именно *этим* местом, а не абстрактной снежной картой:
+  сквозь снег всё ещё читаются реальная сетка улиц, аэропорт, марины и дамбы.
 
-## 2. Geographic truth  *(source of truth — [geo])*
+## 2. Географическая правда  *(источник истины — [geo])*
 
-| Attribute | Value |
+| Атрибут | Значение |
 |---|---|
-| Source dataset | NOAA / NGS 2016 Topobathy Lidar DEM, Key West FL (dataset 6366) |
-| Source resolution | 1 m (runtime preview resampled to 2 m) |
+| Датасет | NOAA / NGS 2016 Topobathy Lidar DEM, Key West FL (dataset 6366) |
+| Разрешение | 1 м (рантайм-превью ресэмплено до 2 м) |
 | CRS | EPSG:32617 — WGS 84 / UTM zone 17N |
-| Geographic extent | lon −81.835…−81.705 W, lat 24.535…24.595 N |
-| Playable crop | 6602 × 3286 px @ 2 m = **13.2 × 6.6 km** |
-| World origin (x,z) | (−6601, −3285) m, 2 m/px, +X east, +Z south (Godot) |
-| Elevation (real) | −8.18 … 28.46 m; **sea level = 0** (28 m includes structures/vegetation) |
-| Land above sea | ≈ **18 km²** |
-| Building footprints | **12,354** OSM-derived |
-| Roads / attributes | OSM road geometry + Overture visual attributes |
-| Runtime streaming | **148** city chunks, runtime-only mode |
-| Base rule | NOAA base heights are **un-authored**; height edits only via Blender |
+| Гео-охват | долгота −81.835…−81.705 з.д., широта 24.535…24.595 с.ш. |
+| Играбельный кроп | 6602 × 3286 px @ 2 м = **13.2 × 6.6 км** |
+| Начало мира (x,z) | (−6601, −3285) м, 2 м/px, +X восток, +Z юг (Godot) |
+| Высоты (реальные) | −8.18 … 28.46 м; **уровень моря = 0** (28 м включает строения/растительность) |
+| Суша над водой | ≈ **18 км²** |
+| Футпринты зданий | **12 354** (OSM) |
+| Дороги / атрибуты | геометрия дорог OSM + визуальные атрибуты Overture |
+| Рантайм-стриминг | **148** городских чанков, режим runtime-only |
+| Базовое правило | высоты NOAA **не авторятся**; правки высот — только через Blender |
 
-## 3. Winter transformation  *(how tropical Key West becomes Hoarbound)*
+## 3. Зима
 
-- **[game]** Snow cover model: `← author` (uniform depth? drift by wind exposure? bare
-  where sheltered?)
-- **[game]** What freezes over: marinas, canals, swimming pools, salt ponds → `← author`
-  (which are walkable ice, which are thin/dangerous — thin ice is a later slice).
-- **[game]** Vegetation under winter: palms/mangroves dead or snow-laden → `← author`.
-- **[game]** Signature frost/ice look (the identity shot): `← author`
-  (ties to snow/frost presentation, issue #16/#156).
-- **[geo→game]** City-scale wind field + streamed snow already exist; exposure should
-  derive from real building massing and shoreline, not decoration.
+- **[game]** **Модель зимы — как сибирская зима.** Настоящий холод, а не декоративный снежок.
+- **[game]** **Снег vs лёд:** суша и **кромка берега — ещё в снегу**, **дальше, за кромкой,
+  — лёд** (замёрзшее море/залив). Лёд за берегом — проходимая поверхность вдали.
+- **[game]** **Тонкий лёд у края** — опасность, но это **поздний срез** (не First Exit).
+- **[game]** Снежный покров: надувается по ветру/экспозиции (сугробы с наветренной
+  стороны, оголение в затишье) — `← автор` подтвердить силу эффекта.
+- **[game]** Подпись-кадр инея/наледи (кадр идентичности): `← автор` (связь со снегом/инеем, #16/#156).
+- **[geo→game]** Городское ветровое поле и стримящийся снег уже есть; экспозиция должна
+  выводиться из реального массинга зданий и береговой линии, а не рисоваться декором.
 
-## 4. Districts / zones
+## 4. Районы
 
-Seeded from the real geography and the map; roles are author-owned.
+**[game] Принцип: каждый район несёт выживание с самого начала — чистого «фона» нет.**
+Факты района — [geo], роль — за автором.
 
-| Zone | [geo] what it is | [game] role `← author` |
+| Район | [geo] что это | [game] роль выживания `← автор` уточнить |
 |---|---|---|
-| **Old Town** | Dense OSM street grid, SW of the island | Primary traversal + shelter hunting ground |
-| **Whitehead Spit** | SW tip; the First Exit bunker/spawn | Start point / tutorial pressure |
-| **Fort Street area** | Residential lot NE of the spit (~710 m) | First Exit shelter district |
-| **Airport** | Long runway + terminal, south-central | Landmark; dedicated data layer; later gameplay? |
-| **Marinas / harbor** | Piers and basins, N and E shore | Frozen-water crossings, boat wrecks, loot |
-| **Salt ponds** | Flats, central-east | Open exposure, wind, possible ice |
-| **Causeways → Stock Island** | Bridges leaving E edge | Route out / later-islands hook (scoped separately) |
-| **Shoreline / beaches** | Perimeter, S and W | Thin-ice coast (later slice), shore-route grammar |
+| **Старый город** | плотная сетка улиц OSM, Ю-З острова | основное перемещение + поиск укрытий |
+| **Whitehead Spit** | Ю-З оконечность; бункер/спавн First Exit | старт / первичное давление |
+| **Район Fort Street** | жилой участок С-В от спита (~710 м) | район укрытия First Exit |
+| **Аэропорт** | полоса + терминал, юг-центр | ориентир; открытое продуваемое пространство; ресурс? |
+| **Марины / гавань** | пирсы и бассейны, С и В берег | ледовые переправы, остовы лодок, лут |
+| **Солёные пруды** | плоскости, центр-восток | открытая экспозиция, ветер, лёд |
+| **Дамбы → Stock Island** | мосты на В кромке | путь наружу / зацеп под поздние острова |
+| **Берег / пляжи** | периметр, Ю и З | берег-маршрут; тонкий лёд (поздний срез) |
 
-## 5. Landmarks / readability anchors
+## 5. Застройка: разруха и интерактивность  *(ключевое решение)*
 
-Recognizable points a player navigates by without a map.
+**Проблема (автор).** На карте очень много домов (**12 354** футпринта). Нужен образ
+разрухи — сгоревшие, обрушенные дома — но **без ручной работы с огромным массивом**;
+в каждом районе интерактивны лишь несколько домов.
 
-- **[game]** Chosen landmarks: `← author` (candidates from real Key West: Fort Zachary
-  Taylor, the lighthouse, Mallory Square, Southernmost Point, the airport terminal).
-- **[game]** For each landmark — in-game name, winter state, survival function
-  (shelter / fuel / water / danger / pure wayfinding): `← author`.
+**Решение — два тира зданий.** Приём проверен выживачами (в т.ч. The Long Dark): почти
+все здания — не входимые оболочки, входимы единицы, и это **читается игроком**.
 
-## 6. Routes & traversal
+- **Тир-0 «руина-оболочка»** — подавляющее большинство. Декор, **не входимые, без
+  интерьера и интерактива**. Генерируются процедурно из футпринта. **Руками не трогаем.**
+- **Тир-1 «живой дом»** — малый курированный набор, **2–5 на район**. Входимый, чинится,
+  кандидат в укрытие. Ручная авторская работа по шаблону укрытия на Fort Street.
 
-- **[geo]** First Exit route: **Whitehead Spit bunker → Fort Street shelter**, ~710 m,
-  wind pinned 8° (Whitehead → Fort Street), start in the `blizzard` profile.
-- **[game]** Land-route grammar: road / shore / ruins — at least two options readable
-  without a map (plan step 6, #138).
-- **[game]** Other authored routes beyond First Exit: `← author`.
+**Как назначается тир (дёшево и детерминированно):**
+- Тир-1 = правило + ручной список: рядом с маршрутом, целый футпринт нужного размера,
+  не на воде/льду. Всё остальное автоматически Тир-0.
+- Бюджет авторской работы ограничен: район × (2–5 домов), а не 12 354 объекта.
 
-## 7. Survival-relevant attributes
+**Процедурная разруха Тир-0 (бесплатно, детерминированно от seed + футпринта):**
+- **сгоревший** — обугленный материал, нет крыши;
+- **обрушенный** — просадка/наклон массинга;
+- **заметённый** — снежная шапка по высоте массинга;
+- вариативность по seed, чтобы город читался мёртвым и разным без ручного труда.
 
-- **[game]** Wind-exposure zones (where the blizzard bites vs. where massing shelters):
-  `← author`, derived from real geometry.
-- **[game]** Shelter candidates beyond Fort Street: `← author` (criteria: enclosable,
-  fuel nearby, off the wind).
-- **[game]** Resource geography — fuel, food, water, boards: `← author`.
-- **[game]** Hazards: thin ice (coast, later), exposure, open crossings: `← author`.
+**Почему это правильно:**
+- **Грамматика:** Тир-1 дома = «укрытие как глагол» (кандидаты в укрытие); разруха =
+  почему мир опасен, без боевых врагов.
+- **План:** это шаг 6 (читаемость маршрута) и питает §8 (география укрытий).
+- **Бюджет:** масса создаёт образ замёрзшего мёртвого города; работаешь ты с горсткой домов.
 
-## 8. Atmosphere / mood / lore
+- **[game]** Правило выбора Тир-1 и бюджет на район: `← автор` подтвердить (2–5?).
+- **[game]** Набор процедурных состояний Тир-0 (сгоревший/обрушенный/заметённый + доли): `← автор`.
+- **[game]** Нужны ли «полу-входимые» (двор/навес без интерьера) как третий дешёвый тип: `← автор`.
 
-- **[game]** Catastrophe backstory (why Key West froze): `← author`.
-- **[game]** Environmental storytelling beats the world should carry: `← author`.
-- **[game]** Tone references (The Long Dark is the *system* reference; what is the
-  *place/mood* reference?): `← author`.
+## 6. Ориентиры / читаемость
 
-## 9. Scope & non-goals
+- **[game]** Выбранные ориентиры: `← автор` (кандидаты из реального Ки-Уэста: форт
+  Зэкари Тейлор, маяк, Mallory Square, Southernmost Point, терминал аэропорта).
+- **[game]** По каждому — имя в игре, зимнее состояние, функция (укрытие/топливо/вода/
+  опасность/чистая навигация): `← автор`.
 
-- **[geo]** In now: NOAA terrain, OSM buildings/roads, airport layer, ocean
-  connectivity, 148 chunks, winter vegetation, city wind + streamed snow, First Exit
-  shelter.
-- **[game]** First Exit A uses only the Whitehead→Fort Street corridor; the rest of the
-  island is backdrop until a scoped task needs it.
-- **Later (not now):** coastal thin ice, nearby islands (Stock Island +), combat.
+## 7. Маршруты и перемещение
 
-## 10. Open attributes awaiting the author
+- **[geo]** Маршрут First Exit: **бункер Whitehead Spit → укрытие Fort Street**, ~710 м,
+  ветер зафиксирован на 8° (Whitehead → Fort Street), старт в профиле `blizzard`.
+- **[game]** Грамматика сухопутного маршрута: дорога / берег / руины — минимум два
+  варианта читаются без карты (шаг плана 6, #138).
+- **[game]** Прочие авторские маршруты помимо First Exit: `← автор`.
 
-Running checklist — each gets filled as you decide it, in this conversation and after.
+## 8. Атрибуты выживания
 
-- [ ] One-line world feel (§1)
-- [ ] Snow/ice model + what freezes (§3)
-- [ ] Signature frost look (§3)
-- [ ] District roles (§4)
-- [ ] Landmark picks + their in-game function (§5)
-- [ ] Wind-exposure / shelter / resource geography (§7)
-- [ ] Catastrophe backstory + mood references (§8)
+- **[game]** Зоны ветровой экспозиции (где метель бьёт, где массинг укрывает): `← автор`,
+  выводятся из реальной геометрии.
+- **[game]** Кандидаты в укрытия помимо Fort Street: `← автор` = множество Тир-1 домов (§5).
+- **[game]** География ресурсов — топливо, еда, вода, доски: `← автор`.
+- **[game]** Опасности: тонкий лёд (берег, позже), экспозиция, открытые переправы: `← автор`.
+
+## 9. Атмосфера / лор
+
+- **[game]** Предыстория катастрофы (почему Ки-Уэст замёрз): `← автор`.
+- **[game]** Средовое повествование — какие сцены несёт мир: `← автор`.
+- **[game]** Референс места/настроения (The Long Dark — референс *системы*; что референс *места*?): `← автор`.
+
+## 10. Рамки и не-цели
+
+- **[geo]** Уже в снапшоте: террейн NOAA, здания/дороги OSM, слой аэропорта, связность
+  океана, 148 чанков, зимняя растительность, городской ветер + стримящийся снег, укрытие First Exit.
+- **[game]** First Exit A использует только коридор Whitehead→Fort Street; остальной
+  остров — задник, пока отдельная задача не потребует иного.
+- **Позже (не сейчас):** прибрежный тонкий лёд, соседние острова (Stock Island +), бой.
+
+## 11. Открытые атрибуты (чек-лист)
+
+Заполняется по мере решений — в этом разговоре и после.
+
+- [x] Строка ощущения мира (§1)
+- [x] Модель зимы: сибирская; берег — снег, дальше — лёд (§3)
+- [x] Принцип районов: каждый несёт выживание (§4)
+- [x] Подход к разрухе: два тира, процедурные оболочки + 2–5 живых домов на район (§5)
+- [ ] Сила надувания снега по ветру + подпись-кадр инея (§3)
+- [ ] Правило/бюджет Тир-1 и доли состояний Тир-0 (§5)
+- [ ] Выбор ориентиров и их функции (§6)
+- [ ] Прочие маршруты (§7)
+- [ ] География ветра/укрытий/ресурсов (§8)
+- [ ] Предыстория катастрофы + референс места (§9)
