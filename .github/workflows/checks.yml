@@ -282,6 +282,8 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -318,14 +320,30 @@ jobs:
         shell: pwsh
         run: ./tools/ci/bootstrap_jenova_windows.ps1
 
+      - name: Build frost C++ script through Jenova BuildProject
+        shell: pwsh
+        run: |
+          $buildLog = Join-Path $env:RUNNER_TEMP "jenova-build.log"
+          & $env:GODOT_BIN --headless --editor --path . --script tools/ci/build_jenova_project.gd 2>&1 |
+            Tee-Object -FilePath $buildLog
+          if ($LASTEXITCODE -ne 0) {
+            throw "Godot Jenova BuildProject harness failed; see $buildLog"
+          }
+          if (-not (Select-String -LiteralPath $buildLog -Pattern "JENOVA_BUILD_OK" -Quiet)) {
+            throw "Jenova BuildProject did not report JENOVA_BUILD_OK; see $buildLog"
+          }
+
       - name: Report exact Jenova package file sizes
         shell: pwsh
         run: |
           $files = Get-ChildItem Jenova -File -Recurse | Sort-Object FullName
           $oversized = @($files | Where-Object { $_.Length -ge 100MB })
-          if ($oversized.Count -gt 0) {
-            $oversized | ForEach-Object { Write-Error "$($_.Length) bytes: $($_.FullName)" }
-            throw "Jenova package contains files at or above GitHub's 100 MiB limit."
+          foreach ($file in $oversized) {
+            $relativePath = [System.IO.Path]::GetRelativePath((Get-Location).Path, $file.FullName).Replace('\', '/')
+            $attribute = & git check-attr filter -- $relativePath
+            if ($LASTEXITCODE -ne 0 -or $attribute -notmatch ": filter: lfs$") {
+              throw "Large Jenova file must be tracked by Git LFS: $($file.Length) bytes $relativePath"
+            }
           }
           $files | ForEach-Object { "{0}`t{1}" -f $_.Length, $_.FullName }
           "Windows Jenova runtime: $((Get-Item Jenova/Jenova.Runtime.Win64.dll).Length) bytes" |

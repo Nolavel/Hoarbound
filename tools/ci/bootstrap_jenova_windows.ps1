@@ -144,6 +144,9 @@ $windowsJenovaSdk = Join-Path $sourceRoot "Win64/JenovaSDK/Jenova.SDK.x64.lib"
 if (-not (Test-Path $windowsRuntime -PathType Leaf)) {
 	throw "Jenova build did not produce Win64/Jenova.Runtime.Win64.dll."
 }
+if ((Get-Item -LiteralPath $windowsRuntime).Length -eq 0) {
+	throw "Jenova generated an empty Win64/Jenova.Runtime.Win64.dll."
+}
 if (-not (Test-Path (Join-Path $windowsSdk "gdextension_interface.h") -PathType Leaf) -or
 	-not (Test-Path (Join-Path $windowsSdk "Godot/godot.hpp") -PathType Leaf) -or
 	-not (Test-Path $windowsGodotSdkLibrary -PathType Leaf)) {
@@ -152,13 +155,12 @@ if (-not (Test-Path (Join-Path $windowsSdk "gdextension_interface.h") -PathType 
 if (-not (Test-Path $windowsJenovaSdk -PathType Leaf)) {
 	throw "Jenova build did not produce Win64/JenovaSDK/Jenova.SDK.x64.lib."
 }
-$oversizedFiles = @(
-	Get-ChildItem -LiteralPath (Join-Path $sourceRoot "Win64") -File -Recurse |
-		Where-Object { $_.Length -ge 100MB }
-)
-if ($oversizedFiles.Count -gt 0) {
-	$oversizedList = $oversizedFiles | ForEach-Object { "$($_.Length) bytes: $($_.FullName)" }
-	throw "Jenova generated files exceed GitHub's 100 MiB file limit; do not vendor this output:`n$($oversizedList -join "`n")"
+if ((Get-Item -LiteralPath $windowsGodotSdkLibrary).Length -eq 0) {
+	throw "Jenova generated an empty Windows GodotSDK library."
+}
+$lfsAttribute = & git -C $repoRoot check-attr filter -- "Jenova/GodotSDK/libGodot.x64.lib"
+if ($LASTEXITCODE -ne 0 -or $lfsAttribute -notmatch ": filter: lfs$") {
+	throw "Jenova/GodotSDK/libGodot.x64.lib must be tracked by Git LFS."
 }
 
 New-Item -ItemType Directory -Path $vendorRoot, (Join-Path $vendorRoot "GodotSDK"), (Join-Path $vendorRoot "JenovaSDK") -Force | Out-Null

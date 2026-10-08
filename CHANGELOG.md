@@ -12,6 +12,8 @@ Maintained per branch; entries are added by whoever makes the change.
 - Add a Windows/MSVC bootstrap and an opt-in `windows-latest` artifact job,
   both using Jenova revision `63ecdcb385fbcd8a59e1ed5896a6c03e0d0aacb2` and
   Hoarbound's Godot 4.8-dev6 API.
+- Store the genuine oversized Windows `libGodot.x64.lib` through Git LFS and
+  validate the frost script build with the platform's native compiler model.
 - Preserve existing Windows files when regenerating the Linux runtime and SDK.
 
 ### 2026-10-08 - Jenova frost Linux build fixes
