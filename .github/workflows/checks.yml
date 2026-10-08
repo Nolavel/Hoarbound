@@ -39,6 +39,7 @@ on:
       - "scripts/experimental/jenova_frost/**"
       - "scenes/experimental/jenova_frost_lab.tscn"
       - "tools/ci/bootstrap_jenova_linux.sh"
+      - "tools/ci/bootstrap_jenova_windows.ps1"
       - "tools/ci/build_jenova_project.gd"
       - "tools/runtime/capture_jenova_frost.gd"
       - ".github/workflows/checks.yml"
@@ -272,6 +273,69 @@ jobs:
         with:
           name: hoarbound-jenova-linux-vendor
           path: Jenova/**
+          if-no-files-found: error
+          retention-days: 7
+
+  jenova-windows-build:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[jenova-windows-build]')
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build Hoarbound .NET project
+        run: dotnet build Hoarbound.csproj --configuration Debug
+
+      - name: Install Godot 4.8-dev6 Mono
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "godot-4.8-dev6-mono-win64.zip"
+          $install = Join-Path $env:RUNNER_TEMP "godot-4.8-dev6-mono-win64"
+          Invoke-WebRequest `
+            -Uri "https://github.com/godotengine/godot-builds/releases/download/4.8-dev6/Godot_v4.8-dev6_mono_win64.zip" `
+            -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath $install
+          $godot = Join-Path $install "Godot_v4.8-dev6_mono_win64/Godot_v4.8-dev6_mono_win64.exe"
+          if (-not (Test-Path $godot -PathType Leaf)) {
+            throw "Godot 4.8-dev6 Mono executable was not found in the release archive."
+          }
+          "GODOT_BIN=$godot" >> $env:GITHUB_ENV
+
+      - name: Build and validate native Windows Jenova runtime
+        shell: pwsh
+        run: ./tools/ci/bootstrap_jenova_windows.ps1
+
+      - name: Report exact Jenova package file sizes
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem Jenova -File -Recurse | Sort-Object FullName
+          $oversized = @($files | Where-Object { $_.Length -ge 100MB })
+          if ($oversized.Count -gt 0) {
+            $oversized | ForEach-Object { Write-Error "$($_.Length) bytes: $($_.FullName)" }
+            throw "Jenova package contains files at or above GitHub's 100 MiB limit."
+          }
+          $files | ForEach-Object { "{0}`t{1}" -f $_.Length, $_.FullName }
+          "Windows Jenova runtime: $((Get-Item Jenova/Jenova.Runtime.Win64.dll).Length) bytes" |
+            Add-Content $env:GITHUB_STEP_SUMMARY
+          "Tracked-package candidate total: $((($files | Measure-Object Length -Sum).Sum)) bytes" |
+            Add-Content $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload Windows Jenova vendor package
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-windows-vendor
+          path: Jenova/**
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
 

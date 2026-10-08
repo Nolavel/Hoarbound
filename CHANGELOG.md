@@ -5,6 +5,15 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-08 - Vendor cross-platform Jenova runtime
+
+- Track the Jenova runtime and generated GodotSDK so clean clones can load
+  `frost_window.cpp` without downloading Jenova separately.
+- Add a Windows/MSVC bootstrap and an opt-in `windows-latest` artifact job,
+  both using Jenova revision `63ecdcb385fbcd8a59e1ed5896a6c03e0d0aacb2` and
+  Hoarbound's Godot 4.8-dev6 API.
+- Preserve existing Windows files when regenerating the Linux runtime and SDK.
+
 ### 2026-10-08 - Jenova frost Linux build fixes
 
 - `tools/ci/bootstrap_jenova_linux.sh` links the static curl IDN2 dependency into
