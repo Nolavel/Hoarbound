@@ -96,8 +96,7 @@ python3 Jenova.Builder.py \
   --generate-gdsdk
 popd >/dev/null
 
-rm -rf "$ROOT/Jenova/Linux64" "$ROOT/Jenova/GodotSDK" "$ROOT/Jenova/JenovaSDK"
-mkdir -p "$ROOT/Jenova/Linux64" "$ROOT/Jenova/GodotSDK" "$ROOT/Jenova/JenovaSDK"
+mkdir -p "$ROOT/Jenova/GodotSDK" "$ROOT/Jenova/JenovaSDK"
 
 cp "$SRC/Linux64/Jenova.Runtime.Linux64.so" "$ROOT/Jenova/Jenova.Runtime.Linux64.so"
 cp "$SRC/Jenova.Runtime.gdextension" "$ROOT/Jenova/Jenova.Runtime.gdextension"

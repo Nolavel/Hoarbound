@@ -39,6 +39,7 @@ on:
       - "scripts/experimental/jenova_frost/**"
       - "scenes/experimental/jenova_frost_lab.tscn"
       - "tools/ci/bootstrap_jenova_linux.sh"
+      - "tools/ci/bootstrap_jenova_windows.ps1"
       - "tools/ci/build_jenova_project.gd"
       - "tools/runtime/capture_jenova_frost.gd"
       - ".github/workflows/checks.yml"
@@ -107,7 +108,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   color-grade-preview:
-    if: github.event_name == 'push' && github.ref_name != 'claudeflow' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]') && !contains(github.event.head_commit.message, '[jenova-frost-preview]')
+    if: github.event_name == 'push' && github.ref_name != 'claudeflow' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]') && !contains(github.event.head_commit.message, '[jenova-frost-preview]') && !contains(github.event.head_commit.message, '[jenova-windows-build]')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -272,6 +273,90 @@ jobs:
         with:
           name: hoarbound-jenova-linux-vendor
           path: Jenova/**
+          if-no-files-found: error
+          retention-days: 7
+
+  jenova-windows-build:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[jenova-windows-build]')
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build Hoarbound .NET project
+        run: dotnet build Hoarbound.csproj --configuration Debug
+
+      - name: Install Godot 4.8-dev6 Mono
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "godot-4.8-dev6-mono-win64.zip"
+          $install = Join-Path $env:RUNNER_TEMP "godot-4.8-dev6-mono-win64"
+          Invoke-WebRequest `
+            -Uri "https://github.com/godotengine/godot-builds/releases/download/4.8-dev6/Godot_v4.8-dev6_mono_win64.zip" `
+            -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath $install
+          $godot = Get-ChildItem -LiteralPath $install -Filter "Godot_v4.8-dev6_mono_win64.exe" -File -Recurse |
+            Select-Object -First 1
+          if (-not $godot) {
+            $contents = Get-ChildItem -LiteralPath $install -File -Recurse |
+              ForEach-Object { $_.FullName }
+            throw "Godot 4.8-dev6 Mono executable was not found. Archive files: $($contents -join ', ')"
+          }
+          "GODOT_BIN=$($godot.FullName)" >> $env:GITHUB_ENV
+
+      - name: Build and validate native Windows Jenova runtime
+        shell: pwsh
+        run: ./tools/ci/bootstrap_jenova_windows.ps1
+
+      - name: Build frost C++ script through Jenova BuildProject
+        shell: pwsh
+        run: |
+          $buildLog = Join-Path $env:RUNNER_TEMP "jenova-build.log"
+          & $env:GODOT_BIN --headless --editor --path . --script tools/ci/build_jenova_project.gd 2>&1 |
+            Tee-Object -FilePath $buildLog
+          if ($LASTEXITCODE -ne 0) {
+            throw "Godot Jenova BuildProject harness failed; see $buildLog"
+          }
+          if (-not (Select-String -LiteralPath $buildLog -Pattern "JENOVA_BUILD_OK" -Quiet)) {
+            throw "Jenova BuildProject did not report JENOVA_BUILD_OK; see $buildLog"
+          }
+
+      - name: Report exact Jenova package file sizes
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem Jenova -File -Recurse | Sort-Object FullName
+          $oversized = @($files | Where-Object { $_.Length -ge 100MB })
+          foreach ($file in $oversized) {
+            $relativePath = [System.IO.Path]::GetRelativePath((Get-Location).Path, $file.FullName).Replace('\', '/')
+            $attribute = & git check-attr filter -- $relativePath
+            if ($LASTEXITCODE -ne 0 -or $attribute -notmatch ": filter: lfs$") {
+              throw "Large Jenova file must be tracked by Git LFS: $($file.Length) bytes $relativePath"
+            }
+          }
+          $files | ForEach-Object { "{0}`t{1}" -f $_.Length, $_.FullName }
+          "Windows Jenova runtime: $((Get-Item Jenova/Jenova.Runtime.Win64.dll).Length) bytes" |
+            Add-Content $env:GITHUB_STEP_SUMMARY
+          "Tracked-package candidate total: $((($files | Measure-Object Length -Sum).Sum)) bytes" |
+            Add-Content $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload Windows Jenova vendor package
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-windows-vendor
+          path: Jenova/**
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
 

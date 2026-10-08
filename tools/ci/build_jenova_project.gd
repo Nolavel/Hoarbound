@@ -39,8 +39,12 @@ func _call_deferred_build() -> void:
 
 func _build() -> void:
 	var settings := EditorInterface.get_editor_settings()
-	# Linux enum: GNU=0, Clang=1. We explicitly exercise Jenova's Clang backend.
-	settings.set_setting("jenova/compiler_model", 1)
+	var compiler_model: int = 0
+	var compiler_name: String = "MSVC"
+	if OS.get_name() == "Linux":
+		compiler_model = 1
+		compiler_name = "Clang"
+	settings.set_setting("jenova/compiler_model", compiler_model)
 	settings.set_setting("jenova/multi_threaded_compilation", true)
 	settings.set_setting("jenova/generate_debug_information", false)
 
@@ -50,7 +54,7 @@ func _build() -> void:
 		quit(21)
 		return
 
-	print("[jenova-ci] invoking JenovaEditorPlugin.BuildProject() with Clang")
+	print("[jenova-ci] invoking JenovaEditorPlugin.BuildProject() with ", compiler_name)
 	var ok: bool = plugin.BuildProject()
 	if not ok:
 		push_error("[jenova-ci] Jenova BuildProject failed")

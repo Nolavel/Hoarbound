@@ -11,9 +11,9 @@ Maintained per branch; entries are added by whoever makes the change.
 - **Facing cone.** Standing, `InteractComponent` drops a candidate more than
   `facing_limit_deg` from Henry's facing, unless it is within `close_override`
   (the item at his feet). The "behind Henry and behind the camera" filter is
-  gone. The camera only adds score, so an item at Henry's back is no longer
-  picked from the middle of the frame. Seated keeps the `seated_aim_deg`
-  camera gate.
+gone. The camera only adds score, so an item at Henry's back is no longer
+picked from the middle of the frame. Seated keeps the `seated_aim_deg`
+camera gate.
 - **Angle scores replace dot products.** The facing score is
   `1 - angle/facing_limit_deg`, the camera score is `1 - angle/camera_cone_deg`
   (both clamped). The total is `distance_weight`·closeness +
@@ -99,6 +99,19 @@ Maintained per branch; entries are added by whoever makes the change.
 - Unverified: nothing was run in Godot (no import, compile, test suites or
   render). Feel, weights and the eight manual scenarios need the author's
   in-game check.
+
+### 2026-10-08 - Vendor cross-platform Jenova runtime
+
+- Track the Jenova runtime and generated GodotSDK so clean clones can load
+  `frost_window.cpp` without downloading Jenova separately.
+- Add a Windows/MSVC bootstrap and an opt-in `windows-latest` artifact job,
+  both using Jenova revision `63ecdcb385fbcd8a59e1ed5896a6c03e0d0aacb2` and
+  Hoarbound's Godot 4.8-dev6 API.
+- Store the genuine oversized Windows `libGodot.x64.lib` through Git LFS and
+  validate the frost script build with the platform's native compiler model.
+- Preserve existing Windows files when regenerating the Linux runtime and SDK.
+
+### 2026-10-08 - Jenova frost Linux build fixes
 
 ### 2026-10-08 - Jenova frost Linux build fixes
 
