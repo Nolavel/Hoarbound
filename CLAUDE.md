@@ -67,6 +67,18 @@ rule changes) and `global.json` (take `main`'s).
   NOAA base heights remain unchanged. Authored height edits use Blender
   (`tools/blender/`), never hand-written code.
 
+## Jenova (C++ scripts)
+
+- How it works, pinned versions, patches and rebuild steps: `docs/technical/JENOVA.md`.
+- We build Jenova ourselves for Windows and Linux from one pinned revision; keep
+  `JENOVA_REF` / `$jenovaRef` equal in both `tools/ci/bootstrap_jenova_*` scripts.
+- Windows runtime is built in CI (`[jenova-windows-build]`): this machine has 4 GB
+  RAM and the local build was killed for lack of memory. Do not start it locally.
+- Windows binaries go to Git LFS; Linux binaries stay plain git (Linux CI jobs
+  check out without LFS and Godot loads the extension at every start).
+- `Jenova/Compilers/` is local only (git-ignored); create it with
+  `tools/jenova/install_msvc_compiler.ps1`.
+
 ## Language policy
 
 - Code comments: **English only**, `##` doc-comment style, **max 2 lines**.

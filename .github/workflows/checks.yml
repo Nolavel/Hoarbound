@@ -40,6 +40,8 @@ on:
       - "scenes/experimental/jenova_frost_lab.tscn"
       - "tools/ci/bootstrap_jenova_linux.sh"
       - "tools/ci/bootstrap_jenova_windows.ps1"
+      - "tools/jenova/**"
+      - "docs/technical/JENOVA.md"
       - "tools/ci/build_jenova_project.gd"
       - "tools/runtime/capture_jenova_frost.gd"
       - ".github/workflows/checks.yml"
@@ -320,6 +322,18 @@ jobs:
         shell: pwsh
         run: ./tools/ci/bootstrap_jenova_windows.ps1
 
+      ## Uploaded before the C++ script proof so a script failure still yields the runtime.
+      - name: Upload Windows Jenova vendor package
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-windows-vendor
+          path: |
+            Jenova/**
+            !Jenova/Compilers/**
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Build frost C++ script through Jenova BuildProject
         shell: pwsh
         run: |
@@ -352,7 +366,8 @@ jobs:
       - name: Report exact Jenova package file sizes
         shell: pwsh
         run: |
-          $files = Get-ChildItem Jenova -File -Recurse | Sort-Object FullName
+          $files = Get-ChildItem Jenova -File -Recurse |
+            Where-Object { $_.FullName -notlike "*\Jenova\Compilers\*" } | Sort-Object FullName
           $oversized = @($files | Where-Object { $_.Length -ge 100MB })
           foreach ($file in $oversized) {
             $relativePath = [System.IO.Path]::GetRelativePath((Get-Location).Path, $file.FullName).Replace('\', '/')
@@ -367,13 +382,16 @@ jobs:
           "Tracked-package candidate total: $((($files | Measure-Object Length -Sum).Sum)) bytes" |
             Add-Content $env:GITHUB_STEP_SUMMARY
 
-      - name: Upload Windows Jenova vendor package
+      - name: Upload Jenova build logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hoarbound-jenova-windows-vendor
-          path: Jenova/**
-          include-hidden-files: true
-          if-no-files-found: error
+          name: hoarbound-jenova-windows-logs
+          path: |
+            ${{ runner.temp }}/jenova-build.log
+            ${{ runner.temp }}/jenova-frost-scene.log
+            ${{ runner.temp }}/hoarbound-jenova-windows/godot-editor-load.log
+          if-no-files-found: warn
           retention-days: 7
 
   motion-matching-preview:

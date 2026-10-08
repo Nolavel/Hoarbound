@@ -41,6 +41,25 @@ if ($LASTEXITCODE -ne 0) {
 	throw "Failed to check out pinned Jenova revision $jenovaRef."
 }
 
+## Hoarbound vendors its GodotSDK and installs a local MSVC toolchain. As on Linux, keep
+## Jenova's compiler pipeline but resolve both paths in the project instead of the package DB.
+$compilerPatch = @'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text(encoding="utf-8-sig")
+start = s.index("// Windows Compilers")
+end = s.index("// Jenova MinGW Compiler Implementation", start)
+win = s[start:end]
+old = """String selectedCompilerPath = jenova::GetInstalledCompilerPathFromPackages(compilerSettings["cpp_toolchain_path"], GetCompilerModel());
+            String selectedGodotKitPath = jenova::GetInstalledGodotKitPathFromPackages(compilerSettings["cpp_godotsdk_path"]);"""
+new = """String selectedCompilerPath = jenova::GetJenovaProjectDirectory() + "Jenova/Compilers/JenovaMSVCCompiler";
+            String selectedGodotKitPath = jenova::GetJenovaProjectDirectory() + "Jenova/GodotSDK";"""
+if win.count(old) != 1:
+    raise SystemExit(f"expected one Windows MSVC compiler path block, found {win.count(old)}")
+p.write_text(s[:start] + win.replace(old, new) + s[end:], encoding="utf-8")
+'@
+
 $pythonCommand = Get-Command "py" -ErrorAction SilentlyContinue
 if ($pythonCommand) {
 	$pythonExe = $pythonCommand.Source
@@ -110,6 +129,11 @@ mod.deps_version = "4.7"
 mod.deploy_mode = True
 mod.install_dependencies()
 '@
+$compilerPatch | & $pythonExe @pythonPrefix - (Join-Path $sourceRoot "Source/script_compiler.cpp")
+if ($LASTEXITCODE -ne 0) {
+	throw "Failed to patch Jenova's Windows compiler path resolution."
+}
+
 Push-Location $sourceRoot
 try {
 	$setupDependencies | & $pythonExe @pythonPrefix -
@@ -198,6 +222,15 @@ foreach ($requiredFile in @(
 	if (-not (Test-Path (Join-Path $vendorRoot $requiredFile) -PathType Leaf)) {
 		throw "Jenova vendor layout is incomplete: missing Jenova/$requiredFile"
 	}
+}
+
+## The editor compiles .cpp scripts with this toolchain; reuse the one the builder just fetched.
+& (Join-Path $repoRoot "tools/jenova/install_msvc_compiler.ps1") -ToolchainRoot (Join-Path $sourceRoot "Toolchain")
+
+$buildInfo = Join-Path $vendorRoot "HOARBOUND_JENOVA_BUILD.txt"
+$windowsLine = "Windows script compiler: Jenova MicrosoftCompiler -> Jenova/Compilers/JenovaMSVCCompiler (AiO toolchain, Hoarbound patch)"
+if (-not (Select-String -LiteralPath $buildInfo -SimpleMatch $windowsLine -Quiet)) {
+	Add-Content -LiteralPath $buildInfo -Value $windowsLine -Encoding ASCII
 }
 
 $editorLog = Join-Path $workRoot "godot-editor-load.log"

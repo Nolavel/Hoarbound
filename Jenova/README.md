@@ -14,3 +14,7 @@ Both bootstrap scripts use the same pinned Jenova source and the local engine's
 GDExtension API dump. The Windows bootstrap requires the Windows build toolchain
 used by Jenova's MSVC builder and checks the editor scan for the missing-loader
 error before reporting success.
+
+Full build, setup and CI-artifact instructions: `docs/technical/JENOVA.md`.
+Windows editors also need the local MSVC toolchain:
+`tools/jenova/install_msvc_compiler.ps1`.

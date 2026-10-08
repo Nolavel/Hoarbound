@@ -5,6 +5,36 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Reproducible Jenova builds for Windows and Linux
+
+- `docs/technical/JENOVA.md` documents how Jenova works in Hoarbound:
+  - pinned inputs (Jenova `63ecdcb`, dependency bundle 4.7, Godot 4.8-dev6 API,
+    AiO Toolchain v1.0 with SHA-256);
+  - the `Jenova/` layout;
+  - Hoarbound's source patches;
+  - developer setup per OS;
+  - CI rebuilds and how to bring the CI artifact into the repo.
+- **Windows patch.** `bootstrap_jenova_windows.ps1` now patches Jenova's
+  Windows `MicrosoftCompiler` to take the compiler from
+  `Jenova/Compilers/JenovaMSVCCompiler` and the SDK from `Jenova/GodotSDK`, as
+  the Linux bootstrap already does. Without it Jenova looked up an MSVC package
+  in its online package manager, found none, and the C++ script build failed.
+- **Local compiler.** New `tools/jenova/install_msvc_compiler.ps1` installs the
+  portable MSVC toolchain into the git-ignored `Jenova/Compilers/` (~0.9 GB,
+  checksum-verified, junction layout, `.gdignore`). Visual Studio is not needed.
+- **CI.** `jenova-windows-build` uploads the vendor package right after the
+  runtime build, so a later failure still yields the DLL. It excludes
+  `Jenova/Compilers/` from the package and always uploads the build logs as
+  `hoarbound-jenova-windows-logs`.
+- **LFS.** The Windows runtime, `libGodot.x64.lib` and `Jenova.SDK.x64.lib` are
+  tracked by LFS. Linux binaries stay plain git objects, because Linux CI jobs
+  check out without LFS.
+- **Repo setup.** `CLAUDE.md` gains a Jenova section. LFS hooks are installed
+  in the local clone.
+- **Unverified:** the Windows runtime and the C++ script proof have not passed
+  yet. A local Windows build on this 4 GB RAM machine was stopped for lack of
+  memory, so the build runs in CI.
+
 ### 2026-10-08 - Interaction targeting by Henry's gaze (The Last of Us scheme)
 
 - **Group.** `InteractComponent._visible_group()` collects every `interactive`
