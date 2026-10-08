@@ -5,6 +5,21 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Windows Jenova runtime vendored; Linux import crash diagnosed
+
+- **Windows binaries vendored** from CI run 37808998143 through Git LFS:
+  `Jenova/Jenova.Runtime.Win64.dll` (5 MB), `GodotSDK/libGodot.x64.lib`
+  (139 MB) and `JenovaSDK/Jenova.SDK.x64.lib`. In that run the frost C++ script
+  compiled and the frost lab scene ran on the Windows runner. The artifact's
+  GodotSDK headers matched the vendored ones except for line endings.
+- **Import gate:** the cold import crashed in the Linux runtime's static
+  libstdc++ (`std::regex` in `CPPScript::_get_global_name`). The Linux
+  bootstrap now links the shared libstdc++. The `[jenova-frost-preview]` job
+  rebuilds the runtime and runs the cold import gate on it.
+- **Unverified:** the rebuilt Linux runtime is not yet confirmed by CI or
+  vendored. Windows editor use needs `tools/jenova/install_msvc_compiler.ps1`;
+  that has not been tried on this machine.
+
 ### 2026-10-09 - CI: the cheap gate runs on push again
 
 - **`checks` job.** Its `if: github.event_name != 'push'` meant the import,

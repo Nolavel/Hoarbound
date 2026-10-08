@@ -142,9 +142,11 @@ do not re-trigger `[jenova-windows-build]` without a reason.
 
 ## Status (2026-10-09)
 
-- **Linux runtime:** built and vendored.
-- **Windows runtime:** built in CI, but not yet vendored. The C++ script proof
-  failed before the Windows compiler patch: Jenova reported no installed MSVC
-  package.
-- **Import gate:** fails on `main` since Jenova was vendored; the cause is not
-  yet confirmed from logs.
+- **Windows:** vendored from CI run 37808998143. The runtime built, the frost
+  C++ script compiled through `BuildProject`, and the frost lab scene ran its
+  C++ controller. This confirmed the Windows compiler-path patch.
+- **Linux:** the vendored runtime was linked with `-static-libstdc++`. Its
+  `std::regex` locale code segfaulted in `CPPScript::_get_global_name` during
+  Godot's cold import, which failed the Import gate. The Linux bootstrap now
+  links the shared libstdc++. The rebuilt `.so` must replace the vendored one
+  once the `[jenova-frost-preview]` job shows the cold import passing.

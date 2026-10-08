@@ -2,3 +2,4 @@ Jenova Runtime source: 63ecdcb385fbcd8a59e1ed5896a6c03e0d0aacb2
 Godot API: 4.8-dev6 generated from Hoarbound CI engine
 Linux script compiler: Jenova ClangCompiler -> system clang++
 Package resolution: project-local Jenova/GodotSDK (Hoarbound patch)
+Windows script compiler: Jenova MicrosoftCompiler -> Jenova/Compilers/JenovaMSVCCompiler (AiO toolchain, Hoarbound patch)
