@@ -156,6 +156,7 @@ camera gate.
 - Allow `workflow_dispatch` to run the existing Windows job when GitHub cancels
   a push-triggered Jenova build due to main-branch concurrency.
 - Isolate long Jenova Windows runs from unrelated push-triggered checks.
+- Validate the frost scene after the Jenova BuildProject harness produces its C++ module.
 - Preserve existing Windows files when regenerating the Linux runtime and SDK.
 
 ### 2026-10-08 - Jenova frost Linux build fixes

@@ -333,6 +333,22 @@ jobs:
             throw "Jenova BuildProject did not report JENOVA_BUILD_OK; see $buildLog"
           }
 
+      - name: Instantiate frost lab scene with built Jenova script
+        shell: pwsh
+        run: |
+          $sceneLog = Join-Path $env:RUNNER_TEMP "jenova-frost-scene.log"
+          & $env:GODOT_BIN --headless --path . --quit-after 30 "res://scenes/experimental/jenova_frost_lab.tscn" 2>&1 |
+            Tee-Object -FilePath $sceneLog
+          if ($LASTEXITCODE -ne 0) {
+            throw "Godot failed to instantiate the Jenova frost lab scene; see $sceneLog"
+          }
+          if (Select-String -LiteralPath $sceneLog -Pattern "No loader found for frost_window\.cpp" -Quiet) {
+            throw "Godot did not recognize frost_window.cpp while opening the frost lab scene."
+          }
+          if (-not (Select-String -LiteralPath $sceneLog -Pattern "\[jenova-frost\] C\+\+ controller ready" -Quiet)) {
+            throw "Godot opened the frost scene without running the built Jenova C++ controller."
+          }
+
       - name: Report exact Jenova package file sizes
         shell: pwsh
         run: |

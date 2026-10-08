@@ -209,19 +209,6 @@ if (Select-String -LiteralPath $editorLog -Pattern "No loader found for frost_wi
 	throw "Godot did not recognize frost_window.cpp as a Jenova Script."
 }
 
-$sceneLog = Join-Path $workRoot "godot-frost-scene.log"
-& $GodotExe --headless --path $repoRoot --quit-after 2 "res://scenes/experimental/jenova_frost_lab.tscn" 2>&1 |
-	Tee-Object -FilePath $sceneLog
-if ($LASTEXITCODE -ne 0) {
-	throw "Godot failed to instantiate the Jenova frost lab scene."
-}
-if (Select-String -LiteralPath $sceneLog -Pattern "No loader found for frost_window\.cpp" -Quiet) {
-	throw "Godot did not recognize frost_window.cpp while opening the frost lab scene."
-}
-if (-not (Select-String -LiteralPath $sceneLog -Pattern "\[jenova-frost\] C\+\+ controller ready" -Quiet)) {
-	throw "Godot opened the frost scene without running the Jenova C++ controller."
-}
-
 Write-Host "[jenova-bootstrap] Windows runtime + custom Godot 4.8-dev6 SDK ready"
 Write-Host "[jenova-bootstrap] source revision: $jenovaRef"
 Write-Host "[jenova-bootstrap] runtime bytes: $((Get-Item (Join-Path $vendorRoot 'Jenova.Runtime.Win64.dll')).Length)"
