@@ -5,6 +5,14 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-08 - world_key_west: living Key West world-attribute registry
+
+- `docs/world/world_key_west.md`: single registry of the Key West world attributes —
+  geographic source-of-truth ([geo]) plus authored game attributes ([game]) with slots
+  for author decisions. Built up over development alongside the route and profile docs.
+- Embodied / motion-matching stack fully frozen for now: #198 epic joins the already
+  frozen #197/#199/#201/#202/#203 (`status: frozen`), sequenced to build-plan step 10.
+
 ### 2026-10-08 - Direction reset: 10-step build plan, First Exit A spine
 
 - `docs/BUILD_PLAN.md`: single ordered build sequence (10 checkpoints) replacing the
