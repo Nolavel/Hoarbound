@@ -5,6 +5,59 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-08 - Interaction targeting: facing cone, angle scores, cluster cycling, small markers
+
+- Fixes three issues from the in-game test of 6f58fa5.
+- **Facing cone.** Standing, `InteractComponent` drops a candidate more than
+  `facing_limit_deg` from Henry's facing, unless it is within `close_override`
+  (the item at his feet). The "behind Henry and behind the camera" filter is
+  gone. The camera only adds score, so an item at Henry's back is no longer
+  picked from the middle of the frame. Seated keeps the `seated_aim_deg`
+  camera gate.
+- **Angle scores replace dot products.** The facing score is
+  `1 - angle/facing_limit_deg`, the camera score is `1 - angle/camera_cone_deg`
+  (both clamped). The total is `distance_weight`·closeness +
+  `facing_weight`·facing + `camera_weight`·camera + `focus_priority`, plus
+  `hysteresis_bonus` for the current target. Scoring is split into
+  `_score_candidates()` and `_ranked_score()`.
+- **Cluster cycling.** Candidates within `cluster_radius` of the target form a
+  cluster. The new action `interact_cycle` (R) steps through it in score order
+  via `InteractComponent.cycle_target()`. InputSystems emits
+  `interact_cycle_pressed`. A manual pick holds until Henry moves 0.5 m or the
+  pick stops being eligible or visible. `ActionPrompt3D` shows "[R] 2/3" from
+  `get_cluster_position()`.
+- **Markers.**
+  - Anchored at `get_focus_point()` + `marker_lift`, with a constant screen size
+    (`fixed_size`; `pixel_size` comes from `marker_screen_size` and the camera FOV).
+  - Fade from full opacity at `intent_radius` to zero at `hint_radius`.
+  - Show only for the `max_hint_markers` nearest objects inside the facing cone
+    with chest line of sight.
+  - The 5 s shake is replaced by a continuous bob (0.03 m, 1.2 s) and a 0.2 s
+    fade.
+  - `InteractiveArea` now binds a child `Sprite3D` when `icon_sprite` is unset.
+    43 of the 61 blockout markers were never bound and stood static and
+    full-size at the Area origin.
+- **Cursor prompt.** The fallback centre ray (`_ray_hits_target`) is removed
+  from `mouse_cursor_ui`; it now only shows `current_target`.
+- **`check_input_map.py`** parsed zero bindings because Godot writes
+  `"script": null` with a space. Both regexes are fixed; it now checks 26
+  bindings.
+- New exports: `facing_limit_deg` 100, `close_override` 0.5, `camera_cone_deg`
+  30, `distance_weight` 0.5, `cluster_radius` 0.8, `max_hint_markers` 3
+  (`InteractComponent`); `marker_lift` 0.25 and `marker_screen_size` 0.025 of
+  screen height (`InteractiveArea`, group Marker).
+- Changed defaults: `facing_weight` 0.6 → 0.5, `camera_weight` 0.4 → 0.7,
+  `hysteresis_bonus` 0.25 → 0.08.
+- Removed: `icon_height_offset` (and its writes in meal_table, stove_warmer
+  and HenryUALAnimation), `target_ray_length`, the shake timer and constants,
+  and the old icon tween helpers.
+- Tests: `test_interaction.gd` adds two checks. With the camera behind Henry,
+  the item at his back stays unpicked. Two items 0.3 m apart switch with his
+  body turn.
+- Unverified: nothing was run in Godot (no import, compile, test suites or
+  render). Marker size and fade, cluster cycling, and all weights need the
+  author's in-game check.
+
 ### 2026-10-08 - Third-person interaction targeting by score around Henry
 
 - `InteractComponent._find_best_target()` replaces `_find_crosshair_target` and

@@ -1,7 +1,8 @@
 extends SceneTree
 
-## InteractComponent: picks the target around Henry with the camera turned away,
-## acts at arm's length, walks to a farther one, ignores what is behind both.
+## InteractComponent: picks the target before Henry with the camera turned away,
+## acts at arm's length, walks to a farther one, ignores what is behind him even
+## in the middle of the frame, and tells two close items apart by his turn.
 ## Run: godot --headless --script tests/systems/test_interaction.gd
 
 const AREA_SCENE: String = "res://scenes/environment/interactive/InteractiveArea.tscn"
@@ -23,6 +24,8 @@ var _inventory: InventoryComponent
 var _near: ItemPickup
 var _far: ItemPickup
 var _behind: ItemPickup
+var _pair_left: ItemPickup
+var _pair_right: ItemPickup
 var _camera: Camera3D
 var _target_seen_during_performed: InteractiveArea
 
@@ -39,10 +42,18 @@ func _physics_process(_delta: float) -> bool:
 			_check_far_next()
 		10:
 			_check_after_walk()
+			## Camera behind Henry: the item at his back sits between them, mid-frame.
 			_player.global_position = Vector3.ZERO
-			_camera.look_at(Vector3(0.0, 0.0, -5.0), Vector3.UP)
+			_camera.global_position = Vector3(0.0, 1.6, 3.5)
+			_camera.look_at(Vector3(0.0, 0.0, -2.0), Vector3.UP)
 		13:
 			_check_behind_ignored()
+			_face_pair(0.5)
+		16:
+			_check(_component.current_target == _pair_left, "turned left, Henry did not pick the left of two close items")
+			_player.rotation.y = -0.5
+		19:
+			_check(_component.current_target == _pair_right, "turned right, Henry stayed on the left of two close items")
 			_finish()
 	return false
 
@@ -72,6 +83,8 @@ func _build() -> void:
 	_near = _spawn(Vector3(0.0, 0.0, -0.6))
 	_far = _spawn(Vector3(0.3, 0.0, -2.2))
 	_behind = _spawn(Vector3(0.0, 0.0, 2.0))
+	_pair_left = _spawn(Vector3(19.85, 0.0, -0.7))
+	_pair_right = _spawn(Vector3(20.15, 0.0, -0.7))
 
 
 func _spawn(at: Vector3) -> ItemPickup:
@@ -108,8 +121,16 @@ func _check_after_walk() -> void:
 
 
 func _check_behind_ignored() -> void:
-	_check(_component.current_target == null, "an item behind Henry and the camera was targeted")
+	_check(_component.current_target == null, "an item at Henry's back was targeted from mid-frame")
 	_check(_inventory.get_count(&"firewood") == 2, "something else was picked up")
+
+
+## Henry stands 0.7 m before two items 0.3 m apart; the camera looks between them.
+func _face_pair(turn: float) -> void:
+	_player.global_position = Vector3(20.0, 0.0, 0.0)
+	_player.rotation.y = turn
+	_camera.global_position = Vector3(20.0, 1.6, 3.5)
+	_camera.look_at(Vector3(20.0, 0.0, -0.7), Vector3.UP)
 
 
 func _finish() -> void:

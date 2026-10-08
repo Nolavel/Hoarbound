@@ -48,13 +48,21 @@ enum PickupSubtype {
 ## Added to the InteractComponent score: doors and stoves above, junk below.
 @export var focus_priority: float = 0.0
 
+@export_group("Marker")
+## Height of the check-mark marker above the focus point, metres.
+@export var marker_lift: float = 0.25
+## Marker height as a fraction of the screen height, constant at any distance.
+@export var marker_screen_size: float = 0.025
+
 const FOCUS_OWNER_META: StringName = &"interactive_focus_owner"
 ## Every InteractiveArea joins it; InteractComponent picks candidates from here.
 const INTERACTIVE_GROUP: StringName = &"interactive"
+const MARKER_FADE_SECONDS: float = 0.2
+const MARKER_BOB_AMPLITUDE: float = 0.03
+const MARKER_BOB_PERIOD: float = 1.2
 
 # === НАСТРОЙКИ ОТОБРАЖЕНИЯ ===
 @export_group("Настройки отображения")
-@export var icon_height_offset: float = 1.5
 @export var info_height_offset: float = 2.0
 @export var fade_duration: float = 0.3
 @export var billboard_mode: bool = true
@@ -84,7 +92,11 @@ var prompt_shown := false
 var _targeted: bool = false
 var _hinted: bool = false
 var _marker_shown: bool = false
-var _shake_serial: int = 0
+var _marker_fade: float = 0.0
+var _marker_opacity: float = 1.0
+var _marker_anchor: Vector3 = Vector3.ZERO
+var _marker_bob: float = 0.0
+var _marker_bob_tween: Tween
 var _message_serial: int = 0
 var _feedback_text: String = ""
 var _feedback_until_ms: int = 0
@@ -99,14 +111,6 @@ var loaded_interactable_node: Node3D = null  # Загруженная сцена
 var _cached_interaction_text: String = ""
 var _text_cache_dirty: bool = true
 
-# === ТАЙМЕР ШЕЙКА ===
-var shake_timer: Timer = null
-var is_shaking: bool = false
-var original_icon_position: Vector3
-const WAIT_TIME: float = 5.0  # Время ожидания до шейка
-const SHAKE_TIME: float = 2.0  # Длительность шейка
-const SHAKE_STRENGTH: float = 0.1  # Сила тряски
-
 func _ready() -> void:
 	add_to_group(INTERACTIVE_GROUP)
 	if not body_entered.is_connected(_on_body_entered):
@@ -116,12 +120,14 @@ func _ready() -> void:
 	for body: CollisionObject3D in focus_bodies:
 		if is_instance_valid(body):
 			body.set_meta(FOCUS_OWNER_META, weakref(self))
+	## Most authored scenes carry the marker Sprite3D without binding it.
+	if icon_sprite == null:
+		icon_sprite = get_node_or_null(^"Sprite3D") as Sprite3D
 	_load_interactable_scene()
 	_setup_initial_state()
 	_setup_ground_detection()
 	_setup_visual_elements()
 	_create_highlight_circle()
-	_setup_shake_timer()
 
 func _setup_initial_state() -> void:
 	if icon_sprite:
@@ -136,7 +142,10 @@ func _setup_visual_elements() -> void:
 	if icon_sprite:
 		if billboard_mode:
 			icon_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		icon_sprite.position.y = icon_height_offset
+		## Placed in world space at the focus point; size is set per screen height.
+		icon_sprite.top_level = true
+		icon_sprite.scale = Vector3.ONE
+		icon_sprite.fixed_size = true
 	
 	if info_label:
 		if billboard_mode:
@@ -183,13 +192,6 @@ func _create_highlight_circle() -> void:
 	
 	highlight_circle.set_meta("mat", circle_material)
 
-func _setup_shake_timer() -> void:
-	shake_timer = Timer.new()
-	shake_timer.wait_time = WAIT_TIME
-	shake_timer.one_shot = true
-	shake_timer.timeout.connect(_start_shake)
-	add_child(shake_timer)
-
 ## The trigger Area only records who stands in it; markers follow set_hint_state.
 func _on_body_entered(body: Node) -> void:
 	if body.is_in_group("player"):
@@ -208,22 +210,23 @@ func set_target_state(targeted: bool, in_prompt_range: bool) -> void:
 	_targeted = targeted
 	prompt_shown = targeted and in_prompt_range
 	if prompt_shown and not was_prompt:
-		_stop_shake_cycle()
-		_marker_shown = false
-		_hide_icon_sprite_with_lift_then_show_info()
+		_show_info_label()
 		if object_on_ground:
 			_show_highlight_circle()
-		return
-	if was_prompt and not prompt_shown:
+	elif was_prompt and not prompt_shown:
 		_hide_info_label()
 		if object_on_ground:
 			_hide_highlight_circle()
 	_refresh_marker()
 
 
-## Far signal layer: the check-mark marker by distance to the focus point.
-func set_hint_state(hinted: bool) -> void:
+## Far signal layer from InteractComponent: show the marker at this opacity.
+## observer picks the near side of two-sided objects for the marker anchor.
+func set_hint_state(hinted: bool, opacity: float, observer: Vector3) -> void:
 	_hinted = hinted
+	_marker_opacity = clampf(opacity, 0.0, 1.0)
+	if hinted:
+		_marker_anchor = get_focus_point(observer) + Vector3.UP * marker_lift
 	_refresh_marker()
 
 
@@ -259,16 +262,63 @@ func keeps_focus() -> bool:
 
 
 func _refresh_marker() -> void:
-	var wanted: bool = _hinted and not prompt_shown and can_interact()
-	if wanted == _marker_shown:
+	if icon_sprite == null:
 		return
-	_marker_shown = wanted
-	if wanted:
-		_show_icon_sprite()
-		_start_shake_cycle()
-	else:
-		_stop_shake_cycle()
-		_hide_icon_sprite_with_lift()
+	var wanted: bool = _hinted and not prompt_shown and can_interact()
+	if wanted != _marker_shown:
+		_marker_shown = wanted
+		_fade_marker(1.0 if wanted else 0.0)
+	if _marker_shown:
+		_size_marker()
+	_apply_marker()
+
+
+## Fades the marker in or out; the bob runs only while it is visible.
+func _fade_marker(target: float) -> void:
+	if tween_icon:
+		tween_icon.kill()
+	if target > 0.0:
+		icon_sprite.visible = true
+		if _marker_bob_tween == null or not _marker_bob_tween.is_valid():
+			_marker_bob_tween = create_tween().set_loops()
+			_marker_bob_tween.tween_method(_set_marker_bob, 0.0, TAU, MARKER_BOB_PERIOD)
+	tween_icon = create_tween()
+	tween_icon.tween_method(_set_marker_fade, _marker_fade, target, MARKER_FADE_SECONDS)
+	if target <= 0.0:
+		tween_icon.tween_callback(_on_marker_hidden)
+
+
+func _on_marker_hidden() -> void:
+	if _marker_bob_tween != null:
+		_marker_bob_tween.kill()
+		_marker_bob_tween = null
+	icon_sprite.visible = false
+
+
+func _set_marker_fade(value: float) -> void:
+	_marker_fade = value
+	_apply_marker()
+
+
+func _set_marker_bob(phase: float) -> void:
+	_marker_bob = sin(phase) * MARKER_BOB_AMPLITUDE
+	_apply_marker()
+
+
+func _apply_marker() -> void:
+	if icon_sprite == null or not icon_sprite.visible or not icon_sprite.is_inside_tree():
+		return
+	icon_sprite.modulate.a = _marker_fade * _marker_opacity
+	icon_sprite.global_position = _marker_anchor + Vector3.UP * _marker_bob
+
+
+## fixed_size draws pixel_size per unit of depth; this keeps one screen height.
+func _size_marker() -> void:
+	var camera: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	if camera == null or icon_sprite.texture == null:
+		return
+	var view_height: float = 2.0 * tan(deg_to_rad(camera.fov) * 0.5)
+	icon_sprite.pixel_size = marker_screen_size * view_height / float(icon_sprite.texture.get_height())
 
 
 ## Replaces the prompt with a short message, e.g. why F was refused.
@@ -291,80 +341,6 @@ func show_message(text: String, seconds: float = 2.5) -> void:
 		info_label.text = _get_interaction_text()
 	else:
 		_hide_info_label()
-
-func _show_icon_sprite() -> void:
-	if not icon_sprite:
-		return
-	
-	# Сохраняем оригинальную позицию для шейка
-	if not is_shaking:
-		original_icon_position = icon_sprite.position
-	
-	icon_sprite.visible = true
-	
-	if tween_icon:
-		tween_icon.kill()
-	tween_icon = create_tween()
-	
-	# Спрайт появляется сверху и опускается в свое положение
-	icon_sprite.position.y = original_icon_position.y + 0.5  # Начинаем выше
-	icon_sprite.modulate.a = 0.0  # Начинаем прозрачным
-	
-	# Параллельные анимации: опускание вниз И появление
-	tween_icon.parallel().tween_property(icon_sprite, "position:y", original_icon_position.y, fade_duration)\
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BOUNCE)
-	tween_icon.parallel().tween_property(icon_sprite, "modulate:a", 1.0, fade_duration)
-
-func _hide_icon_sprite() -> void:
-	if not icon_sprite:
-		return
-	
-	if tween_icon:
-		tween_icon.kill()
-	tween_icon = create_tween()
-	tween_icon.tween_property(icon_sprite, "modulate:a", 0.0, fade_duration)
-	tween_icon.tween_callback(func(): icon_sprite.visible = false)
-
-func _hide_icon_sprite_with_lift() -> void:
-	if not icon_sprite:
-		return
-	
-	if tween_icon:
-		tween_icon.kill()
-	tween_icon = create_tween()
-	
-	# Параллельные анимации: поднятие вверх И исчезновение
-	tween_icon.parallel().tween_property(icon_sprite, "position:y", original_icon_position.y + 0.5, 0.2)\
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUART)
-	tween_icon.parallel().tween_property(icon_sprite, "modulate:a", 0.0, 0.2)
-	
-	tween_icon.tween_callback(func(): 
-		icon_sprite.visible = false
-		# Возвращаем в исходную позицию для следующего появления
-		icon_sprite.position.y = original_icon_position.y
-	)
-
-func _hide_icon_sprite_with_lift_then_show_info() -> void:
-	if not icon_sprite:
-		_show_info_label()
-		return
-	
-	if tween_icon:
-		tween_icon.kill()
-	tween_icon = create_tween()
-	
-	# Параллельные анимации: поднятие вверх И исчезновение
-	tween_icon.parallel().tween_property(icon_sprite, "position:y", original_icon_position.y + 0.5, 0.2)\
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUART)
-	tween_icon.parallel().tween_property(icon_sprite, "modulate:a", 0.0, 0.2)
-	
-	tween_icon.tween_callback(func(): 
-		icon_sprite.visible = false
-		# Возвращаем в исходную позицию для следующего появления
-		icon_sprite.position.y = original_icon_position.y
-		# ТОЛЬКО ТЕПЕРЬ показываем инфо-лейбл
-		_show_info_label()
-	)
 
 func _show_info_label() -> void:
 	if not info_label:
@@ -421,7 +397,14 @@ func _get_interaction_text() -> String:
 
 ## The key bound to interact, read from the input map rather than hardcoded.
 static func _interact_key_label() -> String:
-	for event: InputEvent in InputMap.action_get_events(&"interact"):
+	return action_key_label(&"interact")
+
+
+## The first keyboard key bound to an action, or "?" when it has none.
+static func action_key_label(action: StringName) -> String:
+	if not InputMap.has_action(action):
+		return "?"
+	for event: InputEvent in InputMap.action_get_events(action):
 		var key := event as InputEventKey
 		if key != null:
 			var code: Key = key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode
@@ -541,69 +524,10 @@ func can_interact() -> bool:
 
 func interact() -> void:
 	if can_interact():
-		_stop_shake_cycle()
 		_on_interaction_performed()
 
 func _on_interaction_performed() -> void:
 	pass
-
-# === СИСТЕМА ТРЯСКИ СПРАЙТА ===
-func _start_shake_cycle() -> void:
-	if shake_timer and _marker_shown:
-		shake_timer.start()
-
-func _stop_shake_cycle() -> void:
-	_shake_serial += 1
-	if shake_timer:
-		shake_timer.stop()
-	_stop_shake()
-
-func _start_shake() -> void:
-	if not _marker_shown:
-		return
-	
-	if not icon_sprite or not icon_sprite.visible:
-		_restart_shake_cycle()
-		return
-	
-	is_shaking = true
-	
-	# Создаем тряску на 2 секунды
-	if tween_icon:
-		tween_icon.kill()
-	tween_icon = create_tween()
-	tween_icon.set_loops()  # Бесконечный цикл
-	
-	# Тряска вверх-вниз
-	tween_icon.tween_property(icon_sprite, "position:y", original_icon_position.y + SHAKE_STRENGTH, 0.1)
-	tween_icon.tween_property(icon_sprite, "position:y", original_icon_position.y - SHAKE_STRENGTH, 0.1)
-	tween_icon.tween_property(icon_sprite, "position:y", original_icon_position.y, 0.1)
-	
-	# Останавливаем тряску через 2 секунды
-	_shake_serial += 1
-	var serial: int = _shake_serial
-	await get_tree().create_timer(SHAKE_TIME).timeout
-	if serial != _shake_serial:
-		return
-	_stop_shake()
-	_restart_shake_cycle()
-
-func _stop_shake() -> void:
-	if not is_shaking:
-		return
-		
-	is_shaking = false
-	
-	if tween_icon:
-		tween_icon.kill()
-	
-	# Возвращаем спрайт в исходную позицию
-	if icon_sprite:
-		icon_sprite.position = original_icon_position
-
-func _restart_shake_cycle() -> void:
-	if _marker_shown:
-		_start_shake_cycle()
 
 # Методы для обновления кэша при изменении параметров
 func set_item_name(new_name: String) -> void:

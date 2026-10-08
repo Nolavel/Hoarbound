@@ -16,8 +16,6 @@ extends Control
 @export var cursor_color_target: Color = Color(1.0, 1.0, 1.0, 0.95)
 ## Not instant: a highlight that snaps in reads as a flicker.
 @export var cursor_color_speed: float = 10.0
-## Ray length from the camera, metres.
-@export var target_ray_length: float = 12.0
 
 @export_group("Interaction morph")
 ## ADT-derived interruptible circle -> bracket morph. The brackets first tear
@@ -123,7 +121,7 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	var focused := _focused_prompt_target()
-	is_over_target = focused != null if _interact_component != null else _ray_hits_target()
+	is_over_target = focused != null
 	var wanted: Color = cursor_color_target if is_over_target else cursor_color_idle
 	_color = _color.lerp(wanted, clampf(cursor_color_speed * delta, 0.0, 1.0))
 	_update_interaction_target(focused)
@@ -577,30 +575,6 @@ func _on_jump_performed() -> void:
 	_jump_tween.tween_property(self, ^"_jump_progress", 1.0, 0.15)
 	_jump_tween.tween_property(self, ^"_jump_progress", 0.0, 0.25).set_delay(0.15)
 	_jump_tween.tween_property(self, ^"_jump_alpha", 0.0, 0.4).from(0.8)
-
-
-## One ray from the camera through screen centre, the look direction.
-func _ray_hits_target() -> bool:
-	var camera: Camera3D = get_viewport().get_camera_3d()
-	if camera == null or player == null:
-		return false
-	var from: Vector3 = TpsCamera.aim_origin(camera)
-	var to: Vector3 = from + TpsCamera.aim_direction(camera) * target_ray_length
-	var params := PhysicsRayQueryParameters3D.create(from, to)
-	params.collide_with_areas = true
-	params.collide_with_bodies = true
-	params.exclude = [player.get_rid()]
-	var hit: Dictionary = player.get_world_3d().direct_space_state.intersect_ray(params)
-	if hit.is_empty():
-		return false
-	var node := hit.get("collider") as Node
-	for i: int in range(4):
-		if node == null:
-			return false
-		if node is InteractiveArea:
-			return (node as InteractiveArea).can_interact()
-		node = node.get_parent()
-	return false
 
 
 func _is_paused() -> bool:

@@ -15,9 +15,9 @@ def bindings():
     section = text.split("\n[input]\n", 1)[1].split("\n[", 1)[0]
     out = defaultdict(set)
     for action, body in re.findall(r"^\"?([\w ]+)\"?=\{(.*?)\n\}", section, re.S | re.M):
-        for event in re.findall(r'Object\((InputEvent\w+),(.*?)"script":null\)', body, re.S):
+        for event in re.findall(r'Object\((InputEvent\w+),(.*?)"script":\s*null\s*\)', body, re.S):
             kind, props = event
-            fields = dict(re.findall(r'"(\w+)":([^,]+)', props))
+            fields = dict(re.findall(r'"(\w+)":\s*([^,\n]+)', props))
             if kind == "InputEventKey":
                 code = fields.get("physical_keycode", "0")
                 code = code if code != "0" else fields.get("keycode", "0")
@@ -54,7 +54,7 @@ def main():
         print("input map: undeclared overlaps (add to input_overlap_allowlist.txt with a reason, or rebind):")
         print("\n".join("  " + x for x in bad))
         sys.exit(1)
-    print("input map: no undeclared overlaps")
+    print(f"input map: {len(bindings())} bindings, no undeclared overlaps")
 
 
 main()

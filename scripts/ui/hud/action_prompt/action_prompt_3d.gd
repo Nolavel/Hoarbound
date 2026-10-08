@@ -185,11 +185,17 @@ func _sync_prompt() -> void:
 	if not is_instance_valid(_target) or _face == null:
 		return
 	var data := _target.get_interaction_prompt_data()
+	var detail: String = String(data.get("detail", ""))
+	## Several close objects: show where interact_cycle stands, e.g. "[R] 2/3".
+	var place: Vector2i = _interact.get_cluster_position()
+	if place != Vector2i.ZERO:
+		var cycle: String = "[%s] %d/%d" % [InteractiveArea.action_key_label(&"interact_cycle"), place.x, place.y]
+		detail = cycle if detail == "" else "%s · %s" % [detail, cycle]
 	_face.set_prompt(
 		tr("PROMPT_HEADER_INTERACT"),
 		String(data.get("key", "F")),
 		String(data.get("action", tr("INTERACT_USE"))),
-		String(data.get("detail", ""))
+		detail
 	)
 
 
