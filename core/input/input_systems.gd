@@ -33,8 +33,6 @@ signal sprint_changed(active: bool)
 signal interact_pressed()
 signal interact_held(duration: float)
 signal interact_released(duration: float)
-## Steps the target within a cluster of close objects; not affected by the claim.
-signal interact_cycle_pressed()
 
 ## --- Sleep (hold S, confirm with interact) ---
 ## The relay reports WHEN and FOR HOW LONG; it never says "that was a hold".
@@ -51,7 +49,6 @@ const ACTION_SPRINT: StringName = &"sprint"
 const ACTION_JUMP: StringName = &"jump"
 const ACTION_CROUCH: StringName = &"crouch"
 const ACTION_INTERACT: StringName = &"interact"
-const ACTION_INTERACT_CYCLE: StringName = &"interact_cycle"
 const ACTION_SLEEP_CANCEL: StringName = &"sleep_cancel"
 const ACTION_DEV_MAP_TOGGLE: StringName = &"toggle_dev_map"
 const ACTION_LEAN_LEFT: StringName = &"lean_left"
@@ -98,8 +95,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		_begin_interact()
 	elif _released(event, ACTION_INTERACT):
 		_end_interact()
-	if _pressed(event, ACTION_INTERACT_CYCLE):
-		interact_cycle_pressed.emit()
 	if _pressed(event, ACTION_SLEEP_CANCEL):
 		sleep_cancel_pressed.emit()
 	if _pressed(event, ACTION_DEV_MAP_TOGGLE):

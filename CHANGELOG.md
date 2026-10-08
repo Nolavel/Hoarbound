@@ -5,6 +5,50 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-08 - Interaction targeting by Henry's gaze (The Last of Us scheme)
+
+- **Group.** `InteractComponent._visible_group()` collects every `interactive`
+  object within `intent_radius` (seated: `seated_reach`) that passes the body
+  facing cone (`facing_limit_deg`; waived within `close_override`) and chest
+  line of sight. Ordering is by score. At most 1 + `max_hint_markers` members
+  are kept.
+- **Dominant.** The member nearest Henry's gaze wins. Score =
+  `gaze_weight`·(1 − angle/`gaze_cone_deg`) + `distance_weight`·closeness +
+  `focus_priority`, plus `hysteresis_bonus` for the current target.
+- **Gaze (`get_gaze_direction()`).** Moving, it is the body facing. Standing or
+  seated, it is the body facing turned towards `get_view_direction()` by at
+  most `head_turn_limit_deg` — the same rule Henry's head look follows. Seated
+  keeps the `seated_aim_deg` gate, now measured against the gaze.
+- **Aim rays.** `accepts_focus`/`resolve_focus` (stove door, firebox,
+  BreachBoardUp) get Henry's gaze ray from the chest, pitched to the object's
+  height, instead of the camera ray.
+- **Markers.** `InteractiveArea.set_hint_state(state, opacity, observer)` with
+  `MarkerState` HIDDEN / DIM / DOMINANT. The target shows the bright marker
+  (alongside its F prompt). Other group members show a smaller, fainter marker
+  (`marker_dim_scale`, `marker_dim_opacity`). Objects outside the group show
+  none. Opacity fades from `prompt_distance` to the group radius. Size, bob,
+  fade and the child `Sprite3D` pickup are unchanged.
+- **Removed:** the `interact_cycle` action (project.godot, InputSystems signal
+  and constant), `cycle_target`, `_manual_choice`, `_cluster_around`,
+  `get_cluster_position`, `cluster_radius`, the "[R] 2/3" prompt suffix and
+  `InteractiveArea.action_key_label`. The camera is gone from targeting:
+  `camera_weight`, `camera_cone_deg`, `_score_candidates`, `_ranked_score` and
+  `_flat_view_direction`. The separate marker pass is gone too: `hint_radius`,
+  `_update_hints` and its 0.1 s timer. Also removed: `facing_weight`,
+  `SIGHT_CHECKS` and the seated weight constants.
+- **New exports (`InteractComponent`, group Intent):** `head_turn_limit_deg` 55
+  (keep equal to `HenryUALAnimation.head_look_primary_limit_deg`),
+  `still_speed` 0.15, `gaze_cone_deg` 60, `gaze_weight` 1.0.
+- **Changed defaults:** `distance_weight` 0.25, `hysteresis_bonus` 0.05.
+- **New exports (`InteractiveArea`, group Marker):** `marker_dim_scale` 0.6,
+  `marker_dim_opacity` 0.4.
+- **Tests.** `test_interaction.gd` keeps "the item at Henry's back is not
+  picked" and "of two close items, the one Henry turns to wins".
+  `test_seated_aim.gd` now expects the head to stop at its neck limit when
+  looking back-right, keeping the right target, instead of picking nothing.
+- **Unverified:** nothing was run in Godot (no import, compile, test suites or
+  render). Gaze feel, weights and marker readability need the author's check.
+
 ### 2026-10-08 - Interaction targeting: facing cone, angle scores, cluster cycling, small markers
 
 - Fixes three issues from the in-game test of 6f58fa5.
@@ -28,15 +72,15 @@ camera gate.
   `get_cluster_position()`.
 - **Markers.**
   - Anchored at `get_focus_point()` + `marker_lift`, with a constant screen size
-    (`fixed_size`; `pixel_size` comes from `marker_screen_size` and the camera FOV).
+	(`fixed_size`; `pixel_size` comes from `marker_screen_size` and the camera FOV).
   - Fade from full opacity at `intent_radius` to zero at `hint_radius`.
   - Show only for the `max_hint_markers` nearest objects inside the facing cone
-    with chest line of sight.
+	with chest line of sight.
   - The 5 s shake is replaced by a continuous bob (0.03 m, 1.2 s) and a 0.2 s
-    fade.
+	fade.
   - `InteractiveArea` now binds a child `Sprite3D` when `icon_sprite` is unset.
-    43 of the 61 blockout markers were never bound and stood static and
-    full-size at the Area origin.
+	43 of the 61 blockout markers were never bound and stood static and
+	full-size at the Area origin.
 - **Cursor prompt.** The fallback centre ray (`_ray_hits_target`) is removed
   from `mouse_cursor_ui`; it now only shows `current_target`.
 - **`check_input_map.py`** parsed zero bindings because Godot writes

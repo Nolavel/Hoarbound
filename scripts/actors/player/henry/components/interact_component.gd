@@ -1,7 +1,7 @@
 class_name InteractComponent
 extends Node3D
 
-## Scores interactive objects in a cone before Henry; the camera refines the pick.
+## The objects before Henry form a group; the one nearest his gaze is the target.
 ## A requested pickup stays selected for arrival even as the walking camera moves.
 
 ## What is targeted and whether it is already within arm's reach.
@@ -9,42 +9,32 @@ signal interact_target_changed(target: InteractiveArea, in_reach: bool)
 ## Emitted after F acted on a target.
 signal interaction_performed(target: InteractiveArea)
 
-## Line of sight starts at Henry's chest, not at the camera.
+## Line of sight and the gaze ray start at Henry's chest, not at the camera.
 const CHEST_HEIGHT: float = 1.3
-## Only this many best-scored candidates pay for a line-of-sight ray.
-const SIGHT_CHECKS: int = 3
-## Seconds between passes of the far marker layer.
-const HINT_INTERVAL: float = 0.1
-## Seated Henry does not turn: the camera decides.
-const SEATED_FACING_WEIGHT: float = 0.1
-const SEATED_CAMERA_WEIGHT: float = 1.0
-## A target picked with interact_cycle holds until Henry moves this far, metres.
-const MANUAL_HOLD_DISTANCE: float = 0.5
 
 @export_group("Intent")
-## Flat distance to an object's focus point at which it can become current_target.
+## Flat distance to an object's focus point at which it joins the group.
 @export var intent_radius: float = 2.5
-## Standing, objects further than this angle from Henry's facing are never picked.
+## Standing, objects further than this angle from Henry's body facing never join.
 @export_range(1.0, 180.0, 1.0) var facing_limit_deg: float = 100.0
 ## Inside this flat distance the facing cone is waived: the item at Henry's feet.
 @export var close_override: float = 0.5
-## Camera aim earns score inside this angle and nothing outside it.
-@export_range(1.0, 90.0, 1.0) var camera_cone_deg: float = 30.0
-## Score weight of closeness within the radius.
-@export var distance_weight: float = 0.5
-## Score weight of Henry's body facing towards the object.
-@export var facing_weight: float = 0.5
-## Score weight of the camera looking at the object; a weight, never a requirement.
-@export var camera_weight: float = 0.7
+## Standing still, Henry's head turns towards the view by at most this angle.
+## Keep it equal to HenryUALAnimation.head_look_primary_limit_deg.
+@export_range(0.0, 90.0, 1.0) var head_turn_limit_deg: float = 55.0
+## Below this flat speed Henry counts as standing and looks with his head, m/s.
+@export var still_speed: float = 0.15
+## Gaze score falls from 1 on the gaze line to 0 at this angle off it.
+@export_range(1.0, 180.0, 1.0) var gaze_cone_deg: float = 60.0
+## Score weight of how exactly Henry looks at the object; keep above distance_weight.
+@export var gaze_weight: float = 1.0
+## Score weight of closeness within the radius; a tie-breaker.
+@export var distance_weight: float = 0.25
 ## Score bonus that keeps the current target until another clearly wins.
-@export var hysteresis_bonus: float = 0.08
-## Candidates this close to the target's focus point form a cluster for interact_cycle.
-@export var cluster_radius: float = 0.8
+@export var hysteresis_bonus: float = 0.05
 
 @export_group("Markers")
-## Objects whose focus point is this close may show the check-mark marker.
-@export var hint_radius: float = 4.5
-## Only this many nearest objects in front of Henry show a marker at once.
+## Group members besides the target that show a dim marker at once.
 @export var max_hint_markers: int = 3
 
 @export_group("Approach")
@@ -52,9 +42,9 @@ const MANUAL_HOLD_DISTANCE: float = 0.5
 @export var pickup_distance: float = 0.9
 ## Inside this distance the object shows its F prompt instead of a marker.
 @export var prompt_distance: float = 2.0
-## Seated, Henry leans: this far, picked by where the camera looks (stove ring, table).
+## Seated, Henry leans: this far, picked by where he looks (stove ring, table).
 @export var seated_reach: float = 2.0
-## Seated, a target must lie within this angle of the camera aim.
+## Seated, a target must lie within this angle of Henry's gaze.
 @export var seated_aim_deg: float = 35.0
 ## Gives up a walk that stops making progress, seconds.
 @export var approach_timeout: float = 4.0
@@ -67,13 +57,8 @@ var _last_in_prompt: bool = false
 var _pending: InteractiveArea = null
 var _approach_elapsed: float = 0.0
 var _approach_stopped: bool = false
-var _hint_elapsed: float = 0.0
-## Last scoring pass: base score and focus point per eligible candidate.
-var _scores: Dictionary = {}
-var _points: Dictionary = {}
-var _cluster: Array[InteractiveArea] = []
-var _manual_target: InteractiveArea = null
-var _manual_from: Vector3 = Vector3.ZERO
+## Marker state last sent to each object, so leavers are switched off once.
+var _markers: Dictionary = {}
 
 
 func _ready() -> void:
@@ -81,7 +66,6 @@ func _ready() -> void:
 	var input_systems: Node = get_node_or_null(^"/root/InputSystems")
 	if input_systems != null:
 		input_systems.connect(&"interact_pressed", try_interact)
-		input_systems.connect(&"interact_cycle_pressed", cycle_target)
 	if _player != null and _player.has_signal(&"movement_stopped"):
 		_player.connect(&"movement_stopped", _on_player_movement_stopped)
 
@@ -91,10 +75,6 @@ func _physics_process(delta: float) -> void:
 		return
 	detect_target()
 	_update_approach(delta)
-	_hint_elapsed += delta
-	if _hint_elapsed >= HINT_INTERVAL:
-		_hint_elapsed = 0.0
-		_update_hints()
 
 
 ## Re-picks the target now; normally run every physics frame.
@@ -178,127 +158,90 @@ func _perform(target: InteractiveArea) -> void:
 	interaction_performed.emit(target)
 
 
-## Picks the best-scored candidate before Henry that he can actually see.
+## Builds the group before Henry, marks it, and returns its dominant member.
 func _find_best_target() -> InteractiveArea:
 	var seated: bool = _is_seated()
 	var radius: float = seated_reach if seated else intent_radius
+	var group: Array[InteractiveArea] = _visible_group(seated, radius)
+	var best: InteractiveArea = group[0] if not group.is_empty() else null
 	if is_instance_valid(current_target) and current_target.keeps_focus() \
 		and current_target.can_interact() and _flat_distance_to(current_target) <= radius:
-		_cluster.clear()
-		return current_target
-	_score_candidates(seated, radius)
-	var best: InteractiveArea = _manual_choice()
-	if best == null:
-		var ranked: Array = _scores.keys()
-		ranked.sort_custom(func(a: InteractiveArea, b: InteractiveArea) -> bool: return _ranked_score(a) > _ranked_score(b))
-		for index: int in range(mini(ranked.size(), SIGHT_CHECKS)):
-			if _has_line_of_sight(ranked[index]):
-				best = ranked[index]
-				break
-	_cluster = _cluster_around(best)
+		best = current_target
+	_mark_group(group, best, radius)
 	return best
 
 
-## Fills _scores and _points with every candidate that passes the gates.
-func _score_candidates(seated: bool, radius: float) -> void:
-	_scores.clear()
-	_points.clear()
-	var viewport := get_viewport()
-	var camera: Camera3D = viewport.get_camera_3d() if viewport != null else null
-	var view_from: Vector3 = TpsCamera.aim_origin(camera) if camera != null else _chest()
-	var view_direction: Vector3 = TpsCamera.aim_direction(camera) if camera != null else _flat_view_direction()
+## Candidates that pass the gates, best gaze score first, cut to those Henry can see.
+func _visible_group(seated: bool, radius: float) -> Array[InteractiveArea]:
+	var origin: Vector3 = _player.global_position
+	var chest: Vector3 = _chest()
 	var facing: Vector3 = get_facing_direction()
+	var gaze: Vector3 = get_gaze_direction()
 	var facing_limit: float = deg_to_rad(facing_limit_deg)
-	var camera_cone: float = deg_to_rad(camera_cone_deg)
+	var gaze_cone: float = deg_to_rad(gaze_cone_deg)
 	var seated_limit: float = deg_to_rad(seated_aim_deg)
-	var facing_w: float = SEATED_FACING_WEIGHT if seated else facing_weight
-	var camera_w: float = SEATED_CAMERA_WEIGHT if seated else camera_weight
+	var scores: Dictionary = {}
 	for node: Node in get_tree().get_nodes_in_group(InteractiveArea.INTERACTIVE_GROUP):
 		var raw := node as InteractiveArea
-		if not _is_available(raw) or not raw.accepts_focus(view_from, view_direction):
+		if not _is_available(raw):
 			continue
-		var area: InteractiveArea = raw.resolve_focus(view_from, view_direction)
-		if not _is_available(area) or _scores.has(area):
+		var aim: Vector3 = _gaze_ray(chest, gaze, raw.get_focus_point(origin))
+		if not raw.accepts_focus(chest, aim):
 			continue
-		var point: Vector3 = area.get_focus_point(_player.global_position)
-		var to_point: Vector3 = point - _player.global_position
+		var area: InteractiveArea = raw.resolve_focus(chest, aim)
+		if not _is_available(area) or scores.has(area):
+			continue
+		var to_point: Vector3 = area.get_focus_point(origin) - origin
 		to_point.y = 0.0
 		var distance: float = to_point.length()
 		if distance > radius:
 			continue
-		var face_angle: float = facing.angle_to(to_point) if distance > 0.001 else 0.0
-		if not seated and distance > close_override and face_angle > facing_limit:
+		var close: bool = distance <= close_override
+		if not seated and not close and facing.angle_to(to_point) > facing_limit:
 			continue
-		var from_view: Vector3 = point - view_from
-		if camera == null:
-			from_view.y = 0.0  # the fallback view is flat
-		var view_angle: float = view_direction.angle_to(from_view) if from_view.length() > 0.001 else 0.0
-		if seated and view_angle > seated_limit:
+		var gaze_angle: float = gaze.angle_to(to_point) if distance > 0.001 else 0.0
+		if seated and not close and gaze_angle > seated_limit:
 			continue
-		var face_score: float = clampf(1.0 - face_angle / facing_limit, 0.0, 1.0)
-		var camera_score: float = clampf(1.0 - view_angle / camera_cone, 0.0, 1.0)
-		_scores[area] = distance_weight * (1.0 - distance / radius) + facing_w * face_score \
-			+ camera_w * camera_score + area.focus_priority
-		_points[area] = point
+		var score: float = gaze_weight * clampf(1.0 - gaze_angle / gaze_cone, 0.0, 1.0) \
+			+ distance_weight * (1.0 - distance / radius) + area.focus_priority
+		if area == current_target:
+			score += hysteresis_bonus
+		scores[area] = score
+	var ranked: Array = scores.keys()
+	ranked.sort_custom(func(a: InteractiveArea, b: InteractiveArea) -> bool: return float(scores[a]) > float(scores[b]))
+	var group: Array[InteractiveArea] = []
+	for area: InteractiveArea in ranked:
+		if group.size() > max_hint_markers:
+			break
+		if _has_line_of_sight(area):
+			group.append(area)
+	return group
 
 
-func _ranked_score(area: InteractiveArea) -> float:
-	return float(_scores[area]) + (hysteresis_bonus if area == current_target else 0.0)
-
-
-## The interact_cycle pick while it is still eligible, visible and Henry stays put.
-func _manual_choice() -> InteractiveArea:
-	if _manual_target == null:
-		return null
-	var moved: Vector3 = _player.global_position - _manual_from
-	moved.y = 0.0
-	if not is_instance_valid(_manual_target) or not _scores.has(_manual_target) \
-		or moved.length() > MANUAL_HOLD_DISTANCE or not _has_line_of_sight(_manual_target):
-		_manual_target = null
-		return null
-	return _manual_target
-
-
-## Candidates whose focus points lie within cluster_radius of the target, best first.
-func _cluster_around(target: InteractiveArea) -> Array[InteractiveArea]:
-	var cluster: Array[InteractiveArea] = []
-	if target == null or not _points.has(target):
-		return cluster
-	var centre: Vector3 = _points[target]
-	for area: InteractiveArea in _scores.keys():
-		if (_points[area] as Vector3).distance_to(centre) <= cluster_radius:
-			cluster.append(area)
-	cluster.sort_custom(func(a: InteractiveArea, b: InteractiveArea) -> bool: return float(_scores[a]) > float(_scores[b]))
-	return cluster
-
-
-## interact_cycle: steps to the next visible member of the cluster, by score order.
-func cycle_target() -> void:
-	if _player == null or _is_blocked() or _cluster.size() < 2:
-		return
-	var start: int = maxi(_cluster.find(current_target), 0)
-	for step: int in range(1, _cluster.size()):
-		var next: InteractiveArea = _cluster[(start + step) % _cluster.size()]
-		if _is_available(next) and _has_line_of_sight(next):
-			_manual_target = next
-			_manual_from = _player.global_position
-			detect_target()
-			return
-
-
-## 1-based place of current_target in its cluster and the cluster size; zero when alone.
-func get_cluster_position() -> Vector2i:
-	var index: int = _cluster.find(current_target)
-	if _cluster.size() < 2 or index < 0:
-		return Vector2i.ZERO
-	return Vector2i(index + 1, _cluster.size())
-
-
-## Without a camera (headless tests), Henry's own flat view stands in for the aim.
-func _flat_view_direction() -> Vector3:
-	var view: Vector3 = _player.call(&"get_view_direction") if _player.has_method(&"get_view_direction") else get_facing_direction()
+## Henry's gaze, flat: moving, his body; standing or seated, his head turned
+## towards the view direction as far as his neck allows.
+func get_gaze_direction() -> Vector3:
+	var facing: Vector3 = get_facing_direction()
+	if not _player.has_method(&"get_view_direction"):
+		return facing
+	var planar_speed: float = Vector2(_player.velocity.x, _player.velocity.z).length()
+	if planar_speed >= still_speed and not _is_seated():
+		return facing
+	var view: Vector3 = _player.call(&"get_view_direction")
 	view.y = 0.0
-	return view.normalized() if view.length() > 0.001 else get_facing_direction()
+	if view.length() < 0.001:
+		return facing
+	var limit: float = deg_to_rad(head_turn_limit_deg)
+	var yaw: float = clampf(facing.signed_angle_to(view.normalized(), Vector3.UP), -limit, limit)
+	return facing.rotated(Vector3.UP, yaw)
+
+
+## The gaze line pitched to the object's height: Henry looks along his gaze at its level.
+func _gaze_ray(chest: Vector3, gaze: Vector3, point: Vector3) -> Vector3:
+	var flat: Vector3 = point - chest
+	flat.y = 0.0
+	var ray: Vector3 = gaze * flat.length() + Vector3.UP * (point.y - chest.y)
+	return ray.normalized() if ray.length() > 0.001 else gaze
 
 
 ## Henry's chest to the focus point; the object's own bodies never occlude it.
@@ -313,41 +256,27 @@ func _has_line_of_sight(area: InteractiveArea) -> bool:
 	return _owns_focus_body(_area_from(hit.get("collider")), area)
 
 
-## Far marker layer: the nearest few objects before Henry, in sight, fade in by distance.
-func _update_hints() -> void:
+## The target gets the bright marker, the rest of the group a dim one, others none.
+## Opacity fades out between prompt_distance and the group radius.
+func _mark_group(group: Array[InteractiveArea], target: InteractiveArea, radius: float) -> void:
 	var origin: Vector3 = _player.global_position
-	var facing: Vector3 = get_facing_direction()
-	var facing_limit: float = deg_to_rad(facing_limit_deg)
-	var areas: Array[Node] = get_tree().get_nodes_in_group(InteractiveArea.INTERACTIVE_GROUP)
-	var nearby: Array = []
-	for node: Node in areas:
-		var area := node as InteractiveArea
-		if not _is_available(area):
-			continue
-		var to_point: Vector3 = area.get_focus_point(origin) - origin
-		to_point.y = 0.0
-		var distance: float = to_point.length()
-		if distance > hint_radius:
-			continue
-		if distance > close_override and facing.angle_to(to_point) > facing_limit:
-			continue
-		nearby.append([distance, area])
-	nearby.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
-	var shown: Dictionary = {}
-	for index: int in range(mini(nearby.size(), max_hint_markers)):
-		var candidate: InteractiveArea = nearby[index][1]
-		if _has_line_of_sight(candidate):
-			shown[candidate] = float(nearby[index][0])
-	var fade_span: float = maxf(hint_radius - intent_radius, 0.001)
-	for node: Node in areas:
-		var area := node as InteractiveArea
-		if area == null or area.is_queued_for_deletion():
-			continue
-		if shown.has(area):
-			var opacity: float = 1.0 - clampf((float(shown[area]) - intent_radius) / fade_span, 0.0, 1.0)
-			area.set_hint_state(true, opacity, origin)
-		else:
-			area.set_hint_state(false, 0.0, origin)
+	var fade_span: float = maxf(radius - prompt_distance, 0.001)
+	var marked: Dictionary = {}
+	var dim_left: int = max_hint_markers
+	for area: InteractiveArea in group:
+		var state: InteractiveArea.MarkerState = InteractiveArea.MarkerState.DOMINANT
+		if area != target:
+			if dim_left <= 0:
+				continue
+			dim_left -= 1
+			state = InteractiveArea.MarkerState.DIM
+		var distance: float = _flat_distance_to(area)
+		area.set_hint_state(state, 1.0 - clampf((distance - prompt_distance) / fade_span, 0.0, 1.0), origin)
+		marked[area] = state
+	for area: Variant in _markers.keys():
+		if not marked.has(area) and is_instance_valid(area):
+			(area as InteractiveArea).set_hint_state(InteractiveArea.MarkerState.HIDDEN, 0.0, origin)
+	_markers = marked
 
 
 func _chest() -> Vector3:

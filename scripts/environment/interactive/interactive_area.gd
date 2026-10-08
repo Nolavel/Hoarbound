@@ -13,6 +13,13 @@ enum InteractionType {
 	OTHER
 }
 
+## Marker shown by InteractComponent: none, a dim group member, or the target.
+enum MarkerState {
+	HIDDEN,
+	DIM,
+	DOMINANT,
+}
+
 enum PickupSubtype {
 	WEAPON,      # Оружие
 	FOOD,        # Еда
@@ -53,6 +60,9 @@ enum PickupSubtype {
 @export var marker_lift: float = 0.25
 ## Marker height as a fraction of the screen height, constant at any distance.
 @export var marker_screen_size: float = 0.025
+## A dim group member's marker: this share of the target's size and opacity.
+@export_range(0.1, 1.0, 0.05) var marker_dim_scale: float = 0.6
+@export_range(0.05, 1.0, 0.05) var marker_dim_opacity: float = 0.4
 
 const FOCUS_OWNER_META: StringName = &"interactive_focus_owner"
 ## Every InteractiveArea joins it; InteractComponent picks candidates from here.
@@ -90,7 +100,7 @@ var player_in_area := false
 ## True while this object is the current target inside prompt range (F shown).
 var prompt_shown := false
 var _targeted: bool = false
-var _hinted: bool = false
+var _marker_state: MarkerState = MarkerState.HIDDEN
 var _marker_shown: bool = false
 var _marker_fade: float = 0.0
 var _marker_opacity: float = 1.0
@@ -220,12 +230,12 @@ func set_target_state(targeted: bool, in_prompt_range: bool) -> void:
 	_refresh_marker()
 
 
-## Far signal layer from InteractComponent: show the marker at this opacity.
-## observer picks the near side of two-sided objects for the marker anchor.
-func set_hint_state(hinted: bool, opacity: float, observer: Vector3) -> void:
-	_hinted = hinted
+## Marker from InteractComponent's group: state, distance opacity, and the
+## observer that picks the near side of two-sided objects for the anchor.
+func set_hint_state(state: MarkerState, opacity: float, observer: Vector3) -> void:
+	_marker_state = state
 	_marker_opacity = clampf(opacity, 0.0, 1.0)
-	if hinted:
+	if state != MarkerState.HIDDEN:
 		_marker_anchor = get_focus_point(observer) + Vector3.UP * marker_lift
 	_refresh_marker()
 
@@ -264,7 +274,7 @@ func keeps_focus() -> bool:
 func _refresh_marker() -> void:
 	if icon_sprite == null:
 		return
-	var wanted: bool = _hinted and not prompt_shown and can_interact()
+	var wanted: bool = _marker_state != MarkerState.HIDDEN and can_interact()
 	if wanted != _marker_shown:
 		_marker_shown = wanted
 		_fade_marker(1.0 if wanted else 0.0)
@@ -308,7 +318,8 @@ func _set_marker_bob(phase: float) -> void:
 func _apply_marker() -> void:
 	if icon_sprite == null or not icon_sprite.visible or not icon_sprite.is_inside_tree():
 		return
-	icon_sprite.modulate.a = _marker_fade * _marker_opacity
+	var dim: float = marker_dim_opacity if _marker_state == MarkerState.DIM else 1.0
+	icon_sprite.modulate.a = _marker_fade * _marker_opacity * dim
 	icon_sprite.global_position = _marker_anchor + Vector3.UP * _marker_bob
 
 
@@ -318,7 +329,8 @@ func _size_marker() -> void:
 	if camera == null or icon_sprite.texture == null:
 		return
 	var view_height: float = 2.0 * tan(deg_to_rad(camera.fov) * 0.5)
-	icon_sprite.pixel_size = marker_screen_size * view_height / float(icon_sprite.texture.get_height())
+	var size: float = marker_screen_size * (marker_dim_scale if _marker_state == MarkerState.DIM else 1.0)
+	icon_sprite.pixel_size = size * view_height / float(icon_sprite.texture.get_height())
 
 
 ## Replaces the prompt with a short message, e.g. why F was refused.
@@ -397,14 +409,7 @@ func _get_interaction_text() -> String:
 
 ## The key bound to interact, read from the input map rather than hardcoded.
 static func _interact_key_label() -> String:
-	return action_key_label(&"interact")
-
-
-## The first keyboard key bound to an action, or "?" when it has none.
-static func action_key_label(action: StringName) -> String:
-	if not InputMap.has_action(action):
-		return "?"
-	for event: InputEvent in InputMap.action_get_events(action):
+	for event: InputEvent in InputMap.action_get_events(&"interact"):
 		var key := event as InputEventKey
 		if key != null:
 			var code: Key = key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode

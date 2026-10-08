@@ -1,6 +1,6 @@
 extends SceneTree
 
-## InteractComponent: picks the target before Henry with the camera turned away,
+## InteractComponent: Henry's gaze picks the target whatever the camera does;
 ## acts at arm's length, walks to a farther one, ignores what is behind him even
 ## in the middle of the frame, and tells two close items apart by his turn.
 ## Run: godot --headless --script tests/systems/test_interaction.gd
