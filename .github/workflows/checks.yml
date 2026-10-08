@@ -305,11 +305,14 @@ jobs:
             -Uri "https://github.com/godotengine/godot-builds/releases/download/4.8-dev6/Godot_v4.8-dev6_mono_win64.zip" `
             -OutFile $archive
           Expand-Archive -LiteralPath $archive -DestinationPath $install
-          $godot = Join-Path $install "Godot_v4.8-dev6_mono_win64.exe"
-          if (-not (Test-Path $godot -PathType Leaf)) {
-            throw "Godot 4.8-dev6 Mono executable was not found in the release archive."
+          $godot = Get-ChildItem -LiteralPath $install -Filter "Godot_v4.8-dev6_mono_win64.exe" -File -Recurse |
+            Select-Object -First 1
+          if (-not $godot) {
+            $contents = Get-ChildItem -LiteralPath $install -File -Recurse |
+              ForEach-Object { $_.FullName }
+            throw "Godot 4.8-dev6 Mono executable was not found. Archive files: $($contents -join ', ')"
           }
-          "GODOT_BIN=$godot" >> $env:GITHUB_ENV
+          "GODOT_BIN=$($godot.FullName)" >> $env:GITHUB_ENV
 
       - name: Build and validate native Windows Jenova runtime
         shell: pwsh
