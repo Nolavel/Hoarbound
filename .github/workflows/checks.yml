@@ -185,6 +185,15 @@ jobs:
             --script tools/ci/build_jenova_project.gd 2>&1 | tee /tmp/jenova-build.log
           grep -q "JENOVA_BUILD_OK" /tmp/jenova-build.log
 
+      - name: Upload Linux Jenova build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-linux-build-log
+          path: /tmp/jenova-build.log
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Capture 6.5 second frost pass
         run: |
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
