@@ -5,6 +5,25 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Linux Jenova runtime rebuilt with shared libstdc++; Import gate fixed
+
+- `Jenova/Jenova.Runtime.Linux64.so` (17.9 MB, was 20.1 MB) and
+  `GodotSDK/libGodot.x64.a` come from `[jenova-frost-preview]` run
+  37814389505. The runtime now needs the shared `libstdc++.so.6`. In that run
+  the cold import gate passed on it. With the old static-libstdc++ runtime the
+  same pass aborted with SIGSEGV in `std::regex`.
+- **Verified on Windows:** in the editor on the author's machine,
+  `BuildProject` compiled `frost_window.cpp` in 23 s with the local AiO MSVC
+  toolchain. The frost lab scene then logged "C++ controller ready" and
+  "frost pass reached 100% in 6.50 seconds".
+- `tools/ci/build_jenova_project.gd` sets `jenova/editor_verbose_output` to
+  standard output and waits for the settings to apply. Headless CI builds
+  previously failed with no compiler output.
+- `.gitignore` excludes `Jenova/~*`, the runtime copy Jenova keeps while the
+  editor runs.
+- **Open:** the Jenova C++ script build still fails on Linux
+  (`BuildProject` returned false with no output in run 37814389505).
+
 ### 2026-10-09 - Windows Jenova runtime vendored; Linux import crash diagnosed
 
 - **Windows binaries vendored** from CI run 37808998143 through Git LFS:

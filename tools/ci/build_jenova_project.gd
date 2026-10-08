@@ -6,7 +6,12 @@ extends SceneTree
 ## editor's Build Solution action.
 
 const MAX_WAIT_FRAMES := 600
+## jenova/editor_verbose_output: 0 standard output, 1 Jenova terminal (default), 2 off.
+const VERBOSE_STANDARD_OUTPUT := 0
+## Frames for Jenova to apply the changed editor settings before the build starts.
+const SETTINGS_SETTLE_FRAMES := 10
 var _frame := 0
+var _configured_frame := -1
 var _started := false
 
 
@@ -28,9 +33,26 @@ func _process(_delta: float) -> bool:
 	# Give EditorPlugin registration a few frames after ClassDB becomes visible.
 	if _frame < 20:
 		return false
+	if _configured_frame < 0:
+		_configure()
+		_configured_frame = _frame
+		return false
+	if _frame - _configured_frame < SETTINGS_SETTLE_FRAMES:
+		return false
 	_started = true
 	_call_deferred_build()
 	return false
+
+
+## Headless editors have no Jenova terminal; route its build log and compiler
+## errors to standard output so CI logs show why a build failed.
+func _configure() -> void:
+	var settings := EditorInterface.get_editor_settings()
+	var compiler_model: int = 1 if OS.get_name() == "Linux" else 0
+	settings.set_setting("jenova/editor_verbose_output", VERBOSE_STANDARD_OUTPUT)
+	settings.set_setting("jenova/compiler_model", compiler_model)
+	settings.set_setting("jenova/multi_threaded_compilation", true)
+	settings.set_setting("jenova/generate_debug_information", false)
 
 
 func _call_deferred_build() -> void:
@@ -38,16 +60,7 @@ func _call_deferred_build() -> void:
 
 
 func _build() -> void:
-	var settings := EditorInterface.get_editor_settings()
-	var compiler_model: int = 0
-	var compiler_name: String = "MSVC"
-	if OS.get_name() == "Linux":
-		compiler_model = 1
-		compiler_name = "Clang"
-	settings.set_setting("jenova/compiler_model", compiler_model)
-	settings.set_setting("jenova/multi_threaded_compilation", true)
-	settings.set_setting("jenova/generate_debug_information", false)
-
+	var compiler_name: String = "Clang" if OS.get_name() == "Linux" else "MSVC"
 	var plugin: Object = ClassDB.class_call_static(&"JenovaEditorPlugin", &"GetInstance")
 	if plugin == null:
 		push_error("[jenova-ci] JenovaEditorPlugin singleton is null")
