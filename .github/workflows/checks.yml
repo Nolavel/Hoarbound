@@ -159,6 +159,19 @@ jobs:
       - name: Build Jenova Runtime + Godot 4.8-dev6 SDK
         run: bash tools/ci/bootstrap_jenova_linux.sh
 
+      ## Uploaded first so a later failure still yields the rebuilt runtime.
+      - name: Upload Linux Jenova vendor candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-linux-vendor
+          path: Jenova/**
+          if-no-files-found: error
+          retention-days: 7
+
+      ## The cold import must survive the rebuilt runtime (it aborted with the static libstdc++ one).
+      - name: Import gate with the rebuilt runtime
+        run: tools/ci/import_gate.sh
+
       - name: Build C++ scripts through Jenova BuildProject
         run: |
           set -o pipefail
@@ -204,14 +217,6 @@ jobs:
             docs/runtime_previews/jenova_frost/stages/*.png
             docs/runtime_previews/jenova_frost/report.json
             Jenova/HOARBOUND_JENOVA_BUILD.txt
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload Linux Jenova vendor candidate
-        uses: actions/upload-artifact@v4
-        with:
-          name: hoarbound-jenova-linux-vendor
-          path: Jenova/**
           if-no-files-found: error
           retention-days: 7
 
