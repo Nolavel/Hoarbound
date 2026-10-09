@@ -6,6 +6,10 @@ class_name Player
 signal movement_stopped
 
 const THERMAL_SCRIPT: GDScript = preload("res://scripts/systems/survival/thermal_manager.gd")
+## Eye height above the body origin, which is the capsule centre 1 m above the feet.
+const EYE_ABOVE_ORIGIN: float = 0.62
+## Furthest point the player's aim names as Henry's look target, metres.
+const VIEW_TARGET_RANGE: float = 8.0
 
 # === КОМПОНЕНТЫ ===
 @onready var movement: MovementController = $MovementController
@@ -272,8 +276,6 @@ func is_action_locking() -> bool:
 	return is_instance_valid(animation_component) and animation_component.is_action_locking()
 
 
-## Flat direction the active camera looks, for the head look; Henry's facing
-## when there is no camera.
 ## Wet clothes show on the body: the thermal model's wetness darkens them.
 func on_world_ready(context: WorldContext) -> void:
 	var held_light := get_node_or_null(^"HeldLightComponent") as HeldLightComponent
@@ -297,11 +299,56 @@ func on_world_ready(context: WorldContext) -> void:
 	animation_component.set_wetness(thermal.get_wetness())
 
 
+## Flat direction the player aims, for Henry's attention; his facing without a camera.
 func get_view_direction() -> Vector3:
 	var camera: Camera3D = get_viewport().get_camera_3d()
-	var forward: Vector3 = -(camera.global_transform.basis.z if camera != null else global_transform.basis.z)
+	## The gameplay aim ray through the screen centre, not the lens-shifted basis.
+	var forward: Vector3 = TpsCamera.aim_direction(camera) if camera != null else -global_transform.basis.z
 	forward.y = 0.0
 	return forward.normalized() if forward.length() > 0.001 else -global_transform.basis.z
+
+
+## The point the player aims at: the nearer of the aim ray's first solid hit and an
+## interactable's focus area it passes through. Henry looks at this point, so the
+## camera's shoulder offset does not skew his look.
+func get_view_target() -> Vector3:
+	var camera: Camera3D = get_viewport().get_camera_3d()
+	if camera == null:
+		return global_position + Vector3.UP * EYE_ABOVE_ORIGIN - global_transform.basis.z * VIEW_TARGET_RANGE
+	var from: Vector3 = TpsCamera.aim_origin(camera)
+	var aim: Vector3 = TpsCamera.aim_direction(camera)
+	var depth: float = VIEW_TARGET_RANGE
+	var ray := PhysicsRayQueryParameters3D.create(from, from + aim * depth)
+	ray.exclude = [get_rid()]
+	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(ray)
+	if not hit.is_empty():
+		depth = from.distance_to(hit["position"])
+	## Pickups are trigger Areas without solid bodies; the ray must still stop on them.
+	for node: Node in get_tree().get_nodes_in_group(InteractiveArea.INTERACTIVE_GROUP):
+		var area := node as InteractiveArea
+		if area == null or not area.can_interact():
+			continue
+		var point: Vector3 = area.get_focus_point(global_position)
+		var along: float = (point - from).dot(aim)
+		if along > 0.0 and along < depth and (from + aim * along).distance_to(point) <= area.focus_radius:
+			depth = along
+	return from + aim * depth
+
+
+## Henry's attention origin: his head, or eye height when he has no rig.
+func get_attention_origin() -> Vector3:
+	if is_instance_valid(animation_component):
+		return animation_component.get_attention_origin()
+	return global_position + Vector3.UP * EYE_ABOVE_ORIGIN
+
+
+## Henry's attention: the look target his head follows, flat.
+func get_attention_direction() -> Vector3:
+	if is_instance_valid(animation_component):
+		return animation_component.get_attention_direction()
+	var forward: Vector3 = -global_transform.basis.z
+	forward.y = 0.0
+	return forward.normalized()
 
 
 ## Starts a walk to a point; WASD takes control back at once.

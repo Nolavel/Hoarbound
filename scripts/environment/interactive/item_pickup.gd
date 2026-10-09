@@ -49,6 +49,10 @@ func _ready() -> void:
 	set_description("%s · %s" % [item_name, status] if status != "" else "")
 
 
+func get_interaction_channel() -> InteractionChannel:
+	return InteractionChannel.PICKUP
+
+
 func can_interact() -> bool:
 	var work: WoodWorkComponent = _wood_work()
 	return super() and ItemCatalog.get_item(item_id) != null and (work == null or not work.is_chopping(self))

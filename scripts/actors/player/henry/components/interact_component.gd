@@ -1,64 +1,78 @@
 class_name InteractComponent
 extends Node3D
 
-## The objects before Henry form a group; the one nearest his gaze is the target.
-## A requested pickup stays selected for arrival even as the walking camera moves.
+## Two attentions pick what F acts on: the player's view picks world mechanisms,
+## Henry's head picks pickups. World wins F; a pickup acts only when it can be done.
 
-## What is targeted and whether it is already within arm's reach.
-signal interact_target_changed(target: InteractiveArea, in_reach: bool)
+## The world mechanism under the player's view, and whether it is at arm's length.
+signal world_target_changed(target: InteractiveArea, in_reach: bool)
+## The pickup Henry attends to, and whether F would take it now.
+signal pickup_target_changed(target: InteractiveArea, actionable: bool)
+## What F acts on right now: the world target, else an actionable pickup.
+signal active_target_changed(target: InteractiveArea)
 ## Emitted after F acted on a target.
 signal interaction_performed(target: InteractiveArea)
 
-## Line of sight and the gaze ray start at Henry's chest, not at the camera.
-const CHEST_HEIGHT: float = 1.3
+## Seconds between special-awareness scans; they are rare and cheap.
+const AWARENESS_INTERVAL: float = 0.2
 
 @export_group("Intent")
-## Flat distance to an object's focus point at which it joins the group.
+## Flat distance from Henry within which objects can be selected at all.
 @export var intent_radius: float = 2.5
-## Standing, objects further than this angle from Henry's body facing never join.
-@export_range(1.0, 180.0, 1.0) var facing_limit_deg: float = 100.0
-## Inside this flat distance the facing cone is waived: the item at Henry's feet.
-@export var close_override: float = 0.5
-## Standing still, Henry's head turns towards the view by at most this angle.
-## Keep it equal to HenryUALAnimation.head_look_primary_limit_deg.
-@export_range(0.0, 90.0, 1.0) var head_turn_limit_deg: float = 55.0
-## Below this flat speed Henry counts as standing and looks with his head, m/s.
-@export var still_speed: float = 0.15
-## Gaze score falls from 1 on the gaze line to 0 at this angle off it.
-@export_range(1.0, 180.0, 1.0) var gaze_cone_deg: float = 60.0
-## Score weight of how exactly Henry looks at the object; keep above distance_weight.
-@export var gaze_weight: float = 1.0
-## Score weight of closeness within the radius; a tie-breaker.
-@export var distance_weight: float = 0.25
-## Score bonus that keeps the current target until another clearly wins.
-@export var hysteresis_bonus: float = 0.05
 
-@export_group("Markers")
-## Group members besides the target that show a dim marker at once.
+@export_group("World")
+## The view's aim must pass this close to a mechanism's focus area, degrees.
+@export_range(1.0, 45.0, 0.5) var world_aim_cone_deg: float = 10.0
+## The current world target stays selected until the aim leaves this wider cone.
+@export_range(1.0, 3.0, 0.05) var world_exit_scale: float = 1.5
+## Score bonus that keeps the current world target until another clearly wins.
+@export var hysteresis_bonus: float = 0.1
+## A world target missing for one or two frames is kept this long, seconds.
+@export var world_grace_seconds: float = 0.15
+
+@export_group("Pickup attention")
+## Half-angle of Henry's pickup awareness field around his attention, degrees.
+@export_range(10.0, 90.0, 1.0) var pickup_field_deg: float = 90.0
+## Inside this flat distance the field is waived: the item at Henry's feet.
+@export var close_override: float = 0.35
+## Distance cost per metre, in degrees of attention error; a tie-breaker.
+@export var distance_cost_deg_per_m: float = 6.0
+## A challenger must beat the dominant pickup by this many degrees.
+@export var switch_margin_deg: float = 4.0
+## A dominant pickup losing line of sight for a moment is kept this long, seconds.
+@export var pickup_grace_seconds: float = 0.15
+## Pickups besides the dominant one kept as faint awareness hints.
 @export var max_hint_markers: int = 3
 
 @export_group("Approach")
 ## F acts on the spot inside this flat distance, otherwise Henry walks over.
 @export var pickup_distance: float = 0.9
-## Inside this distance the object shows its F prompt instead of a marker.
+## Inside this distance a world target shows its central F prompt.
 @export var prompt_distance: float = 2.0
 ## Seated, Henry leans: this far, picked by where he looks (stove ring, table).
 @export var seated_reach: float = 2.0
-## Seated, a target must lie within this angle of Henry's gaze.
+## Seated, the view's aim cone is this wide, degrees.
 @export var seated_aim_deg: float = 35.0
 ## Gives up a walk that stops making progress, seconds.
 @export var approach_timeout: float = 4.0
 
-var current_target: InteractiveArea = null
+var world_target: InteractiveArea = null
+var pickup_target: InteractiveArea = null
 
 var _player: CharacterBody3D
-var _last_in_reach: bool = false
-var _last_in_prompt: bool = false
+var _world_in_reach: bool = false
+var _world_in_prompt: bool = false
+var _world_missing: float = 0.0
+var _pickup_actionable: bool = false
+var _pickup_missing: float = 0.0
+var _pickup_candidates: Array[InteractiveArea] = []
+var _active: InteractiveArea = null
 var _pending: InteractiveArea = null
 var _approach_elapsed: float = 0.0
 var _approach_stopped: bool = false
-## Marker state last sent to each object, so leavers are switched off once.
-var _markers: Dictionary = {}
+var _awareness_left: float = 0.0
+## Special-awareness objects currently showing their check mark.
+var _aware: Dictionary = {}
 
 
 func _ready() -> void:
@@ -73,180 +87,303 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _player == null:
 		return
-	detect_target()
+	detect_target(delta)
 	_update_approach(delta)
+	_awareness_left -= delta
+	if _awareness_left <= 0.0:
+		_awareness_left = AWARENESS_INTERVAL
+		_update_awareness()
 
 
-## Re-picks the target now; normally run every physics frame.
-func detect_target() -> void:
-	if not is_instance_valid(current_target):
-		if _last_in_reach or _last_in_prompt:
-			_clear_current_target(false)
-		current_target = null
-	elif current_target.is_queued_for_deletion() or not current_target.can_interact():
-		_clear_current_target()
-	var found: InteractiveArea = _find_best_target()
-	var distance: float = _flat_distance_to(found) if found != null else INF
-	var in_reach: bool = distance <= _reach()
-	var in_prompt: bool = distance <= prompt_distance
-	var changed: bool = found != current_target
-	if changed:
-		if current_target != null:
-			current_target.set_target_state(false, false)
-		current_target = found
-		if found != null:
-			found.set_target_state(true, in_prompt)
-	elif found != null and in_prompt != _last_in_prompt:
-		found.set_target_state(true, in_prompt)
-	if changed or in_reach != _last_in_reach or in_prompt != _last_in_prompt:
-		interact_target_changed.emit(current_target, in_reach)
-	_last_in_reach = in_reach
-	_last_in_prompt = in_prompt
+## Re-picks both channels now; normally run every physics frame.
+func detect_target(delta: float = 0.0) -> void:
+	var seated: bool = _is_seated()
+	_set_world(_resolve_world(seated, delta))
+	_set_pickup(_resolve_pickup(seated, delta))
+	_refresh_active()
 
 
-func is_target_in_reach() -> bool:
-	return is_instance_valid(current_target) and _flat_distance_to(current_target) <= _reach()
+func get_world_target() -> InteractiveArea:
+	return world_target if _is_available(world_target) else null
 
 
-## Clears the authoritative focus state, not just its visuals. This is used when
-## a target is consumed, disabled, queued for deletion or disappears from the tree.
-func _clear_current_target(update_target_state: bool = true) -> void:
-	var previous: InteractiveArea = current_target
-	if update_target_state and is_instance_valid(previous):
-		previous.set_target_state(false, false)
-	current_target = null
-	_last_in_reach = false
-	_last_in_prompt = false
-	if _pending == previous:
-		_stop_approach()
-	interact_target_changed.emit(null, false)
+func is_world_target_in_reach() -> bool:
+	return _is_available(world_target) and _flat_distance_to(world_target) <= _reach()
 
 
-## F states an intent: act now at arm's length, or walk over and act on arrival.
+func get_pickup_target() -> InteractiveArea:
+	return pickup_target if _is_available(pickup_target) else null
+
+
+## True when F would take the dominant pickup: no world target and a way to do it.
+func is_pickup_actionable() -> bool:
+	return _is_available(pickup_target) and _pickup_actionable and get_world_target() == null
+
+
+## The faint-hint pickups after the dominant one, best first.
+func get_pickup_candidates() -> Array[InteractiveArea]:
+	var alive: Array[InteractiveArea] = []
+	for area: InteractiveArea in _pickup_candidates:
+		if _is_available(area) and area != pickup_target:
+			alive.append(area)
+	return alive
+
+
+## What F acts on right now: the world target, else an actionable pickup.
+func get_active_target() -> InteractiveArea:
+	var world: InteractiveArea = get_world_target()
+	if world != null:
+		return world
+	return pickup_target if is_pickup_actionable() else null
+
+
+## Whether F acts on the active target on the spot rather than walking over.
+func is_active_target_in_reach() -> bool:
+	var target: InteractiveArea = get_active_target()
+	return target != null and _flat_distance_to(target) <= _reach()
+
+
+## F states an intent: the world mechanism under the view first, else the pickup Henry attends to.
 func try_interact() -> void:
 	if _is_blocked():
 		return
-	if not is_instance_valid(current_target):
-		_clear_current_target(false)
+	detect_target()
+	var world: InteractiveArea = get_world_target()
+	if world != null:
+		if _flat_distance_to(world) <= _reach():
+			_stop_approach()
+			_perform(world)
+		elif not _is_seated():
+			_begin_approach(world)
 		return
-	if current_target.is_queued_for_deletion() or not current_target.can_interact():
-		_clear_current_target()
+	if not is_pickup_actionable():
 		return
-	if _flat_distance_to(current_target) <= _reach():
+	var pickup: InteractiveArea = pickup_target
+	if _flat_distance_to(pickup) <= _reach():
 		_stop_approach()
-		_perform(current_target)
-		return
-	if not _is_seated():
-		_begin_approach(current_target)
+		_perform(pickup)
+	elif not _is_seated():
+		_begin_approach(pickup)
 
 
 func _perform(target: InteractiveArea) -> void:
 	if not is_instance_valid(target):
 		return
 	## Pickups request their animation only after inventory acceptance.
-	if not (target is ItemPickup) and _player != null and _player.has_method(&"play_action_animation"):
+	if target.get_interaction_channel() != InteractiveArea.InteractionChannel.PICKUP \
+		and _player != null and _player.has_method(&"play_action_animation"):
 		var action: StringName = target.player_animation_action
 		if action == &"":
 			action = &"interact"
 		_player.call(&"play_action_animation", action)
 	target.interact()
-	# A consumed/deactivated target stops being authoritative before UI observers
-	# receive interaction_performed. This prevents one stale process frame.
-	if current_target == target and is_instance_valid(target):
-		if target.is_queued_for_deletion() or not target.can_interact():
-			_clear_current_target()
+	## A consumed target stops being authoritative before observers hear interaction_performed.
+	if not _is_available(target):
+		if target == world_target:
+			_set_world(null)
+		if target == pickup_target:
+			_set_pickup(null)
+		_refresh_active()
 	interaction_performed.emit(target)
 
 
-## Builds the group before Henry, marks it, and returns its dominant member.
-func _find_best_target() -> InteractiveArea:
-	var seated: bool = _is_seated()
+## The world mechanism nearest the view's aim, within reach of Henry and in sight of the camera.
+func _resolve_world(seated: bool, delta: float) -> InteractiveArea:
+	var previous: InteractiveArea = world_target if _is_available(world_target) else null
 	var radius: float = seated_reach if seated else intent_radius
-	var group: Array[InteractiveArea] = _visible_group(seated, radius)
-	var best: InteractiveArea = group[0] if not group.is_empty() else null
-	if is_instance_valid(current_target) and current_target.keeps_focus() \
-		and current_target.can_interact() and _flat_distance_to(current_target) <= radius:
-		best = current_target
-	_mark_group(group, best, radius)
-	return best
-
-
-## Candidates that pass the gates, best gaze score first, cut to those Henry can see.
-func _visible_group(seated: bool, radius: float) -> Array[InteractiveArea]:
-	var origin: Vector3 = _player.global_position
-	var chest: Vector3 = _chest()
-	var facing: Vector3 = get_facing_direction()
-	var gaze: Vector3 = get_gaze_direction()
-	var facing_limit: float = deg_to_rad(facing_limit_deg)
-	var gaze_cone: float = deg_to_rad(gaze_cone_deg)
-	var seated_limit: float = deg_to_rad(seated_aim_deg)
+	if previous != null and previous.keeps_focus() and _flat_distance_to_focus(previous) <= radius:
+		return previous
+	var camera: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	if camera == null:
+		return null
+	var from: Vector3 = TpsCamera.aim_origin(camera)
+	var aim: Vector3 = TpsCamera.aim_direction(camera)
+	var cone: float = deg_to_rad(seated_aim_deg if seated else world_aim_cone_deg)
 	var scores: Dictionary = {}
 	for node: Node in get_tree().get_nodes_in_group(InteractiveArea.INTERACTIVE_GROUP):
 		var raw := node as InteractiveArea
-		if not _is_available(raw):
+		if not _is_world_candidate(raw) or not raw.accepts_focus(from, aim):
 			continue
-		var aim: Vector3 = _gaze_ray(chest, gaze, raw.get_focus_point(origin))
-		if not raw.accepts_focus(chest, aim):
+		var area: InteractiveArea = raw.resolve_focus(from, aim)
+		if not _is_world_candidate(area) or scores.has(area):
 			continue
-		var area: InteractiveArea = raw.resolve_focus(chest, aim)
-		if not _is_available(area) or scores.has(area):
+		if _flat_distance_to_focus(area) > radius:
+			continue
+		var to_point: Vector3 = area.get_focus_point(_player.global_position) - from
+		var distance: float = to_point.length()
+		if distance < 0.01:
+			continue
+		## The focus radius widens acceptance only; ranking stays on the true angle.
+		var angle: float = aim.angle_to(to_point)
+		var limit: float = cone * (world_exit_scale if area == previous else 1.0) + atan(area.focus_radius / distance)
+		if angle > limit:
+			continue
+		var score: float = 1.0 - angle / limit + area.focus_priority
+		if area == previous:
+			score += hysteresis_bonus
+		scores[area] = score
+	var ranked: Array = scores.keys()
+	ranked.sort_custom(func(a: InteractiveArea, b: InteractiveArea) -> bool: return float(scores[a]) > float(scores[b]))
+	for area: InteractiveArea in ranked:
+		if _camera_sees(from, area):
+			_world_missing = 0.0
+			return area
+	## Grace covers a target still under the aim but briefly out of sight, never one the view left.
+	if previous != null and scores.has(previous) and _world_missing + delta < world_grace_seconds:
+		_world_missing += delta
+		return previous
+	_world_missing = 0.0
+	return null
+
+
+## The pickup nearest Henry's attention inside his awareness field; distance breaks ties.
+func _resolve_pickup(seated: bool, delta: float) -> InteractiveArea:
+	_pickup_candidates.clear()
+	if _pickup_channel_suspended():
+		return null
+	var previous: InteractiveArea = pickup_target if _is_available(pickup_target) else null
+	var origin: Vector3 = get_attention_origin()
+	var attention: Vector3 = get_attention_direction()
+	var radius: float = seated_reach if seated else intent_radius
+	var field: float = seated_aim_deg if seated else pickup_field_deg
+	var costs: Dictionary = {}
+	for node: Node in get_tree().get_nodes_in_group(InteractiveArea.INTERACTIVE_GROUP):
+		var area := node as InteractiveArea
+		if not _is_available(area) or area.get_interaction_channel() != InteractiveArea.InteractionChannel.PICKUP:
 			continue
 		var to_point: Vector3 = area.get_focus_point(origin) - origin
 		to_point.y = 0.0
 		var distance: float = to_point.length()
 		if distance > radius:
 			continue
-		var close: bool = distance <= close_override
-		if not seated and not close and facing.angle_to(to_point) > facing_limit:
+		var error: float = rad_to_deg(attention.angle_to(to_point)) if distance > 0.001 else 0.0
+		if error > field and distance > close_override:
 			continue
-		var gaze_angle: float = gaze.angle_to(to_point) if distance > 0.001 else 0.0
-		if seated and not close and gaze_angle > seated_limit:
-			continue
-		var score: float = gaze_weight * clampf(1.0 - gaze_angle / gaze_cone, 0.0, 1.0) \
-			+ distance_weight * (1.0 - distance / radius) + area.focus_priority
-		if area == current_target:
-			score += hysteresis_bonus
-		scores[area] = score
-	var ranked: Array = scores.keys()
-	ranked.sort_custom(func(a: InteractiveArea, b: InteractiveArea) -> bool: return float(scores[a]) > float(scores[b]))
-	var group: Array[InteractiveArea] = []
+		var cost: float = error + distance_cost_deg_per_m * distance
+		if area == previous:
+			cost -= switch_margin_deg
+		costs[area] = cost
+	var ranked: Array = costs.keys()
+	ranked.sort_custom(func(a: InteractiveArea, b: InteractiveArea) -> bool: return float(costs[a]) < float(costs[b]))
 	for area: InteractiveArea in ranked:
-		if group.size() > max_hint_markers:
+		if _pickup_candidates.size() > max_hint_markers:
 			break
-		if _has_line_of_sight(area):
-			group.append(area)
-	return group
+		if _head_sees(origin, area):
+			_pickup_candidates.append(area)
+	var dominant: InteractiveArea = _pickup_candidates[0] if not _pickup_candidates.is_empty() else null
+	## A dominant pickup still in the field but briefly out of sight is held, not swapped.
+	if previous != null and costs.has(previous) and not _pickup_candidates.has(previous) \
+		and _pickup_missing + delta < pickup_grace_seconds:
+		_pickup_missing += delta
+		return previous
+	_pickup_missing = 0.0
+	return dominant
 
 
-## Henry's gaze, flat: moving, his body; standing or seated, his head turned
-## towards the view direction as far as his neck allows.
-func get_gaze_direction() -> Vector3:
-	var facing: Vector3 = get_facing_direction()
-	if not _player.has_method(&"get_view_direction"):
-		return facing
-	var planar_speed: float = Vector2(_player.velocity.x, _player.velocity.z).length()
-	if planar_speed >= still_speed and not _is_seated():
-		return facing
-	var view: Vector3 = _player.call(&"get_view_direction")
-	view.y = 0.0
-	if view.length() < 0.001:
-		return facing
-	var limit: float = deg_to_rad(head_turn_limit_deg)
-	var yaw: float = clampf(facing.signed_angle_to(view.normalized(), Vector3.UP), -limit, limit)
-	return facing.rotated(Vector3.UP, yaw)
+## Henry's attention origin, from his rig when he has one.
+func get_attention_origin() -> Vector3:
+	if _player.has_method(&"get_attention_origin"):
+		return _player.call(&"get_attention_origin")
+	return _player.global_position + Vector3.UP * Player.EYE_ABOVE_ORIGIN
 
 
-## The gaze line pitched to the object's height: Henry looks along his gaze at its level.
-func _gaze_ray(chest: Vector3, gaze: Vector3, point: Vector3) -> Vector3:
-	var flat: Vector3 = point - chest
-	flat.y = 0.0
-	var ray: Vector3 = gaze * flat.length() + Vector3.UP * (point.y - chest.y)
-	return ray.normalized() if ray.length() > 0.001 else gaze
+## Henry's flat attention direction; his facing when the body offers none.
+func get_attention_direction() -> Vector3:
+	var direction: Vector3 = _player.call(&"get_attention_direction") if _player.has_method(&"get_attention_direction") \
+		else -_player.global_transform.basis.z
+	direction.y = 0.0
+	return direction.normalized() if direction.length() > 0.001 else Vector3.FORWARD
 
 
-## Henry's chest to the focus point; the object's own bodies never occlude it.
-func _has_line_of_sight(area: InteractiveArea) -> bool:
-	var ray := PhysicsRayQueryParameters3D.create(_chest(), area.get_focus_point(_player.global_position))
+## Opt-in check marks: rare objects Henry notices around him, in sight of his head.
+func _update_awareness() -> void:
+	var origin: Vector3 = get_attention_origin()
+	var shown: Dictionary = {}
+	for node: Node in get_tree().get_nodes_in_group(InteractiveArea.AWARENESS_GROUP):
+		var area := node as InteractiveArea
+		if not _is_available(area):
+			continue
+		var offset: Vector3 = area.get_focus_point(origin) - origin
+		offset.y = 0.0
+		var distance: float = offset.length()
+		if distance > area.awareness_radius or not _head_sees(origin, area):
+			continue
+		area.set_hint_state(InteractiveArea.MarkerState.DOMINANT, 1.0 - clampf(distance / area.awareness_radius, 0.0, 0.6), origin)
+		shown[area] = true
+	for area: Variant in _aware.keys():
+		if not shown.has(area) and is_instance_valid(area):
+			(area as InteractiveArea).set_hint_state(InteractiveArea.MarkerState.HIDDEN, 0.0, origin)
+	_aware = shown
+
+
+func _set_world(target: InteractiveArea) -> void:
+	var in_reach: bool = target != null and _flat_distance_to(target) <= _reach()
+	var in_prompt: bool = target != null and _flat_distance_to(target) <= prompt_distance
+	var changed: bool = target != world_target
+	if changed:
+		if is_instance_valid(world_target):
+			world_target.set_target_state(false, false)
+		world_target = target
+		if target != null:
+			target.set_target_state(true, in_prompt)
+	elif target != null and in_prompt != _world_in_prompt:
+		target.set_target_state(true, in_prompt)
+	if changed or in_reach != _world_in_reach:
+		_world_in_reach = in_reach
+		world_target_changed.emit(target, in_reach)
+	_world_in_prompt = in_prompt
+	if target == null:
+		_world_missing = 0.0
+
+
+func _set_pickup(target: InteractiveArea) -> void:
+	var actionable: bool = target != null and _can_act_on_pickup(target)
+	var changed: bool = target != pickup_target
+	pickup_target = target
+	if changed or actionable != _pickup_actionable:
+		_pickup_actionable = actionable
+		pickup_target_changed.emit(target, actionable)
+	if target == null:
+		_pickup_missing = 0.0
+
+
+func _refresh_active() -> void:
+	var active: InteractiveArea = get_active_target()
+	if active != _active:
+		_active = active
+		active_target_changed.emit(active)
+
+
+## Whether F could take this pickup: within reach, or a walk can bring Henry there.
+func _can_act_on_pickup(target: InteractiveArea) -> bool:
+	return _flat_distance_to(target) <= _reach() or not _is_seated()
+
+
+func _is_world_candidate(area: InteractiveArea) -> bool:
+	return _is_available(area) and area.get_interaction_channel() == InteractiveArea.InteractionChannel.WORLD
+
+
+## Board placement and the open Hub own the hands and the view; no pickup is offered.
+func _pickup_channel_suspended() -> bool:
+	var placement := get_tree().get_first_node_in_group(&"active_board_placement") as BreachBoardUp
+	if is_instance_valid(placement) and placement.is_placing_board():
+		return true
+	var hub := _player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
+	return hub != null and hub.is_open()
+
+
+## Camera to focus point; the object's own bodies never occlude it.
+func _camera_sees(from: Vector3, area: InteractiveArea) -> bool:
+	return _sees(from, area.get_focus_point(_player.global_position), area)
+
+
+## Henry's head to the focus point; the object's own bodies never occlude it.
+func _head_sees(origin: Vector3, area: InteractiveArea) -> bool:
+	return _sees(origin, area.get_focus_point(origin), area)
+
+
+func _sees(from: Vector3, point: Vector3, area: InteractiveArea) -> bool:
+	var ray := PhysicsRayQueryParameters3D.create(from, point)
 	ray.collide_with_areas = false
 	ray.collide_with_bodies = true
 	ray.exclude = [_player.get_rid()]
@@ -254,33 +391,6 @@ func _has_line_of_sight(area: InteractiveArea) -> bool:
 	if hit.is_empty():
 		return true
 	return _owns_focus_body(_area_from(hit.get("collider")), area)
-
-
-## The target gets the bright marker, the rest of the group a dim one, others none.
-## Opacity fades out between prompt_distance and the group radius.
-func _mark_group(group: Array[InteractiveArea], target: InteractiveArea, radius: float) -> void:
-	var origin: Vector3 = _player.global_position
-	var fade_span: float = maxf(radius - prompt_distance, 0.001)
-	var marked: Dictionary = {}
-	var dim_left: int = max_hint_markers
-	for area: InteractiveArea in group:
-		var state: InteractiveArea.MarkerState = InteractiveArea.MarkerState.DOMINANT
-		if area != target:
-			if dim_left <= 0:
-				continue
-			dim_left -= 1
-			state = InteractiveArea.MarkerState.DIM
-		var distance: float = _flat_distance_to(area)
-		area.set_hint_state(state, 1.0 - clampf((distance - prompt_distance) / fade_span, 0.0, 1.0), origin)
-		marked[area] = state
-	for area: Variant in _markers.keys():
-		if not marked.has(area) and is_instance_valid(area):
-			(area as InteractiveArea).set_hint_state(InteractiveArea.MarkerState.HIDDEN, 0.0, origin)
-	_markers = marked
-
-
-func _chest() -> Vector3:
-	return _player.global_position + Vector3.UP * CHEST_HEIGHT
 
 
 func _is_available(area: InteractiveArea) -> bool:
@@ -294,13 +404,6 @@ func _is_seated() -> bool:
 
 func _reach() -> float:
 	return seated_reach if _is_seated() else pickup_distance
-
-
-## Henry's flat forward; the body faces -Z.
-func get_facing_direction() -> Vector3:
-	var forward: Vector3 = -_player.global_transform.basis.z
-	forward.y = 0.0
-	return forward.normalized() if forward.length() > 0.001 else Vector3.FORWARD
 
 
 func _area_from(collider: Variant) -> InteractiveArea:
@@ -330,6 +433,12 @@ func _flat_distance_to(target: Node3D) -> float:
 	return offset.length()
 
 
+func _flat_distance_to_focus(area: InteractiveArea) -> float:
+	var offset: Vector3 = area.get_focus_point(_player.global_position) - _player.global_position
+	offset.y = 0.0
+	return offset.length()
+
+
 ## Walks to a point on the line from the target toward Henry, inside reach.
 func _begin_approach(target: InteractiveArea) -> void:
 	if not _player.has_method(&"move_to_position"):
@@ -346,25 +455,24 @@ func _begin_approach(target: InteractiveArea) -> void:
 	_player.call(&"move_to_position", stop_point)
 
 
-## Pickup arrival uses the item requested by F, not the moving camera's focus.
-## Other interactions keep their live focus requirement.
+## A committed pickup arrives on the item F chose, never on the attention's new favourite.
+## A world mechanism must still be under the view on arrival.
 func _update_approach(delta: float) -> void:
 	if _pending == null:
 		return
-	if not is_instance_valid(_pending) or _pending.is_queued_for_deletion() \
-		or not _pending.can_interact() or _is_blocked():
+	if not _is_available(_pending) or _is_blocked():
 		_stop_approach()
 		return
-	var pickup_requested: bool = _pending is ItemPickup
+	var committed: bool = _pending.get_interaction_channel() == InteractiveArea.InteractionChannel.PICKUP
 	## WASD taking over cancels the pickup intent before any arrival is processed.
-	if pickup_requested and _approach_stopped:
+	if committed and _approach_stopped:
 		_stop_approach()
 		return
 	var distance: float = _flat_distance_to(_pending)
-	if pickup_requested and distance > intent_radius:
+	if committed and distance > intent_radius:
 		_stop_approach()
 		return
-	if (pickup_requested or _pending == current_target) and distance <= _reach():
+	if (committed or _pending == world_target) and distance <= _reach():
 		var target: InteractiveArea = _pending
 		_stop_approach()
 		_perform(target)
@@ -398,12 +506,6 @@ func _is_blocked() -> bool:
 		return true
 	var state: Node = get_node_or_null(^"/root/PlayerState")
 	return state != null and bool(state.call(&"is_movement_blocked"))
-
-
-
-
-func is_crosshair_focused() -> bool:
-	return is_instance_valid(current_target)
 
 
 func _owns_focus_body(owner_area: InteractiveArea, target: InteractiveArea) -> bool:

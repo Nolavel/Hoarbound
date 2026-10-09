@@ -132,8 +132,8 @@ func _process(delta: float) -> void:
 		return
 
 	var raw_candidate: InteractiveArea = null
-	if is_instance_valid(_interact.current_target):
-		raw_candidate = _interact.current_target
+	if _interact.get_active_target() != null:
+		raw_candidate = _interact.get_active_target()
 
 	if _suppressed_after_press != null:
 		if raw_candidate != _suppressed_after_press:

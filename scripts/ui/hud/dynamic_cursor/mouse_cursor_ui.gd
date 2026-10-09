@@ -230,9 +230,9 @@ func _focused_prompt_target() -> InteractiveArea:
 	var placement := get_tree().get_first_node_in_group(&"active_board_placement") as BreachBoardUp
 	if is_instance_valid(placement) and placement.is_placing_board():
 		return placement
-	if _interact_component == null or not is_instance_valid(_interact_component.current_target):
+	if _interact_component == null or _interact_component.get_world_target() == null:
 		return null
-	var target := _interact_component.current_target
+	var target := _interact_component.get_world_target()
 	if not target.can_interact() or not target.prompt_shown:
 		return null
 	return target

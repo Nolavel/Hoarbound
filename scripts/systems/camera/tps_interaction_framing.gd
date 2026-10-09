@@ -97,7 +97,8 @@ func _process(delta: float) -> void:
 
 func _update_target(delta: float) -> void:
 	var interact := _camera.player.get_node_or_null(^"InteractComponent") as InteractComponent
-	var live: InteractiveArea = interact.current_target if interact != null else null
+	## World mechanisms only: pickup attention never moves the camera.
+	var live: InteractiveArea = interact.get_world_target() if interact != null else null
 	if is_instance_valid(live):
 		_held_target = live
 		_hold_left = target_hold_seconds

@@ -376,10 +376,10 @@ func _abort_for_rack_clearance() -> void:
 
 func _refresh_manual_diagnostics() -> void:
 	var interact := get_node_or_null(^"InteractComponent") as InteractComponent
-	if interact == null or not is_instance_valid(interact.current_target) or not (interact.current_target is EmbodiedLabTarget):
+	if interact == null or not (interact.get_active_target() is EmbodiedLabTarget):
 		_manual_prompt = "SOFT TARGET: aim near a can, not pixel-perfect centre | highlighted can = active | F pick up | WASD move"
 		return
-	var lab_target := interact.current_target as EmbodiedLabTarget
+	var lab_target := interact.get_active_target() as EmbodiedLabTarget
 	var index := lab_target.case_index
 	if index < 0 or index >= _items.size() or not lab_target.available:
 		_manual_prompt = "crosshair target: unavailable"
@@ -391,7 +391,7 @@ func _refresh_manual_diagnostics() -> void:
 	var right := _candidate_report.get("RIGHT", {}) as Dictionary
 	var facing := _body_faces(contact)
 	var path_clear := _rack_reach_is_clear(hand, contact)
-	var action := "F PICK UP" if interact.is_target_in_reach() else "F APPROACH + PICK UP"
+	var action := "F PICK UP" if interact.is_active_target_in_reach() else "F APPROACH + PICK UP"
 	_manual_prompt = "LOCKED %s | chosen=%s | L reach=%.2fx %s | R reach=%.2fx %s | facing=%s | wrist path=%s | %s" % [
 		String(case_data["name"]),
 		String(hand),

@@ -91,15 +91,16 @@ func _input(event: InputEvent) -> void:
 			return
 
 
-## What InteractComponent has at arm's length, other than the seat itself.
+## What F would act on at arm's length, other than the seat itself.
 func _reachable_target() -> InteractiveArea:
 	var body: Node = get_parent()
 	var interact := body.get_node_or_null(^"InteractComponent") as InteractComponent if body != null else null
-	if interact == null or interact.current_target == null or not interact.is_target_in_reach():
+	if interact == null:
 		return null
-	if interact.current_target is RestSpot:
+	var target: InteractiveArea = interact.get_active_target()
+	if target == null or target is RestSpot or not interact.is_active_target_in_reach():
 		return null
-	return interact.current_target
+	return target
 
 
 ## Opens the hours prompt in wait mode; false when there is none (headless).

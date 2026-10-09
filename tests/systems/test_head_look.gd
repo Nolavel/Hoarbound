@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## ADT head look on the UAL mannequin: standing, the head follows the camera
-## the same amount either way up to its limit; walking, it lets go.
+## the same amount either way up to its limit; walking, it lets go. Henry's
+## attention follows the same clamped look, starts at his head and keeps it walking.
 ## Run: godot --headless --script tests/systems/test_head_look.gd
 
 const VISUAL: String = "res://scenes/actors/player/HenryUALVisual.tscn"
@@ -32,17 +33,23 @@ func _physics_process(_delta: float) -> bool:
 			_look(45.0)
 		SETTLE_FRAMES:
 			_readings[&"left45"] = _head_yaw()
+			_readings[&"att_left45"] = _attention_yaw()
 			_look(-45.0)
 		SETTLE_FRAMES * 2:
 			_readings[&"right45"] = _head_yaw()
+			_readings[&"att_right45"] = _attention_yaw()
 			_look(90.0)
 		SETTLE_FRAMES * 3:
 			_readings[&"left90"] = _head_yaw()
+			_readings[&"att_left90"] = _attention_yaw()
 			_look(-90.0)
 		SETTLE_FRAMES * 4:
 			_readings[&"right90"] = _head_yaw()
+			_readings[&"att_right90"] = _attention_yaw()
 			_body.velocity = Vector3(0.0, 0.0, -3.0)
 		SETTLE_FRAMES * 5:
+			_readings[&"att_walk"] = _attention_yaw()
+			_readings[&"origin_gap"] = _visual.get_attention_origin().distance_to(_probe.global_position)
 			_check_and_finish()
 	return false
 
@@ -73,6 +80,10 @@ func _head_yaw() -> float:
 	return rad_to_deg(Vector3.FORWARD.signed_angle_to(forward.normalized(), Vector3.UP))
 
 
+func _attention_yaw() -> float:
+	return rad_to_deg(Vector3.FORWARD.signed_angle_to(_visual.get_attention_direction(), Vector3.UP))
+
+
 func _check_and_finish() -> void:
 	var limit: float = _visual.head_look_primary_limit_deg
 	_check(absf(_readings[&"left45"] - 45.0) < 8.0, "head at %.0f for a 45° left look" % _readings[&"left45"])
@@ -80,6 +91,12 @@ func _check_and_finish() -> void:
 	_check(absf(_readings[&"left90"] - limit) < 8.0, "left limit %.0f, want %.0f" % [_readings[&"left90"], limit])
 	_check(absf(_readings[&"right90"] + limit) < 8.0, "right limit %.0f, want %.0f" % [_readings[&"right90"], -limit])
 	_check(_visual._head_influence < 0.01, "the head look did not let go while walking")
+	_check(absf(_readings[&"att_left45"] - 45.0) < 2.0, "attention at %.1f for a 45° left look" % _readings[&"att_left45"])
+	_check(absf(_readings[&"att_right45"] + 45.0) < 2.0, "attention at %.1f for a 45° right look" % _readings[&"att_right45"])
+	_check(absf(_readings[&"att_left90"] - limit) < 2.0, "attention left limit %.1f, want %.0f" % [_readings[&"att_left90"], limit])
+	_check(absf(_readings[&"att_right90"] + limit) < 2.0, "attention right limit %.1f, want %.0f" % [_readings[&"att_right90"], -limit])
+	_check(absf(_readings[&"att_walk"] + limit) < 2.0, "walking collapsed attention to the torso (%.1f)" % _readings[&"att_walk"])
+	_check(_readings[&"origin_gap"] < 0.08, "attention origin %.2f m from the head bone" % _readings[&"origin_gap"])
 	if _failures > 0:
 		push_error("head look: %d check(s) failed" % _failures)
 		quit(1)

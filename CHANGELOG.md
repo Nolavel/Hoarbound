@@ -5,6 +5,72 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Interaction grammar: world view channel and pickup head-attention channel (claudeflow)
+
+- **Two channels replace `current_target`.** `InteractComponent` now keeps
+  `world_target` (doors, stove, windows, seats, table food: picked by the
+  player's view) and `pickup_target` (`ItemPickup`: picked by Henry's head
+  attention). `InteractiveArea.get_interaction_channel()` classifies; `ItemPickup`
+  returns PICKUP, everything else WORLD.
+- **F arbitration.** The world target wins F. A pickup acts only when no world
+  target is selected. New API: `get_world_target`, `is_world_target_in_reach`,
+  `get_pickup_target`, `is_pickup_actionable`, `get_pickup_candidates`,
+  `get_active_target`, `is_active_target_in_reach`. New signals
+  `world_target_changed`, `pickup_target_changed`, `active_target_changed`.
+  Removed `current_target`, `is_target_in_reach`, `interact_target_changed`
+  (no subscribers), `get_gaze_direction`, `get_facing_direction`,
+  `is_crosshair_focused`, `CHEST_HEIGHT`.
+- **World channel: view-driven.** Soft cone around `TpsCamera.aim_origin/aim_direction`
+  (`world_aim_cone_deg` 10, seated `seated_aim_deg` 35), widened by the new
+  `InteractiveArea.focus_radius` for acceptance only. Ranking uses the true
+  angle. The current target holds up to `world_exit_scale` 1.5 × the cone.
+  `world_grace_seconds` 0.15 covers a line-of-sight miss only while the target
+  is still under the aim. Proximity gate `intent_radius` stays. This
+  deliberately reverses bf20583 for world objects (owner decision).
+  `accepts_focus`/`resolve_focus` get the camera aim again.
+- **Pickup channel: Henry's head attention.** Origin and direction come from
+  `Player.get_attention_origin/direction`, which delegate to `HenryUALAnimation`.
+  The field is ±90° (`pickup_field_deg`). Cost = attention error in degrees +
+  `distance_cost_deg_per_m` 6 × distance. The dominant pickup keeps
+  `switch_margin_deg` 4°. `pickup_grace_seconds` 0.15 covers a brief
+  line-of-sight loss. No camera term, no torso facing, no cycling. The channel
+  is empty while board placement or the Hub is open.
+- **Henry attention.** `HenryUALAnimation.get_attention_origin()` is the head bone,
+  low-passed (`attention_origin_smooth` 10). `get_attention_direction()` points at
+  the player's aim point, clamped to `head_look_primary_limit_deg` around the
+  facing and smoothed (`attention_smooth` 12). It keeps working while walking.
+  The standing head look now follows the same direction. Smoothing is used only
+  while updated every physics frame.
+- **Aim point, not aim direction.** `Player.get_view_target()` is the nearer of
+  the aim ray's solid hit and an interactable focus area the ray passes through.
+  Measured in `test_shelter_workflow`: carrying the camera's aim *direction* to
+  Henry's head (the old `get_gaze_direction` rule) put the attention 34° off the
+  aimed nails at 0.8 m, which picked the knife. `Player.get_view_direction()` now
+  uses the gameplay aim ray instead of the lens-shifted basis.
+- **Consumers migrated.**
+  - `RestComponent` uses the active target, so seated food still beats Wait.
+  - `HeatSourceFeed._in_reach` uses the world target.
+  - `MouseCursorUI` centre prompt: world target only.
+  - `TpsInteractionFraming` reads the world target only; pickups never move the
+    camera.
+  - Legacy `ActionPrompt3D` and the frozen embodied lab only compile against the
+    new API.
+- **Bug fixed.** The old line-of-sight and gaze rays started at `CHEST_HEIGHT` 1.3
+  above the capsule centre, i.e. 2.3 m above the floor.
+- **Tests.**
+  - `test_interaction.gd` rewritten for the new grammar: head-only A→B→C,
+    ±2° noise, the item behind is never offered, walking keeps head attention,
+    world wins F and the central prompt, a disabled target is not authoritative,
+    a consumed pickup clears at once, a far item walks over.
+  - `test_seated_aim.gd`: seated F acts on the viewed thing in reach; with
+    nothing in reach F belongs to Wait.
+  - `test_head_look.gd` adds the attention checks.
+  - `test_shelter_workflow.gd` checks the channel per target and settles the
+    nailing clip before the second board. It went from 22 failures on `main`
+    `4677754` to PASS.
+  - `test_doorway_camera` (4) and `test_passage_traversal` (1) fail exactly as
+    on `main`.
+
 ### 2026-10-09 - Linux Jenova runtime rebuilt with shared libstdc++; Import gate fixed
 
 - `Jenova/Jenova.Runtime.Linux64.so` (17.9 MB, was 20.1 MB) and
@@ -258,6 +324,7 @@ camera gate.
   the Jenova runtime.
 - `tools/ci/build_jenova_project.gd` resolves the editor plugin dynamically so the
   harness can parse before GDExtension class registration.
+
 ### 2026-10-08 - world_key_west: living Key West world-attribute registry
 
 - `docs/world/world_key_west.md`: single registry of the Key West world attributes —

@@ -113,6 +113,12 @@ const ACTION_ALIASES: Dictionary = {
 ## Head forward axis in bone space; flip it if the head looks sideways or back.
 @export var head_forward_axis: SkeletonModifier3D.BoneAxis = SkeletonModifier3D.BONE_AXIS_PLUS_Z
 
+@export_group("Attention")
+## How fast Henry's attention yaw follows where the player looks, per second.
+@export var attention_smooth: float = 12.0
+## How fast the attention origin follows the head bone; filters idle bob, per second.
+@export var attention_origin_smooth: float = 10.0
+
 @export_group("Backpack")
 @export var backpack_bone: StringName = &"spine_03"
 @export var backpack_size: Vector3 = Vector3(0.34, 0.44, 0.2)
@@ -178,6 +184,12 @@ var _equipment: EquipmentComponent
 var _head_lookat: LookAtModifier3D
 var _head_target: Node3D
 var _head_influence: float = 0.0
+## Henry's semantic attention: flat direction and head-height origin, smoothed.
+var _attention_dir: Vector3 = Vector3.ZERO
+var _attention_origin: Vector3 = Vector3.ZERO
+var _attention_ready: bool = false
+## Physics frame of the last smoothing step; a stale smoothed value is never used.
+var _attention_frame: int = -1
 
 var _blend_position: float = 0.0
 ## Continuous time off the floor, seconds.
@@ -578,6 +590,7 @@ func _resolve_action_clip(action: StringName) -> StringName:
 ## ADT head look: standing, the head eases toward where the camera looks;
 ## moving, the clips own the head and the look fades out.
 func update_head_look(delta: float) -> void:
+	_update_attention(delta)
 	if _head_lookat == null or player == null:
 		return
 	var planar_speed: float = Vector2(player.velocity.x, player.velocity.z).length()
@@ -585,7 +598,7 @@ func update_head_look(delta: float) -> void:
 	var eye: Vector3 = _head_bone_position()
 	var direction: Vector3 = -player.global_transform.basis.z
 	if want:
-		direction = player.call(&"get_view_direction")
+		direction = get_attention_direction()
 	direction.y = 0.0
 	var target: Vector3 = eye + direction.normalized() * head_look_distance
 	if want and _head_influence <= 0.001:
@@ -640,6 +653,63 @@ func _setup_head_look() -> void:
 func _head_bone_position() -> Vector3:
 	var bone: int = skeleton.find_bone(head_bone)
 	return (skeleton.global_transform * skeleton.get_bone_global_pose(bone)).origin
+
+
+## Where Henry's attention starts: his head, low-passed against idle bob.
+func get_attention_origin() -> Vector3:
+	return _attention_origin if _attention_fresh() else _raw_attention_origin()
+
+
+## Henry's attention, flat: towards the point the player aims at, turned no further than his neck allows.
+## It is a query direction, also while walking; the clips still own the visible head then.
+func get_attention_direction() -> Vector3:
+	return _attention_dir if _attention_fresh() else _attention_goal()
+
+
+func _update_attention(delta: float) -> void:
+	if player == null:
+		return
+	var goal: Vector3 = _attention_goal()
+	var origin: Vector3 = _raw_attention_origin()
+	var stale: bool = not _attention_fresh()
+	_attention_frame = Engine.get_physics_frames()
+	if not _attention_ready or stale:
+		_attention_dir = goal
+		_attention_origin = origin
+		_attention_ready = true
+		return
+	var turn: float = _attention_dir.signed_angle_to(goal, Vector3.UP)
+	_attention_dir = _attention_dir.rotated(Vector3.UP, turn * clampf(delta * attention_smooth, 0.0, 1.0)).normalized()
+	_attention_origin = _attention_origin.lerp(origin, clampf(delta * attention_origin_smooth, 0.0, 1.0))
+
+
+## Smoothing holds only while the head look runs every physics frame (not when paused or posed by a test).
+func _attention_fresh() -> bool:
+	return _attention_ready and Engine.get_physics_frames() - _attention_frame <= 2
+
+
+func _attention_goal() -> Vector3:
+	var facing: Vector3 = -player.global_transform.basis.z
+	facing.y = 0.0
+	facing = facing.normalized() if facing.length() > 0.001 else Vector3.FORWARD
+	var view: Vector3
+	if player.has_method(&"get_view_target"):
+		view = (player.call(&"get_view_target") as Vector3) - _raw_attention_origin()
+	elif player.has_method(&"get_view_direction"):
+		view = player.call(&"get_view_direction")
+	else:
+		return facing
+	view.y = 0.0
+	if view.length() < 0.001:
+		return facing
+	var limit: float = deg_to_rad(head_look_primary_limit_deg)
+	return facing.rotated(Vector3.UP, clampf(facing.signed_angle_to(view.normalized(), Vector3.UP), -limit, limit))
+
+
+func _raw_attention_origin() -> Vector3:
+	if skeleton != null and skeleton.find_bone(head_bone) >= 0:
+		return _head_bone_position()
+	return player.global_position + Vector3.UP * Player.EYE_ABOVE_ORIGIN if player != null else global_position
 
 
 func get_locomotion_blend_position() -> float:

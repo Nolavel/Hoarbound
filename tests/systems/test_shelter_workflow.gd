@@ -316,8 +316,8 @@ func _test_boards() -> void:
 		"one fitted board billed the wrong game time"
 	)
 	_check(_board_started_in_working, "board_window action did not enter WORKING mode")
-	await physics_frame
-	_interact.detect_target()
+	## The nailing clip locks Henry; F is ignored until it releases, as in _place_board.
+	await _settle_interaction_fixture()
 	_press(&"interact")
 	_check(area.is_placing_board(), "second board could not be selected")
 	_press(&"pause")
@@ -413,7 +413,7 @@ func _test_table() -> void:
 		var calories: float = eater.bio_monitor.current_calories
 		_press(&"interact")
 		_check(_inventory.get_count(id) == previous - 1, "seated F opened waiting instead of consuming food")
-		_check(_interact.current_target == null, "consumed table prop left its obsolete F target active")
+		_check(_interact.get_active_target() == null, "consumed table prop left its obsolete F target active")
 		var meal: ItemResource = ItemCatalog.get_item(id)
 		var gained: float = meal.consumable.calories if meal.opens_into == &"" else 0.0
 		_check(is_equal_approx(eater.bio_monitor.current_calories, minf(eater.bio_monitor.max_calories, calories + gained)),
@@ -496,7 +496,7 @@ func _aim(target: InteractiveArea, from: Vector3, point: Vector3) -> void:
 		from.y = maxf(from.y, _house.to_global(Vector3(0, 1.91, 0)).y)
 	_player.global_position = from
 	_player.velocity = Vector3.ZERO
-	## Henry faces what he walked up to; body facing is part of the target score.
+	## Henry faces what he walked up to, and his head attends to it.
 	var flat_point := Vector3(point.x, from.y, point.z)
 	if from.distance_to(flat_point) > 0.01:
 		_player.look_at(flat_point, Vector3.UP)
@@ -536,9 +536,14 @@ func _on_action_started(action_id: StringName, _duration_h: float) -> void:
 	_board_started_in_working = state != null and int(state.get("mode")) == int(state.Mode.WORKING)
 
 
+## Pickups are chosen by Henry's head and promise [F]; mechanisms by the view and the central prompt.
 func _check_target(target: InteractiveArea, context: String) -> void:
-	_check(_interact.current_target == target and target.prompt_shown,
-		"%s selected %s" % [context, _interact.current_target])
+	if target.get_interaction_channel() == InteractiveArea.InteractionChannel.PICKUP:
+		_check(_interact.get_pickup_target() == target and _interact.is_pickup_actionable() and not target.prompt_shown,
+			"%s selected %s" % [context, _interact.get_pickup_target()])
+	else:
+		_check(_interact.get_world_target() == target and target.prompt_shown,
+			"%s selected %s" % [context, _interact.get_world_target()])
 
 
 func _check(condition: bool, message: String) -> void:

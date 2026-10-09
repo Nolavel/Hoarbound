@@ -116,7 +116,7 @@ func _on_lab_interaction_performed(target: InteractiveArea) -> void:
 
 func _has_focus_target() -> bool:
 	var interact := get_node_or_null(^"InteractComponent") as InteractComponent
-	return interact != null and is_instance_valid(interact.current_target)
+	return interact != null and interact.get_active_target() != null
 
 
 func _begin_pickup_case(index: int) -> void:

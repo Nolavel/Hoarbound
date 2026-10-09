@@ -13,11 +13,17 @@ enum InteractionType {
 	OTHER
 }
 
-## Marker shown by InteractComponent: none, a dim group member, or the target.
+## Special-awareness check mark: hidden, or noticed by Henry.
 enum MarkerState {
 	HIDDEN,
 	DIM,
 	DOMINANT,
+}
+
+## Which attention picks this object: the player's view or Henry's head.
+enum InteractionChannel {
+	WORLD,
+	PICKUP,
 }
 
 enum PickupSubtype {
@@ -54,6 +60,14 @@ enum PickupSubtype {
 @export var focus_bodies: Array[CollisionObject3D] = []
 ## Added to the InteractComponent score: doors and stoves above, junk below.
 @export var focus_priority: float = 0.0
+## Radius around the focus point that still counts as aimed at, metres.
+@export var focus_radius: float = 0.12
+
+@export_group("Special awareness")
+## Opt-in: Henry notices this rare object with a check mark. Never for ordinary loot.
+@export var special_awareness: bool = false
+## Flat distance at which Henry notices it, with line of sight.
+@export var awareness_radius: float = 8.0
 
 @export_group("Marker")
 ## Height of the check-mark marker above the focus point, metres.
@@ -67,6 +81,8 @@ enum PickupSubtype {
 const FOCUS_OWNER_META: StringName = &"interactive_focus_owner"
 ## Every InteractiveArea joins it; InteractComponent picks candidates from here.
 const INTERACTIVE_GROUP: StringName = &"interactive"
+## Objects with special_awareness join it; the awareness pass scans only these.
+const AWARENESS_GROUP: StringName = &"special_awareness"
 const MARKER_FADE_SECONDS: float = 0.2
 const MARKER_BOB_AMPLITUDE: float = 0.03
 const MARKER_BOB_PERIOD: float = 1.2
@@ -123,6 +139,8 @@ var _text_cache_dirty: bool = true
 
 func _ready() -> void:
 	add_to_group(INTERACTIVE_GROUP)
+	if special_awareness:
+		add_to_group(AWARENESS_GROUP)
 	if not body_entered.is_connected(_on_body_entered):
 		body_entered.connect(_on_body_entered)
 	if not body_exited.is_connected(_on_body_exited):
@@ -214,7 +232,7 @@ func _on_body_exited(body: Node) -> void:
 		player_reference = null
 
 
-## InteractComponent's choice owns the F prompt; the hint layer owns the marker.
+## The world channel's choice owns the central F prompt; pickups never get it.
 func set_target_state(targeted: bool, in_prompt_range: bool) -> void:
 	var was_prompt: bool = prompt_shown
 	_targeted = targeted
@@ -230,9 +248,11 @@ func set_target_state(targeted: bool, in_prompt_range: bool) -> void:
 	_refresh_marker()
 
 
-## Marker from InteractComponent's group: state, distance opacity, and the
-## observer that picks the near side of two-sided objects for the anchor.
+## Special-awareness check mark: state, distance opacity, and the observer that
+## picks the near side of two-sided objects. Ignored unless special_awareness.
 func set_hint_state(state: MarkerState, opacity: float, observer: Vector3) -> void:
+	if not special_awareness:
+		state = MarkerState.HIDDEN
 	_marker_state = state
 	_marker_opacity = clampf(opacity, 0.0, 1.0)
 	if state != MarkerState.HIDDEN:
@@ -254,6 +274,11 @@ func get_focus_point(_observer: Vector3) -> Vector3:
 		point.y = maxf(point.y, global_position.y + safe_lift)
 		return point
 	return global_position + Vector3.UP * 0.15
+
+
+## Pickups follow Henry's head attention; everything else follows the player's view.
+func get_interaction_channel() -> InteractionChannel:
+	return InteractionChannel.WORLD
 
 
 ## Extra gate on the camera aim, for objects selectable only on a part of themselves.

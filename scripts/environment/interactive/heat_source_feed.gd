@@ -488,7 +488,7 @@ func _ui_blocked() -> bool:
 
 func _in_reach() -> bool:
 	var interact: InteractComponent = _player.get_node_or_null(^"InteractComponent") as InteractComponent if _player != null else null
-	return interact != null and interact.current_target == self and interact.is_target_in_reach()
+	return interact != null and interact.get_world_target() == self and interact.is_world_target_in_reach()
 
 
 func _get_inventory() -> InventoryComponent:
