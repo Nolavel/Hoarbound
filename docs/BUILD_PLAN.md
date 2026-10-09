@@ -6,7 +6,8 @@
 > and `docs/game_design/VERTICAL_SLICE.md` and overrides ad-hoc issue ordering.
 >
 > Author: Nolavel. Written 2026-10-08 as a direction reset after the motion-matching
-> detour (#202). Branch rules in `AGENTS.md`.
+> detour (#202). Interaction targeting / affordance contract revised 2026-10-09 after
+> the gaze/viewport design review. Branch rules in `AGENTS.md`.
 
 ## 0. The grammar (read this first)
 
@@ -29,9 +30,15 @@ Four grammar rules. Every feature is measured against them:
    without a map or a debug panel.
 
 **The one test that gates everything:** *no system ships unless it visibly changes a
-survival decision.* This is the rule we have been following poorly. Motion quality,
-pose databases and embodied-interaction depth are presentation; they do not change a
-decision, so they come **at the end of the path**, not the start.
+survival decision.* Motion quality, pose databases and deep embodied-interaction
+work are presentation/depth until they prove otherwise, so they come **at the end of
+the path**, not before the survival loop works.
+
+Interaction is an exception only in the narrow sense that the player must always be
+able to express intent reliably and the game must not promise impossible pickup
+actions. The Step-5 Use layer therefore owns cheap deterministic target selection and
+cheap geometric pickup affordance. Hand selection, IK, authored pose choice, warping
+and deeper embodied execution do not belong to the Step-5 gameplay gate.
 
 ## The spine
 
@@ -84,18 +91,138 @@ Prove weight, wetness, cold and fatigue reorder `collect -> carry -> repair -> s
   debug UI; one 10–15 min run reorders actions) and the author signs off.
 - **Absorbs:** #134, and closes the systemic-pressure half of #80.
 
-### 5 — Interactivity reset: a thin, deterministic Use layer
-Rebuild interaction as one small deterministic layer driven by **proximity + facing**,
-feeding the existing Player Hub / Quick Access / universal Use path. **The crosshair
-is a readability aid only — it is decoupled from the embodied-interaction condition**
-(see ADR below). No body-alignment, affordance-graph or animation state may gate
-whether an interaction is *possible*; those are presentation that layers on later.
+### 5 — Interactivity reset: deterministic Use, domain-specific attention
+
+Rebuild interaction as one small deterministic **Use** layer feeding the existing
+Player Hub / Quick Access / interaction path. Selection is cheap and readable, but it
+is **not one universal targeting rule**.
+
+The production targeting grammar is:
+
+```text
+                         USE / F
+                            |
+                  deterministic arbitration
+                    /                 \
+                   /                   \
+       WORLD INTERACTION              PICKUP
+       player viewport intent      Henry attention/gaze
+       door/stove/window/etc.      ordinary loose items
+                   \                   /
+                    \                 /
+                      effective action
+```
+
+#### World interaction
+
+Doors, stove/firebox controls, windows, repair surfaces, rest/use points and similar
+physical mechanisms are selected primarily from **player viewport intent**. Use a
+forgiving cheap view pick (screen-space/ray/cone + authored focus information + LOS
+where appropriate), not pixel-perfect aiming and not Henry torso direction.
+
+World interaction has priority over pickup when both are plausible. Its readable UI
+is the central interaction prompt/bracket grammar.
+
+#### Pickup
+
+Ordinary pickups are selected from **Henry's attention**, not the camera crosshair and
+not raw torso facing. The candidate field is intentionally broad (approximately 180°
+total around the semantic head-attention direction); angular agreement with Henry's
+attention dominates, distance is secondary, and hysteresis prevents flicker in dense
+groups.
+
+A dense group must expose **one obvious dominant pickup**: the item that `F` will take
+right now. Its actionable presentation is a compact world-space `[F]`/key marker
+attached to the item, not the central world-interaction brackets.
+
+Turning Henry's attention between neighbouring items may change the dominant pickup,
+but **must not move, reframe, shoulder-swap or otherwise steer the gameplay camera**.
+Target selection is never allowed to create a camera feedback loop.
+
+#### Special awareness
+
+`✓` is reserved for rare authored **special awareness**: "Henry noticed something
+worth attention." It is opt-in, may work beyond the normal pickup attention field,
+and is not the universal pickup marker. `✓` does not by itself mean that pressing
+`F` will act on that object.
+
+The three visual meanings stay distinct:
+
+```text
+✓                   notice this / authored special awareness
+[F] on an item      this dominant pickup is geometrically actionable
+central prompt      this world mechanism is the current Use target
+```
+
+#### Cheap deterministic pickup affordance
+
+Pickup attention chooses **which object Henry means**. A separate cheap geometric
+query decides whether the game may promise `[F]` for that dominant pickup.
+
+The Step-5 pickup affordance is intentionally bounded. It may gate `[F]` only on
+coarse physical feasibility:
+
+- a valid body position can be found;
+- Henry's gameplay capsule fits there;
+- the body position has acceptable floor/support;
+- the existing scripted-walk route to that position is collision-safe;
+- the pickup contact lies inside a coarse anatomical reach envelope from the shoulder
+  girdle.
+
+This is gameplay, not animation polish: an item behind an unreachable table, wall or
+blocked approach must not advertise an actionable `[F]` merely because it is inside
+the attention radius.
+
+The following **must not** participate in `affordance.valid` and must not gate `[F]`:
+
+- which specific hand is preferred;
+- same-side hand preference;
+- a wrist/hand path for a specific arm;
+- IK convergence or IK quality;
+- availability of a particular authored animation clip;
+- exact pose quality, motion warping or deep body-alignment quality.
+
+`preferred_hand` and similar data may be computed as presentation hints/reporting,
+but failure of those presentation concerns cannot make an otherwise geometrically
+valid pickup impossible.
+
+#### Commit contract
+
+Once actionable `[F]` is shown and accepted, the chosen pickup is committed. Moving
+Henry's attention to a neighbour during the approach must not substitute another
+item.
+
+The accepted action may be cancelled only when:
+
+1. the player cancels it (movement/lock/input ownership), or
+2. the coarse geometry **actually changes after commit** — for example the target
+   moves/disappears or the route becomes physically blocked.
+
+A bounded re-query of the same committed target is allowed after such a geometry
+change. Failure of hand selection, IK, animation, authored clip choice or presentation
+quality is **not** a valid `INTERACT_UNREACHABLE` reason.
+
+#### Step-5 acceptance
+
 - **Done when:** every First Exit interaction (pick up, carry, board, nail, door,
-  stove, sleep) resolves through the thin Use layer; the crosshair reflects "what Use
-  will act on" from a cheap pick and nothing else; removing all embodied-interaction
-  code does not break any interaction.
+  stove, sleep) resolves through the thin deterministic Use layer.
+- World mechanisms are selected from forgiving viewport intent.
+- Ordinary pickups are selected from Henry attention/gaze and have exactly one clear
+  dominant in a close group.
+- A dominant pickup gets actionable `[F]` only after the cheap geometric affordance
+  passes body-position, capsule, floor/support, safe-path and coarse-reach checks.
+- Hand choice, wrist path, IK, clip availability and pose quality never gate `[F]`.
+- World interaction wins arbitration over a nearby pickup.
+- Central prompt/brackets are world-interaction UI, not ordinary pickup UI.
+- `✓` is rare authored awareness, not universal loot notation.
+- Switching pickup dominance causes zero camera framing movement.
+- A committed pickup never silently changes to a neighbouring item during approach.
+- Removing all Step-10 embodied-interaction code still leaves every Step-5 gameplay
+  interaction functional and deterministic.
 - **Absorbs:** the interaction-foundation parts of #170 (camera input stays immediate);
-  supersedes the embodied coupling in #198/#199.
+  supersedes the old single-rule `proximity + facing` targeting language and the
+  embodied coupling in #198/#199, but does **not** supersede #198's later presentation
+  goals.
 
 ### 6 — Readability pass on the real route
 Walk the actual First Exit route in TPS and fix only what stops the player *reading
@@ -136,6 +263,25 @@ demonstrably improves the proven loop**:
 1. embodied interaction foundation (#198) → 2. diegetic inventory (#203) →
 3. locomotion / motion matching (#201, #202) → 4. coastal thin-ice slice.
 This is where the motion-matching work resumes — at the end of the path, as intended.
+
+For interaction, Step 10 improves **how** a geometrically valid Step-5 pickup/world
+action is physically performed:
+
+```text
+accepted Use intent
+-> authored/deep affordance refinement
+-> body alignment / hand choice
+-> hand/contact targets
+-> authored animation + selective IK/warping
+-> deterministic world-state change
+```
+
+Step 10 may improve presentation and physical specificity, but its hand/IK/animation
+solve must not retroactively redefine the Step-5 coarse gameplay gate. A valid Step-5
+pickup remains valid even when no ideal hand pose or bespoke clip exists. Conversely,
+Step 5 remains responsible for not advertising pickups with no coarse physical route
+or reach at all.
+
 - **Done when:** each unfrozen item ships against a First-Exit-style decision test, not
   a tech demo.
 - **Absorbs:** #198, #199, #201, #202, #203, and the new Coast / Thin Ice slice.
@@ -149,7 +295,7 @@ without the detours.
 
 | Quarter | Steps | Milestone |
 |---|---|---|
-| **Q4 2026** · Oct–Dec | 1 → 5 | **First Exit A accepted.** Grammar locked, clean no-debug run, weather + pressure proven, interactivity reset with the crosshair decoupled. |
+| **Q4 2026** · Oct–Dec | 1 → 5 | **First Exit A accepted.** Grammar locked, clean no-debug run, weather + pressure proven, deterministic Use with viewport/world, Henry-attention/pickup selection and coarse pickup affordance. |
 | **Q1 2027** · Jan–Mar | 6 → 7 | **Key West reads as a place; winter identity locked.** Route legible in TPS, snow/frost at accepted quality. |
 | **Q2 2027** · Apr–Jun | 8 → 9 | **Vertical slice — packaged, playable, publisher-proof.** The summer-2027 target, on a proven loop. |
 | **Q3 2027** · Jul–Sep | 10 | **Depth on a proven foundation.** Embodied interaction, diegetic inventory, motion matching, then the Coast / Thin Ice slice. |
@@ -159,38 +305,94 @@ reordering the proof steps (2–4) later.*
 
 ## Frozen until step 9
 
-On hold, preserved on `claudeflow` and in `docs/motion_matching/`, reopened only by the
-step that schedules them:
+On hold, preserved in their existing R&D branches/docs and reopened only by the step
+that schedules them:
 
-- #198 Embodied Interaction Stack (epic — post-slice by its own text)
+- #198 Embodied Interaction Stack (deep hand/body/animation execution; Step-5 coarse
+  pickup geometry is explicitly not frozen)
 - #199 Embodied Interaction isolated lab
 - #201 / #202 Motion Matching #1 / #2
 - #203 Diegetic Inventory (physical backpack)
 - #197 Deterministic foot-contact pipeline
 
 Nothing here is cancelled. It is sequenced to the end of the path, where it belongs.
+Step 5 may implement bounded geometric pickup affordance; it must not silently unfreeze
+hand-specific solving, IK, motion warping or deep embodied-animation systems.
 
 ---
 
-## ADR — the crosshair is decoupled from embodied interaction
+## ADR — domain-specific targeting; coarse geometry gates pickup, embodiment does not
 
-**Context.** The Embodied Interaction Stack (#198) models interaction as `intent ->
-affordance query -> body alignment -> animation -> world-state change`. Wiring the
-crosshair / interaction reticle into that chain makes whether a player *can* interact
-depend on animation and body-alignment state. That couples a cheap, must-always-work
-readability cue to the most expensive, least finished subsystem.
+**Context.** The earlier Step-5 text described one `proximity + facing` pick and the
+Embodied Interaction Stack (#198) models a deeper chain such as `intent -> affordance
+query -> body alignment -> animation -> world-state change`. Production testing then
+showed three separate facts:
 
-**Decision.** The crosshair is a **readability aid only**. It is driven by a cheap
-proximity + facing pick against the thin Use layer (step 5) and answers one question:
-*"what will Use act on right now?"* It never waits on affordance queries, body
-alignment, IK, warping or animation state, and it is never the gate for whether an
-interaction is possible.
+1. one targeting rule is not sufficient for TPS readability — a door/handle is a
+   player-view question, while choosing one can from a close table group is better
+   represented by Henry's attention;
+2. coupling pickup availability to hand-specific IK/animation/body-pose work makes a
+   cheap must-always-work interaction dependent on unfinished presentation systems;
+3. the opposite extreme is also wrong: showing `[F]` for a pickup with no physically
+   valid body position, floor, route or coarse reach produces a dead promise before
+   presentation even begins.
+
+**Decision.** Step-5 target acquisition is **domain-specific and cheap**:
+
+- world mechanisms: forgiving **player viewport intent**;
+- ordinary pickups: **Henry semantic head attention/gaze**, with broad candidate field
+  and hysteresis;
+- special awareness: authored `✓`, informational unless separately actionable.
+
+For ordinary pickups, attention chooses the dominant object and a bounded deterministic
+geometry query decides whether `[F]` is actionable. The geometry query may test only:
+
+```text
+body position
++ gameplay capsule clearance
++ floor/support
++ collision-safe scripted-walk path
++ coarse anatomical reach envelope
+```
+
+It must not use these as validity gates:
+
+```text
+specific hand choice
+specific wrist/hand path
+IK result
+animation clip availability
+exact pose / warping quality
+```
+
+`preferred_hand` may be reported as a presentation hint but cannot change
+`affordance.valid`.
+
+Central interaction brackets/prompts belong to world mechanisms. A compact world-space
+`[F]` identifies an actionable dominant pickup. `✓` remains separate special awareness.
+
+Target selection must not physically reframe the gameplay camera. In particular,
+switching between nearby pickup candidates cannot change shoulder offset, yaw, pitch,
+boom or camera position. Any historical interaction-framing experiment that creates
+selection -> camera movement -> selection feedback is outside the Step-5 contract.
+
+**Commit rule.** Once `[F]` was shown, accepted and the target committed, failure of
+hand selection, IK, animation or presentation is not a valid refusal. The interaction
+may be cancelled by the player or when coarse geometry genuinely changes after commit
+(target moved/disappeared, route became blocked); the same committed target may be
+re-solved once. A neighbouring pickup must never be silently substituted.
 
 **Consequences.**
-- Interaction stays deterministic and testable independent of presentation.
-- Embodied animation (step 10) layers *on top* of a working interaction and can be
-  deleted without breaking the loop.
-- The crosshair has no dependency on #198/#199 and must not acquire one.
+- Interaction remains deterministic and testable independent of deep presentation.
+- World interaction and pickup targeting each express the intent that fits them.
+- Dense pickup groups need no manual cycling action.
+- The game does not advertise pickups that cannot be reached at the coarse gameplay
+  level.
+- Hand choice, IK and animation can be changed or removed without changing Step-5
+  pickup availability.
+- The old `proximity + facing` wording is superseded by this ADR.
+- Step-10 embodied work layers on top of the Step-5 coarse geometry contract rather
+  than replacing it.
 
 **Clarification (2026-10-09, owner decision).** Interaction now runs on two
 channels:
