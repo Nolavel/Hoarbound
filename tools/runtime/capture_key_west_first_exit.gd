@@ -11,8 +11,8 @@ const FORT_727 := Vector2(-3531.78, 1590.28)
 const OLD_CUSTOM_SHELTER := Vector2(-3579.85, 1574.51)
 const FORT_727_YAW_DEG: float = 126.76
 
-const FIRST_CAPTURE_FRAME: int = 240
-const BETWEEN_SHOTS: int = 150
+const FIRST_CAPTURE_FRAME: int = 90
+const BETWEEN_SHOTS: int = 15
 
 var _scene: Node3D
 var _player: Player
@@ -135,9 +135,6 @@ func _build_battery_osceola() -> void:
 	_box(landmark, Vector3(0.0, 1.35, -1.0), Vector3(45.0, 1.0, 29.0), earth)
 	_box(landmark, Vector3(0.0, 3.05, 0.0), Vector3(40.0, 4.3, 22.0), concrete)
 	_box(landmark, Vector3(0.0, 4.95, -1.0), Vector3(34.0, 0.65, 18.0), aged)
-
-	## Broad upper terraces and the recessed lower access make the Endicott-era
-	## concrete form readable from TPS without inventing fine undocumented detail.
 	_box(landmark, Vector3(-10.0, 5.45, -1.0), Vector3(12.5, 0.55, 10.0), concrete)
 	_box(landmark, Vector3(10.0, 5.45, -1.0), Vector3(12.5, 0.55, 10.0), concrete)
 	_box(landmark, Vector3(0.0, 2.55, 11.25), Vector3(34.0, 3.2, 1.2), aged)
@@ -165,34 +162,21 @@ func _build_727_fort_street() -> void:
 	_box(landmark, Vector3(0.0, 2.10, 0.0), Vector3(24.0, 4.2, 14.3), stucco)
 	_box(landmark, Vector3(0.0, 4.42, 0.0), Vector3(24.5, 0.55, 14.8), parapet)
 	_box(landmark, Vector3(0.0, 4.12, 0.0), Vector3(23.4, 0.22, 13.7), concrete)
-
-	## Fort Street canopy / entrance rhythm from the public-facing clinic form.
 	_box(landmark, Vector3(0.0, 3.45, 8.05), Vector3(20.0, 0.20, 2.15), canopy)
 	for x: float in [-8.6, -2.9, 2.9, 8.6]:
 		_box(landmark, Vector3(x, 1.65, 9.0), Vector3(0.16, 3.3, 0.16), canopy)
 	for x: float in [-7.7, -4.0, 4.0, 7.7]:
 		_box(landmark, Vector3(x, 2.05, 7.19), Vector3(2.7, 1.7, 0.12), glass)
 	_box(landmark, Vector3(0.0, 1.75, 7.22), Vector3(2.1, 3.5, 0.14), door)
-
-	## Petronia side: repeated clinic windows, kept simple until the public plan is
-	## translated into the authored landmark override.
 	for z: float in [-4.5, -1.3, 1.9, 5.1]:
 		_box(landmark, Vector3(12.06, 2.05, z), Vector3(0.12, 1.65, 2.35), glass)
-
-	## Walkway/pad makes the corner relationship legible in the capture.
 	_box(landmark, Vector3(0.0, 0.08, 9.2), Vector3(20.5, 0.16, 2.0), concrete)
 	_box(landmark, Vector3(13.1, 0.08, 0.5), Vector3(2.0, 0.16, 11.0), concrete)
 
 
 func _ground_under(center: Vector2, radius: float) -> float:
 	var ground: float = INF
-	for offset: Vector2 in [
-		Vector2.ZERO,
-		Vector2(radius, radius),
-		Vector2(-radius, radius),
-		Vector2(radius, -radius),
-		Vector2(-radius, -radius),
-	]:
+	for offset: Vector2 in [Vector2.ZERO, Vector2(radius, radius), Vector2(-radius, radius), Vector2(radius, -radius), Vector2(-radius, -radius)]:
 		ground = minf(ground, maxf(_terrain.get_height(center.x + offset.x, center.y + offset.y), 0.0))
 	return ground if ground != INF else 0.0
 
