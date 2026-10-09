@@ -260,6 +260,11 @@ func set_hint_state(state: MarkerState, opacity: float, observer: Vector3) -> vo
 	_refresh_marker()
 
 
+## The special-awareness check mark state; HIDDEN for every ordinary object.
+func get_marker_state() -> MarkerState:
+	return _marker_state
+
+
 ## Where Henry acts and is seen to act; observer picks the near side of two-sided objects.
 func get_focus_point(_observer: Vector3) -> Vector3:
 	if is_instance_valid(focus_anchor):

@@ -5,6 +5,38 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Pickup [F] keycap and opt-in special awareness (claudeflow)
+
+- **`PickupMarkerUI`** (`scripts/ui/hud/pickup_marker/`, instanced in
+  `player.tscn` next to `MouseCursorUI`).
+  - It draws one compact screen-space `[F]` keycap: `key_size` 24 px, held
+    `lift_px` 26 above the focus point, at a constant size on screen. The key
+    comes from the InputMap.
+  - The keycap sits over the dominant pickup only while it is actionable. It
+    glides between neighbours over `transfer_seconds` 0.12 and drops in the same
+    frame as `interaction_performed` for a consumed item.
+  - Other noticed pickups get a faint dot (`hint_radius_px` 3, `hint_alpha`
+    0.35). A dominant pickup that is not actionable, for example under a world
+    target, keeps only a dot.
+  - It never touches the centre Enso, brackets or gradient.
+- **✓ means "notice this", nothing else.**
+  - `InteractiveArea.special_awareness` (default off) joins the
+    `special_awareness` group; `awareness_radius` defaults to 8 m.
+  - `InteractComponent._update_awareness` runs every 0.2 s, only over that group,
+    and needs head line of sight. The field does not apply, and the marked item
+    does not become actionable.
+  - `set_hint_state` forces HIDDEN for every other object, so ordinary loot,
+    doors and stoves no longer show the check mark.
+  - New `get_marker_state()`.
+  - Which First Exit items deserve ✓ is the author's call: none are marked yet.
+- **Fix.** `InteractComponent._is_available`/`_flat_distance_to` take Variant.
+  A freed pickup passed to the typed parameter raised a script error before the
+  validity check.
+- **Tests.** `test_interaction.gd` checks the keycap on the dominant pickup, its
+  suppression under a world target and its removal on consumption. It also
+  checks that ✓ appears on a rare item 5 m behind Henry (and does not make it
+  actionable) and never on ordinary loot.
+
 ### 2026-10-09 - Interaction grammar: world view channel and pickup head-attention channel (claudeflow)
 
 - **Two channels replace `current_target`.** `InteractComponent` now keeps

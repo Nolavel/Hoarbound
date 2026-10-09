@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://b50rnmqk3m8fr" path="res://scripts/actors/player/henry/Player.gd" id="1_irk3a"]
 [ext_resource type="Script" path="res://scripts/actors/player/henry/components/interact_component.gd" id="3_4fuql"]
 [ext_resource type="PackedScene" uid="uid://wxp413rki005" path="res://scenes/ui/hud/dynamic_cursor/mouse_cursor_ui.tscn" id="49_cursor"]
+[ext_resource type="Script" path="res://scripts/ui/hud/pickup_marker/pickup_marker_ui.gd" id="49_pickup_marker"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/vitals/vital_hud.tscn" id="51_vitals"]
 [ext_resource type="Script" uid="uid://g61q2r54tbha" path="res://scripts/actors/player/henry/Controllers/MovementController.gd" id="5_ep65o"]
 [ext_resource type="Script" uid="uid://rd1kyphwhfvi" path="res://scripts/actors/player/henry/Managers/StaminaManager.gd" id="6_oh6um"]
@@ -152,5 +153,15 @@ visual = NodePath("../HenryUALVisual")
 script = ExtResource("95_motion")
 
 [node name="MouseCursorUI" parent="." instance=ExtResource("49_cursor")]
+
+[node name="PickupMarkerUI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("49_pickup_marker")
 
 [node name="VitalHUD" parent="." instance=ExtResource("51_vitals")]

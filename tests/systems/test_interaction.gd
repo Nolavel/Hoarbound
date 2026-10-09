@@ -39,6 +39,7 @@ var _middle: ItemPickup
 var _right: ItemPickup
 var _behind: ItemPickup
 var _mechanism: InteractiveArea
+var _marker: PickupMarkerUI
 var _target_seen_during_performed: InteractiveArea = null
 
 
@@ -57,6 +58,7 @@ func _run() -> void:
 	await _check_disabled_world_not_authoritative()
 	await _check_consumed_pickup_clears_at_once()
 	await _check_far_pickup_walks_over()
+	await _check_special_awareness()
 	if _failures > 0:
 		push_error("interaction: %d check(s) failed" % _failures)
 		print("test_interaction: %d FAILED" % _failures)
@@ -80,9 +82,12 @@ func _build() -> void:
 	_inventory.max_carry_weight = 60.0
 	_player.add_child(_inventory)
 	_component = InteractComponent.new()
+	_component.name = "InteractComponent"
 	_player.add_child(_component)
 	_component.interaction_performed.connect(func(_target: InteractiveArea) -> void:
 		_target_seen_during_performed = _component.get_pickup_target())
+	_marker = PickupMarkerUI.new()
+	_player.add_child(_marker)
 	root.add_child(_player)
 	_camera = Camera3D.new()
 	_camera.current = true
@@ -123,6 +128,7 @@ func _check_head_attention_picks() -> void:
 		_player.set(&"attention_yaw", deg_to_rad(float(step[0])))
 		await _frames(2)
 		_check(_component.get_pickup_target() == step[1], "head at %s° did not pick the %s item" % [step[0], step[2]])
+	_check(_marker.get_marked_target() == _right and _marker.is_key_shown(), "the [F] keycap is not on the dominant pickup")
 	_check(_player.rotation.y == 0.0, "the body turned during the head-attention check")
 	_check(_component.get_world_target() == null, "a pickup became the world target")
 	_check(not _middle.prompt_shown and not _left.prompt_shown, "a pickup raised the central world prompt")
@@ -172,6 +178,7 @@ func _check_world_wins_f() -> void:
 	_check(_component.get_pickup_target() == _middle, "the view on a mechanism changed Henry's pickup attention")
 	_check(_component.get_active_target() == _mechanism, "F does not belong to the world mechanism")
 	_check(not _component.is_pickup_actionable(), "the pickup still promised F under a world interaction")
+	_check(not _marker.is_key_shown(), "the [F] keycap stayed on the pickup under a world interaction")
 	_check(_mechanism.prompt_shown and not _middle.prompt_shown, "the central prompt did not come from the world target only")
 	var count: int = _inventory.get_count(&"firewood")
 	_component.try_interact()
@@ -209,6 +216,7 @@ func _check_consumed_pickup_clears_at_once() -> void:
 	_check(_component.get_pickup_target() == null and _component.get_active_target() == null,
 		"the consumed pickup stayed authoritative")
 	_check(_target_seen_during_performed == null, "interaction_performed fired before the consumed pickup was cleared")
+	_check(_marker.get_marked_target() == null and not _marker.is_key_shown(), "the consumed pickup kept its [F] keycap")
 	_player.global_position = Vector3.ZERO
 	await _frames(1)
 
@@ -223,6 +231,21 @@ func _check_far_pickup_walks_over() -> void:
 	_component.try_interact()
 	await _frames(3)
 	_check(_inventory.get_count(&"firewood") == count + 1, "Henry did not walk over and take the far item")
+
+
+## The check mark is opt-in: a rare item behind Henry is noticed, ordinary loot never is.
+func _check_special_awareness() -> void:
+	var rare: ItemPickup = _spawn(Vector3(0.0, 0.0, 5.0))
+	rare.special_awareness = true
+	rare.add_to_group(InteractiveArea.AWARENESS_GROUP)
+	_player.global_position = Vector3.ZERO
+	_player.set(&"attention_yaw", 0.0)
+	await _frames(20)
+	_check(rare.get_marker_state() != InteractiveArea.MarkerState.HIDDEN, "the special-awareness item was not noticed")
+	_check(_component.get_pickup_target() != rare, "special awareness made an item actionable outside the field")
+	for area: ItemPickup in [_left, _right, _behind]:
+		if is_instance_valid(area):
+			_check(area.get_marker_state() == InteractiveArea.MarkerState.HIDDEN, "ordinary loot %s got a check mark" % area.name)
 
 
 func _aim_camera(point: Vector3) -> void:

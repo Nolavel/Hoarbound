@@ -393,8 +393,11 @@ func _sees(from: Vector3, point: Vector3, area: InteractiveArea) -> bool:
 	return _owns_focus_body(_area_from(hit.get("collider")), area)
 
 
-func _is_available(area: InteractiveArea) -> bool:
-	return is_instance_valid(area) and not area.is_queued_for_deletion() and area.can_interact()
+## Untyped: a freed target must be rejected here, not by the typed-argument check.
+func _is_available(area: Variant) -> bool:
+	if not is_instance_valid(area) or not area is InteractiveArea:
+		return false
+	return not (area as InteractiveArea).is_queued_for_deletion() and (area as InteractiveArea).can_interact()
 
 
 func _is_seated() -> bool:
@@ -425,10 +428,10 @@ func _area_from(collider: Variant) -> InteractiveArea:
 	return null
 
 
-func _flat_distance_to(target: Node3D) -> float:
+func _flat_distance_to(target: Variant) -> float:
 	if not is_instance_valid(target) or not is_instance_valid(_player):
 		return INF
-	var offset: Vector3 = target.global_position - _player.global_position
+	var offset: Vector3 = (target as Node3D).global_position - _player.global_position
 	offset.y = 0.0
 	return offset.length()
 
