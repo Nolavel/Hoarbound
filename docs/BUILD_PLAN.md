@@ -192,6 +192,22 @@ interaction is possible.
   deleted without breaking the loop.
 - The crosshair has no dependency on #198/#199 and must not acquire one.
 
+**Clarification (2026-10-09, owner decision).** Interaction now runs on two
+channels:
+
+- World mechanisms are picked by the player's view and shown through the
+  central prompt.
+- Pickups are picked by Henry's head attention and shown with a small `[F]`
+  keycap.
+
+A pickup's `[F]` is gated by a **cheap deterministic geometric affordance**: a
+floor spot Henry fits in, a straight collision-safe walk to it, and the item
+inside his anatomical reach envelope. This geometry is gameplay, like reach
+distance, and is not the embodied stack. Hand choice, hand path, IK, authored
+clips and pose quality remain presentation. They never gate an interaction or
+refuse one. Removing all embodied code still breaks no interaction. #198 stays
+frozen.
+
 ## How to use this document
 
 - Before taking a task, find the lowest-numbered step not yet accepted. Work there.

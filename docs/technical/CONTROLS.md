@@ -44,7 +44,29 @@ of burn time equal **30 game minutes**.
 
 ## F: one verb, resolved by context
 
-F always acts on the thing in front of Henry. The first matching row wins.
+Two kinds of attention pick what F acts on:
+
+- **World mechanisms** (doors, stove and firebox, windows, seats, beds, table
+  food, benches) are picked by the **player's view**. A soft cone runs around the
+  screen centre. When one is selected, the central prompt opens: Enso into
+  brackets, gradient, key, action and detail.
+- **Pickups** (`ItemPickup`) are picked by **Henry's head attention**: where his
+  head looks, within ±90°. The camera framing never moves for them.
+- **World wins F.** While a world mechanism is selected, the pickup gives up its
+  `[F]`.
+
+What each marker means:
+
+| Marker | Meaning |
+|---|---|
+| Central brackets + prompt | F operates **this** world mechanism |
+| Small `[F]` keycap over an item | F takes **this** item now. It shows only when Henry can physically get it: a floor spot he can walk to in a straight line, with the item inside his reach |
+| Faint dot over an item | Henry notices it; F does not take it now (another item is dominant, a world mechanism has F, or it cannot be reached) |
+| ✓ check mark | "Notice this": opt-in for rare or authored objects only, never ordinary loot. It never makes anything actionable |
+
+There is no manual cycling: Henry's head picks among close items.
+
+The first matching row wins.
 
 | Context | F does |
 |---|---|
@@ -52,8 +74,8 @@ F always acts on the thing in front of Henry. The first matching row wins.
 | Hold-F placement is running | Nothing (LMB drags; release drops) |
 | Seated, and the camera looks at something within 2 m (food on the table, the stove ring, the set-down pack) | Act on it: eat, warm up, go through the pack |
 | Seated, nothing looked at | Open the wait prompt |
-| Standing, a target within 0.9 m | Act on it: pick up, open, board up, feed the stove, sit, sleep |
-| Standing, a target further away | Walk to it, then act |
+| Standing, a world mechanism under the view | Within 0.9 m act on it (open, board up, feed the stove, sit, sleep); further, walk to it, then act |
+| Standing, the `[F]` keycap is shown | Take that item, turning in place, or walk to the solved spot first and take exactly it. Moving with WASD cancels. A newly blocked path gets one retry, then "Can't reach it from here" |
 | Pickup, F held past 0.35 s | Open the Hub in placement mode instead of the quick stow |
 | Bedroll placement preview is up | Lay only when the camera-ray preview is green; red means slope/clearance/distance is invalid |
 | Board-placement preview is up | LMB nails the translucent board at the camera-aimed height; Esc cancels |
@@ -64,6 +86,8 @@ Rules for new features:
   `_input` and marks it handled; everything else stays in the normal target path.
 - A seated feature is reached by looking at it (`InteractComponent` seated aim), not
   by a second key.
+- An `ItemPickup` uses the pickup channel; every other `InteractiveArea` uses the world
+  channel. Set `special_awareness` only for objects worth noticing from afar.
 
 ### Boarding a shelter opening
 
@@ -87,8 +111,11 @@ knife and leaves an opened tin; the next Use eats it. Seated table F uses the sa
 two steps. Game prompts follow the selected locale.
 
 `G` is the author's explicitly requested exception to the contextual F-only
-grammar for releasing two-hand loads. A floor ray, wall check and whole-pile
-clearance check prevent placement through walls or over deep drops. `F` picks
+grammar for releasing two-hand loads. It tries a short list of spots: straight
+ahead, slightly left or right, nearer, wider, farther. At each it tries the pile
+across or along Henry. A floor ray, wall check and whole-pile clearance check
+prevent placement through walls or over deep drops. If none fits, the load stays
+in the hands. `F` picks
 the pile back up. Draw the hatchet from the tool bench, aim at loose boards and
 `F` starts four seconds of chopping: one board yields one log. Without a drawn
 hatchet the boards remain ordinary pickups. Only the two supply benches can be
