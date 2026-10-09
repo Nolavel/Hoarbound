@@ -149,7 +149,7 @@ func _process(delta: float) -> void:
 	var candidate: InteractiveArea = null
 	if (
 		raw_candidate != null
-		and raw_candidate.shape_cast_detected
+		and raw_candidate.prompt_shown
 		and raw_candidate.can_interact()
 	):
 		candidate = raw_candidate

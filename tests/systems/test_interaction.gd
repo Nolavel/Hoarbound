@@ -1,7 +1,8 @@
 extends SceneTree
 
-## InteractComponent: picks the target in front, acts at arm's length, walks
-## over to a farther one, ignores what is behind, survives the item freeing.
+## InteractComponent: Henry's gaze picks the target whatever the camera does;
+## acts at arm's length, walks to a farther one, ignores what is behind him even
+## in the middle of the frame, and tells two close items apart by his turn.
 ## Run: godot --headless --script tests/systems/test_interaction.gd
 
 const AREA_SCENE: String = "res://scenes/environment/interactive/InteractiveArea.tscn"
@@ -23,6 +24,8 @@ var _inventory: InventoryComponent
 var _near: ItemPickup
 var _far: ItemPickup
 var _behind: ItemPickup
+var _pair_left: ItemPickup
+var _pair_right: ItemPickup
 var _camera: Camera3D
 var _target_seen_during_performed: InteractiveArea
 
@@ -34,18 +37,23 @@ func _physics_process(_delta: float) -> bool:
 		1:
 			_build()
 		4:
-			_check_proximity_without_focus()
-			_camera.look_at(_component._focus_point(_near), Vector3.UP)
+			_check_near_without_camera_aim()
 		7:
-			_check_near_first()
-			_camera.look_at(_component._focus_point(_far), Vector3.UP)
-		10:
 			_check_far_next()
-		13:
+		10:
 			_check_after_walk()
-			_camera.look_at(_behind.global_position, Vector3.UP)
-		16:
+			## Camera behind Henry: the item at his back sits between them, mid-frame.
+			_player.global_position = Vector3.ZERO
+			_camera.global_position = Vector3(0.0, 1.6, 3.5)
+			_camera.look_at(Vector3(0.0, 0.0, -2.0), Vector3.UP)
+		13:
 			_check_behind_ignored()
+			_face_pair(0.5)
+		16:
+			_check(_component.current_target == _pair_left, "turned left, Henry did not pick the left of two close items")
+			_player.rotation.y = -0.5
+		19:
+			_check(_component.current_target == _pair_right, "turned right, Henry stayed on the left of two close items")
 			_finish()
 	return false
 
@@ -75,6 +83,8 @@ func _build() -> void:
 	_near = _spawn(Vector3(0.0, 0.0, -0.6))
 	_far = _spawn(Vector3(0.3, 0.0, -2.2))
 	_behind = _spawn(Vector3(0.0, 0.0, 2.0))
+	_pair_left = _spawn(Vector3(19.85, 0.0, -0.7))
+	_pair_right = _spawn(Vector3(20.15, 0.0, -0.7))
 
 
 func _spawn(at: Vector3) -> ItemPickup:
@@ -87,22 +97,17 @@ func _spawn(at: Vector3) -> ItemPickup:
 	return pickup
 
 
-func _check_proximity_without_focus() -> void:
-	_check(_component.current_target == null, "nearby item targeted without centre focus")
-	_check(not _near.shape_cast_detected, "nearby item showed F without centre focus")
-	_component.try_interact()
-	_check(_inventory.get_count(&"firewood") == 0, "F acted on an unfocused nearby item")
-
-
-func _check_near_first() -> void:
+## The camera looks off to the side; the item in front of Henry still wins.
+func _check_near_without_camera_aim() -> void:
 	_check(_component.current_target == _near, "the item at arm's length is not the target")
+	_check(_near.prompt_shown, "the targeted item at arm's length shows no F prompt")
 	_check(_component.is_target_in_reach(), "the item at 0.6 m is not in reach")
 	_component.try_interact()
 	_check(_inventory.get_count(&"firewood") == 1, "F did not pick up the near item")
 	_check(_component.current_target == null, "picked-up item stayed as current target")
 	_check(_target_seen_during_performed == null,
 		"interaction_performed fired before consumed pickup focus was cleared")
-	_check(not _near.shape_cast_detected, "picked-up item left the F prompt active")
+	_check(not _near.prompt_shown, "picked-up item left the F prompt active")
 
 
 func _check_far_next() -> void:
@@ -116,8 +121,16 @@ func _check_after_walk() -> void:
 
 
 func _check_behind_ignored() -> void:
-	_check(_component.current_target == null, "an item behind Henry was targeted")
+	_check(_component.current_target == null, "an item at Henry's back was targeted from mid-frame")
 	_check(_inventory.get_count(&"firewood") == 2, "something else was picked up")
+
+
+## Henry stands 0.7 m before two items 0.3 m apart; the camera looks between them.
+func _face_pair(turn: float) -> void:
+	_player.global_position = Vector3(20.0, 0.0, 0.0)
+	_player.rotation.y = turn
+	_camera.global_position = Vector3(20.0, 1.6, 3.5)
+	_camera.look_at(Vector3(20.0, 0.0, -0.7), Vector3.UP)
 
 
 func _finish() -> void:

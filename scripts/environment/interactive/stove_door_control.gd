@@ -21,6 +21,17 @@ func _get_interaction_text() -> String:
 	return "[%s] %s" % [_interact_key_label(), tr("STOVE_CLOSE" if feed != null and feed.is_door_open() else "STOVE_OPEN")]
 
 
+func accepts_focus(from: Vector3, direction: Vector3) -> bool:
+	return is_aim_on_door(from, direction)
+
+
+## While the stove is acting the firebox keeps F, so the door hands focus back.
+func resolve_focus(_from: Vector3, _direction: Vector3) -> InteractiveArea:
+	if is_instance_valid(feed) and feed.is_acting():
+		return feed
+	return self
+
+
 func is_aim_on_door(from: Vector3, direction: Vector3) -> bool:
 	return is_finite(get_aim_distance(from, direction))
 
@@ -38,7 +49,7 @@ func get_aim_distance(from: Vector3, direction: Vector3) -> float:
 
 
 func _input(event: InputEvent) -> void:
-	if not _targeted or not shape_cast_detected or (feed != null and feed.is_acting()):
+	if not _targeted or not prompt_shown or (feed != null and feed.is_acting()):
 		return
 	var mouse := event as InputEventMouseButton
 	if mouse != null and mouse.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:

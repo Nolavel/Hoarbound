@@ -1,7 +1,7 @@
 extends SceneTree
 
-## Seated reach (#42): Henry sitting picks the F target by where the camera looks,
-## up to 2 m (stove ring and table both reachable), and never walks to it.
+## Seated reach (#42): Henry sitting picks the F target by where his head looks
+## (towards the view, within the neck limit), up to 2 m, and never walks to it.
 ## Run: godot --headless --script tests/systems/test_seated_aim.gd
 
 const BODY: String = """extends CharacterBody3D
@@ -37,9 +37,10 @@ func _process(_delta: float) -> bool:
 			_body.set(&"view", Vector3(1.0, 0.0, -0.3).normalized())
 			_interact.detect_target()
 			_check(_interact.current_target == _right, "seated, looking right did not pick the right target")
-			_body.set(&"view", Vector3(0.0, 0.0, 1.0))
+			## Looking back-right, the head stops at its limit and still faces right.
+			_body.set(&"view", Vector3(0.5, 0.0, 1.0).normalized())
 			_interact.detect_target()
-			_check(_interact.current_target == null, "seated, looking away still picked a target")
+			_check(_interact.current_target == _right, "seated, looking back-right did not keep the right target")
 			print("test_seated_aim: %s" % ("PASS" if _failures == 0 else "%d FAILED" % _failures))
 			quit(1 if _failures > 0 else 0)
 	return false

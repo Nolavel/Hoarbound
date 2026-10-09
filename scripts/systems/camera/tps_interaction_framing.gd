@@ -22,8 +22,8 @@ extends Node
 @export_range(0.5, 1.0, 0.02) var swap_threshold: float = 0.74
 
 @export_group("Stability")
-## Keep the last valid target briefly when the camera movement itself makes the
-## centre ray lose it. This breaks the focus -> shift -> lost -> return loop.
+## Keep the last valid target briefly when the camera shift itself makes
+## InteractComponent drop it. This breaks the focus -> shift -> lost -> return loop.
 @export_range(0.0, 0.6, 0.05) var target_hold_seconds: float = 0.25
 
 var _camera: TpsCamera
@@ -54,7 +54,7 @@ func _process(delta: float) -> void:
 		_camera._shoulder.clear_interaction_override()
 		return
 
-	var focus := _focus_point(_held_target)
+	var focus: Vector3 = _held_target.get_focus_point(_camera.player.global_position)
 	var body := _camera.get_eye_position()
 	if _camera.is_position_behind(focus) or _camera.is_position_behind(body):
 		_camera._shoulder.clear_interaction_override()
@@ -107,14 +107,3 @@ func _update_target(delta: float) -> void:
 		return
 	_held_target = null
 	_hold_left = 0.0
-
-
-func _focus_point(area: InteractiveArea) -> Vector3:
-	if not is_instance_valid(area):
-		return Vector3.ZERO
-	if is_instance_valid(area.focus_anchor):
-		return area.focus_anchor.global_position
-	var mesh := area.interactive_mesh
-	if is_instance_valid(mesh) and mesh.mesh != null:
-		return mesh.to_global(mesh.mesh.get_aabb().get_center())
-	return area.global_position + Vector3.UP * 0.15

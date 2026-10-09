@@ -30,7 +30,16 @@ PY
 	fi
 fi
 
-"$GODOT" --headless --path "$PROJECT_DIR" --import --quit >/dev/null 2>&1
+## The cold pass may log ordering noise, but it must not crash: a crash leaves
+## imports unfinished and the second pass then reports misleading missing files.
+FIRST_LOG="$(mktemp)"
+"$GODOT" --headless --path "$PROJECT_DIR" --import --quit >"$FIRST_LOG" 2>&1
+FIRST_STATUS=$?
+if [[ "$FIRST_STATUS" -ne 0 ]]; then
+	tail -n 120 "$FIRST_LOG" >&2
+	echo "import gate: the first (cold) import pass exited with status $FIRST_STATUS" >&2
+	exit 1
+fi
 "$GODOT" --headless --path "$PROJECT_DIR" --import --quit >"$LOG" 2>&1
 
 PATTERN='SCRIPT ERROR|Parse Error|Failed loading resource|Resource file not found|Cannot open file|Can.t open file|Error loading|Failed to load script'

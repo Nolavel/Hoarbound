@@ -6,13 +6,11 @@ extends "res://scripts/actors/player/henry/embodied/embodied_interaction_lab.gd"
 ## presentation: authored standing pickup, crouch-preserving low reach,
 ## persistent held state, hand transfer and return.
 ##
-## The lab deliberately adds two authoring assists which production interactions
-## also need conceptually: forgiving target acquisition and a hard body-clearance
-## plane. Hands may reach into the rack; Henry's core may not pass through it.
+## The lab adds a hard body-clearance plane on top of production targeting.
+## Hands may reach into the rack; Henry's core may not pass through it.
 
 const CONTACT_TO_HELD_SECONDS: float = 0.22
 const LOW_CROUCH_REACH_SECONDS: float = 0.34
-const LAB_TARGET_FOCUS_CONE_DEG: float = 44.0
 const DEFAULT_FOCUS_RADIUS_M: float = 0.18
 const FLOOR_FOCUS_RADIUS_M: float = 0.22
 const RACK_FRONT_LOCAL_Z: float = RACK_Z_M - 0.20
@@ -26,11 +24,6 @@ var _clearance_push_total_m: float = 0.0
 
 func _ready() -> void:
 	super._ready()
-	var interact := get_node_or_null(^"InteractComponent") as InteractComponent
-	if interact != null:
-		## This is a soft selection cone, not an instruction to put the item on the
-		## exact centre pixel. The normal visibility/occlusion tests still apply.
-		interact.focus_angle_deg = maxf(interact.focus_angle_deg, LAB_TARGET_FOCUS_CONE_DEG)
 	_configure_target_focus()
 
 
@@ -419,9 +412,8 @@ func _is_low_case(index: int) -> bool:
 	return index >= 3
 
 
-## Give every can a small front-biased target volume. The cone decides which can
-## wins; the larger Area only means the centre ray no longer has to hit a 9 cm
-## cylinder exactly. Visibility still comes from InteractComponent.
+## Give every can a front-biased focus point and a small trigger volume.
+## InteractComponent's score and line of sight decide which can wins.
 func _configure_target_focus() -> void:
 	for index: int in range(_targets.size()):
 		var target := _targets[index]

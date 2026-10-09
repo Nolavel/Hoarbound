@@ -788,6 +788,11 @@ func _pulse_handles(latched: bool) -> void:
 			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
+## Focus sits on the handle nearest the observer, not on the large Area origin.
+func get_focus_point(observer: Vector3) -> Vector3:
+	return get_preferred_handle_position(observer)
+
+
 func get_preferred_handle_position(from: Vector3) -> Vector3:
 	if door_hinge == null:
 		return global_position

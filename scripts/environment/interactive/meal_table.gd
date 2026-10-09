@@ -124,7 +124,6 @@ func _add_target(prop: Node3D, item_id: StringName, amount: int) -> void:
 	area.set(&"interactable_scene", null)
 	area.set(&"interactive_mesh", prop.get_child(0))
 	area.set(&"object_on_ground", false)
-	area.set(&"icon_height_offset", 0.18)  # just over the tin, not over Henry's head
 	area.set(&"info_height_offset", 0.3)
 	var col := area.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
 	if col != null:

@@ -300,7 +300,6 @@ func _build_prompt() -> void:
 	area.set(&"warmer", self)
 	area.set(&"interactable_scene", null)
 	area.set(&"object_on_ground", false)
-	area.set(&"icon_height_offset", 0.25)
 	area.set(&"info_height_offset", 0.4)
 	var col := area.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
 	if col != null:

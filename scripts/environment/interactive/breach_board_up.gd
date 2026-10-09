@@ -93,6 +93,10 @@ func is_aim_on_opening(from: Vector3, direction: Vector3) -> bool:
 	return absf(point.x) <= breach.opening_width_m * 0.5 and absf(point.y) <= breach.opening_height_m * 0.5
 
 
+func accepts_focus(from: Vector3, direction: Vector3) -> bool:
+	return is_aim_on_opening(from, direction)
+
+
 func _on_interaction_performed() -> void:
 	if breach == null or not breach.boardable or _placing:
 		return

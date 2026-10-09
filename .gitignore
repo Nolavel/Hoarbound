@@ -47,3 +47,8 @@ __pycache__/
 docs/runtime_previews/motion_matching_lab/
 docs/runtime_previews/motion_retarget_diagnostics/
 docs/runtime_previews/motion_matching_player*/
+
+# Jenova MSVC toolchain, installed locally by tools/ci/bootstrap_jenova_windows.ps1
+/Jenova/Compilers/
+# Jenova keeps a renamed copy of the loaded runtime while the editor runs
+/Jenova/~*

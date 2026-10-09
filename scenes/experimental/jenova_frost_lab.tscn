@@ -1,0 +1,173 @@
+[gd_scene load_steps=17 format=3]
+
+[ext_resource type="Script" path="res://scripts/experimental/jenova_frost/frost_window.cpp" id="1_cpp"]
+
+[sub_resource type="Environment" id="Environment_lab"]
+background_mode = 1
+background_color = Color(0.055, 0.067, 0.082, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.66, 0.72, 0.82, 1)
+ambient_light_energy = 1.35
+
+[sub_resource type="BoxMesh" id="Box_floor"]
+size = Vector3(12, 0.18, 12)
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.18, 0.21, 0.24, 1)
+roughness = 0.86
+
+[sub_resource type="BoxMesh" id="Box_frame_h"]
+size = Vector3(5.7, 0.28, 0.34)
+
+[sub_resource type="BoxMesh" id="Box_frame_v"]
+size = Vector3(0.28, 3.55, 0.34)
+
+[sub_resource type="StandardMaterial3D" id="Mat_frame"]
+albedo_color = Color(0.19, 0.16, 0.13, 1)
+metallic = 0.08
+roughness = 0.72
+
+[sub_resource type="QuadMesh" id="Quad_glass"]
+size = Vector2(5.2, 3.05)
+
+[sub_resource type="StandardMaterial3D" id="Mat_glass_preview"]
+transparency = 1
+albedo_color = Color(0.64, 0.80, 0.9, 0.11)
+roughness = 0.15
+
+[sub_resource type="BoxMesh" id="Box_prop"]
+size = Vector3(1.25, 1.25, 1.25)
+
+[sub_resource type="SphereMesh" id="Sphere_prop"]
+radius = 0.72
+height = 1.44
+
+[sub_resource type="CylinderMesh" id="Cylinder_prop"]
+top_radius = 0.62
+bottom_radius = 0.62
+height = 1.65
+
+[sub_resource type="StandardMaterial3D" id="Mat_red"]
+albedo_color = Color(0.91, 0.12, 0.10, 1)
+roughness = 0.55
+
+[sub_resource type="StandardMaterial3D" id="Mat_blue"]
+albedo_color = Color(0.08, 0.32, 0.95, 1)
+roughness = 0.5
+
+[sub_resource type="StandardMaterial3D" id="Mat_yellow"]
+albedo_color = Color(1, 0.69, 0.06, 1)
+roughness = 0.55
+
+[sub_resource type="StandardMaterial3D" id="Mat_green"]
+albedo_color = Color(0.08, 0.78, 0.35, 1)
+roughness = 0.55
+
+[node name="JenovaFrostLab" type="Node3D"]
+script = ExtResource("1_cpp")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_lab")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-42, -28, 0)
+light_color = Color(0.83, 0.9, 1, 1)
+light_energy = 1.55
+shadow_enabled = true
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.09, -1.2)
+mesh = SubResource("Box_floor")
+material_override = SubResource("Mat_floor")
+
+[node name="Window" type="Node3D" parent="."]
+position = Vector3(0, 2.25, 0)
+
+[node name="Top" type="MeshInstance3D" parent="Window"]
+position = Vector3(0, 1.69, 0)
+mesh = SubResource("Box_frame_h")
+material_override = SubResource("Mat_frame")
+
+[node name="Bottom" type="MeshInstance3D" parent="Window"]
+position = Vector3(0, -1.69, 0)
+mesh = SubResource("Box_frame_h")
+material_override = SubResource("Mat_frame")
+
+[node name="Left" type="MeshInstance3D" parent="Window"]
+position = Vector3(-2.71, 0, 0)
+mesh = SubResource("Box_frame_v")
+material_override = SubResource("Mat_frame")
+
+[node name="Right" type="MeshInstance3D" parent="Window"]
+position = Vector3(2.71, 0, 0)
+mesh = SubResource("Box_frame_v")
+material_override = SubResource("Mat_frame")
+
+[node name="Glass" type="MeshInstance3D" parent="Window"]
+position = Vector3(0, 0, 0.025)
+mesh = SubResource("Quad_glass")
+material_override = SubResource("Mat_glass_preview")
+
+[node name="Backdrop" type="Node3D" parent="."]
+
+[node name="RedBox" type="MeshInstance3D" parent="Backdrop"]
+position = Vector3(-1.75, 1.35, -2.65)
+rotation_degrees = Vector3(8, 18, -5)
+mesh = SubResource("Box_prop")
+material_override = SubResource("Mat_red")
+
+[node name="BlueSphere" type="MeshInstance3D" parent="Backdrop"]
+position = Vector3(-0.4, 2.8, -3.25)
+mesh = SubResource("Sphere_prop")
+material_override = SubResource("Mat_blue")
+
+[node name="YellowCylinder" type="MeshInstance3D" parent="Backdrop"]
+position = Vector3(1.2, 1.28, -2.85)
+rotation_degrees = Vector3(0, 0, 8)
+mesh = SubResource("Cylinder_prop")
+material_override = SubResource("Mat_yellow")
+
+[node name="GreenBox" type="MeshInstance3D" parent="Backdrop"]
+position = Vector3(2.0, 2.75, -3.5)
+rotation_degrees = Vector3(-7, -22, 12)
+mesh = SubResource("Box_prop")
+material_override = SubResource("Mat_green")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0, 2.32, 8.2)
+fov = 48.0
+current = true
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Panel" type="Panel" parent="UI"]
+offset_left = 410.0
+offset_top = 594.0
+offset_right = 870.0
+offset_bottom = 700.0
+
+[node name="Title" type="Label" parent="UI/Panel"]
+offset_left = 20.0
+offset_top = 12.0
+offset_right = 245.0
+offset_bottom = 38.0
+theme_override_font_sizes/font_size = 18
+text = "JENOVA C++  ·  EDGE FROST"
+
+[node name="Value" type="Label" parent="UI/Panel"]
+offset_left = 334.0
+offset_top = 12.0
+offset_right = 438.0
+offset_bottom = 38.0
+theme_override_font_sizes/font_size = 18
+text = "FROST  0%"
+horizontal_alignment = 2
+
+[node name="FrostSlider" type="HSlider" parent="UI/Panel"]
+offset_left = 20.0
+offset_top = 56.0
+offset_right = 440.0
+offset_bottom = 88.0
+max_value = 1.0
+step = 0.001
+value = 0.0

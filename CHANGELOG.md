@@ -5,6 +5,259 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Linux Jenova runtime rebuilt with shared libstdc++; Import gate fixed
+
+- `Jenova/Jenova.Runtime.Linux64.so` (17.9 MB, was 20.1 MB) and
+  `GodotSDK/libGodot.x64.a` come from `[jenova-frost-preview]` run
+  37814389505. The runtime now needs the shared `libstdc++.so.6`. In that run
+  the cold import gate passed on it. With the old static-libstdc++ runtime the
+  same pass aborted with SIGSEGV in `std::regex`.
+- **Verified on Windows:** in the editor on the author's machine,
+  `BuildProject` compiled `frost_window.cpp` in 23 s with the local AiO MSVC
+  toolchain. The frost lab scene then logged "C++ controller ready" and
+  "frost pass reached 100% in 6.50 seconds".
+- `tools/ci/build_jenova_project.gd` sets `jenova/editor_verbose_output` to
+  standard output and waits for the settings to apply. Headless CI builds
+  previously failed with no compiler output.
+- `.gitignore` excludes `Jenova/~*`, the runtime copy Jenova keeps while the
+  editor runs.
+- **Open:** the Jenova C++ script build still fails on Linux
+  (`BuildProject` returned false with no output in run 37814389505).
+
+### 2026-10-09 - Windows Jenova runtime vendored; Linux import crash diagnosed
+
+- **Windows binaries vendored** from CI run 37808998143 through Git LFS:
+  `Jenova/Jenova.Runtime.Win64.dll` (5 MB), `GodotSDK/libGodot.x64.lib`
+  (139 MB) and `JenovaSDK/Jenova.SDK.x64.lib`. In that run the frost C++ script
+  compiled and the frost lab scene ran on the Windows runner. The artifact's
+  GodotSDK headers matched the vendored ones except for line endings.
+- **Import gate:** the cold import crashed in the Linux runtime's static
+  libstdc++ (`std::regex` in `CPPScript::_get_global_name`). The Linux
+  bootstrap now links the shared libstdc++. The `[jenova-frost-preview]` job
+  rebuilds the runtime and runs the cold import gate on it.
+- **Unverified:** the rebuilt Linux runtime is not yet confirmed by CI or
+  vendored. Windows editor use needs `tools/jenova/install_msvc_compiler.ps1`;
+  that has not been tried on this machine.
+
+### 2026-10-09 - CI: the cheap gate runs on push again
+
+- **`checks` job.** Its `if: github.event_name != 'push'` meant the import,
+  input-map and filename gate never ran on a push to `main` (5 runs in the last
+  60, all PR or manual). It now runs on every push and PR.
+- **Path filter.** The 60-entry `push.paths` whitelist is replaced by the same
+  `paths-ignore` (docs, Markdown) as pull requests. Pushes that touched no
+  listed file, such as gameplay scripts, used to skip CI entirely.
+- **`color-grade-preview`** ran on every untagged push and acted as an
+  accidental main gate. Its 10-tag exclusion list was already stale (no
+  `[cmu-retarget-preview]`, `[rokoko-retarget-preview]`). It is now
+  tag-gated by `[color-grade-preview]`, like every other preview job.
+- **Expected after this change:** `checks` will report the existing Import gate
+  failure on every push until the cold-cache import abort is fixed.
+
+### 2026-10-09 - Remove dead tool instances from the robot test scene
+
+- `tests/scenes/Test_scene_robot.tscn` still instanced
+  `tools/ScanFolderFiles/ScanFolderFiles.tscn` and
+  `tools/InputDebugger/InputDebugger.tscn`, deleted in fc3b886. Each editor load
+  logged `Failed loading resource`. The two nodes and their ext_resources are
+  removed (`load_steps` 9 → 7); nothing else referenced them.
+- The failing Import gate on `main` is a separate issue. The first headless
+  import pass aborts (core dump) on a cold cache, so the second pass misses the
+  translations and the project font. It started when Jenova was vendored. Not
+  fixed here.
+
+### 2026-10-09 - Reproducible Jenova builds for Windows and Linux
+
+- `docs/technical/JENOVA.md` documents how Jenova works in Hoarbound:
+  - pinned inputs (Jenova `63ecdcb`, dependency bundle 4.7, Godot 4.8-dev6 API,
+	AiO Toolchain v1.0 with SHA-256);
+  - the `Jenova/` layout;
+  - Hoarbound's source patches;
+  - developer setup per OS;
+  - CI rebuilds and how to bring the CI artifact into the repo.
+- **Windows patch.** `bootstrap_jenova_windows.ps1` now patches Jenova's
+  Windows `MicrosoftCompiler` to take the compiler from
+  `Jenova/Compilers/JenovaMSVCCompiler` and the SDK from `Jenova/GodotSDK`, as
+  the Linux bootstrap already does. Without it Jenova looked up an MSVC package
+  in its online package manager, found none, and the C++ script build failed.
+- **Local compiler.** New `tools/jenova/install_msvc_compiler.ps1` installs the
+  portable MSVC toolchain into the git-ignored `Jenova/Compilers/` (~0.9 GB,
+  checksum-verified, junction layout, `.gdignore`). Visual Studio is not needed.
+- **CI.** `jenova-windows-build` uploads the vendor package right after the
+  runtime build, so a later failure still yields the DLL. It excludes
+  `Jenova/Compilers/` from the package and always uploads the build logs as
+  `hoarbound-jenova-windows-logs`.
+- **LFS.** The Windows runtime, `libGodot.x64.lib` and `Jenova.SDK.x64.lib` are
+  tracked by LFS. Linux binaries stay plain git objects, because Linux CI jobs
+  check out without LFS.
+- **Repo setup.** `CLAUDE.md` gains a Jenova section. LFS hooks are installed
+  in the local clone.
+- **Unverified:** the Windows runtime and the C++ script proof have not passed
+  yet. A local Windows build on this 4 GB RAM machine was stopped for lack of
+  memory, so the build runs in CI.
+
+### 2026-10-08 - Interaction targeting by Henry's gaze (The Last of Us scheme)
+
+- **Group.** `InteractComponent._visible_group()` collects every `interactive`
+  object within `intent_radius` (seated: `seated_reach`) that passes the body
+  facing cone (`facing_limit_deg`; waived within `close_override`) and chest
+  line of sight. Ordering is by score. At most 1 + `max_hint_markers` members
+  are kept.
+- **Dominant.** The member nearest Henry's gaze wins. Score =
+  `gaze_weight`·(1 − angle/`gaze_cone_deg`) + `distance_weight`·closeness +
+  `focus_priority`, plus `hysteresis_bonus` for the current target.
+- **Gaze (`get_gaze_direction()`).** Moving, it is the body facing. Standing or
+  seated, it is the body facing turned towards `get_view_direction()` by at
+  most `head_turn_limit_deg` — the same rule Henry's head look follows. Seated
+  keeps the `seated_aim_deg` gate, now measured against the gaze.
+- **Aim rays.** `accepts_focus`/`resolve_focus` (stove door, firebox,
+  BreachBoardUp) get Henry's gaze ray from the chest, pitched to the object's
+  height, instead of the camera ray.
+- **Markers.** `InteractiveArea.set_hint_state(state, opacity, observer)` with
+  `MarkerState` HIDDEN / DIM / DOMINANT. The target shows the bright marker
+  (alongside its F prompt). Other group members show a smaller, fainter marker
+  (`marker_dim_scale`, `marker_dim_opacity`). Objects outside the group show
+  none. Opacity fades from `prompt_distance` to the group radius. Size, bob,
+  fade and the child `Sprite3D` pickup are unchanged.
+- **Removed:** the `interact_cycle` action (project.godot, InputSystems signal
+  and constant), `cycle_target`, `_manual_choice`, `_cluster_around`,
+  `get_cluster_position`, `cluster_radius`, the "[R] 2/3" prompt suffix and
+  `InteractiveArea.action_key_label`. The camera is gone from targeting:
+  `camera_weight`, `camera_cone_deg`, `_score_candidates`, `_ranked_score` and
+  `_flat_view_direction`. The separate marker pass is gone too: `hint_radius`,
+  `_update_hints` and its 0.1 s timer. Also removed: `facing_weight`,
+  `SIGHT_CHECKS` and the seated weight constants.
+- **New exports (`InteractComponent`, group Intent):** `head_turn_limit_deg` 55
+  (keep equal to `HenryUALAnimation.head_look_primary_limit_deg`),
+  `still_speed` 0.15, `gaze_cone_deg` 60, `gaze_weight` 1.0.
+- **Changed defaults:** `distance_weight` 0.25, `hysteresis_bonus` 0.05.
+- **New exports (`InteractiveArea`, group Marker):** `marker_dim_scale` 0.6,
+  `marker_dim_opacity` 0.4.
+- **Tests.** `test_interaction.gd` keeps "the item at Henry's back is not
+  picked" and "of two close items, the one Henry turns to wins".
+  `test_seated_aim.gd` now expects the head to stop at its neck limit when
+  looking back-right, keeping the right target, instead of picking nothing.
+- **Unverified:** nothing was run in Godot (no import, compile, test suites or
+  render). Gaze feel, weights and marker readability need the author's check.
+
+### 2026-10-08 - Interaction targeting: facing cone, angle scores, cluster cycling, small markers
+
+- Fixes three issues from the in-game test of 6f58fa5.
+- **Facing cone.** Standing, `InteractComponent` drops a candidate more than
+  `facing_limit_deg` from Henry's facing, unless it is within `close_override`
+  (the item at his feet). The "behind Henry and behind the camera" filter is
+gone. The camera only adds score, so an item at Henry's back is no longer
+picked from the middle of the frame. Seated keeps the `seated_aim_deg`
+camera gate.
+- **Angle scores replace dot products.** The facing score is
+  `1 - angle/facing_limit_deg`, the camera score is `1 - angle/camera_cone_deg`
+  (both clamped). The total is `distance_weight`·closeness +
+  `facing_weight`·facing + `camera_weight`·camera + `focus_priority`, plus
+  `hysteresis_bonus` for the current target. Scoring is split into
+  `_score_candidates()` and `_ranked_score()`.
+- **Cluster cycling.** Candidates within `cluster_radius` of the target form a
+  cluster. The new action `interact_cycle` (R) steps through it in score order
+  via `InteractComponent.cycle_target()`. InputSystems emits
+  `interact_cycle_pressed`. A manual pick holds until Henry moves 0.5 m or the
+  pick stops being eligible or visible. `ActionPrompt3D` shows "[R] 2/3" from
+  `get_cluster_position()`.
+- **Markers.**
+  - Anchored at `get_focus_point()` + `marker_lift`, with a constant screen size
+	(`fixed_size`; `pixel_size` comes from `marker_screen_size` and the camera FOV).
+  - Fade from full opacity at `intent_radius` to zero at `hint_radius`.
+  - Show only for the `max_hint_markers` nearest objects inside the facing cone
+	with chest line of sight.
+  - The 5 s shake is replaced by a continuous bob (0.03 m, 1.2 s) and a 0.2 s
+	fade.
+  - `InteractiveArea` now binds a child `Sprite3D` when `icon_sprite` is unset.
+	43 of the 61 blockout markers were never bound and stood static and
+	full-size at the Area origin.
+- **Cursor prompt.** The fallback centre ray (`_ray_hits_target`) is removed
+  from `mouse_cursor_ui`; it now only shows `current_target`.
+- **`check_input_map.py`** parsed zero bindings because Godot writes
+  `"script": null` with a space. Both regexes are fixed; it now checks 26
+  bindings.
+- New exports: `facing_limit_deg` 100, `close_override` 0.5, `camera_cone_deg`
+  30, `distance_weight` 0.5, `cluster_radius` 0.8, `max_hint_markers` 3
+  (`InteractComponent`); `marker_lift` 0.25 and `marker_screen_size` 0.025 of
+  screen height (`InteractiveArea`, group Marker).
+- Changed defaults: `facing_weight` 0.6 → 0.5, `camera_weight` 0.4 → 0.7,
+  `hysteresis_bonus` 0.25 → 0.08.
+- Removed: `icon_height_offset` (and its writes in meal_table, stove_warmer
+  and HenryUALAnimation), `target_ray_length`, the shake timer and constants,
+  and the old icon tween helpers.
+- Tests: `test_interaction.gd` adds two checks. With the camera behind Henry,
+  the item at his back stays unpicked. Two items 0.3 m apart switch with his
+  body turn.
+- Unverified: nothing was run in Godot (no import, compile, test suites or
+  render). Marker size and fade, cluster cycling, and all weights need the
+  author's in-game check.
+
+### 2026-10-08 - Third-person interaction targeting by score around Henry
+
+- `InteractComponent._find_best_target()` replaces `_find_crosshair_target` and
+  `_find_seated_target`. Candidates come from the `interactive` group with no
+  physics queries. A candidate's flat distance to `get_focus_point` must be
+  within `intent_radius` (seated: `seated_reach`), and `accepts_focus` must pass.
+  Score = closeness + `facing_weight`·body facing + `camera_weight`·camera aim +
+  `focus_priority`, plus `hysteresis_bonus` for the current target. Line of sight
+  goes from Henry's chest (+1.3 m) to the focus point, for the top 3 only.
+  The object's own bodies never block it.
+- Standing: a candidate behind both Henry and the camera is ignored. Seated
+  (facing 0.1, camera 1.0): it must lie within `seated_aim_deg` of the camera aim.
+- `HeatSourceFeed.keeps_focus()` holds the stove target while `is_acting()`.
+- `InteractiveArea`: joins group `interactive` (`INTERACTIVE_GROUP`; plain `GROUP`
+  would clash with `HingedDoor.GROUP`); new `focus_priority`,
+  `get_focus_point()` (moved from the component), `accepts_focus()`,
+  `resolve_focus()`, `keeps_focus()`, and `set_hint_state()`. The far
+  check-mark marker now follows distance to the focus point, not the trigger
+  Area. `shape_cast_detected` is renamed `prompt_shown`, and
+  `set_shape_cast_detected` is removed (it had no callers). The marker shake
+  `await` is guarded by a serial.
+- Overrides replace `is` branches: `HingedDoor.get_focus_point` (nearest
+  handle), `BreachBoardUp.accepts_focus` (aim on opening),
+  `StoveDoorControl.accepts_focus` (aim on door) and
+  `StoveDoorControl.resolve_focus` (firebox while acting).
+- `TpsInteractionFraming` uses `get_focus_point` instead of its own copy.
+- Removed: `_first_interactive_area_on_ray`, `_focus_hit_is_visible`,
+  `_is_focus_aligned`, `_has_focus_line`, `_focus_point`, `_find_intent_target`,
+  `_is_ahead` and `_resolve_focus`. Removed exports: `focus_length`,
+  `focus_radius`, `focus_angle_deg` and `intent_angle_deg`. No scene overrode
+  them. The embodied lab's `focus_angle_deg` assist is gone.
+- New exports (starting values, to be tuned by feel): `facing_weight` 0.6,
+  `camera_weight` 0.4, `hysteresis_bonus` 0.25, `hint_radius` 4.5 (marker pass
+  every 0.1 s). `seated_aim_deg` (35) is kept as the seated camera gate.
+- Tests: `test_interaction.gd` now checks the new contract. The item in front is
+  targeted with the camera turned away, and an item behind both Henry and the
+  camera is ignored. `test_shelter_workflow.gd` uses `get_focus_point` and
+  `prompt_shown`, and `_aim` turns Henry towards the target.
+- Unverified: nothing was run in Godot (no import, compile, test suites or
+  render). Feel, weights and the eight manual scenarios need the author's
+  in-game check.
+
+### 2026-10-08 - Vendor cross-platform Jenova runtime
+
+- Track the Jenova runtime and generated GodotSDK so clean clones can load
+  `frost_window.cpp` without downloading Jenova separately.
+- Add a Windows/MSVC bootstrap and an opt-in `windows-latest` artifact job,
+  both using Jenova revision `63ecdcb385fbcd8a59e1ed5896a6c03e0d0aacb2` and
+  Hoarbound's Godot 4.8-dev6 API.
+- Store the genuine oversized Windows `libGodot.x64.lib` through Git LFS and
+  validate the frost script build with the platform's native compiler model.
+- Allow `workflow_dispatch` to run the existing Windows job when GitHub cancels
+  a push-triggered Jenova build due to main-branch concurrency.
+- Isolate long Jenova Windows runs from unrelated push-triggered checks.
+- Validate the frost scene after the Jenova BuildProject harness produces its C++ module.
+- Preserve existing Windows files when regenerating the Linux runtime and SDK.
+
+### 2026-10-08 - Jenova frost Linux build fixes
+
+### 2026-10-08 - Jenova frost Linux build fixes
+
+- `tools/ci/bootstrap_jenova_linux.sh` links the static curl IDN2 dependency into
+  the Jenova runtime.
+- `tools/ci/build_jenova_project.gd` resolves the editor plugin dynamically so the
+  harness can parse before GDExtension class registration.
 ### 2026-10-08 - world_key_west: living Key West world-attribute registry
 
 - `docs/world/world_key_west.md`: single registry of the Key West world attributes —

@@ -1,67 +1,14 @@
 name: checks
 
-## Cheap gate for main: import, input map and filename hygiene. Test suites are
-## run locally until mechanics settle; they churn too fast to gate main.
-## No rendering here; render locally with tools/ci/render.sh.
+## `checks` is the cheap gate on every push and PR: import, input map, filenames.
+## Test suites run locally until mechanics settle; they churn too fast to gate main.
+## Preview/render jobs run only for a commit tagged with their [marker].
 on:
   push:
-    branches: [codex, claudeflow]
-    paths:
-      - "scripts/systems/world/ColorGradeController.gd"
-      - "scripts/systems/world/DayNightManager.gd"
-      - "scripts/systems/world/DayNightSettings.gd"
-      - "scripts/systems/world/WeatherController.gd"
-      - "scenes/game/systems/world/WorldEnvironmentSystem.tscn"
-      - "resources/environment/color_grading/**"
-      - "assets/textures/color_grading/**"
-      - "tools/runtime/capture_color_grading.gd"
-      - "tools/runtime/capture_key_west.gd"
-      - "tools/runtime/capture_key_west_tps.gd"
-      - "tools/runtime/capture_key_west_first_exit.gd"
-      - "tools/runtime/capture_sky_weather.gd"
-      - "shaders/environment/freemans_parallax_clouds.gdshader"
-      - "scripts/ui/debug/**"
-      - "scripts/ui/menu/camera_settings_panel.gd"
-      - "scripts/settings/**"
-      - "tools/runtime/capture_camera_settings.gd"
-      - "scenes/ui/debug/**"
-      - "tools/runtime/capture_dev_diorama_map.gd"
-      - "tests/systems/test_dev_diorama_map.gd"
-      - "scripts/experimental/motion_matching/**"
-      - "scripts/systems/motion_matching/**"
-      - "data/motion_matching/**"
-      - "scripts/actors/player/henry/components/motion_matching_locomotion.gd"
-      - "tests/motion_matching/**"
-      - "tools/runtime/capture_motion_matching_lab.gd"
-      - "tools/runtime/capture_motion_matching_player.gd"
-      - "tools/ci/prepare_cmu_sample.sh"
-      - ".github/workflows/checks.yml"
-      - "scripts/world/key_west_first_exit.gd"
-      - "scenes/world/key_west/key_west_first_exit.tscn"
-      - "core/world/resources/world_profile.gd"
-      - "core/world/streaming_system.gd"
-      - "world/world.gd"
-      - "data/world_profiles/key_west_test.tres"
-      - "tests/systems/test_key_west_first_exit.gd"
-      - "tests/systems/test_streaming.gd"
-      - "scripts/systems/world/city/chunked_city_massing.gd"
-      - "tools/world/build_key_west_preview.sh"
-      - "tools/world/build_key_west_city_preview.py"
-      - "project.godot"
-      - "shaders/environment/stylized_shadow.gdshaderinc"
-      - "shaders/environment/stylized_shadows.gdshader"
-      - "shaders/environment/materials/**"
-      - "shaders/environment/terrain/island_terrain.gdshader"
-      - "shaders/environment/snow/**"
-      - "shaders/environment/ice/**"
-      - "scripts/systems/world/materials/**"
-      - "scripts/systems/world/city/key_west_city_visuals.gd"
-      - "scripts/systems/world/city/key_west_street_props.gd"
-      - "scripts/environment/interactive/hinged_door.gd"
-      - "scripts/environment/interactive/meal_table.gd"
-      - "scripts/systems/survival/shelter_breach.gd"
-      - "tools/runtime/capture_stylized_shadows.gd"
-      - "tests/systems/test_stylized_shadows.gd"
+    branches: [main, codex, claudeflow]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   pull_request:
     branches: [main]
     paths-ignore:
@@ -70,12 +17,11 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: checks-${{ github.ref }}
+  group: checks-${{ github.ref }}${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[jenova-windows-build]'))) && '-jenova' || '' }}
   cancel-in-progress: true
 
 jobs:
   checks:
-    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -101,7 +47,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   color-grade-preview:
-    if: github.event_name == 'push' && github.ref_name != 'claudeflow' && !contains(github.event.head_commit.message, '[key-west-preview]') && !contains(github.event.head_commit.message, '[key-west-tps]') && !contains(github.event.head_commit.message, '[key-west-first-exit]') && !contains(github.event.head_commit.message, '[dev-map-preview]') && !contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]') && !contains(github.event.head_commit.message, '[settings-preview]') && !contains(github.event.head_commit.message, '[motion-matching-preview]')
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[color-grade-preview]')
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -182,6 +128,222 @@ jobs:
             docs/runtime_previews/camera_settings/report.json
           if-no-files-found: error
           retention-days: 3
+
+  jenova-frost-preview:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[jenova-frost-preview]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Install Jenova native build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-19 lld-19 cmake ninja-build libssl-dev libzstd-dev libidn2-dev ffmpeg
+          echo "CC=/usr/bin/clang-19" >> "$GITHUB_ENV"
+          echo "CXX=/usr/bin/clang++-19" >> "$GITHUB_ENV"
+          sudo ln -sf /usr/bin/clang-19 /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-19 /usr/local/bin/clang++
+          clang++ --version | head -n 1
+
+      - name: Build Jenova Runtime + Godot 4.8-dev6 SDK
+        run: bash tools/ci/bootstrap_jenova_linux.sh
+
+      ## Uploaded first so a later failure still yields the rebuilt runtime.
+      - name: Upload Linux Jenova vendor candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-linux-vendor
+          path: Jenova/**
+          if-no-files-found: error
+          retention-days: 7
+
+      ## The cold import must survive the rebuilt runtime (it aborted with the static libstdc++ one).
+      - name: Import gate with the rebuilt runtime
+        run: tools/ci/import_gate.sh
+
+      - name: Build C++ scripts through Jenova BuildProject
+        run: |
+          set -o pipefail
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" \
+            --editor \
+            --path . \
+            --rendering-driver opengl3 \
+            --audio-driver Dummy \
+            --script tools/ci/build_jenova_project.gd 2>&1 | tee /tmp/jenova-build.log
+          grep -q "JENOVA_BUILD_OK" /tmp/jenova-build.log
+
+      - name: Upload Linux Jenova build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-linux-build-log
+          path: /tmp/jenova-build.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Capture 6.5 second frost pass
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 1280x720 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script tools/runtime/capture_jenova_frost.gd
+
+      - name: Encode frost video and retain proof frames
+        run: |
+          D=docs/runtime_previews/jenova_frost
+          ffmpeg -y -framerate 30 -i "$D/frames/%04d.png" \
+            -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p \
+            -movflags +faststart "$D/jenova_frost_6_5s.mp4"
+          ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$D/jenova_frost_6_5s.mp4"
+          rm -rf "$D/frames"
+
+      - name: Upload Jenova frost proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-frost-proof
+          path: |
+            docs/runtime_previews/jenova_frost/*.mp4
+            docs/runtime_previews/jenova_frost/*.png
+            docs/runtime_previews/jenova_frost/stages/*.png
+            docs/runtime_previews/jenova_frost/report.json
+            Jenova/HOARBOUND_JENOVA_BUILD.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  jenova-windows-build:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[jenova-windows-build]'))
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build Hoarbound .NET project
+        run: dotnet build Hoarbound.csproj --configuration Debug
+
+      - name: Install Godot 4.8-dev6 Mono
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "godot-4.8-dev6-mono-win64.zip"
+          $install = Join-Path $env:RUNNER_TEMP "godot-4.8-dev6-mono-win64"
+          Invoke-WebRequest `
+            -Uri "https://github.com/godotengine/godot-builds/releases/download/4.8-dev6/Godot_v4.8-dev6_mono_win64.zip" `
+            -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath $install
+          $godot = Get-ChildItem -LiteralPath $install -Filter "Godot_v4.8-dev6_mono_win64.exe" -File -Recurse |
+            Select-Object -First 1
+          if (-not $godot) {
+            $contents = Get-ChildItem -LiteralPath $install -File -Recurse |
+              ForEach-Object { $_.FullName }
+            throw "Godot 4.8-dev6 Mono executable was not found. Archive files: $($contents -join ', ')"
+          }
+          "GODOT_BIN=$($godot.FullName)" >> $env:GITHUB_ENV
+
+      - name: Build and validate native Windows Jenova runtime
+        shell: pwsh
+        run: ./tools/ci/bootstrap_jenova_windows.ps1
+
+      ## Uploaded before the C++ script proof so a script failure still yields the runtime.
+      - name: Upload Windows Jenova vendor package
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-windows-vendor
+          path: |
+            Jenova/**
+            !Jenova/Compilers/**
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Build frost C++ script through Jenova BuildProject
+        shell: pwsh
+        run: |
+          $buildLog = Join-Path $env:RUNNER_TEMP "jenova-build.log"
+          & $env:GODOT_BIN --headless --editor --path . --script tools/ci/build_jenova_project.gd 2>&1 |
+            Tee-Object -FilePath $buildLog
+          if ($LASTEXITCODE -ne 0) {
+            throw "Godot Jenova BuildProject harness failed; see $buildLog"
+          }
+          if (-not (Select-String -LiteralPath $buildLog -Pattern "JENOVA_BUILD_OK" -Quiet)) {
+            throw "Jenova BuildProject did not report JENOVA_BUILD_OK; see $buildLog"
+          }
+
+      - name: Instantiate frost lab scene with built Jenova script
+        shell: pwsh
+        run: |
+          $sceneLog = Join-Path $env:RUNNER_TEMP "jenova-frost-scene.log"
+          & $env:GODOT_BIN --headless --path . --quit-after 30 "res://scenes/experimental/jenova_frost_lab.tscn" 2>&1 |
+            Tee-Object -FilePath $sceneLog
+          if ($LASTEXITCODE -ne 0) {
+            throw "Godot failed to instantiate the Jenova frost lab scene; see $sceneLog"
+          }
+          if (Select-String -LiteralPath $sceneLog -Pattern "No loader found for frost_window\.cpp" -Quiet) {
+            throw "Godot did not recognize frost_window.cpp while opening the frost lab scene."
+          }
+          if (-not (Select-String -LiteralPath $sceneLog -Pattern "\[jenova-frost\] C\+\+ controller ready" -Quiet)) {
+            throw "Godot opened the frost scene without running the built Jenova C++ controller."
+          }
+
+      - name: Report exact Jenova package file sizes
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem Jenova -File -Recurse |
+            Where-Object { $_.FullName -notlike "*\Jenova\Compilers\*" } | Sort-Object FullName
+          $oversized = @($files | Where-Object { $_.Length -ge 100MB })
+          foreach ($file in $oversized) {
+            $relativePath = [System.IO.Path]::GetRelativePath((Get-Location).Path, $file.FullName).Replace('\', '/')
+            $attribute = & git check-attr filter -- $relativePath
+            if ($LASTEXITCODE -ne 0 -or $attribute -notmatch ": filter: lfs$") {
+              throw "Large Jenova file must be tracked by Git LFS: $($file.Length) bytes $relativePath"
+            }
+          }
+          $files | ForEach-Object { "{0}`t{1}" -f $_.Length, $_.FullName }
+          "Windows Jenova runtime: $((Get-Item Jenova/Jenova.Runtime.Win64.dll).Length) bytes" |
+            Add-Content $env:GITHUB_STEP_SUMMARY
+          "Tracked-package candidate total: $((($files | Measure-Object Length -Sum).Sum)) bytes" |
+            Add-Content $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload Jenova build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-jenova-windows-logs
+          path: |
+            ${{ runner.temp }}/jenova-build.log
+            ${{ runner.temp }}/jenova-frost-scene.log
+            ${{ runner.temp }}/hoarbound-jenova-windows/godot-editor-load.log
+          if-no-files-found: warn
+          retention-days: 7
 
   motion-matching-preview:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[motion-matching-preview]')
