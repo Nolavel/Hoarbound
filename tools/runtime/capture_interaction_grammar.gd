@@ -86,20 +86,26 @@ func _build_world() -> void:
 ## Five close tools; the view sweeps A -> B -> C -> D -> C -> B and Henry's head follows.
 func _dense_tools() -> void:
 	_segment = "1  Dense tools: Henry's head picks, [F] follows, camera shoulder stays still"
-	await _place(_local(Vector3(2.0, 0.91, 0.32)), _local(Vector3(2.0, 1.71, 1.2)))
+	## The tools lie near the bench's far edge; from the near side they are out of reach.
+	await _place(_local(Vector3(2.0, 0.91, 2.12)), _local(Vector3(2.0, 1.71, 1.2)))
 	var order: Array[String] = ["HammerShelter", "KnifeShelterTest", "NailsShelter", "AxeShelterTest", "NailsShelter", "KnifeShelterTest"]
 	var points: Array[Vector3] = []
 	for tool_name: String in order:
 		points.append((_scene.get_node(NodePath(tool_name)) as InteractiveArea).get_focus_point(_player.global_position))
 	var seen: Array[String] = []
+	var promised: int = 0
+	var frames: int = 0
 	for i: int in range(points.size() - 1):
 		for step: int in range(FPS * 2):
 			_aim_at(points[i].lerp(points[i + 1], float(step) / float(FPS * 2)))
 			await _frame(true)
 			var pickup: InteractiveArea = _interact.get_pickup_target()
-			if pickup != null and (seen.is_empty() or seen[-1] != String(pickup.name)):
-				seen.append(String(pickup.name))
-	_report.append("dense tools dominant sequence: %s" % " -> ".join(seen))
+			if pickup != null and (seen.is_empty() or not seen[-1].begins_with(String(pickup.name))):
+				seen.append("%s@%d" % [pickup.name, frames])
+			frames += 1
+			if _interact.is_pickup_actionable():
+				promised += 1
+	_report.append("dense tools dominant sequence: %s; [F] shown in %d of %d frames" % [" -> ".join(seen), promised, frames])
 
 
 ## The view on the stove gives the central prompt and F; on the tin beside it, [F] returns.

@@ -120,6 +120,10 @@ const ACTION_ALIASES: Dictionary = {
 @export var attention_smooth: float = 12.0
 ## How fast the attention origin follows the head bone; filters idle bob, per second.
 @export var attention_origin_smooth: float = 10.0
+## Look depth along the aim: snaps in to a nearer object, eases out past an edge
+## (a TPS boom's fast-in, slow-out), so a ray slipping off a bench edge never jerks the head.
+@export var look_depth_in_rate: float = 30.0
+@export var look_depth_out_rate: float = 2.5
 
 @export_group("Backpack")
 @export var backpack_bone: StringName = &"spine_03"
@@ -193,6 +197,7 @@ var _attention_ready: bool = false
 ## Physics frame of the last smoothing step; a stale smoothed value is never used.
 var _attention_frame: int = -1
 var _reach_profile: Dictionary = {}
+var _look_depth: float = -1.0
 
 var _blend_position: float = 0.0
 ## Continuous time off the floor, seconds.
@@ -699,9 +704,10 @@ func get_attention_direction() -> Vector3:
 func _update_attention(delta: float) -> void:
 	if player == null:
 		return
+	var stale: bool = not _attention_fresh()
+	_update_look_depth(delta, stale)
 	var goal: Vector3 = _attention_goal()
 	var origin: Vector3 = _raw_attention_origin()
-	var stale: bool = not _attention_fresh()
 	_attention_frame = Engine.get_physics_frames()
 	if not _attention_ready or stale:
 		_attention_dir = goal
@@ -711,6 +717,17 @@ func _update_attention(delta: float) -> void:
 	var turn: float = _attention_dir.signed_angle_to(goal, Vector3.UP)
 	_attention_dir = _attention_dir.rotated(Vector3.UP, turn * clampf(delta * attention_smooth, 0.0, 1.0)).normalized()
 	_attention_origin = _attention_origin.lerp(origin, clampf(delta * attention_origin_smooth, 0.0, 1.0))
+
+
+func _update_look_depth(delta: float, stale: bool) -> void:
+	if player == null or not player.has_method(&"get_view_ray"):
+		return
+	var depth: float = float((player.call(&"get_view_ray") as Array)[2])
+	if stale or _look_depth <= 0.0:
+		_look_depth = depth
+		return
+	var rate: float = look_depth_in_rate if depth < _look_depth else look_depth_out_rate
+	_look_depth = lerpf(_look_depth, depth, clampf(delta * rate, 0.0, 1.0))
 
 
 ## Smoothing holds only while the head look runs every physics frame (not when paused or posed by a test).
@@ -723,8 +740,10 @@ func _attention_goal() -> Vector3:
 	facing.y = 0.0
 	facing = facing.normalized() if facing.length() > 0.001 else Vector3.FORWARD
 	var view: Vector3
-	if player.has_method(&"get_view_target"):
-		view = (player.call(&"get_view_target") as Vector3) - _raw_attention_origin()
+	if player.has_method(&"get_view_ray"):
+		var ray: Array = player.call(&"get_view_ray")
+		var depth: float = _look_depth if _attention_fresh() and _look_depth > 0.0 else float(ray[2])
+		view = (ray[0] as Vector3) + (ray[1] as Vector3) * depth - _raw_attention_origin()
 	elif player.has_method(&"get_view_direction"):
 		view = player.call(&"get_view_direction")
 	else:

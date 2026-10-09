@@ -308,13 +308,12 @@ func get_view_direction() -> Vector3:
 	return forward.normalized() if forward.length() > 0.001 else -global_transform.basis.z
 
 
-## The point the player aims at: the nearer of the aim ray's first solid hit and an
-## interactable's focus area it passes through. Henry looks at this point, so the
-## camera's shoulder offset does not skew his look.
-func get_view_target() -> Vector3:
+## The player's aim ray as [origin, direction, depth]: depth reaches the nearer of
+## the first solid hit and an interactable focus area the ray passes through.
+func get_view_ray() -> Array:
 	var camera: Camera3D = get_viewport().get_camera_3d()
 	if camera == null:
-		return global_position + Vector3.UP * EYE_ABOVE_ORIGIN - global_transform.basis.z * VIEW_TARGET_RANGE
+		return [global_position + Vector3.UP * EYE_ABOVE_ORIGIN, -global_transform.basis.z, VIEW_TARGET_RANGE]
 	var from: Vector3 = TpsCamera.aim_origin(camera)
 	var aim: Vector3 = TpsCamera.aim_direction(camera)
 	var depth: float = VIEW_TARGET_RANGE
@@ -332,7 +331,14 @@ func get_view_target() -> Vector3:
 		var along: float = (point - from).dot(aim)
 		if along > 0.0 and along < depth and (from + aim * along).distance_to(point) <= area.focus_radius:
 			depth = along
-	return from + aim * depth
+	return [from, aim, depth]
+
+
+## The point the player aims at. Henry looks at this point, so the camera's
+## shoulder offset does not skew his look.
+func get_view_target() -> Vector3:
+	var view: Array = get_view_ray()
+	return (view[0] as Vector3) + (view[1] as Vector3) * float(view[2])
 
 
 ## Henry's attention origin: his head, or eye height when he has no rig.

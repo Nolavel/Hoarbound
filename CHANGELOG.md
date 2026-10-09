@@ -5,6 +5,41 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Fast-in, slow-out look depth; consolidated shelter proof (claudeflow)
+
+- **Measured flicker.** The capture sweep across the ToolBench showed
+  `Axe@54 → Nails@55 → Axe@57` (frames at 10 fps). The aim ray slipped past the
+  bench's front edge, between the edge and the axe's focus area, and hit the
+  floor 1.7 m beyond. The look depth jumped, and with the shoulder camera
+  Henry's attention jumped about 5°, above the 4° switch margin.
+- **Fix (the TPS camera boom's fast-in, slow-out).** `HenryUALAnimation` keeps a
+  look depth along the aim. It moves to a nearer hit at `look_depth_in_rate` 30/s
+  and to a farther one at `look_depth_out_rate` 2.5/s. A brief slip past an edge
+  barely moves the head; a sustained far look still arrives.
+  `Player.get_view_ray()` returns origin, direction and depth;
+  `get_view_target()` uses it.
+- After the fix the sweep is clean:
+  `Nails → Knife → Hammer → Knife → Nails → Axe → Nails → Knife`.
+- **New `test_attention_depth.gd`.** A 3-tick slip moves attention 3.2°, inside
+  the switch margin. The near point is held again, and a sustained far look moves
+  it 20°.
+- **`tools/runtime/capture_interaction_grammar.gd`.** It renders through Movie
+  Maker in the real shelter. Reported semantics:
+  - the tool-bench sweep above, with `[F]` shown in 84 of 100 frames;
+  - stove under the view: world `DoorControl`, central prompt, pickup `[F]`
+    hidden;
+  - view on the tin beside the stove: no world target, `[F]` shown;
+  - a tin 0.28 m behind the supply-bench edge is approached and taken;
+  - a fenced tin is noticed but refused for `body_blocked`;
+  - the far flare's check mark is shown;
+  - the shoulder override weight in the pickup-only segments is 0.0000.
+- **Found, not fixed: the tools near the ToolBench's far edge cannot be taken from
+  its near side.** Standing there, they are out of reach. The far side is
+  reachable only by walking around the bench, and the straight scripted walk has
+  no path planning. The solver therefore honestly withholds `[F]` there. Letting
+  F walk around furniture needs a path layer (NavigationAgent or a
+  corner-waypoint search); it is left as an author decision.
+
 ### 2026-10-09 - Forgiving G drop with a bounded placement search (claudeflow)
 
 - `WoodWorkComponent.drop_carried()` now asks `find_drop_placement()`. That
