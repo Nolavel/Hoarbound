@@ -4,6 +4,10 @@ extends Node
 ## Ground-checked armful drops and axe work preserve loose wood through the save contract.
 const DROP_ACTION: StringName = &"drop_carried"
 const CHOP_SECONDS: float = 4.0
+## Manual drop candidates as (yaw offset degrees, distance metres), in preference order.
+const DROP_SEARCH: Array[Vector2] = [Vector2(0.0, 1.35), Vector2(25.0, 1.35), Vector2(-25.0, 1.35),
+	Vector2(0.0, 1.0), Vector2(25.0, 1.0), Vector2(-25.0, 1.0), Vector2(50.0, 1.2), Vector2(-50.0, 1.2),
+	Vector2(0.0, 1.7)]
 
 @export_group("Work time")
 ## Game-time cost is independent from the four-second chopping presentation.
@@ -43,7 +47,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func drop_carried() -> bool:
 	if not _carry.is_carrying() or _work_left > 0.0 or _body.call(&"is_holding_still"):
 		return false
-	var placement: Dictionary = get_drop_placement()
+	var placement: Dictionary = find_drop_placement()
 	if not bool(placement.get("valid", false)):
 		_message(tr("WOOD_DROP_BLOCKED"))
 		return false
@@ -74,8 +78,21 @@ func _drop_at(placement: Dictionary) -> void:
 		_inventory.try_remove(id)
 
 
+## The first physically valid spot from a short bounded list: straight ahead, then
+## slightly to either side, nearer, wider and farther; at each, the pile across Henry,
+## then along his facing. All fail: the load stays carried.
+func find_drop_placement() -> Dictionary:
+	var forward: Vector3 = -_body.global_basis.z
+	for spot: Vector2 in DROP_SEARCH:
+		for turn: float in [0.0, PI * 0.5]:
+			var placement: Dictionary = get_drop_placement(forward.rotated(Vector3.UP, deg_to_rad(spot.x)), spot.y, turn)
+			if bool(placement.get("valid", false)):
+				return placement
+	return {"valid": false}
+
+
 ## A floor ray plus path/volume checks ignore interaction trigger Areas.
-func get_drop_placement(direction: Vector3 = Vector3.ZERO, distance: float = 1.35) -> Dictionary:
+func get_drop_placement(direction: Vector3 = Vector3.ZERO, distance: float = 1.35, turn: float = 0.0) -> Dictionary:
 	if not _carry.is_carrying():
 		return {"valid": false}
 	if direction == Vector3.ZERO:
@@ -100,7 +117,7 @@ func get_drop_placement(direction: Vector3 = Vector3.ZERO, distance: float = 1.3
 		return {"valid": false}
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(1.82, 0.28, 0.30) if _carry.get_carried_item().id == &"boards" else Vector3(0.72, 0.34, 0.56)
-	var basis := Basis(Vector3.UP, atan2(-direction.x, -direction.z))
+	var basis := Basis(Vector3.UP, atan2(-direction.x, -direction.z) + turn)
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = shape
 	query.transform = Transform3D(basis, floor_at + Vector3.UP * (shape.size.y * 0.5 + 0.03))

@@ -5,6 +5,29 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Forgiving G drop with a bounded placement search (claudeflow)
+
+- `WoodWorkComponent.drop_carried()` now asks `find_drop_placement()`. That
+  tries `DROP_SEARCH`, a short list of 9 spots as (yaw, distance): (0°, 1.35),
+  (±25°, 1.35), (0°, 1.0), (±25°, 1.0), (±50°, 1.2), (0°, 1.7). At each spot it
+  tries the pile across Henry, then along his facing. The first valid spot wins.
+- Every spot still passes the unchanged `get_drop_placement` checks: floor ray and
+  slope, height step, a path ray that blocks drops through walls, and the full pile
+  volume with Areas ignored. It gained only an optional `turn`.
+- **Measured.** A 1.82 m board pile lying across Henry overlapped a 0.5 m chair at
+  every yaw. Turning the pile lengthwise is what makes the side spot usable.
+- When nothing fits, `WOOD_DROP_BLOCKED` shows and the load stays in the hands.
+- G stays `drop_carried`. The whole armful drops as one pile and save/load is
+  unchanged. `drop_carried_nearby` (stove overflow) is untouched.
+- New `test_drop_placement.gd` uses the real `player.tscn`:
+  - clear floor lands straight ahead;
+  - a chair in front: a side spot;
+  - a wall across all forward spots: nothing drops and the 3 boards stay
+    carried;
+  - a centre wall: never behind it;
+  - a dropped pile survives `get_save_data`/`load_save_data` at its position
+    with count 3.
+
 ### 2026-10-09 - Interaction framing: world only, stability traced on the real shelter (claudeflow)
 
 - `TpsInteractionFraming` reads `InteractComponent.get_world_target()` only (since
