@@ -5,6 +5,18 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Pickup ring: F frames in place, refusal ✕ centred (claudeflow)
+
+- **No jump between F and [F].** One F glyph sits at one spot above the ring.
+  Idle shows it bare; on the hold only its key frame fades in around it. The old
+  separate keycap beside the lower-left arc is gone.
+- **One refusal ✕ in the ring centre.** The arc of the cause lights up: the right
+  arc for storage (tap), the left arc for hands/hold. The hand icon yields to the
+  ✕. The right arc stays near background in idle.
+- `PickupMarkerUI._layout()` places every piece. The draw and
+  `test_pickup_marker_ui` share it; the test now checks the F position across
+  idle → hold, the centred ✕ and a hold refusal. The ring size is unchanged.
+
 ### 2026-10-09 - Pickup tap/hold grammar: tap stores, hold takes into the hand (claudeflow)
 
 - **Gesture.** F on an ordinary pickup no longer acts on the press.

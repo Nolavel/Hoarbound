@@ -61,8 +61,9 @@ What each marker means:
 |---|---|
 | Central brackets + prompt | F operates **this** world mechanism |
 | Ring over an item: top arc + plain `F` | Tap F: take **this** item into storage (Quick Access pocket for preferred items, otherwise the pack). It shows only when Henry can physically get it: a floor spot he can walk to in a straight line, with the item inside his reach |
-| Ring, lower-left arc | Hold F: take the item into the hand. On the hold the ring turns into `[F]` plus an open hand, and the arc grows from both ends to a full circle at 1.0 s. Shown only for items a hand can show (pocket-size; not the hammer or flare yet) |
-| Ring, lower-right arc | Not an action: almost invisible until a tap is refused (overweight), then it lights with ✕ |
+| Ring, lower-left arc | Hold F: take the item into the hand. On the hold the same `F` gains a key frame in place (it never moves), an open hand appears inside the ring, and the arc grows from both ends to a full circle at 1.0 s. Shown only for items a hand can show (pocket-size; not the hammer or flare yet) |
+| Ring, lower-right arc | Not an action: almost invisible until a tap is refused by storage (overweight), then it lights up |
+| ✕ in the ring centre | The pickup did not happen. The lit arc names the cause: right = storage, left = hands/hold. The hand icon gives way to it |
 | Small `[F]` keycap over an armful | F takes the boards or logs into both arms at once |
 | Faint dot over an item | Henry notices it; F does not take it now (another item is dominant, a world mechanism has F, or it cannot be reached) |
 | ✓ check mark | "Notice this": opt-in for rare or authored objects only, never ordinary loot. It never makes anything actionable |
@@ -78,8 +79,8 @@ The first matching row wins.
 | Seated, and the camera looks at something within 2 m (food on the table, the stove ring, the set-down pack) | Act on it: eat, warm up, go through the pack |
 | Seated, nothing looked at | Open the wait prompt |
 | Standing, a world mechanism under the view | Within 0.9 m act on it (open, board up, feed the stove, sit, sleep); further, walk to it, then act |
-| Standing, a pickup ring is shown, F released within 0.22 s | Tap: store the item, turning in place or walking to the solved spot first; it takes exactly that item. Moving with WASD cancels. A newly blocked path gets one retry, then "Can't reach it from here". Overweight: ✕, nothing taken |
-| Standing, a pickup ring is shown, F held | Past 0.22 s it is a hold, and releasing before 1.0 s cancels (never a tap). At 1.0 s the item goes into the hand. Storage still owns it and its weight; the hand only shows it. Anything already in the hand is put away into its own storage in the same step. Hands that cannot be emptied (burning flare, an armful) refuse with ✕; nothing is dropped |
+| Standing, a pickup ring is shown, F released within 0.22 s | Tap: store the item, turning in place or walking to the solved spot first; it takes exactly that item. Moving with WASD cancels. A newly blocked path gets one retry, then "Can't reach it from here". Overweight: ✕ in the ring centre with the right arc lit, nothing taken |
+| Standing, a pickup ring is shown, F held | Past 0.22 s it is a hold, and releasing before 1.0 s cancels (never a tap). At 1.0 s the item goes into the hand. Storage still owns it and its weight; the hand only shows it. Anything already in the hand is put away into its own storage in the same step. Hands that cannot be emptied (burning flare, an armful) or overweight refuse with ✕ in the ring centre and the left arc lit; nothing is dropped |
 | Bedroll placement preview is up | Lay only when the camera-ray preview is green; red means slope/clearance/distance is invalid |
 | Board-placement preview is up | LMB nails the translucent board at the camera-aimed height; Esc cancels |
 

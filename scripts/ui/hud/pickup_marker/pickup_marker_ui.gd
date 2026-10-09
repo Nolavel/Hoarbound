@@ -3,9 +3,9 @@ extends Control
 
 ## Ordinary pickups: a three-arc ring over the pickup F would take. Top arc + F =
 ## tap to store it; lower-left = hold to take it into the hands, growing into a full
-## circle; lower-right = only storage-refusal feedback, never an action. Armfuls keep
-## the compact [F] keycap; faint dots mark the other pickups Henry notices.
-## Never the central prompt, never the camera.
+## circle, while the same F gains its frame in place. A refusal is one ✕ in the ring
+## centre; the right (storage) or left (hands) arc lights to name the cause. Armfuls
+## keep the compact [F] keycap. Never the central prompt, never the camera.
 
 const KEY_BASE := Color(0.94, 0.84, 0.65, 1.0)
 const KEY_BORDER := Color(0.77, 0.56, 0.27, 1.0)
@@ -27,6 +27,10 @@ const SUCCESS_FADE_SECONDS: float = 0.25
 ## Per-second rates the ring's pieces ease at; the collapse after a cancel uses SPAN_RATE.
 const ALPHA_RATE: float = 8.0
 const SPAN_RATE_DEG: float = 900.0
+## Gap between the ring line and the keycap's lower edge; the F glyph never moves.
+const KEY_GAP_PX: float = 4.0
+const KEY_GLYPH_PX: int = 13
+const CROSS_HALF_PX: float = 5.0
 
 @export_group("Ring")
 ## Ring radius and line width in screen pixels; constant at any distance.
@@ -132,15 +136,16 @@ func get_visual_state() -> Dictionary:
 	return {
 		"mode": _mode,
 		"top_alpha": _top_a,
-		"left_alpha": _left_a,
+		"left_alpha": _left_alpha(),
 		"right_alpha": _right_alpha(),
 		"plain_f_alpha": _plain_f_a,
 		"key_framed_alpha": _key_a,
-		"hand_alpha": _hand_a,
+		"hand_alpha": _hand_alpha(),
 		"left_span_deg": _span_deg,
 		"refusal_right": _refuse_right > 0.0,
 		"refusal_left": _refuse_left > 0.0,
 		"fading": _fade_left > 0.0,
+		"layout": _layout(Vector2.ZERO),
 	}
 
 
@@ -188,11 +193,35 @@ func _ease(delta: float, idle: bool, holding: bool) -> void:
 		_span_deg = move_toward(_span_deg, ARC_SPAN_DEG, SPAN_RATE_DEG * delta)
 
 
-## The refusal pulse brightens the background arc and fades back to it.
+## A storage refusal brightens the background arc and fades back to it.
 func _right_alpha() -> float:
-	if _refuse_right <= 0.0:
-		return _right_a
 	return maxf(_right_a, _refuse_right / REFUSAL_SECONDS)
+
+
+## A hold refusal lights the hands arc the same way.
+func _left_alpha() -> float:
+	return maxf(_left_a, _refuse_left / REFUSAL_SECONDS)
+
+
+func _refusal_strength() -> float:
+	return maxf(_refuse_right, _refuse_left) / REFUSAL_SECONDS
+
+
+## The hand yields the centre to a refusal ✕.
+func _hand_alpha() -> float:
+	return _hand_a * (1.0 - _refusal_strength())
+
+
+## Where each piece sits around a ring centre; the draw and the tests share it.
+func _layout(centre: Vector2) -> Dictionary:
+	var key_point: Vector2 = centre + Vector2(0.0, -(ring_radius_px + KEY_GAP_PX + key_size * 0.5))
+	var icon: float = ring_radius_px * 1.15
+	return {
+		"key_point": key_point,
+		"key_rect": Rect2(key_point - Vector2(key_size, key_size) * 0.5, Vector2(key_size, key_size)),
+		"hand_rect": Rect2(centre - Vector2(icon, icon) * 0.5, Vector2(icon, icon)),
+		"cross_point": centre,
+	}
 
 
 func _focus(area: InteractiveArea) -> Vector3:
@@ -216,38 +245,37 @@ func _draw() -> void:
 		&"dot":
 			draw_circle(at, hint_radius_px * 1.4, Color(DOT_COLOR, minf(1.0, hint_alpha * 1.8)))
 		&"carry":
-			_draw_keycap(at - Vector2(0.0, lift_px), 1.0)
+			var point: Vector2 = at - Vector2(0.0, lift_px)
+			_draw_key_frame(Rect2(point - Vector2(key_size, key_size) * 0.5, Vector2(key_size, key_size)), 1.0)
+			_draw_key_glyph(point, KEY_TEXT)
 		_:
 			_draw_ring(at - Vector2(0.0, lift_px))
 
 
+## One F glyph at one spot: idle shows it bare, hold fades its frame in around it.
 func _draw_ring(centre: Vector2) -> void:
+	var layout: Dictionary = _layout(centre)
 	_arc(centre, TOP_DEG, ARC_SPAN_DEG, _top_a)
 	_arc(centre, RIGHT_DEG, ARC_SPAN_DEG, _right_alpha())
-	_arc(centre, LEFT_DEG, _span_deg, _left_a)
-	if _plain_f_a > 0.01:
-		var size: int = 15
-		var key: String = InteractiveArea._interact_key_label()
-		var width: float = _font.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-		draw_string(_font, centre + Vector2(-width * 0.5, -ring_radius_px - 6.0), key,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(DOT_COLOR, _plain_f_a))
+	_arc(centre, LEFT_DEG, _span_deg, _left_alpha())
 	if _key_a > 0.01:
-		_draw_keycap(centre + _dir(LEFT_DEG) * (ring_radius_px + key_size * 0.75), _key_a)
-	if _hand_a > 0.01:
-		var icon: float = ring_radius_px * 1.15
-		draw_texture_rect(HAND_ICON, Rect2(centre - Vector2(icon, icon) * 0.5, Vector2(icon, icon)), false, Color(DOT_COLOR, _hand_a))
-	if _refuse_right > 0.0:
-		_draw_cross(centre + _dir(RIGHT_DEG) * (ring_radius_px + 9.0), _refuse_right / REFUSAL_SECONDS)
-	if _refuse_left > 0.0:
-		_draw_cross(centre + _dir(LEFT_DEG) * (ring_radius_px + 9.0), _refuse_left / REFUSAL_SECONDS)
+		_draw_key_frame(layout["key_rect"], _key_a)
+	var glyph_a: float = maxf(_plain_f_a, _key_a)
+	if glyph_a > 0.01:
+		_draw_key_glyph(layout["key_point"], Color(DOT_COLOR.lerp(KEY_TEXT, _key_a), glyph_a))
+	var hand_a: float = _hand_alpha()
+	if hand_a > 0.01:
+		draw_texture_rect(HAND_ICON, layout["hand_rect"], false, Color(DOT_COLOR, hand_a))
+	var refusal: float = _refusal_strength()
+	if refusal > 0.0:
+		_draw_cross(layout["cross_point"], refusal)
 
 
 func _draw_success_fade(centre: Vector2) -> void:
 	var a: float = _fade_left / SUCCESS_FADE_SECONDS
 	if _fade_full:
 		_arc(centre, LEFT_DEG, 360.0, a)
-		var icon: float = ring_radius_px * 1.15
-		draw_texture_rect(HAND_ICON, Rect2(centre - Vector2(icon, icon) * 0.5, Vector2(icon, icon)), false, Color(DOT_COLOR, a))
+		draw_texture_rect(HAND_ICON, _layout(centre)["hand_rect"], false, Color(DOT_COLOR, a))
 	else:
 		_arc(centre, TOP_DEG, ARC_SPAN_DEG, a * TOP_ARC_ALPHA)
 
@@ -260,28 +288,26 @@ func _arc(centre: Vector2, mid_deg: float, span_deg: float, alpha: float) -> voi
 	draw_arc(centre, ring_radius_px, mid - half, mid + half, 40, Color(DOT_COLOR, alpha), arc_width_px, true)
 
 
-func _draw_keycap(centre: Vector2, alpha: float) -> void:
-	var rect := Rect2(centre - Vector2(key_size, key_size) * 0.5, Vector2(key_size, key_size))
+func _draw_key_frame(rect: Rect2, alpha: float) -> void:
 	draw_rect(Rect2(rect.position + Vector2(0.0, 2.0), rect.size), Color(0.16, 0.10, 0.055, 0.7 * alpha), true)
 	_key_style.bg_color = Color(KEY_BASE, alpha)
 	_key_style.border_color = Color(KEY_BORDER, alpha)
 	draw_style_box(_key_style, rect)
+
+
+## The key label centred on point, one size for the bare F and the framed [F].
+func _draw_key_glyph(point: Vector2, colour: Color) -> void:
 	var key: String = InteractiveArea._interact_key_label()
-	var font_size: int = int(key_size * 0.62)
-	var width: float = _font.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-	draw_string(_font, Vector2(rect.position.x + (key_size - width) * 0.5, rect.position.y + key_size * 0.72),
-		key, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(KEY_TEXT, alpha))
+	var width: float = _font.get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, KEY_GLYPH_PX).x
+	var baseline: float = point.y + (_font.get_ascent(KEY_GLYPH_PX) - _font.get_descent(KEY_GLYPH_PX)) * 0.5
+	draw_string(_font, Vector2(point.x - width * 0.5, baseline), key, HORIZONTAL_ALIGNMENT_LEFT, -1, KEY_GLYPH_PX, colour)
 
 
 func _draw_cross(at: Vector2, alpha: float) -> void:
-	var r: float = 4.0
+	var r: float = CROSS_HALF_PX
 	var colour := Color(DOT_COLOR, clampf(alpha * 1.2, 0.0, 1.0))
-	draw_line(at + Vector2(-r, -r), at + Vector2(r, r), colour, 2.0, true)
-	draw_line(at + Vector2(-r, r), at + Vector2(r, -r), colour, 2.0, true)
-
-
-static func _dir(deg: float) -> Vector2:
-	return Vector2(cos(deg_to_rad(deg)), sin(deg_to_rad(deg)))
+	draw_line(at + Vector2(-r, -r), at + Vector2(r, r), colour, 2.2, true)
+	draw_line(at + Vector2(-r, r), at + Vector2(r, -r), colour, 2.2, true)
 
 
 ## A consumed pickup loses its live ring in the same frame.

@@ -1,10 +1,9 @@
 extends SceneTree
 
 ## The pickup ring reads as one action plus one deliberate alternative: top arc + F
-## (store), lower-left arc (hold to hands) growing from both ends into a full circle,
-## and a near-background lower-right arc that only lights up with ✕ on a storage
-## refusal. Success fades, cancel leaves nothing stale, a world target suppresses it,
-## and none of it moves the camera shoulder.
+## (store), lower-left arc (hold to hands) growing into a full circle while the same F
+## frames in place, and a near-background lower-right arc. Refusals put ✕ in the centre
+## and light the arc of their cause. Nothing stale, nothing moves the camera shoulder.
 ## Run: godot --headless --script tests/systems/test_pickup_marker_ui.gd
 
 const AREA_SCENE: String = "res://scenes/environment/interactive/InteractiveArea.tscn"
@@ -18,6 +17,7 @@ var _marker: PickupMarkerUI
 var _camera: TpsCamera
 var _inventory: InventoryComponent
 var _max_shoulder_weight: float = 0.0
+var _idle_key_point: Vector2 = Vector2.INF
 
 
 func _initialize() -> void:
@@ -50,6 +50,7 @@ func _run() -> void:
 	await _check_hold_and_success()
 	await _check_cancel_leaves_nothing_stale()
 	await _check_storage_refusal()
+	await _check_hold_refusal()
 	await _check_world_suppresses()
 	_check(_max_shoulder_weight == 0.0, "the pickup ring moved the camera shoulder (weight %.4f)" % _max_shoulder_weight)
 	print("test_pickup_marker_ui: %s" % ("PASS" if _failures == 0 else "%d FAILED" % _failures))
@@ -66,6 +67,10 @@ func _check_idle(knife: ItemPickup) -> void:
 	_check(v["right_alpha"] <= PickupMarkerUI.RIGHT_ARC_IDLE_ALPHA + 0.001 and v["right_alpha"] < v["left_alpha"] and v["right_alpha"] < v["top_alpha"],
 		"the refusal arc competes with the actions in idle (%.2f)" % v["right_alpha"])
 	_check(v["key_framed_alpha"] < 0.01 and v["hand_alpha"] < 0.01, "idle shows hold-mode pieces")
+	var layout: Dictionary = v["layout"]
+	_idle_key_point = layout["key_point"]
+	_check(is_zero_approx(_idle_key_point.x) and _idle_key_point.y < -_marker.ring_radius_px,
+		"the idle F is not centred above the ring (%s)" % _idle_key_point)
 
 
 ## 18–21: hold mode, growth from both ends, full circle, clean success fade.
@@ -77,6 +82,12 @@ func _check_hold_and_success() -> void:
 	_check(v["mode"] == &"hold", "hold mode did not switch the ring (%s)" % v["mode"])
 	_check(v["top_alpha"] < 0.01 and v["right_alpha"] < 0.01 and v["plain_f_alpha"] < 0.01, "hold mode kept the top/right arcs or plain F")
 	_check(v["key_framed_alpha"] > 0.95 and v["hand_alpha"] > 0.95 and v["left_alpha"] > 0.95, "hold mode lacks the framed [F], hand or hold arc")
+	var layout: Dictionary = v["layout"]
+	var key_rect: Rect2 = layout["key_rect"]
+	var hand_rect: Rect2 = layout["hand_rect"]
+	_check(layout["key_point"] == _idle_key_point, "F moved on entering hold: %s -> %s" % [_idle_key_point, layout["key_point"]])
+	_check(key_rect.get_center().is_equal_approx(_idle_key_point), "the [F] frame is not around the idle F spot")
+	_check(hand_rect.get_center().is_zero_approx(), "the hand is not inside the ring")
 	var spans: Array[float] = []
 	for t: float in [0.45, 0.65, 0.85, 0.99]:
 		await _hold_to(t)
@@ -121,13 +132,37 @@ func _check_storage_refusal() -> void:
 	_ic.release_interact(0.05)
 	_marker.refresh(STEP)
 	var v: Dictionary = _marker.get_visual_state()
-	_check(v["refusal_right"] and v["right_alpha"] > 0.9, "a storage refusal did not light the right arc with ✕")
+	_check(v["refusal_right"] and v["right_alpha"] > 0.9, "a storage refusal did not light the right arc")
+	_check(not v["refusal_left"] and v["left_alpha"] <= PickupMarkerUI.LEFT_ARC_IDLE_ALPHA + 0.001, "a storage refusal lit the hands arc")
+	_check((v["layout"]["cross_point"] as Vector2).is_zero_approx(), "the refusal ✕ is not in the ring centre")
 	await _settle(1.0)
 	v = _marker.get_visual_state()
 	_check(not v["refusal_right"] and v["right_alpha"] <= PickupMarkerUI.RIGHT_ARC_IDLE_ALPHA + 0.001,
 		"the refusal arc did not settle back into the background")
 	_inventory.max_carry_weight = max_weight
 	tin.queue_free()
+	await _frames(3)
+
+
+## A hold refused by storage: ✕ in the centre, the hands arc lit, the hand gone.
+func _check_hold_refusal() -> void:
+	var max_weight: float = _inventory.max_carry_weight
+	_inventory.max_carry_weight = _inventory.get_total_weight() + 0.01
+	var knife: ItemPickup = await _spawn_ahead(&"knife")
+	await _settle(0.3)
+	_ic.try_interact()
+	await _hold_to(0.3)
+	var v: Dictionary = _marker.get_visual_state()
+	_check(v["refusal_left"] and v["left_alpha"] > PickupMarkerUI.LEFT_ARC_IDLE_ALPHA + 0.3, "a hold refusal did not light the hands arc")
+	_check(not v["refusal_right"] and v["right_alpha"] <= PickupMarkerUI.RIGHT_ARC_IDLE_ALPHA + 0.001, "a hold refusal lit the storage arc")
+	_check(v["hand_alpha"] < 0.01, "the hand competes with the refusal ✕ (%.2f)" % v["hand_alpha"])
+	_check((v["layout"]["cross_point"] as Vector2).is_zero_approx(), "the hold refusal ✕ is not in the ring centre")
+	_ic.release_interact(0.3)
+	await _settle(1.0)
+	v = _marker.get_visual_state()
+	_check(not v["refusal_left"] and v["left_alpha"] <= PickupMarkerUI.LEFT_ARC_IDLE_ALPHA + 0.001, "the hands arc did not settle after the refusal")
+	_inventory.max_carry_weight = max_weight
+	knife.queue_free()
 	await _frames(3)
 
 
