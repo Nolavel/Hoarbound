@@ -5,6 +5,80 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Pickup tap/hold grammar: tap stores, hold takes into the hand (claudeflow)
+
+- **Gesture.** F on an ordinary pickup no longer acts on the press.
+  - It rides the existing `InputSystems` `interact_pressed` /
+    `interact_held(duration)` / `interact_released(duration)` signals; there is
+    no second raw-F path. A new `PickupGesture` (RefCounted) holds the pure
+    timing state.
+  - **Tap:** a release within `tap_max_seconds` 0.22 stores the item.
+  - **Hold:** past 0.22 s the gesture enters hold mode; releasing before 1.0 s
+    cancels and never turns into a tap. At `hand_hold_seconds` 1.0 the item goes
+    into the hand.
+  - The gesture stays on the pickup F went down on. If that item vanishes, the
+    gesture cancels and no neighbour is substituted.
+  - A world target still acts at once, with no wait. Armfuls (boards, logs) keep
+    the immediate F.
+- **Storage route.** `PlayerHubComponent.route_destination(item_id)` names the
+  canonical destination: the first fitting free Quick Access pocket for
+  `prefer_quick_access` items, else the pack. `route_now` applies it at once.
+  `InteractComponent.pickup_stored(item_id, destination)` reports it.
+- **Hand pickup: storage owns the item and its weight; the hand only shows it.**
+  - New `HeldItemComponent.present_owned(item_id)` shows an item that stays in
+    its pocket or the pack (`_source_zone` = that pocket, or `""`).
+  - `HandsTransaction`:
+    - **`check()`** validates without changing anything. It refuses when a
+      flare is burning, an armful is carried, the item has no hand presenter, or
+      storage refuses it (overweight).
+    - **`present_stow()`** only shrinks the old hand prop during the hold.
+    - **`commit()`** revalidates, puts the old held item away (it never left
+      its storage), then `ItemPickup.pick_up(to_hands)`, `route_now` and
+      `present_owned`.
+    - **Cancel** restores the old prop. Inventory, ledger and world are
+      unchanged.
+- **Weight is shared.** Overweight refuses the tap (right arc ✕) and the hold
+  alike. ТЗ item 13 (storage full, hold still works) does not arise with weight
+  as the only limit.
+- **Hammer and road_flare get no hold yet.** Their `equip_from_zone` takes the
+  item out of the pocket, which drops its weight while held. That is a
+  pre-existing leak, left for a separate task.
+- **Removed** the post-pickup hold-F (0.35 s) shortcut into Hub placement.
+  Manual placement stays in the Hub (Tab).
+- **PickupMarkerUI: one ring of three arcs.**
+  - **Idle:** the top arc with a plain F above it means tap; the lower-left arc
+    means hold, shown only for items that can be held. The lower-right arc is
+    near background (`RIGHT_ARC_IDLE_ALPHA` 0.12, not an action).
+  - **Hold:** the top and right arcs and the F fade. A framed `[F]` and an open
+    hand appear, and the lower-left arc grows from both ends to a full circle
+    at 1.0 s.
+  - **Success:** the ring fades over 0.25 s where the item was.
+  - **Cancel:** the arc collapses back to idle.
+  - **Storage refusal:** the right arc lights up with ✕ for 0.7 s. A hold
+    refusal shows ✕ at the left arc.
+  - Armfuls keep the small `[F]` keycap.
+- **Hand icon.** Google Material Symbols `back_hand` (Rounded, filled), Apache
+  2.0, recoloured white. It lives at `assets/ui/hud/pickup_marker/hand_open.svg`
+  with `LICENSE.md` and `APACHE-2.0.txt`; entry in `docs/THIRD_PARTY_NOTICES.md`.
+- **Localisation.** New `PICKUP_REFUSED_HELD_BUSY` and
+  `PICKUP_REFUSED_NOT_HANDHELD`.
+- **Tests.**
+  - New `test_pickup_gesture.gd` (real `player.tscn`) covers:
+    - tap to the pack and to a pocket, taken exactly once;
+    - the hold threshold;
+    - hands with the weight still counted;
+    - cancel;
+    - the swap with an old held item, and cancel keeping it;
+    - a burning flare refusing;
+    - target stability and a vanishing target;
+    - overweight for tap and hold;
+    - world priority, and armfuls staying immediate.
+  - New `test_pickup_marker_ui.gd` covers the ring states and that the shoulder
+    interaction weight stays at 0.
+  - The interaction suites use a tap helper (press, release). All interaction,
+    affordance, framing, drop, seated, shelter and player_state suites pass
+    (read from the logs; see issue #209).
+
 ### 2026-10-09 - Interaction grammar documented; BUILD_PLAN follows the owner's revision (claudeflow)
 
 - `docs/technical/CONTROLS.md` documents the two attention channels. It also

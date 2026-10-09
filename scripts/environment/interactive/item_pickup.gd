@@ -58,8 +58,19 @@ func can_interact() -> bool:
 	return super() and ItemCatalog.get_item(item_id) != null and (work == null or not work.is_chopping(self))
 
 
+## Why storage would refuse this pickup right now, or empty; checks only, no change.
+func get_pickup_refusal() -> StringName:
+	var item: ItemResource = ItemCatalog.get_item(item_id)
+	var inventory: InventoryComponent = _get_inventory()
+	if is_queued_for_deletion() or item == null or inventory == null:
+		return &"invalid"
+	return inventory.get_add_refusal(item, count)
+
+
 ## Adds every unit or none: a half-taken stack would leave the world lying.
-func pick_up() -> bool:
+## to_hands: the item still lands in storage, but skips the flight into the pack;
+## the hand presenter shows it instead.
+func pick_up(to_hands: bool = false) -> bool:
 	if is_queued_for_deletion():
 		return false
 	var item: ItemResource = ItemCatalog.get_item(item_id)
@@ -82,7 +93,7 @@ func pick_up() -> bool:
 	if ledger != null:
 		ledger.record(world_id)
 	picked_up.emit(item_id, count)
-	if not item.carried_in_hands:  # armfuls go to the hands, not the pack
+	if not item.carried_in_hands and not to_hands:  # armfuls go to the hands, not the pack
 		_hand_visual_to_pack()
 	queue_free()
 	return true

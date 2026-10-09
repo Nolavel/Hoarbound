@@ -12,6 +12,10 @@ signal pickup_target_changed(target: InteractiveArea, actionable: bool)
 signal active_target_changed(target: InteractiveArea)
 ## Emitted after F acted on a target.
 signal interaction_performed(target: InteractiveArea)
+## A pickup gesture ended: &"stored", &"hands", &"cancelled", &"refused_storage" or &"refused_hands".
+signal pickup_gesture_finished(target: InteractiveArea, result: StringName)
+## A pickup went into storage; destination is a pocket zone path or &"pack".
+signal pickup_stored(item_id: StringName, destination: StringName)
 
 ## Seconds between special-awareness scans; they are rare and cheap.
 const AWARENESS_INTERVAL: float = 0.2
@@ -66,6 +70,12 @@ const STALL_SECONDS: float = 0.5
 ## Gives up a walk that stops making progress, seconds.
 @export var approach_timeout: float = 4.0
 
+@export_group("Pickup gesture")
+## F released within this time on an ordinary pickup is a tap: store it, seconds.
+@export var tap_max_seconds: float = 0.22
+## Holding F this long in total takes the pickup into the hands, seconds.
+@export var hand_hold_seconds: float = 1.0
+
 var world_target: InteractiveArea = null
 var pickup_target: InteractiveArea = null
 
@@ -86,6 +96,10 @@ var _commit: PickupAffordance = null
 var _commit_resolves: int = 0
 var _commit_best: float = INF
 var _commit_stall: float = 0.0
+## The hand swap a committed walk carries out on arrival, if F was held.
+var _commit_hands: HandsTransaction = null
+var _gesture: PickupGesture = null
+var _gesture_hands: HandsTransaction = null
 ## Target -> [affordance, Henry position, target position, solve time ms].
 var _affordances: Dictionary = {}
 ## Full affordance solves run so far; a budget probe for tests.
@@ -100,6 +114,8 @@ func _ready() -> void:
 	var input_systems: Node = get_node_or_null(^"/root/InputSystems")
 	if input_systems != null:
 		input_systems.connect(&"interact_pressed", try_interact)
+		input_systems.connect(&"interact_held", hold_interact)
+		input_systems.connect(&"interact_released", release_interact)
 	if _player != null and _player.has_signal(&"movement_stopped"):
 		_player.connect(&"movement_stopped", _on_player_movement_stopped)
 
@@ -179,17 +195,157 @@ func try_interact() -> void:
 	if not is_pickup_actionable():
 		return
 	var pickup: InteractiveArea = pickup_target
+	## Ordinary items wait for the release or the hold; armfuls act at once.
+	if _uses_gesture(pickup):
+		_gesture = PickupGesture.new(pickup, tap_max_seconds, hand_hold_seconds)
+		_gesture_hands = null
+		return
+	_take_pickup(pickup, null)
+
+
+## F still down after duration seconds; drives the hold toward the hands.
+func hold_interact(duration: float) -> void:
+	if _gesture == null:
+		return
+	var target: Variant = _gesture.target
+	if not _is_available(target):
+		_end_gesture(target, &"cancelled")
+		return
+	match _gesture.update(duration):
+		PickupGesture.Outcome.ENTERED_HOLD:
+			_gesture_hands = HandsTransaction.new(_player, target as ItemPickup)
+			var refusal: HandsTransaction.Refusal = _gesture_hands.check()
+			if refusal != HandsTransaction.Refusal.NONE:
+				_refuse_hands(target, refusal)
+				return
+		PickupGesture.Outcome.HANDS:
+			_complete_hold()
+			return
+	if _gesture_hands != null:
+		_gesture_hands.present_stow(_gesture.get_progress())
+
+
+## F came up after duration seconds: a tap stores, an unfinished hold cancels.
+func release_interact(duration: float) -> void:
+	if _gesture == null:
+		return
+	var target: Variant = _gesture.target
+	match _gesture.release(duration):
+		PickupGesture.Outcome.TAP:
+			_gesture = null
+			if _is_available(target):
+				_take_pickup(target, null)
+			else:
+				pickup_gesture_finished.emit(target if is_instance_valid(target) else null, &"cancelled")
+		PickupGesture.Outcome.CANCEL:
+			_end_gesture(target, &"cancelled")
+		PickupGesture.Outcome.HANDS:
+			_complete_hold()
+
+
+## The pickup the current F gesture is bound to, or null.
+func get_gesture_target() -> InteractiveArea:
+	return _gesture.target if _gesture != null and _is_available(_gesture.target) else null
+
+
+## True once F is held past the tap window on the gesture target.
+func is_gesture_holding() -> bool:
+	return _gesture != null and _gesture.phase == PickupGesture.Phase.HOLD
+
+
+## Hand-mode progress of the current gesture, 0..1.
+func get_gesture_progress() -> float:
+	return _gesture.get_progress() if _gesture != null else 0.0
+
+
+## Whether a hold would take this pickup into the hands at all.
+func can_hold_pickup(target: InteractiveArea) -> bool:
+	return target != null and _uses_gesture(target) and HandsTransaction.can_hold(_player, target)
+
+
+func _uses_gesture(target: InteractiveArea) -> bool:
+	var pickup := target as ItemPickup
+	var item: ItemResource = ItemCatalog.get_item(pickup.item_id) if pickup != null else null
+	return item != null and not item.carried_in_hands
+
+
+func _complete_hold() -> void:
+	var target: Variant = _gesture.target
+	var hands: HandsTransaction = _gesture_hands
+	_gesture = null
+	_gesture_hands = null
+	if not _is_available(target):
+		if hands != null:
+			hands.restore()
+		pickup_gesture_finished.emit(target if is_instance_valid(target) else null, &"cancelled")
+		return
+	if hands == null:
+		hands = HandsTransaction.new(_player, target as ItemPickup)
+	_take_pickup(target, hands)
+
+
+## Untyped target: a vanished pickup arrives here already freed and is reported as null.
+func _end_gesture(target: Variant, result: StringName) -> void:
+	if _gesture_hands != null:
+		_gesture_hands.restore()
+	_gesture = null
+	_gesture_hands = null
+	pickup_gesture_finished.emit(target if is_instance_valid(target) else null, result)
+
+
+func _refuse_hands(target: InteractiveArea, refusal: HandsTransaction.Refusal) -> void:
+	var key: String = "PICKUP_REFUSED_HELD_BUSY"
+	if refusal == HandsTransaction.Refusal.STORAGE and target is ItemPickup:
+		key = ItemPickup._refusal_key((target as ItemPickup).get_pickup_refusal())
+	elif refusal == HandsTransaction.Refusal.NO_PRESENTER:
+		key = "PICKUP_REFUSED_NOT_HANDHELD"
+	if is_instance_valid(target):
+		target.show_message(tr(key))
+	_end_gesture(target, &"refused_hands")
+
+
+## Takes a pickup in place, or walks to its solved spot first; hands swaps it into a hand.
+func _take_pickup(pickup: InteractiveArea, hands: HandsTransaction) -> void:
 	if _is_seated():
 		_stop_approach()
-		_perform(pickup)
+		_act_on_pickup(pickup, hands)
 		return
 	var affordance: PickupAffordance = _affordance_for(pickup)
 	if affordance.in_place:
 		_stop_approach()
 		_face(affordance.contact)
-		_perform(pickup)
+		_act_on_pickup(pickup, hands)
 		return
-	_begin_commit(pickup, affordance)
+	_begin_commit(pickup, affordance, hands)
+
+
+## The pickup itself: storage by the canonical route, or the transactional hand swap.
+func _act_on_pickup(pickup: InteractiveArea, hands: HandsTransaction) -> void:
+	var item := pickup as ItemPickup
+	var item_id: StringName = item.item_id if item != null else &""
+	var hub := _player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
+	var destination: StringName = hub.route_destination(item_id) if hub != null else PlayerHubComponent.PACK_DESTINATION
+	if hands == null:
+		var refused: bool = item != null and item.get_pickup_refusal() != &""
+		_perform(pickup)
+		if refused:
+			pickup_gesture_finished.emit(pickup, &"refused_storage")
+		elif not _is_available(pickup):
+			pickup_stored.emit(item_id, destination)
+			pickup_gesture_finished.emit(pickup, &"stored")
+		return
+	var refusal: HandsTransaction.Refusal = hands.commit()
+	if refusal != HandsTransaction.Refusal.NONE:
+		_refuse_hands(pickup, refusal)
+		return
+	if _player.has_method(&"play_action_animation"):
+		_player.call(&"play_action_animation", &"pickup")
+	if pickup == pickup_target:
+		_set_pickup(null)
+	_refresh_active()
+	interaction_performed.emit(pickup)
+	pickup_stored.emit(item_id, destination)
+	pickup_gesture_finished.emit(pickup, &"hands")
 
 
 func _perform(target: InteractiveArea) -> void:
@@ -547,11 +703,14 @@ func _update_approach(delta: float) -> void:
 
 
 ## F committed to this pickup and this spot: walk there, align, take exactly it.
-func _begin_commit(target: InteractiveArea, affordance: PickupAffordance) -> void:
+func _begin_commit(target: InteractiveArea, affordance: PickupAffordance, hands: HandsTransaction = null) -> void:
 	_stop_approach()
 	if not _player.has_method(&"move_to_position"):
+		if hands != null:
+			hands.restore()
 		return
 	_commit_target = target
+	_commit_hands = hands
 	_commit = affordance
 	_commit_resolves = 1
 	_commit_best = INF
@@ -573,9 +732,11 @@ func _update_commit(delta: float) -> void:
 	var remaining: float = offset.length()
 	if remaining <= ARRIVAL_DISTANCE and _commit.holds_from(_player, _reach_profile()):
 		var contact: Vector3 = _commit.contact
+		var hands: HandsTransaction = _commit_hands
+		_commit_hands = null
 		_stop_approach()
 		_face(contact)
-		_perform(target)
+		_act_on_pickup(target, hands)
 		return
 	if _approach_stopped and remaining > ARRIVAL_DISTANCE:
 		_stop_approach()
@@ -603,9 +764,11 @@ func _update_commit(delta: float) -> void:
 			_player.call(&"move_to_position", again.body_position)
 			return
 		if again.valid and again.in_place:
+			var hands: HandsTransaction = _commit_hands
+			_commit_hands = null
 			_stop_approach()
 			_face(again.contact)
-			_perform(target)
+			_act_on_pickup(target, hands)
 			return
 	_stop_approach()
 	target.show_message(tr(&"INTERACT_UNREACHABLE"))
@@ -622,6 +785,9 @@ func _cancel_approach() -> void:
 	_pending = null
 	_commit_target = null
 	_commit = null
+	if _commit_hands != null:
+		_commit_hands.restore()
+		_commit_hands = null
 	_approach_elapsed = 0.0
 	_approach_stopped = false
 

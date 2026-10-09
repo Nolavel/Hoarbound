@@ -22,13 +22,12 @@ const OVERWEIGHT: StringName = &"overweight"
 ## Seconds the stowed item rises, then drops into the open top flap.
 const STOW_LIFT_TIME: float = 0.28
 const STOW_DROP_TIME: float = 0.32
-const INTERACT_ACTION: StringName = &"interact"
-## Holding F this long after a pickup opens manual placement instead of a quick stow.
-const HOLD_TIME: float = 0.35
 ## Where inspection stands the pack and Kenny, in Henry's space (he faces -Z).
 const INSPECT_PACK_SPOT: Vector3 = Vector3(0.0, -0.9, -0.75)
 const INSPECT_KENNY_SPOT: Vector3 = Vector3(0.7, -0.9, -0.3)
 const EXCLUDED_ZONES: Array[StringName] = [&"pack/pack_main"]
+## route_destination's answer when the item stays in the pack.
+const PACK_DESTINATION: StringName = &"pack"
 
 @export var inventory: InventoryComponent
 @export var equipment: EquipmentComponent
@@ -44,8 +43,6 @@ var pack: PackRig
 var _open: bool = false
 var _stows_in_flight: int = 0
 ## F press tracking for hold-to-place: the item stowed during the current press.
-var _press_time: float = -1.0
-var _pressed_item: StringName = &""
 var _camera: Camera3D
 var _previous_camera: Camera3D
 var _panel: PlayerHubPanel
@@ -71,27 +68,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Esc closes the Hub before the pause menu hears it; F presses start the hold clock.
+## Esc closes the Hub before the pause menu hears it.
 func _input(event: InputEvent) -> void:
-	if InputMap.has_action(INTERACT_ACTION) and event.is_action_pressed(INTERACT_ACTION) and not event.is_echo():
-		_press_time = 0.0
-		_pressed_item = &""
 	if _open and InputMap.has_action(CLOSE_ACTION) and event.is_action_pressed(CLOSE_ACTION):
 		close()
 		get_viewport().set_input_as_handled()
-
-
-func _process(delta: float) -> void:
-	if _press_time < 0.0:
-		return
-	if not Input.is_action_pressed(INTERACT_ACTION):
-		_press_time = -1.0
-		return
-	_press_time += delta
-	if _press_time >= HOLD_TIME and _pressed_item != &"" and not _open:
-		var item_id: StringName = _pressed_item
-		_press_time = -1.0
-		open_placement(item_id)
 
 
 func is_open() -> bool:
@@ -255,8 +236,6 @@ func move_to_pack(zone_path: StringName) -> StringName:
 ## Tap-F stow: the item's visual lifts, flies into the top flap and is freed.
 ## The item is already in the inventory; this is presentation only.
 func stow_visual(visual: Node3D, item_id: StringName = &"") -> void:
-	if _press_time >= 0.0:
-		_pressed_item = item_id
 	var rig: PackRig = _pack()
 	if visual == null:
 		return
@@ -288,22 +267,38 @@ func _on_stow_landed(visual: Node3D, item_id: StringName = &"") -> void:
 		rig.set_openness(PackRig.Openness.CLOSED)
 
 
-## Tap-F auto-sort is deliberately narrow: only explicitly preferred items move,
-## and only into Quick Access pockets. The item first lands in InventoryComponent
-## so the existing hold-F placement window remains valid.
-func _auto_stow_preferred(item_id: StringName) -> void:
-	if _open or item_id == &"" or inventory == null or equipment == null or not inventory.has_item(item_id):
-		return
+## Where a picked-up item settles: the first free Quick Access pocket that fits a
+## preferred item, else the pack. Pockets and pack both carry its weight.
+func route_destination(item_id: StringName) -> StringName:
 	var item: ItemResource = ItemCatalog.get_item(item_id)
-	if item == null or not item.prefer_quick_access:
-		return
+	if item == null or not item.prefer_quick_access or equipment == null:
+		return PACK_DESTINATION
 	for zone: Dictionary in get_quick_access_zones():
 		if zone["item_id"] != &"":
 			continue
 		var path: StringName = zone["path"]
-		if can_place(item_id, path) == EquipmentComponent.Refusal.NONE:
-			move_to_zone(item_id, path)
-			return
+		var parts: PackedStringArray = String(path).split(EquipmentComponent.POCKET_SEPARATOR)
+		if parts.size() == 2 and equipment.can_stow(StringName(parts[0]), StringName(parts[1]), item_id) == EquipmentComponent.Refusal.NONE:
+			return path
+	return PACK_DESTINATION
+
+
+## Moves a just-picked item to its route destination at once (hand pickups skip the flight).
+func route_now(item_id: StringName) -> StringName:
+	var path: StringName = route_destination(item_id)
+	if _open or path == PACK_DESTINATION or inventory == null or not inventory.has_item(item_id):
+		return PACK_DESTINATION
+	return path if move_to_zone(item_id, path) == EquipmentComponent.Refusal.NONE else PACK_DESTINATION
+
+
+## Tap-F auto-sort is deliberately narrow: only explicitly preferred items move,
+## and only into Quick Access pockets. The item first lands in InventoryComponent.
+func _auto_stow_preferred(item_id: StringName) -> void:
+	if _open or item_id == &"" or inventory == null or equipment == null or not inventory.has_item(item_id):
+		return
+	var path: StringName = route_destination(item_id)
+	if path != PACK_DESTINATION and can_place(item_id, path) == EquipmentComponent.Refusal.NONE:
+		move_to_zone(item_id, path)
 
 
 ## Item Use contract: a sibling component with can_use(id) and use(id) handles it.

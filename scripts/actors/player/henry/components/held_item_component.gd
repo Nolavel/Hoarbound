@@ -55,6 +55,25 @@ func equip_from_zone(item_id: StringName, zone_path: StringName) -> bool:
 	return is_holding()
 
 
+## Shows an item Henry already owns in his hand. Its pocket or the pack keeps the
+## item and its weight; nothing is taken out of storage.
+func present_owned(item_id: StringName) -> bool:
+	if not supports_item(item_id) or is_holding():
+		return false
+	var zone: StringName = _pocket_holding(item_id)
+	if zone == &"" and (inventory == null or not inventory.has_item(item_id)):
+		return false
+	var visual: HenryUALAnimation = _animation()
+	var carry := get_parent().get_node_or_null(^"CarryComponent") as CarryComponent
+	if visual == null or visual.get_held_prop() != null or visual.get_offhand_prop() != null \
+		or (carry != null and carry.is_carrying()):
+		return false
+	_item_id = item_id
+	_source_zone = zone
+	_draw()
+	return is_holding()
+
+
 func is_holding() -> bool:
 	return is_instance_valid(_prop)
 
@@ -160,6 +179,15 @@ func _sync_owned() -> void:
 	var attached: bool = visual != null and (visual.get_held_prop() == _prop or visual.get_offhand_prop() == _prop)
 	if not owns or not attached:
 		put_away()
+
+
+func _pocket_holding(item_id: StringName) -> StringName:
+	if equipment == null:
+		return &""
+	for pocket: Dictionary in equipment.get_available_pockets():
+		if pocket["item_id"] == item_id:
+			return equipment.pocket_path(pocket["body_slot"], pocket["pocket"])
+	return &""
 
 
 func _zone_item() -> StringName:

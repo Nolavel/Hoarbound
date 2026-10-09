@@ -51,6 +51,8 @@ BREACH_SEALED,Opening sealed,Проём закрыт
 PICKUP_REFUSED_TOO_HEAVY,Too heavy to carry,Слишком тяжело нести
 PICKUP_REFUSED_HANDS_FULL,You can carry at most three,Можно нести максимум три
 PICKUP_REFUSED_HANDS_OCCUPIED,Free your hands first,Сначала освободите руки
+PICKUP_REFUSED_HELD_BUSY,Hands are busy with something that cannot be put away,"Руки заняты тем, что нельзя убрать"
+PICKUP_REFUSED_NOT_HANDHELD,This is not carried in one hand,Это не взять в одну руку
 CABINET_OPEN,Open the cabinet,Открыть шкаф
 CABINET_CLOSE,Close the cabinet,Закрыть шкаф
 SLEEP_PROMPT,Sleep,Спать

@@ -159,7 +159,7 @@ func _check_free_floor() -> void:
 	_check(_component.get_pickup_target() == item and _component.is_pickup_actionable(), "a free-floor item is not actionable")
 	_check(affordance != null and affordance.valid and not affordance.in_place, "a free-floor item 2 m away has no walk-to spot (%s, target %s)" % [affordance.reason if affordance != null else &"none", _component.get_pickup_target()])
 	var count: int = _inventory.get_count(&"nails")
-	_component.try_interact()
+	_tap()
 	await _frames(150)
 	_check(_inventory.get_count(&"nails") > count, "F on a free-floor item did not walk over and take it")
 	await _clear()
@@ -180,7 +180,7 @@ func _check_table_edge() -> void:
 		return
 	_check(affordance.body_position.z >= 0.5 + 0.5 - 0.01, "the body spot lies inside the table")
 	var count: int = _inventory.get_count(&"nails")
-	_component.try_interact()
+	_tap()
 	await _frames(240)
 	_check(_inventory.get_count(&"nails") > count, "F on a tabletop item did not end in a pickup")
 	_check(_player.global_position.z >= 0.99, "Henry's capsule went into the table")
@@ -202,7 +202,7 @@ func _check_blocked_side_uses_other_side() -> void:
 		var clear_of_crate: bool = affordance.body_position.x + 0.47 <= 0.65 or affordance.body_position.z - 0.47 >= 1.25
 		_check(clear_of_crate, "the chosen body spot %s overlaps the blocking crate" % affordance.body_position)
 		var count: int = _inventory.get_count(&"nails")
-		_component.try_interact()
+		_tap()
 		await _frames(240)
 		_check(_inventory.get_count(&"nails") > count, "the alternative side did not end in a pickup")
 	await _clear()
@@ -219,7 +219,7 @@ func _check_unreachable_promises_nothing() -> void:
 		"an unreachable item promised [F]")
 	var count: int = _inventory.get_count(&"nails")
 	var start: Vector3 = _player.global_position
-	_component.try_interact()
+	_tap()
 	await _frames(30)
 	_check(_inventory.get_count(&"nails") == count and _player.global_position.distance_to(start) < 0.01,
 		"F on an unpromised item still did something")
@@ -234,7 +234,7 @@ func _check_commit_survives_attention_change() -> void:
 	_player.set(&"attention_yaw", deg_to_rad(6.0))
 	await _frames(2)
 	_check(_component.get_pickup_target() == a, "the head did not pick A")
-	_component.try_interact()
+	_tap()
 	await _frames(10)
 	_player.set(&"attention_yaw", deg_to_rad(-8.0))
 	await _frames(150)
@@ -247,7 +247,7 @@ func _check_wasd_cancels() -> void:
 	var item: ItemPickup = _spawn(Vector3(0.0, 0.0, -2.2))
 	_stand(0.0, 0.0, item.global_position)
 	await _frames(2)
-	_component.try_interact()
+	_tap()
 	await _frames(10)
 	_check(_component.get_committed_target() == item, "F did not commit to the item")
 	_player.call(&"stop_moving")
@@ -262,7 +262,7 @@ func _check_blocked_path_refuses_once() -> void:
 	var item: ItemPickup = _spawn(Vector3(0.0, 0.0, -2.4))
 	_stand(0.0, 0.0, item.global_position)
 	await _frames(2)
-	_component.try_interact()
+	_tap()
 	await _frames(5)
 	_check(_component.get_committed_target() == item, "F did not commit to the item before the wall dropped")
 	_box(Vector3(0.0, 1.0, -1.2), Vector3(8.0, 2.0, 0.2))
@@ -296,6 +296,12 @@ func _check_solve_budget() -> void:
 	var solves: int = _component.affordance_solves - before
 	_check(solves <= 4, "one still target was solved %d times in 60 frames" % solves)
 	await _clear()
+
+
+## F pressed and released at once: a tap stores a pickup, a world target acts.
+func _tap() -> void:
+	_component.try_interact()
+	_component.release_interact(0.05)
 
 
 func _frames(count: int) -> void:

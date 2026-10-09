@@ -190,7 +190,7 @@ func _check_world_wins_f() -> void:
 	_check(not _marker.is_key_shown(), "the [F] keycap stayed on the pickup under a world interaction")
 	_check(_mechanism.prompt_shown and not _middle.prompt_shown, "the central prompt did not come from the world target only")
 	var count: int = _inventory.get_count(&"firewood")
-	_component.try_interact()
+	_tap()
 	_check((_mechanism.get("uses") as int) == 1, "F did not act on the world mechanism")
 	_check(_inventory.get_count(&"firewood") == count, "F took the pickup instead of the world mechanism")
 	_aim_camera(Vector3(-3.0, 0.0, -3.0))
@@ -220,7 +220,7 @@ func _check_consumed_pickup_clears_at_once() -> void:
 	_check(_component.get_pickup_target() == _middle, "the item at arm's length is not the dominant pickup")
 	_check(_component.is_active_target_in_reach(), "the item at 0.6 m is not in reach")
 	var count: int = _inventory.get_count(&"firewood")
-	_component.try_interact()
+	_tap()
 	_check(_inventory.get_count(&"firewood") == count + 1, "F did not take the dominant pickup")
 	_check(_component.get_pickup_target() == null and _component.get_active_target() == null,
 		"the consumed pickup stayed authoritative")
@@ -237,7 +237,7 @@ func _check_far_pickup_walks_over() -> void:
 	_check(_component.get_pickup_target() == far, "the item 2.2 m ahead is not the dominant pickup")
 	_check(not _component.is_active_target_in_reach(), "the item 2.2 m ahead counts as in reach")
 	var count: int = _inventory.get_count(&"firewood")
-	_component.try_interact()
+	_tap()
 	await _frames(3)
 	_check(_inventory.get_count(&"firewood") == count + 1, "Henry did not walk over and take the far item")
 
@@ -259,6 +259,12 @@ func _check_special_awareness() -> void:
 
 func _aim_camera(point: Vector3) -> void:
 	_camera.look_at(point, Vector3.UP)
+
+
+## F pressed and released at once: a tap stores a pickup, a world target acts.
+func _tap() -> void:
+	_component.try_interact()
+	_component.release_interact(0.05)
 
 
 func _frames(count: int) -> void:

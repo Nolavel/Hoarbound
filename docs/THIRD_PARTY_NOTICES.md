@@ -123,6 +123,15 @@ recorded in [`technical/PORTED_FROM_ADT.md`](technical/PORTED_FROM_ADT.md).
   The source shader's autonomous wind range/change and vortex are not used.
 
 
+## Google Material Symbols — open hand icon
+
+`assets/ui/hud/pickup_marker/hand_open.svg` is the `back_hand` symbol (Rounded,
+filled) from Google's Material Symbols, Copyright Google LLC, under the Apache
+License 2.0. It is recoloured white and resized; the geometry is unchanged. The
+pinned source, the changes and the full licence text are in
+[`assets/ui/hud/pickup_marker/LICENSE.md`](../assets/ui/hud/pickup_marker/LICENSE.md)
+and `APACHE-2.0.txt`. **Must ship with builds.**
+
 ## Fonts
 
 | Font | Author | Licence | Files |
