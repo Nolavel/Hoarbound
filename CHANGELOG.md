@@ -5,6 +5,16 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Interaction grammar documented; BUILD_PLAN follows the owner's revision (claudeflow)
+
+- `docs/technical/CONTROLS.md` documents the two attention channels. It also
+  documents what each marker means: central prompt, `[F]` keycap, faint dot, ✓.
+  The G entry describes the bounded drop search.
+- `docs/BUILD_PLAN.md` is taken verbatim from the owner's revision on `main`
+  (`429e723`). That revision covers the domain-specific targeting, the coarse
+  geometric pickup gate and the commit contract. Claude's earlier clarification
+  paragraph is removed as superseded.
+
 ### 2026-10-09 - Fast-in, slow-out look depth; consolidated shelter proof (claudeflow)
 
 - **Measured flicker.** The capture sweep across the ToolBench showed
