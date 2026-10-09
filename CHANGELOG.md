@@ -5,6 +5,28 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Interaction framing: world only, stability traced on the real shelter (claudeflow)
+
+- `TpsInteractionFraming` reads `InteractComponent.get_world_target()` only (since
+  the channel split). Pickup attention can no longer feed the old loop: target
+  changes, shoulder shift, projection changes, target changes again.
+- New `test_interaction_framing.gd` runs on `first_exit_blockout.tscn` with
+  `player.tscn` and the processing `tps_camera.tscn`.
+  - **Pickup sweep.** Camera yaw goes +35° → −35° → +15° over the five ToolBench
+    tools. The dominant pickup crossed 3 tools with 7 switches. The shoulder
+    interaction weight and its goal stayed exactly 0.0000. No world target was
+    selected in any frame.
+  - **Stove sweep.** Yaw ±60° both ways, centred on the feed focus from the real
+    aim origin. The aim came 6.8–23.4° off the stove, past the 15° exit cone:
+    the stove sits near the orbit pivot. The world target was
+    `- → DoorControl → -` and `- → DoorControl`, with no re-entry. The framing
+    shoulder side stayed one value (+1.15).
+- **Decision.** World-only framing stays. The trace shows no oscillation, so it is
+  not disabled. `TpsPassageFraming`, boom collision and the manual shoulder swap
+  are untouched.
+- **Unverified.** This is a headless trace; the feel of door and stove framing
+  in hand still needs the author's check.
+
 ### 2026-10-09 - Pickup affordance: [F] only with a physically valid way to take it (claudeflow)
 
 - **Boundary (owner decision).** Only a cheap geometric affordance gates the `[F]`
