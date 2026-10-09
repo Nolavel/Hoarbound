@@ -63,6 +63,9 @@ var _gush_timer_s: float = 0.0
 var _rng := RandomNumberGenerator.new()
 var _runtime_visuals_enabled: bool = true
 var _burning: bool = false
+## Set once the burn time ran out; a spent flare never lights again.
+var _spent: bool = false
+## Owned by this node alone, so the burn follows the flare from hand to ground.
 var _burn_elapsed_s: float = 0.0
 var _change_timer_s: float = 0.0
 var _wind_timer_s: float = 0.0
@@ -103,18 +106,20 @@ func set_weather_controller(controller: WeatherController) -> void:
 	_update_smoke_wind()
 
 
-func ignite() -> void:
-	_burn_elapsed_s = 0.0
+## Lights the flare; the burn time is never reset. False when it is spent.
+func ignite() -> bool:
+	if _spent:
+		return false
+	if _burning:
+		return true
 	_change_timer_s = 0.0
 	_target_energy = 0.92
 	_current_energy = 0.92
 	_smoke_energy = 0.72
-	if _burning:
-		_apply_burning_state()
-		return
 	_burning = true
 	_apply_burning_state()
 	burning_changed.emit(true)
+	return true
 
 
 func extinguish() -> void:
@@ -127,6 +132,10 @@ func extinguish() -> void:
 
 func is_burning() -> bool:
 	return _burning
+
+
+func is_spent() -> bool:
+	return _spent
 
 
 func get_remaining_seconds() -> float:
@@ -149,6 +158,7 @@ func _process(delta: float) -> void:
 
 	_burn_elapsed_s += delta
 	if burn_duration_s > 0.0 and _burn_elapsed_s >= burn_duration_s:
+		_spent = true
 		extinguish()
 		spent.emit()
 		return

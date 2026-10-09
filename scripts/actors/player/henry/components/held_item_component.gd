@@ -60,8 +60,8 @@ func equip_from_zone(item_id: StringName, zone_path: StringName) -> bool:
 func present_owned(item_id: StringName) -> bool:
 	if not supports_item(item_id) or is_holding():
 		return false
-	var zone: StringName = _pocket_holding(item_id)
-	if zone == &"" and (inventory == null or not inventory.has_item(item_id)):
+	var zone: StringName = HeldOwnership.pocket_holding(equipment, item_id)
+	if not HeldOwnership.owns(inventory, equipment, item_id, zone):
 		return false
 	var visual: HenryUALAnimation = _animation()
 	var carry := get_parent().get_node_or_null(^"CarryComponent") as CarryComponent
@@ -105,7 +105,7 @@ func use_held() -> bool:
 			get_parent().call(&"play_action_animation", &"fix")
 		if next != &"":
 			_item_id = next
-			if _zone_item() != next:
+			if HeldOwnership.zone_item(equipment, _source_zone) != next:
 				_source_zone = &""
 			_draw()
 		else:
@@ -175,25 +175,10 @@ func _sync_owned() -> void:
 	if not is_holding() or _using:
 		return
 	var visual: HenryUALAnimation = _animation()
-	var owns: bool = _zone_item() == _item_id if _source_zone != &"" else inventory != null and inventory.has_item(_item_id)
+	var owns: bool = HeldOwnership.owns(inventory, equipment, _item_id, _source_zone)
 	var attached: bool = visual != null and (visual.get_held_prop() == _prop or visual.get_offhand_prop() == _prop)
 	if not owns or not attached:
 		put_away()
-
-
-func _pocket_holding(item_id: StringName) -> StringName:
-	if equipment == null:
-		return &""
-	for pocket: Dictionary in equipment.get_available_pockets():
-		if pocket["item_id"] == item_id:
-			return equipment.pocket_path(pocket["body_slot"], pocket["pocket"])
-	return &""
-
-
-func _zone_item() -> StringName:
-	var parts: PackedStringArray = String(_source_zone).split(EquipmentComponent.POCKET_SEPARATOR)
-	return equipment.get_pocket_item(StringName(parts[0]), StringName(parts[1])) \
-		if equipment != null and parts.size() == 2 else &""
 
 
 func _show_hint(message: String = "") -> void:

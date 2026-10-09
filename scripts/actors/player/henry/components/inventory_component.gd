@@ -147,6 +147,23 @@ func get_total_weight() -> float:
 		total += stored.weight * float(entry["count"])
 	if equipment != null:
 		total += equipment.get_carried_weight()
+	return total + _held_physical_weight()
+
+
+## Re-announces the load after a held item changed hands without a storage change.
+func notify_weight_changed() -> void:
+	weight_changed.emit(get_total_weight(), max_carry_weight)
+
+
+## Items Henry holds outside storage (a burning flare) still weigh on him.
+func _held_physical_weight() -> float:
+	var total: float = 0.0
+	var body: Node = get_parent()
+	if body == null:
+		return total
+	for child: Node in body.get_children():
+		if child.has_method(&"get_held_physical_weight"):
+			total += float(child.call(&"get_held_physical_weight"))
 	return total
 
 

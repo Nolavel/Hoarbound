@@ -1,21 +1,23 @@
 class_name HeldLightComponent
 extends Node
 
-## Road flare held-item state.
-## Quick Access may draw an unlit flare into Henry's existing hand socket;
-## Use lights it, and Use again drops the burning flare.
+## Road flare in hand: storage owns it until lit; the burning flare is a physical object
+## that weighs on Henry until G or Use drops that same flare.
 
 signal flare_drawn(flare: HeldFlare)
 signal flare_lit(flare: HeldFlare)
 signal flare_dropped(flare: HeldFlare)
 
 const SPENT_LINGER_S: float = 3.0
+const DROP_ACTION: StringName = &"drop_carried"
 
 @export var inventory: InventoryComponent
 @export var flare_item_id: StringName = &"road_flare"
 
 var _flare: HeldFlare
 var _source_zone: StringName = &""
+## True once the lit flare left storage: Henry holds a physical object, not an item.
+var _physical: bool = false
 var _context: WorldContext
 
 
@@ -26,6 +28,22 @@ func on_world_ready(context: WorldContext) -> void:
 func _ready() -> void:
 	if inventory == null:
 		inventory = InventoryComponent.find_in(get_parent())
+	if inventory != null:
+		inventory.weight_changed.connect(func(_a: float, _b: float) -> void: _queue_sync())
+	var equipment: EquipmentComponent = _equipment()
+	if equipment != null:
+		equipment.slot_changed.connect(func(_a: StringName, _b: StringName) -> void: _queue_sync())
+
+
+## G drops a burning flare where an armful would be dropped.
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_burning() or not InputMap.has_action(DROP_ACTION) or not event.is_action_pressed(DROP_ACTION) or event.is_echo():
+		return
+	var hub := get_parent().get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
+	if hub != null and hub.is_open():
+		return
+	drop()
+	get_viewport().set_input_as_handled()
 
 
 func can_use(item_id: StringName) -> bool:
@@ -42,27 +60,20 @@ func use(item_id: StringName) -> bool:
 	return can_use(item_id) and light()
 
 
-## Number-key Quick Access draw: move the unlit flare out of its physical pocket
-## into the existing held-item hand socket without consuming or igniting it.
+## Number-key Quick Access draw: shows the unlit flare from its pocket, which keeps
+## the flare and its weight; nothing is consumed or lit.
 func equip_from_zone(item_id: StringName, zone_path: StringName) -> bool:
 	if item_id != flare_item_id or is_holding() or not _other_hands_clear():
 		return false
 	var animation: HenryUALAnimation = _animation()
-	var equipment: EquipmentComponent = _equipment()
-	var parts: PackedStringArray = String(zone_path).split(EquipmentComponent.POCKET_SEPARATOR)
-	if animation == null or equipment == null or parts.size() != 2:
+	if animation == null or String(zone_path).split(EquipmentComponent.POCKET_SEPARATOR).size() != 2:
 		return false
-	var body_slot := StringName(parts[0])
-	var pocket := StringName(parts[1])
-	if equipment.get_pocket_item(body_slot, pocket) != item_id:
+	if HeldOwnership.zone_item(_equipment(), zone_path) != item_id:
 		return false
-	if equipment.take_from_pocket(body_slot, pocket) != item_id:
-		return false
-	_source_zone = zone_path
 	_flare = _make_held_flare(animation)
 	if _flare == null:
-		_restore_unlit_item()
 		return false
+	_source_zone = zone_path
 	flare_drawn.emit(_flare)
 	return true
 
@@ -78,18 +89,18 @@ func use_held() -> bool:
 	return true
 
 
-## Changing Quick Access selection puts an unlit flare back into carried storage.
+## Changing Quick Access selection hides an unlit flare; storage never let go of it.
 func put_away_unlit() -> bool:
 	if not is_holding_unlit():
 		return false
 	var animation: HenryUALAnimation = _animation()
 	var flare: HeldFlare = _flare
 	_flare = null
+	_source_zone = &""
 	if animation != null:
 		_release_prop(animation, flare)
 	if is_instance_valid(flare):
 		flare.queue_free()
-	_restore_unlit_item()
 	return true
 
 
@@ -99,7 +110,7 @@ func release_held() -> bool:
 		return false
 	if is_holding_unlit():
 		return put_away_unlit()
-	drop()
+	_drop_physical()
 	return true
 
 
@@ -114,8 +125,9 @@ func is_holding() -> bool:
 	return is_instance_valid(_flare)
 
 
+## A fresh flare in hand that storage still owns.
 func is_holding_unlit() -> bool:
-	return is_holding() and not _flare.is_burning()
+	return is_holding() and not _physical and not _flare.is_burning() and not _flare.is_spent()
 
 
 func is_burning() -> bool:
@@ -126,65 +138,59 @@ func get_source_zone() -> StringName:
 	return _source_zone
 
 
+## The physical flare's weight while it is in hand outside storage; storage counts the rest.
+func get_held_physical_weight() -> float:
+	if not _physical or not is_holding():
+		return 0.0
+	var item: ItemResource = ItemCatalog.get_item(flare_item_id)
+	return item.weight if item != null else 0.0
+
+
+## Lighting is the ownership hand-over, done as one transaction: check everything,
+## take the flare out of storage, ignite; any failure puts it back where it was.
 func ignite_held() -> bool:
 	if not is_holding_unlit():
 		return false
+	var equipment: EquipmentComponent = _equipment()
+	var source: StringName = _source_zone
+	if not HeldOwnership.owns(inventory, equipment, flare_item_id, source):
+		put_away_unlit()
+		return false
+	if not HeldOwnership.take(inventory, equipment, flare_item_id, source):
+		return false
+	if not _flare.ignite():
+		HeldOwnership.restore(inventory, equipment, flare_item_id, source)
+		return false
 	_source_zone = &""
-	_flare.ignite()
+	_physical = true
+	if inventory != null:
+		inventory.notify_weight_changed()
 	flare_lit.emit(_flare)
 	return true
 
 
-## Hub/direct Use keeps its old behaviour: take one carried flare and light it
-## immediately. The number-key path uses equip_from_zone() so the draw is visible.
+## Hub/direct Use: show a carried flare (pack first) and light it at once.
 func light() -> bool:
 	var animation: HenryUALAnimation = _animation()
 	if is_holding() or animation == null or inventory == null or not _other_hands_clear():
 		return false
-	if not _take_flare():
+	var source: StringName = &"" if inventory.has_item(flare_item_id) else HeldOwnership.pocket_holding(_equipment(), flare_item_id)
+	if not HeldOwnership.owns(inventory, _equipment(), flare_item_id, source):
 		return false
-	_source_zone = &""
 	_flare = _make_held_flare(animation)
 	if _flare == null:
-		inventory.try_add(ItemCatalog.get_item(flare_item_id))
 		return false
-	return ignite_held()
+	_source_zone = source
+	if ignite_held():
+		return true
+	put_away_unlit()
+	return false
 
 
+## Drops the burning flare; the same object keeps its remaining burn on the ground.
 func drop() -> void:
-	var animation: HenryUALAnimation = _animation()
-	if not is_burning() or animation == null:
-		return
-	var flare: HeldFlare = _flare
-	_flare = null
-	_source_zone = &""
-	var hand_xf: Transform3D = flare.global_transform
-	_release_prop(animation, flare)
-	var world: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
-	var dropped := RigidBody3D.new()
-	dropped.name = "DroppedFlare"
-	dropped.mass = 0.15
-	dropped.continuous_cd = true
-	dropped.linear_damp = 0.3
-	dropped.angular_damp = 1.5
-	var collision := CollisionShape3D.new()
-	var shape := CapsuleShape3D.new()
-	shape.radius = 0.025
-	shape.height = 0.24
-	collision.shape = shape
-	dropped.add_child(collision)
-	world.add_child(dropped)
-	dropped.global_transform = hand_xf.orthonormalized()
-	dropped.add_child(flare)
-	flare.transform = Transform3D.IDENTITY
-	var player := get_parent() as PhysicsBody3D
-	if player != null:
-		dropped.add_collision_exception_with(player)
-		dropped.linear_velocity = player.get("velocity") as Vector3
-	flare.spent.connect(func() -> void:
-		if is_instance_valid(dropped):
-			get_tree().create_timer(SPENT_LINGER_S).timeout.connect(dropped.queue_free))
-	flare_dropped.emit(flare)
+	if is_burning():
+		_drop_physical()
 
 
 func _make_held_flare(animation: HenryUALAnimation) -> HeldFlare:
@@ -225,54 +231,75 @@ func _release_prop(animation: HenryUALAnimation, prop: Node3D) -> void:
 		animation.release_offhand()
 
 
-func _restore_unlit_item() -> void:
-	var source: StringName = _source_zone
-	_source_zone = &""
-	var equipment: EquipmentComponent = _equipment()
-	if source != &"" and equipment != null:
-		var parts: PackedStringArray = String(source).split(EquipmentComponent.POCKET_SEPARATOR)
-		if parts.size() == 2:
-			var refusal: EquipmentComponent.Refusal = equipment.stow(
-				StringName(parts[0]), StringName(parts[1]), flare_item_id
-			)
-			if refusal == EquipmentComponent.Refusal.NONE:
-				return
-	if inventory != null:
-		inventory.try_add(ItemCatalog.get_item(flare_item_id))
-
-
-func _on_spent(flare: HeldFlare) -> void:
-	if flare == _flare:
-		_flare = null
-		_source_zone = &""
-		var animation: HenryUALAnimation = _animation()
-		if animation != null:
-			_release_prop(animation, flare)
+## The one way a flare leaves Henry's hand: the same node falls into the world in
+## a small body that lingers SPENT_LINGER_S after burn-out, then frees itself.
+func _drop_physical() -> void:
+	var flare: HeldFlare = _flare
 	if not is_instance_valid(flare):
 		return
-	if flare.get_parent() == null:
-		# _on_spent() runs inside HeldFlare.spent.emit(). Godot locks an
-		# emitter for the duration of signal dispatch, so free() here is illegal.
-		# The held prop has already been detached by release_hand(); defer the
-		# actual destruction until the signal stack has unwound.
-		flare.call_deferred(&"free")
-		return
-	get_tree().create_timer(SPENT_LINGER_S).timeout.connect(func() -> void:
-		if is_instance_valid(flare):
-			flare.queue_free())
+	var animation: HenryUALAnimation = _animation()
+	_flare = null
+	_source_zone = &""
+	_physical = false
+	var hand_xf: Transform3D = flare.global_transform
+	if animation != null:
+		_release_prop(animation, flare)
+	var world: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
+	var dropped := RigidBody3D.new()
+	dropped.name = "DroppedFlare"
+	dropped.mass = 0.15
+	dropped.continuous_cd = true
+	dropped.linear_damp = 0.3
+	dropped.angular_damp = 1.5
+	var collision := CollisionShape3D.new()
+	var shape := CapsuleShape3D.new()
+	shape.radius = 0.025
+	shape.height = 0.24
+	collision.shape = shape
+	dropped.add_child(collision)
+	world.add_child(dropped)
+	dropped.global_transform = hand_xf.orthonormalized()
+	dropped.add_child(flare)
+	flare.transform = Transform3D.IDENTITY
+	var player := get_parent() as PhysicsBody3D
+	if player != null:
+		dropped.add_collision_exception_with(player)
+		dropped.linear_velocity = player.get("velocity") as Vector3
+	if flare.is_spent():
+		_linger(dropped)
+	else:
+		flare.spent.connect(_linger.bind(dropped), CONNECT_ONE_SHOT)
+	if inventory != null:
+		inventory.notify_weight_changed()
+	flare_dropped.emit(flare)
 
 
-func _take_flare() -> bool:
-	if inventory.try_remove(flare_item_id):
-		return true
-	var equipment: EquipmentComponent = _equipment()
-	if equipment == null:
-		return false
-	for pocket: Dictionary in equipment.get_available_pockets():
-		if pocket["item_id"] != flare_item_id:
-			continue
-		return equipment.take_from_pocket(pocket["body_slot"], pocket["pocket"]) == flare_item_id
-	return false
+func _linger(dropped: RigidBody3D) -> void:
+	get_tree().create_timer(SPENT_LINGER_S, false).timeout.connect(func() -> void:
+		if is_instance_valid(dropped):
+			dropped.queue_free())
+
+
+## Burn-out in hand: Henry lets the same spent flare fall. Deferred, because the
+## flare is still inside its own spent.emit() and cannot be reparented there.
+func _on_spent(flare: HeldFlare) -> void:
+	if flare == _flare:
+		call_deferred(&"_drop_spent", flare)
+
+
+func _drop_spent(flare: HeldFlare) -> void:
+	if flare == _flare and is_instance_valid(flare):
+		_drop_physical()
+
+
+func _queue_sync() -> void:
+	call_deferred(&"_sync_owned")
+
+
+## The hand never shows an unlit flare storage no longer has.
+func _sync_owned() -> void:
+	if is_holding_unlit() and not HeldOwnership.owns(inventory, _equipment(), flare_item_id, _source_zone):
+		put_away_unlit()
 
 
 func _equipment() -> EquipmentComponent:

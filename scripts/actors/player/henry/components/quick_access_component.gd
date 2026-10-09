@@ -91,7 +91,7 @@ func use_selected() -> bool:
 		return false
 	var zone: Dictionary = zones[clampi(_index, 0, zones.size() - 1)]
 	var item_id: StringName = zone["item_id"]
-	if item_id == &"":
+	if item_id == &"" or _presented_from(zone["path"]):
 		_show_readout(zone)
 		return false
 	if _equip_selected():
@@ -126,6 +126,15 @@ func _equip_selected() -> bool:
 				_show_held_flare_readout(false)
 			else:
 				_hide_readout_if_generic()
+			return true
+	return false
+
+
+## True when a hand already shows the item that pocket keeps; pressing again is a no-op.
+func _presented_from(path: StringName) -> bool:
+	for child: Node in get_parent().get_children():
+		if child.has_method(&"get_source_zone") and child.has_method(&"is_holding") \
+			and bool(child.call(&"is_holding")) and StringName(child.call(&"get_source_zone")) == path:
 			return true
 	return false
 

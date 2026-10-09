@@ -1,7 +1,7 @@
 extends SceneTree
 
-## Held flare: Quick Access draws it unlit into the shared hand socket;
-## Use lights it, the arm uses the existing held pose, and Use again drops it.
+## Held flare: Quick Access shows it unlit in the shared hand socket while its pocket
+## keeps it; Use lights it (out of storage), Use again drops it, burn-out drops it too.
 ## Run: godot --headless --script tests/systems/test_held_light.gd
 
 const VISUAL: String = "res://scenes/actors/player/HenryUALVisual.tscn"
@@ -48,7 +48,7 @@ func _process(_delta: float) -> bool:
 			_check(light != null and not light.visible, "unlit flare already casts light")
 			_check(flare != null and flare.get_parent() == _visual.get_hand_socket(), "flare is not on the shared hand socket")
 			_check(_visual.get_hand_socket().bone_name == &"hand_l", "hand socket is not on the Idle_Torch hand")
-			_check(_equipment_item(_pocket_path) == &"", "drawn flare still exists in its pocket")
+			_check(_equipment_item(_pocket_path) == &"road_flare", "the drawn unlit flare left its pocket")
 		10:
 			_visual.update_animation_blend(0.5)
 			_visual.animation_tree.advance(0.5)
@@ -68,6 +68,7 @@ func _process(_delta: float) -> bool:
 			_check(core != null and core.visible, "ignition did not reveal the hot core")
 			_check(light != null and light.visible and light.light_energy > 0.0, "ignition did not enable flare light")
 			_check(_light.get_source_zone() == &"", "lit flare still claims a pocket owner")
+			_check(_equipment_item(_pocket_path) == &"", "the lit flare is still stored in its pocket")
 			_check(_light.use_held(), "second Use did not drop the burning flare")
 			_check(not _light.is_holding() and _visual.get_held_prop() == null, "dropping left the flare in hand")
 		11:
@@ -80,8 +81,10 @@ func _process(_delta: float) -> bool:
 			_test_unlit_put_away()
 			_test_spent_while_held()
 		12:
-			_check(not is_instance_valid(_spent_flare),
-				"spent held flare was not destroyed after deferred cleanup")
+			_check(is_instance_valid(_spent_flare) and _spent_flare.is_spent(), "the spent flare did not burn out")
+			_check(not _light.is_holding() and _visual.get_held_prop() == null, "the spent flare stayed in hand")
+			_check(is_instance_valid(_spent_flare) and _spent_flare.get_parent() is RigidBody3D,
+				"the spent flare did not fall into the world as itself")
 			_finish()
 	return false
 
@@ -139,13 +142,8 @@ func _test_spent_while_held() -> void:
 	_check(_spent_flare != null, "spent-test flare is not in the hand")
 	if _spent_flare == null:
 		return
-	# Reproduce the real burn-out callback while the emitter is signal-locked.
-	_spent_flare.spent.emit()
-	_check(not _light.is_holding(), "spent flare remained owned by HeldLightComponent")
-	_check(_visual.get_held_prop() == null, "spent flare remained attached to the hand socket")
-	_check(_spent_flare.get_parent() == null, "spent held flare was not detached before cleanup")
-	_check(is_instance_valid(_spent_flare),
-		"spent held flare was destroyed synchronously inside its signal")
+	## Run the real burn-out: the next frame's _process reaches the end of the burn.
+	_spent_flare.burn_duration_s = 0.001
 
 
 func _flare_pocket_path() -> StringName:

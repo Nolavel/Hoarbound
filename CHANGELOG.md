@@ -5,6 +5,47 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Held weight, flare lifecycle, segmented hold ring (claudeflow)
+
+- **Storage owns held items and their weight.**
+  - The hammer and an unlit road flare are no longer taken out of their pocket
+    or the pack to be shown in hand. `HammerComponent.equip_from_zone` / `use`
+    and `HeldLightComponent.equip_from_zone` only present them, like
+    `HeldItemComponent.present_owned`.
+  - `_restore_item` / `_restore_unlit_item`, the silent-loss and duplicate
+    paths, are gone.
+  - The hammer and the unlit flare put their prop away when storage loses the
+    item.
+  - New `HeldOwnership` is the one shared ownership rule.
+  - Pressing Quick Access on a slot whose item is already shown is a no-op.
+- **Lighting a flare is one transaction.** It checks that the flare is fresh,
+  that storage owns it and that the hand-over is possible; only then does it
+  take the flare out of storage and ignite. Any failure puts it back.
+- **A burning flare in hand still weighs on Henry.**
+  `HeldLightComponent.get_held_physical_weight` is added to
+  `InventoryComponent.get_total_weight`. Its weight stops counting once the
+  flare is dropped.
+- **The burn belongs to the flare.**
+  - `HeldFlare.ignite()` never resets the burn, and a spent flare never
+    relights (`is_spent`).
+  - **G** (and LMB) drops the same burning flare, which keeps its remaining
+    time.
+  - A flare that burns out in hand falls into the world the same way.
+  - One cleanup owner: the dropped body lingers 3 s after burn-out, then frees
+    itself.
+- **Pickup ring is one segmented marker.**
+  - Three equal arcs and F (tap). The per-arc tap/hold/refusal meanings are
+    removed.
+  - **Hold:** F framed in place, the hand in the centre, and the arcs fill from
+    the top-arc centre down both sides. `PickupMarkerUI.fill_segments` maps
+    progress to visible arc length only, so the gaps take zero progress.
+  - At 1.0 s the three arcs are full and the gaps remain.
+  - **Refusal:** a red F (tap) or red [F] (hold), a centre ✕ and a short pulse
+    of the whole ring. A refused hold freezes its fill.
+- **Tests.** New `test_held_weight` and `test_flare_lifecycle`; rewritten
+  `test_pickup_marker_ui`; updated `test_held_light`. The shelter capture adds
+  the hammer and flare weight readouts and the G drop.
+
 ### 2026-10-09 - Pickup ring: F frames in place, refusal ✕ centred (claudeflow)
 
 - **No jump between F and [F].** One F glyph sits at one spot above the ring.

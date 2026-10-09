@@ -1,9 +1,9 @@
 extends SceneTree
 
-## The pickup ring reads as one action plus one deliberate alternative: top arc + F
-## (store), lower-left arc (hold to hands) growing into a full circle while the same F
-## frames in place, and a near-background lower-right arc. Refusals put ✕ in the centre
-## and light the arc of their cause. Nothing stale, nothing moves the camera shoulder.
+## The pickup ring is one segmented marker: three equal arcs and F (tap). A hold frames
+## the same F in place, shows the hand and fills the arcs from the top down both sides
+## over arc length only, gaps kept. A refusal is a red key and one centre ✕, with no
+## per-arc meaning. Nothing stale, nothing moves the camera shoulder.
 ## Run: godot --headless --script tests/systems/test_pickup_marker_ui.gd
 
 const AREA_SCENE: String = "res://scenes/environment/interactive/InteractiveArea.tscn"
@@ -45,6 +45,7 @@ func _run() -> void:
 	root.add_child(_camera)
 	_camera.current = true
 	await _frames(20)
+	_check_fill_math()
 	var knife: ItemPickup = await _spawn_ahead(&"knife")
 	await _check_idle(knife)
 	await _check_hold_and_success()
@@ -57,50 +58,86 @@ func _run() -> void:
 	quit(0 if _failures == 0 else 1)
 
 
-## 17: three arcs; F over the top; the refusal arc stays in the background.
+## Pure fill math: top-centre start, symmetric, arc length only, three arcs at 1.0.
+func _check_fill_math() -> void:
+	var arcs: Array[Vector2] = PickupMarkerUI.arc_ranges()
+	var visible_total: float = 0.0
+	for span: Vector2 in arcs:
+		visible_total += span.y - span.x
+	_check(is_equal_approx(visible_total, 240.0), "the three arcs do not add up to 240° (%.1f)" % visible_total)
+	_check(PickupMarkerUI.fill_segments(0.0).is_empty(), "the fill shows at 0 progress")
+	var first: Array[Vector2] = PickupMarkerUI.fill_segments(0.05)
+	_check(first.size() == 2 and is_equal_approx(first[0].x, PickupMarkerUI.TOP_DEG) and is_equal_approx(first[1].y, PickupMarkerUI.TOP_DEG),
+		"the fill does not start at the top-arc centre: %s" % [first])
+	for i: int in range(1, 21):
+		var p: float = float(i) / 20.0
+		var pieces: Array[Vector2] = PickupMarkerUI.fill_segments(p)
+		var length: float = 0.0
+		for piece: Vector2 in pieces:
+			length += piece.y - piece.x
+			_check(_inside_an_arc(piece, arcs), "fill piece %s at %.2f lies in a gap" % [piece, p])
+			var mirror := Vector2(2.0 * PickupMarkerUI.TOP_DEG - piece.y, 2.0 * PickupMarkerUI.TOP_DEG - piece.x)
+			_check(_has_piece(pieces, mirror), "fill at %.2f is not symmetric about the top" % p)
+		_check(absf(length - visible_total * p) < 0.01, "fill at %.2f covers %.2f°, expected %.2f°" % [p, length, visible_total * p])
+	var past_top: Array[Vector2] = PickupMarkerUI.fill_segments(1.0 / 3.0 + 0.01)
+	_check(past_top.size() == 4 and past_top[2].y - past_top[2].x > 0.0, "the fill stalls in the gap after the top arc")
+	var full: Array[Vector2] = PickupMarkerUI.fill_segments(1.0)
+	var covered: float = 0.0
+	for piece: Vector2 in full:
+		covered += piece.y - piece.x
+		_check(piece.y - piece.x < 359.0, "the full fill became a solid circle")
+	_check(absf(covered - visible_total) < 0.01 and full.size() == 4, "at 1.0 the three arcs are not exactly filled (%.1f°)" % covered)
+
+
+## Idle: three equal arcs, F above, nothing of the hold yet.
 func _check_idle(knife: ItemPickup) -> void:
 	await _settle(0.5)
 	var v: Dictionary = _marker.get_visual_state()
 	_check(_marker.get_marked_target() == knife and v["mode"] == &"idle", "the idle ring is not on the dominant pickup (%s)" % v["mode"])
-	_check(v["top_alpha"] > 0.8 and v["plain_f_alpha"] > 0.95, "idle lacks the top arc and plain F")
-	_check(v["left_alpha"] > 0.3, "idle lacks the hold arc for a hand-holdable item")
-	_check(v["right_alpha"] <= PickupMarkerUI.RIGHT_ARC_IDLE_ALPHA + 0.001 and v["right_alpha"] < v["left_alpha"] and v["right_alpha"] < v["top_alpha"],
-		"the refusal arc competes with the actions in idle (%.2f)" % v["right_alpha"])
-	_check(v["key_framed_alpha"] < 0.01 and v["hand_alpha"] < 0.01, "idle shows hold-mode pieces")
+	var alphas: Array = v["arc_alphas"]
+	_check(alphas.size() == 3 and is_equal_approx(alphas[0], alphas[1]) and is_equal_approx(alphas[1], alphas[2]) and alphas[0] > 0.5,
+		"the idle arcs are not one equal ring: %s" % [alphas])
+	_check(v["plain_f_alpha"] > 0.95, "idle lacks the plain F")
+	_check(v["key_framed_alpha"] < 0.01 and v["hand_alpha"] < 0.01 and v["fill_progress"] == 0.0, "idle shows hold-mode pieces")
 	var layout: Dictionary = v["layout"]
 	_idle_key_point = layout["key_point"]
 	_check(is_zero_approx(_idle_key_point.x) and _idle_key_point.y < -_marker.ring_radius_px,
 		"the idle F is not centred above the ring (%s)" % _idle_key_point)
 
 
-## 18–21: hold mode, growth from both ends, full circle, clean success fade.
+## Hold: F framed in place, hand in the centre, fill grows from the top, all three at 1.0.
 func _check_hold_and_success() -> void:
 	_ic.try_interact()
 	await _hold_to(0.3)
 	await _settle(0.3, 0.3)
 	var v: Dictionary = _marker.get_visual_state()
 	_check(v["mode"] == &"hold", "hold mode did not switch the ring (%s)" % v["mode"])
-	_check(v["top_alpha"] < 0.01 and v["right_alpha"] < 0.01 and v["plain_f_alpha"] < 0.01, "hold mode kept the top/right arcs or plain F")
-	_check(v["key_framed_alpha"] > 0.95 and v["hand_alpha"] > 0.95 and v["left_alpha"] > 0.95, "hold mode lacks the framed [F], hand or hold arc")
+	_check(v["plain_f_alpha"] < 0.01 and v["key_framed_alpha"] > 0.95 and v["hand_alpha"] > 0.95, "hold mode lacks the framed [F] or hand")
+	var alphas: Array = v["arc_alphas"]
+	_check(alphas[0] > 0.0 and is_equal_approx(alphas[0], alphas[2]), "the arcs disappeared in hold mode")
 	var layout: Dictionary = v["layout"]
-	var key_rect: Rect2 = layout["key_rect"]
-	var hand_rect: Rect2 = layout["hand_rect"]
 	_check(layout["key_point"] == _idle_key_point, "F moved on entering hold: %s -> %s" % [_idle_key_point, layout["key_point"]])
-	_check(key_rect.get_center().is_equal_approx(_idle_key_point), "the [F] frame is not around the idle F spot")
-	_check(hand_rect.get_center().is_zero_approx(), "the hand is not inside the ring")
-	var spans: Array[float] = []
+	_check((layout["key_rect"] as Rect2).get_center().is_equal_approx(_idle_key_point), "the [F] frame is not around the idle F spot")
+	_check((layout["hand_rect"] as Rect2).get_center().is_zero_approx(), "the hand is not inside the ring")
+	var fills: Array[float] = []
 	for t: float in [0.45, 0.65, 0.85, 0.99]:
 		await _hold_to(t)
 		_marker.refresh(STEP)
-		spans.append(float(_marker.get_visual_state()["left_span_deg"]))
-	_check(spans[0] > PickupMarkerUI.ARC_SPAN_DEG and spans[0] < spans[1] and spans[1] < spans[2] and spans[2] < spans[3],
-		"the hold arc did not grow steadily: %s" % [spans])
-	_check(spans[3] > 350.0, "the hold arc did not close into a circle near 1.0 s (%.1f°)" % spans[3])
+		fills.append(float(_marker.get_visual_state()["fill_progress"]))
+	_check(fills[0] > 0.0 and fills[0] < fills[1] and fills[1] < fills[2] and fills[2] < fills[3],
+		"the hold fill did not grow steadily: %s" % [fills])
+	_check(fills[3] > 0.98, "the arcs are not nearly full just before 1.0 s (%.3f)" % fills[3])
 	await _hold_to(1.0)
 	_ic.release_interact(1.0)
 	_marker.refresh(STEP)
 	v = _marker.get_visual_state()
-	_check(v["fading"], "a successful hold popped instead of fading")
+	_check(v["fading"] and v["fade_hands"], "at 1.0 s the ring did not fade out as the full three-arc ring with the hand")
+	var next: ItemPickup = await _spawn_ahead(&"mug")
+	_marker.refresh(STEP)
+	v = _marker.get_visual_state()
+	_check(_marker.get_marked_target() == next and v["hand_alpha"] < 0.01 and v["key_framed_alpha"] < 0.01 and v["fill_progress"] == 0.0,
+		"the next pickup inherited the finished hold: %s" % [v])
+	next.queue_free()
 	await _settle(0.4)
 	v = _marker.get_visual_state()
 	_check(not v["fading"] and _marker.get_marked_target() == null, "the success fade left a stale ring")
@@ -108,7 +145,7 @@ func _check_hold_and_success() -> void:
 	(_player.get_node(^"HeldItemComponent") as HeldItemComponent).put_away()
 
 
-## 22: an unfinished hold collapses back to idle with no hold pieces left.
+## Cancel: the fill drains back to zero; nothing of the hold stays.
 func _check_cancel_leaves_nothing_stale() -> void:
 	var mug: ItemPickup = await _spawn_ahead(&"mug")
 	_ic.try_interact()
@@ -117,13 +154,13 @@ func _check_cancel_leaves_nothing_stale() -> void:
 	await _settle(0.6)
 	var v: Dictionary = _marker.get_visual_state()
 	_check(v["mode"] == &"idle" and _marker.get_marked_target() == mug, "cancel did not return the ring to idle")
-	_check(absf(float(v["left_span_deg"]) - PickupMarkerUI.ARC_SPAN_DEG) < 0.5 and v["key_framed_alpha"] < 0.01 and v["hand_alpha"] < 0.01,
+	_check(v["fill_progress"] == 0.0 and (v["fill_segments"] as Array).is_empty() and v["key_framed_alpha"] < 0.01 and v["hand_alpha"] < 0.01,
 		"cancel left hold pieces behind: %s" % [v])
 	mug.queue_free()
 	await _frames(3)
 
 
-## Storage refusal lights the background arc with ✕, then lets it settle back.
+## Tap refusal: red F, centre ✕, the whole ring pulses; no arc of its own.
 func _check_storage_refusal() -> void:
 	var max_weight: float = _inventory.max_carry_weight
 	_inventory.max_carry_weight = _inventory.get_total_weight() + 0.01
@@ -131,21 +168,24 @@ func _check_storage_refusal() -> void:
 	_ic.try_interact()
 	_ic.release_interact(0.05)
 	_marker.refresh(STEP)
+	await _settle(0.1)
 	var v: Dictionary = _marker.get_visual_state()
-	_check(v["refusal_right"] and v["right_alpha"] > 0.9, "a storage refusal did not light the right arc")
-	_check(not v["refusal_left"] and v["left_alpha"] <= PickupMarkerUI.LEFT_ARC_IDLE_ALPHA + 0.001, "a storage refusal lit the hands arc")
+	_check(v["refusal"] and v["refusal_kind"] == &"tap", "a storage refusal was not shown")
+	_check_red_key(v, "tap refusal")
+	_check(v["key_framed_alpha"] < 0.01, "a tap refusal framed the F")
 	_check((v["layout"]["cross_point"] as Vector2).is_zero_approx(), "the refusal ✕ is not in the ring centre")
-	_check_red_key(v, "storage refusal")
+	var alphas: Array = v["arc_alphas"]
+	_check(is_equal_approx(alphas[0], alphas[1]) and is_equal_approx(alphas[1], alphas[2]) and alphas[0] > PickupMarkerUI.ARC_IDLE_ALPHA + 0.1,
+		"the refusal did not pulse the ring as one: %s" % [alphas])
 	await _settle(1.0)
 	v = _marker.get_visual_state()
-	_check(not v["refusal_right"] and v["right_alpha"] <= PickupMarkerUI.RIGHT_ARC_IDLE_ALPHA + 0.001,
-		"the refusal arc did not settle back into the background")
+	_check(not v["refusal"] and Color(v["key_glyph_color"], 1.0).is_equal_approx(PickupMarkerUI.DOT_COLOR), "the tap refusal did not settle back")
 	_inventory.max_carry_weight = max_weight
 	tin.queue_free()
 	await _frames(3)
 
 
-## A hold refused by storage: ✕ in the centre, the hands arc lit, the hand gone.
+## Hold refusal: red [F], centre ✕, the hand gone, the fill frozen, then idle again.
 func _check_hold_refusal() -> void:
 	var max_weight: float = _inventory.max_carry_weight
 	_inventory.max_carry_weight = _inventory.get_total_weight() + 0.01
@@ -154,27 +194,30 @@ func _check_hold_refusal() -> void:
 	_ic.try_interact()
 	await _hold_to(0.3)
 	var v: Dictionary = _marker.get_visual_state()
-	_check(v["refusal_left"] and v["left_alpha"] > PickupMarkerUI.LEFT_ARC_IDLE_ALPHA + 0.3, "a hold refusal did not light the hands arc")
-	_check(not v["refusal_right"] and v["right_alpha"] <= PickupMarkerUI.RIGHT_ARC_IDLE_ALPHA + 0.001, "a hold refusal lit the storage arc")
-	_check(v["hand_alpha"] < 0.01, "the hand competes with the refusal ✕ (%.2f)" % v["hand_alpha"])
-	_check((v["layout"]["cross_point"] as Vector2).is_zero_approx(), "the hold refusal ✕ is not in the ring centre")
+	_check(v["refusal"] and v["refusal_kind"] == &"hold", "a hold refusal was not shown")
 	_check_red_key(v, "hold refusal")
-	_check(v["layout"]["key_point"] == _idle_key_point, "the red F moved off the idle spot")
+	_check(v["key_framed_alpha"] > 0.9, "the hold refusal key is not the framed [F]")
+	_check(v["hand_alpha"] < 0.01, "the hand competes with the refusal ✕ (%.2f)" % v["hand_alpha"])
+	_check((v["layout"]["cross_point"] as Vector2).is_zero_approx() and v["layout"]["key_point"] == _idle_key_point,
+		"the hold refusal moved the ✕ or the key")
+	var frozen: float = float(v["fill_progress"])
+	await _settle(0.2)
+	_check(is_equal_approx(float(_marker.get_visual_state()["fill_progress"]), frozen), "the refused fill did not hold still")
 	_ic.release_interact(0.3)
-	await _settle(1.0)
+	await _settle(1.2)
 	v = _marker.get_visual_state()
-	_check(not v["refusal_left"] and v["left_alpha"] <= PickupMarkerUI.LEFT_ARC_IDLE_ALPHA + 0.001, "the hands arc did not settle after the refusal")
-	var settled: Color = v["key_glyph_color"]
-	_check(Color(settled, 1.0).is_equal_approx(PickupMarkerUI.DOT_COLOR), "the F did not return to cream after the refusal (%s)" % settled)
+	_check(not v["refusal"] and v["mode"] == &"idle" and v["key_framed_alpha"] < 0.01 and v["fill_progress"] == 0.0,
+		"the hold refusal did not return to idle")
+	_check(Color(v["key_glyph_color"], 1.0).is_equal_approx(PickupMarkerUI.DOT_COLOR), "the F did not return to cream after the refusal")
 	_inventory.max_carry_weight = max_weight
 	knife.queue_free()
 	await _frames(3)
 
 
-## The refused press turns F red at its own spot.
+## The refused press turns its key red at its own spot.
 func _check_red_key(v: Dictionary, what: String) -> void:
 	var c: Color = v["key_glyph_color"]
-	_check(c.r > 0.7 and c.g < 0.4 and c.b < 0.4 and c.a > 0.9, "%s did not turn F red (%s)" % [what, c])
+	_check(c.r > 0.7 and c.g < 0.4 and c.b < 0.4 and c.a > 0.9, "%s did not turn the key red (%s)" % [what, c])
 
 
 ## 23: a world mechanism under the view suppresses the ring entirely.
@@ -233,6 +276,22 @@ func _spawn_ahead(item_id: StringName) -> ItemPickup:
 	_player.face_work_target(pickup.global_position)
 	await _frames(6)
 	return pickup
+
+
+func _inside_an_arc(piece: Vector2, arcs: Array[Vector2]) -> bool:
+	for span: Vector2 in arcs:
+		if piece.x >= span.x - 0.001 and piece.y <= span.y + 0.001:
+			return true
+	return false
+
+
+## Angles compare modulo 360°: the lower-left arc is 110°..190°, its mirror -250°..-170°.
+func _has_piece(pieces: Array[Vector2], wanted: Vector2) -> bool:
+	for piece: Vector2 in pieces:
+		if is_zero_approx(fposmod(piece.x - wanted.x + 180.0, 360.0) - 180.0) \
+			and is_zero_approx(fposmod(piece.y - wanted.y + 180.0, 360.0) - 180.0):
+			return true
+	return false
 
 
 func _frames(count: int) -> void:

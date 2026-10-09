@@ -1,11 +1,8 @@
 class_name PickupMarkerUI
 extends Control
 
-## Ordinary pickups: a three-arc ring over the pickup F would take. Top arc + F =
-## tap to store it; lower-left = hold to take it into the hands, growing into a full
-## circle, while the same F gains its frame in place. A refusal is one ✕ in the ring
-## centre; the right (storage) or left (hands) arc lights to name the cause. Armfuls
-## keep the compact [F] keycap. Never the central prompt, never the camera.
+## One segmented ring of three equal arcs with F above it; a hold frames that F in place
+## and fills the arcs top-down. A refusal is a red key and a centre ✕.
 
 const KEY_BASE := Color(0.94, 0.84, 0.65, 1.0)
 const KEY_BORDER := Color(0.77, 0.56, 0.27, 1.0)
@@ -14,21 +11,21 @@ const DOT_COLOR := Color(1.0, 0.95, 0.82, 1.0)
 ## The F turns this red while a refusal ✕ shows: the press did not go through.
 const REFUSAL_KEY := Color(0.86, 0.22, 0.18, 1.0)
 const HAND_ICON: Texture2D = preload("res://assets/ui/hud/pickup_marker/hand_open.svg")
-## Arc centres in screen angles (0 = right, clockwise): top, lower-left, lower-right.
+## Arc centres in screen angles (0 = right, clockwise): top, lower-right, lower-left.
 const TOP_DEG: float = -90.0
-const LEFT_DEG: float = 150.0
 const RIGHT_DEG: float = 30.0
+const LEFT_DEG: float = 150.0
 const ARC_SPAN_DEG: float = 80.0
-## The refusal arc sits almost in the background so three arcs never read as three actions.
-## Set to 0 to hide it until a refusal if a playtest still reads it as a command.
-const RIGHT_ARC_IDLE_ALPHA: float = 0.12
-const TOP_ARC_ALPHA: float = 0.9
-const LEFT_ARC_IDLE_ALPHA: float = 0.5
+const ARC_IDLE_ALPHA: float = 0.6
+## The unfilled track during a hold; the fill is drawn over it at full strength.
+const ARC_TRACK_ALPHA: float = 0.3
 const REFUSAL_SECONDS: float = 0.7
+## The whole ring swells once at the start of a refusal.
+const PULSE_SECONDS: float = 0.3
 const SUCCESS_FADE_SECONDS: float = 0.25
-## Per-second rates the ring's pieces ease at; the collapse after a cancel uses SPAN_RATE.
 const ALPHA_RATE: float = 8.0
-const SPAN_RATE_DEG: float = 900.0
+## Progress per second the fill drains at after a cancel, so nothing stale remains.
+const FILL_DRAIN_RATE: float = 6.0
 ## Gap between the ring line and the keycap's lower edge; the F glyph never moves.
 const KEY_GAP_PX: float = 4.0
 const KEY_GLYPH_PX: int = 13
@@ -59,20 +56,18 @@ var _anchor: Vector3 = Vector3.ZERO
 var _from: Vector3 = Vector3.ZERO
 var _transfer_left: float = 0.0
 var _mode: StringName = &"none"
-var _can_hold: bool = false
-var _top_a: float = 0.0
-var _left_a: float = 0.0
-var _right_a: float = 0.0
+var _ring_a: float = 0.0
 var _plain_f_a: float = 0.0
 var _key_a: float = 0.0
 var _hand_a: float = 0.0
-var _span_deg: float = ARC_SPAN_DEG
-var _refuse_right: float = 0.0
-var _refuse_left: float = 0.0
+var _fill: float = 0.0
+var _refusal_left: float = 0.0
+var _refusal_kind: StringName = &""
+var _frozen_fill: float = 0.0
 ## A finished pickup fades out where it was, though the item is gone.
 var _fade_left: float = 0.0
 var _fade_anchor: Vector3 = Vector3.ZERO
-var _fade_full: bool = false
+var _fade_hands: bool = false
 var _font: Font
 var _key_style: StyleBoxFlat
 
@@ -113,12 +108,8 @@ func refresh(delta: float = 0.0) -> void:
 		target = _interact.get_pickup_target()
 	_follow(target, delta)
 	_mode = _mode_for(target, gesture != null or committed != null)
-	_can_hold = target != null and _interact.can_hold_pickup(target)
-	var holding: bool = _mode == &"hold"
-	var idle: bool = _mode == &"idle"
-	_ease(delta, idle, holding)
-	_refuse_right = maxf(0.0, _refuse_right - delta)
-	_refuse_left = maxf(0.0, _refuse_left - delta)
+	_ease(delta)
+	_refusal_left = maxf(0.0, _refusal_left - delta)
 	_fade_left = maxf(0.0, _fade_left - delta)
 	queue_redraw()
 
@@ -135,21 +126,48 @@ func is_key_shown() -> bool:
 
 ## What the marker shows now, for tests and captures.
 func get_visual_state() -> Dictionary:
+	var arc: float = _arc_alpha()
 	return {
 		"mode": _mode,
-		"top_alpha": _top_a,
-		"left_alpha": _left_alpha(),
-		"right_alpha": _right_alpha(),
+		"arc_alphas": [arc, arc, arc],
+		"fill_progress": _shown_fill(),
+		"fill_segments": fill_segments(_shown_fill()),
 		"plain_f_alpha": _plain_f_a,
 		"key_framed_alpha": _key_a,
 		"hand_alpha": _hand_alpha(),
-		"left_span_deg": _span_deg,
-		"refusal_right": _refuse_right > 0.0,
-		"refusal_left": _refuse_left > 0.0,
-		"fading": _fade_left > 0.0,
-		"layout": _layout(Vector2.ZERO),
 		"key_glyph_color": _key_glyph_color(),
+		"refusal": _refusal_left > 0.0,
+		"refusal_kind": _refusal_kind if _refusal_left > 0.0 else &"",
+		"fading": _fade_left > 0.0,
+		"fade_hands": _fade_left > 0.0 and _fade_hands,
+		"layout": _layout(Vector2.ZERO),
 	}
+
+
+## Filled (start_deg, end_deg) pieces for progress 0..1, from the top-arc centre down
+## both sides; gaps have no length, so the fill never stalls.
+static func fill_segments(progress: float) -> Array[Vector2]:
+	var pieces: Array[Vector2] = []
+	var half: float = ARC_SPAN_DEG * 0.5
+	var side: float = clampf(progress, 0.0, 1.0) * ARC_SPAN_DEG * 1.5
+	var top_len: float = minf(side, half)
+	var low_len: float = clampf(side - half, 0.0, ARC_SPAN_DEG)
+	if top_len > 0.0:
+		pieces.append(Vector2(TOP_DEG, TOP_DEG + top_len))
+		pieces.append(Vector2(TOP_DEG - top_len, TOP_DEG))
+	if low_len > 0.0:
+		var right_top: float = RIGHT_DEG - half
+		var left_top: float = LEFT_DEG + half
+		pieces.append(Vector2(right_top, right_top + low_len))
+		pieces.append(Vector2(left_top - low_len, left_top))
+	return pieces
+
+
+## The three arcs as (start_deg, end_deg), in the same order as arc_alphas.
+static func arc_ranges() -> Array[Vector2]:
+	var half: float = ARC_SPAN_DEG * 0.5
+	return [Vector2(TOP_DEG - half, TOP_DEG + half), Vector2(RIGHT_DEG - half, RIGHT_DEG + half),
+		Vector2(LEFT_DEG - half, LEFT_DEG + half)]
 
 
 func _mode_for(target: InteractiveArea, owned_by_gesture: bool) -> StringName:
@@ -172,6 +190,10 @@ func _follow(target: InteractiveArea, delta: float) -> void:
 	if target != _target:
 		var glide: bool = _target != null and target != null and is_instance_valid(_target)
 		_target = target
+		## A new pickup never inherits the last one's hold; a success fade draws its own copy.
+		_key_a = 0.0
+		_hand_a = 0.0
+		_fill = 0.0
 		if target != null:
 			_from = _anchor if glide else _focus(target)
 			_transfer_left = transfer_seconds if glide else 0.0
@@ -181,33 +203,38 @@ func _follow(target: InteractiveArea, delta: float) -> void:
 		_anchor = _from.lerp(_focus(_target), smoothstep(0.0, 1.0, t))
 
 
-func _ease(delta: float, idle: bool, holding: bool) -> void:
+func _ease(delta: float) -> void:
 	var step: float = ALPHA_RATE * delta
-	_top_a = move_toward(_top_a, TOP_ARC_ALPHA if idle else 0.0, step)
-	_plain_f_a = move_toward(_plain_f_a, 1.0 if idle else 0.0, step)
-	_right_a = move_toward(_right_a, RIGHT_ARC_IDLE_ALPHA if idle else 0.0, step)
-	var left_goal: float = 1.0 if holding else (LEFT_ARC_IDLE_ALPHA if idle and _can_hold else 0.0)
-	_left_a = move_toward(_left_a, left_goal, step)
-	_key_a = move_toward(_key_a, 1.0 if holding else 0.0, step)
+	var holding: bool = _mode == &"hold"
+	var ring: bool = holding or _mode == &"idle"
+	var hold_refused: bool = _refusal_left > 0.0 and _refusal_kind == &"hold"
+	_ring_a = move_toward(_ring_a, (ARC_TRACK_ALPHA if holding else ARC_IDLE_ALPHA) if ring else 0.0, step)
+	_plain_f_a = move_toward(_plain_f_a, 1.0 if _mode == &"idle" else 0.0, step)
+	_key_a = 1.0 if hold_refused else move_toward(_key_a, 1.0 if holding else 0.0, step)
 	_hand_a = move_toward(_hand_a, 1.0 if holding else 0.0, step)
 	if holding:
-		_span_deg = lerpf(ARC_SPAN_DEG, 360.0, _interact.get_gesture_progress())
+		_fill = _interact.get_gesture_progress()
 	else:
-		_span_deg = move_toward(_span_deg, ARC_SPAN_DEG, SPAN_RATE_DEG * delta)
+		_fill = move_toward(_fill, 0.0, FILL_DRAIN_RATE * delta)
 
 
-## A storage refusal brightens the background arc and fades back to it.
-func _right_alpha() -> float:
-	return maxf(_right_a, _refuse_right / REFUSAL_SECONDS)
+## The fill a hold refusal froze stays until its ✕ fades; otherwise the live fill.
+func _shown_fill() -> float:
+	if _refusal_left > 0.0 and _refusal_kind == &"hold":
+		return _frozen_fill
+	return _fill
 
 
-## A hold refusal lights the hands arc the same way.
-func _left_alpha() -> float:
-	return maxf(_left_a, _refuse_left / REFUSAL_SECONDS)
+## One alpha for all three arcs, swelling briefly at the start of a refusal.
+func _arc_alpha() -> float:
+	var since: float = REFUSAL_SECONDS - _refusal_left
+	if _refusal_left <= 0.0 or since >= PULSE_SECONDS:
+		return _ring_a
+	return lerpf(_ring_a, 1.0, sin(PI * since / PULSE_SECONDS))
 
 
 func _refusal_strength() -> float:
-	return maxf(_refuse_right, _refuse_left) / REFUSAL_SECONDS
+	return _refusal_left / REFUSAL_SECONDS
 
 
 ## The hand yields the centre to a refusal ✕.
@@ -262,12 +289,14 @@ func _draw() -> void:
 			_draw_ring(at - Vector2(0.0, lift_px))
 
 
-## One F glyph at one spot: idle shows it bare, hold fades its frame in around it.
+## Three equal arcs, the top-down fill over them, then the one F at its fixed spot.
 func _draw_ring(centre: Vector2) -> void:
 	var layout: Dictionary = _layout(centre)
-	_arc(centre, TOP_DEG, ARC_SPAN_DEG, _top_a)
-	_arc(centre, RIGHT_DEG, ARC_SPAN_DEG, _right_alpha())
-	_arc(centre, LEFT_DEG, _span_deg, _left_alpha())
+	var arc: float = _arc_alpha()
+	for span: Vector2 in arc_ranges():
+		_arc(centre, span, arc)
+	for piece: Vector2 in fill_segments(_shown_fill()):
+		_arc(centre, piece, 1.0)
 	if _key_a > 0.01:
 		_draw_key_frame(layout["key_rect"], _key_a)
 	var glyph: Color = _key_glyph_color()
@@ -283,19 +312,16 @@ func _draw_ring(centre: Vector2) -> void:
 
 func _draw_success_fade(centre: Vector2) -> void:
 	var a: float = _fade_left / SUCCESS_FADE_SECONDS
-	if _fade_full:
-		_arc(centre, LEFT_DEG, 360.0, a)
+	for span: Vector2 in arc_ranges():
+		_arc(centre, span, a if _fade_hands else a * ARC_IDLE_ALPHA)
+	if _fade_hands:
 		draw_texture_rect(HAND_ICON, _layout(centre)["hand_rect"], false, Color(DOT_COLOR, a))
-	else:
-		_arc(centre, TOP_DEG, ARC_SPAN_DEG, a * TOP_ARC_ALPHA)
 
 
-func _arc(centre: Vector2, mid_deg: float, span_deg: float, alpha: float) -> void:
-	if alpha <= 0.005 or span_deg <= 0.5:
+func _arc(centre: Vector2, span: Vector2, alpha: float) -> void:
+	if alpha <= 0.005 or span.y - span.x <= 0.1:
 		return
-	var half: float = deg_to_rad(minf(span_deg, 360.0) * 0.5)
-	var mid: float = deg_to_rad(mid_deg)
-	draw_arc(centre, ring_radius_px, mid - half, mid + half, 40, Color(DOT_COLOR, alpha), arc_width_px, true)
+	draw_arc(centre, ring_radius_px, deg_to_rad(span.x), deg_to_rad(span.y), 24, Color(DOT_COLOR, alpha), arc_width_px, true)
 
 
 func _draw_key_frame(rect: Rect2, alpha: float) -> void:
@@ -329,10 +355,19 @@ func _on_gesture_finished(target: InteractiveArea, result: StringName) -> void:
 	match result:
 		&"stored", &"hands":
 			_fade_left = SUCCESS_FADE_SECONDS
-			_fade_full = result == &"hands"
+			_fade_hands = result == &"hands"
 			_fade_anchor = _anchor if target == _target or not is_instance_valid(target) else _focus(target)
+			_fill = 0.0
 		&"refused_storage":
-			_refuse_right = REFUSAL_SECONDS
+			_refuse(&"tap")
 		&"refused_hands":
-			_refuse_left = REFUSAL_SECONDS
+			_refuse(&"hold")
 	refresh()
+
+
+func _refuse(kind: StringName) -> void:
+	_refusal_kind = kind
+	_refusal_left = REFUSAL_SECONDS
+	_frozen_fill = _fill
+	if kind == &"hold":
+		_key_a = 1.0

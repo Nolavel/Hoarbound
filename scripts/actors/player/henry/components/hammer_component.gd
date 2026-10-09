@@ -1,8 +1,8 @@
 class_name HammerComponent
 extends Node
 
-## One-hand hammer used by breach boarding. Quick Access draws it from a
-## physical pocket; changing selection or opening the Hub can put it away.
+## One-hand hammer used by breach boarding. Quick Access shows it from its pocket,
+## the Hub from the pack; storage keeps the hammer and its weight the whole time.
 
 signal hammer_drawn
 signal hammer_stowed
@@ -17,6 +17,11 @@ var _source_zone: StringName = &""
 func _ready() -> void:
 	if inventory == null:
 		inventory = InventoryComponent.find_in(get_parent())
+	if inventory != null:
+		inventory.weight_changed.connect(func(_a: float, _b: float) -> void: _queue_sync())
+	var equipment: EquipmentComponent = _equipment()
+	if equipment != null:
+		equipment.slot_changed.connect(func(_a: StringName, _b: StringName) -> void: _queue_sync())
 
 
 func can_use(item_id: StringName) -> bool:
@@ -29,14 +34,12 @@ func can_use(item_id: StringName) -> bool:
 	)
 
 
+## Shows the pack's hammer in hand; the pack keeps it.
 func use(item_id: StringName) -> bool:
-	if not can_use(item_id) or not inventory.try_remove(item_id):
+	if not can_use(item_id):
 		return false
 	_source_zone = &""
-	if _draw():
-		return true
-	inventory.try_add(ItemCatalog.get_item(hammer_item_id))
-	return false
+	return _draw()
 
 
 func equip_from_zone(item_id: StringName, zone_path: StringName) -> bool:
@@ -50,17 +53,20 @@ func equip_from_zone(item_id: StringName, zone_path: StringName) -> bool:
 	var pocket := StringName(parts[1])
 	if equipment.get_pocket_item(body_slot, pocket) != item_id:
 		return false
-	if equipment.take_from_pocket(body_slot, pocket) != item_id:
-		return false
 	_source_zone = zone_path
 	if _draw():
 		return true
-	_restore_item()
+	_source_zone = &""
 	return false
 
 
 func is_holding() -> bool:
 	return is_instance_valid(_hammer)
+
+
+## The pocket the shown hammer belongs to, or "" for the pack.
+func get_source_zone() -> StringName:
+	return _source_zone if is_holding() else &""
 
 
 ## QuickAccess already calls this name when selection changes.
@@ -78,7 +84,7 @@ func put_away() -> bool:
 		_release_prop(animation, prop)
 	if is_instance_valid(prop):
 		prop.queue_free()
-	_restore_item()
+	_source_zone = &""
 	hammer_stowed.emit()
 	return true
 
@@ -146,18 +152,14 @@ func _other_hands_clear() -> bool:
 	return (light == null or not light.is_holding()) and (held == null or not held.is_holding())
 
 
-func _restore_item() -> void:
-	var source: StringName = _source_zone
-	_source_zone = &""
-	var equipment: EquipmentComponent = _equipment()
-	if source != &"" and equipment != null:
-		var parts: PackedStringArray = String(source).split(EquipmentComponent.POCKET_SEPARATOR)
-		if parts.size() == 2:
-			var result := equipment.stow(StringName(parts[0]), StringName(parts[1]), hammer_item_id)
-			if result == EquipmentComponent.Refusal.NONE:
-				return
-	if inventory != null:
-		inventory.try_add(ItemCatalog.get_item(hammer_item_id))
+func _queue_sync() -> void:
+	call_deferred(&"_sync_owned")
+
+
+## The hand never shows a hammer storage no longer has.
+func _sync_owned() -> void:
+	if is_holding() and not HeldOwnership.owns(inventory, _equipment(), hammer_item_id, _source_zone):
+		put_away()
 
 
 func _equipment() -> EquipmentComponent:

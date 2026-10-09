@@ -1,10 +1,10 @@
 extends SceneTree
 
-## One consolidated proof of the pickup tap/hold grammar in the real First Exit
-## shelter, driven through the real InputSystems F edges: a tap stores a tin, a hold
-## takes the knife into the hand, a partial hold cancels, an occupied hand cancels
-## then swaps, overweight refuses with the right-arc cross, and the stove keeps the
-## immediate world prompt. Run under Movie Maker for frames:
+## One consolidated proof in the real First Exit shelter, driven through real input:
+## tap stores, the segmented ring fills top-down into the hand, cancel and swap, red-key
+## refusals, the hammer and an unlit flare keep their weight in hand, a lit flare is
+## dropped with G and burns out on the floor, and the stove keeps the world prompt.
+## Run under Movie Maker for frames:
 ##   godot --path . --write-movie <dir>/f.png --fixed-fps 10 --resolution 1280x720 \
 ##     --script res://tools/runtime/capture_pickup_gesture.gd
 
@@ -27,6 +27,12 @@ var _report: Array[String] = []
 var _max_pickup_weight: float = 0.0
 var _segment: String = ""
 var _aim_point: Vector3 = Vector3.ZERO
+var _hammer: HammerComponent
+var _light: HeldLightComponent
+var _hub: PlayerHubComponent
+var _quick: QuickAccessComponent
+var _weight_note: String = ""
+var _watched_flare: HeldFlare
 
 
 func _initialize() -> void:
@@ -45,6 +51,9 @@ func _run() -> void:
 	await _cancel_lighter()
 	await _swap_with_lighter()
 	await _overweight()
+	await _hammer_weight()
+	await _unlit_flare_weight()
+	await _flare_g_drop()
 	await _stove_wins()
 	for line: String in _report:
 		print("[PickupGestureCapture] " + line)
@@ -80,6 +89,10 @@ func _build_world() -> void:
 	_marker = _player.get_node(^"PickupMarkerUI") as PickupMarkerUI
 	_held = _player.get_node(^"HeldItemComponent") as HeldItemComponent
 	_inventory = _player.get_node(^"InventoryComponent") as InventoryComponent
+	_hammer = _player.get_node(^"HammerComponent") as HammerComponent
+	_light = _player.get_node(^"HeldLightComponent") as HeldLightComponent
+	_hub = _player.get_node(^"PlayerHubComponent") as PlayerHubComponent
+	_quick = _player.get_node(^"QuickAccessComponent") as QuickAccessComponent
 	_camera = (load(CAMERA) as PackedScene).instantiate() as TpsCamera
 	_camera.player = _player
 	root.add_child(_camera)
@@ -100,7 +113,7 @@ func _tap_tin() -> void:
 
 
 func _hold_knife() -> void:
-	_segment = "2  Hold F: top/right arcs fade, hand + [F], left arc grows to a full circle -> knife in hand"
+	_segment = "2  Hold F: F framed in place, hand inside, three arcs fill from the top -> knife in hand"
 	var knife := _scene.get_node(^"KnifeShelterTest") as InteractiveArea
 	await _approach(_local(Vector3(1.6, 0.91, 2.12)), knife)
 	await _f(1.3)
@@ -125,7 +138,7 @@ func _swap_with_lighter() -> void:
 
 
 func _overweight() -> void:
-	_segment = "5  Overweight: tap -> right arc + x; hold -> refused too (weight is shared)"
+	_segment = "5  Overweight: tap -> red F + centre x; hold -> red [F] + centre x"
 	var flask := _scene.get_node(^"FlaskShelterTest") as InteractiveArea
 	var max_weight: float = _inventory.max_carry_weight
 	_inventory.max_carry_weight = _inventory.get_total_weight() + 0.01
@@ -137,8 +150,88 @@ func _overweight() -> void:
 	_inventory.max_carry_weight = max_weight
 
 
+func _hammer_weight() -> void:
+	_segment = "6  Hammer from Quick Access: storage keeps it, carried weight unchanged"
+	_held.put_away()
+	var zone: StringName = _stow_in_pocket(&"hammer")
+	var before: float = _inventory.get_total_weight()
+	_select(zone)
+	await _seconds(0.8)
+	_quick.use_selected()
+	await _seconds(1.5)
+	var held: float = _inventory.get_total_weight()
+	_hammer.put_away()
+	await _seconds(0.8)
+	_weight_note = "hammer: before %.2f / held %.2f / after %.2f kg" % [before, held, _inventory.get_total_weight()]
+	_report.append(_weight_note)
+
+
+func _unlit_flare_weight() -> void:
+	_segment = "7  Unlit flare in hand: still in its pocket, weight unchanged"
+	var zone: StringName = _stow_in_pocket(&"road_flare")
+	var before: float = _inventory.get_total_weight()
+	_light.equip_from_zone(&"road_flare", zone)
+	await _seconds(1.5)
+	var held: float = _inventory.get_total_weight()
+	_light.put_away_unlit()
+	await _seconds(0.6)
+	_weight_note = "unlit flare: before %.2f / held %.2f / after %.2f kg" % [before, held, _inventory.get_total_weight()]
+	_report.append(_weight_note)
+
+
+func _flare_g_drop() -> void:
+	_segment = "8  Lit flare: same weight while burning in hand; G drops the same flare, it burns out on time"
+	var zone: StringName = _stow_in_pocket(&"road_flare")
+	var pocket: float = _inventory.get_total_weight()
+	_light.equip_from_zone(&"road_flare", zone)
+	_watched_flare = _player.animation_component.get_held_prop() as HeldFlare
+	if _watched_flare == null:
+		_watched_flare = _player.animation_component.get_offhand_prop() as HeldFlare
+	_watched_flare.burn_duration_s = 6.0
+	_light.ignite_held()
+	await _seconds(1.5)
+	var burning: float = _inventory.get_total_weight()
+	var remaining: float = _watched_flare.get_remaining_seconds()
+	var down := InputEventAction.new()
+	down.action = HeldLightComponent.DROP_ACTION
+	down.pressed = true
+	Input.parse_input_event(down)
+	var up := InputEventAction.new()
+	up.action = HeldLightComponent.DROP_ACTION
+	Input.parse_input_event(up)
+	await _seconds(0.3)
+	var after_drop: float = _inventory.get_total_weight()
+	_weight_note = "flare: pocket %.2f / burning in hand %.2f / after G %.2f kg" % [pocket, burning, after_drop]
+	_report.append(_weight_note)
+	_report.append("flare dropped with %.2f s left; same instance under %s, burning=%s" % [
+		remaining, _watched_flare.get_parent().name, _watched_flare.is_burning()])
+	var frames: int = 3
+	while is_instance_valid(_watched_flare) and not _watched_flare.is_spent() and frames < 120:
+		await _seconds(0.1)
+		frames += 1
+	_report.append("flare went out %.1f frames after G at %d fps (expected ~%.1f)" % [frames, FPS, remaining * FPS])
+	await _seconds(2.0)
+	_watched_flare = null
+	_weight_note = ""
+
+
+func _stow_in_pocket(item_id: StringName) -> StringName:
+	_inventory.try_add(ItemCatalog.get_item(item_id))
+	for entry: Dictionary in _hub.get_quick_access_zones():
+		if entry["item_id"] == &"" and _hub.move_to_zone(item_id, entry["path"]) == EquipmentComponent.Refusal.NONE:
+			return entry["path"]
+	return HeldOwnership.pocket_holding(_player.get_node(^"EquipmentComponent") as EquipmentComponent, item_id)
+
+
+func _select(zone: StringName) -> void:
+	var zones: Array[Dictionary] = _hub.get_quick_access_zones()
+	for i: int in range(zones.size()):
+		if zones[i]["path"] == zone:
+			_quick.select(i)
+
+
 func _stove_wins() -> void:
-	_segment = "6  Stove under the view: central prompt, immediate F, no pickup ring"
+	_segment = "9  Stove under the view: central prompt, immediate F, no pickup ring"
 	var feed: HeatSourceFeed = _house.get_node(^"ShelterZone/Stove/Feed") as HeatSourceFeed
 	var source: Node3D = feed.heat_source
 	var tin: ItemPickup = _spawn_tin(source.to_global(Vector3(1.3, 0.03, -0.75)))
@@ -206,10 +299,24 @@ func _status_update() -> void:
 		_max_pickup_weight = maxf(_max_pickup_weight, _camera._shoulder.get_interaction_weight())
 	var v: Dictionary = _marker.get_visual_state()
 	_caption.text = _segment
-	_status.text = "pickup: %s   gesture: %s   hold: %s  %.0f%%\nring: %s   hand: %s   world: %s\nshoulder override weight: %.3f" % [
+	_status.text = "pickup: %s   gesture: %s   hold: %s  %.0f%%\nring: %s   hand: %s   world: %s\ncarried weight: %.2f kg   shoulder override weight: %.3f" % [
 		_name(_interact.get_pickup_target()), _name(_interact.get_gesture_target()), _interact.is_gesture_holding(),
-		_interact.get_gesture_progress() * 100.0, v["mode"], _held.get_item_id(), _name(_interact.get_world_target()),
-		_camera._shoulder.get_interaction_weight()]
+		_interact.get_gesture_progress() * 100.0, v["mode"], _hand_name(), _name(_interact.get_world_target()),
+		_inventory.get_total_weight(), _camera._shoulder.get_interaction_weight()]
+	if _weight_note != "":
+		_status.text += "\n" + _weight_note
+	if is_instance_valid(_watched_flare):
+		_status.text += "\nflare: %s, %.1f s left, parent %s" % [
+			"burning" if _watched_flare.is_burning() else ("spent" if _watched_flare.is_spent() else "unlit"),
+			_watched_flare.get_remaining_seconds(), _watched_flare.get_parent().name if _watched_flare.get_parent() != null else "-"]
+
+
+func _hand_name() -> String:
+	if _hammer.is_holding():
+		return "hammer"
+	if _light.is_holding():
+		return "road_flare (burning)" if _light.is_burning() else "road_flare"
+	return String(_held.get_item_id())
 
 
 func _local(point: Vector3) -> Vector3:

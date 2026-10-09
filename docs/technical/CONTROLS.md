@@ -20,7 +20,7 @@ fails the build when two actions share a key without an entry in
 | Wheel | `quick_next` / `quick_prev` | Pick a pocket (quick access) |
 | Wheel click | `quick_use` | Draw the selected pocket item; use it on the next click once held |
 | 1–4 | `select item slot 1–4` | Draw from a physical pocket: flare, hammer, knife, flask, tin or other small supplies |
-| G | `drop_carried` | Put the whole log/board armful on clear ground in front of Henry; blocked placement keeps it in his arms |
+| G | `drop_carried` | Put the whole log/board armful on clear ground in front of Henry; blocked placement keeps it in his arms. With a burning flare in hand, drop that flare |
 | Esc | `pause` | Context back-out, see below |
 | LMB | `fire` | In gameplay: Use the item already in Henry's hand; in the Hub: drag/drop |
 | M | `toggle_dev_map` | Debug builds only: show/hide the diorama map when `World.enable_runtime_dev_map` is true; otherwise no effect |
@@ -28,13 +28,19 @@ fails the build when two actions share a key without an entry in
 ### Lighting the road flare
 
 1. Tap `F` by the flare to pick it up. After the pickup-stow animation it is
-   auto-sorted into a compatible Quick Access pocket when one is free. Holding
-   `F` opens manual placement instead.
-2. Press the matching `1`–`4` Quick Access slot. Henry draws the **unlit**
-   flare into the existing hand socket and raises the held-item arm pose.
-3. Press **LMB**. Because the flare is already physically in Henry's hand, the
-   existing `fire` input becomes contextual **Use held item** and strikes it.
-4. Press **LMB** again to drop the burning flare.
+   auto-sorted into a compatible Quick Access pocket when one is free. Manual
+   placement is in the Hub (Tab).
+2. Press the matching `1`–`4` Quick Access slot. Henry shows the **unlit**
+   flare in the existing hand socket and raises the held-item arm pose. The
+   pocket still holds it, and its weight is still counted.
+3. Press **LMB**. The existing `fire` input becomes contextual **Use held item**
+   and strikes it. Only now does the flare leave the pocket; the burning flare in
+   hand still weighs on Henry.
+4. Press **G** or **LMB** again to drop the burning flare. The same flare lands
+   on the ground and keeps its remaining burn time. It goes out when its own
+   timer ends, lies there 3 s, then is cleaned up. A flare that burns out in hand
+   falls the same way. A spent flare never lights again and never returns to
+   storage.
 5. Wheel-click (`quick_use`) draws the selected item first and uses an already
    held item next; the mouse wheel selects pockets without drawing them.
 
@@ -60,10 +66,9 @@ What each marker means:
 | Marker | Meaning |
 |---|---|
 | Central brackets + prompt | F operates **this** world mechanism |
-| Ring over an item: top arc + plain `F` | Tap F: take **this** item into storage (Quick Access pocket for preferred items, otherwise the pack). It shows only when Henry can physically get it: a floor spot he can walk to in a straight line, with the item inside his reach |
-| Ring, lower-left arc | Hold F: take the item into the hand. On the hold the same `F` gains a key frame in place (it never moves), an open hand appears inside the ring, and the arc grows from both ends to a full circle at 1.0 s. Shown only for items a hand can show (pocket-size; not the hammer or flare yet) |
-| Ring, lower-right arc | Not an action: almost invisible until a tap is refused by storage (overweight), then it lights up |
-| ✕ in the ring centre, F turns red | The pickup did not happen. The lit arc names the cause: right = storage, left = hands/hold. The hand icon gives way to it; the F fades back to cream with the ✕ |
+| Ring over an item: three equal arcs + plain `F` above | Tap F: take **this** item into storage (Quick Access pocket for preferred items, otherwise the pack). It shows only when Henry can physically get it: a floor spot he can walk to in a straight line, with the item inside his reach |
+| Ring while F is held | Hold F: take the item into the hand. The same `F` gains a key frame in place (it never moves), and an open hand appears inside the ring. The three arcs fill from the top down both sides, over arc length only (gaps take no time), and are all full at 1.0 s; the gaps stay. Only for items a hand can show (pocket-size; not the hammer or flare yet) |
+| Red `F` / `[F]` and ✕ in the ring centre | The pickup did not happen: a red bare `F` after a tap, a red `[F]` after a hold. The whole ring pulses once, the hand icon gives way, and a refused hold freezes its fill. Then everything settles back to idle |
 | Small `[F]` keycap over an armful | F takes the boards or logs into both arms at once |
 | Faint dot over an item | Henry notices it; F does not take it now (another item is dominant, a world mechanism has F, or it cannot be reached) |
 | ✓ check mark | "Notice this": opt-in for rare or authored objects only, never ordinary loot. It never makes anything actionable |
@@ -79,8 +84,8 @@ The first matching row wins.
 | Seated, and the camera looks at something within 2 m (food on the table, the stove ring, the set-down pack) | Act on it: eat, warm up, go through the pack |
 | Seated, nothing looked at | Open the wait prompt |
 | Standing, a world mechanism under the view | Within 0.9 m act on it (open, board up, feed the stove, sit, sleep); further, walk to it, then act |
-| Standing, a pickup ring is shown, F released within 0.22 s | Tap: store the item, turning in place or walking to the solved spot first; it takes exactly that item. Moving with WASD cancels. A newly blocked path gets one retry, then "Can't reach it from here". Overweight: ✕ in the ring centre with the right arc lit, nothing taken |
-| Standing, a pickup ring is shown, F held | Past 0.22 s it is a hold, and releasing before 1.0 s cancels (never a tap). At 1.0 s the item goes into the hand. Storage still owns it and its weight; the hand only shows it. Anything already in the hand is put away into its own storage in the same step. Hands that cannot be emptied (burning flare, an armful) or overweight refuse with ✕ in the ring centre and the left arc lit; nothing is dropped |
+| Standing, a pickup ring is shown, F released within 0.22 s | Tap: store the item, turning in place or walking to the solved spot first; it takes exactly that item. Moving with WASD cancels. A newly blocked path gets one retry, then "Can't reach it from here". Overweight: red `F` and ✕ in the ring centre, nothing taken |
+| Standing, a pickup ring is shown, F held | Past 0.22 s it is a hold, and releasing before 1.0 s cancels (never a tap). At 1.0 s the item goes into the hand. Storage still owns it and its weight; the hand only shows it. Anything already in the hand is put away into its own storage in the same step. Hands that cannot be emptied (burning flare, an armful) or overweight refuse with a red `[F]` and ✕ in the ring centre; nothing is dropped |
 | Bedroll placement preview is up | Lay only when the camera-ray preview is green; red means slope/clearance/distance is invalid |
 | Board-placement preview is up | LMB nails the translucent board at the camera-aimed height; Esc cancels |
 
