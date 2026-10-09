@@ -59,7 +59,9 @@ func _process(delta: float) -> void:
 
 ## Follows the dominant pickup; the keycap glides between neighbours, never jumps.
 func refresh(delta: float = 0.0) -> void:
-	var target: InteractiveArea = _interact.get_pickup_target() if _interact != null else null
+	## A committed F keeps the keycap on the item Henry is walking to.
+	var committed: InteractiveArea = _interact.get_committed_target() if _interact != null else null
+	var target: InteractiveArea = committed if committed != null else (_interact.get_pickup_target() if _interact != null else null)
 	if target != _target:
 		var glide: bool = _target != null and target != null and is_instance_valid(_target)
 		_target = target
@@ -70,7 +72,7 @@ func refresh(delta: float = 0.0) -> void:
 		_transfer_left = maxf(0.0, _transfer_left - delta)
 		var t: float = 1.0 - (_transfer_left / transfer_seconds if transfer_seconds > 0.0 else 0.0)
 		_anchor = _from.lerp(_focus(_target), smoothstep(0.0, 1.0, t))
-	_key_shown = _target != null and _interact.is_pickup_actionable()
+	_key_shown = _target != null and (committed != null or _interact.is_pickup_actionable())
 	queue_redraw()
 
 

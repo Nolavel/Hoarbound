@@ -89,6 +89,15 @@ func _build() -> void:
 	_marker = PickupMarkerUI.new()
 	_player.add_child(_marker)
 	root.add_child(_player)
+	## Floor top 1 m below the body origin, where the capsule's feet are.
+	var ground := StaticBody3D.new()
+	var ground_shape := CollisionShape3D.new()
+	var ground_box := BoxShape3D.new()
+	ground_box.size = Vector3(40.0, 0.2, 40.0)
+	ground_shape.shape = ground_box
+	ground.add_child(ground_shape)
+	ground.position = Vector3(0.0, -1.1, 0.0)
+	root.add_child(ground)
 	_camera = Camera3D.new()
 	_camera.current = true
 	root.add_child(_camera)
@@ -117,7 +126,7 @@ func _spawn(at: Vector3) -> ItemPickup:
 	area.set_script(load(PICKUP_SCRIPT))
 	var pickup := area as ItemPickup
 	pickup.item_id = &"firewood"
-	pickup.position = at
+	pickup.position = Vector3(at.x, -1.0, at.z)
 	root.add_child(pickup)
 	return pickup
 

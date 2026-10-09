@@ -5,6 +5,68 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-09 - Pickup affordance: [F] only with a physically valid way to take it (claudeflow)
+
+- **Boundary (owner decision).** Only a cheap geometric affordance gates the `[F]`
+  keycap. Hand choice, hand path, IK, the authored clip and pose quality are
+  presentation: they are never a gate and never a reason to refuse.
+- **`PickupAffordance`** (new `RefCounted`,
+  `scripts/actors/player/henry/components/pickup_affordance.gd`). `solve()`
+  returns `valid`, `in_place`, `body_position`, `body_yaw`, `contact`,
+  `reach_ratio`, `reason`, `preferred_hand` and `supported`.
+  `preferred_hand` and `supported` are a presentation hint and context only.
+  The checks:
+  - **In place.** If the contact is already inside the envelope, Henry turns
+    (`Player.face_work_target`) and takes it.
+  - **Otherwise, bounded body spots.** 5 rings (0.55–0.95 m from the contact)
+    × 12 directions, sorted by Henry's side and walk length. The first spot that
+    passes everything wins. A pure-arithmetic envelope prefilter skips most spots
+    before any physics query.
+  - Each spot needs a floor ray (normal ≥ 0.75, step ≤ 0.35 m) and a free
+    Main_Collision capsule.
+  - The straight line `Player.move_to_position` walks is swept with
+    `cast_motion` (no NavigationAgent).
+  - The contact must lie inside the **anatomical reach envelope**.
+- **The envelope.** Either shoulder, in stand, crouch, kneel or deep squat with a
+  hip hinge, at most 0.95 × arm length (no stretching).
+  - `HenryUALAnimation.get_reach_profile()` measures the UAL rest pose: shoulders
+    1.441 m above the feet and ±0.192 m, 0.065 m back; pelvis 0.917 m; arm
+    0.627 m (upperarm 0.275 + lowerarm 0.273 + 0.08 wrist to grip).
+  - These numbers are also the fallback without a rig.
+- **Item support is context, not a gate.** A support ray was tried as a gate.
+  `test_shelter_workflow` then refused AxeShelterTest, whose focus point
+  overhangs the ToolBench edge.
+- **Cache and budget.**
+  - Only the dominant pickup (and a committed one) is solved.
+  - The cache is re-solved after Henry moves 0.3 m, the item moves 0.03 m, or
+    0.5 s.
+  - `affordance_solves` counts solves; 60 still frames stay within 4 solves.
+- **Commit.** F on an actionable pickup stores the item and its spot
+  (`get_committed_target()`). The keycap stays on that item during the walk.
+  - Arrival inside 0.12 m: face the contact and take it.
+  - WASD (`movement_stopped` before arrival): clean cancel.
+  - A real geometric change (less than 0.05 m progress in 0.5 s, the item moved,
+    or `approach_timeout`) gets **one** re-solve of the same item. If that fails,
+    the walk is cancelled and `INTERACT_UNREACHABLE` is shown (new key, EN/RU).
+  - A neighbour is never taken instead.
+- **Replaced.** The old approach for pickups is gone. It walked the straight line
+  from the item to `pickup_distance` × 0.75, which on a table put the capsule
+  inside the table. It now serves world mechanisms only.
+- **Tests.** New `test_pickup_affordance.gd`, using a walker driven by
+  `move_and_slide`:
+  - a free-floor item;
+  - an item 0.3 m behind a table edge, where the old stop point lay inside the
+    table; Henry walks to the edge and takes it;
+  - Henry's side blocked by a crate, so the free side is chosen;
+  - the middle of a 2.4 m table: noticed, never promised, F does nothing;
+  - F on A, then the head turns to B: A is taken, B stays;
+  - WASD cancels;
+  - a wall dropped across the path: one re-solve, then the refusal;
+  - mirrored items: both valid, only the hand hint differs;
+  - the solve budget.
+  - `test_interaction.gd` items now lie on a floor.
+  - `test_shelter_workflow` passes.
+
 ### 2026-10-09 - Pickup [F] keycap and opt-in special awareness (claudeflow)
 
 - **`PickupMarkerUI`** (`scripts/ui/hud/pickup_marker/`, instanced in

@@ -15,6 +15,16 @@ signal interaction_performed(target: InteractiveArea)
 
 ## Seconds between special-awareness scans; they are rare and cheap.
 const AWARENESS_INTERVAL: float = 0.2
+## A committed walk has arrived inside this flat distance of its body spot, metres.
+const ARRIVAL_DISTANCE: float = 0.12
+## A cached affordance is re-solved after Henry moves this far, metres.
+const AFFORDANCE_MOVE: float = 0.3
+## ...or after the item moves this far, metres, or after this age, seconds.
+const AFFORDANCE_TARGET_MOVE: float = 0.03
+const AFFORDANCE_MAX_AGE: float = 0.5
+## A committed walk that gains less than this in STALL_SECONDS is physically stuck.
+const STALL_PROGRESS: float = 0.05
+const STALL_SECONDS: float = 0.5
 
 @export_group("Intent")
 ## Flat distance from Henry within which objects can be selected at all.
@@ -70,6 +80,16 @@ var _active: InteractiveArea = null
 var _pending: InteractiveArea = null
 var _approach_elapsed: float = 0.0
 var _approach_stopped: bool = false
+## The committed pickup walk: the item F chose and the spot solved for it.
+var _commit_target: InteractiveArea = null
+var _commit: PickupAffordance = null
+var _commit_resolves: int = 0
+var _commit_best: float = INF
+var _commit_stall: float = 0.0
+## Target -> [affordance, Henry position, target position, solve time ms].
+var _affordances: Dictionary = {}
+## Full affordance solves run so far; a budget probe for tests.
+var affordance_solves: int = 0
 var _awareness_left: float = 0.0
 ## Special-awareness objects currently showing their check mark.
 var _aware: Dictionary = {}
@@ -159,11 +179,17 @@ func try_interact() -> void:
 	if not is_pickup_actionable():
 		return
 	var pickup: InteractiveArea = pickup_target
-	if _flat_distance_to(pickup) <= _reach():
+	if _is_seated():
 		_stop_approach()
 		_perform(pickup)
-	elif not _is_seated():
-		_begin_approach(pickup)
+		return
+	var affordance: PickupAffordance = _affordance_for(pickup)
+	if affordance.in_place:
+		_stop_approach()
+		_face(affordance.contact)
+		_perform(pickup)
+		return
+	_begin_commit(pickup, affordance)
 
 
 func _perform(target: InteractiveArea) -> void:
@@ -354,9 +380,50 @@ func _refresh_active() -> void:
 		active_target_changed.emit(active)
 
 
-## Whether F could take this pickup: within reach, or a walk can bring Henry there.
+## Whether F can keep its promise: seated, within the lean; standing, a valid affordance.
 func _can_act_on_pickup(target: InteractiveArea) -> bool:
-	return _flat_distance_to(target) <= _reach() or not _is_seated()
+	if _is_seated():
+		return _flat_distance_to(target) <= seated_reach
+	return _affordance_for(target).valid
+
+
+## The pickup a committed F is walking to; the keycap stays on it.
+func get_committed_target() -> InteractiveArea:
+	return _commit_target if _is_available(_commit_target) else null
+
+
+## The cached affordance of a pickup, re-solved only when Henry, the item or time moved on.
+func get_pickup_affordance(target: InteractiveArea = null) -> PickupAffordance:
+	if target == null:
+		target = get_pickup_target()
+	return _affordance_for(target) if target != null else null
+
+
+func _affordance_for(target: InteractiveArea) -> PickupAffordance:
+	var entry: Array = _affordances.get(target, [])
+	var now: int = Time.get_ticks_msec()
+	if not entry.is_empty() and (entry[1] as Vector3).distance_to(_player.global_position) < AFFORDANCE_MOVE \
+		and (entry[2] as Vector3).distance_to(target.global_position) < AFFORDANCE_TARGET_MOVE \
+		and now - int(entry[3]) < int(AFFORDANCE_MAX_AGE * 1000.0):
+		return entry[0]
+	var affordance: PickupAffordance = PickupAffordance.solve(_player, target, _reach_profile())
+	affordance_solves += 1
+	## Only the dominant pickup and a committed one are ever solved, so the cache stays tiny.
+	for key: Variant in _affordances.keys():
+		if key != target and key != _commit_target:
+			_affordances.erase(key)
+	_affordances[target] = [affordance, _player.global_position, target.global_position, now]
+	return affordance
+
+
+func _reach_profile() -> Dictionary:
+	var visual := _player.get_node_or_null(^"HenryUALVisual") as HenryUALAnimation
+	return visual.get_reach_profile() if visual != null else PickupAffordance.DEFAULT_PROFILE
+
+
+func _face(point: Vector3) -> void:
+	if _player.has_method(&"face_work_target"):
+		_player.call(&"face_work_target", point)
 
 
 func _is_world_candidate(area: InteractiveArea) -> bool:
@@ -442,7 +509,7 @@ func _flat_distance_to_focus(area: InteractiveArea) -> float:
 	return offset.length()
 
 
-## Walks to a point on the line from the target toward Henry, inside reach.
+## Walks a world mechanism's straight line toward Henry until inside reach.
 func _begin_approach(target: InteractiveArea) -> void:
 	if not _player.has_method(&"move_to_position"):
 		return
@@ -458,24 +525,18 @@ func _begin_approach(target: InteractiveArea) -> void:
 	_player.call(&"move_to_position", stop_point)
 
 
-## A committed pickup arrives on the item F chose, never on the attention's new favourite.
 ## A world mechanism must still be under the view on arrival.
 func _update_approach(delta: float) -> void:
+	if _commit_target != null:
+		_update_commit(delta)
+		return
 	if _pending == null:
 		return
 	if not _is_available(_pending) or _is_blocked():
 		_stop_approach()
 		return
-	var committed: bool = _pending.get_interaction_channel() == InteractiveArea.InteractionChannel.PICKUP
-	## WASD taking over cancels the pickup intent before any arrival is processed.
-	if committed and _approach_stopped:
-		_stop_approach()
-		return
 	var distance: float = _flat_distance_to(_pending)
-	if committed and distance > intent_radius:
-		_stop_approach()
-		return
-	if (committed or _pending == world_target) and distance <= _reach():
+	if _pending == world_target and distance <= _reach():
 		var target: InteractiveArea = _pending
 		_stop_approach()
 		_perform(target)
@@ -485,8 +546,73 @@ func _update_approach(delta: float) -> void:
 		_stop_approach()
 
 
+## F committed to this pickup and this spot: walk there, align, take exactly it.
+func _begin_commit(target: InteractiveArea, affordance: PickupAffordance) -> void:
+	_stop_approach()
+	if not _player.has_method(&"move_to_position"):
+		return
+	_commit_target = target
+	_commit = affordance
+	_commit_resolves = 1
+	_commit_best = INF
+	_commit_stall = 0.0
+	_approach_stopped = false
+	_approach_elapsed = 0.0
+	_player.call(&"move_to_position", affordance.body_position)
+
+
+## Arrival takes the committed item; WASD cancels; only a real geometric change
+## (blocked path, moved item) earns one re-solve, then an honest refusal.
+func _update_commit(delta: float) -> void:
+	var target: InteractiveArea = _commit_target
+	if not _is_available(target) or _is_blocked():
+		_stop_approach()
+		return
+	var offset: Vector3 = _commit.body_position - _player.global_position
+	offset.y = 0.0
+	var remaining: float = offset.length()
+	if remaining <= ARRIVAL_DISTANCE and _commit.holds_from(_player, _reach_profile()):
+		var contact: Vector3 = _commit.contact
+		_stop_approach()
+		_face(contact)
+		_perform(target)
+		return
+	if _approach_stopped and remaining > ARRIVAL_DISTANCE:
+		_stop_approach()
+		return
+	_approach_elapsed += delta
+	if remaining < _commit_best - STALL_PROGRESS:
+		_commit_best = remaining
+		_commit_stall = 0.0
+	else:
+		_commit_stall += delta
+	var moved: bool = target.get_focus_point(_player.global_position).distance_to(_commit.contact) > AFFORDANCE_TARGET_MOVE * 2.0
+	var stuck: bool = _commit_stall >= STALL_SECONDS or _approach_elapsed >= approach_timeout \
+		or (_approach_stopped and remaining <= ARRIVAL_DISTANCE)
+	if not (stuck or moved):
+		return
+	if _commit_resolves > 0:
+		_commit_resolves -= 1
+		_affordances.erase(target)
+		var again: PickupAffordance = _affordance_for(target)
+		if again.valid and not again.in_place:
+			_commit = again
+			_commit_best = INF
+			_commit_stall = 0.0
+			_approach_stopped = false
+			_player.call(&"move_to_position", again.body_position)
+			return
+		if again.valid and again.in_place:
+			_stop_approach()
+			_face(again.contact)
+			_perform(target)
+			return
+	_stop_approach()
+	target.show_message(tr(&"INTERACT_UNREACHABLE"))
+
+
 func _stop_approach() -> void:
-	var was_walking: bool = _pending != null
+	var was_walking: bool = _pending != null or _commit_target != null
 	_cancel_approach()
 	if was_walking and _player.has_method(&"stop_moving"):
 		_player.call(&"stop_moving")
@@ -494,12 +620,14 @@ func _stop_approach() -> void:
 
 func _cancel_approach() -> void:
 	_pending = null
+	_commit_target = null
+	_commit = null
 	_approach_elapsed = 0.0
 	_approach_stopped = false
 
 
 func _on_player_movement_stopped() -> void:
-	if _pending != null:
+	if _pending != null or _commit_target != null:
 		_approach_stopped = true
 
 

@@ -14,6 +14,8 @@ extends Node3D
 
 enum WorkPose { NONE, ENTERING, HOLDING, EXITING, RETURNING }
 
+## Wrist to the centre of a grip, metres; the UAL hand bone ends at the wrist.
+const GRIP_BEYOND_WRIST: float = 0.08
 const MOVEMENT_EPSILON: float = 0.05
 ## Slowest a slowed walk plays before it would read as standing still.
 const MIN_WALK_PACE: float = 0.35
@@ -190,6 +192,7 @@ var _attention_origin: Vector3 = Vector3.ZERO
 var _attention_ready: bool = false
 ## Physics frame of the last smoothing step; a stale smoothed value is never used.
 var _attention_frame: int = -1
+var _reach_profile: Dictionary = {}
 
 var _blend_position: float = 0.0
 ## Continuous time off the floor, seconds.
@@ -653,6 +656,33 @@ func _setup_head_look() -> void:
 func _head_bone_position() -> Vector3:
 	var bone: int = skeleton.find_bone(head_bone)
 	return (skeleton.global_transform * skeleton.get_bone_global_pose(bone)).origin
+
+
+## Henry's arm envelope from the rig's rest pose, relative to his feet: shoulder
+## height, half width and set-back, pelvis height and arm length to the grip.
+func get_reach_profile() -> Dictionary:
+	if not _reach_profile.is_empty():
+		return _reach_profile
+	_reach_profile = PickupAffordance.DEFAULT_PROFILE.duplicate()
+	if skeleton == null:
+		return _reach_profile
+	var bones: PackedInt32Array = PackedInt32Array([skeleton.find_bone(&"upperarm_l"), skeleton.find_bone(&"upperarm_r"),
+		skeleton.find_bone(&"lowerarm_l"), skeleton.find_bone(&"hand_l"), skeleton.find_bone(&"pelvis")])
+	if bones.has(-1):
+		return _reach_profile
+	## Rest pose in this node's space, whose origin sits at Henry's feet facing +Z.
+	var to_local: Transform3D = global_transform.affine_inverse() * skeleton.global_transform
+	var shoulder_l: Vector3 = to_local * skeleton.get_bone_global_rest(bones[0]).origin
+	var shoulder_r: Vector3 = to_local * skeleton.get_bone_global_rest(bones[1]).origin
+	var elbow: Vector3 = to_local * skeleton.get_bone_global_rest(bones[2]).origin
+	var wrist: Vector3 = to_local * skeleton.get_bone_global_rest(bones[3]).origin
+	var pelvis: Vector3 = to_local * skeleton.get_bone_global_rest(bones[4]).origin
+	_reach_profile["shoulder_height"] = (shoulder_l.y + shoulder_r.y) * 0.5
+	_reach_profile["shoulder_half_width"] = shoulder_l.distance_to(shoulder_r) * 0.5
+	_reach_profile["shoulder_back"] = -(shoulder_l.z + shoulder_r.z) * 0.5
+	_reach_profile["pelvis_height"] = pelvis.y
+	_reach_profile["arm_length"] = shoulder_l.distance_to(elbow) + elbow.distance_to(wrist) + GRIP_BEYOND_WRIST
+	return _reach_profile
 
 
 ## Where Henry's attention starts: his head, low-passed against idle bob.

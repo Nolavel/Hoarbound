@@ -38,6 +38,7 @@ INTERACT_PICKUP,Pick up,Подобрать
 INTERACT_PRESS,Press,Нажать
 INTERACT_OPEN,Open,Открыть
 INTERACT_USE,Use,Использовать
+INTERACT_UNREACHABLE,Can't reach it from here,Отсюда не дотянуться
 HOUSE_DOOR_OPEN,Open door,Открыть дверь
 HOUSE_DOOR_CLOSE,Close door,Закрыть дверь
 BREACH_REFUSED_NO_BOARDS,Lay some boards beside this opening first,Сначала положите доски у этого проёма
