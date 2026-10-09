@@ -44,7 +44,9 @@ Maintained per branch; entries are added by whoever makes the change.
   item out of the pocket, which drops its weight while held. That is a
   pre-existing leak, left for a separate task.
 - **Removed** the post-pickup hold-F (0.35 s) shortcut into Hub placement.
-  Manual placement stays in the Hub (Tab).
+  Manual placement stays in the Hub (Tab). `test_player_hub` now checks that
+  hold-F through a pickup keeps the Hub closed and the flare takes the canonical
+  route; the `open_placement` drag-drop is still covered.
 - **PickupMarkerUI: one ring of three arcs.**
   - **Idle:** the top arc with a plain F above it means tap; the lower-left arc
     means hold, shown only for items that can be held. The lower-right arc is

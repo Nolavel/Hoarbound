@@ -18,7 +18,7 @@ var _weight: Label
 var _survival: Label
 var _status: Label
 var _pack_ids: Array[StringName] = []
-## Hold-F placement: the item being dragged, its ghost and the drop targets.
+## Manual placement: the item being dragged, its ghost and the drop targets.
 var _placing: StringName = &""
 var _dragging: bool = false
 var _ghost: Label
@@ -82,7 +82,7 @@ func _build() -> void:
 	column.add_child(_label(tr("HUB_CLOSE_HINT")))
 
 
-## Starts hold-F placement: pockets that fit light up, the item sits under the
+## Starts manual placement: pockets that fit light up, the item sits under the
 ## cursor, LMB drags it and releasing drops it there and closes the Hub.
 func begin_placement(item_id: StringName) -> void:
 	_placing = item_id

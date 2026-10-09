@@ -42,7 +42,6 @@ const PACK_DESTINATION: StringName = &"pack"
 var pack: PackRig
 var _open: bool = false
 var _stows_in_flight: int = 0
-## F press tracking for hold-to-place: the item stowed during the current press.
 var _camera: Camera3D
 var _previous_camera: Camera3D
 var _panel: PlayerHubPanel
@@ -99,8 +98,8 @@ func open() -> bool:
 	return true
 
 
-## Hold F: the pack opens fully with the just-picked item under the cursor, to be
-## dragged into a pocket or left in the pack. Releasing the drag closes the Hub.
+## The pack opens fully with a pack item under the cursor, to be dragged into a
+## pocket or left in the pack. Releasing the drag closes the Hub.
 func open_placement(item_id: StringName) -> bool:
 	if inventory == null or not inventory.has_item(item_id) or not open():
 		return false

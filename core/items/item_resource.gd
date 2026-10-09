@@ -30,7 +30,7 @@ extends Resource
 ## Wearable facet. Null means this item cannot be worn.
 @export var garment: GarmentData = null
 ## Tap-F pickup may move this item from the pack into the first fitting physical
-## Quick Access pocket after the stow animation. Hold-F manual placement wins.
+## Quick Access pocket after the stow animation; the Hub (Tab) can re-place it.
 @export var prefer_quick_access: bool = false
 
 @export_group("Visuals")

@@ -15,6 +15,7 @@ var _stow_visual: Node3D
 var _stow_inventory: InventoryComponent
 var _saw_top_only: bool = false
 var _hold_started: bool = false
+var _expected_route: StringName = &""
 
 
 func _process(delta: float) -> bool:
@@ -159,7 +160,8 @@ func _finish() -> void:
 	quit(1 if _failures > 0 else 0)
 
 
-## Hold F: a pickup during a held press opens placement once the hold passes 0.35 s.
+## Hold F is the pickup gesture's now: a press held through a stow never opens the Hub,
+## and the flare settles by the canonical route like any tap pickup.
 func _start_hold() -> void:
 	_hold_started = true
 	var press := InputEventAction.new()
@@ -168,6 +170,7 @@ func _start_hold() -> void:
 	Input.action_press(&"interact")
 	_stow_hub._input(press)
 	_stow_inventory.try_add(load("res://data/items/road_flare.tres") as ItemResource)
+	_expected_route = _stow_hub.route_destination(&"road_flare")
 	var ghost := Node3D.new()
 	root.add_child(ghost)
 	_stow_hub.stow_visual(ghost, &"road_flare")
@@ -175,7 +178,13 @@ func _start_hold() -> void:
 
 func _check_hold() -> void:
 	Input.action_release(&"interact")
-	_check(_stow_hub.is_open(), "holding F after a pickup did not open placement")
+	_check(not _stow_hub.is_open(), "holding F through a pickup still opened the Hub")
+	_check(_expected_route != PlayerHubComponent.PACK_DESTINATION, "no free Quick Access pocket for the second flare")
+	if _expected_route == PlayerHubComponent.PACK_DESTINATION:
+		return
+	_check(_zone_item(_stow_hub, _expected_route) == &"road_flare", "the second flare did not take the canonical route")
+	_stow_hub.move_to_pack(_expected_route)
+	_check(_stow_hub.open_placement(&"road_flare"), "manual placement did not open for a pack flare")
 	var panel: PlayerHubPanel = null
 	for child: Node in _stow_hub.get_children():
 		if child is PlayerHubPanel:
@@ -183,17 +192,12 @@ func _check_hold() -> void:
 	_check(panel != null and panel.is_placing(), "the Hub opened without placing the picked item")
 	if panel == null:
 		return
-	var pocket: StringName = &""
-	for zone: Dictionary in _stow_hub.get_quick_access_zones():
-		pocket = zone["path"]
-	panel.drop_on(pocket)
+	panel.drop_on(_expected_route)
 	_check(not _stow_hub.is_open(), "dropping did not close the Hub")
-	_check(pocket != &"", "no pocket to drop into")
-	if pocket != &"":
-		_check(_zone_item(_stow_hub, pocket) == &"road_flare", "the dropped flare is not in the chosen pocket")
-		_check(_stow_inventory.get_count(&"road_flare") == 0, "manual placement left the held flare in the pack")
-		var carried_flares: int = 0
-		for zone: Dictionary in _stow_hub.get_quick_access_zones():
-			if zone["item_id"] == &"road_flare":
-				carried_flares += 1
-		_check(carried_flares == 2, "hold-F placement did not preserve the earlier auto-pocketed flare")
+	_check(_zone_item(_stow_hub, _expected_route) == &"road_flare", "the dropped flare is not in the chosen pocket")
+	_check(_stow_inventory.get_count(&"road_flare") == 0, "manual placement left the flare in the pack")
+	var carried_flares: int = 0
+	for zone: Dictionary in _stow_hub.get_quick_access_zones():
+		if zone["item_id"] == &"road_flare":
+			carried_flares += 1
+	_check(carried_flares == 2, "placement did not preserve the earlier auto-pocketed flare")
