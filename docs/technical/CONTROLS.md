@@ -63,7 +63,7 @@ What each marker means:
 | Ring over an item: top arc + plain `F` | Tap F: take **this** item into storage (Quick Access pocket for preferred items, otherwise the pack). It shows only when Henry can physically get it: a floor spot he can walk to in a straight line, with the item inside his reach |
 | Ring, lower-left arc | Hold F: take the item into the hand. On the hold the same `F` gains a key frame in place (it never moves), an open hand appears inside the ring, and the arc grows from both ends to a full circle at 1.0 s. Shown only for items a hand can show (pocket-size; not the hammer or flare yet) |
 | Ring, lower-right arc | Not an action: almost invisible until a tap is refused by storage (overweight), then it lights up |
-| ✕ in the ring centre | The pickup did not happen. The lit arc names the cause: right = storage, left = hands/hold. The hand icon gives way to it |
+| ✕ in the ring centre, F turns red | The pickup did not happen. The lit arc names the cause: right = storage, left = hands/hold. The hand icon gives way to it; the F fades back to cream with the ✕ |
 | Small `[F]` keycap over an armful | F takes the boards or logs into both arms at once |
 | Faint dot over an item | Henry notices it; F does not take it now (another item is dominant, a world mechanism has F, or it cannot be reached) |
 | ✓ check mark | "Notice this": opt-in for rare or authored objects only, never ordinary loot. It never makes anything actionable |

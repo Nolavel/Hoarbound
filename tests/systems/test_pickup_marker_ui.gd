@@ -135,6 +135,7 @@ func _check_storage_refusal() -> void:
 	_check(v["refusal_right"] and v["right_alpha"] > 0.9, "a storage refusal did not light the right arc")
 	_check(not v["refusal_left"] and v["left_alpha"] <= PickupMarkerUI.LEFT_ARC_IDLE_ALPHA + 0.001, "a storage refusal lit the hands arc")
 	_check((v["layout"]["cross_point"] as Vector2).is_zero_approx(), "the refusal ✕ is not in the ring centre")
+	_check_red_key(v, "storage refusal")
 	await _settle(1.0)
 	v = _marker.get_visual_state()
 	_check(not v["refusal_right"] and v["right_alpha"] <= PickupMarkerUI.RIGHT_ARC_IDLE_ALPHA + 0.001,
@@ -157,13 +158,23 @@ func _check_hold_refusal() -> void:
 	_check(not v["refusal_right"] and v["right_alpha"] <= PickupMarkerUI.RIGHT_ARC_IDLE_ALPHA + 0.001, "a hold refusal lit the storage arc")
 	_check(v["hand_alpha"] < 0.01, "the hand competes with the refusal ✕ (%.2f)" % v["hand_alpha"])
 	_check((v["layout"]["cross_point"] as Vector2).is_zero_approx(), "the hold refusal ✕ is not in the ring centre")
+	_check_red_key(v, "hold refusal")
+	_check(v["layout"]["key_point"] == _idle_key_point, "the red F moved off the idle spot")
 	_ic.release_interact(0.3)
 	await _settle(1.0)
 	v = _marker.get_visual_state()
 	_check(not v["refusal_left"] and v["left_alpha"] <= PickupMarkerUI.LEFT_ARC_IDLE_ALPHA + 0.001, "the hands arc did not settle after the refusal")
+	var settled: Color = v["key_glyph_color"]
+	_check(Color(settled, 1.0).is_equal_approx(PickupMarkerUI.DOT_COLOR), "the F did not return to cream after the refusal (%s)" % settled)
 	_inventory.max_carry_weight = max_weight
 	knife.queue_free()
 	await _frames(3)
+
+
+## The refused press turns F red at its own spot.
+func _check_red_key(v: Dictionary, what: String) -> void:
+	var c: Color = v["key_glyph_color"]
+	_check(c.r > 0.7 and c.g < 0.4 and c.b < 0.4 and c.a > 0.9, "%s did not turn F red (%s)" % [what, c])
 
 
 ## 23: a world mechanism under the view suppresses the ring entirely.

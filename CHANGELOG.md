@@ -12,7 +12,8 @@ Maintained per branch; entries are added by whoever makes the change.
   separate keycap beside the lower-left arc is gone.
 - **One refusal ✕ in the ring centre.** The arc of the cause lights up: the right
   arc for storage (tap), the left arc for hands/hold. The hand icon yields to the
-  ✕. The right arc stays near background in idle.
+  ✕. The right arc stays near background in idle. The F turns red at its own
+  spot while the ✕ shows and fades back to cream with it.
 - `PickupMarkerUI._layout()` places every piece. The draw and
   `test_pickup_marker_ui` share it; the test now checks the F position across
   idle → hold, the centred ✕ and a hold refusal. The ring size is unchanged.

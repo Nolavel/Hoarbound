@@ -11,6 +11,8 @@ const KEY_BASE := Color(0.94, 0.84, 0.65, 1.0)
 const KEY_BORDER := Color(0.77, 0.56, 0.27, 1.0)
 const KEY_TEXT := Color(0.08, 0.055, 0.035, 1.0)
 const DOT_COLOR := Color(1.0, 0.95, 0.82, 1.0)
+## The F turns this red while a refusal ✕ shows: the press did not go through.
+const REFUSAL_KEY := Color(0.86, 0.22, 0.18, 1.0)
 const HAND_ICON: Texture2D = preload("res://assets/ui/hud/pickup_marker/hand_open.svg")
 ## Arc centres in screen angles (0 = right, clockwise): top, lower-left, lower-right.
 const TOP_DEG: float = -90.0
@@ -146,6 +148,7 @@ func get_visual_state() -> Dictionary:
 		"refusal_left": _refuse_left > 0.0,
 		"fading": _fade_left > 0.0,
 		"layout": _layout(Vector2.ZERO),
+		"key_glyph_color": _key_glyph_color(),
 	}
 
 
@@ -212,6 +215,13 @@ func _hand_alpha() -> float:
 	return _hand_a * (1.0 - _refusal_strength())
 
 
+## Cream bare F, dark on the frame, red while a refusal shows.
+func _key_glyph_color() -> Color:
+	var refusal: float = _refusal_strength()
+	var rgb: Color = DOT_COLOR.lerp(KEY_TEXT, _key_a).lerp(REFUSAL_KEY, refusal)
+	return Color(rgb, maxf(maxf(_plain_f_a, _key_a), refusal))
+
+
 ## Where each piece sits around a ring centre; the draw and the tests share it.
 func _layout(centre: Vector2) -> Dictionary:
 	var key_point: Vector2 = centre + Vector2(0.0, -(ring_radius_px + KEY_GAP_PX + key_size * 0.5))
@@ -260,9 +270,9 @@ func _draw_ring(centre: Vector2) -> void:
 	_arc(centre, LEFT_DEG, _span_deg, _left_alpha())
 	if _key_a > 0.01:
 		_draw_key_frame(layout["key_rect"], _key_a)
-	var glyph_a: float = maxf(_plain_f_a, _key_a)
-	if glyph_a > 0.01:
-		_draw_key_glyph(layout["key_point"], Color(DOT_COLOR.lerp(KEY_TEXT, _key_a), glyph_a))
+	var glyph: Color = _key_glyph_color()
+	if glyph.a > 0.01:
+		_draw_key_glyph(layout["key_point"], glyph)
 	var hand_a: float = _hand_alpha()
 	if hand_a > 0.01:
 		draw_texture_rect(HAND_ICON, layout["hand_rect"], false, Color(DOT_COLOR, hand_a))
