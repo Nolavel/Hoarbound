@@ -81,6 +81,48 @@ class DemVoids(unittest.TestCase):
         self.assertEqual(filled[0, 0], 2.0)
 
 
+class Landmarks(unittest.TestCase):
+    def test_inset_reproduces_documented_floor_area(self):
+        from reality import landmarks
+        sq = shapely.Polygon([(0, 0), (20, 0), (20, 10), (0, 10)])
+        d = landmarks._inset_for_area(sq, 19 * 9)
+        self.assertAlmostEqual(d, 0.5, places=3)
+
+    def test_glb_is_valid_gltf_binary(self):
+        import json as _json
+        import struct
+        import tempfile
+        import numpy as np
+        from pathlib import Path as P
+        from reality import landmarks
+        tri = landmarks._mesh([np.array([[0, 0, 0], [1, 0, 0], [0, 0, -1]], float)])
+        with tempfile.TemporaryDirectory() as tmp:
+            out = P(tmp) / "t.glb"
+            landmarks._write_glb(out, [{"name": "T-col", "surfaces": [dict(tri, material="fort_brick")]}])
+            data = out.read_bytes()
+        magic, version, length = struct.unpack("<4sII", data[:12])
+        self.assertEqual((magic, version, length), (b"glTF", 2, len(data)))
+        jlen, jtype = struct.unpack("<I4s", data[12:20])
+        doc = _json.loads(data[20:20 + jlen])
+        self.assertEqual(jtype, b"JSON")
+        self.assertEqual(doc["nodes"][0]["name"], "T-col")
+        self.assertEqual(doc["accessors"][0]["count"], 3)
+        self.assertEqual(len(data) % 4, 0)
+
+    def test_artist_owned_landmark_is_never_rewritten(self):
+        import json as _json
+        import tempfile
+        from pathlib import Path as P
+        from unittest import mock
+        from reality import landmarks
+        with tempfile.TemporaryDirectory() as tmp:
+            man = P(tmp) / "asset_manifest.json"
+            man.write_text(_json.dumps({"assets": [{"feature_id": "kw:building:osm:w1", "authoring_state": "artist_locked"}]}))
+            with mock.patch.object(landmarks, "MANIFEST", man):
+                self.assertFalse(landmarks._may_write("kw:building:osm:w1"))
+                self.assertTrue(landmarks._may_write("kw:building:osm:w2"))
+
+
 class LibraryUnpack(unittest.TestCase):
     def test_existing_working_copy_is_never_overwritten(self):
         import tempfile

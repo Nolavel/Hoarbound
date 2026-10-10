@@ -9,6 +9,7 @@
   pack | unpack               committed .gpkg.xz <-> working .gpkg (sha256-checked)
   asset ...                   register/lock an authored asset; --rebase-check after source updates
   override-bridge-init        one-time: author the severed-bridge game override from real geometry
+  landmarks                   measured First Exit landmark assets (glTF) + asset manifest records
   export-editor               per-chunk editor interchange for the Godot editor generator
   all                         acquire -> extent -> acquire (extent-bound) -> build -> validate -> report -> preview
 
@@ -82,6 +83,9 @@ def main() -> None:
     elif args.command == "override-bridge-init":
         from reality import overrides
         overrides.init_bridge_override()
+    elif args.command == "landmarks":
+        from reality import landmarks
+        landmarks.run()
     elif args.command == "export-editor":
         from reality import editor_export
         editor_export.run(args.chunk, route_only=args.route)

@@ -1,0 +1,111 @@
+{
+ "landmark": "727 Fort Street (First Exit primary shelter)",
+ "feature_id": "kw:building:osm:w339414849",
+ "override_id": "kw_override:first_exit:shelter:727_fort_st",
+ "origin_local": [
+  -3530.487,
+  1.23,
+  1583.02
+ ],
+ "frame": "glTF/Godot local metres: +x east, +y up (NAVD88 - origin y), +z south",
+ "elements": {
+  "roof_top_navd88_m": {
+   "value": 5.942,
+   "recon": "measured",
+   "method": "median of 2019 DSM roof-band cells minus lidar ground ring",
+   "above_ground_m": 4.712,
+   "cells": 1185,
+   "epochs": {
+    "noaa_lidar_9081": {
+     "median_m": 4.712,
+     "p05_p95_m": [
+      4.658,
+      4.772
+     ],
+     "cells": 1185,
+     "canopy_share": 0.123
+    },
+    "noaa_lidar_6246": {
+     "median_m": 4.764,
+     "p05_p95_m": [
+      4.704,
+      4.824
+     ],
+     "cells": 274,
+     "canopy_share": 0.187
+    }
+   }
+  },
+  "roof_outline": {
+   "recon": "cross_verified",
+   "method": "OSM trace (roof incl. eaves) + lidar roof run-out at notch edges",
+   "area_m2": 418.4,
+   "notch_roofs": [
+    {
+     "i": 2,
+     "length_m": 7.41,
+     "runout_m": 2.0,
+     "profiles": 9
+    },
+    {
+     "i": 6,
+     "length_m": 10.17,
+     "runout_m": 1.95,
+     "profiles": 4
+    }
+   ]
+  },
+  "walls": {
+   "recon": "cross_verified",
+   "inset_m": 0.45,
+   "area_m2": 343.1,
+   "method": "OSM trace inset until the area equals the City record (3,693 sq ft)",
+   "check_lidar_eave_runouts_m": [
+    -0.1,
+    null,
+    0.4,
+    0.0,
+    0.6,
+    null
+   ]
+  },
+  "floor_above_ground_m": {
+   "value": 0.15,
+   "recon": "inferred",
+   "note": "finished floor not in any reachable record"
+  },
+  "roof_fascia_m": {
+   "value": 0.3,
+   "recon": "inferred"
+  },
+  "openings": {
+   "recon": "unresolved",
+   "note": "doors/windows only from the Legistar plan attachments (not delivered)"
+  }
+ },
+ "conflicts": [
+  {
+   "attribute": "height",
+   "documentary": {
+    "value_m": 6.86,
+    "source": "city_kw_legistar_20_6136",
+    "text": "existing height 22 ft 6 in"
+   },
+   "measured": {
+    "value_m": 4.71,
+    "sources": [
+     "noaa_lidar_9081 2019",
+     "noaa_lidar_6246 2016"
+    ]
+   },
+   "resolution": "geometry follows the two lidar epochs (flat roof, no parapet); the record's height datum is unstated. Proposed 26 ft 4 in (2020) may describe a later state - needs post-2020 evidence."
+  }
+ ],
+ "ground_ring_navd88_m": 1.23,
+ "landmark_version": "kw_landmark.1",
+ "pipeline_version": "1.0.0",
+ "built_at": "2026-10-10T09:08:52+00:00",
+ "asset": "assets/world/key_west/landmarks/kw_727_fort_st.glb",
+ "asset_sha256": "91fbc387ba61fd8f4c9c64677e430af05daa7ae6bc88f431bf6d70732d467ee5",
+ "triangles": 106
+}

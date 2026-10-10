@@ -1,0 +1,92 @@
+{
+ "activations": {
+  "activate_ms_max": 29.267,
+  "activate_ms_p50": 11.52,
+  "activate_ms_p95": 29.27,
+  "count": 7,
+  "queued_to_active_ms_max": 395.47,
+  "queued_to_active_ms_p50": 226.22,
+  "queued_to_active_ms_p95": 395.47
+ },
+ "after_leaving": {
+  "active_chunks": 0,
+  "nodes_over_baseline": 10,
+  "packed_cache_entries": 8,
+  "static_memory_mb": 176.0
+ },
+ "boot_to_all_near_active_s": 0.438,
+ "display": "headless",
+ "engine": "4.8-dev6 (official)",
+ "length_m": 619.0,
+ "moving_frames": 14939,
+ "peaks": {
+  "active_chunks": 5,
+  "packed_cache_entries": 9,
+  "static_memory_mb": 189.7
+ },
+ "player_in_inactive_chunk": {
+  "chunks": [],
+  "frames": 0,
+  "seconds": 0.0
+ },
+ "route": "first_exit",
+ "slowest_activations": [
+  {
+   "activate_ms": 29.267,
+   "id": "kw_gen_-7_3",
+   "latency_ms": 156.318,
+   "nodes_after": 1551,
+   "phase": "move",
+   "t_s": 47.300872
+  },
+  {
+   "activate_ms": 21.431,
+   "id": "kw_gen_-7_2",
+   "latency_ms": 129.858,
+   "nodes_after": 2562,
+   "phase": "move",
+   "t_s": 80.62506
+  },
+  {
+   "activate_ms": 11.517,
+   "id": "kw_gen_-8_3",
+   "latency_ms": 131.722,
+   "nodes_after": 455,
+   "phase": "boot",
+   "t_s": 0.176337
+  },
+  {
+   "activate_ms": 2.301,
+   "id": "kw_gen_-8_4",
+   "latency_ms": 283.9,
+   "nodes_after": 520,
+   "phase": "boot",
+   "t_s": 0.32852
+  },
+  {
+   "activate_ms": 2.037,
+   "id": "kw_gen_-9_4",
+   "latency_ms": 395.47,
+   "nodes_after": 616,
+   "phase": "boot",
+   "t_s": 0.440113
+  }
+ ],
+ "speed_mps": 6.0,
+ "static_memory_mb_at_start": 46.9,
+ "streaming": {
+  "chunks": 459,
+  "instantiation_budget_per_frame": 1,
+  "load_margin_m": 140.0,
+  "max_concurrent_loads": 2,
+  "rescan_distance_m": 40.0,
+  "unload_hysteresis_m": 120.0
+ },
+ "streaming_cost_ms": {
+  "frames_over_16_7": 2,
+  "frames_over_33_3": 0,
+  "max": 29.27,
+  "p50": 0.53,
+  "p99": 0.99
+ }
+}

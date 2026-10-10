@@ -403,23 +403,110 @@ buildings (duplicates inside OSM), identical geometries, open utility edges.
 
 Reports: `reports/accuracy_report.md` (coverage, completeness and confidence counted
 separately), `validation_report.md`, `change_report.md`, `build_stats.json`.
-Previews: `docs/world/reality_previews/01…09*.png` (library maps) `10…16_godot_*.png` and `18_godot_island_overview.png`
+Previews: `docs/world/reality_previews/01…09*.png` (library maps) `10…16_godot_*.png`, `18_godot_island_overview.png`, the measured landmarks
+`19…20_godot_landmark_*.png` and the full game `World` on generated chunks `21_game_world_reality_spawn.png`
 (generated chunks rendered in Godot on lavapipe by `capture_key_west_route.gd`).
 `17_godot_first_exit_flythrough.mp4` (0.9 MB) is the Battery Osceola → 727 Fort Street
 flythrough at 28 m altitude.
 
-## 15. Next stages
+## 15. First Exit landmarks (measured)
 
-1. **727 Fort Street / Battery Osceola authored landmarks.** These are blocked on the
-   Legistar attachments `Site Plans`, `*Large File* Planning Package` and `*Large File*
-   727 Fort Street - Historic Planner`, plus Battery Osceola preservation drawings and
-   photos (requested in issue #1). The asset goes into the manifest; the generator then
-   suppresses the generic mesh on that footprint.
-2. **Runtime integration.** `StreamingSystem` loads `Chunk_*.scn` instead of the JSON
-   massing, and the runtime heightmap is re-baked for the larger extent.
-3. **Facades.** Openings and colours need imagery (NAIP blocked) or planning sheets.
+`key_west_reality.py landmarks` (`tools/world/reality/landmarks.py`):
+- measures both landmarks;
+- writes glTF to `assets/world/key_west/landmarks/*.glb` (Godot imports them; Blender opens them);
+- writes a provenance sidecar per landmark to `data/world/key_west/reality/landmarks/*.json`;
+- registers the assets in `authoring/asset_manifest.json` as `kind: landmark`, `generated`.
+
+The chunk generator then instances the asset in place of the generic massing. An
+`artist_*` asset is never rewritten; that is the normal Blender roundtrip. Mesh nodes
+end in `-col`, so Godot builds their collision.
+
+**727 Fort Street** (`kw:building:osm:w339414849`):
+
+| Element | Value | Class | From |
+|---|---|---|---|
+| Roof | flat, 4.71 m above the lidar ground ring (5.94 m NAVD88) | measured | 2019 DSM, 1,185 roof cells; 2016 gives 4.76 m |
+| Parapet | none (edge 1 cm above the interior) | measured | 2019 DSM edge ring |
+| Roof outline | OSM trace + about 2 m roof run-out at both notches (418 m²) | cross_verified | per-edge lidar profiles, both epochs |
+| Walls | OSM trace inset 0.45 m = 343.1 m² = City record 3,693 sq ft | cross_verified | eave run-outs measured 0–0.6 m |
+| Floor | ring ground + 0.15 m | inferred | — |
+| Openings, plan | not modelled | unresolved | Legistar attachments not delivered |
+
+There is a conflict with the record. The City's "existing height 22 ft 6 in" (6.86 m)
+is 2.1 m above the roof, and both lidar epochs agree on the roof. The geometry follows
+the measurement, and the conflict is kept in the sidecar. Codex was asked for the
+record's height datum and for evidence of the post-2020 state (#1).
+
+**Fort Zachary Taylor fronts / Battery Osceola start** (`kw:building:osm:w524088621`):
+- a 2.5D surface of the surviving fronts from the 2019 DSM at 0.5 m (43.7k triangles);
+- 2019 gaps (9.6 %) are filled from 2016; the two epochs agree within a median 6 cm, MAD 2 cm;
+- the outline is dropped to the DEM as walls into the moat;
+- exterior massing only, no emplacement detail. No separate Battery footprint exists in
+  any reachable source, so the start anchor sits on the measured south-front mass.
+
+## 16. Production streaming
+
+**Placement contract.** The generator writes `scenes/world/key_west/generated/world_data.tres`:
+- one `ChunkData` per chunk: id `kw_gen_<cx>_<cz>`, centre position, radius 362 m;
+- chunk content is stored relative to the chunk centre, so the unmodified
+  `StreamingSystem` places it with `global_position = centre`.
+
+**Experimental profile.** `data/world_profiles/key_west_reality.tres` with
+`scenes/world/key_west/key_west_reality.tscn`:
+- the production `World` composition root, all 15 systems;
+- no `IslandTerrain`, because chunks carry their own DEM terrain and collision;
+- spawn on the First Exit start anchor.
+
+The main scene is unchanged.
+
+**Three `StreamingSystem` defects were found by measuring, and fixed:**
+- **Queued loads only started on a rescan**, i.e. after the player walked 40 m. A player
+  standing at spawn waited more than 120 s and stood on an unloaded chunk.
+  `pump()` now fills free load slots, nearest first.
+- **The packed-scene cache never shrank.** It is now an LRU of `cold_cache_limit` (8)
+  released scenes.
+- **`prewarm_before_first_frame` was ignored by static streaming.** The player started
+  falling before the fort chunk arrived and ended up inside it at y 0.46. The spawn band
+  is now loaded synchronously behind the title card; the player lands on the measured
+  fort surface (7.93 m) on frame 1.
+
+Both fixes have tests in `tests/systems/test_streaming.gd`.
+
+**Chunk build changes for streaming:**
+- trees, poles and props are MultiMesh nodes, with per-instance provenance arrays;
+- building collision is one prism-per-outline shape per chunk. Building a BVH over the
+  render triangles cost 108 ms on first instantiate.
+- meshes are indexed and attribute-compressed.
+
+Generation needs a rendering driver. A headless dummy renderer saves empty MultiMesh
+buffers, so the contract check now fails on that.
+
+**Measured.** `tools/runtime/benchmark_key_west_reality_streaming.gd` uses the production
+streaming budgets and real-time movement. Reports are in
+`docs/runtime_previews/key_west_reality_streaming/`.
+
+| | First Exit (619 m, 6 m/s) | Island (11.7 km, 25 m/s) |
+|---|---|---|
+| Spawn to everything near active | 0.44 s (was > 120 s) | 0.42 s |
+| Time on an unloaded chunk | 0 s (was 6.7 s) | 0 s |
+| Activation p50 / max | 12 / 29 ms (was 122 ms) | 10 / 25 ms |
+| Frames > 33 ms | 0 | 0 |
+| Static memory peak / after leaving | 190 / 176 MB | 232 / 97 MB |
+
+## 17. Next stages
+
+1. **727 / Battery authored detail.** Openings, floor plan and Battery exterior detail
+   wait for the Legistar attachments and preservation drawings or photos (requested in
+   issue #1). The measured assets are the base an artist refines (`artist_modified`).
+2. **Make the profile the default.** That needs:
+   - an author decision;
+   - the exported interchange shipped as `editor_chunks.tar.xz` (about 31 MB), so CI and
+     fresh clones regenerate scenes in about 3 minutes without the raw lidar cache.
+3. **Activation spikes.** Dense Old Town chunks still take 20–29 ms on this CPU (13 of 68k frames over 16.7 ms on the island drive).
+   Next, instantiate on a worker thread (Godot's documented build-off-tree pattern)
+   or merge buildings per block.
+4. **Facades.** Openings and colours need imagery (NAIP blocked) or planning sheets.
    Until then walls stay plain; nothing is invented.
-4. **Roofs.** Split complex footprints into parts before fitting, so fewer roofs end up
-   `unresolved`.
-5. **Far LOD.** OBB/hull proxies as separate derived meshes.
-6. **Blender.** glTF export with extras, re-import bound by `feature_id`.
+5. **Roofs.** Split complex footprints before fitting. Canopy-polluted lidar P95 heights
+   (as at 727) should give way to the roof-band median.
+6. **Far LOD.** OBB/hull proxies as separate derived meshes for the ring beyond the load band.

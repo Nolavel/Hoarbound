@@ -1,6 +1,6 @@
 extends SceneTree
 ## Proof capture of generated Key West chunks along the First Exit corridor (lavapipe-friendly).
-## godot --script tools/world/reality_gen/capture_key_west_route.gd -- <out_dir> [fly_frames] [island]
+## godot --script tools/world/reality_gen/capture_key_west_route.gd -- <out_dir> [fly_frames] [island|route] [chunk ids a:b,c:d]
 
 const CHUNK_DIR: String = "res://scenes/world/key_west/generated/chunks"
 const START: Vector2 = Vector2(-4052.73, 1924.69)
@@ -21,13 +21,17 @@ func _initialize() -> void:
 	_out = args[0] if args.size() > 0 else "/tmp/kw_route"
 	var fly: int = int(args[1]) if args.size() > 1 else 60
 	var island: bool = args.size() > 2 and args[2] == "island"
+	var only: PackedStringArray = args[3].split(",") if args.size() > 3 else PackedStringArray()
 	DirAccess.make_dir_recursive_absolute(_out)
 	var world: Node3D = Node3D.new()
 	root.add_child(world)
 	var dir: DirAccess = DirAccess.open(CHUNK_DIR)
 	for file_name: String in dir.get_files():
-		if file_name.ends_with(".scn"):
-			world.add_child((load(CHUNK_DIR.path_join(file_name)) as PackedScene).instantiate())
+		if file_name.ends_with(".scn") and (only.is_empty() or only.has(file_name.trim_prefix("Chunk_").trim_suffix(".scn").replace("_", ":"))):
+			var chunk: Node3D = (load(CHUNK_DIR.path_join(file_name)) as PackedScene).instantiate() as Node3D
+			var centre: Array = chunk.get_meta("centre_local", [0.0, 0.0])
+			chunk.position = Vector3(float(centre[0]), 0.0, float(centre[1]))
+			world.add_child(chunk)
 	_environment(world, island)
 	_highlight_landmarks(world)
 	for anchor: Vector2 in [START, SHELTER]:

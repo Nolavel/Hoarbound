@@ -1,5 +1,42 @@
 {
  "schema": "kw_reality.asset_manifest.v1",
  "description": "One record per generated or authored asset bound to a Reality Library feature_id. Written by the editor generator and by the Blender roundtrip; never by the reality build. authoring_state: generated | artist_modified | artist_locked | deprecated | needs_rebase.",
- "assets": []
+ "assets": [
+  {
+   "feature_id": "kw:building:osm:w339414849",
+   "asset_id": "kw_asset:landmark:w339414849",
+   "asset_revision": 1,
+   "authoring_state": "generated",
+   "kind": "landmark",
+   "godot_scene": "res://assets/world/key_west/landmarks/kw_727_fort_st.glb",
+   "origin_local": [
+    -3530.487,
+    1.23,
+    1583.02
+   ],
+   "source_geometry_hash": "0dd2302a87ac3b35",
+   "last_generator_version": "1.0.0",
+   "asset_sha256": "91fbc387ba61fd8f4c9c64677e430af05daa7ae6bc88f431bf6d70732d467ee5",
+   "landmark_spec": "data/world/key_west/reality/landmarks/kw_727_fort_st.json",
+   "updated_at": "2026-10-10T09:07:53+00:00"
+  },
+  {
+   "feature_id": "kw:building:osm:w524088621",
+   "asset_id": "kw_asset:landmark:w524088621",
+   "asset_revision": 2,
+   "authoring_state": "generated",
+   "kind": "landmark",
+   "godot_scene": "res://assets/world/key_west/landmarks/kw_fort_zachary_taylor.glb",
+   "origin_local": [
+    -4069.672,
+    1.45,
+    1900.956
+   ],
+   "source_geometry_hash": "706ee6e594e44eb3",
+   "last_generator_version": "1.0.0",
+   "asset_sha256": "4a0e045801538fbd345518f7fff6c0000b4aa00c61c3d1ada03066d2ca7dea55",
+   "landmark_spec": "data/world/key_west/reality/landmarks/kw_fort_zachary_taylor.json",
+   "updated_at": "2026-10-10T09:08:52+00:00"
+  }
+ ]
 }

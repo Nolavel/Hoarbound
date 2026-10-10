@@ -3,11 +3,14 @@ extends RefCounted
 ## Builds one Reality Library chunk (editor interchange JSON v2) into a Node3D tree with meshes,
 ## collision and the per-node metadata contract. Editor-time only; never used at runtime.
 
-const GENERATOR_VERSION: String = "kw_chunk_builder.2"
+const GENERATOR_VERSION: String = "kw_chunk_builder.3"
 const GROUPS: Array[String] = ["Terrain", "Buildings", "Roads", "Barriers", "Infrastructure", "Vegetation", "Coastal", "LandUse", "Anchors"]
 const WALL_SINK_M: float = 0.3
 const WIRE_SAG_RATIO: float = 0.015
 const WIRE_SEGMENTS: int = 8
+const CONTRACT_KEYS: Array[String] = ["feature_id", "feature_class", "source_geometry_hash", "source_dataset", "source_epoch",
+	"reconstruction_class", "confidence", "override_state", "authoring_state", "regen_action"]
+const MESH_FLAGS: int = Mesh.ARRAY_FLAG_COMPRESS_ATTRIBUTES
 
 var stats: Dictionary = {}
 var _mat: Dictionary = {}
@@ -15,6 +18,9 @@ var _crown_mesh: SphereMesh
 var _trunk_mesh: CylinderMesh
 var _pole_mesh: CylinderMesh
 var _prop_mesh: CylinderMesh
+var _batches: Dictionary = {}
+var _collision_faces: PackedVector3Array = PackedVector3Array()
+var _collision_ranges: Array = []
 
 
 func _init() -> void:
@@ -51,6 +57,9 @@ func _init() -> void:
 ## Builds the chunk tree. terrain_dir holds the .f32 tiles named in the JSON.
 func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 	stats = {}
+	_batches = {}
+	_collision_faces = PackedVector3Array()
+	_collision_ranges = []
 	var parts: PackedStringArray = String(doc["chunk_id"]).split(":")
 	var root: Node3D = Node3D.new()
 	root.name = "Chunk_%s_%s" % [parts[0], parts[1]]
@@ -79,6 +88,16 @@ func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 		(groups["Anchors"] as Node3D).add_child(_custom_marker(custom))
 	for anchor: Node3D in _route_anchors(doc):
 		(groups["Anchors"] as Node3D).add_child(anchor)
+	_flush_batches(groups, doc)
+	_flush_collision(groups["Buildings"] as Node3D)
+	## StreamingSystem places a chunk root at its centre, so content is stored relative to it.
+	var origin: Array = doc["origin_local"]
+	var half: float = float(doc["size_m"]) * 0.5
+	var centre: Vector3 = Vector3(float(origin[0]) + half, 0.0, float(origin[1]) + half)
+	for group: Node3D in groups.values():
+		group.position = -centre
+	root.set_meta("centre_local", [centre.x, centre.z])
+	root.set_meta("placement", "instance at centre_local; children are offset by -centre")
 	_set_owner_recursive(root, root)
 	return root
 
@@ -86,9 +105,12 @@ func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 func _feature(feature: Dictionary) -> Node3D:
 	var action: String = feature["regen_action"]
 	var authored: Variant = feature["meta"].get("authored_scene")
-	if action in ["keep_locked", "needs_rebase"] and authored is String and ResourceLoader.exists(authored):
+	if action in ["keep", "keep_locked", "needs_rebase"] and authored is String and ResourceLoader.exists(authored):
 		var scene: Node3D = (load(authored) as PackedScene).instantiate() as Node3D
 		scene.name = feature["node_name"]
+		var at: Variant = feature["meta"].get("asset_origin_local")
+		if at is Array:
+			scene.position = Vector3(float(at[0]), float(at[1]), float(at[2]))
 		scene.set_meta("authored_asset", authored)
 		_count("authored_assets")
 		return scene
@@ -155,7 +177,8 @@ func _building(feature: Dictionary, m: Dictionary) -> Node3D:
 			var b1: Vector3 = Vector3(b.x, tb, b.y)
 			_triangle(walls, a0, b0, b1, normal)
 			_triangle(walls, a0, b1, a1, normal)
-	var mesh: ArrayMesh = walls.commit()
+	walls.index()
+	var mesh: ArrayMesh = walls.commit(null, MESH_FLAGS)
 	var placeholder: bool = String(m["roof_source"]) == "flat_cap_placeholder"
 	mesh.surface_set_material(0, _mat["walls_placeholder"] if placeholder else _mat["walls"])
 	mesh.surface_set_name(0, "walls")
@@ -172,7 +195,8 @@ func _building(feature: Dictionary, m: Dictionary) -> Node3D:
 		if face.y < 0.0:
 			face = -face
 		_triangle(roof, p[0], p[1], p[2], face)
-	roof.commit(mesh)
+	roof.index()
+	roof.commit(mesh, MESH_FLAGS)
 	if mesh.get_surface_count() > 1:
 		var roof_mat: Material = _mat["roof_lidar"]
 		if String(m["roof_source"]).begins_with("flat_cap"):
@@ -188,7 +212,7 @@ func _building(feature: Dictionary, m: Dictionary) -> Node3D:
 	if m.has("roof_model"):
 		instance.set_meta("roof_model", m["roof_model"])
 	instance.set_meta("height_sources", feature.get("height_sources", {}))
-	_add_collision(instance, mesh)
+	_collect_collision(feature["feature_id"], m, base)
 	_count("buildings")
 	return instance
 
@@ -221,7 +245,8 @@ func _ribbon(feature: Dictionary, m: Dictionary) -> Node3D:
 			_triangle(st, q0, q2, q3, Vector3.UP)
 	if first:
 		return null
-	var mesh: ArrayMesh = st.commit()
+	st.index()
+	var mesh: ArrayMesh = st.commit(null, MESH_FLAGS)
 	var path_like: bool = String(feature["class"]) in ["footway", "path", "cycleway", "steps", "pedestrian", "track"]
 	mesh.surface_set_material(0, _mat["path"] if path_like else _mat["road"])
 	var instance: MeshInstance3D = MeshInstance3D.new()
@@ -275,7 +300,8 @@ func _slab(feature: Dictionary, m: Dictionary, material: Material, solid: bool) 
 				_triangle(st, a0, b1, a1, n)
 	if not have:
 		return null
-	var mesh: ArrayMesh = st.commit()
+	st.index()
+	var mesh: ArrayMesh = st.commit(null, MESH_FLAGS)
 	mesh.surface_set_material(0, material)
 	var instance: MeshInstance3D = MeshInstance3D.new()
 	instance.name = feature["node_name"]
@@ -310,7 +336,8 @@ func _wall(feature: Dictionary, m: Dictionary) -> Node3D:
 			_triangle(st, a - origin, b + up - origin, a + up - origin, n)
 	if first:
 		return null
-	var mesh: ArrayMesh = st.commit()
+	st.index()
+	var mesh: ArrayMesh = st.commit(null, MESH_FLAGS)
 	mesh.surface_set_material(0, _mat["hedge"] if feature["class"] == "hedge" else _mat["barrier"])
 	var instance: MeshInstance3D = MeshInstance3D.new()
 	instance.name = feature["node_name"]
@@ -325,14 +352,10 @@ func _wall(feature: Dictionary, m: Dictionary) -> Node3D:
 func _pole(feature: Dictionary, m: Dictionary) -> Node3D:
 	var p: Array = m["p"]
 	var top: float = float(m["top_y"])
-	var instance: MeshInstance3D = MeshInstance3D.new()
-	instance.name = feature["node_name"]
-	instance.mesh = _pole_mesh
-	instance.position = Vector3(float(p[0]), float(m["base_y"]) + top * 0.5, float(p[1]))
-	instance.scale = Vector3(1.0, top, 1.0)
-	instance.set_meta("height_sources", feature.get("height_sources", {}))
+	var xf: Transform3D = Transform3D(Basis.from_scale(Vector3(1.0, top, 1.0)), Vector3(float(p[0]), float(m["base_y"]) + top * 0.5, float(p[1])))
+	_batch(feature, "Poles", _pole_mesh, xf, true)
 	_count("poles")
-	return instance
+	return null
 
 
 ## Catenary-like sag between two measured pole tops; one node per topology edge.
@@ -371,25 +394,12 @@ func _tree(feature: Dictionary, m: Dictionary) -> Node3D:
 	var p: Array = m["p"]
 	var h: float = float(m["height"])
 	var r: float = float(m["crown_radius"])
-	var root: Node3D = Node3D.new()
-	root.name = feature["node_name"]
-	root.position = Vector3(float(p[0]), float(m["base_y"]), float(p[1]))
-	var trunk: MeshInstance3D = MeshInstance3D.new()
-	trunk.name = "Trunk"
-	trunk.mesh = _trunk_mesh
-	trunk.scale = Vector3(1.0, h * 0.6, 1.0)
-	trunk.position = Vector3(0.0, h * 0.3, 0.0)
-	root.add_child(trunk)
-	var crown: MeshInstance3D = MeshInstance3D.new()
-	crown.name = "Crown"
-	crown.mesh = _crown_mesh
+	var base: Vector3 = Vector3(float(p[0]), float(m["base_y"]), float(p[1]))
 	var crown_h: float = maxf(h * 0.55, 1.5)
-	crown.scale = Vector3(r, crown_h, r)
-	crown.position = Vector3(0.0, h - crown_h * 0.5, 0.0)
-	root.add_child(crown)
-	root.set_meta("height_sources", feature.get("height_sources", {}))
+	_batch(feature, "TreeCrowns", _crown_mesh, Transform3D(Basis.from_scale(Vector3(r, crown_h, r)), base + Vector3(0.0, h - crown_h * 0.5, 0.0)), true)
+	_batch(feature, "TreeTrunks", _trunk_mesh, Transform3D(Basis.from_scale(Vector3(1.0, h * 0.6, 1.0)), base + Vector3(0.0, h * 0.3, 0.0)), false)
 	_count("trees")
-	return root
+	return null
 
 
 func _canopy(feature: Dictionary, m: Dictionary) -> Node3D:
@@ -404,14 +414,10 @@ func _canopy(feature: Dictionary, m: Dictionary) -> Node3D:
 func _prop(feature: Dictionary, m: Dictionary) -> Node3D:
 	var p: Array = m["p"]
 	var h: float = float(m["height"])
-	var instance: MeshInstance3D = MeshInstance3D.new()
-	instance.name = feature["node_name"]
-	instance.mesh = _prop_mesh
-	instance.position = Vector3(float(p[0]), float(m["base_y"]) + h * 0.5, float(p[1]))
-	instance.scale = Vector3(1.0, h, 1.0)
-	instance.set_meta("height_sources", feature.get("height_sources", {}))
+	var xf: Transform3D = Transform3D(Basis.from_scale(Vector3(1.0, h, 1.0)), Vector3(float(p[0]), float(m["base_y"]) + h * 0.5, float(p[1])))
+	_batch(feature, "Props", _prop_mesh, xf, true)
 	_count("props")
-	return instance
+	return null
 
 
 func _marker(feature: Dictionary, m: Dictionary) -> Node3D:
@@ -510,7 +516,7 @@ func _terrain(doc: Dictionary, terrain_dir: String) -> Node3D:
 	arrays[Mesh.ARRAY_COLOR] = colours
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh: ArrayMesh = ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, MESH_FLAGS)
 	mesh.surface_set_material(0, _mat["terrain"])
 	var instance: MeshInstance3D = MeshInstance3D.new()
 	instance.name = "Terrain_" + String(doc["chunk_id"]).replace(":", "_")
@@ -556,6 +562,87 @@ func _apply_meta(node: Node3D, feature: Dictionary, doc: Dictionary) -> void:
 	node.set_meta("fidelity", feature.get("fidelity", "default"))
 	if not feature["overrides"].is_empty():
 		node.set_meta("override_ids", feature["overrides"].map(func(o: Dictionary) -> String: return o["override_id"]))
+
+
+## Point features of one mesh kind share a MultiMesh; per-instance provenance sits in parallel arrays.
+func _batch(feature: Dictionary, kind: String, mesh: Mesh, xf: Transform3D, carries_meta: bool) -> void:
+	var key: String = "%s/%s" % [feature["group"], kind]
+	if not _batches.has(key):
+		_batches[key] = {"group": feature["group"], "kind": kind, "mesh": mesh, "xf": [], "meta": {}, "carries_meta": carries_meta}
+	var b: Dictionary = _batches[key]
+	(b["xf"] as Array).append(xf)
+	if carries_meta:
+		var meta: Dictionary = feature["meta"]
+		for k: String in CONTRACT_KEYS:
+			var v: Variant = feature["regen_action"] if k == "regen_action" else meta.get(k)
+			var values: PackedStringArray = (b["meta"] as Dictionary).get(k, PackedStringArray())
+			values.append("" if v == null else str(v))
+			b["meta"][k] = values  # packed arrays are values: write the grown copy back
+
+
+func _flush_batches(groups: Dictionary, doc: Dictionary) -> void:
+	for key: String in _batches.keys():
+		var b: Dictionary = _batches[key]
+		var mm: MultiMesh = MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = b["mesh"]
+		var xfs: Array = b["xf"]
+		mm.instance_count = xfs.size()
+		for i: int in range(xfs.size()):
+			mm.set_instance_transform(i, xfs[i])
+		var node: MultiMeshInstance3D = MultiMeshInstance3D.new()
+		node.name = "KW_" + String(b["kind"])
+		node.multimesh = mm
+		node.set_meta("generator_version", GENERATOR_VERSION)
+		node.set_meta("generated_at", doc["exported_at"])
+		node.set_meta("instance_count", xfs.size())
+		if b["carries_meta"]:
+			for k: String in (b["meta"] as Dictionary).keys():
+				node.set_meta("instance_" + k, b["meta"][k])
+		else:
+			node.set_meta("instances_of", "KW_TreeCrowns")
+		(groups.get(b["group"], groups["Infrastructure"]) as Node3D).add_child(node)
+
+
+## Building collision is a prism on the source outline up to the median eave, merged per chunk;
+## face_ranges maps faces back to features. Render triangles would cost ~8x more to build.
+func _collect_collision(feature_id: String, m: Dictionary, base: float) -> void:
+	var col: Dictionary = m.get("collision", {})
+	var ring: PackedVector2Array = _points(col.get("ring", []))
+	if ring.size() < 3:
+		return
+	var top: float = float(col["top_y"])
+	var y0: float = base - WALL_SINK_M
+	var start: int = _collision_faces.size() / 3
+	for i: int in range(ring.size()):
+		var a: Vector2 = ring[i]
+		var b: Vector2 = ring[(i + 1) % ring.size()]
+		var a0: Vector3 = Vector3(a.x, y0, a.y)
+		var b0: Vector3 = Vector3(b.x, y0, b.y)
+		var a1: Vector3 = Vector3(a.x, top, a.y)
+		var b1: Vector3 = Vector3(b.x, top, b.y)
+		_collision_faces.append_array([a0, b0, b1, a0, b1, a1])
+	var tris: PackedInt32Array = Geometry2D.triangulate_polygon(ring)
+	for k: int in range(tris.size()):
+		var p: Vector2 = ring[tris[k]]
+		_collision_faces.append(Vector3(p.x, top, p.y))
+	_collision_ranges.append([start, feature_id])
+
+
+func _flush_collision(group: Node3D) -> void:
+	if _collision_faces.is_empty():
+		return
+	var shape: ConcavePolygonShape3D = ConcavePolygonShape3D.new()
+	shape.set_faces(_collision_faces)
+	shape.backface_collision = true  # prism winding is not normalised per ring
+	var col: CollisionShape3D = CollisionShape3D.new()
+	col.name = "Shape"
+	col.shape = shape
+	var body: StaticBody3D = StaticBody3D.new()
+	body.name = "BuildingCollision"
+	body.set_meta("face_ranges", _collision_ranges)
+	body.add_child(col)
+	group.add_child(body)
 
 
 func _add_collision(instance: MeshInstance3D, mesh: ArrayMesh) -> void:

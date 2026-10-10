@@ -219,6 +219,10 @@ def building_shell(s: Surfaces, poly, base_y: float, height: float | None, heigh
            "roof_i": ti.astype(int).ravel().tolist(), "roof_source": roof_source, "ring_vertex_count": n_ring}
     if model is not None:
         out["roof_model"] = {k2: model[k2] for k2 in ("type", "rmse", "truncated_l1", "inlier_share", "slope_deg")}
+    # Collision proxy: the source outline (not the densified render ring) capped at the median eave.
+    col = np.asarray(poly.exterior.simplify(0.1).coords)[:-1, :2]
+    out["collision"] = {"ring": np.round(np.column_stack([col[:, 0] - oe, on - col[:, 1]]), 2).ravel().tolist(),
+                        "top_y": round(float(np.median(z[:len(ring_pts[0])])), 2)}
     return out
 
 

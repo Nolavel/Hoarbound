@@ -1,0 +1,116 @@
+{
+ "activations": {
+  "activate_ms_max": 25.178,
+  "activate_ms_p50": 10.41,
+  "activate_ms_p95": 23.37,
+  "count": 47,
+  "queued_to_active_ms_max": 387.728,
+  "queued_to_active_ms_p50": 49.33,
+  "queued_to_active_ms_p95": 302.81
+ },
+ "after_leaving": {
+  "active_chunks": 0,
+  "nodes_over_baseline": 10,
+  "packed_cache_entries": 8,
+  "static_memory_mb": 97.1
+ },
+ "boot_to_all_near_active_s": 0.424,
+ "display": "headless",
+ "engine": "4.8-dev6 (official)",
+ "length_m": 11743.3,
+ "moving_frames": 67937,
+ "peaks": {
+  "active_chunks": 5,
+  "packed_cache_entries": 13,
+  "static_memory_mb": 231.6
+ },
+ "player_in_inactive_chunk": {
+  "chunks": [],
+  "frames": 0,
+  "seconds": 0.0
+ },
+ "route": "island",
+ "slowest_activations": [
+  {
+   "activate_ms": 25.178,
+   "id": "kw_gen_-5_2",
+   "latency_ms": 119.915,
+   "nodes_after": 3466,
+   "phase": "move",
+   "t_s": 61.392667
+  },
+  {
+   "activate_ms": 24.137,
+   "id": "kw_gen_2_-1",
+   "latency_ms": 68.856,
+   "nodes_after": 2068,
+   "phase": "move",
+   "t_s": 213.743624
+  },
+  {
+   "activate_ms": 23.369,
+   "id": "kw_gen_-6_2",
+   "latency_ms": 120.07,
+   "nodes_after": 2939,
+   "phase": "move",
+   "t_s": 37.369914
+  },
+  {
+   "activate_ms": 23.269,
+   "id": "kw_gen_-6_1",
+   "latency_ms": 141.143,
+   "nodes_after": 2560,
+   "phase": "move",
+   "t_s": 51.808242
+  },
+  {
+   "activate_ms": 21.104,
+   "id": "kw_gen_-7_3",
+   "latency_ms": 137.3,
+   "nodes_after": 1551,
+   "phase": "move",
+   "t_s": 11.770055
+  },
+  {
+   "activate_ms": 20.949,
+   "id": "kw_gen_-5_1",
+   "latency_ms": 92.881,
+   "nodes_after": 3412,
+   "phase": "move",
+   "t_s": 64.577448
+  },
+  {
+   "activate_ms": 20.565,
+   "id": "kw_gen_-7_2",
+   "latency_ms": 123.039,
+   "nodes_after": 2562,
+   "phase": "move",
+   "t_s": 19.76198
+  },
+  {
+   "activate_ms": 19.166,
+   "id": "kw_gen_-2_1",
+   "latency_ms": 77.766,
+   "nodes_after": 1343,
+   "phase": "move",
+   "t_s": 128.631022
+  }
+ ],
+ "speed_mps": 25.0,
+ "static_memory_mb_at_start": 46.9,
+ "streaming": {
+  "chunks": 459,
+  "instantiation_budget_per_frame": 1,
+  "load_margin_m": 140.0,
+  "max_concurrent_loads": 2,
+  "rescan_distance_m": 40.0,
+  "unload_hysteresis_m": 120.0
+ },
+ "streaming_cost_ms": {
+  "frames_over_16_7": 13,
+  "frames_over_33_3": 0,
+  "max": 25.18,
+  "p50": 0.54,
+  "p99": 1.08
+ }
+}

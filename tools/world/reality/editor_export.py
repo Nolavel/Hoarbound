@@ -116,6 +116,9 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
     poles: dict[str, tuple] = {}
     stats = Counter()
 
+    ext = config.extent()["chunks"]
+    extent_chunks = {f"{x}:{z}" for x in range(ext["x"][0], ext["x"][1] + 1) for z in range(ext["z"][0], ext["z"][1] + 1)}
+
     def in_corridor(g) -> bool:
         return any(c["area"].intersects(g) for c in corr)
 
@@ -135,6 +138,9 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
                 poles[fid] = (g.x, g.y, mesh.get("base_y", 0.0), mesh.get("top_y", 9.0))
             if chunks and cid not in chunks:
                 continue
+            if cid not in extent_chunks:
+                stats["outside_extent_chunk_not_exported"] += 1
+                continue
             ovs = override_state.get(fid, [])
             role = next((o["params"].get("role") for o in ovs if o["type"] == "landmark_role"), None)
             per_chunk[cid].append({
@@ -150,6 +156,7 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
                     "authoring_state": (p.get("asset") or {}).get("authoring_state", "generated"),
                     "asset_revision": (p.get("asset") or {}).get("asset_revision"),
                     "authored_scene": (p.get("asset") or {}).get("godot_scene"),
+                    "asset_origin_local": (p.get("asset") or {}).get("origin_local"),
                 },
                 "overrides": ovs, "regen_action": p["action"],
             })
@@ -175,8 +182,11 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
     size = frame.chunk_size()
     written = sorted(set(per_chunk) | set(chunks or []))
     if not chunks:
-        ext = config.extent()["chunks"]
-        written = sorted(set(written) | {f"{x}:{z}" for x in range(ext["x"][0], ext["x"][1] + 1) for z in range(ext["z"][0], ext["z"][1] + 1)})
+        written = sorted(extent_chunks)
+        keep = {f"{kind}_{c.replace(':', '_')}.{ext_}" for c in written for kind, ext_ in (("chunk", "json"), ("terrain", "f32"))}
+        for stale in [*OUT.glob("chunk_*.json"), *OUT.glob("terrain_*.f32")]:
+            if stale.name not in keep:
+                stale.unlink()
     for cid in written:
         cx, cz = (int(v) for v in cid.split(":"))
         hot = cid in route_chunks

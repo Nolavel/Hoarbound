@@ -1,0 +1,46 @@
+{
+ "landmark": "Fort Zachary Taylor fronts with Battery Osceola (First Exit start)",
+ "feature_id": "kw:building:osm:w524088621",
+ "override_id": "kw_override:first_exit:start:battery_osceola",
+ "origin_local": [
+  -4069.672,
+  1.45,
+  1900.956
+ ],
+ "frame": "glTF/Godot local metres: +x east, +y up (NAVD88 - origin y), +z south",
+ "elements": {
+  "surface": {
+   "recon": "measured",
+   "method": "2019 DSM 0.5 m, 3x3 median; gaps from 2016 DSM 1 m",
+   "cells": 19976,
+   "gap_share_2019": 0.0957,
+   "height_navd88_m": [
+    5.56,
+    6.22,
+    8.02
+   ],
+   "check_vs_2016": {
+    "median_m": -0.061,
+    "mad_m": 0.029
+   }
+  },
+  "outline": {
+   "recon": "derived",
+   "method": "OSM w524088621 (Fort Zachary Taylor) as conflated in the library"
+  },
+  "skirt": {
+   "recon": "measured",
+   "method": "outline dropped to DEM 6366 ground (voids: MLLW-clamped fill) - 0.3 m"
+  },
+  "battery_osceola": {
+   "recon": "unresolved",
+   "note": "no separate footprint in any reachable source; the start anchor sits on the measured south-front mass; no emplacement detail is modelled"
+  }
+ },
+ "landmark_version": "kw_landmark.1",
+ "pipeline_version": "1.0.0",
+ "built_at": "2026-10-10T09:08:52+00:00",
+ "asset": "assets/world/key_west/landmarks/kw_fort_zachary_taylor.glb",
+ "asset_sha256": "4a0e045801538fbd345518f7fff6c0000b4aa00c61c3d1ada03066d2ca7dea55",
+ "triangles": 43691
+}

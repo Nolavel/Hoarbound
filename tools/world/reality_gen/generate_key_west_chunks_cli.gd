@@ -1,6 +1,6 @@
 extends SceneTree
-## Headless batch entry: godot --headless --script tools/world/reality_gen/generate_key_west_chunks_cli.gd -- [cx:cz ...]
-## No ids = every exported chunk (corridor first). Writes scenes/world/key_west/generated/.
+## Batch entry (needs a rendering driver for MultiMesh data; under CI use xvfb + lavapipe):
+## xvfb-run godot --path . --rendering-driver vulkan --script tools/world/reality_gen/generate_key_west_chunks_cli.gd -- [cx:cz ...]
 
 
 func _initialize() -> void:

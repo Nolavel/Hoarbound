@@ -60,6 +60,9 @@ func _run() -> void:
 	_test_chunks_load_when_the_player_approaches()
 	_test_hysteresis_keeps_a_boundary_chunk_loaded()
 	_test_instantiation_budget_is_respected()
+	_test_queued_loads_start_while_standing_still()
+	_test_cold_cache_is_bounded()
+	_test_prewarm_profile_activates_spawn_band_before_first_frame()
 	_test_leaving_early_rolls_back_without_instantiating()
 	_test_reset_clears_everything()
 	_test_runtime_source_uses_same_state_machine()
@@ -234,6 +237,76 @@ func _test_instantiation_budget_is_respected() -> void:
 		)
 	_check(before > 0, "sitting in the middle of the island activated nothing")
 	_dispose_rig(rig)
+
+
+## Loads beyond the concurrency limit must start as slots free up, not only after the player moves.
+func _test_queued_loads_start_while_standing_still() -> void:
+	var rig: Dictionary = _make_system()
+	var system: StreamingSystem = rig["system"]
+	system.max_concurrent_loads = 1
+	var data := load(WORLD_DATA) as WorldData
+	var centre: Vector3 = Vector3.ZERO
+	for chunk: ChunkData in data.get_streamable_chunks():
+		centre += chunk.position
+	centre /= float(data.get_streamable_chunks().size())
+
+	system.scan(centre)
+	_settle(system)
+	var in_band: int = 0
+	var inactive: Array[StringName] = []
+	for chunk: ChunkData in data.get_streamable_chunks():
+		if Vector2(centre.x - chunk.position.x, centre.z - chunk.position.z).length() <= chunk.radius + system.load_margin_m:
+			in_band += 1
+			if system.get_state(chunk.id) != StreamingSystem.CellState.ACTIVE:
+				inactive.append(chunk.id)
+	_check(in_band >= 2, "the rig needs at least two chunks in the band, got %d" % in_band)
+	_check(inactive.is_empty(), "standing still left chunks in the band inactive: %s" % [inactive])
+	_dispose_rig(rig)
+
+
+## Visiting chunk after chunk must not keep every packed scene alive.
+func _test_cold_cache_is_bounded() -> void:
+	var rig: Dictionary = _make_system()
+	var system: StreamingSystem = rig["system"]
+	system.cold_cache_limit = 1
+	var data := load(WORLD_DATA) as WorldData
+	for chunk: ChunkData in data.get_streamable_chunks():
+		system.scan(chunk.position)
+		_settle(system)
+	system.scan(Vector3(100000.0, 0.0, 100000.0))
+	_settle(system)
+	_check(system.get_active_chunks().is_empty(), "chunks stayed active far away")
+	_check(system._packed_cache.size() <= 1, "cold cache kept %d scenes over a limit of 1" % system._packed_cache.size())
+	## A cold entry still serves the next approach without a reload.
+	var last: ChunkData = data.get_streamable_chunks()[-1]
+	system.scan(last.position)
+	_settle(system)
+	_check(system.get_state(last.id) == StreamingSystem.CellState.ACTIVE, "the last cold chunk did not come back")
+	_dispose_rig(rig)
+
+
+## With a prewarm profile the player must never fall before the content under the spawn exists.
+func _test_prewarm_profile_activates_spawn_band_before_first_frame() -> void:
+	var chunk: ChunkData = _first_chunk()
+	var container := Node3D.new()
+	root.add_child(container)
+	var player := Node3D.new()
+	root.add_child(player)
+	player.global_position = chunk.position
+	var profile := WorldProfile.new()
+	profile.world_data_path = WORLD_DATA
+	profile.prewarm_before_first_frame = true
+	var system := StreamingSystem.new()
+	system.apply_world_profile(profile)
+	root.add_child(system)
+	system.initialize(container, player)
+	_check(
+		system.get_state(chunk.id) == StreamingSystem.CellState.ACTIVE,
+		"prewarm left the spawn chunk %s (state %d) for later frames" % [chunk.id, system.get_state(chunk.id)]
+	)
+	system.reset()
+	for node: Node in [system, player, container]:
+		_dispose(node)
 
 
 ## Walking away mid-load must not leave an instance behind.

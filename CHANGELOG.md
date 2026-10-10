@@ -5,6 +5,37 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-10 - First Exit measured landmarks + generated chunks in production streaming (claudeflow)
+
+- **Landmarks** (`key_west_reality.py landmarks`) are measured glTF assets, registered in the
+  asset manifest and instanced by the generator in place of generic massing:
+  - **727 Fort Street:**
+    - flat roof 4.71 m above ground; the 2016 and 2019 lidar agree, with no parapet;
+    - walls are the OSM outline inset 0.45 m, which reproduces the City's 3,693 sq ft exactly;
+    - roofed notches measured by lidar;
+    - the conflict with the record's 22 ft 6 in is kept, not hidden.
+  - **Fort Zachary Taylor fronts / Battery Osceola start:** a 0.5 m lidar surface, exterior
+    only. The 2019 and 2016 surfaces agree within a median 6 cm.
+- **`StreamingSystem` fixes, found by benchmark** (tests added):
+  - queued loads now start as slots free up, nearest first. Before, they waited for the
+    player to walk 40 m, so a still player stood on an unloaded chunk for more than 120 s;
+  - the packed-scene cache is bounded (LRU, `cold_cache_limit` 8);
+  - `prewarm_before_first_frame` now loads the spawn band synchronously. Before, the
+    player fell through the fort before its chunk arrived and ended up inside it.
+- **Generator v3 for streaming:**
+  - chunk content is centred on the chunk, and `world_data.tres` is written;
+  - MultiMesh trees, poles and props keep per-instance provenance;
+  - one prism collision for buildings per chunk;
+  - indexed, compressed meshes;
+  - 16 stray out-of-extent chunks are dropped, leaving 459.
+  - Worst activation on this CPU fell from 122 ms to 29 ms. An 11.7 km drive at 25 m/s
+    never reached an unloaded chunk, and no frame went over 33 ms
+    (`docs/runtime_previews/key_west_reality_streaming/`).
+- **Experimental profile** `key_west_reality` with `scenes/world/key_west/key_west_reality.tscn`:
+  the full `World` with generated chunks; 0 errors. The main scene is unchanged.
+- **Fix:** headless generation silently saved empty MultiMesh buffers. The contract check
+  now fails on that; generate under a rendering driver (xvfb + lavapipe).
+
 ### 2026-10-10 - Key West editor chunk generator, First Exit corridor first (claudeflow)
 
 - **Editor-time generator** `tools/world/reality_gen/`. It builds Reality Library chunks

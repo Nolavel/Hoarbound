@@ -48,6 +48,8 @@ const DEFAULT_WORLD_DATA: String = "res://archive/graciosa/data/world_data.tres"
 @export var max_concurrent_loads: int = 2
 ## instantiate() + add_child() per frame. One, on purpose.
 @export var instantiation_budget_per_frame: int = 1
+## Packed scenes kept warm after their chunk unloads (LRU). Bounds memory on long trips.
+@export var cold_cache_limit: int = 8
 
 @export_group("Data")
 @export_file("*.tres") var world_data_path: String = DEFAULT_WORLD_DATA
@@ -61,6 +63,8 @@ var _instances: Dictionary = {}
 ## Threaded loads hand a resource over exactly once, so the result is cached
 ## here. Two chunks sharing a scene path would false-fail without it.
 var _packed_cache: Dictionary = {}
+## Cached scene paths whose chunk is UNLOADED, oldest first.
+var _cold_paths: Array[String] = []
 var _loads_in_flight: int = 0
 var _last_scan_position: Vector3 = Vector3(INF, INF, INF)
 ## Where the player was at the most recent scan. A background load that lands
@@ -78,12 +82,15 @@ var _runtime_sources: Dictionary = {}
 var _runtime_ring0_built: Dictionary = {}
 var _initialized: bool = false
 var _runtime_only_profile: bool = false
+## Profile asks for the world under the spawn to exist before the first frame.
+var _prewarm: bool = false
 
 
 func apply_world_profile(profile: WorldProfile) -> void:
 	if profile == null:
 		return
 	_runtime_only_profile = profile.world_data_path == ""
+	_prewarm = profile.prewarm_before_first_frame
 	if not _runtime_only_profile:
 		world_data_path = profile.world_data_path
 
@@ -117,9 +124,33 @@ func initialize(container: Node3D, player: Node3D) -> void:
 	_build_ring0()
 	_build_registered_runtime_ring0()
 	_initialized = true
+	if _prewarm and _player != null:
+		prewarm(_player.global_position)
 	initialized.emit(get_chunk_count())
 	if _player != null:
 		scan(_player.global_position)
+
+
+## Loads and activates every static chunk in the load band synchronously. Boot-time only:
+## physics must not run over a spawn whose content is still on a loader thread.
+func prewarm(player_position: Vector3) -> int:
+	_known_player_position = player_position
+	var activated: int = 0
+	for id: StringName in _chunks:
+		var chunk: ChunkData = _chunks[id]
+		if _plane_distance(player_position, chunk.position) > chunk.radius + load_margin_m:
+			continue
+		if _states.get(id, CellState.UNLOADED) == CellState.ACTIVE:
+			continue
+		if not _packed_cache.has(chunk.content_scene_path):
+			var packed := ResourceLoader.load(chunk.content_scene_path, "PackedScene") as PackedScene
+			if packed == null:
+				continue
+			_packed_cache[chunk.content_scene_path] = packed
+		_set_state(id, CellState.READY)
+		_activate(id)
+		activated += 1
+	return activated
 
 
 ## Runtime-only initialization for tools/experimental worlds that do not use
@@ -249,6 +280,7 @@ func _scan_one(id: StringName, player_position: Vector3, position: Vector3, radi
 ## Advances loads and instantiations within their budgets. One call per frame.
 func pump() -> void:
 	_poll_loads()
+	_start_queued_loads()
 	var budget: int = instantiation_budget_per_frame
 	for id: StringName in _states:
 		if budget <= 0:
@@ -292,6 +324,7 @@ func reset() -> void:
 	for id: StringName in _states:
 		_states[id] = CellState.UNLOADED
 	_packed_cache.clear()
+	_cold_paths.clear()
 	_loads_in_flight = 0
 	_last_scan_position = Vector3(INF, INF, INF)
 
@@ -341,12 +374,37 @@ func _request(id: StringName) -> void:
 			pass
 
 
+## Fills free load slots from the queue, nearest chunk first. Without this a queued
+## chunk waited for the next rescan, i.e. for the player to walk 40 m.
+func _start_queued_loads() -> void:
+	if _loads_in_flight >= max_concurrent_loads:
+		return
+	var queued: Array[StringName] = []
+	for id: StringName in _chunks:
+		if _states.get(id, CellState.UNLOADED) == CellState.QUEUED:
+			queued.append(id)
+	if queued.is_empty():
+		return
+	queued.sort_custom(func(a: StringName, b: StringName) -> bool: return _queue_distance(a) < _queue_distance(b))
+	for id: StringName in queued:
+		if _loads_in_flight >= max_concurrent_loads:
+			return
+		_try_start_load(id)
+
+
+func _queue_distance(id: StringName) -> float:
+	if _known_player_position.x == INF:
+		return 0.0
+	return _plane_distance(_known_player_position, (_chunks[id] as ChunkData).position)
+
+
 ## Starts a background load if the concurrency budget allows it.
 func _try_start_load(id: StringName) -> void:
 	if _loads_in_flight >= max_concurrent_loads:
 		return
 	var chunk: ChunkData = _chunks[id]
 	if _packed_cache.has(chunk.content_scene_path):
+		_cold_paths.erase(chunk.content_scene_path)
 		_set_state(id, CellState.READY)
 		return
 	var error: Error = ResourceLoader.load_threaded_request(
@@ -472,9 +530,31 @@ func _set_state(id: StringName, state: CellState) -> void:
 	if _states.get(id, CellState.UNLOADED) == state:
 		return
 	_states[id] = state
+	if state == CellState.UNLOADED:
+		_cool(id)
 	if log_transitions:
 		print("[Streaming] %s -> %s" % [id, CellState.keys()[state]])
 	cell_state_changed.emit(id, state)
+
+
+## A released chunk's packed scene becomes cold; beyond the limit the oldest cold one is dropped.
+func _cool(id: StringName) -> void:
+	var chunk: ChunkData = _chunks.get(id)
+	if chunk == null or not _packed_cache.has(chunk.content_scene_path):
+		return
+	_cold_paths.erase(chunk.content_scene_path)
+	_cold_paths.append(chunk.content_scene_path)
+	while _cold_paths.size() > maxi(cold_cache_limit, 0):
+		var path: String = _cold_paths.pop_front()
+		if not _path_in_use(path):
+			_packed_cache.erase(path)
+
+
+func _path_in_use(path: String) -> bool:
+	for other: StringName in _chunks:
+		if (_chunks[other] as ChunkData).content_scene_path == path and _states.get(other, CellState.UNLOADED) != CellState.UNLOADED:
+			return true
+	return false
 
 
 ## XZ distance. Chunks are full-height, so height never enters the metric.

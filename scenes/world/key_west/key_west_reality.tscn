@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://c5lmffi200345" path="res://world/world.gd" id="1_world"]
+[ext_resource type="Resource" path="res://data/world_profiles/key_west_reality.tres" id="2_profile"]
+[ext_resource type="PackedScene" uid="uid://ciy301x7wh6ie" path="res://scenes/actors/player/player.tscn" id="3_player"]
+[ext_resource type="PackedScene" uid="uid://dputwp1am8vfu" path="res://scenes/game/systems/camera/tps_camera.tscn" id="4_camera"]
+[ext_resource type="PackedScene" uid="uid://cvv8y27vmgjfi" path="res://scenes/game/systems/world/WorldEnvironmentSystem.tscn" id="6_environment"]
+[ext_resource type="PackedScene" uid="uid://dx7ctf36hw7md" path="res://scenes/splash/splash_scene.tscn" id="7_startup"]
+
+[node name="World" type="Node3D" node_paths=PackedStringArray("stream_container", "player", "camera")]
+script = ExtResource("1_world")
+world_profile = ExtResource("2_profile")
+stream_container = NodePath("StreamContainer")
+player = NodePath("Player")
+camera = NodePath("PlayerCamera")
+print_runtime_debug_stats = true
+enable_runtime_dev_map = true
+
+[node name="StartupTitleCard" parent="." instance=ExtResource("7_startup")]
+
+[node name="StreamContainer" type="Node3D" parent="."]
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+
+[node name="PlayerCamera" parent="." node_paths=PackedStringArray("player") instance=ExtResource("4_camera")]
+player = NodePath("../Player")
+
+[node name="WorldEnvironmentSystem" parent="." instance=ExtResource("6_environment")]
