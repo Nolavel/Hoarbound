@@ -12,7 +12,9 @@ Reference for decision pressure: *The Long Dark*. Tone reference: *The Road*.
 
 One uninterrupted survival run in the current **Key West** production world:
 
-`bunker exit -> choose road / exposed shore / ruins -> collect useful supplies -> weather worsens -> reach Fort Street shelter -> repair openings -> light/feed stove -> recover/dry -> sleep/save -> reload`
+`Battery Osceola bunker exit -> choose road / exposed shore / ruins -> collect useful supplies -> weather worsens -> reach 727 Fort Street -> repair openings -> light/feed stove -> recover/dry -> sleep/save -> reload`
+
+Battery Osceola and 727 Fort Street are the canonical route endpoints. The former custom Fort Street hut remains present but no longer owns the primary First Exit shelter role. Issue #211 owns the remaining generator/runtime migration.
 
 There is **no required thin-ice route in First Exit A**.
 
@@ -24,7 +26,7 @@ Coastal ice is a later gameplay problem built on the maritime geography around K
 
 Henry has been forced out of a protected bunker into a frozen version of a place that was never built for permanent cold.
 
-The opening problem is environmental rather than combat-driven: can he read the landscape, carry enough useful material, react to worsening weather and make one bad house survivable before he loses the safe window?
+The opening problem is environmental rather than combat-driven: can he read the landscape, carry enough useful material, react to worsening weather and make one bad building survivable before he loses the safe window?
 
 Kenny is carried on Henry's backpack during this phase. He is not an active ability companion in First Exit A; his physical presence and weight matter before his future functionality does.
 
@@ -40,7 +42,7 @@ The slice already has substantial system support:
 - weather profiles and authored WeatherBeat;
 - hunger, hydration, fatigue and carried-load pressure;
 - Player Hub, Quick Access, held items and physical carry rules;
-- shelter with four repairable windows and an operable door;
+- shelter with repairable openings and an operable door;
 - boards, nails, hammer work and breach state;
 - stove, fuel, cooking / water / warming workflows;
 - contextual rest / sleep and sleep-driven save;
@@ -77,11 +79,11 @@ Tracked in #80.
 
 Required run:
 
-1. start at the bunker;
+1. start at Battery Osceola;
 2. recognise at least two route options without a map;
 3. find, carry and use supplies;
 4. experience the authored weather turn;
-5. reach the Fort Street shelter;
+5. reach 727 Fort Street;
 6. make meaningful repair / fuel decisions;
 7. light and maintain the stove;
 8. warm / dry / recover enough to sleep;
@@ -103,7 +105,7 @@ Prefer better placement, scale, pose, timing and feedback over broad new technol
 
 ## 7. First Exit A is done when
 
-- [ ] A new player completes bunker -> shelter -> sleep/save in roughly 10–15 minutes.
+- [ ] A new player completes Battery Osceola -> 727 Fort Street -> sleep/save in roughly 10–15 minutes.
 - [ ] At least two land routes are readable without a map.
 - [ ] The player can make a poor decision around time, greed, weather or carried load and understand the consequence.
 - [ ] Shelter preparation requires choices rather than functioning as an automatic safe room.
