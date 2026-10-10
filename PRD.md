@@ -38,7 +38,9 @@ The goal is one continuous **10–15 minute** playable run in the main Key West 
 
 Expected route:
 
-`bunker / Whitehead Spit -> road / exposed shore / ruins -> supplies -> weather turn -> Fort Street shelter -> repair -> stove -> recovery -> sleep/save -> reload`
+`Battery Osceola bunker exit -> real Key West streets / exposed route -> supplies -> weather turn -> 727 Fort Street shelter -> repair -> stove -> recovery -> sleep/save -> reload`
+
+Battery Osceola and 727 Fort Street are the canonical First Exit endpoints as of the owner decision on 2026-10-10. The former custom Fort Street hut remains in the world but is no longer the primary shelter destination. Issue #211 owns the remaining generator/runtime migration.
 
 Coastal thin ice is intentionally deferred to a later Coast / Thin Ice slice.
 
@@ -97,6 +99,7 @@ Snow and rendering work may continue where it is already part of the production 
 - Issue #1 is the concise handoff thread for overlapping agent work.
 - Existing CI / capture infrastructure should be extended rather than duplicated.
 - Authored First Exit placement remains data-driven; do not create a second competing layout source.
+- Key West map/data rebuilds must preserve the canonical Battery Osceola start and 727 Fort Street primary shelter; real existing buildings are preferred over invented replacements when they can serve the gameplay role.
 
 ## 9. Work decomposition
 
