@@ -1,0 +1,42 @@
+{
+ "schema": "kw_reality.library_manifest.v1",
+ "built_at": "2026-10-10T04:30:20+00:00",
+ "pipeline_version": "1.0.0",
+ "schema_version": "kw_reality.v1",
+ "gpkg": {
+  "path": "data/world/key_west/reality/library/key_west_reality.gpkg",
+  "bytes": 133201920,
+  "sha256": "479f89289f533fc1caca74d8a9308b24d0e74acbaa00d3d272b6d3d08224ed05"
+ },
+ "packed": {
+  "path": "data/world/key_west/reality/library/key_west_reality.gpkg.xz",
+  "bytes": 24059660,
+  "sha256": "5fe8ed237876f51b239386ada81e785b80506a150170f912b68ac994b97e55b6",
+  "codec": "xz preset 6"
+ },
+ "features_by_family": {
+  "addresses": 9149,
+  "admin_areas": 15,
+  "airport": 85,
+  "barriers": 268,
+  "bridges": 46,
+  "building_parts": 24,
+  "buildings": 13376,
+  "coastal_structures": 509,
+  "coastline": 96,
+  "land": 333,
+  "land_use": 557,
+  "places": 4978,
+  "power": 668,
+  "roads": 5900,
+  "street_furniture": 1297,
+  "terrain_coverage": 1,
+  "transit": 1106,
+  "transport_nodes": 9988,
+  "trees": 37318,
+  "utilities": 92,
+  "vegetation_areas": 736,
+  "water": 1864
+ },
+ "note": "Git stores the .xz (GitHub rejects files > 100 MB). 'key_west_reality.py unpack' restores the .gpkg; every reader unpacks on demand."
+}

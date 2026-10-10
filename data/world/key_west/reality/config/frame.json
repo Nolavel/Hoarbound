@@ -1,0 +1,30 @@
+{
+  "schema": "kw_reality.frame.v1",
+  "description": "The one authoritative coordinate chain for every Key West dataset. Inherited unchanged from the committed runtime crop (data/world/key_west/source_report.json) so existing gameplay anchors, chunk ids and terrain stay valid.",
+  "geographic_crs": "EPSG:4326",
+  "projected_crs": "EPSG:32617",
+  "projected_crs_name": "WGS 84 / UTM zone 17N",
+  "noaa_grid_crs": "EPSG:6346",
+  "noaa_grid_note": "NOAA DEM 6366 and the NOAA lidar point clouds are NAD83(2011) / UTM 17N. The DEM GeoTIFF is labelled EPSG:32617; the historical crop used that label. NOAA grids are therefore used as-is on the same UTM grid, and WGS84 vectors are projected EPSG:4326 -> EPSG:32617. The residual WGS84/NAD83(2011) realisation difference is measured, not assumed: see reports/alignment_report.json.",
+  "local_origin_projected": {"easting": 422025.0, "northing": 2717003.0},
+  "local_origin_derivation": "Centre of the 2 m runtime crop: geotransform origin (415424, 2720288) + ((6602-1)*2/2, -(3286-1)*2/2).",
+  "local_axes": {"x": "east (metres) = easting - 422025", "z": "south (metres) = 2717003 - northing", "y": "up (metres) = NAVD88 orthometric height"},
+  "units": "1 Godot unit = 1 metre; no scale factor is applied (UTM point scale ~0.99966 here, < 0.04 % length error, documented and not corrected so the runtime crop stays identical).",
+  "vertical": {
+    "datum": "NAVD88",
+    "geoid": "GEOID12B (DEM 6366); point clouds in laz/geoid18 are NAVD88 via GEOID18",
+    "godot_y": "Godot Y = NAVD88 orthometric height in metres. Y = 0 is NAVD88 zero, not local mean sea level.",
+    "sea_level_convention": "Runtime sea/ice plane sits at Y = 0 (NAVD88 0). The local MSL - NAVD88 offset at NOAA tide station 8724580 (Key West) has not been retrieved yet (tidesandcurrents.noaa.gov is blocked in the build environment); it must be recorded here before any tide-aware water level is used.",
+    "geoid12b_vs_geoid18": "Not converted. The difference over Key West is centimetre-level and below the 0.15 m DEM vertical accuracy; recorded per source instead of silently mixed."
+  },
+  "chunking": {
+    "chunk_size_m": 512.0,
+    "chunk_id": "floor(x/512):floor(z/512) in local metres, identical to the existing city_preview chunk ids",
+    "assignment": "A feature belongs to exactly one chunk: the chunk containing its representative point (shapely point_on_surface for areas, line midpoint for lines). Geometry is never cut at chunk borders."
+  },
+  "legacy_runtime_crop": {
+    "lonlat": {"west": -81.835, "south": 24.535, "east": -81.705, "north": 24.595},
+    "projected": {"min_e": 415424.0, "max_n": 2720288.0, "max_e": 428626.0, "min_n": 2713716.0},
+    "local": {"min_x": -6601.0, "max_x": 6601.0, "min_z": -3285.0, "max_z": 3287.0}
+  }
+}

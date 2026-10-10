@@ -1,0 +1,887 @@
+{
+ "extent": {
+  "west": -81.836047,
+  "south": 24.532311,
+  "east": -81.699056,
+  "north": 24.61161
+ },
+ "library_bytes": 133201920,
+ "features_by_family": {
+  "addresses": 9149,
+  "admin_areas": 15,
+  "airport": 85,
+  "barriers": 268,
+  "bridges": 46,
+  "building_parts": 24,
+  "buildings": 13376,
+  "coastal_structures": 509,
+  "coastline": 96,
+  "land": 333,
+  "land_use": 557,
+  "places": 4978,
+  "power": 668,
+  "roads": 5900,
+  "street_furniture": 1297,
+  "terrain_coverage": 1,
+  "transit": 1106,
+  "transport_nodes": 9988,
+  "trees": 37318,
+  "utilities": 92,
+  "vegetation_areas": 736,
+  "water": 1864
+ },
+ "reconstruction_class_by_family": {
+  "addresses": {
+   "derived": 9149
+  },
+  "admin_areas": {
+   "derived": 4,
+   "authoritative": 11
+  },
+  "airport": {
+   "authoritative": 4,
+   "derived": 81
+  },
+  "barriers": {
+   "derived": 268
+  },
+  "bridges": {
+   "derived": 46
+  },
+  "building_parts": {
+   "derived": 24
+  },
+  "buildings": {
+   "cross_verified": 8327,
+   "derived": 5049
+  },
+  "coastal_structures": {
+   "derived": 509
+  },
+  "coastline": {
+   "derived": 96
+  },
+  "land": {
+   "measured": 227,
+   "derived": 106
+  },
+  "land_use": {
+   "derived": 557
+  },
+  "places": {
+   "derived": 4943,
+   "authoritative": 35
+  },
+  "power": {
+   "derived": 668
+  },
+  "roads": {
+   "derived": 3775,
+   "cross_verified": 2125
+  },
+  "street_furniture": {
+   "derived": 1297
+  },
+  "terrain_coverage": {
+   "measured": 1
+  },
+  "transit": {
+   "derived": 1106
+  },
+  "transport_nodes": {
+   "derived": 9988
+  },
+  "trees": {
+   "derived": 37214,
+   "cross_verified": 104
+  },
+  "utilities": {
+   "derived": 92
+  },
+  "vegetation_areas": {
+   "derived": 736
+  },
+  "water": {
+   "derived": 1810,
+   "cross_verified": 54
+  }
+ },
+ "barriers_by_class": {
+  "barrier": {
+   "count": 3,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "bollard": {
+   "count": 23,
+   "length_m": 3.8,
+   "area_m2": 0.0
+  },
+  "entrance": {
+   "count": 2,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "fence": {
+   "count": 35,
+   "length_m": 9292.4,
+   "area_m2": 679.4
+  },
+  "gate": {
+   "count": 73,
+   "length_m": 20.3,
+   "area_m2": 0.0
+  },
+  "hedge": {
+   "count": 15,
+   "length_m": 342.1,
+   "area_m2": 0.0
+  },
+  "jersey_barrier": {
+   "count": 1,
+   "length_m": 15.4,
+   "area_m2": 0.0
+  },
+  "kerb": {
+   "count": 65,
+   "length_m": 0.0,
+   "area_m2": 2103.5
+  },
+  "lift_gate": {
+   "count": 8,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "swing_gate": {
+   "count": 1,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "wall": {
+   "count": 42,
+   "length_m": 3273.8,
+   "area_m2": 10104.1
+  }
+ },
+ "bridges_by_class": {
+  "boardwalk": {
+   "count": 1,
+   "length_m": 57.3,
+   "area_m2": 0.0
+  },
+  "bridge": {
+   "count": 45,
+   "length_m": 4077.6,
+   "area_m2": 31735.8
+  }
+ },
+ "coastal_structures_by_class": {
+  "breakwater": {
+   "count": 16,
+   "length_m": 111.2,
+   "area_m2": 25265.3
+  },
+  "pier": {
+   "count": 493,
+   "length_m": 12054.4,
+   "area_m2": 24407.4
+  }
+ },
+ "coastline_by_class": {
+  "coastline": {
+   "count": 96,
+   "length_m": 307207.9,
+   "area_m2": 0.0
+  }
+ },
+ "power_by_class": {
+  "cable": {
+   "count": 2,
+   "length_m": 40.4,
+   "area_m2": 0.0
+  },
+  "generator": {
+   "count": 15,
+   "length_m": 0.0,
+   "area_m2": 213.5
+  },
+  "minor_line": {
+   "count": 38,
+   "length_m": 7073.0,
+   "area_m2": 0.0
+  },
+  "plant": {
+   "count": 1,
+   "length_m": 0.0,
+   "area_m2": 25785.4
+  },
+  "portal": {
+   "count": 21,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "power_line": {
+   "count": 26,
+   "length_m": 44409.1,
+   "area_m2": 0.0
+  },
+  "power_pole": {
+   "count": 518,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "power_tower": {
+   "count": 30,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "substation": {
+   "count": 9,
+   "length_m": 0.0,
+   "area_m2": 14647.1
+  },
+  "switch": {
+   "count": 6,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "transformer": {
+   "count": 2,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  }
+ },
+ "street_furniture_by_class": {
+  "artwork": {
+   "count": 9,
+   "length_m": 0.0,
+   "area_m2": 22.2
+  },
+  "atm": {
+   "count": 7,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "bench": {
+   "count": 81,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "charging_station": {
+   "count": 1,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "crossing": {
+   "count": 718,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "drinking_water": {
+   "count": 1,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "fire_hydrant": {
+   "count": 7,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "fountain": {
+   "count": 3,
+   "length_m": 0.0,
+   "area_m2": 6.1
+  },
+  "information": {
+   "count": 41,
+   "length_m": 0.0,
+   "area_m2": 1396.4
+  },
+  "milestone": {
+   "count": 4,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "post_box": {
+   "count": 3,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "recycling": {
+   "count": 28,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "stop": {
+   "count": 87,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "street_lamp": {
+   "count": 75,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "toilets": {
+   "count": 21,
+   "length_m": 0.0,
+   "area_m2": 1284.3
+  },
+  "traffic_signals": {
+   "count": 80,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "vending_machine": {
+   "count": 33,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "viewpoint": {
+   "count": 4,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "waste_basket": {
+   "count": 94,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  }
+ },
+ "transit_by_class": {
+  "bicycle_parking": {
+   "count": 23,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "bicycle_rental": {
+   "count": 4,
+   "length_m": 0.0,
+   "area_m2": 193.4
+  },
+  "bus_station": {
+   "count": 1,
+   "length_m": 0.0,
+   "area_m2": 241.6
+  },
+  "bus_stop": {
+   "count": 63,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "ferry_terminal": {
+   "count": 4,
+   "length_m": 0.0,
+   "area_m2": 1290.9
+  },
+  "motorcycle_parking": {
+   "count": 27,
+   "length_m": 0.0,
+   "area_m2": 182.4
+  },
+  "parking": {
+   "count": 702,
+   "length_m": 0.0,
+   "area_m2": 718936.4
+  },
+  "parking_entrance": {
+   "count": 10,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "parking_space": {
+   "count": 215,
+   "length_m": 0.0,
+   "area_m2": 3881.5
+  },
+  "stop_position": {
+   "count": 57,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  }
+ },
+ "trees_by_class": {
+  "tree": {
+   "count": 37305,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "tree_row": {
+   "count": 13,
+   "length_m": 4789.0,
+   "area_m2": 0.0
+  }
+ },
+ "utilities_by_class": {
+  "communication_tower": {
+   "count": 6,
+   "length_m": 0.0,
+   "area_m2": 338.5
+  },
+  "lighting_tower": {
+   "count": 31,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "mobile_phone_tower": {
+   "count": 4,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "pipeline": {
+   "count": 21,
+   "length_m": 12192.8,
+   "area_m2": 0.0
+  },
+  "storage_tank": {
+   "count": 27,
+   "length_m": 0.0,
+   "area_m2": 8325.8
+  },
+  "water_tower": {
+   "count": 3,
+   "length_m": 0.0,
+   "area_m2": 4301.7
+  }
+ },
+ "vegetation_areas_by_class": {
+  "forest": {
+   "count": 6,
+   "length_m": 0.0,
+   "area_m2": 105899.0
+  },
+  "heath": {
+   "count": 1,
+   "length_m": 0.0,
+   "area_m2": 8091.4
+  },
+  "lidar_canopy_dense": {
+   "count": 123,
+   "length_m": 0.0,
+   "area_m2": 1259437.5
+  },
+  "mangrove": {
+   "count": 105,
+   "length_m": 0.0,
+   "area_m2": 2533095.9
+  },
+  "scrub": {
+   "count": 30,
+   "length_m": 0.0,
+   "area_m2": 520184.2
+  },
+  "wc_herbaceous_wetland": {
+   "count": 67,
+   "length_m": 0.0,
+   "area_m2": 128957.3
+  },
+  "wc_tree_cover": {
+   "count": 358,
+   "length_m": 0.0,
+   "area_m2": 1232668.6
+  },
+  "wetland": {
+   "count": 18,
+   "length_m": 0.0,
+   "area_m2": 627205.0
+  },
+  "wood": {
+   "count": 28,
+   "length_m": 0.0,
+   "area_m2": 1005443.3
+  }
+ },
+ "water_by_class": {
+  "artificial_path": {
+   "count": 50,
+   "length_m": 10342.0,
+   "area_m2": 0.0
+  },
+  "bay": {
+   "count": 4,
+   "length_m": 0.0,
+   "area_m2": 0.0
+  },
+  "bay_inlet": {
+   "count": 3,
+   "length_m": 0.0,
+   "area_m2": 3482502.1
+  },
+  "canal": {
+   "count": 50,
+   "length_m": 119170.5,
+   "area_m2": 0.0
+  },
+  "canal_ditch": {
+   "count": 6,
+   "length_m": 0.0,
+   "area_m2": 404548.6
+  },
+  "connector": {
+   "count": 1,
+   "length_m": 26.4,
+   "area_m2": 0.0
+  },
+  "ditch": {
+   "count": 1,
+   "length_m": 446.7,
+   "area_m2": 0.0
+  },
+  "fairway": {
+   "count": 1,
+   "length_m": 10509.7,
+   "area_m2": 0.0
+  },
+  "lake_pond": {
+   "count": 12,
+   "length_m": 0.0,
+   "area_m2": 120653.8
+  },
+  "ocean": {
+   "count": 1,
+   "length_m": 0.0,
+   "area_m2": 11037966198.1
+  },
+  "pond": {
+   "count": 20,
+   "length_m": 0.0,
+   "area_m2": 165797.8
+  },
+  "reservoir": {
+   "count": 9,
+   "length_m": 0.0,
+   "area_m2": 10631.0
+  },
+  "reservoir;_reservoir_type_=_treatment": {
+   "count": 4,
+   "length_m": 0.0,
+   "area_m2": 2360.9
+  },
+  "sea_ocean": {
+   "count": 1,
+   "length_m": 0.0,
+   "area_m2": 7083581246.0
+  },
+  "stream": {
+   "count": 1,
+   "length_m": 51.6,
+   "area_m2": 0.0
+  },
+  "stream_river": {
+   "count": 3,
+   "length_m": 568.8,
+   "area_m2": 0.0
+  },
+  "swamp_marsh": {
+   "count": 4,
+   "length_m": 0.0,
+   "area_m2": 49769.3
+  },
+  "swimming_pool": {
+   "count": 1614,
+   "length_m": 0.0,
+   "area_m2": 56922.9
+  },
+  "tidal_channel": {
+   "count": 23,
+   "length_m": 6633.1,
+   "area_m2": 0.0
+  },
+  "wall": {
+   "count": 1,
+   "length_m": 718.5,
+   "area_m2": 0.0
+  },
+  "wastewater": {
+   "count": 3,
+   "length_m": 0.0,
+   "area_m2": 9811.1
+  },
+  "water": {
+   "count": 52,
+   "length_m": 0.0,
+   "area_m2": 2058581.6
+  }
+ },
+ "buildings": {
+  "total": 13376,
+  "footprint_geometry_source": {
+   "OpenStreetMap": 12358,
+   "Microsoft ML Buildings": 320,
+   "Struct_Poly_FEMA": 698
+  },
+  "footprint_reconstruction": {
+   "cross_verified": 8327,
+   "derived": 5049
+  },
+  "real_footprints_share": "100.0%",
+  "height": {
+   "measured_lidar_2019": 3820,
+   "cross_verified_lidar_2016_2019": 9458,
+   "derived_tag_or_ml": 29,
+   "inferred_from_levels": 0,
+   "unknown": 69,
+   "by_method": {
+    "lidar_2016_2019_agreement": 9458,
+    "lidar_dsm_p95_minus_ground": 3820,
+    "usa_structures_height": 29
+   },
+   "measured_or_cross_verified_share": "99.3%",
+   "inferred_share": "0.0%",
+   "unknown_share": "0.5%",
+   "changed_between_2016_and_2019": 1492
+  },
+  "roof_shape_tagged": 88,
+  "roof_form_from_lidar_flat_vs_pitched": 13136,
+  "roof_shape_unknown_share": "99.3%",
+  "levels": {
+   "tagged": 299,
+   "inferred": 12838,
+   "unknown": 239
+  },
+  "address_known": 9727,
+  "address_share": "72.7%",
+  "use_known_osm": 2874,
+  "occupancy_known_usa_structures": 10669,
+  "facade_material_known": 0,
+  "facade_colour_known": 0
+ },
+ "roads": {
+  "segments": 5900,
+  "by_class": {
+   "unknown": 86,
+   "service": 1591,
+   "footway": 2269,
+   "residential": 1132,
+   "tertiary": 342,
+   "secondary": 81,
+   "track": 39,
+   "path": 132,
+   "primary": 58,
+   "cycleway": 24,
+   "unclassified": 65,
+   "trunk": 32,
+   "steps": 20,
+   "ferry_route": 4,
+   "pedestrian": 17,
+   "rail_unknown": 1,
+   "living_street": 1,
+   "tiger_s1400": 6
+  },
+  "length_km_by_class": {
+   "cycleway": 21.6,
+   "ferry_route": 503.93,
+   "footway": 162.65,
+   "living_street": 0.14,
+   "path": 195.01,
+   "pedestrian": 1.28,
+   "primary": 8.86,
+   "rail_unknown": 4.76,
+   "residential": 128.82,
+   "secondary": 13.11,
+   "service": 136.34,
+   "steps": 0.15,
+   "tertiary": 33.42,
+   "tiger_s1400": 0.46,
+   "track": 5.64,
+   "trunk": 9.04,
+   "unclassified": 6.08,
+   "unknown": 2.96
+  },
+  "geometry_cross_verified_with_tiger": 2125,
+  "single_source_tiger_only": 8,
+  "width": {
+   "inferred": 5888,
+   "derived": 1
+  },
+  "lanes_known": 689,
+  "surface_known": 1599,
+  "sidewalk_segments": 1529,
+  "crosswalk_segments": 307
+ },
+ "power": {
+  "supports": 589,
+  "connected_into_line_topology": 564,
+  "position_only": 25,
+  "topology_edges": 709,
+  "edges_pole_to_pole": 532
+ },
+ "trees": {
+  "osm_mapped": 295,
+  "osm_confirmed_by_lidar": 104,
+  "lidar_candidates": 37023,
+  "completeness": "unknown: lidar detects crowns >= 2.5 m wide and >= 3 m tall in 2019; small, young and post-2019 trees are missing; dense canopy is stored as areas"
+ },
+ "vegetation_areas_km2": {
+  "forest": 0.106,
+  "heath": 0.008,
+  "lidar_canopy_dense": 1.259,
+  "mangrove": 2.533,
+  "scrub": 0.52,
+  "wc_herbaceous_wetland": 0.129,
+  "wc_tree_cover": 1.233,
+  "wetland": 0.627,
+  "wood": 1.005
+ },
+ "excluded_by_reason": {
+  "outside_extent": 1101,
+  "boca_chica_out_of_scope": 473,
+  "duplicate_of_source:esa_worldcover_2021_v200 (Overture land_cover is derived from ESA WorldCover)": 250,
+  "duplicate_of": 107,
+  "merged_into": 35
+ },
+ "excluded_boca_chica_by_class": {
+  "taxilane": 129,
+  "building": 96,
+  "connector": 63,
+  "wetland": 33,
+  "service": 22,
+  "residential": 18,
+  "wood": 15,
+  "power_pole": 15,
+  "meadow": 15,
+  "taxiway": 12,
+  "unclassified": 11,
+  "trunk": 6,
+  "scrub": 6,
+  "place": 6,
+  "gate": 6,
+  "pier": 5,
+  "runway": 2,
+  "parking": 2,
+  "fence": 2,
+  "apron": 2,
+  "tree_row": 1,
+  "track": 1,
+  "storage_tank": 1,
+  "stopway": 1,
+  "rail_unknown": 1,
+  "power_tower": 1,
+  "breakwater": 1
+ },
+ "attribute_rows": 438653,
+ "attribute_reconstruction": {
+  "authoritative": 16526,
+  "cross_verified": 9458,
+  "derived": 205690,
+  "inferred": 18735,
+  "measured": 144822
+ },
+ "sources_requiring_attribution": [
+  "overture_2026_09_23_1 \u2014 \u00a9 OpenStreetMap contributors (ODbL), \u00a9 Overture Maps Foundation; Microsoft ML Buildings (ODbL)",
+  "esa_worldcover_2021_v200 \u2014 \u00a9 ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium",
+  "hoarbound_legacy_osm_2026_09_29 \u2014 \u00a9 OpenStreetMap contributors"
+ ],
+ "build_stats": {
+  "land_dedupe": {
+   "land_duplicates_merged": 35
+  },
+  "legacy_osm": {
+   "buildings_tagged": 12344,
+   "roads_tagged": 3708
+  },
+  "buildings": {
+   "usa_matched": 9911,
+   "cross_verified_footprints": 8327,
+   "usa_added": 698,
+   "usa_partial_duplicate": 107
+  },
+  "roads": {
+   "osm_roads_partial_tiger": 681,
+   "osm_roads_without_tiger": 496,
+   "osm_roads_cross_verified": 2125,
+   "names_agree": 1471,
+   "tiger_only_added": 8
+  },
+  "runways": {
+   "runways_authoritative_geometry": 1
+  },
+  "water": {
+   "nhd_matched": 54,
+   "nhd_added": 39,
+   "nhd_coastline": 36,
+   "nhd_lines": 55
+  },
+  "addresses_places": {
+   "pois_in_buildings": 3097,
+   "address_points_in_buildings": 760,
+   "public_facilities_in_buildings": 24
+  },
+  "building_lidar": {
+   "height_lidar_2019": 13136,
+   "height_lidar_2016": 13160,
+   "height_cross_verified": 9458,
+   "height_changed_2016_2019": 1492,
+   "no_usable_lidar_2019": 4
+  },
+  "trees": {
+   "dense_canopy_areas": 123,
+   "osm_trees_confirmed_by_lidar": 104,
+   "lidar_tree_candidates": 37023,
+   "excluded_boca_chica_out_of_scope": 1,
+   "osm_trees_without_lidar_peak": 178
+  },
+  "worldcover": {
+   "excluded_boca_chica_out_of_scope": 116,
+   "wc_tree_cover": 358,
+   "excluded_outside_extent": 25,
+   "wc_herbaceous_wetland": 67,
+   "mangrove": 105
+  },
+  "coast": {
+   "osm_coastline_rings": 60,
+   "dem_shoreline_polygons": 227
+  },
+  "shoreline_alignment_osm_vs_dem_0m": {
+   "samples": 11461,
+   "median_m": 2.21,
+   "p90_m": 10.64,
+   "share_within_5m": 0.764
+  },
+  "barriers": {
+   "possible_seawalls": 9
+  },
+  "terrain": {
+   "valid_share": 0.7466
+  },
+  "power_topology": {
+   "edges_pole_to_pole": 532,
+   "edges_open_end": 177,
+   "supports_total": 589,
+   "supports_in_topology": 564,
+   "supports_position_only": 25
+  },
+  "vector_vs_lidar_alignment": {
+   "status": "ok",
+   "footprints": 1098,
+   "best_shift_east_m": 0.0,
+   "best_shift_north_m": -0.5,
+   "iou_at_zero": 0.6151,
+   "iou_at_best": 0.6195,
+   "cell_m": 0.5,
+   "window_projected": [
+    418725.0,
+    2716303.0,
+    420225.0,
+    2717303.0
+   ]
+  },
+  "usa_structures_vs_lidar_alignment": {
+   "status": "ok",
+   "footprints": 881,
+   "best_shift_east_m": 0.0,
+   "best_shift_north_m": -0.5,
+   "iou_at_zero": 0.5592,
+   "iou_at_best": 0.5597,
+   "cell_m": 0.5,
+   "window_projected": [
+    418725.0,
+    2716303.0,
+    420225.0,
+    2717303.0
+   ]
+  },
+  "id_collisions": [],
+  "ids_carried_from_previous_library": 87409
+ }
+}

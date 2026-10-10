@@ -1,0 +1,41 @@
+{
+ "source_id": "usgs_ntd_fl_20260211",
+ "artifacts": [
+  {
+   "name": "archive",
+   "etag": "1e2e6c20db5ccb3f4efe55ffcbe7b5e6-51",
+   "bytes": 427046110,
+   "last_modified": "Thu, 12 Feb 2026 14:34:02 GMT",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Tran/GPKG/TRAN_Florida_State_GPKG.zip",
+   "sha256": "c8424f9fa740c9f35a31d450bf0475965f634c5b17924ef3c1ac477b16f5a4eb",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/TRAN_Florida_State_GPKG.zip"
+  },
+  {
+   "name": "clip",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/clips/usgs_ntd_fl_20260211.gpkg",
+   "layers": {
+    "Trans_RoadSegment": 2074,
+    "Trans_AirportRunway": 4,
+    "Trans_AirportPoint": 7,
+    "Trans_TrailSegment": 34
+   },
+   "sha256": "efabbf30e32fe7bbcf25fcafd069f0c8df43dd766bd4820965dd8b21bd6b6288"
+  },
+  {
+   "name": "fgdc_metadata",
+   "etag": "a25a96967c30f529cc79c3d454ec42b8",
+   "bytes": 28194,
+   "last_modified": "Thu, 12 Feb 2026 14:34:02 GMT",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Tran/GPKG/TRAN_Florida_State_GPKG.xml",
+   "sha256": "9c0c9b6ab62f1806417975cdef4c746eab349032b228789910f9338ae232103b",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/TRAN_Florida_State_GPKG.xml"
+  }
+ ],
+ "retrieved_at": "2026-10-10T02:55:37+00:00",
+ "query_bbox_lonlat": [
+  -81.86,
+  24.52,
+  -81.68,
+  24.63
+ ]
+}

@@ -1,0 +1,99 @@
+{
+ "schema": "kw_reality.extent.v1",
+ "generated_at": "2026-10-10T02:54:36+00:00",
+ "generator": "tools/world/reality/extent.py",
+ "inputs": {
+  "overture_release": "2026-09-23.1",
+  "rules": "config/extent_rules.json"
+ },
+ "projected_crs": "EPSG:32617",
+ "projected_bounds": {
+  "min_e": 415369.0,
+  "min_n": 2713419.0,
+  "max_e": 429193.0,
+  "max_n": 2722123.0
+ },
+ "lonlat_bounds": {
+  "west": -81.836047,
+  "south": 24.532311,
+  "east": -81.699056,
+  "north": 24.61161
+ },
+ "local_bounds": {
+  "min_x": -6656.0,
+  "max_x": 7168.0,
+  "min_z": -5120.0,
+  "max_z": 3584.0
+ },
+ "size_m": {
+  "x": 13824.0,
+  "z": 8704.0
+ },
+ "chunks": {
+  "x": [
+   -13,
+   13
+  ],
+  "z": [
+   -10,
+   6
+  ],
+  "count": 459
+ },
+ "core_islands": [
+  "Fleming Key",
+  "Key West",
+  "Stock Island",
+  "Sunset Key",
+  "Thompson Island"
+ ],
+ "adjacent_islands": {
+  "count": 28,
+  "named": [
+   "Rat Key",
+   "Wisteria Island"
+  ],
+  "max_gap_m": 489.0,
+  "nearest_context_side_islet_gap_m": 395.5
+ },
+ "context_landmasses": {
+  "names": [
+   "Boca Chica Key"
+  ],
+  "role": "boca_chica_silhouette",
+  "silhouette_area_km2": 5.591
+ },
+ "crossings": {
+  "bridges": [
+   {
+    "name": "Boca Chica Channel Bridge",
+    "overture_id": "fca33352-37f2-352e-9a30-5b12fb2d5c05",
+    "osm": [
+     "r13373986@1"
+    ]
+   }
+  ],
+  "bridge_length_m": null,
+  "bridge_bounds_projected": [
+   427019.2,
+   2718285.3,
+   427817.6,
+   2718443.9
+  ]
+ },
+ "grown_to_avoid_cutting_land": [],
+ "in_scope_land_km2": 18.619,
+ "outside_scope_land_inside_rect": {
+  "count": 25,
+  "area_km2": 0.214,
+  "note": "Boca-Chica-side or offshore islets that fall inside the rectangle; kept as context land (outline only)."
+ },
+ "growth_vs_legacy_crop": {
+  "legacy_area_km2": 86.76,
+  "new_area_km2": 120.32,
+  "added_north_m": 1835.0,
+  "added_east_m": 567.0,
+  "added_south_m": 297.0,
+  "added_west_m": 55.0
+ }
+}

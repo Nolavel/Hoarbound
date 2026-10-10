@@ -52,3 +52,10 @@ docs/runtime_previews/motion_matching_player*/
 /Jenova/Compilers/
 # Jenova keeps a renamed copy of the loaded runtime while the editor runs
 /Jenova/~*
+
+# Key West Reality Library raw source cache (re-downloadable; see receipts/)
+data/world/key_west/reality/raw_cache/
+data/world/key_west/reality/derived/
+# Working copy of the Reality Library; Git stores library/key_west_reality.gpkg.xz
+data/world/key_west/reality/library/*.gpkg
+data/world/key_west/reality/library/*.part

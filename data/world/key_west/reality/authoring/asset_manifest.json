@@ -1,0 +1,5 @@
+{
+ "schema": "kw_reality.asset_manifest.v1",
+ "description": "One record per generated or authored asset bound to a Reality Library feature_id. Written by the editor generator and by the Blender roundtrip; never by the reality build. authoring_state: generated | artist_modified | artist_locked | deprecated | needs_rebase.",
+ "assets": []
+}

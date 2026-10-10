@@ -1,0 +1,41 @@
+{
+ "source_id": "usgs_govtunit_fl_20260212",
+ "artifacts": [
+  {
+   "name": "archive",
+   "etag": "a89940bf367985e6f6d7cbd8b4c38d40-7",
+   "bytes": 52239245,
+   "last_modified": "Thu, 12 Feb 2026 18:21:42 GMT",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/GovtUnit/GPKG/GOVTUNIT_Florida_State_GPKG.zip",
+   "sha256": "7677c21ad3d037efcea40d67beaba173381640be3500629e5597913c47151950",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/GOVTUNIT_Florida_State_GPKG.zip"
+  },
+  {
+   "name": "clip",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/clips/usgs_govtunit_fl_20260212.gpkg",
+   "layers": {
+    "GU_IncorporatedPlace": 1,
+    "GU_UnincorporatedPlace": 1,
+    "GU_Reserve": 8,
+    "GU_CountyOrEquivalent": 1
+   },
+   "sha256": "ae819e9ee2354eb069a697d8194ca95a2d2fd35eb5e0214caaa83c85699bd2b9"
+  },
+  {
+   "name": "fgdc_metadata",
+   "etag": "c23ce948121e430ed07a6a2c978572bb",
+   "bytes": 39838,
+   "last_modified": "Thu, 12 Feb 2026 18:21:42 GMT",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/GovtUnit/GPKG/GOVTUNIT_Florida_State_GPKG.xml",
+   "sha256": "761b3c9ca8e519eb72d22f3cd749463a2e9080830f10d4157976cd0bbb6e1758",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/GOVTUNIT_Florida_State_GPKG.xml"
+  }
+ ],
+ "retrieved_at": "2026-10-10T02:55:49+00:00",
+ "query_bbox_lonlat": [
+  -81.86,
+  24.52,
+  -81.68,
+  24.63
+ ]
+}

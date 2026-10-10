@@ -1,5 +1,10 @@
 # Key West First Exit — Battery Osceola → 727 Fort Street
 
+> Reality Library binding (`docs/world/KEY_WEST_REALITY_LIBRARY.md` §9): 727 Fort Street =
+> `kw:building:osm:w339414849`; Battery Osceola anchor lies in Fort Zachary Taylor
+> `kw:building:osm:w524088621` (no separate source footprint). Roles live in
+> `data/world/key_west/reality/overrides/first_exit_landmarks.geojson`.
+
 The main scene `scenes/world/key_west/key_west.tscn` pins the `key_west_test`
 profile and owns the default F5 gameplay start.
 

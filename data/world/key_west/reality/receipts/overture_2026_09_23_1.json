@@ -1,0 +1,98 @@
+{
+ "source_id": "overture_2026_09_23_1",
+ "artifacts": [
+  {
+   "name": "addresses/address",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=addresses/type=address/",
+   "rows": 9151,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/addresses__address.parquet",
+   "sha256": "b9cb074887cdf5df6dc231d193c5bd1b30e263f2f0260968cd81f28299f125f2"
+  },
+  {
+   "name": "base/infrastructure",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=base/type=infrastructure/",
+   "rows": 4548,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/base__infrastructure.parquet",
+   "sha256": "9440c01fb9a3cb4f24013c5d2d5d5378819035cdf2d85b7c39de9012bd1d0d92"
+  },
+  {
+   "name": "base/land",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=base/type=land/",
+   "rows": 658,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/base__land.parquet",
+   "sha256": "6903fc02abd9086fdd1c5f7c6d00039cabca02f1868d818a529b67286df535c4"
+  },
+  {
+   "name": "base/land_cover",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=base/type=land_cover/",
+   "rows": 250,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/base__land_cover.parquet",
+   "sha256": "554b4ba5606233aa43265ffb43062451ba935515c7639f5ce31a353343aab619"
+  },
+  {
+   "name": "base/land_use",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=base/type=land_use/",
+   "rows": 597,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/base__land_use.parquet",
+   "sha256": "28e75e214b9870891d5f28273c7cc210da63fc6e847e50d34f1e402f9c51e596"
+  },
+  {
+   "name": "base/water",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=base/type=water/",
+   "rows": 1797,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/base__water.parquet",
+   "sha256": "3043e1be4834575eb4fc9087bb9caaf50419855ab65fdac4df4a758db77dc508"
+  },
+  {
+   "name": "buildings/building",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=buildings/type=building/",
+   "rows": 12815,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/buildings__building.parquet",
+   "sha256": "4020edf222622724364be74bece54269eadfe0d7aab8848287ac0716dead258a"
+  },
+  {
+   "name": "buildings/building_part",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=buildings/type=building_part/",
+   "rows": 24,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/buildings__building_part.parquet",
+   "sha256": "41e0a12e4edee8c59de3baa85cc22fa2def5c29cd2e28d196dc7de55e1b657d1"
+  },
+  {
+   "name": "divisions/division_area",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=divisions/type=division_area/",
+   "rows": 10,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/divisions__division_area.parquet",
+   "sha256": "d907410016b21aa0fb7d1ca0c513e173e8efcddb555ed30de7d2685d1571eda0"
+  },
+  {
+   "name": "places/place",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=places/type=place/",
+   "rows": 4983,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/places__place.parquet",
+   "sha256": "48b4eae742d2ca0938da5aeefd0965ab0ac365300a43c58ac9282a9f761dd1bf"
+  },
+  {
+   "name": "transportation/connector",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=transportation/type=connector/",
+   "rows": 10264,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/transportation__connector.parquet",
+   "sha256": "f65a605b20d835d2869271d9c08a7cc8d782866cd4af9577b88c0ba5324f2852"
+  },
+  {
+   "name": "transportation/segment",
+   "remote": "s3://overturemaps-us-west-2/release/2026-09-23.1/theme=transportation/type=segment/",
+   "rows": 6093,
+   "local_path": "data/world/key_west/reality/raw_cache/overture/2026-09-23.1/transportation__segment.parquet",
+   "sha256": "27b199e3fafb99c65eaafc632821a6f578c7cdd85c8bb0eca7225fdb929fdaa5"
+  }
+ ],
+ "release": "2026-09-23.1",
+ "retrieved_at": "2026-10-10T02:52:12+00:00",
+ "query_bbox_lonlat": [
+  -81.86,
+  24.52,
+  -81.68,
+  24.63
+ ],
+ "predicate": "bbox.xmin < east AND bbox.xmax > west AND bbox.ymin < north AND bbox.ymax > south"
+}

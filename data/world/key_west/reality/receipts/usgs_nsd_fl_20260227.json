@@ -1,0 +1,39 @@
+{
+ "source_id": "usgs_nsd_fl_20260227",
+ "artifacts": [
+  {
+   "name": "archive",
+   "etag": "4e1b3125f4d507bf2be77185fdbc9384-186",
+   "bytes": 1556814428,
+   "last_modified": "Tue, 03 Mar 2026 14:20:58 GMT",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Struct/GPKG/STRUCT_Florida_State_GPKG.zip",
+   "sha256": "9a84452e012564b531ea20d02ddab92ab30b7ef2e93519863e6e9f38101eb394",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/STRUCT_Florida_State_GPKG.zip"
+  },
+  {
+   "name": "clip",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/clips/usgs_nsd_fl_20260227.gpkg",
+   "layers": {
+    "Struct_Poly_FEMA": 10891,
+    "Struct_Point": 37
+   },
+   "sha256": "4d8dd68a2dfc1f8ccbd00d1dc0075f821364eb84df95dbb98d5a969819126b9c"
+  },
+  {
+   "name": "fgdc_metadata",
+   "etag": "557b7efb8861b8eb5c33353c456d851a",
+   "bytes": 35178,
+   "last_modified": "Tue, 03 Mar 2026 14:20:58 GMT",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Struct/GPKG/STRUCT_Florida_State_GPKG.xml",
+   "sha256": "9e2a84db077500a114a18328d16fbebee301398a3f3df315605d0b581e297762",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/STRUCT_Florida_State_GPKG.xml"
+  }
+ ],
+ "retrieved_at": "2026-10-10T02:54:37+00:00",
+ "query_bbox_lonlat": [
+  -81.86,
+  24.52,
+  -81.68,
+  24.63
+ ]
+}

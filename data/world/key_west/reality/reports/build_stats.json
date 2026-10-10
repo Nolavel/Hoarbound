@@ -1,0 +1,112 @@
+{
+ "land_dedupe": {
+  "land_duplicates_merged": 35
+ },
+ "legacy_osm": {
+  "buildings_tagged": 12344,
+  "roads_tagged": 3708
+ },
+ "buildings": {
+  "usa_matched": 9911,
+  "cross_verified_footprints": 8327,
+  "usa_added": 698,
+  "usa_partial_duplicate": 107
+ },
+ "roads": {
+  "osm_roads_partial_tiger": 681,
+  "osm_roads_without_tiger": 496,
+  "osm_roads_cross_verified": 2125,
+  "names_agree": 1471,
+  "tiger_only_added": 8
+ },
+ "runways": {
+  "runways_authoritative_geometry": 1
+ },
+ "water": {
+  "nhd_matched": 54,
+  "nhd_added": 39,
+  "nhd_coastline": 36,
+  "nhd_lines": 55
+ },
+ "addresses_places": {
+  "pois_in_buildings": 3097,
+  "address_points_in_buildings": 760,
+  "public_facilities_in_buildings": 24
+ },
+ "building_lidar": {
+  "height_lidar_2019": 13136,
+  "height_lidar_2016": 13160,
+  "height_cross_verified": 9458,
+  "height_changed_2016_2019": 1492,
+  "no_usable_lidar_2019": 4
+ },
+ "trees": {
+  "dense_canopy_areas": 123,
+  "osm_trees_confirmed_by_lidar": 104,
+  "lidar_tree_candidates": 37023,
+  "excluded_boca_chica_out_of_scope": 1,
+  "osm_trees_without_lidar_peak": 178
+ },
+ "worldcover": {
+  "excluded_boca_chica_out_of_scope": 116,
+  "wc_tree_cover": 358,
+  "excluded_outside_extent": 25,
+  "wc_herbaceous_wetland": 67,
+  "mangrove": 105
+ },
+ "coast": {
+  "osm_coastline_rings": 60,
+  "dem_shoreline_polygons": 227
+ },
+ "shoreline_alignment_osm_vs_dem_0m": {
+  "samples": 11461,
+  "median_m": 2.21,
+  "p90_m": 10.64,
+  "share_within_5m": 0.764
+ },
+ "barriers": {
+  "possible_seawalls": 9
+ },
+ "terrain": {
+  "valid_share": 0.7466
+ },
+ "power_topology": {
+  "edges_pole_to_pole": 532,
+  "edges_open_end": 177,
+  "supports_total": 589,
+  "supports_in_topology": 564,
+  "supports_position_only": 25
+ },
+ "vector_vs_lidar_alignment": {
+  "status": "ok",
+  "footprints": 1098,
+  "best_shift_east_m": 0.0,
+  "best_shift_north_m": -0.5,
+  "iou_at_zero": 0.6151,
+  "iou_at_best": 0.6195,
+  "cell_m": 0.5,
+  "window_projected": [
+   418725.0,
+   2716303.0,
+   420225.0,
+   2717303.0
+  ]
+ },
+ "usa_structures_vs_lidar_alignment": {
+  "status": "ok",
+  "footprints": 881,
+  "best_shift_east_m": 0.0,
+  "best_shift_north_m": -0.5,
+  "iou_at_zero": 0.5592,
+  "iou_at_best": 0.5597,
+  "cell_m": 0.5,
+  "window_projected": [
+   418725.0,
+   2716303.0,
+   420225.0,
+   2717303.0
+  ]
+ },
+ "id_collisions": [],
+ "ids_carried_from_previous_library": 87409
+}

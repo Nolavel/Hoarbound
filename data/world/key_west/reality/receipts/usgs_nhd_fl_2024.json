@@ -1,0 +1,41 @@
+{
+ "source_id": "usgs_nhd_fl_2024",
+ "artifacts": [
+  {
+   "name": "archive",
+   "etag": "303838fc0b79fc7497deba92b7e7297e-84",
+   "bytes": 703172567,
+   "last_modified": "Tue, 16 Jan 2024 16:48:42 GMT",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/State/GPKG/NHD_H_Florida_State_GPKG.zip",
+   "sha256": "9e1df4c0dd02ebe22b030e92954dc2960043f1ce4fb788f703f07c4d19390eb8",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/NHD_H_Florida_State_GPKG.zip"
+  },
+  {
+   "name": "clip",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/clips/usgs_nhd_fl_2024.gpkg",
+   "layers": {
+    "NHDWaterbody": 103,
+    "NHDArea": 10,
+    "NHDLine": 1,
+    "NHDFlowline": 118
+   },
+   "sha256": "4e64c5131e43367b1206e440c334d20f68d87d26b66d4c369ab682e5fe30aefe"
+  },
+  {
+   "name": "fgdc_metadata",
+   "etag": "8c37825e962d1f7d16a9dcf40801d02a",
+   "bytes": 31596,
+   "last_modified": "Tue, 16 Jan 2024 16:48:42 GMT",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/State/GPKG/NHD_H_Florida_State_GPKG.xml",
+   "sha256": "9f4480170aa2a94314e995a2baa501109d29e1a4a92533b90e950627787b1a64",
+   "local_path": "data/world/key_west/reality/raw_cache/usgs_tnm/NHD_H_Florida_State_GPKG.xml"
+  }
+ ],
+ "retrieved_at": "2026-10-10T02:55:52+00:00",
+ "query_bbox_lonlat": [
+  -81.86,
+  24.52,
+  -81.68,
+  24.63
+ ]
+}

@@ -1,0 +1,294 @@
+{
+ "type": "FeatureCollection",
+ "crs_name": "EPSG:32617",
+ "layer": "game_override",
+ "description": "Hoarbound game override - NOT reality. Boca Chica Channel Bridge (US-1) is severed in the game world. Source truth stays intact in the bridges/roads layers.",
+ "profile_along_axis_m": {
+  "step_m": 2.0,
+  "min_navd88_m": -3.35,
+  "gap_centre_m": 100.0,
+  "bed_profile_every_20m": [
+   0.93,
+   -3.33,
+   -3.08,
+   -3.06,
+   -2.71,
+   -2.46,
+   -2.54,
+   -2.53,
+   -2.55,
+   -2.76,
+   -2.96,
+   -2.21,
+   -2.1,
+   -1.65,
+   -1.48,
+   -1.51,
+   -1.51,
+   -1.51,
+   -1.63,
+   -1.7,
+   -1.61,
+   -1.65,
+   -1.88,
+   -1.56,
+   -1.6,
+   -1.61,
+   -2.0,
+   -2.47,
+   -2.57,
+   -2.58,
+   -2.5,
+   -2.56,
+   -2.45,
+   -2.66,
+   -2.36,
+   -1.88,
+   -2.27,
+   -1.94,
+   -1.77,
+   -1.16,
+   null
+  ]
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        427020.10514756927,
+        2718300.6361267343
+       ],
+       [
+        427021.13521446113,
+        2718294.2969169617
+       ],
+       [
+        427022.60692246933,
+        2718285.275703513
+       ],
+       [
+        427817.6379197404,
+        2718413.296034447
+       ],
+       [
+        427816.1069110083,
+        2718422.693942474
+       ],
+       [
+        427815.15475068963,
+        2718428.5011721635
+       ],
+       [
+        427020.10514756927,
+        2718300.6361267343
+       ]
+      ]
+     ],
+     [
+      [
+       [
+        427020.2141055779,
+        2718309.8483860455
+       ],
+       [
+        427021.2147213515,
+        2718303.686500083
+       ],
+       [
+        427813.8951927413,
+        2718431.6524501825
+       ],
+       [
+        427812.90384958935,
+        2718437.7145641204
+       ],
+       [
+        427811.8931157541,
+        2718443.942874992
+       ],
+       [
+        427019.1836928763,
+        2718316.1211591884
+       ],
+       [
+        427020.2141055779,
+        2718309.8483860455
+       ]
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "override_id": "kw_override:bridge:boca_chica_channel:state",
+    "target_feature_id": "kw:bridge:osm:r13373986",
+    "override_type": "bridge_state",
+    "status": "provisional_author_review",
+    "author": "Claude (Technical Director) for author review",
+    "created": "2026-10-10",
+    "reason": "Hoarbound world rule: the US-1 link Stock Island -> Boca Chica is severed. Reality layer keeps the intact bridge.",
+    "params": {
+     "state": "severed",
+     "reality_preserved": true,
+     "deck_length_m": 800.6,
+     "piers_and_abutments": "real positions not in any reachable source (FDOT plans / NOAA ENC needed); generator must not invent them as reality"
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      427183.2070009175,
+      2718336.140234449
+     ],
+     [
+      427064.73836671666,
+      2718317.030448317
+     ]
+    ]
+   },
+   "properties": {
+    "override_id": "kw_override:bridge:boca_chica_channel:gap:4e324f9b-bbf9-4646-b146-1991092bcf48",
+    "target_feature_id": "kw:road:overture:4e324f9b-bbf9-4646-b146-1991092bcf48",
+    "override_type": "remove_span",
+    "status": "provisional_author_review",
+    "author": "Claude (Technical Director) for author review",
+    "created": "2026-10-10",
+    "reason": "Severed trunk deck over the deepest part of Boca Chica Channel.",
+    "params": {
+     "removed_interval_along_axis_m": [
+      40.0,
+      160.0
+     ],
+     "axis_length_m": 800.6,
+     "measured_from": "west (Stock Island) end of the bridge deck",
+     "gap_length_m": 120.0,
+     "gap_placement_reason": "deepest mean bed -2.73 m NAVD88 over 120 m window; abutments (40 m) kept"
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      427068.39166269184,
+      2718294.340387095
+     ],
+     [
+      427186.86583877273,
+      2718313.4157534596
+     ]
+    ]
+   },
+   "properties": {
+    "override_id": "kw_override:bridge:boca_chica_channel:gap:4e7a8bd9-9e1e-42fb-860c-d858855a38de",
+    "target_feature_id": "kw:road:overture:4e7a8bd9-9e1e-42fb-860c-d858855a38de",
+    "override_type": "remove_span",
+    "status": "provisional_author_review",
+    "author": "Claude (Technical Director) for author review",
+    "created": "2026-10-10",
+    "reason": "Severed cycleway deck over the deepest part of Boca Chica Channel.",
+    "params": {
+     "removed_interval_along_axis_m": [
+      40.0,
+      160.0
+     ],
+     "axis_length_m": 800.6,
+     "measured_from": "west (Stock Island) end of the bridge deck",
+     "gap_length_m": 120.0,
+     "gap_placement_reason": "deepest mean bed -2.73 m NAVD88 over 120 m window; abutments (40 m) kept"
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      427067.20073982916,
+      2718301.7370264167
+     ],
+     [
+      427185.665567923,
+      2718320.870451696
+     ]
+    ]
+   },
+   "properties": {
+    "override_id": "kw_override:bridge:boca_chica_channel:gap:788fdfb9-45d1-4464-943f-75600b70cfa4",
+    "target_feature_id": "kw:road:overture:788fdfb9-45d1-4464-943f-75600b70cfa4",
+    "override_type": "remove_span",
+    "status": "provisional_author_review",
+    "author": "Claude (Technical Director) for author review",
+    "created": "2026-10-10",
+    "reason": "Severed trunk deck over the deepest part of Boca Chica Channel.",
+    "params": {
+     "removed_interval_along_axis_m": [
+      40.0,
+      160.0
+     ],
+     "axis_length_m": 800.6,
+     "measured_from": "west (Stock Island) end of the bridge deck",
+     "gap_length_m": 120.0,
+     "gap_placement_reason": "deepest mean bed -2.73 m NAVD88 over 120 m window; abutments (40 m) kept"
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     427068.3916626918,
+     2718294.340387095
+    ]
+   },
+   "properties": {
+    "override_id": "kw_override:bridge:boca_chica_channel:severed_end:west",
+    "target_feature_id": "kw:bridge:osm:r13373986",
+    "override_type": "severed_end",
+    "status": "provisional_author_review",
+    "author": "Claude (Technical Director) for author review",
+    "created": "2026-10-10",
+    "reason": "Broken deck edge for the generator (collision end, rubble anchor).",
+    "params": {
+     "along_axis_m": 40.0,
+     "deck_side": "Stock Island"
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     427186.86583877273,
+     2718313.4157534596
+    ]
+   },
+   "properties": {
+    "override_id": "kw_override:bridge:boca_chica_channel:severed_end:east",
+    "target_feature_id": "kw:bridge:osm:r13373986",
+    "override_type": "severed_end",
+    "status": "provisional_author_review",
+    "author": "Claude (Technical Director) for author review",
+    "created": "2026-10-10",
+    "reason": "Broken deck edge for the generator (collision end, rubble anchor).",
+    "params": {
+     "along_axis_m": 160.0,
+     "deck_side": "Boca Chica"
+    }
+   }
+  }
+ ]
+}

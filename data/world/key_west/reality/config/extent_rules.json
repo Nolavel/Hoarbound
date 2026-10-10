@@ -1,0 +1,35 @@
+{
+  "schema": "kw_reality.extent_rules.v1",
+  "description": "Inputs to tools/world/reality/extent.py. The extent is derived from data with these rules; the numbers here are the only hand-chosen values and each one carries its reason. Output: config/extent.json + library layer 'extent_zone'.",
+  "acquisition_bbox_lonlat": {
+    "west": -81.86, "south": 24.52, "east": -81.68, "north": 24.63,
+    "reason": "Search window for raw acquisition, deliberately wider than any plausible extent so the extent rules (not the download box) decide what is kept."
+  },
+  "core": {
+    "division_locality": "Key West",
+    "named_islands": ["Stock Island"],
+    "reason": "Core = every coastline-derived land polygon touching the Key West city-limit polygon (Overture divisions, from OSM/Census) plus Stock Island, the island between Key West and the bridge."
+  },
+  "context_landmasses": {
+    "names": ["Boca Chica Key"],
+    "role": "boca_chica_silhouette",
+    "reason": "Author rule: Boca Chica is not a playable district. Only its outline on the bridge side, terrain and coastline are kept; its buildings, roads, vegetation and infrastructure are not ingested (counted in the report)."
+  },
+  "adjacent_islands": {
+    "max_gap_m": 1500,
+    "must_be_closer_to_core_than_to_context": true,
+    "reason": "Islets are adjacent when their nearest land is the core (not Boca Chica) and they lie within the search radius. The resulting gaps show a natural break (all core-side islets are <= ~0.5 km; the next land is Boca-Chica-side), reported in extent.json."
+  },
+  "crossings": {
+    "bridge_names": ["Boca Chica Channel Bridge"],
+    "far_side_approach_m": 1000,
+    "reason": "The severed US-1 crossing is kept whole as reality; the far landing plus one water-margin of Boca Chica outline gives the in-world end of the broken bridge."
+  },
+  "water_margin_m": 1000,
+  "water_margin_reason": "Two times the adjacency break (~0.5 km): every shoreline structure attached to included land lies inside, and the sea/ice continues past every coast instead of ending at the data edge.",
+  "never_cut_land": true,
+  "never_cut_land_reason": "Any non-context land polygon that crosses the rectangle grows the rectangle until it is fully inside (iterated). Context landmasses are the only land the boundary may cross.",
+  "contain_legacy_runtime_crop": true,
+  "contain_legacy_runtime_crop_reason": "The new extent is a superset of the committed 2 m runtime crop, so nothing currently in the game falls outside the library.",
+  "snap_to_chunk_grid": true
+}

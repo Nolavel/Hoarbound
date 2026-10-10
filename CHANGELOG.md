@@ -5,6 +5,34 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-10 - Key West Reality Library foundation (claudeflow)
+
+- **New open-data pipeline** `tools/world/key_west_reality.py` (+ `tools/world/reality/`):
+  acquire -> derive extent -> normalize -> conflate -> lidar measurements -> GeoPackage
+  -> validate / report / diff / preview / editor export. Offline and editor-time only;
+  nothing changes at runtime. Architecture: `docs/world/KEY_WEST_REALITY_LIBRARY.md`.
+- **Library** `data/world/key_west/reality/library/key_west_reality.gpkg(.xz)`: 88.5k
+  features in 22 families with attribute-level provenance (source, method,
+  reconstruction class, confidence, epoch), stable `kw:` ids carried between builds,
+  cross-source links, excluded-record log.
+- **Sources integrated** with receipts: Overture 2026-09-23.1 (OSM + Microsoft),
+  USGS NSD incl. FEMA/ORNL USA Structures, USGS NTD (TIGER, FAA), GovtUnit, NHD,
+  NOAA DEM 6366, NOAA 2019 and 2016 topobathy lidar (COPC), ESA WorldCover 2021,
+  and the frozen Stage 5 OSM tags. Blocked hosts are registered, not assumed.
+- **Extent derived from data**: +1.8 km north, +0.6 km east of the runtime crop,
+  superset of it, chunk-aligned; Boca Chica only as outline (`excluded` logs the rest).
+- **Measured buildings**: 99.3 % of 13,376 footprints have a lidar roof-top height
+  (9,458 cross-verified 2016 + 2019); trees from a 2019 canopy model, dense canopy kept
+  as areas instead of invented trees.
+- **Game override** `overrides/boca_chica_channel_bridge.geojson`: US-1 bridge
+  severed over 40-160 m (provisional, author review); reality keeps the intact bridge.
+- **First Exit landmarks** (owner decision, #211): `overrides/first_exit_landmarks.geojson`
+  binds Battery Osceola and 727 Fort Street to real library features as game roles.
+- **Blender/regeneration contract**: `authoring/asset_manifest.json`, `regen.plan`
+  never regenerates artist-locked assets (unit tests), `asset --rebase-check`.
+- `docs/THIRD_PARTY_NOTICES.md` gains a Geodata section (ODbL, CC BY 4.0 attribution).
+  Raw cache and editor exports are git-ignored; previews in `docs/world/reality_previews/`.
+
 ### 2026-10-09 - Held weight, flare lifecycle, segmented hold ring (claudeflow)
 
 - **Storage owns held items and their weight.**
