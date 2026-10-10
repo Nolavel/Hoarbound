@@ -254,9 +254,12 @@ def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_p
         for part in _parts(geom):
             if part.is_empty or part.length < 0.5:
                 continue
-            ground = s.ground_at(np.asarray(part.coords)[:, :2])
-            ys, src = meshing.line_heights(s, part, ground) if bridge else ([round(float(v) + 0.05, 2) for v in ground], "dem_6366_plus_5cm")
-            parts.append({"p": _xz(part.coords), "y": ys})
+            if bridge:
+                xy, ys, src = meshing.deck_profile(s, part, abutments=True)
+            else:
+                xy = np.asarray(part.coords)[:, :2]
+                ys, src = [round(float(v) + 0.05, 2) for v in s.ground_at(xy)], "dem_6366_plus_5cm"
+            parts.append({"p": _xz(xy), "y": ys})
         if removed_parts:
             stats["road_spans_removed_by_override"] += 1
         return {"kind": "ribbon", "width": width, "parts": parts}, {"y": "lidar_deck" if bridge else "dem_6366",
@@ -283,9 +286,8 @@ def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_p
             stats["bridge_line_cut_by_override"] += 1
         parts = []
         for part in [q for q in _parts(geom) if q.geom_type == "LineString" and q.length >= 0.5]:
-            ground = s.ground_at(np.asarray(part.coords)[:, :2])
-            ys, src = meshing.line_heights(s, part, ground)
-            parts.append({"p": _xz(part.coords), "y": ys})
+            xy, ys, src = meshing.deck_profile(s, part, abutments=fam == "bridges")
+            parts.append({"p": _xz(xy), "y": ys})
         if not parts:
             return {"kind": "none"}, {}
         return {"kind": "ribbon", "width": gen["pier_width_m_when_line"], "parts": parts}, {"y": "lidar_deck", "width": "inferred"}

@@ -150,3 +150,25 @@ do not re-trigger `[jenova-windows-build]` without a reason.
   Godot's cold import, which failed the Import gate. The Linux bootstrap now
   links the shared libstdc++. The rebuilt `.so` must replace the vendored one
   once the `[jenova-frost-preview]` job shows the cold import passing.
+
+## Known defect: process exit code is always 0
+
+Found 2026-10-10 by the Key West reality gate.
+
+**Symptom.** With the Jenova extension loaded, `SceneTree.quit(code)` exits with 0. In an empty
+project, or one with only the `godot_ai` autoload, the code survives (`quit(3)` → 3). With only
+`Jenova.Runtime.gdextension`, it is 0.
+
+**Cause.** `Source/jenova.cpp` (rev `63ecdcb`), extension uninitialize:
+`if (SafeExitOnPluginUnload && !QUERY_ENGINE_MODE(Editor)) jenova::ExitWithCode(EXIT_SUCCESS);`
+— a `quick_exit(0)` "temp fix for TLS handling failure" that discards Godot's exit code.
+
+**Impact.** A headless suite or tool that fails via `quit(1)` still reports success to the shell.
+
+**Mitigations in place:**
+- `tools/ci/run_tests.sh` also fails a suite that pushed an error or failed to parse;
+- the reality CI job judges the gate by its JSON verdict.
+
+**Proposed Hoarbound patch** (for both bootstraps; needs a Linux rebuild and the CI Windows build
+with an LFS commit): pass `godot::OS::get_singleton()->get_exit_code()` instead of `EXIT_SUCCESS`.
+This keeps the quick exit (the TLS workaround) and keeps the code.

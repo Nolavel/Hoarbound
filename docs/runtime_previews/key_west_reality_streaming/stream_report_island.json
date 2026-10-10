@@ -1,28 +1,28 @@
 {
  "activations": {
-  "activate_ms_max": 25.178,
-  "activate_ms_p50": 10.41,
-  "activate_ms_p95": 23.37,
+  "activate_ms_max": 53.692,
+  "activate_ms_p50": 12.09,
+  "activate_ms_p95": 28.26,
   "count": 47,
-  "queued_to_active_ms_max": 387.728,
-  "queued_to_active_ms_p50": 49.33,
-  "queued_to_active_ms_p95": 302.81
+  "queued_to_active_ms_max": 437.179,
+  "queued_to_active_ms_p50": 56.94,
+  "queued_to_active_ms_p95": 352.09
  },
  "after_leaving": {
   "active_chunks": 0,
   "nodes_over_baseline": 10,
   "packed_cache_entries": 8,
-  "static_memory_mb": 97.1
+  "static_memory_mb": 97.8
  },
- "boot_to_all_near_active_s": 0.424,
+ "boot_to_all_near_active_s": 0.475,
  "display": "headless",
  "engine": "4.8-dev6 (official)",
  "length_m": 11743.3,
- "moving_frames": 67937,
+ "moving_frames": 67739,
  "peaks": {
   "active_chunks": 5,
   "packed_cache_entries": 13,
-  "static_memory_mb": 231.6
+  "static_memory_mb": 232.1
  },
  "player_in_inactive_chunk": {
   "chunks": [],
@@ -32,68 +32,68 @@
  "route": "island",
  "slowest_activations": [
   {
-   "activate_ms": 25.178,
-   "id": "kw_gen_-5_2",
-   "latency_ms": 119.915,
-   "nodes_after": 3466,
-   "phase": "move",
-   "t_s": 61.392667
-  },
-  {
-   "activate_ms": 24.137,
-   "id": "kw_gen_2_-1",
-   "latency_ms": 68.856,
-   "nodes_after": 2068,
-   "phase": "move",
-   "t_s": 213.743624
-  },
-  {
-   "activate_ms": 23.369,
-   "id": "kw_gen_-6_2",
-   "latency_ms": 120.07,
-   "nodes_after": 2939,
-   "phase": "move",
-   "t_s": 37.369914
-  },
-  {
-   "activate_ms": 23.269,
-   "id": "kw_gen_-6_1",
-   "latency_ms": 141.143,
-   "nodes_after": 2560,
-   "phase": "move",
-   "t_s": 51.808242
-  },
-  {
-   "activate_ms": 21.104,
+   "activate_ms": 53.692,
    "id": "kw_gen_-7_3",
-   "latency_ms": 137.3,
+   "latency_ms": 156.244,
    "nodes_after": 1551,
    "phase": "move",
-   "t_s": 11.770055
+   "t_s": 11.848227
   },
   {
-   "activate_ms": 20.949,
-   "id": "kw_gen_-5_1",
-   "latency_ms": 92.881,
-   "nodes_after": 3412,
+   "activate_ms": 46.824,
+   "id": "kw_gen_-6_1",
+   "latency_ms": 140.586,
+   "nodes_after": 2560,
    "phase": "move",
-   "t_s": 64.577448
+   "t_s": 51.867022
   },
   {
-   "activate_ms": 20.565,
-   "id": "kw_gen_-7_2",
-   "latency_ms": 123.039,
-   "nodes_after": 2562,
+   "activate_ms": 28.257,
+   "id": "kw_gen_-4_1",
+   "latency_ms": 78.919,
+   "nodes_after": 3116,
    "phase": "move",
-   "t_s": 19.76198
+   "t_s": 83.842758
   },
   {
-   "activate_ms": 19.166,
+   "activate_ms": 28.045,
+   "id": "kw_gen_1_0",
+   "latency_ms": 85.62,
+   "nodes_after": 1283,
+   "phase": "move",
+   "t_s": 192.801022
+  },
+  {
+   "activate_ms": 27.679,
+   "id": "kw_gen_-5_2",
+   "latency_ms": 124.361,
+   "nodes_after": 3466,
+   "phase": "move",
+   "t_s": 61.455684
+  },
+  {
+   "activate_ms": 27.57,
    "id": "kw_gen_-2_1",
-   "latency_ms": 77.766,
+   "latency_ms": 121.714,
    "nodes_after": 1343,
    "phase": "move",
-   "t_s": 128.631022
+   "t_s": 128.749067
+  },
+  {
+   "activate_ms": 26.884,
+   "id": "kw_gen_-6_2",
+   "latency_ms": 125.987,
+   "nodes_after": 2939,
+   "phase": "move",
+   "t_s": 37.439035
+  },
+  {
+   "activate_ms": 24.274,
+   "id": "kw_gen_-7_2",
+   "latency_ms": 177.124,
+   "nodes_after": 2562,
+   "phase": "move",
+   "t_s": 19.878804
   }
  ],
  "speed_mps": 25.0,
@@ -107,10 +107,10 @@
   "unload_hysteresis_m": 120.0
  },
  "streaming_cost_ms": {
-  "frames_over_16_7": 13,
-  "frames_over_33_3": 0,
-  "max": 25.18,
-  "p50": 0.54,
-  "p99": 1.08
+  "frames_over_16_7": 19,
+  "frames_over_33_3": 5,
+  "max": 57.84,
+  "p50": 0.62,
+  "p99": 1.45
  }
 }

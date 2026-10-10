@@ -21,6 +21,7 @@ var _prop_mesh: CylinderMesh
 var _batches: Dictionary = {}
 var _collision_faces: PackedVector3Array = PackedVector3Array()
 var _collision_ranges: Array = []
+var _footprints: Array = []
 
 
 func _init() -> void:
@@ -60,6 +61,7 @@ func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 	_batches = {}
 	_collision_faces = PackedVector3Array()
 	_collision_ranges = []
+	_footprints = []
 	var parts: PackedStringArray = String(doc["chunk_id"]).split(":")
 	var root: Node3D = Node3D.new()
 	root.name = "Chunk_%s_%s" % [parts[0], parts[1]]
@@ -90,6 +92,7 @@ func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 		(groups["Anchors"] as Node3D).add_child(anchor)
 	_flush_batches(groups, doc)
 	_flush_collision(groups["Buildings"] as Node3D)
+	root.set_meta("snow_footprints", _footprints)
 	## StreamingSystem places a chunk root at its centre, so content is stored relative to it.
 	var origin: Array = doc["origin_local"]
 	var half: float = float(doc["size_m"]) * 0.5
@@ -613,6 +616,7 @@ func _collect_collision(feature_id: String, m: Dictionary, base: float) -> void:
 		return
 	var top: float = float(col["top_y"])
 	var y0: float = base - WALL_SINK_M
+	_footprints.append(ring)
 	var start: int = _collision_faces.size() / 3
 	for i: int in range(ring.size()):
 		var a: Vector2 = ring[i]

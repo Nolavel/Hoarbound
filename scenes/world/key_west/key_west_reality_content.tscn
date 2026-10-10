@@ -1,7 +1,12 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://scripts/world/key_west_reality_ground.gd" id="1_ground"]
+
 [node name="KeyWestRealityContent" type="Node3D"]
 
 [node name="SpawnPoint" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4052.73, 7.92, 1924.69)
 metadata/source = "First Exit start anchor (owner decision #211); y = 2019 lidar DSM surface of the fort front"
+
+[node name="RealityGround" type="Node3D" parent="."]
+script = ExtResource("1_ground")

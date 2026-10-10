@@ -240,20 +240,40 @@ def deck_height(s: Surfaces, geom, fallback: float) -> tuple[float, str]:
     return round(float(np.median(grid[mask])), 2), "lidar_dsm_2019_median"
 
 
-def line_heights(s: Surfaces, line, ground: np.ndarray) -> tuple[list[float], str]:
-    """Measured top surface along a line (bridge decks): median DSM in a 1.5 m disc per vertex."""
+DECK_SAMPLE_M = 1.0
+DECK_DISC_M = 0.75
+DECK_RAMP_MAX = 0.125  # 1:8, the steepest deck run-out from an abutment at grade
+
+
+def deck_profile(s: Surfaces, line, abutments: bool) -> tuple[np.ndarray, list[float], str]:
+    """Deck top along a line: lowest 2019 DSM cell within 0.75 m of the axis every 1 m (canopy
+    sits above a deck), never below ground; bridges also rise from both abutments at most 1:8."""
+    xy = np.asarray(shapely.segmentize(line, DECK_SAMPLE_M).coords)[:, :2]
+    ground = s.ground_at(xy)
+    top = ground + 0.05
+    src = "dem_ground"
     win = s.dsm_window(line.buffer(2.0), pad=1.0)
-    if win is None:
-        return [round(float(g) + 0.05, 2) for g in ground], "dem_ground"
-    grid, valid, transform = win
-    out = []
-    for (x, y), g in zip(np.asarray(line.coords)[:, :2], ground):
-        col = int((x - transform.c) / transform.a)
-        row = int((y - transform.f) / transform.e)
-        r0, r1, c0, c1 = max(0, row - 3), row + 4, max(0, col - 3), col + 4
-        cells = grid[r0:r1, c0:c1][valid[r0:r1, c0:c1]]
-        out.append(round(float(np.median(cells)) if len(cells) else float(g) + 0.05, 2))
-    return out, "lidar_dsm_2019_median_1.5m"
+    if win is not None:
+        grid, valid, transform = win
+        reach = int(np.ceil(DECK_DISC_M / abs(transform.a)))
+        lows = []
+        for x, y in xy:
+            col = int((x - transform.c) / transform.a)
+            row = int((y - transform.f) / transform.e)
+            r0, c0 = max(0, row - reach), max(0, col - reach)
+            cells = grid[r0:row + reach + 1, c0:col + reach + 1][valid[r0:row + reach + 1, c0:col + reach + 1]]
+            lows.append(float(cells.min()) if len(cells) else np.nan)
+        lows = np.asarray(lows)
+        top = np.where(np.isfinite(lows), np.maximum(lows, ground + 0.05), ground + 0.05)
+        src = "lidar_dsm_2019_min_0.75m"
+    if abutments and len(xy) > 1:
+        d = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(xy, axis=0).T))])
+        cap = np.minimum(ground[0] + DECK_RAMP_MAX * d, ground[-1] + DECK_RAMP_MAX * (d[-1] - d))
+        top = np.maximum(np.minimum(top, cap), ground + 0.05)
+        src += "_abutments_1:8"
+    if len(top) >= 5:
+        top = np.maximum(ndimage.median_filter(top, size=5, mode="nearest"), ground + 0.05)
+    return xy, [round(float(v), 2) for v in top], src
 
 
 def pole_top(s: Surfaces, x: float, y: float, ground: float) -> tuple[float, str]:

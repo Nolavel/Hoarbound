@@ -81,6 +81,29 @@ class DemVoids(unittest.TestCase):
         self.assertEqual(filled[0, 0], 2.0)
 
 
+class DeckProfile(unittest.TestCase):
+    def test_canopy_over_a_deck_does_not_lift_it_off_its_abutments(self):
+        import numpy as np
+        from rasterio.transform import from_origin
+        from reality import meshing
+
+        class Fake:
+            def ground_at(self, xy):
+                return np.zeros(len(xy))
+
+            def dsm_window(self, geom, pad=1.0):
+                grid = np.full((200, 200), 10.0)  # canopy everywhere, 10 m up
+                return grid, np.ones_like(grid, bool), from_origin(-10.0, 90.0, 0.5, 0.5)
+
+        line = shapely.LineString([(0, 40), (40, 40)])
+        xy, ys, src = meshing.deck_profile(Fake(), line, abutments=True)
+        d = np.hypot(xy[:, 0] - xy[0, 0], xy[:, 1] - xy[0, 1])
+        cap = np.minimum(d, d[-1] - d) * meshing.DECK_RAMP_MAX + 0.05
+        self.assertTrue(np.all(np.asarray(ys) <= cap + 1e-6), "deck rose faster than 1:8 from an abutment")
+        self.assertAlmostEqual(ys[0], 0.05)
+        self.assertIn("abutments", src)
+
+
 class Landmarks(unittest.TestCase):
     def test_inset_reproduces_documented_floor_area(self):
         from reality import landmarks

@@ -1,5 +1,7 @@
 {
- "landmark": "Fort Zachary Taylor fronts with Battery Osceola (First Exit start)",
+ "landmark": "Fort Zachary Taylor fronts - measured exterior surface (landmark proxy for the First Exit start)",
+ "presentation": "measured_exterior_proxy",
+ "not": "a reconstruction of Battery Osceola: no separate battery outline exists in any reachable source",
  "feature_id": "kw:building:osm:w524088621",
  "override_id": "kw_override:first_exit:start:battery_osceola",
  "origin_local": [
@@ -39,7 +41,7 @@
  },
  "landmark_version": "kw_landmark.1",
  "pipeline_version": "1.0.0",
- "built_at": "2026-10-10T09:08:52+00:00",
+ "built_at": "2026-10-10T13:11:09+00:00",
  "asset": "assets/world/key_west/landmarks/kw_fort_zachary_taylor.glb",
  "asset_sha256": "4a0e045801538fbd345518f7fff6c0000b4aa00c61c3d1ada03066d2ca7dea55",
  "triangles": 43691

@@ -89,7 +89,8 @@ def _shelter_727(s: meshing.Surfaces):
     roof_mesh = _prism(roof, centre, top - fascia, top)
     floor_mesh = _cap(walls.buffer(-0.01), centre, floor, up=True)
     spec = {
-        "landmark": "727 Fort Street (First Exit primary shelter)", "feature_id": fid,
+        "landmark": "727 Fort Street (First Exit primary shelter) - measured massing", "presentation": "measured_massing",
+        "feature_id": fid,
         "override_id": "kw_override:first_exit:shelter:727_fort_st", "origin_local": origin,
         "frame": "glTF/Godot local metres: +x east, +y up (NAVD88 - origin y), +z south",
         "elements": {
@@ -159,7 +160,10 @@ def _fort_taylor(s: meshing.Surfaces):
     top_mesh = _surface(tv, heights, ti, centre, ground0)
     skirt = _skirt(boundary, btop, base - 0.3, centre, ground0)
     spec = {
-        "landmark": "Fort Zachary Taylor fronts with Battery Osceola (First Exit start)", "feature_id": fid,
+        "landmark": "Fort Zachary Taylor fronts - measured exterior surface (landmark proxy for the First Exit start)",
+        "presentation": "measured_exterior_proxy",
+        "not": "a reconstruction of Battery Osceola: no separate battery outline exists in any reachable source",
+        "feature_id": fid,
         "override_id": "kw_override:first_exit:start:battery_osceola", "origin_local": origin,
         "frame": "glTF/Godot local metres: +x east, +y up (NAVD88 - origin y), +z south",
         "elements": {

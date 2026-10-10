@@ -1,0 +1,368 @@
+{
+ "activations": {
+  "count": 14,
+  "frame_ms_max": 60.193000793457,
+  "frame_ms_p50": 38.68,
+  "worst": [
+   {
+    "frame": 124241,
+    "frame_ms_max_next3": 60.19,
+    "id": "kw_gen_-6_2"
+   },
+   {
+    "frame": 101026,
+    "frame_ms_max_next3": 57.91,
+    "id": "kw_gen_-7_2"
+   },
+   {
+    "frame": 37770,
+    "frame_ms_max_next3": 55.03,
+    "id": "kw_gen_-6_2"
+   },
+   {
+    "frame": 50329,
+    "frame_ms_max_next3": 51.74,
+    "id": "kw_gen_-7_1"
+   },
+   {
+    "frame": 124242,
+    "frame_ms_max_next3": 47.78,
+    "id": "kw_gen_-7_3"
+   },
+   {
+    "frame": 18018,
+    "frame_ms_max_next3": 40.92,
+    "id": "kw_gen_-7_2"
+   },
+   {
+    "frame": 74993,
+    "frame_ms_max_next3": 38.68,
+    "id": "kw_gen_-7_0"
+   },
+   {
+    "frame": 14063,
+    "frame_ms_max_next3": 34.93,
+    "id": "kw_gen_-7_3"
+   }
+  ]
+ },
+ "arrivals": [
+  {
+   "entry": "blocked: the measured 727 asset has no opening (Legistar plans or an owner-approved game door needed)",
+   "game_s": 177.9,
+   "leg": "727_fort_st_entrance",
+   "position": [
+    -3541.33,
+    1.96,
+    1594.22
+   ],
+   "sheltered": false,
+   "walked_m": 749.4
+  },
+  {
+   "game_s": 182.3,
+   "leg": "fort_x_petronia",
+   "position": [
+    -3532.7,
+    1.96,
+    1607.6
+   ],
+   "walked_m": 765.8
+  },
+  {
+   "game_s": 317.2,
+   "leg": "petronia_x_duval",
+   "position": [
+    -3109.36,
+    3.62,
+    1324.44
+   ],
+   "walked_m": 1280.9
+  },
+  {
+   "game_s": 588.7,
+   "leg": "duval_x_front",
+   "position": [
+    -3653.7,
+    1.34,
+    515.33
+   ],
+   "walked_m": 2264.2
+  },
+  {
+   "game_s": 634.4,
+   "leg": "front_x_whitehead",
+   "position": [
+    -3712.41,
+    1.64,
+    665.9
+   ],
+   "walked_m": 2427.7
+  },
+  {
+   "game_s": 915.8,
+   "leg": "whitehead_x_petronia",
+   "position": [
+    -3221.98,
+    2.73,
+    1399.24
+   ],
+   "walked_m": 3329.2
+  },
+  {
+   "entry": "blocked: the measured 727 asset has no opening (Legistar plans or an owner-approved game door needed)",
+   "game_s": 1033.7,
+   "leg": "727_fort_st_return",
+   "position": [
+    -3538.4,
+    2.01,
+    1596.82
+   ],
+   "sheltered": false,
+   "walked_m": 3714.5
+  }
+ ],
+ "disabled_for_diagnosis": [],
+ "display": "headless",
+ "engine": "4.8-dev6 (official)",
+ "errors": 0,
+ "frame_ms": {
+  "max": 82.0270004272461,
+  "over_16_7": 1245,
+  "over_33_3": 52,
+  "over_hitch_50": 20,
+  "p50": 5.54,
+  "p95": 13.87,
+  "p99": 16.42
+ },
+ "frames": 147229,
+ "game_seconds": 1033.7,
+ "gate": "key_west_reality_first_exit",
+ "headless_renderer_errors": 1586,
+ "hitches": {
+  "near_activation": 4,
+  "not_activation": 16,
+  "not_activation_samples": [
+   {
+    "at": [
+     -4012.1,
+     1909.4
+    ],
+    "frame": 1616,
+    "game_s": 11.4,
+    "ms": 82.0,
+    "physics_ms": 8.0,
+    "process_ms": 6.3
+   },
+   {
+    "at": [
+     -3853.7,
+     1708.1
+    ],
+    "frame": 11910,
+    "game_s": 83.6,
+    "ms": 51.0,
+    "physics_ms": 11.7,
+    "process_ms": 7.0
+   },
+   {
+    "at": [
+     -3668.2,
+     1612.0
+    ],
+    "frame": 19800,
+    "game_s": 139.8,
+    "ms": 54.1,
+    "physics_ms": 9.8,
+    "process_ms": 5.5
+   },
+   {
+    "at": [
+     -3658.6,
+     1621.1
+    ],
+    "frame": 20186,
+    "game_s": 142.8,
+    "ms": 50.1,
+    "physics_ms": 13.5,
+    "process_ms": 9.3
+   },
+   {
+    "at": [
+     -3554.4,
+     1581.4
+    ],
+    "frame": 24440,
+    "game_s": 172.9,
+    "ms": 68.4,
+    "physics_ms": 14.1,
+    "process_ms": 9.4
+   },
+   {
+    "at": [
+     -3278.9,
+     1442.1
+    ],
+    "frame": 37256,
+    "game_s": 262.6,
+    "ms": 60.8,
+    "physics_ms": 19.9,
+    "process_ms": 7.7
+   },
+   {
+    "at": [
+     -3179.3,
+     1374.1
+    ],
+    "frame": 41827,
+    "game_s": 294.6,
+    "ms": 50.1,
+    "physics_ms": 11.9,
+    "process_ms": 5.3
+   },
+   {
+    "at": [
+     -3115.4,
+     1306.8
+    ],
+    "frame": 45770,
+    "game_s": 322.2,
+    "ms": 57.6,
+    "physics_ms": 10.1,
+    "process_ms": 4.3
+   },
+   {
+    "at": [
+     -3353.3,
+     955.0
+    ],
+    "frame": 63122,
+    "game_s": 443.7,
+    "ms": 51.1,
+    "physics_ms": 9.6,
+    "process_ms": 6.4
+   },
+   {
+    "at": [
+     -3497.1,
+     742.9
+    ],
+    "frame": 73645,
+    "game_s": 517.1,
+    "ms": 72.9,
+    "physics_ms": 12.3,
+    "process_ms": 4.1
+   },
+   {
+    "at": [
+     -3594.5,
+     597.3
+    ],
+    "frame": 80134,
+    "game_s": 562.4,
+    "ms": 65.9,
+    "physics_ms": 9.6,
+    "process_ms": 10.0
+   },
+   {
+    "at": [
+     -3627.1,
+     797.7
+    ],
+    "frame": 97364,
+    "game_s": 682.6,
+    "ms": 55.0,
+    "physics_ms": 15.3,
+    "process_ms": 9.5
+   },
+   {
+    "at": [
+     -3626.5,
+     798.3
+    ],
+    "frame": 97395,
+    "game_s": 682.9,
+    "ms": 54.9,
+    "physics_ms": 15.3,
+    "process_ms": 9.5
+   },
+   {
+    "at": [
+     -3524.4,
+     955.4
+    ],
+    "frame": 105858,
+    "game_s": 742.5,
+    "ms": 62.3,
+    "physics_ms": 9.7,
+    "process_ms": 7.2
+   },
+   {
+    "at": [
+     -3466.7,
+     1035.1
+    ],
+    "frame": 110140,
+    "game_s": 772.5,
+    "ms": 59.7,
+    "physics_ms": 11.7,
+    "process_ms": 5.5
+   },
+   {
+    "at": [
+     -3224.9,
+     1394.1
+    ],
+    "frame": 129408,
+    "game_s": 907.7,
+    "ms": 77.1,
+    "physics_ms": 14.5,
+    "process_ms": 7.0
+   }
+  ],
+  "over_50ms": 20
+ },
+ "legs_requested": 1048576,
+ "log_samples": [
+  "W Debug stamina label path is invalid — stamina display will not work. (core/variant/variant_utility.cpp:1034 push_warning)",
+  "W Debug label path is invalid — speed display will not work. (core/variant/variant_utility.cpp:1034 push_warning)",
+  "W Nodes with non-equal opposite anchors will have their size overridden after _ready(). \nIf you want to set size, change the anchors or consider using set_deferred(). (scene/gui/control.cpp:1569 _set_size)"
+ ],
+ "lowest_y": 1.16,
+ "mode": "fast (sprint, stamina+snow assist)",
+ "peaks": {
+  "active_chunks": 5,
+  "draw_calls": 0,
+  "nodes": 4138,
+  "primitives": 0,
+  "static_mb": 335.314219474792,
+  "video_mb": 0.0
+ },
+ "player_in_inactive_chunk": {
+  "chunks": [],
+  "seconds": 0.0
+ },
+ "renderer": "",
+ "route_m": 3801.0,
+ "scene": "res://scenes/world/key_west/key_west_reality.tscn",
+ "steering_orbits": [
+  {
+   "at": [
+    -3221.98,
+    1399.24
+   ],
+   "game_s": 915.8,
+   "walked_m": 5.3
+  }
+ ],
+ "stuck_events": [],
+ "verdict": {
+  "never_on_unloaded_chunk": true,
+  "no_engine_errors": true,
+  "no_hitch_over_50ms": false,
+  "no_stuck": true,
+  "reached_all_requested_legs": true
+ },
+ "walked_m": 3714.5,
+ "warnings": 3
+}

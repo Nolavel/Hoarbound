@@ -7,6 +7,10 @@ const EXPORT_DIR: String = "res://data/world/key_west/reality/derived/editor_chu
 const OUT_DIR: String = "res://scenes/world/key_west/generated"
 const WORLD_DATA_PATH: String = "res://scenes/world/key_west/generated/world_data.tres"
 const STREAM_ID_PREFIX: String = "kw_gen_"
+const PACK_MANIFEST: String = "res://data/world/key_west/reality/editor_export/manifest.json"
+const DIGEST_PATH: String = "res://data/world/key_west/reality/editor_export/generated_digest.json"
+## Stamps that differ between identical rebuilds; everything else must match bit for bit.
+const DIGEST_SKIP_META: Array[String] = ["generated_at", "exported_at"]
 const CONTRACT_KEYS: Array[String] = ["feature_id", "feature_class", "source_geometry_hash", "source_dataset", "source_epoch",
 	"reconstruction_class", "confidence", "override_state", "authoring_state", "generator_version", "generated_at", "regen_action"]
 
@@ -35,6 +39,7 @@ func generate(chunk_ids: PackedStringArray) -> Dictionary:
 		var doc: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(json_path))
 		var root: Node3D = builder.build(doc, EXPORT_DIR)
 		var violations: Array = _check_contract(root)
+		var digest: String = _digest(root)
 		report["contract_violations"].append_array(violations)
 		var packed: PackedScene = PackedScene.new()
 		var err: Error = packed.pack(root)
@@ -43,7 +48,7 @@ func generate(chunk_ids: PackedStringArray) -> Dictionary:
 			err = ResourceSaver.save(packed, scene_path, ResourceSaver.FLAG_COMPRESS)
 		report["chunks"][cid] = {"scene": scene_path, "error": err, "features_in_export": doc["features"].size(),
 			"stats": builder.stats.duplicate(), "fidelity": doc["fidelity"], "ms": Time.get_ticks_msec() - t0,
-			"contract_violations": violations.size()}
+			"contract_violations": violations.size(), "digest": digest}
 		root.free()
 	if chunk_ids.is_empty():
 		_remove_stale_scenes(ids)
@@ -53,6 +58,92 @@ func generate(chunk_ids: PackedStringArray) -> Dictionary:
 	var f: FileAccess = FileAccess.open(OUT_DIR.path_join("generation_report.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(report, " "))
 	return report
+
+
+## Content hash of a built chunk: tree shape, transforms, metadata, mesh, MultiMesh and collision
+## data. Sub-resource ids are random per save, so the .scn bytes cannot serve as the check.
+func _digest(root: Node) -> String:
+	var ctx: HashingContext = HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	_digest_node(ctx, root, root)
+	return ctx.finish().hex_encode()
+
+
+func _digest_node(ctx: HashingContext, root: Node, node: Node) -> void:
+	var line: String = "%s|%s" % [root.get_path_to(node), node.get_class()]
+	if node is Node3D:
+		line += "|" + var_to_str((node as Node3D).transform)
+	if node.scene_file_path != "":
+		line += "|scene=" + node.scene_file_path
+	var keys: Array = node.get_meta_list()
+	keys.sort()
+	for key: StringName in keys:
+		if not DIGEST_SKIP_META.has(String(key)):
+			line += "|%s=%s" % [key, var_to_str(node.get_meta(key))]
+	ctx.update(line.to_utf8_buffer())
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh is ArrayMesh:
+		var mesh: ArrayMesh = (node as MeshInstance3D).mesh
+		for s: int in mesh.get_surface_count():
+			var arrays: Array = mesh.surface_get_arrays(s)
+			for kind: int in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_COLOR, Mesh.ARRAY_INDEX]:
+				if arrays[kind] != null:
+					ctx.update(var_to_bytes(arrays[kind]))
+			var mat: Material = mesh.surface_get_material(s)
+			ctx.update(var_to_str((mat as StandardMaterial3D).albedo_color if mat is StandardMaterial3D else null).to_utf8_buffer())
+	elif node is MultiMeshInstance3D:
+		ctx.update(var_to_bytes((node as MultiMeshInstance3D).multimesh.buffer))
+	elif node is CollisionShape3D:
+		var shape: Shape3D = (node as CollisionShape3D).shape
+		if shape is ConcavePolygonShape3D:
+			ctx.update(var_to_bytes((shape as ConcavePolygonShape3D).get_faces()))
+		elif shape is HeightMapShape3D:
+			ctx.update(var_to_bytes((shape as HeightMapShape3D).map_data))
+	if node.scene_file_path != "" and node != root:
+		return  # instanced assets (landmarks) are pinned by sha256 in the asset manifest
+	for child: Node in node.get_children():
+		_digest_node(ctx, root, child)
+
+
+## Writes the digest of this build next to the committed interchange archive.
+func record_digest() -> Error:
+	var pack: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(PACK_MANIFEST))
+	var doc: Dictionary = {"schema": "kw_reality.generated_digest.v1", "generator_version": KeyWestChunkBuilder.GENERATOR_VERSION,
+		"archive_tar_sha256": pack["archive"]["tar_sha256"], "chunks": _digests()}
+	var f: FileAccess = FileAccess.open(DIGEST_PATH, FileAccess.WRITE)
+	if f == null:
+		return FileAccess.get_open_error()
+	f.store_string(JSON.stringify(doc, " ", true))
+	return OK
+
+
+## Compares this build with the recorded digest; returns the mismatching chunk ids.
+func verify_digest() -> PackedStringArray:
+	var bad: PackedStringArray = PackedStringArray()
+	var recorded: Variant = JSON.parse_string(FileAccess.get_file_as_string(DIGEST_PATH))
+	var pack: Variant = JSON.parse_string(FileAccess.get_file_as_string(PACK_MANIFEST))
+	if not (recorded is Dictionary) or not (pack is Dictionary):
+		bad.append("digest or pack manifest missing")
+		return bad
+	if recorded["archive_tar_sha256"] != pack["archive"]["tar_sha256"]:
+		bad.append("digest was recorded for a different interchange archive")
+	if recorded["generator_version"] != KeyWestChunkBuilder.GENERATOR_VERSION:
+		bad.append("digest was recorded by generator %s" % recorded["generator_version"])
+	var now: Dictionary = _digests()
+	for cid: String in recorded["chunks"].keys():
+		if now.get(cid, "") != recorded["chunks"][cid]:
+			bad.append(cid)
+	for cid: String in now.keys():
+		if not recorded["chunks"].has(cid):
+			bad.append(cid)
+	return bad
+
+
+func _digests() -> Dictionary:
+	var out: Dictionary = {}
+	for cid: String in report["chunks"].keys():
+		if report["chunks"][cid].has("digest"):
+			out[cid] = report["chunks"][cid]["digest"]
+	return out
 
 
 ## Every feature node under the feature groups must carry the contract keys.

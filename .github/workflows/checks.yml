@@ -479,6 +479,70 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+  key-west-reality:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Unpack the committed editor interchange (sha256-checked)
+        run: python3 tools/world/reality/export_pack.py unpack
+
+      - name: Rebuild the generated chunks and verify the recorded digest
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" --path . --rendering-driver vulkan --audio-driver Dummy \
+            --script tools/world/reality_gen/generate_key_west_chunks_cli.gd -- --verify-digest | tee generate.log
+          grep -q "digest verify: identical" generate.log
+          grep -q "contract violations: 0" generate.log
+
+      - name: Streaming tests
+        run: |
+          for t in test_streaming test_key_west_reality_ground; do
+            timeout 300 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script res://tests/systems/$t.gd | tee $t.log
+            grep -q "all checks passed" $t.log
+          done
+
+      - name: Streaming benchmark (island drive)
+        run: |
+          timeout 1200 "$HOME/.local/bin/godot" --headless --path . --script tools/runtime/benchmark_key_west_reality_streaming.gd \
+            -- res://docs/runtime_previews/key_west_reality_streaming island
+
+      - name: Production gate (full World, Henry by input, fast mode)
+        ## Judged by the report, not the exit code: Jenova quick_exit(0)s on unload.
+        run: |
+          timeout 2700 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
+            --script res://tools/runtime/gate_key_west_reality.gd -- --fast --out=res://docs/runtime_previews/key_west_reality_gate
+          python3 -c "import json,sys; v=json.load(open('docs/runtime_previews/key_west_reality_gate/gate_report.json'))['verdict']; print(v); sys.exit(0 if all(v.values()) else 1)"
+
+      - name: Upload reality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-key-west-reality
+          path: |
+            docs/runtime_previews/key_west_reality_streaming/*.json
+            docs/runtime_previews/key_west_reality_gate/*.json
+            scenes/world/key_west/generated/generation_report.json
+          if-no-files-found: warn
+          retention-days: 7
+
   key-west-preview:
     if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[key-west-preview]') || contains(github.event.head_commit.message, '[key-west-tps]') || contains(github.event.head_commit.message, '[key-west-first-exit]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]'))
     runs-on: ubuntu-latest

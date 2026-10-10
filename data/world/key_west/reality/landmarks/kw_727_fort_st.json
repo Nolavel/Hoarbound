@@ -1,5 +1,6 @@
 {
- "landmark": "727 Fort Street (First Exit primary shelter)",
+ "landmark": "727 Fort Street (First Exit primary shelter) - measured massing",
+ "presentation": "measured_massing",
  "feature_id": "kw:building:osm:w339414849",
  "override_id": "kw_override:first_exit:shelter:727_fort_st",
  "origin_local": [
@@ -104,7 +105,7 @@
  "ground_ring_navd88_m": 1.23,
  "landmark_version": "kw_landmark.1",
  "pipeline_version": "1.0.0",
- "built_at": "2026-10-10T09:08:52+00:00",
+ "built_at": "2026-10-10T13:11:09+00:00",
  "asset": "assets/world/key_west/landmarks/kw_727_fort_st.glb",
  "asset_sha256": "91fbc387ba61fd8f4c9c64677e430af05daa7ae6bc88f431bf6d70732d467ee5",
  "triangles": 106

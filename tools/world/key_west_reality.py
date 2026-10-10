@@ -10,6 +10,7 @@
   asset ...                   register/lock an authored asset; --rebase-check after source updates
   override-bridge-init        one-time: author the severed-bridge game override from real geometry
   landmarks                   measured First Exit landmark assets (glTF) + asset manifest records
+  route-gate                  walkable First Exit + Old Town test route for the production gate
   export-editor               per-chunk editor interchange for the Godot editor generator
   all                         acquire -> extent -> acquire (extent-bound) -> build -> validate -> report -> preview
 
@@ -83,6 +84,9 @@ def main() -> None:
     elif args.command == "override-bridge-init":
         from reality import overrides
         overrides.init_bridge_override()
+    elif args.command == "route-gate":
+        from reality import routes
+        routes.run()
     elif args.command == "landmarks":
         from reality import landmarks
         landmarks.run()

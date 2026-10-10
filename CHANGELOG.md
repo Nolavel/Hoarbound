@@ -5,6 +5,44 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-10 - Reality chunks: committed interchange, deterministic rebuild, production gate (claudeflow)
+
+- **No generated scenes in git.** Instead the repository holds:
+  - the editor interchange, `data/world/key_west/reality/editor_export/editor_chunks.tar.xz`
+    (30.6 MB, byte-reproducible);
+  - a manifest with the sha256 of every file;
+  - `generated_digest.json`, a content hash per built chunk.
+  - `tools/world/reality/export_pack.py` (stdlib only) unpacks the archive, and the generator's
+    `--verify-digest` proves the rebuild is identical. Verified: 459 of 459 chunks match.
+  - CI job `key-west-reality` (marker `[key-west-reality]`) runs unpack → rebuild → verify,
+    then the streaming tests, the benchmark and the gate.
+- **Production gate** `tools/runtime/gate_key_west_reality.gd`:
+  - the real `World` with Henry driven by input (pure pursuit) over a 3.8 km street route
+    (`key_west_reality.py route-gate`): Battery → 727 → Old Town loop → 727;
+  - it logs frame times attributed to activations, time on an unloaded chunk, memory, engine
+    errors and stalls with their collider;
+  - `--fast` for CPU containers; realistic mode for the target machine.
+- **Fix — bridge decks lifted by tree canopy.** The gate pinned Henry inside a 37 m park
+  footbridge whose deck read the canopy (4.44 m over 1.7 m ground). Decks now take the lowest
+  DSM cell near the axis every 1 m, rise at most 1:8 from abutments at grade, and are
+  median-smoothed (`meshing.deck_profile`, unit test added).
+- **Fix — snow shell sampled the Reality world with raycasts.** It expected `IslandTerrain` +
+  `KeyWestCity`. `KeyWestRealityGround` now serves heights from live chunks' heightmaps and
+  building outlines from chunk metadata, and `snow_shell.gd` finds it by group; the legacy
+  path is unchanged (`tests/systems/test_key_west_reality_ground.gd`). On the First Exit leg, frames over 50 ms went 78 → 2 and p99 35.9 →
+  16.7 ms. The legacy scene measures 21 and 18.2 ms on the same harness.
+- **Found: Jenova makes every Godot exit code 0.** `jenova.cpp` unload calls `quick_exit(EXIT_SUCCESS)`,
+  so failing headless suites looked green.
+  - `tools/ci/run_tests.sh` now also fails a suite on a script error, a reported failed check,
+    or an error with no pass line. With that, 10 of 82 suites turn out to be failing already
+    (dev map, door draft, doorway camera, held fit, held light, passage traversal, snow
+    contact, snow shell, street props, TPS orbit). All 10 fail identically without this
+    branch's changes.
+  - The reality CI job judges the gate by its JSON verdict.
+  - The Jenova patch is proposed in `docs/technical/JENOVA.md`.
+- **Renamed:** the Fort Zachary Taylor asset is a *measured exterior surface (landmark proxy)*,
+  not a Battery Osceola reconstruction.
+
 ### 2026-10-10 - First Exit measured landmarks + generated chunks in production streaming (claudeflow)
 
 - **Landmarks** (`key_west_reality.py landmarks`) are measured glTF assets, registered in the
@@ -14,8 +52,9 @@ Maintained per branch; entries are added by whoever makes the change.
     - walls are the OSM outline inset 0.45 m, which reproduces the City's 3,693 sq ft exactly;
     - roofed notches measured by lidar;
     - the conflict with the record's 22 ft 6 in is kept, not hidden.
-  - **Fort Zachary Taylor fronts / Battery Osceola start:** a 0.5 m lidar surface, exterior
-    only. The 2019 and 2016 surfaces agree within a median 6 cm.
+  - **Fort Zachary Taylor fronts:** a measured exterior surface (0.5 m lidar), a landmark proxy
+    for the Battery Osceola start, not a reconstruction of the battery. The 2019 and 2016
+    surfaces agree within a median 6 cm.
 - **`StreamingSystem` fixes, found by benchmark** (tests added):
   - queued loads now start as slots free up, nearest first. Before, they waited for the
     player to walk 40 m, so a still player stood on an unloaded chunk for more than 120 s;

@@ -437,7 +437,9 @@ is 2.1 m above the roof, and both lidar epochs agree on the roof. The geometry f
 the measurement, and the conflict is kept in the sidecar. Codex was asked for the
 record's height datum and for evidence of the post-2020 state (#1).
 
-**Fort Zachary Taylor fronts / Battery Osceola start** (`kw:building:osm:w524088621`):
+**Fort Zachary Taylor fronts: measured exterior surface, a landmark proxy for the Battery
+Osceola start** (`kw:building:osm:w524088621`, `presentation: measured_exterior_proxy`).
+It is not a reconstruction of Battery Osceola.
 - a 2.5D surface of the surviving fronts from the 2019 DSM at 0.5 m (43.7k triangles);
 - 2019 gaps (9.6 %) are filled from 2016; the two epochs agree within a median 6 cm, MAD 2 cm;
 - the outline is dropped to the DEM as walls into the moat;
@@ -493,20 +495,122 @@ streaming budgets and real-time movement. Reports are in
 | Frames > 33 ms | 0 | 0 |
 | Static memory peak / after leaving | 190 / 176 MB | 232 / 97 MB |
 
+**Shipping the chunks without committing them.** The repository holds only:
+- `data/world/key_west/reality/editor_export/editor_chunks.tar.xz` (30.6 MB);
+- its `manifest.json`, with the sha256 of every one of the 919 files;
+- `generated_digest.json`.
+
+Any machine rebuilds the 477 MB of scenes in about 3–5 minutes, with no raw lidar cache
+and no GIS stack:
+
+```bash
+python3 tools/world/reality/export_pack.py unpack        # stdlib only, sha256-checked
+xvfb-run -a godot --path . --rendering-driver vulkan \
+  --script tools/world/reality_gen/generate_key_west_chunks_cli.gd -- --verify-digest
+```
+
+(On Windows, run Godot directly; no xvfb.)
+
+The archive is byte-reproducible: sorted members, zeroed metadata. `--verify-digest` hashes
+every built chunk and fails if any chunk differs from the recorded build. The digest covers
+the tree, transforms, metadata without stamps, mesh, MultiMesh and collision data. Raw
+`.scn` bytes cannot be compared, because Godot writes random sub-resource ids.
+
+Verified: pack → unpack → rebuild gives 459 of 459 identical digests. CI runs the same
+check under the `[key-west-reality]` commit marker (job `key-west-reality`).
+
+**Production gate.** `tools/runtime/gate_key_west_reality.gd` loads the real
+`key_west_reality.tscn`: `World`, all systems, Henry, the TPS camera, snow, weather and
+streaming.
+- Henry walks by input (`move_forward` plus camera yaw, pure-pursuit steering) along
+  `routes/first_exit_gate.json`. That file is a 3.8 km least-cost street route from
+  `key_west_reality.py route-gate`: Battery start → 727 entrance → Petronia → Duval → Front →
+  Whitehead → back to 727.
+- It records:
+  - frame times, and which slow frames sit next to a chunk activation;
+  - time on an unloaded chunk;
+  - memory, draw calls and nodes;
+  - engine errors (a `Logger`);
+  - stalls with their collider;
+  - arrivals, including whether Henry counts as sheltered at 727.
+- It exits non-zero unless every verdict holds.
+
+```bash
+# realistic Henry (walk/sprint as stamina allows, real snow), First Exit only:
+godot --path . --script res://tools/runtime/gate_key_west_reality.gd -- --legs=1 --shots
+# whole loop; --fast holds sprint with stamina and snow assist so it fits in about 20 minutes:
+godot --path . --script res://tools/runtime/gate_key_west_reality.gd -- --fast
+```
+
+Reports go to `user://gate_key_west_reality/gate_report.json`. Pass
+`--out=res://docs/runtime_previews/key_west_reality_gate` to keep the report.
+
+Run headless, the dummy renderer has no textures. The snow shell's texture reads fail
+there, and nowhere else (the rendered runs log 0 errors). Those failures are counted
+separately as `headless_renderer_errors`.
+
+**Defect the gate found: bridge decks lifted by canopy.** Decks were the median 2019 DSM at
+each OSM vertex. On a 37 m two-vertex park footbridge (`w495069006`) the east end read the
+tree canopy (4.44 m over 1.7 m ground). The deck became a tilted thin plate at chest height,
+and Henry's capsule pinned in it at full reported speed.
+
+Decks now come from `meshing.deck_profile`:
+- the lowest DSM cell within 0.75 m of the axis, every 1 m (a deck is the lowest solid
+  surface, canopy is above it);
+- never below ground;
+- bridges rise at most 1:8 from abutments at grade, because their approach roads meet them
+  there;
+- piers are not tied to abutments;
+- a 5-sample median.
+
+The footbridge is now 1.75–1.87 m. US-1 spans stay 4.4–9 m above the water.
+
+**Defect the gate found: snow shell sampling by raycast.** The snow shell (`snow_shell.gd`)
+reads ground heights from `IslandTerrain` and building footprints from the JSON city
+(`KeyWestCity.has_snow_obstacle_at`). The Reality profile has neither, so every snow-field
+cell was sampled with physics rays against the new geometry.
+
+A/B on the First Exit leg, same harness:
+
+| First Exit leg | Frames > 50 ms | Frame p95 / p99 |
+|---|---|---|
+| Legacy scene (`key_west.tscn`, JSON city) | 21 | 15.1 / 18.2 ms |
+| Reality, snow shell disabled | 3 | 10.1 / 11.3 ms |
+| Reality, snow sampling by rays | 78 | 17.3 / 35.9 ms |
+| Reality + `KeyWestRealityGround` | **2** | **14.2 / 16.7 ms** |
+
+Fix: `scripts/world/key_west_reality_ground.gd`, in the Reality content scene.
+- It serves `get_height` bilinear from the active chunks' `HeightMapShape3D` data.
+- It serves `has_snow_obstacle_at` from per-chunk `snow_footprints`: the same outlines the
+  building collision prisms use, bucketed on an 8 m grid.
+- It follows `StreamingSystem.cell_state_changed`, so only live chunks answer.
+
+`snow_shell.gd` change:
+- it finds `IslandTerrain` or a `snow_ground` group member, and `KeyWestCity` or a
+  `snow_obstacles` group member;
+- it skips `BuildingCollision` the way it skips `CityCollision`;
+- the legacy path is unchanged.
+
+Test: `tests/systems/test_key_west_reality_ground.gd`, which needs no generated chunks.
+
 ## 17. Next stages
 
-1. **727 / Battery authored detail.** Openings, floor plan and Battery exterior detail
-   wait for the Legistar attachments and preservation drawings or photos (requested in
-   issue #1). The measured assets are the base an artist refines (`artist_modified`).
-2. **Make the profile the default.** That needs:
-   - an author decision;
-   - the exported interchange shipped as `editor_chunks.tar.xz` (about 31 MB), so CI and
-     fresh clones regenerate scenes in about 3 minutes without the raw lidar cache.
-3. **Activation spikes.** Dense Old Town chunks still take 20–29 ms on this CPU (13 of 68k frames over 16.7 ms on the island drive).
-   Next, instantiate on a worker thread (Godot's documented build-off-tree pattern)
-   or merge buildings per block.
-4. **Facades.** Openings and colours need imagery (NAIP blocked) or planning sheets.
-   Until then walls stay plain; nothing is invented.
-5. **Roofs.** Split complex footprints before fitting. Canopy-polluted lidar P95 heights
-   (as at 727) should give way to the roof-band median.
-6. **Far LOD.** OBB/hull proxies as separate derived meshes for the ring beyond the load band.
+1. **Gate on the target machine.** Run `gate_key_west_reality.gd --legs=1 --shots` on the
+   HD 620 in realistic mode and read the verdict in its report. The CPU container cannot
+   measure render cost.
+2. **Activation budget.** In the full `World` an activation frame costs 40–60 ms (12–28 ms
+   isolated). Next: activate a chunk in parts over several frames on the main thread
+   (terrain, buildings by block, the rest). Resource decode already runs on the loader
+   thread; scene-tree mutation stays on the main thread.
+3. **The 16 remaining non-activation frames over 50 ms.** In them process + physics are
+   only 15–30 ms; profile what else runs in those frames.
+4. **Entering 727.** The measured asset has no opening. The original Legistar plans, or an
+   owner decision for a game door (`manual_override`), are needed before the shelter ritual
+   can run there.
+5. **Jenova exit code patch** (`docs/technical/JENOVA.md`). Needs the Windows CI build and
+   an LFS commit.
+6. **Make `key_west_reality` the default profile.** After 1–4, by author decision.
+7. **Facades and roofs.** Openings and colours need imagery or planning sheets. Split complex
+   footprints before roof fitting, and use the roof-band median instead of canopy-polluted
+   P95 heights.
+8. **Far LOD.** OBB/hull proxies for the ring beyond the load band.
