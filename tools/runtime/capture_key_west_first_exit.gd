@@ -11,8 +11,10 @@ const FORT_727 := Vector2(-3531.78, 1590.28)
 const OLD_CUSTOM_SHELTER := Vector2(-3579.85, 1574.51)
 const FORT_727_YAW_DEG: float = 126.76
 
-const FIRST_CAPTURE_FRAME: int = 90
-const BETWEEN_SHOTS: int = 15
+## Both landmarks sit inside the initial Key West detail radius, so this capture
+## never re-scans streaming between shots. Teleports only move the review camera/player.
+const FIRST_CAPTURE_FRAME: int = 60
+const BETWEEN_SHOTS: int = 2
 
 var _scene: Node3D
 var _player: Player
@@ -209,9 +211,6 @@ func _place_player(p: Vector2, look: Vector2) -> void:
 	_player.global_rotation.y = yaw
 	if _camera != null:
 		_camera.set_look(yaw, -9.0)
-	var streaming := _find_streaming()
-	if streaming != null:
-		streaming.scan(_player.global_position)
 
 
 func _find_streaming() -> StreamingSystem:
