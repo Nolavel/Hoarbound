@@ -9,19 +9,20 @@ const OUT_DIR: String = "res://docs/runtime_previews/key_west_first_exit"
 const BATTERY_OSCEOLA := Vector2(-4052.73, 1924.69)
 const FORT_727 := Vector2(-3531.78, 1590.28)
 const OLD_CUSTOM_SHELTER := Vector2(-3579.85, 1574.51)
+const BATTERY_YAW_DEG: float = 7.0
 const FORT_727_YAW_DEG: float = 126.76
 
-## Both landmarks sit inside the initial Key West detail radius, so the capture
-## never re-scans streaming between shots. Each teleport gets rendered settle
-## frames before the PNG is read back; otherwise screenshots contain the prior pose.
+## Architectural review uses a dedicated camera. Both landmarks and all review
+## camera positions remain inside the already-loaded Key West detail ring, so no
+## extra streaming scans are needed between screenshots.
 const FIRST_CAPTURE_FRAME: int = 60
-const SETTLE_FRAMES: int = 3
+const SETTLE_FRAMES: int = 2
 
 var _scene: Node3D
 var _player: Player
-var _camera: TpsCamera
 var _terrain: IslandTerrain
 var _weather: WeatherController
+var _review_camera: Camera3D
 var _landmarks: Node3D
 var _frame: int = 0
 var _shot: int = 0
@@ -40,7 +41,7 @@ func _process(_delta: float) -> bool:
 	_frame += 1
 	if _frame == 20:
 		_bind()
-	if _frame < _next or _player == null or _landmarks == null:
+	if _frame < _next or _review_camera == null or _landmarks == null:
 		return false
 
 	if not _waiting_for_capture:
@@ -66,7 +67,6 @@ func _process(_delta: float) -> bool:
 
 func _bind() -> void:
 	_player = get_first_node_in_group(&"player") as Player
-	_camera = _scene.get_node_or_null(^"PlayerCamera") as TpsCamera
 	_terrain = _scene.get_node_or_null(^"IslandTerrain") as IslandTerrain
 	for node: Node in _scene.get_children():
 		if node is WeatherController:
@@ -77,8 +77,25 @@ func _bind() -> void:
 		splash.queue_free()
 	if _player != null:
 		_player.set_physics_process(false)
+		_player.visible = false
+	_hide_canvas_layers(_scene)
 	if _terrain != null:
 		_build_landmark_previews()
+		_review_camera = Camera3D.new()
+		_review_camera.name = "LandmarkReviewCamera"
+		_review_camera.fov = 58.0
+		_review_camera.near = 0.1
+		_review_camera.far = 2400.0
+		_scene.add_child(_review_camera)
+		_review_camera.current = true
+
+
+func _hide_canvas_layers(node: Node) -> void:
+	for child: Node in node.get_children():
+		if child is CanvasLayer:
+			(child as CanvasLayer).visible = false
+		else:
+			_hide_canvas_layers(child)
 
 
 func _validate_start() -> bool:
@@ -95,31 +112,40 @@ func _validate_start() -> bool:
 
 
 func _place_shot(index: int) -> void:
-	var front := Vector2(sin(deg_to_rad(FORT_727_YAW_DEG)), cos(deg_to_rad(FORT_727_YAW_DEG)))
-	var side := Vector2(cos(deg_to_rad(FORT_727_YAW_DEG)), -sin(deg_to_rad(FORT_727_YAW_DEG)))
+	var battery_front := Vector2(sin(deg_to_rad(BATTERY_YAW_DEG)), cos(deg_to_rad(BATTERY_YAW_DEG)))
+	var battery_side := Vector2(battery_front.y, -battery_front.x)
+	var fort_front := Vector2(sin(deg_to_rad(FORT_727_YAW_DEG)), cos(deg_to_rad(FORT_727_YAW_DEG)))
+	var fort_side := Vector2(fort_front.y, -fort_front.x)
 	var route_dir := (FORT_727 - BATTERY_OSCEOLA).normalized()
 	match index:
 		0:
-			_place_player(BATTERY_OSCEOLA + Vector2(65.0, 55.0), BATTERY_OSCEOLA)
+			_place_camera(BATTERY_OSCEOLA + battery_front * 82.0, BATTERY_OSCEOLA, 6.2, 2.9)
 		1:
-			_place_player(BATTERY_OSCEOLA + Vector2(-70.0, 25.0), BATTERY_OSCEOLA)
+			_place_camera(BATTERY_OSCEOLA + (battery_front * 65.0 + battery_side * 46.0), BATTERY_OSCEOLA, 7.0, 3.1)
 		2:
-			_place_player(BATTERY_OSCEOLA + route_dir * 62.0, BATTERY_OSCEOLA)
+			_place_camera(BATTERY_OSCEOLA + route_dir * 78.0, BATTERY_OSCEOLA, 6.5, 3.0)
 		3:
-			_place_player(FORT_727 + front * 38.0, FORT_727)
+			_place_camera(FORT_727 + fort_front * 48.0, FORT_727, 5.6, 2.2)
 		4:
-			_place_player(FORT_727 + side * 36.0, FORT_727)
+			_place_camera(FORT_727 + (fort_side * 43.0 + fort_front * 10.0), FORT_727, 5.8, 2.2)
 		5:
-			_place_player(FORT_727 + (front + side).normalized() * 44.0, FORT_727)
+			_place_camera(FORT_727 + (fort_front + fort_side).normalized() * 54.0, FORT_727, 6.2, 2.4)
 		_:
-			_place_player(BATTERY_OSCEOLA.lerp(FORT_727, 0.82), FORT_727)
+			_place_camera(FORT_727 - route_dir * 118.0, FORT_727, 8.0, 2.5)
+
+
+func _place_camera(p: Vector2, look: Vector2, eye_height: float, target_height: float) -> void:
+	var y: float = maxf(_terrain.get_height(p.x, p.y), 0.0) + eye_height
+	var target_y: float = maxf(_terrain.get_height(look.x, look.y), 0.0) + target_height
+	_review_camera.global_position = Vector3(p.x, y, p.y)
+	_review_camera.look_at(Vector3(look.x, target_y, look.y), Vector3.UP)
 
 
 func _shot_name(index: int) -> String:
 	var names: Array[String] = [
-		"01_battery_osceola_route_approach",
-		"02_battery_osceola_west_flank",
-		"03_battery_osceola_exit_relation",
+		"01_battery_osceola_front",
+		"02_battery_osceola_oblique",
+		"03_battery_osceola_route_relation",
 		"04_727_fort_street_front",
 		"05_727_petronia_side",
 		"06_727_fort_petronia_corner",
@@ -140,7 +166,7 @@ func _build_battery_osceola() -> void:
 	var landmark := Node3D.new()
 	landmark.name = "BatteryOsceolaPreview"
 	landmark.position = Vector3(BATTERY_OSCEOLA.x, _ground_under(BATTERY_OSCEOLA, 30.0), BATTERY_OSCEOLA.y)
-	landmark.rotation.y = deg_to_rad(7.0)
+	landmark.rotation.y = deg_to_rad(BATTERY_YAW_DEG)
 	_landmarks.add_child(landmark)
 
 	var concrete := _material(Color(0.34, 0.36, 0.35), 0.96)
@@ -220,16 +246,6 @@ func _box(parent: Node3D, at: Vector3, size: Vector3, material: Material) -> Mes
 	return visual
 
 
-func _place_player(p: Vector2, look: Vector2) -> void:
-	var y: float = maxf(_terrain.get_height(p.x, p.y), 0.0) + 1.0
-	_player.global_position = Vector3(p.x, y, p.y)
-	var direction := (look - p).normalized()
-	var yaw: float = atan2(direction.x, direction.y) + PI
-	_player.global_rotation.y = yaw
-	if _camera != null:
-		_camera.set_look(yaw, -8.0)
-
-
 func _find_streaming() -> StreamingSystem:
 	for node: Node in _scene.get_children():
 		if node is StreamingSystem:
@@ -239,7 +255,7 @@ func _find_streaming() -> StreamingSystem:
 
 func _capture(name: String) -> void:
 	root.get_texture().get_image().save_png("%s/%s.png" % [OUT_DIR, name])
-	print("[key-west-landmarks] ", name, " player=", _player.global_position)
+	print("[key-west-landmarks] ", name, " camera=", _review_camera.global_position)
 
 
 func _write_report() -> void:
@@ -255,9 +271,9 @@ func _write_report() -> void:
 		"wind_speed_mps": _weather.get_wind_speed_mps(),
 		"stream_chunks": streaming.get_chunk_count() if streaming != null else 0,
 		"captures": [
-			"01_battery_osceola_route_approach.png",
-			"02_battery_osceola_west_flank.png",
-			"03_battery_osceola_exit_relation.png",
+			"01_battery_osceola_front.png",
+			"02_battery_osceola_oblique.png",
+			"03_battery_osceola_route_relation.png",
 			"04_727_fort_street_front.png",
 			"05_727_petronia_side.png",
 			"06_727_fort_petronia_corner.png",
