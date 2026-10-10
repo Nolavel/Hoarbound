@@ -11,10 +11,11 @@ const FORT_727 := Vector2(-3531.78, 1590.28)
 const OLD_CUSTOM_SHELTER := Vector2(-3579.85, 1574.51)
 const FORT_727_YAW_DEG: float = 126.76
 
-## Both landmarks sit inside the initial Key West detail radius, so this capture
-## never re-scans streaming between shots. Teleports only move the review camera/player.
+## Both landmarks sit inside the initial Key West detail radius, so the capture
+## never re-scans streaming between shots. Each teleport gets rendered settle
+## frames before the PNG is read back; otherwise screenshots contain the prior pose.
 const FIRST_CAPTURE_FRAME: int = 60
-const BETWEEN_SHOTS: int = 2
+const SETTLE_FRAMES: int = 3
 
 var _scene: Node3D
 var _player: Player
@@ -25,6 +26,7 @@ var _landmarks: Node3D
 var _frame: int = 0
 var _shot: int = 0
 var _next: int = FIRST_CAPTURE_FRAME
+var _waiting_for_capture: bool = false
 
 
 func _initialize() -> void:
@@ -41,43 +43,24 @@ func _process(_delta: float) -> bool:
 	if _frame < _next or _player == null or _landmarks == null:
 		return false
 
-	if _shot == 0:
-		if not _validate_start():
+	if not _waiting_for_capture:
+		if _shot == 0 and not _validate_start():
 			quit(1)
 			return true
-		_place_player(BATTERY_OSCEOLA + Vector2(35.0, 30.0), BATTERY_OSCEOLA)
-		_capture("01_battery_osceola_route_approach")
-	elif _shot == 1:
-		_place_player(BATTERY_OSCEOLA + Vector2(-38.0, 9.0), BATTERY_OSCEOLA)
-		_capture("02_battery_osceola_west_flank")
-	elif _shot == 2:
-		var route_dir := (FORT_727 - BATTERY_OSCEOLA).normalized()
-		_place_player(BATTERY_OSCEOLA + route_dir * 22.0, BATTERY_OSCEOLA)
-		_capture("03_battery_osceola_exit_relation")
-	elif _shot == 3:
-		var front := Vector2(sin(deg_to_rad(FORT_727_YAW_DEG)), cos(deg_to_rad(FORT_727_YAW_DEG)))
-		_place_player(FORT_727 + front * 30.0, FORT_727)
-		_capture("04_727_fort_street_front")
-	elif _shot == 4:
-		var side := Vector2(cos(deg_to_rad(FORT_727_YAW_DEG)), -sin(deg_to_rad(FORT_727_YAW_DEG)))
-		_place_player(FORT_727 + side * 28.0, FORT_727)
-		_capture("05_727_petronia_side")
-	elif _shot == 5:
-		var front := Vector2(sin(deg_to_rad(FORT_727_YAW_DEG)), cos(deg_to_rad(FORT_727_YAW_DEG)))
-		var side := Vector2(cos(deg_to_rad(FORT_727_YAW_DEG)), -sin(deg_to_rad(FORT_727_YAW_DEG)))
-		_place_player(FORT_727 + (front + side).normalized() * 33.0, FORT_727)
-		_capture("06_727_fort_petronia_corner")
-	else:
-		var route_point := BATTERY_OSCEOLA.lerp(FORT_727, 0.68)
-		_place_player(route_point, FORT_727)
-		_capture("07_route_context_to_727")
+		_place_shot(_shot)
+		_waiting_for_capture = true
+		_next = _frame + SETTLE_FRAMES
+		return false
+
+	_capture(_shot_name(_shot))
+	_waiting_for_capture = false
+	_shot += 1
+	if _shot >= 7:
 		_write_report()
 		print("key west landmark capture: complete")
 		quit()
 		return true
-
-	_shot += 1
-	_next = _frame + BETWEEN_SHOTS
+	_next = _frame + 1
 	return false
 
 
@@ -109,6 +92,40 @@ func _validate_start() -> bool:
 		push_error("key west landmark capture: first visible weather is not blizzard")
 		return false
 	return true
+
+
+func _place_shot(index: int) -> void:
+	var front := Vector2(sin(deg_to_rad(FORT_727_YAW_DEG)), cos(deg_to_rad(FORT_727_YAW_DEG)))
+	var side := Vector2(cos(deg_to_rad(FORT_727_YAW_DEG)), -sin(deg_to_rad(FORT_727_YAW_DEG)))
+	var route_dir := (FORT_727 - BATTERY_OSCEOLA).normalized()
+	match index:
+		0:
+			_place_player(BATTERY_OSCEOLA + Vector2(65.0, 55.0), BATTERY_OSCEOLA)
+		1:
+			_place_player(BATTERY_OSCEOLA + Vector2(-70.0, 25.0), BATTERY_OSCEOLA)
+		2:
+			_place_player(BATTERY_OSCEOLA + route_dir * 62.0, BATTERY_OSCEOLA)
+		3:
+			_place_player(FORT_727 + front * 38.0, FORT_727)
+		4:
+			_place_player(FORT_727 + side * 36.0, FORT_727)
+		5:
+			_place_player(FORT_727 + (front + side).normalized() * 44.0, FORT_727)
+		_:
+			_place_player(BATTERY_OSCEOLA.lerp(FORT_727, 0.82), FORT_727)
+
+
+func _shot_name(index: int) -> String:
+	var names: Array[String] = [
+		"01_battery_osceola_route_approach",
+		"02_battery_osceola_west_flank",
+		"03_battery_osceola_exit_relation",
+		"04_727_fort_street_front",
+		"05_727_petronia_side",
+		"06_727_fort_petronia_corner",
+		"07_route_context_to_727",
+	]
+	return names[index]
 
 
 func _build_landmark_previews() -> void:
@@ -210,7 +227,7 @@ func _place_player(p: Vector2, look: Vector2) -> void:
 	var yaw: float = atan2(direction.x, direction.y) + PI
 	_player.global_rotation.y = yaw
 	if _camera != null:
-		_camera.set_look(yaw, -9.0)
+		_camera.set_look(yaw, -8.0)
 
 
 func _find_streaming() -> StreamingSystem:
