@@ -2,29 +2,9 @@
  "previous": "/home/user/Hoarbound/data/world/key_west/reality/raw_cache/previous_library/key_west_reality.previous.gpkg",
  "current": "/home/user/Hoarbound/data/world/key_west/reality/library/key_west_reality.gpkg",
  "by_family": {
-  "airport": {
-   "removed": 2
-  },
   "buildings": {
-   "levels_changed": 7015
-  },
-  "roads": {
-   "removed": 1
-  },
-  "vegetation_areas": {
-   "removed": 1
+   "height_m_improved": 1
   }
  },
- "samples": {
-  "airport:removed": [
-   "kw:airport:osm:w1058197818",
-   "kw:airport:osm:w22375215"
-  ],
-  "roads:removed": [
-   "kw:road:overture:6dbabfd7-04a5-405c-83fb-2d5e86060236"
-  ],
-  "vegetation_areas:removed": [
-   "kw:vegetation:osm:r13984813"
-  ]
- }
+ "samples": {}
 }

@@ -1,0 +1,18 @@
+{
+  "schema": "kw_reality.generation.v1",
+  "description": "Editor generator settings. Priority corridors are generated first and at higher fidelity; the rest of the island follows with the same rules at a coarser sampling step. Fidelity changes sampling, never which real features exist.",
+  "priority_corridors": [
+    {
+      "name": "first_exit",
+      "from_override": "kw_override:first_exit:start:battery_osceola",
+      "to_override": "kw_override:first_exit:shelter:727_fort_st",
+      "buffer_m": 350.0,
+      "reason": "Owner decision #211: Battery Osceola -> 727 Fort Street is the First Exit route. No single path: the whole neighbourhood between the anchors stays traversable."
+    }
+  ],
+  "roof_sample_spacing_m": {"corridor": 1.0, "default": 2.0},
+  "terrain_step_m": {"corridor": 1.0, "default": 2.0},
+  "inferred_heights_m": {"fence": 1.5, "wall": 2.0, "retaining_wall": 1.0, "hedge": 1.2, "guard_rail": 0.8, "jersey_barrier": 0.8, "gate": 1.5, "kerb": 0.15, "street_lamp": 6.0, "lighting_tower": 18.0, "traffic_signals": 5.0, "fire_hydrant": 0.8},
+  "inferred_heights_reason": "Presentation defaults where no source height exists; written to node metadata as inferred, never back into the library.",
+  "pier_width_m_when_line": 2.0
+}

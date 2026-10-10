@@ -1,0 +1,20 @@
+{
+ "source_id": "noaa_coops_8724580",
+ "retrieved_at": "2026-10-10T04:43:27+00:00",
+ "delivered_by": "Codex via Drive",
+ "artifacts": [
+  {
+   "name": "drive_doc",
+   "url": "https://docs.google.com/document/d/1RkDFKf2GWa5dLuHdZzZ0m8aJqrfXI0woD4P5h3AOu-I",
+   "values_rel_mllw_m": {
+    "MHHW": 0.551,
+    "MHW": 0.463,
+    "MSL": 0.273,
+    "MTL": 0.268,
+    "MLW": 0.073,
+    "MLLW": 0.0,
+    "NAVD88": 0.538
+   }
+  }
+ ]
+}

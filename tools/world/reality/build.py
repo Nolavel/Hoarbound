@@ -266,6 +266,22 @@ def terrain_coverage(features: list[Feature], dem: lidar.DemCrop, zones: Zones) 
     return {"valid_share": round(float(valid.mean()), 4)}
 
 
+def bind_facts(features: list[Feature]) -> dict:
+    """Documentary facts (config/fact_bindings.json) as attribute candidates on existing features."""
+    by_id = {f.feature_id: f for f in features}
+    stats = Counter()
+    for b in config.load("fact_bindings.json")["bindings"]:
+        f = by_id.get(b["feature_id"])
+        if f is None:
+            raise SystemExit(f"fact binding targets missing feature {b['feature_id']}")
+        f.links.append(Link(b["source_id"], "facts", b["record"], "attributes", "documentary_fact_binding", 1.0, None))
+        for name, fact in b["facts"].items():
+            f.add(Attr(name, fact["value"], b["source_id"], "documentary_record", b["recon"], b["confidence"], b["record"],
+                       fact.get("unit"), note=fact.get("note")))
+            stats[b["source_id"]] += 1
+    return dict(stats)
+
+
 def chunk_and_local(features: list[Feature]) -> None:
     for f in features:
         p = frame.representative_point(f.geom)
@@ -318,6 +334,7 @@ def run() -> None:
     usa_fp = [c.geom for c in us.building_candidates]
     stats["usa_structures_vs_lidar_alignment"] = lidar.alignment_offset(g19, dem, usa_fp, shapely.box(x0, y0, x1, y1))
     _log("alignment", stats["vector_vs_lidar_alignment"], stats["usa_structures_vs_lidar_alignment"])
+    stats["documentary_facts"] = bind_facts(features)
     conflate.select_attributes(features)
     chunk_and_local(features)
     ov_layer = overrides.load()

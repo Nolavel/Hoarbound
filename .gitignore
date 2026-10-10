@@ -59,3 +59,4 @@ data/world/key_west/reality/derived/
 # Working copy of the Reality Library; Git stores library/key_west_reality.gpkg.xz
 data/world/key_west/reality/library/*.gpkg
 data/world/key_west/reality/library/*.part
+scenes/world/key_west/generated/

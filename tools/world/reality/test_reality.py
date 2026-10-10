@@ -70,5 +70,31 @@ class Frame(unittest.TestCase):
         self.assertNotEqual(geometry_hash(a), geometry_hash(shapely.Polygon([(0, 0), (10.5, 0), (10, 10), (0, 10)])))
 
 
+class DemVoids(unittest.TestCase):
+    def test_void_never_surfaces_as_land(self):
+        import numpy as np
+        from reality import meshing
+        dem = np.array([[2.0, 2.0, np.nan], [-3.0, np.nan, np.nan], [-3.0, -3.0, np.nan]], np.float32)
+        filled, void = meshing.fill_dem_voids(dem, -0.538)
+        self.assertTrue(np.isfinite(filled).all())
+        self.assertTrue((filled[void] <= -0.538).all())
+        self.assertEqual(filled[0, 0], 2.0)
+
+
+class LibraryUnpack(unittest.TestCase):
+    def test_existing_working_copy_is_never_overwritten(self):
+        import tempfile
+        from pathlib import Path as P
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as tmp:
+            lib = P(tmp) / "lib.gpkg"
+            lib.write_bytes(b"fresh build")
+            man = P(tmp) / "manifest.json"
+            man.write_text('{"gpkg": {"bytes": 1, "sha256": "x"}}')
+            with mock.patch.object(library.paths, "LIBRARY", lib), mock.patch.object(library, "MANIFEST", man):
+                library.ensure()
+            self.assertEqual(lib.read_bytes(), b"fresh build")
+
+
 if __name__ == "__main__":
     unittest.main()

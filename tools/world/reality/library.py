@@ -59,23 +59,32 @@ def pack() -> dict:
     return manifest
 
 
+_WARNED: list = []
+
+
 def ensure() -> Path:
-    """Restores the working .gpkg from the committed .xz when missing or stale."""
+    """Restores the working .gpkg from the committed .xz only when it is missing.
+
+    An existing working copy is never overwritten: it may be a fresh build that has not been
+    packed yet. A mismatch with manifest.json is reported, not "repaired".
+    """
     import lzma
     import shutil
 
-    if not MANIFEST.exists():
+    if paths.LIBRARY.exists() or not MANIFEST.exists():
+        if paths.LIBRARY.exists() and MANIFEST.exists():
+            manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+            if paths.LIBRARY.stat().st_size != manifest["gpkg"]["bytes"] and not _WARNED:
+                _WARNED.append(True)
+                print("[library] working copy differs from manifest.json (unpacked build?) - run 'pack' before committing")
         return paths.LIBRARY
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    want = manifest["gpkg"]["sha256"]
-    if paths.LIBRARY.exists() and paths.LIBRARY.stat().st_size == manifest["gpkg"]["bytes"]:
-        return paths.LIBRARY
     if not PACKED.exists():
         raise SystemExit(f"{PACKED} missing; run acquire + build")
     tmp = paths.LIBRARY.with_suffix(".unpack.part")
     with lzma.open(PACKED, "rb") as src, open(tmp, "wb") as dst:
         shutil.copyfileobj(src, dst, 1 << 22)
-    if receipts.sha256_file(tmp) != want:
+    if receipts.sha256_file(tmp) != manifest["gpkg"]["sha256"]:
         tmp.unlink()
         raise SystemExit("unpacked library sha256 does not match manifest.json")
     tmp.replace(paths.LIBRARY)

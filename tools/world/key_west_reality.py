@@ -40,6 +40,7 @@ def main() -> None:
     parser.add_argument("--source", action="append", default=[])
     parser.add_argument("--previous", help="previous library for diff (default: the library the last build replaced)")
     parser.add_argument("--chunk", action="append", help="export-editor: chunk id like -5:0 (repeatable; default all)")
+    parser.add_argument("--route", action="store_true", help="export-editor: only the priority corridor chunks (config/generation.json)")
     parser.add_argument("--feature-id", help="asset: Reality Library feature id")
     parser.add_argument("--state", help="asset: generated | artist_modified | artist_locked | deprecated | needs_rebase")
     parser.add_argument("--asset-id")
@@ -83,7 +84,7 @@ def main() -> None:
         overrides.init_bridge_override()
     elif args.command == "export-editor":
         from reality import editor_export
-        editor_export.run(args.chunk)
+        editor_export.run(args.chunk, route_only=args.route)
     elif args.command == "all":
         cmd_acquire(VECTOR_SOURCES)
         extent.derive()

@@ -264,33 +264,86 @@ footprint, street relation and provenance stay real. The former custom Fort Stre
 recorded as `custom_structure` (game content, role undecided); no real footprint lies
 within 15 m of it.
 
-## 10. Editor generation (next stage)
+## 10. Editor generation
 
-- `key_west_reality.py export-editor [--chunk cx:cz]` writes
-  `derived/editor_chunks/chunk_<cx>_<cz>.json` (git-ignored): local geometry, NAVD88
-  ground per vertex from the DEM, selected attributes, overrides and the regeneration
-  action per feature.
-- `tools/world/build_key_west_reality_chunk.gd` (editor-time proof) turns one chunk into
-  a saved scene. Every feature is assigned to exactly one chunk by its representative
-  point; geometry is never cut at chunk borders.
+Two steps, both editor-time; the runtime never parses GIS data.
+
+1. **Export** — `key_west_reality.py export-editor [--route] [--chunk cx:cz]` writes
+   `derived/editor_chunks/chunk_<cx>_<cz>.json` + `terrain_<cx>_<cz>.f32` (git-ignored).
+   Mesh-ready geometry in local metres with **the source of every height**
+   (`height_sources` per feature), node metadata, applied overrides and the
+   regeneration action. Settings: `config/generation.json`.
+2. **Build** — `KeyWestChunkGenerator` (`tools/world/reality_gen/`) turns each chunk into
+   `scenes/world/key_west/generated/chunks/Chunk_<cx>_<cz>.scn` plus
+   `KeyWest_generated.tscn`, and writes `generation_report.json`.
+   - In the editor: run `generate_key_west_chunks.gd` (Script editor › File › Run).
+   - Batch: `godot --headless --script tools/world/reality_gen/generate_key_west_chunks_cli.gd -- [cx:cz ...]`.
+
+   Generated scenes are local, regenerable artefacts (git-ignored). Authored work lives
+   in Blender/Godot assets registered in `authoring/asset_manifest.json`. The generator
+   instances those in place of the generated mesh, so regeneration never overwrites them.
+
+**Priority corridor.** `first_exit` runs Battery Osceola → 727 Fort Street, buffered by 350 m.
+It covers chunks x −9…−7, z 2…4 and is generated first, at 1 m roof and terrain sampling.
+The rest of the island uses the same rules at 2 m. Fidelity changes sampling, never which
+real features exist.
+
+| What | Geometry | Heights from |
+|---|---|---|
+| Terrain | 512 m tile, 1 m (corridor) / 2 m grid, HeightMapShape3D collision | DEM 6366 (measured). Voids (25 %: open sea beyond coverage, dredged basins): nearest valid depth clamped to MLLW (**inferred**, `dem_void_share` per tile) |
+| Buildings | real footprint (holes kept) → walls following the roof edge + roof | ground: lidar ring / DEM; roof: **lidar roof model** |
+| Roads, paths, runways | ribbons along real centrelines | DEM; bridge decks: lidar DSM along the line |
+| Piers, decks, bridge outlines | real polygons as slabs | lidar DSM median over the polygon |
+| Airport pavement | apron / runway / taxiway / taxilane / stopway / helipad polygons as slabs; aerodrome boundaries → markers | DEM |
+| Barriers | real polylines as walls | OSM `height` or class default (**inferred**, flagged) |
+| Power | real pole positions; wires only on real pole-to-pole edges | lidar max within 1 m of the pole |
+| Trees | crown proxies at real detections | lidar CHM height / crown radius |
+| Dense canopy | real canopy polygon as a mass | lidar DSM median |
+| Pools / ponds / canals | real polygons | pool: rim − 0.3 m; others: MSL −0.265 (8724580) |
+| Street furniture, utilities | real points | class default (inferred) |
+| Everything else | Marker3D at the real position | DEM |
+
+**Roof reconstruction** (model-driven LoD2, the approach of 3D BAG / Kada & McKinley):
+- For each footprint with lidar relief ≥ 0.6 m, the median-filtered 2019 DSM cells inside it
+  are fitted with flat, gable along either axis, hip and shed models.
+- Fitting is trimmed least squares, so overhanging canopy is rejected. Models are compared by
+  truncated L1 error over all cells plus a parameter penalty.
+- Slopes are limited to plausible ranges (8°–56°).
+- No adequate model (complex roofs, roughly 20 %): a flat cap at the measured median height,
+  labelled `flat_cap_complex_roof_unresolved`.
+- Authoritative heights clamp the model (727 Fort Street: 6.86 m).
+
+**Scene tree and metadata:**
 
 ```
 KeyWest
-  Terrain
-  Chunk_-5_-1
-    Buildings      KW_BUILDING_osm_w462887766 (MeshInstance3D, surfaces walls/roof)
-    Roads  Barriers  Infrastructure  Vegetation  Coastal  LandUse
+  Chunk_-7_3                     chunk_id, fidelity, library_sha256, builder_version
+    Terrain  Terrain_-7_3        (+ Collision/HeightMapShape3D)
+    Buildings  KW_BUILDING_osm_w339414849  MeshInstance3D: surfaces walls/roof, Collision
+    Roads  Barriers  Infrastructure (poles, KW_WIRE_*)  Vegetation  Coastal  LandUse
+    Anchors  FirstExit_Start / FirstExit_Shelter (owner decision #211), Custom_* markers
 ```
 
-Node metadata contract (set on every generated node): `feature_id, feature_class,
-source_geometry_hash, source_dataset, source_record, source_epoch, observed_at,
-reconstruction_class, confidence, scope, override_state, authoring_state,
-asset_revision, generator_version, generated_at, regen_action`.
-Building meshes: footprint walls (surface 0 `walls`) + cap (surface 1 `roof`), origin at
-the footprint centroid on measured ground, 1 unit = 1 m, transforms identity except the
-origin translation, name `KW_<TOKEN>_<namespace>_<id>`. Unknown height uses a 3 m
-placeholder with `height_placeholder = true` and a distinct material. Far LOD (OBB,
-hull) is a separate derived mesh, never the source geometry.
+Every feature node carries `feature_id, feature_class, source_geometry_hash,
+source_dataset, source_record, source_epoch, observed_at, reconstruction_class,
+confidence, scope, override_state, landmark_role, authoring_state, asset_revision,
+generator_version, generated_at, regen_action, fidelity`. Meshes also carry
+`height_sources`, `roof_source` and `roof_model`. The generator checks this contract
+on every chunk and the CLI exits non-zero on any violation.
+
+Building meshes:
+- surface 0 `walls`, surface 1 `roof`;
+- origin at the footprint centroid on measured ground; 1 unit = 1 m;
+- identity transform apart from the origin translation;
+- name `KW_<TOKEN>_<namespace>_<id>`.
+
+Placeholder heights (no lidar) are shown in a distinct red material.
+
+**Overrides at generation time:**
+- the severed US-1 bridge removes the deck ribbons, the OSM bridge lines and the outline over
+  the removed span (full deck width: a 30 m flat-cap buffer of each `remove_span` line);
+- landmark roles are written to the node (`landmark_role`). An authored landmark asset in
+  the manifest replaces the generic mesh on that footprint.
 
 ## 11. Blender roundtrip and regeneration rules
 
@@ -350,21 +403,23 @@ buildings (duplicates inside OSM), identical geometries, open utility edges.
 
 Reports: `reports/accuracy_report.md` (coverage, completeness and confidence counted
 separately), `validation_report.md`, `change_report.md`, `build_stats.json`.
-Previews: `docs/world/reality_previews/01…09*.png`.
+Previews: `docs/world/reality_previews/01…09*.png` (library maps) `10…16_godot_*.png` and `18_godot_island_overview.png`
+(generated chunks rendered in Godot on lavapipe by `capture_key_west_route.gd`).
+`17_godot_first_exit_flythrough.mp4` (0.9 MB) is the Battery Osceola → 727 Fort Street
+flythrough at 28 m altitude.
 
-## 15. What the next stage (editor mesh generator) does
+## 15. Next stages
 
-1. Promote `build_key_west_reality_chunk.gd` to an `EditorScript`/plugin that reads
-   `derived/editor_chunks`, honours `regen_action`, and writes per-chunk scenes under a
-   generated scene root; terrain chunks from the same DEM frame.
-2. Building LOD0 from footprints (holes, building_parts, roof forms from `roof_form` /
-   `roof_shape` only where known; otherwise flat cap flagged), LOD1 OBB/hull as a
-   separate derived mesh.
-3. Roads as surface strips draped on the DEM with inferred widths flagged; sidewalks and
-   crossings from their own segments; barriers as real polylines.
-4. Utilities from `utility_topology` (wires only along real edges), street furniture
-   from points; trees from crowns (height/crown measured) and dense-canopy areas filled
-   procedurally **and labelled procedural**.
-5. Apply `game_override` (severed bridge) at generation time only.
-6. glTF export with extras for Blender; re-import binding by `feature_id`; manifest updates.
-7. Runtime: `StreamingSystem` loads generated chunk scenes; no JSON/GIS at runtime.
+1. **727 Fort Street / Battery Osceola authored landmarks.** These are blocked on the
+   Legistar attachments `Site Plans`, `*Large File* Planning Package` and `*Large File*
+   727 Fort Street - Historic Planner`, plus Battery Osceola preservation drawings and
+   photos (requested in issue #1). The asset goes into the manifest; the generator then
+   suppresses the generic mesh on that footprint.
+2. **Runtime integration.** `StreamingSystem` loads `Chunk_*.scn` instead of the JSON
+   massing, and the runtime heightmap is re-baked for the larger extent.
+3. **Facades.** Openings and colours need imagery (NAIP blocked) or planning sheets.
+   Until then walls stay plain; nothing is invented.
+4. **Roofs.** Split complex footprints into parts before fitting, so fewer roofs end up
+   `unresolved`.
+5. **Far LOD.** OBB/hull proxies as separate derived meshes.
+6. **Blender.** glTF export with extras, re-import bound by `feature_id`.

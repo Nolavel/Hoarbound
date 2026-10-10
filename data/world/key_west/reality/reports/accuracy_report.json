@@ -5,7 +5,7 @@
   "east": -81.699056,
   "north": 24.61161
  },
- "library_bytes": 133201920,
+ "library_bytes": 133206016,
  "features_by_family": {
   "addresses": 9149,
   "admin_areas": 15,
@@ -616,14 +616,15 @@
   },
   "real_footprints_share": "100.0%",
   "height": {
-   "measured_lidar_2019": 3820,
+   "measured_lidar_2019": 3819,
    "cross_verified_lidar_2016_2019": 9458,
    "derived_tag_or_ml": 29,
    "inferred_from_levels": 0,
    "unknown": 69,
    "by_method": {
     "lidar_2016_2019_agreement": 9458,
-    "lidar_dsm_p95_minus_ground": 3820,
+    "lidar_dsm_p95_minus_ground": 3819,
+    "documentary_record": 1,
     "usa_structures_height": 29
    },
    "measured_or_cross_verified_share": "99.3%",
@@ -635,8 +636,8 @@
   "roof_form_from_lidar_flat_vs_pitched": 13136,
   "roof_shape_unknown_share": "99.3%",
   "levels": {
-   "tagged": 299,
-   "inferred": 12838,
+   "tagged": 300,
+   "inferred": 12837,
    "unknown": 239
   },
   "address_known": 9727,
@@ -759,13 +760,13 @@
   "power_tower": 1,
   "breakwater": 1
  },
- "attribute_rows": 438653,
+ "attribute_rows": 438668,
  "attribute_reconstruction": {
-  "authoritative": 16526,
+  "authoritative": 16541,
   "cross_verified": 9458,
-  "derived": 205690,
-  "inferred": 18735,
-  "measured": 144822
+  "derived": 205689,
+  "inferred": 18734,
+  "measured": 144821
  },
  "sources_requiring_attribution": [
   "overture_2026_09_23_1 \u2014 \u00a9 OpenStreetMap contributors (ODbL), \u00a9 Overture Maps Foundation; Microsoft ML Buildings (ODbL)",
@@ -880,6 +881,9 @@
     420225.0,
     2717303.0
    ]
+  },
+  "documentary_facts": {
+   "city_kw_legistar_20_6136": 15
   },
   "id_collisions": [],
   "ids_carried_from_previous_library": 87409

@@ -9,14 +9,27 @@
       "url": "s3://overturemaps-us-west-2/release/2026-09-23.1/",
       "access": "anonymous S3 GeoParquet, bbox predicate push-down",
       "license": "Per theme: buildings/transportation/base/divisions ODbL-1.0; places CDLA-Permissive-2.0; addresses per-record source licence (recorded per feature). Every row also carries its own sources[].license.",
-      "attribution": "© OpenStreetMap contributors (ODbL), © Overture Maps Foundation; Microsoft ML Buildings (ODbL)",
+      "attribution": "\u00a9 OpenStreetMap contributors (ODbL), \u00a9 Overture Maps Foundation; Microsoft ML Buildings (ODbL)",
       "requires_attribution": true,
       "share_alike": true,
       "authority_level": "community_conflated",
       "crs": "EPSG:4326",
       "positional_accuracy_m": "OSM-traced features typically 1-3 m (imagery-dependent); Microsoft ML footprints 2-5 m",
       "temporal_epoch": "Per feature: sources[].update_time (OSM edit time) and sources[].version (planet snapshot 2026-09-06/09)",
-      "feature_classes_used": ["building", "building_part", "transportation/segment", "transportation/connector", "base/infrastructure", "base/land", "base/water", "base/land_use", "base/land_cover", "places/place", "addresses/address", "divisions/division_area"],
+      "feature_classes_used": [
+        "building",
+        "building_part",
+        "transportation/segment",
+        "transportation/connector",
+        "base/infrastructure",
+        "base/land",
+        "base/water",
+        "base/land_use",
+        "base/land_cover",
+        "places/place",
+        "addresses/address",
+        "divisions/division_area"
+      ],
       "status": "integrated"
     },
     {
@@ -33,7 +46,10 @@
       "crs": "EPSG:4269 (NAD83)",
       "positional_accuracy_m": "USA Structures: imagery/lidar-derived ML footprints, metre-level; per-feature prod_date, image_date, val_method",
       "temporal_epoch": "Per feature prod_date / image_date",
-      "feature_classes_used": ["Struct_Poly_FEMA (building footprints, height, occupancy, address)", "Struct_Point (public buildings: schools, fire, police, post offices)"],
+      "feature_classes_used": [
+        "Struct_Poly_FEMA (building footprints, height, occupancy, address)",
+        "Struct_Point (public buildings: schools, fire, police, post offices)"
+      ],
       "status": "integrated"
     },
     {
@@ -50,7 +66,12 @@
       "crs": "EPSG:4269 (NAD83)",
       "positional_accuracy_m": "TIGER roads ~ 5-10 m; FAA runways survey-grade outline",
       "temporal_epoch": "loaddate per feature",
-      "feature_classes_used": ["Trans_RoadSegment (cross-verification of road existence/name/route)", "Trans_AirportRunway (authoritative runway polygon)", "Trans_AirportPoint", "Trans_TrailSegment"],
+      "feature_classes_used": [
+        "Trans_RoadSegment (cross-verification of road existence/name/route)",
+        "Trans_AirportRunway (authoritative runway polygon)",
+        "Trans_AirportPoint",
+        "Trans_TrailSegment"
+      ],
       "status": "integrated"
     },
     {
@@ -67,7 +88,11 @@
       "crs": "EPSG:4269 (NAD83)",
       "positional_accuracy_m": "Census cartographic boundary, ~ 5-10 m",
       "temporal_epoch": "loaddate per feature",
-      "feature_classes_used": ["GU_IncorporatedPlace (City of Key West limits)", "GU_UnincorporatedPlace (Stock Island CDP)", "GU_Reserve (federal reserves, NAS Key West)"],
+      "feature_classes_used": [
+        "GU_IncorporatedPlace (City of Key West limits)",
+        "GU_UnincorporatedPlace (Stock Island CDP)",
+        "GU_Reserve (federal reserves, NAS Key West)"
+      ],
       "status": "integrated"
     },
     {
@@ -84,7 +109,12 @@
       "crs": "EPSG:4269 (NAD83)",
       "positional_accuracy_m": "1:24,000-class, ~ 12 m (resolution field per feature)",
       "temporal_epoch": "fdate per feature",
-      "feature_classes_used": ["NHDWaterbody (ponds, salt ponds)", "NHDArea (sea/ocean, canals)", "NHDLine", "NHDFlowline"],
+      "feature_classes_used": [
+        "NHDWaterbody (ponds, salt ponds)",
+        "NHDArea (sea/ocean, canals)",
+        "NHDLine",
+        "NHDFlowline"
+      ],
       "status": "integrated"
     },
     {
@@ -101,7 +131,10 @@
       "crs": "Horizontal NAD83(2011) UTM 17N (file labelled EPSG:32617); vertical NAVD88 via GEOID12B",
       "positional_accuracy_m": "1 m grid; vertical better than 0.15 m (metadata vertaccv)",
       "temporal_epoch": "2016-04-19 .. 2016-04-25",
-      "feature_classes_used": ["terrain elevation", "bathymetry (topobathy)"],
+      "feature_classes_used": [
+        "terrain elevation",
+        "bathymetry (topobathy)"
+      ],
       "status": "integrated"
     },
     {
@@ -118,7 +151,10 @@
       "crs": "NAD83(2011) UTM 17N + NAVD88 (GEOID18) (EPSG:6346+5703)",
       "positional_accuracy_m": "~ 0.1 m vertical; classified ground (2) and noise (7) only; buildings/vegetation are NOT classified (all class 1)",
       "temporal_epoch": "2019-01 .. 2019-03 (per tile acquisition date in file name)",
-      "feature_classes_used": ["building height (DSM - ground, per footprint)", "tree candidates (canopy height model local maxima)"],
+      "feature_classes_used": [
+        "building height (DSM - ground, per footprint)",
+        "tree candidates (canopy height model local maxima)"
+      ],
       "status": "integrated"
     },
     {
@@ -135,7 +171,9 @@
       "crs": "NAD83(2011) UTM 17N + NAVD88 (GEOID18)",
       "positional_accuracy_m": "~ 0.1 m vertical; ground (2) and noise (7) classified only",
       "temporal_epoch": "2016-04-19 .. 2016-04-25",
-      "feature_classes_used": ["building height cross-verification (independent epoch)"],
+      "feature_classes_used": [
+        "building height cross-verification (independent epoch)"
+      ],
       "status": "integrated"
     },
     {
@@ -145,14 +183,19 @@
       "url": "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_N24W084_Map.tif",
       "access": "anonymous HTTPS COG window read",
       "license": "CC BY 4.0",
-      "attribution": "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium",
+      "attribution": "\u00a9 ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium",
       "requires_attribution": true,
       "share_alike": false,
       "authority_level": "international_agency_ml",
       "crs": "EPSG:4326",
       "positional_accuracy_m": "10 m pixels; classification accuracy ~ 77 % globally",
       "temporal_epoch": "2021",
-      "feature_classes_used": ["mangrove areas (class 95)", "tree cover (10)", "shrubland (20)", "herbaceous wetland (90)"],
+      "feature_classes_used": [
+        "mangrove areas (class 95)",
+        "tree cover (10)",
+        "shrubland (20)",
+        "herbaceous wetland (90)"
+      ],
       "status": "integrated"
     },
     {
@@ -162,14 +205,17 @@
       "url": "data/world/key_west/city_preview.json",
       "access": "repository file (committed); see data/world/key_west/source_receipt.json",
       "license": "ODbL-1.0",
-      "attribution": "© OpenStreetMap contributors",
+      "attribution": "\u00a9 OpenStreetMap contributors",
       "requires_attribution": true,
       "share_alike": true,
       "authority_level": "community",
       "crs": "Hoarbound local metres (already projected through the same frame)",
       "positional_accuracy_m": "as OSM",
       "temporal_epoch": "Overpass query 2026-09-29; covers only the legacy crop",
-      "feature_classes_used": ["OSM road tags missing from Overture (lanes, oneway, surface, bridge) keyed by OSM way id", "OSM building tags (addr:*, name) keyed by OSM way id"],
+      "feature_classes_used": [
+        "OSM road tags missing from Overture (lanes, oneway, surface, bridge) keyed by OSM way id",
+        "OSM building tags (addr:*, name) keyed by OSM way id"
+      ],
       "status": "integrated"
     },
     {
@@ -215,7 +261,7 @@
       "url": "https://overpass-api.de/api/interpreter ; https://download.geofabrik.de/north-america/us/florida-latest.osm.pbf",
       "access": "BLOCKED by the build environment egress policy (HTTP 403 on CONNECT)",
       "license": "ODbL-1.0",
-      "attribution": "© OpenStreetMap contributors",
+      "attribution": "\u00a9 OpenStreetMap contributors",
       "requires_attribution": true,
       "share_alike": true,
       "authority_level": "community",
@@ -372,17 +418,19 @@
       "source_id": "noaa_coops_8724580",
       "name": "NOAA CO-OPS tide station 8724580 Key West datums",
       "provider": "NOAA CO-OPS",
-      "url": "https://tidesandcurrents.noaa.gov/datums.html?id=8724580",
-      "access": "BLOCKED by the build environment egress policy",
+      "url": "https://tidesandcurrents.noaa.gov/benchmarks/8724580.html",
+      "access": "Delivered by Codex (2026-10-10 Drive pack) from the official benchmark sheet; host blocked in this build environment",
       "license": "Public domain",
       "attribution": "NOAA CO-OPS",
       "requires_attribution": false,
       "share_alike": false,
       "authority_level": "federal",
       "crs": "vertical datums",
-      "feature_classes_used": [],
-      "status": "blocked_in_build_env",
-      "reason": "MSL/MHHW relative to NAVD88 for the sea-level convention in frame.json."
+      "feature_classes_used": [
+        "tidal datums relative to NAVD88 (config/frame.json)"
+      ],
+      "status": "integrated",
+      "temporal_epoch": "1983-2001 tidal epoch; sheet published 2019-03-29"
     },
     {
       "source_id": "loc_sanborn",
@@ -415,6 +463,25 @@
       "feature_classes_used": [],
       "status": "blocked_in_build_env",
       "reason": "Covered via overture_2026_09_23_1."
+    },
+    {
+      "source_id": "city_kw_legistar_20_6136",
+      "name": "City of Key West Legistar file 20-6136 \u2014 727 Fort Street Major Development Plan, staff report",
+      "provider": "City of Key West Planning Department",
+      "url": "https://keywest.legistar.com/LegislationDetail.aspx?GUID=42AF0AD0-6B9A-40FF-99CA-713E1AC0DB49&ID=4665854",
+      "access": "Facts transcribed by Codex from the staff report (Drive doc 'Codex source delivery \u2014 Key West blocked sources \u2014 2026-10-10'); attachments Site Plans / Planning Package / Historic Planner not yet obtained",
+      "license": "Public record (Florida Chapter 119); facts only, no plan sheets stored",
+      "attribution": "City of Key West",
+      "requires_attribution": false,
+      "share_alike": false,
+      "authority_level": "local_government",
+      "crs": "n/a (attribute facts)",
+      "positional_accuracy_m": "n/a",
+      "temporal_epoch": "2020 staff report; building 1948",
+      "feature_classes_used": [
+        "727 Fort Street: year built, storeys, construction, floor area, site area, existing height, parcel RE#"
+      ],
+      "status": "integrated"
     }
   ]
 }

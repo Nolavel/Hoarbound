@@ -8,10 +8,10 @@ Extent (WGS84): {'west': -81.836047, 'south': 24.532311, 'east': -81.699056, 'no
 
 - 13,376 total; footprint geometry from OpenStreetMap 12,358, Microsoft ML Buildings 320, Struct_Poly_FEMA 698
 - 100.0% real footprints (no box proxies); reconstruction: {'cross_verified': 8327, 'derived': 5049}
-- height: 99.3% measured by lidar (9,458 cross-verified 2016+2019, 3,820 2019 only), 29 tag/ML-derived, 0.0% inferred, 0.5% unknown
+- height: 99.3% measured by lidar (9,458 cross-verified 2016+2019, 3,819 2019 only), 29 tag/ML-derived, 0.0% inferred, 0.5% unknown
 - 1,492 buildings changed height by > max(2.5 m, 25 %) between 2016 and 2019 (flagged, not resolved)
 - roof shape tagged: 88; lidar flat/pitched form: 13,136; exact roof shape unknown for 99.3%
-- levels tagged 299 / inferred 12,838 / unknown 239
+- levels tagged 300 / inferred 12,837 / unknown 239
 - address known 9,727 (72.7%); use (OSM) 2,874; occupancy (USA Structures) 10,669
 - facade material/colour known: 0 / 0 (no imagery source reachable)
 

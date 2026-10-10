@@ -5,6 +5,43 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-10 - Key West editor chunk generator, First Exit corridor first (claudeflow)
+
+- **Editor-time generator** `tools/world/reality_gen/`. It builds Reality Library chunks
+  into ordinary Godot scenes, with no runtime GIS:
+  - `KeyWestChunkBuilder` + `KeyWestChunkGenerator`;
+  - `generate_key_west_chunks.gd` (EditorScript) and `generate_key_west_chunks_cli.gd` (batch);
+  - output: terrain tiles with heightmap collision, buildings with collision, roads, decks,
+    barriers, poles with wires on real edges, trees, canopy masses, water, markers;
+  - every node carries the metadata contract, checked on every chunk.
+- **Lidar roof models.** Flat, gable, hip and shed are fitted to the 2019 DSM by trimmed
+  least squares. They replace the box tops; complex roofs stay flat and are labelled.
+- **First Exit corridor generated first** (Battery Osceola → 727 Fort Street, 9 chunks,
+  1 m sampling), then the rest of the island at 2 m. Generated scenes are git-ignored.
+- **Codex source pack ingested:**
+  - NOAA 8724580 datums (MSL = NAVD88 − 0.265 m) in `config/frame.json`;
+  - City of Key West 727 Fort Street facts in `config/fact_bindings.json`
+    (1948, one storey, 6.86 m — authoritative, replaces the canopy-polluted lidar P95).
+  Codex's later extract adds the setbacks (front 2.01 m, side 4.57 m, street side 4.27 m,
+  rear 3.05 m) and the impervious area. Its geocode lies 1.2 m from the OSM footprint.
+- **Fix:** `library.ensure()` overwrote a fresh unpacked build with the older `.xz`. The
+  working copy is now never overwritten (unit test added).
+- **Fix — DEM voids rendered as land.** 25 % of the DEM 6366 crop is nodata:
+  - what the voids are: open sea outside coverage, plus 92 inland holes whose rims lie
+    1.5–7 m below NAVD88 (dredged basins, salt ponds);
+  - the old behaviour read them as 0 m, i.e. land above MSL;
+  - they are now filled with the nearest valid depth (GDAL FillNodata-style), clamped to
+    MLLW. Every terrain tile records its void share.
+- **Fix — severed bridge still connected.**
+  - The `remove_span` cut is now full deck width: 30 m flat-cap buffer, where it used to
+    be a 2 m strip.
+  - It also cuts the OSM bridge lines, not only the deck outlines.
+- **Fix — aerodrome boundaries drawn as pavement.** NAS Key West (18.7 km²) and the
+  international airport boundary were 0.4 m slabs. Only apron, runway, taxiway, taxilane,
+  stopway and helipad are paved now; boundaries become markers.
+- The superseded v1 proof scripts `tools/world/build_key_west_reality_chunk.gd` and
+  `capture_key_west_reality_chunk.gd` are removed.
+
 ### 2026-10-10 - Key West Reality Library foundation (claudeflow)
 
 - **New open-data pipeline** `tools/world/key_west_reality.py` (+ `tools/world/reality/`):
