@@ -1,6 +1,6 @@
 {
- "landmark": "727 Fort Street (First Exit primary shelter) - measured massing",
- "presentation": "measured_massing",
+ "landmark": "727 Fort Street (First Exit primary shelter) - measured exterior, enterable game interior",
+ "presentation": "measured_exterior_enterable",
  "feature_id": "kw:building:osm:w339414849",
  "override_id": "kw_override:first_exit:shelter:727_fort_st",
  "origin_local": [
@@ -71,18 +71,945 @@
    ]
   },
   "floor_above_ground_m": {
-   "value": 0.15,
+   "value": 0.66,
    "recon": "inferred",
-   "note": "finished floor not in any reachable record"
+   "note": "not in any record; set over the highest DEM ground inside the walls"
   },
   "roof_fascia_m": {
    "value": 0.3,
    "recon": "inferred"
   },
   "openings": {
-   "recon": "unresolved",
-   "note": "doors/windows only from the Legistar plan attachments (not delivered)"
+   "recon": "game_invented",
+   "note": "see interior; the Legistar plan attachments were not delivered"
   }
+ },
+ "interior": {
+  "recon": "game_invented",
+  "note": "no floor plan, door or window record is reachable (Legistar plan attachments not delivered); layout follows a small community health centre (CHI Key West clinic programme: medical, dental, pharmacy) and the hut standards",
+  "plan_yaw_rad": -0.997011,
+  "plan_frame": "u along the long facade, v towards Fort Street",
+  "floor_y": 0.66,
+  "floor_method": "max DEM ground inside the walls + 0.10 m",
+  "ceiling_y": 3.66,
+  "wall_thickness_m": 0.25,
+  "partition_thickness_m": 0.12,
+  "door_standard": {
+   "width_m": 1.5,
+   "height_m": 2.25,
+   "source": "First Exit hut HingedDoor.opening_size"
+  },
+  "window_standard": {
+   "width_m": 2.0,
+   "height_m": 1.1,
+   "sill_m": 0.8,
+   "source": "First Exit hut breach windows"
+  },
+  "rooms": [
+   {
+    "id": "dental",
+    "name": "Dental operatory",
+    "rect_uv": [
+     -12.95,
+     -6.56,
+     -7.0,
+     -1.6
+    ],
+    "heated": false,
+    "area_m2": 29.5
+   },
+   {
+    "id": "exam_1",
+    "name": "Exam room 1",
+    "rect_uv": [
+     -7.0,
+     -6.56,
+     -2.0,
+     -1.6
+    ],
+    "heated": false,
+    "area_m2": 24.7
+   },
+   {
+    "id": "exam_2",
+    "name": "Exam room 2",
+    "rect_uv": [
+     -2.0,
+     -6.56,
+     3.0,
+     -1.6
+    ],
+    "heated": false,
+    "area_m2": 24.7
+   },
+   {
+    "id": "pharmacy",
+    "name": "Lab / pharmacy",
+    "rect_uv": [
+     3.0,
+     -6.56,
+     8.3,
+     -1.6
+    ],
+    "heated": false,
+    "area_m2": 26.2
+   },
+   {
+    "id": "storage",
+    "name": "Storage",
+    "rect_uv": [
+     8.3,
+     -6.56,
+     13.66,
+     -1.6
+    ],
+    "heated": false,
+    "area_m2": 26.5
+   },
+   {
+    "id": "corridor",
+    "name": "Corridor",
+    "rect_uv": [
+     -12.95,
+     -1.6,
+     13.66,
+     0.2
+    ],
+    "heated": false,
+    "area_m2": 47.9
+   },
+   {
+    "id": "restroom_w",
+    "name": "Restroom",
+    "rect_uv": [
+     -12.95,
+     0.2,
+     -9.3,
+     2.96
+    ],
+    "heated": false,
+    "area_m2": 10.1
+   },
+   {
+    "id": "restroom_e",
+    "name": "Restroom",
+    "rect_uv": [
+     -9.3,
+     0.2,
+     -5.64,
+     2.96
+    ],
+    "heated": false,
+    "area_m2": 10.1
+   },
+   {
+    "id": "waiting",
+    "name": "Waiting room (heated shelter)",
+    "rect_uv": [
+     -5.64,
+     0.2,
+     3.46,
+     10.07
+    ],
+    "heated": true,
+    "area_m2": 89.6
+   },
+   {
+    "id": "lobby",
+    "name": "Entry lobby / reception (heated shelter)",
+    "rect_uv": [
+     3.46,
+     0.2,
+     9.0,
+     2.96
+    ],
+    "heated": true,
+    "area_m2": 15.3
+   },
+   {
+    "id": "office",
+    "name": "Office",
+    "rect_uv": [
+     9.0,
+     0.2,
+     13.66,
+     2.96
+    ],
+    "heated": false,
+    "area_m2": 12.8
+   }
+  ],
+  "openings": [
+   {
+    "name": "MainDoor",
+    "kind": "door",
+    "room": "lobby",
+    "centre_uv": [
+     6.23,
+     3.083
+    ],
+    "outward_uv": [
+     0,
+     1
+    ],
+    "width_m": 1.5,
+    "y0": 0.66,
+    "y1": 2.91
+   },
+   {
+    "name": "LobbyArch",
+    "kind": "arch",
+    "room": "waiting",
+    "centre_uv": [
+     3.46,
+     1.6
+    ],
+    "outward_uv": [
+     1,
+     0
+    ],
+    "width_m": 2.2,
+    "y0": 0.66,
+    "y1": 2.91
+   },
+   {
+    "name": "WaitingDoor",
+    "kind": "doorway",
+    "room": "waiting",
+    "centre_uv": [
+     -1.0,
+     0.2
+    ],
+    "outward_uv": [
+     0,
+     -1
+    ],
+    "width_m": 1.5,
+    "y0": 0.66,
+    "y1": 2.91
+   },
+   {
+    "name": "RestroomWDoor",
+    "kind": "doorway",
+    "room": "restroom_w",
+    "centre_uv": [
+     -11.1,
+     0.2
+    ],
+    "outward_uv": [
+     0,
+     -1
+    ],
+    "width_m": 1.5,
+    "y0": 0.66,
+    "y1": 2.91
+   },
+   {
+    "name": "RestroomEDoor",
+    "kind": "doorway",
+    "room": "restroom_e",
+    "centre_uv": [
+     -7.5,
+     0.2
+    ],
+    "outward_uv": [
+     0,
+     -1
+    ],
+    "width_m": 1.5,
+    "y0": 0.66,
+    "y1": 2.91
+   },
+   {
+    "name": "OfficeDoor",
+    "kind": "doorway",
+    "room": "office",
+    "centre_uv": [
+     11.3,
+     0.2
+    ],
+    "outward_uv": [
+     0,
+     -1
+    ],
+    "width_m": 1.5,
+    "y0": 0.66,
+    "y1": 2.91
+   },
+   {
+    "name": "DentalDoor",
+    "kind": "doorway",
+    "room": "dental",
+    "centre_uv": [
+     -10.0,
+     -1.6
+    ],
+    "outward_uv": [
+     0,
+     1
+    ],
+    "width_m": 1.5,
+    "y0": 0.66,
+    "y1": 2.91
+   },
+   {
+    "name": "Exam1Door",
+    "kind": "doorway",
+    "room": "exam_1",
+    "centre_uv": [
+     -4.5,
+     -1.6
+    ],
+    "outward_uv": [
+     0,
+     1
+    ],
+    "width_m": 1.5,
+    "y0": 0.66,
+    "y1": 2.91
+   },
+   {
+    "name": "Exam2Door",
+    "kind": "doorway",
+    "room": "exam_2",
+    "centre_uv": [
+     0.5,
+     -1.6
+    ],
+    "outward_uv": [
+     0,
+     1
+    ],
+    "width_m": 1.5,
+    "y0": 0.66,
+    "y1": 2.91
+   },
+   {
+    "name": "PharmacyDoor",
+    "kind": "doorway",
+    "room": "pharmacy",
+    "centre_uv": [
+     5.6,
+     -1.6
+    ],
+    "outward_uv": [
+     0,
+     1
+    ],
+    "width_m": 1.5,
+    "y0": 0.66,
+    "y1": 2.91
+   },
+   {
+    "name": "StorageDoor",
+    "kind": "doorway",
+    "room": "storage",
+    "centre_uv": [
+     11.0,
+     -1.6
+    ],
+    "outward_uv": [
+     0,
+     1
+    ],
+    "width_m": 1.5,
+    "y0": 0.66,
+    "y1": 2.91
+   },
+   {
+    "name": "FrontWindow1",
+    "kind": "window",
+    "room": "waiting",
+    "centre_uv": [
+     -3.0,
+     10.196
+    ],
+    "outward_uv": [
+     0,
+     1
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "FrontWindow2",
+    "kind": "window",
+    "room": "waiting",
+    "centre_uv": [
+     1.0,
+     10.198
+    ],
+    "outward_uv": [
+     0,
+     1
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "SideWindowWest",
+    "kind": "window",
+    "room": "waiting",
+    "centre_uv": [
+     -5.741,
+     7.0
+    ],
+    "outward_uv": [
+     -1,
+     0
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "SideWindowEast",
+    "kind": "window",
+    "room": "waiting",
+    "centre_uv": [
+     3.604,
+     7.0
+    ],
+    "outward_uv": [
+     1,
+     0
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "DentalWindow",
+    "kind": "window",
+    "room": "dental",
+    "centre_uv": [
+     -10.0,
+     -6.675
+    ],
+    "outward_uv": [
+     0,
+     -1
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "DentalWestWindow",
+    "kind": "window",
+    "room": "dental",
+    "centre_uv": [
+     -13.093,
+     -4.0
+    ],
+    "outward_uv": [
+     -1,
+     0
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "Exam1Window",
+    "kind": "window",
+    "room": "exam_1",
+    "centre_uv": [
+     -4.5,
+     -6.675
+    ],
+    "outward_uv": [
+     0,
+     -1
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "Exam2Window",
+    "kind": "window",
+    "room": "exam_2",
+    "centre_uv": [
+     0.5,
+     -6.675
+    ],
+    "outward_uv": [
+     0,
+     -1
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "PharmacyWindow",
+    "kind": "window",
+    "room": "pharmacy",
+    "centre_uv": [
+     5.6,
+     -6.675
+    ],
+    "outward_uv": [
+     0,
+     -1
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "StorageWindow",
+    "kind": "window",
+    "room": "storage",
+    "centre_uv": [
+     11.0,
+     -6.675
+    ],
+    "outward_uv": [
+     0,
+     -1
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "StorageEastWindow",
+    "kind": "window",
+    "room": "storage",
+    "centre_uv": [
+     13.829,
+     -4.0
+    ],
+    "outward_uv": [
+     1,
+     0
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "OfficeEastWindow",
+    "kind": "window",
+    "room": "office",
+    "centre_uv": [
+     13.8,
+     1.6
+    ],
+    "outward_uv": [
+     1,
+     0
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "OfficeFrontWindow",
+    "kind": "window",
+    "room": "office",
+    "centre_uv": [
+     11.6,
+     3.081
+    ],
+    "outward_uv": [
+     0,
+     1
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   },
+   {
+    "name": "RestroomWindow",
+    "kind": "window",
+    "room": "restroom_w",
+    "centre_uv": [
+     -13.125,
+     1.6
+    ],
+    "outward_uv": [
+     -1,
+     0
+    ],
+    "width_m": 2.0,
+    "y0": 1.46,
+    "y1": 2.56
+   }
+  ],
+  "entry_ramp": {
+   "from_uv": [
+    6.23,
+    5.608
+   ],
+   "to_uv": [
+    6.23,
+    3.208
+   ],
+   "foot_y_navd88": 1.52,
+   "top_y": 0.66
+  },
+  "furniture": [
+   {
+    "node": "Stove",
+    "kind": "hut_stove",
+    "room": "waiting",
+    "uv": [
+     -1.2,
+     6.4
+    ],
+    "yaw_deg": 0,
+    "size": null
+   },
+   {
+    "node": "Mattress",
+    "kind": "hut_mattress",
+    "room": "waiting",
+    "uv": [
+     -4.4,
+     7.6
+    ],
+    "yaw_deg": 0,
+    "size": null
+   },
+   {
+    "node": "RestCrate",
+    "kind": "hut_rest_crate",
+    "room": "waiting",
+    "uv": [
+     0.9,
+     4.6
+    ],
+    "yaw_deg": 0,
+    "size": null
+   },
+   {
+    "node": "Cabinet",
+    "kind": "hut_cabinet",
+    "room": "waiting",
+    "uv": [
+     2.9,
+     8.8
+    ],
+    "yaw_deg": 0,
+    "size": null
+   },
+   {
+    "node": "ToolBench",
+    "kind": "hut_tool_bench",
+    "room": "storage",
+    "uv": [
+     10.6,
+     -5.6
+    ],
+    "yaw_deg": 0,
+    "size": null
+   },
+   {
+    "node": "SupplyBench",
+    "kind": "hut_supply_bench",
+    "room": "storage",
+    "uv": [
+     12.6,
+     -3.0
+    ],
+    "yaw_deg": 90,
+    "size": null
+   },
+   {
+    "node": "ReceptionCounter",
+    "kind": "counter",
+    "room": "lobby",
+    "uv": [
+     8.15,
+     1.6
+    ],
+    "yaw_deg": 0,
+    "size": [
+     0.6,
+     1.05,
+     2.2
+    ]
+   },
+   {
+    "node": "WaitingBenchWest",
+    "kind": "bench",
+    "room": "waiting",
+    "uv": [
+     -5.1,
+     4.2
+    ],
+    "yaw_deg": 0,
+    "size": [
+     0.5,
+     0.45,
+     2.4
+    ]
+   },
+   {
+    "node": "WaitingBenchFront",
+    "kind": "bench",
+    "room": "waiting",
+    "uv": [
+     -1.0,
+     9.6
+    ],
+    "yaw_deg": 90,
+    "size": [
+     0.5,
+     0.45,
+     2.4
+    ]
+   },
+   {
+    "node": "ExamTable1",
+    "kind": "exam_table",
+    "room": "exam_1",
+    "uv": [
+     -4.5,
+     -5.4
+    ],
+    "yaw_deg": 90,
+    "size": [
+     0.7,
+     0.8,
+     1.9
+    ]
+   },
+   {
+    "node": "ExamTable2",
+    "kind": "exam_table",
+    "room": "exam_2",
+    "uv": [
+     0.5,
+     -5.4
+    ],
+    "yaw_deg": 90,
+    "size": [
+     0.7,
+     0.8,
+     1.9
+    ]
+   },
+   {
+    "node": "ExamDesk1",
+    "kind": "desk",
+    "room": "exam_1",
+    "uv": [
+     -6.3,
+     -3.0
+    ],
+    "yaw_deg": 0,
+    "size": [
+     0.6,
+     0.75,
+     1.2
+    ]
+   },
+   {
+    "node": "ExamDesk2",
+    "kind": "desk",
+    "room": "exam_2",
+    "uv": [
+     -1.3,
+     -3.0
+    ],
+    "yaw_deg": 0,
+    "size": [
+     0.6,
+     0.75,
+     1.2
+    ]
+   },
+   {
+    "node": "DentalChair",
+    "kind": "dental_chair",
+    "room": "dental",
+    "uv": [
+     -10.0,
+     -4.6
+    ],
+    "yaw_deg": 90,
+    "size": [
+     0.8,
+     0.9,
+     1.9
+    ]
+   },
+   {
+    "node": "DentalCart",
+    "kind": "cart",
+    "room": "dental",
+    "uv": [
+     -8.2,
+     -5.6
+    ],
+    "yaw_deg": 0,
+    "size": [
+     0.5,
+     0.9,
+     0.6
+    ]
+   },
+   {
+    "node": "PharmacyShelf",
+    "kind": "shelf",
+    "room": "pharmacy",
+    "uv": [
+     5.6,
+     -6.2
+    ],
+    "yaw_deg": 90,
+    "size": [
+     0.4,
+     2.0,
+     3.6
+    ]
+   },
+   {
+    "node": "LabCounter",
+    "kind": "counter",
+    "room": "pharmacy",
+    "uv": [
+     7.85,
+     -4.1
+    ],
+    "yaw_deg": 0,
+    "size": [
+     0.6,
+     0.95,
+     2.4
+    ]
+   },
+   {
+    "node": "StorageShelf",
+    "kind": "shelf",
+    "room": "storage",
+    "uv": [
+     13.25,
+     -5.6
+    ],
+    "yaw_deg": 0,
+    "size": [
+     0.45,
+     2.0,
+     1.6
+    ]
+   },
+   {
+    "node": "OfficeDesk",
+    "kind": "desk",
+    "room": "office",
+    "uv": [
+     11.3,
+     2.2
+    ],
+    "yaw_deg": 90,
+    "size": [
+     0.7,
+     0.75,
+     1.5
+    ]
+   },
+   {
+    "node": "ToiletW",
+    "kind": "toilet",
+    "room": "restroom_w",
+    "uv": [
+     -12.4,
+     2.3
+    ],
+    "yaw_deg": 0,
+    "size": [
+     0.45,
+     0.8,
+     0.7
+    ]
+   },
+   {
+    "node": "SinkW",
+    "kind": "sink",
+    "room": "restroom_w",
+    "uv": [
+     -9.8,
+     2.5
+    ],
+    "yaw_deg": 0,
+    "size": [
+     0.5,
+     0.85,
+     0.45
+    ]
+   },
+   {
+    "node": "ToiletE",
+    "kind": "toilet",
+    "room": "restroom_e",
+    "uv": [
+     -6.2,
+     2.3
+    ],
+    "yaw_deg": 0,
+    "size": [
+     0.45,
+     0.8,
+     0.7
+    ]
+   },
+   {
+    "node": "SinkE",
+    "kind": "sink",
+    "room": "restroom_e",
+    "uv": [
+     -8.8,
+     2.5
+    ],
+    "yaw_deg": 0,
+    "size": [
+     0.5,
+     0.85,
+     0.45
+    ]
+   }
+  ],
+  "outline_uv": [
+   [
+    13.969,
+    -6.8
+   ],
+   [
+    13.916,
+    3.206
+   ],
+   [
+    3.75,
+    3.208
+   ],
+   [
+    3.71,
+    10.324
+   ],
+   [
+    -5.882,
+    10.32
+   ],
+   [
+    -5.85,
+    3.598
+   ],
+   [
+    -13.262,
+    3.6
+   ],
+   [
+    -13.202,
+    -6.8
+   ]
+  ]
  },
  "conflicts": [
   {
@@ -103,10 +1030,10 @@
   }
  ],
  "ground_ring_navd88_m": 1.23,
- "landmark_version": "kw_landmark.1",
+ "landmark_version": "kw_landmark.2",
  "pipeline_version": "1.0.0",
- "built_at": "2026-10-10T13:11:09+00:00",
+ "built_at": "2026-10-10T23:19:23+00:00",
  "asset": "assets/world/key_west/landmarks/kw_727_fort_st.glb",
- "asset_sha256": "91fbc387ba61fd8f4c9c64677e430af05daa7ae6bc88f431bf6d70732d467ee5",
- "triangles": 106
+ "asset_sha256": "cad52b9f21cdf92eecdf9c213c93b3bc2e78ca6ea0b43e23aa286ecf1f5e4a87",
+ "triangles": 1256
 }

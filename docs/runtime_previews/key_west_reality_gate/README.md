@@ -11,16 +11,16 @@ This run: `--fast` (sprint, stamina and snow assist), headless, on a 4-core CPU 
 It covers CPU-side cost only. Render cost must be measured on the target GPU (HD 620),
 without `--fast`.
 
-| | First full run | After the gate's fixes |
-|---|---|---|
-| Distance / game time | 3.73 km / 1185 s | 3.71 km / 1034 s |
-| Time on an unloaded chunk | 0 s | 0 s |
-| Engine errors (headless dummy-renderer texture reads counted apart) | 0 | 0 |
-| Blocked stalls (Henry pinned) | 78* | 0 |
-| Frames > 50 ms | 344 | 20 |
-| Frame p50 / p95 / p99 | 4.2 / 16.4 / 34.0 ms | 5.5 / 13.9 / 16.4 ms |
-| Chunk activation frame p50 / max | 50 / 660 ms | 39 / 60 ms |
-| Arrived at 727 entrance; sheltered | yes; no (no opening is modelled) | yes; no |
+| | First full run | After the gate's fixes | Staged assembly, 727 enterable (this report) |
+|---|---|---|---|
+| Distance / game time | 3.73 km / 1185 s | 3.71 km / 1034 s | 3.76 km / 1078 s |
+| Time on an unloaded chunk | 0 s | 0 s | 0 s |
+| Engine errors (headless dummy-renderer texture reads counted apart) | 0 | 0 | 0 |
+| Blocked stalls (Henry pinned) | 78* | 0 | 0 |
+| Frames > 50 ms | 344 | 20 | 8 (none next to an activation) |
+| Frame p50 / p95 / p99 | 4.2 / 16.4 / 34.0 ms | 5.5 / 13.9 / 16.4 ms | 6.9 / 12.8 / 14.4 ms |
+| Chunk activation frame p50 / max | 50 / 660 ms | 39 / 60 ms | 8.6 / 17.4 ms |
+| 727 | entrance reached; not sheltered (no opening) | same | door opened, Henry walks through the lobby into the waiting room; `sheltered: true` |
 
 \*The first run's stall rule was distance-based and also caught steering orbits. Diagnosis
 split the 78 into steering orbits and one real pin. The real pin was the canopy-lifted
@@ -32,12 +32,15 @@ Fixed by this gate:
    building outlines (`snow_shell.gd` group lookup). On the First Exit leg, frames over
    50 ms went 78 → 2 and p99 35.9 → 16.7 ms. The legacy JSON-city scene measures 21 and
    18.2 ms on the same harness.
+3. Activation frames: the chunk now attaches in parts within a 4 ms budget per frame
+   (`StreamingSystem` `ASSEMBLING`).
 
-Still failing the verdict: 20 frames over 50 ms.
-- 4 sit next to a chunk activation (40–60 ms in the full World, against 12–28 ms isolated).
-- 16 are not activations; in them process + physics are only 15–30 ms.
-- The next pass is a bounded main-thread activation budget (chunk activated in parts),
-  then profiling the remaining non-activation frames.
+Still failing the verdict: 8 frames over 50 ms.
+- None sits within 3 frames of an activation.
+- In them process + physics are 10–30 ms, so the rest of the frame goes elsewhere (not yet
+  profiled).
+- This run also builds runtime snow cover (3 ms per frame) and has palms and the 727
+  shelter loaded.
 
 Run on the target machine (Windows: run Godot directly):
 

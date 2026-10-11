@@ -121,7 +121,7 @@ class Landmarks(unittest.TestCase):
         tri = landmarks._mesh([np.array([[0, 0, 0], [1, 0, 0], [0, 0, -1]], float)])
         with tempfile.TemporaryDirectory() as tmp:
             out = P(tmp) / "t.glb"
-            landmarks._write_glb(out, [{"name": "T-col", "surfaces": [dict(tri, material="fort_brick")]}])
+            landmarks._write_glb(out, [{"name": "T-col", "surfaces": [dict(tri, material="fort_brick")]}], "test")
             data = out.read_bytes()
         magic, version, length = struct.unpack("<4sII", data[:12])
         self.assertEqual((magic, version, length), (b"glTF", 2, len(data)))
@@ -144,6 +144,38 @@ class Landmarks(unittest.TestCase):
             with mock.patch.object(landmarks, "MANIFEST", man):
                 self.assertFalse(landmarks._may_write("kw:building:osm:w1"))
                 self.assertTrue(landmarks._may_write("kw:building:osm:w2"))
+
+
+class Shelter727(unittest.TestCase):
+    def test_plan_frame_round_trips_and_matches_godot_yaw(self):
+        import math
+        import numpy as np
+        import shapely.affinity
+        from reality import frame as fr, shelter_727
+        oe, on = fr.origin()
+        x0, z0 = -3500.0, 1500.0
+        box = shapely.affinity.rotate(shapely.box(-14, -7, 14, 3), 33.0, origin=(0, 0))
+        local = shapely.affinity.translate(box.union(shapely.box(-5, 2, 4, 10)), x0, z0)
+        proj = shapely.transform(local, lambda c: np.column_stack([c[:, 0] + oe, on - c[:, 1]]))
+        plan = shelter_727.Plan(proj, [x0, 0.0, z0])
+        self.assertGreater(plan.walls.bounds[3], -plan.walls.bounds[1], "wing must land on +v")
+        x, z = plan.to_local_xz(5.0, 2.0)
+        back = plan.to_projected(shapely.Point(5.0, 2.0))
+        self.assertAlmostEqual(back.x - oe - x0, x, places=6)
+        self.assertAlmostEqual(on - back.y - z0, z, places=6)
+        a = plan.godot_yaw()  # Godot Basis(UP, a) * (u, 0, v): x = u cos a + v sin a, z = -u sin a + v cos a
+        self.assertAlmostEqual(5.0 * math.cos(a) + 2.0 * math.sin(a), x, places=6)
+        self.assertAlmostEqual(-5.0 * math.sin(a) + 2.0 * math.cos(a), z, places=6)
+
+    def test_openings_follow_the_hut_standard(self):
+        from reality import shelter_727
+        self.assertEqual(shelter_727._opening_y("door", 0.5), (0.5, 2.75))
+        y0, y1 = shelter_727._opening_y("window", 0.5)
+        self.assertAlmostEqual(y1 - y0, 1.1)
+        self.assertAlmostEqual(y0 - 0.5, 0.8)
+        door = next(o for o in shelter_727.OPENINGS if o[0] == "MainDoor")
+        r = shelter_727._opening_rect(door)
+        self.assertAlmostEqual(r.bounds[2] - r.bounds[0], 1.5)
 
 
 class LibraryUnpack(unittest.TestCase):

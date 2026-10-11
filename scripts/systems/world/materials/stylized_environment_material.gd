@@ -11,6 +11,11 @@ const OPAQUE_SHADER: Shader = preload(
 const DOUBLE_SIDED_SHADER: Shader = preload(
 	"res://shaders/environment/materials/stylized_environment_double_sided.gdshader"
 )
+## Static world geometry (thousands of streamed instances): same look, no per-instance camera fade.
+const STATIC_SHADER: Shader = preload("res://shaders/environment/materials/stylized_environment_static.gdshader")
+const STATIC_DOUBLE_SIDED_SHADER: Shader = preload(
+	"res://shaders/environment/materials/stylized_environment_static_double_sided.gdshader"
+)
 ## Characters: restrained rim, a third of the shadow-lookup offset (thin limbs),
 ## shadow noise in model space so the breakup rides with the body.
 const CHARACTER_RIM_STRENGTH: float = 0.6
@@ -31,6 +36,13 @@ static func make(
 	material.set_shader_parameter("roughness", roughness)
 	material.set_shader_parameter("metallic", metallic)
 	material.set_shader_parameter("use_vertex_color", vertex_color)
+	return material
+
+
+## make() for static world geometry that the TPS camera never fades.
+static func make_static(color: Color, roughness: float, double_sided: bool = false) -> ShaderMaterial:
+	var material := make(color, roughness, false, double_sided)
+	material.shader = STATIC_DOUBLE_SIDED_SHADER if double_sided else STATIC_SHADER
 	return material
 
 

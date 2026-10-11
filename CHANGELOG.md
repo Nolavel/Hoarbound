@@ -5,6 +5,52 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-11 - 727 Fort St enterable shelter, staged chunk assembly, palms and snow on Reality chunks (claudeflow)
+
+- **727 Fort Street is enterable.** `tools/world/reality/shelter_727.py` (called by `landmarks`)
+  hollows the measured shell:
+  - 0.25 m walls with the hut door standard (1.5 × 2.25 m) and hut windows (2.0 × 1.1 m, sill 0.8 m);
+  - partitions, floor, a 3.0 m ceiling, an entry ramp (Henry has no step-up), glass panes;
+  - every wall, floor, ceiling and the ramp carry `-col` collision.
+  The plan is **game-invented** and flagged so in the sidecar (`interior.recon`); no plan
+  record was reachable. Rooms follow a small community clinic (CHI Key West: medical, dental,
+  pharmacy): lobby, waiting room in the Fort Street wing, two exam rooms, dental, lab and
+  pharmacy, storage, office, two restrooms, and a corridor. The exterior stays measured.
+- **`KeyWest727Shelter`** (`scripts/world/key_west_727_shelter.gd`, in `key_west_reality_content.tscn`)
+  moves the First Exit hut's own nodes onto that plan, so nothing is copied or re-tuned:
+  - `HouseDoor` and `ShelterZone` with the stove, door breach and four window breaches;
+  - the cabinet (with its fade volume), mattress, rest crate, and both benches;
+  - a heated zone over the waiting room and lobby;
+  - a lower-priority unheated `ClinicZone` (indoors, +4 °C) with board-able breaches on the other 12 windows;
+  - clinic furniture boxes, a stove pipe through the roof, and a `ShelterSpawnPoint`.
+  Test: `tests/systems/test_key_west_727_shelter.gd` (rays pass every opening, walls stand beside the door).
+- **Staged chunk assembly.** `ChunkData.part_scene_paths` lists part scenes. The streamer
+  loads them with the chunk on loader threads, then attaches them nearest-chunk-first within
+  `assembly_budget_usec` (4 ms, at least one part per frame) in a new `ASSEMBLING` state.
+  The generator splits each chunk into a light root (terrain, anchors) plus parts (buildings in
+  blocks of 120, roads, infrastructure, coastal, vegetation, barriers, land use). The digest is
+  taken before the split.
+- **Palms and snow on Reality chunks.**
+  - Lidar trees use the legacy `KeyWestStreetProps` palm and bare broadleaf meshes instead of spheres.
+  - Terrain uses `island_terrain.gdshader` (settled snow from the shared globals).
+  - Geometry uses the stylized environment material.
+  - `KeyWestRealityGround` builds `SnowChunkCover` per active chunk at runtime: 3 ms per frame,
+    the chunk under Henry at once, building and landmark outlines cut out.
+  - `WindGusts` is in the content scene.
+- **Fix: the stylized material's instance uniform overflowed the global buffer.** Every
+  stylized instance reserved 16 global slots (limit 4,096 instances) for a camera fade only
+  Henry uses. A full-island build logged 19,570 overflows. `StylizedEnvironmentMaterial.make_static()`
+  (`HFN_STATIC_WORLD`) drops it for static world geometry.
+- **Fix: the chunk builder owned the internals of instanced landmark scenes**, which would have
+  saved a second copy of each landmark's nodes.
+- **Gate, full 3.76 km route** (headless, `--fast`):
+  - Henry opens the 727 door, walks into the waiting room, and reads `sheltered: true`;
+  - 0 engine errors, 0 s on unloaded chunks;
+  - activation frames p50 / max 8.6 / 17.4 ms (was 39 / 60);
+  - 8 frames over 50 ms, none next to an activation (was 20).
+  - Interior PNGs are in `docs/runtime_previews/key_west_727/`.
+  - Readiness to replace `key_west.tscn` is in `KEY_WEST_REALITY_LIBRARY.md` §17.
+
 ### 2026-10-10 - Reality chunks: committed interchange, deterministic rebuild, production gate (claudeflow)
 
 - **No generated scenes in git.** Instead the repository holds:

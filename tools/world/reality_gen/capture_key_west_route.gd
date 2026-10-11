@@ -28,7 +28,7 @@ func _initialize() -> void:
 	var dir: DirAccess = DirAccess.open(CHUNK_DIR)
 	for file_name: String in dir.get_files():
 		if file_name.ends_with(".scn") and (only.is_empty() or only.has(file_name.trim_prefix("Chunk_").trim_suffix(".scn").replace("_", ":"))):
-			var chunk: Node3D = (load(CHUNK_DIR.path_join(file_name)) as PackedScene).instantiate() as Node3D
+			var chunk: Node3D = KeyWestChunkGenerator.instantiate_assembled(CHUNK_DIR.path_join(file_name))
 			var centre: Array = chunk.get_meta("centre_local", [0.0, 0.0])
 			chunk.position = Vector3(float(centre[0]), 0.0, float(centre[1]))
 			world.add_child(chunk)

@@ -429,8 +429,43 @@ end in `-col`, so Godot builds their collision.
 | Parapet | none (edge 1 cm above the interior) | measured | 2019 DSM edge ring |
 | Roof outline | OSM trace + about 2 m roof run-out at both notches (418 m²) | cross_verified | per-edge lidar profiles, both epochs |
 | Walls | OSM trace inset 0.45 m = 343.1 m² = City record 3,693 sq ft | cross_verified | eave run-outs measured 0–0.6 m |
-| Floor | ring ground + 0.15 m | inferred | — |
-| Openings, plan | not modelled | unresolved | Legistar attachments not delivered |
+| Floor | highest DEM ground inside the walls + 0.1 m = ring + 0.66 m | inferred | the DEM under the slab rises to +0.56 m |
+| Openings, plan, furniture | clinic plan, hut door and window standard | **game_invented** | Legistar attachments not delivered |
+
+**Enterable shelter.** `tools/world/reality/shelter_727.py` hollows the measured shell.
+- Fixed elements:
+  - 0.25 m walls; 0.12 m partitions;
+  - a ceiling 3.0 m above the floor;
+  - a 2.4 m entry ramp (about 1:7; Henry has no step-up);
+  - glass panes;
+  - `-col` collision everywhere except the glass.
+- Openings use the First Exit hut standards: door 1.5 × 2.25 m (`HingedDoor.opening_size`),
+  windows 2.0 × 1.1 m with a 0.8 m sill.
+- The main door sits under the measured east porch roof, facing Fort Street.
+- The layout is a small community clinic, in line with the CHI Key West programme (medical,
+  dental, pharmacy):
+  - lobby with reception and a heated waiting room in the Fort Street wing (the shelter zone);
+  - corridor;
+  - two exam rooms, dental, lab/pharmacy and storage on the south side;
+  - office and two restrooms.
+
+Everything is in the sidecar under `interior`: rooms, openings, the ramp, furniture spots,
+and the plan frame (`plan_yaw_rad`).
+
+`KeyWest727Shelter` (in `key_west_reality_content.tscn`) is persistent, not streamed, like
+the legacy hut. It moves the hut's own nodes onto that plan:
+- the door with its breach;
+- `ShelterZone` with the stove, cabinet, mattress, rest crate and the four window breaches;
+- both benches.
+
+It also adds:
+- an unheated `ClinicZone` with copies of the window breach for the other 12 windows;
+- clinic furniture boxes;
+- a stove pipe through the roof;
+- a `ShelterSpawnPoint`.
+
+The gate opens the door and walks Henry through the lobby and the arch into the waiting
+room (`entry_727` in the report).
 
 There is a conflict with the record. The City's "existing height 22 ft 6 in" (6.86 m)
 is 2.1 m above the roof, and both lidar epochs agree on the roof. The geometry follows
@@ -593,20 +628,39 @@ Fix: `scripts/world/key_west_reality_ground.gd`, in the Reality content scene.
 
 Test: `tests/systems/test_key_west_reality_ground.gd`, which needs no generated chunks.
 
-## 17. Next stages
+## 17. Readiness to replace `key_west.tscn`
+
+State on 2026-10-11, comparing `key_west_reality.tscn` with the shipped main scene
+(`key_west.tscn` + `KeyWestFirstExit`).
+
+| Area | Reality scene | Gap before it can be `run/main_scene` |
+|---|---|---|
+| World geometry | 459 measured chunks, staged assembly, 0 s on unloaded chunks in the gate | far LOD beyond the load band (nothing drawn there yet) |
+| First Exit shelter | 727 enterable: hut door, stove, breaches, furniture, two thermal zones; gate enters and is `sheltered` | plan is game-invented; precipitation particles still fall indoors (same as the legacy hut) |
+| Start (Battery) | spawn on the measured fort front | the bunker portal, vent, bedroll and flare that `KeyWestFirstExit` transplants are not placed yet |
+| Route items | — | the hut-route pickups are not transplanted |
+| Sea | coastal water slabs (open blue water) | the legacy masked ice / frozen-sea shader is not applied |
+| Snow and wind | terrain snow shader, runtime chunk cover, deep-snow shell, `WindGusts` | cover cost on the HD 620 not measured |
+| Vegetation | legacy palms and bare trees on the lidar trees | no sway (none in the project) |
+| Build | scenes are local build products (`export_pack.py unpack` + generator, about 3 min) | the export/CI pipeline must run the generator before packaging; a fresh clone cannot open the scene without it |
+| Performance | CPU gate: p99 14.4 ms, activation max 17.4 ms, 8 frames over 50 ms | target-GPU run without `--fast` |
+
+Merging to `main` is safe as an **experimental profile** next to the legacy scene, and
+the legacy scene stays the default. Switching the default needs the start content, the
+pickups, the frozen sea, the build step and an HD 620 run. That switch is the author's call.
+
+## 18. Next stages
 
 1. **Gate on the target machine.** Run `gate_key_west_reality.gd --legs=1 --shots` on the
    HD 620 in realistic mode and read the verdict in its report. The CPU container cannot
    measure render cost.
-2. **Activation budget.** In the full `World` an activation frame costs 40–60 ms (12–28 ms
-   isolated). Next: activate a chunk in parts over several frames on the main thread
-   (terrain, buildings by block, the rest). Resource decode already runs on the loader
-   thread; scene-tree mutation stays on the main thread.
+2. **Activation budget.** Done: staged assembly (`ASSEMBLING`, see
+   `docs/technical/WORLD_ARCHITECTURE.md`). The gate report gives the measured frame costs.
 3. **The 16 remaining non-activation frames over 50 ms.** In them process + physics are
    only 15–30 ms; profile what else runs in those frames.
-4. **Entering 727.** The measured asset has no opening. The original Legistar plans, or an
-   owner decision for a game door (`manual_override`), are needed before the shelter ritual
-   can run there.
+4. **727 plan from records.** 727 is enterable on a game-invented clinic plan. If the
+   Legistar plan attachments arrive, move the openings and partitions to them in
+   `shelter_727.py`. The hut nodes follow automatically.
 5. **Jenova exit code patch** (`docs/technical/JENOVA.md`). Needs the Windows CI build and
    an LFS commit.
 6. **Make `key_west_reality` the default profile.** After 1–4, by author decision.

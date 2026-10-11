@@ -15,6 +15,8 @@ const STUCK_WINDOW_S: float = 4.0
 const HITCH_MS: float = 50.0
 const CHUNK_M: float = 512.0
 const WARMUP_FRAMES: int = 30
+## Waypoint radius inside 727, tighter than REACH_M: rooms are a few metres across.
+const INDOOR_REACH_M: float = 0.7
 
 
 class GateLogger:
@@ -83,6 +85,10 @@ var _peak: Dictionary = {"static_mb": 0.0, "video_mb": 0.0, "nodes": 0, "draw_ca
 var _min_y: float = INF
 var _hitches: Array = []
 var _done: bool = false
+## Plan-frame walk through 727 (door, lobby, arch, waiting room and back), in world x/z.
+var _detour: Array[Vector2] = []
+var _detour_inside: int = -1
+var _entry: Dictionary = {}
 
 
 func _initialize() -> void:
@@ -138,8 +144,8 @@ func _physics_process(delta: float) -> bool:
 	_window_s += delta
 	if _window_s >= STUCK_WINDOW_S:
 		if Vector2(pos.x - _window_from.x, pos.z - _window_from.z).length() < STUCK_MOVE_M:
-			if _window_walked < STUCK_MOVE_M:
-				_unstick(pos, _points[mini(_seg + 1, _points.size() - 1)])
+			if _window_walked < STUCK_MOVE_M or not _detour.is_empty():
+				_unstick(pos, _detour[0] if not _detour.is_empty() else _points[mini(_seg + 1, _points.size() - 1)])
 			else:
 				## Moving but circling a vertex: a steering artefact, not a blocked world.
 				_orbits.append({"game_s": snappedf(_game_s, 0.1), "at": [snappedf(pos.x, 0.01), snappedf(pos.z, 0.01)], "walked_m": snappedf(_window_walked, 0.1)})
@@ -214,7 +220,7 @@ func _bind() -> bool:
 
 
 func _on_cell(id: StringName, state: StreamingSystem.CellState) -> void:
-	if state == StreamingSystem.CellState.ACTIVE:
+	if state == StreamingSystem.CellState.ACTIVE or state == StreamingSystem.CellState.ASSEMBLING:
 		_activation_frames[_frames.size()] = String(id)
 
 
@@ -230,6 +236,8 @@ func _assist() -> void:
 
 ## Pure pursuit: follow the projection on the current segment, aim LOOKAHEAD_M further along.
 func _steer(here: Vector2) -> Vector2:
+	if not _detour.is_empty():
+		return _steer_indoors(here)
 	var t: float = 0.0
 	while _seg < _points.size() - 1:
 		var a: Vector2 = _points[_seg]
@@ -272,12 +280,57 @@ func _arrive(leg: int) -> void:
 	var rec: Dictionary = {"leg": info["to"], "game_s": snappedf(_game_s, 0.1), "walked_m": snappedf(_distance_walked, 0.1),
 		"position": [snappedf(_player.global_position.x, 0.01), snappedf(_player.global_position.y, 0.01), snappedf(_player.global_position.z, 0.01)]}
 	if String(info["to"]).begins_with("727"):
-		rec["sheltered"] = _thermal != null and bool(_thermal.call(&"is_sheltered"))
-		rec["entry"] = "blocked: the measured 727 asset has no opening (Legistar plans or an owner-approved game door needed)"
+		rec["sheltered_outside"] = _thermal != null and bool(_thermal.call(&"is_sheltered"))
+		if info["to"] == "727_fort_st_entrance":
+			_begin_entry()
 	_arrivals.append(rec)
 	print("gate: arrived %s at %.0f s game, %.0f m walked" % [info["to"], _game_s, _distance_walked])
 	if _shots:
 		root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join("arrive_%02d_%s.png" % [leg, info["to"]]))
+
+
+## Opens the 727 door and queues the walk in: ramp, door, lobby, arch, waiting room, and out.
+func _begin_entry() -> void:
+	var shelter: KeyWest727Shelter = _world.find_child("Shelter727", true, false) as KeyWest727Shelter
+	if shelter == null:
+		_entry = {"entered": false, "reason": "Shelter727 missing from the scene"}
+		return
+	var house: Node3D = shelter.get_node(^"House") as Node3D
+	var door: HingedDoor = house.get_node(^"HouseDoor") as HingedDoor
+	door.load_door_save_data({"angle_deg": door.open_angle_deg - 5.0, "latched": false})
+	var plan: Dictionary = shelter.interior
+	var main: Dictionary = {}
+	for o: Dictionary in plan["openings"]:
+		if o["name"] == "MainDoor":
+			main = o
+	var out: Vector2 = Vector2(float(main["outward_uv"][0]), float(main["outward_uv"][1]))
+	var sill: Vector2 = Vector2(float(main["centre_uv"][0]), float(main["centre_uv"][1]))
+	var foot: Vector2 = Vector2(float(plan["entry_ramp"]["from_uv"][0]), float(plan["entry_ramp"]["from_uv"][1]))
+	var path: Array[Vector2] = [foot + out * 1.5, sill + out * 0.6, sill - out * 1.0, Vector2(4.6, 1.6), Vector2(2.2, 1.6), Vector2(0.0, 4.6)]
+	_detour_inside = path.size() - 1
+	for k: int in range(path.size() - 2, -1, -1):
+		path.append(path[k])
+	for uv: Vector2 in path:
+		var w: Vector3 = house.global_transform * Vector3(uv.x, 0.0, uv.y)
+		_detour.append(Vector2(w.x, w.z))
+	_entry = {"entered": false, "door": "opened by the gate (HingedDoor save seam), Henry walks through"}
+
+
+func _steer_indoors(here: Vector2) -> Vector2:
+	if here.distance_to(_detour[0]) < INDOOR_REACH_M:
+		_detour.pop_front()
+		_detour_inside -= 1
+		if _detour_inside == -1:
+			_entry["entered"] = true
+			_entry["game_s"] = snappedf(_game_s, 0.1)
+			_entry["sheltered"] = _thermal != null and bool(_thermal.call(&"is_sheltered"))
+			_entry["position"] = [snappedf(here.x, 0.01), snappedf(here.y, 0.01)]
+			print("gate: inside 727, sheltered=%s" % _entry["sheltered"])
+			if _shots:
+				root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join("inside_727_waiting_room.png"))
+		if _detour.is_empty():
+			return _steer(here)
+	return _detour[0]
 
 
 func _unstick(pos: Vector3, target: Vector2) -> void:
@@ -289,7 +342,9 @@ func _unstick(pos: Vector3, target: Vector2) -> void:
 		"collider": str((slide.get_collider() as Node).get_path()) if slide != null and slide.get_collider() is Node else null,
 		"collision_normal": var_to_str(slide.get_normal()) if slide != null else null})
 	var space: PhysicsDirectSpaceState3D = _player.get_world_3d().direct_space_state
-	var hit: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(target.x, 80.0, target.y), Vector3(target.x, -20.0, target.y)))
+	## Indoors the drop ray starts under the 727 ceiling, never on the roof.
+	var top: float = pos.y + 2.5 if not _detour.is_empty() else 80.0
+	var hit: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(target.x, top, target.y), Vector3(target.x, -20.0, target.y)))
 	var y: float = float(hit["position"].y) + 1.2 if not hit.is_empty() else pos.y + 1.0
 	_player.global_position = Vector3(target.x, y, target.y)
 	_player.velocity = Vector3.ZERO
@@ -321,7 +376,7 @@ func _finish() -> void:
 		"engine": Engine.get_version_info()["string"], "renderer": RenderingServer.get_video_adapter_name(),
 		"display": DisplayServer.get_name(), "route_m": _route["length_m"], "legs_requested": _max_legs,
 		"game_seconds": snappedf(_game_s, 0.1), "walked_m": snappedf(_distance_walked, 0.1),
-		"arrivals": _arrivals, "stuck_events": _stuck, "steering_orbits": _orbits, "disabled_for_diagnosis": _disable, "lowest_y": snappedf(_min_y, 0.01),
+		"arrivals": _arrivals, "entry_727": _entry, "stuck_events": _stuck, "steering_orbits": _orbits, "disabled_for_diagnosis": _disable, "lowest_y": snappedf(_min_y, 0.01),
 		"frames": _frames.size(),
 		"frame_ms": {"p50": _pct(sorted, 0.5), "p95": _pct(sorted, 0.95), "p99": _pct(sorted, 0.99), "max": sorted[-1] if not sorted.is_empty() else 0.0,
 			"over_16_7": _count_over(sorted, 16.7), "over_33_3": _count_over(sorted, 33.3), "over_hitch_50": hitch_frames.size()},
@@ -334,6 +389,7 @@ func _finish() -> void:
 	}
 	report["verdict"] = {
 		"reached_all_requested_legs": _arrivals.size() >= mini(_max_legs, _leg_starts.size()),
+		"entered_727_and_sheltered": bool(_entry.get("entered", false)) and bool(_entry.get("sheltered", false)),
 		"no_stuck": _stuck.is_empty(), "never_on_unloaded_chunk": _unloaded_s == 0.0, "no_engine_errors": _logger.errors == 0,
 		"no_hitch_over_50ms": hitch_frames.is_empty(),
 	}

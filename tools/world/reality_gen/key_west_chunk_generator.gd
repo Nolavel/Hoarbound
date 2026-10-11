@@ -9,6 +9,11 @@ const WORLD_DATA_PATH: String = "res://scenes/world/key_west/generated/world_dat
 const STREAM_ID_PREFIX: String = "kw_gen_"
 const PACK_MANIFEST: String = "res://data/world/key_west/reality/editor_export/manifest.json"
 const DIGEST_PATH: String = "res://data/world/key_west/reality/editor_export/generated_digest.json"
+const PART_DIR: String = "res://scenes/world/key_west/generated/chunks/parts"
+## Heavy groups leave the chunk root as part scenes, attached in this order; Terrain and Anchors stay.
+const PART_ORDER: Array[String] = ["Buildings", "Roads", "Infrastructure", "Coastal", "Vegetation", "Barriers", "LandUse"]
+## Buildings per part scene: about 2 ms of instantiate on the densest Old Town chunk.
+const BUILDING_BLOCK: int = 120
 ## Stamps that differ between identical rebuilds; everything else must match bit for bit.
 const DIGEST_SKIP_META: Array[String] = ["generated_at", "exported_at"]
 const CONTRACT_KEYS: Array[String] = ["feature_id", "feature_class", "source_geometry_hash", "source_dataset", "source_epoch",
@@ -26,7 +31,7 @@ func generate(chunk_ids: PackedStringArray) -> Dictionary:
 		for cid: String in manifest["chunks"]:
 			if not ids.has(cid):
 				ids.append(cid)
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR.path_join("chunks")))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PART_DIR))
 	var builder: KeyWestChunkBuilder = KeyWestChunkBuilder.new()
 	report = {"chunks": {}, "contract_violations": [], "started": Time.get_datetime_string_from_system(true)}
 	for cid: String in ids:
@@ -41,14 +46,15 @@ func generate(chunk_ids: PackedStringArray) -> Dictionary:
 		var violations: Array = _check_contract(root)
 		var digest: String = _digest(root)
 		report["contract_violations"].append_array(violations)
-		var packed: PackedScene = PackedScene.new()
-		var err: Error = packed.pack(root)
-		var scene_path: String = OUT_DIR.path_join("chunks/%s.scn" % root.name)
-		if err == OK:
-			err = ResourceSaver.save(packed, scene_path, ResourceSaver.FLAG_COMPRESS)
-		report["chunks"][cid] = {"scene": scene_path, "error": err, "features_in_export": doc["features"].size(),
-			"stats": builder.stats.duplicate(), "fidelity": doc["fidelity"], "ms": Time.get_ticks_msec() - t0,
-			"contract_violations": violations.size(), "digest": digest}
+		_remove_parts(String(root.name))
+		var part_paths: PackedStringArray = _save_parts(root)
+		var err: Error = _save(root, OUT_DIR.path_join("chunks/%s.scn" % root.name))
+		for path: String in part_paths:
+			if FileAccess.file_exists(path) == false:
+				err = ERR_FILE_CANT_WRITE
+		report["chunks"][cid] = {"scene": OUT_DIR.path_join("chunks/%s.scn" % root.name), "parts": part_paths.size(), "error": err,
+			"features_in_export": doc["features"].size(), "stats": builder.stats.duplicate(), "fidelity": doc["fidelity"],
+			"ms": Time.get_ticks_msec() - t0, "contract_violations": violations.size(), "digest": digest}
 		root.free()
 	if chunk_ids.is_empty():
 		_remove_stale_scenes(ids)
@@ -58,6 +64,77 @@ func generate(chunk_ids: PackedStringArray) -> Dictionary:
 	var f: FileAccess = FileAccess.open(OUT_DIR.path_join("generation_report.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(report, " "))
 	return report
+
+
+## Instantiates a saved chunk with all its parts attached, as the streamer leaves it once ACTIVE.
+static func instantiate_assembled(scene_path: String) -> Node3D:
+	var chunk: Node3D = (load(scene_path) as PackedScene).instantiate() as Node3D
+	for path: String in part_paths_of(scene_path.get_file().get_basename()):
+		StreamingSystem.attach_part(chunk, (load(path) as PackedScene).instantiate())
+	return chunk
+
+
+## Part scenes of one chunk ("Chunk_x_z"), in attach order.
+static func part_paths_of(chunk_name: String) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	var dir: DirAccess = DirAccess.open(PART_DIR)
+	if dir == null:
+		return out
+	for file_name: String in dir.get_files():
+		if file_name.begins_with(chunk_name + "__") and file_name.ends_with(".scn"):
+			out.append(PART_DIR.path_join(file_name))
+	out.sort()
+	return out
+
+
+## Moves the PART_ORDER groups out of root into numbered part scenes; Buildings split in blocks.
+func _save_parts(root: Node3D) -> PackedStringArray:
+	var paths: PackedStringArray = PackedStringArray()
+	for group_name: String in PART_ORDER:
+		var group: Node3D = root.get_node_or_null(NodePath(group_name)) as Node3D
+		if group == null:
+			continue
+		root.remove_child(group)
+		_own(group, null)
+		var pieces: Array[Node3D] = [group]
+		if group_name == "Buildings":
+			var kids: Array = group.get_children().filter(func(n: Node) -> bool: return n.name != &"BuildingCollision")
+			for start: int in range(BUILDING_BLOCK, kids.size(), BUILDING_BLOCK):
+				var block: Node3D = Node3D.new()
+				block.name = "Block_%d" % (start / BUILDING_BLOCK)
+				block.set_meta("attach_to", "Buildings")
+				for n: Node in kids.slice(start, start + BUILDING_BLOCK):
+					group.remove_child(n)
+					block.add_child(n)
+				pieces.append(block)
+		for piece: Node3D in pieces:
+			if piece.get_child_count() > 0:
+				var path: String = PART_DIR.path_join("%s__%02d_%s.scn" % [root.name, paths.size(), piece.name])
+				if _save(piece, path) == OK:
+					paths.append(path)
+			piece.free()
+	return paths
+
+
+## Packs node with every descendant owned by it, except inside instanced scenes.
+func _save(node: Node, path: String) -> Error:
+	_own(node, node)
+	var packed: PackedScene = PackedScene.new()
+	var err: Error = packed.pack(node)
+	return ResourceSaver.save(packed, path, ResourceSaver.FLAG_COMPRESS) if err == OK else err
+
+
+## owner_node null clears ownership, so nodes can move between part roots.
+func _own(node: Node, owner_node: Node) -> void:
+	for child: Node in node.get_children():
+		child.owner = owner_node
+		if child.scene_file_path == "":
+			_own(child, owner_node)
+
+
+func _remove_parts(chunk_name: String) -> void:
+	for path: String in part_paths_of(chunk_name):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
 ## Content hash of a built chunk: tree shape, transforms, metadata, mesh, MultiMesh and collision
@@ -190,6 +267,11 @@ func _remove_stale_scenes(ids: PackedStringArray) -> void:
 	for file_name: String in dir.get_files():
 		if file_name.ends_with(".scn") and not keep.has(file_name):
 			dir.remove(file_name)
+	var parts: DirAccess = DirAccess.open(PART_DIR)
+	if parts != null:
+		for file_name: String in parts.get_files():
+			if not keep.has(file_name.get_slice("__", 0) + ".scn"):
+				parts.remove(file_name)
 
 
 ## WorldData for the production StreamingSystem: one ChunkData per saved chunk, centred.
@@ -214,6 +296,7 @@ func _write_world_data() -> void:
 		chunk.position = Vector3((cx + 0.5) * 512.0, 0.0, (cz + 0.5) * 512.0)
 		chunk.radius = 512.0 * sqrt(2.0) * 0.5
 		chunk.content_scene_path = OUT_DIR.path_join("chunks").path_join(file_name)
+		chunk.part_scene_paths = part_paths_of(file_name.get_basename())
 		data.chunks.append(chunk)
 	ResourceSaver.save(data, WORLD_DATA_PATH)
 	report["world_data"] = {"path": WORLD_DATA_PATH, "chunks": data.chunks.size()}
@@ -232,11 +315,14 @@ func _write_root_scene() -> void:
 	for file_name: String in names:
 		if not file_name.ends_with(".scn"):
 			continue
-		var chunk: Node3D = (load(OUT_DIR.path_join("chunks").path_join(file_name)) as PackedScene).instantiate() as Node3D
+		var chunk: Node3D = instantiate_assembled(OUT_DIR.path_join("chunks").path_join(file_name))
 		var centre: Array = chunk.get_meta("centre_local", [0.0, 0.0])
 		chunk.position = Vector3(float(centre[0]), 0.0, float(centre[1]))
 		root.add_child(chunk)
 		chunk.owner = root
+		for part: Node in chunk.find_children("*", "", true, false):
+			if part.scene_file_path.begins_with(PART_DIR):
+				part.owner = root
 	var packed: PackedScene = PackedScene.new()
 	if packed.pack(root) == OK:
 		ResourceSaver.save(packed, OUT_DIR.path_join("KeyWest_generated.tscn"))

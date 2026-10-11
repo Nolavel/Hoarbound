@@ -63,6 +63,7 @@ func _run() -> void:
 	_test_queued_loads_start_while_standing_still()
 	_test_cold_cache_is_bounded()
 	_test_prewarm_profile_activates_spawn_band_before_first_frame()
+	_test_parts_attach_over_frames_within_budget()
 	_test_leaving_early_rolls_back_without_instantiating()
 	_test_reset_clears_everything()
 	_test_runtime_source_uses_same_state_machine()
@@ -115,7 +116,10 @@ func _settle(system: StreamingSystem, deadline_ms: int = SETTLE_DEADLINE_MS) -> 
 		var before: String = str(system._states)
 		system.pump()
 		OS.delay_msec(1)
-		quiet = quiet + 1 if str(system._states) == before else 0
+		var busy: bool = system._states.values().any(func(st: int) -> bool:
+			return st in [StreamingSystem.CellState.QUEUED, StreamingSystem.CellState.LOADING, StreamingSystem.CellState.ASSEMBLING])
+		## A load in flight is not quiet: on a busy machine it can outlast SETTLE_QUIET_PUMPS.
+		quiet = quiet + 1 if str(system._states) == before and not busy else 0
 		if quiet >= SETTLE_QUIET_PUMPS:
 			return
 
@@ -304,6 +308,57 @@ func _test_prewarm_profile_activates_spawn_band_before_first_frame() -> void:
 		system.get_state(chunk.id) == StreamingSystem.CellState.ACTIVE,
 		"prewarm left the spawn chunk %s (state %d) for later frames" % [chunk.id, system.get_state(chunk.id)]
 	)
+	system.reset()
+	for node: Node in [system, player, container]:
+		_dispose(node)
+
+
+## A chunk with parts goes READY -> ASSEMBLING -> ACTIVE, one part per frame at a zero budget,
+## and leaving mid-assembly frees everything.
+func _test_parts_attach_over_frames_within_budget() -> void:
+	var paths: PackedStringArray = PackedStringArray()
+	for name: String in ["Root", "PartA", "PartB", "PartC"]:
+		var node := Node3D.new()
+		node.name = name
+		var packed := PackedScene.new()
+		packed.pack(node)
+		var path: String = "user://test_streaming_%s.scn" % name
+		ResourceSaver.save(packed, path)
+		paths.append(path)
+		node.free()
+	var chunk := ChunkData.new()
+	chunk.id = &"staged_test"
+	chunk.position = Vector3(5000.0, 0.0, 5000.0)
+	chunk.radius = 50.0
+	chunk.content_scene_path = paths[0]
+	chunk.part_scene_paths = paths.slice(1)
+	var data := WorldData.new()
+	data.chunks = [chunk]
+	ResourceSaver.save(data, "user://test_streaming_world.tres")
+	var container := Node3D.new()
+	root.add_child(container)
+	var player := Node3D.new()
+	root.add_child(player)
+	var system := StreamingSystem.new()
+	system.world_data_path = "user://test_streaming_world.tres"
+	system.assembly_budget_usec = 0
+	root.add_child(system)
+	system.initialize(container, player)
+	system.scan(chunk.position)
+	var until: int = Time.get_ticks_msec() + SETTLE_DEADLINE_MS
+	while system.get_state(chunk.id) != StreamingSystem.CellState.ASSEMBLING and Time.get_ticks_msec() < until:
+		system.pump()
+		OS.delay_msec(1)
+	_check(system.get_state(chunk.id) == StreamingSystem.CellState.ASSEMBLING, "a chunk with parts never started assembling")
+	var instance := system._instances.get(chunk.id) as Node
+	_check(instance != null and instance.get_child_count() <= 1, "more than one part attached in the activation frame")
+	for i: int in range(3):
+		system.pump()
+	_check(system.get_state(chunk.id) == StreamingSystem.CellState.ACTIVE, "three parts at one per frame did not finish (state %d)" % system.get_state(chunk.id))
+	_check(instance != null and instance.get_child_count() == 3, "parts missing after assembly")
+	system.scan(Vector3(100000.0, 0.0, 100000.0))
+	system.pump()
+	_check(system.get_state(chunk.id) == StreamingSystem.CellState.UNLOADED and system.get_active_chunks().is_empty(), "leaving did not release the assembled chunk")
 	system.reset()
 	for node: Node in [system, player, container]:
 		_dispose(node)

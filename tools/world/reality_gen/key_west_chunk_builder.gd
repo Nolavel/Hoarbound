@@ -3,7 +3,7 @@ extends RefCounted
 ## Builds one Reality Library chunk (editor interchange JSON v2) into a Node3D tree with meshes,
 ## collision and the per-node metadata contract. Editor-time only; never used at runtime.
 
-const GENERATOR_VERSION: String = "kw_chunk_builder.3"
+const GENERATOR_VERSION: String = "kw_chunk_builder.4"
 const GROUPS: Array[String] = ["Terrain", "Buildings", "Roads", "Barriers", "Infrastructure", "Vegetation", "Coastal", "LandUse", "Anchors"]
 const WALL_SINK_M: float = 0.3
 const WIRE_SAG_RATIO: float = 0.015
@@ -11,13 +11,17 @@ const WIRE_SEGMENTS: int = 8
 const CONTRACT_KEYS: Array[String] = ["feature_id", "feature_class", "source_geometry_hash", "source_dataset", "source_epoch",
 	"reconstruction_class", "confidence", "override_state", "authoring_state", "regen_action"]
 const MESH_FLAGS: int = Mesh.ARRAY_FLAG_COMPRESS_ATTRIBUTES
+const TERRAIN_SHADER: Shader = preload("res://shaders/environment/terrain/island_terrain.gdshader")
+## Lidar crowns narrower than this share of the tree height read as palms (no species in the data).
+const PALM_CROWN_RATIO: float = 0.35
 
 var stats: Dictionary = {}
 var _mat: Dictionary = {}
-var _crown_mesh: SphereMesh
-var _trunk_mesh: CylinderMesh
 var _pole_mesh: CylinderMesh
 var _prop_mesh: CylinderMesh
+var _palm_mesh: ArrayMesh
+var _bare_mesh: ArrayMesh
+var _bare_aabb: AABB
 var _batches: Dictionary = {}
 var _collision_faces: PackedVector3Array = PackedVector3Array()
 var _collision_ranges: Array = []
@@ -37,20 +41,17 @@ func _init() -> void:
 	_mat["hedge"] = _material(Color(0.24, 0.40, 0.22), true)
 	_mat["pole"] = _material(Color(0.33, 0.27, 0.21))
 	_mat["wire"] = _material(Color(0.08, 0.08, 0.08), true)
-	_mat["crown"] = _material(Color(0.20, 0.44, 0.22))
-	_mat["trunk"] = _material(Color(0.36, 0.28, 0.20))
 	_mat["canopy"] = _material(Color(0.18, 0.38, 0.20))
 	_mat["water"] = _material(Color(0.20, 0.38, 0.52), true)
 	_mat["prop"] = _material(Color(0.70, 0.62, 0.20))
-	_mat["terrain"] = _material(Color(1, 1, 1))
-	(_mat["terrain"] as StandardMaterial3D).vertex_color_use_as_albedo = true
-	_crown_mesh = SphereMesh.new()
-	_crown_mesh.radius = 1.0
-	_crown_mesh.height = 1.0
-	_crown_mesh.radial_segments = 8
-	_crown_mesh.rings = 4
-	_crown_mesh.material = _mat["crown"]
-	_trunk_mesh = _cylinder(0.12, 0.18, 1.0, _mat["trunk"])
+	var terrain: ShaderMaterial = ShaderMaterial.new()
+	terrain.shader = TERRAIN_SHADER
+	_mat["terrain"] = terrain
+	## The legacy city's own procedural palms and winter-bare broadleaf trees.
+	var props: Dictionary = KeyWestStreetProps._materials()
+	_palm_mesh = KeyWestStreetProps._palm_mesh(props)
+	_bare_mesh = KeyWestStreetProps._bare_tree_mesh(props)
+	_bare_aabb = _bare_mesh.get_aabb()
 	_pole_mesh = _cylinder(0.12, 0.16, 1.0, _mat["pole"])
 	_prop_mesh = _cylinder(0.15, 0.15, 1.0, _mat["prop"])
 
@@ -115,6 +116,10 @@ func _feature(feature: Dictionary) -> Node3D:
 		if at is Array:
 			scene.position = Vector3(float(at[0]), float(at[1]), float(at[2]))
 		scene.set_meta("authored_asset", authored)
+		## The asset brings its own collision; its outline still keeps runtime snow out of it.
+		var ring: PackedVector2Array = _points(feature["mesh"].get("collision", {}).get("ring", []))
+		if ring.size() >= 3:
+			_footprints.append(ring)
 		_count("authored_assets")
 		return scene
 	if action == "orphaned":
@@ -356,7 +361,7 @@ func _pole(feature: Dictionary, m: Dictionary) -> Node3D:
 	var p: Array = m["p"]
 	var top: float = float(m["top_y"])
 	var xf: Transform3D = Transform3D(Basis.from_scale(Vector3(1.0, top, 1.0)), Vector3(float(p[0]), float(m["base_y"]) + top * 0.5, float(p[1])))
-	_batch(feature, "Poles", _pole_mesh, xf, true)
+	_batch(feature, "Poles", _pole_mesh, xf)
 	_count("poles")
 	return null
 
@@ -398,9 +403,17 @@ func _tree(feature: Dictionary, m: Dictionary) -> Node3D:
 	var h: float = float(m["height"])
 	var r: float = float(m["crown_radius"])
 	var base: Vector3 = Vector3(float(p[0]), float(m["base_y"]), float(p[1]))
-	var crown_h: float = maxf(h * 0.55, 1.5)
-	_batch(feature, "TreeCrowns", _crown_mesh, Transform3D(Basis.from_scale(Vector3(r, crown_h, r)), base + Vector3(0.0, h - crown_h * 0.5, 0.0)), true)
-	_batch(feature, "TreeTrunks", _trunk_mesh, Transform3D(Basis.from_scale(Vector3(1.0, h * 0.6, 1.0)), base + Vector3(0.0, h * 0.3, 0.0)), false)
+	var yaw: float = float(abs(hash(String(feature["feature_id"]))) % 628) * 0.01
+	if r < h * PALM_CROWN_RATIO:
+		var s: float = h / KeyWestStreetProps.PALM_BASE_HEIGHT_M
+		_batch(feature, "Palms", _palm_mesh, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), base))
+		_count("palms")
+	else:
+		var reach: float = maxf(maxf(_bare_aabb.size.x, _bare_aabb.size.z) * 0.5, 0.1)
+		var xz: float = r / reach
+		var basis: Basis = Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3(xz, h / maxf(_bare_aabb.end.y, 0.1), xz))
+		_batch(feature, "BareTrees", _bare_mesh, Transform3D(basis, base))
+		_count("bare_trees")
 	_count("trees")
 	return null
 
@@ -418,7 +431,7 @@ func _prop(feature: Dictionary, m: Dictionary) -> Node3D:
 	var p: Array = m["p"]
 	var h: float = float(m["height"])
 	var xf: Transform3D = Transform3D(Basis.from_scale(Vector3(1.0, h, 1.0)), Vector3(float(p[0]), float(m["base_y"]) + h * 0.5, float(p[1])))
-	_batch(feature, "Props", _prop_mesh, xf, true)
+	_batch(feature, "Props", _prop_mesh, xf)
 	_count("props")
 	return null
 
@@ -568,19 +581,18 @@ func _apply_meta(node: Node3D, feature: Dictionary, doc: Dictionary) -> void:
 
 
 ## Point features of one mesh kind share a MultiMesh; per-instance provenance sits in parallel arrays.
-func _batch(feature: Dictionary, kind: String, mesh: Mesh, xf: Transform3D, carries_meta: bool) -> void:
+func _batch(feature: Dictionary, kind: String, mesh: Mesh, xf: Transform3D) -> void:
 	var key: String = "%s/%s" % [feature["group"], kind]
 	if not _batches.has(key):
-		_batches[key] = {"group": feature["group"], "kind": kind, "mesh": mesh, "xf": [], "meta": {}, "carries_meta": carries_meta}
+		_batches[key] = {"group": feature["group"], "kind": kind, "mesh": mesh, "xf": [], "meta": {}}
 	var b: Dictionary = _batches[key]
 	(b["xf"] as Array).append(xf)
-	if carries_meta:
-		var meta: Dictionary = feature["meta"]
-		for k: String in CONTRACT_KEYS:
-			var v: Variant = feature["regen_action"] if k == "regen_action" else meta.get(k)
-			var values: PackedStringArray = (b["meta"] as Dictionary).get(k, PackedStringArray())
-			values.append("" if v == null else str(v))
-			b["meta"][k] = values  # packed arrays are values: write the grown copy back
+	var meta: Dictionary = feature["meta"]
+	for k: String in CONTRACT_KEYS:
+		var v: Variant = feature["regen_action"] if k == "regen_action" else meta.get(k)
+		var values: PackedStringArray = (b["meta"] as Dictionary).get(k, PackedStringArray())
+		values.append("" if v == null else str(v))
+		b["meta"][k] = values  # packed arrays are values: write the grown copy back
 
 
 func _flush_batches(groups: Dictionary, doc: Dictionary) -> void:
@@ -599,11 +611,8 @@ func _flush_batches(groups: Dictionary, doc: Dictionary) -> void:
 		node.set_meta("generator_version", GENERATOR_VERSION)
 		node.set_meta("generated_at", doc["exported_at"])
 		node.set_meta("instance_count", xfs.size())
-		if b["carries_meta"]:
-			for k: String in (b["meta"] as Dictionary).keys():
-				node.set_meta("instance_" + k, b["meta"][k])
-		else:
-			node.set_meta("instances_of", "KW_TreeCrowns")
+		for k: String in (b["meta"] as Dictionary).keys():
+			node.set_meta("instance_" + k, b["meta"][k])
 		(groups.get(b["group"], groups["Infrastructure"]) as Node3D).add_child(node)
 
 
@@ -710,13 +719,9 @@ func _centroid(ring: PackedVector2Array) -> Vector2:
 	return sum / float(maxi(ring.size(), 1))
 
 
-func _material(colour: Color, double_sided: bool = false) -> StandardMaterial3D:
-	var m: StandardMaterial3D = StandardMaterial3D.new()
-	m.albedo_color = colour
-	m.roughness = 0.9
-	if double_sided:
-		m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return m
+## The legacy city's stylized environment material (stylized shadows), not a StandardMaterial3D.
+func _material(colour: Color, double_sided: bool = false) -> ShaderMaterial:
+	return StylizedEnvironmentMaterial.make_static(colour, 0.9, double_sided)
 
 
 func _cylinder(top: float, bottom: float, height: float, material: Material) -> CylinderMesh:
@@ -729,10 +734,12 @@ func _cylinder(top: float, bottom: float, height: float, material: Material) -> 
 	return c
 
 
+## Instanced landmark scenes keep their own internals; owning them would save a second copy.
 func _set_owner_recursive(node: Node, owner: Node) -> void:
 	for child: Node in node.get_children():
 		child.owner = owner
-		_set_owner_recursive(child, owner)
+		if child.scene_file_path == "":
+			_set_owner_recursive(child, owner)
 
 
 func _count(key: String) -> void:

@@ -5,7 +5,7 @@
   {
    "feature_id": "kw:building:osm:w339414849",
    "asset_id": "kw_asset:landmark:w339414849",
-   "asset_revision": 1,
+   "asset_revision": 2,
    "authoring_state": "generated",
    "kind": "landmark",
    "godot_scene": "res://assets/world/key_west/landmarks/kw_727_fort_st.glb",
@@ -16,9 +16,9 @@
    ],
    "source_geometry_hash": "0dd2302a87ac3b35",
    "last_generator_version": "1.0.0",
-   "asset_sha256": "91fbc387ba61fd8f4c9c64677e430af05daa7ae6bc88f431bf6d70732d467ee5",
+   "asset_sha256": "cad52b9f21cdf92eecdf9c213c93b3bc2e78ca6ea0b43e23aa286ecf1f5e4a87",
    "landmark_spec": "data/world/key_west/reality/landmarks/kw_727_fort_st.json",
-   "updated_at": "2026-10-10T09:07:53+00:00"
+   "updated_at": "2026-10-10T23:19:23+00:00"
   },
   {
    "feature_id": "kw:building:osm:w524088621",

@@ -3,8 +3,8 @@
   landmarks            measure, write assets/world/key_west/landmarks/*.glb + data/.../landmarks/*.json,
                        register them in authoring/asset_manifest.json (never over artist work)
 
-Nothing here is invented: every element names the measurement or record it comes from, and
-whatever the sources cannot tell (openings, floor plan, emplacement detail) is left out.
+Every measured element names the measurement or record it comes from. The one exception is the
+727 interior (openings, rooms, furniture spots: shelter_727), game-invented and flagged as such.
 """
 from __future__ import annotations
 
@@ -19,16 +19,19 @@ import shapely.affinity
 import triangle
 from scipy import ndimage
 
-from . import PIPELINE_VERSION, frame, lidar, meshing, paths, receipts
+from . import PIPELINE_VERSION, frame, lidar, meshing, paths, receipts, shelter_727
 from .assets import MANIFEST, _current_hash
 
-LANDMARK_VERSION = "kw_landmark.1"
+## Per asset, so a change to one landmark does not rewrite the others' binaries.
+LANDMARK_VERSIONS = {"kw_727_fort_st": "kw_landmark.2", "kw_fort_zachary_taylor": "kw_landmark.1"}
 ASSET_DIR = paths.ROOT / "assets/world/key_west/landmarks"
 SPEC_DIR = paths.REALITY / "landmarks"
 ROOF_BAND_M = (4.3, 5.2)  # 727: flat roof plane above ground, separates roof from canopy
 NOTCH_ROOF_MIN_M = 1.0  # roof run-out beyond an edge that counts as a roofed notch, not an eave
 MATERIALS = {"masonry_stucco": (0.86, 0.83, 0.76, 1.0), "roof_membrane": (0.55, 0.55, 0.53, 1.0),
-             "fort_brick": (0.62, 0.45, 0.36, 1.0)}
+             "fort_brick": (0.62, 0.45, 0.36, 1.0), "interior_plaster": (0.80, 0.79, 0.74, 1.0),
+             "floor_vinyl": (0.52, 0.50, 0.45, 1.0), "ceiling_tile": (0.88, 0.88, 0.85, 1.0),
+             "window_glass": (0.30, 0.40, 0.46, 0.35)}
 
 
 def run() -> dict:
@@ -42,8 +45,8 @@ def run() -> dict:
             out[name] = "skipped: artist-owned asset in manifest"
             continue
         glb = ASSET_DIR / f"{name}.glb"
-        _write_glb(glb, nodes)
-        spec.update({"landmark_version": LANDMARK_VERSION, "pipeline_version": PIPELINE_VERSION, "built_at": receipts.now_utc(),
+        _write_glb(glb, nodes, LANDMARK_VERSIONS[name])
+        spec.update({"landmark_version": LANDMARK_VERSIONS[name], "pipeline_version": PIPELINE_VERSION, "built_at": receipts.now_utc(),
                      "asset": paths.rel(glb), "asset_sha256": hashlib.sha256(glb.read_bytes()).hexdigest(),
                      "triangles": int(sum(len(sf["i"]) // 3 for n in nodes for sf in n["surfaces"]))})
         (SPEC_DIR / f"{name}.json").write_text(json.dumps(spec, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -84,12 +87,13 @@ def _shelter_727(s: meshing.Surfaces):
     centre, origin = _origin(fp, ring_ground)
     top = roof_rel
     fascia = 0.3  # presentation thickness of the roof slab edge (inferred)
-    floor = 0.15  # slab-on-grade finish above the ring ground (inferred)
-    wall_mesh = _prism(walls, centre, -0.3, top - fascia)
     roof_mesh = _prism(roof, centre, top - fascia, top)
-    floor_mesh = _cap(walls.buffer(-0.01), centre, floor, up=True)
+    plan = shelter_727.Plan(walls, origin)
+    interior, shell_nodes = shelter_727.build(plan, top - fascia, ring_ground, s.ground_at)
+    floor = interior["floor_y"]
     spec = {
-        "landmark": "727 Fort Street (First Exit primary shelter) - measured massing", "presentation": "measured_massing",
+        "landmark": "727 Fort Street (First Exit primary shelter) - measured exterior, enterable game interior",
+        "presentation": "measured_exterior_enterable",
         "feature_id": fid,
         "override_id": "kw_override:first_exit:shelter:727_fort_st", "origin_local": origin,
         "frame": "glTF/Godot local metres: +x east, +y up (NAVD88 - origin y), +z south",
@@ -102,10 +106,12 @@ def _shelter_727(s: meshing.Surfaces):
             "walls": {"recon": "cross_verified", "inset_m": round(eave, 3), "area_m2": round(walls.area, 1),
                       "method": "OSM trace inset until the area equals the City record (3,693 sq ft)",
                       "check_lidar_eave_runouts_m": [e["runout_m"] for e in edges if e not in notch]},
-            "floor_above_ground_m": {"value": floor, "recon": "inferred", "note": "finished floor not in any reachable record"},
+            "floor_above_ground_m": {"value": floor, "recon": "inferred",
+                                     "note": "not in any record; set over the highest DEM ground inside the walls"},
             "roof_fascia_m": {"value": fascia, "recon": "inferred"},
-            "openings": {"recon": "unresolved", "note": "doors/windows only from the Legistar plan attachments (not delivered)"},
+            "openings": {"recon": "game_invented", "note": "see interior; the Legistar plan attachments were not delivered"},
         },
+        "interior": interior,
         "conflicts": [{
             "attribute": "height", "documentary": {"value_m": 6.86, "source": "city_kw_legistar_20_6136", "text": "existing height 22 ft 6 in"},
             "measured": {"value_m": round(top, 2), "sources": ["noaa_lidar_9081 2019", "noaa_lidar_6246 2016"]},
@@ -113,9 +119,7 @@ def _shelter_727(s: meshing.Surfaces):
                           "Proposed 26 ft 4 in (2020) may describe a later state - needs post-2020 evidence."}],
         "ground_ring_navd88_m": round(ring_ground, 3),
     }
-    nodes = [{"name": "Walls-col", "surfaces": [dict(wall_mesh, material="masonry_stucco")]},
-             {"name": "Roof-col", "surfaces": [dict(roof_mesh, material="roof_membrane")]},
-             {"name": "Floor", "surfaces": [dict(floor_mesh, material="masonry_stucco")]}]
+    nodes = shell_nodes + [{"name": "Roof-col", "surfaces": [dict(roof_mesh, material="roof_membrane")]}]
     return spec, nodes
 
 
@@ -365,7 +369,7 @@ def _skirt(ring: np.ndarray, top: np.ndarray, bottom: np.ndarray, centre, y0: fl
     return _mesh(out)
 
 
-def _write_glb(path, nodes: list[dict]) -> None:
+def _write_glb(path, nodes: list[dict], version: str) -> None:
     """Minimal glTF 2.0 binary: one mesh per node, one primitive per surface, PBR base colours."""
     names = sorted({sf["material"] for n in nodes for sf in n["surfaces"]})
     blob, views, accessors, meshes = bytearray(), [], [], []
@@ -393,11 +397,12 @@ def _write_glb(path, nodes: list[dict]) -> None:
             ind = add(np.ascontiguousarray(sf["i"], np.uint32), 34963, 5125, "SCALAR")
             prims.append({"attributes": {"POSITION": pos, "NORMAL": nrm}, "indices": ind, "material": names.index(sf["material"])})
         meshes.append({"name": n["name"], "primitives": prims})
-    gltf = {"asset": {"version": "2.0", "generator": f"hoarbound {LANDMARK_VERSION}"}, "scene": 0,
+    gltf = {"asset": {"version": "2.0", "generator": f"hoarbound {version}"}, "scene": 0,
             "scenes": [{"nodes": list(range(len(nodes)))}],
             "nodes": [{"name": n["name"], "mesh": k} for k, n in enumerate(nodes)], "meshes": meshes,
-            "materials": [{"name": m, "pbrMetallicRoughness": {"baseColorFactor": list(MATERIALS[m]), "metallicFactor": 0.0,
-                                                                "roughnessFactor": 0.9}} for m in names],
+            "materials": [dict({"name": m, "pbrMetallicRoughness": {"baseColorFactor": list(MATERIALS[m]), "metallicFactor": 0.0,
+                                                                     "roughnessFactor": 0.9}},
+                               **({"alphaMode": "BLEND", "doubleSided": True} if MATERIALS[m][3] < 1.0 else {})) for m in names],
             "accessors": accessors, "bufferViews": views, "buffers": [{"byteLength": len(blob)}]}
     js = json.dumps(gltf, separators=(",", ":")).encode()
     js += b" " * (-len(js) % 4)
