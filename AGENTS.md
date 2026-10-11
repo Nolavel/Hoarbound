@@ -73,6 +73,7 @@ Handover rules:
 - [PRD.md](PRD.md) — Product Requirements Document (vision, current north-star, success criteria, out of scope).
 - [CONTRIBUTING_DECOMPOSITION.md](CONTRIBUTING_DECOMPOSITION.md) — правила декомпозиции PRD → Epic → User Story → Task → Subtask.
 - [docs/game_design/VERTICAL_SLICE.md](docs/game_design/VERTICAL_SLICE.md) — текущий scope First Exit A.
+- [docs/art/ART_DIRECTION.md](docs/art/ART_DIRECTION.md) — production visual source of truth. Rendering, materials, assets, lighting and visual experiments must preserve this contract unless the author explicitly changes it.
 
 ## Engine baseline
 
