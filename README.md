@@ -26,6 +26,7 @@ The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs
 - **Shelter as an action:** a building is not automatically safe; the player repairs openings, manages fuel and creates usable warmth.
 - **Physical interaction:** equipment, Quick Access and the backpack are moving toward readable diegetic handling rather than abstract menu-first interaction.
 - **Real geography:** NOAA / OSM data underpins the Key West terrain and city; authored gameplay is layered on top.
+- **Painterly 2.5D NPR:** full 3D geometry is presented with 2D painting logic — strong silhouettes, large colour/value masses, restrained PBR and surface-bound brushwork. The production contract is [`docs/art/ART_DIRECTION.md`](docs/art/ART_DIRECTION.md).
 - **Winter presentation:** streamed snow, local deformation, footprints, weather and stylized rendering share one production world.
 
 ## Runtime
@@ -40,6 +41,7 @@ The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs
 - [`PRD.md`](PRD.md) — product direction and current milestone
 - [`docs/game_design/VERTICAL_SLICE.md`](docs/game_design/VERTICAL_SLICE.md) — First Exit A scope contract
 - [`docs/GDD.md`](docs/GDD.md) — code-grounded gameplay / systems snapshot
+- [`docs/art/ART_DIRECTION.md`](docs/art/ART_DIRECTION.md) — production visual source of truth
 - [`AGENTS.md`](AGENTS.md) — repository and agent workflow rules
 - [`CONTRIBUTING_DECOMPOSITION.md`](CONTRIBUTING_DECOMPOSITION.md) — issue / milestone decomposition rules
 
