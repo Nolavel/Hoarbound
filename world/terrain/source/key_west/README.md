@@ -198,3 +198,12 @@ Repack the committed source with:
 ```powershell
 python tools/world/bake_terrain.py --source world/terrain/source/key_west/key_west_preview_2m_height.png --meta world/terrain/source/key_west/key_west_preview_2m_height.json --out-png world/terrain/key_west_preview_2m_la8.png --out-json world/terrain/key_west_preview_2m_la8.json
 ```
+
+
+## Place in the Reality Library architecture — 2026-10-10
+
+This 2 m crop's frame is now the authoritative Hoarbound local frame
+(`data/world/key_west/reality/config/frame.json`). The Reality Library extent is
+larger (+1.8 km north, +0.6 km east, `config/extent.json`); its 1 m DEM crop lives
+in the library raw cache. Re-baking the runtime heightmap for the larger extent is a
+separate pass; this crop is unchanged.

@@ -1,0 +1,114 @@
+{
+ "pipeline_version": "1.0.0",
+ "errors": [],
+ "warnings": {
+  "extends_far_beyond_extent": {
+   "count": 18,
+   "samples": [
+    "kw:admin:overture:85a07df3-0c05-44ca-a7e7-16a6603427ae (admin_areas) bounds [304996, 2712494, 575015, 2854120]",
+    "kw:admin:overture:e1a6fdec-5613-423f-8911-03963861a164 (admin_areas) bounds [298804, 2698414, 585531, 2854120]",
+    "kw:admin:usgs_gu:ebf7e37b-1b26-4033-85a4-4209585e9387 (admin_areas) bounds [286493, 2698414, 582124, 2854137]",
+    "kw:admin:usgs_gu:{991c8996-d988-4175-a968-f48392930aa7} (admin_areas) bounds [422536, 2718524, 472336, 2739352]",
+    "kw:admin:usgs_gu:{c6a182ee-63f9-49e3-b0a1-5c81e3e8ad36} (admin_areas) bounds [300702, 2717128, 423494, 2735826]",
+    "kw:admin:usgs_gu:{e3b72fab-23c9-46e4-a6e5-7b786c26a238} (admin_areas) bounds [422536, 2718523, 472336, 2739351]",
+    "kw:land:osm:r17989248 (land) bounds [304991, 2712257, 480957, 2744355]",
+    "kw:land:osm:r17989249 (land) bounds [304991, 2712257, 584298, 2830664]",
+    "kw:landuse:osm:r10263428 (land_use) bounds [281797, 2689024, 593772, 2837300]",
+    "kw:landuse:osm:r1249001 (land_use) bounds [381746, 2703694, 417360, 2728323]",
+    "kw:landuse:osm:r4438218 (land_use) bounds [417974, 2719631, 485589, 2745267]",
+    "kw:road:overture:1a5ff3ef-c3fb-49aa-bff3-db4ae26fccac (roads) bounds [309632, 2709838, 419038, 2726492]",
+    "kw:road:overture:9c6741bb-3a06-4779-b5e3-3a4988b246e6 (roads) bounds [401672, 2716828, 419038, 2927986]",
+    "kw:road:overture:a0e7bc98-b03a-406a-b6b6-ef7a064650ae (roads) bounds [408673, 2716828, 427584, 2873115]",
+    "kw:road:usgs_ntd:feb7d370-3d9b-406c-ba30-9ac35df57cc0 (roads) bounds [417974, 2714623, 560234, 2777968]"
+   ]
+  },
+  "building_in_water": {
+   "count": 53,
+   "samples": [
+    "kw:building:osm:w1158807119 (building/shelter) local=(-3920,818)",
+    "kw:building:osm:w1158807120 (building/shed) local=(-3877,827)",
+    "kw:building:osm:w1158807121 (building/None) local=(-3868,828)",
+    "kw:building:osm:w1158807124 (building/None) local=(-3889,829)",
+    "kw:building:osm:w1158831718 (building/None) local=(-2958,222)",
+    "kw:building:osm:w116823616 (building/None) local=(2529,-2003)",
+    "kw:building:osm:w339414829 (building/entertainment) local=(-3830,1398)",
+    "kw:building:osm:w493310698 (building/roof) local=(-2203,2014)",
+    "kw:building:osm:w493310701 (building/None) local=(-2401,2009)",
+    "kw:building:osm:w494955935 (building/None) local=(-3115,332)",
+    "kw:building:osm:w494955936 (building/None) local=(-3136,279)",
+    "kw:building:osm:w495978773 (building/None) local=(-706,165)",
+    "kw:building:osm:w525619916 (building/None) local=(-1024,208)",
+    "kw:building:osm:w525620088 (building/houseboat) local=(-1000,214)",
+    "kw:building:osm:w525620184 (building/houseboat) local=(-1052,198)"
+   ]
+  },
+  "overlapping_buildings": {
+   "count": 6,
+   "samples": [
+    "kw:building:osm:r7272605 ~ kw:building:osm:w495352760",
+    "kw:building:osm:r8408405 ~ kw:building:osm:w543603597",
+    "kw:building:osm:r8408405 ~ kw:building:osm:w543603596",
+    "kw:building:osm:w524088621 ~ kw:building:osm:w524088623",
+    "kw:building:osm:w524088621 ~ kw:building:osm:w524088624",
+    "kw:building:osm:w525234579 ~ kw:building:osm:w88159279"
+   ]
+  },
+  "identical_geometry": {
+   "count": 3,
+   "samples": [
+    "addresses: 333 hashes shared by >1 feature",
+    "land_use: 1 hashes shared by >1 feature",
+    "places: 294 hashes shared by >1 feature"
+   ]
+  },
+  "pier_detached_from_coast": {
+   "count": 137,
+   "samples": [
+    "kw:coastal:osm:w1158807126 subclass=floating",
+    "kw:coastal:osm:w1158807127 subclass=floating",
+    "kw:coastal:osm:w1158807128 subclass=floating",
+    "kw:coastal:osm:w1158807131 subclass=floating",
+    "kw:coastal:osm:w1158831719 subclass=floating",
+    "kw:coastal:osm:w1158831720 subclass=floating",
+    "kw:coastal:osm:w178100276 subclass=None",
+    "kw:coastal:osm:w178100277 subclass=None",
+    "kw:coastal:osm:w356861825 subclass=None",
+    "kw:coastal:osm:w356861827 subclass=None",
+    "kw:coastal:osm:w356861828 subclass=None",
+    "kw:coastal:osm:w415309273 subclass=None",
+    "kw:coastal:osm:w415309279 subclass=None",
+    "kw:coastal:osm:w415309280 subclass=None",
+    "kw:coastal:osm:w415309281 subclass=None"
+   ]
+  }
+ },
+ "counts": {
+  "addresses": 9149,
+  "admin_areas": 15,
+  "airport": 85,
+  "barriers": 268,
+  "bridges": 46,
+  "building_parts": 24,
+  "buildings": 13376,
+  "coastal_structures": 509,
+  "coastline": 96,
+  "land": 333,
+  "land_use": 557,
+  "places": 4978,
+  "power": 668,
+  "roads": 5900,
+  "street_furniture": 1297,
+  "terrain_coverage": 1,
+  "transit": 1106,
+  "transport_nodes": 9988,
+  "trees": 37318,
+  "utilities": 92,
+  "vegetation_areas": 736,
+  "water": 1864,
+  "overlapping_building_pairs": 6,
+  "utility_edges": 709,
+  "utility_edges_open_end": 177,
+  "assets_needs_rebase": 0
+ },
+ "status": "pass"
+}

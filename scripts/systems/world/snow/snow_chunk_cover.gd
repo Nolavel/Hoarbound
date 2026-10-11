@@ -23,7 +23,8 @@ static var _cache_order: Array[Vector2] = []
 
 ## One chunk mesh built a few rows per frame; `step` until it returns true.
 class Job extends RefCounted:
-	var terrain: IslandTerrain
+	## Any height source with get_height(x, z): IslandTerrain or KeyWestRealityGround.
+	var terrain: Object
 	var city: Object
 	var origin: Vector2
 	var size_m: float
@@ -43,7 +44,7 @@ class Job extends RefCounted:
 
 
 ## Mesh for the square chunk at `origin` of side `size_m`, or null when no snow lies there.
-static func build(terrain: IslandTerrain, origin: Vector2, size_m: float, city: Object = null) -> MeshInstance3D:
+static func build(terrain: Object, origin: Vector2, size_m: float, city: Object = null) -> MeshInstance3D:
 	if _cache.has(origin):
 		return cached(origin)
 	var job: Job = begin(terrain, origin, size_m, city)
@@ -70,7 +71,7 @@ static func from_baked(mesh: ArrayMesh) -> MeshInstance3D:
 	return _instance(mesh)
 
 
-static func begin(terrain: IslandTerrain, origin: Vector2, size_m: float, city: Object = null) -> Job:
+static func begin(terrain: Object, origin: Vector2, size_m: float, city: Object = null) -> Job:
 	_ensure_shared()
 	var job := Job.new()
 	job.terrain = terrain
@@ -195,7 +196,7 @@ static func _index_obstacle(job: Job, contour: PackedVector2Array) -> void:
 static func _sample_row(job: Job, j: int) -> void:
 	for i: int in range(job.n):
 		var at: Vector2 = job.origin + Vector2(i, j) * STEP_M
-		var h: float = job.terrain.get_height(at.x, at.y)
+		var h: float = float(job.terrain.call(&"get_height", at.x, at.y))
 		var shore: float = smoothstep(SEA_LEVEL_M + SHORE_M.x, SEA_LEVEL_M + SHORE_M.y, h)
 		var k: int = j * job.n + i
 		job.verts[k] = Vector3(at.x, h, at.y)

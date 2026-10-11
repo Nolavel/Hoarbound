@@ -20,6 +20,9 @@ extends Resource
 @export_group("Streaming scenes")
 ## Ring 1 — the full content, streamed in and out around the player.
 @export_file("*.tscn") var content_scene_path: String = ""
+## Optional parts of ring 1, loaded with the content scene on loader threads and attached
+## under it a few per frame (StreamingSystem.assembly_budget_usec), nearest chunk first.
+@export var part_scene_paths: PackedStringArray = PackedStringArray()
 ## Ring 0 — a light stand-in that loads once and never unloads. Optional for
 ## now; a chunk without one simply has no silhouette.
 @export_file("*.tscn") var silhouette_scene_path: String = ""

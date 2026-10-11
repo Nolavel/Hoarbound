@@ -1,0 +1,10 @@
+{
+ "previous": "/home/user/Hoarbound/data/world/key_west/reality/raw_cache/previous_library/key_west_reality.previous.gpkg",
+ "current": "/home/user/Hoarbound/data/world/key_west/reality/library/key_west_reality.gpkg",
+ "by_family": {
+  "buildings": {
+   "height_m_improved": 1
+  }
+ },
+ "samples": {}
+}

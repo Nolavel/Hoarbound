@@ -1,0 +1,76 @@
+{
+  "schema": "kw_reality.fact_bindings.v1",
+  "description": "Attribute facts from documentary sources (planning records, registers) bound to library feature ids. Each fact enters the attribute table as its own candidate with the source's reconstruction class; selection still follows the normal rank rules. Geometry is never taken from here.",
+  "bindings": [
+    {
+      "source_id": "city_kw_legistar_20_6136",
+      "feature_id": "kw:building:osm:w339414849",
+      "record": "Legistar 20-6136 staff report; Codex source extract 2026-10-10 (geocode 24.550483,-81.804799 lies 1.2 m from the OSM footprint)",
+      "recon": "authoritative",
+      "confidence": 0.95,
+      "facts": {
+        "address": {
+          "value": "727 FORT ST KEY WEST 33040"
+        },
+        "parcel_re_number": {
+          "value": "00013990-000000"
+        },
+        "year_built": {
+          "value": 1948
+        },
+        "levels": {
+          "value": 1
+        },
+        "construction": {
+          "value": "masonry vernacular"
+        },
+        "historic_status": {
+          "value": "contributing historic structure"
+        },
+        "height_m": {
+          "value": 6.86,
+          "unit": "m",
+          "note": "existing height 22 ft 6 in (2020 staff report); proposed 26 ft 4 in"
+        },
+        "floor_area_m2": {
+          "value": 343.1,
+          "unit": "m2",
+          "note": "3,693 sq ft; OSM footprint is 383.8 m2 (+12 %, likely porches/canopies)"
+        },
+        "site_area_m2": {
+          "value": 754.4,
+          "unit": "m2",
+          "note": "8,120 sq ft"
+        },
+        "history": {
+          "value": "Frederick Douglass School complex band room/workshop (1948); later community/health uses; 2020 clinic conversion (Architectura Group Miami plans 2020-06-01, 2020-07-20)"
+        },
+        "setback_front_m": {
+          "value": 2.01,
+          "unit": "m",
+          "note": "6.6 ft (staff report site data table)"
+        },
+        "setback_side_m": {
+          "value": 4.57,
+          "unit": "m",
+          "note": "15 ft"
+        },
+        "setback_street_side_m": {
+          "value": 4.27,
+          "unit": "m",
+          "note": "14 ft"
+        },
+        "setback_rear_m": {
+          "value": 3.05,
+          "unit": "m",
+          "note": "10 ft"
+        },
+        "impervious_area_m2": {
+          "value": 499.3,
+          "unit": "m2",
+          "note": "5,374 sq ft (66 % of site)"
+        }
+      }
+    }
+  ]
+}

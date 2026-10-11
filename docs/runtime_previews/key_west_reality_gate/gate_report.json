@@ -1,0 +1,297 @@
+{
+ "activations": {
+  "count": 28,
+  "frame_ms_max": 17.4419994354248,
+  "frame_ms_p50": 8.61,
+  "worst": [
+   {
+    "frame": 40083,
+    "frame_ms_max_next3": 17.44,
+    "id": "kw_gen_-6_2"
+   },
+   {
+    "frame": 69265,
+    "frame_ms_max_next3": 13.32,
+    "id": "kw_gen_-8_1"
+   },
+   {
+    "frame": 69263,
+    "frame_ms_max_next3": 13.32,
+    "id": "kw_gen_-8_1"
+   },
+   {
+    "frame": 52209,
+    "frame_ms_max_next3": 12.34,
+    "id": "kw_gen_-7_1"
+   },
+   {
+    "frame": 80159,
+    "frame_ms_max_next3": 11.9,
+    "id": "kw_gen_-7_0"
+   },
+   {
+    "frame": 10138,
+    "frame_ms_max_next3": 11.78,
+    "id": "kw_gen_-8_2"
+   },
+   {
+    "frame": 40080,
+    "frame_ms_max_next3": 11.54,
+    "id": "kw_gen_-6_2"
+   },
+   {
+    "frame": 80161,
+    "frame_ms_max_next3": 10.78,
+    "id": "kw_gen_-7_0"
+   }
+  ]
+ },
+ "arrivals": [
+  {
+   "game_s": 177.9,
+   "leg": "727_fort_st_entrance",
+   "position": [
+    -3541.35,
+    1.96,
+    1594.2
+   ],
+   "sheltered_outside": false,
+   "walked_m": 749.4
+  },
+  {
+   "game_s": 193.3,
+   "leg": "fort_x_petronia",
+   "position": [
+    -3532.58,
+    1.96,
+    1607.55
+   ],
+   "walked_m": 806.8
+  },
+  {
+   "game_s": 334.4,
+   "leg": "petronia_x_duval",
+   "position": [
+    -3109.35,
+    3.62,
+    1324.44
+   ],
+   "walked_m": 1321.7
+  },
+  {
+   "game_s": 630.6,
+   "leg": "duval_x_front",
+   "position": [
+    -3654.09,
+    1.34,
+    515.69
+   ],
+   "walked_m": 2312.7
+  },
+  {
+   "game_s": 677.3,
+   "leg": "front_x_whitehead",
+   "position": [
+    -3712.41,
+    1.64,
+    665.9
+   ],
+   "walked_m": 2475.6
+  },
+  {
+   "game_s": 960.0,
+   "leg": "whitehead_x_petronia",
+   "position": [
+    -3222.05,
+    2.73,
+    1399.31
+   ],
+   "walked_m": 3376.6
+  },
+  {
+   "game_s": 1077.7,
+   "leg": "727_fort_st_return",
+   "position": [
+    -3538.41,
+    2.01,
+    1596.82
+   ],
+   "sheltered_outside": false,
+   "walked_m": 3761.6
+  }
+ ],
+ "disabled_for_diagnosis": [],
+ "display": "headless",
+ "engine": "4.8-dev6 (official)",
+ "entry_727": {
+  "door": "opened by the gate (HingedDoor save seam), Henry walks through",
+  "entered": true,
+  "game_s": 183.4,
+  "position": [
+   -3533.7,
+   1585.57
+  ],
+  "sheltered": true
+ },
+ "errors": 0,
+ "frame_ms": {
+  "max": 147.289001464844,
+  "over_16_7": 258,
+  "over_33_3": 20,
+  "over_hitch_50": 8,
+  "p50": 6.89,
+  "p95": 12.76,
+  "p99": 14.35
+ },
+ "frames": 155323,
+ "game_seconds": 1077.7,
+ "gate": "key_west_reality_first_exit",
+ "headless_renderer_errors": 1709,
+ "hitches": {
+  "near_activation": 0,
+  "not_activation": 8,
+  "not_activation_samples": [
+   {
+    "at": [
+     -4008.8,
+     1909.4
+    ],
+    "frame": 1753,
+    "game_s": 12.2,
+    "ms": 78.7,
+    "physics_ms": 7.3,
+    "process_ms": 2.8
+   },
+   {
+    "at": [
+     -3699.4,
+     1588.1
+    ],
+    "frame": 18483,
+    "game_s": 129.9,
+    "ms": 127.4,
+    "physics_ms": 16.2,
+    "process_ms": 14.4
+   },
+   {
+    "at": [
+     -3697.5,
+     1587.4
+    ],
+    "frame": 18511,
+    "game_s": 130.4,
+    "ms": 56.3,
+    "physics_ms": 16.2,
+    "process_ms": 14.4
+   },
+   {
+    "at": [
+     -3200.6,
+     1179.5
+    ],
+    "frame": 55045,
+    "game_s": 384.4,
+    "ms": 52.5,
+    "physics_ms": 9.1,
+    "process_ms": 3.2
+   },
+   {
+    "at": [
+     -3230.8,
+     1134.2
+    ],
+    "frame": 57326,
+    "game_s": 400.2,
+    "ms": 108.1,
+    "physics_ms": 7.8,
+    "process_ms": 9.8
+   },
+   {
+    "at": [
+     -3231.0,
+     1133.8
+    ],
+    "frame": 57327,
+    "game_s": 400.3,
+    "ms": 110.1,
+    "physics_ms": 7.8,
+    "process_ms": 9.8
+   },
+   {
+    "at": [
+     -3605.0,
+     829.8
+    ],
+    "frame": 106172,
+    "game_s": 738.1,
+    "ms": 67.2,
+    "physics_ms": 7.3,
+    "process_ms": 6.1
+   },
+   {
+    "at": [
+     -3604.9,
+     829.9
+    ],
+    "frame": 106173,
+    "game_s": 738.2,
+    "ms": 147.3,
+    "physics_ms": 7.3,
+    "process_ms": 6.1
+   }
+  ],
+  "over_50ms": 8
+ },
+ "legs_requested": 1048576,
+ "log_samples": [
+  "W Debug stamina label path is invalid — stamina display will not work. (core/variant/variant_utility.cpp:1034 push_warning)",
+  "W Debug label path is invalid — speed display will not work. (core/variant/variant_utility.cpp:1034 push_warning)",
+  "W Nodes with non-equal opposite anchors will have their size overridden after _ready(). \nIf you want to set size, change the anchors or consider using set_deferred(). (scene/gui/control.cpp:1569 _set_size)"
+ ],
+ "lowest_y": 1.16,
+ "mode": "fast (sprint, stamina+snow assist)",
+ "peaks": {
+  "active_chunks": 5,
+  "draw_calls": 0,
+  "nodes": 4668,
+  "primitives": 0,
+  "static_mb": 405.893311500549,
+  "video_mb": 0.0
+ },
+ "player_in_inactive_chunk": {
+  "chunks": [],
+  "seconds": 0.0
+ },
+ "renderer": "",
+ "route_m": 3801.0,
+ "scene": "res://scenes/world/key_west/key_west_reality.tscn",
+ "steering_orbits": [
+  {
+   "at": [
+    -3654.09,
+    515.69
+   ],
+   "game_s": 630.6,
+   "walked_m": 6.9
+  },
+  {
+   "at": [
+    -3222.05,
+    1399.31
+   ],
+   "game_s": 960.0,
+   "walked_m": 4.9
+  }
+ ],
+ "stuck_events": [],
+ "verdict": {
+  "entered_727_and_sheltered": true,
+  "never_on_unloaded_chunk": true,
+  "no_engine_errors": true,
+  "no_hitch_over_50ms": false,
+  "no_stuck": true,
+  "reached_all_requested_legs": true
+ },
+ "walked_m": 3761.6,
+ "warnings": 3
+}

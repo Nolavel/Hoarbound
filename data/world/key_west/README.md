@@ -18,3 +18,12 @@ Overture source metadata. These proxy buildings remain prototype content.
 The files are committed for offline startup. The existing builders under
 `tools/world/` produce candidate previews; promoting another snapshot requires
 updating these files and their receipt together.
+
+## Place in the Reality Library architecture
+
+This folder's JSON files are the **frozen legacy runtime snapshot** that the current
+game loads. The normalized, provenance-tracked source of truth for Key West is now
+the Reality Library in `reality/` (see `docs/world/KEY_WEST_REALITY_LIBRARY.md`);
+its OSM tags from `city_preview.json` are ingested there as source
+`hoarbound_legacy_osm_2026_09_29`. The next stage replaces these runtime JSON files
+with editor-generated chunk scenes; until then they stay unchanged.

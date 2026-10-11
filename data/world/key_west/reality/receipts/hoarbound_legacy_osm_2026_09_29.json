@@ -1,0 +1,17 @@
+{
+ "source_id": "hoarbound_legacy_osm_2026_09_29",
+ "artifacts": [
+  {
+   "name": "city_preview.json",
+   "local_path": "data/world/key_west/city_preview.json",
+   "sha256": "1f0fb38ab566d5ed88124530a83a33a2bcc5f6d2589254b8d6cf111faaefaa81"
+  },
+  {
+   "name": "visual_enrichment.json",
+   "local_path": "data/world/key_west/visual_enrichment.json",
+   "sha256": "bdbbe6554e9fbfe241c076abbafe22968aae6b58ace5ba1d4e5414a6f2877813"
+  }
+ ],
+ "retrieved_at": "2026-10-10T02:54:24+00:00",
+ "upstream_receipt": "data/world/key_west/source_receipt.json"
+}

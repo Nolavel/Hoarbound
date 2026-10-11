@@ -169,7 +169,8 @@ var _player: Node3D
 var _mover: Node
 var _weather: WeatherController
 var _presentation: Node
-var _terrain: IslandTerrain
+## IslandTerrain, or a node in group snow_ground with get_height(x, z) (streamed Reality chunks).
+var _terrain: Node
 var _city: Node3D
 var _world_root: Node
 var _sensor: FootContactSensor
@@ -232,7 +233,9 @@ func on_world_ready(context: WorldContext) -> void:
 	active = self
 	_weather = context.get_system(WEATHER_SCRIPT) as WeatherController
 	_presentation = context.get_system(PRESENTATION_SCRIPT)
-	_terrain = context.find_in_scene(TERRAIN_SCRIPT) as IslandTerrain
+	_terrain = context.find_in_scene(TERRAIN_SCRIPT)
+	if _terrain == null and is_inside_tree():
+		_terrain = get_tree().get_first_node_in_group(&"snow_ground")
 	## Only the island has a sea; a test floor at y 0 is not water.
 	field.sea_level_m = sea_level_m if _terrain != null else -INF
 	if _terrain != null and not wind_field_path.is_empty():
@@ -271,7 +274,9 @@ func _physics_process(_delta: float) -> void:
 	if _player == null:
 		return
 	if _city == null and _world_root != null:
-		_city = _world_root.find_child("KeyWestCity", true, false) as Node3D
+		_city = get_tree().get_first_node_in_group(&"snow_obstacles") as Node3D
+		if _city == null:
+			_city = _world_root.find_child("KeyWestCity", true, false) as Node3D
 	var at: Vector3 = _player.global_position
 	var travel := Vector2.ZERO
 	if _player is CharacterBody3D:
@@ -1107,7 +1112,7 @@ func _intersect_without_city_collision(space: PhysicsDirectSpaceState3D, query: 
 		if hit.is_empty() or _city == null:
 			return hit
 		var collider: Object = hit.get("collider")
-		if not (collider is CollisionObject3D) or (collider as Node).name != &"CityCollision":
+		if not (collider is CollisionObject3D) or not ((collider as Node).name in [&"CityCollision", &"BuildingCollision"]):
 			return hit
 		var excluded: Array[RID] = query.exclude
 		excluded.append((collider as CollisionObject3D).get_rid())

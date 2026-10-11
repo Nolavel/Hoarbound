@@ -5,6 +5,187 @@ Maintained per branch; entries are added by whoever makes the change.
 
 ## [Unreleased] — `main`
 
+### 2026-10-11 - 727 Fort St enterable shelter, staged chunk assembly, palms and snow on Reality chunks (claudeflow)
+
+- **727 Fort Street is enterable.** `tools/world/reality/shelter_727.py` (called by `landmarks`)
+  hollows the measured shell:
+  - 0.25 m walls with the hut door standard (1.5 × 2.25 m) and hut windows (2.0 × 1.1 m, sill 0.8 m);
+  - partitions, floor, a 3.0 m ceiling, an entry ramp (Henry has no step-up), glass panes;
+  - every wall, floor, ceiling and the ramp carry `-col` collision.
+  The plan is **game-invented** and flagged so in the sidecar (`interior.recon`); no plan
+  record was reachable. Rooms follow a small community clinic (CHI Key West: medical, dental,
+  pharmacy): lobby, waiting room in the Fort Street wing, two exam rooms, dental, lab and
+  pharmacy, storage, office, two restrooms, and a corridor. The exterior stays measured.
+- **`KeyWest727Shelter`** (`scripts/world/key_west_727_shelter.gd`, in `key_west_reality_content.tscn`)
+  moves the First Exit hut's own nodes onto that plan, so nothing is copied or re-tuned:
+  - `HouseDoor` and `ShelterZone` with the stove, door breach and four window breaches;
+  - the cabinet (with its fade volume), mattress, rest crate, and both benches;
+  - a heated zone over the waiting room and lobby;
+  - a lower-priority unheated `ClinicZone` (indoors, +4 °C) with board-able breaches on the other 12 windows;
+  - clinic furniture boxes, a stove pipe through the roof, and a `ShelterSpawnPoint`.
+  Test: `tests/systems/test_key_west_727_shelter.gd` (rays pass every opening, walls stand beside the door).
+- **Staged chunk assembly.** `ChunkData.part_scene_paths` lists part scenes. The streamer
+  loads them with the chunk on loader threads, then attaches them nearest-chunk-first within
+  `assembly_budget_usec` (4 ms, at least one part per frame) in a new `ASSEMBLING` state.
+  The generator splits each chunk into a light root (terrain, anchors) plus parts (buildings in
+  blocks of 120, roads, infrastructure, coastal, vegetation, barriers, land use). The digest is
+  taken before the split.
+- **Palms and snow on Reality chunks.**
+  - Lidar trees use the legacy `KeyWestStreetProps` palm and bare broadleaf meshes instead of spheres.
+  - Terrain uses `island_terrain.gdshader` (settled snow from the shared globals).
+  - Geometry uses the stylized environment material.
+  - `KeyWestRealityGround` builds `SnowChunkCover` per active chunk at runtime: 3 ms per frame,
+    the chunk under Henry at once, building and landmark outlines cut out.
+  - `WindGusts` is in the content scene.
+- **Fix: the stylized material's instance uniform overflowed the global buffer.** Every
+  stylized instance reserved 16 global slots (limit 4,096 instances) for a camera fade only
+  Henry uses. A full-island build logged 19,570 overflows. `StylizedEnvironmentMaterial.make_static()`
+  (`HFN_STATIC_WORLD`) drops it for static world geometry.
+- **Fix: the chunk builder owned the internals of instanced landmark scenes**, which would have
+  saved a second copy of each landmark's nodes.
+- **Gate, full 3.76 km route** (headless, `--fast`):
+  - Henry opens the 727 door, walks into the waiting room, and reads `sheltered: true`;
+  - 0 engine errors, 0 s on unloaded chunks;
+  - activation frames p50 / max 8.6 / 17.4 ms (was 39 / 60);
+  - 8 frames over 50 ms, none next to an activation (was 20).
+  - Interior PNGs are in `docs/runtime_previews/key_west_727/`.
+  - Readiness to replace `key_west.tscn` is in `KEY_WEST_REALITY_LIBRARY.md` §17.
+
+### 2026-10-10 - Reality chunks: committed interchange, deterministic rebuild, production gate (claudeflow)
+
+- **No generated scenes in git.** Instead the repository holds:
+  - the editor interchange, `data/world/key_west/reality/editor_export/editor_chunks.tar.xz`
+    (30.6 MB, byte-reproducible);
+  - a manifest with the sha256 of every file;
+  - `generated_digest.json`, a content hash per built chunk.
+  - `tools/world/reality/export_pack.py` (stdlib only) unpacks the archive, and the generator's
+    `--verify-digest` proves the rebuild is identical. Verified: 459 of 459 chunks match.
+  - CI job `key-west-reality` (marker `[key-west-reality]`) runs unpack → rebuild → verify,
+    then the streaming tests, the benchmark and the gate.
+- **Production gate** `tools/runtime/gate_key_west_reality.gd`:
+  - the real `World` with Henry driven by input (pure pursuit) over a 3.8 km street route
+    (`key_west_reality.py route-gate`): Battery → 727 → Old Town loop → 727;
+  - it logs frame times attributed to activations, time on an unloaded chunk, memory, engine
+    errors and stalls with their collider;
+  - `--fast` for CPU containers; realistic mode for the target machine.
+- **Fix — bridge decks lifted by tree canopy.** The gate pinned Henry inside a 37 m park
+  footbridge whose deck read the canopy (4.44 m over 1.7 m ground). Decks now take the lowest
+  DSM cell near the axis every 1 m, rise at most 1:8 from abutments at grade, and are
+  median-smoothed (`meshing.deck_profile`, unit test added).
+- **Fix — snow shell sampled the Reality world with raycasts.** It expected `IslandTerrain` +
+  `KeyWestCity`. `KeyWestRealityGround` now serves heights from live chunks' heightmaps and
+  building outlines from chunk metadata, and `snow_shell.gd` finds it by group; the legacy
+  path is unchanged (`tests/systems/test_key_west_reality_ground.gd`). On the First Exit leg, frames over 50 ms went 78 → 2 and p99 35.9 →
+  16.7 ms. The legacy scene measures 21 and 18.2 ms on the same harness.
+- **Found: Jenova makes every Godot exit code 0.** `jenova.cpp` unload calls `quick_exit(EXIT_SUCCESS)`,
+  so failing headless suites looked green.
+  - `tools/ci/run_tests.sh` now also fails a suite on a script error, a reported failed check,
+    or an error with no pass line. With that, 10 of 82 suites turn out to be failing already
+    (dev map, door draft, doorway camera, held fit, held light, passage traversal, snow
+    contact, snow shell, street props, TPS orbit). All 10 fail identically without this
+    branch's changes.
+  - The reality CI job judges the gate by its JSON verdict.
+  - The Jenova patch is proposed in `docs/technical/JENOVA.md`.
+- **Renamed:** the Fort Zachary Taylor asset is a *measured exterior surface (landmark proxy)*,
+  not a Battery Osceola reconstruction.
+
+### 2026-10-10 - First Exit measured landmarks + generated chunks in production streaming (claudeflow)
+
+- **Landmarks** (`key_west_reality.py landmarks`) are measured glTF assets, registered in the
+  asset manifest and instanced by the generator in place of generic massing:
+  - **727 Fort Street:**
+    - flat roof 4.71 m above ground; the 2016 and 2019 lidar agree, with no parapet;
+    - walls are the OSM outline inset 0.45 m, which reproduces the City's 3,693 sq ft exactly;
+    - roofed notches measured by lidar;
+    - the conflict with the record's 22 ft 6 in is kept, not hidden.
+  - **Fort Zachary Taylor fronts:** a measured exterior surface (0.5 m lidar), a landmark proxy
+    for the Battery Osceola start, not a reconstruction of the battery. The 2019 and 2016
+    surfaces agree within a median 6 cm.
+- **`StreamingSystem` fixes, found by benchmark** (tests added):
+  - queued loads now start as slots free up, nearest first. Before, they waited for the
+    player to walk 40 m, so a still player stood on an unloaded chunk for more than 120 s;
+  - the packed-scene cache is bounded (LRU, `cold_cache_limit` 8);
+  - `prewarm_before_first_frame` now loads the spawn band synchronously. Before, the
+    player fell through the fort before its chunk arrived and ended up inside it.
+- **Generator v3 for streaming:**
+  - chunk content is centred on the chunk, and `world_data.tres` is written;
+  - MultiMesh trees, poles and props keep per-instance provenance;
+  - one prism collision for buildings per chunk;
+  - indexed, compressed meshes;
+  - 16 stray out-of-extent chunks are dropped, leaving 459.
+  - Worst activation on this CPU fell from 122 ms to 29 ms. An 11.7 km drive at 25 m/s
+    never reached an unloaded chunk, and no frame went over 33 ms
+    (`docs/runtime_previews/key_west_reality_streaming/`).
+- **Experimental profile** `key_west_reality` with `scenes/world/key_west/key_west_reality.tscn`:
+  the full `World` with generated chunks; 0 errors. The main scene is unchanged.
+- **Fix:** headless generation silently saved empty MultiMesh buffers. The contract check
+  now fails on that; generate under a rendering driver (xvfb + lavapipe).
+
+### 2026-10-10 - Key West editor chunk generator, First Exit corridor first (claudeflow)
+
+- **Editor-time generator** `tools/world/reality_gen/`. It builds Reality Library chunks
+  into ordinary Godot scenes, with no runtime GIS:
+  - `KeyWestChunkBuilder` + `KeyWestChunkGenerator`;
+  - `generate_key_west_chunks.gd` (EditorScript) and `generate_key_west_chunks_cli.gd` (batch);
+  - output: terrain tiles with heightmap collision, buildings with collision, roads, decks,
+    barriers, poles with wires on real edges, trees, canopy masses, water, markers;
+  - every node carries the metadata contract, checked on every chunk.
+- **Lidar roof models.** Flat, gable, hip and shed are fitted to the 2019 DSM by trimmed
+  least squares. They replace the box tops; complex roofs stay flat and are labelled.
+- **First Exit corridor generated first** (Battery Osceola → 727 Fort Street, 9 chunks,
+  1 m sampling), then the rest of the island at 2 m. Generated scenes are git-ignored.
+- **Codex source pack ingested:**
+  - NOAA 8724580 datums (MSL = NAVD88 − 0.265 m) in `config/frame.json`;
+  - City of Key West 727 Fort Street facts in `config/fact_bindings.json`
+    (1948, one storey, 6.86 m — authoritative, replaces the canopy-polluted lidar P95).
+  Codex's later extract adds the setbacks (front 2.01 m, side 4.57 m, street side 4.27 m,
+  rear 3.05 m) and the impervious area. Its geocode lies 1.2 m from the OSM footprint.
+- **Fix:** `library.ensure()` overwrote a fresh unpacked build with the older `.xz`. The
+  working copy is now never overwritten (unit test added).
+- **Fix — DEM voids rendered as land.** 25 % of the DEM 6366 crop is nodata:
+  - what the voids are: open sea outside coverage, plus 92 inland holes whose rims lie
+    1.5–7 m below NAVD88 (dredged basins, salt ponds);
+  - the old behaviour read them as 0 m, i.e. land above MSL;
+  - they are now filled with the nearest valid depth (GDAL FillNodata-style), clamped to
+    MLLW. Every terrain tile records its void share.
+- **Fix — severed bridge still connected.**
+  - The `remove_span` cut is now full deck width: 30 m flat-cap buffer, where it used to
+    be a 2 m strip.
+  - It also cuts the OSM bridge lines, not only the deck outlines.
+- **Fix — aerodrome boundaries drawn as pavement.** NAS Key West (18.7 km²) and the
+  international airport boundary were 0.4 m slabs. Only apron, runway, taxiway, taxilane,
+  stopway and helipad are paved now; boundaries become markers.
+- The superseded v1 proof scripts `tools/world/build_key_west_reality_chunk.gd` and
+  `capture_key_west_reality_chunk.gd` are removed.
+
+### 2026-10-10 - Key West Reality Library foundation (claudeflow)
+
+- **New open-data pipeline** `tools/world/key_west_reality.py` (+ `tools/world/reality/`):
+  acquire -> derive extent -> normalize -> conflate -> lidar measurements -> GeoPackage
+  -> validate / report / diff / preview / editor export. Offline and editor-time only;
+  nothing changes at runtime. Architecture: `docs/world/KEY_WEST_REALITY_LIBRARY.md`.
+- **Library** `data/world/key_west/reality/library/key_west_reality.gpkg(.xz)`: 88.5k
+  features in 22 families with attribute-level provenance (source, method,
+  reconstruction class, confidence, epoch), stable `kw:` ids carried between builds,
+  cross-source links, excluded-record log.
+- **Sources integrated** with receipts: Overture 2026-09-23.1 (OSM + Microsoft),
+  USGS NSD incl. FEMA/ORNL USA Structures, USGS NTD (TIGER, FAA), GovtUnit, NHD,
+  NOAA DEM 6366, NOAA 2019 and 2016 topobathy lidar (COPC), ESA WorldCover 2021,
+  and the frozen Stage 5 OSM tags. Blocked hosts are registered, not assumed.
+- **Extent derived from data**: +1.8 km north, +0.6 km east of the runtime crop,
+  superset of it, chunk-aligned; Boca Chica only as outline (`excluded` logs the rest).
+- **Measured buildings**: 99.3 % of 13,376 footprints have a lidar roof-top height
+  (9,458 cross-verified 2016 + 2019); trees from a 2019 canopy model, dense canopy kept
+  as areas instead of invented trees.
+- **Game override** `overrides/boca_chica_channel_bridge.geojson`: US-1 bridge
+  severed over 40-160 m (provisional, author review); reality keeps the intact bridge.
+- **First Exit landmarks** (owner decision, #211): `overrides/first_exit_landmarks.geojson`
+  binds Battery Osceola and 727 Fort Street to real library features as game roles.
+- **Blender/regeneration contract**: `authoring/asset_manifest.json`, `regen.plan`
+  never regenerates artist-locked assets (unit tests), `asset --rebase-check`.
+- `docs/THIRD_PARTY_NOTICES.md` gains a Geodata section (ODbL, CC BY 4.0 attribution).
+  Raw cache and editor exports are git-ignored; previews in `docs/world/reality_previews/`.
+
 ### 2026-10-09 - Held weight, flare lifecycle, segmented hold ring (claudeflow)
 
 - **Storage owns held items and their weight.**

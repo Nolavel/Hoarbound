@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="WorldProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/world/resources/world_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+id = &"key_west_reality"
+display_name = "Key West Reality Library (generated chunks)"
+world_data_path = "res://scenes/world/key_west/generated/world_data.tres"
+content_scene_path = "res://scenes/world/key_west/key_west_reality_content.tscn"
+spawn_marker_name = &"SpawnPoint"
+initial_weather_profile_id = &"blizzard"
+wind_direction_override_deg = 8.0
+prewarm_before_first_frame = true
+experimental = true
+source_note = "Editor-generated Reality Library chunks streamed as static WorldData; chunks carry their own DEM terrain, so no IslandTerrain. Scenes are local build products (tools/world/reality_gen)."
+source_manifest_path = "res://data/world/key_west/reality/README.md"

@@ -1,0 +1,28 @@
+{
+ "source_id": "esa_worldcover_2021_v200",
+ "artifacts": [
+  {
+   "name": "extent_window",
+   "local_path": "data/world/key_west/reality/raw_cache/esa_worldcover_2021_v200/worldcover_extent.tif",
+   "sha256": "afb6050fc583d84c3545bddb09ed90a0e5726e44e763fa3aee33aade63de5a30",
+   "classes_present": [
+    10,
+    20,
+    30,
+    40,
+    50,
+    60,
+    80,
+    90,
+    95
+   ]
+  }
+ ],
+ "retrieved_at": "2026-10-10T02:56:39+00:00",
+ "remote": {
+  "url": "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_N24W084_Map.tif",
+  "etag": "96c67289333bdc14ffcab1d1fb49a137-3",
+  "bytes": 20210905,
+  "last_modified": "Wed, 26 Oct 2022 12:37:08 GMT"
+ }
+}

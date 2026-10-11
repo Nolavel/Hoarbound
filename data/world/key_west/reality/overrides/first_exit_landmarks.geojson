@@ -1,0 +1,132 @@
+{
+ "type": "FeatureCollection",
+ "crs_name": "EPSG:32617",
+ "layer": "game_override",
+ "description": "Hoarbound game override - NOT reality. First Exit landmark roles on real Key West features (owner decision 2026-10-10).",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       418508.4301017303,
+       2715411.8031498934
+      ],
+      [
+       418493.1928232168,
+       2715435.378524875
+      ],
+      [
+       418483.6670627751,
+       2715429.299523418
+      ],
+      [
+       418487.6922050457,
+       2715423.0749850897
+      ],
+      [
+       418482.0295642485,
+       2715419.453853144
+      ],
+      [
+       418487.7209029724,
+       2715410.6395120993
+      ],
+      [
+       418493.7189986892,
+       2715414.469080998
+      ],
+      [
+       418499.23978570965,
+       2715405.9325727085
+      ],
+      [
+       418508.4301017303,
+       2715411.8031498934
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "override_id": "kw_override:first_exit:shelter:727_fort_st",
+    "target_feature_id": "kw:building:osm:w339414849",
+    "override_type": "landmark_role",
+    "status": "owner_decision",
+    "author": "Nolavel (owner); encoded by Claude",
+    "created": "2026-10-10",
+    "reason": "Owner decision 2026-10-10, issue #211 / #208 handoff; docs/world/KEY_WEST_FIRST_EXIT.md on main 4834e2e",
+    "params": {
+     "role": "first_exit_primary_shelter",
+     "anchor_local_xz": [
+      -3531.78,
+      1590.28
+     ],
+     "reality_checks": {
+      "address_usa_structures": "727 FORT ST KEY WEST 33040",
+      "osm_name": "Frederick Douglass Skills Center",
+      "lidar_2019_roof_median_m": 4.72,
+      "lidar_2019_p95_m": 9.98,
+      "note": "one-story per public planning material (#211); P95 likely includes overhanging canopy"
+     },
+     "presentation": "authored, reference-backed form may replace generic generated massing on this footprint; footprint, street relation and provenance stay real",
+     "suppress_generated_massing_when_authored": true
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     417972.27,
+     2715078.31
+    ]
+   },
+   "properties": {
+    "override_id": "kw_override:first_exit:start:battery_osceola",
+    "target_feature_id": "kw:building:osm:w524088621",
+    "override_type": "landmark_role",
+    "status": "owner_decision",
+    "author": "Nolavel (owner); encoded by Claude",
+    "created": "2026-10-10",
+    "reason": "Owner decision 2026-10-10, issue #211 / #208 handoff; docs/world/KEY_WEST_FIRST_EXIT.md on main 4834e2e",
+    "params": {
+     "role": "first_exit_start_bunker",
+     "landmark": "Battery Osceola (Fort Zachary Taylor)",
+     "anchor_local_xz": [
+      -4052.73,
+      1924.69
+     ],
+     "reality_gap": "No separate Battery Osceola footprint in any reachable source (Overture/OSM, USA Structures). The anchor lies inside the real Fort Zachary Taylor polygon. Do not invent a footprint as reality; authored form is a game asset referenced here.",
+     "suppress_generated_massing_when_authored": true
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     418445.15,
+     2715428.49
+    ]
+   },
+   "properties": {
+    "override_id": "kw_override:first_exit:former_custom_hut",
+    "target_feature_id": null,
+    "override_type": "custom_structure",
+    "status": "owner_decision",
+    "author": "Nolavel (owner); encoded by Claude",
+    "created": "2026-10-10",
+    "reason": "Owner decision 2026-10-10, issue #211 / #208 handoff; docs/world/KEY_WEST_FIRST_EXIT.md on main 4834e2e",
+    "params": {
+     "role": "undecided",
+     "note": "Custom Fort Street hut (game content, not a real building). Keep in the world; no longer the primary shelter.",
+     "real_footprints_within_15m": 0
+    }
+   }
+  }
+ ]
+}

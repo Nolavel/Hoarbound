@@ -145,3 +145,26 @@ CGF Locust Resistance came over from `Nolavel/ADT` (same copyright holder and
 permission as the port above); ADT's `docs/CREDITS.md` records its licence.
 ADT's BlackRock is a project-only typeface and was deliberately not brought over.
 OFL and Apache-2.0 notices must ship with builds.
+
+## Geodata — Key West
+
+Full per-source registry, versions and checksums:
+`data/world/key_west/reality/config/sources.json` and `data/world/key_west/reality/receipts/`.
+Sources whose licence requires attribution in the game credits:
+
+- **OpenStreetMap** — © OpenStreetMap contributors, Open Database License 1.0
+  (https://www.openstreetmap.org/copyright). Reaches the project through the
+  frozen Stage 5 snapshot (`data/world/key_west/city_preview.json`) and through
+  Overture Maps. Derived databases (the Reality Library) stay under ODbL.
+- **Overture Maps Foundation**, release 2026-09-23.1 — buildings / transportation /
+  base / divisions: ODbL 1.0; places: CDLA-Permissive-2.0; addresses: per-record
+  licence (stored per feature). Includes Microsoft ML Buildings (ODbL).
+- **ESA WorldCover 10 m 2021 v200** — © ESA WorldCover project 2021 / Contains
+  modified Copernicus Sentinel data (2021) processed by ESA WorldCover
+  consortium. CC BY 4.0.
+
+Public-domain U.S. Government sources (credit given as courtesy): NOAA NGS /
+Office for Coastal Management 2016 Key West topobathy DEM and 2016 / 2019
+topobathy lidar; USGS The National Map (National Structures Dataset incl.
+FEMA/ORNL USA Structures, National Transportation Dataset incl. Census TIGER and
+FAA runways, Governmental Units, National Hydrography Dataset).

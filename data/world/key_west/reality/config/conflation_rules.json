@@ -1,0 +1,155 @@
+{
+  "schema": "kw_reality.conflation.v1",
+  "description": "Source-priority and matching rules used by tools/world/reality/conflate.py. Priorities are per attribute, not per dataset, and each carries the evidence that justifies it. Changing a rule changes the report, never silently the IDs (IDs come from the first geometry source, see docs).",
+  "buildings": {
+    "match": {
+      "min_iou": 0.3,
+      "min_overlap_of_smaller": 0.7,
+      "max_centroid_distance_m": 15.0
+    },
+    "footprint_priority": [
+      {
+        "source": "monroe_county_gis",
+        "why": "local authoritative footprint; not acquired (blocked), slot kept so the rule does not change when it arrives"
+      },
+      {
+        "source": "overture:OpenStreetMap",
+        "why": "hand-traced in Key West; measured against the 2019 lidar elevated-surface mask in Old Town it fits better than USA Structures (IoU 0.615 vs 0.559, reports/build_stats.json) and carries more detail (median 5 vs 4 vertices, mean 6.8 vs 6.1)"
+      },
+      {
+        "source": "usgs_nsd_fl_20260227",
+        "why": "FEMA/ORNL USA Structures: federal, but in Key West the polygons are NGA 2008-lidar ML footprints marked 'Unverified' (val_method) - older epoch and rectilinear simplification"
+      },
+      {
+        "source": "overture:Microsoft ML Buildings",
+        "why": "global ML footprints, lowest geometric fidelity"
+      }
+    ],
+    "footprint_quality_check": "Each candidate footprint gets lidar_support = share of footprint cells with nDSM > 2 m in the 2019 lidar. A lower-priority footprint replaces a higher one only if its support exceeds it by > 0.25 and the higher one is < 0.4 (evidence the higher-priority outline is misplaced); recorded as method=lidar_quality_override.",
+    "height_priority": [
+      {
+        "attr": "height_m",
+        "source": "noaa_lidar_9081",
+        "method": "lidar_dsm_p95_minus_ground",
+        "recon": "measured",
+        "why": "direct 2019 measurement"
+      },
+      {
+        "attr": "height_m",
+        "source": "noaa_lidar_6246",
+        "method": "lidar_dsm_p95_minus_ground",
+        "recon": "measured",
+        "why": "2016 measurement; agreement within max(1.0 m, 10 %) with 2019 upgrades to cross_verified"
+      },
+      {
+        "attr": "height_m",
+        "source": "overture:OpenStreetMap",
+        "method": "osm_height_tag",
+        "recon": "derived"
+      },
+      {
+        "attr": "height_m",
+        "source": "usgs_nsd_fl_20260227",
+        "method": "usa_structures_height",
+        "recon": "derived"
+      },
+      {
+        "attr": "height_m",
+        "source": "overture:Microsoft ML Buildings",
+        "method": "ml_height_estimate",
+        "recon": "derived"
+      },
+      {
+        "attr": "height_m",
+        "source": "rule",
+        "method": "levels_x_3m",
+        "recon": "inferred"
+      }
+    ],
+    "lidar_height_quality": {
+      "min_cells": 4,
+      "min_coverage": 0.5,
+      "max_plausible_m": 80.0,
+      "min_plausible_m": 1.8,
+      "cross_verify_tolerance_m": 1.0,
+      "cross_verify_tolerance_ratio": 0.1
+    },
+    "address_priority": [
+      "usgs_nsd_fl_20260227:prop_addr (parcel-derived)",
+      "overture:address point inside footprint",
+      "hoarbound_legacy_osm_2026_09_29:addr:* tags"
+    ],
+    "use_priority": [
+      "overture:OpenStreetMap building/class",
+      "usgs_nsd_fl_20260227 occ_cls/prim_occ",
+      "overture places inside footprint (business category)"
+    ]
+  },
+  "roads": {
+    "geometry_source": "overture_2026_09_23_1 (OpenStreetMap ways, split into Overture segments)",
+    "cross_verification": {
+      "source": "usgs_ntd_fl_20260211",
+      "buffer_m": 12.0,
+      "min_length_share": 0.6
+    },
+    "width_inference_m": {
+      "motorway": 12.0,
+      "trunk": 11.0,
+      "primary": 9.0,
+      "secondary": 8.0,
+      "tertiary": 7.0,
+      "residential": 5.5,
+      "living_street": 5.0,
+      "unclassified": 5.0,
+      "service": 3.5,
+      "track": 3.0,
+      "footway": 1.8,
+      "sidewalk": 1.8,
+      "cycleway": 2.0,
+      "path": 1.5,
+      "pedestrian": 4.0,
+      "steps": 1.5,
+      "unknown": 4.0
+    },
+    "width_inference_reason": "Same class table the Stage 5 preview used (build_key_west_city_preview.py); marked inferred, confidence 0.35, and replaced whenever a width tag exists."
+  },
+  "water": {
+    "match": {
+      "min_iou": 0.5
+    },
+    "priority": [
+      "overture:OpenStreetMap",
+      "usgs_nhd_fl_2024"
+    ]
+  },
+  "trees": {
+    "lidar": {
+      "source": "noaa_lidar_9081",
+      "min_height_m": 3.0,
+      "max_height_m": 30.0,
+      "min_crown_area_m2": 4.0,
+      "crown_window": "radius 1.5 + 0.25 h metres (height bands 3-6, 6-10, 10-15, 15-30 m)",
+      "smoothing_sigma_m": 1.0,
+      "min_roughness_m": 0.3,
+      "min_ground_m": -0.3,
+      "dense_canopy_area_m2": 2000.0,
+      "exclude_building_buffer_m": 1.5,
+      "opening_m": 2.5,
+      "opening_reason": "Morphological opening of the canopy mask with a 2.5 m square removes utility poles, wires, sign gantries and narrow hedges (measured on tile 424500e/2717500n: 3x3 (1.5 m) opening left crown peaks on the utility poles and wires along the streets). Trees with crowns narrower than 2.5 m are not detected."
+    },
+    "osm_match_radius_m": 3.0,
+    "note": "Lidar tree candidates are derived detections (canopy-height local maxima, not species). Continuous canopy larger than dense_canopy_area_m2 (mangrove stands, hammocks) is stored as a 'lidar_canopy_dense' area instead of invented individual trees. Absence of a candidate never means absence of a tree."
+  },
+  "power": {
+    "pole_on_line_tolerance_m": 0.5
+  },
+  "runway": {
+    "match": {
+      "min_iou": 0.3
+    },
+    "priority": [
+      "usgs_ntd_fl_20260211 (FAA)",
+      "overture:OpenStreetMap"
+    ]
+  }
+}

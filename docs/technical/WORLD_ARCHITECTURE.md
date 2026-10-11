@@ -173,6 +173,16 @@ range from 190 m to 312 m across, so a single number would either thrash the
 small ones or load the big ones far too late. Hysteresis is the gap between the
 load and unload bands, as in ADT.
 
+**Staged assembly (`ASSEMBLING`).** A chunk can list part scenes in
+`ChunkData.part_scene_paths`. They are loaded on the loader threads together with the
+content scene, so the loads cost one load slot. After the root activates, the parts
+attach a few per frame within `assembly_budget_usec` (4 ms; at least one part per frame),
+nearest chunk first. The chunk turns `ACTIVE` only once its last part is in. A part can
+name its parent through an `attach_to` meta. `prewarm()` attaches every part at once.
+This is the split the review asked for: decode on the worker, tree mutation on a bounded
+main-thread budget. The Reality generator splits each chunk into a root (terrain,
+anchors) plus buildings in blocks of 120 and one part per remaining group.
+
 `_packed_cache` is non-optional for the same reason ADT documents:
 `load_threaded_get()` consumes the task, so two chunks sharing a scene path
 would false-fail without it.

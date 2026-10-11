@@ -1,0 +1,26 @@
+{
+ "source_id": "noaa_dem_6366",
+ "artifacts": [
+  {
+   "name": "extent_crop_1m",
+   "local_path": "data/world/key_west/reality/raw_cache/noaa_dem_6366/dem_6366_extent_1m.tif",
+   "sha256": "56f15a545d8dc894e495467ab3c883c89f314f134cd85695ae05f69033dda07e",
+   "width": 13952,
+   "height": 8832,
+   "height_range_m": [
+    -8.739999771118164,
+    28.60999870300293
+   ]
+  }
+ ],
+ "retrieved_at": "2026-10-10T02:56:37+00:00",
+ "remote": {
+  "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/dem/NGS_FL_key_west_DEM_2016_6366/2016_key_west_mosaic_m6366.tif",
+  "etag": "38aab58423b972e783fdc666d099d0db-78",
+  "bytes": 649888980,
+  "last_modified": "Wed, 23 Sep 2026 15:13:48 GMT"
+ },
+ "full_file_sha256_from_terrain_receipt": "573bd136a230263af78e3eeda5b554efe42d2cc38eea0cda3d2dbd8744c572cb",
+ "identity_check": "ETag equals world/terrain/source/key_west/noaa_source_receipt.json etag",
+ "window": "native 1 m pixels, no resampling"
+}

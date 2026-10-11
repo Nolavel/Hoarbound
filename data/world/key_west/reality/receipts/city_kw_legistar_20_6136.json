@@ -1,0 +1,57 @@
+{
+ "source_id": "city_kw_legistar_20_6136",
+ "retrieved_at": "2026-10-10T04:43:27+00:00",
+ "delivered_by": "Codex via Drive",
+ "artifacts": [
+  {
+   "name": "drive_doc",
+   "url": "https://docs.google.com/document/d/1RkDFKf2GWa5dLuHdZzZ0m8aJqrfXI0woD4P5h3AOu-I"
+  },
+  {
+   "name": "drive_doc_211",
+   "url": "https://docs.google.com/document/d/1PdkytideIpEssvC2CGCT1t8fdiguZfhZ9qI7xfz-va0"
+  },
+  {
+   "name": "drive_doc_727_extract",
+   "url": "https://docs.google.com/document/d/1ZqSQqxvvptGYCor89ilSX_8HwU3uWDkgl4t7OgOTo7w"
+  },
+  {
+   "name": "drive_pdf_727_extract",
+   "url": "https://drive.google.com/file/d/1VDeI6XDXxVZdHy4noG9cAd17OioxDJ_2",
+   "bytes": 45989
+  },
+  {
+   "name": "drive_doc_geodata_handoff",
+   "url": "https://docs.google.com/document/d/1vC6qe0ShVCTj9_E7EtZiBUVrkWbHutw4qJ72dKcfblY"
+  },
+  {
+   "name": "staff_report",
+   "url": "https://keywest.legistar.com/View.ashx?GUID=67B570A9-8E07-425D-985B-F83F258747B2&ID=8846556&M=F",
+   "sha256": null,
+   "note": "not downloadable from the build environment"
+  }
+ ],
+ "facts": {
+  "address": "727 Fort Street",
+  "re_number": "00013990-000000",
+  "year_built": 1948,
+  "storeys": 1,
+  "construction": "masonry vernacular, contributing historic structure",
+  "building_area_sqft": 3693,
+  "site_area_sqft": 8120,
+  "existing_height_ft_in": "22-6",
+  "proposed_height_ft_in": "26-4",
+  "setbacks_ft": {
+   "front": 6.6,
+   "side": 15,
+   "street_side": 14,
+   "rear": 10
+  },
+  "history": "Frederick Douglass School complex band room/workshop; later community/public/health uses; 2020 conversion to Community Health of South Florida clinic",
+  "impervious_sqft": 5374,
+  "geocode_wgs84": [
+   24.550483,
+   -81.804799
+  ]
+ }
+}

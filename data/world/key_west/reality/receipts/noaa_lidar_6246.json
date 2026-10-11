@@ -1,0 +1,1010 @@
+{
+ "source_id": "noaa_lidar_6246",
+ "artifacts": [
+  {
+   "name": "tile_index",
+   "etag": "570eeb7088269aada192719b34d75150",
+   "bytes": 700416,
+   "last_modified": "Thu, 22 May 2025 16:20:29 GMT",
+   "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/tileindex_fl2016_ngs_topobathy_key_west_m6246.gpkg",
+   "sha256": "f5d38735cc45108747dc3ae84a05079d085efebf3f97364c3ec70f61c5751f1d",
+   "local_path": "data/world/key_west/reality/raw_cache/noaa_lidar_6246/tileindex_fl2016_ngs_topobathy_key_west_m6246.gpkg"
+  },
+  {
+   "name": "tiles",
+   "count": 164,
+   "points_read": 371807110,
+   "tiles": [
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_417000e_2717000n.copc.laz",
+     "etag": "436b9c99f1aa6bf690c088d5ef3e28bd-7",
+     "bytes": 55156764,
+     "points_read": 1863538
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_417500e_2717500n.copc.laz",
+     "etag": "36bd1ca7d4bff71fdebbc0694ae9cd27-12",
+     "bytes": 98759250,
+     "points_read": 3073237
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_417500e_2718000n.copc.laz",
+     "etag": "c8c8b3fd898957b3d9710afa677cb62e-17",
+     "bytes": 141997531,
+     "points_read": 3592748
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_418000e_2717000n.copc.laz",
+     "etag": "b6f65555f5c7d86aaad14a1e054bc622-7",
+     "bytes": 54308066,
+     "points_read": 1995790
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_418000e_2717500n.copc.laz",
+     "etag": "02d92d15a84057ff585ba1703df5c9e3-10",
+     "bytes": 78207349,
+     "points_read": 2625243
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_418000e_2718000n.copc.laz",
+     "etag": "7d87012c2686e3e292da19afa980130b-13",
+     "bytes": 105453646,
+     "points_read": 2341996
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_418500e_2717500n.copc.laz",
+     "etag": "58c5f4e6cc7b99e6637475ead681ddba-7",
+     "bytes": 53126926,
+     "points_read": 1951151
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_418500e_2718000n.copc.laz",
+     "etag": "9a94c0517a6fcf2b9a2de598d00ea449-12",
+     "bytes": 96222340,
+     "points_read": 2807412
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_418500e_2718500n.copc.laz",
+     "etag": "08d7ac0ac513c2f70f989f645440b7cf-14",
+     "bytes": 112370216,
+     "points_read": 2987233
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_418500e_2719500n.copc.laz",
+     "etag": "941797c083eaa953470751b9e3e85a53-12",
+     "bytes": 98985879,
+     "points_read": 3008380
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_418500e_2720500n.copc.laz",
+     "etag": "dcddedb658d8dfdd6a6916cb23ce0ddc-10",
+     "bytes": 77906584,
+     "points_read": 2430221
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_418500e_2721000n.copc.laz",
+     "etag": "ab4c0cc918851847587f0f998386f4f8-7",
+     "bytes": 50544599,
+     "points_read": 1828454
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419000e_2717500n.copc.laz",
+     "etag": "6d05355a64a491735404fc4eb69f1c05-6",
+     "bytes": 48765244,
+     "points_read": 1840441
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419000e_2718000n.copc.laz",
+     "etag": "3313518af0c0905760a22454b458dd67-16",
+     "bytes": 131623296,
+     "points_read": 4004033
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419000e_2718500n.copc.laz",
+     "etag": "2636ca4463aae7385f8cab9e7def827a-10",
+     "bytes": 77129165,
+     "points_read": 2082883
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419000e_2719000n.copc.laz",
+     "etag": "bf72b5352e179cce6d1e6cae16db3256-11",
+     "bytes": 84631799,
+     "points_read": 2344244
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419000e_2719500n.copc.laz",
+     "etag": "ef54bc7d3441e217508b2ccfdc4db28d-15",
+     "bytes": 125342705,
+     "points_read": 3009395
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419000e_2720000n.copc.laz",
+     "etag": "379a0e20ffe8fa6600b9217ec496ab49-12",
+     "bytes": 99463126,
+     "points_read": 2275327
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419000e_2720500n.copc.laz",
+     "etag": "0a61f977640b24dc3723cf57b3b075b3-11",
+     "bytes": 90366323,
+     "points_read": 2700169
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419000e_2721000n.copc.laz",
+     "etag": "90d49f91b0827efbbd573f9bdb1a27bb-11",
+     "bytes": 90698942,
+     "points_read": 2969113
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419500e_2719000n.copc.laz",
+     "etag": "3d61208f1fc36092e3273bf8f8c64e6c-11",
+     "bytes": 91848652,
+     "points_read": 2995002
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419500e_2719500n.copc.laz",
+     "etag": "969a1324a02f7532e12ba94cbc8a3468-18",
+     "bytes": 145645204,
+     "points_read": 3592104
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419500e_2720000n.copc.laz",
+     "etag": "db2d1b98d7755bd7a48aed4a453bef37-17",
+     "bytes": 140468868,
+     "points_read": 3217906
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_419500e_2720500n.copc.laz",
+     "etag": "9faaf237fbf98cad23e636456d35b328-14",
+     "bytes": 115280664,
+     "points_read": 3430319
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_420500e_2719000n.copc.laz",
+     "etag": "9a708967829f7029f43259bb64f252dc-7",
+     "bytes": 52439099,
+     "points_read": 2516681
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_421000e_2719000n.copc.laz",
+     "etag": "7c64243e490407b59acceee2d187089e-6",
+     "bytes": 46556660,
+     "points_read": 1827488
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160419_421000e_2719500n.copc.laz",
+     "etag": "81b6fe95129f7b47d2fd6e21c6633095-10",
+     "bytes": 77041211,
+     "points_read": 2632773
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160422_421500e_2719500n.copc.laz",
+     "etag": "c354e61cc716dbe04aba06d71cbd34fc-7",
+     "bytes": 55675246,
+     "points_read": 2353885
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160422_422000e_2719500n.copc.laz",
+     "etag": "942720a07be92230586ee6f6fbb45c59-6",
+     "bytes": 47116800,
+     "points_read": 2101612
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160422_422500e_2719500n.copc.laz",
+     "etag": "9eeb783594d6727bbdcda6dc8520dc0f-6",
+     "bytes": 44760938,
+     "points_read": 2027208
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160422_424500e_2720000n.copc.laz",
+     "etag": "5365b97845b48007b85a3c27a260479f-5",
+     "bytes": 41430489,
+     "points_read": 1555902
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160422_425000e_2720000n.copc.laz",
+     "etag": "f51124aa16159f0f207b64f4bb8b5f7f-7",
+     "bytes": 53104298,
+     "points_read": 2113579
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_417000e_2716500n.copc.laz",
+     "etag": "497b4c5d8322f9d1b8817267651025fe-6",
+     "bytes": 45118462,
+     "points_read": 1797675
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_417500e_2715000n.copc.laz",
+     "etag": "5f2c7a20c4bcadda0446f821d75fff86-6",
+     "bytes": 42028372,
+     "points_read": 2038788
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_417500e_2715500n.copc.laz",
+     "etag": "a1215c15c454bfe1f81566abfdf954da-5",
+     "bytes": 33668160,
+     "points_read": 1504679
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_417500e_2716000n.copc.laz",
+     "etag": "d46b602a86569b5693c90768e90e2d44-5",
+     "bytes": 35095372,
+     "points_read": 1592436
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_417500e_2716500n.copc.laz",
+     "etag": "174731ef640160fb2a0b20f7b785b1ea-6",
+     "bytes": 44985819,
+     "points_read": 1730131
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_417500e_2717000n.copc.laz",
+     "etag": "604f3357ea47de0e8bea99e389f44d15-8",
+     "bytes": 60505652,
+     "points_read": 2097036
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_418000e_2715000n.copc.laz",
+     "etag": "8204e3cb1be9478d9cbda9b02eebce3c-6",
+     "bytes": 48880848,
+     "points_read": 2114940
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_418000e_2715500n.copc.laz",
+     "etag": "a9e5e5291d89e9cf68d2bcb45279c8b2-4",
+     "bytes": 32916375,
+     "points_read": 1439713
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_418000e_2716000n.copc.laz",
+     "etag": "d350a23ad7c367347c5b08137d7d04f7-5",
+     "bytes": 37397968,
+     "points_read": 1894325
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_418000e_2716500n.copc.laz",
+     "etag": "4ad016b47b5d5b52b48259fe26575678-6",
+     "bytes": 46308487,
+     "points_read": 2119176
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_418500e_2715000n.copc.laz",
+     "etag": "b4909d1923df027c03e00aec9d766b9b-6",
+     "bytes": 49771170,
+     "points_read": 1869305
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_418500e_2715500n.copc.laz",
+     "etag": "8716d8432fd482b95c148953a1491a7d-6",
+     "bytes": 49504323,
+     "points_read": 2231781
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_418500e_2716000n.copc.laz",
+     "etag": "9da6cf1c1fb00da336fd91f8dc8fdb94-7",
+     "bytes": 54357263,
+     "points_read": 2670139
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_418500e_2716500n.copc.laz",
+     "etag": "231499a4e6cdfd72a6517ae71f5e7255-7",
+     "bytes": 58237105,
+     "points_read": 2866593
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_418500e_2717000n.copc.laz",
+     "etag": "f25dfc409859ecf07189a1ef4b4dd61a-6",
+     "bytes": 47658742,
+     "points_read": 1802826
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_419000e_2715000n.copc.laz",
+     "etag": "260d8299ac1d332fdf2eff55f5fc8875-6",
+     "bytes": 49068314,
+     "points_read": 2188610
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_419000e_2715500n.copc.laz",
+     "etag": "cbd514edbdba95d5036a457c1e82c1c5-7",
+     "bytes": 53554267,
+     "points_read": 2416624
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_419000e_2716000n.copc.laz",
+     "etag": "ad319df903de5e4b3b99ba0552a26219-9",
+     "bytes": 68331932,
+     "points_read": 2997543
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_419000e_2716500n.copc.laz",
+     "etag": "f1b0e63c49f06d580c85c0f7638fb33f-9",
+     "bytes": 72066351,
+     "points_read": 3296987
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_419000e_2717000n.copc.laz",
+     "etag": "4af55331e34d9aa7bf455b98864ea2a6-7",
+     "bytes": 57508204,
+     "points_read": 2040479
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_419500e_2715000n.copc.laz",
+     "etag": "3070525e904e0b8019096f517915d807-6",
+     "bytes": 48706905,
+     "points_read": 2116435
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_419500e_2715500n.copc.laz",
+     "etag": "c8946f70002c8f174360b8302c65a5ea-8",
+     "bytes": 64123029,
+     "points_read": 2825052
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_419500e_2716000n.copc.laz",
+     "etag": "c1ef9dd66ddd0a48f6e0f166ca00c9f3-8",
+     "bytes": 62367181,
+     "points_read": 3011477
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_419500e_2716500n.copc.laz",
+     "etag": "bc284deda0c144f87358e99722ff70e1-9",
+     "bytes": 67428745,
+     "points_read": 3044549
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_419500e_2717000n.copc.laz",
+     "etag": "e67a3847f7a9bf2e779ffd1b895fb745-7",
+     "bytes": 53127276,
+     "points_read": 1811790
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160423_419500e_2717500n.copc.laz",
+     "etag": "390de784e41af6b1d2b3db7982890639-7",
+     "bytes": 56595594,
+     "points_read": 1882082
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_419500e_2718000n.copc.laz",
+     "etag": "ae29d27b0c6038970e57925007c90655-7",
+     "bytes": 57843547,
+     "points_read": 2143795
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_419500e_2718500n.copc.laz",
+     "etag": "c8fbaa9d674479e043808ef31ab389e5-7",
+     "bytes": 53981692,
+     "points_read": 2225189
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420000e_2715000n.copc.laz",
+     "etag": "e31c271f45031129028f22fabd893474-6",
+     "bytes": 49596369,
+     "points_read": 1954697
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420000e_2715500n.copc.laz",
+     "etag": "d1a06e3f7a265e012cff7967def51071-8",
+     "bytes": 62479654,
+     "points_read": 2780782
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420000e_2716000n.copc.laz",
+     "etag": "13dd0e4443dd9bbb282585b573bf8ea5-9",
+     "bytes": 70854397,
+     "points_read": 3148333
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420000e_2716500n.copc.laz",
+     "etag": "699a4214567eeda976effea749b795fd-7",
+     "bytes": 53237927,
+     "points_read": 2214919
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420000e_2717000n.copc.laz",
+     "etag": "d355e376fdcdbe7e445d0913bf593d32-7",
+     "bytes": 58245197,
+     "points_read": 2043362
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420000e_2717500n.copc.laz",
+     "etag": "feb98d471a3580a86dda924921ba67f8-8",
+     "bytes": 65745831,
+     "points_read": 2535367
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420500e_2715000n.copc.laz",
+     "etag": "9cf27deafd07dd9399bb592a2491ed39-6",
+     "bytes": 44039156,
+     "points_read": 2140103
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420500e_2715500n.copc.laz",
+     "etag": "402f4a317dba634990f1564bc201ada0-7",
+     "bytes": 51121053,
+     "points_read": 2327363
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420500e_2716000n.copc.laz",
+     "etag": "978750496f229a1520b697daf3a422a6-8",
+     "bytes": 63159606,
+     "points_read": 2895316
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420500e_2716500n.copc.laz",
+     "etag": "a968f8af6172949cb546837441a3968e-8",
+     "bytes": 61064234,
+     "points_read": 2357108
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420500e_2717000n.copc.laz",
+     "etag": "8e0446d8cf4de6f20c11842722285384-7",
+     "bytes": 54924877,
+     "points_read": 2221513
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420500e_2717500n.copc.laz",
+     "etag": "ce7209aab6ddd460ad37d803baba6cce-8",
+     "bytes": 59522104,
+     "points_read": 2204601
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420500e_2718000n.copc.laz",
+     "etag": "86829d29143b55e8a145c86528a80a67-7",
+     "bytes": 53111057,
+     "points_read": 2305251
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_420500e_2718500n.copc.laz",
+     "etag": "60f12b0f532251c42299637341bc10eb-7",
+     "bytes": 57883221,
+     "points_read": 2338721
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421000e_2715500n.copc.laz",
+     "etag": "8a525d24fc0969ed18fb338173488da2-5",
+     "bytes": 39013518,
+     "points_read": 1965043
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421000e_2716000n.copc.laz",
+     "etag": "beddcc9cb45ed561eef681ac28d3e704-6",
+     "bytes": 45928358,
+     "points_read": 2011160
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421000e_2716500n.copc.laz",
+     "etag": "9746d0d4eb22b0dedbdd44323d261942-9",
+     "bytes": 70672998,
+     "points_read": 2712718
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421000e_2717000n.copc.laz",
+     "etag": "d8d295ea234687ee47b198199fe22ed5-7",
+     "bytes": 51625548,
+     "points_read": 2199465
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421000e_2717500n.copc.laz",
+     "etag": "07203da479d2a9d427d28f64d9091144-6",
+     "bytes": 45092838,
+     "points_read": 2044893
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421000e_2718000n.copc.laz",
+     "etag": "8f5b9e4b32d6907e8a09cd2c9201f3c0-7",
+     "bytes": 51834987,
+     "points_read": 1989417
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421000e_2718500n.copc.laz",
+     "etag": "e25185b6969bdda04a2db10a1482fea0-7",
+     "bytes": 54609826,
+     "points_read": 2175961
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421500e_2715500n.copc.laz",
+     "etag": "2a669f34bc3285fbcc8de15c44e707ea-6",
+     "bytes": 45953308,
+     "points_read": 1938501
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421500e_2716000n.copc.laz",
+     "etag": "c842e6821fd81560db46978852c40737-7",
+     "bytes": 56394493,
+     "points_read": 2318681
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421500e_2716500n.copc.laz",
+     "etag": "d8d95bb6a88e2c849f9a99898000ec10-10",
+     "bytes": 80447372,
+     "points_read": 3013107
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421500e_2717000n.copc.laz",
+     "etag": "42972d4aae10228d7e80b5de0b49e794-8",
+     "bytes": 60896813,
+     "points_read": 2672296
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421500e_2717500n.copc.laz",
+     "etag": "e39aea031f186adc6b78049981f08ec2-6",
+     "bytes": 46744656,
+     "points_read": 1915682
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421500e_2718000n.copc.laz",
+     "etag": "2b469ce3b0fe8221344614ec38c48e8c-5",
+     "bytes": 38249267,
+     "points_read": 1606386
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421500e_2718500n.copc.laz",
+     "etag": "5ab21c8cfd7b8cd6ae0c5096544589e6-5",
+     "bytes": 34366753,
+     "points_read": 1623557
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_421500e_2719000n.copc.laz",
+     "etag": "9c7837d18b5e5116038a05c49d0f8251-5",
+     "bytes": 35182908,
+     "points_read": 1551141
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422000e_2715500n.copc.laz",
+     "etag": "adbb06d11b4d77dff51df99fad8a52ba-6",
+     "bytes": 45340915,
+     "points_read": 2014316
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422000e_2716000n.copc.laz",
+     "etag": "788dc765324e1f09309369d657039f16-6",
+     "bytes": 47814110,
+     "points_read": 1833552
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422000e_2716500n.copc.laz",
+     "etag": "4ba7de9ca3bf988429afcbd7a577eb39-9",
+     "bytes": 72815084,
+     "points_read": 2434999
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422000e_2717000n.copc.laz",
+     "etag": "5298c914f25088abce3d0e8b18e84302-6",
+     "bytes": 46198549,
+     "points_read": 2039922
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422000e_2717500n.copc.laz",
+     "etag": "c36765ace27e22bd2a2c0c4a4e02b150-4",
+     "bytes": 31954245,
+     "points_read": 1473276
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422000e_2718000n.copc.laz",
+     "etag": "7461a2a14692744c9e11d2627a8efa09-4",
+     "bytes": 27753304,
+     "points_read": 1325052
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422000e_2718500n.copc.laz",
+     "etag": "2f067cba7cb062a2de2f7aace147e00d-4",
+     "bytes": 33185685,
+     "points_read": 1671034
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422000e_2719000n.copc.laz",
+     "etag": "25d0821bd9c26e8f4c05d19e8aea6ec6-7",
+     "bytes": 55497846,
+     "points_read": 2480214
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422500e_2716000n.copc.laz",
+     "etag": "30bae39687ac21b492bea6d3faa6f009-4",
+     "bytes": 31946877,
+     "points_read": 1435152
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422500e_2716500n.copc.laz",
+     "etag": "6e12a70b8193ddd9a3cb21a25be45adf-9",
+     "bytes": 71698852,
+     "points_read": 2511838
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422500e_2717000n.copc.laz",
+     "etag": "4ea5e6b8282924819bbceded37cbdb36-7",
+     "bytes": 52701457,
+     "points_read": 2125282
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422500e_2717500n.copc.laz",
+     "etag": "9e510b0d5f05a733617c71b232916007-7",
+     "bytes": 56231425,
+     "points_read": 2552920
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422500e_2718000n.copc.laz",
+     "etag": "fdf00d04a9448ef1f9b8ea34618d6531-5",
+     "bytes": 34025691,
+     "points_read": 1508929
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422500e_2718500n.copc.laz",
+     "etag": "21d361eb2c988e595eb5b585054e184d-5",
+     "bytes": 34822449,
+     "points_read": 1833151
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_422500e_2719000n.copc.laz",
+     "etag": "5064ea8e21d9bfb992c51b7411b1db66-6",
+     "bytes": 44226253,
+     "points_read": 2077842
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423000e_2715500n.copc.laz",
+     "etag": "436b48a5c3c93412a68f80bdc5304629-4",
+     "bytes": 29448051,
+     "points_read": 1388807
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423000e_2716000n.copc.laz",
+     "etag": "f4fef6825c22f4c0f6bc20999cac2f10-4",
+     "bytes": 31661199,
+     "points_read": 1351092
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423000e_2716500n.copc.laz",
+     "etag": "88c6b347f4cc87f60d313c89bc0f0026-5",
+     "bytes": 35087972,
+     "points_read": 1580650
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423000e_2717000n.copc.laz",
+     "etag": "d2938b18466f5d442077c60e54c3106a-7",
+     "bytes": 55517619,
+     "points_read": 2910205
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423000e_2717500n.copc.laz",
+     "etag": "a1d8138fa4f7301d6eca182bcf9df5a2-6",
+     "bytes": 42540778,
+     "points_read": 1924631
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423000e_2718000n.copc.laz",
+     "etag": "cda047fa0bf573bedc1a415a8ac769fb-5",
+     "bytes": 33868005,
+     "points_read": 1664415
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423000e_2718500n.copc.laz",
+     "etag": "01b0686402e74f0e56e9b5606a3101d7-5",
+     "bytes": 35666816,
+     "points_read": 1574632
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423500e_2715500n.copc.laz",
+     "etag": "3f3f692689ccb83a4866a45ad9505f6e-4",
+     "bytes": 30460444,
+     "points_read": 1523455
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423500e_2716000n.copc.laz",
+     "etag": "7256c1051a09723e8948b2b196b1af7c-6",
+     "bytes": 49308633,
+     "points_read": 1757790
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423500e_2716500n.copc.laz",
+     "etag": "413a826dde8d6818481f11420a5e9e85-8",
+     "bytes": 60966854,
+     "points_read": 2373329
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423500e_2717000n.copc.laz",
+     "etag": "af6afc0b7f141e206eca4f94f2191a03-10",
+     "bytes": 77285540,
+     "points_read": 3431347
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423500e_2717500n.copc.laz",
+     "etag": "0cde574d5a779d421750b590792028d7-7",
+     "bytes": 51401276,
+     "points_read": 2335045
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423500e_2718000n.copc.laz",
+     "etag": "5935d554d83e52e7f26cba7348864d18-6",
+     "bytes": 48642496,
+     "points_read": 2055427
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423500e_2718500n.copc.laz",
+     "etag": "64c39c4a6be37a260c563c32ebf36182-7",
+     "bytes": 56647283,
+     "points_read": 2271463
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_423500e_2719000n.copc.laz",
+     "etag": "0c961fcbc4b1d07a338995b977257324-6",
+     "bytes": 43680757,
+     "points_read": 1841780
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_424000e_2716000n.copc.laz",
+     "etag": "bb8bd6e974d8af4537c473173d59ea9a-9",
+     "bytes": 70756939,
+     "points_read": 2469135
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_424000e_2716500n.copc.laz",
+     "etag": "a0c03befe98e77b1b386123724181fa0-10",
+     "bytes": 78557843,
+     "points_read": 2742412
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_424000e_2717000n.copc.laz",
+     "etag": "4c114867ff48aed5dd7b340a078c39e0-7",
+     "bytes": 57239121,
+     "points_read": 2221252
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_424000e_2717500n.copc.laz",
+     "etag": "b7866ba0489dce9cfc2427c28a8b19f9-7",
+     "bytes": 52298089,
+     "points_read": 2095139
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_424000e_2718000n.copc.laz",
+     "etag": "626fcf11ebce1df68be71711e9cffa18-8",
+     "bytes": 65745170,
+     "points_read": 2781493
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_424000e_2718500n.copc.laz",
+     "etag": "12b0663dfcda77d79f8499c7ce2042b8-8",
+     "bytes": 65310093,
+     "points_read": 2808655
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_424000e_2719000n.copc.laz",
+     "etag": "e5413dee0630f062e94c5f098eb4c244-6",
+     "bytes": 47913309,
+     "points_read": 1927683
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160424_424000e_2719500n.copc.laz",
+     "etag": "22a262350c45df007a10298718fa1943-4",
+     "bytes": 25324809,
+     "points_read": 1206244
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_424500e_2716500n.copc.laz",
+     "etag": "14afda3fb942ade480c4eac688e93b18-10",
+     "bytes": 80002252,
+     "points_read": 3348851
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_424500e_2717000n.copc.laz",
+     "etag": "7f49a5e2925beb55ef2a7ab5c7e0bf3d-7",
+     "bytes": 57199802,
+     "points_read": 2389786
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_424500e_2717500n.copc.laz",
+     "etag": "12dde5ea56e8467dcce40b713b5f3bb0-7",
+     "bytes": 53006796,
+     "points_read": 2263198
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_424500e_2718000n.copc.laz",
+     "etag": "35e6cf04b9916e1e6b5201e5ce5d9926-8",
+     "bytes": 60063302,
+     "points_read": 2707465
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_424500e_2718500n.copc.laz",
+     "etag": "5e289ec17ab72cf2dc830a829cf253ff-8",
+     "bytes": 65400073,
+     "points_read": 3056324
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_424500e_2719000n.copc.laz",
+     "etag": "3f67548213a14603fea07949604cb3fb-7",
+     "bytes": 53445416,
+     "points_read": 2372277
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_424500e_2719500n.copc.laz",
+     "etag": "527f3d23bde08c99c1fc0dc0b5b20783-6",
+     "bytes": 44971469,
+     "points_read": 1916992
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425000e_2716500n.copc.laz",
+     "etag": "d692dbb25fdedaee854bf33692fa2245-9",
+     "bytes": 71985443,
+     "points_read": 2650010
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425000e_2717000n.copc.laz",
+     "etag": "3275901f2f72fd108fe07f7168833022-9",
+     "bytes": 68014272,
+     "points_read": 2929095
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425000e_2717500n.copc.laz",
+     "etag": "85f796aef1f5674dc405898798602c9e-5",
+     "bytes": 38105548,
+     "points_read": 1641267
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425000e_2718000n.copc.laz",
+     "etag": "c97223de157c4b1e949ce2c2569c1590-8",
+     "bytes": 60688230,
+     "points_read": 2511887
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425000e_2718500n.copc.laz",
+     "etag": "dd7594625eaa161b27f366d3498869db-10",
+     "bytes": 76800054,
+     "points_read": 3136797
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425000e_2719000n.copc.laz",
+     "etag": "66f4badc3a7bf721898d3f9dcd9ae2b3-7",
+     "bytes": 55269085,
+     "points_read": 2139262
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425000e_2719500n.copc.laz",
+     "etag": "e1bcc633c02c94425e25a5e139cfdbb2-6",
+     "bytes": 50326809,
+     "points_read": 2139483
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425500e_2716500n.copc.laz",
+     "etag": "bef5c66cbdab42148a19dec8a5e77f19-7",
+     "bytes": 51598918,
+     "points_read": 1836190
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425500e_2717000n.copc.laz",
+     "etag": "2a6ec7ab71370e382f274124c1a26c70-5",
+     "bytes": 39526173,
+     "points_read": 1664193
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425500e_2717500n.copc.laz",
+     "etag": "ea3a22063a048e864e10ab6eb90598af-5",
+     "bytes": 38979160,
+     "points_read": 1851279
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425500e_2718000n.copc.laz",
+     "etag": "2e612fca1295fbcfa5c0b240fe08e282-5",
+     "bytes": 40758680,
+     "points_read": 1932193
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425500e_2718500n.copc.laz",
+     "etag": "a3b131e6bab3da8f960d236b731a0634-6",
+     "bytes": 45819942,
+     "points_read": 1988243
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425500e_2719000n.copc.laz",
+     "etag": "bb9611a933f45f515ec6d107e1474eb3-6",
+     "bytes": 48220348,
+     "points_read": 2193334
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_425500e_2719500n.copc.laz",
+     "etag": "6899955eae20b0165d0b188976147ce1-7",
+     "bytes": 52759095,
+     "points_read": 2006695
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_426000e_2716500n.copc.laz",
+     "etag": "28c49a446b4be9d56b11c77bfba4718d-8",
+     "bytes": 59019365,
+     "points_read": 2148317
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_426000e_2717000n.copc.laz",
+     "etag": "51f89cbd16164f0d62c7665b7efbbfd1-6",
+     "bytes": 48874936,
+     "points_read": 1778577
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_426000e_2717500n.copc.laz",
+     "etag": "d3f87e87f891fb0141c5540be4da23b3-7",
+     "bytes": 54586734,
+     "points_read": 1954730
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_426000e_2718000n.copc.laz",
+     "etag": "fc4e20b4907136dd1c7457a34e197177-9",
+     "bytes": 69555079,
+     "points_read": 2379308
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_426000e_2718500n.copc.laz",
+     "etag": "f5cce781172c07546beabb3af3c9eada-7",
+     "bytes": 51149366,
+     "points_read": 2036349
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_426000e_2719000n.copc.laz",
+     "etag": "1a4edbe377b4d1629f775969fb3af475-6",
+     "bytes": 50189066,
+     "points_read": 2043083
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_426500e_2716500n.copc.laz",
+     "etag": "b1915382cdecdf54b04ae3c57feca196-8",
+     "bytes": 62266311,
+     "points_read": 2311079
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_426500e_2717000n.copc.laz",
+     "etag": "22b5d2c6588047896dd1cb8999885b5b-7",
+     "bytes": 58590415,
+     "points_read": 2314969
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_426500e_2717500n.copc.laz",
+     "etag": "32f0afb59f391c2ce9976bfb1d34b823-8",
+     "bytes": 62837017,
+     "points_read": 2089149
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_426500e_2718500n.copc.laz",
+     "etag": "c9a05ced6bdb98507d0c8a512b6c2d56-8",
+     "bytes": 65151229,
+     "points_read": 2162507
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_426500e_2719000n.copc.laz",
+     "etag": "151fa633086a84e2fe826802d5882653-10",
+     "bytes": 78954862,
+     "points_read": 2389643
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_427000e_2717000n.copc.laz",
+     "etag": "ef50c66f884b7a8bbf9683841355ae49-11",
+     "bytes": 89925691,
+     "points_read": 3443777
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_427000e_2717500n.copc.laz",
+     "etag": "852905912ffc245584c8b86e0e6908bd-8",
+     "bytes": 63371360,
+     "points_read": 2481886
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_427000e_2718000n.copc.laz",
+     "etag": "96e73ce3a1a776dfff26d759bb976b36-9",
+     "bytes": 74591702,
+     "points_read": 2546599
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_427000e_2718500n.copc.laz",
+     "etag": "b49346495672038359b3e7cd49c436a0-10",
+     "bytes": 78343987,
+     "points_read": 2527790
+    },
+    {
+     "url": "https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/6246/20160425_427500e_2718000n.copc.laz",
+     "etag": "fc51b1a31bb2bc6c7dff0028202e27d3-6",
+     "bytes": 48136035,
+     "points_read": 1899900
+    }
+   ]
+  }
+ ],
+ "retrieved_at": "2026-10-10T03:02:23+00:00",
+ "query_resolution_m": 1.0,
+ "grid_cell_m": 1.0,
+ "grid_products": "dsm = max Z of non-noise points; ground = mean Z of class-2 points; nonground_count",
+ "tile_selection": "tiles intersecting library land (non-context) buffered 60 m"
+}

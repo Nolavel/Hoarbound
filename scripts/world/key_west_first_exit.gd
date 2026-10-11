@@ -129,7 +129,7 @@ func _transplant_first_exit() -> void:
 	## Convert opaque shelter materials; transparent/unshaded specials and the
 	## player/VFX hierarchy keep their own paths.
 	StylizedEnvironmentMaterial.apply_to_tree(house)
-	_add_cabinet_fade_volume(house)
+	add_cabinet_fade_volume(house)
 	_porch_spawn = foot + (foot - Vector3(SHELTER_XZ.x, 0.0, SHELTER_XZ.y)).normalized() * SPAWN_BEFORE_STAIRS_M
 	_porch_spawn.y = maxf(_terrain.get_height(_porch_spawn.x, _porch_spawn.z), 0.0) + 0.15
 	var bunker_ground: float = maxf(_terrain.get_height(BUNKER_XZ.x, BUNKER_XZ.y), 0.0)
@@ -176,7 +176,7 @@ func _transplant_first_exit() -> void:
 ## signed local-X contract is intentional: -X stays transparent at the opening,
 ## +X darkens toward the back wall. The same setup is suitable for cabinets,
 ## drawers/crates and other hollow props when their carrier box matches the cavity.
-func _add_cabinet_fade_volume(house: Node3D) -> void:
+static func add_cabinet_fade_volume(house: Node3D) -> void:
 	var cabinet := house.find_child("Cabinet", true, false) as Node3D
 	if cabinet == null:
 		push_warning("KeyWestFirstExit: shelter Cabinet not found for FadeVolume")
@@ -213,7 +213,7 @@ func _add_cabinet_fade_volume(house: Node3D) -> void:
 
 ## Static level-art silhouettes only: no focus prompt, pickup area or inventory
 ## state. They make the cabinet read as a used hollow object rather than a black box.
-func _add_cabinet_set_dressing(cabinet: Node3D) -> void:
+static func _add_cabinet_set_dressing(cabinet: Node3D) -> void:
 	var stew := SurvivalItemVisual.make(&"tinned_stew")
 	stew.name = "CabinetProp_StewTin"
 	stew.position = Vector3(-0.20, 0.075, -0.02)

@@ -9,7 +9,8 @@
 #   UNLOADED -(entered the load band)-> QUEUED
 #   QUEUED   -(picked up, load_threaded_request)-> LOADING
 #   LOADING  -(THREAD_LOAD_LOADED)-> READY
-#   READY    -(frame instantiation budget)-> ACTIVE
+#   READY    -(frame instantiation budget)-> ACTIVE, or ASSEMBLING when the chunk has
+#              parts: they attach under it within assembly_budget_usec per frame, then ACTIVE
 #   ACTIVE   -(left the unload band)-> UNLOADED
 #   Rollback: QUEUED/READY leaving early return to UNLOADED without
 #   instantiating; the threaded cache stays warm.
@@ -30,7 +31,7 @@ signal cell_state_changed(chunk_id: StringName, state: CellState)
 signal initialized(chunk_count: int)
 
 ## Where a chunk is in the pipeline.
-enum CellState { UNLOADED, QUEUED, LOADING, READY, ACTIVE }
+enum CellState { UNLOADED, QUEUED, LOADING, READY, ACTIVE, ASSEMBLING }
 
 const DEFAULT_WORLD_DATA: String = "res://archive/graciosa/data/world_data.tres"
 
@@ -48,6 +49,10 @@ const DEFAULT_WORLD_DATA: String = "res://archive/graciosa/data/world_data.tres"
 @export var max_concurrent_loads: int = 2
 ## instantiate() + add_child() per frame. One, on purpose.
 @export var instantiation_budget_per_frame: int = 1
+## Main-thread time per frame for attaching chunk parts; at least one part always attaches.
+@export var assembly_budget_usec: int = 4000
+## Packed scenes kept warm after their chunk unloads (LRU). Bounds memory on long trips.
+@export var cold_cache_limit: int = 8
 
 @export_group("Data")
 @export_file("*.tres") var world_data_path: String = DEFAULT_WORLD_DATA
@@ -61,6 +66,10 @@ var _instances: Dictionary = {}
 ## Threaded loads hand a resource over exactly once, so the result is cached
 ## here. Two chunks sharing a scene path would false-fail without it.
 var _packed_cache: Dictionary = {}
+## Cached scene paths whose chunk is UNLOADED, oldest first.
+var _cold_paths: Array[String] = []
+## Chunks whose root is live and whose parts are still attaching: id -> next part index.
+var _assembling: Dictionary = {}
 var _loads_in_flight: int = 0
 var _last_scan_position: Vector3 = Vector3(INF, INF, INF)
 ## Where the player was at the most recent scan. A background load that lands
@@ -78,12 +87,15 @@ var _runtime_sources: Dictionary = {}
 var _runtime_ring0_built: Dictionary = {}
 var _initialized: bool = false
 var _runtime_only_profile: bool = false
+## Profile asks for the world under the spawn to exist before the first frame.
+var _prewarm: bool = false
 
 
 func apply_world_profile(profile: WorldProfile) -> void:
 	if profile == null:
 		return
 	_runtime_only_profile = profile.world_data_path == ""
+	_prewarm = profile.prewarm_before_first_frame
 	if not _runtime_only_profile:
 		world_data_path = profile.world_data_path
 
@@ -117,9 +129,43 @@ func initialize(container: Node3D, player: Node3D) -> void:
 	_build_ring0()
 	_build_registered_runtime_ring0()
 	_initialized = true
+	if _prewarm and _player != null:
+		prewarm(_player.global_position)
 	initialized.emit(get_chunk_count())
 	if _player != null:
 		scan(_player.global_position)
+
+
+## Loads and activates every static chunk in the load band synchronously. Boot-time only:
+## physics must not run over a spawn whose content is still on a loader thread.
+func prewarm(player_position: Vector3) -> int:
+	_known_player_position = player_position
+	var activated: int = 0
+	for id: StringName in _chunks:
+		var chunk: ChunkData = _chunks[id]
+		if _plane_distance(player_position, chunk.position) > chunk.radius + load_margin_m:
+			continue
+		if _states.get(id, CellState.UNLOADED) == CellState.ACTIVE:
+			continue
+		var missing: bool = false
+		for path: String in _scene_paths(chunk):
+			if not _packed_cache.has(path):
+				var packed := ResourceLoader.load(path, "PackedScene") as PackedScene
+				if packed == null:
+					missing = true
+					break
+				_packed_cache[path] = packed
+		if missing:
+			continue
+		_set_state(id, CellState.READY)
+		_activate(id)
+		if _assembling.has(id):
+			for path: String in chunk.part_scene_paths.slice(int(_assembling[id])):
+				_attach_part(id, path)
+			_assembling.erase(id)
+			_set_state(id, CellState.ACTIVE)
+		activated += 1
+	return activated
 
 
 ## Runtime-only initialization for tools/experimental worlds that do not use
@@ -249,6 +295,8 @@ func _scan_one(id: StringName, player_position: Vector3, position: Vector3, radi
 ## Advances loads and instantiations within their budgets. One call per frame.
 func pump() -> void:
 	_poll_loads()
+	_start_queued_loads()
+	_assemble()
 	var budget: int = instantiation_budget_per_frame
 	for id: StringName in _states:
 		if budget <= 0:
@@ -292,6 +340,8 @@ func reset() -> void:
 	for id: StringName in _states:
 		_states[id] = CellState.UNLOADED
 	_packed_cache.clear()
+	_cold_paths.clear()
+	_assembling.clear()
 	_loads_in_flight = 0
 	_last_scan_position = Vector3(INF, INF, INF)
 
@@ -341,23 +391,58 @@ func _request(id: StringName) -> void:
 			pass
 
 
+## Fills free load slots from the queue, nearest chunk first. Without this a queued
+## chunk waited for the next rescan, i.e. for the player to walk 40 m.
+func _start_queued_loads() -> void:
+	if _loads_in_flight >= max_concurrent_loads:
+		return
+	var queued: Array[StringName] = []
+	for id: StringName in _chunks:
+		if _states.get(id, CellState.UNLOADED) == CellState.QUEUED:
+			queued.append(id)
+	if queued.is_empty():
+		return
+	queued.sort_custom(func(a: StringName, b: StringName) -> bool: return _queue_distance(a) < _queue_distance(b))
+	for id: StringName in queued:
+		if _loads_in_flight >= max_concurrent_loads:
+			return
+		_try_start_load(id)
+
+
+func _queue_distance(id: StringName) -> float:
+	if _known_player_position.x == INF:
+		return 0.0
+	return _plane_distance(_known_player_position, (_chunks[id] as ChunkData).position)
+
+
 ## Starts a background load if the concurrency budget allows it.
 func _try_start_load(id: StringName) -> void:
 	if _loads_in_flight >= max_concurrent_loads:
 		return
 	var chunk: ChunkData = _chunks[id]
-	if _packed_cache.has(chunk.content_scene_path):
+	_cold_paths.erase(chunk.content_scene_path)
+	var missing: PackedStringArray = PackedStringArray()
+	for path: String in _scene_paths(chunk):
+		if not _packed_cache.has(path):
+			missing.append(path)
+	if missing.is_empty():
 		_set_state(id, CellState.READY)
 		return
-	var error: Error = ResourceLoader.load_threaded_request(
-		chunk.content_scene_path, "PackedScene", true
-	)
-	if error != OK:
-		push_warning("StreamingSystem: cannot start loading '%s' (%d)" % [id, error])
-		_set_state(id, CellState.UNLOADED)
-		return
+	for path: String in missing:
+		var error: Error = ResourceLoader.load_threaded_request(path, "PackedScene", true)
+		if error != OK:
+			push_warning("StreamingSystem: cannot start loading '%s' (%d)" % [path, error])
+			_set_state(id, CellState.UNLOADED)
+			return
 	_loads_in_flight += 1
 	_set_state(id, CellState.LOADING)
+
+
+## The content scene first, then its parts in attach order.
+func _scene_paths(chunk: ChunkData) -> PackedStringArray:
+	var paths: PackedStringArray = PackedStringArray([chunk.content_scene_path])
+	paths.append_array(chunk.part_scene_paths)
+	return paths
 
 
 ## Collects finished background loads.
@@ -366,27 +451,32 @@ func _poll_loads() -> void:
 		if _states.get(id, CellState.UNLOADED) != CellState.LOADING:
 			continue
 		var chunk: ChunkData = _chunks[id]
-		var status: int = ResourceLoader.load_threaded_get_status(chunk.content_scene_path)
-		match status:
-			ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		var pending: bool = false
+		var failed: bool = false
+		for path: String in _scene_paths(chunk):
+			if _packed_cache.has(path):
 				continue
-			ResourceLoader.THREAD_LOAD_LOADED:
-				_loads_in_flight = maxi(0, _loads_in_flight - 1)
-				var packed := ResourceLoader.load_threaded_get(
-					chunk.content_scene_path
-				) as PackedScene
-				if packed == null:
-					_set_state(id, CellState.UNLOADED)
-					continue
-				_packed_cache[chunk.content_scene_path] = packed
-				if _is_within_unload_band(id):
-					_set_state(id, CellState.READY)
-				else:
-					_set_state(id, CellState.UNLOADED)
-			_:
-				_loads_in_flight = maxi(0, _loads_in_flight - 1)
-				push_warning("StreamingSystem: load failed for '%s'" % id)
-				_set_state(id, CellState.UNLOADED)
+			match ResourceLoader.load_threaded_get_status(path):
+				ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+					pending = true
+				ResourceLoader.THREAD_LOAD_LOADED:
+					var packed := ResourceLoader.load_threaded_get(path) as PackedScene
+					if packed == null:
+						failed = true
+					else:
+						_packed_cache[path] = packed
+				_:
+					failed = true
+		if pending and not failed:
+			continue
+		_loads_in_flight = maxi(0, _loads_in_flight - 1)
+		if failed:
+			push_warning("StreamingSystem: load failed for '%s'" % id)
+			_set_state(id, CellState.UNLOADED)
+		elif _is_within_unload_band(id):
+			_set_state(id, CellState.READY)
+		else:
+			_set_state(id, CellState.UNLOADED)
 
 
 ## Instantiates a ready chunk. This is the expensive step the budget guards.
@@ -420,7 +510,48 @@ func _activate(id: StringName) -> void:
 	_container.add_child(instance)
 	instance.global_position = chunk.position
 	_instances[id] = instance
-	_set_state(id, CellState.ACTIVE)
+	if chunk.part_scene_paths.is_empty():
+		_set_state(id, CellState.ACTIVE)
+		return
+	_assembling[id] = 0
+	_set_state(id, CellState.ASSEMBLING)
+
+
+## Attaches chunk parts under their live root within assembly_budget_usec, nearest chunk first.
+## Parts were decoded on loader threads; only instantiate() + add_child() run here.
+func _assemble() -> void:
+	if _assembling.is_empty():
+		return
+	var deadline: int = Time.get_ticks_usec() + assembly_budget_usec
+	var ids: Array = _assembling.keys()
+	ids.sort_custom(func(a: StringName, b: StringName) -> bool: return _queue_distance(a) < _queue_distance(b))
+	var attached: int = 0
+	for id: StringName in ids:
+		var parts: PackedStringArray = (_chunks[id] as ChunkData).part_scene_paths
+		var next: int = _assembling[id]
+		while next < parts.size():
+			if attached > 0 and Time.get_ticks_usec() >= deadline:
+				_assembling[id] = next
+				return
+			_attach_part(id, parts[next])
+			next += 1
+			attached += 1
+		_assembling.erase(id)
+		_set_state(id, CellState.ACTIVE)
+
+
+func _attach_part(id: StringName, path: String) -> void:
+	var packed := _packed_cache.get(path) as PackedScene
+	var root_instance := _instances.get(id) as Node3D
+	if packed == null or not is_instance_valid(root_instance):
+		return
+	attach_part(root_instance, packed.instantiate())
+
+
+## Attaches a part scene under its chunk root, or under the node its "attach_to" meta names.
+static func attach_part(chunk_root: Node, part: Node) -> void:
+	var parent: Node = chunk_root.get_node_or_null(NodePath(String(part.get_meta("attach_to", "")))) if part.has_meta("attach_to") else null
+	(parent if parent != null else chunk_root).add_child(part)
 
 
 ## Drops a chunk back to UNLOADED. A queued or ready chunk rolls back without
@@ -431,8 +562,9 @@ func _release(id: StringName) -> void:
 		return
 	if state == CellState.LOADING:
 		return
-	if state == CellState.ACTIVE:
+	if state == CellState.ACTIVE or state == CellState.ASSEMBLING:
 		_free_instance(id)
+		_assembling.erase(id)
 	_set_state(id, CellState.UNLOADED)
 
 
@@ -472,9 +604,35 @@ func _set_state(id: StringName, state: CellState) -> void:
 	if _states.get(id, CellState.UNLOADED) == state:
 		return
 	_states[id] = state
+	if state == CellState.UNLOADED:
+		_cool(id)
 	if log_transitions:
 		print("[Streaming] %s -> %s" % [id, CellState.keys()[state]])
 	cell_state_changed.emit(id, state)
+
+
+## A released chunk's packed scene becomes cold; beyond the limit the oldest cold one is dropped.
+func _cool(id: StringName) -> void:
+	var chunk: ChunkData = _chunks.get(id)
+	if chunk == null or not _packed_cache.has(chunk.content_scene_path):
+		return
+	_cold_paths.erase(chunk.content_scene_path)
+	_cold_paths.append(chunk.content_scene_path)
+	while _cold_paths.size() > maxi(cold_cache_limit, 0):
+		var path: String = _cold_paths.pop_front()
+		if not _path_in_use(path):
+			_packed_cache.erase(path)
+			for other: StringName in _chunks:
+				if (_chunks[other] as ChunkData).content_scene_path == path:
+					for part: String in (_chunks[other] as ChunkData).part_scene_paths:
+						_packed_cache.erase(part)
+
+
+func _path_in_use(path: String) -> bool:
+	for other: StringName in _chunks:
+		if (_chunks[other] as ChunkData).content_scene_path == path and _states.get(other, CellState.UNLOADED) != CellState.UNLOADED:
+			return true
+	return false
 
 
 ## XZ distance. Chunks are full-height, so height never enters the metric.
