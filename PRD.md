@@ -4,7 +4,7 @@
 >
 > Owner: Nolavel. Repository / branch rules live in `AGENTS.md`.
 
-See also: [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) (the ordered 10-step build sequence and one-year plan), [`README.md`](README.md), [`docs/game_design/VERTICAL_SLICE.md`](docs/game_design/VERTICAL_SLICE.md), [`docs/GDD.md`](docs/GDD.md), and [`CONTRIBUTING_DECOMPOSITION.md`](CONTRIBUTING_DECOMPOSITION.md).
+See also: [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) (the ordered 10-step build sequence and one-year plan), [`README.md`](README.md), [`docs/game_design/EXPERIENCE_PILLARS.md`](docs/game_design/EXPERIENCE_PILLARS.md) (canonical player-experience doctrine), [`docs/world/KEY_WEST_DESIGN_DOCTRINE.md`](docs/world/KEY_WEST_DESIGN_DOCTRINE.md) (canonical Key West world/level-design doctrine), [`docs/game_design/VERTICAL_SLICE.md`](docs/game_design/VERTICAL_SLICE.md), [`docs/GDD.md`](docs/GDD.md), and [`CONTRIBUTING_DECOMPOSITION.md`](CONTRIBUTING_DECOMPOSITION.md).
 
 ## 1. Product vision
 
@@ -29,6 +29,8 @@ The important design outcomes are:
 - **Physical handling supports readability.** Backpack, Quick Access, carried items and tools should feel connected to Henry rather than existing only as abstract UI.
 
 Primary decision-pressure reference: *The Long Dark*. Tone reference: *The Road*.
+
+The permanent interpretation of this experience is defined by `docs/game_design/EXPERIENCE_PILLARS.md`: small intentions disrupted by the world, danger creating the value of comfort, attention density over content density, meaningful rather than artificial friction, embodied interaction without animation tax, and systemic stories emerging from ordinary play. Key West world and level-design decisions additionally follow `docs/world/KEY_WEST_DESIGN_DOCTRINE.md`.
 
 ## 3. Current milestone — First Exit A
 
