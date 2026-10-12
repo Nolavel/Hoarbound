@@ -71,9 +71,21 @@ Handover rules:
 ## Product documents
 
 - [PRD.md](PRD.md) — Product Requirements Document (vision, current north-star, success criteria, out of scope).
+- [docs/game_design/EXPERIENCE_PILLARS.md](docs/game_design/EXPERIENCE_PILLARS.md) — canonical player-experience contract: emotional loop, danger/comfort relationship, attention density, meaningful friction, embodied interaction, mastery and systemic storytelling.
+- [docs/world/KEY_WEST_DESIGN_DOCTRINE.md](docs/world/KEY_WEST_DESIGN_DOCTRINE.md) — canonical Key West world/level-design contract: real-place-first, frozen-tropical contradiction, survival topology, islands of attention, shelter character and environmental storytelling.
 - [CONTRIBUTING_DECOMPOSITION.md](CONTRIBUTING_DECOMPOSITION.md) — правила декомпозиции PRD → Epic → User Story → Task → Subtask.
 - [docs/game_design/VERTICAL_SLICE.md](docs/game_design/VERTICAL_SLICE.md) — текущий scope First Exit A.
 - [docs/art/ART_DIRECTION.md](docs/art/ART_DIRECTION.md) — production visual source of truth. Rendering, materials, assets, lighting and visual experiments must preserve this contract unless the author explicitly changes it.
+
+## Mandatory product-context reading
+
+The product documents are not optional background reading.
+
+- Before changing gameplay, interaction, survival pressure, UI, audio, encounter/content density, player locomotion feel, shelter behaviour, inventory handling, or player-facing pacing, read `docs/game_design/EXPERIENCE_PILLARS.md`.
+- Before changing Key West world generation, building selection, routes, POIs, shelter placement, outdoor traversal, weather exposure, environmental storytelling, or world-content density, read **both** `docs/game_design/EXPERIENCE_PILLARS.md` and `docs/world/KEY_WEST_DESIGN_DOCTRINE.md`.
+- Before visual production work, also read `docs/art/ART_DIRECTION.md`.
+- If a requested implementation conflicts with a canonical product doctrine, surface the conflict to the author instead of silently weakening or overriding the doctrine.
+- Implementation details may evolve; the intended player experience does not change unless the author explicitly changes the corresponding product document.
 
 ## Engine baseline
 
