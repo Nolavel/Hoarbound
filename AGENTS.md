@@ -87,6 +87,15 @@ The product documents are not optional background reading.
 - If a requested implementation conflicts with a canonical product doctrine, surface the conflict to the author instead of silently weakening or overriding the doctrine.
 - Implementation details may evolve; the intended player experience does not change unless the author explicitly changes the corresponding product document.
 
+## Documentation discipline
+
+- **Do not create a new document when the same meaning can be added coherently to an existing canonical source of truth.** Extend the existing document and link to it instead.
+- Create a new document only when it has a genuinely distinct contract, owner, or audience that would make the existing source materially less clear.
+- Keep one source of truth per topic. Link to canonical material; do not duplicate it into parallel notes.
+- **Brevity is a quality requirement.** Write for a human collaborator: state intent, decisions, constraints and consequences; omit session narration, repeated context and raw dumps that belong in code, issues, PRs or artifacts.
+- Prefer short sections, bullets and small tables over multi-page prose when they communicate the same decision.
+- `CHANGELOG.md` records concise production outcomes, not an AI development diary. Historical long-form entries live in `archive/CHANGELOG_LEGACY.md`.
+
 ## Engine baseline
 
 - Godot: **4.8 dev6 .NET (mono)**
