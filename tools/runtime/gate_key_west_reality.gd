@@ -306,7 +306,10 @@ func _begin_entry() -> void:
 	var out: Vector2 = Vector2(float(main["outward_uv"][0]), float(main["outward_uv"][1]))
 	var sill: Vector2 = Vector2(float(main["centre_uv"][0]), float(main["centre_uv"][1]))
 	var foot: Vector2 = Vector2(float(plan["entry_ramp"]["from_uv"][0]), float(plan["entry_ramp"]["from_uv"][1]))
-	var path: Array[Vector2] = [foot + out * 1.5, sill + out * 0.6, sill - out * 1.0, Vector2(4.6, 1.6), Vector2(2.2, 1.6), Vector2(0.0, 4.6)]
+	## Inside, Henry keeps to the lobby's back wall and meets the doorway square on: the open leaf
+	## (1.5 m, swung in, pushed by his body) sweeps the corner between the door and the arch.
+	var path: Array[Vector2] = [foot + out * 1.5, sill + out * 0.6, sill - out * 1.0, sill - out * 2.2, Vector2(4.6, 0.9),
+		Vector2(2.2, 1.6), Vector2(0.0, 4.6)]
 	_detour_inside = path.size() - 1
 	for k: int in range(path.size() - 2, -1, -1):
 		path.append(path[k])
