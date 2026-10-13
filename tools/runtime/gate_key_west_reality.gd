@@ -178,6 +178,7 @@ func _process(_delta: float) -> bool:
 			"process_ms": snappedf(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, 0.1),
 			"physics_ms": snappedf(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, 0.1),
 			"game_s": snappedf(_game_s, 0.1), "at": [snappedf(_player.global_position.x, 0.1), snappedf(_player.global_position.z, 0.1)]})
+		print("gate: hitch ", JSON.stringify(_hitches.back()))  # CI keeps the log even when the report artifact is out of reach
 	var pos: Vector3 = _player.global_position
 	var own: StringName = StringName("kw_gen_%d_%d" % [floori(pos.x / CHUNK_M), floori(pos.z / CHUNK_M)])
 	if _streaming._chunks.has(own) and _streaming.get_state(own) != StreamingSystem.CellState.ACTIVE:
