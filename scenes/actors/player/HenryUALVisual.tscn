@@ -3,9 +3,36 @@
 [ext_resource type="Script" uid="uid://b6ga6pkkrxcj3" path="res://scripts/actors/player/henry/Controllers/HenryUALAnimation.gd" id="1_anim"]
 [ext_resource type="PackedScene" uid="uid://bx4jrfijun8h4" path="res://assets/characters/henry/henry_outfit.glb" id="2_model"]
 [ext_resource type="PackedScene" uid="uid://bemij2esac8p2" path="res://assets/animation/ual/Unreal-Godot_2/UAL2_Standard.glb" id="3_ual2"]
+[ext_resource type="Script" uid="uid://d4ghmsa6hof8v" path="res://scripts/ui/hud/quick_access/quick_access_anchor_rig.gd.gd" id="4_5upxd"]
+[ext_resource type="PackedScene" uid="uid://bcen8ij3jly17" path="res://scenes/ui/hud/quick_access/quick_access.tscn" id="4_mcvqx"]
 
 [node name="HenryUALVisual" type="Node3D" unique_id=1385313891]
 script = ExtResource("1_anim")
 secondary_library_scene = ExtResource("3_ual2")
 
 [node name="Model" parent="." unique_id=1686693308 instance=ExtResource("2_model")]
+
+[node name="QuickAccessAnchors" type="Node3D" parent="." unique_id=179005548]
+script = ExtResource("4_5upxd")
+
+[node name="CoatLeftAnchor" type="Node3D" parent="QuickAccessAnchors" unique_id=1414134310]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1.25, 0)
+
+[node name="CoatRightAnchor" type="Node3D" parent="QuickAccessAnchors" unique_id=1185394007]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1.25, 0)
+
+[node name="ThighLeftAnchor" type="Node3D" parent="QuickAccessAnchors" unique_id=1511690822]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0)
+
+[node name="PackLidAnchor" type="Node3D" parent="QuickAccessAnchors" unique_id=923090113]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1, 0)
+
+[node name="HandsAnchor" type="Node3D" parent="QuickAccessAnchors" unique_id=349867119]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -0.5)
+
+[node name="QuickAccess" parent="." unique_id=386480465 node_paths=PackedStringArray("coat_left_anchor", "coat_right_anchor", "thigh_left_anchor", "pack_lid_anchor", "hands_anchor") instance=ExtResource("4_mcvqx")]
+coat_left_anchor = NodePath("../QuickAccessAnchors/CoatLeftAnchor")
+coat_right_anchor = NodePath("../QuickAccessAnchors/CoatRightAnchor")
+thigh_left_anchor = NodePath("../QuickAccessAnchors/ThighLeftAnchor")
+pack_lid_anchor = NodePath("../QuickAccessAnchors/PackLidAnchor")
+hands_anchor = NodePath("../QuickAccessAnchors/HandsAnchor")

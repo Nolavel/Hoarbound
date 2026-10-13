@@ -1,0 +1,190 @@
+[gd_scene format=3 uid="uid://bcen8ij3jly17"]
+
+[ext_resource type="Script" uid="uid://du35xfeu5l60j" path="res://scripts/ui/hud/quick_access/quick_access_ui.gd" id="1_foftq"]
+[ext_resource type="Shader" uid="uid://esfpmy6egd8p" path="res://assets/materials/Shaders/BG_frame.gdshader" id="2_foftq"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mcvqx"]
+shader = ExtResource("2_foftq")
+shader_parameter/base_color = Color(0, 0, 0, 1)
+shader_parameter/fade_start = 0.3
+shader_parameter/fade_end = 0.8
+shader_parameter/fade_direction = 0
+shader_parameter/fade_curve = 1.0
+shader_parameter/reveal = 1.0
+shader_parameter/reveal_softness = 0.16
+shader_parameter/reveal_curve = 0.75
+shader_parameter/corner_radius = 0.1
+
+[sub_resource type="Gradient" id="Gradient_4cph5"]
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_5agdl"]
+gradient = SubResource("Gradient_4cph5")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_345ew"]
+shader = ExtResource("2_foftq")
+shader_parameter/base_color = Color(0, 0, 0, 1)
+shader_parameter/fade_start = 0.3
+shader_parameter/fade_end = 0.8
+shader_parameter/fade_direction = 0
+shader_parameter/fade_curve = 1.0
+shader_parameter/reveal = 1.0
+shader_parameter/reveal_softness = 0.16
+shader_parameter/reveal_curve = 0.75
+shader_parameter/corner_radius = 0.1
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_13txb"]
+gradient = SubResource("Gradient_4cph5")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_foftq"]
+shader = ExtResource("2_foftq")
+shader_parameter/base_color = Color(0, 0, 0, 1)
+shader_parameter/fade_start = 0.3
+shader_parameter/fade_end = 0.8
+shader_parameter/fade_direction = 0
+shader_parameter/fade_curve = 1.0
+shader_parameter/reveal = 1.0
+shader_parameter/reveal_softness = 0.16
+shader_parameter/reveal_curve = 0.75
+shader_parameter/corner_radius = 0.1
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_ne5id"]
+gradient = SubResource("Gradient_4cph5")
+
+[node name="QuickAccess" type="Control" unique_id=386480465]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_foftq")
+
+[node name="CoatLeft" type="Control" parent="." unique_id=1421168442]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Background" type="TextureRect" parent="CoatLeft" unique_id=762458694]
+material = SubResource("ShaderMaterial_mcvqx")
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_5agdl")
+expand_mode = 1
+stretch_mode = 4
+
+[node name="Icon" type="TextureRect" parent="CoatLeft" unique_id=1686102983]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Label" type="Label" parent="CoatLeft" unique_id=1196639916]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 21.0
+text = "CoatLeft"
+
+[node name="CoatRight" type="Control" parent="." unique_id=1633403598]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Background" type="TextureRect" parent="CoatRight" unique_id=1197632777]
+material = SubResource("ShaderMaterial_345ew")
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_13txb")
+expand_mode = 1
+stretch_mode = 4
+
+[node name="Icon" type="TextureRect" parent="CoatRight" unique_id=413372016]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Label" type="Label" parent="CoatRight" unique_id=1746859591]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 21.0
+text = "CoatRight"
+
+[node name="ThighLeft" type="Control" parent="." unique_id=1259522361]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Background" type="TextureRect" parent="ThighLeft" unique_id=2108751276]
+material = SubResource("ShaderMaterial_foftq")
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_ne5id")
+expand_mode = 1
+stretch_mode = 4
+
+[node name="Icon" type="TextureRect" parent="ThighLeft" unique_id=677295110]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Label" type="Label" parent="ThighLeft" unique_id=339644940]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 21.0
+text = "ThighLeft"
+
+[node name="PackLid" type="Control" parent="." unique_id=2029395787]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Background" type="TextureRect" parent="PackLid" unique_id=269640119]
+material = SubResource("ShaderMaterial_foftq")
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_ne5id")
+expand_mode = 1
+stretch_mode = 4
+
+[node name="Icon" type="TextureRect" parent="PackLid" unique_id=1857073496]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Label" type="Label" parent="PackLid" unique_id=1635735293]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 21.0
+text = "PackLid"
+
+[node name="Hands" type="Control" parent="." unique_id=1454073469]
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Background" type="TextureRect" parent="Hands" unique_id=1263383869]
+material = SubResource("ShaderMaterial_foftq")
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+texture = SubResource("GradientTexture2D_ne5id")
+expand_mode = 1
+stretch_mode = 4
+
+[node name="Icon" type="TextureRect" parent="Hands" unique_id=805762692]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Label" type="Label" parent="Hands" unique_id=244983555]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 21.0
+text = "Hands"
