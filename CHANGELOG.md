@@ -8,6 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Added paired English/Russian canonical architecture contracts; full-project ECS is rejected in favor of the Godot/component + domain-core model with selective ECS/DOD only where justified.
 - Added canonical player-experience and Key West design doctrine documents and linked them from the PRD / agent workflow.
 - Replaced the historical long-form changelog with this concise production log.
 
