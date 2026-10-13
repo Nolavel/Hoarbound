@@ -71,6 +71,7 @@ Handover rules:
 ## Product documents
 
 - [PRD.md](PRD.md) — Product Requirements Document (vision, current north-star, success criteria, out of scope).
+- [docs/FUTURE_INTENT.md](docs/FUTURE_INTENT.md) — русскоязычный авторский реестр будущих намерений; это контекст направления, а не backlog и не разрешение на реализацию.
 - [docs/game_design/EXPERIENCE_PILLARS.md](docs/game_design/EXPERIENCE_PILLARS.md) — canonical player-experience contract: emotional loop, danger/comfort relationship, attention density, meaningful friction, embodied interaction, mastery and systemic storytelling.
 - [docs/world/KEY_WEST_DESIGN_DOCTRINE.md](docs/world/KEY_WEST_DESIGN_DOCTRINE.md) — canonical Key West world/level-design contract: real-place-first, frozen-tropical contradiction, survival topology, islands of attention, shelter character and environmental storytelling.
 - [CONTRIBUTING_DECOMPOSITION.md](CONTRIBUTING_DECOMPOSITION.md) — правила декомпозиции PRD → Epic → User Story → Task → Subtask.
@@ -81,6 +82,7 @@ Handover rules:
 
 The product documents are not optional background reading.
 
+- Before starting or designing a feature, check `docs/FUTURE_INTENT.md` for relevant author intent. A matching entry provides direction and constraints; it is **not** authorization to implement that future work unless the author separately asks for it. The document is intentionally maintained in Russian.
 - Before changing gameplay, interaction, survival pressure, UI, audio, encounter/content density, player locomotion feel, shelter behaviour, inventory handling, or player-facing pacing, read `docs/game_design/EXPERIENCE_PILLARS.md`.
 - Before changing Key West world generation, building selection, routes, POIs, shelter placement, outdoor traversal, weather exposure, environmental storytelling, or world-content density, read **both** `docs/game_design/EXPERIENCE_PILLARS.md` and `docs/world/KEY_WEST_DESIGN_DOCTRINE.md`.
 - Before visual production work, also read `docs/art/ART_DIRECTION.md`.
