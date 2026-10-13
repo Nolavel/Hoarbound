@@ -1,0 +1,347 @@
+{
+ "schema": "kw_reality.first_exit_gameplay.v1",
+ "built_at": "2026-10-13T12:09:20+00:00",
+ "recon": "game_authored_override",
+ "note": "Game objects on measured geometry. Battery Osceola has no separate footprint in any reachable source; the bunker door is not a historical opening.",
+ "frame": "local metres x east, z south, y NAVD88",
+ "bunker": {
+  "portal_xz": [
+   -4053.31,
+   1919.54
+  ],
+  "door_xz": [
+   -4052.73,
+   1916.39
+  ],
+  "ground_y": 1.81,
+  "yaw_rad": 2.9608,
+  "face_fit": {
+   "source": "noaa_lidar_9081 2019 DSM, courtyard face, DSM within FACE_RISE_M of the floor",
+   "a": 2657.228,
+   "b": 0.1828,
+   "rms_m": 0.35,
+   "samples": 53
+  }
+ },
+ "vent": {
+  "xz": [
+   -4056.93,
+   1917.15
+  ],
+  "base_y": 5.53,
+  "source": "DSM top of the casemate terrace behind the door"
+ },
+ "spawn": {
+  "xz": [
+   -4052.05,
+   1912.65
+  ],
+  "y": 1.97,
+  "yaw_rad": 2.9608,
+  "source": "past the bunker wing walls, facing out of the door"
+ },
+ "pickups": {
+  "BoardsFort1": {
+   "xz": [
+    -4042.57,
+    1908.77
+   ],
+   "y": 2.17,
+   "site": "fort_building",
+   "feature_id": "kw:building:osm:w524081451",
+   "reason": "nearest building inside the fort with free ground beside it (template: fort store)"
+  },
+  "TinderFort": {
+   "xz": [
+    -4043.25,
+    1906.89
+   ],
+   "y": 2.16,
+   "site": "fort_building",
+   "feature_id": "kw:building:osm:w524081451",
+   "reason": "same wall, 2 m along (template keeps the pair together)"
+  },
+  "StewPatrolHut": {
+   "xz": [
+    -4017.63,
+    1898.12
+   ],
+   "y": 2.61,
+   "site": "small_building_near_fort",
+   "feature_id": "kw:building:osm:w524081447",
+   "reason": "hut-sized building (8-60 m2) nearest the bunker outside the fort"
+  },
+  "FirewoodBusStop": {
+   "xz": [
+    -3455.3,
+    1549.23
+   ],
+   "y": 1.63,
+   "site": "bus_stop",
+   "feature_id": "kw:street:osm:n9726331417",
+   "reason": "mapped bus stop nearest 727, on its footway side"
+  },
+  "StewBeachWreck": {
+   "xz": [
+    -4276.61,
+    1876.27
+   ],
+   "y": 1.11,
+   "site": "open_sea_shore",
+   "feature_id": "noaa_dem_6366",
+   "reason": "shore cell (0.3-1.2 m NAVD88) nearest the bunker with open sea 60 m out"
+  },
+  "BoardsNextDoor": {
+   "xz": [
+    -3522.13,
+    1577.45
+   ],
+   "y": 1.94,
+   "site": "neighbour_building",
+   "feature_id": "kw:building:osm:w585507154",
+   "reason": "building nearest 727 (template: next door)"
+  },
+  "FirewoodShelterOutbuilding": {
+   "xz": [
+    -3509.3,
+    1570.73
+   ],
+   "y": 1.57,
+   "site": "outbuilding",
+   "feature_id": "kw:building:osm:w585507683",
+   "reason": "outbuilding-sized building (<30 m2) nearest 727"
+  },
+  "BoardsShelterOutbuilding": {
+   "xz": [
+    -3508.59,
+    1571.7
+   ],
+   "y": 1.57,
+   "site": "outbuilding",
+   "feature_id": "kw:building:osm:w585507683",
+   "reason": "same outbuilding, 1.2 m along"
+  },
+  "FirewoodShedN1": {
+   "xz": [
+    -3501.53,
+    1575.91
+   ],
+   "y": 1.71,
+   "site": "shed",
+   "feature_id": "kw:building:osm:w585507684",
+   "reason": "second outbuilding-sized building nearest 727 (template: shed)"
+  },
+  "TinderCollapsedN3": {
+   "xz": [
+    -3519.72,
+    1570.79
+   ],
+   "y": 2.12,
+   "site": "house",
+   "feature_id": "kw:building:osm:w585507155",
+   "reason": "third building nearest 727 (template: collapsed house N3)"
+  },
+  "BoardsShelterYard": {
+   "xz": [
+    -3529.66,
+    1592.96
+   ],
+   "y": 1.92,
+   "site": "727_yard",
+   "feature_id": "kw:building:osm:w339414849",
+   "reason": "outside the 727 office front, beside the entry ramp"
+  },
+  "FirewoodShelterYard": {
+   "xz": [
+    -3529.11,
+    1593.8
+   ],
+   "y": 1.89,
+   "site": "727_yard",
+   "feature_id": "kw:building:osm:w339414849",
+   "reason": "outside the 727 office front, beside the entry ramp"
+  }
+ },
+ "shelter_sockets": {
+  "BoardsShelterInside": {
+   "room": "storage",
+   "uv": [
+    8.6,
+    -5.6
+   ],
+   "h": 0.0,
+   "yaw_deg": 90,
+   "on": null
+  },
+  "BoardsShelterTest1": {
+   "room": "storage",
+   "uv": [
+    8.95,
+    -5.6
+   ],
+   "h": 0.0,
+   "yaw_deg": 90,
+   "on": null
+  },
+  "BoardsShelterTest2": {
+   "room": "storage",
+   "uv": [
+    9.3,
+    -5.6
+   ],
+   "h": 0.0,
+   "yaw_deg": 90,
+   "on": null
+  },
+  "BoardsShelterTest3": {
+   "room": "storage",
+   "uv": [
+    8.6,
+    -3.4
+   ],
+   "h": 0.0,
+   "yaw_deg": 90,
+   "on": null
+  },
+  "BoardsShelterTest4": {
+   "room": "storage",
+   "uv": [
+    8.95,
+    -3.4
+   ],
+   "h": 0.0,
+   "yaw_deg": 90,
+   "on": null
+  },
+  "BoardsShelterTest5": {
+   "room": "storage",
+   "uv": [
+    9.3,
+    -3.4
+   ],
+   "h": 0.0,
+   "yaw_deg": 90,
+   "on": null
+  },
+  "BoardsShelterTest6": {
+   "room": "storage",
+   "uv": [
+    9.65,
+    -3.4
+   ],
+   "h": 0.0,
+   "yaw_deg": 90,
+   "on": null
+  },
+  "HammerShelter": {
+   "room": "storage",
+   "uv": [
+    9.95,
+    -5.6
+   ],
+   "h": 0.8,
+   "yaw_deg": 0,
+   "on": "ToolBench"
+  },
+  "NailsShelter": {
+   "room": "storage",
+   "uv": [
+    10.35,
+    -5.6
+   ],
+   "h": 0.8,
+   "yaw_deg": 0,
+   "on": "ToolBench"
+  },
+  "LighterShelterTest": {
+   "room": "storage",
+   "uv": [
+    10.75,
+    -5.6
+   ],
+   "h": 0.8,
+   "yaw_deg": 0,
+   "on": "ToolBench"
+  },
+  "KnifeShelterTest": {
+   "room": "storage",
+   "uv": [
+    11.1,
+    -5.6
+   ],
+   "h": 0.8,
+   "yaw_deg": 0,
+   "on": "ToolBench"
+  },
+  "AxeShelterTest": {
+   "room": "storage",
+   "uv": [
+    11.4,
+    -5.6
+   ],
+   "h": 0.8,
+   "yaw_deg": 0,
+   "on": "ToolBench"
+  },
+  "StewShelterTest": {
+   "room": "storage",
+   "uv": [
+    12.6,
+    -3.6
+   ],
+   "h": 0.8,
+   "yaw_deg": 0,
+   "on": "SupplyBench"
+  },
+  "FlaskShelterTest": {
+   "room": "storage",
+   "uv": [
+    12.6,
+    -3.0
+   ],
+   "h": 0.8,
+   "yaw_deg": 0,
+   "on": "SupplyBench"
+  },
+  "PineappleShelterTest": {
+   "room": "storage",
+   "uv": [
+    12.6,
+    -2.4
+   ],
+   "h": 0.8,
+   "yaw_deg": 0,
+   "on": "SupplyBench"
+  },
+  "FirewoodShelter": {
+   "room": "lobby",
+   "uv": [
+    4.3,
+    2.3
+   ],
+   "h": 0.0,
+   "yaw_deg": 0,
+   "on": null
+  },
+  "RoadFlareShelterTest": {
+   "room": "lobby",
+   "uv": [
+    8.15,
+    1.2
+   ],
+   "h": 1.05,
+   "yaw_deg": 0,
+   "on": "ReceptionCounter"
+  },
+  "BedrollShelterTest": {
+   "room": "office",
+   "uv": [
+    12.9,
+    1.0
+   ],
+   "h": 0.0,
+   "yaw_deg": 0,
+   "on": null
+  }
+ }
+}

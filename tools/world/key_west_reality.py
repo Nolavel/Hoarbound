@@ -11,6 +11,8 @@
   override-bridge-init        one-time: author the severed-bridge game override from real geometry
   landmarks                   measured First Exit landmark assets (glTF) + asset manifest records
   route-gate                  walkable First Exit + Old Town test route for the production gate
+  first-exit-sites            bunker door, spawn and loot sites for the Reality First Exit (game-authored)
+  traversal-check             no generated collider on a mapped road, path or footway
   export-editor               per-chunk editor interchange for the Godot editor generator
   all                         acquire -> extent -> acquire (extent-bound) -> build -> validate -> report -> preview
 
@@ -87,6 +89,12 @@ def main() -> None:
     elif args.command == "route-gate":
         from reality import routes
         routes.run()
+    elif args.command == "traversal-check":
+        from reality import traversal
+        traversal.run()
+    elif args.command == "first-exit-sites":
+        from reality import first_exit_sites
+        first_exit_sites.run()
     elif args.command == "landmarks":
         from reality import landmarks
         landmarks.run()

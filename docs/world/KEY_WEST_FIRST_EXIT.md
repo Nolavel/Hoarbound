@@ -18,12 +18,13 @@ Owner decision, 2026-10-10:
 - **Primary First Exit shelter:** **727 Fort Street**, the real historic
   one-story masonry building at Fort Street / Petronia Street, projected at
   approximately **(-3531.78, 1590.28)**.
-- **Former custom Fort Street shelter/hut:** **(-3579.85, 1574.51)**. Keep it in
-  the project and world for now, but it no longer owns the primary First Exit
-  shelter role. Its later use is undecided.
-- The Battery Osceola → 727 Fort Street separation is roughly **619 m** in the
-  current local frame.
-- No waypoint is added.
+- **Former custom Fort Street shelter/hut:** **(-3579.85, 1574.51)**. It stays in
+  the legacy scene. The Reality scene does not need it (owner decision
+  2026-10-13): its door, stove, breaches and furniture live inside 727.
+- The straight-line Battery Osceola → 727 separation (about 619 m) is a fact of
+  the map, not a target. Route length is not a requirement; Henry takes whatever
+  streets the player chooses.
+- No navigation aid of any kind: no waypoint, icon, arrow or lit route to 727.
 
 These anchors are production decisions and must survive any future Key West
 crop rebuild, city-data regeneration, OSM/Overture refresh, Blender world pass,
@@ -97,6 +98,27 @@ profile for direct F6 launches. Test scenes keep their existing isolated default
 
 Validation/capture extends the existing checks workflow; no second CI pipeline
 is introduced.
+
+## Reality review scene
+
+`scenes/world/key_west/key_west_reality.tscn` is a separate review candidate; it is
+not `run/main_scene`, and the legacy scene above stays the default. Open it and
+press F6: the generated snapshot is committed, nothing has to be built first.
+
+| Piece | Where it comes from | Class |
+|---|---|---|
+| Bunker door, vent | First Exit template block set into the fort's courtyard face; the face line is fitted to the 2019 DSM (`first_exit_sites.py`, RMS 0.35 m) | game-authored override on measured geometry |
+| Spawn | 3.8 m in front of the door, facing out of it | game-authored |
+| Route loot (fort, hut, bus stop, shore, next door, sheds, house) | the template's pickups, same ids, counts and world_ids, each beside a real building, mapped bus stop or open-sea shore chosen by rule (`overrides/first_exit_gameplay.json`) | game-authored override |
+| 727 supplies | storage room, lobby and office sockets on the clinic plan, checked against rooms and furniture | game-authored |
+| 727 interior | clinic plan, `landmarks/kw_727_fort_st.json` | game-authored (no record reached) |
+
+Tinder is not in the 727 kit: it lies at the fort and at the house beside 727,
+as on the template route. `tests/systems/test_key_west_reality_first_exit.gd`
+checks every pickup against the template and the physics world (on a surface,
+out of walls, room to stand beside it); `tools/runtime/loop_key_west_727.gd`
+plays arrive → enter → repair → fire → warm/dry → eat → sleep → save → reload in
+the real World.
 
 ## Shelter start toggle
 

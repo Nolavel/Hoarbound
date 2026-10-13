@@ -108,6 +108,50 @@ jobs:
             docs/runtime_previews/key_west_reality_gate/*.json
             scenes/world/key_west/generated/generation_report.json
           if-no-files-found: warn
+
+  key-west-reality-fresh:
+    ## Zero-setup review path: the committed snapshot exactly as cloned; no unpack, export or
+    ## generation (the rebuild/digest job above is the reproducibility check).
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot (headless only)
+        run: SKIP_APT=1 tools/ci/setup_env.sh
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Fresh-checkout runtime tests
+        run: |
+          for t in test_key_west_reality_fresh_checkout test_key_west_reality_first_exit test_key_west_727_shelter; do
+            timeout 600 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script res://tests/systems/$t.gd | tee $t.log
+            grep -q "all checks passed" $t.log
+          done
+
+      - name: 727 shelter loop (enter, repair, fire, warm, eat, sleep, save, reload)
+        ## Judged by the report, not the exit code: Jenova quick_exit(0)s on unload.
+        run: |
+          timeout 1500 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
+            --script res://tools/runtime/loop_key_west_727.gd -- --out=res://docs/runtime_previews/key_west_727_loop
+          python3 -c "import json,sys; v=json.load(open('docs/runtime_previews/key_west_727_loop/loop_report.json'))['verdict']; print(v); sys.exit(0 if v and all(v.values()) else 1)"
+
+      - name: Upload loop report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-key-west-727-loop
+          path: docs/runtime_previews/key_west_727_loop/loop_report.json
+          if-no-files-found: warn
           retention-days: 7
 
   key-west-preview:

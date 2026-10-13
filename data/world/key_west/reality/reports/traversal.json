@@ -1,0 +1,2168 @@
+{
+ "schema": "kw_reality.traversal.v2",
+ "built_at": "2026-10-13T12:48:57+00:00",
+ "sample_m": 2.0,
+ "step_m": 0.35,
+ "headroom_m": 2.0,
+ "ways": 7088,
+ "samples": 282367,
+ "blocked_samples": 1935,
+ "blocked_share": 0.00685,
+ "slab_blocks": {
+  "kw:coastal:osm:w493310699": 29,
+  "kw:coastal:osm:w389669564": 24,
+  "kw:coastal:osm:w493317457": 9
+ },
+ "building_conflicts": {
+  "note": "a mapped way inside a building footprint: 'enters' ends inside it (drive into a garage, path to a door); 'passes_through' leaves on the far side. Source conflicts, reported for an author decision; geometry is unchanged.",
+  "enters": 85,
+  "passes_through": 183,
+  "passes_over_6m": 122,
+  "list": [
+   {
+    "way": "kw:road:overture:3df5a72b-0e9b-4d61-ab02-fcb5e2b4738c",
+    "class": "service",
+    "building": "kw:building:osm:w305705108",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 191.7,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:16890d86-0f81-4766-8197-85386ff05a09",
+    "class": "service",
+    "building": "kw:building:osm:w457772059",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 174.8,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:e3d8a97c-2534-4af2-8ee7-174dd8d7a8c1",
+    "class": "service",
+    "building": "kw:building:osm:w305720451",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 152.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:ac5625cb-f4b4-4d9d-9d17-ad64c2e8e4f1",
+    "class": "service",
+    "building": "kw:building:usa_structures:32258546",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 120.2,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:2909d6f2-bcd9-4557-bf14-45bd1ada2c7b",
+    "class": "service",
+    "building": "kw:building:usa_structures:32258546",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 85.6,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:182dae24-86c5-4415-a885-0b4d6a0224ec",
+    "class": "service",
+    "building": "kw:building:usa_structures:32258546",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 69.2,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:1c2fb62b-47f8-4bf9-b084-ca89ce11eeb9",
+    "class": "service",
+    "building": "kw:building:usa_structures:32250585",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 68.8,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:a64ff625-59ef-42c9-a07d-360ee4e6f38a",
+    "class": "service",
+    "building": "kw:building:osm:w457772059",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 64.1,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:722f3304-2cd9-49d5-92a3-3393eea018c7",
+    "class": "service",
+    "building": "kw:building:usa_structures:32254742",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 54.6,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:875f60b4-a036-479e-86cc-5a655975295b",
+    "class": "footway",
+    "building": "kw:building:osm:w524088621",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 51.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:eae17379-e4f2-4836-ba51-f8c6646b9f79",
+    "class": "service",
+    "building": "kw:building:osm:w337114808",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 50.8,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:7a27f902-95a6-4db4-bbe1-4929188b6df1",
+    "class": "footway",
+    "building": "kw:building:osm:w493341259",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 46.3,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:62dacd4d-e6fd-44cb-88bf-c45c51088b51",
+    "class": "service",
+    "building": "kw:building:usa_structures:32252513",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 45.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:82b332a9-c5c2-49a9-bc13-e0d274e8a91c",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32254530",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 41.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:usgs_ntd:c7133f75-cabc-4e30-8059-d51435c93a3c",
+    "class": "tiger_s1400",
+    "building": "kw:building:osm:w525957187",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 38.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:c174a7f8-7f69-4868-8687-f0add9762d40",
+    "class": "service",
+    "building": "kw:building:usa_structures:32258546",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 37.2,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:e572075e-f78e-4062-b5e7-fa6954e60857",
+    "class": "service",
+    "building": "kw:building:usa_structures:32258546",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 37.0,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:8e077254-9da3-40d2-9006-463e6ed28481",
+    "class": "footway",
+    "building": "kw:building:osm:w337114808",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 34.5,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:20e5a283-636c-4bd3-93a8-c48f8f595147",
+    "class": "service",
+    "building": "kw:building:usa_structures:32252513",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 33.9,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:636ed009-b1cd-4f6e-a8a1-cfea2222d22a",
+    "class": "residential",
+    "building": "kw:building:usa_structures:234157",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 33.7,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:268221e3-dc6a-40e2-945a-67cb89bc41dd",
+    "class": "service",
+    "building": "kw:building:usa_structures:32250804",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 32.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:20a028dd-acea-4291-ba35-8eda4cc742fd",
+    "class": "footway",
+    "building": "kw:building:osm:w337114808",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 32.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:a20f65f0-e9c8-4c13-b3e0-e1e32983e261",
+    "class": "service",
+    "building": "kw:building:usa_structures:32250585",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 31.5,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:6479111e-c0a8-454b-9b7a-44e14f4aec14",
+    "class": "service",
+    "building": "kw:building:usa_structures:32252201",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 28.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:93510fb2-3f97-4fb7-9343-2c8fa488ff40",
+    "class": "service",
+    "building": "kw:building:osm:w337114808",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 24.7,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:6b181483-7cd9-46a3-836c-41d33d5294fb",
+    "class": "service",
+    "building": "kw:building:usa_structures:32258546",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 24.1,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:f312d378-9beb-4175-ac44-f4e14ba10e27",
+    "class": "service",
+    "building": "kw:building:osm:w337114786",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 23.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:24b16863-c512-4641-bd06-58c051db91cf",
+    "class": "service",
+    "building": "kw:building:osm:w598167456",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 23.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:4079fc37-e6b1-4b86-97ef-b84e519a029f",
+    "class": "residential",
+    "building": "kw:building:usa_structures:243960",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 23.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:feb74b67-6e9c-4fd6-bfd7-822548a57f6f",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257417",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 23.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:5964653c-dc0e-41fb-91f7-8855f6207c00",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32256842",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 22.9,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:5ea603db-fbd1-4794-9c58-3ee9169811a8",
+    "class": "service",
+    "building": "kw:building:osm:w337017358",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 22.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:usgs_ntd:c7133f75-cabc-4e30-8059-d51435c93a3c",
+    "class": "tiger_s1400",
+    "building": "kw:building:osm:w556628696",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 22.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:c49e5df1-14b6-4d1d-a9ca-69e56b9e9af8",
+    "class": "service",
+    "building": "kw:building:usa_structures:32258151",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 22.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:dab50cfe-8717-4f78-ac0a-5a5f66c17860",
+    "class": "service",
+    "building": "kw:building:usa_structures:32252201",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 22.0,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:48fcfbdc-9cf8-4b78-b588-43d41a794b96",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257101",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 21.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:66cf12de-0c21-4852-8603-f7fea1e5f811",
+    "class": "service",
+    "building": "kw:building:osm:w338225800",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 20.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:db8a6017-7523-451f-9678-31bbe99debe4",
+    "class": "service",
+    "building": "kw:building:usa_structures:32258040",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 20.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:f47af92f-1cf9-4efe-97b9-35827c1e6c08",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257926",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 20.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:61183651-8325-437b-9412-7b113a37b297",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257828",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 20.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:f79a6d37-69c7-4c39-b2da-6c56522ea88a",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32254506",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 20.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:acc22f00-e5e1-4fb3-8c95-4aa77c293911",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257715",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 20.0,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:0f7373f0-bf8c-4160-b3a8-2e4c0556113c",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257784",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 19.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:3ff0392f-cf4e-4301-9431-8924a4fe5769",
+    "class": "service",
+    "building": "kw:building:usa_structures:238960",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 19.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:d044b953-2617-49c9-b08c-d9bea244d928",
+    "class": "service",
+    "building": "kw:building:usa_structures:32254372",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 19.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:1e6238e5-7452-418e-852f-87051bfcfffc",
+    "class": "service",
+    "building": "kw:building:usa_structures:235638",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 19.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:4a20c7e0-1b1b-43bd-aced-a6434d2b83ee",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32256842",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 19.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:e166e7ef-85c9-46d5-b766-2bf8f636445e",
+    "class": "service",
+    "building": "kw:building:usa_structures:32254742",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 19.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:0671491d-e8c2-41a6-89e1-edc6760cc62b",
+    "class": "unknown",
+    "building": "kw:building:osm:w352390588",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 19.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:9113b7ad-8325-4d8c-b66f-8001fe8b516b",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257993",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 18.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:247b0eee-68b0-47d2-a5da-be2479e492b6",
+    "class": "service",
+    "building": "kw:building:osm:w539070940",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 18.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:68ea1ced-6334-4716-81b6-c1f021c28dd7",
+    "class": "service",
+    "building": "kw:building:usa_structures:150081",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 18.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:f79a6d37-69c7-4c39-b2da-6c56522ea88a",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32254491",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 17.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:9ebb7813-8b79-4a70-bd64-a542b0db8172",
+    "class": "service",
+    "building": "kw:building:usa_structures:32252513",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 17.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:feb74b67-6e9c-4fd6-bfd7-822548a57f6f",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257466",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 17.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:ccbfc3f8-ab72-4ffb-801f-9eaa476ffaab",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32254709",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 17.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:6ac7cabb-e978-4c6b-bf4b-c8fb8c05b2f7",
+    "class": "service",
+    "building": "kw:building:osm:w337017347",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 17.1,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:21d617e8-40d7-42e4-b296-de6974266bf0",
+    "class": "service",
+    "building": "kw:building:osm:w305720467",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 16.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:9e38c814-72e9-424c-9aed-5c2bafc1809b",
+    "class": "service",
+    "building": "kw:building:usa_structures:32252407",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 16.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:6772989a-0ed9-4b9d-ae81-e7201e974f9f",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32258140",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 15.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:63c8da17-12b7-42c9-8cc0-e480856a9e67",
+    "class": "service",
+    "building": "kw:building:usa_structures:151612",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 15.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:71639d97-3d7c-4318-bcc4-202ad37fe534",
+    "class": "footway",
+    "building": "kw:building:usa_structures:243436",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 15.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:35252bd8-f462-4adb-b2d3-ac9054d8a5de",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257259",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 15.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:721c8a89-acc4-4b24-b6e4-38de8db79427",
+    "class": "service",
+    "building": "kw:building:osm:w336123004",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 15.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:bbbb504b-62d8-4073-b7d8-2e2aeced5522",
+    "class": "service",
+    "building": "kw:building:osm:w336123004",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 15.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:efd74a68-de65-4f6a-b8c3-1efbeeddc3ba",
+    "class": "footway",
+    "building": "kw:building:usa_structures:246774",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 14.8,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:6908c585-8b8f-43e8-918d-ded5b5f5d8cb",
+    "class": "service",
+    "building": "kw:building:osm:w336117694",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 14.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:0c5ee12d-6e26-4f95-a769-a004486fc685",
+    "class": "service",
+    "building": "kw:building:osm:w337017346",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 14.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:feb74b67-6e9c-4fd6-bfd7-822548a57f6f",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257419",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 14.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:fdb23566-20fc-4693-91f6-87d38b1112a6",
+    "class": "service",
+    "building": "kw:building:osm:w337017347",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 13.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:faf3dd23-92cb-41ac-a283-3b6e5a527ba3",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32254456",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 13.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:2aa9a687-b446-402b-8c12-597ff32465a8",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257226",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 13.5,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:d9534f21-21cd-4e99-815c-4820a006dd09",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257417",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 13.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:53f2bbaa-ffb6-47a7-b449-da901b78fe79",
+    "class": "footway",
+    "building": "kw:building:usa_structures:154245",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 13.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:16834420-9a09-4ce3-acc6-f39708275345",
+    "class": "service",
+    "building": "kw:building:usa_structures:32254728",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 12.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:19492462-60d6-4802-9036-ba2e5a846c70",
+    "class": "footway",
+    "building": "kw:building:usa_structures:154245",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 12.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:2aa9a687-b446-402b-8c12-597ff32465a8",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257222",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 12.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:6bd8441b-8441-4a0a-8c94-d66fa9fba7b1",
+    "class": "service",
+    "building": "kw:building:usa_structures:151721",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 12.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:feb74b67-6e9c-4fd6-bfd7-822548a57f6f",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257431",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 12.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:6f14bc2d-7a96-4aa1-b094-3472254935da",
+    "class": "service",
+    "building": "kw:building:usa_structures:32250013",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 12.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:4f071484-f44f-41cf-a1cc-e159bec5a8c3",
+    "class": "service",
+    "building": "kw:building:usa_structures:146232",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 12.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:1d91d85f-ac59-4ee9-ac0e-ad17e07157d2",
+    "class": "service",
+    "building": "kw:building:usa_structures:32255120",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 12.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:39d84b73-f52b-4ff6-bfe5-6722c4bf771a",
+    "class": "service",
+    "building": "kw:building:osm:w494937153",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 12.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:f42f32a0-c811-4dee-af3c-36ad30131972",
+    "class": "service",
+    "building": "kw:building:usa_structures:32254374",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 12.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:15f8b576-a081-4770-9353-2511e5212fd3",
+    "class": "footway",
+    "building": "kw:building:usa_structures:243960",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 12.1,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:21cbbad9-004f-4e84-aaa0-ac8f0d2c6e72",
+    "class": "service",
+    "building": "kw:building:osm:w337017347",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 11.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:c173df2f-060e-4c8c-83d7-6d3949db5c15",
+    "class": "service",
+    "building": "kw:building:osm:w336597688",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 11.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:f91ce993-46eb-406c-a782-56ab0d8e6aa9",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257239",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 11.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:c720e485-68f7-43cc-885e-aae6b9700d8e",
+    "class": "service",
+    "building": "kw:building:osm:w336597688",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 11.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:a62ea151-e562-4c04-9f9a-ed4c3cf58407",
+    "class": "service",
+    "building": "kw:building:osm:w336571634",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 11.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:0215ac5d-2124-4c2b-8ddc-94e7a46efbad",
+    "class": "service",
+    "building": "kw:building:osm:w525636825",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 11.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:e6d99d2d-ded6-476c-bc1f-2186cff032f6",
+    "class": "service",
+    "building": "kw:building:osm:w525636825",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 11.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:48c7a4d3-c907-4eba-8ae7-c1030f13af9b",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257164",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 11.5,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:de9a8d5b-3570-4f19-af2e-419a3fbb289f",
+    "class": "service",
+    "building": "kw:building:usa_structures:32256024",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 11.3,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:f56dbc0c-5934-49c2-8485-2c224405e62d",
+    "class": "service",
+    "building": "kw:building:osm:w336116458",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 11.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:817e0bc1-81fe-4b6b-8e00-5221a10a4638",
+    "class": "service",
+    "building": "kw:building:usa_structures:241097",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 11.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:0bc44967-1e75-4757-8408-db0cba68b8e1",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257571",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 10.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:019e1eb4-6f99-4f88-b224-6019a42f34be",
+    "class": "service",
+    "building": "kw:building:usa_structures:147207",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 10.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:057e8eae-e0e6-47ea-a411-ec07c8b8c579",
+    "class": "footway",
+    "building": "kw:building:usa_structures:145742",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 10.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:3dbf9c0d-a0d9-4ce8-82cc-f8ca3dd36db9",
+    "class": "path",
+    "building": "kw:building:osm:r4759314",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 10.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:f3619302-5630-48d2-ba57-d625927d603d",
+    "class": "service",
+    "building": "kw:building:osm:w302573671",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 10.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:4a70fc42-149d-4124-b3df-e495c4bf1926",
+    "class": "pedestrian",
+    "building": "kw:building:osm:w597541843",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 10.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:7f7367a3-0f45-4716-9836-f57303604943",
+    "class": "service",
+    "building": "kw:building:osm:w495091243",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 10.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:04b616d9-7ff5-4d64-8ba3-47c92fa37cf0",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257280",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 10.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:a4682f63-d262-4bce-91ef-7172a3eca1fd",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257336",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 10.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:48dca0dc-4a00-4807-bda2-45e90f901336",
+    "class": "service",
+    "building": "kw:building:osm:w302573672",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 10.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:83dd1c1e-f8a8-444d-94e2-6f7b2358b12d",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257205",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:1adfedbe-881e-4297-839d-59a1a23cb79f",
+    "class": "service",
+    "building": "kw:building:osm:w302573672",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 9.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:8e637ca9-943a-4361-9360-e8d3e735cab7",
+    "class": "service",
+    "building": "kw:building:osm:w302573672",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 9.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:a3a23d07-03ae-42a6-ae42-c5bd1893acb7",
+    "class": "service",
+    "building": "kw:building:osm:w305720451",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 9.6,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:0fe6f086-fb7f-425f-b62c-afc60d3d5991",
+    "class": "footway",
+    "building": "kw:building:osm:w320356913",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 9.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:fbe410fd-3c2a-4af9-a957-f6f3dc1cef4d",
+    "class": "service",
+    "building": "kw:building:usa_structures:153751",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.5,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:06a5a24f-80b0-4d2d-baf9-9a85ecbd6482",
+    "class": "service",
+    "building": "kw:building:osm:w305720451",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 9.5,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:e3e131a0-bea7-4401-8d6b-b593344907a9",
+    "class": "service",
+    "building": "kw:building:usa_structures:154602",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:8283cd69-a00e-40d6-bd90-73c1442da94f",
+    "class": "service",
+    "building": "kw:building:osm:w201826629",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 9.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:3fc6e28f-7a47-4819-8fbc-045697d14f86",
+    "class": "footway",
+    "building": "kw:building:usa_structures:236630",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:eae19eea-cb9d-44dc-bf37-befd37972e35",
+    "class": "residential",
+    "building": "kw:building:usa_structures:235682",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:68103ee6-0573-465a-84a7-5e9aaba2b309",
+    "class": "residential",
+    "building": "kw:building:usa_structures:235689",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:eae19eea-cb9d-44dc-bf37-befd37972e35",
+    "class": "residential",
+    "building": "kw:building:usa_structures:235676",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:eae19eea-cb9d-44dc-bf37-befd37972e35",
+    "class": "residential",
+    "building": "kw:building:usa_structures:235671",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:68103ee6-0573-465a-84a7-5e9aaba2b309",
+    "class": "residential",
+    "building": "kw:building:usa_structures:235693",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:699312f5-f781-4abe-8d76-c03c38961b52",
+    "class": "residential",
+    "building": "kw:building:usa_structures:234157",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.2,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:04b616d9-7ff5-4d64-8ba3-47c92fa37cf0",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257260",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:31009d7a-903b-4608-b9b3-631323ad541e",
+    "class": "service",
+    "building": "kw:building:usa_structures:150464",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 9.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:usgs_ntd:0d74b249-99d8-4dc8-a525-a54681ac474a",
+    "class": "tiger_s1400",
+    "building": "kw:building:osm:w339439069",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 9.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:19ce6c7b-a1f8-460a-be00-c0bcd2ccd3f9",
+    "class": "service",
+    "building": "kw:building:osm:w461635201",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 9.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:3837f1ef-8af5-4480-b6a1-076b02ab6db0",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257344",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 8.9,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:2eb93dfa-4826-4755-b35e-2707f8032954",
+    "class": "service",
+    "building": "kw:building:osm:w475307292",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 8.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:42f89819-d658-415a-a8b0-eff790494405",
+    "class": "service",
+    "building": "kw:building:osm:w457772059",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 8.5,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:1afec256-eb63-4ac6-bd7d-e492b89cec52",
+    "class": "service",
+    "building": "kw:building:osm:w457772059",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 8.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:a7d2c92d-32ff-4125-b6eb-89e027eaee59",
+    "class": "service",
+    "building": "kw:building:usa_structures:148747",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 8.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:a43958e5-2b0e-4c01-8d24-f520e003a2d1",
+    "class": "footway",
+    "building": "kw:building:osm:w1158824357",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 8.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:6d11c9fb-7d46-4969-9772-643daf9b6d80",
+    "class": "footway",
+    "building": "kw:building:osm:w385280849",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 8.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:9bda50c6-c4b6-44b3-aaa3-fc072ff8d6e3",
+    "class": "unknown",
+    "building": "kw:building:osm:w233822448",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 8.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:a321043b-5524-4cf1-b426-23aabb990205",
+    "class": "service",
+    "building": "kw:building:usa_structures:146382",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 8.0,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:faf3dd23-92cb-41ac-a283-3b6e5a527ba3",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32254444",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 8.0,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:d7a1242d-0852-4ec2-8d86-e6ff5727f58e",
+    "class": "service",
+    "building": "kw:building:osm:w336587525",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 7.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:da8e92c5-6c6b-4d51-95f0-a1298562e2dd",
+    "class": "footway",
+    "building": "kw:building:usa_structures:234727",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 7.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:04b616d9-7ff5-4d64-8ba3-47c92fa37cf0",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257305",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 7.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:08fe32ce-0c40-4085-bbb7-db141b6dbe67",
+    "class": "service",
+    "building": "kw:building:osm:w337017345",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 7.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:c6789913-6d0d-4bb3-b8c9-18af36b84847",
+    "class": "service",
+    "building": "kw:building:osm:w337017345",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 7.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:59a28d3f-dfe0-4db1-9e97-90231a179778",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257183",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 7.8,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:d921b8cf-4218-48dc-b7d0-576799f790e9",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257213",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 7.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:2b2357af-7cfb-4e9c-a5d3-318b64b14caa",
+    "class": "service",
+    "building": "kw:building:usa_structures:32254372",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 7.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:5b391a69-0da2-4cf1-b920-72b6b6c235b4",
+    "class": "service",
+    "building": "kw:building:osm:w589678877",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 7.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:51db3464-0930-4aa5-8081-758a8af6e584",
+    "class": "footway",
+    "building": "kw:building:osm:w493310698",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 7.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:028bf830-ec09-4faa-b3c3-59c12c8b846c",
+    "class": "service",
+    "building": "kw:building:usa_structures:153260",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 7.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:031174a2-e0b4-435e-8cb2-0aacd7f0c98b",
+    "class": "service",
+    "building": "kw:building:osm:w415564257",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 7.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:fc615afc-d603-4af6-97b5-c55d69a6af42",
+    "class": "service",
+    "building": "kw:building:usa_structures:220190",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 7.3,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:afe71e6d-6d6f-4023-afd3-b0f0a8cf3024",
+    "class": "service",
+    "building": "kw:building:usa_structures:153608",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 7.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:5df57b3e-4e0d-45c0-9002-5f8818b81ef1",
+    "class": "service",
+    "building": "kw:building:osm:w336597689",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 7.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:6bcc14bf-f04f-4ee0-9b91-79a0c2ac6824",
+    "class": "service",
+    "building": "kw:building:usa_structures:149330",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 7.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:3e5c3967-9d64-42dc-bf74-4bf2941aa074",
+    "class": "service",
+    "building": "kw:building:osm:w598100661",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 7.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:19ff8536-4be5-4355-8899-88bdbac26e7f",
+    "class": "service",
+    "building": "kw:building:osm:w1210985811",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 7.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:ac2a4157-8860-4db9-ac74-ad9b9c6193f3",
+    "class": "service",
+    "building": "kw:building:usa_structures:32256076",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 7.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:ae390f22-32f4-41b0-862e-e2c514050e49",
+    "class": "unknown",
+    "building": "kw:building:osm:w596976738",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 7.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:7ae606e8-f0ce-44be-a437-a4b6e4963bd9",
+    "class": "service",
+    "building": "kw:building:osm:w495091242",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 6.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:788ff936-f7f5-4bb5-a914-fe002308b86f",
+    "class": "residential",
+    "building": "kw:building:usa_structures:243436",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 6.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:c2fd140f-e364-443c-bfea-a3a2fb9c94b0",
+    "class": "service",
+    "building": "kw:building:osm:w336122984",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 6.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:eae19eea-cb9d-44dc-bf37-befd37972e35",
+    "class": "residential",
+    "building": "kw:building:usa_structures:235679",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 6.7,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:4599827b-e02b-423a-8f67-aa0d020bedfb",
+    "class": "service",
+    "building": "kw:building:osm:w655404452",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 6.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:8ec22643-4a5e-42de-ac22-39ff58dc968a",
+    "class": "service",
+    "building": "kw:building:usa_structures:154602",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 6.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:655b8687-ae1b-4e8a-a06a-4fa90d5bdd29",
+    "class": "service",
+    "building": "kw:building:usa_structures:32250585",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 6.7,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:94312c23-d828-49a9-83bb-9dc93544a0b3",
+    "class": "footway",
+    "building": "kw:building:osm:w493341259",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 6.2,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:cb05c41d-8573-45e8-895c-0e1d1cac854d",
+    "class": "service",
+    "building": "kw:building:osm:w494951914",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 6.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:7dece5e8-ee3f-4791-93ed-3901ebe8623a",
+    "class": "footway",
+    "building": "kw:building:osm:w281907638",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 6.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:91dfd0d9-9e24-4ace-ae72-e45bca80d8a0",
+    "class": "service",
+    "building": "kw:building:osm:w475309438",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 6.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:5b391a69-0da2-4cf1-b920-72b6b6c235b4",
+    "class": "service",
+    "building": "kw:building:osm:w589678871",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 6.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:547f5911-423b-45ae-9aa3-ec6c1091e4dd",
+    "class": "service",
+    "building": "kw:building:osm:w449752905",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 6.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:a121dac9-8f59-40a1-9f71-3152b7816f24",
+    "class": "service",
+    "building": "kw:building:osm:w961300115",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 5.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:9cb6a242-f4a1-46cf-8bc8-64475c217d4e",
+    "class": "service",
+    "building": "kw:building:usa_structures:250580",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:83e2e3e5-b53c-41ac-a15d-ada47352e742",
+    "class": "service",
+    "building": "kw:building:osm:w336116456",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 5.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:0a79a47a-cfa3-46d9-b1a8-3af743ba7f98",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257263",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:usgs_ntd:2e14528e-3454-4086-a025-87d833d998ca",
+    "class": "tiger_s1400",
+    "building": "kw:building:osm:w598167469",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 5.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:ac9d14ed-9ad0-49e9-8118-a7d84c015b52",
+    "class": "path",
+    "building": "kw:building:osm:w336116456",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 5.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:ab888d80-e5b0-40ac-80a8-c324c1434900",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32254530",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.8,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:1f711a97-f329-4160-b502-5167ef413e2e",
+    "class": "footway",
+    "building": "kw:building:usa_structures:145724",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:d9550373-06ae-4376-bfa4-077ffae95cc2",
+    "class": "service",
+    "building": "kw:building:usa_structures:239757",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:0a79a47a-cfa3-46d9-b1a8-3af743ba7f98",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257264",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:558da61b-4569-43ff-ac70-b9d5943770fd",
+    "class": "service",
+    "building": "kw:building:osm:w336117696",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 5.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:0a79a47a-cfa3-46d9-b1a8-3af743ba7f98",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257262",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:897c3386-01a3-49be-b05c-dbc004200840",
+    "class": "service",
+    "building": "kw:building:osm:w1013115154",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 5.5,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:403a00a6-e8a3-4f0b-ad08-c4c5ba2f4a8a",
+    "class": "service",
+    "building": "kw:building:usa_structures:235792",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:e93e34ef-6c21-4a28-8817-86638b6d4eab",
+    "class": "service",
+    "building": "kw:building:osm:w457772059",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 5.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:2e46ea69-b1e1-443a-bc47-cf1239ee91cc",
+    "class": "footway",
+    "building": "kw:building:osm:w524088621",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 5.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:35252bd8-f462-4adb-b2d3-ac9054d8a5de",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257275",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:0a79a47a-cfa3-46d9-b1a8-3af743ba7f98",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257261",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:98a8b6d7-1e84-4d57-8f8d-13519af28f81",
+    "class": "service",
+    "building": "kw:building:usa_structures:145576",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:7515fa40-ac9e-4624-b934-1a1008e8ccb3",
+    "class": "steps",
+    "building": "kw:building:osm:w524088621",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 5.2,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:66cf12de-0c21-4852-8603-f7fea1e5f811",
+    "class": "service",
+    "building": "kw:building:osm:w495092570",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 5.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:8571dfda-803d-4ba0-8523-f419430b344a",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32254636",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 5.0,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:331dfe6b-884a-4b3e-9bc1-d2b69b5c1a8a",
+    "class": "residential",
+    "building": "kw:building:usa_structures:32254530",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.8,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:096d5084-607f-4bb8-9874-5826ab305565",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257248",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.8,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:391e404b-31be-4e77-a3b7-1bb6032b868c",
+    "class": "service",
+    "building": "kw:building:osm:w1013115155",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 4.8,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:9b8b28be-ec1a-4496-8449-d90a7523bbeb",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257168",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:0126a51e-2d30-4ce1-8311-58314a5a5acc",
+    "class": "residential",
+    "building": "kw:building:usa_structures:147801",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.7,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:1874a4e1-f62f-46cb-8ae1-2b14b8a74395",
+    "class": "service",
+    "building": "kw:building:usa_structures:235012",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.7,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:9265c662-3e6e-4762-8020-39dc6cdc5e2e",
+    "class": "track",
+    "building": "kw:building:usa_structures:32257239",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.7,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:d8cbe8d8-76b8-4499-8a85-13a672726fb4",
+    "class": "service",
+    "building": "kw:building:usa_structures:152824",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:8aaace7b-b3d9-4bdb-bdb3-fe107a38eafb",
+    "class": "footway",
+    "building": "kw:building:usa_structures:151042",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:48fb8d11-5dd8-4767-9600-2422fbf76e9a",
+    "class": "footway",
+    "building": "kw:building:usa_structures:243960",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.6,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:35252bd8-f462-4adb-b2d3-ac9054d8a5de",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257315",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:e3389043-24f5-4fbf-a4be-3ae828dddec6",
+    "class": "service",
+    "building": "kw:building:usa_structures:147367",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:c77fd4f8-fed1-4aef-966b-1efeb3ed0d51",
+    "class": "service",
+    "building": "kw:building:osm:w336575378",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 4.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:8652bbbe-d3d9-4a32-8f6a-9accc1bffc34",
+    "class": "path",
+    "building": "kw:building:usa_structures:219110",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:89cf8052-2209-49d8-9a29-b277216c461d",
+    "class": "service",
+    "building": "kw:building:usa_structures:237410",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:b5a2c4c0-92e0-45d4-9793-4bbd73781d4e",
+    "class": "footway",
+    "building": "kw:building:usa_structures:232558",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:83dd1c1e-f8a8-444d-94e2-6f7b2358b12d",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257230",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:b3d25319-4b63-43d3-839f-a536c5223802",
+    "class": "path",
+    "building": "kw:building:osm:r4759314",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 4.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:59c66184-cfbe-4671-a4ee-818610907aa0",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32254506",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.2,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:ae390f22-32f4-41b0-862e-e2c514050e49",
+    "class": "unknown",
+    "building": "kw:building:osm:w596976740",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 4.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:d03ce0be-284c-4e90-8632-f924b2c921f6",
+    "class": "service",
+    "building": "kw:building:osm:w655364507",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 4.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:f21cfbc9-e1f3-4af0-aadb-27b8f8446453",
+    "class": "service",
+    "building": "kw:building:usa_structures:240164",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:e3e131a0-bea7-4401-8d6b-b593344907a9",
+    "class": "service",
+    "building": "kw:building:usa_structures:154664",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 4.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:381e4031-b7fa-4516-9dd6-9c532b1e80c0",
+    "class": "unknown",
+    "building": "kw:building:osm:w548447443",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 4.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:9265c662-3e6e-4762-8020-39dc6cdc5e2e",
+    "class": "track",
+    "building": "kw:building:usa_structures:32257246",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 3.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:c7a432ff-f077-4e67-ad85-12bf3af5a69b",
+    "class": "footway",
+    "building": "kw:building:usa_structures:246774",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 3.7,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:d1845f94-6c76-49ea-a96c-31d9efc1f649",
+    "class": "footway",
+    "building": "kw:building:osm:w1158831718",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 3.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:d2b00448-da4a-462e-8fca-fa05c0c36d53",
+    "class": "service",
+    "building": "kw:building:usa_structures:32247829",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 3.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:19492462-60d6-4802-9036-ba2e5a846c70",
+    "class": "footway",
+    "building": "kw:building:osm:w1158824357",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 3.5,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:f91ce993-46eb-406c-a782-56ab0d8e6aa9",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257230",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 3.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:333e3e39-e652-4d36-b83b-ad81c428ac5b",
+    "class": "service",
+    "building": "kw:building:usa_structures:220190",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 3.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:cca1a508-cd8b-4961-b6e1-51856a2cbdbd",
+    "class": "service",
+    "building": "kw:building:osm:w552707490",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 3.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:ca8481b8-eda4-4f12-9d8c-c5bc66dc2851",
+    "class": "footway",
+    "building": "kw:building:usa_structures:243960",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 3.3,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:883bda3c-8008-450d-b4ac-1ddea0836e7c",
+    "class": "service",
+    "building": "kw:building:usa_structures:235166",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 3.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:c43095d7-691f-4ef5-a9a8-ffa481b2ba82",
+    "class": "service",
+    "building": "kw:building:usa_structures:32256111",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 3.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:f8ab2816-f15d-4a4e-8e9b-2415422d0c24",
+    "class": "footway",
+    "building": "kw:building:osm:w524088621",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 3.0,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:a97925ac-f96c-4dbf-92a1-4985991c0b50",
+    "class": "footway",
+    "building": "kw:building:osm:w1058367447",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 3.0,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:1c948875-140e-457d-bd15-b23f7e63bec7",
+    "class": "residential",
+    "building": "kw:building:usa_structures:151042",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.9,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:9b4b19b5-3d69-4f50-91be-8f9a4ffc4f96",
+    "class": "footway",
+    "building": "kw:building:usa_structures:243960",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.9,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:2aa9a687-b446-402b-8c12-597ff32465a8",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257219",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:35252bd8-f462-4adb-b2d3-ac9054d8a5de",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257345",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.8,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:d2b00448-da4a-462e-8fca-fa05c0c36d53",
+    "class": "service",
+    "building": "kw:building:usa_structures:32247868",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:b43ed393-475b-4ba3-9d71-054aa2b5e839",
+    "class": "footway",
+    "building": "kw:building:usa_structures:152824",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:f68d7a59-576d-4118-bf2f-18bf970b26bd",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257324",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:d2b00448-da4a-462e-8fca-fa05c0c36d53",
+    "class": "service",
+    "building": "kw:building:usa_structures:32247819",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.6,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:68103ee6-0573-465a-84a7-5e9aaba2b309",
+    "class": "residential",
+    "building": "kw:building:usa_structures:235679",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.6,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:0a79a47a-cfa3-46d9-b1a8-3af743ba7f98",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257257",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.5,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:0b25a26d-1807-45f6-a1e6-c4b1230b699b",
+    "class": "service",
+    "building": "kw:building:usa_structures:32250804",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:0a79a47a-cfa3-46d9-b1a8-3af743ba7f98",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257258",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:35252bd8-f462-4adb-b2d3-ac9054d8a5de",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257336",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:a4682f63-d262-4bce-91ef-7172a3eca1fd",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257345",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:357bdcb8-4090-4267-bc0f-8c90589346eb",
+    "class": "footway",
+    "building": "kw:building:osm:w852017492",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 2.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:a4682f63-d262-4bce-91ef-7172a3eca1fd",
+    "class": "service",
+    "building": "kw:building:usa_structures:32257344",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:fcb3ce03-6623-4f40-b2f9-ba22b530a9c9",
+    "class": "residential",
+    "building": "kw:building:osm:w524722128",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 2.2,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:d6e567c1-e634-492b-8987-73558334b10c",
+    "class": "footway",
+    "building": "kw:building:usa_structures:243436",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.1,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:396606df-5154-4046-ac8e-19126dc3ee12",
+    "class": "footway",
+    "building": "kw:building:usa_structures:246774",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 2.1,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:0bc44967-1e75-4757-8408-db0cba68b8e1",
+    "class": "service",
+    "building": "kw:building:usa_structures:243426",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.9,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:847019c5-9bbe-4013-83ea-78117a2809ce",
+    "class": "service",
+    "building": "kw:building:usa_structures:146382",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.9,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:4b402094-c7d7-4fa7-9442-71736165bcaa",
+    "class": "unknown",
+    "building": "kw:building:usa_structures:241594",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.7,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:3b594224-8f49-4e20-a5dc-f9fc936bbb06",
+    "class": "primary",
+    "building": "kw:building:usa_structures:149757",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.7,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:357bdcb8-4090-4267-bc0f-8c90589346eb",
+    "class": "footway",
+    "building": "kw:building:osm:w852017491",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 1.5,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:7f8244db-0f19-4016-bcd2-65d186929d02",
+    "class": "service",
+    "building": "kw:building:usa_structures:32254384",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.4,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:c4278ede-3a06-4aa7-80d8-206a552318ba",
+    "class": "footway",
+    "building": "kw:building:usa_structures:32254636",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:6479111e-c0a8-454b-9b7a-44e14f4aec14",
+    "class": "service",
+    "building": "kw:building:usa_structures:32252513",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:73f90d22-2aee-4d62-97e0-e92b2ea0af79",
+    "class": "service",
+    "building": "kw:building:usa_structures:146382",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.4,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:4f2bf665-6830-4b1b-a9cc-25e0d0973e22",
+    "class": "path",
+    "building": "kw:building:osm:w202214756",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 1.3,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:55c7f8f7-c691-47f4-8d47-7a3f316a06b0",
+    "class": "residential",
+    "building": "kw:building:usa_structures:148747",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.3,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:0454f197-db48-4002-85aa-fff9e387189a",
+    "class": "footway",
+    "building": "kw:building:osm:w339414829",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 1.3,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:be01af00-4603-444c-867a-d7b22e6eee45",
+    "class": "service",
+    "building": "kw:building:usa_structures:146219",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.2,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:3359b186-3104-4d3f-ac10-9ba52b1d895f",
+    "class": "unknown",
+    "building": "kw:building:osm:w178100298",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 1.2,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:454fce76-5995-4594-b8f9-373e587e982e",
+    "class": "service",
+    "building": "kw:building:usa_structures:238619",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.1,
+    "kind": "passes_through"
+   },
+   {
+    "way": "kw:road:overture:018ef3c4-7174-46e3-b333-9a72b1a5505c",
+    "class": "footway",
+    "building": "kw:building:osm:w1158807125",
+    "building_source": "overture_2026_09_23_1",
+    "inside_m": 1.0,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:9e38c814-72e9-424c-9aed-5c2bafc1809b",
+    "class": "service",
+    "building": "kw:building:usa_structures:32252201",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 1.0,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:1fb7ce70-12f7-4825-aaec-e5c7af610481",
+    "class": "service",
+    "building": "kw:building:usa_structures:220190",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 0.9,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:4a1dfdd5-4fe4-44b7-a273-32cfaf476f16",
+    "class": "service",
+    "building": "kw:building:usa_structures:32254293",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 0.8,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:847dc33c-b21d-4e2e-b6c4-242c1dfe4528",
+    "class": "footway",
+    "building": "kw:building:usa_structures:243960",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 0.8,
+    "kind": "enters"
+   },
+   {
+    "way": "kw:road:overture:78e409da-6d28-4365-99dc-23b136eeeda9",
+    "class": "unknown",
+    "building": "kw:building:usa_structures:227984",
+    "building_source": "usgs_nsd_fl_20260227",
+    "inside_m": 0.6,
+    "kind": "passes_through"
+   }
+  ]
+ }
+}

@@ -311,12 +311,12 @@ def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_p
         polys = [q for q in _parts(geom) if q.geom_type == "Polygon" and q.area > 0.5]
         if not polys:
             return {"kind": "none"}, {}
-        ground = float(np.median(s.ground_at(np.asarray(polys[0].exterior.coords)[:, :2])))
         if fam in ("airport", "transit"):
-            top, src = ground + 0.03, "dem_6366"
-        else:
-            top, src = meshing.deck_height(s, geom, ground + 1.0)
-        return {"kind": "slab", "top_y": top, "thickness": 0.4 if fam != "transit" else 0.03,
+            mesh = meshing.drape(s, polys)
+            return (mesh, {"surface": "dem_6366_drape"}) if mesh else ({"kind": "none"}, {})
+        ground = float(np.median(s.ground_at(np.asarray(polys[0].exterior.coords)[:, :2])))
+        top, src = meshing.deck_height(s, geom, ground + 1.0)
+        return {"kind": "slab", "top_y": top, "thickness": 0.4,
                 "polys": [{"rings": [_xz(r.coords) for r in [q.exterior, *q.interiors]]} for q in polys]}, {"top": src}
     if fam in ("coastal_structures", "bridges") and g.geom_type in ("LineString", "MultiLineString"):
         geom = g.difference(severed_area) if fam == "bridges" and not severed_area.is_empty and g.intersects(severed_area) else g

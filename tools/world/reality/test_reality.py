@@ -230,6 +230,29 @@ class Stems(unittest.TestCase):
         self.assertEqual(pieces["1:0"]["s"], [1.2])
 
 
+class Drape(unittest.TestCase):
+    class _Sunken:
+        def ground_at(self, xy):
+            import numpy as np
+            from reality import frame
+            oe, on = frame.origin()
+            r = np.hypot(xy[:, 0] - (oe + 30.0), xy[:, 1] - (on - 30.0))
+            return 2.0 - np.clip(1.0 - r / 20.0, 0.0, 1.0)  # rim 2.0 m, a lot sunk to 1.0 m in the middle
+
+    def test_paving_follows_a_sunken_lot_instead_of_floating(self):
+        import numpy as np
+        from reality import frame, meshing
+        oe, on = frame.origin()
+        lot = shapely.box(oe, on - 60, oe + 60, on)
+        mesh = meshing.drape(self._Sunken(), [lot])
+        v = np.asarray(mesh["v"]).reshape(-1, 3)
+        self.assertEqual(mesh["kind"], "drape")
+        self.assertGreater(len(v), 100, "the interior needs grid vertices, not just the rim")
+        ground = self._Sunken().ground_at(np.column_stack([v[:, 0] + oe, on - v[:, 2]]))
+        self.assertLess(float(np.max(np.abs(v[:, 1] - ground - meshing.DRAPE_LIFT_M))), 0.011)
+        self.assertLess(float(v[:, 1].min()), 1.2, "the paving does not reach down into the lot")
+
+
 class LibraryUnpack(unittest.TestCase):
     def test_existing_working_copy_is_never_overwritten(self):
         import tempfile

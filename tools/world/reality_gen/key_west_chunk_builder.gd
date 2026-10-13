@@ -3,7 +3,7 @@ extends RefCounted
 ## Builds one Reality Library chunk (editor interchange JSON v2) into a Node3D tree with meshes,
 ## collision and the per-node metadata contract. Editor-time only; never used at runtime.
 
-const GENERATOR_VERSION: String = "kw_chunk_builder.8"
+const GENERATOR_VERSION: String = "kw_chunk_builder.9"
 const GROUPS: Array[String] = ["Terrain", "Buildings", "Roads", "Barriers", "Infrastructure", "Vegetation", "Coastal", "LandUse", "Anchors"]
 const WALL_SINK_M: float = 0.3
 const WIRE_SAG_RATIO: float = 0.015
@@ -19,6 +19,12 @@ const WIND_PROFILE: String = "res://data/world_profiles/key_west_reality.tres"
 const STEM_LEAN_DEG: float = 12.0
 ## Stems ride up with the drawn snow so they always poke out (shader reads the snow field).
 const STEM_SHADER: Shader = preload("res://shaders/environment/vegetation/snow_stems.gdshader")
+const FROZEN_SEA_SHADER: Shader = preload("res://shaders/environment/ice/frozen_sea.gdshader")
+const FRAME_PATH: String = "res://data/world/key_west/reality/config/frame.json"
+## The terrain's ice sheet sits this far under the mapped water polygons (MSL), so they draw on top.
+const ICE_UNDER_WATER_M: float = 0.03
+## Far view: terrain every this many tile samples (16 m on the 1 m DEM tile).
+const FAR_TERRAIN_STRIDE: int = 16
 
 var stats: Dictionary = {}
 var _mat: Dictionary = {}
@@ -40,6 +46,8 @@ var _footprints: Array = []
 func _init() -> void:
 	_mat["walls"] = _material(Color(0.86, 0.83, 0.76))
 	_mat["walls_placeholder"] = _material(Color(0.85, 0.30, 0.30))
+	## Far prisms skip per-ring winding; both faces draw.
+	_mat["far_walls"] = _material(Color(0.86, 0.83, 0.76), true)
 	_mat["roof_lidar"] = _material(Color(0.58, 0.40, 0.33))
 	_mat["roof_flat"] = _material(Color(0.62, 0.62, 0.64))
 	_mat["roof_placeholder"] = _material(Color(0.85, 0.30, 0.30))
@@ -53,10 +61,17 @@ func _init() -> void:
 	_mat["canopy"] = _material(Color(0.18, 0.38, 0.20))
 	_mat["stem"] = _material(Color(0.33, 0.27, 0.21))
 	(_mat["stem"] as ShaderMaterial).shader = STEM_SHADER
-	_mat["water"] = _material(Color(0.20, 0.38, 0.52), true)
+	## Sea, ponds and pools are frozen: the existing frozen-sea surface, without the legacy mask.
+	var ice: ShaderMaterial = ShaderMaterial.new()
+	ice.shader = FROZEN_SEA_SHADER
+	ice.set_shader_parameter(&"use_ocean_mask", false)
+	_mat["water"] = ice
 	_mat["prop"] = _material(Color(0.70, 0.62, 0.20))
 	var terrain: ShaderMaterial = ShaderMaterial.new()
 	terrain.shader = TERRAIN_SHADER
+	var frame: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FRAME_PATH))
+	terrain.set_shader_parameter(&"under_ice", true)
+	terrain.set_shader_parameter(&"ice_level_m", float(frame["vertical"]["tidal_datums_navd88_m"]["MSL"]) - ICE_UNDER_WATER_M)
 	_mat["terrain"] = terrain
 	## The legacy city's own procedural palms and winter-bare broadleaf trees.
 	var props: Dictionary = KeyWestStreetProps._materials()
@@ -150,6 +165,8 @@ func _feature(feature: Dictionary) -> Node3D:
 			return _ribbon(feature, mesh)
 		"slab":
 			return _slab(feature, mesh, _mat["deck"], true)
+		"drape":
+			return _drape(feature, mesh)
 		"wall":
 			return _wall(feature, mesh)
 		"pole":
@@ -344,6 +361,34 @@ func _slab(feature: Dictionary, m: Dictionary, material: Material, solid: bool) 
 	if solid:
 		_add_collision(instance, mesh)
 	_count("slabs")
+	return instance
+
+
+## Parking and apron paving draped on the DEM (exporter triangulation); no collision, the
+## terrain under it carries Henry.
+func _drape(feature: Dictionary, m: Dictionary) -> Node3D:
+	var v: Array = m["v"]
+	var idx: Array = m["i"]
+	if idx.is_empty():
+		return null
+	var origin: Vector3 = Vector3(float(v[0]), float(v[1]), float(v[2]))
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for t: int in range(0, idx.size(), 3):
+		var p: Array[Vector3] = []
+		for k: int in range(3):
+			var o: int = int(idx[t + k]) * 3
+			p.append(Vector3(float(v[o]), float(v[o + 1]), float(v[o + 2])) - origin)
+		_triangle(st, p[0], p[1], p[2], _up_normal(p[0], p[1], p[2]))
+	st.index()
+	var mesh: ArrayMesh = st.commit(null, MESH_FLAGS)
+	mesh.surface_set_material(0, _mat["road"])
+	var instance: MeshInstance3D = MeshInstance3D.new()
+	instance.name = feature["node_name"]
+	instance.mesh = mesh
+	instance.position = origin
+	instance.set_meta("height_sources", feature.get("height_sources", {}))
+	_count("drapes")
 	return instance
 
 
@@ -635,6 +680,80 @@ func _terrain(doc: Dictionary, terrain_dir: String) -> Node3D:
 	return instance
 
 
+## Far view of the chunk just built: its terrain tile every FAR_TERRAIN_STRIDE samples and each
+## building's collision prism (outline to median eave), relative to the chunk centre. No collision.
+func far_mesh(doc: Dictionary) -> ArrayMesh:
+	var origin: Array = doc["origin_local"]
+	var half: float = float(doc["size_m"]) * 0.5
+	var centre: Vector3 = Vector3(float(origin[0]) + half, 0.0, float(origin[1]) + half)
+	var mesh: ArrayMesh = ArrayMesh.new()
+	if not _tile.is_empty():
+		var st: SurfaceTool = SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var n: int = int(_tile["n"])
+		var step: float = float(_tile["step"])
+		var heights: PackedFloat32Array = _tile["h"]
+		var cols: Array[int] = []
+		for i: int in range(0, n, FAR_TERRAIN_STRIDE):
+			cols.append(i)
+		if cols[-1] != n - 1:
+			cols.append(n - 1)
+		var at: Callable = func(r: int, c: int) -> Vector3:
+			return Vector3(float(_tile["ox"]) + c * step, heights[r * n + c], float(_tile["oz"]) + r * step) - centre
+		for a: int in range(cols.size() - 1):
+			for b: int in range(cols.size() - 1):
+				var p00: Vector3 = at.call(cols[a], cols[b])
+				var p01: Vector3 = at.call(cols[a], cols[b + 1])
+				var p10: Vector3 = at.call(cols[a + 1], cols[b])
+				var p11: Vector3 = at.call(cols[a + 1], cols[b + 1])
+				_triangle(st, p00, p01, p10, _up_normal(p00, p01, p10))
+				_triangle(st, p01, p11, p10, _up_normal(p01, p11, p10))
+		st.index()
+		st.commit(mesh, MESH_FLAGS)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, _mat["terrain"])
+	var walls: SurfaceTool = SurfaceTool.new()
+	walls.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var any: bool = false
+	for feature: Dictionary in doc["features"]:
+		var m: Dictionary = feature.get("mesh", {})
+		if m.get("kind", "") != "building" or not m.has("collision"):
+			continue
+		var col: Dictionary = m["collision"]
+		var rings: Array = [col["ring"]]
+		rings.append_array(col.get("holes", []))
+		var top: float = float(col["top_y"])
+		var y0: float = float(m["base_y"]) - WALL_SINK_M
+		for flat: Array in rings:
+			var r: PackedVector2Array = _open_ring(flat)
+			for i: int in range(r.size()):
+				var a2: Vector2 = r[i]
+				var b2: Vector2 = r[(i + 1) % r.size()]
+				var side: Vector2 = (b2 - a2).normalized().orthogonal()
+				var nrm: Vector3 = Vector3(side.x, 0.0, side.y)
+				var a0: Vector3 = Vector3(a2.x, y0, a2.y) - centre
+				var b0: Vector3 = Vector3(b2.x, y0, b2.y) - centre
+				_triangle(walls, a0, b0, b0 + Vector3.UP * (top - y0), nrm)
+				_triangle(walls, a0, b0 + Vector3.UP * (top - y0), a0 + Vector3.UP * (top - y0), nrm)
+		for piece: PackedVector2Array in fill_pieces(rings):
+			var tris: PackedInt32Array = Geometry2D.triangulate_polygon(piece)
+			for k: int in range(0, tris.size(), 3):
+				var q: Array[Vector3] = []
+				for j: int in range(3):
+					q.append(Vector3(piece[tris[k + j]].x, top, piece[tris[k + j]].y) - centre)
+				_triangle(walls, q[0], q[1], q[2], Vector3.UP)
+		any = true
+	if any:
+		walls.index()
+		walls.commit(mesh, MESH_FLAGS)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, _mat["far_walls"])
+	return mesh
+
+
+static func _up_normal(a: Vector3, b: Vector3, c: Vector3) -> Vector3:
+	var n: Vector3 = (b - a).cross(c - a).normalized()
+	return -n if n.y < 0.0 else n
+
+
 ## Bilinear height of the chunk's terrain tile (fallback when the point lies off the tile).
 func _ground(x: float, z: float, fallback: float) -> float:
 	if _tile.is_empty():
@@ -722,18 +841,23 @@ func _collect_collision(feature_id: String, m: Dictionary, base: float) -> void:
 	var y0: float = base - WALL_SINK_M
 	_footprints.append(ring)
 	var start: int = _collision_faces.size() / 3
-	for i: int in range(ring.size()):
-		var a: Vector2 = ring[i]
-		var b: Vector2 = ring[(i + 1) % ring.size()]
-		var a0: Vector3 = Vector3(a.x, y0, a.y)
-		var b0: Vector3 = Vector3(b.x, y0, b.y)
-		var a1: Vector3 = Vector3(a.x, top, a.y)
-		var b1: Vector3 = Vector3(b.x, top, b.y)
-		_collision_faces.append_array([a0, b0, b1, a0, b1, a1])
-	var tris: PackedInt32Array = Geometry2D.triangulate_polygon(ring)
-	for k: int in range(tris.size()):
-		var p: Vector2 = ring[tris[k]]
-		_collision_faces.append(Vector3(p.x, top, p.y))
+	var rings: Array = [col["ring"]]
+	rings.append_array(col.get("holes", []))
+	for flat: Array in rings:
+		var r: PackedVector2Array = _open_ring(flat)
+		for i: int in range(r.size()):
+			var a: Vector2 = r[i]
+			var b: Vector2 = r[(i + 1) % r.size()]
+			var a0: Vector3 = Vector3(a.x, y0, a.y)
+			var b0: Vector3 = Vector3(b.x, y0, b.y)
+			var a1: Vector3 = Vector3(a.x, top, a.y)
+			var b1: Vector3 = Vector3(b.x, top, b.y)
+			_collision_faces.append_array([a0, b0, b1, a0, b1, a1])
+	for piece: PackedVector2Array in fill_pieces(rings):
+		var tris: PackedInt32Array = Geometry2D.triangulate_polygon(piece)
+		for k: int in range(tris.size()):
+			var p: Vector2 = piece[tris[k]]
+			_collision_faces.append(Vector3(p.x, top, p.y))
 	_collision_ranges.append([start, feature_id])
 
 

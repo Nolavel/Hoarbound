@@ -10,6 +10,8 @@ const STREAM_ID_PREFIX: String = "kw_gen_"
 const PACK_MANIFEST: String = "res://data/world/key_west/reality/editor_export/manifest.json"
 const DIGEST_PATH: String = "res://data/world/key_west/reality/editor_export/generated_digest.json"
 const PART_DIR: String = "res://scenes/world/key_west/generated/chunks/parts"
+## Far-view meshes, one per chunk ("Far_x_z.res"), streamed by KeyWestRealityFar.
+const FAR_DIR: String = "res://scenes/world/key_west/generated/far"
 ## Heavy groups leave the chunk root as part scenes, attached in this order; Terrain and Anchors stay.
 const PART_ORDER: Array[String] = ["Buildings", "Roads", "Infrastructure", "Coastal", "Vegetation", "Barriers", "LandUse"]
 ## Buildings per part scene: about 2 ms of instantiate on the densest Old Town chunk.
@@ -32,6 +34,7 @@ func generate(chunk_ids: PackedStringArray) -> Dictionary:
 			if not ids.has(cid):
 				ids.append(cid)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PART_DIR))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(FAR_DIR))
 	var builder: KeyWestChunkBuilder = KeyWestChunkBuilder.new()
 	report = {"chunks": {}, "contract_violations": [], "started": Time.get_datetime_string_from_system(true)}
 	for cid: String in ids:
@@ -43,12 +46,20 @@ func generate(chunk_ids: PackedStringArray) -> Dictionary:
 		var t0: int = Time.get_ticks_msec()
 		var doc: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(json_path))
 		var root: Node3D = builder.build(doc, EXPORT_DIR)
+		var far: ArrayMesh = builder.far_mesh(doc)
 		var violations: Array = _check_contract(root)
-		var digest: String = _digest(root)
+		var digest: String = _digest(root) + ":" + _mesh_digest(far)
 		report["contract_violations"].append_array(violations)
 		_remove_parts(String(root.name))
 		var part_paths: PackedStringArray = _save_parts(root)
 		var err: Error = _save(root, OUT_DIR.path_join("chunks/%s.scn" % root.name))
+		var far_path: String = far_path_of(String(root.name))
+		if far.get_surface_count() > 0:
+			var far_err: Error = ResourceSaver.save(far, far_path, ResourceSaver.FLAG_COMPRESS)
+			if far_err != OK:
+				err = far_err
+		elif FileAccess.file_exists(far_path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(far_path))
 		for path: String in part_paths:
 			if FileAccess.file_exists(path) == false:
 				err = ERR_FILE_CANT_WRITE
@@ -135,6 +146,23 @@ func _own(node: Node, owner_node: Node) -> void:
 func _remove_parts(chunk_name: String) -> void:
 	for path: String in part_paths_of(chunk_name):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+## Far mesh path of a chunk ("Chunk_x_z" -> far/Far_x_z.res).
+static func far_path_of(chunk_name: String) -> String:
+	return FAR_DIR.path_join(chunk_name.replace("Chunk_", "Far_") + ".res")
+
+
+func _mesh_digest(mesh: ArrayMesh) -> String:
+	var ctx: HashingContext = HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	ctx.update("far".to_utf8_buffer())
+	for s: int in mesh.get_surface_count():
+		var arrays: Array = mesh.surface_get_arrays(s)
+		for kind: int in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_INDEX]:
+			if arrays[kind] != null:
+				ctx.update(var_to_bytes(arrays[kind]))
+	return ctx.finish().hex_encode().substr(0, 16)
 
 
 ## Content hash of a built chunk: tree shape, transforms, metadata, mesh, MultiMesh and collision
@@ -272,6 +300,11 @@ func _remove_stale_scenes(ids: PackedStringArray) -> void:
 		for file_name: String in parts.get_files():
 			if not keep.has(file_name.get_slice("__", 0) + ".scn"):
 				parts.remove(file_name)
+	var far: DirAccess = DirAccess.open(FAR_DIR)
+	if far != null:
+		for file_name: String in far.get_files():
+			if not keep.has(file_name.replace("Far_", "Chunk_").replace(".res", ".scn")):
+				far.remove(file_name)
 
 
 ## WorldData for the production StreamingSystem: one ChunkData per saved chunk, centred.
