@@ -638,6 +638,8 @@ stays `run/main_scene`. Legacy = `key_west.tscn` + `KeyWestFirstExit` + `Chunked
 
 | Legacy feature | Reality equivalent | Status |
 |---|---|---|
+| Henry, TPS camera, inventory, Quick Access, held items | the same `player.tscn` and `tps_camera.tscn` instances under `world.gd` | complete (shared, not copied) |
+| World systems and audio (`WorldEnvironmentSystem`, day/night, weather, sound) | the same `WorldEnvironmentSystem.tscn`; Reality profile `key_west_reality.tres` | complete (shared) |
 | NOAA 2 m terrain (`IslandTerrain`) | 1 m DEM terrain tile per chunk, HeightMap collision | complete |
 | City massing from the preview JSON | measured building shells, lidar roofs, collision with open courtyards | complete |
 | Far city bake (`far_city/*.obj`) | generated far mesh per chunk (16 m terrain, building prisms), `KeyWestRealityFar` on the same StreamingSystem, hidden while the detailed chunk is in | complete |
