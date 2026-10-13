@@ -15,7 +15,7 @@ import json
 import numpy as np
 import shapely
 
-from . import paths, receipts
+from . import library, paths, receipts
 
 OUT = paths.REALITY / "reports" / "traversal.json"
 SAMPLE_M = 2.0
@@ -26,6 +26,43 @@ HEADROOM_M = 2.0
 ## Outline contact is not a block: a way may graze a wall within this distance.
 GRAZE_M = 0.3
 NOT_WALKED = {"ferry_route", "rail_unknown"}
+
+
+## Owner decision 2026-10-13: a building a mapped way runs straight through is not generated.
+THROUGH_MIN_M = 2.0
+REMOVED_OUT = paths.REALITY / "reports" / "buildings_removed_on_ways.json"
+
+
+def buildings_on_ways(keep: set[str]) -> dict[str, list[str]]:
+    """Library buildings a walkable way passes through (in on one side, out on the other, at
+    least THROUGH_MIN_M inside the outline less GRAZE_M): {building feature_id: [way ids]}.
+    Ways that end inside (a drive into a garage) do not count; `keep` ids are never listed."""
+    bgeoms, bcols = library.read_layer("buildings")
+    polys, bids = [], []
+    for g, fid in zip(bgeoms, bcols["feature_id"]):
+        if g is None or fid in keep:
+            continue
+        shrunk = g.buffer(-GRAZE_M)
+        if not shrunk.is_empty:
+            polys.append(shrunk)
+            bids.append(fid)
+    tree = shapely.STRtree(polys)
+    rgeoms, rcols = library.read_layer("roads")
+    out: dict[str, list[str]] = {}
+    for g, fid, cls, attrs_json in zip(rgeoms, rcols["feature_id"], rcols["class"], rcols["attrs_json"]):
+        if g is None or cls in NOT_WALKED or "bridge" in json.loads(attrs_json).get("flags", []):
+            continue
+        for line in getattr(g, "geoms", [g]):
+            if line.geom_type != "LineString":
+                continue
+            ends = shapely.MultiPoint([line.coords[0], line.coords[-1]])
+            for j in tree.query(line, predicate="intersects"):
+                inside = line.intersection(polys[j])
+                for seg in getattr(inside, "geoms", [inside]):
+                    if seg.geom_type == "LineString" and seg.length >= THROUGH_MIN_M and seg.distance(ends) > 0.5:
+                        out.setdefault(bids[j], []).append(fid)
+                        break
+    return out
 
 
 def run() -> dict:

@@ -17,6 +17,10 @@ uniform float snow_softness : hint_range(0.01, 0.5) = 0.15;
 // Presentation only; the measured topobathy keeps its collision.
 uniform bool under_ice = false;
 uniform float ice_level_m = 0.0;
+// Reality roads, paths and parking: their own paving colour under the same snow response, so
+// snow covers them exactly as it covers the ground beside them.
+uniform bool paved = false;
+uniform vec4 paved_color : source_color = vec4(0.25, 0.25, 0.27, 1.0);
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -42,6 +46,7 @@ void fragment() {
 	vec3 ground = mix(turf_color.rgb, rock_color.rgb, smoothstep(0.93, 0.8, up + (grain - 0.5) * 0.08));
 	float sand = 1.0 - smoothstep(sand_height_m, sand_height_m + 1.0, world_pos.y + (grain - 0.5) * 0.6);
 	ground = mix(ground, sand_color.rgb, sand);
+	ground = paved ? paved_color.rgb : ground;
 	ground *= 0.9 + grain * 0.2;
 	float snow = snow_weight(world_normal, world_pos, snow_softness);
 	ALBEDO = mix(ground, snow_color.rgb, snow);

@@ -182,7 +182,9 @@ func _light_stove() -> void:
 	## Loading cold logs moves straight on to lighting; F again would cancel it.
 	var light_refusal: int = HeatSourceFeed.Refusal.NONE if feed.is_acting() else feed.begin_act()
 	var strike: int = HeatSourceFeed.StrikeResult.IGNORED
-	for _i: int in range(200):
+	## Wall clock, not frames: the work pose that readies the lighter animates in real time.
+	var deadline: int = Time.get_ticks_msec() + 15000
+	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		strike = feed.attempt_lighter_strike()
 		if strike == HeatSourceFeed.StrikeResult.FLAME:

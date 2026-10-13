@@ -643,7 +643,7 @@ stays `run/main_scene`. Legacy = `key_west.tscn` + `KeyWestFirstExit` + `Chunked
 | Far city bake (`far_city/*.obj`) | generated far mesh per chunk (16 m terrain, building prisms), `KeyWestRealityFar` on the same StreamingSystem, hidden while the detailed chunk is in | complete |
 | Masked frozen-sea plane | the same frozen-sea surface on water polygons and on terrain below MSL (`under_ice`, presentation only) | complete |
 | Walkable sea ice | none in either scene (the seabed keeps its collision) | missing in both |
-| Streets, paths | ribbons per chunk crossed; parking and aprons draped on the DEM | complete |
+| Streets, paths | ribbons per chunk crossed; parking and aprons draped on the DEM; paving takes the terrain's snow response, so snow covers it like the ground beside it | complete |
 | Street props (lamps, signs) | mapped furniture and poles as placeholder cylinders | partial |
 | Palms and bare trees | legacy meshes on 37,318 lidar trees, trunks off roads, plus 54,372 frozen shrub-stem clumps | complete |
 | Terrain snow, chunk cover, deep-snow shell, footprints, `WindGusts` | same systems on the chunk terrain (`KeyWestRealityGround`) | complete; the baked wind-drift texture covers the legacy crop only |
@@ -660,10 +660,11 @@ stays `run/main_scene`. Legacy = `key_west.tscn` + `KeyWestFirstExit` + `Chunked
 | Pickups lying on deep snow | outdoor pickups at ground + 0.35 m, as in legacy; deep drifts can hide them | same as legacy |
 | Build step | snapshot committed; fresh-checkout test in CI; rebuild + digest job separate | complete |
 
-Open data conflicts (author decision): `reports/traversal.json` lists 183 mapped ways that
-pass through a building footprint (about 60 % of the blocked samples fall in 2008 USA Structures
-outlines under 2011–2026 OSM ways). Geometry is unchanged; options are to cut a passage,
-drop the older outline, or keep it.
+Ways through buildings (owner decision 2026-10-13): a building that a mapped walkable way
+passes straight through (at least 2 m inside the outline, both ends outside; bridges, ferries
+and rails excepted; landmarks kept) is not generated. Most were 2008 USA Structures outlines
+under 2011–2026 OSM ways. The list is `reports/buildings_removed_on_ways.json`; ways that end
+inside a building (drives into garages) keep it. `reports/traversal.json` re-checks the result.
 
 ## 18. Next stages
 

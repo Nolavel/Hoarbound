@@ -11,7 +11,7 @@
 			"wetness": 0.4
 		},
 		{
-			"hammer": 0,
+			"hammer": 1,
 			"lighter": 1,
 			"nails": 66,
 			"step": "take_kit",
@@ -51,9 +51,9 @@
 		{
 			"by_stove_after": {
 				"body_c": 36.6,
-				"felt_c": 16.4,
-				"room_c": 7.6,
-				"wetness": 0.21
+				"felt_c": 18.4,
+				"room_c": 9.6,
+				"wetness": 0.14
 			},
 			"by_stove_before": {
 				"body_c": 36.02,
@@ -63,11 +63,11 @@
 			},
 			"on_mattress": {
 				"body_c": 36.6,
-				"felt_c": 16.4,
-				"room_c": 7.6,
-				"wetness": 0.21
+				"felt_c": 18.4,
+				"room_c": 9.6,
+				"wetness": 0.14
 			},
-			"outdoor_c": -18.0,
+			"outdoor_c": -16.0,
 			"step": "warm_dry",
 			"waited_h": 3.0
 		},

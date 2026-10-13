@@ -3,7 +3,7 @@ extends RefCounted
 ## Builds one Reality Library chunk (editor interchange JSON v2) into a Node3D tree with meshes,
 ## collision and the per-node metadata contract. Editor-time only; never used at runtime.
 
-const GENERATOR_VERSION: String = "kw_chunk_builder.9"
+const GENERATOR_VERSION: String = "kw_chunk_builder.10"
 const GROUPS: Array[String] = ["Terrain", "Buildings", "Roads", "Barriers", "Infrastructure", "Vegetation", "Coastal", "LandUse", "Anchors"]
 const WALL_SINK_M: float = 0.3
 const WIRE_SAG_RATIO: float = 0.015
@@ -51,8 +51,8 @@ func _init() -> void:
 	_mat["roof_lidar"] = _material(Color(0.58, 0.40, 0.33))
 	_mat["roof_flat"] = _material(Color(0.62, 0.62, 0.64))
 	_mat["roof_placeholder"] = _material(Color(0.85, 0.30, 0.30))
-	_mat["road"] = _material(Color(0.25, 0.25, 0.27))
-	_mat["path"] = _material(Color(0.55, 0.53, 0.50))
+	_mat["road"] = _paved(Color(0.25, 0.25, 0.27))
+	_mat["path"] = _paved(Color(0.55, 0.53, 0.50))
 	_mat["deck"] = _material(Color(0.50, 0.42, 0.33))
 	_mat["barrier"] = _material(Color(0.45, 0.42, 0.38), true)
 	_mat["hedge"] = _material(Color(0.24, 0.40, 0.22), true)
@@ -983,6 +983,15 @@ static func _centroid(ring: PackedVector2Array) -> Vector2:
 
 
 ## The legacy city's stylized environment material (stylized shadows), not a StandardMaterial3D.
+## Paving takes snow exactly as the terrain does (island_terrain paved mode), never shows through it.
+func _paved(colour: Color) -> ShaderMaterial:
+	var material: ShaderMaterial = ShaderMaterial.new()
+	material.shader = TERRAIN_SHADER
+	material.set_shader_parameter(&"paved", true)
+	material.set_shader_parameter(&"paved_color", colour)
+	return material
+
+
 func _material(colour: Color, double_sided: bool = false) -> ShaderMaterial:
 	return StylizedEnvironmentMaterial.make_static(colour, 0.9, double_sided)
 

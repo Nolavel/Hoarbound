@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 import numpy as np
 import shapely
 
-from . import PIPELINE_VERSION, config, frame, library, meshing, overrides, paths, receipts, regen, vegetation
+from . import PIPELINE_VERSION, config, frame, library, meshing, overrides, paths, receipts, regen, traversal, vegetation
 
 EXPORT_VERSION = "kw_reality.editor_chunk.v2"
 FAMILIES = ("buildings", "building_parts", "roads", "bridges", "coastal_structures", "barriers", "power", "utilities",
@@ -115,6 +115,12 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
         raise SystemExit("refusing to export: " + "; ".join(bad[:5]))
     s = meshing.Surfaces()
     clear = vegetation.Clearance(gen["shrub_stems"]["road_margin_m"])
+    landmarks = {o["target_feature_id"] for o in ov["features"] if o["override_type"] == "landmark_role" and o.get("target_feature_id")}
+    on_ways = traversal.buildings_on_ways(landmarks)
+    traversal.REMOVED_OUT.write_text(json.dumps({
+        "rule": "owner decision 2026-10-13: a building a mapped walkable way passes straight through "
+                f"(>= {traversal.THROUGH_MIN_M} m inside, both ends outside) is not generated; landmarks kept",
+        "count": len(on_ways), "buildings": dict(sorted(on_ways.items()))}, indent=1) + "\n", encoding="utf-8")
     heights = gen["inferred_heights_m"]
     per_chunk = defaultdict(list)
     wires = defaultdict(list)
@@ -135,6 +141,9 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
             if chunks and cid not in chunks and fam != "power":
                 continue
             attrs = {k: v for k, v in json.loads(cols["attrs_json"][i]).items() if k in KEEP_ATTRS}
+            if fam == "buildings" and fid in on_ways:
+                stats["buildings_removed_way_through"] += 1
+                continue
             p = plan.get(fid, {"action": "generate"})
             hot = in_corridor(g)
             mesh, sources = _mesh_for(fam, cols["class"][i], cols["subclass"][i], g, fid, attrs, sel, s, gen, heights, hot,
