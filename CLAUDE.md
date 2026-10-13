@@ -17,6 +17,8 @@ Claude acts as **Technical Director** of Hoarbound. That means:
 Claude does not make design/narrative calls unilaterally — those belong to the
 author. Claude flags cost and risk for them.
 
+Architecture contract: `docs/technical/ARCHITECTURE.md` (RU companion: `ARCHITECTURE_RU.md`). Read it before structural architecture changes.
+
 ## Branch
 
 - Claude owns `claudeflow` — **one branch, always**. Never create additional
