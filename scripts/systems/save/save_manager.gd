@@ -4,12 +4,8 @@ extends Node
 ## Collects state from every participant and writes it atomically to a slot.
 ## Sleeping is the only thing that calls save() during play.
 ##
-## The contract is three methods, checked all-or-nothing, taken from the ADT
-## project so both codebases opt in the same way:
-##   get_save_key() -> StringName   a key that outlives the class name
-##   get_save_data() -> Dictionary  primitives, arrays and dictionaries only
-##   load_save_data(data: Dictionary) -> void
-## Implement all three and you are saved; implement some and you are skipped.
+## Save participants are consumed through SaveParticipantCapability. Existing
+## get_save_* nodes are adapted once at the contract boundary during migration.
 
 ## Emitted after a slot is written successfully.
 signal save_completed(slot: int)
@@ -78,21 +74,16 @@ func _apply_pending_load() -> void:
 func register(node: Node) -> void:
 	if node == null or _registered.has(node):
 		return
-	if not implements_save_contract(node):
-		push_warning("SaveManager: '%s' does not implement the save contract" % node.name)
+	if not SaveParticipantCapability.ensure(node):
+		push_warning("SaveManager: '%s' does not provide the save capability" % node.name)
 		return
 	_registered.append(node)
 
 
-## True when a node implements the whole contract. Partial implementations are
-## skipped rather than half-saved, which is how a missing key stays visible.
+## Compatibility query for callers while save participants migrate to the
+## capability layer. Reflection is contained inside SaveParticipantCapability.
 static func implements_save_contract(node: Node) -> bool:
-	return (
-		node != null
-		and node.has_method("get_save_key")
-		and node.has_method("get_save_data")
-		and node.has_method("load_save_data")
-	)
+	return SaveParticipantCapability.ensure(node)
 
 
 ## Drops a participant; freed nodes are pruned automatically as well.
@@ -119,7 +110,7 @@ func save_to_slot(slot: int, metadata: Dictionary = {}) -> bool:
 		var id: String = _resolve_id(node)
 		if payload.has(id):
 			return _fail_save(slot, "duplicate save id '%s'" % id)
-		var data: Variant = node.call("get_save_data")
+		var data: Variant = SaveParticipantCapability.capture(node)
 		if typeof(data) != TYPE_DICTIONARY:
 			return _fail_save(slot, "participant '%s' did not return a Dictionary" % id)
 		payload[id] = data
@@ -149,7 +140,7 @@ func load_from_slot(slot: int) -> bool:
 	for node: Node in _get_participants():
 		var id: String = _resolve_id(node)
 		if payload.has(id):
-			node.call("load_save_data", payload[id])
+			SaveParticipantCapability.restore(node, payload[id])
 
 	_last_error = ""
 	load_completed.emit(slot)
@@ -237,7 +228,7 @@ func _get_participants() -> Array[Node]:
 			else:
 				push_warning(
 					"SaveManager: '%s' is in the saveable group but does not "
-					% node.name + "implement the whole contract"
+					% node.name + "provide the save capability"
 				)
 	return participants
 
@@ -245,7 +236,7 @@ func _get_participants() -> Array[Node]:
 ## A participant's own key. Stated explicitly by the system so renaming a
 ## script never orphans a save file.
 func _resolve_id(node: Node) -> String:
-	return String(node.call(&"get_save_key"))
+	return String(SaveParticipantCapability.get_key(node))
 
 
 ## Writes via a temporary file and renames, so a crash cannot leave a half save.
