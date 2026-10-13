@@ -86,7 +86,7 @@ The product documents are not optional background reading.
 - Before starting or designing a feature, check `docs/FUTURE_INTENT.md` for relevant author intent. A matching entry provides direction and constraints; it is **not** authorization to implement that future work unless the author separately asks for it. The document is intentionally maintained in Russian.
 - Before changing gameplay, interaction, survival pressure, UI, audio, encounter/content density, player locomotion feel, shelter behaviour, inventory handling, or player-facing pacing, read `docs/game_design/EXPERIENCE_PILLARS.md`.
 - Before changing Key West world generation, building selection, routes, POIs, shelter placement, outdoor traversal, weather exposure, environmental storytelling, or world-content density, read **both** `docs/game_design/EXPERIENCE_PILLARS.md` and `docs/world/KEY_WEST_DESIGN_DOCTRINE.md`.
-- Before structural refactors, new managers, cross-system ownership/dependency changes, persistence-model changes, camera/interaction ownership changes, or any ECS/data-oriented proposal, read `docs/technical/ARCHITECTURE.md`.
+- Before structural refactors, new managers, cross-system ownership/dependency changes, persistence-model changes, camera/interaction ownership changes, any cross-language protocol, or any ECS/data-oriented proposal, read `docs/technical/ARCHITECTURE.md`.
 - Before visual production work, also read `docs/art/ART_DIRECTION.md`.
 - If a requested implementation conflicts with a canonical product doctrine, surface the conflict to the author instead of silently weakening or overriding the doctrine.
 - Implementation details may evolve; the intended player experience does not change unless the author explicitly changes the corresponding product document.
@@ -121,6 +121,10 @@ The product documents are not optional background reading.
 ## Architecture guardrails
 
 - Full-project ECS is not accepted for Hoarbound. Use selective ECS / data-oriented subsystems only when a concrete scale, profiling, or simulation need justifies them; see `docs/technical/ARCHITECTURE.md`.
+- Cross-system and cross-language seams use capability contracts under `core/contracts/`: the Godot-visible contract is public; the GDScript, C#, or C++/Jenova implementation is private.
+- A capability is attached to the existing owner `Object`; do **not** add child `Port` nodes merely to declare an interface.
+- Do not add new scattered `has_method()` / string-`call()` protocols for cross-system dispatch. Reflection/dynamic dispatch belongs inside `core/contracts/` or a language adapter there; migrate existing protocols when the owning system is touched rather than through a global rewrite.
+- Moving a hot path from GDScript to C++/Jenova requires measured profiling evidence and must preserve the same capability id, operations, ownership, and consumers.
 - Player movement, rotation, camera, interaction, and survival components keep separate ownership.
 - Camera feedback may lag aesthetically, but input response must not be delayed by stacked smoothing systems.
 - `IslandTerrain` owns terrain geometry/LOD. Project streaming owns gameplay content chunks.
@@ -216,6 +220,7 @@ only the structural shape of the requirement.
 - Prefer one authoritative implementation over compatibility shims and duplicate
   paths.
 - Prefer composition and explicit ownership over global reach-through.
+- New language-specific implementations must sit behind an existing capability contract or introduce one at the boundary; consumers must not branch on implementation language.
 - Remove obsolete experimental code when the selected production method replaces
   it.
 - Keep experimental work isolated from the production path and easy to delete.
