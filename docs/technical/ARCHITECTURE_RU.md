@@ -111,7 +111,29 @@ Signals подходят для факта «что-то произошло». C
 
 Не следует создавать глобальную event bus только для того, чтобы спрятать зависимости. Зависимости должны оставаться видимыми и направленными.
 
-## 7. Simulation authoritative; presentation derived
+## 7. Cross-language capability contracts
+
+Когда контракт подсистемы должен одинаково работать между разными типами Node и разными языками реализации, Hoarbound использует маленькую Godot-visible capability boundary.
+
+Production-правило:
+
+`public capability contract -> Godot Object / Variant boundary -> private GDScript, C# или C++ implementation`
+
+Runtime-механизм живёт в `core/contracts/`. `CapabilityContract` хранит descriptor capability прямо на существующем owner `Object` через Godot metadata. Descriptor содержит устойчивый capability id, provider `Object` и map `logical operation -> Godot-visible method name`. Consumer работает через capability-specific adapter и не знает язык или конкретный класс provider.
+
+Для этого **не создаётся отдельная Port-нода на каждый компонент**. Компонент не обязан иметь capability просто потому, что он существует. Capability вводится только когда другой subsystem действительно нуждается в стабильной границе, когда разные несвязанные классы должны выполнять один контракт или когда implementation language может быть заменён.
+
+Dynamic reflection и string dispatch считаются механизмом границы, а не обычным gameplay-паттерном. Новые проверки `has_method()` / string-`call()` не должны расползаться по gameplay-коду; validation и invocation находятся внутри `core/contracts/` либо language adapter в этой зоне. Старые duck-typed protocols переносятся туда по мере работы с их owner-системами, без глобального rewrite.
+
+`SaveParticipantCapability` — первая production-реализация правила. Старые providers с `get_save_key/get_save_data/load_save_data` адаптируются на границе, а explicit capability может сопоставить совсем другие имена методов. Поэтому consumer остаётся неизменным независимо от того, написан provider на GDScript, C# или C++.
+
+Для оптимизации Jenova/C++ является заменяемой implementation за тем же контрактом. Последовательность:
+
+`измеренный bottleneck -> сохранить capability id/operations -> заменить implementation -> повторить тот же consumer/runtime validation`
+
+C++ не вводится просто потому, что он доступен, и перенос hot path в C++ не должен создавать вторую gameplay-архитектуру.
+
+## 8. Simulation authoritative; presentation derived
 
 Gameplay-state не должен зависеть от того, показывает ли его сейчас animation, UI, shader или particle effect.
 
@@ -130,7 +152,7 @@ Gameplay-state не должен зависеть от того, показыв�
 - HUD показывает survival state, но не владеет им;
 - VFX показывает ветер и снег, но не становится weather model.
 
-## 8. Persistent Entity Identity
+## 9. Persistent Entity Identity
 
 Выгрузка scene не должна определять, существует ли persistent world object.
 
@@ -153,7 +175,7 @@ Scene может исчезнуть из дерева, но состояние �
 
 Нельзя делать lifetime scene instance единственным местом, где хранится история объекта.
 
-## 9. Направление Interaction
+## 10. Направление Interaction
 
 Interaction должен двигаться к pipeline с явными ответственностями:
 
@@ -165,7 +187,7 @@ Interaction должен двигаться к pipeline с явными отве
 
 Разделять следует по ownership, когда ответственность становится самостоятельной, а не просто потому, что файл стал длинным.
 
-## 10. Направление Camera
+## 11. Направление Camera
 
 У камеры должен быть один финальный owner и один упорядоченный pipeline:
 
@@ -175,7 +197,7 @@ Shoulder state, passage framing, interaction framing, auto-look и похожи�
 
 Несколько подсистем не должны независимо владеть финальным camera transform.
 
-## 11. Локальные ECS / data-oriented острова
+## 12. Локальные ECS / data-oriented острова
 
 ECS / data-oriented структуры допустимо рассматривать там, где задача действительно массовая и однородная, например:
 
@@ -199,7 +221,7 @@ ECS / data-oriented структуры допустимо рассматрива
 
 Перед введением ECS-подсистемы нужно назвать конкретную проблему масштаба / производительности / сложности, которую она решает, и описать её мост к production Godot path.
 
-## 12. Никакого speculative framework
+## 13. Никакого speculative framework
 
 Не строить универсальный «Hoarbound framework» под гипотетические будущие системы.
 
@@ -216,7 +238,9 @@ ECS / data-oriented структуры допустимо рассматрива
 - wrappers поверх engine-native механизмов без доказанной необходимости;
 - parallel architecture paths для одной и той же gameplay responsibility.
 
-## 13. Политика refactoring
+Capability layer намеренно остаётся маленькой инфраструктурой и не является разрешением создавать interfaces для каждого класса.
+
+## 14. Политика refactoring
 
 Этот документ задаёт направление, но **не разрешает глобальный rewrite**.
 
@@ -226,12 +250,13 @@ ECS / data-oriented структуры допустимо рассматрива
 2. найти cross-system reach-through и duplicated state;
 3. сохранить player-facing behaviour, если задача его не меняет;
 4. переносить по одной ответственности к явному contract;
-5. удалять obsolete paths после доказанного replacement;
-6. проверять реальный runtime path.
+5. если seam проходит между разными implementation languages, провести его через существующий capability либо добавить минимальный реально нужный capability;
+6. удалять obsolete paths после доказанного replacement;
+7. проверять реальный runtime path.
 
 Не следует останавливать разработку игры ради теоретической архитектурной чистоты. Consolidation должен снижать риск и облегчать следующую работу.
 
-## 14. Что здесь означает коммерчески здоровая архитектура
+## 15. Что здесь означает коммерчески здоровая архитектура
 
 Цель — не модное название архитектуры. Система считается здоровой, если новый collaborator быстро отвечает:
 
@@ -241,5 +266,6 @@ ECS / data-oriented структуры допустимо рассматрива
 - что относится к simulation, а что к presentation?
 - что сохраняется после unload scene?
 - какой path production, а какой experimental?
+- если implementation меняет язык, какой public contract остаётся неизменным?
 
 Если ответы ясны, система движется к production shape.
