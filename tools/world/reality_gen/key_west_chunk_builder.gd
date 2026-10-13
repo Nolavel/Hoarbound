@@ -3,7 +3,7 @@ extends RefCounted
 ## Builds one Reality Library chunk (editor interchange JSON v2) into a Node3D tree with meshes,
 ## collision and the per-node metadata contract. Editor-time only; never used at runtime.
 
-const GENERATOR_VERSION: String = "kw_chunk_builder.6"
+const GENERATOR_VERSION: String = "kw_chunk_builder.7"
 const GROUPS: Array[String] = ["Terrain", "Buildings", "Roads", "Barriers", "Infrastructure", "Vegetation", "Coastal", "LandUse", "Anchors"]
 const WALL_SINK_M: float = 0.3
 const WIRE_SAG_RATIO: float = 0.015
@@ -17,6 +17,8 @@ const PALM_CROWN_RATIO: float = 0.35
 ## Shrub stems lean downwind of the profile's prevailing wind (bearing it blows from).
 const WIND_PROFILE: String = "res://data/world_profiles/key_west_reality.tres"
 const STEM_LEAN_DEG: float = 12.0
+## Stems ride up with the drawn snow so they always poke out (shader reads the snow field).
+const STEM_SHADER: Shader = preload("res://shaders/environment/vegetation/snow_stems.gdshader")
 
 var stats: Dictionary = {}
 var _mat: Dictionary = {}
@@ -50,6 +52,7 @@ func _init() -> void:
 	_mat["wire"] = _material(Color(0.08, 0.08, 0.08), true)
 	_mat["canopy"] = _material(Color(0.18, 0.38, 0.20))
 	_mat["stem"] = _material(Color(0.33, 0.27, 0.21))
+	(_mat["stem"] as ShaderMaterial).shader = STEM_SHADER
 	_mat["water"] = _material(Color(0.20, 0.38, 0.52), true)
 	_mat["prop"] = _material(Color(0.70, 0.62, 0.20))
 	var terrain: ShaderMaterial = ShaderMaterial.new()

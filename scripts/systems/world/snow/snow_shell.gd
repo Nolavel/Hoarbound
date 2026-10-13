@@ -653,6 +653,8 @@ func _build_surface() -> void:
 	_surface = ShaderMaterial.new()
 	_surface.shader = SURFACE_SHADER
 	_surface.set_shader_parameter("field", _field_tex)
+	## Read-only for other presentation (stems poke through the drawn snow); r = snow top.
+	RenderingServer.global_shader_parameter_set(&"snow_field", _field_tex)
 	_surface.set_shader_parameter("window_m", window_m)
 	_surface.set_shader_parameter("packed_texel_m", window_m / float(packed_res))
 	_surface.set_shader_parameter("use_baked_baseline", field.use_baked_baseline)
