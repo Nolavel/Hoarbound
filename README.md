@@ -41,6 +41,7 @@ The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs
 - [`PRD.md`](PRD.md) — product direction and current milestone
 - [`docs/game_design/VERTICAL_SLICE.md`](docs/game_design/VERTICAL_SLICE.md) — First Exit A scope contract
 - [`docs/GDD.md`](docs/GDD.md) — code-grounded gameplay / systems snapshot
+- [`docs/technical/ARCHITECTURE.md`](docs/technical/ARCHITECTURE.md) — canonical technical architecture contract ([RU](docs/technical/ARCHITECTURE_RU.md))
 - [`docs/art/ART_DIRECTION.md`](docs/art/ART_DIRECTION.md) — production visual source of truth
 - [`AGENTS.md`](AGENTS.md) — repository and agent workflow rules
 - [`CONTRIBUTING_DECOMPOSITION.md`](CONTRIBUTING_DECOMPOSITION.md) — issue / milestone decomposition rules
@@ -48,5 +49,22 @@ The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs
 ## Status
 
 **Active development — vertical slice.**
+
+## Repository orientation
+
+```text
+GAME        Hoarbound — third-person systemic survival in frozen Key West.
+TARGET      First Exit A — one 10–15 min bunker -> shelter -> sleep/save loop.
+RUN         Godot 4.8-dev6 .NET -> F5 -> scenes/world/key_west/key_west.tscn.
+GAMEPLAY    scripts/ + production scenes; world/world.gd is the world composition root.
+INTERACT    InteractComponent owns player-side interaction intent and targeting.
+SAVE        SaveManager coordinates persistence; each subsystem keeps ownership of its state.
+EXPERIMENT  scripts/experimental/ is laboratory work, not production by default.
+DELETE      Only obsolete/archived or proven-unreferenced code; experimental does not mean disposable.
+VERIFY      Import/compile -> focused test/runtime proof -> visual/play check when player-facing.
+NEW SYSTEM  Find the owner -> one authoritative state -> small contracts -> no duplicate manager/state.
+ARCH        docs/technical/ARCHITECTURE.md is the canonical technical contract.
+AUTHOR      Product/design canon, scope, architecture-direction changes and main integration need author decision.
+```
 
 Copyright © 2025–2026 Nolavel. All rights reserved. See [`LICENSE`](LICENSE).
