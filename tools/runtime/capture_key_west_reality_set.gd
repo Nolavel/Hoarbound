@@ -13,9 +13,9 @@ const HENRY_HALF_HEIGHT: float = 1.0
 const SHOTS: Array[Dictionary] = [
 	{"name": "battery_start", "mode": "spawn_out"},
 	{"name": "battery_door", "mode": "spawn_in"},
-	{"name": "street_southard", "mode": "game", "at": [-3903.0, 1739.0], "look": [-3871.0, 1721.0]},
+	{"name": "street_petronia", "mode": "game", "at": [-3163.0, 1363.0], "look": [-3115.0, 1331.0]},
 	{"name": "residential_block", "mode": "game", "at": [-3385.0, 1513.0], "look": [-3340.0, 1480.0]},
-	{"name": "vegetation_deep_snow", "mode": "game", "at": [-4100.0, 2030.0], "look": [-4085.0, 2042.0]},
+	{"name": "vegetation_deep_snow", "mode": "game", "at": [-4121.0, 1723.0], "look": [-4128.0, 1715.0]},
 	{"name": "coast_frozen_sea", "mode": "game", "at": [-4276.6, 1876.3], "look": [-4340.0, 1876.0]},
 	{"name": "approach_727", "mode": "game", "at": [-3593.0, 1601.0], "look": [-3538.75, 1594.38]},
 	{"name": "exterior_727", "mode": "game", "at": [-3545.0, 1606.0], "look": [-3530.0, 1583.0]},
