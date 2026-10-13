@@ -3,7 +3,7 @@ extends RefCounted
 ## Builds one Reality Library chunk (editor interchange JSON v2) into a Node3D tree with meshes,
 ## collision and the per-node metadata contract. Editor-time only; never used at runtime.
 
-const GENERATOR_VERSION: String = "kw_chunk_builder.4"
+const GENERATOR_VERSION: String = "kw_chunk_builder.5"
 const GROUPS: Array[String] = ["Terrain", "Buildings", "Roads", "Barriers", "Infrastructure", "Vegetation", "Coastal", "LandUse", "Anchors"]
 const WALL_SINK_M: float = 0.3
 const WIRE_SAG_RATIO: float = 0.015
@@ -278,26 +278,31 @@ func _slab(feature: Dictionary, m: Dictionary, material: Material, solid: bool) 
 	var origin: Vector3 = Vector3.ZERO
 	var have: bool = false
 	for poly: Dictionary in m["polys"]:
-		var outer: PackedVector2Array = _points(poly["rings"][0])
-		if outer.size() > 1 and outer[0].is_equal_approx(outer[outer.size() - 1]):
-			outer.remove_at(outer.size() - 1)
+		var rings: Array = poly["rings"]
+		var outer: PackedVector2Array = _open_ring(rings[0])
 		if outer.size() < 3:
 			continue
 		if not have:
 			var c: Vector2 = _centroid(outer)
 			origin = Vector3(c.x, top, c.y)
 			have = true
-		var tris: PackedInt32Array = Geometry2D.triangulate_polygon(outer)
-		for i: int in range(0, tris.size(), 3):
-			var a: Vector2 = outer[tris[i]]
-			var b: Vector2 = outer[tris[i + 1]]
-			var c2: Vector2 = outer[tris[i + 2]]
-			_triangle(st, Vector3(a.x, top, a.y) - origin, Vector3(b.x, top, b.y) - origin, Vector3(c2.x, top, c2.y) - origin, Vector3.UP)
-		if thick > 0.0:
-			var flip: bool = _ring_needs_flip([poly["rings"][0]], outer, true)
-			for i: int in range(outer.size()):
-				var a: Vector2 = outer[i]
-				var b: Vector2 = outer[(i + 1) % outer.size()]
+		for piece: PackedVector2Array in fill_pieces(rings):
+			var tris: PackedInt32Array = Geometry2D.triangulate_polygon(piece)
+			for i: int in range(0, tris.size(), 3):
+				var a: Vector2 = piece[tris[i]]
+				var b: Vector2 = piece[tris[i + 1]]
+				var c2: Vector2 = piece[tris[i + 2]]
+				_triangle(st, Vector3(a.x, top, a.y) - origin, Vector3(b.x, top, b.y) - origin, Vector3(c2.x, top, c2.y) - origin, Vector3.UP)
+		if thick <= 0.0:
+			continue
+		for r: int in range(rings.size()):
+			var ring: PackedVector2Array = _open_ring(rings[r])
+			if ring.size() < 3:
+				continue
+			var flip: bool = _ring_needs_flip(rings, ring, r == 0)
+			for i: int in range(ring.size()):
+				var a: Vector2 = ring[i]
+				var b: Vector2 = ring[(i + 1) % ring.size()]
 				var side: Vector2 = (b - a).normalized().orthogonal() * (-1.0 if flip else 1.0)
 				var n: Vector3 = Vector3(side.x, 0.0, side.y)
 				var a1: Vector3 = Vector3(a.x, top, a.y) - origin
@@ -682,6 +687,50 @@ func _triangle(st: SurfaceTool, v0: Vector3, v1: Vector3, v2: Vector3, n: Vector
 
 
 ## True when an edge's left-hand normal points into the solid; decided once per ring.
+## Simple pieces covering a polygon with holes (rings[0] outer, the rest holes). Godot's ear
+## clipper takes no holes, so a vertical cut through each hole splits it before Clipper subtracts it.
+static func fill_pieces(rings: Array) -> Array[PackedVector2Array]:
+	var outer: PackedVector2Array = _open_ring(rings[0])
+	var holes: Array[PackedVector2Array] = []
+	for k: int in range(1, rings.size()):
+		var hole: PackedVector2Array = _open_ring(rings[k])
+		if hole.size() >= 3:
+			holes.append(hole)
+	if holes.is_empty():
+		return [outer]
+	var box: Rect2 = Rect2(outer[0], Vector2.ZERO)
+	for p: Vector2 in outer:
+		box = box.expand(p)
+	box = box.grow(1.0)
+	var xs: Array[float] = [box.position.x, box.end.x]
+	for hole: PackedVector2Array in holes:
+		xs.append(_centroid(hole).x)
+	xs.sort()
+	var out: Array[PackedVector2Array] = []
+	for i: int in range(xs.size() - 1):
+		if xs[i + 1] - xs[i] < 0.001:
+			continue
+		var strip: PackedVector2Array = PackedVector2Array([Vector2(xs[i], box.position.y), Vector2(xs[i + 1], box.position.y),
+			Vector2(xs[i + 1], box.end.y), Vector2(xs[i], box.end.y)])
+		var pieces: Array[PackedVector2Array] = Geometry2D.intersect_polygons(outer, strip)
+		for hole: PackedVector2Array in holes:
+			var next: Array[PackedVector2Array] = []
+			for piece: PackedVector2Array in pieces:
+				next.append_array(Geometry2D.clip_polygons(piece, hole))
+			pieces = next
+		out.append_array(pieces)
+	return out
+
+
+static func _open_ring(flat: Array) -> PackedVector2Array:
+	var ring: PackedVector2Array = PackedVector2Array()
+	for i: int in range(0, flat.size() - 1, 2):
+		ring.append(Vector2(float(flat[i]), float(flat[i + 1])))
+	if ring.size() > 1 and ring[0].is_equal_approx(ring[ring.size() - 1]):
+		ring.remove_at(ring.size() - 1)
+	return ring
+
+
 func _ring_needs_flip(rings: Array, ring: PackedVector2Array, _is_outer: bool) -> bool:
 	for i: int in range(ring.size()):
 		var a: Vector2 = ring[i]
@@ -712,7 +761,7 @@ func _vec3(a: Array) -> Vector3:
 	return Vector3(float(a[0]), float(a[1]), float(a[2]))
 
 
-func _centroid(ring: PackedVector2Array) -> Vector2:
+static func _centroid(ring: PackedVector2Array) -> Vector2:
 	var sum: Vector2 = Vector2.ZERO
 	for p: Vector2 in ring:
 		sum += p
