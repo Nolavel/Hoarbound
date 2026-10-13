@@ -127,6 +127,52 @@ Dynamic reflection and string dispatch are boundary mechanics, not a gameplay pa
 
 `SaveParticipantCapability` is the first production adoption. Existing `get_save_key/get_save_data/load_save_data` providers are adapted at the boundary, while an explicit capability may map different method names. This proves the consumer can stay unchanged when the provider is GDScript, C#, or C++.
 
+### Working example: `SaveParticipantCapability`
+
+A collaborator should think in three steps: publish the owner's public capability once, consume only the capability API, and keep implementation details private.
+
+A GDScript owner can explicitly publish its existing methods:
+
+```gdscript
+SaveParticipantCapability.publish(
+	self,
+	self,
+	&"get_save_key",
+	&"get_save_data",
+	&"load_save_data"
+)
+```
+
+A consumer does not call those implementation methods directly:
+
+```gdscript
+var key: StringName = SaveParticipantCapability.get_key(owner)
+var data: Variant = SaveParticipantCapability.capture(owner)
+SaveParticipantCapability.restore(owner, data as Dictionary)
+```
+
+A C# or C++/Jenova provider may use completely different private method names, for example `stable_id`, `snapshot`, and `restore_snapshot`, and publish them against the same logical operations:
+
+```text
+save_participant
+├── key     -> stable_id
+├── capture -> snapshot
+└── restore -> restore_snapshot
+```
+
+The consumer still uses `SaveParticipantCapability.get_key/capture/restore`; it does not change when the provider language changes.
+
+```text
+TODAY                               AFTER A PROVEN BOTTLENECK
+SaveManager                         SaveManager
+    │                                   │
+SaveParticipantCapability           SaveParticipantCapability
+    │                                   │
+WeatherController.gd                WeatherController.cpp / Jenova
+```
+
+The rule is: **change the implementation behind the capability, not the consumer-facing contract**. Add a new capability only for a real subsystem seam; do not create capability wrappers for every class.
+
 For optimization, Jenova/C++ is a replaceable implementation behind the same contract. The sequence is:
 
 `measured bottleneck -> preserve capability id/operations -> replace implementation -> rerun the same consumer/runtime validation`
