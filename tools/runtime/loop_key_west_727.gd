@@ -367,14 +367,14 @@ func _settle() -> void:
 
 
 ## Waits out a stove act (loading runs on its own presentation clock, lighting on the held flame).
+## The limit is wall clock: the flame must be held LIGHT_SECONDS of real frame time at any frame rate.
 func _while_acting(feed: HeatSourceFeed, max_seconds: float) -> void:
 	var actions: TimeCostedActionSystem = _ctx.get_system(ACTIONS) as TimeCostedActionSystem
-	var left: float = max_seconds
-	while feed.is_acting() and left > 0.0:
+	var deadline: int = Time.get_ticks_msec() + int(max_seconds * 1000.0)
+	while feed.is_acting() and Time.get_ticks_msec() < deadline:
 		if actions.is_active() and not feed._is_lighting():
 			actions.advance_presentation(0.1)
 		await process_frame
-		left -= 0.1
 
 
 func _thermal() -> ThermalManager:
