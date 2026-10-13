@@ -1,0 +1,245 @@
+# Hoarbound — Техническая архитектура
+
+> **АВТОРСКОЕ РЕШЕНИЕ / КАНОНИЧЕСКИЙ ТЕХНИЧЕСКИЙ КОНТРАКТ**
+>
+> Hoarbound **не переходит на полный ECS** как архитектуру всего проекта. ECS / data-oriented подход допускается только локально, в тех подсистемах, где масштаб, профилирование или характер симуляции дают от него конкретную пользу. Это сознательное решение автора, обусловленное жанром: Hoarbound — системный survival от третьего лица, где рядом с игроком существует небольшое число очень сложных физических и интерактивных объектов, а в мире потенциально может быть большое количество более простого состояния.
+>
+> Английская версия: [`ARCHITECTURE.md`](ARCHITECTURE.md). Оба файла должны оставаться смыслово синхронными. При расхождении формулировок последнее явное решение автора имеет приоритет.
+
+Этот документ определяет техническое направление production-кодовой базы. Это не снимок каждой текущей реализации: фактическое состояние систем фиксирует `docs/GDD.md`. Здесь записано, **к какой форме должен двигаться код**.
+
+## 1. Архитектурное направление
+
+Целевая модель:
+
+`Godot Scene / Component Shell -> Domain Core -> Authoritative State -> Presentation`
+
+Плюс локальные data-oriented / ECS-острова только там, где они действительно оправданы.
+
+Проект не должен переписываться вокруг заранее придуманного универсального framework. Существующие production-системы постепенно приводятся к этой модели по мере реальной работы над ними.
+
+## 2. Почему Hoarbound не pure ECS
+
+Главная инженерная проблема Hoarbound — не обновление десятков тысяч однородных gameplay entities. Основная сложность — понятный ownership небольшого числа сложных телесных систем:
+
+- Генри, locomotion и animation;
+- руки, переносимые предметы и физический inventory;
+- contextual interaction и attention;
+- camera;
+- shelter, окна, печь и бытовые действия;
+- survival state;
+- weather и exposure мира;
+- persistence и streaming.
+
+Полный ECS сам по себе не устранит эти проблемы ownership. Он может лишь заменить Node-coupling на entity/component/system-coupling и добавить ещё один мост обратно к Godot scenes, animation, physics и presentation.
+
+Поэтому ECS для Hoarbound — **инструмент**, а не фундамент всей игры.
+
+## 3. Godot-native shell
+
+Godot остаётся runtime-оболочкой для того, что он уже хорошо моделирует:
+
+- scenes и authored world objects;
+- physics bodies, collision и queries;
+- animation и skeleton presentation;
+- rendering и materials;
+- camera nodes;
+- audio emitters;
+- physical props и interactable scene instances;
+- editor-time composition и authoring.
+
+Не следует бороться с движком и пересобирать эти механизмы внутри собственного framework без измеренной причины.
+
+Node должен существовать потому, что участвует в scene/runtime lifecycle, а не просто как контейнер данных. Для состояния и правил, которым не нужен SceneTree ownership, предпочтительны обычные данные, `Resource`, `RefCounted` или небольшие domain-объекты.
+
+## 4. Domain core
+
+Gameplay-решения должны постепенно становиться независимыми от случайной структуры SceneTree.
+
+Хорошие кандидаты для domain logic:
+
+- правила выбора и разрешения interaction;
+- ownership inventory;
+- правила hands / carry transactions;
+- thermal и wetness calculations;
+- fuel и burn state;
+- weather state и exposure evaluation;
+- преобразование save / restore state;
+- persistent world-object state;
+- расчёты route / shelter condition.
+
+Godot shell собирает физические и runtime-факты и исполняет результат. Domain layer решает, что эти факты **значат для gameplay**.
+
+Цель не в функциональной чистоте ради чистоты. Цель — чтобы основные правила можно было понять без прохода по цепочкам scene lookups.
+
+## 5. Один owner на authoritative state
+
+На каждый важный вопрос должен существовать один ясный владелец.
+
+| Вопрос / состояние | Предполагаемый owner |
+|---|---|
+| Что Генри держит? | Hands / carry ownership |
+| Что принадлежит inventory? | Inventory |
+| Thermal / survival state Генри | Survival / thermal domain |
+| Текущая погода | Weather |
+| Что сейчас означает `F` | Interaction intent |
+| Финальный camera transform | Camera pipeline |
+| Persistent state выгруженных объектов | World persistence |
+| Отображение состояния | UI / animation / VFX, но не authoritative owner |
+
+Нельзя допускать, чтобы UI, Player, inventory и world object хранили каждый свою версию одного факта.
+
+Если двум системам нужна одна информация, одна система ею владеет, другая наблюдает или делает запрос.
+
+## 6. Commands и contracts вместо reach-through
+
+Связь между системами должна идти через узкие понятные контракты, а не через знание внутреннего scene tree соседней системы.
+
+Предпочтительны отношения вроде:
+
+`Interaction -> Hands.request_take(item)`
+
+`Interaction -> Locomotion.request_approach(target)`
+
+`World object -> Inventory.try_store(item)`
+
+вместо цепочек:
+
+`get_node(...) -> has_method(...) -> call(...)`
+
+Signals подходят для факта «что-то произошло». Commands / явные методы подходят, когда один owner просит другой owner выполнить действие.
+
+Не следует создавать глобальную event bus только для того, чтобы спрятать зависимости. Зависимости должны оставаться видимыми и направленными.
+
+## 7. Simulation authoritative; presentation derived
+
+Gameplay-state не должен зависеть от того, показывает ли его сейчас animation, UI, shader или particle effect.
+
+Направление:
+
+`authoritative state -> presentation`
+
+а не:
+
+`presentation -> gameplay truth`
+
+Примеры:
+
+- animation может показывать предмет в руке, но Hands решает, держит ли Генри его реально;
+- frost shader показывает иней, но room/window state хранит величину эффекта;
+- HUD показывает survival state, но не владеет им;
+- VFX показывает ветер и снег, но не становится weather model.
+
+## 8. Persistent Entity Identity
+
+Выгрузка scene не должна определять, существует ли persistent world object.
+
+Модель:
+
+`persistent ID -> authoritative state -> loaded scene representation`
+
+Scene может исчезнуть из дерева, но состояние остаётся для save/load и последующего восстановления.
+
+Это особенно важно для:
+
+- doors и windows;
+- shelter repairs;
+- loot и consumed items;
+- fires и fuel;
+- placed objects;
+- world damage;
+- streaming chunks;
+- будущей долгоживущей world simulation.
+
+Нельзя делать lifetime scene instance единственным местом, где хранится история объекта.
+
+## 9. Направление Interaction
+
+Interaction должен двигаться к pipeline с явными ответственностями:
+
+`Sensors -> Candidates -> Attention Resolver -> Interaction Intent -> Executor -> subsystem owner`
+
+Типичные owners: Hands, Locomotion, Inventory и сам world object.
+
+Текущий interaction path не должен бесконечно разрастаться в один компонент, который одновременно владеет targeting, attention, storage, approach, animation, hands, UI semantics и всеми будущими режимами взаимодействия.
+
+Разделять следует по ownership, когда ответственность становится самостоятельной, а не просто потому, что файл стал длинным.
+
+## 10. Направление Camera
+
+У камеры должен быть один финальный owner и один упорядоченный pipeline:
+
+`Player intent -> Base camera target -> Context modifiers -> Collision / occlusion -> Presentation smoothing -> Final camera`
+
+Shoulder state, passage framing, interaction framing, auto-look и похожие механики должны становиться modifiers / inputs этого pipeline, а не независимыми системами, каждая из которых немного двигает камеру.
+
+Несколько подсистем не должны независимо владеть финальным camera transform.
+
+## 11. Локальные ECS / data-oriented острова
+
+ECS / data-oriented структуры допустимо рассматривать там, где задача действительно массовая и однородная, например:
+
+- большие таблицы persistent world state;
+- массовая wildlife / ambient simulation;
+- streaming / LOD bookkeeping;
+- spatial environmental sampling;
+- большое количество footprint / decal metadata;
+- batch processing простых environmental entities;
+- будущие симуляции, где profiling показывает реальную стоимость Node/object overhead.
+
+Они **не являются архитектурой по умолчанию** для:
+
+- Генри;
+- hands и embodied inventory;
+- contextual interaction;
+- camera;
+- физического рюкзака;
+- shelter rituals;
+- уникальных физических props со сложным authored behaviour.
+
+Перед введением ECS-подсистемы нужно назвать конкретную проблему масштаба / производительности / сложности, которую она решает, и описать её мост к production Godot path.
+
+## 12. Никакого speculative framework
+
+Не строить универсальный «Hoarbound framework» под гипотетические будущие системы.
+
+Предпочтительная последовательность:
+
+`конкретная production-проблема -> ясный owner -> маленький устойчивый contract -> второй реальный use case -> generalize при пользе`
+
+Переиспользуемая abstraction обычно должна иметь минимум два реальных production-потребителя, а не оправдываться воображаемой будущей гибкостью.
+
+Избегать:
+
+- generic managers без конкретного state responsibility;
+- compatibility layers, сохраняющих obsolete implementations;
+- wrappers поверх engine-native механизмов без доказанной необходимости;
+- parallel architecture paths для одной и той же gameplay responsibility.
+
+## 13. Политика refactoring
+
+Этот документ задаёт направление, но **не разрешает глобальный rewrite**.
+
+При работе с существующей production-системой:
+
+1. определить owner authoritative state;
+2. найти cross-system reach-through и duplicated state;
+3. сохранить player-facing behaviour, если задача его не меняет;
+4. переносить по одной ответственности к явному contract;
+5. удалять obsolete paths после доказанного replacement;
+6. проверять реальный runtime path.
+
+Не следует останавливать разработку игры ради теоретической архитектурной чистоты. Consolidation должен снижать риск и облегчать следующую работу.
+
+## 14. Что здесь означает коммерчески здоровая архитектура
+
+Цель — не модное название архитектуры. Система считается здоровой, если новый collaborator быстро отвечает:
+
+- кто владеет state?
+- кто имеет право его менять?
+- как другая система просит изменение?
+- что относится к simulation, а что к presentation?
+- что сохраняется после unload scene?
+- какой path production, а какой experimental?
+
+Если ответы ясны, система движется к production shape.
