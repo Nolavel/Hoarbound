@@ -74,6 +74,7 @@ Handover rules:
 - [docs/FUTURE_INTENT.md](docs/FUTURE_INTENT.md) — русскоязычный авторский реестр будущих намерений; это контекст направления, а не backlog и не разрешение на реализацию.
 - [docs/game_design/EXPERIENCE_PILLARS.md](docs/game_design/EXPERIENCE_PILLARS.md) — canonical player-experience contract: emotional loop, danger/comfort relationship, attention density, meaningful friction, embodied interaction, mastery and systemic storytelling.
 - [docs/world/KEY_WEST_DESIGN_DOCTRINE.md](docs/world/KEY_WEST_DESIGN_DOCTRINE.md) — canonical Key West world/level-design contract: real-place-first, frozen-tropical contradiction, survival topology, islands of attention, shelter character and environmental storytelling.
+- [docs/technical/ARCHITECTURE.md](docs/technical/ARCHITECTURE.md) — canonical technical architecture contract; [Russian companion](docs/technical/ARCHITECTURE_RU.md). Full-project ECS is an author-rejected direction; selective ECS/DOD is allowed only where a concrete need justifies it.
 - [CONTRIBUTING_DECOMPOSITION.md](CONTRIBUTING_DECOMPOSITION.md) — правила декомпозиции PRD → Epic → User Story → Task → Subtask.
 - [docs/game_design/VERTICAL_SLICE.md](docs/game_design/VERTICAL_SLICE.md) — текущий scope First Exit A.
 - [docs/art/ART_DIRECTION.md](docs/art/ART_DIRECTION.md) — production visual source of truth. Rendering, materials, assets, lighting and visual experiments must preserve this contract unless the author explicitly changes it.
@@ -85,6 +86,7 @@ The product documents are not optional background reading.
 - Before starting or designing a feature, check `docs/FUTURE_INTENT.md` for relevant author intent. A matching entry provides direction and constraints; it is **not** authorization to implement that future work unless the author separately asks for it. The document is intentionally maintained in Russian.
 - Before changing gameplay, interaction, survival pressure, UI, audio, encounter/content density, player locomotion feel, shelter behaviour, inventory handling, or player-facing pacing, read `docs/game_design/EXPERIENCE_PILLARS.md`.
 - Before changing Key West world generation, building selection, routes, POIs, shelter placement, outdoor traversal, weather exposure, environmental storytelling, or world-content density, read **both** `docs/game_design/EXPERIENCE_PILLARS.md` and `docs/world/KEY_WEST_DESIGN_DOCTRINE.md`.
+- Before structural refactors, new managers, cross-system ownership/dependency changes, persistence-model changes, camera/interaction ownership changes, or any ECS/data-oriented proposal, read `docs/technical/ARCHITECTURE.md`.
 - Before visual production work, also read `docs/art/ART_DIRECTION.md`.
 - If a requested implementation conflicts with a canonical product doctrine, surface the conflict to the author instead of silently weakening or overriding the doctrine.
 - Implementation details may evolve; the intended player experience does not change unless the author explicitly changes the corresponding product document.
@@ -118,6 +120,7 @@ The product documents are not optional background reading.
 
 ## Architecture guardrails
 
+- Full-project ECS is not accepted for Hoarbound. Use selective ECS / data-oriented subsystems only when a concrete scale, profiling, or simulation need justifies them; see `docs/technical/ARCHITECTURE.md`.
 - Player movement, rotation, camera, interaction, and survival components keep separate ownership.
 - Camera feedback may lag aesthetically, but input response must not be delayed by stacked smoothing systems.
 - `IslandTerrain` owns terrain geometry/LOD. Project streaming owns gameplay content chunks.
