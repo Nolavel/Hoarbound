@@ -127,6 +127,52 @@ Dynamic reflection и string dispatch считаются механизмом г
 
 `SaveParticipantCapability` — первая production-реализация правила. Старые providers с `get_save_key/get_save_data/load_save_data` адаптируются на границе, а explicit capability может сопоставить совсем другие имена методов. Поэтому consumer остаётся неизменным независимо от того, написан provider на GDScript, C# или C++.
 
+### Рабочий пример: `SaveParticipantCapability`
+
+Коллаборатору достаточно помнить три шага: один раз опубликовать capability owner-а, дальше обращаться только к публичному capability API, а детали реализации оставить приватными.
+
+GDScript-owner может явно опубликовать свои существующие методы:
+
+```gdscript
+SaveParticipantCapability.publish(
+	self,
+	self,
+	&"get_save_key",
+	&"get_save_data",
+	&"load_save_data"
+)
+```
+
+Consumer не вызывает эти implementation-методы напрямую:
+
+```gdscript
+var key: StringName = SaveParticipantCapability.get_key(owner)
+var data: Variant = SaveParticipantCapability.capture(owner)
+SaveParticipantCapability.restore(owner, data as Dictionary)
+```
+
+C# или C++/Jenova provider может иметь совсем другие приватные имена, например `stable_id`, `snapshot`, `restore_snapshot`, и сопоставить их тем же logical operations:
+
+```text
+save_participant
+├── key     -> stable_id
+├── capture -> snapshot
+└── restore -> restore_snapshot
+```
+
+Consumer всё равно использует `SaveParticipantCapability.get_key/capture/restore`; при смене языка provider-а он не меняется.
+
+```text
+СЕЙЧАС                              ПОСЛЕ ДОКАЗАННОГО BOTTLENECK
+SaveManager                         SaveManager
+    │                                   │
+SaveParticipantCapability           SaveParticipantCapability
+    │                                   │
+WeatherController.gd                WeatherController.cpp / Jenova
+```
+
+Правило: **меняем implementation за capability, а не consumer-facing contract**. Новый capability создаётся только для реальной межсистемной границы; не нужно оборачивать capability каждый класс.
+
 Для оптимизации Jenova/C++ является заменяемой implementation за тем же контрактом. Последовательность:
 
 `измеренный bottleneck -> сохранить capability id/operations -> заменить implementation -> повторить тот же consumer/runtime validation`
