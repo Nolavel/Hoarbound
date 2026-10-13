@@ -2,7 +2,8 @@ name: checks
 
 ## `checks` is the cheap gate on every push and PR: import, input map, filenames.
 ## Test suites run locally until mechanics settle; they churn too fast to gate main.
-## Preview/render jobs run only for a commit tagged with their [marker].
+## Preview/render jobs run only for a commit tagged with their [marker]; the Key West Reality jobs
+## also run on a manual dispatch, to re-check the committed snapshot.
 on:
   push:
     branches: [main, codex, claudeflow]
@@ -47,7 +48,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   key-west-reality:
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
@@ -112,7 +113,7 @@ jobs:
   key-west-reality-fresh:
     ## Zero-setup review path: the committed snapshot exactly as cloned; no unpack, export or
     ## generation (the rebuild/digest job above is the reproducibility check).
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]')
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
