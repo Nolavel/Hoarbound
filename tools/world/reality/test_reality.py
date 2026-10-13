@@ -178,6 +178,45 @@ class Shelter727(unittest.TestCase):
         self.assertAlmostEqual(r.bounds[2] - r.bounds[0], 1.5)
 
 
+class Stems(unittest.TestCase):
+    class _Surface:
+        def ground_at(self, xy):
+            import numpy as np
+            return np.full(len(xy), 1.5)
+
+        class dsm:
+            @staticmethod
+            def window(*_):
+                return None
+
+    class _Clear:
+        def blocked(self, xy):
+            from reality import frame
+            return xy[:, 0] < frame.origin()[0] + 10.0  # a "road" covers local x < 10
+
+    def test_stems_avoid_blocked_ground_and_repeat_exactly(self):
+        import shapely
+        from reality import vegetation, frame
+        oe, on = frame.origin()
+        area = shapely.box(oe, on - 40, oe + 40, on)
+        cfg = {"density_per_100m2": {"scrub": 40.0}, "grid_m": 2.5, "low_vegetation_band_m": [0.3, 2.5],
+               "bare_cell_share": 1.0, "max_clumps_per_feature": 10000}
+        a = vegetation.stem_points(self._Surface(), self._Clear(), area, "scrub", "kw:test", cfg)
+        b = vegetation.stem_points(self._Surface(), self._Clear(), area, "scrub", "kw:test", cfg)
+        self.assertEqual(a, b, "same feature must give the same stems")
+        self.assertGreater(len(a["y"]), 20)
+        self.assertTrue(all(x >= 10.0 for x in a["p"][0::2]), "a stem stands on blocked ground")
+        self.assertIsNone(vegetation.stem_points(self._Surface(), self._Clear(), area, "grass", "kw:test", cfg))
+
+    def test_split_points_by_chunk(self):
+        from reality import vegetation, frame
+        size = frame.chunk_size()
+        mesh = {"kind": "stems", "p": [1.0, 1.0, size + 1.0, 1.0], "y": [0.5, 0.6], "s": [1.0, 1.2], "lidar_low_vegetation_share": 0.0}
+        pieces = vegetation.split_points(mesh)
+        self.assertEqual(sorted(pieces), ["0:0", "1:0"])
+        self.assertEqual(pieces["1:0"]["s"], [1.2])
+
+
 class LibraryUnpack(unittest.TestCase):
     def test_existing_working_copy_is_never_overwritten(self):
         import tempfile

@@ -10,9 +10,48 @@
       "reason": "Owner decision #211: Battery Osceola -> 727 Fort Street is the First Exit route. No single path: the whole neighbourhood between the anchors stays traversable."
     }
   ],
-  "roof_sample_spacing_m": {"corridor": 1.0, "default": 2.0},
-  "terrain_step_m": {"corridor": 1.0, "default": 2.0},
-  "inferred_heights_m": {"fence": 1.5, "wall": 2.0, "retaining_wall": 1.0, "hedge": 1.2, "guard_rail": 0.8, "jersey_barrier": 0.8, "gate": 1.5, "kerb": 0.15, "street_lamp": 6.0, "lighting_tower": 18.0, "traffic_signals": 5.0, "fire_hydrant": 0.8},
+  "roof_sample_spacing_m": {
+    "corridor": 1.0,
+    "default": 2.0
+  },
+  "terrain_step_m": {
+    "corridor": 1.0,
+    "default": 2.0
+  },
+  "inferred_heights_m": {
+    "fence": 1.5,
+    "wall": 2.0,
+    "retaining_wall": 1.0,
+    "hedge": 1.2,
+    "guard_rail": 0.8,
+    "jersey_barrier": 0.8,
+    "gate": 1.5,
+    "kerb": 0.15,
+    "street_lamp": 6.0,
+    "lighting_tower": 18.0,
+    "traffic_signals": 5.0,
+    "fire_hydrant": 0.8
+  },
   "inferred_heights_reason": "Presentation defaults where no source height exists; written to node metadata as inferred, never back into the library.",
-  "pier_width_m_when_line": 2.0
+  "pier_width_m_when_line": 2.0,
+  "shrub_stems": {
+    "description": "Frozen-out shrubs as dead stems poking through the snow. Only inside mapped low-vegetation areas; denser where the 2019 lidar measures shrub height. Densities are presentation choices (inferred), the areas and lidar cells are measured.",
+    "density_per_100m2": {
+      "scrub": 8.0,
+      "mangrove": 5.0,
+      "wetland": 6.0,
+      "wc_herbaceous_wetland": 4.0,
+      "garden": 3.0,
+      "wood": 2.0
+    },
+    "grid_m": 2.5,
+    "low_vegetation_band_m": [
+      0.3,
+      2.5
+    ],
+    "bare_cell_share": 0.25,
+    "max_clumps_per_feature": 2500,
+    "road_margin_m": 0.3,
+    "trunk_step_off_road_m": 0.5
+  }
 }

@@ -3,7 +3,7 @@ extends RefCounted
 ## Builds one Reality Library chunk (editor interchange JSON v2) into a Node3D tree with meshes,
 ## collision and the per-node metadata contract. Editor-time only; never used at runtime.
 
-const GENERATOR_VERSION: String = "kw_chunk_builder.5"
+const GENERATOR_VERSION: String = "kw_chunk_builder.6"
 const GROUPS: Array[String] = ["Terrain", "Buildings", "Roads", "Barriers", "Infrastructure", "Vegetation", "Coastal", "LandUse", "Anchors"]
 const WALL_SINK_M: float = 0.3
 const WIRE_SAG_RATIO: float = 0.015
@@ -14,12 +14,19 @@ const MESH_FLAGS: int = Mesh.ARRAY_FLAG_COMPRESS_ATTRIBUTES
 const TERRAIN_SHADER: Shader = preload("res://shaders/environment/terrain/island_terrain.gdshader")
 ## Lidar crowns narrower than this share of the tree height read as palms (no species in the data).
 const PALM_CROWN_RATIO: float = 0.35
+## Shrub stems lean downwind of the profile's prevailing wind (bearing it blows from).
+const WIND_PROFILE: String = "res://data/world_profiles/key_west_reality.tres"
+const STEM_LEAN_DEG: float = 12.0
 
 var stats: Dictionary = {}
 var _mat: Dictionary = {}
 var _pole_mesh: CylinderMesh
 var _prop_mesh: CylinderMesh
 var _palm_mesh: ArrayMesh
+var _stem_mesh: ArrayMesh
+## Terrain tile of the chunk being built: point features stand on the surface the player sees.
+var _tile: Dictionary = {}
+var _downwind: Vector3 = Vector3.BACK
 var _bare_mesh: ArrayMesh
 var _bare_aabb: AABB
 var _batches: Dictionary = {}
@@ -42,6 +49,7 @@ func _init() -> void:
 	_mat["pole"] = _material(Color(0.33, 0.27, 0.21))
 	_mat["wire"] = _material(Color(0.08, 0.08, 0.08), true)
 	_mat["canopy"] = _material(Color(0.18, 0.38, 0.20))
+	_mat["stem"] = _material(Color(0.33, 0.27, 0.21))
 	_mat["water"] = _material(Color(0.20, 0.38, 0.52), true)
 	_mat["prop"] = _material(Color(0.70, 0.62, 0.20))
 	var terrain: ShaderMaterial = ShaderMaterial.new()
@@ -54,12 +62,19 @@ func _init() -> void:
 	_bare_aabb = _bare_mesh.get_aabb()
 	_pole_mesh = _cylinder(0.12, 0.16, 1.0, _mat["pole"])
 	_prop_mesh = _cylinder(0.15, 0.15, 1.0, _mat["prop"])
+	_stem_mesh = _stem_clump_mesh(_mat["stem"])
+	var profile: Resource = load(WIND_PROFILE)
+	var from_deg: float = float(profile.get("wind_direction_override_deg")) if profile != null else -1.0
+	if from_deg >= 0.0:
+		var to_rad: float = deg_to_rad(from_deg + 180.0)
+		_downwind = Vector3(sin(to_rad), 0.0, -cos(to_rad))  # local frame: +x east, +z south
 
 
 ## Builds the chunk tree. terrain_dir holds the .f32 tiles named in the JSON.
 func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 	stats = {}
 	_batches = {}
+	_tile = {}
 	_collision_faces = PackedVector3Array()
 	_collision_ranges = []
 	_footprints = []
@@ -138,6 +153,8 @@ func _feature(feature: Dictionary) -> Node3D:
 			return _pole(feature, mesh)
 		"tree":
 			return _tree(feature, mesh)
+		"stems":
+			return _stems(feature, mesh)
 		"canopy_mass":
 			return _canopy(feature, mesh)
 		"water":
@@ -407,7 +424,7 @@ func _tree(feature: Dictionary, m: Dictionary) -> Node3D:
 	var p: Array = m["p"]
 	var h: float = float(m["height"])
 	var r: float = float(m["crown_radius"])
-	var base: Vector3 = Vector3(float(p[0]), float(m["base_y"]), float(p[1]))
+	var base: Vector3 = Vector3(float(p[0]), _ground(float(p[0]), float(p[1]), float(m["base_y"])), float(p[1]))
 	var yaw: float = float(abs(hash(String(feature["feature_id"]))) % 628) * 0.01
 	if r < h * PALM_CROWN_RATIO:
 		var s: float = h / KeyWestStreetProps.PALM_BASE_HEIGHT_M
@@ -421,6 +438,56 @@ func _tree(feature: Dictionary, m: Dictionary) -> Node3D:
 		_count("bare_trees")
 	_count("trees")
 	return null
+
+
+## Frozen-out shrub: one clump per exported point, batched; scale comes from the export.
+func _stems(feature: Dictionary, m: Dictionary) -> Node3D:
+	var p: Array = m["p"]
+	var ys: Array = m["y"]
+	var scales: Array = m["s"]
+	var axis: Vector3 = Vector3.UP.cross(_downwind).normalized()
+	for k: int in range(ys.size()):
+		var yaw: float = float(abs(hash("%s:%d" % [feature["feature_id"], k])) % 628) * 0.01
+		var sc: float = float(scales[k])
+		var basis: Basis = Basis(axis, deg_to_rad(STEM_LEAN_DEG)) * Basis(Vector3.UP, yaw).scaled(Vector3.ONE * sc)
+		var x: float = float(p[2 * k])
+		var z: float = float(p[2 * k + 1])
+		_batch(feature, "Stems", _stem_mesh, Transform3D(basis, Vector3(x, _ground(x, z, float(ys[k])), z)))
+		_count("stem_clumps")
+	return null
+
+
+## A clump of thin dead stems about 1 m tall, a few with a side twig (fixed shape; yaw varies).
+func _stem_clump_mesh(material: Material) -> ArrayMesh:
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var stems: Array = [[0.0, 0.0, 1.0, 0.0], [0.09, 1.3, 0.78, 0.16], [0.07, 2.6, 0.62, -0.12], [0.11, 3.9, 0.9, 0.2],
+		[0.05, 5.0, 0.5, -0.18], [0.12, 5.9, 0.7, 0.1]]
+	for stem: Array in stems:
+		var base: Vector3 = Vector3(cos(stem[1]), 0.0, sin(stem[1])) * float(stem[0])
+		var tip: Vector3 = base + Vector3(cos(stem[1]) * float(stem[3]), float(stem[2]), sin(stem[1]) * float(stem[3]))
+		_stick(st, base - Vector3(0.0, 0.25, 0.0), tip, 0.018, 0.004)
+		if float(stem[2]) > 0.7:
+			var fork: Vector3 = base.lerp(tip, 0.6)
+			_stick(st, fork, fork + Vector3(-sin(stem[1]) * 0.18, 0.2, cos(stem[1]) * 0.18), 0.008, 0.003)
+	st.index()
+	var mesh: ArrayMesh = st.commit(null, MESH_FLAGS)
+	mesh.surface_set_material(0, material)
+	return mesh
+
+
+## Tapered three-sided stick from a to b.
+func _stick(st: SurfaceTool, a: Vector3, b: Vector3, r0: float, r1: float) -> void:
+	var dir: Vector3 = (b - a).normalized()
+	var side: Vector3 = dir.cross(Vector3.RIGHT if absf(dir.x) < 0.9 else Vector3.FORWARD).normalized()
+	for i: int in range(3):
+		var a0: float = TAU * i / 3.0
+		var a1: float = TAU * (i + 1) / 3.0
+		var o0: Vector3 = side.rotated(dir, a0)
+		var o1: Vector3 = side.rotated(dir, a1)
+		var n: Vector3 = (o0 + o1).normalized()
+		_triangle(st, a + o0 * r0, a + o1 * r0, b + o1 * r1, n)
+		_triangle(st, a + o0 * r0, b + o1 * r1, b + o0 * r1, n)
 
 
 func _canopy(feature: Dictionary, m: Dictionary) -> Node3D:
@@ -497,6 +564,8 @@ func _terrain(doc: Dictionary, terrain_dir: String) -> Node3D:
 	if heights.size() != n * n:
 		push_error("terrain tile %s has %d samples, expected %d" % [path, heights.size(), n * n])
 		return null
+	var tile_origin: Array = doc["origin_local"]
+	_tile = {"h": heights, "n": n, "step": step, "ox": float(tile_origin[0]), "oz": float(tile_origin[1])}
 	var verts: PackedVector3Array = PackedVector3Array()
 	var normals: PackedVector3Array = PackedVector3Array()
 	var colours: PackedColorArray = PackedColorArray()
@@ -561,6 +630,24 @@ func _terrain(doc: Dictionary, terrain_dir: String) -> Node3D:
 	instance.add_child(body)
 	_count("terrain_tiles")
 	return instance
+
+
+## Bilinear height of the chunk's terrain tile (fallback when the point lies off the tile).
+func _ground(x: float, z: float, fallback: float) -> float:
+	if _tile.is_empty():
+		return fallback
+	var n: int = _tile["n"]
+	var step: float = _tile["step"]
+	var fx: float = (x - float(_tile["ox"])) / step
+	var fz: float = (z - float(_tile["oz"])) / step
+	if fx < 0.0 or fz < 0.0 or fx > n - 1 or fz > n - 1:
+		return fallback
+	var cx: int = mini(int(fx), n - 2)
+	var cz: int = mini(int(fz), n - 2)
+	var h: PackedFloat32Array = _tile["h"]
+	var top: float = lerpf(h[cz * n + cx], h[cz * n + cx + 1], fx - cx)
+	var bottom: float = lerpf(h[(cz + 1) * n + cx], h[(cz + 1) * n + cx + 1], fx - cx)
+	return lerpf(top, bottom, fz - cz)
 
 
 func _terrain_colour(y: float) -> Color:
@@ -686,7 +773,6 @@ func _triangle(st: SurfaceTool, v0: Vector3, v1: Vector3, v2: Vector3, n: Vector
 		st.add_vertex(v)
 
 
-## True when an edge's left-hand normal points into the solid; decided once per ring.
 ## Simple pieces covering a polygon with holes (rings[0] outer, the rest holes). Godot's ear
 ## clipper takes no holes, so a vertical cut through each hole splits it before Clipper subtracts it.
 static func fill_pieces(rings: Array) -> Array[PackedVector2Array]:
@@ -731,6 +817,7 @@ static func _open_ring(flat: Array) -> PackedVector2Array:
 	return ring
 
 
+## True when an edge's left-hand normal points into the solid; decided once per ring.
 func _ring_needs_flip(rings: Array, ring: PackedVector2Array, _is_outer: bool) -> bool:
 	for i: int in range(ring.size()):
 		var a: Vector2 = ring[i]

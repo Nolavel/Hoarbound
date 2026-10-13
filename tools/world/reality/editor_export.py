@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 import numpy as np
 import shapely
 
-from . import PIPELINE_VERSION, config, frame, library, meshing, overrides, paths, receipts, regen
+from . import PIPELINE_VERSION, config, frame, library, meshing, overrides, paths, receipts, regen, vegetation
 
 EXPORT_VERSION = "kw_reality.editor_chunk.v2"
 FAMILIES = ("buildings", "building_parts", "roads", "bridges", "coastal_structures", "barriers", "power", "utilities",
@@ -110,6 +110,7 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
     if bad:
         raise SystemExit("refusing to export: " + "; ".join(bad[:5]))
     s = meshing.Surfaces()
+    clear = vegetation.Clearance(gen["shrub_stems"]["road_margin_m"])
     heights = gen["inferred_heights_m"]
     per_chunk = defaultdict(list)
     wires = defaultdict(list)
@@ -133,17 +134,12 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
             p = plan.get(fid, {"action": "generate"})
             hot = in_corridor(g)
             mesh, sources = _mesh_for(fam, cols["class"][i], cols["subclass"][i], g, fid, attrs, sel, s, gen, heights, hot,
-                                      removed.get(fid, []), severed_area, stats)
+                                      removed.get(fid, []), severed_area, stats, clear)
             if fam == "power" and g.geom_type == "Point":
                 poles[fid] = (g.x, g.y, mesh.get("base_y", 0.0), mesh.get("top_y", 9.0))
-            if chunks and cid not in chunks:
-                continue
-            if cid not in extent_chunks:
-                stats["outside_extent_chunk_not_exported"] += 1
-                continue
             ovs = override_state.get(fid, [])
             role = next((o["params"].get("role") for o in ovs if o["type"] == "landmark_role"), None)
-            per_chunk[cid].append({
+            entry = ({
                 "feature_id": fid, "family": fam, "group": GROUP[fam], "class": cols["class"][i], "subclass": cols["subclass"][i],
                 "name": cols["name"][i], "node_name": library.node_name(fid), "attrs": attrs, "mesh": mesh, "height_sources": sources,
                 "fidelity": "corridor" if hot else "default",
@@ -160,6 +156,15 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
                 },
                 "overrides": ovs, "regen_action": p["action"],
             })
+            ## Stems of one area spread over many chunks; each chunk carries the ones standing in it.
+            pieces = vegetation.split_points(mesh) if mesh.get("kind") == "stems" else {cid: mesh}
+            for pcid, pmesh in sorted(pieces.items()):
+                if chunks and pcid not in chunks:
+                    continue
+                if pcid not in extent_chunks:
+                    stats["outside_extent_chunk_not_exported"] += 1
+                    continue
+                per_chunk[pcid].append(dict(entry, mesh=pmesh))
             stats[f"{fam}"] += 1
     # Wires only between two measured supports (real topology edges); open ends are not drawn.
     tg, tc = library.read_layer("utility_topology")
@@ -225,7 +230,8 @@ def _chunk_box(cx: int, cz: int, size: float):
     return (e0, n0, e1, n1)
 
 
-def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_parts, severed_area, stats) -> tuple[dict, dict]:
+def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_parts, severed_area, stats,
+              clear: vegetation.Clearance) -> tuple[dict, dict]:
     """Mesh-ready geometry + where each height came from."""
     oe, on = frame.origin()
     spacing = gen["roof_sample_spacing_m"]["corridor" if hot else "default"]
@@ -305,10 +311,23 @@ def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_p
         top, src = meshing.pole_top(s, g.x, g.y, ground)
         return {"kind": "pole", "p": _xz([(g.x, g.y)]), "base_y": round(ground, 2), "top_y": top}, {"top": src}
     if fam == "trees" and g.geom_type == "Point":
-        ground = float(s.ground_at(np.array([[g.x, g.y]]))[0])
-        return {"kind": "tree", "p": _xz([(g.x, g.y)]), "base_y": round(ground, 2),
-                "height": float(attrs.get("height_m") or 6.0), "crown_radius": float(attrs.get("crown_radius_m") or 2.5)}, \
-            {"height": "lidar_chm" if attrs.get("height_m") else "inferred_6m"}
+        ## Lidar gives the crown centre; a crown over a street must not plant its trunk in the road.
+        x, y, moved = clear.off_road(g.x, g.y, gen["shrub_stems"]["trunk_step_off_road_m"])
+        stats["tree_trunks_moved_off_road"] += int(moved > 0)
+        ground = float(s.ground_at(np.array([[x, y]]))[0])
+        mesh = {"kind": "tree", "p": _xz([(x, y)]), "base_y": round(ground, 2),
+                "height": float(attrs.get("height_m") or 6.0), "crown_radius": float(attrs.get("crown_radius_m") or 2.5)}
+        sources = {"height": "lidar_chm" if attrs.get("height_m") else "inferred_6m"}
+        if moved > 0:
+            mesh["trunk_moved_m"] = moved
+            sources["position"] = "lidar_crown_centre_moved_to_road_edge"
+        return mesh, sources
+    if fam in ("vegetation_areas", "land_use") and g.geom_type in ("Polygon", "MultiPolygon") \
+            and cls in gen["shrub_stems"]["density_per_100m2"]:
+        stems = vegetation.stem_points(s, clear, g, cls, fid, gen["shrub_stems"])
+        if stems is not None:
+            stats["stem_clumps"] += len(stems["y"])
+            return stems, {"position": "mapped_area + lidar_2019_low_vegetation", "density": "inferred_class_table"}
     if fam == "vegetation_areas" and cls == "lidar_canopy_dense" and g.geom_type == "Polygon":
         ground = float(np.median(s.ground_at(np.asarray(g.exterior.coords)[:, :2])))
         top, src = meshing.deck_height(s, g, ground + 5.0)
