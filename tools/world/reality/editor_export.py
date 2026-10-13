@@ -33,6 +33,10 @@ SEVER_HALF_WIDTH_M = 30.0  # remove_span lines run along the deck; cut the full 
 OUT = paths.REALITY / "derived" / "editor_chunks"
 
 
+## Ground under a ribbon is sampled at least this often, and no segment overhangs its chunk further.
+RIBBON_SAMPLE_M = 32.0
+
+
 def _xz(coords) -> list[float]:
     """Projected coordinate array -> flat local [x0, z0, x1, z1, ...]."""
     oe, on = frame.origin()
@@ -157,7 +161,15 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
                 "overrides": ovs, "regen_action": p["action"],
             })
             ## Stems of one area spread over many chunks; each chunk carries the ones standing in it.
-            pieces = vegetation.split_points(mesh) if mesh.get("kind") == "stems" else {cid: mesh}
+            ## A line lives in every chunk it crosses: a feature owned by one chunk vanished
+            ## along kilometres of its length whenever that one chunk was not loaded.
+            if mesh.get("kind") == "stems":
+                pieces = vegetation.split_points(mesh)
+            elif mesh.get("kind") == "ribbon":
+                pieces = _split_ribbon(mesh)
+                stats["ribbons_split_across_chunks"] += int(len(pieces) > 1)
+            else:
+                pieces = {cid: mesh}
             for pcid, pmesh in sorted(pieces.items()):
                 if chunks and pcid not in chunks:
                     continue
@@ -230,6 +242,26 @@ def _chunk_box(cx: int, cz: int, size: float):
     return (e0, n0, e1, n1)
 
 
+def _split_ribbon(mesh: dict) -> dict[str, dict]:
+    """Ribbon parts cut into runs of consecutive segments that share a chunk (by segment midpoint)."""
+    out: dict[str, list] = defaultdict(list)
+    for part in mesh["parts"]:
+        p, y = part["p"], part["y"]
+        run_cid, run_p, run_y = None, [], []
+        for k in range(len(y) - 1):
+            mx, mz = (p[2 * k] + p[2 * k + 2]) / 2, (p[2 * k + 1] + p[2 * k + 3]) / 2
+            seg_cid = frame.chunk_of_local(mx, mz)
+            if seg_cid != run_cid:
+                if run_cid is not None:
+                    out[run_cid].append({"p": run_p, "y": run_y})
+                run_cid, run_p, run_y = seg_cid, p[2 * k:2 * k + 2], [y[k]]
+            run_p = run_p + p[2 * k + 2:2 * k + 4]
+            run_y = run_y + [y[k + 1]]
+        if run_cid is not None:
+            out[run_cid].append({"p": run_p, "y": run_y})
+    return {c: dict(mesh, parts=parts) for c, parts in out.items()}
+
+
 def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_parts, severed_area, stats,
               clear: vegetation.Clearance) -> tuple[dict, dict]:
     """Mesh-ready geometry + where each height came from."""
@@ -263,7 +295,7 @@ def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_p
             if bridge:
                 xy, ys, src = meshing.deck_profile(s, part, abutments=True)
             else:
-                xy = np.asarray(part.coords)[:, :2]
+                xy = np.asarray(shapely.segmentize(part, RIBBON_SAMPLE_M).coords)[:, :2]
                 ys, src = [round(float(v) + 0.05, 2) for v in s.ground_at(xy)], "dem_6366_plus_5cm"
             parts.append({"p": _xz(xy), "y": ys})
         if removed_parts:

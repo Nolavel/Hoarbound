@@ -341,6 +341,8 @@ func _unstick(pos: Vector3, target: Vector2) -> void:
 		"snow_speed_multiplier": snappedf(float(_mover.get(&"snow_speed_multiplier")), 0.01) if _mover != null else null,
 		"collider": str((slide.get_collider() as Node).get_path()) if slide != null and slide.get_collider() is Node else null,
 		"collision_normal": var_to_str(slide.get_normal()) if slide != null else null})
+	## CI keeps only the log, so every stall is printed with where and what held Henry.
+	print("gate: stuck %s" % JSON.stringify(_stuck[-1]))
 	var space: PhysicsDirectSpaceState3D = _player.get_world_3d().direct_space_state
 	## Indoors the drop ray starts under the 727 ceiling, never on the roof.
 	var top: float = pos.y + 2.5 if not _detour.is_empty() else 80.0

@@ -146,6 +146,19 @@ class Landmarks(unittest.TestCase):
                 self.assertTrue(landmarks._may_write("kw:building:osm:w2"))
 
 
+class RibbonSplit(unittest.TestCase):
+    def test_a_line_lands_in_every_chunk_it_crosses(self):
+        from reality import editor_export, frame
+        size = frame.chunk_size()
+        xs = [10.0, size - 10.0, size + 10.0, 2 * size + 30.0, 2 * size + 60.0]
+        mesh = {"kind": "ribbon", "width": 4.0, "parts": [{"p": [v for x in xs for v in (x, 5.0)], "y": [1.0, 2.0, 3.0, 4.0, 5.0]}]}
+        pieces = editor_export._split_ribbon(mesh)
+        self.assertEqual(sorted(pieces), ["0:0", "1:0", "2:0"])
+        joined = sum(len(part["y"]) for piece in pieces.values() for part in piece["parts"])
+        self.assertEqual(joined, 5 + 2, "each cut repeats its shared vertex once")
+        self.assertEqual(pieces["2:0"]["parts"][0]["y"], [4.0, 5.0])
+
+
 class Shelter727(unittest.TestCase):
     def test_plan_frame_round_trips_and_matches_godot_yaw(self):
         import math
