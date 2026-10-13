@@ -111,7 +111,29 @@ Signals are appropriate for facts that happened. Commands / explicit methods are
 
 Do not introduce a global event bus merely to hide dependencies. Dependencies should remain visible and directional.
 
-## 7. Simulation is authoritative; presentation derives from it
+## 7. Cross-language capability contracts
+
+Hoarbound uses a small Godot-visible capability boundary when a subsystem contract must survive different implementation languages or unrelated Node classes.
+
+The production rule is:
+
+`public capability contract -> Godot Object / Variant boundary -> private GDScript, C#, or C++ implementation`
+
+The runtime mechanism lives under `core/contracts/`. `CapabilityContract` stores a capability descriptor on the existing owner `Object` itself using Godot metadata. A descriptor contains a stable capability id, a provider `Object`, and a logical-operation -> Godot-visible method-name map. Consumers use the capability-specific adapter and do not know the provider's language or concrete class.
+
+This deliberately does **not** add one `Port` child Node per component. A component does not need a capability merely because it exists. Create or publish a capability only when another subsystem needs a stable boundary, when unrelated classes must satisfy the same contract, or when the implementation language may change.
+
+Dynamic reflection and string dispatch are boundary mechanics, not a gameplay pattern. New `has_method()` / string-`call()` protocol checks should not spread through gameplay code; validation and invocation belong inside `core/contracts/` or a language adapter there. Existing duck-typed protocols migrate when their owning system is touched rather than through a global rewrite.
+
+`SaveParticipantCapability` is the first production adoption. Existing `get_save_key/get_save_data/load_save_data` providers are adapted at the boundary, while an explicit capability may map different method names. This proves the consumer can stay unchanged when the provider is GDScript, C#, or C++.
+
+For optimization, Jenova/C++ is a replaceable implementation behind the same contract. The sequence is:
+
+`measured bottleneck -> preserve capability id/operations -> replace implementation -> rerun the same consumer/runtime validation`
+
+Do not introduce C++ merely because it is available, and do not let a C++ migration create a second gameplay architecture.
+
+## 8. Simulation is authoritative; presentation derives from it
 
 Gameplay state must not depend on whether an animation, UI widget, shader or particle effect currently shows that state.
 
@@ -130,7 +152,7 @@ Examples:
 - HUD shows survival state but does not own it;
 - VFX visualizes wind and snow conditions but does not become the weather model.
 
-## 8. Persistent entity identity
+## 9. Persistent entity identity
 
 Streaming scenes must not define whether a persistent world object exists.
 
@@ -153,7 +175,7 @@ This model is particularly important for:
 
 Do not make scene-instance lifetime the only place where durable gameplay history exists.
 
-## 9. Interaction direction
+## 10. Interaction direction
 
 Interaction should move toward a pipeline with explicit responsibilities:
 
@@ -165,7 +187,7 @@ The current interaction implementation must not grow indefinitely into a single 
 
 Split by ownership when responsibilities become independently meaningful, not merely because a file is long.
 
-## 10. Camera direction
+## 11. Camera direction
 
 Camera behaviour should have one final owner and one ordered pipeline:
 
@@ -175,7 +197,7 @@ Shoulder state, passage framing, interaction framing, auto-look and similar beha
 
 Multiple subsystems must not independently own the final camera transform.
 
-## 11. Selective ECS / data-oriented islands
+## 12. Selective ECS / data-oriented islands
 
 ECS / data-oriented structures may be appropriate when the problem is genuinely large and homogeneous, for example:
 
@@ -199,7 +221,7 @@ They are **not** the default architecture for:
 
 Before introducing an ECS-style subsystem, state the concrete scale/performance/complexity problem it solves and how it bridges to the production Godot path.
 
-## 12. No speculative framework
+## 13. No speculative framework
 
 Do not build a universal "Hoarbound framework" in anticipation of hypothetical future systems.
 
@@ -216,7 +238,9 @@ Avoid:
 - wrappers around engine-native mechanisms without a demonstrated need;
 - parallel architecture paths for the same gameplay responsibility.
 
-## 13. Refactoring policy
+The capability layer is intentionally small infrastructure, not permission to manufacture interfaces for every class.
+
+## 14. Refactoring policy
 
 This architecture is a direction, not permission for a global rewrite.
 
@@ -226,12 +250,13 @@ When touching an existing production system:
 2. identify cross-system reach-through and duplicated state;
 3. preserve player-facing behaviour unless the task changes it;
 4. move one responsibility at a time toward an explicit contract;
-5. remove obsolete paths when the replacement is proven;
-6. validate in the real runtime path.
+5. if the seam crosses implementation languages, route it through an existing capability or add the smallest real capability needed;
+6. remove obsolete paths when the replacement is proven;
+7. validate in the real runtime path.
 
 Do not pause product development for theoretical architectural purity. Consolidation should reduce risk and make future work easier.
 
-## 14. What "commercially healthy" means here
+## 15. What "commercially healthy" means here
 
 The target is not a fashionable architecture label. A subsystem is healthy when a collaborator can quickly answer:
 
@@ -241,5 +266,6 @@ The target is not a fashionable architecture label. A subsystem is healthy when 
 - what is simulation and what is presentation?
 - what persists after scene unload?
 - which path is production and which is experimental?
+- if the implementation changes language, which public contract stays stable?
 
 If those answers are clear, the system is moving toward production shape.
