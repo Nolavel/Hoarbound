@@ -53,18 +53,33 @@ The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs
 ## Repository orientation
 
 ```text
-GAME        Hoarbound — third-person systemic survival in frozen Key West.
-TARGET      First Exit A — one 10–15 min bunker -> shelter -> sleep/save loop.
-RUN         Godot 4.8-dev6 .NET -> F5 -> scenes/world/key_west/key_west.tscn.
-GAMEPLAY    scripts/ + production scenes; world/world.gd is the world composition root.
-INTERACT    InteractComponent owns player-side interaction intent and targeting.
-SAVE        SaveManager coordinates persistence; each subsystem keeps ownership of its state.
-EXPERIMENT  scripts/experimental/ is laboratory work, not production by default.
-DELETE      Only obsolete/archived or proven-unreferenced code; experimental does not mean disposable.
-VERIFY      Import/compile -> focused test/runtime proof -> visual/play check when player-facing.
-NEW SYSTEM  Find the owner -> one authoritative state -> small contracts -> no duplicate manager/state.
-ARCH        docs/technical/ARCHITECTURE.md is the canonical technical contract.
-AUTHOR      Product/design canon, scope, architecture-direction changes and main integration need author decision.
+┌─ PRODUCT ───────────────────────────────────────────────────────────────┐
+│ GAME       Hoarbound — third-person systemic survival in frozen Key West.
+│ TARGET     First Exit A — one 10–15 min bunker -> shelter -> sleep/save loop.
+│ RUN        Godot 4.8-dev6 .NET -> F5 -> res://scenes/world/key_west/key_west.tscn.
+└────────────────────────────────────────────────────────────────────────┘
+
+┌─ RUNTIME OWNERSHIP ────────────────────────────────────────────────────┐
+│ GAMEPLAY   scripts/ + core/ + production scenes.
+│ ROOT       world/world.gd is the runtime composition root.
+│ INTERACT   InteractComponent owns player-side interaction intent/targeting.
+│ SAVE       SaveManager coordinates persistence; subsystem state stays owned locally.
+└────────────────────────────────────────────────────────────────────────┘
+
+┌─ CHANGE SAFELY ────────────────────────────────────────────────────────┐
+│ EXPERIMENT scripts/experimental/ is the explicit lab area.
+│            tests/, tools/ and archive/ are support/history unless production references them.
+│ DELETE     Delete only after proving no production, reference or retention dependency.
+│            Archived or experimental does not mean disposable.
+│ VERIFY     Import/compile -> focused test/runtime proof -> visual/play check if player-facing.
+│ NEW SYSTEM Find owner -> one authoritative state -> small contracts -> no duplicate manager/state.
+└────────────────────────────────────────────────────────────────────────┘
+
+┌─ AUTHORITY ────────────────────────────────────────────────────────────┐
+│ ARCH       docs/technical/ARCHITECTURE.md is the canonical technical contract.
+│ AUTHOR     Product/design canon, scope, architecture-direction changes and main integration
+│            require the author's decision.
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 Copyright © 2025–2026 Nolavel. All rights reserved. See [`LICENSE`](LICENSE).
