@@ -224,7 +224,32 @@ The fix belongs in the streamer before any island bake:
 - `pump()` walks only cells in transient states;
 - `scan()` uses a spatial grid instead of every cell.
 
-The sector does not need it.
+**Done (2026-10-14).** Inside `StreamingSystem`, with the public API, the signals, the budgets and the hysteresis
+unchanged:
+- **`pump()`** walks a set of cells in QUEUED, LOADING, READY or ASSEMBLING, kept in `_set_state`. READY cells
+  still activate in registration order.
+- **`scan()`** asks a fixed grid with 256 m buckets. Each cell is filed under every bucket its load band (radius +
+  `load_margin_m`) overlaps, so the player's bucket holds every cell that could load. Live cells outside it are
+  checked for release.
+- **Grid rebuild:** a changed `load_margin_m` rebuilds the grid on the next scan.
+- **Cold cache:** looks up cells by scene path instead of walking every cell.
+
+Measured with `tools/runtime/benchmark_streaming_scale.gd` (new, reproducible): 200 calls each on the owner's laptop
+CPU. Every cell loads an empty scene, so only the bookkeeping is timed. Two runs each; the range is shown.
+
+| Cells | Where | `scan()` before → after | idle `pump()` before → after |
+|---|---|---|---|
+| 523 (Reality today) | off the island | 1.45–2.30 → 0.002–0.006 ms | 0.60–1.09 → 0.003–0.005 ms |
+| 523 | Old Town, 16 cells in | 1.82–2.41 → 0.18–0.31 ms | 0.71–1.21 → 0.003–0.008 ms |
+| 7,803 (island in 128 m clusters) | off the island | 30.3–35.6 → 0.002 ms | 13.4–14.4 → 0.002–0.003 ms |
+| 7,803 | Old Town, 16 cells in | 27.4–29.3 → 0.26–0.29 ms | 12.9–13.4 → 0.003–0.023 ms |
+
+- **Cost no longer grows with island size.** It now depends on the cells near the player. In both versions the same 16
+  cells are active at Old Town.
+- **This CPU vs CI:** the "before" numbers here are about 3× the CI runner's (0.49 / 0.32 ms at 523 cells).
+- **Guard:** `test_streaming` gained a check that walks 400 cells of mixed radii (20 m to 2.5 km) over 120 random
+  positions, including a margin change. After each scan it checks every cell against the bands and the transient and
+  live sets against the states. Removing the margin from the grid makes this check fail.
 
 ### Gate hitch: cause and fix
 

@@ -46,6 +46,38 @@ class RuntimeSource:
 		active.erase(id)
 
 
+## Many cells of mixed radii, for the grid scan and transient-set checks.
+class ScatterSource:
+	extends Node
+
+	var cells: Array = []
+	var active: Dictionary = {}
+
+	func _init() -> void:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 219
+		for i: int in range(400):
+			cells.append({"id": StringName("scatter_%d" % i),
+				"position": Vector3(rng.randf_range(-3000.0, 3000.0), 0.0, rng.randf_range(-3000.0, 3000.0)),
+				"radius": [20.0, 90.0, 362.0, 2500.0][i % 4]})
+
+	func get_stream_chunks() -> Array:
+		return cells
+
+	func activate_stream_chunk(id: StringName, container: Node3D) -> Node3D:
+		var instance := Node3D.new()
+		container.add_child(instance)
+		active[id] = instance
+		return instance
+
+	func deactivate_stream_chunk(id: StringName) -> void:
+		var instance := active.get(id) as Node3D
+		if is_instance_valid(instance):
+			instance.get_parent().remove_child(instance)
+			instance.free()
+		active.erase(id)
+
+
 var _failures: int = 0
 
 
@@ -67,6 +99,7 @@ func _run() -> void:
 	_test_leaving_early_rolls_back_without_instantiating()
 	_test_reset_clears_everything()
 	_test_runtime_source_uses_same_state_machine()
+	_test_grid_scan_matches_the_bands()
 	if _failures > 0:
 		push_error("streaming: %d check(s) failed" % _failures)
 		quit(1)
@@ -438,4 +471,44 @@ func _test_runtime_source_uses_same_state_machine() -> void:
 
 	system.reset()
 	for node: Node in [system, source, player, container]:
+		_dispose(node)
+
+
+## The grid scan must reach exactly the cells a full walk would, and pump() must see every transient cell.
+func _test_grid_scan_matches_the_bands() -> void:
+	var container := Node3D.new()
+	root.add_child(container)
+	var source := ScatterSource.new()
+	root.add_child(source)
+	var system := StreamingSystem.new()
+	system.instantiation_budget_per_frame = 1000
+	root.add_child(system)
+	system.register_runtime_source(source)
+	system.initialize_runtime_only(container, null)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var wrong: Array[String] = []
+	for step: int in range(120):
+		if step == 60:
+			system.load_margin_m = 260.0  # a changed margin must rebuild the grid
+		var at := Vector3(rng.randf_range(-3500.0, 3500.0), 0.0, rng.randf_range(-3500.0, 3500.0))
+		if step % 3 == 0:
+			at = Vector3(rng.randf_range(-40.0, 40.0), 0.0, rng.randf_range(-40.0, 40.0)) + at * 0.1
+		system.scan(at)
+		system.pump()
+		for cell: Dictionary in source.cells:
+			var d: float = Vector2(at.x - cell["position"].x, at.z - cell["position"].z).length()
+			var state: StreamingSystem.CellState = system.get_state(cell["id"])
+			if d <= cell["radius"] + system.load_margin_m and state != StreamingSystem.CellState.ACTIVE:
+				wrong.append("%s not active at step %d" % [cell["id"], step])
+			elif d > cell["radius"] + system.load_margin_m + system.unload_hysteresis_m and state != StreamingSystem.CellState.UNLOADED:
+				wrong.append("%s still in at step %d" % [cell["id"], step])
+		for id: StringName in system._states:
+			var transient: bool = system._states[id] in [StreamingSystem.CellState.QUEUED, StreamingSystem.CellState.LOADING,
+				StreamingSystem.CellState.READY, StreamingSystem.CellState.ASSEMBLING]
+			if transient != system._transient.has(id) or (system._states[id] != StreamingSystem.CellState.UNLOADED) != system._live.has(id):
+				wrong.append("%s bookkeeping out of step at %d" % [id, step])
+	_check(wrong.is_empty(), "grid scan disagrees with the bands: %s" % [wrong.slice(0, 5)])
+	system.reset()
+	for node: Node in [system, source, container]:
 		_dispose(node)

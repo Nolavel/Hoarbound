@@ -36,6 +36,8 @@ signal stage_timed(chunk_id: StringName, stage: StringName, usec: int)
 enum CellState { UNLOADED, QUEUED, LOADING, READY, ACTIVE, ASSEMBLING }
 
 const DEFAULT_WORLD_DATA: String = "res://archive/graciosa/data/world_data.tres"
+## Side of a scan grid bucket, metres. Cells are indexed by load band, so any size is exact.
+const GRID_BUCKET_M: float = 256.0
 
 @export_group("Distance")
 ## Metres added to a chunk's own radius to get its load band.
@@ -93,6 +95,18 @@ var _initialized: bool = false
 var _runtime_only_profile: bool = false
 ## Profile asks for the world under the spawn to exist before the first frame.
 var _prewarm: bool = false
+## Cells in QUEUED, LOADING, READY or ASSEMBLING: the only ones pump() walks.
+var _transient: Dictionary = {}
+## Cells not UNLOADED: the only ones scan() can release outside the grid query.
+var _live: Dictionary = {}
+## Registration order; READY cells activate in it, as the full walk did.
+var _order: Dictionary = {}
+## Spatial grid over load bands: bucket key -> ids whose load band overlaps the bucket.
+var _grid: Dictionary = {}
+## load_margin_m the grid was built with; a changed margin rebuilds it on the next scan.
+var _grid_margin: float = NAN
+## Static cells sharing a content scene path: path -> ids, for the cold cache.
+var _ids_by_path: Dictionary = {}
 
 
 func apply_world_profile(profile: WorldProfile) -> void:
@@ -130,6 +144,8 @@ func initialize(container: Node3D, player: Node3D) -> void:
 	for chunk: ChunkData in _world_data.get_streamable_chunks():
 		_chunks[chunk.id] = chunk
 		_states[chunk.id] = CellState.UNLOADED
+		_index(chunk.id, chunk.position, chunk.radius)
+		(_ids_by_path.get_or_add(chunk.content_scene_path, []) as Array).append(chunk.id)
 	_build_ring0()
 	_build_registered_runtime_ring0()
 	_initialized = true
@@ -227,6 +243,7 @@ func register_runtime_source(source: Node) -> int:
 		}
 		_runtime_sources[id] = source
 		_states[id] = CellState.UNLOADED
+		_index(id, position_variant as Vector3, radius)
 		added += 1
 
 	if _container != null:
@@ -271,21 +288,30 @@ func _process(_delta: float) -> void:
 	scan(position)
 
 
-## Re-evaluates every chunk against the player position. Public so a test can
+## Re-evaluates the chunks near the player and every live one. Public so a test can
 ## place the player anywhere without moving a node.
 func scan(player_position: Vector3) -> void:
 	_known_player_position = player_position
-	for id: StringName in _chunks:
+	if _grid_margin != load_margin_m:
+		_rebuild_grid()
+	var near: Array = _grid.get(_bucket(player_position), [])
+	var seen: Dictionary = {}
+	for id: StringName in near:
+		seen[id] = true
+		_scan_id(id, player_position)
+	## A cell whose load band misses the player's bucket can only need a release.
+	for id: StringName in _live.keys():
+		if not seen.has(id):
+			_scan_id(id, player_position)
+
+
+func _scan_id(id: StringName, player_position: Vector3) -> void:
+	if _chunks.has(id):
 		var chunk: ChunkData = _chunks[id]
 		_scan_one(id, player_position, chunk.position, chunk.radius)
-	for id: StringName in _runtime_chunks:
-		var descriptor: Dictionary = _runtime_chunks[id]
-		_scan_one(
-			id,
-			player_position,
-			descriptor["position"] as Vector3,
-			float(descriptor["radius"])
-		)
+		return
+	var descriptor: Dictionary = _runtime_chunks[id]
+	_scan_one(id, player_position, descriptor["position"] as Vector3, float(descriptor["radius"]))
 
 
 func _scan_one(id: StringName, player_position: Vector3, position: Vector3, radius: float) -> void:
@@ -302,11 +328,15 @@ func pump() -> void:
 	_start_queued_loads()
 	_assemble()
 	var budget: int = instantiation_budget_per_frame
-	for id: StringName in _states:
+	var ready: Array[StringName] = []
+	for id: StringName in _transient:
+		if _states[id] == CellState.READY:
+			ready.append(id)
+	if ready.size() > 1:
+		ready.sort_custom(func(a: StringName, b: StringName) -> bool: return _order[a] < _order[b])
+	for id: StringName in ready:
 		if budget <= 0:
 			break
-		if _states.get(id, CellState.UNLOADED) != CellState.READY:
-			continue
 		if not _is_within_unload_band(id):
 			## The player left while this was loading. Roll back without ever
 			## instantiating; the packed scene stays cached for the next approach.
@@ -346,6 +376,8 @@ func reset() -> void:
 	_packed_cache.clear()
 	_cold_paths.clear()
 	_assembling.clear()
+	_transient.clear()
+	_live.clear()
 	_loads_in_flight = 0
 	_last_scan_position = Vector3(INF, INF, INF)
 
@@ -401,8 +433,8 @@ func _start_queued_loads() -> void:
 	if _loads_in_flight >= max_concurrent_loads:
 		return
 	var queued: Array[StringName] = []
-	for id: StringName in _chunks:
-		if _states.get(id, CellState.UNLOADED) == CellState.QUEUED:
+	for id: StringName in _transient:
+		if _states[id] == CellState.QUEUED and _chunks.has(id):
 			queued.append(id)
 	if queued.is_empty():
 		return
@@ -451,8 +483,8 @@ func _scene_paths(chunk: ChunkData) -> PackedStringArray:
 
 ## Collects finished background loads.
 func _poll_loads() -> void:
-	for id: StringName in _chunks:
-		if _states.get(id, CellState.UNLOADED) != CellState.LOADING:
+	for id: StringName in _transient.keys():
+		if _states[id] != CellState.LOADING or not _chunks.has(id):
 			continue
 		var chunk: ChunkData = _chunks[id]
 		var pending: bool = false
@@ -619,8 +651,15 @@ func _set_state(id: StringName, state: CellState) -> void:
 	if _states.get(id, CellState.UNLOADED) == state:
 		return
 	_states[id] = state
+	if state in [CellState.QUEUED, CellState.LOADING, CellState.READY, CellState.ASSEMBLING]:
+		_transient[id] = true
+	else:
+		_transient.erase(id)
 	if state == CellState.UNLOADED:
+		_live.erase(id)
 		_cool(id)
+	else:
+		_live[id] = true
 	if log_transitions:
 		print("[Streaming] %s -> %s" % [id, CellState.keys()[state]])
 	cell_state_changed.emit(id, state)
@@ -637,17 +676,46 @@ func _cool(id: StringName) -> void:
 		var path: String = _cold_paths.pop_front()
 		if not _path_in_use(path):
 			_packed_cache.erase(path)
-			for other: StringName in _chunks:
-				if (_chunks[other] as ChunkData).content_scene_path == path:
-					for part: String in (_chunks[other] as ChunkData).part_scene_paths:
-						_packed_cache.erase(part)
+			for other: StringName in _ids_by_path.get(path, []):
+				for part: String in (_chunks[other] as ChunkData).part_scene_paths:
+					_packed_cache.erase(part)
 
 
 func _path_in_use(path: String) -> bool:
-	for other: StringName in _chunks:
-		if (_chunks[other] as ChunkData).content_scene_path == path and _states.get(other, CellState.UNLOADED) != CellState.UNLOADED:
+	for other: StringName in _ids_by_path.get(path, []):
+		if _live.has(other):
 			return true
 	return false
+
+
+## Registers a cell's order and adds it to every grid bucket its load band overlaps.
+func _index(id: StringName, position: Vector3, radius: float) -> void:
+	_order[id] = _order.size()
+	if _grid_margin == load_margin_m:
+		_grid_add(id, position, radius)
+
+
+func _rebuild_grid() -> void:
+	_grid.clear()
+	_grid_margin = load_margin_m
+	for id: StringName in _order:
+		if _chunks.has(id):
+			_grid_add(id, (_chunks[id] as ChunkData).position, (_chunks[id] as ChunkData).radius)
+		else:
+			_grid_add(id, _runtime_chunks[id]["position"] as Vector3, float(_runtime_chunks[id]["radius"]))
+
+
+func _grid_add(id: StringName, position: Vector3, radius: float) -> void:
+	var reach: float = radius + load_margin_m
+	var lo: Vector2i = _bucket(position - Vector3(reach, 0.0, reach))
+	var hi: Vector2i = _bucket(position + Vector3(reach, 0.0, reach))
+	for bx: int in range(lo.x, hi.x + 1):
+		for bz: int in range(lo.y, hi.y + 1):
+			(_grid.get_or_add(Vector2i(bx, bz), []) as Array).append(id)
+
+
+func _bucket(position: Vector3) -> Vector2i:
+	return Vector2i(floori(position.x / GRID_BUCKET_M), floori(position.z / GRID_BUCKET_M))
 
 
 ## XZ distance. Chunks are full-height, so height never enters the metric.
