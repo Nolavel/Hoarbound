@@ -1,19 +1,19 @@
 extends SceneTree
-## HLOD visual acceptance in the real Reality scene, calm weather: per camera the runtime frame (near detail, far
-## proxies), the same frame with proxies tinted, and every cluster forced to detail; reports runtime vs all-detail.
+## HLOD visual acceptance in the real Reality scene, calm weather: per camera the runtime frame, the same frame with
+## the runtime tier tint (orange proxy, blue detail), and every cluster forced to detail; reports runtime vs all-detail.
 ## xvfb-run godot --script <this> -- <out_dir>
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const STREAMING: GDScript = preload("res://core/world/streaming_system.gd")
-const HENRY_AT: Vector2 = Vector2(-2560.0, 1024.0)  # sector core
-## name, eye [x, z, y], look [x, z, y] in local metres.
+## name, Henry [x, z], eye [x, z, y], look [x, z, y] in local metres.
 const CAMERAS: Array[Dictionary] = [
-	{"name": "oblique", "eye": [-2200.0, 1420.0, 170.0], "look": [-2620.0, 930.0, 0.0]},
-	{"name": "low_east", "eye": [-2560.0, 1024.0, 35.0], "look": [-2050.0, 900.0, 5.0]},
+	{"name": "oblique", "henry": [-2560.0, 1024.0], "eye": [-2200.0, 1420.0, 170.0], "look": [-2620.0, 930.0, 0.0]},
+	{"name": "low_east", "henry": [-2560.0, 1024.0], "eye": [-2560.0, 1024.0, 35.0], "look": [-2050.0, 900.0, 5.0]},
+	## Entering Old Town from Duval St: near clusters detail, the sector beyond them proxies.
+	{"name": "duval_entry", "henry": [-3000.0, 1250.0], "eye": [-3020.0, 1270.0, 28.0], "look": [-2450.0, 1000.0, 0.0]},
 ]
 const SETTLE_QUIET_FRAMES: int = 10
 const RENDER_FRAMES: int = 6
-const TINT: Color = Color(1.0, 0.45, 0.1)
 
 var _out: String = ""
 var _world: Node3D
@@ -93,16 +93,19 @@ func _process(_delta: float) -> bool:
 					print("hlod tiers: done ", _report)
 					quit(0)
 					return true
-				_phase = "runtime"
+				_place_henry()  # each camera has its own Henry spot, so the streamer settles again
+				_phase = "settle"
 				_frames = 0
+				_quiet = 0
 	return false
 
 
 func _place_henry() -> void:
 	var player: CharacterBody3D = _ctx.player as CharacterBody3D
+	var at: Vector2 = Vector2(float(CAMERAS[_cam]["henry"][0]), float(CAMERAS[_cam]["henry"][1]))
 	var ground: Node = _world.find_child("RealityGround", true, false)
-	var y: float = float(ground.get_height(HENRY_AT.x, HENRY_AT.y)) if ground is KeyWestRealityGround else 0.0
-	player.global_position = Vector3(HENRY_AT.x, y + 1.0, HENRY_AT.y)
+	var y: float = float(ground.get_height(at.x, at.y)) if ground is KeyWestRealityGround else 0.0
+	player.global_position = Vector3(at.x, y + 1.0, at.y)
 	player.velocity = Vector3.ZERO
 	player.reset_physics_interpolation()
 
@@ -122,14 +125,9 @@ func _shot(kind: String) -> void:
 	print("hlod tiers: ", _name(kind))
 
 
+## The runtime debug tint (F3 in a debug build).
 func _tint(on: bool) -> void:
-	var mat: StandardMaterial3D = null
-	if on:
-		mat = StandardMaterial3D.new()
-		mat.albedo_color = TINT
-	for proxy: Node in _hlod.get_children():
-		if proxy is MeshInstance3D:
-			(proxy as MeshInstance3D).material_override = mat
+	_hlod.set_tint_tiers(on)
 
 
 ## Capture-only: every cluster showing its proxy gets its detail scene instead, as before HLOD.
@@ -143,7 +141,10 @@ func _force_detail(on: bool) -> void:
 		return
 	for proxy: Node in _hlod.get_children():
 		var cluster_id: String = String(proxy.get_meta("cluster_id", ""))
+		if proxy.is_queued_for_deletion() or _hlod.representation(cluster_id) != "hlod":
+			continue
 		var detail: Node3D = (load(KeyWestChunkGenerator.cluster_path_of(cluster_id)) as PackedScene).instantiate() as Node3D
+		detail.name = "ForcedDetail_" + cluster_id  # never the streamer's own cell name
 		detail.position = KeyWestChunkBuilder.cluster_centre(cluster_id)
 		_ctx.stream_container.add_child(detail)
 		_forced.append(detail)

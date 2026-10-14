@@ -33,6 +33,7 @@ func _run() -> void:
 	_make_rig()
 	_walk()
 	_check_round_trip()
+	_check_tier_tint()
 	_check_hysteresis()
 	print("hlod: %d pumps checked, %d proxies now, stats %s" % [_checked_pumps, _hlod.proxy_count(), _hlod.stats])
 	if _failures > 0:
@@ -200,6 +201,27 @@ func _check_round_trip() -> void:
 	print("hlod: %d clusters went detail -> hlod and back, %d showed a proxy on the walk" % [trips, hlod_seen])
 	_check(hlod_seen > 0, "no cluster ever showed its proxy")
 	_check(trips > 0, "no cluster made the detail -> HLOD -> detail round trip")
+
+
+## The debug tier tint covers every proxy and every drawn detail cluster, and off restores the materials.
+func _check_tier_tint() -> void:
+	_hlod.set_tint_tiers(true)
+	var tinted: Dictionary = {"hlod": 0, "detail": 0}
+	for cluster_id: String in _hlod.cluster_ids():
+		var rep: String = _hlod.representation(cluster_id)
+		var meshes: Array[Node] = []
+		if rep == "hlod":
+			meshes = [_hlod.get_node(NodePath("HLOD_" + cluster_id))]
+		elif rep == "detail":
+			meshes = _container.get_node(NodePath("Cluster_" + cluster_id)).find_children("*", "MeshInstance3D", true, false)
+		for m: Node in meshes:
+			_check((m as MeshInstance3D).material_override != null, "%s %s mesh %s is not tinted" % [rep, cluster_id, m.name])
+		if not meshes.is_empty():
+			tinted[rep] += 1
+	_check(tinted["hlod"] > 0 and tinted["detail"] > 0, "tint check saw no proxy or no detail cluster: %s" % tinted)
+	_hlod.set_tint_tiers(false)
+	for proxy: Node in _hlod.get_children():
+		_check((proxy as MeshInstance3D).material_override == null, "%s kept its tint" % proxy.name)
 
 
 ## Crossing a cluster's load edge by less than the hysteresis back and forth must not swap that cluster.

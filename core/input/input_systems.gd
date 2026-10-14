@@ -40,6 +40,8 @@ signal interact_released(duration: float)
 signal sleep_cancel_pressed()
 ## Debug map visibility edge; subscribers decide whether the feature is enabled.
 signal dev_map_toggle_pressed()
+## Debug HLOD tier tint edge (F3); only debug builds listen.
+signal hlod_tiers_toggle_pressed()
 ## Debug waypoint edges (F5 next target, F6 teleport); only debug builds listen.
 signal dev_waypoint_next_pressed()
 signal dev_waypoint_teleport_pressed()
@@ -54,6 +56,7 @@ const ACTION_CROUCH: StringName = &"crouch"
 const ACTION_INTERACT: StringName = &"interact"
 const ACTION_SLEEP_CANCEL: StringName = &"sleep_cancel"
 const ACTION_DEV_MAP_TOGGLE: StringName = &"toggle_dev_map"
+const ACTION_HLOD_TIERS_TOGGLE: StringName = &"toggle_hlod_tiers"
 const ACTION_DEV_WAYPOINT_NEXT: StringName = &"dev_waypoint_next"
 const ACTION_DEV_WAYPOINT_TELEPORT: StringName = &"dev_waypoint_teleport"
 const ACTION_LEAN_LEFT: StringName = &"lean_left"
@@ -104,6 +107,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		sleep_cancel_pressed.emit()
 	if _pressed(event, ACTION_DEV_MAP_TOGGLE):
 		dev_map_toggle_pressed.emit()
+	if _pressed(event, ACTION_HLOD_TIERS_TOGGLE):
+		hlod_tiers_toggle_pressed.emit()
 	if _pressed(event, ACTION_DEV_WAYPOINT_NEXT):
 		dev_waypoint_next_pressed.emit()
 	if _pressed(event, ACTION_DEV_WAYPOINT_TELEPORT):

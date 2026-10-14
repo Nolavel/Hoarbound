@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://3d13o2ayiq71"
-valid=false
+uid="uid://damwh4cxtxhv1"
+path="res://.godot/imported/tiers_low_east_tiers.png-3d1f937a5a4346ea81f17ab9dbeab8ef.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
-source_file="res://docs/runtime_previews/key_west_reality_hlod/gpu_2026-10-14/gpu_run2_s3_roof_overview.png"
+source_file="res://docs/runtime_previews/key_west_reality_hlod/gpu_2026-10-14/tiers_low_east_tiers.png"
+dest_files=["res://.godot/imported/tiers_low_east_tiers.png-3d1f937a5a4346ea81f17ab9dbeab8ef.ctex"]
 
 [params]
 

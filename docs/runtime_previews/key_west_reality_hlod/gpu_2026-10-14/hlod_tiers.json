@@ -1,0 +1,27 @@
+{
+ "duval_entry": {
+  "mean_abs_diff": 0.0017,
+  "pixels_off_10pct": 0.0011
+ },
+ "low_east": {
+  "mean_abs_diff": 0.0015,
+  "pixels_off_10pct": 0.0011
+ },
+ "oblique": {
+  "mean_abs_diff": 0.0029,
+  "pixels_off_10pct": 0.0011
+ },
+ "representations_duval_entry": {
+  "detail": 8,
+  "far": 32,
+  "hlod": 24
+ },
+ "representations_low_east": {
+  "detail": 12,
+  "hlod": 52
+ },
+ "representations_oblique": {
+  "detail": 12,
+  "hlod": 52
+ }
+}

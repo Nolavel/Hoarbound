@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bwmfkkkvblo63"
-valid=false
+uid="uid://n28cdobuol3i"
+path="res://.godot/imported/tiers_duval_entry_tiers.png-8715c2d51949ed21115841d932d6db4d.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
-source_file="res://docs/runtime_previews/key_west_reality_hlod/gpu_2026-10-14/gpu_all_detail_run2_s1_street_core.png"
+source_file="res://docs/runtime_previews/key_west_reality_hlod/gpu_2026-10-14/tiers_duval_entry_tiers.png"
+dest_files=["res://.godot/imported/tiers_duval_entry_tiers.png-8715c2d51949ed21115841d932d6db4d.ctex"]
 
 [params]
 

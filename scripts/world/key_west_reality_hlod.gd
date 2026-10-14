@@ -9,6 +9,9 @@ const CHUNK_PREFIX: String = "kw_gen_"
 const DETAIL_PREFIX: String = "kw_bld_"
 ## The chunk's far-view cell (KeyWestRealityFar, 2,500 m band): proxies load while it is in, long before the chunk.
 const FAR_PREFIX: String = "kw_far_"
+## Debug tier tint: proxies (Tier 1) and detail clusters (Tier 0).
+const TINT_PROXY: Color = Color(1.0, 0.45, 0.1)
+const TINT_DETAIL: Color = Color(0.2, 0.55, 1.0)
 
 ## Main-thread cost of one HLOD step (proxy_fetch, proxy_add, proxy_free), only while measure_stages is on.
 signal stage_timed(cluster_id: String, stage: StringName, usec: int)
@@ -30,6 +33,9 @@ var _meshes: Dictionary = {}  # proxy path -> Mesh (null while loading), kept wh
 var _far_in: Dictionary = {}  # "x_z" -> true while the chunk's far cell is ACTIVE
 var _burst_frame: int = -1
 var _burst: int = 0
+var _tint_tiers: bool = false
+var _tint_proxy: StandardMaterial3D
+var _tint_detail: StandardMaterial3D
 
 
 func on_world_ready(context: WorldContext) -> void:
@@ -39,6 +45,9 @@ func on_world_ready(context: WorldContext) -> void:
 		return
 	_streaming.cell_state_changed.connect(_on_cell)
 	sync_with(_streaming)
+	var input_systems: Node = get_node_or_null(^"/root/InputSystems")
+	if OS.is_debug_build() and input_systems != null and input_systems.has_signal(&"hlod_tiers_toggle_pressed"):
+		input_systems.connect(&"hlod_tiers_toggle_pressed", func() -> void: set_tint_tiers(not _tint_tiers))
 
 
 ## Reads the cluster list; false when no HLOD was built.
@@ -94,6 +103,23 @@ func proxy_count() -> int:
 	return _proxies.size()
 
 
+## Debug view: tints every proxy orange and every drawn detail cluster blue; off restores the materials.
+func set_tint_tiers(on: bool) -> void:
+	_tint_tiers = on
+	if on and _tint_proxy == null:
+		_tint_proxy = _flat(TINT_PROXY)
+		_tint_detail = _flat(TINT_DETAIL)
+	for proxy: MeshInstance3D in _proxies.values():
+		proxy.material_override = _tint_proxy if on else null
+	for cluster_id: String in _detail_in:
+		_tint(_detail_node(cluster_id), on)
+	print("HLOD tiers tint: on (orange = proxy, blue = detail)" if on else "HLOD tiers tint: off")
+
+
+func is_tinting_tiers() -> bool:
+	return _tint_tiers
+
+
 func _on_cell(id: StringName, state: StreamingSystem.CellState) -> void:
 	var s: String = String(id)
 	if s.begins_with(FAR_PREFIX):
@@ -140,6 +166,8 @@ func _apply(cluster_id: String) -> void:
 	var detail: Node3D = _detail_node(cluster_id)
 	if detail != null:
 		detail.visible = chunk_in  # a detail cell that beat its chunk in waits; the far mesh still stands in
+		if _tint_tiers and detail_in:
+			_tint(detail, true)
 	var want_proxy: bool = chunk_in and not detail_in
 	if want_proxy and not _proxies.has(cluster_id):
 		var t0: int = Time.get_ticks_usec()
@@ -153,6 +181,8 @@ func _apply(cluster_id: String) -> void:
 		proxy.position = info["centre"]
 		proxy.set_meta("cluster_id", cluster_id)
 		proxy.set_meta("tier", 1)
+		if _tint_tiers:
+			proxy.material_override = _tint_proxy
 		add_child(proxy)
 		_proxies[cluster_id] = proxy
 		stats["to_hlod"] += 1
@@ -170,6 +200,21 @@ func _apply(cluster_id: String) -> void:
 			stats["to_detail"] += 1
 		if measure_stages:
 			stage_timed.emit(cluster_id, &"proxy_free", Time.get_ticks_usec() - t2)
+
+
+func _tint(cluster: Node3D, on: bool) -> void:
+	if cluster == null:
+		return
+	for n: Node in cluster.find_children("*", "MeshInstance3D", true, false):
+		(n as MeshInstance3D).material_override = _tint_detail if on else null
+
+
+func _flat(colour: Color) -> StandardMaterial3D:
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	mat.albedo_color = colour
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	mat.disable_fog = true  # readable through blizzard fog
+	return mat
 
 
 func _count_burst() -> void:

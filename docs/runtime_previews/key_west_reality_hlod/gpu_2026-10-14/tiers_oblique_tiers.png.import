@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://3pninufo8chi"
-valid=false
+uid="uid://bsey4jopc0jvw"
+path="res://.godot/imported/tiers_oblique_tiers.png-90538e53935a18376a400d50c572c0a6.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
-source_file="res://docs/runtime_previews/key_west_reality_hlod/gpu_2026-10-14/gpu_run2_s1_street_core.png"
+source_file="res://docs/runtime_previews/key_west_reality_hlod/gpu_2026-10-14/tiers_oblique_tiers.png"
+dest_files=["res://.godot/imported/tiers_oblique_tiers.png-90538e53935a18376a400d50c572c0a6.ctex"]
 
 [params]
 
