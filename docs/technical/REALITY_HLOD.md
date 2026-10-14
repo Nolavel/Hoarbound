@@ -269,6 +269,47 @@ CPU. Every cell loads an empty scene, so only the bookkeeping is timed. Two runs
   when both the far cell and the chunk are out.
 - **Guard:** the boundary test runs the real far view and fails on any blocking proxy load.
 
+### The 11 ms `attach_part`: it is collision, not node attachment (2026-10-14)
+
+The owner's audit (#219, point C) asked for the 11 ms `attach_part` of `kw_gen_-4_2` to be broken into stages and time
+sliced, after the deadline queue of Godot-Open-World-Database (`batch_processor.gd`, `batch_time_limit_ms`). Measured
+first, with `tools/runtime/measure_attach_parts.gd` (every chunk scene and part on the island, 1,456 scenes):
+
+- `add_child` costs 0.02–0.4 ms per part, so slicing the attach does not help.
+- The cost is the first `instantiate()` of a freshly loaded part. A repeat instantiate of the same part costs 2–3 ms.
+- For a part with a `ConcavePolygonShape3D` (every `Buildings` part), the gap is one collision rebuild.
+  - In debug builds `CollisionShape3D::set_shape` writes its debug colour into a shape whose debug properties were never
+    set (`shape_3d.cpp`, `collision_shape_3d.cpp`, Godot master).
+  - For a concave shape that calls `shape_set_data` again: 4.7–8 ms per `Buildings` part, and 39 ms for the fort chunk
+    `-9_3`.
+  - A repeat `set_shape` costs 0.02 ms.
+  - Release templates compile this out.
+- Island-wide, first instantiate: p99 6.3 ms, max 39.5 ms, 4 scenes over 10 ms. Repeat instantiate: p99 3.5 ms, max 9.7 ms.
+
+**Rejected: warming the shapes on a worker.** `PhysicsServer3DWrapMT` with `run_on_separate_thread = false` (ours) runs
+every call from a non-main thread on the main thread. It queues the call and flushes it at `sync()` or before the next
+direct call (`server_wrap_mt_common.h`, `flush_if_pending`). The rebuild only moved: in the boundary test the next chunk
+root's instantiate took 7–8 ms while 4–5 warm tasks were queued.
+
+The loader's own `set_faces` is queued the same way. A frame that only finishes loading a `Buildings` part takes 15–22 ms,
+85 ms for `-9_3`; a mesh-only part takes 7 ms. That cost exists in release builds too.
+
+| Physics | Buildings instantiate (debug) | Frame that finishes loading a Buildings part |
+|---|---|---|
+| GodotPhysics (current `DEFAULT`) | 9–18 ms, `-9_3` 84 ms | 19–22 ms, `-9_3` 85 ms |
+| Jolt (built in; default for new projects since 4.6) | 2–3 ms | 10–12 ms, `-9_3` 75 ms |
+| GodotPhysics on a separate thread | 0.5–2.6 ms | unchanged: `sync()` waits for the same build every frame |
+
+Jolt builds a mesh shape lazily when it is first used, so a part pays one build instead of two, and a cheaper one.
+
+**Jolt on the full suite:** the same 10 suites fail as on GodotPhysics, with identical messages. They fail on current
+`main` too and are not in CI: `dev_diorama_map`, `door_draft`, `doorway_camera`, `held_fit`, `held_light`,
+`passage_traversal`, `snow_contact_pipeline`, `snow_shell`, `street_props_streaming`, `tps_camera_orbit`.
+
+The fort chunk `-9_3` stays an outlier under either engine. `kw_fort_zachary_taylor.glb` carries two concave
+collision meshes of 43,691 faces in all. The largest generated `Buildings` chunk has 8,466 faces; the island median is
+884. The fix is a simplified collision mesh for the fort, authored in Blender, as a separate asset task.
+
 ## 4. Reproducibility and dirty rebuild
 
 - **Source hash:** `sha256` over the build settings (HLOD build version, chunk builder version, cluster size, snow
