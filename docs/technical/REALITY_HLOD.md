@@ -149,6 +149,48 @@ Reading:
 Raw JSON (before/after, per-group attribution, distance bands, HLOD representation counts) and frames:
 `docs/runtime_previews/key_west_reality_hlod/`.
 
+## 3b. Transition cost and scale (after Codex's review in #219)
+
+`test_key_west_reality_hlod_boundary.gd` (CI, headless) does one real-streamer pump per frame:
+- **Entering the sector from afar:** a proxy burst.
+- **Four passes in and out across one cluster's edges:** the first pass is cold, the later ones warm.
+- **Stage timing:** `StreamingSystem.measure_stages` and `KeyWestRealityHLOD.measure_stages` emit `stage_timed`;
+  off by default.
+
+| Stage | Cost |
+|---|---|
+| proxy fetch / add / free | ≤ 0.1 ms each; a burst of 16 proxies in one frame stays under 1 ms |
+| detail cluster instantiate, first entry (cold) | 2–3.5 ms |
+| detail cluster instantiate, repeat entries | 0.6–1 ms |
+| worst stage in the burst frame | 11 ms: `attach_part` of a non-HLOD chunk (`kw_gen_-4_2`), not HLOD |
+
+Under Vulkan (lavapipe):
+- Main-thread pump time is the same.
+- The first frame of the entry takes ≈ 1 s: pipeline compilation on first use on a software renderer.
+- Later frames take 30–55 ms of rendering whether or not anything swaps.
+
+The test therefore judges frame time headless only.
+
+**The production gate:**
+- **Diagnostics:** the gate now times every stage and prints, for each hitch over 50 ms, the cell changes and stages
+  of 1 ms or more in the 3 frames before it, plus the HLOD counters.
+- **A/B:** `--no-hlod` removes only the proxies, for an A/B on one commit. A manual (`workflow_dispatch`) CI step runs
+  it.
+
+**Streamer scale is the blocker for widening.** Bookkeeping cost with nothing in band (`scan()` runs every 40 m,
+`pump()` every frame):
+
+| Cells | `scan()` | idle `pump()` |
+|---|---|---|
+| 523 (today: 459 chunks + 64 clusters) | 0.49 ms | 0.32 ms |
+| 7,759 (island in 128 m clusters) | 10.2 ms | 7.8 ms |
+
+The fix belongs in the streamer before any island bake:
+- `pump()` walks only cells in transient states;
+- `scan()` uses a spatial grid instead of every cell.
+
+The sector does not need it.
+
 ## 4. Reproducibility and dirty rebuild
 
 - **Source hash:** `sha256` over the build settings (HLOD build version, chunk builder version, cluster size, snow

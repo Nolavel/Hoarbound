@@ -1,7 +1,7 @@
 extends SceneTree
 ## Production gate: the real World (Henry, camera, snow, weather, streaming) on generated chunks.
 ## Henry walks the First Exit + Old Town route by input; frame, streaming, memory, errors are logged.
-## godot --path . --script res://tools/runtime/gate_key_west_reality.gd -- [--fast] [--legs=N] [--out=DIR] [--shots]
+## godot --path . --script res://tools/runtime/gate_key_west_reality.gd -- [--fast] [--legs=N] [--out=DIR] [--shots] [--no-hlod]
 
 const DEFAULT_SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const ROUTE: String = "res://data/world/key_west/reality/routes/first_exit_gate.json"
@@ -215,6 +215,16 @@ func _bind() -> bool:
 				system.process_mode = Node.PROCESS_MODE_DISABLED
 				print("gate: diagnosis disabled ", path)
 	_streaming.cell_state_changed.connect(_on_cell)
+	_streaming.measure_stages = true
+	_streaming.stage_timed.connect(_on_stage)
+	var hlod: Node = get_root().find_child("HLODView", true, false)
+	if hlod is KeyWestRealityHLOD:
+		if OS.get_cmdline_user_args().has("--no-hlod"):
+			hlod.queue_free()  # A/B: detail cells still stream, proxies never appear
+			print("gate: HLOD view removed for A/B (--no-hlod)")
+		else:
+			(hlod as KeyWestRealityHLOD).measure_stages = true
+			(hlod as KeyWestRealityHLOD).stage_timed.connect(func(id: String, stage: StringName, usec: int) -> void: _on_stage(StringName(id), stage, usec))
 	_last_pos = _player.global_position
 	_window_from = _last_pos
 	print("gate: bound after %.2f s; spawn %s; route %.0f m, %d legs" % [(Time.get_ticks_usec() - _t0) / 1e6, _last_pos,
@@ -413,6 +423,15 @@ func _finish() -> void:
 	print("gate: hlod ", JSON.stringify(_hlod_stats()))
 	print("gate: verdict ", JSON.stringify(report["verdict"]))
 	quit(0 if not report["verdict"].values().has(false) else 1)
+
+
+## Streaming and HLOD stages of 1 ms or more go into the frame's log next to the state changes.
+func _on_stage(id: StringName, stage: StringName, usec: int) -> void:
+	if usec < 1000:
+		return
+	var changes: PackedStringArray = _cell_log.get(_frames.size(), PackedStringArray())
+	changes.append("%s:%s:%.1fms" % [id, stage, usec / 1000.0])
+	_cell_log[_frames.size()] = changes
 
 
 ## Cell state changes in the 3 frames up to frame f.

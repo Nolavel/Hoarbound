@@ -8,8 +8,14 @@ const MANIFEST_PATH: String = "res://scenes/world/key_west/generated/hlod/hlod_m
 const CHUNK_PREFIX: String = "kw_gen_"
 const DETAIL_PREFIX: String = "kw_bld_"
 
-## Swap counts and blocking proxy loads, for the measurement tools and tests.
-var stats: Dictionary = {"to_detail": 0, "to_hlod": 0, "sync_loads": 0}
+## Main-thread cost of one HLOD step (proxy_fetch, proxy_add, proxy_free), only while measure_stages is on.
+signal stage_timed(cluster_id: String, stage: StringName, usec: int)
+
+## Emits stage_timed and tracks proxies created per frame; for gates and stress tests.
+@export var measure_stages: bool = false
+
+## Swap counts, blocking proxy loads and the largest burst of proxies created in one frame.
+var stats: Dictionary = {"to_detail": 0, "to_hlod": 0, "sync_loads": 0, "max_proxies_per_frame": 0}
 
 var _streaming: StreamingSystem
 var _container: Node3D
@@ -19,6 +25,8 @@ var _chunk_in: Dictionary = {}  # "x_z" -> true while ACTIVE or ASSEMBLING (terr
 var _detail_in: Dictionary = {}  # cluster id -> true while its detail cell is ACTIVE
 var _proxies: Dictionary = {}  # cluster id -> MeshInstance3D
 var _meshes: Dictionary = {}  # proxy path -> Mesh, kept while its chunk is on its way in or in
+var _burst_frame: int = -1
+var _burst: int = 0
 
 
 func on_world_ready(context: WorldContext) -> void:
@@ -120,9 +128,11 @@ func _apply(cluster_id: String) -> void:
 		detail.visible = chunk_in  # a detail cell that beat its chunk in waits; the far mesh still stands in
 	var want_proxy: bool = chunk_in and not detail_in
 	if want_proxy and not _proxies.has(cluster_id):
+		var t0: int = Time.get_ticks_usec()
 		var mesh: Mesh = _mesh(info["proxy"])
 		if mesh == null:
 			return
+		var t1: int = Time.get_ticks_usec()
 		var proxy: MeshInstance3D = MeshInstance3D.new()
 		proxy.name = "HLOD_" + cluster_id
 		proxy.mesh = mesh
@@ -132,13 +142,27 @@ func _apply(cluster_id: String) -> void:
 		add_child(proxy)
 		_proxies[cluster_id] = proxy
 		stats["to_hlod"] += 1
+		_count_burst()
+		if measure_stages:
+			stage_timed.emit(cluster_id, &"proxy_fetch", t1 - t0)
+			stage_timed.emit(cluster_id, &"proxy_add", Time.get_ticks_usec() - t1)
 	elif not want_proxy and _proxies.has(cluster_id):
+		var t2: int = Time.get_ticks_usec()
 		var proxy: Node = _proxies[cluster_id]
 		_proxies.erase(cluster_id)
 		remove_child(proxy)
 		proxy.queue_free()
 		if detail_in:
 			stats["to_detail"] += 1
+		if measure_stages:
+			stage_timed.emit(cluster_id, &"proxy_free", Time.get_ticks_usec() - t2)
+
+
+func _count_burst() -> void:
+	var frame: int = Engine.get_process_frames()
+	_burst = _burst + 1 if frame == _burst_frame else 1
+	_burst_frame = frame
+	stats["max_proxies_per_frame"] = maxi(int(stats["max_proxies_per_frame"]), _burst)
 
 
 func _detail_node(cluster_id: String) -> Node3D:

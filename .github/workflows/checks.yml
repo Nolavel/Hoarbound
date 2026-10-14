@@ -109,7 +109,7 @@ jobs:
 
       - name: Streaming tests
         run: |
-          for t in test_streaming test_key_west_reality_ground test_key_west_reality_hlod; do
+          for t in test_streaming test_key_west_reality_ground test_key_west_reality_hlod test_key_west_reality_hlod_boundary; do
             timeout 300 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script res://tests/systems/$t.gd | tee $t.log
             grep -q "all checks passed" $t.log
           done
@@ -124,6 +124,14 @@ jobs:
           timeout 2700 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
             --script res://tools/runtime/gate_key_west_reality.gd -- --fast --out=res://docs/runtime_previews/key_west_reality_gate
           python3 -c "import json,sys; v=json.load(open('docs/runtime_previews/key_west_reality_gate/gate_report.json'))['verdict']; print(v); sys.exit(0 if all(v.values()) else 1)"
+
+      - name: Production gate A/B without HLOD proxies (diagnostic, manual runs only)
+        ## Same gate with the HLOD view removed (detail cells still stream); compare its hitch lines with the gate above.
+        if: always() && github.event_name == 'workflow_dispatch'
+        continue-on-error: true
+        run: |
+          timeout 2700 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
+            --script res://tools/runtime/gate_key_west_reality.gd -- --fast --no-hlod --out=res://docs/runtime_previews/key_west_reality_gate_no_hlod | grep "gate:" | grep -v PerfJSON
 
       - name: Upload reality reports
         if: always()
