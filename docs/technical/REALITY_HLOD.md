@@ -1,6 +1,6 @@
 # Key West Reality: HLOD v1 (Tier 0 detail ↔ Tier 1 proxy clusters)
 
-Status: v1 prototype on one dense sector, 2026-10-14. Tracking issue: Nolavel/Hoarbound#219.
+Status: v1 on one dense sector, CI green (run 744), 2026-10-14. Tracking issue: Nolavel/Hoarbound#219.
 Scope from the owner's brief:
 - Tier 0 is the existing detail; Tier 1 is offline proxy clusters; there is no Tier 2 work.
 - Static opaque buildings only, in one sector.
@@ -190,6 +190,24 @@ The fix belongs in the streamer before any island bake:
 - `scan()` uses a spatial grid instead of every cell.
 
 The sector does not need it.
+
+### Gate hitch: cause and fix
+
+| Run | HLOD proxies | Hitches over 50 ms | Blocking proxy loads |
+|---|---|---|---|
+| 736 (before HLOD) | – | 0 | – |
+| 737, 740 (88871cf2, faddde21) | on | gate failed | not visible (log tail) |
+| 740 A/B (same commit) | off | 0 | – |
+| local, 2 cores like the runner | on | one hitch at the moment of a wait | 3 |
+| 742 | on | 0 | 0 |
+| 744 (8a752355, fix) | on | 0, gate passed | 0 |
+| 744 A/B | off | 1 (51.4 ms near 727, no cell change in 3 frames: runner noise, as in run 721) | – |
+
+- **Cause:** proxy loads were requested when the chunk queued and waited behind its heavy part scenes. When the chunk
+  started assembling, `load_threaded_get` blocked the main thread for the proxies still in the queue.
+- **Fix:** proxies start loading when the chunk's far cell (2,500 m) is in, about 2 km earlier. They are released only
+  when both the far cell and the chunk are out.
+- **Guard:** the boundary test runs the real far view and fails on any blocking proxy load.
 
 ## 4. Reproducibility and dirty rebuild
 
