@@ -29,6 +29,7 @@ func _process(_delta: float) -> bool:
 func _run() -> void:
 	_check_build()
 	_check_dirty_isolation()
+	_check_far_view_after_prewarm()
 	_make_rig()
 	_walk()
 	_check_round_trip()
@@ -90,6 +91,39 @@ func _check_dirty_isolation() -> void:
 			changed.append(cluster_id)
 	_check(changed == PackedStringArray([target]), "editing one building in %s dirtied %s" % [target, changed])
 	_check(KeyWestHLODBuilder.new().status().values().all(func(st: String) -> bool: return st == "fresh"), "the committed HLOD is not fresh")
+
+
+## Chunks the streamer prewarmed before the far view connected must still hide their far meshes (727 door bug).
+func _check_far_view_after_prewarm() -> void:
+	var container: Node3D = Node3D.new()
+	root.add_child(container)
+	var player: Node3D = Node3D.new()
+	player.position = Vector3(-3531.0, 0.0, 1582.0)  # 727 Fort St
+	root.add_child(player)
+	var system: StreamingSystem = StreamingSystem.new()
+	system.world_data_path = WORLD_DATA
+	root.add_child(system)
+	system.initialize(container, player)
+	system.prewarm(player.position)
+	var context: WorldContext = WorldContext.new()
+	context.systems = [system]
+	context.stream_container = container
+	var far: KeyWestRealityFar = KeyWestRealityFar.new()
+	root.add_child(far)
+	far.on_world_ready(context)
+	system.instantiation_budget_per_frame = 1000
+	system.scan(player.position)
+	system.pump()
+	var checked: int = 0
+	for id: StringName in system.get_active_chunks():
+		var far_node: Node3D = far.get_node_or_null(NodePath("Far_" + String(id).trim_prefix("kw_gen_"))) as Node3D
+		if String(id).begins_with("kw_gen_") and far_node != null:
+			checked += 1
+			_check(not far_node.visible, "far mesh of prewarmed %s draws over its detail" % id)
+	_check(checked > 0, "no prewarmed chunk had a far mesh to check")
+	system.reset()
+	for n: Node in [far, system, player, container]:
+		n.free()
 
 
 func _make_rig() -> void:

@@ -23,7 +23,15 @@ func on_world_ready(context: WorldContext) -> void:
 		push_warning("KeyWestRealityFar: no StreamingSystem; far view is off")
 		return
 	_streaming.cell_state_changed.connect(_on_cell_state_changed)
+	sync_with(_streaming)
 	_streaming.register_runtime_source(self)
+
+
+## Picks up detailed chunks the streamer made live before this node connected (boot prewarm).
+func sync_with(streaming: StreamingSystem) -> void:
+	for descriptor: Dictionary in get_stream_chunks():
+		var cell: String = String(descriptor["id"]).trim_prefix(FAR_PREFIX)
+		_on_cell_state_changed(StringName(NEAR_PREFIX + cell), streaming.get_state(StringName(NEAR_PREFIX + cell)))
 
 
 ## Runtime source contract (StreamingSystem.register_runtime_source).
