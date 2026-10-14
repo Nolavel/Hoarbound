@@ -66,7 +66,7 @@ def run() -> dict:
             "y": round(float(attrs.get("ground_elevation_m", 0.0) or 0.0), 2),
             "h": round(float(attrs.get("height_m", 0.0) or 0.0), 2), "levels": attrs.get("levels"),
             "use": attrs.get("primary_occupancy") or attrs.get("building_use_group") or "",
-            "addr_src": src, "generated": fid not in removed,
+            "addr_src": src, "generated": fid not in removed, "gh": cols["geometry_hash"][i],
             "ring": [v for xy in list(poly.exterior.coords)[:-1] for v in (round(xy[0], 1), round(xy[1], 1))],
         })
     out.sort(key=lambda b: b["id"])

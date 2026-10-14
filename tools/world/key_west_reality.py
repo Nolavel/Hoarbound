@@ -15,6 +15,7 @@
   traversal-check             no generated collider on a mapped road, path or footway
   export-editor               per-chunk editor interchange for the Godot editor generator
   editor-index                search index (address, size, footprint) for the Godot Reality editor dock
+  blender-shell --feature-id  one building's measured shell (glTF) and sizes for modelling in Blender
   all                         acquire -> extent -> acquire (extent-bound) -> build -> validate -> report -> preview
 
 Needs: pyarrow, pyogrio, shapely, pyproj, rasterio, laspy[lazrs], numpy, Pillow.
@@ -99,6 +100,11 @@ def main() -> None:
     elif args.command == "landmarks":
         from reality import landmarks
         landmarks.run()
+    elif args.command == "blender-shell":
+        from reality import blender_shell
+        if not args.feature_id:
+            parser.error("blender-shell needs --feature-id")
+        blender_shell.run(args.feature_id)
     elif args.command == "editor-index":
         from reality import editor_index
         editor_index.run()

@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 import numpy as np
 import shapely
 
-from . import PIPELINE_VERSION, config, frame, library, meshing, overrides, paths, receipts, regen, traversal, vegetation
+from . import PIPELINE_VERSION, config, edits, frame, library, meshing, overrides, paths, receipts, regen, traversal, vegetation
 
 EXPORT_VERSION = "kw_reality.editor_chunk.v2"
 FAMILIES = ("buildings", "building_parts", "roads", "bridges", "coastal_structures", "barriers", "power", "utilities",
@@ -114,6 +114,13 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
     bad = regen.violations(plan)
     if bad:
         raise SystemExit("refusing to export: " + "; ".join(bad[:5]))
+    edit_records = edits.load()
+    edit_errors, edit_warnings = edits.check(edit_records, hashes)
+    if edit_errors:
+        raise SystemExit("refusing to export, edit layer: " + "; ".join(edit_errors[:5]))
+    for w in edit_warnings:
+        print("edit layer:", w)
+    base_edits = edits.base_plan(edit_records)
     s = meshing.Surfaces()
     clear = vegetation.Clearance(gen["shrub_stems"]["road_margin_m"])
     landmarks = {o["target_feature_id"] for o in ov["features"] if o["override_type"] == "landmark_role" and o.get("target_feature_id")}
@@ -145,6 +152,14 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
         for i, g in enumerate(geoms):
             cid = cols["chunk_id"][i]
             fid = cols["feature_id"][i]
+            edit = base_edits.get(fid)
+            if edit is not None and edit["op"] == "remove":
+                stats["edit_removed"] += 1
+                continue
+            if edit is not None:
+                g = edits.moved(g, edit)
+                cid = frame.chunk_of_projected_geom(g)
+                stats["edit_moved"] += 1
             if chunks and cid not in chunks and fam != "power" and not reach.intersects(g):
                 continue
             attrs = {k: v for k, v in json.loads(cols["attrs_json"][i]).items() if k in KEEP_ATTRS}
@@ -210,6 +225,7 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
                            "a": [round(pa[0] - oe, 2), round(pa[2] + pa[3] - 0.4, 2), round(on - pa[1], 2)],
                            "b": [round(pb[0] - oe, 2), round(pb[2] + pb[3] - 0.4, 2), round(on - pb[1], 2)]})
         stats["wires"] += 1
+    layer_edits = edits.layered(edit_records)
     OUT.mkdir(parents=True, exist_ok=True)
     stamp = receipts.now_utc()
     written = sorted(set(per_chunk) | set(chunks or []))
@@ -243,6 +259,9 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
                "anchors": [{"name": c["name"], "points": c["anchors"]} for c in corr],
                "custom_structures": custom, "wires": wires.get(cid, []),
                "features": sorted(per_chunk.get(cid, []), key=lambda f: f["feature_id"])}
+        here = [e for e in layer_edits if e["chunk"] == cid]
+        if here:
+            doc["layer_edits"] = here  # winter, loot and story layers ride along for the runtime
         (OUT / f"chunk_{cx}_{cz}.json").write_text(json.dumps(doc, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
     manifest = {"schema": "kw_reality.editor_export_manifest.v1", "exported_at": stamp, "export_version": EXPORT_VERSION,
                 "route_chunks": sorted(route_chunks), "chunks": written, "stats": dict(stats), "seconds": round(time.time() - t0, 1)}

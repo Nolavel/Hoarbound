@@ -13,6 +13,7 @@ var _failures: int = 0
 func _initialize() -> void:
 	_check_index()
 	_check_view()
+	_check_edit_store()
 	if _failures > 0:
 		push_error("reality editor: %d check(s) failed" % _failures)
 		quit(1)
@@ -63,6 +64,21 @@ func _check_view() -> void:
 	view.step()
 	_check(not view.loaded_cells().has(KeyWestRealityEditorView.cell_of(at)), "detail stayed after the focus moved away")
 	_check(far_727 is MeshInstance3D and (far_727 as MeshInstance3D).visible, "the far mesh did not come back")
+
+
+## Edit records round-trip through per-chunk files; an emptied chunk file is removed.
+func _check_edit_store() -> void:
+	var dir: String = "user://reality_edit_store_test"
+	var store: RealityEditStore = RealityEditStore.new()
+	store.edits_dir = dir
+	_check(store.is_valid_layer("loot:run_two") and not store.is_valid_layer("summer"), "layer rule accepts or rejects the wrong names")
+	var edit: Dictionary = RealityEditStore.new_edit("remove", "winter", ID_727, "-7:3", "0dd2302a87ac3b35")
+	_check(store.add_edit(edit) == OK, "could not write the edit file")
+	var again: RealityEditStore = RealityEditStore.new()
+	again.edits_dir = dir
+	_check(again.load_all() == 1 and again.edits_for(ID_727).size() == 1, "the edit did not come back from its file")
+	_check(FileAccess.file_exists(dir.path_join("edits_-7_3.json")), "edits are not filed per chunk")
+	_check(again.remove_edit(edit["edit_id"]) and not FileAccess.file_exists(dir.path_join("edits_-7_3.json")), "dropping the last edit left its file")
 
 
 func _check(condition: bool, message: String) -> void:

@@ -369,8 +369,12 @@ def _skirt(ring: np.ndarray, top: np.ndarray, bottom: np.ndarray, centre, y0: fl
     return _mesh(out)
 
 
-def _write_glb(path, nodes: list[dict], version: str) -> None:
-    """Minimal glTF 2.0 binary: one mesh per node, one primitive per surface, PBR base colours."""
+def _write_glb(path, nodes: list[dict], version: str, materials: dict | None = None) -> None:
+    """Minimal glTF 2.0 binary: one mesh per node, one primitive per surface, PBR base colours.
+
+    A node's optional "extras" dict lands in the glTF node extras (Blender shows them as custom properties).
+    """
+    materials = materials or MATERIALS
     names = sorted({sf["material"] for n in nodes for sf in n["surfaces"]})
     blob, views, accessors, meshes = bytearray(), [], [], []
 
@@ -399,10 +403,11 @@ def _write_glb(path, nodes: list[dict], version: str) -> None:
         meshes.append({"name": n["name"], "primitives": prims})
     gltf = {"asset": {"version": "2.0", "generator": f"hoarbound {version}"}, "scene": 0,
             "scenes": [{"nodes": list(range(len(nodes)))}],
-            "nodes": [{"name": n["name"], "mesh": k} for k, n in enumerate(nodes)], "meshes": meshes,
-            "materials": [dict({"name": m, "pbrMetallicRoughness": {"baseColorFactor": list(MATERIALS[m]), "metallicFactor": 0.0,
+            "nodes": [dict({"name": n["name"], "mesh": k}, **({"extras": n["extras"]} if n.get("extras") else {}))
+                      for k, n in enumerate(nodes)], "meshes": meshes,
+            "materials": [dict({"name": m, "pbrMetallicRoughness": {"baseColorFactor": list(materials[m]), "metallicFactor": 0.0,
                                                                      "roughnessFactor": 0.9}},
-                               **({"alphaMode": "BLEND", "doubleSided": True} if MATERIALS[m][3] < 1.0 else {})) for m in names],
+                               **({"alphaMode": "BLEND", "doubleSided": True} if materials[m][3] < 1.0 else {})) for m in names],
             "accessors": accessors, "bufferViews": views, "buffers": [{"byteLength": len(blob)}]}
     js = json.dumps(gltf, separators=(",", ":")).encode()
     js += b" " * (-len(js) % 4)

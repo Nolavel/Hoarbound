@@ -8,6 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Reality edit layer: per-chunk edit records (remove, move) tagged with a data layer (`base`, `winter`, `loot:<set>`, `story:<state>`); only `base` changes the generated world, the rest travel with the chunk export; the Reality dock records them with undo. `blender-shell` writes one building's measured shell (glTF) and sizes for Blender, and a returned model registers at the shell's origin.
 - Reality editor (stage 1, read-only): `key_west_reality_editor.tscn` shows the whole island as far meshes with detail chunks around the 3D editor camera, and the "Reality" dock finds buildings by address, name or id, frames them and identifies the building under the marker or camera; index from `key_west_reality.py editor-index`.
 - Replaced the rejected Jenova experiment with the production GDExtension/godot-cpp path: portable core, real controller adapter, checksum-verified three-platform CI artifact and local installer.
 - Added the Quick Access HUD, its 3D anchor rig and supporting UI shader material.

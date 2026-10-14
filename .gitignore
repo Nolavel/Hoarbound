@@ -61,3 +61,6 @@ data/world/key_west/reality/library/*.gpkg
 data/world/key_west/reality/library/*.part
 # The generated Reality snapshot is committed (zero-setup review); only the timestamped report is not.
 scenes/world/key_west/generated/generation_report.json
+
+# Blender shells: regenerable with `key_west_reality.py blender-shell --feature-id ...`
+data/world/key_west/reality/authoring/blender/

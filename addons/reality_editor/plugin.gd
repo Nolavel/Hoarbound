@@ -13,6 +13,7 @@ var _since: float = 0.0
 
 func _enter_tree() -> void:
 	_dock = RealityEditorDock.new()
+	_dock.undo_redo = get_undo_redo()
 	add_control_to_dock(EditorPlugin.DOCK_SLOT_RIGHT_UL, _dock)
 
 

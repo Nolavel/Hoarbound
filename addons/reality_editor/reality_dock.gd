@@ -1,16 +1,23 @@
 @tool
 class_name RealityEditorDock
 extends VBoxContainer
-## Reality editor dock: search buildings by address, name or id, move the focus marker there,
-## identify the building under the marker or the editor camera. Reads data; writes nothing.
+## Reality editor dock: find buildings by address, name or id, frame them, identify the one under
+## the marker or camera, and record edit-layer changes (undoable); generated scenes stay untouched.
 
 const EDITOR_SCENE: String = "res://scenes/world/key_west/key_west_reality_editor.tscn"
 const MARKER_NAME: String = "FocusMarker"
 ## Height of the camera-ray plane used to identify buildings (local metres, NAVD88).
 const PICK_PLANE_Y: float = 2.0
 
+## Set by the plugin; edit-layer changes go through it so Ctrl+Z undoes them.
+var undo_redo: EditorUndoRedoManager
+
 var _index: RealityIndex = RealityIndex.new()
+var _store: RealityEditStore = RealityEditStore.new()
 var _results: Array = []
+var _current: Dictionary = {}
+var _layer: LineEdit
+var _edits: ItemList
 var _query: LineEdit
 var _list: ItemList
 var _record: RichTextLabel
@@ -20,8 +27,9 @@ var _status: Label
 func _ready() -> void:
 	name = "Reality"
 	_build_ui()
+	var edits: int = _store.load_all()
 	if _index.load_index():
-		_status.text = "%d buildings indexed. Open %s for the view." % [_index.buildings.size(), EDITOR_SCENE.get_file()]
+		_status.text = "%d buildings indexed, %d edits. Open %s for the view." % [_index.buildings.size(), edits, EDITOR_SCENE.get_file()]
 	else:
 		_status.text = "No index. Run: python3 tools/world/key_west_reality.py editor-index"
 
@@ -60,6 +68,25 @@ func _build_ui() -> void:
 	_record.fit_content = true
 	_record.selection_enabled = true
 	add_child(_record)
+	var layer_row: HBoxContainer = HBoxContainer.new()
+	var layer_label: Label = Label.new()
+	layer_label.text = "Layer"
+	layer_row.add_child(layer_label)
+	_layer = LineEdit.new()
+	_layer.text = RealityEditStore.LAYERS[0]
+	_layer.placeholder_text = "base, winter, loot:<set>, story:<state>"
+	_layer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	layer_row.add_child(_layer)
+	layer_row.add_child(_button("Remove in layer", _remove_in_layer))
+	add_child(layer_row)
+	_edits = ItemList.new()
+	_edits.custom_minimum_size = Vector2(0, 60)
+	add_child(_edits)
+	var tools: HBoxContainer = HBoxContainer.new()
+	tools.add_child(_button("Drop edit", _drop_edit))
+	tools.add_child(_button("Copy rebuild", _copy_rebuild))
+	tools.add_child(_button("Copy Blender shell", _copy_shell))
+	add_child(tools)
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_status)
@@ -86,7 +113,7 @@ func _search() -> void:
 func _show(i: int) -> void:
 	if i < 0 or i >= _results.size():
 		return
-	_record.text = _describe(_results[i])
+	_select(_results[i])
 
 
 func _describe(b: Dictionary) -> String:
@@ -153,9 +180,68 @@ func _identify(at: Vector3) -> void:
 	_list.clear()
 	_list.add_item(RealityIndex.label_of(b))
 	_list.select(0)
-	_record.text = _describe(b)
+	_select(b)
 
 
 func _marker() -> Node3D:
 	var root: Node = EditorInterface.get_edited_scene_root()
 	return root.find_child(MARKER_NAME, true, false) as Node3D if root != null else null
+
+
+func _select(b: Dictionary) -> void:
+	_current = b
+	_record.text = _describe(b)
+	_edits.clear()
+	for e: Dictionary in _store.edits_for(b["id"]):
+		_edits.add_item("%s  %s  [%s]" % [e["edit_id"], e["op"], e["layer"]])
+		_edits.set_item_metadata(_edits.item_count - 1, e["edit_id"])
+
+
+func _remove_in_layer() -> void:
+	var layer: String = _layer.text.strip_edges()
+	if _current.is_empty() or not _store.is_valid_layer(layer):
+		_status.text = "Pick a building and a layer (base, winter, loot:<set>, story:<state>)."
+		return
+	var edit: Dictionary = RealityEditStore.new_edit("remove", layer, _current["id"], _current["chunk"], _current.get("gh", ""))
+	undo_redo.create_action("Reality: remove %s in %s" % [RealityIndex.label_of(_current), layer])
+	undo_redo.add_do_method(_store, &"add_edit", edit)
+	undo_redo.add_undo_method(_store, &"remove_edit", edit["edit_id"])
+	undo_redo.add_do_method(self, &"_select", _current)
+	undo_redo.add_undo_method(self, &"_select", _current)
+	undo_redo.commit_action()
+	_status.text = "Recorded. Rebuild chunk %s to see it (Copy rebuild)." % _current["chunk"]
+
+
+func _drop_edit() -> void:
+	var picked: PackedInt32Array = _edits.get_selected_items()
+	if picked.is_empty() or _current.is_empty():
+		return
+	var edit_id: String = String(_edits.get_item_metadata(picked[0]))
+	var edit: Dictionary = {}
+	for e: Dictionary in _store.edits_for(_current["id"]):
+		if e["edit_id"] == edit_id:
+			edit = e
+	undo_redo.create_action("Reality: drop edit %s" % edit_id)
+	undo_redo.add_do_method(_store, &"remove_edit", edit_id)
+	undo_redo.add_undo_method(_store, &"add_edit", edit)
+	undo_redo.add_do_method(self, &"_select", _current)
+	undo_redo.add_undo_method(self, &"_select", _current)
+	undo_redo.commit_action()
+
+
+## Puts the two rebuild commands for the current chunk on the clipboard.
+func _copy_rebuild() -> void:
+	if _current.is_empty():
+		return
+	var chunk: String = _current["chunk"]
+	DisplayServer.clipboard_set("python3 tools/world/key_west_reality.py export-editor --chunk=%s\n" % chunk
+		+ "godot --path . --script tools/world/reality_gen/generate_key_west_chunks_cli.gd -- %s" % chunk)
+	_status.text = "Rebuild commands for chunk %s copied; run them from the project folder." % chunk
+
+
+## Puts the shell export command on the clipboard; the model comes back as assets/.../<stem>.glb.
+func _copy_shell() -> void:
+	if _current.is_empty():
+		return
+	DisplayServer.clipboard_set("python3 tools/world/key_west_reality.py blender-shell --feature-id %s" % _current["id"])
+	_status.text = "Shell command copied. It writes the shell and its sizes for Blender; see its output for the return path."

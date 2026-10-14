@@ -268,5 +268,55 @@ class LibraryUnpack(unittest.TestCase):
             self.assertEqual(lib.read_bytes(), b"fresh build")
 
 
+class EditLayer(unittest.TestCase):
+    def test_check_rejects_bad_records_and_flags_stale_sources(self):
+        from reality import edits
+        hashes = {"kw:tree:a": "h1"}
+        recs = [
+            {"edit_id": "e1", "op": "remove", "layer": "base", "feature_id": "kw:tree:a", "source_geometry_hash": "h0"},
+            {"edit_id": "e1", "op": "paint", "layer": "base", "feature_id": "kw:tree:a"},
+            {"edit_id": "e3", "op": "remove", "layer": "summer", "feature_id": "kw:tree:missing"},
+            {"edit_id": "e4", "op": "move", "layer": "winter", "feature_id": "kw:tree:a", "params": {"x": 1}},
+        ]
+        errors, warnings = edits.check(recs, hashes)
+        text = " ".join(errors)
+        for needle in ("repeated edit_id", "unknown op", "unknown layer", "not in the library", "needs params x and z"):
+            self.assertIn(needle, text)
+        self.assertTrue(any("changed in the source" in w for w in warnings))
+
+    def test_only_base_changes_the_world_and_the_last_record_wins(self):
+        from reality import edits
+        recs = [{"edit_id": "a", "op": "move", "layer": "base", "feature_id": "f", "params": {"x": 0, "z": 0}},
+                {"edit_id": "b", "op": "remove", "layer": "base", "feature_id": "f"},
+                {"edit_id": "c", "op": "remove", "layer": "winter", "feature_id": "g", "chunk": "0:0", "_file": "x"}]
+        self.assertEqual(edits.base_plan(recs)["f"]["edit_id"], "b")
+        self.assertNotIn("g", edits.base_plan(recs))
+        self.assertEqual([e["edit_id"] for e in edits.layered(recs)], ["c"])
+        self.assertNotIn("_file", edits.layered(recs)[0])
+
+    def test_move_lands_the_anchor_and_yaw_turns_east_towards_north(self):
+        from reality import edits
+        oe, on = frame.origin()
+        stick = shapely.LineString([(oe, on), (oe + 10, on)])  # points east, anchor at its middle
+        out = edits.moved(stick, {"params": {"x": 100.0, "z": 50.0, "yaw_deg": 90.0}})
+        mid = out.interpolate(0.5, normalized=True)
+        self.assertAlmostEqual(mid.x - oe, 100.0, places=6)
+        self.assertAlmostEqual(on - mid.y, 50.0, places=6)
+        (x0, y0), (x1, y1) = out.coords
+        self.assertAlmostEqual(x1 - x0, 0.0, places=6)
+        self.assertGreater(y1 - y0, 9.99, "a +90 yaw must turn east into north, as Godot rotation.y does")
+
+    def test_load_takes_the_chunk_from_the_file_name(self):
+        import json as js
+        import tempfile
+        from pathlib import Path as P
+        from reality import edits
+        with tempfile.TemporaryDirectory() as tmp:
+            (P(tmp) / "edits_-7_3.json").write_text(js.dumps({"schema": edits.SCHEMA, "edits": [
+                {"edit_id": "e", "op": "remove", "layer": "base", "feature_id": "f"}]}))
+            recs = edits.load(P(tmp))
+        self.assertEqual(recs[0]["chunk"], "-7:3")
+
+
 if __name__ == "__main__":
     unittest.main()

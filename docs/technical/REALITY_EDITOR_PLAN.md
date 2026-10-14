@@ -144,13 +144,28 @@ roofs (layered, overhanging the eaves) and a wind map that sets windward and lee
   shows address source, use, height, levels, chunk and the bound asset.
 - Test: `tests/systems/test_reality_editor.gd`. Captures: `docs/runtime_previews/reality_editor/`.
 
-**Next, in order:**
-1. Edit layer: records keyed by `feature_id`, each tagged with a data layer
-   (`base`, `loot:<set>`, `winter`, later story states), stored per chunk file.
-2. Shallow Blender 5 bridge: shell glTF + sidecar per building, and the binding of the
-   returned `<asset_id>.glb` by file name.
-3. Winter pass, one snapshot: stage 0 (naming, partial-equals-full test), a wind exposure
-   field from the profile wind and building shelter, and static snow (below).
+**Edit layer (done):** `tools/world/reality/edits.py` and `RealityEditStore` read and
+write `data/world/key_west/reality/overrides/edits/edits_<x>_<z>.json`
+(schema `kw_reality.edits.v1`). A record: `edit_id`, `op` (`remove`, `move`; `add` is
+recorded, not generated yet), `layer` (`base`, `winter`, `loot:<set>`, `story:<state>`),
+`feature_id`, `chunk`, `source_geometry_hash`, `params` (`x`, `z` local metres, `yaw_deg`
+as Godot's rotation about +Y). Only `base` changes the generated world; a move carries the
+source geometry before meshing, so ground height, clearance and the owning chunk are
+recomputed. Other layers ride in the chunk export as `layer_edits` for the runtime.
+`export-editor` refuses malformed records and warns when the source changed since the
+edit. With no edits the export is unchanged. The dock records "Remove in layer" and
+"Drop edit" through the editor's undo history and copies the chunk rebuild commands.
+
+**Blender bridge (shallow, done):** `key_west_reality.py blender-shell --feature-id <id>`
+writes `authoring/blender/<stem>/shell.glb` (the exact library outline, courtyards
+included, extruded to the measured height; origin at the footprint centroid on the
+ground) and `shell.json` (sizes, roof figures, placement, return path, register command).
+Godot 4.8 imports glTF node extras as node metadata `extras` (checked on a shell). The
+model comes back as `assets/world/key_west/buildings/<stem>.glb`; `asset ... --state
+artist_modified` registers it and takes `origin_local` from the shell sidecar.
+
+**Next:** the winter pass, one snapshot: stage 0 (naming, partial-equals-full test), a wind
+exposure field from the profile wind and building shelter, and static snow (below).
 
 **Static snow is not the dynamic snow.** Henry deforms the dynamic system (deep-snow shell,
 chunk cover, footprints); it stays as it is. Snow caps on roofs, wires, poles, fences and
