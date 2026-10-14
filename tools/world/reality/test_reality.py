@@ -146,6 +146,19 @@ class Landmarks(unittest.TestCase):
                 self.assertTrue(landmarks._may_write("kw:building:osm:w2"))
 
 
+class RibbonSplit(unittest.TestCase):
+    def test_a_line_lands_in_every_chunk_it_crosses(self):
+        from reality import editor_export, frame
+        size = frame.chunk_size()
+        xs = [10.0, size - 10.0, size + 10.0, 2 * size + 30.0, 2 * size + 60.0]
+        mesh = {"kind": "ribbon", "width": 4.0, "parts": [{"p": [v for x in xs for v in (x, 5.0)], "y": [1.0, 2.0, 3.0, 4.0, 5.0]}]}
+        pieces = editor_export._split_ribbon(mesh)
+        self.assertEqual(sorted(pieces), ["0:0", "1:0", "2:0"])
+        joined = sum(len(part["y"]) for piece in pieces.values() for part in piece["parts"])
+        self.assertEqual(joined, 5 + 2, "each cut repeats its shared vertex once")
+        self.assertEqual(pieces["2:0"]["parts"][0]["y"], [4.0, 5.0])
+
+
 class Shelter727(unittest.TestCase):
     def test_plan_frame_round_trips_and_matches_godot_yaw(self):
         import math
@@ -178,6 +191,68 @@ class Shelter727(unittest.TestCase):
         self.assertAlmostEqual(r.bounds[2] - r.bounds[0], 1.5)
 
 
+class Stems(unittest.TestCase):
+    class _Surface:
+        def ground_at(self, xy):
+            import numpy as np
+            return np.full(len(xy), 1.5)
+
+        class dsm:
+            @staticmethod
+            def window(*_):
+                return None
+
+    class _Clear:
+        def blocked(self, xy):
+            from reality import frame
+            return xy[:, 0] < frame.origin()[0] + 10.0  # a "road" covers local x < 10
+
+    def test_stems_avoid_blocked_ground_and_repeat_exactly(self):
+        import shapely
+        from reality import vegetation, frame
+        oe, on = frame.origin()
+        area = shapely.box(oe, on - 40, oe + 40, on)
+        cfg = {"density_per_100m2": {"scrub": 40.0}, "grid_m": 2.5, "low_vegetation_band_m": [0.3, 2.5],
+               "bare_cell_share": 1.0, "max_clumps_per_feature": 10000}
+        a = vegetation.stem_points(self._Surface(), self._Clear(), area, "scrub", "kw:test", cfg)
+        b = vegetation.stem_points(self._Surface(), self._Clear(), area, "scrub", "kw:test", cfg)
+        self.assertEqual(a, b, "same feature must give the same stems")
+        self.assertGreater(len(a["y"]), 20)
+        self.assertTrue(all(x >= 10.0 for x in a["p"][0::2]), "a stem stands on blocked ground")
+        self.assertIsNone(vegetation.stem_points(self._Surface(), self._Clear(), area, "grass", "kw:test", cfg))
+
+    def test_split_points_by_chunk(self):
+        from reality import vegetation, frame
+        size = frame.chunk_size()
+        mesh = {"kind": "stems", "p": [1.0, 1.0, size + 1.0, 1.0], "y": [0.5, 0.6], "s": [1.0, 1.2], "lidar_low_vegetation_share": 0.0}
+        pieces = vegetation.split_points(mesh)
+        self.assertEqual(sorted(pieces), ["0:0", "1:0"])
+        self.assertEqual(pieces["1:0"]["s"], [1.2])
+
+
+class Drape(unittest.TestCase):
+    class _Sunken:
+        def ground_at(self, xy):
+            import numpy as np
+            from reality import frame
+            oe, on = frame.origin()
+            r = np.hypot(xy[:, 0] - (oe + 30.0), xy[:, 1] - (on - 30.0))
+            return 2.0 - np.clip(1.0 - r / 20.0, 0.0, 1.0)  # rim 2.0 m, a lot sunk to 1.0 m in the middle
+
+    def test_paving_follows_a_sunken_lot_instead_of_floating(self):
+        import numpy as np
+        from reality import frame, meshing
+        oe, on = frame.origin()
+        lot = shapely.box(oe, on - 60, oe + 60, on)
+        mesh = meshing.drape(self._Sunken(), [lot])
+        v = np.asarray(mesh["v"]).reshape(-1, 3)
+        self.assertEqual(mesh["kind"], "drape")
+        self.assertGreater(len(v), 100, "the interior needs grid vertices, not just the rim")
+        ground = self._Sunken().ground_at(np.column_stack([v[:, 0] + oe, on - v[:, 2]]))
+        self.assertLess(float(np.max(np.abs(v[:, 1] - ground - meshing.DRAPE_LIFT_M))), 0.011)
+        self.assertLess(float(v[:, 1].min()), 1.2, "the paving does not reach down into the lot")
+
+
 class LibraryUnpack(unittest.TestCase):
     def test_existing_working_copy_is_never_overwritten(self):
         import tempfile
@@ -191,6 +266,101 @@ class LibraryUnpack(unittest.TestCase):
             with mock.patch.object(library.paths, "LIBRARY", lib), mock.patch.object(library, "MANIFEST", man):
                 library.ensure()
             self.assertEqual(lib.read_bytes(), b"fresh build")
+
+
+class EditLayer(unittest.TestCase):
+    def test_check_rejects_bad_records_and_flags_stale_sources(self):
+        from reality import edits
+        hashes = {"kw:tree:a": "h1"}
+        recs = [
+            {"edit_id": "e1", "op": "remove", "layer": "base", "feature_id": "kw:tree:a", "source_geometry_hash": "h0"},
+            {"edit_id": "e1", "op": "paint", "layer": "base", "feature_id": "kw:tree:a"},
+            {"edit_id": "e3", "op": "remove", "layer": "summer", "feature_id": "kw:tree:missing"},
+            {"edit_id": "e4", "op": "move", "layer": "winter", "feature_id": "kw:tree:a", "params": {"x": 1}},
+        ]
+        errors, warnings = edits.check(recs, hashes)
+        text = " ".join(errors)
+        for needle in ("repeated edit_id", "unknown op", "unknown layer", "not in the library", "needs params x and z"):
+            self.assertIn(needle, text)
+        self.assertTrue(any("changed in the source" in w for w in warnings))
+
+    def test_only_base_changes_the_world_and_the_last_record_wins(self):
+        from reality import edits
+        recs = [{"edit_id": "a", "op": "move", "layer": "base", "feature_id": "f", "params": {"x": 0, "z": 0}},
+                {"edit_id": "b", "op": "remove", "layer": "base", "feature_id": "f"},
+                {"edit_id": "c", "op": "remove", "layer": "winter", "feature_id": "g", "chunk": "0:0", "_file": "x"}]
+        self.assertEqual(edits.base_plan(recs)["f"]["edit_id"], "b")
+        self.assertNotIn("g", edits.base_plan(recs))
+        self.assertEqual([e["edit_id"] for e in edits.layered(recs)], ["c"])
+        self.assertNotIn("_file", edits.layered(recs)[0])
+
+    def test_move_lands_the_anchor_and_yaw_turns_east_towards_north(self):
+        from reality import edits
+        oe, on = frame.origin()
+        stick = shapely.LineString([(oe, on), (oe + 10, on)])  # points east, anchor at its middle
+        out = edits.moved(stick, {"params": {"x": 100.0, "z": 50.0, "yaw_deg": 90.0}})
+        mid = out.interpolate(0.5, normalized=True)
+        self.assertAlmostEqual(mid.x - oe, 100.0, places=6)
+        self.assertAlmostEqual(on - mid.y, 50.0, places=6)
+        (x0, y0), (x1, y1) = out.coords
+        self.assertAlmostEqual(x1 - x0, 0.0, places=6)
+        self.assertGreater(y1 - y0, 9.99, "a +90 yaw must turn east into north, as Godot rotation.y does")
+
+    def test_load_takes_the_chunk_from_the_file_name(self):
+        import json as js
+        import tempfile
+        from pathlib import Path as P
+        from reality import edits
+        with tempfile.TemporaryDirectory() as tmp:
+            (P(tmp) / "edits_-7_3.json").write_text(js.dumps({"schema": edits.SCHEMA, "edits": [
+                {"edit_id": "e", "op": "remove", "layer": "base", "feature_id": "f"}]}))
+            recs = edits.load(P(tmp))
+        self.assertEqual(recs[0]["chunk"], "-7:3")
+
+
+class StaticSnow(unittest.TestCase):
+    class _Wind:
+        def __init__(self, upwind):
+            import numpy as np
+            self.upwind = np.asarray(upwind, float)
+
+        def shelter(self, x, z):
+            return 0.5
+
+    def _cfg(self):
+        from reality import static_snow
+        return static_snow.settings()
+
+    def test_slope_factor_follows_asce7_cold_roof(self):
+        from reality import static_snow
+        cfg = self._cfg()
+        self.assertEqual(static_snow.slope_factor(20.0, cfg), 1.0)
+        self.assertEqual(static_snow.slope_factor(45.0, cfg), 1.0)
+        self.assertAlmostEqual(static_snow.slope_factor(57.5, cfg), 0.5)
+        self.assertEqual(static_snow.slope_factor(75.0, cfg), 0.0)
+
+    def _gable(self, pitch_deg):
+        import math
+        h = 5.0 * math.tan(math.radians(pitch_deg))
+        # ridge along z at x = 0; west slope x in [-5, 0], east slope x in [0, 5]
+        v = [-5, 3, 0, -5, 3, 10, 0, 3 + h, 0, 0, 3 + h, 10, 5, 3, 0, 5, 3, 10]
+        i = [0, 1, 2, 2, 1, 3, 2, 3, 4, 4, 3, 5]
+        return {"roof_v": v, "roof_i": i}
+
+    def test_lee_slope_holds_more_than_windward(self):
+        import numpy as np
+        from reality import static_snow
+        cap = static_snow.roof_cap(self._gable(30.0), self._Wind([1.0, 0.0]), self._cfg())  # wind from the east
+        v = np.asarray(cap["v"]).reshape(-1, 3)
+        top = v[: 6]  # the six roof vertices come first, lifted by their depth
+        roof = np.asarray(self._gable(30.0)["roof_v"], float).reshape(-1, 3)
+        lift = top[:, 1] - roof[[0, 1, 2, 3, 4, 5]][:, 1]
+        self.assertGreater(lift[0], lift[4], "the west (lee) eave must hold more snow than the east (windward) one")
+        self.assertGreater(len(cap["i"]) // 3, 4, "open edges need their eave lip")
+
+    def test_steep_roof_sheds_its_snow(self):
+        from reality import static_snow
+        self.assertIsNone(static_snow.roof_cap(self._gable(75.0), self._Wind([1.0, 0.0]), self._cfg()))
 
 
 if __name__ == "__main__":

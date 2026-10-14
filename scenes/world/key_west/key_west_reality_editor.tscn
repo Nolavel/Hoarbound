@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/world/editor/key_west_reality_editor_view.gd" id="1_view"]
+
+[node name="RealityEditor" type="Node3D"]
+
+[node name="RealityView" type="Node3D" parent="."]
+script = ExtResource("1_view")
+
+[node name="FocusMarker" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3531.4, 8, 1581.7)
+gizmo_extents = 6.0
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 120, 0)
+shadow_enabled = true

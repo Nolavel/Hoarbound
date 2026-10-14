@@ -13,6 +13,7 @@ const FIELD_SIZE: Vector3 = Vector3(48.0, 24.0, 48.0)
 var _target: Node3D
 var _active: bool = false
 var _last_cell_position: Vector3 = Vector3(INF, INF, INF)
+var _refresh_frames: int = 0
 
 
 func _ready() -> void:
@@ -39,8 +40,20 @@ func set_active(active: bool) -> void:
 		_update_cell(true)
 
 
+## Re-renders the field: geometry under it changed without Henry changing cell (a chunk streamed in).
+func refresh() -> void:
+	if not _active:
+		return
+	update_mode = GPUParticlesCollisionHeightField3D.UPDATE_MODE_ALWAYS
+	_refresh_frames = 2
+
+
 func _process(_delta: float) -> void:
 	_update_cell(false)
+	if _refresh_frames > 0:
+		_refresh_frames -= 1
+		if _refresh_frames == 0:
+			update_mode = GPUParticlesCollisionHeightField3D.UPDATE_MODE_WHEN_MOVED
 
 
 func _update_cell(force: bool) -> void:

@@ -1,7 +1,7 @@
 extends SceneTree
 ## Production gate: the real World (Henry, camera, snow, weather, streaming) on generated chunks.
 ## Henry walks the First Exit + Old Town route by input; frame, streaming, memory, errors are logged.
-## godot --path . --script res://tools/runtime/gate_key_west_reality.gd -- [--fast] [--legs=N] [--out=DIR] [--shots]
+## godot --path . --script res://tools/runtime/gate_key_west_reality.gd -- [--fast] [--legs=N] [--out=DIR] [--shots] [--no-hlod]
 
 const DEFAULT_SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const ROUTE: String = "res://data/world/key_west/reality/routes/first_exit_gate.json"
@@ -68,6 +68,7 @@ var _t0: int = 0
 var _game_s: float = 0.0
 var _frames: PackedFloat32Array = PackedFloat32Array()
 var _activation_frames: Dictionary = {}
+var _cell_log: Dictionary = {}  # frame -> PackedStringArray of "id:STATE" changes, for hitch attribution in the CI log
 var _activations: Array = []
 var _unloaded_s: float = 0.0
 var _unloaded_ids: Dictionary = {}
@@ -177,7 +178,9 @@ func _process(_delta: float) -> bool:
 		_hitches.append({"frame": _frames.size() - 1, "ms": snappedf(ms, 0.1),
 			"process_ms": snappedf(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, 0.1),
 			"physics_ms": snappedf(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, 0.1),
-			"game_s": snappedf(_game_s, 0.1), "at": [snappedf(_player.global_position.x, 0.1), snappedf(_player.global_position.z, 0.1)]})
+			"game_s": snappedf(_game_s, 0.1), "at": [snappedf(_player.global_position.x, 0.1), snappedf(_player.global_position.z, 0.1)],
+			"cells": _recent_cells(_frames.size() - 1), "hlod": _hlod_stats()})
+		print("gate: hitch ", JSON.stringify(_hitches.back()))  # CI keeps the log even when the report artifact is out of reach
 	var pos: Vector3 = _player.global_position
 	var own: StringName = StringName("kw_gen_%d_%d" % [floori(pos.x / CHUNK_M), floori(pos.z / CHUNK_M)])
 	if _streaming._chunks.has(own) and _streaming.get_state(own) != StreamingSystem.CellState.ACTIVE:
@@ -212,6 +215,16 @@ func _bind() -> bool:
 				system.process_mode = Node.PROCESS_MODE_DISABLED
 				print("gate: diagnosis disabled ", path)
 	_streaming.cell_state_changed.connect(_on_cell)
+	_streaming.measure_stages = true
+	_streaming.stage_timed.connect(_on_stage)
+	var hlod: Node = get_root().find_child("HLODView", true, false)
+	if hlod is KeyWestRealityHLOD:
+		if OS.get_cmdline_user_args().has("--no-hlod"):
+			hlod.queue_free()  # A/B: detail cells still stream, proxies never appear
+			print("gate: HLOD view removed for A/B (--no-hlod)")
+		else:
+			(hlod as KeyWestRealityHLOD).measure_stages = true
+			(hlod as KeyWestRealityHLOD).stage_timed.connect(func(id: String, stage: StringName, usec: int) -> void: _on_stage(StringName(id), stage, usec))
 	_last_pos = _player.global_position
 	_window_from = _last_pos
 	print("gate: bound after %.2f s; spawn %s; route %.0f m, %d legs" % [(Time.get_ticks_usec() - _t0) / 1e6, _last_pos,
@@ -222,6 +235,9 @@ func _bind() -> bool:
 func _on_cell(id: StringName, state: StreamingSystem.CellState) -> void:
 	if state == StreamingSystem.CellState.ACTIVE or state == StreamingSystem.CellState.ASSEMBLING:
 		_activation_frames[_frames.size()] = String(id)
+	var changes: PackedStringArray = _cell_log.get(_frames.size(), PackedStringArray())
+	changes.append("%s:%s" % [id, StreamingSystem.CellState.keys()[state]])
+	_cell_log[_frames.size()] = changes
 
 
 ## Fast mode keeps Henry at sprint speed so a CPU container covers 3.8 km in minutes.
@@ -306,7 +322,10 @@ func _begin_entry() -> void:
 	var out: Vector2 = Vector2(float(main["outward_uv"][0]), float(main["outward_uv"][1]))
 	var sill: Vector2 = Vector2(float(main["centre_uv"][0]), float(main["centre_uv"][1]))
 	var foot: Vector2 = Vector2(float(plan["entry_ramp"]["from_uv"][0]), float(plan["entry_ramp"]["from_uv"][1]))
-	var path: Array[Vector2] = [foot + out * 1.5, sill + out * 0.6, sill - out * 1.0, Vector2(4.6, 1.6), Vector2(2.2, 1.6), Vector2(0.0, 4.6)]
+	## Inside, Henry keeps to the lobby's back wall and meets the doorway square on: the open leaf
+	## (1.5 m, swung in, pushed by his body) sweeps the corner between the door and the arch.
+	var path: Array[Vector2] = [foot + out * 1.5, sill + out * 0.6, sill - out * 1.0, sill - out * 2.2, Vector2(4.6, 0.9),
+		Vector2(2.2, 1.6), Vector2(0.0, 4.6)]
 	_detour_inside = path.size() - 1
 	for k: int in range(path.size() - 2, -1, -1):
 		path.append(path[k])
@@ -341,6 +360,8 @@ func _unstick(pos: Vector3, target: Vector2) -> void:
 		"snow_speed_multiplier": snappedf(float(_mover.get(&"snow_speed_multiplier")), 0.01) if _mover != null else null,
 		"collider": str((slide.get_collider() as Node).get_path()) if slide != null and slide.get_collider() is Node else null,
 		"collision_normal": var_to_str(slide.get_normal()) if slide != null else null})
+	## CI keeps only the log, so every stall is printed with where and what held Henry.
+	print("gate: stuck %s" % JSON.stringify(_stuck[-1]))
 	var space: PhysicsDirectSpaceState3D = _player.get_world_3d().direct_space_state
 	## Indoors the drop ray starts under the 727 ceiling, never on the roof.
 	var top: float = pos.y + 2.5 if not _detour.is_empty() else 80.0
@@ -398,8 +419,35 @@ func _finish() -> void:
 	f.store_string(JSON.stringify(report, " "))
 	f.close()
 	print("gate: report -> ", path)
+	print("gate: hitch attribution ", JSON.stringify(report["hitches"]).left(1500))
+	for h: Dictionary in _hitches.slice(0, 30):
+		print("gate: hitch detail ", JSON.stringify(h))  # repeated at the end: CI log tails cut the mid-run lines
+	print("gate: hlod ", JSON.stringify(_hlod_stats()))
 	print("gate: verdict ", JSON.stringify(report["verdict"]))
 	quit(0 if not report["verdict"].values().has(false) else 1)
+
+
+## Streaming and HLOD stages of 1 ms or more go into the frame's log next to the state changes.
+func _on_stage(id: StringName, stage: StringName, usec: int) -> void:
+	if usec < 1000:
+		return
+	var changes: PackedStringArray = _cell_log.get(_frames.size(), PackedStringArray())
+	changes.append("%s:%s:%.1fms" % [id, stage, usec / 1000.0])
+	_cell_log[_frames.size()] = changes
+
+
+## Cell state changes in the 3 frames up to frame f.
+func _recent_cells(f: int) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	for k: int in range(f - 3, f + 1):
+		out.append_array(_cell_log.get(k, PackedStringArray()))
+	return out
+
+
+## HLOD swap counters and blocking proxy loads, when the scene has an HLOD view.
+func _hlod_stats() -> Dictionary:
+	var hlod: Node = get_root().find_child("HLODView", true, false)
+	return (hlod as KeyWestRealityHLOD).stats.duplicate() if hlod is KeyWestRealityHLOD else {}
 
 
 ## Splits slow frames into those within 3 frames of a chunk activation and the rest.

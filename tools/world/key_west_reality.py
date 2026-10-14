@@ -11,7 +11,11 @@
   override-bridge-init        one-time: author the severed-bridge game override from real geometry
   landmarks                   measured First Exit landmark assets (glTF) + asset manifest records
   route-gate                  walkable First Exit + Old Town test route for the production gate
+  first-exit-sites            bunker door, spawn and loot sites for the Reality First Exit (game-authored)
+  traversal-check             no generated collider on a mapped road, path or footway
   export-editor               per-chunk editor interchange for the Godot editor generator
+  editor-index                search index (address, size, footprint) for the Godot Reality editor dock
+  blender-shell --feature-id  one building's measured shell (glTF) and sizes for modelling in Blender
   all                         acquire -> extent -> acquire (extent-bound) -> build -> validate -> report -> preview
 
 Needs: pyarrow, pyogrio, shapely, pyproj, rasterio, laspy[lazrs], numpy, Pillow.
@@ -87,9 +91,23 @@ def main() -> None:
     elif args.command == "route-gate":
         from reality import routes
         routes.run()
+    elif args.command == "traversal-check":
+        from reality import traversal
+        traversal.run()
+    elif args.command == "first-exit-sites":
+        from reality import first_exit_sites
+        first_exit_sites.run()
     elif args.command == "landmarks":
         from reality import landmarks
         landmarks.run()
+    elif args.command == "blender-shell":
+        from reality import blender_shell
+        if not args.feature_id:
+            parser.error("blender-shell needs --feature-id")
+        blender_shell.run(args.feature_id)
+    elif args.command == "editor-index":
+        from reality import editor_index
+        editor_index.run()
     elif args.command == "export-editor":
         from reality import editor_export
         editor_export.run(args.chunk, route_only=args.route)

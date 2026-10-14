@@ -47,7 +47,7 @@ version_control/autoload_on_startup=true
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg", "res://addons/item_fitter/plugin.cfg")
+enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg", "res://addons/item_fitter/plugin.cfg", "res://addons/reality_editor/plugin.cfg")
 
 [file_customization]
 
@@ -984,6 +984,10 @@ snow_wind={
 snow_window={
 "type": "vec4",
 "value": Vector4(0, 0, 0, 0)
+}
+snow_field={
+"type": "sampler2D",
+"value": ""
 }
 frost_amount={
 "type": "float",

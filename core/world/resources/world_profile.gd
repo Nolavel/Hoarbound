@@ -23,6 +23,10 @@ extends Resource
 @export_range(-1.0, 360.0, 0.1) var wind_direction_override_deg: float = -1.0
 @export var prewarm_before_first_frame: bool = false
 
+@export_group("Snow")
+## Baked city wind field (tools/world/bake_key_west_snow_wind.py); empty keeps the legacy bake.
+@export_file("*.png") var snow_wind_field_path: String = ""
+
 @export_group("Provenance")
 @export var experimental: bool = false
 @export var source_note: String = ""

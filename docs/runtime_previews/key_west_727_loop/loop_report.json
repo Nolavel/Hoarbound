@@ -1,0 +1,159 @@
+{
+	"scene": "res://scenes/world/key_west/key_west_reality.tscn",
+	"steps": [
+		{
+			"outside_sheltered": false,
+			"step": "arrive"
+		},
+		{
+			"sheltered": true,
+			"step": "enter",
+			"wetness": 0.4
+		},
+		{
+			"hammer": 1,
+			"lighter": 1,
+			"nails": 66,
+			"step": "take_kit",
+			"stew": 3
+		},
+		{
+			"nails_used": 40,
+			"of": 4,
+			"spare_boards_staged_in_storage": 1,
+			"step": "repair",
+			"windows_sealed": 4,
+			"zone_exposure": [
+				1.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0
+			]
+		},
+		{
+			"aim": {
+				"henry_to_door_m": 1.1,
+				"in_reach": true,
+				"target": "Feed:<Area3D#164349612017>"
+			},
+			"burning": true,
+			"door_open": true,
+			"firewood_left": 0,
+			"fuel_h": 6.0,
+			"light_refusal": 0,
+			"load_refusal": 0,
+			"logs_loaded": 3,
+			"step": "fire",
+			"strike": 2,
+			"tinder_carried": true
+		},
+		{
+			"by_stove_after": {
+				"body_c": 36.6,
+				"felt_c": 18.4,
+				"room_c": 9.6,
+				"wetness": 0.14
+			},
+			"by_stove_before": {
+				"body_c": 36.02,
+				"felt_c": -16.3,
+				"room_c": -16.0,
+				"wetness": 0.4
+			},
+			"on_mattress": {
+				"body_c": 36.6,
+				"felt_c": 18.4,
+				"room_c": 9.6,
+				"wetness": 0.14
+			},
+			"outdoor_c": -16.0,
+			"step": "warm_dry",
+			"waited_h": 3.0
+		},
+		{
+			"refusal": 0,
+			"step": "eat",
+			"stew_after": 2,
+			"stew_before": 3
+		},
+		{
+			"refusal": 0,
+			"slept": true,
+			"slot_written": true,
+			"step": "sleep_save"
+		},
+		{
+			"diffs": [],
+			"reloaded": {
+				"boards": {
+					"Door": 0.0,
+					"FrontWindow1": 1.0,
+					"FrontWindow2": 1.0,
+					"SideWindowEast": 1.0,
+					"SideWindowWest": 1.0
+				},
+				"fire_burning": false,
+				"fire_hours": 0.0,
+				"hammer": 0,
+				"nails": 26,
+				"player_in_727": true,
+				"stew": 2,
+				"taken": [
+					"HammerShelter",
+					"NailsShelter",
+					"LighterShelterTest",
+					"StewShelterTest",
+					"BoardsShelterInside",
+					"BoardsShelterTest1",
+					"BoardsShelterTest2",
+					"BoardsShelterTest3",
+					"BoardsShelterTest4",
+					"BoardsShelterTest5",
+					"BoardsShelterTest6",
+					"FirewoodShelter"
+				]
+			},
+			"saved": {
+				"boards": {
+					"Door": 0.0,
+					"FrontWindow1": 1.0,
+					"FrontWindow2": 1.0,
+					"SideWindowEast": 1.0,
+					"SideWindowWest": 1.0
+				},
+				"fire_burning": false,
+				"fire_hours": 0.0,
+				"hammer": 0,
+				"nails": 26,
+				"player_in_727": true,
+				"stew": 2,
+				"taken": [
+					"HammerShelter",
+					"NailsShelter",
+					"LighterShelterTest",
+					"StewShelterTest",
+					"BoardsShelterInside",
+					"BoardsShelterTest1",
+					"BoardsShelterTest2",
+					"BoardsShelterTest3",
+					"BoardsShelterTest4",
+					"BoardsShelterTest5",
+					"BoardsShelterTest6",
+					"FirewoodShelter"
+				]
+			},
+			"step": "reload"
+		}
+	],
+	"verdict": {
+		"ate": true,
+		"entered_and_sheltered": true,
+		"heated_room_sealed": true,
+		"kit_taken": true,
+		"reload_matches": true,
+		"slept_and_saved": true,
+		"stove_lit": true,
+		"warmed_and_dried": true
+	}
+}

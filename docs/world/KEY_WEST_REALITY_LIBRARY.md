@@ -175,6 +175,7 @@ and per attribute:
 | `inferred` | rule-based estimate, nothing observed | levels from height, road width from class |
 | `procedural` | generated presentation with no real counterpart | reserved for the generator, never stored as reality |
 | `manual_override` | authored correction | reserved |
+| `game_authored_override` | a game object placed on real geometry, never a claim about the place | First Exit bunker door and vent, loot sites, the 727 clinic interior and its supplies |
 
 `confidence` (0..1) is the source's own reliability for that value. Time fields:
 `observed_at` (OSM last edit, lidar flight date, imagery date), `source_epoch` (dataset
@@ -261,8 +262,8 @@ polygon `kw:building:osm:w524088621` for **Battery Osceola**, whose own footprin
 in no reachable source and is therefore not invented. Both allow an authored,
 reference-backed form that suppresses generic generated massing on that footprint; the
 footprint, street relation and provenance stay real. The former custom Fort Street hut is
-recorded as `custom_structure` (game content, role undecided); no real footprint lies
-within 15 m of it.
+recorded as `custom_structure` (game content, kept for the legacy scene); the Reality
+scene does not use it. No real footprint lies within 15 m of it.
 
 ## 10. Editor generation
 
@@ -279,7 +280,9 @@ Two steps, both editor-time; the runtime never parses GIS data.
    - In the editor: run `generate_key_west_chunks.gd` (Script editor › File › Run).
    - Batch: `godot --headless --script tools/world/reality_gen/generate_key_west_chunks_cli.gd -- [cx:cz ...]`.
 
-   Generated scenes are local, regenerable artefacts (git-ignored). Authored work lives
+   Generated scenes (chunks, parts, `far/` meshes, `world_data.tres`) are committed as one
+   validated snapshot so a fresh clone opens the scene with no setup; they stay regenerable
+   and the rebuild is checked against the digest. Authored work lives
    in Blender/Godot assets registered in `authoring/asset_manifest.json`. The generator
    instances those in place of the generated mesh, so regeneration never overwrites them.
 
@@ -535,8 +538,8 @@ streaming budgets and real-time movement. Reports are in
 - its `manifest.json`, with the sha256 of every one of the 919 files;
 - `generated_digest.json`.
 
-Any machine rebuilds the 477 MB of scenes in about 3–5 minutes, with no raw lidar cache
-and no GIS stack:
+The committed snapshot (about 504 MB) is what a reviewer opens. Any machine can rebuild it
+in about 10 minutes, with no raw lidar cache and no GIS stack:
 
 ```bash
 python3 tools/world/reality/export_pack.py unpack        # stdlib only, sha256-checked
@@ -628,26 +631,43 @@ Fix: `scripts/world/key_west_reality_ground.gd`, in the Reality content scene.
 
 Test: `tests/systems/test_key_west_reality_ground.gd`, which needs no generated chunks.
 
-## 17. Readiness to replace `key_west.tscn`
+## 17. Parity with the legacy scene
 
-State on 2026-10-11, comparing `key_west_reality.tscn` with the shipped main scene
-(`key_west.tscn` + `KeyWestFirstExit`).
+State on 2026-10-13: `key_west_reality.tscn` is a separate review candidate; `key_west.tscn`
+stays `run/main_scene`. Legacy = `key_west.tscn` + `KeyWestFirstExit` + `ChunkedCityMassing`.
 
-| Area | Reality scene | Gap before it can be `run/main_scene` |
+| Legacy feature | Reality equivalent | Status |
 |---|---|---|
-| World geometry | 459 measured chunks, staged assembly, 0 s on unloaded chunks in the gate | far LOD beyond the load band (nothing drawn there yet) |
-| First Exit shelter | 727 enterable: hut door, stove, breaches, furniture, two thermal zones; gate enters and is `sheltered` | plan is game-invented; precipitation particles still fall indoors (same as the legacy hut) |
-| Start (Battery) | spawn on the measured fort front | the bunker portal, vent, bedroll and flare that `KeyWestFirstExit` transplants are not placed yet |
-| Route items | — | the hut-route pickups are not transplanted |
-| Sea | coastal water slabs (open blue water) | the legacy masked ice / frozen-sea shader is not applied |
-| Snow and wind | terrain snow shader, runtime chunk cover, deep-snow shell, `WindGusts` | cover cost on the HD 620 not measured |
-| Vegetation | legacy palms and bare trees on the lidar trees | no sway (none in the project) |
-| Build | scenes are local build products (`export_pack.py unpack` + generator, about 3 min) | the export/CI pipeline must run the generator before packaging; a fresh clone cannot open the scene without it |
-| Performance | CPU gate: p99 14.4 ms, activation max 17.4 ms, 8 frames over 50 ms | target-GPU run without `--fast` |
+| Henry, TPS camera, inventory, Quick Access, held items | the same `player.tscn` and `tps_camera.tscn` instances under `world.gd` | complete (shared, not copied) |
+| World systems and audio (`WorldEnvironmentSystem`, day/night, weather, sound) | the same `WorldEnvironmentSystem.tscn`; Reality profile `key_west_reality.tres` | complete (shared) |
+| NOAA 2 m terrain (`IslandTerrain`) | 1 m DEM terrain tile per chunk, HeightMap collision | complete |
+| City massing from the preview JSON | measured building shells, lidar roofs, collision with open courtyards | complete |
+| Far city bake (`far_city/*.obj`) | generated far mesh per chunk (16 m terrain, building prisms), `KeyWestRealityFar` on the same StreamingSystem, hidden while the detailed chunk is in | complete |
+| Masked frozen-sea plane | the same frozen-sea surface on water polygons and on terrain below MSL (`under_ice`, presentation only) | complete |
+| Walkable sea ice | none in either scene (the seabed keeps its collision) | missing in both |
+| Streets, paths | ribbons per chunk crossed; parking and aprons draped on the DEM; paving takes the terrain's snow response, so snow covers it like the ground beside it | complete |
+| Street props (lamps, signs) | mapped furniture and poles as placeholder cylinders | partial |
+| Palms and bare trees | legacy meshes on 37,318 lidar trees, trunks off roads, plus 54,372 frozen shrub-stem clumps | complete |
+| Terrain snow, chunk cover, deep-snow shell, footprints, `WindGusts` | same systems on the chunk terrain (`KeyWestRealityGround`) | complete; Reality bakes its own wind field from its buildings (`snow_wind_reality.png`) |
+| (no legacy equivalent) static winter snow on roofs, fences, poles, wires | `Winter` group per chunk, data layer `winter`, ASCE 7 roof factors | Reality only |
+| Snowfall indoors | height field refreshed when a chunk streams in; 727 roof stops the snow | complete (fix also applies to legacy) |
+| Bunker portal, vent, bedroll, flare | template nodes set into Fort Zachary Taylor's courtyard face (game-authored) | complete |
+| Whitehead bunker vestibule | not used: the fort mass is the cover | by decision |
+| Route pickups (8) | template pickups at rule-chosen real sites | complete |
+| Hut stash pickups | 727 storage, lobby and office sockets; yard and outbuilding items outside | complete |
+| Hut: door, stove, breaches, furniture, cabinet fade, stair ramp | inside 727 on the clinic plan; entry ramp | complete |
+| Custom Fort Street hut | not needed (owner decision 2026-10-13) | by decision |
+| `spawn_at_shelter` start | `ShelterSpawnPoint` before 727 | complete |
+| Taken pickups stay taken after load | `PickupLedger` in the content scene | Reality only: the legacy Key West scene has no ledger |
+| First Exit weather beat (`WeatherBeat`) | not in either Key West scene | missing in both |
+| Pickups lying on deep snow | outdoor pickups at ground + 0.35 m, as in legacy; deep drifts can hide them | same as legacy |
+| Build step | snapshot committed; fresh-checkout test in CI; rebuild + digest job separate | complete |
 
-Merging to `main` is safe as an **experimental profile** next to the legacy scene, and
-the legacy scene stays the default. Switching the default needs the start content, the
-pickups, the frozen sea, the build step and an HD 620 run. That switch is the author's call.
+Ways through buildings (owner decision 2026-10-13): a building that a mapped walkable way
+passes straight through (at least 2 m inside the outline, both ends outside; bridges, ferries
+and rails excepted; landmarks kept) is not generated. Most were 2008 USA Structures outlines
+under 2011–2026 OSM ways. The list is `reports/buildings_removed_on_ways.json`; ways that end
+inside a building (drives into garages) keep it. `reports/traversal.json` re-checks the result.
 
 ## 18. Next stages
 
@@ -665,4 +685,4 @@ pickups, the frozen sea, the build step and an HD 620 run. That switch is the au
 6. **Facades and roofs.** Openings and colours need imagery or planning sheets. Split complex
    footprints before roof fitting, and use the roof-band median instead of canopy-polluted
    P95 heights.
-8. **Far LOD.** OBB/hull proxies for the ring beyond the load band.
+8. **Far LOD.** Done: generated far meshes (see §17).

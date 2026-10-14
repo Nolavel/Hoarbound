@@ -34,6 +34,10 @@ const float HFN_BAYER4[16] = float[](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0,
 varying vec3 stylized_noise_pos;
 
 void vertex() {
+	// HFN_VERTEX_EXTRA: optional per-family vertex step (e.g. snow_stems lifts stems with the snow).
+#ifdef HFN_VERTEX_EXTRA
+	HFN_VERTEX_EXTRA
+#endif
 	stylized_noise_pos = shadow_noise_in_model_space ? VERTEX : (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 

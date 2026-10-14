@@ -70,9 +70,22 @@ def run() -> dict:
 
 
 def _spawn_point() -> tuple[float, float]:
-    text = (paths.ROOT / "scenes/world/key_west/key_west_reality_content.tscn").read_text(encoding="utf-8")
-    nums = text.split("Transform3D(")[1].split(")")[0].split(",")
-    return float(nums[9]), float(nums[11])
+    """Henry's start in front of the bunker door (first_exit_sites.py)."""
+    xz = _gameplay()["spawn"]["xz"]
+    return float(xz[0]), float(xz[1])
+
+
+def _gameplay() -> dict:
+    return json.loads((paths.OVERRIDES / "first_exit_gameplay.json").read_text(encoding="utf-8"))
+
+
+def _bunker_block():
+    """The template bunker block and wing walls (9 x 7 m, wings 2 m out), as placed."""
+    b = _gameplay()["bunker"]
+    yaw = float(b["yaw_rad"])
+    px, pz = b["portal_xz"]
+    pts = [(-4.8, -3.5), (4.8, -3.5), (4.8, 5.6), (-4.8, 5.6)]
+    return shapely.Polygon([(px + x * np.cos(yaw) + z * np.sin(yaw), pz - x * np.sin(yaw) + z * np.cos(yaw)) for x, z in pts])
 
 
 def _streets() -> dict:
@@ -116,6 +129,7 @@ def _cost_grid(s: meshing.Surfaces, x0: float, z0: float, nx: int, nz: int) -> n
     bgeoms, _ = library.read_layer("buildings")
     blocks = [frame.to_local(g).buffer(BUILDING_CLEARANCE_M) for g in bgeoms]
     blocks = [b for b in blocks if b.intersects(box)]
+    blocks.append(_bunker_block().buffer(BUILDING_CLEARANCE_M))
     blocked = shapely.contains_xy(shapely.union_all(blocks), gx, gz) | (ground < MSL_Y)
     cost[blocked] = np.inf
     return cost

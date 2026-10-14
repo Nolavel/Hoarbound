@@ -1,0 +1,22 @@
+{
+  "schema": "kw_reality.hlod_config.v1",
+  "build_version": "kw_hlod.1",
+  "cluster_m": 128,
+  "chunks": ["-6:1", "-5:1", "-6:2", "-5:2"],
+  "streamer_load_margin_m": 140,
+  "streamer_unload_hysteresis_m": 120,
+  "winter": {
+    "roofs": "fold_into_proxy",
+    "roof_snow_max_slope_from": "static_snow.slope_zero_deg",
+    "thin_items_cull": "visibility_range_end at the cluster detail band (cluster radius + load margin)"
+  },
+  "policy": {
+    "included": "generated static opaque buildings (mesh kind building, regen_action generate) of the listed chunks",
+    "authored": "excluded: features with an authored scene (727 Fort St, Fort Zachary Taylor, and any keep/keep_locked/needs_rebase asset) stay Tier 0 in their chunk and are listed in the manifest; manual proxies are phase 2",
+    "props": "excluded: Reality props are 0.15 m cylinders already batched as one MultiMesh per chunk; at the switch distance they cover about one pixel",
+    "terrain_vegetation_gameplay": "excluded in v1"
+  },
+  "sources": {
+    "cluster_m": "baseline 2026-10-14 (docs/technical/REALITY_HLOD.md): 512 m and 1024 m clusters never leave detail while their chunk is loaded; 128 m cuts the estimated building draw calls on the route by 76 %"
+  }
+}

@@ -10,9 +10,68 @@
       "reason": "Owner decision #211: Battery Osceola -> 727 Fort Street is the First Exit route. No single path: the whole neighbourhood between the anchors stays traversable."
     }
   ],
-  "roof_sample_spacing_m": {"corridor": 1.0, "default": 2.0},
-  "terrain_step_m": {"corridor": 1.0, "default": 2.0},
-  "inferred_heights_m": {"fence": 1.5, "wall": 2.0, "retaining_wall": 1.0, "hedge": 1.2, "guard_rail": 0.8, "jersey_barrier": 0.8, "gate": 1.5, "kerb": 0.15, "street_lamp": 6.0, "lighting_tower": 18.0, "traffic_signals": 5.0, "fire_hydrant": 0.8},
+  "roof_sample_spacing_m": {
+    "corridor": 1.0,
+    "default": 2.0
+  },
+  "terrain_step_m": {
+    "corridor": 1.0,
+    "default": 2.0
+  },
+  "inferred_heights_m": {
+    "fence": 1.5,
+    "wall": 2.0,
+    "retaining_wall": 1.0,
+    "hedge": 1.2,
+    "guard_rail": 0.8,
+    "jersey_barrier": 0.8,
+    "gate": 1.5,
+    "kerb": 0.15,
+    "street_lamp": 6.0,
+    "lighting_tower": 18.0,
+    "traffic_signals": 5.0,
+    "fire_hydrant": 0.8
+  },
   "inferred_heights_reason": "Presentation defaults where no source height exists; written to node metadata as inferred, never back into the library.",
-  "pier_width_m_when_line": 2.0
+  "pier_width_m_when_line": 2.0,
+  "shrub_stems": {
+    "description": "Frozen-out shrubs as dead stems poking through the snow. Only inside mapped low-vegetation areas; denser where the 2019 lidar measures shrub height. Densities are presentation choices (inferred), the areas and lidar cells are measured.",
+    "density_per_100m2": {
+      "scrub": 8.0,
+      "mangrove": 5.0,
+      "wetland": 6.0,
+      "wc_herbaceous_wetland": 4.0,
+      "garden": 3.0,
+      "wood": 2.0
+    },
+    "grid_m": 2.5,
+    "low_vegetation_band_m": [
+      0.3,
+      2.5
+    ],
+    "bare_cell_share": 0.25,
+    "max_clumps_per_feature": 2500,
+    "road_margin_m": 0.3,
+    "trunk_step_off_road_m": 0.5
+  },
+  "static_snow": {
+    "description": "Static winter dressing: snow caps on roofs, fences, poles and wires, generated offline into the Winter group (data layer 'winter'). Visual only; Henry never deforms it and the dynamic snow never reads it.",
+    "settled_depth_m": 0.25,
+    "settled_depth_source": "SnowField.cover_depth_m.y: the dynamic settled depth at full cover, so caps and ground agree",
+    "slope_full_deg": 45.0,
+    "slope_zero_deg": 70.0,
+    "slope_source": "ASCE 7-16 Fig. 7.4-1, cold roof slope factor Cs: 1.0 up to 45 deg, 0 at 70 deg",
+    "exposure_open": 0.7,
+    "exposure_sheltered": 1.2,
+    "exposure_source": "ASCE 7-16 Table 7.3-1 exposure factor Ce range, driven by the baked shelter channel",
+    "windward_keep": 0.5,
+    "leeward_gain": 0.3,
+    "unbalanced_source": "ASCE 7-16 7.6.1 unbalanced gable load (windward scoured, leeward loaded); values are presentation (inferred)",
+    "cornice_over_depth": 1.6,
+    "eave_over_depth": 0.4,
+    "droop_over_depth": 0.9,
+    "repose_deg": 50.0,
+    "repose_source": "angle of repose of fresh dry snow, about 50 deg; sets the ridge on narrow tops (fences, poles, wires)",
+    "wind_field": "data/world/key_west/snow_wind_reality.png"
+  }
 }

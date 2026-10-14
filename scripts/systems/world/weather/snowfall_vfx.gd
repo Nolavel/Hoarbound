@@ -4,6 +4,7 @@ class_name SnowfallVFX
 const GRAPHICS: GDScript = preload("res://scripts/settings/graphics_quality.gd")
 const SNOW_SHADER: Shader = preload("res://shaders/environment/weather/wind_driven_snow.gdshader")
 const WEATHER_CONTROLLER_SCRIPT: GDScript = preload("res://scripts/systems/world/WeatherController.gd")
+const STREAMING_SCRIPT: GDScript = preload("res://core/world/streaming_system.gd")
 
 const WORLD_MAX_PARTICLES: int = 3072
 const WORLD_EMITTER_HEIGHT: float = 6.0
@@ -38,6 +39,10 @@ func on_world_ready(context: WorldContext) -> void:
 	_ensure_heightfield_service()
 	if heightfield_service != null:
 		heightfield_service.configure(follow_target)
+	## Roofs that stream in after Henry entered his cell must still stop the snow.
+	var streaming: StreamingSystem = context.get_system(STREAMING_SCRIPT) as StreamingSystem
+	if streaming != null and not streaming.cell_state_changed.is_connected(_on_cell_state_changed):
+		streaming.cell_state_changed.connect(_on_cell_state_changed)
 	_bind_weather()
 	if weather_controller == null:
 		push_warning("SnowfallVFX: authoritative WeatherController is missing")
@@ -271,6 +276,11 @@ func _apply_conditions(wind_speed_mps: float, snowfall_density: float) -> void:
 	var foreground_ratio: float = clampf(density * FOREGROUND_DENSITY_SCALE * _quality_density_scale, 0.0, 1.0)
 	foreground_particles.amount_ratio = foreground_ratio
 	foreground_particles.emitting = foreground_ratio > 0.005
+
+
+func _on_cell_state_changed(_id: StringName, state: StreamingSystem.CellState) -> void:
+	if state == StreamingSystem.CellState.ACTIVE and heightfield_service != null:
+		heightfield_service.refresh()
 
 
 func get_visual_wind_velocity() -> Vector3:

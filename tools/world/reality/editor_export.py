@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 import numpy as np
 import shapely
 
-from . import PIPELINE_VERSION, config, frame, library, meshing, overrides, paths, receipts, regen
+from . import PIPELINE_VERSION, config, edits, frame, library, meshing, overrides, paths, receipts, regen, static_snow, traversal, vegetation
 
 EXPORT_VERSION = "kw_reality.editor_chunk.v2"
 FAMILIES = ("buildings", "building_parts", "roads", "bridges", "coastal_structures", "barriers", "power", "utilities",
@@ -31,6 +31,12 @@ AIRPORT_WIDTH = {"runway": 45.0, "taxiway": 18.0, "taxilane": 10.0, "stopway": 4
 AIRPORT_PAVED = ("apron", "runway", "taxiway", "taxilane", "stopway", "helipad")  # aerodrome boundaries are not pavement
 SEVER_HALF_WIDTH_M = 30.0  # remove_span lines run along the deck; cut the full deck width
 OUT = paths.REALITY / "derived" / "editor_chunks"
+
+
+## Ground under a ribbon is sampled at least this often, and no segment overhangs its chunk further.
+RIBBON_SAMPLE_M = 32.0
+AUTHORED_ACTIONS = ("keep", "keep_locked", "needs_rebase")  # regen actions that place an authored asset
+PARTIAL_REACH_M = 1.0  # a partial export also takes features within this distance of its chunks
 
 
 def _xz(coords) -> list[float]:
@@ -109,7 +115,23 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
     bad = regen.violations(plan)
     if bad:
         raise SystemExit("refusing to export: " + "; ".join(bad[:5]))
+    edit_records = edits.load()
+    edit_errors, edit_warnings = edits.check(edit_records, hashes)
+    if edit_errors:
+        raise SystemExit("refusing to export, edit layer: " + "; ".join(edit_errors[:5]))
+    for w in edit_warnings:
+        print("edit layer:", w)
+    base_edits = edits.base_plan(edit_records)
+    snow_cfg = static_snow.settings()
+    snow_wind = static_snow.WindField(snow_cfg["wind_field"])
     s = meshing.Surfaces()
+    clear = vegetation.Clearance(gen["shrub_stems"]["road_margin_m"])
+    landmarks = {o["target_feature_id"] for o in ov["features"] if o["override_type"] == "landmark_role" and o.get("target_feature_id")}
+    on_ways = traversal.buildings_on_ways(landmarks)
+    traversal.REMOVED_OUT.write_text(json.dumps({
+        "rule": "owner decision 2026-10-13: a building a mapped walkable way passes straight through "
+                f"(>= {traversal.THROUGH_MIN_M} m inside, both ends outside) is not generated; landmarks kept",
+        "count": len(on_ways), "buildings": dict(sorted(on_ways.items()))}, indent=1) + "\n", encoding="utf-8")
     heights = gen["inferred_heights_m"]
     per_chunk = defaultdict(list)
     wires = defaultdict(list)
@@ -122,28 +144,45 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
     def in_corridor(g) -> bool:
         return any(c["area"].intersects(g) for c in corr)
 
+    ## A partial export keeps every feature that reaches the requested chunks, not only the ones
+    ## they own: a road or scrub area owned next door still leaves its pieces here.
+    size = frame.chunk_size()
+    reach = shapely.union_all([shapely.box(*_chunk_box(*(int(v) for v in c.split(":")), size)) for c in chunks]).buffer(
+        PARTIAL_REACH_M) if chunks else None
+
     for fam in FAMILIES:
         geoms, cols = library.read_layer(fam)
         for i, g in enumerate(geoms):
             cid = cols["chunk_id"][i]
             fid = cols["feature_id"][i]
-            if chunks and cid not in chunks and fam != "power":
+            edit = base_edits.get(fid)
+            if edit is not None and edit["op"] == "remove":
+                stats["edit_removed"] += 1
+                continue
+            if edit is not None:
+                g = edits.moved(g, edit)
+                cid = frame.chunk_of_projected_geom(g)
+                stats["edit_moved"] += 1
+            if chunks and cid not in chunks and fam != "power" and not reach.intersects(g):
                 continue
             attrs = {k: v for k, v in json.loads(cols["attrs_json"][i]).items() if k in KEEP_ATTRS}
+            if fam == "buildings" and fid in on_ways:
+                stats["buildings_removed_way_through"] += 1
+                continue
             p = plan.get(fid, {"action": "generate"})
             hot = in_corridor(g)
             mesh, sources = _mesh_for(fam, cols["class"][i], cols["subclass"][i], g, fid, attrs, sel, s, gen, heights, hot,
-                                      removed.get(fid, []), severed_area, stats)
+                                      removed.get(fid, []), severed_area, stats, clear)
+            if mesh.get("kind") == "building" and p["action"] not in AUTHORED_ACTIONS:
+                cap = static_snow.roof_cap(mesh, snow_wind, snow_cfg)  # winter layer; authored assets bring their own
+                if cap:
+                    mesh["snow_cap"] = cap
+                    stats["snow_caps"] += 1
             if fam == "power" and g.geom_type == "Point":
                 poles[fid] = (g.x, g.y, mesh.get("base_y", 0.0), mesh.get("top_y", 9.0))
-            if chunks and cid not in chunks:
-                continue
-            if cid not in extent_chunks:
-                stats["outside_extent_chunk_not_exported"] += 1
-                continue
             ovs = override_state.get(fid, [])
             role = next((o["params"].get("role") for o in ovs if o["type"] == "landmark_role"), None)
-            per_chunk[cid].append({
+            entry = ({
                 "feature_id": fid, "family": fam, "group": GROUP[fam], "class": cols["class"][i], "subclass": cols["subclass"][i],
                 "name": cols["name"][i], "node_name": library.node_name(fid), "attrs": attrs, "mesh": mesh, "height_sources": sources,
                 "fidelity": "corridor" if hot else "default",
@@ -160,6 +199,23 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
                 },
                 "overrides": ovs, "regen_action": p["action"],
             })
+            ## Stems of one area spread over many chunks; each chunk carries the ones standing in it.
+            ## A line lives in every chunk it crosses: a feature owned by one chunk vanished
+            ## along kilometres of its length whenever that one chunk was not loaded.
+            if mesh.get("kind") == "stems":
+                pieces = vegetation.split_points(mesh)
+            elif mesh.get("kind") == "ribbon":
+                pieces = _split_ribbon(mesh)
+                stats["ribbons_split_across_chunks"] += int(len(pieces) > 1)
+            else:
+                pieces = {cid: mesh}
+            for pcid, pmesh in sorted(pieces.items()):
+                if chunks and pcid not in chunks:
+                    continue
+                if pcid not in extent_chunks:
+                    stats["outside_extent_chunk_not_exported"] += 1
+                    continue
+                per_chunk[pcid].append(dict(entry, mesh=pmesh))
             stats[f"{fam}"] += 1
     # Wires only between two measured supports (real topology edges); open ends are not drawn.
     tg, tc = library.read_layer("utility_topology")
@@ -177,9 +233,9 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
                            "a": [round(pa[0] - oe, 2), round(pa[2] + pa[3] - 0.4, 2), round(on - pa[1], 2)],
                            "b": [round(pb[0] - oe, 2), round(pb[2] + pb[3] - 0.4, 2), round(on - pb[1], 2)]})
         stats["wires"] += 1
+    layer_edits = edits.layered(edit_records)
     OUT.mkdir(parents=True, exist_ok=True)
     stamp = receipts.now_utc()
-    size = frame.chunk_size()
     written = sorted(set(per_chunk) | set(chunks or []))
     if not chunks:
         written = sorted(extent_chunks)
@@ -210,10 +266,20 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
                "corridors": [c["name"] for c in corr if shapely.box(*_chunk_box(cx, cz, size)).intersects(c["area"])],
                "anchors": [{"name": c["name"], "points": c["anchors"]} for c in corr],
                "custom_structures": custom, "wires": wires.get(cid, []),
+               "static_snow": {k: snow_cfg[k] for k in ("settled_depth_m", "repose_deg")},
                "features": sorted(per_chunk.get(cid, []), key=lambda f: f["feature_id"])}
+        here = [e for e in layer_edits if e["chunk"] == cid]
+        if here:
+            doc["layer_edits"] = here  # winter, loot and story layers ride along for the runtime
         (OUT / f"chunk_{cx}_{cz}.json").write_text(json.dumps(doc, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
     manifest = {"schema": "kw_reality.editor_export_manifest.v1", "exported_at": stamp, "export_version": EXPORT_VERSION,
                 "route_chunks": sorted(route_chunks), "chunks": written, "stats": dict(stats), "seconds": round(time.time() - t0, 1)}
+    if chunks and (OUT / "manifest.json").exists():
+        ## A partial export refreshes some chunk files; the island's chunk list stays whole.
+        full = json.loads((OUT / "manifest.json").read_text(encoding="utf-8"))
+        full["chunks"] = sorted(set(full.get("chunks", [])) | set(written))
+        full["last_partial"] = {"exported_at": stamp, "chunks": written, "stats": dict(stats), "seconds": manifest["seconds"]}
+        manifest = dict(full, route_chunks=sorted(route_chunks), stats=full.get("stats", {}), seconds=manifest["seconds"])
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
     print(json.dumps({k: manifest[k] for k in ("route_chunks", "stats", "seconds")}))
     return manifest
@@ -225,7 +291,28 @@ def _chunk_box(cx: int, cz: int, size: float):
     return (e0, n0, e1, n1)
 
 
-def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_parts, severed_area, stats) -> tuple[dict, dict]:
+def _split_ribbon(mesh: dict) -> dict[str, dict]:
+    """Ribbon parts cut into runs of consecutive segments that share a chunk (by segment midpoint)."""
+    out: dict[str, list] = defaultdict(list)
+    for part in mesh["parts"]:
+        p, y = part["p"], part["y"]
+        run_cid, run_p, run_y = None, [], []
+        for k in range(len(y) - 1):
+            mx, mz = (p[2 * k] + p[2 * k + 2]) / 2, (p[2 * k + 1] + p[2 * k + 3]) / 2
+            seg_cid = frame.chunk_of_local(mx, mz)
+            if seg_cid != run_cid:
+                if run_cid is not None:
+                    out[run_cid].append({"p": run_p, "y": run_y})
+                run_cid, run_p, run_y = seg_cid, p[2 * k:2 * k + 2], [y[k]]
+            run_p = run_p + p[2 * k + 2:2 * k + 4]
+            run_y = run_y + [y[k + 1]]
+        if run_cid is not None:
+            out[run_cid].append({"p": run_p, "y": run_y})
+    return {c: dict(mesh, parts=parts) for c, parts in out.items()}
+
+
+def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_parts, severed_area, stats,
+              clear: vegetation.Clearance) -> tuple[dict, dict]:
     """Mesh-ready geometry + where each height came from."""
     oe, on = frame.origin()
     spacing = gen["roof_sample_spacing_m"]["corridor" if hot else "default"]
@@ -257,7 +344,7 @@ def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_p
             if bridge:
                 xy, ys, src = meshing.deck_profile(s, part, abutments=True)
             else:
-                xy = np.asarray(part.coords)[:, :2]
+                xy = np.asarray(shapely.segmentize(part, RIBBON_SAMPLE_M).coords)[:, :2]
                 ys, src = [round(float(v) + 0.05, 2) for v in s.ground_at(xy)], "dem_6366_plus_5cm"
             parts.append({"p": _xz(xy), "y": ys})
         if removed_parts:
@@ -273,12 +360,12 @@ def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_p
         polys = [q for q in _parts(geom) if q.geom_type == "Polygon" and q.area > 0.5]
         if not polys:
             return {"kind": "none"}, {}
-        ground = float(np.median(s.ground_at(np.asarray(polys[0].exterior.coords)[:, :2])))
         if fam in ("airport", "transit"):
-            top, src = ground + 0.03, "dem_6366"
-        else:
-            top, src = meshing.deck_height(s, geom, ground + 1.0)
-        return {"kind": "slab", "top_y": top, "thickness": 0.4 if fam != "transit" else 0.03,
+            mesh = meshing.drape(s, polys)
+            return (mesh, {"surface": "dem_6366_drape"}) if mesh else ({"kind": "none"}, {})
+        ground = float(np.median(s.ground_at(np.asarray(polys[0].exterior.coords)[:, :2])))
+        top, src = meshing.deck_height(s, geom, ground + 1.0)
+        return {"kind": "slab", "top_y": top, "thickness": 0.4,
                 "polys": [{"rings": [_xz(r.coords) for r in [q.exterior, *q.interiors]]} for q in polys]}, {"top": src}
     if fam in ("coastal_structures", "bridges") and g.geom_type in ("LineString", "MultiLineString"):
         geom = g.difference(severed_area) if fam == "bridges" and not severed_area.is_empty and g.intersects(severed_area) else g
@@ -305,10 +392,23 @@ def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_p
         top, src = meshing.pole_top(s, g.x, g.y, ground)
         return {"kind": "pole", "p": _xz([(g.x, g.y)]), "base_y": round(ground, 2), "top_y": top}, {"top": src}
     if fam == "trees" and g.geom_type == "Point":
-        ground = float(s.ground_at(np.array([[g.x, g.y]]))[0])
-        return {"kind": "tree", "p": _xz([(g.x, g.y)]), "base_y": round(ground, 2),
-                "height": float(attrs.get("height_m") or 6.0), "crown_radius": float(attrs.get("crown_radius_m") or 2.5)}, \
-            {"height": "lidar_chm" if attrs.get("height_m") else "inferred_6m"}
+        ## Lidar gives the crown centre; a crown over a street must not plant its trunk in the road.
+        x, y, moved = clear.off_road(g.x, g.y, gen["shrub_stems"]["trunk_step_off_road_m"])
+        stats["tree_trunks_moved_off_road"] += int(moved > 0)
+        ground = float(s.ground_at(np.array([[x, y]]))[0])
+        mesh = {"kind": "tree", "p": _xz([(x, y)]), "base_y": round(ground, 2),
+                "height": float(attrs.get("height_m") or 6.0), "crown_radius": float(attrs.get("crown_radius_m") or 2.5)}
+        sources = {"height": "lidar_chm" if attrs.get("height_m") else "inferred_6m"}
+        if moved > 0:
+            mesh["trunk_moved_m"] = moved
+            sources["position"] = "lidar_crown_centre_moved_to_road_edge"
+        return mesh, sources
+    if fam in ("vegetation_areas", "land_use") and g.geom_type in ("Polygon", "MultiPolygon") \
+            and cls in gen["shrub_stems"]["density_per_100m2"]:
+        stems = vegetation.stem_points(s, clear, g, cls, fid, gen["shrub_stems"])
+        if stems is not None:
+            stats["stem_clumps"] += len(stems["y"])
+            return stems, {"position": "mapped_area + lidar_2019_low_vegetation", "density": "inferred_class_table"}
     if fam == "vegetation_areas" and cls == "lidar_canopy_dense" and g.geom_type == "Polygon":
         ground = float(np.median(s.ground_at(np.asarray(g.exterior.coords)[:, :2])))
         top, src = meshing.deck_height(s, g, ground + 5.0)

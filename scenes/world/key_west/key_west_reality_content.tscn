@@ -3,12 +3,16 @@
 [ext_resource type="Script" path="res://scripts/world/key_west_reality_ground.gd" id="1_ground"]
 [ext_resource type="Script" path="res://scripts/world/key_west_727_shelter.gd" id="2_shelter"]
 [ext_resource type="Script" path="res://scripts/vfx/wind_gusts.gd" id="3_wind"]
+[ext_resource type="Script" path="res://scripts/world/key_west_reality_first_exit.gd" id="4_first_exit"]
+[ext_resource type="Script" path="res://scripts/environment/interactive/pickup_ledger.gd" id="5_ledger"]
+[ext_resource type="Script" path="res://scripts/world/key_west_reality_far.gd" id="6_far"]
+[ext_resource type="Script" path="res://scripts/world/key_west_reality_hlod.gd" id="7_hlod"]
 
 [node name="KeyWestRealityContent" type="Node3D"]
 
 [node name="SpawnPoint" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4052.73, 7.92, 1924.69)
-metadata/source = "First Exit start anchor (owner decision #211); y = 2019 lidar DSM surface of the fort front"
+metadata/source = "First Exit start (owner decision #211); KeyWestRealityFirstExit moves it in front of the bunker door (data/world/key_west/reality/overrides/first_exit_gameplay.json)"
 
 [node name="RealityGround" type="Node3D" parent="."]
 script = ExtResource("1_ground")
@@ -16,6 +20,23 @@ script = ExtResource("1_ground")
 [node name="Shelter727" type="Node3D" parent="."]
 script = ExtResource("2_shelter")
 metadata/source = "data/world/key_west/reality/landmarks/kw_727_fort_st.json (interior: game-invented clinic plan)"
+
+[node name="FirstExitGameplay" type="Node3D" parent="." node_paths=PackedStringArray("shelter", "spawn_point")]
+script = ExtResource("4_first_exit")
+shelter = NodePath("../Shelter727")
+spawn_point = NodePath("../SpawnPoint")
+metadata/source = "First Exit bunker and pickups at game-authored sites (data/world/key_west/reality/overrides/first_exit_gameplay.json)"
+
+[node name="PickupLedger" type="Node" parent="."]
+script = ExtResource("5_ledger")
+
+[node name="FarView" type="Node3D" parent="."]
+script = ExtResource("6_far")
+metadata/source = "Generated far meshes (scenes/world/key_west/generated/far), streamed like the legacy far city"
+
+[node name="HLODView" type="Node3D" parent="."]
+script = ExtResource("7_hlod")
+metadata/source = "HLOD v1 proxies (scenes/world/key_west/generated/hlod), one per building cluster, shown while its detail cell is out"
 
 [node name="WindGusts" type="Node3D" parent="."]
 script = ExtResource("3_wind")

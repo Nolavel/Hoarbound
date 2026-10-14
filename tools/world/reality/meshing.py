@@ -219,11 +219,55 @@ def building_shell(s: Surfaces, poly, base_y: float, height: float | None, heigh
            "roof_i": ti.astype(int).ravel().tolist(), "roof_source": roof_source, "ring_vertex_count": n_ring}
     if model is not None:
         out["roof_model"] = {k2: model[k2] for k2 in ("type", "rmse", "truncated_l1", "inlier_share", "slope_deg")}
-    # Collision proxy: the source outline (not the densified render ring) capped at the median eave.
-    col = np.asarray(poly.exterior.simplify(0.1).coords)[:-1, :2]
-    out["collision"] = {"ring": np.round(np.column_stack([col[:, 0] - oe, on - col[:, 1]]), 2).ravel().tolist(),
+    # Collision proxy: the source outline (not the densified render ring) capped at the median eave;
+    # courtyards stay open, as the roof draws them.
+    def _flat(ring) -> list:
+        c = np.asarray(ring.simplify(0.1).coords)[:-1, :2]
+        return np.round(np.column_stack([c[:, 0] - oe, on - c[:, 1]]), 2).ravel().tolist()
+    out["collision"] = {"ring": _flat(poly.exterior), "holes": [_flat(r) for r in poly.interiors],
                         "top_y": round(float(np.median(z[:len(ring_pts[0])])), 2)}
     return out
+
+
+DRAPE_SPACING_M = 4.0
+DRAPE_LIFT_M = 0.04
+
+
+def drape(s: Surfaces, polys: list) -> dict:
+    """Ground-hugging surface (parking, aprons): the polygons triangulated on a DRAPE_SPACING_M
+    grid, every vertex DRAPE_LIFT_M over the DEM. A flat plate at the ring median floated
+    above sunken lot interiors and stood in the way of the drives through them."""
+    oe, on = frame.origin()
+    verts, tris = [], []
+    for poly in polys:
+        rings = [poly.exterior, *poly.interiors]
+        pts = [np.asarray(shapely.segmentize(r, DRAPE_SPACING_M).coords)[:-1, :2] for r in rings]
+        segs = []
+        b = poly.bounds
+        gx, gy = np.meshgrid(np.arange(b[0], b[2], DRAPE_SPACING_M), np.arange(b[1], b[3], DRAPE_SPACING_M))
+        inner = poly.buffer(-DRAPE_SPACING_M * 0.25)
+        grid = np.column_stack([gx.ravel(), gy.ravel()])
+        grid = grid[shapely.contains_xy(inner, grid[:, 0], grid[:, 1])] if not inner.is_empty else np.zeros((0, 2))
+        k = 0
+        for p in pts:
+            segs.extend([[k + i, k + (i + 1) % len(p)] for i in range(len(p))])
+            k += len(p)
+        tri_in = {"vertices": np.vstack(pts + [grid]), "segments": np.array(segs)}
+        holes = [shapely.Polygon(r).representative_point().coords[0] for r in poly.interiors]
+        if holes:
+            tri_in["holes"] = np.array(holes)
+        try:
+            t = triangle.triangulate(tri_in, "pQ")
+        except Exception:
+            continue
+        v = t["vertices"]
+        z = s.ground_at(v) + DRAPE_LIFT_M
+        base = sum(len(a) // 3 for a in verts)
+        verts.append(np.round(np.column_stack([v[:, 0] - oe, z, on - v[:, 1]]), 2).ravel())
+        tris.append((t["triangles"] + base).ravel())
+    if not verts:
+        return {}
+    return {"kind": "drape", "v": np.concatenate(verts).tolist(), "i": np.concatenate(tris).astype(int).tolist()}
 
 
 def deck_height(s: Surfaces, geom, fallback: float) -> tuple[float, str]:

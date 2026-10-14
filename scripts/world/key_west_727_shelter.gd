@@ -71,6 +71,18 @@ func build() -> void:
 	_add_spawn()
 
 
+## Lays the First Exit supplies on their interior sockets ({name: {uv, h, yaw_deg}}, h above the floor).
+## Pickup ids, counts and world_ids are the template's; only the place changes.
+func place_supplies(supplies: Array[ItemPickup], sockets: Dictionary) -> void:
+	for pickup: ItemPickup in supplies:
+		var socket: Dictionary = sockets[String(pickup.name)]
+		var yaw: Basis = Basis(Vector3.UP, deg_to_rad(float(socket.get("yaw_deg", 0.0))))
+		pickup.transform = Transform3D(yaw, plan_point(socket["uv"], _floor_y + float(socket["h"])))
+		pickup.set_meta("reconstruction_class", "game_authored_override")
+		pickup.set_meta("site", "727_%s" % socket["room"])
+		_house.add_child(pickup)
+
+
 ## Plan point (u, v) at height y, in House space.
 func plan_point(uv: Array, y: float) -> Vector3:
 	return Vector3(float(uv[0]), y, float(uv[1]))

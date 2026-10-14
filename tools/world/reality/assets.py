@@ -48,6 +48,11 @@ def register(feature_id: str, state: str, asset_id: str | None, blend: str | Non
     rec["updated_at"] = receipts.now_utc()
     if state in ("artist_modified", "artist_locked"):
         rec["source_geometry_hash"] = rec.get("source_geometry_hash") or ghash
+    if "origin_local" not in rec:
+        from .blender_shell import sidecar_of
+        shell = sidecar_of(rec["asset_id"])
+        if shell:
+            rec["origin_local"] = shell["origin_local"]  # the model was built around the shell's origin
     if blend:
         rec["blender_file"] = blend
     if scene:

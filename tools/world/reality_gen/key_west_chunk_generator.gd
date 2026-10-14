@@ -10,8 +10,13 @@ const STREAM_ID_PREFIX: String = "kw_gen_"
 const PACK_MANIFEST: String = "res://data/world/key_west/reality/editor_export/manifest.json"
 const DIGEST_PATH: String = "res://data/world/key_west/reality/editor_export/generated_digest.json"
 const PART_DIR: String = "res://scenes/world/key_west/generated/chunks/parts"
+## Far-view meshes, one per chunk ("Far_x_z.res"), streamed by KeyWestRealityFar.
+const FAR_DIR: String = "res://scenes/world/key_west/generated/far"
+## HLOD chunks: one detail scene per building cluster ("Cluster_<id>.scn"), streamed as its own cell.
+const CLUSTER_DIR: String = "res://scenes/world/key_west/generated/clusters"
+const CLUSTER_ID_PREFIX: String = "kw_bld_"
 ## Heavy groups leave the chunk root as part scenes, attached in this order; Terrain and Anchors stay.
-const PART_ORDER: Array[String] = ["Buildings", "Roads", "Infrastructure", "Coastal", "Vegetation", "Barriers", "LandUse"]
+const PART_ORDER: Array[String] = ["Buildings", "Roads", "Infrastructure", "Coastal", "Vegetation", "Barriers", "LandUse", "Winter"]
 ## Buildings per part scene: about 2 ms of instantiate on the densest Old Town chunk.
 const BUILDING_BLOCK: int = 120
 ## Stamps that differ between identical rebuilds; everything else must match bit for bit.
@@ -32,6 +37,8 @@ func generate(chunk_ids: PackedStringArray) -> Dictionary:
 			if not ids.has(cid):
 				ids.append(cid)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PART_DIR))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(FAR_DIR))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CLUSTER_DIR))
 	var builder: KeyWestChunkBuilder = KeyWestChunkBuilder.new()
 	report = {"chunks": {}, "contract_violations": [], "started": Time.get_datetime_string_from_system(true)}
 	for cid: String in ids:
@@ -43,18 +50,37 @@ func generate(chunk_ids: PackedStringArray) -> Dictionary:
 		var t0: int = Time.get_ticks_msec()
 		var doc: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(json_path))
 		var root: Node3D = builder.build(doc, EXPORT_DIR)
+		var far: ArrayMesh = builder.far_mesh(doc)
 		var violations: Array = _check_contract(root)
-		var digest: String = _digest(root)
+		var digest: String = _digest(root) + ":" + _mesh_digest(far)
+		var cluster_ids: Array = builder.clusters.keys()
+		cluster_ids.sort()
+		for cluster_id: String in cluster_ids:
+			violations.append_array(_check_contract(builder.clusters[cluster_id]))
+			digest += ":" + _digest(builder.clusters[cluster_id]).substr(0, 16)
 		report["contract_violations"].append_array(violations)
 		_remove_parts(String(root.name))
+		_remove_clusters_of(cid)
 		var part_paths: PackedStringArray = _save_parts(root)
 		var err: Error = _save(root, OUT_DIR.path_join("chunks/%s.scn" % root.name))
+		for cluster_id: String in cluster_ids:
+			var cluster_err: Error = _save(builder.clusters[cluster_id], cluster_path_of(cluster_id))
+			if cluster_err != OK:
+				err = cluster_err
+			(builder.clusters[cluster_id] as Node).free()
+		var far_path: String = far_path_of(String(root.name))
+		if far.get_surface_count() > 0:
+			var far_err: Error = ResourceSaver.save(far, far_path, ResourceSaver.FLAG_COMPRESS)
+			if far_err != OK:
+				err = far_err
+		elif FileAccess.file_exists(far_path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(far_path))
 		for path: String in part_paths:
 			if FileAccess.file_exists(path) == false:
 				err = ERR_FILE_CANT_WRITE
 		report["chunks"][cid] = {"scene": OUT_DIR.path_join("chunks/%s.scn" % root.name), "parts": part_paths.size(), "error": err,
 			"features_in_export": doc["features"].size(), "stats": builder.stats.duplicate(), "fidelity": doc["fidelity"],
-			"ms": Time.get_ticks_msec() - t0, "contract_violations": violations.size(), "digest": digest}
+			"ms": Time.get_ticks_msec() - t0, "contract_violations": violations.size(), "digest": digest, "clusters": cluster_ids.size()}
 		root.free()
 	if chunk_ids.is_empty():
 		_remove_stale_scenes(ids)
@@ -137,6 +163,53 @@ func _remove_parts(chunk_name: String) -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 
+## Far mesh path of a chunk ("Chunk_x_z" -> far/Far_x_z.res).
+static func cluster_path_of(cluster_id: String) -> String:
+	return CLUSTER_DIR.path_join("Cluster_%s.scn" % cluster_id)
+
+
+## Chunk "cx:cz" that owns a cluster cell (clusters never straddle chunks).
+static func chunk_of_cluster(cluster_id: String) -> String:
+	var c: Vector3 = KeyWestChunkBuilder.cluster_centre(cluster_id)
+	return "%d:%d" % [floori(c.x / KeyWestChunkBuilder.CHUNK_M), floori(c.z / KeyWestChunkBuilder.CHUNK_M)]
+
+
+## Saved cluster ids, sorted, optionally only those of one chunk.
+static func cluster_ids(chunk_id: String = "") -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	var dir: DirAccess = DirAccess.open(CLUSTER_DIR)
+	if dir == null:
+		return out
+	for file_name: String in dir.get_files():
+		if file_name.begins_with("Cluster_") and file_name.ends_with(".scn"):
+			var cluster_id: String = file_name.trim_prefix("Cluster_").trim_suffix(".scn")
+			if chunk_id == "" or chunk_of_cluster(cluster_id) == chunk_id:
+				out.append(cluster_id)
+	out.sort()
+	return out
+
+
+func _remove_clusters_of(chunk_id: String) -> void:
+	for cluster_id: String in cluster_ids(chunk_id):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(cluster_path_of(cluster_id)))
+
+
+static func far_path_of(chunk_name: String) -> String:
+	return FAR_DIR.path_join(chunk_name.replace("Chunk_", "Far_") + ".res")
+
+
+func _mesh_digest(mesh: ArrayMesh) -> String:
+	var ctx: HashingContext = HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	ctx.update("far".to_utf8_buffer())
+	for s: int in mesh.get_surface_count():
+		var arrays: Array = mesh.surface_get_arrays(s)
+		for kind: int in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_INDEX]:
+			if arrays[kind] != null:
+				ctx.update(var_to_bytes(arrays[kind]))
+	return ctx.finish().hex_encode().substr(0, 16)
+
+
 ## Content hash of a built chunk: tree shape, transforms, metadata, mesh, MultiMesh and collision
 ## data. Sub-resource ids are random per save, so the .scn bytes cannot serve as the check.
 func _digest(root: Node) -> String:
@@ -152,10 +225,13 @@ func _digest_node(ctx: HashingContext, root: Node, node: Node) -> void:
 		line += "|" + var_to_str((node as Node3D).transform)
 	if node.scene_file_path != "":
 		line += "|scene=" + node.scene_file_path
-	var keys: Array = node.get_meta_list()
+	## Sorted as text: StringNames compare by address, so their order would follow the allocator.
+	var keys: PackedStringArray = PackedStringArray()
+	for key: StringName in node.get_meta_list():
+		keys.append(String(key))
 	keys.sort()
-	for key: StringName in keys:
-		if not DIGEST_SKIP_META.has(String(key)):
+	for key: String in keys:
+		if not DIGEST_SKIP_META.has(key):
 			line += "|%s=%s" % [key, var_to_str(node.get_meta(key))]
 	ctx.update(line.to_utf8_buffer())
 	if node is MeshInstance3D and (node as MeshInstance3D).mesh is ArrayMesh:
@@ -193,6 +269,20 @@ func record_digest() -> Error:
 	return OK
 
 
+## Compares only the chunks of this (partial) build with the recorded digest.
+func verify_partial() -> PackedStringArray:
+	var bad: PackedStringArray = PackedStringArray()
+	var recorded: Variant = JSON.parse_string(FileAccess.get_file_as_string(DIGEST_PATH))
+	if not (recorded is Dictionary):
+		bad.append("digest missing")
+		return bad
+	var now: Dictionary = _digests()
+	for cid: String in now.keys():
+		if (recorded["chunks"] as Dictionary).get(cid, "") != now[cid]:
+			bad.append(cid)
+	return bad
+
+
 ## Compares this build with the recorded digest; returns the mismatching chunk ids.
 func verify_digest() -> PackedStringArray:
 	var bad: PackedStringArray = PackedStringArray()
@@ -226,9 +316,13 @@ func _digests() -> Dictionary:
 ## Every feature node under the feature groups must carry the contract keys.
 func _check_contract(root: Node3D) -> Array:
 	var bad: Array = []
+	## An auto name ("@Node@12") comes from a process-wide counter: the chunk would differ by build order.
+	for node: Node in root.find_children("*", "", true, false):
+		if String(node.name).contains("@"):
+			bad.append("%s/%s has an engine-assigned name" % [root.name, root.get_path_to(node)])
 	for group: Node in root.get_children():
-		if group.name in ["Terrain", "Anchors"]:
-			continue
+		if group.name in ["Terrain", "Anchors", "Winter"]:
+			continue  # Winter is presentation (data layer "winter"), not features
 		for node: Node in group.get_children():
 			if String(node.name).begins_with("KW_WIRE_") or node.name == &"BuildingCollision":
 				continue
@@ -272,6 +366,15 @@ func _remove_stale_scenes(ids: PackedStringArray) -> void:
 		for file_name: String in parts.get_files():
 			if not keep.has(file_name.get_slice("__", 0) + ".scn"):
 				parts.remove(file_name)
+	var far: DirAccess = DirAccess.open(FAR_DIR)
+	if far != null:
+		for file_name: String in far.get_files():
+			if not keep.has(file_name.replace("Far_", "Chunk_").replace(".res", ".scn")):
+				far.remove(file_name)
+	for cluster_id: String in cluster_ids():
+		var owner_parts: PackedStringArray = chunk_of_cluster(cluster_id).split(":")
+		if not keep.has("Chunk_%s_%s.scn" % [owner_parts[0], owner_parts[1]]):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(cluster_path_of(cluster_id)))
 
 
 ## WorldData for the production StreamingSystem: one ChunkData per saved chunk, centred.
@@ -298,8 +401,20 @@ func _write_world_data() -> void:
 		chunk.content_scene_path = OUT_DIR.path_join("chunks").path_join(file_name)
 		chunk.part_scene_paths = part_paths_of(file_name.get_basename())
 		data.chunks.append(chunk)
+	var clusters: int = 0
+	var size: float = float(KeyWestChunkBuilder.hlod_config().get("cluster_m", 128))
+	for cluster_id: String in cluster_ids():
+		var cell: ChunkData = ChunkData.new()
+		cell.id = StringName(CLUSTER_ID_PREFIX + cluster_id)
+		cell.display_name = "Key West buildings %s" % cluster_id
+		cell.location = "key_west"
+		cell.position = KeyWestChunkBuilder.cluster_centre(cluster_id)
+		cell.radius = size * sqrt(2.0) * 0.5
+		cell.content_scene_path = cluster_path_of(cluster_id)
+		data.chunks.append(cell)
+		clusters += 1
 	ResourceSaver.save(data, WORLD_DATA_PATH)
-	report["world_data"] = {"path": WORLD_DATA_PATH, "chunks": data.chunks.size()}
+	report["world_data"] = {"path": WORLD_DATA_PATH, "chunks": data.chunks.size(), "building_clusters": clusters}
 
 
 ## KeyWest root that instances every saved chunk scene.
@@ -323,6 +438,11 @@ func _write_root_scene() -> void:
 		for part: Node in chunk.find_children("*", "", true, false):
 			if part.scene_file_path.begins_with(PART_DIR):
 				part.owner = root
+	for cluster_id: String in cluster_ids():
+		var cluster: Node3D = (load(cluster_path_of(cluster_id)) as PackedScene).instantiate() as Node3D
+		cluster.position = KeyWestChunkBuilder.cluster_centre(cluster_id)
+		root.add_child(cluster)
+		cluster.owner = root
 	var packed: PackedScene = PackedScene.new()
 	if packed.pack(root) == OK:
 		ResourceSaver.save(packed, OUT_DIR.path_join("KeyWest_generated.tscn"))

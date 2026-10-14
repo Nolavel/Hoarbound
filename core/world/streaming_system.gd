@@ -29,6 +29,8 @@ extends Node
 signal cell_state_changed(chunk_id: StringName, state: CellState)
 ## Emitted once the pipeline has its data and its ring 0.
 signal initialized(chunk_count: int)
+## Main-thread cost of one streaming stage (instantiate, add_child, attach_part, free), only while measure_stages is on.
+signal stage_timed(chunk_id: StringName, stage: StringName, usec: int)
 
 ## Where a chunk is in the pipeline.
 enum CellState { UNLOADED, QUEUED, LOADING, READY, ACTIVE, ASSEMBLING }
@@ -58,6 +60,8 @@ const DEFAULT_WORLD_DATA: String = "res://archive/graciosa/data/world_data.tres"
 @export_file("*.tres") var world_data_path: String = DEFAULT_WORLD_DATA
 ## Logs every state transition. Noisy; for checking a run.
 @export var log_transitions: bool = false
+## Emits stage_timed for every instantiate, add_child, part attach and free; for gates and stress tests.
+@export var measure_stages: bool = false
 
 var _world_data: WorldData
 var _states: Dictionary = {}
@@ -503,12 +507,17 @@ func _activate(id: StringName) -> void:
 	if packed == null or _container == null:
 		_set_state(id, CellState.UNLOADED)
 		return
+	var t0: int = Time.get_ticks_usec()
 	var instance := packed.instantiate() as Node3D
 	if instance == null:
 		_set_state(id, CellState.UNLOADED)
 		return
+	var t1: int = Time.get_ticks_usec()
 	_container.add_child(instance)
 	instance.global_position = chunk.position
+	if measure_stages:
+		stage_timed.emit(id, &"instantiate", t1 - t0)
+		stage_timed.emit(id, &"add_child", Time.get_ticks_usec() - t1)
 	_instances[id] = instance
 	if chunk.part_scene_paths.is_empty():
 		_set_state(id, CellState.ACTIVE)
@@ -545,7 +554,10 @@ func _attach_part(id: StringName, path: String) -> void:
 	var root_instance := _instances.get(id) as Node3D
 	if packed == null or not is_instance_valid(root_instance):
 		return
+	var t0: int = Time.get_ticks_usec()
 	attach_part(root_instance, packed.instantiate())
+	if measure_stages:
+		stage_timed.emit(id, &"attach_part", Time.get_ticks_usec() - t0)
 
 
 ## Attaches a part scene under its chunk root, or under the node its "attach_to" meta names.
@@ -593,10 +605,13 @@ func _free_instance(id: StringName) -> void:
 		_instances.erase(id)
 		return
 	var instance: Node = _instances.get(id)
+	var t0: int = Time.get_ticks_usec()
 	if is_instance_valid(instance):
 		if instance.get_parent() != null:
 			instance.get_parent().remove_child(instance)
 		instance.queue_free()
+	if measure_stages:
+		stage_timed.emit(id, &"free", Time.get_ticks_usec() - t0)
 	_instances.erase(id)
 
 
