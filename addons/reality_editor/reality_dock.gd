@@ -6,10 +6,19 @@ extends VBoxContainer
 
 const EDITOR_SCENE: String = "res://scenes/world/key_west/key_west_reality_editor.tscn"
 const MARKER_NAME: String = "FocusMarker"
+## Unsaved box under the marker showing the building's bounds; Go to frames the view on it.
+const MARKER_BOUNDS_NAME: String = "Bounds"
 ## Height of the camera-ray plane used to identify buildings (local metres, NAVD88).
 const PICK_PLANE_Y: float = 2.0
 ## Farthest a camera look ray searches for a building.
 const PICK_RAY_M: float = 1500.0
+## Go to framing: most wheel notches sent, frames to wait for the camera, F retries before giving up.
+const MAX_ZOOM_NOTCHES: int = 60
+const SETTLE_MIN_FRAMES: int = 4
+const SETTLE_MAX_FRAMES: int = 60
+const FOCUS_ATTEMPTS: int = 5
+## Go to leaves the camera alone when it is already between the fitting distance and this multiple of it.
+const FRAME_SLACK: float = 1.6
 
 ## Set by the plugin; edit-layer changes go through it so Ctrl+Z undoes them.
 var undo_redo: EditorUndoRedoManager
@@ -55,7 +64,7 @@ func search_for(text: String) -> int:
 
 ## "Go to" on the selected result.
 func go_to_selected() -> void:
-	_go_to()
+	await _go_to()
 
 
 ## "At camera".
@@ -299,13 +308,129 @@ func _go_to() -> void:
 	if view == null or marker == null:
 		_status.text = "Open %s first." % EDITOR_SCENE
 		return
-	var target: Vector3 = Vector3(float(b["c"][0]), float(b["y"]) + float(b["h"]), float(b["c"][1]))
-	marker.global_position = target
-	view.set_focus(target)
+	var bounds: AABB = building_bounds(b)
+	marker.global_position = bounds.get_center()
+	_marker_bounds(marker).mesh = _bounds_mesh(bounds.size)
+	view.set_focus(bounds.get_center())
 	EditorInterface.get_selection().clear()
 	EditorInterface.get_selection().add_node(marker)
 	EditorInterface.edit_node(marker)
-	_status.text = "Marker on %s. Press F in the 3D view to frame it." % RealityIndex.label_of(b)
+	_status.text = "Framing %s..." % RealityIndex.label_of(b)
+	await frame_camera(bounds)
+	_status.text = "Framed %s (marker selected)." % RealityIndex.label_of(b)
+
+
+## F in the 3D view moves the orbit centre but keeps the distance, so this centres on the bounds with F, measures
+## what one wheel notch does, and backs off by enough notches for the bounding sphere to fill the view.
+func frame_camera(bounds: AABB) -> void:
+	var surface: Control = _view_surface()
+	var camera: Camera3D = EditorInterface.get_editor_viewport_3d(0).get_camera_3d()
+	if surface == null or camera == null:
+		return
+	var centre: Vector3 = bounds.get_center()
+	surface.grab_focus()
+	## The view may take a few frames to handle F (first open); measure only once it looks at the centre.
+	for attempt: int in range(FOCUS_ATTEMPTS):
+		_send_key(KEY_F)
+		await _settle(camera)
+		if _looks_at(camera, centre):
+			break
+	if not _looks_at(camera, centre):
+		return
+	var need: float = bounds.size.length() * 0.5 / sin(deg_to_rad(camera.fov) * 0.5)
+	var before: float = camera.global_position.distance_to(centre)
+	if before >= need and before <= need * FRAME_SLACK:
+		return
+	_send_wheel(surface, MOUSE_BUTTON_WHEEL_DOWN)
+	await _settle(camera)
+	var now: float = camera.global_position.distance_to(centre)
+	var ratio: float = now / maxf(before, 0.01)
+	if ratio <= 1.001:
+		return
+	## Whole notches out until the sphere fits; in when that leaves it smaller than FRAME_SLACK allows.
+	var notches: int = ceili(log(need / now) / log(ratio))
+	var button: MouseButton = MOUSE_BUTTON_WHEEL_DOWN if notches > 0 else MOUSE_BUTTON_WHEEL_UP
+	for i: int in range(mini(absi(notches), MAX_ZOOM_NOTCHES)):
+		_send_wheel(surface, button)
+	await _settle(camera)
+
+
+func _looks_at(camera: Camera3D, point: Vector3) -> bool:
+	var to: Vector3 = point - camera.global_position
+	return to.length() > 0.01 and (-camera.global_basis.z).angle_to(to) < deg_to_rad(2.0)
+
+
+## Waits until the editor camera's smoothing has stopped moving it.
+func _settle(camera: Camera3D) -> void:
+	var last: Vector3 = camera.global_position + Vector3.ONE
+	for i: int in range(SETTLE_MAX_FRAMES):
+		await get_tree().process_frame
+		if i >= SETTLE_MIN_FRAMES and camera.global_position.distance_to(last) < 0.001:
+			return
+		last = camera.global_position
+
+
+## The 3D view's input surface: the focusable control beside its SubViewportContainer.
+func _view_surface() -> Control:
+	var view: Node = EditorInterface.get_editor_viewport_3d(0).get_parent().get_parent()
+	for child: Node in view.get_children(true):
+		if child is Control and not child is SubViewportContainer and (child as Control).focus_mode != Control.FOCUS_NONE:
+			return child as Control
+	return null
+
+
+func _send_key(code: Key) -> void:
+	for pressed: bool in [true, false]:
+		var key: InputEventKey = InputEventKey.new()
+		key.keycode = code
+		key.physical_keycode = code
+		key.pressed = pressed
+		Input.parse_input_event(key)
+
+
+func _send_wheel(surface: Control, button: MouseButton) -> void:
+	for pressed: bool in [true, false]:
+		var wheel: InputEventMouseButton = InputEventMouseButton.new()
+		wheel.button_index = button
+		wheel.factor = 1.0
+		wheel.pressed = pressed
+		wheel.position = surface.get_global_rect().get_center()
+		wheel.global_position = wheel.position
+		Input.parse_input_event(wheel)
+
+
+## World AABB of a building record: footprint ring extent, ground to roof.
+static func building_bounds(b: Dictionary) -> AABB:
+	var ring: Array = b.get("ring", [])
+	var lo: Vector2 = Vector2(float(b["c"][0]), float(b["c"][1]))
+	var hi: Vector2 = lo
+	for i: int in range(0, ring.size() - 1, 2):
+		var p: Vector2 = Vector2(float(ring[i]), float(ring[i + 1]))
+		lo = lo.min(p)
+		hi = hi.max(p)
+	return AABB(Vector3(lo.x, float(b["y"]), lo.y), Vector3(hi.x - lo.x, maxf(float(b["h"]), 1.0), hi.y - lo.y))
+
+
+func _marker_bounds(marker: Node3D) -> MeshInstance3D:
+	var box: MeshInstance3D = marker.get_node_or_null(NodePath(MARKER_BOUNDS_NAME)) as MeshInstance3D
+	if box == null:
+		box = MeshInstance3D.new()
+		box.name = MARKER_BOUNDS_NAME
+		box.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		marker.add_child(box)  # no owner: never saved with the scene
+	return box
+
+
+func _bounds_mesh(size: Vector3) -> BoxMesh:
+	var mesh: BoxMesh = BoxMesh.new()
+	mesh.size = size
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1.0, 0.8, 0.1, 0.12)
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mesh.material = mat
+	return mesh
 
 
 func _identify_marker() -> void:

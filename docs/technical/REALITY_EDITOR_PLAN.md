@@ -139,7 +139,7 @@ roofs (layered, overhanging the eaves) and a wind map that sets windward and lee
   459 far meshes and assembles up to 9 detail chunks around the 3D editor camera, one per
   half second. Preview nodes are internal children: nothing is saved into the scene.
 - Dock "Reality" (`addons/reality_editor`): search by house number, street, name or id;
-  "Go to" moves `FocusMarker` there and selects it (press F to frame); "At marker"
+  "Go to" moves `FocusMarker` to the building's centre, shows its bounds and frames the view on them (F alone only re-centres the orbit; see `docs/runtime_previews/reality_editor/README.md`); "At marker"
   identifies the building under the marker, "At camera" the first footprint the camera's look
   ray passes through below its roof top (`RealityIndex.pick_ray`, 0.5 m steps); the record
   shows address source, use, height, levels, chunk and the bound asset.

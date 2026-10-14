@@ -1,0 +1,46 @@
+{
+ "before": [
+  {
+   "query": "907 whitehead",
+   "moved_m": 3456.1,
+   "distance_m": 7.7,
+   "bounds_radius_m": 14.8,
+   "fits_at_m": 25.9,
+   "marker_at_centre": false,
+   "in_view": true,
+   "framed": false
+  },
+  {
+   "query": "1009 windsor",
+   "moved_m": 627.6,
+   "distance_m": 7.3,
+   "bounds_radius_m": 7.9,
+   "fits_at_m": 13.8,
+   "marker_at_centre": false,
+   "in_view": true,
+   "framed": false
+  }
+ ],
+ "after": [
+  {
+   "query": "907 whitehead",
+   "moved_m": 0.0,
+   "distance_m": 29.6,
+   "bounds_radius_m": 14.8,
+   "fits_at_m": 25.9,
+   "marker_at_centre": true,
+   "in_view": true,
+   "framed": true
+  },
+  {
+   "query": "1009 windsor",
+   "moved_m": 0.0,
+   "distance_m": 16.0,
+   "bounds_radius_m": 7.9,
+   "fits_at_m": 13.8,
+   "marker_at_centre": true,
+   "in_view": true,
+   "framed": true
+  }
+ ]
+}
