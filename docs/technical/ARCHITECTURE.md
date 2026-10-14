@@ -151,7 +151,7 @@ var data: Variant = SaveParticipantCapability.capture(owner)
 SaveParticipantCapability.restore(owner, data as Dictionary)
 ```
 
-A C# or C++/Jenova provider may use completely different private method names, for example `stable_id`, `snapshot`, and `restore_snapshot`, and publish them against the same logical operations:
+A C# or C++/GDExtension provider may use completely different private method names, for example `stable_id`, `snapshot`, and `restore_snapshot`, and publish them against the same logical operations:
 
 ```text
 save_participant
@@ -168,12 +168,12 @@ SaveManager                         SaveManager
     │                                   │
 SaveParticipantCapability           SaveParticipantCapability
     │                                   │
-WeatherController.gd                WeatherController.cpp / Jenova
+WeatherController.gd                WeatherController.cpp / GDExtension
 ```
 
 The rule is: **change the implementation behind the capability, not the consumer-facing contract**. Add a new capability only for a real subsystem seam; do not create capability wrappers for every class.
 
-For optimization, Jenova/C++ is a replaceable implementation behind the same contract. The sequence is:
+For optimization, GDExtension/C++ is a replaceable implementation behind the same contract. The sequence is:
 
 `measured bottleneck -> preserve capability id/operations -> replace implementation -> rerun the same consumer/runtime validation`
 

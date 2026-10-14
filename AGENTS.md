@@ -121,10 +121,11 @@ The product documents are not optional background reading.
 ## Architecture guardrails
 
 - Full-project ECS is not accepted for Hoarbound. Use selective ECS / data-oriented subsystems only when a concrete scale, profiling, or simulation need justifies them; see `docs/technical/ARCHITECTURE.md`.
-- Cross-system and cross-language seams use capability contracts under `core/contracts/`: the Godot-visible contract is public; the GDScript, C#, or C++/Jenova implementation is private.
+- Cross-system and cross-language seams use capability contracts under `core/contracts/`: the Godot-visible contract is public; the GDScript, C#, or C++/GDExtension implementation is private.
 - A capability is attached to the existing owner `Object`; do **not** add child `Port` nodes merely to declare an interface.
 - Do not add new scattered `has_method()` / string-`call()` protocols for cross-system dispatch. Reflection/dynamic dispatch belongs inside `core/contracts/` or a language adapter there; migrate existing protocols when the owning system is touched rather than through a global rewrite.
-- Moving a hot path from GDScript to C++/Jenova requires measured profiling evidence and must preserve the same capability id, operations, ownership, and consumers.
+- Moving a hot path from GDScript to C++/GDExtension requires measured profiling evidence and must preserve the same capability id, operations, ownership, and consumers.
+- Production C++ uses only GDExtension/godot-cpp; see `docs/technical/GDEXTENSION.md`. Jenova is a rejected experiment and must not be restored.
 - Player movement, rotation, camera, interaction, and survival components keep separate ownership.
 - Camera feedback may lag aesthetically, but input response must not be delayed by stacked smoothing systems.
 - `IslandTerrain` owns terrain geometry/LOD. Project streaming owns gameplay content chunks.

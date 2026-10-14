@@ -19,7 +19,7 @@ author. Claude flags cost and risk for them.
 
 Architecture contract: `docs/technical/ARCHITECTURE.md` (RU companion: `ARCHITECTURE_RU.md`). Read it before structural architecture changes.
 
-Cross-language contract rule: public cross-system seams use capabilities under `core/contracts/`. GDScript, C#, and C++/Jenova implementations stay private behind the same Godot-visible contract. Do not add new scattered `has_method()` / string-`call()` protocols outside the contract/adapters boundary. Jenova/C++ may replace a GDScript implementation only after profiling shows a real bottleneck, and the public capability contract and its consumers must remain unchanged.
+Cross-language contract rule: public cross-system seams use capabilities under `core/contracts/`. GDScript, C#, and C++/GDExtension implementations stay private behind the same Godot-visible contract. Do not add new scattered `has_method()` / string-`call()` protocols outside the contract/adapters boundary. GDExtension/C++ may replace a GDScript implementation only after profiling shows a real bottleneck, and the public capability contract and its consumers must remain unchanged.
 
 ## Branch
 
@@ -71,18 +71,18 @@ rule changes) and `global.json` (take `main`'s).
   NOAA base heights remain unchanged. Authored height edits use Blender
   (`tools/blender/`), never hand-written code.
 
-## Jenova (C++ scripts)
+## GDExtension (production C++)
 
-- How it works, pinned versions, patches and rebuild steps: `docs/technical/JENOVA.md`.
-- Jenova is a replaceable implementation option for measured hot paths, not a second gameplay architecture. Keep the same capability contract when moving work from GDScript to C++.
-- We build Jenova ourselves for Windows and Linux from one pinned revision; keep
-  `JENOVA_REF` / `$jenovaRef` equal in both `tools/ci/bootstrap_jenova_*` scripts.
-- Windows runtime is built in CI (`[jenova-windows-build]`): this machine has 4 GB
-  RAM and the local build was killed for lack of memory. Do not start it locally.
-- Windows binaries go to Git LFS; Linux binaries stay plain git (Linux CI jobs
-  check out without LFS and Godot loads the extension at every start).
-- `Jenova/Compilers/` is local only (git-ignored); create it with
-  `tools/jenova/install_msvc_compiler.ps1`.
+- The approved native path is GDExtension + godot-cpp; see
+  `docs/technical/GDEXTENSION.md`.
+- Keep portable math in `native/hoarbound_core/` and Godot-facing adapters in
+  `native/hoarbound_native/`.
+- Heavy Windows, Linux and macOS compilation runs in GitHub Actions. Install the
+  checksum-verified artifact locally instead of requiring a compiler toolchain.
+- Move only measured hot paths, keep the same capability contract and ownership,
+  and prove parity before removing the old implementation.
+- Jenova was an experimental spike rejected for production. Do not restore its
+  runtime, SDK, compiler integration or script workflow.
 
 ## Language policy
 

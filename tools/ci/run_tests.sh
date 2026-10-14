@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 ## Runs every headless test suite under tests/systems and fails on the first
 ## suite that reports a failure. A suite that hangs is killed and counts as failed.
-## The Jenova runtime quick_exit(0)s on unload, so the exit code alone lies: a suite
-## also fails on a script error, a reported failed check, or an error with no pass line
-## (docs/technical/JENOVA.md).
+## The exit code is only one signal: a suite also fails on a script error, a
+## reported failed check, or an error with no pass line.
 set -uo pipefail
 
 GODOT_BIN="${GODOT_BIN:-$HOME/.local/bin/godot}"

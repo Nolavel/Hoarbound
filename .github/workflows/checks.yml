@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: checks-${{ github.ref }}${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[jenova-windows-build]'))) && '-jenova' || '' }}
+  group: checks-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -93,7 +93,6 @@ jobs:
             -- res://docs/runtime_previews/key_west_reality_streaming island
 
       - name: Production gate (full World, Henry by input, fast mode)
-        ## Judged by the report, not the exit code: Jenova quick_exit(0)s on unload.
         run: |
           timeout 2700 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
             --script res://tools/runtime/gate_key_west_reality.gd -- --fast --out=res://docs/runtime_previews/key_west_reality_gate

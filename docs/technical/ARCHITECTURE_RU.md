@@ -151,7 +151,7 @@ var data: Variant = SaveParticipantCapability.capture(owner)
 SaveParticipantCapability.restore(owner, data as Dictionary)
 ```
 
-C# или C++/Jenova provider может иметь совсем другие приватные имена, например `stable_id`, `snapshot`, `restore_snapshot`, и сопоставить их тем же logical operations:
+C# или C++/GDExtension provider может иметь совсем другие приватные имена, например `stable_id`, `snapshot`, `restore_snapshot`, и сопоставить их тем же logical operations:
 
 ```text
 save_participant
@@ -168,12 +168,12 @@ SaveManager                         SaveManager
     │                                   │
 SaveParticipantCapability           SaveParticipantCapability
     │                                   │
-WeatherController.gd                WeatherController.cpp / Jenova
+WeatherController.gd                WeatherController.cpp / GDExtension
 ```
 
 Правило: **меняем implementation за capability, а не consumer-facing contract**. Новый capability создаётся только для реальной межсистемной границы; не нужно оборачивать capability каждый класс.
 
-Для оптимизации Jenova/C++ является заменяемой implementation за тем же контрактом. Последовательность:
+Для оптимизации GDExtension/C++ является заменяемой implementation за тем же контрактом. Последовательность:
 
 `измеренный bottleneck -> сохранить capability id/operations -> заменить implementation -> повторить тот же consumer/runtime validation`
 

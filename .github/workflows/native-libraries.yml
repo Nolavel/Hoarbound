@@ -1,0 +1,202 @@
+name: native-libraries
+
+## Heavy native compilation lives here, isolated from the cheap checks workflow.
+## Each runner builds and smoke-loads the same production GDExtension adapter.
+on:
+  push:
+    branches: [main, codex]
+    paths:
+      - ".github/workflows/native-libraries.yml"
+      - "native/hoarbound_core/**"
+      - "native/hoarbound_native/**"
+      - "tools/ci/build_native_extension.py"
+      - "tools/ci/package_native_extension.py"
+      - "tools/native/install_native_artifact.py"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/native-libraries.yml"
+      - "native/hoarbound_core/**"
+      - "native/hoarbound_native/**"
+      - "tools/ci/build_native_extension.py"
+      - "tools/ci/package_native_extension.py"
+      - "tools/native/install_native_artifact.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-libraries-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.8-dev6
+  GODOT_CPP_REF: b8530af7546a3fcae80cef2477526569fd42ffc2
+  SCONS_VERSION: 4.4.0
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x86_64
+            os: windows-latest
+            platform: windows
+            arch: x86_64
+            godot_asset: Godot_v4.8-dev6_mono_win64.zip
+            godot_sha256: 0642d39681dbebb2e5965924f58bc7e56058096750678b1d50f9eba941324da5
+          - name: Linux x86_64
+            os: ubuntu-22.04
+            platform: linux
+            arch: x86_64
+            godot_asset: Godot_v4.8-dev6_mono_linux_x86_64.zip
+            godot_sha256: 1658eeb19c04b76c723def84ded44c28f80985f40bebcc36994a1b8b1bde9799
+          - name: macOS universal
+            os: macos-latest
+            platform: macos
+            arch: universal
+            godot_asset: Godot_v4.8-dev6_mono_macos.universal.zip
+            godot_sha256: 5d63ae272c6cdb89c82663bd0336e51c83b42ad1e64f49613c3ef102e5839cf6
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install pinned SCons
+        run: python -m pip install scons==${{ env.SCONS_VERSION }}
+
+      - name: Fetch pinned godot-cpp
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init native/hoarbound_native/godot-cpp
+          git -C native/hoarbound_native/godot-cpp remote add origin https://github.com/godotengine/godot-cpp.git
+          git -C native/hoarbound_native/godot-cpp fetch --depth=1 origin "$GODOT_CPP_REF"
+          git -C native/hoarbound_native/godot-cpp checkout --detach FETCH_HEAD
+          test "$(git -C native/hoarbound_native/godot-cpp rev-parse HEAD)" = "$GODOT_CPP_REF"
+
+      - name: Restore SCons cache
+        uses: actions/cache@v4
+        with:
+          path: .scons-cache
+          key: native-v2-${{ runner.os }}-${{ matrix.arch }}-${{ env.GODOT_VERSION }}-${{ env.GODOT_CPP_REF }}-${{ env.SCONS_VERSION }}
+
+      - name: Install Godot on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/${{ matrix.godot_asset }}"
+          install="$RUNNER_TEMP/godot"
+          curl -fL --retry 3 -o "$archive" "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${{ matrix.godot_asset }}"
+          echo "${{ matrix.godot_sha256 }}  $archive" | sha256sum -c -
+          mkdir -p "$install"
+          unzip -q "$archive" -d "$install"
+          godot_bin="$install/Godot_v4.8-dev6_mono_linux_x86_64/Godot_v4.8-dev6_mono_linux.x86_64"
+          test -f "$godot_bin"
+          chmod +x "$godot_bin"
+          echo "GODOT_BIN=$godot_bin" >> "$GITHUB_ENV"
+
+      - name: Install Godot on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "${{ matrix.godot_asset }}"
+          $install = Join-Path $env:RUNNER_TEMP "godot"
+          Invoke-WebRequest -Uri "https://github.com/godotengine/godot-builds/releases/download/$env:GODOT_VERSION/${{ matrix.godot_asset }}" -OutFile $archive
+          $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne "${{ matrix.godot_sha256 }}") {
+            throw "Godot archive checksum mismatch: $actual"
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath $install
+          $godot = Get-ChildItem -LiteralPath $install -Filter "Godot_v4.8-dev6_mono_win64.exe" -File -Recurse | Select-Object -First 1
+          if (-not $godot) {
+            throw "Godot executable was not found in $install"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "GODOT_BIN=$($godot.FullName)"
+
+      - name: Install Godot on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/${{ matrix.godot_asset }}"
+          install="$RUNNER_TEMP/godot"
+          curl -fL --retry 3 -o "$archive" "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/${{ matrix.godot_asset }}"
+          echo "${{ matrix.godot_sha256 }}  $archive" | shasum -a 256 -c -
+          mkdir -p "$install"
+          unzip -q "$archive" -d "$install"
+          godot_bin="$(find "$install" -type f -path '*/Contents/MacOS/Godot*' | head -n 1)"
+          test -n "$godot_bin"
+          chmod +x "$godot_bin"
+          echo "GODOT_BIN=$godot_bin" >> "$GITHUB_ENV"
+
+      - name: Build and smoke-load native extension
+        env:
+          SCONS_CACHE: ${{ github.workspace }}/.scons-cache
+        run: >-
+          python tools/ci/build_native_extension.py
+          --platform ${{ matrix.platform }}
+          --arch ${{ matrix.arch }}
+          --jobs 2
+
+      - name: Upload platform binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-native-bin-${{ matrix.platform }}
+          path: native/hoarbound_native/dist
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload smoke log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-native-log-${{ matrix.platform }}
+          path: native/hoarbound_native/proof/${{ matrix.platform }}/smoke.log
+          if-no-files-found: warn
+          retention-days: 7
+
+  package:
+    name: Merged native package
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download platform binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: hoarbound-native-bin-*
+          path: native/hoarbound_native/dist
+          merge-multiple: true
+
+      - name: Create manifest and checksums
+        run: >-
+          python3 tools/ci/package_native_extension.py
+          --dist native/hoarbound_native/dist
+          --descriptor native/hoarbound_native/hoarbound_native.gdextension.template
+          --engine-version "${{ env.GODOT_VERSION }}"
+          --godot-cpp-ref "${{ env.GODOT_CPP_REF }}"
+          --source-commit "${{ github.sha }}"
+
+      - name: Upload merged native package
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-native
+          path: native/hoarbound_native/dist
+          if-no-files-found: error
+          retention-days: 30
+

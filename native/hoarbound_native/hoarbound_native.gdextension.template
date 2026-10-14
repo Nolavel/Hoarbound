@@ -1,0 +1,11 @@
+[configuration]
+
+entry_symbol = "hoarbound_native_library_init"
+compatibility_minimum = "4.8"
+reloadable = false
+
+[libraries]
+
+windows.x86_64 = "res://bin/windows/hoarbound_native.dll"
+linux.x86_64 = "res://bin/linux/libhoarbound_native.so"
+macos = "res://bin/macos/libhoarbound_native.macos.dylib"

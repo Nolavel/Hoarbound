@@ -42,6 +42,7 @@ The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs
 - [`docs/game_design/VERTICAL_SLICE.md`](docs/game_design/VERTICAL_SLICE.md) — First Exit A scope contract
 - [`docs/GDD.md`](docs/GDD.md) — code-grounded gameplay / systems snapshot
 - [`docs/technical/ARCHITECTURE.md`](docs/technical/ARCHITECTURE.md) — canonical technical architecture contract ([RU](docs/technical/ARCHITECTURE_RU.md))
+- [`docs/technical/GDEXTENSION.md`](docs/technical/GDEXTENSION.md) — production C++ build, CI artifact and local install workflow
 - [`docs/art/ART_DIRECTION.md`](docs/art/ART_DIRECTION.md) — production visual source of truth
 - [`AGENTS.md`](AGENTS.md) — repository and agent workflow rules
 - [`CONTRIBUTING_DECOMPOSITION.md`](CONTRIBUTING_DECOMPOSITION.md) — issue / milestone decomposition rules
