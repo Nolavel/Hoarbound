@@ -14,6 +14,7 @@
   first-exit-sites            bunker door, spawn and loot sites for the Reality First Exit (game-authored)
   traversal-check             no generated collider on a mapped road, path or footway
   export-editor               per-chunk editor interchange for the Godot editor generator
+  editor-index                search index (address, size, footprint) for the Godot Reality editor dock
   all                         acquire -> extent -> acquire (extent-bound) -> build -> validate -> report -> preview
 
 Needs: pyarrow, pyogrio, shapely, pyproj, rasterio, laspy[lazrs], numpy, Pillow.
@@ -98,6 +99,9 @@ def main() -> None:
     elif args.command == "landmarks":
         from reality import landmarks
         landmarks.run()
+    elif args.command == "editor-index":
+        from reality import editor_index
+        editor_index.run()
     elif args.command == "export-editor":
         from reality import editor_export
         editor_export.run(args.chunk, route_only=args.route)

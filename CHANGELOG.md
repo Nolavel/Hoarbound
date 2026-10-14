@@ -8,6 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Reality editor (stage 1, read-only): `key_west_reality_editor.tscn` shows the whole island as far meshes with detail chunks around the 3D editor camera, and the "Reality" dock finds buildings by address, name or id, frames them and identifies the building under the marker or camera; index from `key_west_reality.py editor-index`.
 - Replaced the rejected Jenova experiment with the production GDExtension/godot-cpp path: portable core, real controller adapter, checksum-verified three-platform CI artifact and local installer.
 - Added the Quick Access HUD, its 3D anchor rig and supporting UI shader material.
 - Reality partial export (`export-editor --chunk`): a chunk now keeps the pieces of roads and areas owned by a neighbouring chunk (22 roads were missing from `-7:3`), and the island chunk list in `manifest.json` stays whole; 3 chunks re-exported alone match the full export. Editor and partial-rebuild plan: `docs/technical/REALITY_EDITOR_PLAN.md`.

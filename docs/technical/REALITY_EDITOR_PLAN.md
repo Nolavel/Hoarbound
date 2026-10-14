@@ -1,6 +1,6 @@
 # Key West Reality: editor view, partial rebuild, Blender roundtrip
 
-Status: plan, 2026-10-14. Owner asked for an editor workflow over the Reality world:
+Status: stage 1 done, 2026-10-14 (section 10). Owner asked for an editor workflow over the Reality world:
 see the city in the editor without loading all of it, find a building by address,
 replace its massing with an authored model from Blender, move trees and props, and
 rebuild only what changed without breaking neighbouring chunks.
@@ -120,3 +120,31 @@ plus the edit layer is the world, and the generator cuts it into chunks.
 
 A C++ streaming manager is not on the list: activation is staged and measured, and the
 architecture contract moves code to native only after a profile shows the bottleneck.
+
+## 10. Decisions and progress (2026-10-14)
+
+Owner answers: Blender 5.x; Blender work comes later, so its bridge stays shallow for now.
+Data layers named so far: loot sets per playthrough; winter dressing, including snow caps on
+roofs (layered, overhanging the eaves) and a wind map that sets windward and lee sides.
+
+**Stage 1 (done):** read-only editor view and search.
+- `python3 tools/world/key_west_reality.py editor-index` writes
+  `data/world/key_west/reality/editor/editor_index.json` (13,376 buildings; address from the
+  building attribute for 9,727, from an address point inside the outline for 4 and within
+  6 m for 138, labelled `addr_src`; the 160 buildings not generated are flagged).
+- `scenes/world/key_west/key_west_reality_editor.tscn`: `KeyWestRealityEditorView` shows all
+  459 far meshes and assembles up to 9 detail chunks around the 3D editor camera, one per
+  half second. Preview nodes are internal children: nothing is saved into the scene.
+- Dock "Reality" (`addons/reality_editor`): search by house number, street, name or id;
+  "Go to" moves `FocusMarker` there and selects it (press F to frame); "At marker" and
+  "At camera" identify the building under the marker or the camera's look point; the record
+  shows address source, use, height, levels, chunk and the bound asset.
+- Test: `tests/systems/test_reality_editor.gd`. Captures: `docs/runtime_previews/reality_editor/`.
+
+**Next, in order:**
+1. Edit layer: records keyed by `feature_id`, each tagged with a data layer
+   (`base`, `loot:<set>`, `winter`, later story states), stored per chunk file.
+2. Shallow Blender 5 bridge: blank export script and the glTF binding by `asset_id`.
+3. Winter pass, one snapshot: stage 0 (naming, partial-equals-full test), a wind exposure
+   field from the profile wind and building shelter, roof snow caps whose depth and eave
+   overhang the runtime snow state and that field drive (presentation reads state only).
