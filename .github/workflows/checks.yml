@@ -139,7 +139,7 @@ jobs:
           done
 
       - name: 727 shelter loop (enter, repair, fire, warm, eat, sleep, save, reload)
-        ## Judged by the report, not the exit code: Jenova quick_exit(0)s on unload.
+        ## Judged by the report verdict, not the exit code.
         run: |
           timeout 1500 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
             --script res://tools/runtime/loop_key_west_727.gd -- --out=res://docs/runtime_previews/key_west_727_loop
