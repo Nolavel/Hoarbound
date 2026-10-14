@@ -3,23 +3,7 @@
 Parked work with enough context to resume. Not a build plan:
 `docs/BUILD_PLAN.md` stays the source of truth for order.
 
-## 1. Linux: Jenova C++ script build fails (open, 2026-10-09)
-
-- **Symptom.** In the `[jenova-frost-preview]` CI job `BuildProject` returns
-  false on Linux (run 37814389505). Windows builds and runs the frost script,
-  both in CI and on the author's machine.
-- **Diagnostics in place.** `tools/ci/build_jenova_project.gd` now routes
-  Jenova's log to standard output (`jenova/editor_verbose_output = 0`). The job
-  uploads `hoarbound-jenova-linux-build-log` even on failure. Run d566f19 (37818722900)
-  is the first with that log. Read it first:
-  `gh run download 37818722900 -n hoarbound-jenova-linux-build-log`.
-- **Known facts.**
-  - The Linux compiler is `clang++` from `PATH` (the CI job symlinks clang-19).
-  - Modules link against `libGodot.x64.a` and `Jenova.Runtime.Linux64.so`.
-  - The compiler and SDK paths are patched in `bootstrap_jenova_linux.sh`.
-- Full context: `docs/technical/JENOVA.md`.
-
-## 2. Native-code candidates (decided: measure first, then port)
+## 1. Native-code candidates (decided: measure first, then port)
 
 The source is `docs/technical/PERFORMANCE_AUDIT_2026_10_03.md` (HD 620, Key
 West, 1080p), re-read against the code on 2026-10-09. The steady-state frame is
@@ -34,8 +18,8 @@ that. The CPU candidates below are generation stalls.
      - a 1.6–2.4 s freeze on the first window, a load or a long jump
        (`SnowShell.recentre_to` -> synchronous `SnowField.rebuild`).
    - A C# prototype matched the output at ~32x on the depth part.
-   - **Port first, preferably to C#** (project rule: heavy math in C#; Jenova
-     is still beta).
+   - **Port first, preferably to C#** (project rule: heavy math stays in C#
+     unless profiling justifies the production GDExtension boundary).
 2. **IslandTerrain chunk mesh build**
    (`scripts/systems/world/terrain/island_terrain.gd`, `builds_per_frame`
    queue).

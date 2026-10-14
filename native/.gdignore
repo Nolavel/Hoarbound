@@ -1,0 +1,2 @@
+# Native C++ is built by its dedicated CI and must not be imported as Jenova scripts.
+# The directory remains available to GitHub Actions through normal filesystem paths.

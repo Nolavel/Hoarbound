@@ -661,10 +661,8 @@ pickups, the frozen sea, the build step and an HD 620 run. That switch is the au
 4. **727 plan from records.** 727 is enterable on a game-invented clinic plan. If the
    Legistar plan attachments arrive, move the openings and partitions to them in
    `shelter_727.py`. The hut nodes follow automatically.
-5. **Jenova exit code patch** (`docs/technical/JENOVA.md`). Needs the Windows CI build and
-   an LFS commit.
-6. **Make `key_west_reality` the default profile.** After 1–4, by author decision.
-7. **Facades and roofs.** Openings and colours need imagery or planning sheets. Split complex
+5. **Make `key_west_reality` the default profile.** After 1–4, by author decision.
+6. **Facades and roofs.** Openings and colours need imagery or planning sheets. Split complex
    footprints before roof fitting, and use the roof-band median instead of canopy-polluted
    P95 heights.
 8. **Far LOD.** OBB/hull proxies for the ring beyond the load band.

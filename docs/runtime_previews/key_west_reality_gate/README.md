@@ -50,5 +50,5 @@ godot --path . --rendering-driver vulkan --script tools/world/reality_gen/genera
 godot --path . --script res://tools/runtime/gate_key_west_reality.gd -- --legs=1 --shots --out=user://gate_hd620
 ```
 
-Then send `gate_report.json` (in the Godot user dir, `gate_hd620/`). The exit code is
-always 0 because of Jenova; read the `verdict` in the report.
+Then send `gate_report.json` (in the Godot user dir, `gate_hd620/`). The JSON
+`verdict` is the authoritative multi-metric result.

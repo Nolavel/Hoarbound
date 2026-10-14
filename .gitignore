@@ -48,10 +48,10 @@ docs/runtime_previews/motion_matching_lab/
 docs/runtime_previews/motion_retarget_diagnostics/
 docs/runtime_previews/motion_matching_player*/
 
-# Jenova MSVC toolchain, installed locally by tools/ci/bootstrap_jenova_windows.ps1
-/Jenova/Compilers/
-# Jenova keeps a renamed copy of the loaded runtime while the editor runs
-/Jenova/~*
+
+# CI-built GDExtension descriptor is activated by the verified artifact installer
+/addons/hoarbound_native/hoarbound_native.gdextension
+/native/hoarbound_native/ci_project/addons/
 
 # Key West Reality Library raw source cache (re-downloadable; see receipts/)
 data/world/key_west/reality/raw_cache/
