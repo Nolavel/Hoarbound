@@ -1,0 +1,1202 @@
+{
+ "label": "gpu",
+ "scene": "res://scenes/world/key_west/key_west_reality.tscn",
+ "stations": {
+  "s1_street_core": {
+   "settle_frames": 87,
+   "settle_ms": 68760,
+   "settled": true,
+   "sample": {
+    "process_ms": {
+     "avg": 508.539,
+     "max": 1865.556
+    },
+    "render_cpu_ms": {
+     "avg": 9.269,
+     "max": 22.086
+    },
+    "render_gpu_ms": {
+     "avg": 85.506,
+     "max": 93.935
+    },
+    "fps": {
+     "avg": 3.7,
+     "max": 6.0
+    },
+    "draw_calls": {
+     "avg": 644.8,
+     "max": 666.0
+    },
+    "primitives": {
+     "avg": 3686938.7,
+     "max": 3702974.0
+    },
+    "objects": {
+     "avg": 894.05,
+     "max": 916.0
+    },
+    "nodes": {
+     "avg": 2659.0,
+     "max": 2659.0
+    },
+    "static_mem_mib": {
+     "avg": 279.032,
+     "max": 279.686
+    },
+    "video_mem_mib": {
+     "avg": 424.986,
+     "max": 424.996
+    },
+    "wall_frame_ms": 342.48
+   },
+   "instances": {
+    "geometry_instances": 1345,
+    "visible_geometry_instances": 1341,
+    "mesh_instances": 1325,
+    "multimesh_instances": 20,
+    "collision_shapes": 14
+   },
+   "buildings_by_distance": [
+    {
+     "to_m": 150.0,
+     "instances": 26,
+     "surfaces": 52,
+     "triangles": 2145
+    },
+    {
+     "to_m": 300.0,
+     "instances": 10,
+     "surfaces": 20,
+     "triangles": 1125
+    },
+    {
+     "to_m": 500.0,
+     "instances": 0,
+     "surfaces": 0,
+     "triangles": 0
+    },
+    {
+     "to_m": 800.0,
+     "instances": 0,
+     "surfaces": 0,
+     "triangles": 0
+    },
+    {
+     "to_m": -1.0,
+     "instances": 0,
+     "surfaces": 0,
+     "triangles": 0
+    }
+   ],
+   "active_chunks": [
+    "kw_bld_c128_-20_7",
+    "kw_bld_c128_-20_8",
+    "kw_bld_c128_-20_9",
+    "kw_bld_c128_-21_6",
+    "kw_bld_c128_-21_7",
+    "kw_bld_c128_-21_8",
+    "kw_bld_c128_-21_9",
+    "kw_bld_c128_-22_7",
+    "kw_bld_c128_-22_8",
+    "kw_bld_c128_-22_9",
+    "kw_far_-10_-1",
+    "kw_far_-10_0",
+    "kw_far_-10_1",
+    "kw_far_-10_2",
+    "kw_far_-10_3",
+    "kw_far_-10_4",
+    "kw_far_-1_0",
+    "kw_far_-1_1",
+    "kw_far_-1_2",
+    "kw_far_-1_3",
+    "kw_far_-2_-1",
+    "kw_far_-2_-2",
+    "kw_far_-2_0",
+    "kw_far_-2_1",
+    "kw_far_-2_2",
+    "kw_far_-2_3",
+    "kw_far_-2_4",
+    "kw_far_-2_5",
+    "kw_far_-3_-1",
+    "kw_far_-3_-2",
+    "kw_far_-3_0",
+    "kw_far_-3_1",
+    "kw_far_-3_2",
+    "kw_far_-3_3",
+    "kw_far_-3_4",
+    "kw_far_-3_5",
+    "kw_far_-3_6",
+    "kw_far_-4_-1",
+    "kw_far_-4_-2",
+    "kw_far_-4_-3",
+    "kw_far_-4_0",
+    "kw_far_-4_1",
+    "kw_far_-4_2",
+    "kw_far_-4_3",
+    "kw_far_-4_4",
+    "kw_far_-4_5",
+    "kw_far_-4_6",
+    "kw_far_-5_-1",
+    "kw_far_-5_-2",
+    "kw_far_-5_-3",
+    "kw_far_-5_0",
+    "kw_far_-5_1",
+    "kw_far_-5_2",
+    "kw_far_-5_3",
+    "kw_far_-5_4",
+    "kw_far_-5_5",
+    "kw_far_-5_6",
+    "kw_far_-6_-1",
+    "kw_far_-6_-2",
+    "kw_far_-6_-3",
+    "kw_far_-6_0",
+    "kw_far_-6_1",
+    "kw_far_-6_2",
+    "kw_far_-6_3",
+    "kw_far_-6_4",
+    "kw_far_-6_5",
+    "kw_far_-6_6",
+    "kw_far_-7_-1",
+    "kw_far_-7_-2",
+    "kw_far_-7_-3",
+    "kw_far_-7_0",
+    "kw_far_-7_1",
+    "kw_far_-7_2",
+    "kw_far_-7_3",
+    "kw_far_-7_4",
+    "kw_far_-7_5",
+    "kw_far_-7_6",
+    "kw_far_-8_-1",
+    "kw_far_-8_-2",
+    "kw_far_-8_-3",
+    "kw_far_-8_0",
+    "kw_far_-8_1",
+    "kw_far_-8_2",
+    "kw_far_-8_3",
+    "kw_far_-8_4",
+    "kw_far_-8_5",
+    "kw_far_-8_6",
+    "kw_far_-9_-1",
+    "kw_far_-9_-2",
+    "kw_far_-9_0",
+    "kw_far_-9_1",
+    "kw_far_-9_2",
+    "kw_far_-9_3",
+    "kw_far_-9_4",
+    "kw_far_-9_5",
+    "kw_gen_-5_1",
+    "kw_gen_-5_2",
+    "kw_gen_-6_1",
+    "kw_gen_-6_2"
+   ],
+   "hlod": {
+    "representations": {
+     "hlod": 54,
+     "detail": 10
+    },
+    "proxies": 54,
+    "stats": {
+     "to_detail": 8,
+     "to_hlod": 62,
+     "sync_loads": 0,
+     "max_proxies_per_frame": 16
+    }
+   },
+   "draw_calls_by_group": {
+    "Buildings": {
+     "draw_calls": 62,
+     "primitives": -10586
+    },
+    "Winter": {
+     "draw_calls": -2,
+     "primitives": 3681
+    },
+    "Vegetation": {
+     "draw_calls": 20,
+     "primitives": 1862704
+    },
+    "Roads": {
+     "draw_calls": 198,
+     "primitives": -13456
+    },
+    "Infrastructure": {
+     "draw_calls": 6,
+     "primitives": -9725
+    },
+    "Barriers": {
+     "draw_calls": -9,
+     "primitives": -13702
+    },
+    "LandUse": {
+     "draw_calls": -12,
+     "primitives": -14374
+    },
+    "Coastal": {
+     "draw_calls": 59,
+     "primitives": -14285
+    },
+    "Terrain": {
+     "draw_calls": -12,
+     "primitives": 1033668
+    },
+    "Far": {
+     "draw_calls": 39,
+     "primitives": 58581
+    },
+    "HLOD": {
+     "draw_calls": 28,
+     "primitives": 75884
+    }
+   }
+  },
+  "s2_street_edge": {
+   "settle_frames": 36,
+   "settle_ms": 45514,
+   "settled": true,
+   "sample": {
+    "process_ms": {
+     "avg": 677.814,
+     "max": 1283.215
+    },
+    "render_cpu_ms": {
+     "avg": 8.922,
+     "max": 15.304
+    },
+    "render_gpu_ms": {
+     "avg": 208.302,
+     "max": 1275.777
+    },
+    "fps": {
+     "avg": 3.7,
+     "max": 6.0
+    },
+    "draw_calls": {
+     "avg": 796.1,
+     "max": 838.0
+    },
+    "primitives": {
+     "avg": 4435751.95,
+     "max": 4449092.0
+    },
+    "objects": {
+     "avg": 1045.75,
+     "max": 1090.0
+    },
+    "nodes": {
+     "avg": 3819.0,
+     "max": 3819.0
+    },
+    "static_mem_mib": {
+     "avg": 270.587,
+     "max": 271.434
+    },
+    "video_mem_mib": {
+     "avg": 408.424,
+     "max": 408.427
+    },
+    "wall_frame_ms": 278.35
+   },
+   "instances": {
+    "geometry_instances": 2474,
+    "visible_geometry_instances": 2470,
+    "mesh_instances": 2454,
+    "multimesh_instances": 20,
+    "collision_shapes": 17
+   },
+   "buildings_by_distance": [
+    {
+     "to_m": 150.0,
+     "instances": 58,
+     "surfaces": 116,
+     "triangles": 6820
+    },
+    {
+     "to_m": 300.0,
+     "instances": 64,
+     "surfaces": 128,
+     "triangles": 6723
+    },
+    {
+     "to_m": 500.0,
+     "instances": 16,
+     "surfaces": 32,
+     "triangles": 2034
+    },
+    {
+     "to_m": 800.0,
+     "instances": 7,
+     "surfaces": 14,
+     "triangles": 745
+    },
+    {
+     "to_m": -1.0,
+     "instances": 0,
+     "surfaces": 0,
+     "triangles": 0
+    }
+   ],
+   "active_chunks": [
+    "kw_bld_c128_-23_11",
+    "kw_bld_c128_-24_10",
+    "kw_bld_c128_-24_11",
+    "kw_far_-10_-1",
+    "kw_far_-10_0",
+    "kw_far_-10_1",
+    "kw_far_-10_2",
+    "kw_far_-10_3",
+    "kw_far_-10_4",
+    "kw_far_-10_5",
+    "kw_far_-10_6",
+    "kw_far_-11_0",
+    "kw_far_-11_1",
+    "kw_far_-11_2",
+    "kw_far_-11_3",
+    "kw_far_-11_4",
+    "kw_far_-2_0",
+    "kw_far_-2_1",
+    "kw_far_-2_2",
+    "kw_far_-2_3",
+    "kw_far_-2_4",
+    "kw_far_-2_5",
+    "kw_far_-3_-1",
+    "kw_far_-3_0",
+    "kw_far_-3_1",
+    "kw_far_-3_2",
+    "kw_far_-3_3",
+    "kw_far_-3_4",
+    "kw_far_-3_5",
+    "kw_far_-3_6",
+    "kw_far_-4_-1",
+    "kw_far_-4_-2",
+    "kw_far_-4_0",
+    "kw_far_-4_1",
+    "kw_far_-4_2",
+    "kw_far_-4_3",
+    "kw_far_-4_4",
+    "kw_far_-4_5",
+    "kw_far_-4_6",
+    "kw_far_-5_-1",
+    "kw_far_-5_-2",
+    "kw_far_-5_0",
+    "kw_far_-5_1",
+    "kw_far_-5_2",
+    "kw_far_-5_3",
+    "kw_far_-5_4",
+    "kw_far_-5_5",
+    "kw_far_-5_6",
+    "kw_far_-6_-1",
+    "kw_far_-6_-2",
+    "kw_far_-6_-3",
+    "kw_far_-6_0",
+    "kw_far_-6_1",
+    "kw_far_-6_2",
+    "kw_far_-6_3",
+    "kw_far_-6_4",
+    "kw_far_-6_5",
+    "kw_far_-6_6",
+    "kw_far_-7_-1",
+    "kw_far_-7_-2",
+    "kw_far_-7_-3",
+    "kw_far_-7_0",
+    "kw_far_-7_1",
+    "kw_far_-7_2",
+    "kw_far_-7_3",
+    "kw_far_-7_4",
+    "kw_far_-7_5",
+    "kw_far_-7_6",
+    "kw_far_-8_-1",
+    "kw_far_-8_-2",
+    "kw_far_-8_0",
+    "kw_far_-8_1",
+    "kw_far_-8_2",
+    "kw_far_-8_3",
+    "kw_far_-8_4",
+    "kw_far_-8_5",
+    "kw_far_-8_6",
+    "kw_far_-9_-1",
+    "kw_far_-9_-2",
+    "kw_far_-9_0",
+    "kw_far_-9_1",
+    "kw_far_-9_2",
+    "kw_far_-9_3",
+    "kw_far_-9_4",
+    "kw_far_-9_5",
+    "kw_far_-9_6",
+    "kw_gen_-6_2",
+    "kw_gen_-6_3",
+    "kw_gen_-7_2",
+    "kw_gen_-7_3"
+   ],
+   "hlod": {
+    "representations": {
+     "far": 48,
+     "hlod": 13,
+     "detail": 3
+    },
+    "proxies": 13,
+    "stats": {
+     "to_detail": 11,
+     "to_hlod": 66,
+     "sync_loads": 0,
+     "max_proxies_per_frame": 16
+    }
+   },
+   "draw_calls_by_group": {
+    "Buildings": {
+     "draw_calls": 318,
+     "primitives": 13437
+    },
+    "Winter": {
+     "draw_calls": 22,
+     "primitives": 293198
+    },
+    "Vegetation": {
+     "draw_calls": 39,
+     "primitives": 1259776
+    },
+    "Roads": {
+     "draw_calls": 123,
+     "primitives": -3306
+    },
+    "Infrastructure": {
+     "draw_calls": 63,
+     "primitives": 22855
+    },
+    "Barriers": {
+     "draw_calls": 12,
+     "primitives": -4702
+    },
+    "LandUse": {
+     "draw_calls": 16,
+     "primitives": -4002
+    },
+    "Coastal": {
+     "draw_calls": 73,
+     "primitives": -4407
+    },
+    "Terrain": {
+     "draw_calls": 17,
+     "primitives": 1961106
+    },
+    "Far": {
+     "draw_calls": 67,
+     "primitives": 103596
+    },
+    "HLOD": {
+     "draw_calls": 40,
+     "primitives": -77081
+    }
+   }
+  },
+  "s3_roof_overview": {
+   "settle_frames": 21,
+   "settle_ms": 15607,
+   "settled": true,
+   "sample": {
+    "process_ms": {
+     "avg": 829.737,
+     "max": 1908.365
+    },
+    "render_cpu_ms": {
+     "avg": 13.125,
+     "max": 29.286
+    },
+    "render_gpu_ms": {
+     "avg": 194.715,
+     "max": 1961.23
+    },
+    "fps": {
+     "avg": 5.55,
+     "max": 7.0
+    },
+    "draw_calls": {
+     "avg": 1399.5,
+     "max": 1402.0
+    },
+    "primitives": {
+     "avg": 4826124.2,
+     "max": 4826131.0
+    },
+    "objects": {
+     "avg": 1647.6,
+     "max": 1651.0
+    },
+    "nodes": {
+     "avg": 3724.0,
+     "max": 3724.0
+    },
+    "static_mem_mib": {
+     "avg": 274.111,
+     "max": 274.47
+    },
+    "video_mem_mib": {
+     "avg": 408.014,
+     "max": 408.017
+    },
+    "wall_frame_ms": 304.03
+   },
+   "instances": {
+    "geometry_instances": 2389,
+    "visible_geometry_instances": 2385,
+    "mesh_instances": 2369,
+    "multimesh_instances": 20,
+    "collision_shapes": 15
+   },
+   "buildings_by_distance": [
+    {
+     "to_m": 150.0,
+     "instances": 30,
+     "surfaces": 60,
+     "triangles": 5534
+    },
+    {
+     "to_m": 300.0,
+     "instances": 146,
+     "surfaces": 292,
+     "triangles": 17147
+    },
+    {
+     "to_m": 500.0,
+     "instances": 149,
+     "surfaces": 298,
+     "triangles": 18535
+    },
+    {
+     "to_m": 800.0,
+     "instances": 66,
+     "surfaces": 132,
+     "triangles": 9674
+    },
+    {
+     "to_m": -1.0,
+     "instances": 0,
+     "surfaces": 0,
+     "triangles": 0
+    }
+   ],
+   "active_chunks": [
+    "kw_bld_c128_-24_11",
+    "kw_far_-10_-1",
+    "kw_far_-10_0",
+    "kw_far_-10_1",
+    "kw_far_-10_2",
+    "kw_far_-10_3",
+    "kw_far_-10_4",
+    "kw_far_-10_5",
+    "kw_far_-10_6",
+    "kw_far_-11_0",
+    "kw_far_-11_1",
+    "kw_far_-11_2",
+    "kw_far_-11_3",
+    "kw_far_-11_4",
+    "kw_far_-11_5",
+    "kw_far_-2_1",
+    "kw_far_-2_2",
+    "kw_far_-2_3",
+    "kw_far_-2_4",
+    "kw_far_-2_5",
+    "kw_far_-3_-1",
+    "kw_far_-3_0",
+    "kw_far_-3_1",
+    "kw_far_-3_2",
+    "kw_far_-3_3",
+    "kw_far_-3_4",
+    "kw_far_-3_5",
+    "kw_far_-3_6",
+    "kw_far_-4_-1",
+    "kw_far_-4_0",
+    "kw_far_-4_1",
+    "kw_far_-4_2",
+    "kw_far_-4_3",
+    "kw_far_-4_4",
+    "kw_far_-4_5",
+    "kw_far_-4_6",
+    "kw_far_-5_-1",
+    "kw_far_-5_-2",
+    "kw_far_-5_0",
+    "kw_far_-5_1",
+    "kw_far_-5_2",
+    "kw_far_-5_3",
+    "kw_far_-5_4",
+    "kw_far_-5_5",
+    "kw_far_-5_6",
+    "kw_far_-6_-1",
+    "kw_far_-6_-2",
+    "kw_far_-6_0",
+    "kw_far_-6_1",
+    "kw_far_-6_2",
+    "kw_far_-6_3",
+    "kw_far_-6_4",
+    "kw_far_-6_5",
+    "kw_far_-6_6",
+    "kw_far_-7_-1",
+    "kw_far_-7_-2",
+    "kw_far_-7_0",
+    "kw_far_-7_1",
+    "kw_far_-7_2",
+    "kw_far_-7_3",
+    "kw_far_-7_4",
+    "kw_far_-7_5",
+    "kw_far_-7_6",
+    "kw_far_-8_-1",
+    "kw_far_-8_-2",
+    "kw_far_-8_0",
+    "kw_far_-8_1",
+    "kw_far_-8_2",
+    "kw_far_-8_3",
+    "kw_far_-8_4",
+    "kw_far_-8_5",
+    "kw_far_-8_6",
+    "kw_far_-9_-1",
+    "kw_far_-9_-2",
+    "kw_far_-9_0",
+    "kw_far_-9_1",
+    "kw_far_-9_2",
+    "kw_far_-9_3",
+    "kw_far_-9_4",
+    "kw_far_-9_5",
+    "kw_far_-9_6",
+    "kw_gen_-6_2",
+    "kw_gen_-6_3",
+    "kw_gen_-7_2",
+    "kw_gen_-7_3"
+   ],
+   "hlod": {
+    "representations": {
+     "far": 48,
+     "hlod": 15,
+     "detail": 1
+    },
+    "proxies": 15,
+    "stats": {
+     "to_detail": 11,
+     "to_hlod": 68,
+     "sync_loads": 0,
+     "max_proxies_per_frame": 16
+    }
+   },
+   "draw_calls_by_group": {
+    "Buildings": {
+     "draw_calls": 779,
+     "primitives": 50883
+    },
+    "Winter": {
+     "draw_calls": 11,
+     "primitives": 326340
+    },
+    "Vegetation": {
+     "draw_calls": 21,
+     "primitives": 1091489
+    },
+    "Roads": {
+     "draw_calls": 230,
+     "primitives": 1909
+    },
+    "Infrastructure": {
+     "draw_calls": 71,
+     "primitives": 29435
+    },
+    "Barriers": {
+     "draw_calls": -5,
+     "primitives": 1
+    },
+    "LandUse": {
+     "draw_calls": -7,
+     "primitives": -69
+    },
+    "Coastal": {
+     "draw_calls": 79,
+     "primitives": 284
+    },
+    "Terrain": {
+     "draw_calls": -1,
+     "primitives": 2359233
+    },
+    "Far": {
+     "draw_calls": 45,
+     "primitives": 104552
+    },
+    "HLOD": {
+     "draw_calls": 27,
+     "primitives": 54468
+    }
+   }
+  },
+  "s4_from_727": {
+   "settle_frames": 22,
+   "settle_ms": 22694,
+   "settled": true,
+   "sample": {
+    "process_ms": {
+     "avg": 354.642,
+     "max": 1700.063
+    },
+    "render_cpu_ms": {
+     "avg": 13.064,
+     "max": 23.591
+    },
+    "render_gpu_ms": {
+     "avg": 157.051,
+     "max": 1291.982
+    },
+    "fps": {
+     "avg": 3.1,
+     "max": 6.0
+    },
+    "draw_calls": {
+     "avg": 1633.5,
+     "max": 1636.0
+    },
+    "primitives": {
+     "avg": 4751970.4,
+     "max": 4751980.0
+    },
+    "objects": {
+     "avg": 1909.2,
+     "max": 1914.0
+    },
+    "nodes": {
+     "avg": 3409.0,
+     "max": 3409.0
+    },
+    "static_mem_mib": {
+     "avg": 277.282,
+     "max": 277.315
+    },
+    "video_mem_mib": {
+     "avg": 429.714,
+     "max": 429.714
+    },
+    "wall_frame_ms": 283.79
+   },
+   "instances": {
+    "geometry_instances": 2000,
+    "visible_geometry_instances": 1996,
+    "mesh_instances": 1978,
+    "multimesh_instances": 22,
+    "collision_shapes": 22
+   },
+   "buildings_by_distance": [
+    {
+     "to_m": 150.0,
+     "instances": 47,
+     "surfaces": 94,
+     "triangles": 15376
+    },
+    {
+     "to_m": 300.0,
+     "instances": 152,
+     "surfaces": 304,
+     "triangles": 41871
+    },
+    {
+     "to_m": 500.0,
+     "instances": 287,
+     "surfaces": 574,
+     "triangles": 45965
+    },
+    {
+     "to_m": 800.0,
+     "instances": 100,
+     "surfaces": 200,
+     "triangles": 14655
+    },
+    {
+     "to_m": -1.0,
+     "instances": 0,
+     "surfaces": 0,
+     "triangles": 0
+    }
+   ],
+   "active_chunks": [
+    "kw_far_-10_-1",
+    "kw_far_-10_0",
+    "kw_far_-10_1",
+    "kw_far_-10_2",
+    "kw_far_-10_3",
+    "kw_far_-10_4",
+    "kw_far_-10_5",
+    "kw_far_-10_6",
+    "kw_far_-11_-1",
+    "kw_far_-11_0",
+    "kw_far_-11_1",
+    "kw_far_-11_2",
+    "kw_far_-11_3",
+    "kw_far_-11_4",
+    "kw_far_-11_5",
+    "kw_far_-11_6",
+    "kw_far_-12_1",
+    "kw_far_-12_2",
+    "kw_far_-12_3",
+    "kw_far_-12_4",
+    "kw_far_-3_0",
+    "kw_far_-3_1",
+    "kw_far_-3_2",
+    "kw_far_-3_3",
+    "kw_far_-3_4",
+    "kw_far_-3_5",
+    "kw_far_-4_-1",
+    "kw_far_-4_0",
+    "kw_far_-4_1",
+    "kw_far_-4_2",
+    "kw_far_-4_3",
+    "kw_far_-4_4",
+    "kw_far_-4_5",
+    "kw_far_-4_6",
+    "kw_far_-5_-1",
+    "kw_far_-5_-2",
+    "kw_far_-5_0",
+    "kw_far_-5_1",
+    "kw_far_-5_2",
+    "kw_far_-5_3",
+    "kw_far_-5_4",
+    "kw_far_-5_5",
+    "kw_far_-5_6",
+    "kw_far_-6_-1",
+    "kw_far_-6_-2",
+    "kw_far_-6_0",
+    "kw_far_-6_1",
+    "kw_far_-6_2",
+    "kw_far_-6_3",
+    "kw_far_-6_4",
+    "kw_far_-6_5",
+    "kw_far_-6_6",
+    "kw_far_-7_-1",
+    "kw_far_-7_-2",
+    "kw_far_-7_0",
+    "kw_far_-7_1",
+    "kw_far_-7_2",
+    "kw_far_-7_3",
+    "kw_far_-7_4",
+    "kw_far_-7_5",
+    "kw_far_-7_6",
+    "kw_far_-8_-1",
+    "kw_far_-8_-2",
+    "kw_far_-8_0",
+    "kw_far_-8_1",
+    "kw_far_-8_2",
+    "kw_far_-8_3",
+    "kw_far_-8_4",
+    "kw_far_-8_5",
+    "kw_far_-8_6",
+    "kw_far_-9_-1",
+    "kw_far_-9_-2",
+    "kw_far_-9_0",
+    "kw_far_-9_1",
+    "kw_far_-9_2",
+    "kw_far_-9_3",
+    "kw_far_-9_4",
+    "kw_far_-9_5",
+    "kw_far_-9_6",
+    "kw_gen_-7_2",
+    "kw_gen_-7_3",
+    "kw_gen_-8_2",
+    "kw_gen_-8_3"
+   ],
+   "hlod": {
+    "representations": {
+     "far": 64
+    },
+    "proxies": 0,
+    "stats": {
+     "to_detail": 11,
+     "to_hlod": 68,
+     "sync_loads": 0,
+     "max_proxies_per_frame": 16
+    }
+   },
+   "draw_calls_by_group": {
+    "Buildings": {
+     "draw_calls": 1171,
+     "primitives": 117903
+    },
+    "Winter": {
+     "draw_calls": 8,
+     "primitives": 354775
+    },
+    "Vegetation": {
+     "draw_calls": 17,
+     "primitives": 860574
+    },
+    "Roads": {
+     "draw_calls": 186,
+     "primitives": 1506
+    },
+    "Infrastructure": {
+     "draw_calls": 48,
+     "primitives": 14719
+    },
+    "Barriers": {
+     "draw_calls": 4,
+     "primitives": 70
+    },
+    "LandUse": {
+     "draw_calls": 2,
+     "primitives": 6
+    },
+    "Coastal": {
+     "draw_calls": 41,
+     "primitives": 201
+    },
+    "Terrain": {
+     "draw_calls": 7,
+     "primitives": 2621442
+    },
+    "Far": {
+     "draw_calls": 54,
+     "primitives": 109591
+    },
+    "HLOD": {
+     "draw_calls": 2,
+     "primitives": 6
+    }
+   }
+  },
+  "s5_far_east": {
+   "settle_frames": 59,
+   "settle_ms": 47733,
+   "settled": true,
+   "sample": {
+    "process_ms": {
+     "avg": 746.543,
+     "max": 1554.116
+    },
+    "render_cpu_ms": {
+     "avg": 10.55,
+     "max": 31.255
+    },
+    "render_gpu_ms": {
+     "avg": 147.485,
+     "max": 1322.546
+    },
+    "fps": {
+     "avg": 4.25,
+     "max": 7.0
+    },
+    "draw_calls": {
+     "avg": 899.0,
+     "max": 902.0
+    },
+    "primitives": {
+     "avg": 1920295.8,
+     "max": 1920542.0
+    },
+    "objects": {
+     "avg": 1152.9,
+     "max": 1158.0
+    },
+    "nodes": {
+     "avg": 2211.0,
+     "max": 2211.0
+    },
+    "static_mem_mib": {
+     "avg": 282.424,
+     "max": 282.71
+    },
+    "video_mem_mib": {
+     "avg": 446.026,
+     "max": 446.029
+    },
+    "wall_frame_ms": 282.68
+   },
+   "instances": {
+    "geometry_instances": 1002,
+    "visible_geometry_instances": 999,
+    "mesh_instances": 987,
+    "multimesh_instances": 15,
+    "collision_shapes": 10
+   },
+   "buildings_by_distance": [
+    {
+     "to_m": 150.0,
+     "instances": 0,
+     "surfaces": 0,
+     "triangles": 0
+    },
+    {
+     "to_m": 300.0,
+     "instances": 24,
+     "surfaces": 48,
+     "triangles": 1624
+    },
+    {
+     "to_m": 500.0,
+     "instances": 20,
+     "surfaces": 40,
+     "triangles": 4293
+    },
+    {
+     "to_m": 800.0,
+     "instances": 97,
+     "surfaces": 194,
+     "triangles": 13456
+    },
+    {
+     "to_m": -1.0,
+     "instances": 0,
+     "surfaces": 0,
+     "triangles": 0
+    }
+   ],
+   "active_chunks": [
+    "kw_far_-1_-1",
+    "kw_far_-1_-2",
+    "kw_far_-1_-3",
+    "kw_far_-1_-4",
+    "kw_far_-1_0",
+    "kw_far_-1_1",
+    "kw_far_-1_2",
+    "kw_far_-1_3",
+    "kw_far_-1_4",
+    "kw_far_-2_-1",
+    "kw_far_-2_-2",
+    "kw_far_-2_-3",
+    "kw_far_-2_-4",
+    "kw_far_-2_0",
+    "kw_far_-2_1",
+    "kw_far_-2_2",
+    "kw_far_-2_3",
+    "kw_far_-2_4",
+    "kw_far_-2_5",
+    "kw_far_-3_-1",
+    "kw_far_-3_-2",
+    "kw_far_-3_-3",
+    "kw_far_-3_-4",
+    "kw_far_-3_-5",
+    "kw_far_-3_0",
+    "kw_far_-3_1",
+    "kw_far_-3_2",
+    "kw_far_-3_3",
+    "kw_far_-3_4",
+    "kw_far_-3_5",
+    "kw_far_-4_-1",
+    "kw_far_-4_-2",
+    "kw_far_-4_-3",
+    "kw_far_-4_-4",
+    "kw_far_-4_0",
+    "kw_far_-4_1",
+    "kw_far_-4_2",
+    "kw_far_-4_3",
+    "kw_far_-4_4",
+    "kw_far_-4_5",
+    "kw_far_-5_-1",
+    "kw_far_-5_-2",
+    "kw_far_-5_-3",
+    "kw_far_-5_-4",
+    "kw_far_-5_0",
+    "kw_far_-5_1",
+    "kw_far_-5_2",
+    "kw_far_-5_3",
+    "kw_far_-5_4",
+    "kw_far_-5_5",
+    "kw_far_-6_-1",
+    "kw_far_-6_-2",
+    "kw_far_-6_-3",
+    "kw_far_-6_-4",
+    "kw_far_-6_0",
+    "kw_far_-6_1",
+    "kw_far_-6_2",
+    "kw_far_-6_3",
+    "kw_far_-6_4",
+    "kw_far_-7_-1",
+    "kw_far_-7_-2",
+    "kw_far_-7_-3",
+    "kw_far_-7_0",
+    "kw_far_-7_1",
+    "kw_far_-7_2",
+    "kw_far_-7_3",
+    "kw_far_-8_-1",
+    "kw_far_-8_-2",
+    "kw_far_-8_0",
+    "kw_far_-8_1",
+    "kw_far_-8_2",
+    "kw_far_0_-1",
+    "kw_far_0_-2",
+    "kw_far_0_-3",
+    "kw_far_0_-4",
+    "kw_far_0_0",
+    "kw_far_0_1",
+    "kw_far_0_2",
+    "kw_far_0_3",
+    "kw_far_0_4",
+    "kw_far_1_-1",
+    "kw_far_1_-2",
+    "kw_far_1_-3",
+    "kw_far_1_0",
+    "kw_far_1_1",
+    "kw_far_1_2",
+    "kw_far_1_3",
+    "kw_far_2_-1",
+    "kw_far_2_0",
+    "kw_far_2_1",
+    "kw_gen_-3_0",
+    "kw_gen_-3_1",
+    "kw_gen_-4_0"
+   ],
+   "hlod": {
+    "representations": {
+     "far": 64
+    },
+    "proxies": 0,
+    "stats": {
+     "to_detail": 11,
+     "to_hlod": 68,
+     "sync_loads": 0,
+     "max_proxies_per_frame": 16
+    }
+   },
+   "draw_calls_by_group": {
+    "Buildings": {
+     "draw_calls": 285,
+     "primitives": 19618
+    },
+    "Winter": {
+     "draw_calls": 8,
+     "primitives": 36478
+    },
+    "Vegetation": {
+     "draw_calls": 23,
+     "primitives": 492907
+    },
+    "Roads": {
+     "draw_calls": 181,
+     "primitives": 2401
+    },
+    "Infrastructure": {
+     "draw_calls": 39,
+     "primitives": 10034
+    },
+    "Barriers": {
+     "draw_calls": 3,
+     "primitives": 245
+    },
+    "LandUse": {
+     "draw_calls": 3,
+     "primitives": 243
+    },
+    "Coastal": {
+     "draw_calls": 40,
+     "primitives": 2555
+    },
+    "Terrain": {
+     "draw_calls": 8,
+     "primitives": 655607
+    },
+    "Far": {
+     "draw_calls": 60,
+     "primitives": 125898
+    },
+    "HLOD": {
+     "draw_calls": 3,
+     "primitives": 247
+    }
+   }
+  }
+ },
+ "godot": "4.8-dev6 (official)",
+ "renderer": "Intel(R) HD Graphics 620",
+ "resolution": [
+  100,
+  100
+ ]
+}

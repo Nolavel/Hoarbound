@@ -1,6 +1,7 @@
 extends SceneTree
 ## HLOD baseline and after-measurement on a fixed route over the Old Town sector, in the real Reality scene.
-## xvfb-run godot --script <this> -- <out_dir> <label> [station ...]; writes <label>.json and <label>_<station>.png.
+## xvfb-run godot --script <this> -- <out_dir> <label> [--all-detail] [station ...]; writes <label>.json and PNGs.
+## --all-detail swaps every proxy for its detail scene after settling: the pre-HLOD frame on the same build.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const STREAMING: GDScript = preload("res://core/world/streaming_system.gd")
@@ -43,6 +44,8 @@ var _ablate_at: int = 0
 var _hidden: Array[Node] = []
 var _report: Dictionary = {}
 var _tri_cache: Dictionary = {}
+var _all_detail: bool = false
+var _forced: Array[Node] = []
 
 
 func _initialize() -> void:
@@ -50,11 +53,13 @@ func _initialize() -> void:
 	_out = args[0]
 	_label = args[1]
 	_only = args.slice(2)
+	_all_detail = _only.has("--all-detail")
+	_only.erase("--all-detail")
 	DirAccess.make_dir_recursive_absolute(_out)
 	_world = (load(SCENE) as PackedScene).instantiate() as Node3D
 	root.add_child(_world)
 	_report = {"label": _label, "scene": SCENE, "stations": {}, "godot": Engine.get_version_info()["string"],
-		"renderer": RenderingServer.get_video_adapter_name(), "resolution": [root.size.x, root.size.y]}
+		"renderer": RenderingServer.get_video_adapter_name(), "all_detail": _all_detail}
 
 
 func _process(_delta: float) -> bool:
@@ -85,6 +90,8 @@ func _process(_delta: float) -> bool:
 				st["settle_ms"] = Time.get_ticks_msec() - _t0
 				st["settled"] = _transient() == 0
 				_place()  # ground heights are known now
+				if _all_detail:
+					_force_detail(true)
 				_phase = "warm"
 				_frames = 0
 		"warm":
@@ -114,8 +121,33 @@ func _process(_delta: float) -> bool:
 				_hide(GROUPS[_ablate_at])
 			else:
 				_finish_ablation()
+				_force_detail(false)
 				_phase = ""
 	return false
+
+
+## Every cluster showing its proxy gets its detail scene instead, as before HLOD (same as the tier capture).
+func _force_detail(on: bool) -> void:
+	var hlod: KeyWestRealityHLOD = _world.find_child("HLODView", true, false) as KeyWestRealityHLOD
+	if hlod == null:
+		return
+	if not on:
+		for n: Node in _forced:
+			n.queue_free()
+		_forced.clear()
+		for proxy: Node in hlod.get_children():
+			(proxy as Node3D).visible = true
+		return
+	for proxy: Node in hlod.get_children():
+		var cluster_id: String = String(proxy.get_meta("cluster_id", ""))
+		if proxy.is_queued_for_deletion() or hlod.representation(cluster_id) != "hlod":
+			continue
+		var detail: Node3D = (load(KeyWestChunkGenerator.cluster_path_of(cluster_id)) as PackedScene).instantiate() as Node3D
+		detail.name = "ForcedDetail_" + cluster_id  # never the streamer's own cell name
+		detail.position = KeyWestChunkBuilder.cluster_centre(cluster_id)
+		_ctx.stream_container.add_child(detail)
+		_forced.append(detail)
+		(proxy as Node3D).visible = false
 
 
 func _name() -> String:
@@ -207,6 +239,8 @@ func _finish_sampling() -> void:
 	var wall: float = float(_samples[-1]["ticks_usec"] - _samples[0]["ticks_usec"]) / 1000.0 / maxf(_samples.size() - 1, 1)
 	agg["wall_frame_ms"] = snappedf(wall, 0.01)
 	st["sample"] = agg
+	st["resolution"] = [root.get_visible_rect().size.x, root.get_visible_rect().size.y]
+	st["forced_detail_clusters"] = _forced.size()
 	st["instances"] = _instances()
 	st["buildings_by_distance"] = _buildings_by_distance()
 	st["active_chunks"] = _active_ids()

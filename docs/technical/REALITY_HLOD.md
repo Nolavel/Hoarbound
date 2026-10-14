@@ -149,6 +149,41 @@ Reading:
 Raw JSON (before/after, per-group attribution, distance bands, HLOD representation counts) and frames:
 `docs/runtime_previews/key_west_reality_hlod/`.
 
+## 3c. Real GPU: the owner's machine (2026-10-14)
+
+`measure_key_west_hlod.gd`, same five stations, run twice per mode on one build:
+- **Machine:** Intel HD Graphics 620 (the minimum-target class), Windows 10, Godot 4.8-dev6 mono, Vulkan Forward+.
+- **Settings:** graphics quality LOW, 1920×1080 borderless full screen, blizzard weather.
+- **Modes:**
+  - **HLOD:** the runtime as shipped.
+  - **All detail:** the new `--all-detail` flag swaps every proxy for its detail scene after settling. That is the
+    pre-HLOD frame on the same build; its draw calls match `measure_before.json` (lavapipe) to within ±13.
+- **Raw data:** `docs/runtime_previews/key_west_reality_hlod/gpu_2026-10-14/`. Each cell below is run 1 / run 2.
+
+| Station | Draw calls before (lavapipe) | Draw calls all detail → HLOD | Objects | FPS all detail → HLOD | Wall frame ms all detail → HLOD | Render CPU ms all detail → HLOD | Render GPU ms all detail → HLOD |
+|---|---|---|---|---|---|---|---|
+| s1 core | 1,959 | 1,972 → **645** (−67 %) | 2,221 → 894 | 2.8 / 4.8 → 3.7 / 5.2 | 240 / 173 → 342 / 178 | 13.3 / 18.0 → **9.3 / 7.6** | 197 / 89 → 86 / 86 |
+| s2 west edge | 1,626 | 1,627 → **796** (−51 %) | 1,876 → 1,045 | 3.8 / 4.5 → 3.7 / 3.0 | 236 / 192 → 278 / 313 | 16.7 / 16.9 → 8.9 / 22.6 | 146 / 112 → 208 / 208 |
+| s3 overview | 2,382 | 2,386 → **1,400** (−41 %) | 2,634 → 1,648 | 3.5 / 6.5 → 5.5 / 3.3 | 235 / 142 → 304 / 292 | 16.2 / 19.6 → 13.1 / 34.5 | 217 / 121 → 195 / 238 |
+| s4 control | 1,634 | 1,633 → 1,634 | unchanged | 3.3 / 6.7 → 3.1 / 3.0 | 241 / 155 → 284 / 334 | 12.1 / 20.1 → 13.1 / 30.6 | 207 / 127 → 157 / 263 |
+| s5 control | 899 | 898 → 899 | unchanged | 3.5 / 7.3 → 4.2 / 7.9 | 263 / 126 → 283 / 125 | 7.1 / 13.0 → 10.6 / 10.8 | 146 / 104 → 147 / 94 |
+
+Reading:
+- **What holds:** draw calls and objects are deterministic, and they show the same gain as on lavapipe (−41…−67 %).
+  At s1, render CPU time falls on both runs (13–18 → 8–9 ms).
+- **What does not show:** FPS and wall frame. The controls s4 and s5 draw the identical scene in both modes, yet
+  their wall frame moves between 125 and 334 ms from run to run. That noise is ten times the HLOD effect (5–10 ms of
+  render CPU), so this machine gives no FPS verdict for HLOD, in either direction.
+- **The real finding:** on the minimum-target GPU the game runs at **3–8 FPS** at LOW, 1080p, in a blizzard.
+  - The frame is 125–340 ms, and GPU rendering alone is 85–260 ms of it.
+  - The engine's process-time monitor reads 76–830 ms. It averages over its own window, so it does not add up with
+    the wall frame, but it puts script time in the same range as the GPU.
+  - Render CPU, which is what HLOD reduces, is only 7–35 ms.
+  - The first optimisation target on this hardware is therefore not draw calls. It is GPU load (3.7–4.8 M primitives
+    per frame: vegetation ~1.9 M, terrain ~1 M, Winter caps) and main-thread script time. Its breakdown (snow
+    contact viewport, physics) is not part of this measurement.
+- **Streaming on this machine:** 0 blocking proxy loads in every run. The largest proxy burst is 16 per frame.
+
 ## 3b. Transition cost and scale (after Codex's review in #219)
 
 `test_key_west_reality_hlod_boundary.gd` (CI, headless) does one real-streamer pump per frame:
