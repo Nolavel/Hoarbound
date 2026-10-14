@@ -60,3 +60,5 @@ data/world/key_west/reality/derived/
 data/world/key_west/reality/library/*.gpkg
 data/world/key_west/reality/library/*.part
 scenes/world/key_west/generated/
+
+/addons/hoarbound_native/hoarbound_native.gdextension.uid
