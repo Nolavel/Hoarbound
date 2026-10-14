@@ -51,6 +51,12 @@ func _initialize() -> void:
 	_hlod.stage_timed.connect(func(id: String, stage: StringName, usec: int) -> void: _on_stage(StringName("hlod:" + id), stage, usec))
 	_player.position = FAR
 	_system.initialize(_container, _player)
+	## The real far view: its 2,500 m cells are what start the proxy loads, long before a chunk comes in.
+	var far: KeyWestRealityFar = KeyWestRealityFar.new()
+	root.add_child(far)
+	far._streaming = _system
+	_system.cell_state_changed.connect(far._on_cell_state_changed)
+	_system.register_runtime_source(far)
 	_hlod.sync_with(_system)
 	_cluster = _inner_cluster()
 	var centre: Vector3 = KeyWestChunkBuilder.cluster_centre(_cluster)
@@ -171,6 +177,8 @@ func _finish() -> void:
 		for i: int in range(3, _rows.size(), 2):
 			later = maxf(later, float(_rows[i]["max_pump_ms"]))
 		print("hlod boundary: first entry pump max %.2f ms, repeat entries %.2f ms" % [first, later])
+	print("hlod boundary: HLOD stats %s" % _hlod.stats)
+	_check(int(_hlod.stats["sync_loads"]) == 0, "%d proxy loads blocked the main thread" % _hlod.stats["sync_loads"])
 	if _failures > 0:
 		push_error("hlod boundary: %d check(s) failed" % _failures)
 		quit(1)

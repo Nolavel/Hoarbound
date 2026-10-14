@@ -7,6 +7,8 @@ const STREAMING: GDScript = preload("res://core/world/streaming_system.gd")
 const MANIFEST_PATH: String = "res://scenes/world/key_west/generated/hlod/hlod_manifest.json"
 const CHUNK_PREFIX: String = "kw_gen_"
 const DETAIL_PREFIX: String = "kw_bld_"
+## The chunk's far-view cell (KeyWestRealityFar, 2,500 m band): proxies load while it is in, long before the chunk.
+const FAR_PREFIX: String = "kw_far_"
 
 ## Main-thread cost of one HLOD step (proxy_fetch, proxy_add, proxy_free), only while measure_stages is on.
 signal stage_timed(cluster_id: String, stage: StringName, usec: int)
@@ -24,7 +26,8 @@ var _by_chunk: Dictionary = {}  # "x_z" -> Array of cluster ids
 var _chunk_in: Dictionary = {}  # "x_z" -> true while ACTIVE or ASSEMBLING (terrain is in)
 var _detail_in: Dictionary = {}  # cluster id -> true while its detail cell is ACTIVE
 var _proxies: Dictionary = {}  # cluster id -> MeshInstance3D
-var _meshes: Dictionary = {}  # proxy path -> Mesh, kept while its chunk is on its way in or in
+var _meshes: Dictionary = {}  # proxy path -> Mesh (null while loading), kept while the far cell or the chunk is in
+var _far_in: Dictionary = {}  # "x_z" -> true while the chunk's far cell is ACTIVE
 var _burst_frame: int = -1
 var _burst: int = 0
 
@@ -56,6 +59,8 @@ func load_manifest(path: String = MANIFEST_PATH) -> bool:
 ## Picks up states the streamer reached before this node connected (boot prewarm).
 func sync_with(streaming: StreamingSystem) -> void:
 	_streaming = streaming
+	for chunk: String in _by_chunk.keys():
+		_on_cell(StringName(FAR_PREFIX + chunk), streaming.get_state(StringName(FAR_PREFIX + chunk)))
 	for chunk: String in _by_chunk.keys():
 		_on_cell(StringName(CHUNK_PREFIX + chunk), streaming.get_state(StringName(CHUNK_PREFIX + chunk)))
 	for cluster_id: String in _clusters.keys():
@@ -91,7 +96,17 @@ func proxy_count() -> int:
 
 func _on_cell(id: StringName, state: StreamingSystem.CellState) -> void:
 	var s: String = String(id)
-	if s.begins_with(CHUNK_PREFIX):
+	if s.begins_with(FAR_PREFIX):
+		var far_chunk: String = s.trim_prefix(FAR_PREFIX)
+		if not _by_chunk.has(far_chunk):
+			return
+		if state == StreamingSystem.CellState.ACTIVE:
+			_far_in[far_chunk] = true
+			_warm(far_chunk)
+		elif state == StreamingSystem.CellState.UNLOADED:
+			_far_in.erase(far_chunk)
+			_drop_meshes(far_chunk)
+	elif s.begins_with(CHUNK_PREFIX):
 		var chunk: String = s.trim_prefix(CHUNK_PREFIX)
 		if not _by_chunk.has(chunk):
 			return
@@ -105,8 +120,7 @@ func _on_cell(id: StringName, state: StreamingSystem.CellState) -> void:
 		for cluster_id: String in _by_chunk[chunk]:
 			_apply(cluster_id)
 		if state == StreamingSystem.CellState.UNLOADED:
-			for cluster_id: String in _by_chunk[chunk]:
-				_meshes.erase(_clusters[cluster_id]["proxy"])
+			_drop_meshes(chunk)
 	elif s.begins_with(DETAIL_PREFIX):
 		var cluster_id: String = s.trim_prefix(DETAIL_PREFIX)
 		if not _clusters.has(cluster_id):
@@ -169,7 +183,18 @@ func _detail_node(cluster_id: String) -> Node3D:
 	return _container.get_node_or_null(NodePath("Cluster_" + cluster_id)) as Node3D if _container != null else null
 
 
-## Starts background loads of a chunk's proxies while the chunk itself loads.
+## Releases a chunk's proxy meshes once neither its far cell nor the chunk itself is in.
+func _drop_meshes(chunk: String) -> void:
+	if _far_in.has(chunk) or _chunk_in.has(chunk):
+		return
+	for cluster_id: String in _by_chunk[chunk]:
+		var path: String = _clusters[cluster_id]["proxy"]
+		if _meshes.get(path) == null and _meshes.has(path) and ResourceLoader.load_threaded_get_status(path) == ResourceLoader.THREAD_LOAD_LOADED:
+			ResourceLoader.load_threaded_get(path)  # collect a finished request so the loader does not keep it
+		_meshes.erase(path)
+
+
+## Starts background loads of a chunk's proxies: when its far cell comes in, or at the latest while it loads.
 func _warm(chunk: String) -> void:
 	for cluster_id: String in _by_chunk[chunk]:
 		var path: String = _clusters[cluster_id]["proxy"]
