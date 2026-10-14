@@ -114,6 +114,12 @@ jobs:
             grep -q "all checks passed" $t.log
           done
 
+      - name: Dev teleport lands on live ground, outside buildings (real Reality scene)
+        run: |
+          timeout 900 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
+            --script res://tools/runtime/trace_dev_teleport.gd -- res://docs/runtime_previews/key_west_dev_teleport | grep "teleport trace"
+          python3 -c "import json,sys; r=json.load(open('docs/runtime_previews/key_west_dev_teleport/teleport_trace.json')); print(r['failures'], 'wrong'); sys.exit(1 if r['failures'] else 0)"
+
       - name: Streaming benchmark (island drive)
         run: |
           timeout 1200 "$HOME/.local/bin/godot" --headless --path . --script tools/runtime/benchmark_key_west_reality_streaming.gd \

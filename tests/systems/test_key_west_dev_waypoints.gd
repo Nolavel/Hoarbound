@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Debug waypoints: the target list holds the First Exit route goals and the listed addresses, F5 cycles through
-## them and back to off, and F6 puts Henry on the target.
+## them and back to off, F6 holds Henry at the target until its ground is live, and an address stands outside its building.
 ## Run: godot --headless --script tests/systems/test_key_west_dev_waypoints.gd
 
 var _failures: int = 0
@@ -36,6 +36,14 @@ func _run() -> void:
 	waypoints.teleport()
 	var at: Vector3 = waypoints.current_target()["at"]
 	_check(Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(at.x, at.z)) < 0.01, "F6 did not move Henry to the target")
+	## No live ground here: Henry is held with his physics off instead of dropping onto FALLBACK_Y.
+	_check(waypoints.is_teleporting() and not player.is_physics_processing(), "F6 did not hold Henry while the ground is missing")
+	for i: int in range(names.size() - 1):
+		waypoints.next_target()
+	var spots: PackedVector2Array = waypoints.current_target()["spots"]
+	var index: RealityIndex = RealityIndex.new()
+	index.load_index()
+	_check(not spots.is_empty() and index.pick(spots[0].x, spots[0].y).is_empty(), "the address spot %s is inside a building" % [spots.slice(0, 1)])
 	waypoints.free()
 	player.free()
 	if _failures > 0:

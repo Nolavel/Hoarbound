@@ -79,6 +79,11 @@ func get_height(x: float, z: float) -> float:
 	return lerpf(top, bottom, tz)
 
 
+## True once the chunk under x/z is live, so get_height reads real ground there and not FALLBACK_Y.
+func has_ground_at(x: float, z: float) -> bool:
+	return not _tile_at(x, z).is_empty()
+
+
 ## Building outlines touching bounds, for SnowChunkCover's exact footprint cut.
 func get_snow_obstacles_in_rect(bounds: Rect2) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []

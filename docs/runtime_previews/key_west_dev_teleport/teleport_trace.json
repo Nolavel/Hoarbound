@@ -1,0 +1,140 @@
+{
+ "failures": 0,
+ "targets": [
+  {
+   "at": [
+    -4052.05,
+    2.81,
+    1912.65
+   ],
+   "chunk": "kw_gen_-8_3",
+   "chunk_active": true,
+   "feet_minus_ground": 0.0,
+   "ground_y": 1.81,
+   "inside_building": "",
+   "ok": true,
+   "on_floor": true,
+   "target": "battery_osceola_start"
+  },
+  {
+   "at": [
+    -3538.75,
+    2.05,
+    1594.38
+   ],
+   "chunk": "kw_gen_-7_3",
+   "chunk_active": true,
+   "feet_minus_ground": 0.01,
+   "ground_y": 1.04,
+   "inside_building": "",
+   "ok": true,
+   "on_floor": true,
+   "target": "727_fort_st_entrance"
+  },
+  {
+   "at": [
+    -3532.1,
+    1.97,
+    1609.32
+   ],
+   "chunk": "kw_gen_-7_3",
+   "chunk_active": true,
+   "feet_minus_ground": 0.0,
+   "ground_y": 0.97,
+   "inside_building": "",
+   "ok": true,
+   "on_floor": true,
+   "target": "fort_x_petronia"
+  },
+  {
+   "at": [
+    -3107.3,
+    3.66,
+    1323.13
+   ],
+   "chunk": "kw_gen_-7_2",
+   "chunk_active": true,
+   "feet_minus_ground": 0.0,
+   "ground_y": 2.66,
+   "inside_building": "",
+   "ok": true,
+   "on_floor": true,
+   "target": "petronia_x_duval"
+  },
+  {
+   "at": [
+    -3654.21,
+    1.31,
+    512.33
+   ],
+   "chunk": "kw_gen_-8_1",
+   "chunk_active": true,
+   "feet_minus_ground": 0.0,
+   "ground_y": 0.31,
+   "inside_building": "",
+   "ok": true,
+   "on_floor": true,
+   "target": "duval_x_front"
+  },
+  {
+   "at": [
+    -3712.83,
+    1.66,
+    666.9
+   ],
+   "chunk": "kw_gen_-8_1",
+   "chunk_active": true,
+   "feet_minus_ground": 0.0,
+   "ground_y": 0.66,
+   "inside_building": "",
+   "ok": true,
+   "on_floor": true,
+   "target": "front_x_whitehead"
+  },
+  {
+   "at": [
+    -3219.2,
+    2.74,
+    1398.34
+   ],
+   "chunk": "kw_gen_-7_2",
+   "chunk_active": true,
+   "feet_minus_ground": 0.0,
+   "ground_y": 1.74,
+   "inside_building": "",
+   "ok": true,
+   "on_floor": true,
+   "target": "whitehead_x_petronia"
+  },
+  {
+   "at": [
+    -3541.83,
+    2.17,
+    1589.03
+   ],
+   "chunk": "kw_gen_-7_3",
+   "chunk_active": true,
+   "feet_minus_ground": 0.0,
+   "ground_y": 1.17,
+   "inside_building": "",
+   "ok": true,
+   "on_floor": true,
+   "target": "Frederick Douglass Skills Center — 727 FORT ST"
+  },
+  {
+   "at": [
+    -3111.76,
+    5.32,
+    1506.29
+   ],
+   "chunk": "kw_gen_-7_2",
+   "chunk_active": true,
+   "feet_minus_ground": 0.0,
+   "ground_y": 4.32,
+   "inside_building": "",
+   "ok": true,
+   "on_floor": true,
+   "target": "The Ernest Hemmingway Home and Museum — 907 WHITEHEAD STREET"
+  }
+ ]
+}
