@@ -3,8 +3,8 @@ extends RefCounted
 ## Builds one Reality Library chunk (editor interchange JSON v2) into a Node3D tree with meshes,
 ## collision and the per-node metadata contract. Editor-time only; never used at runtime.
 
-const GENERATOR_VERSION: String = "kw_chunk_builder.10"
-const GROUPS: Array[String] = ["Terrain", "Buildings", "Roads", "Barriers", "Infrastructure", "Vegetation", "Coastal", "LandUse", "Anchors"]
+const GENERATOR_VERSION: String = "kw_chunk_builder.11"
+const GROUPS: Array[String] = ["Terrain", "Buildings", "Roads", "Barriers", "Infrastructure", "Vegetation", "Coastal", "LandUse", "Winter", "Anchors"]
 const WALL_SINK_M: float = 0.3
 const WIRE_SAG_RATIO: float = 0.015
 const WIRE_SEGMENTS: int = 8
@@ -25,6 +25,13 @@ const FRAME_PATH: String = "res://data/world/key_west/reality/config/frame.json"
 const ICE_UNDER_WATER_M: float = 0.03
 ## Far view: terrain every this many tile samples (16 m on the 1 m DEM tile).
 const FAR_TERRAIN_STRIDE: int = 16
+## Static snow (data layer "winter"): the dynamic fresh-snow colour, so caps and ground match.
+const STATIC_SNOW_COLOR: Color = Color(0.8, 0.83, 0.88)
+## Snow on a wire this wide (cable plus crust) and on a pole top this wide.
+const WIRE_SNOW_HALF_M: float = 0.02
+const POLE_SNOW_RADIUS_M: float = 0.16
+## Winter dressing is not drawn past this distance; the far mesh carries no caps.
+const WINTER_VISIBLE_M: float = 450.0
 
 var stats: Dictionary = {}
 var _mat: Dictionary = {}
@@ -41,6 +48,10 @@ var _batches: Dictionary = {}
 var _collision_faces: PackedVector3Array = PackedVector3Array()
 var _collision_ranges: Array = []
 var _footprints: Array = []
+var _centre: Vector3 = Vector3.ZERO
+var _snow: Dictionary = {}  # settled_depth_m, repose_deg from the export (config static_snow)
+var _winter: Dictionary = {}  # "roofs" | "fences" | "wires" -> [PackedVector3Array, PackedColorArray, PackedInt32Array]
+var _pole_tops: Array[Vector3] = []
 
 
 func _init() -> void:
@@ -58,6 +69,8 @@ func _init() -> void:
 	_mat["hedge"] = _material(Color(0.24, 0.40, 0.22), true)
 	_mat["pole"] = _material(Color(0.33, 0.27, 0.21))
 	_mat["wire"] = _material(Color(0.08, 0.08, 0.08), true)
+	_mat["static_snow"] = _material(STATIC_SNOW_COLOR, true)
+	_mat["static_snow"].set_shader_parameter(&"use_vertex_color", true)
 	_mat["canopy"] = _material(Color(0.18, 0.38, 0.20))
 	_mat["stem"] = _material(Color(0.33, 0.27, 0.21))
 	(_mat["stem"] as ShaderMaterial).shader = STEM_SHADER
@@ -96,6 +109,9 @@ func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 	_collision_faces = PackedVector3Array()
 	_collision_ranges = []
 	_footprints = []
+	_winter = {}
+	_pole_tops = []
+	_snow = doc.get("static_snow", {})
 	var parts: PackedStringArray = String(doc["chunk_id"]).split(":")
 	var root: Node3D = Node3D.new()
 	root.name = "Chunk_%s_%s" % [parts[0], parts[1]]
@@ -103,6 +119,11 @@ func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 		root.set_meta(key, doc.get(key))
 	root.set_meta("builder_version", GENERATOR_VERSION)
 	root.set_meta("corridors", doc.get("corridors", []))
+	## StreamingSystem places a chunk root at its centre, so content is stored relative to it.
+	var origin: Array = doc["origin_local"]
+	var half: float = float(doc["size_m"]) * 0.5
+	var centre: Vector3 = Vector3(float(origin[0]) + half, 0.0, float(origin[1]) + half)
+	_centre = centre
 	var groups: Dictionary = {}
 	for group_name: String in GROUPS:
 		var group: Node3D = Node3D.new()
@@ -126,11 +147,8 @@ func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 		(groups["Anchors"] as Node3D).add_child(anchor)
 	_flush_batches(groups, doc)
 	_flush_collision(groups["Buildings"] as Node3D)
+	_flush_winter(groups["Winter"] as Node3D)
 	root.set_meta("snow_footprints", _footprints)
-	## StreamingSystem places a chunk root at its centre, so content is stored relative to it.
-	var origin: Array = doc["origin_local"]
-	var half: float = float(doc["size_m"]) * 0.5
-	var centre: Vector3 = Vector3(float(origin[0]) + half, 0.0, float(origin[1]) + half)
 	for group: Node3D in groups.values():
 		group.position = -centre
 	root.set_meta("centre_local", [centre.x, centre.z])
@@ -160,6 +178,8 @@ func _feature(feature: Dictionary) -> Node3D:
 	var mesh: Dictionary = feature["mesh"]
 	match String(mesh.get("kind", "marker")):
 		"building":
+			if mesh.has("snow_cap"):
+				_add_roof_cap(mesh["snow_cap"])
 			return _building(feature, mesh)
 		"ribbon":
 			return _ribbon(feature, mesh)
@@ -168,6 +188,7 @@ func _feature(feature: Dictionary) -> Node3D:
 		"drape":
 			return _drape(feature, mesh)
 		"wall":
+			_add_fence_snow(mesh)
 			return _wall(feature, mesh)
 		"pole":
 			return _pole(feature, mesh)
@@ -432,6 +453,7 @@ func _pole(feature: Dictionary, m: Dictionary) -> Node3D:
 	var top: float = float(m["top_y"])
 	var xf: Transform3D = Transform3D(Basis.from_scale(Vector3(1.0, top, 1.0)), Vector3(float(p[0]), float(m["base_y"]) + top * 0.5, float(p[1])))
 	_batch(feature, "Poles", _pole_mesh, xf)
+	_pole_tops.append(Vector3(float(p[0]), float(m["base_y"]) + top, float(p[1])))
 	_count("poles")
 	return null
 
@@ -447,6 +469,11 @@ func _wire(wire: Dictionary, doc: Dictionary) -> Node3D:
 		for k: int in [i, i + 1]:
 			var t: float = float(k) / float(WIRE_SEGMENTS)
 			verts.append(a.lerp(b, t) - Vector3(0.0, sag * 4.0 * t * (1.0 - t), 0.0) - a)
+	var line: PackedVector3Array = PackedVector3Array()
+	for k: int in range(WIRE_SEGMENTS + 1):
+		var t: float = float(k) / float(WIRE_SEGMENTS)
+		line.append(a.lerp(b, t) - Vector3(0.0, sag * 4.0 * t * (1.0 - t), 0.0))
+	_add_ridge("wires", line, WIRE_SNOW_HALF_M)
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
@@ -667,6 +694,7 @@ func _terrain(doc: Dictionary, terrain_dir: String) -> Node3D:
 	var body: StaticBody3D = StaticBody3D.new()
 	body.name = "Collision"
 	var shape: CollisionShape3D = CollisionShape3D.new()
+	shape.name = "Shape"
 	var hm: HeightMapShape3D = HeightMapShape3D.new()
 	hm.map_width = n
 	hm.map_depth = n
@@ -884,6 +912,7 @@ func _add_collision(instance: MeshInstance3D, mesh: ArrayMesh) -> void:
 	var body: StaticBody3D = StaticBody3D.new()
 	body.name = "Collision"
 	var col: CollisionShape3D = CollisionShape3D.new()
+	col.name = "Shape"
 	col.shape = shape
 	body.add_child(col)
 	instance.add_child(body)
@@ -1014,5 +1043,123 @@ func _set_owner_recursive(node: Node, owner: Node) -> void:
 			_set_owner_recursive(child, owner)
 
 
-func _count(key: String) -> void:
-	stats[key] = int(stats.get(key, 0)) + 1
+func _count(key: String, by: int = 1) -> void:
+	stats[key] = int(stats.get(key, 0)) + by
+
+
+## Roof cap from the export (static_snow.py): absolute vertices, shade per vertex, indices.
+func _add_roof_cap(cap: Dictionary) -> void:
+	var v: Array = cap["v"]
+	var shades: Array = cap["c"]
+	var bucket: Array = _winter.get_or_add("roofs", [PackedVector3Array(), PackedColorArray(), PackedInt32Array()])
+	## Packed arrays are values: grow local copies and write them back.
+	var verts: PackedVector3Array = bucket[0]
+	var colors: PackedColorArray = bucket[1]
+	var indices: PackedInt32Array = bucket[2]
+	var base: int = verts.size()
+	for k: int in range(shades.size()):
+		verts.append(Vector3(float(v[3 * k]), float(v[3 * k + 1]), float(v[3 * k + 2])) - _centre)
+		var g: float = float(shades[k])
+		colors.append(Color(g, g, g))
+	for idx: Variant in cap["i"]:
+		indices.append(base + int(idx))
+	_winter["roofs"] = [verts, colors, indices]
+
+
+## A snow ridge along the top of a fence or wall, as wide as the wall plus a crust.
+func _add_fence_snow(m: Dictionary) -> void:
+	var height: float = float(m["height"])
+	var half_w: float = float(m.get("thickness", 0.2)) * 0.5 + WIRE_SNOW_HALF_M
+	for part: Dictionary in m["parts"]:
+		var pts: PackedVector2Array = _points(part["p"])
+		var ys: Array = part["y"]
+		var line: PackedVector3Array = PackedVector3Array()
+		for i: int in range(pts.size()):
+			line.append(Vector3(pts[i].x, float(ys[i]) + height, pts[i].y))
+		_add_ridge("fences", line, half_w)
+
+
+## Snow lying on a narrow top: a ridge whose height the repose angle sets, capped at the settled depth.
+func _add_ridge(kind: String, line: PackedVector3Array, half_w: float) -> void:
+	if line.size() < 2:
+		return
+	var rise: float = minf(float(_snow.get("settled_depth_m", 0.25)), half_w * tan(deg_to_rad(float(_snow.get("repose_deg", 50.0)))))
+	var bucket: Array = _winter.get_or_add(kind, [PackedVector3Array(), PackedColorArray(), PackedInt32Array()])
+	var verts: PackedVector3Array = bucket[0]
+	var colors: PackedColorArray = bucket[1]
+	var indices: PackedInt32Array = bucket[2]
+	for i: int in range(line.size() - 1):
+		var a: Vector3 = line[i] - _centre
+		var b: Vector3 = line[i + 1] - _centre
+		var along: Vector3 = Vector3(b.x - a.x, 0.0, b.z - a.z)
+		if along.length() < 0.01:
+			continue
+		var side: Vector3 = along.normalized().cross(Vector3.UP) * half_w
+		var base: int = verts.size()
+		for p: Vector3 in [a - side, a + Vector3.UP * rise, a + side, b - side, b + Vector3.UP * rise, b + side]:
+			verts.append(p)
+			colors.append(Color(1.0, 1.0, 1.0))
+		## Each flank faces out and up; Godot draws clockwise triangles as front faces.
+		for tri: Array in [[0, 4, 1, -1.0], [0, 3, 4, -1.0], [1, 5, 2, 1.0], [1, 4, 5, 1.0]]:
+			var out: Vector3 = side * float(tri[3]) + Vector3.UP * half_w
+			var ids: Array = [base + int(tri[0]), base + int(tri[1]), base + int(tri[2])]
+			if (verts[ids[1]] - verts[ids[0]]).cross(verts[ids[2]] - verts[ids[0]]).dot(out) > 0.0:
+				ids = [ids[0], ids[2], ids[1]]
+			for k: int in ids:
+				indices.append(k)
+	_winter[kind] = [verts, colors, indices]
+
+
+## Winter group: one mesh per kind of static snow and one MultiMesh of pole caps, drawn near only.
+func _flush_winter(group: Node3D) -> void:
+	for kind: String in ["roofs", "fences", "wires"]:
+		if not _winter.has(kind) or (_winter[kind][2] as PackedInt32Array).is_empty():
+			continue
+		var arrays: Array = []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = _winter[kind][0]
+		arrays[Mesh.ARRAY_COLOR] = _winter[kind][1]
+		arrays[Mesh.ARRAY_INDEX] = _winter[kind][2]
+		var st: SurfaceTool = SurfaceTool.new()
+		st.create_from_arrays(arrays)
+		st.generate_normals()
+		var mesh: ArrayMesh = st.commit(null, MESH_FLAGS)
+		mesh.surface_set_material(0, _mat["static_snow"])
+		var instance: MeshInstance3D = MeshInstance3D.new()
+		instance.name = "WinterSnow_" + kind.capitalize()
+		instance.mesh = mesh
+		instance.position = _centre
+		_winter_meta(instance, kind)
+		group.add_child(instance)
+		_count("winter_" + kind + "_triangles", (_winter[kind][2] as PackedInt32Array).size() / 3)
+	if _pole_tops.is_empty():
+		return
+	var cap: SphereMesh = SphereMesh.new()
+	cap.radius = POLE_SNOW_RADIUS_M
+	cap.height = POLE_SNOW_RADIUS_M * 2.0
+	cap.is_hemisphere = true
+	cap.radial_segments = 8
+	cap.rings = 2
+	cap.material = _mat["static_snow"]
+	var rise: float = minf(float(_snow.get("settled_depth_m", 0.25)), POLE_SNOW_RADIUS_M * tan(deg_to_rad(float(_snow.get("repose_deg", 50.0)))))
+	var mm: MultiMesh = MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = cap
+	mm.instance_count = _pole_tops.size()
+	for k: int in range(_pole_tops.size()):
+		mm.set_instance_transform(k, Transform3D(Basis.from_scale(Vector3(1.0, rise / POLE_SNOW_RADIUS_M, 1.0)), _pole_tops[k] - _centre))
+	var node: MultiMeshInstance3D = MultiMeshInstance3D.new()
+	node.name = "WinterSnow_Poles"
+	node.multimesh = mm
+	node.position = _centre
+	_winter_meta(node, "poles")
+	node.set_meta("instances_of", "Poles")
+	group.add_child(node)
+
+
+func _winter_meta(node: GeometryInstance3D, kind: String) -> void:
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if kind != "roofs" else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	node.visibility_range_end = WINTER_VISIBLE_M
+	node.set_meta("data_layer", "winter")
+	node.set_meta("presentation", "static snow, %s; never deformed, never read by the dynamic snow" % kind)
+	node.set_meta("generator_version", GENERATOR_VERSION)

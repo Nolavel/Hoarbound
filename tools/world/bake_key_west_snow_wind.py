@@ -8,11 +8,15 @@ slows. Writes data/world/key_west/snow_wind.png (RGBA8):
   R prevailing depth factor, G storm depth factor, B shelter, A building footprint.
 Factor 0..255 maps to 0..FACTOR_MAX times the settled depth.
 Run: python3 tools/world/bake_key_west_snow_wind.py  (needs numpy, pillow)
+     python3 tools/world/bake_key_west_snow_wind.py --reality  -> snow_wind_reality.png, from the
+     Reality buildings that are generated (editor index) and the library's land polygons.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import math
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +26,8 @@ CITY = Path("data/world/key_west/city_preview.json")
 REPORT = Path("data/world/key_west/source_report.json")
 OCEAN = Path("data/world/key_west/ocean_connected_mask.png")
 OUT = Path("data/world/key_west/snow_wind.png")
+REALITY_INDEX = Path("data/world/key_west/reality/editor/editor_index.json")
+REALITY_OUT = Path("data/world/key_west/snow_wind_reality.png")
 CELL_M = 2.0
 # Bake only the city plus a margin; the rest of the island keeps factor 1.
 MARGIN_M = 200.0
@@ -152,9 +158,38 @@ def blur(a: np.ndarray, r: float) -> np.ndarray:
     return out
 
 
+def reality_city() -> dict:
+    """Generated Reality buildings as the legacy city shape: footprint (local x, z) and height above ground."""
+    doc = json.loads(REALITY_INDEX.read_text())
+    return {"buildings": [{"footprint": list(zip(b["ring"][0::2], b["ring"][1::2])), "height": b["h"]}
+                          for b in doc["buildings"] if b["generated"] and len(b["ring"]) >= 6]}
+
+
+def reality_sea(w: int, h: int, x0: float, z0: float) -> np.ndarray:
+    """Cells outside every library land polygon."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from reality import frame as rframe
+    from reality import library
+    img = Image.new("L", (w, h), 0)
+    draw = ImageDraw.Draw(img)
+    geoms, _ = library.read_layer("land")
+    for g in geoms:
+        local = rframe.to_local(g)
+        for poly in getattr(local, "geoms", [local]):
+            if poly.geom_type != "Polygon":
+                continue  # land points and lines carry no area
+            draw.polygon([((x - x0) / CELL_M, (z - z0) / CELL_M) for x, z in poly.exterior.coords], fill=255)
+            for ring in poly.interiors:
+                draw.polygon([((x - x0) / CELL_M, (z - z0) / CELL_M) for x, z in ring.coords], fill=0)
+    return np.asarray(img) < 128
+
+
 def main() -> None:
-    city = json.loads(CITY.read_text())
-    width_m, height_m = frame(json.loads(REPORT.read_text()))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--reality", action="store_true", help="bake from the Reality buildings into snow_wind_reality.png")
+    reality = parser.parse_args().reality
+    city = reality_city() if reality else json.loads(CITY.read_text())
+    out = REALITY_OUT if reality else OUT
     xs = [p[0] for b in city["buildings"] for p in b["footprint"]]
     zs = [p[1] for b in city["buildings"] for p in b["footprint"]]
     x0 = math.floor((min(xs) - MARGIN_M) / CELL_M) * CELL_M
@@ -162,7 +197,11 @@ def main() -> None:
     w = int((max(xs) + MARGIN_M - x0) / CELL_M)
     h = int((max(zs) + MARGIN_M - z0) / CELL_M)
     height = rasterise(city, w, h, x0, z0)
-    sea = water(w, h, x0, z0, width_m, height_m)
+    if reality:
+        sea = reality_sea(w, h, x0, z0)
+    else:
+        width_m, height_m = frame(json.loads(REPORT.read_text()))
+        sea = water(w, h, x0, z0, width_m, height_m)
     prev, shelter, exposure = field(height, sea, PREVAILING_FROM_DEG)
     storm, _, _ = field(height, sea, STORM_FROM_DEG)
     to8 = lambda a, top: np.clip(a / top * 255.0 + 0.5, 0, 255).astype(np.uint8)
@@ -170,11 +209,11 @@ def main() -> None:
         to8(blur(prev, 1.5), FACTOR_MAX), to8(blur(storm, 1.5), FACTOR_MAX),
         to8(blur(shelter, 1.5), 1.0), to8((height > 0.0).astype(np.float32), 1.0),
     ])
-    Image.fromarray(rgba, mode="RGBA").save(OUT, optimize=True)
+    Image.fromarray(rgba, mode="RGBA").save(out, optimize=True)
     meta = {"cell_m": CELL_M, "origin": [x0, z0], "size": [w, h], "factor_max": FACTOR_MAX,
             "prevailing_from_deg": PREVAILING_FROM_DEG, "storm_from_deg": STORM_FROM_DEG}
-    OUT.with_suffix(".json").write_text(json.dumps(meta, indent=1) + "\n")
-    print(f"wrote {OUT} {w}x{h}, mean factor {prev[~sea].mean():.2f}")
+    out.with_suffix(".json").write_text(json.dumps(meta, indent=1) + "\n")
+    print(f"wrote {out} {w}x{h}, mean factor {prev[~sea].mean():.2f}")
 
 
 if __name__ == "__main__":

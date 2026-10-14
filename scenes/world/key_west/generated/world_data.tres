@@ -691,7 +691,7 @@ location = "key_west"
 position = Vector3(-256, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-1_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-1__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_krwdp"]
 script = ExtResource("1_o0na4")
@@ -711,7 +711,7 @@ location = "key_west"
 position = Vector3(-256, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-1_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-2__04_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-2__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_yocas"]
 script = ExtResource("1_o0na4")
@@ -721,7 +721,7 @@ location = "key_west"
 position = Vector3(-256, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-1_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-3__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_85v14"]
 script = ExtResource("1_o0na4")
@@ -731,7 +731,7 @@ location = "key_west"
 position = Vector3(-256, 0, -1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-1_-4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-4__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_sfmlv"]
 script = ExtResource("1_o0na4")
@@ -741,7 +741,7 @@ location = "key_west"
 position = Vector3(-256, 0, -2304)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-1_-5.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-5__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-5__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-5__04_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-5__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-5__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-5__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_-5__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_ih518"]
 script = ExtResource("1_o0na4")
@@ -791,7 +791,7 @@ location = "key_west"
 position = Vector3(-256, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-1_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_0__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_mvclm"]
 script = ExtResource("1_o0na4")
@@ -801,7 +801,7 @@ location = "key_west"
 position = Vector3(-256, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-1_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__05_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_1__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_c4shj"]
 script = ExtResource("1_o0na4")
@@ -811,7 +811,7 @@ location = "key_west"
 position = Vector3(-256, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-1_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_2__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_ivmqi"]
 script = ExtResource("1_o0na4")
@@ -821,7 +821,7 @@ location = "key_west"
 position = Vector3(-256, 0, 1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-1_3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_3__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_3__04_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_3__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_3__04_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-1_3__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_ig4v5"]
 script = ExtResource("1_o0na4")
@@ -861,7 +861,7 @@ location = "key_west"
 position = Vector3(-768, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-2_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-1__04_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-1__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_k8onq"]
 script = ExtResource("1_o0na4")
@@ -881,7 +881,7 @@ location = "key_west"
 position = Vector3(-768, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-2_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-2__02_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-2__02_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-2__03_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_58s0q"]
 script = ExtResource("1_o0na4")
@@ -891,7 +891,7 @@ location = "key_west"
 position = Vector3(-768, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-2_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-3__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_g2aeu"]
 script = ExtResource("1_o0na4")
@@ -901,7 +901,7 @@ location = "key_west"
 position = Vector3(-768, 0, -1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-2_-4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__04_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__04_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_-4__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_gwkcx"]
 script = ExtResource("1_o0na4")
@@ -961,7 +961,7 @@ location = "key_west"
 position = Vector3(-768, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-2_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_0__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_p14wk"]
 script = ExtResource("1_o0na4")
@@ -971,7 +971,7 @@ location = "key_west"
 position = Vector3(-768, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-2_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__08_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__08_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_1__09_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_2kc7x"]
 script = ExtResource("1_o0na4")
@@ -981,7 +981,7 @@ location = "key_west"
 position = Vector3(-768, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-2_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_2__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_vi3qk"]
 script = ExtResource("1_o0na4")
@@ -991,7 +991,7 @@ location = "key_west"
 position = Vector3(-768, 0, 1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-2_3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__05_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-2_3__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_d0j1x"]
 script = ExtResource("1_o0na4")
@@ -1131,7 +1131,7 @@ location = "key_west"
 position = Vector3(-1280, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-3_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_0__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_gcgaf"]
 script = ExtResource("1_o0na4")
@@ -1141,7 +1141,7 @@ location = "key_west"
 position = Vector3(-1280, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-3_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__03_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__04_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__05_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__06_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__07_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__08_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__03_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__04_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__05_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__06_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__07_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__08_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_1__09_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_k5fcy"]
 script = ExtResource("1_o0na4")
@@ -1151,7 +1151,7 @@ location = "key_west"
 position = Vector3(-1280, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-3_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__08_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__08_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_2__09_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_hwd55"]
 script = ExtResource("1_o0na4")
@@ -1161,7 +1161,7 @@ location = "key_west"
 position = Vector3(-1280, 0, 1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-3_3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-3_3__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_i1l63"]
 script = ExtResource("1_o0na4")
@@ -1201,7 +1201,7 @@ location = "key_west"
 position = Vector3(-1792, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-4_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_-1__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_-1__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_-1__04_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_-1__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_-1__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_-1__04_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_-1__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_h25ky"]
 script = ExtResource("1_o0na4")
@@ -1301,7 +1301,7 @@ location = "key_west"
 position = Vector3(-1792, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-4_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_0__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_g7r5n"]
 script = ExtResource("1_o0na4")
@@ -1311,7 +1311,7 @@ location = "key_west"
 position = Vector3(-1792, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-4_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_1__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_dtgnw"]
 script = ExtResource("1_o0na4")
@@ -1321,7 +1321,7 @@ location = "key_west"
 position = Vector3(-1792, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-4_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__08_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__08_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_2__09_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_wyb7b"]
 script = ExtResource("1_o0na4")
@@ -1331,7 +1331,7 @@ location = "key_west"
 position = Vector3(-1792, 0, 1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-4_3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-4_3__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_kbwce"]
 script = ExtResource("1_o0na4")
@@ -1371,7 +1371,7 @@ location = "key_west"
 position = Vector3(-2304, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-5_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-1__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-1__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-1__04_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-1__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-1__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-1__04_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-1__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_ol2e0"]
 script = ExtResource("1_o0na4")
@@ -1391,7 +1391,7 @@ location = "key_west"
 position = Vector3(-2304, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-5_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-2__02_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-2__02_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-2__03_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_0dnxw"]
 script = ExtResource("1_o0na4")
@@ -1401,7 +1401,7 @@ location = "key_west"
 position = Vector3(-2304, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-5_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-3__02_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-3__02_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-3__03_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_dfi7u"]
 script = ExtResource("1_o0na4")
@@ -1431,7 +1431,7 @@ location = "key_west"
 position = Vector3(-2304, 0, -2816)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-5_-6.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-6__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-6__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-6__02_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-6__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-6__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-6__02_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_-6__03_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_xl5rt"]
 script = ExtResource("1_o0na4")
@@ -1471,7 +1471,7 @@ location = "key_west"
 position = Vector3(-2304, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-5_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_0__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_fqaea"]
 script = ExtResource("1_o0na4")
@@ -1481,7 +1481,7 @@ location = "key_west"
 position = Vector3(-2304, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-5_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__04_Block_4.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__05_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__06_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__07_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__08_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__09_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__10_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__04_Block_4.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__05_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__06_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__07_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__08_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__09_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__10_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_1__11_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_iocfm"]
 script = ExtResource("1_o0na4")
@@ -1491,7 +1491,7 @@ location = "key_west"
 position = Vector3(-2304, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-5_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__04_Block_4.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__05_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__06_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__07_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__08_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__09_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__04_Block_4.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__05_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__06_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__07_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__08_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__09_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_2__10_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_n27xy"]
 script = ExtResource("1_o0na4")
@@ -1501,7 +1501,7 @@ location = "key_west"
 position = Vector3(-2304, 0, 1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-5_3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__03_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__04_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__05_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__06_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__03_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__04_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__05_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__06_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-5_3__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_pyrlb"]
 script = ExtResource("1_o0na4")
@@ -1541,7 +1541,7 @@ location = "key_west"
 position = Vector3(-2816, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-6_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-1__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_1gdsc"]
 script = ExtResource("1_o0na4")
@@ -1561,7 +1561,7 @@ location = "key_west"
 position = Vector3(-2816, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-6_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-2__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-2__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-2__04_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-2__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-2__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-2__04_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-2__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_8h814"]
 script = ExtResource("1_o0na4")
@@ -1571,7 +1571,7 @@ location = "key_west"
 position = Vector3(-2816, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-6_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-3__02_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-3__02_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-3__03_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_huv5w"]
 script = ExtResource("1_o0na4")
@@ -1591,7 +1591,7 @@ location = "key_west"
 position = Vector3(-2816, 0, -2304)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-6_-5.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-5__02_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-5__02_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-5__03_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_3s6vf"]
 script = ExtResource("1_o0na4")
@@ -1601,7 +1601,7 @@ location = "key_west"
 position = Vector3(-2816, 0, -2816)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-6_-6.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-6__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-6__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-6__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-6__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-6__04_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-6__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-6__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-6__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-6__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-6__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-6__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_hfaxc"]
 script = ExtResource("1_o0na4")
@@ -1611,7 +1611,7 @@ location = "key_west"
 position = Vector3(-2816, 0, -3328)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-6_-7.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-7__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-7__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-7__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-7__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-7__04_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-7__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-7__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-7__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-7__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-7__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_-7__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_vlq6u"]
 script = ExtResource("1_o0na4")
@@ -1641,7 +1641,7 @@ location = "key_west"
 position = Vector3(-2816, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-6_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_0__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_6s4t1"]
 script = ExtResource("1_o0na4")
@@ -1651,7 +1651,7 @@ location = "key_west"
 position = Vector3(-2816, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-6_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__04_Block_4.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__05_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__06_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__07_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__08_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__09_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__10_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__04_Block_4.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__05_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__06_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__07_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__08_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__09_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__10_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_1__11_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_80ei5"]
 script = ExtResource("1_o0na4")
@@ -1661,7 +1661,7 @@ location = "key_west"
 position = Vector3(-2816, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-6_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__04_Block_4.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__05_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__06_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__07_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__08_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__09_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__04_Block_4.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__05_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__06_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__07_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__08_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__09_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_2__10_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_j8tys"]
 script = ExtResource("1_o0na4")
@@ -1671,7 +1671,7 @@ location = "key_west"
 position = Vector3(-2816, 0, 1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-6_3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__08_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__09_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__08_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__09_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_3__10_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_n5eh2"]
 script = ExtResource("1_o0na4")
@@ -1681,7 +1681,7 @@ location = "key_west"
 position = Vector3(-2816, 0, 2304)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-6_4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_4__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_4__03_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_4__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_4__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-6_4__04_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_bp47d"]
 script = ExtResource("1_o0na4")
@@ -1711,7 +1711,7 @@ location = "key_west"
 position = Vector3(-3328, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-7_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_-1__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_h8ce3"]
 script = ExtResource("1_o0na4")
@@ -1811,7 +1811,7 @@ location = "key_west"
 position = Vector3(-3328, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-7_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_0__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_u4pg1"]
 script = ExtResource("1_o0na4")
@@ -1821,7 +1821,7 @@ location = "key_west"
 position = Vector3(-3328, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-7_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__08_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__09_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__08_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__09_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_1__10_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_sxx3l"]
 script = ExtResource("1_o0na4")
@@ -1831,7 +1831,7 @@ location = "key_west"
 position = Vector3(-3328, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-7_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__08_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__09_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__08_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__09_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_2__10_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_lx638"]
 script = ExtResource("1_o0na4")
@@ -1841,7 +1841,7 @@ location = "key_west"
 position = Vector3(-3328, 0, 1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-7_3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__03_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__04_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__05_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__06_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__07_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__08_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__03_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__04_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__05_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__06_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__07_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__08_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_3__09_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_61w1q"]
 script = ExtResource("1_o0na4")
@@ -1851,7 +1851,7 @@ location = "key_west"
 position = Vector3(-3328, 0, 2304)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-7_4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__05_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-7_4__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_rhksu"]
 script = ExtResource("1_o0na4")
@@ -1981,7 +1981,7 @@ location = "key_west"
 position = Vector3(-3840, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-8_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_0__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_j2qnq"]
 script = ExtResource("1_o0na4")
@@ -1991,7 +1991,7 @@ location = "key_west"
 position = Vector3(-3840, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-8_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_1__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_kr23u"]
 script = ExtResource("1_o0na4")
@@ -2001,7 +2001,7 @@ location = "key_west"
 position = Vector3(-3840, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-8_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_2__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_cor8q"]
 script = ExtResource("1_o0na4")
@@ -2011,7 +2011,7 @@ location = "key_west"
 position = Vector3(-3840, 0, 1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-8_3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_3__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_ue1t1"]
 script = ExtResource("1_o0na4")
@@ -2021,7 +2021,7 @@ location = "key_west"
 position = Vector3(-3840, 0, 2304)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-8_4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-8_4__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_5ob64"]
 script = ExtResource("1_o0na4")
@@ -2151,7 +2151,7 @@ location = "key_west"
 position = Vector3(-4352, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-9_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_0__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_6618w"]
 script = ExtResource("1_o0na4")
@@ -2171,7 +2171,7 @@ location = "key_west"
 position = Vector3(-4352, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-9_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_2__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_2__03_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_2__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_2__03_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_2__04_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_agr4i"]
 script = ExtResource("1_o0na4")
@@ -2181,7 +2181,7 @@ location = "key_west"
 position = Vector3(-4352, 0, 1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_-9_3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__05_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_-9_3__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_oyit3"]
 script = ExtResource("1_o0na4")
@@ -2221,7 +2221,7 @@ location = "key_west"
 position = Vector3(256, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_0_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-1__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_g65gx"]
 script = ExtResource("1_o0na4")
@@ -2241,7 +2241,7 @@ location = "key_west"
 position = Vector3(256, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_0_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-2__00_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-2__01_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-2__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-2__03_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-2__00_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-2__01_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-2__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-2__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-2__04_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_oxpmt"]
 script = ExtResource("1_o0na4")
@@ -2251,7 +2251,7 @@ location = "key_west"
 position = Vector3(256, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_0_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-3__04_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-3__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_e35ko"]
 script = ExtResource("1_o0na4")
@@ -2261,7 +2261,7 @@ location = "key_west"
 position = Vector3(256, 0, -1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_0_-4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-4__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_rpyyv"]
 script = ExtResource("1_o0na4")
@@ -2271,7 +2271,7 @@ location = "key_west"
 position = Vector3(256, 0, -2304)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_0_-5.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-5__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-5__03_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-5__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-5__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_-5__04_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_yowkw"]
 script = ExtResource("1_o0na4")
@@ -2321,7 +2321,7 @@ location = "key_west"
 position = Vector3(256, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_0_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_0__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_gd4jq"]
 script = ExtResource("1_o0na4")
@@ -2331,7 +2331,7 @@ location = "key_west"
 position = Vector3(256, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_0_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_1__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_71idi"]
 script = ExtResource("1_o0na4")
@@ -2341,7 +2341,7 @@ location = "key_west"
 position = Vector3(256, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_0_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_2__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_2__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_2__04_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_0_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_2__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_2__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_2__04_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_0_2__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_o2da7"]
 script = ExtResource("1_o0na4")
@@ -2421,7 +2421,7 @@ location = "key_west"
 position = Vector3(5376, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_10_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_10_-3__00_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_10_-3__01_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_10_-3__02_Coastal.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_10_-3__00_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_10_-3__01_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_10_-3__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_10_-3__03_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_inr32"]
 script = ExtResource("1_o0na4")
@@ -2471,7 +2471,7 @@ location = "key_west"
 position = Vector3(5376, 0, -3840)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_10_-8.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_10_-8__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_10_-8__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_10_-8__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_nkl3s"]
 script = ExtResource("1_o0na4")
@@ -2591,7 +2591,7 @@ location = "key_west"
 position = Vector3(5888, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_11_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-3__00_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-3__01_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-3__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-3__03_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-3__00_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-3__01_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-3__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-3__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-3__04_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_gc1ad"]
 script = ExtResource("1_o0na4")
@@ -2641,7 +2641,7 @@ location = "key_west"
 position = Vector3(5888, 0, -3840)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_11_-8.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-8__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-8__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-8__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_tiwks"]
 script = ExtResource("1_o0na4")
@@ -2651,7 +2651,7 @@ location = "key_west"
 position = Vector3(5888, 0, -4352)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_11_-9.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-9__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-9__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_11_-9__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_fmlyd"]
 script = ExtResource("1_o0na4")
@@ -2821,7 +2821,7 @@ location = "key_west"
 position = Vector3(6400, 0, -4352)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_12_-9.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_12_-9__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_12_-9__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_12_-9__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_0ykyk"]
 script = ExtResource("1_o0na4")
@@ -2991,7 +2991,7 @@ location = "key_west"
 position = Vector3(6912, 0, -4352)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_13_-9.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_13_-9__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_13_-9__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_13_-9__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_m1lpm"]
 script = ExtResource("1_o0na4")
@@ -3071,7 +3071,7 @@ location = "key_west"
 position = Vector3(768, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_1_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__08_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__09_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__04_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__05_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__06_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__07_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__08_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__09_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-1__10_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_vy3tj"]
 script = ExtResource("1_o0na4")
@@ -3091,7 +3091,7 @@ location = "key_west"
 position = Vector3(768, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_1_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__05_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_-2__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_kwhav"]
 script = ExtResource("1_o0na4")
@@ -3171,7 +3171,7 @@ location = "key_west"
 position = Vector3(768, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_1_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_0__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_vnuga"]
 script = ExtResource("1_o0na4")
@@ -3181,7 +3181,7 @@ location = "key_west"
 position = Vector3(768, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_1_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_1_1__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_7lw6v"]
 script = ExtResource("1_o0na4")
@@ -3241,7 +3241,7 @@ location = "key_west"
 position = Vector3(1280, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_2_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-1__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_0w6d5"]
 script = ExtResource("1_o0na4")
@@ -3261,7 +3261,7 @@ location = "key_west"
 position = Vector3(1280, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_2_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_-2__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_ia3hi"]
 script = ExtResource("1_o0na4")
@@ -3341,7 +3341,7 @@ location = "key_west"
 position = Vector3(1280, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_2_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_0__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_fnufo"]
 script = ExtResource("1_o0na4")
@@ -3361,7 +3361,7 @@ location = "key_west"
 position = Vector3(1280, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_2_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_2_2__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_8pros"]
 script = ExtResource("1_o0na4")
@@ -3411,7 +3411,7 @@ location = "key_west"
 position = Vector3(1792, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_3_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-1__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_gf6ti"]
 script = ExtResource("1_o0na4")
@@ -3431,7 +3431,7 @@ location = "key_west"
 position = Vector3(1792, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_3_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-2__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_fkem1"]
 script = ExtResource("1_o0na4")
@@ -3441,7 +3441,7 @@ location = "key_west"
 position = Vector3(1792, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_3_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-3__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_k5kgm"]
 script = ExtResource("1_o0na4")
@@ -3451,7 +3451,7 @@ location = "key_west"
 position = Vector3(1792, 0, -1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_3_-4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-4__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-4__03_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-4__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-4__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_-4__04_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_8iclo"]
 script = ExtResource("1_o0na4")
@@ -3511,7 +3511,7 @@ location = "key_west"
 position = Vector3(1792, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_3_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_0__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_yjpy0"]
 script = ExtResource("1_o0na4")
@@ -3521,7 +3521,7 @@ location = "key_west"
 position = Vector3(1792, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_3_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_1__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_4waw5"]
 script = ExtResource("1_o0na4")
@@ -3531,7 +3531,7 @@ location = "key_west"
 position = Vector3(1792, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_3_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_3_2__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_a6wj1"]
 script = ExtResource("1_o0na4")
@@ -3581,7 +3581,7 @@ location = "key_west"
 position = Vector3(2304, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_4_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__06_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-1__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_bwg0t"]
 script = ExtResource("1_o0na4")
@@ -3601,7 +3601,7 @@ location = "key_west"
 position = Vector3(2304, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_4_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-2__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_vxyuo"]
 script = ExtResource("1_o0na4")
@@ -3611,7 +3611,7 @@ location = "key_west"
 position = Vector3(2304, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_4_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-3__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_3a7uy"]
 script = ExtResource("1_o0na4")
@@ -3621,7 +3621,7 @@ location = "key_west"
 position = Vector3(2304, 0, -1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_4_-4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-4__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_foyfx"]
 script = ExtResource("1_o0na4")
@@ -3631,7 +3631,7 @@ location = "key_west"
 position = Vector3(2304, 0, -2304)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_4_-5.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-5__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_dspvu"]
 script = ExtResource("1_o0na4")
@@ -3641,7 +3641,7 @@ location = "key_west"
 position = Vector3(2304, 0, -2816)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_4_-6.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-6__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-6__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_-6__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_kvp0h"]
 script = ExtResource("1_o0na4")
@@ -3681,7 +3681,7 @@ location = "key_west"
 position = Vector3(2304, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_4_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_0__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_v5dyv"]
 script = ExtResource("1_o0na4")
@@ -3691,7 +3691,7 @@ location = "key_west"
 position = Vector3(2304, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_4_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_1__04_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_1__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_1__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_1__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_h2q74"]
 script = ExtResource("1_o0na4")
@@ -3701,7 +3701,7 @@ location = "key_west"
 position = Vector3(2304, 0, 1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_4_2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_2__04_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_4_2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_4_2__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_p5uw6"]
 script = ExtResource("1_o0na4")
@@ -3751,7 +3751,7 @@ location = "key_west"
 position = Vector3(2816, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_5_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__04_Block_4.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__05_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__06_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__07_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__08_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__09_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__02_Block_2.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__03_Block_3.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__04_Block_4.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__05_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__06_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__07_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__08_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__09_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-1__10_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_fautv"]
 script = ExtResource("1_o0na4")
@@ -3771,7 +3771,7 @@ location = "key_west"
 position = Vector3(2816, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_5_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-2__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_bipse"]
 script = ExtResource("1_o0na4")
@@ -3781,7 +3781,7 @@ location = "key_west"
 position = Vector3(2816, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_5_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-3__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_qiejc"]
 script = ExtResource("1_o0na4")
@@ -3791,7 +3791,7 @@ location = "key_west"
 position = Vector3(2816, 0, -1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_5_-4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-4__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_m28ct"]
 script = ExtResource("1_o0na4")
@@ -3801,7 +3801,7 @@ location = "key_west"
 position = Vector3(2816, 0, -2304)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_5_-5.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-5__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-5__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-5__04_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-5__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-5__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-5__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-5__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_1th6q"]
 script = ExtResource("1_o0na4")
@@ -3811,7 +3811,7 @@ location = "key_west"
 position = Vector3(2816, 0, -2816)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_5_-6.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-6__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-6__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-6__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-6__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-6__04_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-6__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-6__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-6__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-6__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-6__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-6__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_lmd5n"]
 script = ExtResource("1_o0na4")
@@ -3821,7 +3821,7 @@ location = "key_west"
 position = Vector3(2816, 0, -3328)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_5_-7.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-7__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-7__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_-7__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_0d5qb"]
 script = ExtResource("1_o0na4")
@@ -3851,7 +3851,7 @@ location = "key_west"
 position = Vector3(2816, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_5_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__04_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__04_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_5_0__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_wl8y7"]
 script = ExtResource("1_o0na4")
@@ -3921,7 +3921,7 @@ location = "key_west"
 position = Vector3(3328, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_6_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-1__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_fpvr1"]
 script = ExtResource("1_o0na4")
@@ -3941,7 +3941,7 @@ location = "key_west"
 position = Vector3(3328, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_6_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__07_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__07_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-2__08_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_4y750"]
 script = ExtResource("1_o0na4")
@@ -3951,7 +3951,7 @@ location = "key_west"
 position = Vector3(3328, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_6_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-3__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_52phk"]
 script = ExtResource("1_o0na4")
@@ -3961,7 +3961,7 @@ location = "key_west"
 position = Vector3(3328, 0, -1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_6_-4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__05_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-4__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_ypjrf"]
 script = ExtResource("1_o0na4")
@@ -3971,7 +3971,7 @@ location = "key_west"
 position = Vector3(3328, 0, -2304)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_6_-5.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-5__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_rnw4g"]
 script = ExtResource("1_o0na4")
@@ -3981,7 +3981,7 @@ location = "key_west"
 position = Vector3(3328, 0, -2816)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_6_-6.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-6__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_iakj5"]
 script = ExtResource("1_o0na4")
@@ -3991,7 +3991,7 @@ location = "key_west"
 position = Vector3(3328, 0, -3328)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_6_-7.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-7__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-7__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_-7__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_dltko"]
 script = ExtResource("1_o0na4")
@@ -4021,7 +4021,7 @@ location = "key_west"
 position = Vector3(3328, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_6_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__05_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__05_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_0__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_hkl54"]
 script = ExtResource("1_o0na4")
@@ -4031,7 +4031,7 @@ location = "key_west"
 position = Vector3(3328, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_6_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_1__02_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_6_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_1__02_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_6_1__03_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_p200j"]
 script = ExtResource("1_o0na4")
@@ -4091,7 +4091,7 @@ location = "key_west"
 position = Vector3(3840, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_7_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__06_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__03_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__04_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__05_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__06_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-1__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_68csv"]
 script = ExtResource("1_o0na4")
@@ -4111,7 +4111,7 @@ location = "key_west"
 position = Vector3(3840, 0, -768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_7_-2.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-2__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_hoi0d"]
 script = ExtResource("1_o0na4")
@@ -4121,7 +4121,7 @@ location = "key_west"
 position = Vector3(3840, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_7_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__05_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-3__06_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_2xdrr"]
 script = ExtResource("1_o0na4")
@@ -4131,7 +4131,7 @@ location = "key_west"
 position = Vector3(3840, 0, -1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_7_-4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-4__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-4__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-4__04_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-4__01_Block_1.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-4__02_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-4__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-4__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-4__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_ayymn"]
 script = ExtResource("1_o0na4")
@@ -4161,7 +4161,7 @@ location = "key_west"
 position = Vector3(3840, 0, -3328)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_7_-7.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-7__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-7__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_-7__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_np33c"]
 script = ExtResource("1_o0na4")
@@ -4191,7 +4191,7 @@ location = "key_west"
 position = Vector3(3840, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_7_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_0__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_2rui0"]
 script = ExtResource("1_o0na4")
@@ -4201,7 +4201,7 @@ location = "key_west"
 position = Vector3(3840, 0, 768)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_7_1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_1__02_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_7_1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_1__02_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_7_1__03_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_eu8s1"]
 script = ExtResource("1_o0na4")
@@ -4261,7 +4261,7 @@ location = "key_west"
 position = Vector3(4352, 0, -256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_8_-1.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-1__03_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-1__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-1__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-1__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-1__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-1__04_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_jowd3"]
 script = ExtResource("1_o0na4")
@@ -4291,7 +4291,7 @@ location = "key_west"
 position = Vector3(4352, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_8_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-3__00_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-3__01_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-3__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-3__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-3__04_Barriers.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-3__00_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-3__01_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-3__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-3__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-3__04_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-3__05_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_4w37d"]
 script = ExtResource("1_o0na4")
@@ -4301,7 +4301,7 @@ location = "key_west"
 position = Vector3(4352, 0, -1792)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_8_-4.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-4__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-4__03_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-4__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-4__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-4__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-4__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-4__04_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_yy4f4"]
 script = ExtResource("1_o0na4")
@@ -4331,7 +4331,7 @@ location = "key_west"
 position = Vector3(4352, 0, -3328)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_8_-7.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-7__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-7__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-7__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_r6we0"]
 script = ExtResource("1_o0na4")
@@ -4341,7 +4341,7 @@ location = "key_west"
 position = Vector3(4352, 0, -3840)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_8_-8.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-8__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-8__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_-8__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_1g1r8"]
 script = ExtResource("1_o0na4")
@@ -4361,7 +4361,7 @@ location = "key_west"
 position = Vector3(4352, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_8_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__06_LandUse.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__02_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__03_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__04_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__05_Barriers.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__06_LandUse.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_8_0__07_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_kir1x"]
 script = ExtResource("1_o0na4")
@@ -4461,7 +4461,7 @@ location = "key_west"
 position = Vector3(4864, 0, -1280)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_9_-3.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-3__00_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-3__01_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-3__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-3__03_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-3__00_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-3__01_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-3__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-3__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-3__04_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_ym1vj"]
 script = ExtResource("1_o0na4")
@@ -4511,7 +4511,7 @@ location = "key_west"
 position = Vector3(4864, 0, -3840)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_9_-8.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-8__00_Infrastructure.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-8__00_Infrastructure.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_-8__01_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_bh3iq"]
 script = ExtResource("1_o0na4")
@@ -4531,7 +4531,7 @@ location = "key_west"
 position = Vector3(4864, 0, 256)
 radius = 362.03867196751236
 content_scene_path = "res://scenes/world/key_west/generated/chunks/Chunk_9_0.scn"
-part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_9_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_0__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_0__03_Vegetation.scn")
+part_scene_paths = PackedStringArray("res://scenes/world/key_west/generated/chunks/parts/Chunk_9_0__00_Buildings.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_0__01_Roads.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_0__02_Coastal.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_0__03_Vegetation.scn", "res://scenes/world/key_west/generated/chunks/parts/Chunk_9_0__04_Winter.scn")
 
 [sub_resource type="Resource" id="Resource_rvvy5"]
 script = ExtResource("1_o0na4")

@@ -74,6 +74,8 @@ func _process(_delta: float) -> bool:
 	for id: StringName in streaming.get_active_chunks():
 		far += 1 if String(id).begins_with("kw_far_") else 0
 	_check(far > 0, "no far-view meshes streamed in")
+	## The dynamic snow reads the wind field baked from Reality's own buildings, not the legacy one.
+	_check(SnowChunkCover.wind_field_path.ends_with("snow_wind_reality.png"), "chunk snow reads %s" % SnowChunkCover.wind_field_path)
 	_check(_log.count == 0, "%d engine errors while booting: %s" % [_log.count, _log.samples])
 	if _failures > 0:
 		push_error("reality fresh checkout: %d check(s) failed" % _failures)

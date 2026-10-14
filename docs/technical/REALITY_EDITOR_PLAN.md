@@ -139,10 +139,13 @@ roofs (layered, overhanging the eaves) and a wind map that sets windward and lee
   459 far meshes and assembles up to 9 detail chunks around the 3D editor camera, one per
   half second. Preview nodes are internal children: nothing is saved into the scene.
 - Dock "Reality" (`addons/reality_editor`): search by house number, street, name or id;
-  "Go to" moves `FocusMarker` there and selects it (press F to frame); "At marker" and
-  "At camera" identify the building under the marker or the camera's look point; the record
+  "Go to" moves `FocusMarker` there and selects it (press F to frame); "At marker"
+  identifies the building under the marker, "At camera" the first footprint the camera's look
+  ray passes through below its roof top (`RealityIndex.pick_ray`, 0.5 m steps); the record
   shows address source, use, height, levels, chunk and the bound asset.
-- Test: `tests/systems/test_reality_editor.gd`. Captures: `docs/runtime_previews/reality_editor/`.
+- Test: `tests/systems/test_reality_editor.gd`. Captures: `docs/runtime_previews/reality_editor/`;
+  the dock demo (search, Go to + F, At camera) is shot in the real editor by
+  `addons/reality_editor/capture_demo.gd` when `HOARBOUND_REALITY_EDITOR_CAPTURE` names a folder.
 
 **Edit layer (done):** `tools/world/reality/edits.py` and `RealityEditStore` read and
 write `data/world/key_west/reality/overrides/edits/edits_<x>_<z>.json`
@@ -164,8 +167,16 @@ Godot 4.8 imports glTF node extras as node metadata `extras` (checked on a shell
 model comes back as `assets/world/key_west/buildings/<stem>.glb`; `asset ... --state
 artist_modified` registers it and takes `origin_local` from the shell sidecar.
 
-**Next:** the winter pass, one snapshot: stage 0 (naming, partial-equals-full test), a wind
-exposure field from the profile wind and building shelter, and static snow (below).
+**Winter pass (done, generator `kw_chunk_builder.11`, one snapshot):**
+- Stage 0: the two collision shapes are named; the contract check rejects engine-assigned
+  names. A second cause turned up while proving it: the node digest sorted metadata keys as
+  StringNames, which compare by address, so a chunk built after another one saved hashed
+  differently. Keys now sort as text; `-7:3` built alone and after `-8:3 -6:3` give one
+  digest. CI rebuilds `-6:3 -7:3` alone after the full build (`--verify-partial`).
+- Wind map: `bake_key_west_snow_wind.py --reality` bakes the existing city wind field from the
+  generated Reality buildings and the library land; the world profile hands it to the
+  dynamic snow (the legacy bake had a block at Truman Annex that does not exist).
+- Static snow: see below and `docs/technical/SNOW_COVER.md`.
 
 **Static snow is not the dynamic snow.** Henry deforms the dynamic system (deep-snow shell,
 chunk cover, footprints); it stays as it is. Snow caps on roofs, wires, poles, fences and

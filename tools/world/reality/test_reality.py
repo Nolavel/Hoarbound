@@ -318,5 +318,50 @@ class EditLayer(unittest.TestCase):
         self.assertEqual(recs[0]["chunk"], "-7:3")
 
 
+class StaticSnow(unittest.TestCase):
+    class _Wind:
+        def __init__(self, upwind):
+            import numpy as np
+            self.upwind = np.asarray(upwind, float)
+
+        def shelter(self, x, z):
+            return 0.5
+
+    def _cfg(self):
+        from reality import static_snow
+        return static_snow.settings()
+
+    def test_slope_factor_follows_asce7_cold_roof(self):
+        from reality import static_snow
+        cfg = self._cfg()
+        self.assertEqual(static_snow.slope_factor(20.0, cfg), 1.0)
+        self.assertEqual(static_snow.slope_factor(45.0, cfg), 1.0)
+        self.assertAlmostEqual(static_snow.slope_factor(57.5, cfg), 0.5)
+        self.assertEqual(static_snow.slope_factor(75.0, cfg), 0.0)
+
+    def _gable(self, pitch_deg):
+        import math
+        h = 5.0 * math.tan(math.radians(pitch_deg))
+        # ridge along z at x = 0; west slope x in [-5, 0], east slope x in [0, 5]
+        v = [-5, 3, 0, -5, 3, 10, 0, 3 + h, 0, 0, 3 + h, 10, 5, 3, 0, 5, 3, 10]
+        i = [0, 1, 2, 2, 1, 3, 2, 3, 4, 4, 3, 5]
+        return {"roof_v": v, "roof_i": i}
+
+    def test_lee_slope_holds_more_than_windward(self):
+        import numpy as np
+        from reality import static_snow
+        cap = static_snow.roof_cap(self._gable(30.0), self._Wind([1.0, 0.0]), self._cfg())  # wind from the east
+        v = np.asarray(cap["v"]).reshape(-1, 3)
+        top = v[: 6]  # the six roof vertices come first, lifted by their depth
+        roof = np.asarray(self._gable(30.0)["roof_v"], float).reshape(-1, 3)
+        lift = top[:, 1] - roof[[0, 1, 2, 3, 4, 5]][:, 1]
+        self.assertGreater(lift[0], lift[4], "the west (lee) eave must hold more snow than the east (windward) one")
+        self.assertGreater(len(cap["i"]) // 3, 4, "open edges need their eave lip")
+
+    def test_steep_roof_sheds_its_snow(self):
+        from reality import static_snow
+        self.assertIsNone(static_snow.roof_cap(self._gable(75.0), self._Wind([1.0, 0.0]), self._cfg()))
+
+
 if __name__ == "__main__":
     unittest.main()

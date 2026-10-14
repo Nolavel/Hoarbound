@@ -13,7 +13,7 @@ const PART_DIR: String = "res://scenes/world/key_west/generated/chunks/parts"
 ## Far-view meshes, one per chunk ("Far_x_z.res"), streamed by KeyWestRealityFar.
 const FAR_DIR: String = "res://scenes/world/key_west/generated/far"
 ## Heavy groups leave the chunk root as part scenes, attached in this order; Terrain and Anchors stay.
-const PART_ORDER: Array[String] = ["Buildings", "Roads", "Infrastructure", "Coastal", "Vegetation", "Barriers", "LandUse"]
+const PART_ORDER: Array[String] = ["Buildings", "Roads", "Infrastructure", "Coastal", "Vegetation", "Barriers", "LandUse", "Winter"]
 ## Buildings per part scene: about 2 ms of instantiate on the densest Old Town chunk.
 const BUILDING_BLOCK: int = 120
 ## Stamps that differ between identical rebuilds; everything else must match bit for bit.
@@ -180,10 +180,13 @@ func _digest_node(ctx: HashingContext, root: Node, node: Node) -> void:
 		line += "|" + var_to_str((node as Node3D).transform)
 	if node.scene_file_path != "":
 		line += "|scene=" + node.scene_file_path
-	var keys: Array = node.get_meta_list()
+	## Sorted as text: StringNames compare by address, so their order would follow the allocator.
+	var keys: PackedStringArray = PackedStringArray()
+	for key: StringName in node.get_meta_list():
+		keys.append(String(key))
 	keys.sort()
-	for key: StringName in keys:
-		if not DIGEST_SKIP_META.has(String(key)):
+	for key: String in keys:
+		if not DIGEST_SKIP_META.has(key):
 			line += "|%s=%s" % [key, var_to_str(node.get_meta(key))]
 	ctx.update(line.to_utf8_buffer())
 	if node is MeshInstance3D and (node as MeshInstance3D).mesh is ArrayMesh:
@@ -221,6 +224,20 @@ func record_digest() -> Error:
 	return OK
 
 
+## Compares only the chunks of this (partial) build with the recorded digest.
+func verify_partial() -> PackedStringArray:
+	var bad: PackedStringArray = PackedStringArray()
+	var recorded: Variant = JSON.parse_string(FileAccess.get_file_as_string(DIGEST_PATH))
+	if not (recorded is Dictionary):
+		bad.append("digest missing")
+		return bad
+	var now: Dictionary = _digests()
+	for cid: String in now.keys():
+		if (recorded["chunks"] as Dictionary).get(cid, "") != now[cid]:
+			bad.append(cid)
+	return bad
+
+
 ## Compares this build with the recorded digest; returns the mismatching chunk ids.
 func verify_digest() -> PackedStringArray:
 	var bad: PackedStringArray = PackedStringArray()
@@ -254,9 +271,13 @@ func _digests() -> Dictionary:
 ## Every feature node under the feature groups must carry the contract keys.
 func _check_contract(root: Node3D) -> Array:
 	var bad: Array = []
+	## An auto name ("@Node@12") comes from a process-wide counter: the chunk would differ by build order.
+	for node: Node in root.find_children("*", "", true, false):
+		if String(node.name).contains("@"):
+			bad.append("%s/%s has an engine-assigned name" % [root.name, root.get_path_to(node)])
 	for group: Node in root.get_children():
-		if group.name in ["Terrain", "Anchors"]:
-			continue
+		if group.name in ["Terrain", "Anchors", "Winter"]:
+			continue  # Winter is presentation (data layer "winter"), not features
 		for node: Node in group.get_children():
 			if String(node.name).begins_with("KW_WIRE_") or node.name == &"BuildingCollision":
 				continue

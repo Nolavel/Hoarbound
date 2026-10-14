@@ -11,6 +11,7 @@ content_scene_path = "res://scenes/world/key_west/key_west_reality_content.tscn"
 spawn_marker_name = &"SpawnPoint"
 initial_weather_profile_id = &"blizzard"
 wind_direction_override_deg = 8.0
+snow_wind_field_path = "res://data/world/key_west/snow_wind_reality.png"
 prewarm_before_first_frame = true
 experimental = true
 source_note = "Editor-generated Reality Library chunks streamed as static WorldData; chunks carry their own DEM terrain, so no IslandTerrain. The generated snapshot is committed; tools/world/reality_gen rebuilds it."

@@ -357,6 +357,22 @@ snowfall it consolidates back to `calm_storm_share` over hours. SnowField keeps
 both factors per cell, so a share change rebuilds depth only. A settled-cover
 change of at least 0.02 also rebuilds depth, independently of window movement.
 
+### Wind field per world and static snow
+
+The baked city wind field (`tools/world/bake_key_west_snow_wind.py`) is chosen by the world
+profile (`WorldProfile.snow_wind_field_path`; empty keeps the legacy `snow_wind.png`).
+`SnowShell.apply_world_profile` hands it to the shell and to `SnowChunkCover`. Key West
+Reality uses `snow_wind_reality.png`, baked with `--reality` from the generated Reality
+buildings (editor index, heights above ground) and the library's land polygons; the legacy
+bake had a Truman Annex block that does not exist and missed Reality buildings.
+
+Static snow (roof caps, ridges on fences and wires, caps on pole tops) is separate: it is
+generated offline into each chunk's `Winter` group (data layer `winter`), never deformed and
+never read by this system. Roof cap depth = settled depth at full cover (0.25 m, the same as
+`cover_depth_m.y`) x ASCE 7-16 cold-roof slope factor Cs x exposure factor Ce from the
+shelter channel x an unbalanced factor (windward scoured, leeward loaded); lips run past the
+eaves, longest on lee edges. Parameters and sources: `config/generation.json` `static_snow`.
+
 ### Persistent tracks
 
 `SnowTrackStore` files packing leaving the window as 3.2 m tiles (32² bytes,

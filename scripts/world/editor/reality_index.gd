@@ -8,6 +8,8 @@ const ASSET_MANIFEST_PATH: String = "res://data/world/key_west/reality/authoring
 const DEFAULT_LIMIT: int = 50
 ## Side of the grid cells that bucket footprints for picking.
 const CELL_M: float = 64.0
+## Ray march step for pick_ray; small enough not to skip a narrow house.
+const RAY_STEP_M: float = 0.5
 
 var buildings: Array = []
 var counts: Dictionary = {}
@@ -79,6 +81,19 @@ func pick(x: float, z: float) -> Dictionary:
 			poly.append(Vector2(float(ring[k]), float(ring[k + 1])))
 		if Geometry2D.is_point_in_polygon(p, poly):
 			return buildings[i]
+	return {}
+
+
+## First building a view ray passes through below its roof top, marching RAY_STEP_M; empty on a miss.
+func pick_ray(origin: Vector3, direction: Vector3, max_m: float) -> Dictionary:
+	var dir: Vector3 = direction.normalized()
+	var t: float = 0.0
+	while t <= max_m:
+		var p: Vector3 = origin + dir * t
+		var b: Dictionary = pick(p.x, p.z)
+		if not b.is_empty() and p.y <= float(b["y"]) + float(b["h"]):
+			return b
+		t += RAY_STEP_M
 	return {}
 
 

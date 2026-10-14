@@ -19,3 +19,11 @@ buildings across mapped ways removed).
 | `exterior_727` | 727 Fort Street, yard supplies by the front |
 | `interior_727` | the heated waiting room; no snowfall indoors |
 | `far_city_from_727`, `far_island_from_fort` | far meshes beyond the load band, no hole at the horizon |
+
+Winter pass, generator `kw_chunk_builder.11` (2026-10-14):
+
+| Shot | What to look at |
+|---|---|
+| `winter_roofs_727`, `winter_lee_eaves` | static snow caps on roofs, wires and poles in the real scene, in the blizzard |
+| `caps_oblique`, `caps_close`, `caps_lee_eaves` | the same caps without weather (scratch render of chunk `-7:3`): thin on windward slopes, lips drooping past lee eaves |
+| `wind_field_727` | shelter channel of the city wind field around 727; top: legacy bake (fake Truman Annex block, red), bottom: the Reality bake from the generated buildings (green outlines) |

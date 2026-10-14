@@ -53,5 +53,25 @@
     "max_clumps_per_feature": 2500,
     "road_margin_m": 0.3,
     "trunk_step_off_road_m": 0.5
+  },
+  "static_snow": {
+    "description": "Static winter dressing: snow caps on roofs, fences, poles and wires, generated offline into the Winter group (data layer 'winter'). Visual only; Henry never deforms it and the dynamic snow never reads it.",
+    "settled_depth_m": 0.25,
+    "settled_depth_source": "SnowField.cover_depth_m.y: the dynamic settled depth at full cover, so caps and ground agree",
+    "slope_full_deg": 45.0,
+    "slope_zero_deg": 70.0,
+    "slope_source": "ASCE 7-16 Fig. 7.4-1, cold roof slope factor Cs: 1.0 up to 45 deg, 0 at 70 deg",
+    "exposure_open": 0.7,
+    "exposure_sheltered": 1.2,
+    "exposure_source": "ASCE 7-16 Table 7.3-1 exposure factor Ce range, driven by the baked shelter channel",
+    "windward_keep": 0.5,
+    "leeward_gain": 0.3,
+    "unbalanced_source": "ASCE 7-16 7.6.1 unbalanced gable load (windward scoured, leeward loaded); values are presentation (inferred)",
+    "cornice_over_depth": 1.6,
+    "eave_over_depth": 0.4,
+    "droop_over_depth": 0.9,
+    "repose_deg": 50.0,
+    "repose_source": "angle of repose of fresh dry snow, about 50 deg; sets the ridge on narrow tops (fences, poles, wires)",
+    "wind_field": "data/world/key_west/snow_wind_reality.png"
   }
 }

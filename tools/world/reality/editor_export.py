@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 import numpy as np
 import shapely
 
-from . import PIPELINE_VERSION, config, edits, frame, library, meshing, overrides, paths, receipts, regen, traversal, vegetation
+from . import PIPELINE_VERSION, config, edits, frame, library, meshing, overrides, paths, receipts, regen, static_snow, traversal, vegetation
 
 EXPORT_VERSION = "kw_reality.editor_chunk.v2"
 FAMILIES = ("buildings", "building_parts", "roads", "bridges", "coastal_structures", "barriers", "power", "utilities",
@@ -35,6 +35,7 @@ OUT = paths.REALITY / "derived" / "editor_chunks"
 
 ## Ground under a ribbon is sampled at least this often, and no segment overhangs its chunk further.
 RIBBON_SAMPLE_M = 32.0
+AUTHORED_ACTIONS = ("keep", "keep_locked", "needs_rebase")  # regen actions that place an authored asset
 PARTIAL_REACH_M = 1.0  # a partial export also takes features within this distance of its chunks
 
 
@@ -121,6 +122,8 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
     for w in edit_warnings:
         print("edit layer:", w)
     base_edits = edits.base_plan(edit_records)
+    snow_cfg = static_snow.settings()
+    snow_wind = static_snow.WindField(snow_cfg["wind_field"])
     s = meshing.Surfaces()
     clear = vegetation.Clearance(gen["shrub_stems"]["road_margin_m"])
     landmarks = {o["target_feature_id"] for o in ov["features"] if o["override_type"] == "landmark_role" and o.get("target_feature_id")}
@@ -170,6 +173,11 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
             hot = in_corridor(g)
             mesh, sources = _mesh_for(fam, cols["class"][i], cols["subclass"][i], g, fid, attrs, sel, s, gen, heights, hot,
                                       removed.get(fid, []), severed_area, stats, clear)
+            if mesh.get("kind") == "building" and p["action"] not in AUTHORED_ACTIONS:
+                cap = static_snow.roof_cap(mesh, snow_wind, snow_cfg)  # winter layer; authored assets bring their own
+                if cap:
+                    mesh["snow_cap"] = cap
+                    stats["snow_caps"] += 1
             if fam == "power" and g.geom_type == "Point":
                 poles[fid] = (g.x, g.y, mesh.get("base_y", 0.0), mesh.get("top_y", 9.0))
             ovs = override_state.get(fid, [])
@@ -258,6 +266,7 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
                "corridors": [c["name"] for c in corr if shapely.box(*_chunk_box(cx, cz, size)).intersects(c["area"])],
                "anchors": [{"name": c["name"], "points": c["anchors"]} for c in corr],
                "custom_structures": custom, "wires": wires.get(cid, []),
+               "static_snow": {k: snow_cfg[k] for k in ("settled_depth_m", "repose_deg")},
                "features": sorted(per_chunk.get(cid, []), key=lambda f: f["feature_id"])}
         here = [e for e in layer_edits if e["chunk"] == cid]
         if here:

@@ -15,6 +15,8 @@ const SEA_LEVEL_M: float = 0.04
 ## Finished meshes kept after their chunk unloads; the mesh never depends on weather.
 const CACHE_SIZE: int = 12
 
+## Wind field the shared SnowField reads; the world profile picks it (use_wind_field).
+static var wind_field_path: String = WIND_FIELD_PATH
 static var _field: SnowField
 static var _material: ShaderMaterial
 static var _cache: Dictionary = {}
@@ -137,6 +139,16 @@ static func finish(job: Job) -> MeshInstance3D:
 	return _instance(mesh) if mesh != null else null
 
 
+## Switches the baked wind field; drops the shared field and cached meshes when it changes.
+static func use_wind_field(path: String) -> void:
+	if path == wind_field_path:
+		return
+	wind_field_path = path
+	_field = null
+	_material = null
+	clear_cache()
+
+
 static func clear_cache() -> void:
 	_cache.clear()
 	_cache_order.clear()
@@ -146,7 +158,7 @@ static func _ensure_shared() -> void:
 	if _field != null:
 		return
 	_field = SnowField.new()
-	_field.load_wind_field(WIND_FIELD_PATH)
+	_field.load_wind_field(wind_field_path)
 	_material = ShaderMaterial.new()
 	_material.shader = SHADER
 	if _field.wind_texture != null:

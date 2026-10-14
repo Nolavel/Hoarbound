@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Reality editor: index search and picking find 727 Fort Street; the view shows every chunk as a
+## Reality editor: index search, point and ray picking find 727 Fort Street; the view shows every chunk as a
 ## far mesh, swaps the nearest ones for detail around the focus, and never adds saved children.
 
 const EDITOR_SCENE: String = "res://scenes/world/key_west/key_west_reality_editor.tscn"
@@ -34,6 +34,9 @@ func _check_index() -> void:
 	if not b.is_empty():
 		_check(index.pick(float(b["c"][0]), float(b["c"][1])).get("id", "") == ID_727, "pick at the 727 centre missed it")
 		_check(not index.asset_of(ID_727).is_empty(), "727 has no authored asset in the manifest")
+		var roof: Vector3 = Vector3(float(b["c"][0]), float(b["y"]) + float(b["h"]) - 0.5, float(b["c"][1]))
+		var eye: Vector3 = roof + Vector3(60.0, 50.0, 60.0)  # a shallow look: the ground point lies well past the house
+		_check(index.pick_ray(eye, roof - eye, 1500.0).get("id", "") == ID_727, "a look ray at the 727 roof missed it")
 	_check(index.pick(-20000.0, -20000.0).is_empty(), "pick far out at sea found a building")
 
 

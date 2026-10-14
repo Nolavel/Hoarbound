@@ -1,6 +1,7 @@
 extends SceneTree
 ## Batch entry (needs a rendering driver for MultiMesh data; under CI use xvfb + lavapipe):
 ## xvfb-run godot --path . --rendering-driver vulkan --script tools/world/reality_gen/generate_key_west_chunks_cli.gd -- [cx:cz ...]
+## Flags: --record-digest, --verify-digest (full build), --verify-partial (these chunks equal the full build).
 
 
 func _initialize() -> void:
@@ -25,4 +26,8 @@ func _initialize() -> void:
 		var bad: PackedStringArray = generator.verify_digest()
 		print("digest verify: %s" % ("identical" if bad.is_empty() else "%d mismatches, e.g. %s" % [bad.size(), bad.slice(0, 5)]))
 		failures += bad.size()
+	if flags.has("--verify-partial"):
+		var differ: PackedStringArray = generator.verify_partial()
+		print("partial verify: %s" % ("identical" if differ.is_empty() else "%d differ from the full build: %s" % [differ.size(), differ]))
+		failures += differ.size()
 	quit(1 if failures > 0 or not report["contract_violations"].is_empty() else 0)

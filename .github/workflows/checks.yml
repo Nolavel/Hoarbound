@@ -80,6 +80,14 @@ jobs:
           grep -q "digest verify: identical" generate.log
           grep -q "contract violations: 0" generate.log
 
+      - name: Partial rebuild equals the full build (chunks alone, reverse order)
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          xvfb-run -a "$HOME/.local/bin/godot" --path . --rendering-driver vulkan --audio-driver Dummy \
+            --script tools/world/reality_gen/generate_key_west_chunks_cli.gd -- -6:3 -7:3 --verify-partial | tee partial.log
+          grep -q "partial verify: identical" partial.log
+
       - name: Streaming tests
         run: |
           for t in test_streaming test_key_west_reality_ground; do

@@ -20,6 +20,8 @@ const SHOTS: Array[Dictionary] = [
 	{"name": "approach_727", "mode": "game", "at": [-3593.0, 1601.0], "look": [-3538.75, 1594.38]},
 	{"name": "exterior_727", "mode": "game", "at": [-3545.0, 1606.0], "look": [-3530.0, 1583.0]},
 	{"name": "interior_727", "mode": "plan", "at": [2.4, 3.0], "look": [-1.2, 6.4]},
+	{"name": "winter_roofs_727", "mode": "free", "at": [-3478.0, 1640.0, 34.0], "look": [-3536.0, 1578.0, 6.0]},
+	{"name": "winter_lee_eaves", "mode": "free", "at": [-3600.0, 1548.0, 13.0], "look": [-3548.0, 1572.0, 8.0]},
 	{"name": "far_city_from_727", "mode": "free", "at": [-3530.0, 1583.0, 70.0], "look": [-4060.0, 1910.0, 0.0]},
 	{"name": "far_island_from_fort", "mode": "free", "at": [-4060.0, 1930.0, 40.0], "look": [-3300.0, 1300.0, 0.0]},
 ]

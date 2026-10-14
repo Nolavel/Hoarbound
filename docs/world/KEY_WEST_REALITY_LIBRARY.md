@@ -648,7 +648,8 @@ stays `run/main_scene`. Legacy = `key_west.tscn` + `KeyWestFirstExit` + `Chunked
 | Streets, paths | ribbons per chunk crossed; parking and aprons draped on the DEM; paving takes the terrain's snow response, so snow covers it like the ground beside it | complete |
 | Street props (lamps, signs) | mapped furniture and poles as placeholder cylinders | partial |
 | Palms and bare trees | legacy meshes on 37,318 lidar trees, trunks off roads, plus 54,372 frozen shrub-stem clumps | complete |
-| Terrain snow, chunk cover, deep-snow shell, footprints, `WindGusts` | same systems on the chunk terrain (`KeyWestRealityGround`) | complete; the baked wind-drift texture covers the legacy crop only |
+| Terrain snow, chunk cover, deep-snow shell, footprints, `WindGusts` | same systems on the chunk terrain (`KeyWestRealityGround`) | complete; Reality bakes its own wind field from its buildings (`snow_wind_reality.png`) |
+| (no legacy equivalent) static winter snow on roofs, fences, poles, wires | `Winter` group per chunk, data layer `winter`, ASCE 7 roof factors | Reality only |
 | Snowfall indoors | height field refreshed when a chunk streams in; 727 roof stops the snow | complete (fix also applies to legacy) |
 | Bunker portal, vent, bedroll, flare | template nodes set into Fort Zachary Taylor's courtyard face (game-authored) | complete |
 | Whitehead bunker vestibule | not used: the fort mass is the cover | by decision |

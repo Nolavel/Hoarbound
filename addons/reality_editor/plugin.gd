@@ -7,6 +7,8 @@ const FOLLOW_INTERVAL_S: float = 0.5
 ## Farthest ground point the camera's look ray may pick as the detail focus.
 const FOLLOW_MAX_M: float = 600.0
 
+const CAPTURE_SCRIPT: GDScript = preload("res://addons/reality_editor/capture_demo.gd")
+
 var _dock: RealityEditorDock
 var _since: float = 0.0
 
@@ -15,6 +17,10 @@ func _enter_tree() -> void:
 	_dock = RealityEditorDock.new()
 	_dock.undo_redo = get_undo_redo()
 	add_control_to_dock(EditorPlugin.DOCK_SLOT_RIGHT_UL, _dock)
+	if OS.has_environment(CAPTURE_SCRIPT.ENV):
+		var demo: Node = CAPTURE_SCRIPT.new()
+		demo.set(&"dock", _dock)
+		add_child(demo)
 
 
 func _exit_tree() -> void:

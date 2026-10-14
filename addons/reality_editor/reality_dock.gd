@@ -8,6 +8,8 @@ const EDITOR_SCENE: String = "res://scenes/world/key_west/key_west_reality_edito
 const MARKER_NAME: String = "FocusMarker"
 ## Height of the camera-ray plane used to identify buildings (local metres, NAVD88).
 const PICK_PLANE_Y: float = 2.0
+## Farthest a camera look ray searches for a building.
+const PICK_RAY_M: float = 1500.0
 
 ## Set by the plugin; edit-layer changes go through it so Ctrl+Z undoes them.
 var undo_redo: EditorUndoRedoManager
@@ -32,6 +34,26 @@ func _ready() -> void:
 		_status.text = "%d buildings indexed, %d edits. Open %s for the view." % [_index.buildings.size(), edits, EDITOR_SCENE.get_file()]
 	else:
 		_status.text = "No index. Run: python3 tools/world/key_west_reality.py editor-index"
+
+
+## Runs a search as if typed; returns the number found (used by the capture harness too).
+func search_for(text: String) -> int:
+	_query.text = text
+	_search()
+	if not _results.is_empty() and _list.get_selected_items().is_empty():
+		_list.select(0)
+		_show(0)
+	return _results.size()
+
+
+## "Go to" on the selected result.
+func go_to_selected() -> void:
+	_go_to()
+
+
+## "At camera".
+func identify_at_camera() -> void:
+	_identify_camera()
 
 
 ## The view in the edited scene, if the Reality editor scene is open.
@@ -65,6 +87,7 @@ func _build_ui() -> void:
 	actions.add_child(_button("At camera", _identify_camera))
 	add_child(actions)
 	_record = RichTextLabel.new()
+	_record.bbcode_enabled = true
 	_record.fit_content = true
 	_record.selection_enabled = true
 	add_child(_record)
@@ -164,6 +187,10 @@ func _identify_camera() -> void:
 		return
 	var ray: Vector3 = -camera.global_basis.z
 	var origin: Vector3 = camera.global_position
+	var hit: Dictionary = _index.pick_ray(origin, ray, PICK_RAY_M)
+	if not hit.is_empty():
+		_show_record(hit)
+		return
 	if absf(ray.y) < 0.01:
 		_status.text = "Tilt the camera towards the ground."
 		return
@@ -176,6 +203,10 @@ func _identify(at: Vector3) -> void:
 	if b.is_empty():
 		_record.text = "No building footprint at %.1f, %.1f (chunk %s)." % [at.x, at.z, KeyWestRealityEditorView.cell_of(at)]
 		return
+	_show_record(b)
+
+
+func _show_record(b: Dictionary) -> void:
 	_results = [b]
 	_list.clear()
 	_list.add_item(RealityIndex.label_of(b))

@@ -225,6 +225,12 @@ func _ready() -> void:
 	_build_capture()
 
 
+## World system hook (world.gd): the profile's wind field, or the legacy bake when it names none.
+func apply_world_profile(profile: WorldProfile) -> void:
+	wind_field_path = profile.snow_wind_field_path if profile.snow_wind_field_path != "" else SnowChunkCover.WIND_FIELD_PATH
+	SnowChunkCover.use_wind_field(wind_field_path)
+
+
 func on_world_ready(context: WorldContext) -> void:
 	if not SnowField.high_quality():
 		return
