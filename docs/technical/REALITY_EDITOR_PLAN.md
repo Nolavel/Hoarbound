@@ -54,10 +54,13 @@ searches by street, number, name or id, flies the camera there and shows the rec
 
 ## 5. Blender roundtrip
 
-- **Out:** "Open in Blender" runs Blender with a project script that builds a blank: the
-  footprint extruded to the measured height and roof height, ground at the origin,
-  neighbours and terrain as a non-exported reference, custom properties `feature_id`,
-  `asset_id`, `source_geometry_hash`.
+- **Out:** Blender cannot read Godot meshes or scenes, so nothing is exported from Godot.
+  The Python pipeline writes the actor's shell alone as glTF (the writer `landmarks.py`
+  already uses): the footprint outline extruded to the measured eave height plus the roof
+  height, origin at the footprint centre on the ground, metres, +Y up. No neighbours, no
+  terrain. A sidecar JSON (and the glTF extras) carry `feature_id`, `asset_id`,
+  `source_geometry_hash`, the world placement (`origin_local`, yaw) and the measured sizes,
+  so the model is built to the real dimensions and placed back by data, not by hand.
 - **Back:** the artist exports glTF to `assets/world/key_west/buildings/<asset_id>.glb`.
   The file name is the binding; the glTF extras carry `feature_id` as a cross-check
   (confirm how 4.8 maps extras to node metadata before relying on it). An import hook
@@ -144,7 +147,15 @@ roofs (layered, overhanging the eaves) and a wind map that sets windward and lee
 **Next, in order:**
 1. Edit layer: records keyed by `feature_id`, each tagged with a data layer
    (`base`, `loot:<set>`, `winter`, later story states), stored per chunk file.
-2. Shallow Blender 5 bridge: blank export script and the glTF binding by `asset_id`.
+2. Shallow Blender 5 bridge: shell glTF + sidecar per building, and the binding of the
+   returned `<asset_id>.glb` by file name.
 3. Winter pass, one snapshot: stage 0 (naming, partial-equals-full test), a wind exposure
-   field from the profile wind and building shelter, roof snow caps whose depth and eave
-   overhang the runtime snow state and that field drive (presentation reads state only).
+   field from the profile wind and building shelter, and static snow (below).
+
+**Static snow is not the dynamic snow.** Henry deforms the dynamic system (deep-snow shell,
+chunk cover, footprints); it stays as it is. Snow caps on roofs, wires, poles, fences and
+tree branches are static winter dressing: geometry generated offline into the `winter`
+layer, visual only, never deformed by Henry and never read by the dynamic system. Cap
+thickness, layering and the overhang that droops past the eaves come from the roof shape
+and the wind exposure field (thin on windward slopes, cornices on lee edges), fixed at
+generation time.
