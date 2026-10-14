@@ -97,3 +97,26 @@ and a rebuilt chunk is byte-stable when nothing changed. Stage 0 secures that.
 
 Open for the author: which edits come first (buildings or vegetation and props); the
 Blender version in use.
+
+## 9. Compared with UE5 World Partition
+
+Godot has no built-in World Partition. Reality already has most of the runtime half;
+the editor half is what this plan adds. The source of truth differs: in UE the designer
+edits one persistent level and the engine cuts it into cells; here the Reality Library
+plus the edit layer is the world, and the generator cuts it into chunks.
+
+| UE5 World Partition | Reality today | Gap |
+|---|---|---|
+| Spatial grid, runtime cells | 512 m chunks `kw_gen_x_z`, 459 on the island | none |
+| Cell streaming | `StreamingSystem`: `load_threaded_request`, load band = radius + margin, unload hysteresis 120 m, 1 instantiation per frame | none |
+| Streaming sources | the player only | the editor camera (view), later vehicles |
+| Runtime grids at several ranges | near chunks plus far meshes in a 2,500 m band (`KeyWestRealityFar`) | a middle range only if a profile asks for it |
+| HLOD | one far mesh per chunk (16 m terrain, building prisms) | none for now |
+| Data Layers | per-chunk part scenes by family (Buildings, Roads, Vegetation...) attached in stages | gameplay layers stay in the content scene |
+| One File Per Actor | one record per `feature_id`; generated chunks are outputs | edit records per chunk file, so two people rarely touch one file |
+| Editor: place actors in one world | none | this plan, stages 1 to 4 |
+| World origin management | not needed: the island spans about ±5 km, where 32-bit float precision is about 0.5 mm | none |
+| Persistent world state | `SaveManager`, `ShelterState`, `PickupLedger` | a generic per-`feature_id` state when world objects become breakable |
+
+A C++ streaming manager is not on the list: activation is staged and measured, and the
+architecture contract moves code to native only after a profile shows the bottleneck.
