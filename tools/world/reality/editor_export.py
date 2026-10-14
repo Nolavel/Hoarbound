@@ -35,6 +35,7 @@ OUT = paths.REALITY / "derived" / "editor_chunks"
 
 ## Ground under a ribbon is sampled at least this often, and no segment overhangs its chunk further.
 RIBBON_SAMPLE_M = 32.0
+PARTIAL_REACH_M = 1.0  # a partial export also takes features within this distance of its chunks
 
 
 def _xz(coords) -> list[float]:
@@ -133,12 +134,18 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
     def in_corridor(g) -> bool:
         return any(c["area"].intersects(g) for c in corr)
 
+    ## A partial export keeps every feature that reaches the requested chunks, not only the ones
+    ## they own: a road or scrub area owned next door still leaves its pieces here.
+    size = frame.chunk_size()
+    reach = shapely.union_all([shapely.box(*_chunk_box(*(int(v) for v in c.split(":")), size)) for c in chunks]).buffer(
+        PARTIAL_REACH_M) if chunks else None
+
     for fam in FAMILIES:
         geoms, cols = library.read_layer(fam)
         for i, g in enumerate(geoms):
             cid = cols["chunk_id"][i]
             fid = cols["feature_id"][i]
-            if chunks and cid not in chunks and fam != "power":
+            if chunks and cid not in chunks and fam != "power" and not reach.intersects(g):
                 continue
             attrs = {k: v for k, v in json.loads(cols["attrs_json"][i]).items() if k in KEEP_ATTRS}
             if fam == "buildings" and fid in on_ways:
@@ -205,7 +212,6 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
         stats["wires"] += 1
     OUT.mkdir(parents=True, exist_ok=True)
     stamp = receipts.now_utc()
-    size = frame.chunk_size()
     written = sorted(set(per_chunk) | set(chunks or []))
     if not chunks:
         written = sorted(extent_chunks)
@@ -240,6 +246,12 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
         (OUT / f"chunk_{cx}_{cz}.json").write_text(json.dumps(doc, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
     manifest = {"schema": "kw_reality.editor_export_manifest.v1", "exported_at": stamp, "export_version": EXPORT_VERSION,
                 "route_chunks": sorted(route_chunks), "chunks": written, "stats": dict(stats), "seconds": round(time.time() - t0, 1)}
+    if chunks and (OUT / "manifest.json").exists():
+        ## A partial export refreshes some chunk files; the island's chunk list stays whole.
+        full = json.loads((OUT / "manifest.json").read_text(encoding="utf-8"))
+        full["chunks"] = sorted(set(full.get("chunks", [])) | set(written))
+        full["last_partial"] = {"exported_at": stamp, "chunks": written, "stats": dict(stats), "seconds": manifest["seconds"]}
+        manifest = dict(full, route_chunks=sorted(route_chunks), stats=full.get("stats", {}), seconds=manifest["seconds"])
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
     print(json.dumps({k: manifest[k] for k in ("route_chunks", "stats", "seconds")}))
     return manifest
