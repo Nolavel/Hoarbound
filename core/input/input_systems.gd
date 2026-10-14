@@ -40,6 +40,9 @@ signal interact_released(duration: float)
 signal sleep_cancel_pressed()
 ## Debug map visibility edge; subscribers decide whether the feature is enabled.
 signal dev_map_toggle_pressed()
+## Debug waypoint edges (F5 next target, F6 teleport); only debug builds listen.
+signal dev_waypoint_next_pressed()
+signal dev_waypoint_teleport_pressed()
 
 const ACTION_MOVE_FORWARD: StringName = &"move_forward"
 const ACTION_MOVE_BACKWARD: StringName = &"move_backward"
@@ -51,6 +54,8 @@ const ACTION_CROUCH: StringName = &"crouch"
 const ACTION_INTERACT: StringName = &"interact"
 const ACTION_SLEEP_CANCEL: StringName = &"sleep_cancel"
 const ACTION_DEV_MAP_TOGGLE: StringName = &"toggle_dev_map"
+const ACTION_DEV_WAYPOINT_NEXT: StringName = &"dev_waypoint_next"
+const ACTION_DEV_WAYPOINT_TELEPORT: StringName = &"dev_waypoint_teleport"
 const ACTION_LEAN_LEFT: StringName = &"lean_left"
 const ACTION_LEAN_RIGHT: StringName = &"lean_right"
 const ACTION_SWITCH_SHOULDER: StringName = &"switch_shoulder"
@@ -99,6 +104,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		sleep_cancel_pressed.emit()
 	if _pressed(event, ACTION_DEV_MAP_TOGGLE):
 		dev_map_toggle_pressed.emit()
+	if _pressed(event, ACTION_DEV_WAYPOINT_NEXT):
+		dev_waypoint_next_pressed.emit()
+	if _pressed(event, ACTION_DEV_WAYPOINT_TELEPORT):
+		dev_waypoint_teleport_pressed.emit()
 
 
 func _physics_process(delta: float) -> void:

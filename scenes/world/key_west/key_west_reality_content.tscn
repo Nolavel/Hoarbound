@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/environment/interactive/pickup_ledger.gd" id="5_ledger"]
 [ext_resource type="Script" path="res://scripts/world/key_west_reality_far.gd" id="6_far"]
 [ext_resource type="Script" path="res://scripts/world/key_west_reality_hlod.gd" id="7_hlod"]
+[ext_resource type="Script" path="res://scripts/world/key_west_dev_waypoints.gd" id="8_waypoints"]
 
 [node name="KeyWestRealityContent" type="Node3D"]
 
@@ -40,3 +41,7 @@ metadata/source = "HLOD v1 proxies (scenes/world/key_west/generated/hlod), one p
 
 [node name="WindGusts" type="Node3D" parent="."]
 script = ExtResource("3_wind")
+
+[node name="DevWaypoints" type="Node3D" parent="."]
+script = ExtResource("8_waypoints")
+metadata/source = "Debug builds only: F5 cycles First Exit route goals and listed addresses (beacon + bearing), F6 teleports"
