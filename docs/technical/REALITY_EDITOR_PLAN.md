@@ -185,3 +185,9 @@ layer, visual only, never deformed by Henry and never read by the dynamic system
 thickness, layering and the overhang that droops past the eaves come from the roof shape
 and the wind exposure field (thin on windward slopes, cornices on lee edges), fixed at
 generation time.
+
+**HLOD v1 (2026-10-14):** see `docs/technical/REALITY_HLOD.md`. The dock gained an "HLOD cluster" section:
+- the picked building's cluster: id, tier shown, fresh/dirty, source count, proxy and detail triangles, surfaces;
+- controls: bounds, Tier 0/1 preview, source ids, Build selected, Rebuild dirty.
+
+The view assembles a chunk's building clusters with it.

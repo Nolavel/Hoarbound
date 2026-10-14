@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/world/key_west_reality_first_exit.gd" id="4_first_exit"]
 [ext_resource type="Script" path="res://scripts/environment/interactive/pickup_ledger.gd" id="5_ledger"]
 [ext_resource type="Script" path="res://scripts/world/key_west_reality_far.gd" id="6_far"]
+[ext_resource type="Script" path="res://scripts/world/key_west_reality_hlod.gd" id="7_hlod"]
 
 [node name="KeyWestRealityContent" type="Node3D"]
 
@@ -32,6 +33,10 @@ script = ExtResource("5_ledger")
 [node name="FarView" type="Node3D" parent="."]
 script = ExtResource("6_far")
 metadata/source = "Generated far meshes (scenes/world/key_west/generated/far), streamed like the legacy far city"
+
+[node name="HLODView" type="Node3D" parent="."]
+script = ExtResource("7_hlod")
+metadata/source = "HLOD v1 proxies (scenes/world/key_west/generated/hlod), one per building cluster, shown while its detail cell is out"
 
 [node name="WindGusts" type="Node3D" parent="."]
 script = ExtResource("3_wind")

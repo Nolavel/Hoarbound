@@ -24,6 +24,13 @@ var _query: LineEdit
 var _list: ItemList
 var _record: RichTextLabel
 var _status: Label
+var _hlod_info: RichTextLabel
+var _hlod_sources: ItemList
+var _hlod_cluster: String = ""
+var _hlod_bounds: bool = false
+var _hlod: KeyWestHLODBuilder
+var _hlod_state: Dictionary = {}  # cluster id -> "fresh" | "dirty"
+var _cluster_of: Dictionary = {}  # feature id -> cluster id, from the HLOD manifest
 
 
 func _ready() -> void:
@@ -110,9 +117,137 @@ func _build_ui() -> void:
 	tools.add_child(_button("Copy rebuild", _copy_rebuild))
 	tools.add_child(_button("Copy Blender shell", _copy_shell))
 	add_child(tools)
+	_build_hlod_ui()
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_status)
+
+
+## HLOD (docs/technical/REALITY_HLOD.md): the cluster of the picked building, its state and build controls.
+func _build_hlod_ui() -> void:
+	var title: Label = Label.new()
+	title.text = "HLOD cluster"
+	add_child(title)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_child(_button("Here", _hlod_pick))
+	row.add_child(_button("Bounds", _hlod_toggle_bounds))
+	row.add_child(_button("Tier 0/1", _hlod_toggle_tier))
+	row.add_child(_button("Sources", _hlod_list_sources))
+	add_child(row)
+	var build_row: HBoxContainer = HBoxContainer.new()
+	build_row.add_child(_button("Build selected", _hlod_build_selected))
+	build_row.add_child(_button("Rebuild dirty", _hlod_rebuild_dirty))
+	add_child(build_row)
+	_hlod_info = RichTextLabel.new()
+	_hlod_info.bbcode_enabled = true
+	_hlod_info.fit_content = true
+	_hlod_info.selection_enabled = true
+	add_child(_hlod_info)
+	_hlod_sources = ItemList.new()
+	_hlod_sources.custom_minimum_size = Vector2(0, 80)
+	_hlod_sources.item_activated.connect(func(i: int) -> void: search_for(_hlod_sources.get_item_text(i)))
+	add_child(_hlod_sources)
+
+
+## Cluster of the current building, else the one under the marker.
+func hlod_select(cluster_id: String) -> void:
+	_hlod_cluster = cluster_id
+	_hlod_sources.clear()
+	_hlod_show()
+
+
+func _hlod_pick() -> void:
+	_hlod_refresh_map()
+	var cluster_id: String = _cluster_of.get(_current.get("id", ""), "")
+	var view: KeyWestRealityEditorView = find_view()
+	if cluster_id == "" and view != null and _marker() != null:
+		cluster_id = view.cluster_at(_marker().global_position)
+	if cluster_id == "":
+		_hlod_info.text = "No HLOD cluster here. HLOD v1 covers chunks %s." % ", ".join(PackedStringArray(KeyWestChunkBuilder.hlod_config().get("chunks", [])))
+		return
+	hlod_select(cluster_id)
+
+
+func _hlod_show() -> void:
+	if _hlod_cluster == "":
+		return
+	var view: KeyWestRealityEditorView = find_view()
+	var entry: Dictionary = view.reload_manifest().get(_hlod_cluster, {}) if view != null else {}
+	if _hlod_state.is_empty():
+		_hlod_state = _hlod_builder().status()
+	var tier: int = view.cluster_tier(_hlod_cluster) if view != null else -1
+	var lines: PackedStringArray = PackedStringArray(["[b]%s[/b]  chunk %s" % [_hlod_cluster, entry.get("chunk", "?")],
+		"state: %s; editor shows %s" % [_hlod_state.get(_hlod_cluster, "unknown"), ["far mesh (chunk not in detail)", "tier 0 detail", "tier 1 proxy"][tier + 1]],
+		"runtime: detail within %.0f m of the cluster centre, proxy beyond while the chunk is loaded" % KeyWestChunkBuilder.detail_band_m()])
+	if not entry.is_empty():
+		lines.append("sources: %d; triangles proxy %d / detail %d; surfaces %d (%s)" % [entry["source_count"], entry["triangles"], entry["detail_triangles"],
+			entry["surfaces"], ", ".join(PackedStringArray(entry["materials"]))])
+	else:
+		lines.append("no proxy built yet")
+	_hlod_info.text = "\n".join(lines)
+
+
+func _hlod_toggle_bounds() -> void:
+	var view: KeyWestRealityEditorView = find_view()
+	if view == null or _hlod_cluster == "":
+		return
+	_hlod_bounds = not _hlod_bounds
+	view.show_bounds(_hlod_cluster, _hlod_bounds)
+
+
+func _hlod_toggle_tier() -> void:
+	var view: KeyWestRealityEditorView = find_view()
+	if view == null or _hlod_cluster == "":
+		return
+	if not view.set_cluster_tier(_hlod_cluster, 1 - maxi(view.cluster_tier(_hlod_cluster), 0)):
+		_status.text = "Cluster %s is not in detail around the camera, or has no proxy yet." % _hlod_cluster
+	_hlod_show()
+
+
+func _hlod_list_sources() -> void:
+	var view: KeyWestRealityEditorView = find_view()
+	var entry: Dictionary = view.reload_manifest().get(_hlod_cluster, {}) if view != null else {}
+	_hlod_sources.clear()
+	for fid: String in entry.get("source_ids", []):
+		_hlod_sources.add_item(fid)
+	_status.text = "%d source ids; double-click one to find it." % _hlod_sources.item_count
+
+
+func _hlod_build_selected() -> void:
+	if _hlod_cluster == "":
+		return
+	_hlod_report(_hlod_builder().build(PackedStringArray([_hlod_cluster])))
+
+
+func _hlod_rebuild_dirty() -> void:
+	_hlod_report(_hlod_builder().rebuild_dirty())
+
+
+func _hlod_report(report: Dictionary) -> void:
+	_hlod = null
+	_hlod_state.clear()
+	_cluster_of.clear()
+	var view: KeyWestRealityEditorView = find_view()
+	if view != null and view.cluster_tier(_hlod_cluster) == 1:
+		view.set_cluster_tier(_hlod_cluster, 1)
+	_status.text = "HLOD: built %d, kept %d%s." % [report["built"].size(), report["kept"].size(),
+		"" if report["errors"].is_empty() else ", errors: " + ", ".join(PackedStringArray(report["errors"]))]
+	_hlod_show()
+
+
+## One builder per state read: it caches the chunk exports it parsed.
+func _hlod_builder() -> KeyWestHLODBuilder:
+	if _hlod == null:
+		_hlod = KeyWestHLODBuilder.new()
+	return _hlod
+
+
+func _hlod_refresh_map() -> void:
+	if not _cluster_of.is_empty():
+		return
+	for entry: Dictionary in KeyWestHLODBuilder.load_manifest().get("clusters", []):
+		for fid: String in entry["source_ids"]:
+			_cluster_of[fid] = entry["cluster_id"]
 
 
 func _button(text: String, action: Callable) -> Button:
@@ -226,6 +361,9 @@ func _select(b: Dictionary) -> void:
 	for e: Dictionary in _store.edits_for(b["id"]):
 		_edits.add_item("%s  %s  [%s]" % [e["edit_id"], e["op"], e["layer"]])
 		_edits.set_item_metadata(_edits.item_count - 1, e["edit_id"])
+	_hlod_refresh_map()
+	if _cluster_of.has(b["id"]):
+		hlod_select(_cluster_of[b["id"]])
 
 
 func _remove_in_layer() -> void:

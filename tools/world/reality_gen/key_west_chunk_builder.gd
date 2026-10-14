@@ -32,6 +32,9 @@ const WIRE_SNOW_HALF_M: float = 0.02
 const POLE_SNOW_RADIUS_M: float = 0.16
 ## Winter dressing is not drawn past this distance; the far mesh carries no caps.
 const WINTER_VISIBLE_M: float = 450.0
+## HLOD v1 (docs/technical/REALITY_HLOD.md): chunks listed here move their generated buildings into cluster cells.
+const HLOD_CONFIG_PATH: String = "res://data/world/key_west/reality/config/hlod.json"
+const CHUNK_M: float = 512.0
 
 var stats: Dictionary = {}
 var _mat: Dictionary = {}
@@ -52,6 +55,12 @@ var _centre: Vector3 = Vector3.ZERO
 var _snow: Dictionary = {}  # settled_depth_m, repose_deg from the export (config static_snow)
 var _winter: Dictionary = {}  # "roofs" | "fences" | "wires" -> [PackedVector3Array, PackedColorArray, PackedInt32Array]
 var _pole_tops: Array[Vector3] = []
+## Cluster cells of the chunk just built (HLOD chunks only): cluster id -> root, saved as their own scenes.
+var clusters: Dictionary = {}
+var _hlod: bool = false
+var _cur: String = ""  # cluster id of the feature being built, "" for the chunk itself
+var _cluster_collision: Dictionary = {}  # cluster id -> [faces, ranges]
+static var _hlod_config_cache: Dictionary = {}
 
 
 func _init() -> void:
@@ -111,7 +120,10 @@ func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 	_footprints = []
 	_winter = {}
 	_pole_tops = []
+	clusters = {}
+	_cluster_collision = {}
 	_snow = doc.get("static_snow", {})
+	_hlod = (hlod_config().get("chunks", []) as Array).has(String(doc["chunk_id"]))
 	var parts: PackedStringArray = String(doc["chunk_id"]).split(":")
 	var root: Node3D = Node3D.new()
 	root.name = "Chunk_%s_%s" % [parts[0], parts[1]]
@@ -134,11 +146,20 @@ func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 	if terrain != null:
 		(groups["Terrain"] as Node3D).add_child(terrain)
 	for feature: Dictionary in doc["features"]:
+		_cur = cluster_of_feature(doc, feature) if _hlod else ""
+		if _cur != "":
+			_swap_collision(_cur)
 		var node: Node3D = _feature(feature)
+		if _cur != "":
+			_swap_collision(_cur)
 		if node == null:
 			continue
 		_apply_meta(node, feature, doc)
-		(groups.get(feature["group"], root) as Node3D).add_child(node)
+		if _cur != "":
+			(_cluster_root(_cur, doc).get_node(^"Buildings") as Node3D).add_child(node)
+		else:
+			(groups.get(feature["group"], root) as Node3D).add_child(node)
+	_cur = ""
 	for wire: Dictionary in doc.get("wires", []):
 		(groups["Infrastructure"] as Node3D).add_child(_wire(wire, doc))
 	for custom: Dictionary in doc.get("custom_structures", []):
@@ -148,7 +169,12 @@ func build(doc: Dictionary, terrain_dir: String) -> Node3D:
 	_flush_batches(groups, doc)
 	_flush_collision(groups["Buildings"] as Node3D)
 	_flush_winter(groups["Winter"] as Node3D)
+	_flush_clusters()
 	root.set_meta("snow_footprints", _footprints)
+	if _hlod:
+		var ids: Array = clusters.keys()
+		ids.sort()
+		root.set_meta("hlod_clusters", ids)
 	for group: Node3D in groups.values():
 		group.position = -centre
 	root.set_meta("centre_local", [centre.x, centre.z])
@@ -993,7 +1019,7 @@ func _inside(rings: Array, p: Vector2) -> bool:
 	return inside
 
 
-func _points(flat: Array) -> PackedVector2Array:
+static func _points(flat: Array) -> PackedVector2Array:
 	var out: PackedVector2Array = PackedVector2Array()
 	for i: int in range(0, flat.size() - 1, 2):
 		out.append(Vector2(float(flat[i]), float(flat[i + 1])))
@@ -1051,7 +1077,8 @@ func _count(key: String, by: int = 1) -> void:
 func _add_roof_cap(cap: Dictionary) -> void:
 	var v: Array = cap["v"]
 	var shades: Array = cap["c"]
-	var bucket: Array = _winter.get_or_add("roofs", [PackedVector3Array(), PackedColorArray(), PackedInt32Array()])
+	var key: String = "roofs" if _cur == "" else "roofs|" + _cur
+	var bucket: Array = _winter.get_or_add(key, [PackedVector3Array(), PackedColorArray(), PackedInt32Array()])
 	## Packed arrays are values: grow local copies and write them back.
 	var verts: PackedVector3Array = bucket[0]
 	var colors: PackedColorArray = bucket[1]
@@ -1063,7 +1090,7 @@ func _add_roof_cap(cap: Dictionary) -> void:
 		colors.append(Color(g, g, g))
 	for idx: Variant in cap["i"]:
 		indices.append(base + int(idx))
-	_winter["roofs"] = [verts, colors, indices]
+	_winter[key] = [verts, colors, indices]
 
 
 ## A snow ridge along the top of a fence or wall, as wide as the wall plus a crust.
@@ -1113,25 +1140,7 @@ func _add_ridge(kind: String, line: PackedVector3Array, half_w: float) -> void:
 ## Winter group: one mesh per kind of static snow and one MultiMesh of pole caps, drawn near only.
 func _flush_winter(group: Node3D) -> void:
 	for kind: String in ["roofs", "fences", "wires"]:
-		if not _winter.has(kind) or (_winter[kind][2] as PackedInt32Array).is_empty():
-			continue
-		var arrays: Array = []
-		arrays.resize(Mesh.ARRAY_MAX)
-		arrays[Mesh.ARRAY_VERTEX] = _winter[kind][0]
-		arrays[Mesh.ARRAY_COLOR] = _winter[kind][1]
-		arrays[Mesh.ARRAY_INDEX] = _winter[kind][2]
-		var st: SurfaceTool = SurfaceTool.new()
-		st.create_from_arrays(arrays)
-		st.generate_normals()
-		var mesh: ArrayMesh = st.commit(null, MESH_FLAGS)
-		mesh.surface_set_material(0, _mat["static_snow"])
-		var instance: MeshInstance3D = MeshInstance3D.new()
-		instance.name = "WinterSnow_" + kind.capitalize()
-		instance.mesh = mesh
-		instance.position = _centre
-		_winter_meta(instance, kind)
-		group.add_child(instance)
-		_count("winter_" + kind + "_triangles", (_winter[kind][2] as PackedInt32Array).size() / 3)
+		_add_snow_mesh(group, kind, kind)
 	if _pole_tops.is_empty():
 		return
 	var cap: SphereMesh = SphereMesh.new()
@@ -1157,9 +1166,131 @@ func _flush_winter(group: Node3D) -> void:
 	group.add_child(node)
 
 
+## One static snow mesh from the bucket under key, if it has triangles.
+func _add_snow_mesh(group: Node3D, key: String, kind: String) -> void:
+	if not _winter.has(key) or (_winter[key][2] as PackedInt32Array).is_empty():
+		return
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = _winter[key][0]
+	arrays[Mesh.ARRAY_COLOR] = _winter[key][1]
+	arrays[Mesh.ARRAY_INDEX] = _winter[key][2]
+	var st: SurfaceTool = SurfaceTool.new()
+	st.create_from_arrays(arrays)
+	st.generate_normals()
+	var mesh: ArrayMesh = st.commit(null, MESH_FLAGS)
+	mesh.surface_set_material(0, _mat["static_snow"])
+	var instance: MeshInstance3D = MeshInstance3D.new()
+	instance.name = "WinterSnow_" + kind.capitalize()
+	instance.mesh = mesh
+	instance.position = _centre
+	_winter_meta(instance, kind)
+	group.add_child(instance)
+	_count("winter_" + kind + "_triangles", (_winter[key][2] as PackedInt32Array).size() / 3)
+
+
 func _winter_meta(node: GeometryInstance3D, kind: String) -> void:
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if kind != "roofs" else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	node.visibility_range_end = WINTER_VISIBLE_M
+	## In HLOD chunks thin snow (wires, fences, poles) ends where the buildings hand over to their proxies.
+	node.visibility_range_end = detail_band_m() if _hlod and kind != "roofs" else WINTER_VISIBLE_M
 	node.set_meta("data_layer", "winter")
 	node.set_meta("presentation", "static snow, %s; never deformed, never read by the dynamic snow" % kind)
 	node.set_meta("generator_version", GENERATOR_VERSION)
+
+
+## HLOD settings (config/hlod.json), read once per process.
+static func hlod_config() -> Dictionary:
+	if _hlod_config_cache.is_empty() and FileAccess.file_exists(HLOD_CONFIG_PATH):
+		_hlod_config_cache = JSON.parse_string(FileAccess.get_file_as_string(HLOD_CONFIG_PATH))
+	return _hlod_config_cache
+
+
+## Distance from a cluster centre at which the streamer brings its detail in: cluster radius + load margin.
+static func detail_band_m() -> float:
+	var cfg: Dictionary = hlod_config()
+	return float(cfg.get("cluster_m", 128)) * sqrt(2.0) * 0.5 + float(cfg.get("streamer_load_margin_m", 140))
+
+
+static func cluster_id_of(cell: Vector2i) -> String:
+	return "c%d_%d_%d" % [int(hlod_config().get("cluster_m", 128)), cell.x, cell.y]
+
+
+## Cluster cell id of a feature that goes to HLOD clusters, or "" when it stays in its chunk.
+## Generated buildings only; the cell holds the footprint centroid, clamped into the owning chunk.
+static func cluster_of_feature(doc: Dictionary, feature: Dictionary) -> String:
+	if not is_hlod_source(feature):
+		return ""
+	var c: Vector2 = _centroid(_points(feature["mesh"]["rings"][0]))
+	var size: float = float(hlod_config().get("cluster_m", 128))
+	var per: int = int(CHUNK_M / size)
+	var origin: Array = doc["origin_local"]
+	var ox: int = roundi(float(origin[0]) / size)
+	var oz: int = roundi(float(origin[1]) / size)
+	return cluster_id_of(Vector2i(clampi(floori(c.x / size), ox, ox + per - 1), clampi(floori(c.y / size), oz, oz + per - 1)))
+
+
+## HLOD v1 sources: generated static opaque buildings. Authored, orphaned and kept features stay Tier 0.
+static func is_hlod_source(feature: Dictionary) -> bool:
+	return String(feature["mesh"].get("kind", "")) == "building" and String(feature["regen_action"]) == "generate"
+
+
+## Centre of a cluster cell in local metres (y 0), from its id.
+static func cluster_centre(cluster_id: String) -> Vector3:
+	var p: PackedStringArray = cluster_id.split("_")
+	var size: float = float(p[0].trim_prefix("c"))
+	return Vector3((float(p[1]) + 0.5) * size, 0.0, (float(p[2]) + 0.5) * size)
+
+
+## Swaps the collision accumulators between the chunk and a cluster (called around each cluster feature).
+func _swap_collision(cluster_id: String) -> void:
+	var held: Array = _cluster_collision.get(cluster_id, [PackedVector3Array(), []])
+	_cluster_collision[cluster_id] = [_collision_faces, _collision_ranges]
+	_collision_faces = held[0]
+	_collision_ranges = held[1]
+
+
+func _cluster_root(cluster_id: String, doc: Dictionary) -> Node3D:
+	if clusters.has(cluster_id):
+		return clusters[cluster_id]
+	var root: Node3D = Node3D.new()
+	root.name = "Cluster_" + cluster_id
+	var centre: Vector3 = cluster_centre(cluster_id)
+	for key: String in ["chunk_id", "library_sha256"]:
+		root.set_meta(key, doc.get(key))
+	root.set_meta("cluster_id", cluster_id)
+	root.set_meta("builder_version", GENERATOR_VERSION)
+	root.set_meta("hlod_build_version", hlod_config().get("build_version", ""))
+	root.set_meta("tier", 0)
+	root.set_meta("centre_local", [centre.x, centre.z])
+	root.set_meta("placement", "instance at centre_local; children are offset by -centre")
+	for group_name: String in ["Buildings", "Winter"]:
+		var group: Node3D = Node3D.new()
+		group.name = group_name
+		group.position = -centre
+		root.add_child(group)
+	clusters[cluster_id] = root
+	return root
+
+
+## Collision and roof snow of each cluster go into its own root; owners are set for saving.
+func _flush_clusters() -> void:
+	var ids: Array = clusters.keys()
+	ids.sort()
+	for cluster_id: String in ids:
+		var root: Node3D = clusters[cluster_id]
+		var held: Array = _cluster_collision.get(cluster_id, [PackedVector3Array(), []])
+		var chunk_faces: PackedVector3Array = _collision_faces
+		var chunk_ranges: Array = _collision_ranges
+		_collision_faces = held[0]
+		_collision_ranges = held[1]
+		_flush_collision(root.get_node(^"Buildings") as Node3D)
+		_collision_faces = chunk_faces
+		_collision_ranges = chunk_ranges
+		_add_snow_mesh(root.get_node(^"Winter") as Node3D, "roofs|" + cluster_id, "roofs")
+		var members: PackedStringArray = PackedStringArray()
+		for node: Node in root.get_node(^"Buildings").get_children():
+			if node.has_meta("feature_id"):
+				members.append(String(node.get_meta("feature_id")))
+		members.sort()
+		root.set_meta("source_ids", members)
+		_set_owner_recursive(root, root)

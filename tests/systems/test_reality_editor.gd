@@ -13,6 +13,7 @@ var _failures: int = 0
 func _initialize() -> void:
 	_check_index()
 	_check_view()
+	_check_hlod_controls()
 	_check_edit_store()
 	if _failures > 0:
 		push_error("reality editor: %d check(s) failed" % _failures)
@@ -67,6 +68,28 @@ func _check_view() -> void:
 	view.step()
 	_check(not view.loaded_cells().has(KeyWestRealityEditorView.cell_of(at)), "detail stayed after the focus moved away")
 	_check(far_727 is MeshInstance3D and (far_727 as MeshInstance3D).visible, "the far mesh did not come back")
+
+
+## HLOD controls of the view: a sector chunk brings its clusters, a cluster previews as its proxy and back, bounds draw.
+func _check_hlod_controls() -> void:
+	var scene: Node3D = (load(EDITOR_SCENE) as PackedScene).instantiate() as Node3D
+	root.add_child(scene)
+	var view: KeyWestRealityEditorView = scene.get_node(^"RealityView") as KeyWestRealityEditorView
+	view.build_overview()
+	var at: Vector3 = Vector3(-2560.0, 0.0, 1024.0)  # Old Town, the HLOD v1 sector
+	view.set_focus(at)
+	var steps: int = 0
+	while view.step() and steps < MAX_STEPS:
+		steps += 1
+	var cluster_id: String = view.cluster_at(at)
+	_check(cluster_id != "" and view.loaded_clusters().has(cluster_id), "no loaded cluster at the sector centre: '%s'" % cluster_id)
+	_check(view.cluster_tier(cluster_id) == 0, "a cluster does not open as its detail")
+	_check(view.set_cluster_tier(cluster_id, 1) and view.cluster_tier(cluster_id) == 1, "the proxy preview did not show")
+	_check(view.set_cluster_tier(cluster_id, 0) and view.cluster_tier(cluster_id) == 0, "the detail did not come back")
+	view.show_bounds(cluster_id, true)
+	_check(view.find_child("Bounds_" + cluster_id, false, false) != null, "cluster bounds not drawn")
+	_check(view.get_child_count(false) == 0, "HLOD previews added saved (non-internal) children")
+	scene.queue_free()
 
 
 ## Edit records round-trip through per-chunk files; an emptied chunk file is removed.

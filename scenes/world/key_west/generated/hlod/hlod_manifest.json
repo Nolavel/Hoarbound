@@ -1,0 +1,5176 @@
+{
+ "authored": [
+  {
+   "asset_id": "kw_asset:landmark:w339414849",
+   "feature_id": "kw:building:osm:w339414849",
+   "policy": "excluded from HLOD v1: Tier 0 authored scene in its chunk; manual proxy is phase 2"
+  },
+  {
+   "asset_id": "kw_asset:landmark:w524088621",
+   "feature_id": "kw:building:osm:w524088621",
+   "policy": "excluded from HLOD v1: Tier 0 authored scene in its chunk; manual proxy is phase 2"
+  }
+ ],
+ "build_version": "kw_hlod.1",
+ "builder_version": "kw_chunk_builder.11",
+ "chunks": [
+  "-6:1",
+  "-5:1",
+  "-6:2",
+  "-5:2"
+ ],
+ "cluster_m": 128.0,
+ "clusters": [
+  {
+   "bounds": {
+    "max": [
+     -2036.07,
+     11.82,
+     1409.05
+    ],
+    "min": [
+     -2183.41,
+     0.16,
+     1276.09
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1934,
+    "walls": 2188
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2112.0,
+    1344.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-17_10",
+   "detail_cell": "kw_bld_c128_-17_10",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-17_10.scn",
+   "detail_triangles": 4122,
+   "grid": [
+    -17,
+    10
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "043aaf0649fdcf93",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-17_10.res",
+   "snow_roof_triangles": 1934,
+   "source_count": 40,
+   "source_hash": "43a3ec88b57593cc",
+   "source_ids": [
+    "kw:building:osm:w461599091",
+    "kw:building:osm:w461634988",
+    "kw:building:osm:w544257014",
+    "kw:building:osm:w544257015",
+    "kw:building:osm:w544257016",
+    "kw:building:osm:w544257018",
+    "kw:building:osm:w544257019",
+    "kw:building:osm:w544257020",
+    "kw:building:osm:w544257201",
+    "kw:building:osm:w544257202",
+    "kw:building:osm:w544257203",
+    "kw:building:osm:w544257204",
+    "kw:building:osm:w544257205",
+    "kw:building:osm:w544257206",
+    "kw:building:osm:w544257207",
+    "kw:building:osm:w544257208",
+    "kw:building:osm:w544257209",
+    "kw:building:osm:w544257568",
+    "kw:building:osm:w544257569",
+    "kw:building:osm:w544257570",
+    "kw:building:osm:w544257572",
+    "kw:building:osm:w544257573",
+    "kw:building:osm:w544257574",
+    "kw:building:osm:w544257575",
+    "kw:building:osm:w544257576",
+    "kw:building:osm:w544257577",
+    "kw:building:osm:w544257578",
+    "kw:building:osm:w544257579",
+    "kw:building:osm:w544257580",
+    "kw:building:osm:w544392198",
+    "kw:building:osm:w544392199",
+    "kw:building:osm:w544392205",
+    "kw:building:osm:w544392213",
+    "kw:building:osm:w544392217",
+    "kw:building:osm:w544392219",
+    "kw:building:osm:w544392220",
+    "kw:building:osm:w544392222",
+    "kw:building:osm:w544392224",
+    "kw:building:osm:w544392237",
+    "kw:building:osm:w544392239"
+   ],
+   "surfaces": 2,
+   "triangles": 4122
+  },
+  {
+   "bounds": {
+    "max": [
+     -2025.76,
+     14.64,
+     1539.59
+    ],
+    "min": [
+     -2173.96,
+     1.22,
+     1398.86
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1845,
+    "walls": 1422
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2112.0,
+    1472.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-17_11",
+   "detail_cell": "kw_bld_c128_-17_11",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-17_11.scn",
+   "detail_triangles": 3267,
+   "grid": [
+    -17,
+    11
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "5f09a0d42aff7381",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-17_11.res",
+   "snow_roof_triangles": 1845,
+   "source_count": 24,
+   "source_hash": "d50813b73e5f9a1b",
+   "source_ids": [
+    "kw:building:osm:w337114809",
+    "kw:building:osm:w461599086",
+    "kw:building:osm:w461599088",
+    "kw:building:osm:w461692400",
+    "kw:building:osm:w544392209",
+    "kw:building:osm:w550191605",
+    "kw:building:osm:w550191606",
+    "kw:building:osm:w550191607",
+    "kw:building:osm:w550191612",
+    "kw:building:osm:w550191613",
+    "kw:building:osm:w550191614",
+    "kw:building:osm:w550191616",
+    "kw:building:osm:w550191617",
+    "kw:building:osm:w551954873",
+    "kw:building:osm:w551954874",
+    "kw:building:osm:w551954875",
+    "kw:building:osm:w551954876",
+    "kw:building:osm:w551954877",
+    "kw:building:osm:w551954878",
+    "kw:building:osm:w551955373",
+    "kw:building:osm:w551955374",
+    "kw:building:osm:w551955378",
+    "kw:building:osm:w551955381",
+    "kw:building:usa_structures:32249205"
+   ],
+   "surfaces": 2,
+   "triangles": 3267
+  },
+  {
+   "bounds": {
+    "max": [
+     -2041.76,
+     9.55,
+     647.07
+    ],
+    "min": [
+     -2184.15,
+     -0.45,
+     509.28
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2635,
+    "walls": 2014
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2112.0,
+    576.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-17_4",
+   "detail_cell": "kw_bld_c128_-17_4",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-17_4.scn",
+   "detail_triangles": 4649,
+   "grid": [
+    -17,
+    4
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "8b78fab9deba41b3",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-17_4.res",
+   "snow_roof_triangles": 2635,
+   "source_count": 37,
+   "source_hash": "ee02adfdddbc1b4f",
+   "source_ids": [
+    "kw:building:osm:w461610592",
+    "kw:building:osm:w461610594",
+    "kw:building:osm:w524736435",
+    "kw:building:osm:w524736436",
+    "kw:building:osm:w524736437",
+    "kw:building:osm:w524736438",
+    "kw:building:osm:w524736439",
+    "kw:building:osm:w524736440",
+    "kw:building:osm:w524736445",
+    "kw:building:osm:w524736446",
+    "kw:building:osm:w524736447",
+    "kw:building:osm:w524736448",
+    "kw:building:osm:w524736449",
+    "kw:building:osm:w524736451",
+    "kw:building:osm:w524736461",
+    "kw:building:osm:w545346263",
+    "kw:building:osm:w545346266",
+    "kw:building:osm:w545346267",
+    "kw:building:osm:w545347945",
+    "kw:building:osm:w545347946",
+    "kw:building:osm:w545347947",
+    "kw:building:osm:w545347948",
+    "kw:building:osm:w545347949",
+    "kw:building:osm:w545347950",
+    "kw:building:osm:w545347951",
+    "kw:building:osm:w545347953",
+    "kw:building:osm:w545347954",
+    "kw:building:osm:w545347956",
+    "kw:building:osm:w562919776",
+    "kw:building:osm:w562919777",
+    "kw:building:osm:w562919780",
+    "kw:building:osm:w562919781",
+    "kw:building:osm:w562919782",
+    "kw:building:osm:w689171141",
+    "kw:building:osm:w689175081",
+    "kw:building:osm:w689175082",
+    "kw:building:osm:w689175083"
+   ],
+   "surfaces": 2,
+   "triangles": 4649
+  },
+  {
+   "bounds": {
+    "max": [
+     -2043.22,
+     11.04,
+     775.55
+    ],
+    "min": [
+     -2186.64,
+     1.15,
+     640.17
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 3248,
+    "walls": 2032
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2112.0,
+    704.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-17_5",
+   "detail_cell": "kw_bld_c128_-17_5",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-17_5.scn",
+   "detail_triangles": 5280,
+   "grid": [
+    -17,
+    5
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "4d9945b8e58ffc21",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-17_5.res",
+   "snow_roof_triangles": 3248,
+   "source_count": 40,
+   "source_hash": "f93f4133487f0748",
+   "source_ids": [
+    "kw:building:osm:w337096892",
+    "kw:building:osm:w461610586",
+    "kw:building:osm:w461615859",
+    "kw:building:osm:w524741869",
+    "kw:building:osm:w524741870",
+    "kw:building:osm:w524741871",
+    "kw:building:osm:w524741872",
+    "kw:building:osm:w524741873",
+    "kw:building:osm:w524741874",
+    "kw:building:osm:w524741875",
+    "kw:building:osm:w524741876",
+    "kw:building:osm:w524741877",
+    "kw:building:osm:w524741878",
+    "kw:building:osm:w524741879",
+    "kw:building:osm:w524741880",
+    "kw:building:osm:w524741881",
+    "kw:building:osm:w524741882",
+    "kw:building:osm:w524741883",
+    "kw:building:osm:w524741884",
+    "kw:building:osm:w524741885",
+    "kw:building:osm:w524741886",
+    "kw:building:osm:w524741887",
+    "kw:building:osm:w524741888",
+    "kw:building:osm:w524741889",
+    "kw:building:osm:w524741891",
+    "kw:building:osm:w562919741",
+    "kw:building:osm:w562919744",
+    "kw:building:osm:w562919783",
+    "kw:building:osm:w562919784",
+    "kw:building:osm:w562919785",
+    "kw:building:osm:w562919786",
+    "kw:building:osm:w562919787",
+    "kw:building:osm:w562919798",
+    "kw:building:osm:w562919799",
+    "kw:building:osm:w562919800",
+    "kw:building:osm:w689173987",
+    "kw:building:osm:w689175088",
+    "kw:building:overture:ab129bd2-4da9-4098-a78d-8ae1aacb8dde",
+    "kw:building:usa_structures:32252057",
+    "kw:building:usa_structures:32252288"
+   ],
+   "surfaces": 2,
+   "triangles": 5280
+  },
+  {
+   "bounds": {
+    "max": [
+     -2042.08,
+     17.65,
+     902.86
+    ],
+    "min": [
+     -2181.31,
+     1.13,
+     761.68
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2184,
+    "walls": 1848
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2112.0,
+    832.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-17_6",
+   "detail_cell": "kw_bld_c128_-17_6",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-17_6.scn",
+   "detail_triangles": 4032,
+   "grid": [
+    -17,
+    6
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "ef1c974db7a98365",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-17_6.res",
+   "snow_roof_triangles": 2184,
+   "source_count": 36,
+   "source_hash": "aae3b5e9839d85a7",
+   "source_ids": [
+    "kw:building:osm:w461608807",
+    "kw:building:osm:w461608808",
+    "kw:building:osm:w461610569",
+    "kw:building:osm:w461610573",
+    "kw:building:osm:w524741848",
+    "kw:building:osm:w524741849",
+    "kw:building:osm:w524741854",
+    "kw:building:osm:w524741855",
+    "kw:building:osm:w524741856",
+    "kw:building:osm:w524741857",
+    "kw:building:osm:w524741858",
+    "kw:building:osm:w524741859",
+    "kw:building:osm:w524741860",
+    "kw:building:osm:w524741861",
+    "kw:building:osm:w524741862",
+    "kw:building:osm:w524741863",
+    "kw:building:osm:w524741865",
+    "kw:building:osm:w524741866",
+    "kw:building:osm:w524741867",
+    "kw:building:osm:w524741868",
+    "kw:building:osm:w545535019",
+    "kw:building:osm:w545535020",
+    "kw:building:osm:w545535021",
+    "kw:building:osm:w545535022",
+    "kw:building:osm:w545535023",
+    "kw:building:osm:w545535026",
+    "kw:building:osm:w545535032",
+    "kw:building:osm:w545535033",
+    "kw:building:osm:w545535034",
+    "kw:building:osm:w545535035",
+    "kw:building:osm:w545535037",
+    "kw:building:osm:w545535038",
+    "kw:building:osm:w545535047",
+    "kw:building:osm:w545535048",
+    "kw:building:osm:w545535050",
+    "kw:building:usa_structures:151174"
+   ],
+   "surfaces": 2,
+   "triangles": 4032
+  },
+  {
+   "bounds": {
+    "max": [
+     -2049.36,
+     14.89,
+     1031.25
+    ],
+    "min": [
+     -2180.05,
+     1.29,
+     890.78
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 966,
+    "walls": 876
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2112.0,
+    960.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-17_7",
+   "detail_cell": "kw_bld_c128_-17_7",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-17_7.scn",
+   "detail_triangles": 1842,
+   "grid": [
+    -17,
+    7
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "98b142cad3c5787a",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-17_7.res",
+   "snow_roof_triangles": 966,
+   "source_count": 15,
+   "source_hash": "b7f2e881b26af07c",
+   "source_ids": [
+    "kw:building:osm:w302573674",
+    "kw:building:osm:w337114784",
+    "kw:building:osm:w337114791",
+    "kw:building:osm:w544420428",
+    "kw:building:osm:w544420429",
+    "kw:building:osm:w544420430",
+    "kw:building:osm:w544420431",
+    "kw:building:osm:w544420432",
+    "kw:building:osm:w544420433",
+    "kw:building:osm:w545533367",
+    "kw:building:osm:w545533372",
+    "kw:building:osm:w545533373",
+    "kw:building:osm:w545535016",
+    "kw:building:osm:w545535017",
+    "kw:building:usa_structures:32251427"
+   ],
+   "surfaces": 2,
+   "triangles": 1842
+  },
+  {
+   "bounds": {
+    "max": [
+     -2043.06,
+     12.73,
+     1153.97
+    ],
+    "min": [
+     -2181.74,
+     1.12,
+     1018.06
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2501,
+    "walls": 1954
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2112.0,
+    1088.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-17_8",
+   "detail_cell": "kw_bld_c128_-17_8",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-17_8.scn",
+   "detail_triangles": 4455,
+   "grid": [
+    -17,
+    8
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "cda24ffaf5acc8ce",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-17_8.res",
+   "snow_roof_triangles": 2501,
+   "source_count": 37,
+   "source_hash": "c850991a7bad05d6",
+   "source_ids": [
+    "kw:building:osm:w302573673",
+    "kw:building:osm:w337114790",
+    "kw:building:osm:w337114797",
+    "kw:building:osm:w337114799",
+    "kw:building:osm:w337114800",
+    "kw:building:osm:w544409596",
+    "kw:building:osm:w544409597",
+    "kw:building:osm:w544409599",
+    "kw:building:osm:w544420403",
+    "kw:building:osm:w544420404",
+    "kw:building:osm:w544420405",
+    "kw:building:osm:w544420406",
+    "kw:building:osm:w544420407",
+    "kw:building:osm:w544420408",
+    "kw:building:osm:w544420409",
+    "kw:building:osm:w544420410",
+    "kw:building:osm:w544420411",
+    "kw:building:osm:w544420413",
+    "kw:building:osm:w544420414",
+    "kw:building:osm:w544420415",
+    "kw:building:osm:w544420416",
+    "kw:building:osm:w544420417",
+    "kw:building:osm:w544420420",
+    "kw:building:osm:w545531410",
+    "kw:building:osm:w545531412",
+    "kw:building:osm:w545533355",
+    "kw:building:osm:w545533357",
+    "kw:building:osm:w545533358",
+    "kw:building:osm:w545533360",
+    "kw:building:osm:w545533361",
+    "kw:building:osm:w545533362",
+    "kw:building:osm:w545533363",
+    "kw:building:osm:w545533364",
+    "kw:building:osm:w545533365",
+    "kw:building:osm:w545533366",
+    "kw:building:overture:73e3f84b-7c2a-4fed-91be-9c4ba7b2fafd",
+    "kw:building:usa_structures:32250702"
+   ],
+   "surfaces": 2,
+   "triangles": 4455
+  },
+  {
+   "bounds": {
+    "max": [
+     -2039.63,
+     10.35,
+     1287.36
+    ],
+    "min": [
+     -2177.64,
+     -0.2,
+     1144.26
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2708,
+    "walls": 2548
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2112.0,
+    1216.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-17_9",
+   "detail_cell": "kw_bld_c128_-17_9",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-17_9.scn",
+   "detail_triangles": 5256,
+   "grid": [
+    -17,
+    9
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "25a339edde7b86c7",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-17_9.res",
+   "snow_roof_triangles": 2708,
+   "source_count": 46,
+   "source_hash": "e7c7d78ed6a2e76f",
+   "source_ids": [
+    "kw:building:osm:w461401136",
+    "kw:building:osm:w461635353",
+    "kw:building:osm:w544257002",
+    "kw:building:osm:w544257003",
+    "kw:building:osm:w544257008",
+    "kw:building:osm:w544257009",
+    "kw:building:osm:w544257010",
+    "kw:building:osm:w544257011",
+    "kw:building:osm:w544257012",
+    "kw:building:osm:w544257210",
+    "kw:building:osm:w544257212",
+    "kw:building:osm:w544257581",
+    "kw:building:osm:w544411612",
+    "kw:building:osm:w544411618",
+    "kw:building:osm:w544411619",
+    "kw:building:osm:w544411620",
+    "kw:building:osm:w544411621",
+    "kw:building:osm:w544411622",
+    "kw:building:osm:w544411623",
+    "kw:building:osm:w544411625",
+    "kw:building:osm:w544411626",
+    "kw:building:osm:w544411627",
+    "kw:building:osm:w544411628",
+    "kw:building:osm:w544411629",
+    "kw:building:osm:w544411630",
+    "kw:building:osm:w544411631",
+    "kw:building:osm:w544411632",
+    "kw:building:osm:w544411634",
+    "kw:building:osm:w544411635",
+    "kw:building:osm:w544411636",
+    "kw:building:osm:w544411637",
+    "kw:building:osm:w544411638",
+    "kw:building:osm:w544411639",
+    "kw:building:osm:w545531400",
+    "kw:building:osm:w545531401",
+    "kw:building:osm:w545531402",
+    "kw:building:osm:w545531403",
+    "kw:building:osm:w545531404",
+    "kw:building:osm:w545531405",
+    "kw:building:osm:w545531406",
+    "kw:building:osm:w545531407",
+    "kw:building:osm:w545531408",
+    "kw:building:osm:w545531409",
+    "kw:building:osm:w545531413",
+    "kw:building:osm:w545533354",
+    "kw:building:usa_structures:149123"
+   ],
+   "surfaces": 2,
+   "triangles": 5256
+  },
+  {
+   "bounds": {
+    "max": [
+     -2170.05,
+     13.96,
+     1413.87
+    ],
+    "min": [
+     -2312.82,
+     1.6,
+     1274.84
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1913,
+    "walls": 2062
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2240.0,
+    1344.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-18_10",
+   "detail_cell": "kw_bld_c128_-18_10",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-18_10.scn",
+   "detail_triangles": 3975,
+   "grid": [
+    -18,
+    10
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "9c266b0b5c96cc0f",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-18_10.res",
+   "snow_roof_triangles": 1913,
+   "source_count": 35,
+   "source_hash": "9ccf70999d3e6ee8",
+   "source_ids": [
+    "kw:building:osm:w337215803",
+    "kw:building:osm:w476102052",
+    "kw:building:osm:w476102656",
+    "kw:building:osm:w524183937",
+    "kw:building:osm:w524183945",
+    "kw:building:osm:w524183946",
+    "kw:building:osm:w524183947",
+    "kw:building:osm:w524183948",
+    "kw:building:osm:w524183949",
+    "kw:building:osm:w544392229",
+    "kw:building:osm:w544392230",
+    "kw:building:osm:w544392232",
+    "kw:building:osm:w544392234",
+    "kw:building:osm:w544392236",
+    "kw:building:osm:w544392242",
+    "kw:building:osm:w544393529",
+    "kw:building:osm:w544393535",
+    "kw:building:osm:w544393536",
+    "kw:building:osm:w544393537",
+    "kw:building:osm:w544393539",
+    "kw:building:osm:w544393540",
+    "kw:building:osm:w544393541",
+    "kw:building:osm:w544399833",
+    "kw:building:osm:w544399834",
+    "kw:building:osm:w544402867",
+    "kw:building:osm:w544402869",
+    "kw:building:osm:w544402870",
+    "kw:building:osm:w544402871",
+    "kw:building:osm:w544402873",
+    "kw:building:osm:w544402874",
+    "kw:building:osm:w544405491",
+    "kw:building:osm:w544405492",
+    "kw:building:osm:w544405498",
+    "kw:building:osm:w544405499",
+    "kw:building:usa_structures:32249753"
+   ],
+   "surfaces": 2,
+   "triangles": 3975
+  },
+  {
+   "bounds": {
+    "max": [
+     -2168.79,
+     15.27,
+     1542.85
+    ],
+    "min": [
+     -2308.69,
+     1.64,
+     1401.77
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2552,
+    "walls": 2320
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2240.0,
+    1472.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-18_11",
+   "detail_cell": "kw_bld_c128_-18_11",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-18_11.scn",
+   "detail_triangles": 4872,
+   "grid": [
+    -18,
+    11
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "a80d8a14860bb9e2",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-18_11.res",
+   "snow_roof_triangles": 2552,
+   "source_count": 44,
+   "source_hash": "7f84a8911168096e",
+   "source_ids": [
+    "kw:building:osm:w461599083",
+    "kw:building:osm:w461599085",
+    "kw:building:osm:w461599089",
+    "kw:building:osm:w461599090",
+    "kw:building:osm:w543929977",
+    "kw:building:osm:w543929978",
+    "kw:building:osm:w543929979",
+    "kw:building:osm:w543929980",
+    "kw:building:osm:w543929981",
+    "kw:building:osm:w544393521",
+    "kw:building:osm:w544393523",
+    "kw:building:osm:w544393525",
+    "kw:building:osm:w544393526",
+    "kw:building:osm:w544393527",
+    "kw:building:osm:w544393528",
+    "kw:building:osm:w544393531",
+    "kw:building:osm:w544393532",
+    "kw:building:osm:w544393533",
+    "kw:building:osm:w544397394",
+    "kw:building:osm:w544397396",
+    "kw:building:osm:w544398478",
+    "kw:building:osm:w544398480",
+    "kw:building:osm:w544398481",
+    "kw:building:osm:w544398482",
+    "kw:building:osm:w544398484",
+    "kw:building:osm:w544398486",
+    "kw:building:osm:w544398488",
+    "kw:building:osm:w544398489",
+    "kw:building:osm:w544398491",
+    "kw:building:osm:w544398493",
+    "kw:building:osm:w544398495",
+    "kw:building:osm:w544398497",
+    "kw:building:osm:w544398499",
+    "kw:building:osm:w544399823",
+    "kw:building:osm:w544399824",
+    "kw:building:osm:w544399826",
+    "kw:building:osm:w544399828",
+    "kw:building:osm:w544399830",
+    "kw:building:osm:w544399831",
+    "kw:building:osm:w544399836",
+    "kw:building:osm:w550191615",
+    "kw:building:osm:w550191618",
+    "kw:building:osm:w550191620",
+    "kw:building:osm:w550191621"
+   ],
+   "surfaces": 2,
+   "triangles": 4872
+  },
+  {
+   "bounds": {
+    "max": [
+     -2168.85,
+     10.98,
+     645.18
+    ],
+    "min": [
+     -2306.78,
+     0.31,
+     507.56
+    ]
+   },
+   "bucket_triangles": {
+    "roof_lidar": 2,
+    "snow_roof": 2615,
+    "walls": 1878
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2240.0,
+    576.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-18_4",
+   "detail_cell": "kw_bld_c128_-18_4",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-18_4.scn",
+   "detail_triangles": 4495,
+   "grid": [
+    -18,
+    4
+   ],
+   "materials": [
+    "roof_lidar",
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "69d98da76607ddf6",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-18_4.res",
+   "snow_roof_triangles": 2615,
+   "source_count": 39,
+   "source_hash": "7c0fd80ab16a3679",
+   "source_ids": [
+    "kw:building:osm:w461608812",
+    "kw:building:osm:w461608813",
+    "kw:building:osm:w461609026",
+    "kw:building:osm:w461609032",
+    "kw:building:osm:w524736409",
+    "kw:building:osm:w524736411",
+    "kw:building:osm:w524736413",
+    "kw:building:osm:w524736415",
+    "kw:building:osm:w524736417",
+    "kw:building:osm:w524736419",
+    "kw:building:osm:w524736421",
+    "kw:building:osm:w524736423",
+    "kw:building:osm:w524736424",
+    "kw:building:osm:w524736425",
+    "kw:building:osm:w524736426",
+    "kw:building:osm:w524736427",
+    "kw:building:osm:w524736428",
+    "kw:building:osm:w524736429",
+    "kw:building:osm:w524736452",
+    "kw:building:osm:w524736454",
+    "kw:building:osm:w524736456",
+    "kw:building:osm:w524736458",
+    "kw:building:osm:w524736460",
+    "kw:building:osm:w524741807",
+    "kw:building:osm:w562919750",
+    "kw:building:osm:w562919751",
+    "kw:building:osm:w562919752",
+    "kw:building:osm:w562919753",
+    "kw:building:osm:w562919754",
+    "kw:building:osm:w562919756",
+    "kw:building:osm:w562919757",
+    "kw:building:osm:w562919758",
+    "kw:building:osm:w562919759",
+    "kw:building:osm:w562919760",
+    "kw:building:osm:w562919761",
+    "kw:building:osm:w562919762",
+    "kw:building:osm:w562919763",
+    "kw:building:osm:w562919764",
+    "kw:building:usa_structures:32252805"
+   ],
+   "surfaces": 3,
+   "triangles": 4495
+  },
+  {
+   "bounds": {
+    "max": [
+     -2172.13,
+     11.65,
+     776.33
+    ],
+    "min": [
+     -2310.25,
+     1.1,
+     632.34
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2524,
+    "walls": 1916
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2240.0,
+    704.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-18_5",
+   "detail_cell": "kw_bld_c128_-18_5",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-18_5.scn",
+   "detail_triangles": 4440,
+   "grid": [
+    -18,
+    5
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "80e533dc9f361e35",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-18_5.res",
+   "snow_roof_triangles": 2524,
+   "source_count": 37,
+   "source_hash": "1f46854e348fa2b6",
+   "source_ids": [
+    "kw:building:osm:w337096890",
+    "kw:building:osm:w337096891",
+    "kw:building:osm:w461608810",
+    "kw:building:osm:w461609027",
+    "kw:building:osm:w524741808",
+    "kw:building:osm:w524741809",
+    "kw:building:osm:w524741810",
+    "kw:building:osm:w524741811",
+    "kw:building:osm:w524741812",
+    "kw:building:osm:w524741815",
+    "kw:building:osm:w524741816",
+    "kw:building:osm:w524741817",
+    "kw:building:osm:w524741818",
+    "kw:building:osm:w524741819",
+    "kw:building:osm:w524741820",
+    "kw:building:osm:w524741821",
+    "kw:building:osm:w524741822",
+    "kw:building:osm:w524741823",
+    "kw:building:osm:w524741824",
+    "kw:building:osm:w524741825",
+    "kw:building:osm:w524741826",
+    "kw:building:osm:w524741827",
+    "kw:building:osm:w524741893",
+    "kw:building:osm:w524741901",
+    "kw:building:osm:w524741903",
+    "kw:building:osm:w562919765",
+    "kw:building:osm:w562919766",
+    "kw:building:osm:w562919767",
+    "kw:building:osm:w562919769",
+    "kw:building:osm:w562919771",
+    "kw:building:osm:w562919773",
+    "kw:building:osm:w562919774",
+    "kw:building:osm:w562919788",
+    "kw:building:osm:w562919789",
+    "kw:building:osm:w562919790",
+    "kw:building:osm:w562919791",
+    "kw:building:osm:w562919792"
+   ],
+   "surfaces": 2,
+   "triangles": 4440
+  },
+  {
+   "bounds": {
+    "max": [
+     -2168.17,
+     17.59,
+     903.85
+    ],
+    "min": [
+     -2313.12,
+     1.36,
+     766.8
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2424,
+    "walls": 2164
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2240.0,
+    832.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-18_6",
+   "detail_cell": "kw_bld_c128_-18_6",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-18_6.scn",
+   "detail_triangles": 4588,
+   "grid": [
+    -18,
+    6
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "8f760ecbc30c0ed3",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-18_6.res",
+   "snow_roof_triangles": 2424,
+   "source_count": 42,
+   "source_hash": "b80c0ffa2672e8ad",
+   "source_ids": [
+    "kw:building:osm:w337096893",
+    "kw:building:osm:w337114792",
+    "kw:building:osm:w337114793",
+    "kw:building:osm:w337114794",
+    "kw:building:osm:w461608811",
+    "kw:building:osm:w524741838",
+    "kw:building:osm:w524741839",
+    "kw:building:osm:w524741840",
+    "kw:building:osm:w524741841",
+    "kw:building:osm:w524741842",
+    "kw:building:osm:w524741843",
+    "kw:building:osm:w524741844",
+    "kw:building:osm:w524741845",
+    "kw:building:osm:w524741846",
+    "kw:building:osm:w524741847",
+    "kw:building:osm:w524741851",
+    "kw:building:osm:w524741853",
+    "kw:building:osm:w524741895",
+    "kw:building:osm:w524741896",
+    "kw:building:osm:w524741898",
+    "kw:building:osm:w524741899",
+    "kw:building:osm:w545535027",
+    "kw:building:osm:w545535028",
+    "kw:building:osm:w545535029",
+    "kw:building:osm:w545535030",
+    "kw:building:osm:w562919732",
+    "kw:building:osm:w562919739",
+    "kw:building:osm:w562919740",
+    "kw:building:osm:w562919795",
+    "kw:building:osm:w562919796",
+    "kw:building:osm:w562919797",
+    "kw:building:osm:w585741419",
+    "kw:building:osm:w585751153",
+    "kw:building:osm:w585751154",
+    "kw:building:osm:w585751155",
+    "kw:building:osm:w586379423",
+    "kw:building:osm:w586379426",
+    "kw:building:osm:w586379435",
+    "kw:building:overture:1001af09-07e9-41f9-a054-c2358cc24b24",
+    "kw:building:overture:12a40208-d288-4086-a1a9-802a2297c4ad",
+    "kw:building:usa_structures:32251703",
+    "kw:building:usa_structures:32251799"
+   ],
+   "surfaces": 2,
+   "triangles": 4588
+  },
+  {
+   "bounds": {
+    "max": [
+     -2179.38,
+     10.88,
+     1026.42
+    ],
+    "min": [
+     -2309.2,
+     1.29,
+     891.34
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2100,
+    "walls": 2024
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2240.0,
+    960.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-18_7",
+   "detail_cell": "kw_bld_c128_-18_7",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-18_7.scn",
+   "detail_triangles": 4124,
+   "grid": [
+    -18,
+    7
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "aeed73c8a4ca7fff",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-18_7.res",
+   "snow_roof_triangles": 2100,
+   "source_count": 39,
+   "source_hash": "d6c8f992116de98a",
+   "source_ids": [
+    "kw:building:osm:w525619991",
+    "kw:building:osm:w544420422",
+    "kw:building:osm:w544420423",
+    "kw:building:osm:w544420424",
+    "kw:building:osm:w544420425",
+    "kw:building:osm:w544420426",
+    "kw:building:osm:w544420427",
+    "kw:building:osm:w544420434",
+    "kw:building:osm:w544420435",
+    "kw:building:osm:w544420436",
+    "kw:building:osm:w544420437",
+    "kw:building:osm:w544420438",
+    "kw:building:osm:w544420439",
+    "kw:building:osm:w544420441",
+    "kw:building:osm:w544420442",
+    "kw:building:osm:w544420443",
+    "kw:building:osm:w544420444",
+    "kw:building:osm:w585741378",
+    "kw:building:osm:w585741380",
+    "kw:building:osm:w585741382",
+    "kw:building:osm:w585741383",
+    "kw:building:osm:w585741425",
+    "kw:building:osm:w585741427",
+    "kw:building:osm:w586379428",
+    "kw:building:osm:w586379430",
+    "kw:building:osm:w586379431",
+    "kw:building:osm:w586379433",
+    "kw:building:osm:w586379437",
+    "kw:building:osm:w586379443",
+    "kw:building:osm:w586379444",
+    "kw:building:osm:w586379446",
+    "kw:building:osm:w586379448",
+    "kw:building:osm:w586379450",
+    "kw:building:osm:w586379452",
+    "kw:building:osm:w586379454",
+    "kw:building:osm:w586379456",
+    "kw:building:osm:w586379458",
+    "kw:building:osm:w586379459",
+    "kw:building:osm:w586379461"
+   ],
+   "surfaces": 2,
+   "triangles": 4124
+  },
+  {
+   "bounds": {
+    "max": [
+     -2166.1,
+     13.12,
+     1155.89
+    ],
+    "min": [
+     -2322.9,
+     1.23,
+     1013.08
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2988,
+    "walls": 2508
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2240.0,
+    1088.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-18_8",
+   "detail_cell": "kw_bld_c128_-18_8",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-18_8.scn",
+   "detail_triangles": 5496,
+   "grid": [
+    -18,
+    8
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "9bd9b2efe1f8fa3a",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-18_8.res",
+   "snow_roof_triangles": 2988,
+   "source_count": 45,
+   "source_hash": "7ad00c5d451521fc",
+   "source_ids": [
+    "kw:building:osm:r7831442",
+    "kw:building:osm:w337215806",
+    "kw:building:osm:w339418318",
+    "kw:building:osm:w525619970",
+    "kw:building:osm:w525620008",
+    "kw:building:osm:w544409586",
+    "kw:building:osm:w544409587",
+    "kw:building:osm:w544409588",
+    "kw:building:osm:w544409589",
+    "kw:building:osm:w544409590",
+    "kw:building:osm:w544409592",
+    "kw:building:osm:w544409593",
+    "kw:building:osm:w544409594",
+    "kw:building:osm:w544409595",
+    "kw:building:osm:w544409600",
+    "kw:building:osm:w544409601",
+    "kw:building:osm:w544409602",
+    "kw:building:osm:w544409603",
+    "kw:building:osm:w544409604",
+    "kw:building:osm:w544409605",
+    "kw:building:osm:w544409606",
+    "kw:building:osm:w544409607",
+    "kw:building:osm:w544409608",
+    "kw:building:osm:w544409609",
+    "kw:building:osm:w544409610",
+    "kw:building:osm:w544409611",
+    "kw:building:osm:w544409613",
+    "kw:building:osm:w544409614",
+    "kw:building:osm:w544409615",
+    "kw:building:osm:w544409616",
+    "kw:building:osm:w544409617",
+    "kw:building:osm:w544409618",
+    "kw:building:osm:w544409619",
+    "kw:building:osm:w544409620",
+    "kw:building:osm:w544409621",
+    "kw:building:osm:w544409622",
+    "kw:building:osm:w544409623",
+    "kw:building:osm:w544409624",
+    "kw:building:osm:w544409626",
+    "kw:building:osm:w544409627",
+    "kw:building:osm:w544411595",
+    "kw:building:osm:w544411598",
+    "kw:building:osm:w544420418",
+    "kw:building:osm:w544420419",
+    "kw:building:osm:w544420421"
+   ],
+   "surfaces": 2,
+   "triangles": 5496
+  },
+  {
+   "bounds": {
+    "max": [
+     -2170.52,
+     10.63,
+     1286.51
+    ],
+    "min": [
+     -2314.94,
+     1.51,
+     1147.38
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 3017,
+    "walls": 2678
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2240.0,
+    1216.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-18_9",
+   "detail_cell": "kw_bld_c128_-18_9",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-18_9.scn",
+   "detail_triangles": 5695,
+   "grid": [
+    -18,
+    9
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "87ac59d8b55ca2e6",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-18_9.res",
+   "snow_roof_triangles": 3017,
+   "source_count": 49,
+   "source_hash": "3325a0e5db334cb1",
+   "source_ids": [
+    "kw:building:osm:w337215804",
+    "kw:building:osm:w461635352",
+    "kw:building:osm:w476100924",
+    "kw:building:osm:w476101401",
+    "kw:building:osm:w476101674",
+    "kw:building:osm:w544402875",
+    "kw:building:osm:w544402876",
+    "kw:building:osm:w544402877",
+    "kw:building:osm:w544402878",
+    "kw:building:osm:w544402879",
+    "kw:building:osm:w544405494",
+    "kw:building:osm:w544405496",
+    "kw:building:osm:w544405497",
+    "kw:building:osm:w544405501",
+    "kw:building:osm:w544405502",
+    "kw:building:osm:w544405503",
+    "kw:building:osm:w544405504",
+    "kw:building:osm:w544405505",
+    "kw:building:osm:w544405506",
+    "kw:building:osm:w544405508",
+    "kw:building:osm:w544405509",
+    "kw:building:osm:w544405510",
+    "kw:building:osm:w544405512",
+    "kw:building:osm:w544405514",
+    "kw:building:osm:w544405517",
+    "kw:building:osm:w544405518",
+    "kw:building:osm:w544405520",
+    "kw:building:osm:w544405521",
+    "kw:building:osm:w544405523",
+    "kw:building:osm:w544405524",
+    "kw:building:osm:w544409584",
+    "kw:building:osm:w544411582",
+    "kw:building:osm:w544411583",
+    "kw:building:osm:w544411585",
+    "kw:building:osm:w544411589",
+    "kw:building:osm:w544411594",
+    "kw:building:osm:w544411596",
+    "kw:building:osm:w544411603",
+    "kw:building:osm:w544411604",
+    "kw:building:osm:w544411605",
+    "kw:building:osm:w544411606",
+    "kw:building:osm:w544411607",
+    "kw:building:osm:w544411608",
+    "kw:building:osm:w544411609",
+    "kw:building:osm:w544411611",
+    "kw:building:osm:w544411614",
+    "kw:building:osm:w544411615",
+    "kw:building:osm:w544411616",
+    "kw:building:osm:w544411617"
+   ],
+   "surfaces": 2,
+   "triangles": 5695
+  },
+  {
+   "bounds": {
+    "max": [
+     -2296.69,
+     11.27,
+     1414.55
+    ],
+    "min": [
+     -2442.1,
+     1.14,
+     1276.17
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2565,
+    "walls": 2182
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2368.0,
+    1344.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-19_10",
+   "detail_cell": "kw_bld_c128_-19_10",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-19_10.scn",
+   "detail_triangles": 4747,
+   "grid": [
+    -19,
+    10
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "3b39cde12cfe032d",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-19_10.res",
+   "snow_roof_triangles": 2565,
+   "source_count": 39,
+   "source_hash": "653105d9931fa569",
+   "source_ids": [
+    "kw:building:osm:w337215800",
+    "kw:building:osm:w337215802",
+    "kw:building:osm:w524181350",
+    "kw:building:osm:w524181351",
+    "kw:building:osm:w524181352",
+    "kw:building:osm:w524181353",
+    "kw:building:osm:w524181354",
+    "kw:building:osm:w524181390",
+    "kw:building:osm:w524181391",
+    "kw:building:osm:w524183932",
+    "kw:building:osm:w524183933",
+    "kw:building:osm:w524183934",
+    "kw:building:osm:w524183935",
+    "kw:building:osm:w524183936",
+    "kw:building:osm:w524183938",
+    "kw:building:osm:w524183942",
+    "kw:building:osm:w524183943",
+    "kw:building:osm:w524183944",
+    "kw:building:osm:w524183950",
+    "kw:building:osm:w524183951",
+    "kw:building:osm:w524183952",
+    "kw:building:osm:w524183953",
+    "kw:building:osm:w524183954",
+    "kw:building:osm:w524183955",
+    "kw:building:osm:w524183956",
+    "kw:building:osm:w524183957",
+    "kw:building:osm:w524183958",
+    "kw:building:osm:w524183959",
+    "kw:building:osm:w524183960",
+    "kw:building:osm:w524183961",
+    "kw:building:osm:w524183962",
+    "kw:building:osm:w524183963",
+    "kw:building:osm:w524184858",
+    "kw:building:osm:w544399835",
+    "kw:building:osm:w544402855",
+    "kw:building:osm:w544402857",
+    "kw:building:osm:w544402859",
+    "kw:building:osm:w544402862",
+    "kw:building:osm:w544402863"
+   ],
+   "surfaces": 2,
+   "triangles": 4747
+  },
+  {
+   "bounds": {
+    "max": [
+     -2293.7,
+     10.59,
+     1538.24
+    ],
+    "min": [
+     -2443.62,
+     0.44,
+     1395.48
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2341,
+    "walls": 2214
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2368.0,
+    1472.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-19_11",
+   "detail_cell": "kw_bld_c128_-19_11",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-19_11.scn",
+   "detail_triangles": 4555,
+   "grid": [
+    -19,
+    11
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "95945c472087df8b",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-19_11.res",
+   "snow_roof_triangles": 2341,
+   "source_count": 39,
+   "source_hash": "5a86b8ac5d2e9046",
+   "source_ids": [
+    "kw:building:osm:w337210679",
+    "kw:building:osm:w337210680",
+    "kw:building:osm:w461599095",
+    "kw:building:osm:w524183964",
+    "kw:building:osm:w524183965",
+    "kw:building:osm:w524183966",
+    "kw:building:osm:w524183967",
+    "kw:building:osm:w544399829",
+    "kw:building:osm:w544399832",
+    "kw:building:osm:w547301329",
+    "kw:building:osm:w547546242",
+    "kw:building:osm:w547546245",
+    "kw:building:osm:w547546248",
+    "kw:building:osm:w547546251",
+    "kw:building:osm:w547546253",
+    "kw:building:osm:w547546255",
+    "kw:building:osm:w547546257",
+    "kw:building:osm:w547546261",
+    "kw:building:osm:w547546276",
+    "kw:building:osm:w547546279",
+    "kw:building:osm:w547546280",
+    "kw:building:osm:w547546281",
+    "kw:building:osm:w547546282",
+    "kw:building:osm:w547547220",
+    "kw:building:osm:w547547221",
+    "kw:building:osm:w547547222",
+    "kw:building:osm:w547547223",
+    "kw:building:osm:w547547224",
+    "kw:building:osm:w547547225",
+    "kw:building:osm:w547547229",
+    "kw:building:osm:w547547230",
+    "kw:building:osm:w547547231",
+    "kw:building:osm:w547547233",
+    "kw:building:osm:w547547235",
+    "kw:building:osm:w547547236",
+    "kw:building:osm:w547547238",
+    "kw:building:osm:w547547240",
+    "kw:building:osm:w547547242",
+    "kw:building:osm:w547547244"
+   ],
+   "surfaces": 2,
+   "triangles": 4555
+  },
+  {
+   "bounds": {
+    "max": [
+     -2298.14,
+     11.14,
+     641.04
+    ],
+    "min": [
+     -2438.14,
+     1.09,
+     504.4
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1262,
+    "walls": 1112
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2368.0,
+    576.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-19_4",
+   "detail_cell": "kw_bld_c128_-19_4",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-19_4.scn",
+   "detail_triangles": 2374,
+   "grid": [
+    -19,
+    4
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "d6501ec3337626bc",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-19_4.res",
+   "snow_roof_triangles": 1262,
+   "source_count": 19,
+   "source_hash": "c2dd9cf2cbe64a4e",
+   "source_ids": [
+    "kw:building:osm:w461609029",
+    "kw:building:osm:w461609031",
+    "kw:building:osm:w495777778",
+    "kw:building:osm:w524736407",
+    "kw:building:osm:w524736463",
+    "kw:building:osm:w526223774",
+    "kw:building:osm:w526223776",
+    "kw:building:osm:w562919747",
+    "kw:building:osm:w562919748",
+    "kw:building:osm:w585743336",
+    "kw:building:osm:w585743337",
+    "kw:building:osm:w585743338",
+    "kw:building:osm:w585743341",
+    "kw:building:osm:w585743342",
+    "kw:building:osm:w586076776",
+    "kw:building:osm:w586076777",
+    "kw:building:osm:w586076778",
+    "kw:building:osm:w586076779",
+    "kw:building:osm:w586076780"
+   ],
+   "surfaces": 2,
+   "triangles": 2374
+  },
+  {
+   "bounds": {
+    "max": [
+     -2292.11,
+     12.44,
+     775.86
+    ],
+    "min": [
+     -2442.14,
+     1.16,
+     632.19
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2338,
+    "walls": 1988
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2368.0,
+    704.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-19_5",
+   "detail_cell": "kw_bld_c128_-19_5",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-19_5.scn",
+   "detail_triangles": 4326,
+   "grid": [
+    -19,
+    5
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "382bcf2e3fb70585",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-19_5.res",
+   "snow_roof_triangles": 2338,
+   "source_count": 33,
+   "source_hash": "0ed21a9bd2f1e3d5",
+   "source_ids": [
+    "kw:building:osm:w461258852",
+    "kw:building:osm:w461615861",
+    "kw:building:osm:w524741813",
+    "kw:building:osm:w524741814",
+    "kw:building:osm:w526223766",
+    "kw:building:osm:w526223768",
+    "kw:building:osm:w562919746",
+    "kw:building:osm:w585742274",
+    "kw:building:osm:w585742282",
+    "kw:building:osm:w585742283",
+    "kw:building:osm:w585742284",
+    "kw:building:osm:w585742285",
+    "kw:building:osm:w585742287",
+    "kw:building:osm:w585742289",
+    "kw:building:osm:w585742290",
+    "kw:building:osm:w585743314",
+    "kw:building:osm:w585743316",
+    "kw:building:osm:w585743319",
+    "kw:building:osm:w585743321",
+    "kw:building:osm:w585743322",
+    "kw:building:osm:w585743323",
+    "kw:building:osm:w585743324",
+    "kw:building:osm:w585743325",
+    "kw:building:osm:w585743326",
+    "kw:building:osm:w585743328",
+    "kw:building:osm:w585743329",
+    "kw:building:osm:w585743330",
+    "kw:building:osm:w585743331",
+    "kw:building:osm:w585743332",
+    "kw:building:osm:w585743333",
+    "kw:building:osm:w585743334",
+    "kw:building:overture:348cd401-4ceb-473d-bc1c-510d813f361c",
+    "kw:building:usa_structures:32252108"
+   ],
+   "surfaces": 2,
+   "triangles": 4326
+  },
+  {
+   "bounds": {
+    "max": [
+     -2297.97,
+     11.77,
+     894.11
+    ],
+    "min": [
+     -2440.11,
+     1.26,
+     757.52
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2384,
+    "walls": 2128
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2368.0,
+    832.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-19_6",
+   "detail_cell": "kw_bld_c128_-19_6",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-19_6.scn",
+   "detail_triangles": 4512,
+   "grid": [
+    -19,
+    6
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "dc8ed2e79be89ba0",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-19_6.res",
+   "snow_roof_triangles": 2384,
+   "source_count": 44,
+   "source_hash": "8c1b0a2f10f589e8",
+   "source_ids": [
+    "kw:building:osm:w461615860",
+    "kw:building:osm:w495777788",
+    "kw:building:osm:w495777789",
+    "kw:building:osm:w524741829",
+    "kw:building:osm:w524741830",
+    "kw:building:osm:w524741831",
+    "kw:building:osm:w524741832",
+    "kw:building:osm:w524741833",
+    "kw:building:osm:w524741834",
+    "kw:building:osm:w524741835",
+    "kw:building:osm:w524741836",
+    "kw:building:osm:w524741837",
+    "kw:building:osm:w562919734",
+    "kw:building:osm:w562919735",
+    "kw:building:osm:w562919736",
+    "kw:building:osm:w562919737",
+    "kw:building:osm:w562919738",
+    "kw:building:osm:w585741401",
+    "kw:building:osm:w585741404",
+    "kw:building:osm:w585741407",
+    "kw:building:osm:w585741408",
+    "kw:building:osm:w585741412",
+    "kw:building:osm:w585741413",
+    "kw:building:osm:w585741418",
+    "kw:building:osm:w585741429",
+    "kw:building:osm:w585741431",
+    "kw:building:osm:w585741433",
+    "kw:building:osm:w585741435",
+    "kw:building:osm:w585742257",
+    "kw:building:osm:w585742258",
+    "kw:building:osm:w585742259",
+    "kw:building:osm:w585742260",
+    "kw:building:osm:w585742261",
+    "kw:building:osm:w585742262",
+    "kw:building:osm:w585742265",
+    "kw:building:osm:w585742266",
+    "kw:building:osm:w585742267",
+    "kw:building:osm:w585742268",
+    "kw:building:osm:w585742270",
+    "kw:building:osm:w585742272",
+    "kw:building:osm:w585742273",
+    "kw:building:osm:w585742276",
+    "kw:building:osm:w585743315",
+    "kw:building:overture:b3c2cffc-0d50-4bc1-b089-37fd6fd1443d"
+   ],
+   "surfaces": 2,
+   "triangles": 4512
+  },
+  {
+   "bounds": {
+    "max": [
+     -2297.74,
+     12.14,
+     1031.01
+    ],
+    "min": [
+     -2430.81,
+     1.28,
+     889.19
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1248,
+    "walls": 1540
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2368.0,
+    960.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-19_7",
+   "detail_cell": "kw_bld_c128_-19_7",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-19_7.scn",
+   "detail_triangles": 2788,
+   "grid": [
+    -19,
+    7
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "dfb0e9b75fdf6ed9",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-19_7.res",
+   "snow_roof_triangles": 1248,
+   "source_count": 30,
+   "source_hash": "6d6d076a1370e09a",
+   "source_ids": [
+    "kw:building:osm:w495777790",
+    "kw:building:osm:w495777791",
+    "kw:building:osm:w495777792",
+    "kw:building:osm:w495777794",
+    "kw:building:osm:w495777795",
+    "kw:building:osm:w551965011",
+    "kw:building:osm:w551965015",
+    "kw:building:osm:w551965016",
+    "kw:building:osm:w551965017",
+    "kw:building:osm:w551965976",
+    "kw:building:osm:w585739971",
+    "kw:building:osm:w585739972",
+    "kw:building:osm:w585739973",
+    "kw:building:osm:w585739974",
+    "kw:building:osm:w585739975",
+    "kw:building:osm:w585739977",
+    "kw:building:osm:w585739978",
+    "kw:building:osm:w585739979",
+    "kw:building:osm:w585739980",
+    "kw:building:osm:w585739982",
+    "kw:building:osm:w585741384",
+    "kw:building:osm:w585741386",
+    "kw:building:osm:w585741389",
+    "kw:building:osm:w585741391",
+    "kw:building:osm:w585741393",
+    "kw:building:osm:w585741397",
+    "kw:building:osm:w585741400",
+    "kw:building:osm:w585741416",
+    "kw:building:osm:w585741421",
+    "kw:building:usa_structures:32251039"
+   ],
+   "surfaces": 2,
+   "triangles": 2788
+  },
+  {
+   "bounds": {
+    "max": [
+     -2300.29,
+     15.06,
+     1161.1
+    ],
+    "min": [
+     -2432.65,
+     0.55,
+     1020.26
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1685,
+    "walls": 1862
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2368.0,
+    1088.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-19_8",
+   "detail_cell": "kw_bld_c128_-19_8",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-19_8.scn",
+   "detail_triangles": 3547,
+   "grid": [
+    -19,
+    8
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "734c543bf3b1a05c",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-19_8.res",
+   "snow_roof_triangles": 1685,
+   "source_count": 32,
+   "source_hash": "12b192454f67e6a7",
+   "source_ids": [
+    "kw:building:osm:w337215807",
+    "kw:building:osm:w337215808",
+    "kw:building:osm:w337215809",
+    "kw:building:osm:w337215810",
+    "kw:building:osm:w339418317",
+    "kw:building:osm:w523730970",
+    "kw:building:osm:w523730971",
+    "kw:building:osm:w523730972",
+    "kw:building:osm:w523730973",
+    "kw:building:osm:w544411593",
+    "kw:building:osm:w544411597",
+    "kw:building:osm:w544411600",
+    "kw:building:osm:w544411602",
+    "kw:building:osm:w551965000",
+    "kw:building:osm:w551965003",
+    "kw:building:osm:w551965012",
+    "kw:building:osm:w551965013",
+    "kw:building:osm:w551965018",
+    "kw:building:osm:w551965019",
+    "kw:building:osm:w551965020",
+    "kw:building:osm:w551965021",
+    "kw:building:osm:w551965022",
+    "kw:building:osm:w551965023",
+    "kw:building:osm:w551965024",
+    "kw:building:osm:w551965025",
+    "kw:building:osm:w551965026",
+    "kw:building:osm:w551965027",
+    "kw:building:osm:w551965029",
+    "kw:building:osm:w551965030",
+    "kw:building:osm:w551965032",
+    "kw:building:osm:w585739981",
+    "kw:building:usa_structures:150176"
+   ],
+   "surfaces": 2,
+   "triangles": 3547
+  },
+  {
+   "bounds": {
+    "max": [
+     -2300.32,
+     10.44,
+     1285.97
+    ],
+    "min": [
+     -2440.12,
+     1.19,
+     1148.47
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2932,
+    "walls": 2136
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2368.0,
+    1216.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-19_9",
+   "detail_cell": "kw_bld_c128_-19_9",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-19_9.scn",
+   "detail_triangles": 5068,
+   "grid": [
+    -19,
+    9
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "0a679c08e49e2da2",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-19_9.res",
+   "snow_roof_triangles": 2932,
+   "source_count": 39,
+   "source_hash": "cc9b29bef2777a34",
+   "source_ids": [
+    "kw:building:osm:w461634989",
+    "kw:building:osm:w461634990",
+    "kw:building:osm:w461634991",
+    "kw:building:osm:w524183939",
+    "kw:building:osm:w524183940",
+    "kw:building:osm:w524183941",
+    "kw:building:osm:w524184835",
+    "kw:building:osm:w524184839",
+    "kw:building:osm:w524184841",
+    "kw:building:osm:w524184846",
+    "kw:building:osm:w524184848",
+    "kw:building:osm:w524184850",
+    "kw:building:osm:w524184851",
+    "kw:building:osm:w524184853",
+    "kw:building:osm:w524184855",
+    "kw:building:osm:w544402880",
+    "kw:building:osm:w544402882",
+    "kw:building:osm:w544411587",
+    "kw:building:osm:w544411588",
+    "kw:building:osm:w544411591",
+    "kw:building:osm:w544411592",
+    "kw:building:osm:w547297751",
+    "kw:building:osm:w547301311",
+    "kw:building:osm:w547301313",
+    "kw:building:osm:w547301314",
+    "kw:building:osm:w547301315",
+    "kw:building:osm:w547301316",
+    "kw:building:osm:w547301317",
+    "kw:building:osm:w547301318",
+    "kw:building:osm:w547301319",
+    "kw:building:osm:w547301320",
+    "kw:building:osm:w547301321",
+    "kw:building:osm:w547301322",
+    "kw:building:osm:w547301323",
+    "kw:building:osm:w547301324",
+    "kw:building:osm:w547301325",
+    "kw:building:osm:w547301326",
+    "kw:building:osm:w547301327",
+    "kw:building:usa_structures:149062"
+   ],
+   "surfaces": 2,
+   "triangles": 5068
+  },
+  {
+   "bounds": {
+    "max": [
+     -2432.11,
+     12.92,
+     1402.51
+    ],
+    "min": [
+     -2579.3,
+     1.19,
+     1277.6
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2194,
+    "walls": 1460
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2496.0,
+    1344.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-20_10",
+   "detail_cell": "kw_bld_c128_-20_10",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-20_10.scn",
+   "detail_triangles": 3654,
+   "grid": [
+    -20,
+    10
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "8f62c661ac654b24",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-20_10.res",
+   "snow_roof_triangles": 2194,
+   "source_count": 29,
+   "source_hash": "0b5622618e1dff53",
+   "source_ids": [
+    "kw:building:osm:w337215847",
+    "kw:building:osm:w337215854",
+    "kw:building:osm:w524181349",
+    "kw:building:osm:w524181355",
+    "kw:building:osm:w524181356",
+    "kw:building:osm:w524181357",
+    "kw:building:osm:w524181358",
+    "kw:building:osm:w524181359",
+    "kw:building:osm:w524181364",
+    "kw:building:osm:w524181365",
+    "kw:building:osm:w524181366",
+    "kw:building:osm:w524181367",
+    "kw:building:osm:w524181368",
+    "kw:building:osm:w524181369",
+    "kw:building:osm:w524181370",
+    "kw:building:osm:w524181372",
+    "kw:building:osm:w524181373",
+    "kw:building:osm:w524181375",
+    "kw:building:osm:w524181377",
+    "kw:building:osm:w524181379",
+    "kw:building:osm:w524181381",
+    "kw:building:osm:w524181383",
+    "kw:building:osm:w524181385",
+    "kw:building:osm:w524181387",
+    "kw:building:osm:w524181389",
+    "kw:building:osm:w524181392",
+    "kw:building:osm:w524181393",
+    "kw:building:osm:w524181394",
+    "kw:building:usa_structures:148664"
+   ],
+   "surfaces": 2,
+   "triangles": 3654
+  },
+  {
+   "bounds": {
+    "max": [
+     -2425.68,
+     11.19,
+     1538.55
+    ],
+    "min": [
+     -2561.58,
+     1.24,
+     1398.57
+    ]
+   },
+   "bucket_triangles": {
+    "roof_placeholder": 18,
+    "snow_roof": 1987,
+    "walls": 1558,
+    "walls_placeholder": 40
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2496.0,
+    1472.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-20_11",
+   "detail_cell": "kw_bld_c128_-20_11",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-20_11.scn",
+   "detail_triangles": 3603,
+   "grid": [
+    -20,
+    11
+   ],
+   "materials": [
+    "roof_placeholder",
+    "snow_roof",
+    "walls",
+    "walls_placeholder"
+   ],
+   "proxy_digest": "c78d40ac189cb078",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-20_11.res",
+   "snow_roof_triangles": 1987,
+   "source_count": 28,
+   "source_hash": "ea7dc9e222409d9b",
+   "source_ids": [
+    "kw:building:osm:w461402957",
+    "kw:building:osm:w547301330",
+    "kw:building:osm:w547301331",
+    "kw:building:osm:w547301332",
+    "kw:building:osm:w547301333",
+    "kw:building:osm:w547301334",
+    "kw:building:osm:w547301335",
+    "kw:building:osm:w547301337",
+    "kw:building:osm:w547301338",
+    "kw:building:osm:w547301339",
+    "kw:building:osm:w547301341",
+    "kw:building:osm:w547301342",
+    "kw:building:osm:w547546233",
+    "kw:building:osm:w547546236",
+    "kw:building:osm:w547768866",
+    "kw:building:osm:w547768867",
+    "kw:building:osm:w547768868",
+    "kw:building:osm:w547768869",
+    "kw:building:osm:w547768870",
+    "kw:building:osm:w547768871",
+    "kw:building:osm:w547768873",
+    "kw:building:osm:w547768874",
+    "kw:building:osm:w547768875",
+    "kw:building:osm:w547768878",
+    "kw:building:osm:w547768879",
+    "kw:building:osm:w547768880",
+    "kw:building:osm:w547768881",
+    "kw:building:usa_structures:148105"
+   ],
+   "surfaces": 4,
+   "triangles": 3603
+  },
+  {
+   "bounds": {
+    "max": [
+     -2426.81,
+     15.89,
+     646.95
+    ],
+    "min": [
+     -2567.22,
+     -0.46,
+     506.83
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2253,
+    "walls": 2262
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2496.0,
+    576.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-20_4",
+   "detail_cell": "kw_bld_c128_-20_4",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-20_4.scn",
+   "detail_triangles": 4515,
+   "grid": [
+    -20,
+    4
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "d180c0635c15b39c",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-20_4.res",
+   "snow_roof_triangles": 2253,
+   "source_count": 45,
+   "source_hash": "4b2553a08e08d532",
+   "source_ids": [
+    "kw:building:osm:w339439071",
+    "kw:building:osm:w526223761",
+    "kw:building:osm:w526223763",
+    "kw:building:osm:w526223769",
+    "kw:building:osm:w526223771",
+    "kw:building:osm:w526223777",
+    "kw:building:osm:w526223779",
+    "kw:building:osm:w526224782",
+    "kw:building:osm:w585743339",
+    "kw:building:osm:w585743340",
+    "kw:building:osm:w585743343",
+    "kw:building:osm:w585743344",
+    "kw:building:osm:w585743345",
+    "kw:building:osm:w585743506",
+    "kw:building:osm:w585743507",
+    "kw:building:osm:w585743508",
+    "kw:building:osm:w585743510",
+    "kw:building:osm:w597935392",
+    "kw:building:osm:w597935393",
+    "kw:building:osm:w597935394",
+    "kw:building:osm:w597935396",
+    "kw:building:osm:w597935397",
+    "kw:building:osm:w597935398",
+    "kw:building:osm:w597935400",
+    "kw:building:osm:w597935401",
+    "kw:building:osm:w597935402",
+    "kw:building:osm:w597935403",
+    "kw:building:osm:w597935404",
+    "kw:building:osm:w597935405",
+    "kw:building:osm:w597935406",
+    "kw:building:osm:w597935407",
+    "kw:building:osm:w597935408",
+    "kw:building:osm:w597935409",
+    "kw:building:osm:w597935410",
+    "kw:building:osm:w597935411",
+    "kw:building:osm:w597935412",
+    "kw:building:osm:w597935413",
+    "kw:building:osm:w597935415",
+    "kw:building:osm:w597935416",
+    "kw:building:osm:w597935417",
+    "kw:building:osm:w597935419",
+    "kw:building:osm:w597935425",
+    "kw:building:osm:w597935427",
+    "kw:building:osm:w597935428",
+    "kw:building:usa_structures:152909"
+   ],
+   "surfaces": 2,
+   "triangles": 4515
+  },
+  {
+   "bounds": {
+    "max": [
+     -2426.7,
+     12.86,
+     774.89
+    ],
+    "min": [
+     -2565.96,
+     1.19,
+     637.82
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2379,
+    "walls": 2362
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2496.0,
+    704.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-20_5",
+   "detail_cell": "kw_bld_c128_-20_5",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-20_5.scn",
+   "detail_triangles": 4741,
+   "grid": [
+    -20,
+    5
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "06eb1f22901782a2",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-20_5.res",
+   "snow_roof_triangles": 2379,
+   "source_count": 45,
+   "source_hash": "bf4ede2e2cf6266e",
+   "source_ids": [
+    "kw:building:osm:w495777784",
+    "kw:building:osm:w526223759",
+    "kw:building:osm:w526223764",
+    "kw:building:osm:w526223772",
+    "kw:building:osm:w585742277",
+    "kw:building:osm:w585742278",
+    "kw:building:osm:w585742279",
+    "kw:building:osm:w585742280",
+    "kw:building:osm:w586382862",
+    "kw:building:osm:w586382863",
+    "kw:building:osm:w586382864",
+    "kw:building:osm:w586382865",
+    "kw:building:osm:w586382868",
+    "kw:building:osm:w586382869",
+    "kw:building:osm:w586382870",
+    "kw:building:osm:w586382871",
+    "kw:building:osm:w586382873",
+    "kw:building:osm:w586382874",
+    "kw:building:osm:w586382875",
+    "kw:building:osm:w586384187",
+    "kw:building:osm:w586384188",
+    "kw:building:osm:w586384189",
+    "kw:building:osm:w586384190",
+    "kw:building:osm:w596971177",
+    "kw:building:osm:w596971183",
+    "kw:building:osm:w596971184",
+    "kw:building:osm:w596971185",
+    "kw:building:osm:w596971186",
+    "kw:building:osm:w596971187",
+    "kw:building:osm:w596971189",
+    "kw:building:osm:w596971190",
+    "kw:building:osm:w596971192",
+    "kw:building:osm:w596971193",
+    "kw:building:osm:w596971194",
+    "kw:building:osm:w596971195",
+    "kw:building:osm:w596971196",
+    "kw:building:osm:w596971197",
+    "kw:building:osm:w596971198",
+    "kw:building:osm:w596971199",
+    "kw:building:osm:w596971200",
+    "kw:building:osm:w596971201",
+    "kw:building:osm:w596971202",
+    "kw:building:osm:w596971203",
+    "kw:building:osm:w596973943",
+    "kw:building:osm:w596973944"
+   ],
+   "surfaces": 2,
+   "triangles": 4741
+  },
+  {
+   "bounds": {
+    "max": [
+     -2443.02,
+     7.57,
+     869.53
+    ],
+    "min": [
+     -2562.02,
+     1.32,
+     766.82
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 155,
+    "walls": 290
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2496.0,
+    832.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-20_6",
+   "detail_cell": "kw_bld_c128_-20_6",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-20_6.scn",
+   "detail_triangles": 445,
+   "grid": [
+    -20,
+    6
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "ef7d0fb488eefc67",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-20_6.res",
+   "snow_roof_triangles": 155,
+   "source_count": 10,
+   "source_hash": "59a85b9e5d19ec34",
+   "source_ids": [
+    "kw:building:osm:w495777780",
+    "kw:building:osm:w495777781",
+    "kw:building:osm:w495777782",
+    "kw:building:osm:w495777783",
+    "kw:building:osm:w495777785",
+    "kw:building:osm:w495777786",
+    "kw:building:osm:w495777787",
+    "kw:building:osm:w596971179",
+    "kw:building:osm:w596971180",
+    "kw:building:osm:w596971182"
+   ],
+   "surfaces": 2,
+   "triangles": 445
+  },
+  {
+   "bounds": {
+    "max": [
+     -2430.58,
+     5.08,
+     1015.88
+    ],
+    "min": [
+     -2557.59,
+     1.14,
+     924.9
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 206,
+    "walls": 268
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2496.0,
+    960.0
+   ],
+   "chunk": "-5:1",
+   "cluster_id": "c128_-20_7",
+   "detail_cell": "kw_bld_c128_-20_7",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-20_7.scn",
+   "detail_triangles": 474,
+   "grid": [
+    -20,
+    7
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "29e8484b1311b1ca",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-20_7.res",
+   "snow_roof_triangles": 206,
+   "source_count": 10,
+   "source_hash": "90c495c423680fe7",
+   "source_ids": [
+    "kw:building:osm:w495777793",
+    "kw:building:osm:w495777796",
+    "kw:building:osm:w495777797",
+    "kw:building:osm:w495777798",
+    "kw:building:osm:w495777799",
+    "kw:building:osm:w495777800",
+    "kw:building:osm:w495777801",
+    "kw:building:osm:w495777808",
+    "kw:building:osm:w495777809",
+    "kw:building:osm:w495777810"
+   ],
+   "surfaces": 2,
+   "triangles": 474
+  },
+  {
+   "bounds": {
+    "max": [
+     -2421.6,
+     12.05,
+     1161.75
+    ],
+    "min": [
+     -2565.21,
+     1.17,
+     1023.72
+    ]
+   },
+   "bucket_triangles": {
+    "roof_placeholder": 14,
+    "snow_roof": 2340,
+    "walls": 2128,
+    "walls_placeholder": 32
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2496.0,
+    1088.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-20_8",
+   "detail_cell": "kw_bld_c128_-20_8",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-20_8.scn",
+   "detail_triangles": 4514,
+   "grid": [
+    -20,
+    8
+   ],
+   "materials": [
+    "roof_placeholder",
+    "snow_roof",
+    "walls",
+    "walls_placeholder"
+   ],
+   "proxy_digest": "f26a172786eb1685",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-20_8.res",
+   "snow_roof_triangles": 2340,
+   "source_count": 44,
+   "source_hash": "1e4b03c95bea40f8",
+   "source_ids": [
+    "kw:building:osm:w337215812",
+    "kw:building:osm:w461634992",
+    "kw:building:osm:w523730969",
+    "kw:building:osm:w547297712",
+    "kw:building:osm:w547297713",
+    "kw:building:osm:w547297714",
+    "kw:building:osm:w547297715",
+    "kw:building:osm:w547297716",
+    "kw:building:osm:w547297717",
+    "kw:building:osm:w547297719",
+    "kw:building:osm:w547297720",
+    "kw:building:osm:w547297721",
+    "kw:building:osm:w547297722",
+    "kw:building:osm:w547297723",
+    "kw:building:osm:w547297724",
+    "kw:building:osm:w547297743",
+    "kw:building:osm:w547297744",
+    "kw:building:osm:w547297745",
+    "kw:building:osm:w547297746",
+    "kw:building:osm:w551957497",
+    "kw:building:osm:w551957498",
+    "kw:building:osm:w551957499",
+    "kw:building:osm:w551957500",
+    "kw:building:osm:w551957502",
+    "kw:building:osm:w551965001",
+    "kw:building:osm:w551965002",
+    "kw:building:osm:w551965004",
+    "kw:building:osm:w551965005",
+    "kw:building:osm:w551965006",
+    "kw:building:osm:w551965007",
+    "kw:building:osm:w551965008",
+    "kw:building:osm:w551965009",
+    "kw:building:osm:w551965010",
+    "kw:building:osm:w585739967",
+    "kw:building:osm:w585739968",
+    "kw:building:osm:w585739969",
+    "kw:building:osm:w929426213",
+    "kw:building:overture:63c574aa-76f4-48ff-bcca-5db171d6b301",
+    "kw:building:overture:63cc439b-fcfd-4f80-b4fb-cc5c7eeae463",
+    "kw:building:overture:b0290d96-2ef2-450d-ab8b-b61f9fd94b04",
+    "kw:building:usa_structures:149736",
+    "kw:building:usa_structures:32250472",
+    "kw:building:usa_structures:32250737",
+    "kw:building:usa_structures:32250850"
+   ],
+   "surfaces": 4,
+   "triangles": 4514
+  },
+  {
+   "bounds": {
+    "max": [
+     -2420.13,
+     12.37,
+     1283.94
+    ],
+    "min": [
+     -2565.34,
+     -0.17,
+     1136.96
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1565,
+    "walls": 1690
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2496.0,
+    1216.0
+   ],
+   "chunk": "-5:2",
+   "cluster_id": "c128_-20_9",
+   "detail_cell": "kw_bld_c128_-20_9",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-20_9.scn",
+   "detail_triangles": 3255,
+   "grid": [
+    -20,
+    9
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "b67b889ef6bea6d1",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-20_9.res",
+   "snow_roof_triangles": 1565,
+   "source_count": 24,
+   "source_hash": "9970f46332eab05a",
+   "source_ids": [
+    "kw:building:osm:r4768738",
+    "kw:building:osm:w523730965",
+    "kw:building:osm:w523730966",
+    "kw:building:osm:w523730967",
+    "kw:building:osm:w523730968",
+    "kw:building:osm:w524181360",
+    "kw:building:osm:w524181361",
+    "kw:building:osm:w524181362",
+    "kw:building:osm:w524181363",
+    "kw:building:osm:w524184831",
+    "kw:building:osm:w524184832",
+    "kw:building:osm:w524184834",
+    "kw:building:osm:w524184836",
+    "kw:building:osm:w524184838",
+    "kw:building:osm:w524184842",
+    "kw:building:osm:w524184844",
+    "kw:building:osm:w524184856",
+    "kw:building:osm:w524184857",
+    "kw:building:osm:w547297763",
+    "kw:building:osm:w547297766",
+    "kw:building:osm:w585739963",
+    "kw:building:osm:w585739964",
+    "kw:building:osm:w585739965",
+    "kw:building:osm:w585739966"
+   ],
+   "surfaces": 2,
+   "triangles": 3255
+  },
+  {
+   "bounds": {
+    "max": [
+     -2568.38,
+     13.85,
+     1430.44
+    ],
+    "min": [
+     -2705.86,
+     1.41,
+     1263.96
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1184,
+    "walls": 1000
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2624.0,
+    1344.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-21_10",
+   "detail_cell": "kw_bld_c128_-21_10",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-21_10.scn",
+   "detail_triangles": 2184,
+   "grid": [
+    -21,
+    10
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "a818a287b0f00ddd",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-21_10.res",
+   "snow_roof_triangles": 1184,
+   "source_count": 8,
+   "source_hash": "0f21e6ca8691ab8a",
+   "source_ids": [
+    "kw:building:osm:w337215819",
+    "kw:building:osm:w337215845",
+    "kw:building:osm:w337215848",
+    "kw:building:osm:w337215851",
+    "kw:building:osm:w337215852",
+    "kw:building:osm:w548036532",
+    "kw:building:osm:w548036537",
+    "kw:building:usa_structures:148281"
+   ],
+   "surfaces": 2,
+   "triangles": 2184
+  },
+  {
+   "bounds": {
+    "max": [
+     -2553.97,
+     11.19,
+     1544.79
+    ],
+    "min": [
+     -2679.19,
+     1.29,
+     1423.28
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 314,
+    "walls": 520
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2624.0,
+    1472.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-21_11",
+   "detail_cell": "kw_bld_c128_-21_11",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-21_11.scn",
+   "detail_triangles": 834,
+   "grid": [
+    -21,
+    11
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "82a5dfe86feddaac",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-21_11.res",
+   "snow_roof_triangles": 314,
+   "source_count": 5,
+   "source_hash": "e37df9ea7e67d42a",
+   "source_ids": [
+    "kw:building:osm:w178100169",
+    "kw:building:osm:w547768876",
+    "kw:building:osm:w547768877",
+    "kw:building:osm:w585502379",
+    "kw:building:overture:947934b8-f707-49a8-8126-7de4f4db1c4c"
+   ],
+   "surfaces": 2,
+   "triangles": 834
+  },
+  {
+   "bounds": {
+    "max": [
+     -2549.03,
+     11.82,
+     644.91
+    ],
+    "min": [
+     -2695.88,
+     0.64,
+     508.87
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2200,
+    "walls": 2256
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2624.0,
+    576.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-21_4",
+   "detail_cell": "kw_bld_c128_-21_4",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-21_4.scn",
+   "detail_triangles": 4456,
+   "grid": [
+    -21,
+    4
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "821694f1127a47cb",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-21_4.res",
+   "snow_roof_triangles": 2200,
+   "source_count": 43,
+   "source_hash": "9d7395033cb725d1",
+   "source_ids": [
+    "kw:building:osm:w461242704",
+    "kw:building:osm:w461616130",
+    "kw:building:osm:w461616131",
+    "kw:building:osm:w461616132",
+    "kw:building:osm:w596973945",
+    "kw:building:osm:w596973946",
+    "kw:building:osm:w596973947",
+    "kw:building:osm:w596973948",
+    "kw:building:osm:w596973951",
+    "kw:building:osm:w596973952",
+    "kw:building:osm:w596973953",
+    "kw:building:osm:w596973954",
+    "kw:building:osm:w596973955",
+    "kw:building:osm:w596973956",
+    "kw:building:osm:w596973957",
+    "kw:building:osm:w596973958",
+    "kw:building:osm:w596973959",
+    "kw:building:osm:w596973960",
+    "kw:building:osm:w596973961",
+    "kw:building:osm:w596973962",
+    "kw:building:osm:w596973963",
+    "kw:building:osm:w596973964",
+    "kw:building:osm:w596973965",
+    "kw:building:osm:w596973966",
+    "kw:building:osm:w596973967",
+    "kw:building:osm:w596973974",
+    "kw:building:osm:w596973975",
+    "kw:building:osm:w596973976",
+    "kw:building:osm:w596973977",
+    "kw:building:osm:w596973978",
+    "kw:building:osm:w596973981",
+    "kw:building:osm:w596973982",
+    "kw:building:osm:w596973983",
+    "kw:building:osm:w596973986",
+    "kw:building:osm:w596973989",
+    "kw:building:osm:w596976698",
+    "kw:building:osm:w597045928",
+    "kw:building:osm:w597935421",
+    "kw:building:osm:w597935422",
+    "kw:building:osm:w597935423",
+    "kw:building:osm:w597935426",
+    "kw:building:osm:w597935807",
+    "kw:building:osm:w597935808"
+   ],
+   "surfaces": 2,
+   "triangles": 4456
+  },
+  {
+   "bounds": {
+    "max": [
+     -2553.76,
+     15.01,
+     771.29
+    ],
+    "min": [
+     -2694.69,
+     -0.05,
+     627.12
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1424,
+    "walls": 1976
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2624.0,
+    704.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-21_5",
+   "detail_cell": "kw_bld_c128_-21_5",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-21_5.scn",
+   "detail_triangles": 3400,
+   "grid": [
+    -21,
+    5
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "d857ccae3c52a532",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-21_5.res",
+   "snow_roof_triangles": 1424,
+   "source_count": 33,
+   "source_hash": "fb4d3ee3a8ee26cb",
+   "source_ids": [
+    "kw:building:osm:w339439072",
+    "kw:building:osm:w596968937",
+    "kw:building:osm:w596968938",
+    "kw:building:osm:w596968939",
+    "kw:building:osm:w596968940",
+    "kw:building:osm:w596968941",
+    "kw:building:osm:w596971155",
+    "kw:building:osm:w596971156",
+    "kw:building:osm:w596971157",
+    "kw:building:osm:w596971159",
+    "kw:building:osm:w596971160",
+    "kw:building:osm:w596971161",
+    "kw:building:osm:w596971162",
+    "kw:building:osm:w596971163",
+    "kw:building:osm:w596971164",
+    "kw:building:osm:w596971166",
+    "kw:building:osm:w596971168",
+    "kw:building:osm:w596971169",
+    "kw:building:osm:w596971170",
+    "kw:building:osm:w596971172",
+    "kw:building:osm:w596971173",
+    "kw:building:osm:w596971175",
+    "kw:building:osm:w596973941",
+    "kw:building:osm:w596973942",
+    "kw:building:osm:w596976686",
+    "kw:building:osm:w596976687",
+    "kw:building:osm:w596976691",
+    "kw:building:osm:w596976693",
+    "kw:building:osm:w596976700",
+    "kw:building:osm:w596976701",
+    "kw:building:osm:w596976703",
+    "kw:building:osm:w596976705",
+    "kw:building:osm:w596976723"
+   ],
+   "surfaces": 2,
+   "triangles": 3400
+  },
+  {
+   "bounds": {
+    "max": [
+     -2576.93,
+     11.35,
+     880.46
+    ],
+    "min": [
+     -2690.96,
+     0.91,
+     760.96
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 957,
+    "walls": 1326
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2624.0,
+    832.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-21_6",
+   "detail_cell": "kw_bld_c128_-21_6",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-21_6.scn",
+   "detail_triangles": 2283,
+   "grid": [
+    -21,
+    6
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "e542e67add551cb6",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-21_6.res",
+   "snow_roof_triangles": 957,
+   "source_count": 25,
+   "source_hash": "7bc1639a0b3daa3d",
+   "source_ids": [
+    "kw:building:osm:w462663031",
+    "kw:building:osm:w525620020",
+    "kw:building:osm:w525620201",
+    "kw:building:osm:w596968910",
+    "kw:building:osm:w596968911",
+    "kw:building:osm:w596968912",
+    "kw:building:osm:w596968913",
+    "kw:building:osm:w596968915",
+    "kw:building:osm:w596968916",
+    "kw:building:osm:w596968918",
+    "kw:building:osm:w596968919",
+    "kw:building:osm:w596968920",
+    "kw:building:osm:w596968921",
+    "kw:building:osm:w596968922",
+    "kw:building:osm:w596968924",
+    "kw:building:osm:w596968926",
+    "kw:building:osm:w596968927",
+    "kw:building:osm:w596968929",
+    "kw:building:osm:w596968932",
+    "kw:building:osm:w596968934",
+    "kw:building:osm:w596968935",
+    "kw:building:osm:w596968936",
+    "kw:building:osm:w596968943",
+    "kw:building:osm:w596971153",
+    "kw:building:osm:w596971154"
+   ],
+   "surfaces": 2,
+   "triangles": 2283
+  },
+  {
+   "bounds": {
+    "max": [
+     -2557.03,
+     6.17,
+     1019.75
+    ],
+    "min": [
+     -2691.39,
+     1.03,
+     890.19
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 120,
+    "walls": 172
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2624.0,
+    960.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-21_7",
+   "detail_cell": "kw_bld_c128_-21_7",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-21_7.scn",
+   "detail_triangles": 292,
+   "grid": [
+    -21,
+    7
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "627795af83ed96c6",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-21_7.res",
+   "snow_roof_triangles": 120,
+   "source_count": 6,
+   "source_hash": "daf08d3e6f9c02da",
+   "source_ids": [
+    "kw:building:osm:w495777802",
+    "kw:building:osm:w495777803",
+    "kw:building:osm:w495777805",
+    "kw:building:osm:w495777806",
+    "kw:building:osm:w495777807",
+    "kw:building:osm:w495777813"
+   ],
+   "surfaces": 2,
+   "triangles": 292
+  },
+  {
+   "bounds": {
+    "max": [
+     -2557.44,
+     8.47,
+     1157.39
+    ],
+    "min": [
+     -2690.5,
+     1.16,
+     1022.75
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 832,
+    "walls": 960
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2624.0,
+    1088.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-21_8",
+   "detail_cell": "kw_bld_c128_-21_8",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-21_8.scn",
+   "detail_triangles": 1792,
+   "grid": [
+    -21,
+    8
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "17a017d1303ad0e1",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-21_8.res",
+   "snow_roof_triangles": 832,
+   "source_count": 20,
+   "source_hash": "7d5bde50cfe91013",
+   "source_ids": [
+    "kw:building:osm:w461634993",
+    "kw:building:osm:w495777804",
+    "kw:building:osm:w495777811",
+    "kw:building:osm:w495777812",
+    "kw:building:osm:w523730160",
+    "kw:building:osm:w523730161",
+    "kw:building:osm:w523730162",
+    "kw:building:osm:w523730164",
+    "kw:building:osm:w523730166",
+    "kw:building:osm:w523730167",
+    "kw:building:osm:w523730168",
+    "kw:building:osm:w547297725",
+    "kw:building:osm:w547297726",
+    "kw:building:osm:w547297727",
+    "kw:building:osm:w547297728",
+    "kw:building:osm:w547297729",
+    "kw:building:osm:w547297730",
+    "kw:building:osm:w547297731",
+    "kw:building:overture:3f23146b-88f2-4537-88ed-a93c39fd3c58",
+    "kw:building:overture:d7156924-472e-4b62-b703-ff875dd6d1eb"
+   ],
+   "surfaces": 2,
+   "triangles": 1792
+  },
+  {
+   "bounds": {
+    "max": [
+     -2550.28,
+     13.11,
+     1279.35
+    ],
+    "min": [
+     -2693.67,
+     1.16,
+     1144.67
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2357,
+    "walls": 1950
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2624.0,
+    1216.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-21_9",
+   "detail_cell": "kw_bld_c128_-21_9",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-21_9.scn",
+   "detail_triangles": 4307,
+   "grid": [
+    -21,
+    9
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "ef7da048e1661c33",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-21_9.res",
+   "snow_roof_triangles": 2357,
+   "source_count": 42,
+   "source_hash": "22d777ee7e8546b6",
+   "source_ids": [
+    "kw:building:osm:w337215813",
+    "kw:building:osm:w337215817",
+    "kw:building:osm:w339418316",
+    "kw:building:osm:w461634994",
+    "kw:building:osm:w523730157",
+    "kw:building:osm:w523730163",
+    "kw:building:osm:w523730171",
+    "kw:building:osm:w523730963",
+    "kw:building:osm:w523730964",
+    "kw:building:osm:w523822380",
+    "kw:building:osm:w523822381",
+    "kw:building:osm:w523822382",
+    "kw:building:osm:w523822383",
+    "kw:building:osm:w523822384",
+    "kw:building:osm:w523822385",
+    "kw:building:osm:w547297732",
+    "kw:building:osm:w547297733",
+    "kw:building:osm:w547297734",
+    "kw:building:osm:w547297735",
+    "kw:building:osm:w547297736",
+    "kw:building:osm:w547297737",
+    "kw:building:osm:w547297738",
+    "kw:building:osm:w547297739",
+    "kw:building:osm:w547297741",
+    "kw:building:osm:w547297742",
+    "kw:building:osm:w548036534",
+    "kw:building:osm:w548036535",
+    "kw:building:osm:w548036536",
+    "kw:building:osm:w548038283",
+    "kw:building:osm:w548038284",
+    "kw:building:osm:w548038285",
+    "kw:building:osm:w580668344",
+    "kw:building:osm:w580668346",
+    "kw:building:osm:w580668348",
+    "kw:building:osm:w580668354",
+    "kw:building:osm:w580668356",
+    "kw:building:osm:w580668358",
+    "kw:building:osm:w580668360",
+    "kw:building:osm:w585739955",
+    "kw:building:osm:w585739956",
+    "kw:building:osm:w585739962",
+    "kw:building:usa_structures:32250100"
+   ],
+   "surfaces": 2,
+   "triangles": 4307
+  },
+  {
+   "bounds": {
+    "max": [
+     -2682.93,
+     11.07,
+     1405.58
+    ],
+    "min": [
+     -2820.91,
+     0.86,
+     1271.44
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 948,
+    "walls": 1360
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2752.0,
+    1344.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-22_10",
+   "detail_cell": "kw_bld_c128_-22_10",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-22_10.scn",
+   "detail_triangles": 2308,
+   "grid": [
+    -22,
+    10
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "57928e2382572ec7",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-22_10.res",
+   "snow_roof_triangles": 948,
+   "source_count": 24,
+   "source_hash": "06475e03c3800070",
+   "source_ids": [
+    "kw:building:osm:w337215821",
+    "kw:building:osm:w337215822",
+    "kw:building:osm:w337215824",
+    "kw:building:osm:w337215826",
+    "kw:building:osm:w523730169",
+    "kw:building:osm:w523730170",
+    "kw:building:osm:w580668382",
+    "kw:building:osm:w580668386",
+    "kw:building:osm:w580668388",
+    "kw:building:osm:w580668390",
+    "kw:building:osm:w580668394",
+    "kw:building:osm:w580668396",
+    "kw:building:osm:w580668399",
+    "kw:building:osm:w580668400",
+    "kw:building:osm:w580668402",
+    "kw:building:osm:w580668403",
+    "kw:building:osm:w580668404",
+    "kw:building:osm:w580668405",
+    "kw:building:osm:w580668409",
+    "kw:building:osm:w580681171",
+    "kw:building:osm:w580681172",
+    "kw:building:osm:w580681173",
+    "kw:building:osm:w580681174",
+    "kw:building:osm:w688997022"
+   ],
+   "surfaces": 2,
+   "triangles": 2308
+  },
+  {
+   "bounds": {
+    "max": [
+     -2688.58,
+     13.69,
+     1537.95
+    ],
+    "min": [
+     -2826.39,
+     0.77,
+     1408.85
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1452,
+    "walls": 1420
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2752.0,
+    1472.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-22_11",
+   "detail_cell": "kw_bld_c128_-22_11",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-22_11.scn",
+   "detail_triangles": 2872,
+   "grid": [
+    -22,
+    11
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "3c6532fca4ec5932",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-22_11.res",
+   "snow_roof_triangles": 1452,
+   "source_count": 27,
+   "source_hash": "1719c248badb86f1",
+   "source_ids": [
+    "kw:building:osm:w337215829",
+    "kw:building:osm:w337215855",
+    "kw:building:osm:w495774114",
+    "kw:building:osm:w525620155",
+    "kw:building:osm:w547117829",
+    "kw:building:osm:w547117830",
+    "kw:building:osm:w547117831",
+    "kw:building:osm:w547117832",
+    "kw:building:osm:w547117833",
+    "kw:building:osm:w547117834",
+    "kw:building:osm:w547117835",
+    "kw:building:osm:w547117836",
+    "kw:building:osm:w547117837",
+    "kw:building:osm:w547117838",
+    "kw:building:osm:w547117839",
+    "kw:building:osm:w547117840",
+    "kw:building:osm:w547117841",
+    "kw:building:osm:w547117843",
+    "kw:building:osm:w547117844",
+    "kw:building:osm:w547117845",
+    "kw:building:osm:w547117846",
+    "kw:building:osm:w547117847",
+    "kw:building:osm:w585502381",
+    "kw:building:osm:w585502383",
+    "kw:building:osm:w585502385",
+    "kw:building:usa_structures:147801",
+    "kw:building:usa_structures:32248882"
+   ],
+   "surfaces": 2,
+   "triangles": 2872
+  },
+  {
+   "bounds": {
+    "max": [
+     -2680.18,
+     11.97,
+     649.87
+    ],
+    "min": [
+     -2820.06,
+     0.54,
+     502.51
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2380,
+    "walls": 2152
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2752.0,
+    576.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-22_4",
+   "detail_cell": "kw_bld_c128_-22_4",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-22_4.scn",
+   "detail_triangles": 4532,
+   "grid": [
+    -22,
+    4
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "8e0173adafdf8c17",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-22_4.res",
+   "snow_roof_triangles": 2380,
+   "source_count": 35,
+   "source_hash": "7e74834edc0458fd",
+   "source_ids": [
+    "kw:building:osm:w461412540",
+    "kw:building:osm:w475308918",
+    "kw:building:osm:w475308998",
+    "kw:building:osm:w475309000",
+    "kw:building:osm:w475309343",
+    "kw:building:osm:w475310391",
+    "kw:building:osm:w475310634",
+    "kw:building:osm:w596973968",
+    "kw:building:osm:w596973969",
+    "kw:building:osm:w596973970",
+    "kw:building:osm:w596973971",
+    "kw:building:osm:w596973972",
+    "kw:building:osm:w597038205",
+    "kw:building:osm:w597038206",
+    "kw:building:osm:w597038207",
+    "kw:building:osm:w597038208",
+    "kw:building:osm:w597038209",
+    "kw:building:osm:w597042814",
+    "kw:building:osm:w597042815",
+    "kw:building:osm:w597042816",
+    "kw:building:osm:w597042817",
+    "kw:building:osm:w597042844",
+    "kw:building:osm:w597042847",
+    "kw:building:osm:w597042848",
+    "kw:building:osm:w597042849",
+    "kw:building:osm:w597042850",
+    "kw:building:osm:w597045929",
+    "kw:building:osm:w597045930",
+    "kw:building:osm:w597045931",
+    "kw:building:osm:w597045932",
+    "kw:building:osm:w597045933",
+    "kw:building:osm:w597935825",
+    "kw:building:osm:w597935826",
+    "kw:building:osm:w597935827",
+    "kw:building:usa_structures:32253401"
+   ],
+   "surfaces": 2,
+   "triangles": 4532
+  },
+  {
+   "bounds": {
+    "max": [
+     -2677.72,
+     11.1,
+     790.71
+    ],
+    "min": [
+     -2824.84,
+     0.17,
+     636.68
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2143,
+    "walls": 2254
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2752.0,
+    704.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-22_5",
+   "detail_cell": "kw_bld_c128_-22_5",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-22_5.scn",
+   "detail_triangles": 4397,
+   "grid": [
+    -22,
+    5
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "352312c78fbb1e08",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-22_5.res",
+   "snow_roof_triangles": 2143,
+   "source_count": 42,
+   "source_hash": "d8e079f551106628",
+   "source_ids": [
+    "kw:building:osm:w461616136",
+    "kw:building:osm:w475309481",
+    "kw:building:osm:w596968942",
+    "kw:building:osm:w596976710",
+    "kw:building:osm:w596976713",
+    "kw:building:osm:w596976715",
+    "kw:building:osm:w596976717",
+    "kw:building:osm:w596976718",
+    "kw:building:osm:w596976719",
+    "kw:building:osm:w596976720",
+    "kw:building:osm:w596976721",
+    "kw:building:osm:w596976722",
+    "kw:building:osm:w596976725",
+    "kw:building:osm:w596976726",
+    "kw:building:osm:w596976727",
+    "kw:building:osm:w596976728",
+    "kw:building:osm:w596976729",
+    "kw:building:osm:w596976730",
+    "kw:building:osm:w596976732",
+    "kw:building:osm:w596976733",
+    "kw:building:osm:w596976734",
+    "kw:building:osm:w596976735",
+    "kw:building:osm:w596976736",
+    "kw:building:osm:w596976737",
+    "kw:building:osm:w596976739",
+    "kw:building:osm:w596976742",
+    "kw:building:osm:w596976743",
+    "kw:building:osm:w596976744",
+    "kw:building:osm:w596976745",
+    "kw:building:osm:w596976746",
+    "kw:building:osm:w597038183",
+    "kw:building:osm:w597038184",
+    "kw:building:osm:w597038185",
+    "kw:building:osm:w597038186",
+    "kw:building:osm:w597038187",
+    "kw:building:osm:w597038196",
+    "kw:building:osm:w597038197",
+    "kw:building:osm:w597038198",
+    "kw:building:osm:w597038200",
+    "kw:building:osm:w597038201",
+    "kw:building:osm:w597038202",
+    "kw:building:osm:w597038203"
+   ],
+   "surfaces": 2,
+   "triangles": 4397
+  },
+  {
+   "bounds": {
+    "max": [
+     -2686.82,
+     12.8,
+     910.29
+    ],
+    "min": [
+     -2819.52,
+     0.49,
+     764.39
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1282,
+    "walls": 1388
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2752.0,
+    832.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-22_6",
+   "detail_cell": "kw_bld_c128_-22_6",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-22_6.scn",
+   "detail_triangles": 2670,
+   "grid": [
+    -22,
+    6
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "65669b6c29124e9f",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-22_6.res",
+   "snow_roof_triangles": 1282,
+   "source_count": 20,
+   "source_hash": "8c14fcb818763923",
+   "source_ids": [
+    "kw:building:osm:w339439073",
+    "kw:building:osm:w461242703",
+    "kw:building:osm:w462663032",
+    "kw:building:osm:w525619931",
+    "kw:building:osm:w589678938",
+    "kw:building:osm:w589678940",
+    "kw:building:osm:w596964034",
+    "kw:building:osm:w596968893",
+    "kw:building:osm:w596968895",
+    "kw:building:osm:w596968896",
+    "kw:building:osm:w596968898",
+    "kw:building:osm:w596968901",
+    "kw:building:osm:w596968903",
+    "kw:building:osm:w596968904",
+    "kw:building:osm:w596968905",
+    "kw:building:osm:w596968907",
+    "kw:building:osm:w596968909",
+    "kw:building:usa_structures:151419",
+    "kw:building:usa_structures:32251612",
+    "kw:building:usa_structures:32251791"
+   ],
+   "surfaces": 2,
+   "triangles": 2670
+  },
+  {
+   "bounds": {
+    "max": [
+     -2701.92,
+     11.55,
+     1029.98
+    ],
+    "min": [
+     -2822.71,
+     -0.48,
+     890.74
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1557,
+    "walls": 1814
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2752.0,
+    960.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-22_7",
+   "detail_cell": "kw_bld_c128_-22_7",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-22_7.scn",
+   "detail_triangles": 3371,
+   "grid": [
+    -22,
+    7
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "e744576bbad74939",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-22_7.res",
+   "snow_roof_triangles": 1557,
+   "source_count": 36,
+   "source_hash": "cc528547e3e5d4f7",
+   "source_ids": [
+    "kw:building:osm:w462663033",
+    "kw:building:osm:w462663035",
+    "kw:building:osm:w523725096",
+    "kw:building:osm:w596958358",
+    "kw:building:osm:w596958359",
+    "kw:building:osm:w596958360",
+    "kw:building:osm:w596958361",
+    "kw:building:osm:w596958363",
+    "kw:building:osm:w596958364",
+    "kw:building:osm:w596958365",
+    "kw:building:osm:w596958366",
+    "kw:building:osm:w596958368",
+    "kw:building:osm:w596958369",
+    "kw:building:osm:w596958370",
+    "kw:building:osm:w596958372",
+    "kw:building:osm:w596964023",
+    "kw:building:osm:w596964024",
+    "kw:building:osm:w596964025",
+    "kw:building:osm:w596964026",
+    "kw:building:osm:w596964027",
+    "kw:building:osm:w596964028",
+    "kw:building:osm:w596964030",
+    "kw:building:osm:w596964031",
+    "kw:building:osm:w596964033",
+    "kw:building:osm:w596964036",
+    "kw:building:osm:w596964039",
+    "kw:building:osm:w596964040",
+    "kw:building:osm:w596964041",
+    "kw:building:osm:w596964042",
+    "kw:building:osm:w596964044",
+    "kw:building:osm:w596964047",
+    "kw:building:osm:w596964048",
+    "kw:building:osm:w596964049",
+    "kw:building:osm:w597416096",
+    "kw:building:osm:w597416101",
+    "kw:building:osm:w597416106"
+   ],
+   "surfaces": 2,
+   "triangles": 3371
+  },
+  {
+   "bounds": {
+    "max": [
+     -2683.6,
+     12.36,
+     1162.62
+    ],
+    "min": [
+     -2818.95,
+     0.1,
+     1018.54
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1893,
+    "walls": 2102
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2752.0,
+    1088.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-22_8",
+   "detail_cell": "kw_bld_c128_-22_8",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-22_8.scn",
+   "detail_triangles": 3995,
+   "grid": [
+    -22,
+    8
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "3d5ff105746849da",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-22_8.res",
+   "snow_roof_triangles": 1893,
+   "source_count": 41,
+   "source_hash": "b0ab194f630b15d9",
+   "source_ids": [
+    "kw:building:osm:w461258851",
+    "kw:building:osm:w523724738",
+    "kw:building:osm:w523724739",
+    "kw:building:osm:w523724742",
+    "kw:building:osm:w523724743",
+    "kw:building:osm:w523724744",
+    "kw:building:osm:w523725090",
+    "kw:building:osm:w523725091",
+    "kw:building:osm:w523725093",
+    "kw:building:osm:w523725095",
+    "kw:building:osm:w523725097",
+    "kw:building:osm:w523725098",
+    "kw:building:osm:w523726192",
+    "kw:building:osm:w523727130",
+    "kw:building:osm:w523727131",
+    "kw:building:osm:w523727132",
+    "kw:building:osm:w523727133",
+    "kw:building:osm:w523727134",
+    "kw:building:osm:w523727135",
+    "kw:building:osm:w523727136",
+    "kw:building:osm:w523727137",
+    "kw:building:osm:w523730149",
+    "kw:building:osm:w523730151",
+    "kw:building:osm:w523730153",
+    "kw:building:osm:w523730155",
+    "kw:building:osm:w523730165",
+    "kw:building:osm:w578677390",
+    "kw:building:osm:w578677510",
+    "kw:building:osm:w578677511",
+    "kw:building:osm:w578677512",
+    "kw:building:osm:w578677513",
+    "kw:building:osm:w578677821",
+    "kw:building:osm:w578677823",
+    "kw:building:osm:w578677824",
+    "kw:building:osm:w578677825",
+    "kw:building:osm:w578677826",
+    "kw:building:osm:w597416092",
+    "kw:building:overture:167c842c-7c02-4183-b726-9aafe86f6012",
+    "kw:building:overture:20df9911-dd94-4545-be03-ab4795b5f1b6",
+    "kw:building:usa_structures:32250674",
+    "kw:building:usa_structures:32250750"
+   ],
+   "surfaces": 2,
+   "triangles": 3995
+  },
+  {
+   "bounds": {
+    "max": [
+     -2681.24,
+     10.61,
+     1285.93
+    ],
+    "min": [
+     -2823.29,
+     -0.48,
+     1148.24
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1805,
+    "walls": 2122
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2752.0,
+    1216.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-22_9",
+   "detail_cell": "kw_bld_c128_-22_9",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-22_9.scn",
+   "detail_triangles": 3927,
+   "grid": [
+    -22,
+    9
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "c60a2fd50e22d59a",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-22_9.res",
+   "snow_roof_triangles": 1805,
+   "source_count": 43,
+   "source_hash": "29334288b9928f80",
+   "source_ids": [
+    "kw:building:osm:w339418315",
+    "kw:building:osm:w523822386",
+    "kw:building:osm:w523822387",
+    "kw:building:osm:w578676621",
+    "kw:building:osm:w578677364",
+    "kw:building:osm:w578677365",
+    "kw:building:osm:w578677366",
+    "kw:building:osm:w578677368",
+    "kw:building:osm:w578677369",
+    "kw:building:osm:w578677371",
+    "kw:building:osm:w578677372",
+    "kw:building:osm:w578677373",
+    "kw:building:osm:w578677374",
+    "kw:building:osm:w578677375",
+    "kw:building:osm:w578677376",
+    "kw:building:osm:w578677377",
+    "kw:building:osm:w578677378",
+    "kw:building:osm:w578677379",
+    "kw:building:osm:w578677380",
+    "kw:building:osm:w578677382",
+    "kw:building:osm:w578677384",
+    "kw:building:osm:w578677385",
+    "kw:building:osm:w578677386",
+    "kw:building:osm:w578677387",
+    "kw:building:osm:w578677388",
+    "kw:building:osm:w578677389",
+    "kw:building:osm:w580668351",
+    "kw:building:osm:w580668352",
+    "kw:building:osm:w580668362",
+    "kw:building:osm:w580668364",
+    "kw:building:osm:w580668365",
+    "kw:building:osm:w580668366",
+    "kw:building:osm:w580668369",
+    "kw:building:osm:w580668370",
+    "kw:building:osm:w580668372",
+    "kw:building:osm:w580668374",
+    "kw:building:osm:w580668377",
+    "kw:building:osm:w580668380",
+    "kw:building:osm:w580668397",
+    "kw:building:usa_structures:149289",
+    "kw:building:usa_structures:32249844",
+    "kw:building:usa_structures:32250289",
+    "kw:building:usa_structures:32250338"
+   ],
+   "surfaces": 2,
+   "triangles": 3927
+  },
+  {
+   "bounds": {
+    "max": [
+     -2807.13,
+     13.84,
+     1413.92
+    ],
+    "min": [
+     -2953.6,
+     1.28,
+     1279.67
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2880,
+    "walls": 2448
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2880.0,
+    1344.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-23_10",
+   "detail_cell": "kw_bld_c128_-23_10",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-23_10.scn",
+   "detail_triangles": 5328,
+   "grid": [
+    -23,
+    10
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "9e72fbd50696f24e",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-23_10.res",
+   "snow_roof_triangles": 2880,
+   "source_count": 44,
+   "source_hash": "bc7833ce90092cd5",
+   "source_ids": [
+    "kw:building:osm:w337215828",
+    "kw:building:osm:w339418313",
+    "kw:building:osm:w339418314",
+    "kw:building:osm:w339418323",
+    "kw:building:osm:w502183058",
+    "kw:building:osm:w502183059",
+    "kw:building:osm:w502183060",
+    "kw:building:osm:w523822391",
+    "kw:building:osm:w523822392",
+    "kw:building:osm:w578676609",
+    "kw:building:osm:w578676610",
+    "kw:building:osm:w578676611",
+    "kw:building:osm:w578676612",
+    "kw:building:osm:w578676613",
+    "kw:building:osm:w580668406",
+    "kw:building:osm:w580668407",
+    "kw:building:osm:w580668408",
+    "kw:building:osm:w580668410",
+    "kw:building:osm:w580668411",
+    "kw:building:osm:w580668413",
+    "kw:building:osm:w580668414",
+    "kw:building:osm:w580668415",
+    "kw:building:osm:w580668416",
+    "kw:building:osm:w580668417",
+    "kw:building:osm:w580668418",
+    "kw:building:osm:w688997020",
+    "kw:building:osm:w689146049",
+    "kw:building:osm:w689146050",
+    "kw:building:osm:w689146055",
+    "kw:building:osm:w689146059",
+    "kw:building:osm:w689146060",
+    "kw:building:osm:w689146062",
+    "kw:building:osm:w689146063",
+    "kw:building:osm:w689146067",
+    "kw:building:osm:w689146070",
+    "kw:building:osm:w689146072",
+    "kw:building:osm:w689146075",
+    "kw:building:osm:w689146078",
+    "kw:building:osm:w689146084",
+    "kw:building:osm:w689146087",
+    "kw:building:osm:w689168363",
+    "kw:building:osm:w689168365",
+    "kw:building:osm:w689168375",
+    "kw:building:usa_structures:32249372"
+   ],
+   "surfaces": 2,
+   "triangles": 5328
+  },
+  {
+   "bounds": {
+    "max": [
+     -2809.37,
+     17.17,
+     1544.68
+    ],
+    "min": [
+     -2944.35,
+     1.45,
+     1404.22
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1462,
+    "walls": 1948
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2880.0,
+    1472.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-23_11",
+   "detail_cell": "kw_bld_c128_-23_11",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-23_11.scn",
+   "detail_triangles": 3410,
+   "grid": [
+    -23,
+    11
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "c59a48cf52375132",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-23_11.res",
+   "snow_roof_triangles": 1462,
+   "source_count": 34,
+   "source_hash": "f55a9ab0460bc4d4",
+   "source_ids": [
+    "kw:building:osm:w302573675",
+    "kw:building:osm:w338225791",
+    "kw:building:osm:w338225792",
+    "kw:building:osm:w339418311",
+    "kw:building:osm:w339418312",
+    "kw:building:osm:w495360152",
+    "kw:building:osm:w495774115",
+    "kw:building:osm:w495774119",
+    "kw:building:osm:w495774120",
+    "kw:building:osm:w495774121",
+    "kw:building:osm:w495774122",
+    "kw:building:osm:w495774123",
+    "kw:building:osm:w495774124",
+    "kw:building:osm:w495774127",
+    "kw:building:osm:w689144027",
+    "kw:building:osm:w689144029",
+    "kw:building:osm:w689146051",
+    "kw:building:osm:w689146052",
+    "kw:building:osm:w689146054",
+    "kw:building:osm:w689146056",
+    "kw:building:osm:w689146090",
+    "kw:building:osm:w689146093",
+    "kw:building:osm:w689146097",
+    "kw:building:osm:w689146100",
+    "kw:building:osm:w689146102",
+    "kw:building:osm:w689146104",
+    "kw:building:osm:w689146106",
+    "kw:building:osm:w689146107",
+    "kw:building:osm:w689167041",
+    "kw:building:osm:w689167042",
+    "kw:building:osm:w689167043",
+    "kw:building:osm:w689167044",
+    "kw:building:usa_structures:148144",
+    "kw:building:usa_structures:32249092"
+   ],
+   "surfaces": 2,
+   "triangles": 3410
+  },
+  {
+   "bounds": {
+    "max": [
+     -2806.69,
+     12.87,
+     647.68
+    ],
+    "min": [
+     -2949.12,
+     0.49,
+     500.86
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2275,
+    "walls": 1962
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2880.0,
+    576.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-23_4",
+   "detail_cell": "kw_bld_c128_-23_4",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-23_4.scn",
+   "detail_triangles": 4237,
+   "grid": [
+    -23,
+    4
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "dd3d429206efb27a",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-23_4.res",
+   "snow_roof_triangles": 2275,
+   "source_count": 35,
+   "source_hash": "750d8b5fb0fefa8f",
+   "source_ids": [
+    "kw:building:osm:w461412542",
+    "kw:building:osm:w525620179",
+    "kw:building:osm:w549385969",
+    "kw:building:osm:w597042818",
+    "kw:building:osm:w597042820",
+    "kw:building:osm:w597042821",
+    "kw:building:osm:w597042822",
+    "kw:building:osm:w597042823",
+    "kw:building:osm:w597042824",
+    "kw:building:osm:w597042825",
+    "kw:building:osm:w597042830",
+    "kw:building:osm:w597042831",
+    "kw:building:osm:w597042832",
+    "kw:building:osm:w597042833",
+    "kw:building:osm:w597042834",
+    "kw:building:osm:w597042835",
+    "kw:building:osm:w597042836",
+    "kw:building:osm:w597042837",
+    "kw:building:osm:w597042838",
+    "kw:building:osm:w597042839",
+    "kw:building:osm:w597042840",
+    "kw:building:osm:w597042841",
+    "kw:building:osm:w597042842",
+    "kw:building:osm:w597042846",
+    "kw:building:osm:w597042851",
+    "kw:building:osm:w598100643",
+    "kw:building:osm:w598100646",
+    "kw:building:osm:w598100647",
+    "kw:building:osm:w598100659",
+    "kw:building:osm:w598100700",
+    "kw:building:osm:w598105013",
+    "kw:building:osm:w598105014",
+    "kw:building:usa_structures:152448",
+    "kw:building:usa_structures:32253051",
+    "kw:building:usa_structures:32253163"
+   ],
+   "surfaces": 2,
+   "triangles": 4237
+  },
+  {
+   "bounds": {
+    "max": [
+     -2807.6,
+     14.85,
+     774.83
+    ],
+    "min": [
+     -2950.04,
+     0.49,
+     633.11
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2591,
+    "walls": 2394
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2880.0,
+    704.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-23_5",
+   "detail_cell": "kw_bld_c128_-23_5",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-23_5.scn",
+   "detail_triangles": 4985,
+   "grid": [
+    -23,
+    5
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "2dc0d9059d632481",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-23_5.res",
+   "snow_roof_triangles": 2591,
+   "source_count": 41,
+   "source_hash": "b6a234a35b9de9fc",
+   "source_ids": [
+    "kw:building:osm:w589678859",
+    "kw:building:osm:w589678861",
+    "kw:building:osm:w589678863",
+    "kw:building:osm:w589678865",
+    "kw:building:osm:w589678873",
+    "kw:building:osm:w589678882",
+    "kw:building:osm:w589678885",
+    "kw:building:osm:w589678893",
+    "kw:building:osm:w589678895",
+    "kw:building:osm:w589678897",
+    "kw:building:osm:w589678903",
+    "kw:building:osm:w589678905",
+    "kw:building:osm:w589678907",
+    "kw:building:osm:w589678910",
+    "kw:building:osm:w589678911",
+    "kw:building:osm:w589678915",
+    "kw:building:osm:w589678917",
+    "kw:building:osm:w589678919",
+    "kw:building:osm:w589678921",
+    "kw:building:osm:w589678923",
+    "kw:building:osm:w589678926",
+    "kw:building:osm:w589678928",
+    "kw:building:osm:w589678932",
+    "kw:building:osm:w589678934",
+    "kw:building:osm:w589678936",
+    "kw:building:osm:w597038189",
+    "kw:building:osm:w597038190",
+    "kw:building:osm:w597038192",
+    "kw:building:osm:w597038193",
+    "kw:building:osm:w597038194",
+    "kw:building:osm:w597038195",
+    "kw:building:osm:w598100988",
+    "kw:building:osm:w598100989",
+    "kw:building:osm:w598105001",
+    "kw:building:osm:w598105002",
+    "kw:building:osm:w598105005",
+    "kw:building:osm:w598105006",
+    "kw:building:osm:w598105007",
+    "kw:building:osm:w598105008",
+    "kw:building:osm:w710526113",
+    "kw:building:usa_structures:151558"
+   ],
+   "surfaces": 2,
+   "triangles": 4985
+  },
+  {
+   "bounds": {
+    "max": [
+     -2810.87,
+     13.0,
+     904.15
+    ],
+    "min": [
+     -2951.32,
+     1.04,
+     765.91
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1679,
+    "walls": 1686
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2880.0,
+    832.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-23_6",
+   "detail_cell": "kw_bld_c128_-23_6",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-23_6.scn",
+   "detail_triangles": 3365,
+   "grid": [
+    -23,
+    6
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "81eee92a79716f7b",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-23_6.res",
+   "snow_roof_triangles": 1679,
+   "source_count": 28,
+   "source_hash": "e38215477ecac59a",
+   "source_ids": [
+    "kw:building:osm:w339439070",
+    "kw:building:osm:w525619988",
+    "kw:building:osm:w525620087",
+    "kw:building:osm:w563084465",
+    "kw:building:osm:w563084466",
+    "kw:building:osm:w563084467",
+    "kw:building:osm:w563084468",
+    "kw:building:osm:w563084471",
+    "kw:building:osm:w589678875",
+    "kw:building:osm:w589678942",
+    "kw:building:osm:w589678946",
+    "kw:building:osm:w589678948",
+    "kw:building:osm:w589678952",
+    "kw:building:osm:w589678954",
+    "kw:building:osm:w596964053",
+    "kw:building:osm:w596964054",
+    "kw:building:osm:w596964056",
+    "kw:building:osm:w596964057",
+    "kw:building:osm:w597417978",
+    "kw:building:osm:w597417979",
+    "kw:building:osm:w597417980",
+    "kw:building:osm:w597417981",
+    "kw:building:osm:w597417983",
+    "kw:building:osm:w597417984",
+    "kw:building:osm:w597417985",
+    "kw:building:osm:w83551808",
+    "kw:building:usa_structures:32251738",
+    "kw:building:usa_structures:32251946"
+   ],
+   "surfaces": 2,
+   "triangles": 3365
+  },
+  {
+   "bounds": {
+    "max": [
+     -2808.73,
+     14.08,
+     1031.89
+    ],
+    "min": [
+     -2949.41,
+     1.13,
+     888.23
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2216,
+    "walls": 2364
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2880.0,
+    960.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-23_7",
+   "detail_cell": "kw_bld_c128_-23_7",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-23_7.scn",
+   "detail_triangles": 4580,
+   "grid": [
+    -23,
+    7
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "9592e61566699990",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-23_7.res",
+   "snow_roof_triangles": 2216,
+   "source_count": 44,
+   "source_hash": "1418e3f370523c3d",
+   "source_ids": [
+    "kw:building:osm:w523724495",
+    "kw:building:osm:w523724496",
+    "kw:building:osm:w523724497",
+    "kw:building:osm:w523724498",
+    "kw:building:osm:w523727128",
+    "kw:building:osm:w523727129",
+    "kw:building:osm:w596964046",
+    "kw:building:osm:w596964050",
+    "kw:building:osm:w596964051",
+    "kw:building:osm:w596964052",
+    "kw:building:osm:w597416103",
+    "kw:building:osm:w597416105",
+    "kw:building:osm:w597416108",
+    "kw:building:osm:w597416110",
+    "kw:building:osm:w597416116",
+    "kw:building:osm:w597416118",
+    "kw:building:osm:w597416120",
+    "kw:building:osm:w597416121",
+    "kw:building:osm:w597416123",
+    "kw:building:osm:w597416125",
+    "kw:building:osm:w597416126",
+    "kw:building:osm:w597416127",
+    "kw:building:osm:w597416128",
+    "kw:building:osm:w597416129",
+    "kw:building:osm:w597416131",
+    "kw:building:osm:w597416132",
+    "kw:building:osm:w597416133",
+    "kw:building:osm:w597416135",
+    "kw:building:osm:w597416137",
+    "kw:building:osm:w597416138",
+    "kw:building:osm:w597416139",
+    "kw:building:osm:w597416140",
+    "kw:building:osm:w597416141",
+    "kw:building:osm:w597416142",
+    "kw:building:osm:w597416144",
+    "kw:building:osm:w597416145",
+    "kw:building:osm:w597416146",
+    "kw:building:osm:w597416147",
+    "kw:building:osm:w597417967",
+    "kw:building:osm:w597417968",
+    "kw:building:osm:w597417969",
+    "kw:building:osm:w597417970",
+    "kw:building:overture:d663daf6-7e19-41f5-bca0-9360b18536f5",
+    "kw:building:usa_structures:32251194"
+   ],
+   "surfaces": 2,
+   "triangles": 4580
+  },
+  {
+   "bounds": {
+    "max": [
+     -2811.68,
+     13.44,
+     1155.79
+    ],
+    "min": [
+     -2949.94,
+     1.09,
+     1018.45
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2246,
+    "walls": 2512
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2880.0,
+    1088.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-23_8",
+   "detail_cell": "kw_bld_c128_-23_8",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-23_8.scn",
+   "detail_triangles": 4758,
+   "grid": [
+    -23,
+    8
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "fb38f828d15182f9",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-23_8.res",
+   "snow_roof_triangles": 2246,
+   "source_count": 51,
+   "source_hash": "468cf5d592eb23d7",
+   "source_ids": [
+    "kw:building:osm:w461634995",
+    "kw:building:osm:w461634996",
+    "kw:building:osm:w461635184",
+    "kw:building:osm:w461635185",
+    "kw:building:osm:w475305608",
+    "kw:building:osm:w475305748",
+    "kw:building:osm:w523724501",
+    "kw:building:osm:w523724734",
+    "kw:building:osm:w523724735",
+    "kw:building:osm:w523724736",
+    "kw:building:osm:w523724737",
+    "kw:building:osm:w523724740",
+    "kw:building:osm:w523724741",
+    "kw:building:osm:w523725089",
+    "kw:building:osm:w523725099",
+    "kw:building:osm:w523725100",
+    "kw:building:osm:w523725101",
+    "kw:building:osm:w523725102",
+    "kw:building:osm:w523725103",
+    "kw:building:osm:w523726174",
+    "kw:building:osm:w523726176",
+    "kw:building:osm:w523726178",
+    "kw:building:osm:w523726180",
+    "kw:building:osm:w523726182",
+    "kw:building:osm:w523726184",
+    "kw:building:osm:w523726186",
+    "kw:building:osm:w523726188",
+    "kw:building:osm:w523726189",
+    "kw:building:osm:w523726190",
+    "kw:building:osm:w523726191",
+    "kw:building:osm:w523726193",
+    "kw:building:osm:w523726194",
+    "kw:building:osm:w523727125",
+    "kw:building:osm:w523727126",
+    "kw:building:osm:w523727127",
+    "kw:building:osm:w523967653",
+    "kw:building:osm:w597416085",
+    "kw:building:osm:w597416094",
+    "kw:building:osm:w597416099",
+    "kw:building:osm:w597416112",
+    "kw:building:osm:w597416114",
+    "kw:building:osm:w716823551",
+    "kw:building:osm:w716823567",
+    "kw:building:osm:w716823568",
+    "kw:building:osm:w716823574",
+    "kw:building:osm:w716823575",
+    "kw:building:osm:w716823576",
+    "kw:building:osm:w716823577",
+    "kw:building:osm:w716823578",
+    "kw:building:osm:w716823579",
+    "kw:building:osm:w716823580"
+   ],
+   "surfaces": 2,
+   "triangles": 4758
+  },
+  {
+   "bounds": {
+    "max": [
+     -2808.66,
+     12.57,
+     1289.96
+    ],
+    "min": [
+     -2955.27,
+     1.36,
+     1145.98
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 3151,
+    "walls": 2502
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -2880.0,
+    1216.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-23_9",
+   "detail_cell": "kw_bld_c128_-23_9",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-23_9.scn",
+   "detail_triangles": 5653,
+   "grid": [
+    -23,
+    9
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "e4f1cc2c49e4c126",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-23_9.res",
+   "snow_roof_triangles": 3151,
+   "source_count": 47,
+   "source_hash": "60445198bd5f23c4",
+   "source_ids": [
+    "kw:building:osm:w339418322",
+    "kw:building:osm:w339439068",
+    "kw:building:osm:w523822388",
+    "kw:building:osm:w523822389",
+    "kw:building:osm:w523822390",
+    "kw:building:osm:w523967650",
+    "kw:building:osm:w523967651",
+    "kw:building:osm:w523967652",
+    "kw:building:osm:w523967654",
+    "kw:building:osm:w523967655",
+    "kw:building:osm:w578676603",
+    "kw:building:osm:w578676604",
+    "kw:building:osm:w578676605",
+    "kw:building:osm:w578676606",
+    "kw:building:osm:w578676607",
+    "kw:building:osm:w578676608",
+    "kw:building:osm:w578676614",
+    "kw:building:osm:w578676615",
+    "kw:building:osm:w578676616",
+    "kw:building:osm:w578676617",
+    "kw:building:osm:w578676619",
+    "kw:building:osm:w578676620",
+    "kw:building:osm:w578676623",
+    "kw:building:osm:w578676624",
+    "kw:building:osm:w578676625",
+    "kw:building:osm:w578676626",
+    "kw:building:osm:w578676627",
+    "kw:building:osm:w578676628",
+    "kw:building:osm:w578676629",
+    "kw:building:osm:w578676630",
+    "kw:building:osm:w578676631",
+    "kw:building:osm:w578676632",
+    "kw:building:osm:w578676633",
+    "kw:building:osm:w578676634",
+    "kw:building:osm:w578676635",
+    "kw:building:osm:w578676637",
+    "kw:building:osm:w578676638",
+    "kw:building:osm:w578676639",
+    "kw:building:osm:w578676640",
+    "kw:building:osm:w578676641",
+    "kw:building:osm:w578676643",
+    "kw:building:osm:w578677362",
+    "kw:building:osm:w578677363",
+    "kw:building:osm:w716823571",
+    "kw:building:osm:w716823572",
+    "kw:building:osm:w716823573",
+    "kw:building:usa_structures:32250142"
+   ],
+   "surfaces": 2,
+   "triangles": 5653
+  },
+  {
+   "bounds": {
+    "max": [
+     -2938.71,
+     16.36,
+     1417.92
+    ],
+    "min": [
+     -3075.91,
+     2.6,
+     1275.68
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2572,
+    "walls": 2364
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -3008.0,
+    1344.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-24_10",
+   "detail_cell": "kw_bld_c128_-24_10",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-24_10.scn",
+   "detail_triangles": 4936,
+   "grid": [
+    -24,
+    10
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "efe4667294b8836c",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-24_10.res",
+   "snow_roof_triangles": 2572,
+   "source_count": 48,
+   "source_hash": "9f3dcb47bf57473b",
+   "source_ids": [
+    "kw:building:osm:w339418324",
+    "kw:building:osm:w339418325",
+    "kw:building:osm:w339418326",
+    "kw:building:osm:w339418327",
+    "kw:building:osm:w339439035",
+    "kw:building:osm:w495360155",
+    "kw:building:osm:w495360156",
+    "kw:building:osm:w495360157",
+    "kw:building:osm:w495360158",
+    "kw:building:osm:w495360159",
+    "kw:building:osm:w495360160",
+    "kw:building:osm:w495360161",
+    "kw:building:osm:w495360168",
+    "kw:building:osm:w523822393",
+    "kw:building:osm:w629605324",
+    "kw:building:osm:w629605327",
+    "kw:building:osm:w629605329",
+    "kw:building:osm:w629605330",
+    "kw:building:osm:w629605333",
+    "kw:building:osm:w629605336",
+    "kw:building:osm:w629605338",
+    "kw:building:osm:w629605340",
+    "kw:building:osm:w629605341",
+    "kw:building:osm:w629605343",
+    "kw:building:osm:w629605344",
+    "kw:building:osm:w629605346",
+    "kw:building:osm:w629606233",
+    "kw:building:osm:w689146081",
+    "kw:building:osm:w689167028",
+    "kw:building:osm:w689167029",
+    "kw:building:osm:w689168367",
+    "kw:building:osm:w689168368",
+    "kw:building:osm:w689168369",
+    "kw:building:osm:w689168370",
+    "kw:building:osm:w689168371",
+    "kw:building:osm:w689168372",
+    "kw:building:osm:w689168373",
+    "kw:building:osm:w689168374",
+    "kw:building:osm:w689168376",
+    "kw:building:osm:w689168377",
+    "kw:building:osm:w689168378",
+    "kw:building:osm:w689168379",
+    "kw:building:osm:w689168380",
+    "kw:building:osm:w689168381",
+    "kw:building:osm:w689168382",
+    "kw:building:osm:w689168392",
+    "kw:building:usa_structures:148349",
+    "kw:building:usa_structures:148462"
+   ],
+   "surfaces": 2,
+   "triangles": 4936
+  },
+  {
+   "bounds": {
+    "max": [
+     -2938.54,
+     13.55,
+     1536.95
+    ],
+    "min": [
+     -3074.42,
+     1.8,
+     1404.07
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1844,
+    "walls": 2020
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -3008.0,
+    1472.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-24_11",
+   "detail_cell": "kw_bld_c128_-24_11",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-24_11.scn",
+   "detail_triangles": 3864,
+   "grid": [
+    -24,
+    11
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "f46c16721a26a74b",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-24_11.res",
+   "snow_roof_triangles": 1844,
+   "source_count": 36,
+   "source_hash": "aceffb5d3827111b",
+   "source_ids": [
+    "kw:building:osm:w302573677",
+    "kw:building:osm:w302573691",
+    "kw:building:osm:w302573692",
+    "kw:building:osm:w338225793",
+    "kw:building:osm:w339414866",
+    "kw:building:osm:w339414868",
+    "kw:building:osm:w339418307",
+    "kw:building:osm:w339418308",
+    "kw:building:osm:w339418309",
+    "kw:building:osm:w495092546",
+    "kw:building:osm:w495092547",
+    "kw:building:osm:w495092548",
+    "kw:building:osm:w495092549",
+    "kw:building:osm:w495092550",
+    "kw:building:osm:w495092551",
+    "kw:building:osm:w495092552",
+    "kw:building:osm:w495092553",
+    "kw:building:osm:w495092554",
+    "kw:building:osm:w495092555",
+    "kw:building:osm:w495092556",
+    "kw:building:osm:w495360163",
+    "kw:building:osm:w598171352",
+    "kw:building:osm:w598171371",
+    "kw:building:osm:w598171373",
+    "kw:building:osm:w598171374",
+    "kw:building:osm:w598171375",
+    "kw:building:osm:w598171376",
+    "kw:building:osm:w689167030",
+    "kw:building:osm:w689167031",
+    "kw:building:osm:w689167033",
+    "kw:building:osm:w689167034",
+    "kw:building:osm:w689167035",
+    "kw:building:osm:w689167036",
+    "kw:building:osm:w689167037",
+    "kw:building:osm:w689167038",
+    "kw:building:osm:w689167040"
+   ],
+   "surfaces": 2,
+   "triangles": 3864
+  },
+  {
+   "bounds": {
+    "max": [
+     -2940.83,
+     10.91,
+     647.35
+    ],
+    "min": [
+     -3075.75,
+     0.38,
+     504.87
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1733,
+    "walls": 1970
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -3008.0,
+    576.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-24_4",
+   "detail_cell": "kw_bld_c128_-24_4",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-24_4.scn",
+   "detail_triangles": 3703,
+   "grid": [
+    -24,
+    4
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "9589922db6051708",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-24_4.res",
+   "snow_roof_triangles": 1733,
+   "source_count": 36,
+   "source_hash": "0bdcc287e6f3c357",
+   "source_ids": [
+    "kw:building:osm:w529050920",
+    "kw:building:osm:w529052113",
+    "kw:building:osm:w529052115",
+    "kw:building:osm:w529052117",
+    "kw:building:osm:w529052119",
+    "kw:building:osm:w529052120",
+    "kw:building:osm:w529052334",
+    "kw:building:osm:w529052416",
+    "kw:building:osm:w548447476",
+    "kw:building:osm:w548447480",
+    "kw:building:osm:w548447481",
+    "kw:building:osm:w548447482",
+    "kw:building:osm:w548447483",
+    "kw:building:osm:w548447485",
+    "kw:building:osm:w548447487",
+    "kw:building:osm:w548447488",
+    "kw:building:osm:w548447489",
+    "kw:building:osm:w548447491",
+    "kw:building:osm:w548448013",
+    "kw:building:osm:w548448015",
+    "kw:building:osm:w548448017",
+    "kw:building:osm:w548448019",
+    "kw:building:osm:w548448021",
+    "kw:building:osm:w548448023",
+    "kw:building:osm:w548448031",
+    "kw:building:osm:w548448033",
+    "kw:building:osm:w548448038",
+    "kw:building:osm:w598100653",
+    "kw:building:osm:w598100663",
+    "kw:building:osm:w598100665",
+    "kw:building:osm:w598100667",
+    "kw:building:osm:w598100669",
+    "kw:building:osm:w598100671",
+    "kw:building:osm:w598100674",
+    "kw:building:osm:w598100695",
+    "kw:building:usa_structures:32253285"
+   ],
+   "surfaces": 2,
+   "triangles": 3703
+  },
+  {
+   "bounds": {
+    "max": [
+     -2936.51,
+     16.01,
+     774.22
+    ],
+    "min": [
+     -3068.57,
+     0.22,
+     636.91
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1841,
+    "walls": 1938
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -3008.0,
+    704.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-24_5",
+   "detail_cell": "kw_bld_c128_-24_5",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-24_5.scn",
+   "detail_triangles": 3779,
+   "grid": [
+    -24,
+    5
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "c485e9a271ea1586",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-24_5.res",
+   "snow_roof_triangles": 1841,
+   "source_count": 31,
+   "source_hash": "f7f4d7a1d63606f9",
+   "source_ids": [
+    "kw:building:osm:w589678857",
+    "kw:building:osm:w597417997",
+    "kw:building:osm:w597417998",
+    "kw:building:osm:w598100680",
+    "kw:building:osm:w598100684",
+    "kw:building:osm:w598100686",
+    "kw:building:osm:w598100688",
+    "kw:building:osm:w598100693",
+    "kw:building:osm:w598100981",
+    "kw:building:osm:w598100982",
+    "kw:building:osm:w598100984",
+    "kw:building:osm:w598100986",
+    "kw:building:osm:w598100987",
+    "kw:building:osm:w598105011",
+    "kw:building:osm:w598136696",
+    "kw:building:osm:w598136702",
+    "kw:building:osm:w598136704",
+    "kw:building:osm:w598136706",
+    "kw:building:osm:w598136708",
+    "kw:building:osm:w598136710",
+    "kw:building:osm:w598136713",
+    "kw:building:osm:w598167402",
+    "kw:building:osm:w598167406",
+    "kw:building:osm:w598167409",
+    "kw:building:osm:w598167412",
+    "kw:building:osm:w598167423",
+    "kw:building:osm:w598167425",
+    "kw:building:osm:w598167431",
+    "kw:building:osm:w598167434",
+    "kw:building:osm:w83558538",
+    "kw:building:usa_structures:32252571"
+   ],
+   "surfaces": 2,
+   "triangles": 3779
+  },
+  {
+   "bounds": {
+    "max": [
+     -2936.17,
+     13.0,
+     903.31
+    ],
+    "min": [
+     -3073.98,
+     2.12,
+     760.08
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1895,
+    "walls": 2078
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -3008.0,
+    832.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-24_6",
+   "detail_cell": "kw_bld_c128_-24_6",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-24_6.scn",
+   "detail_triangles": 3973,
+   "grid": [
+    -24,
+    6
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "69c237d9a7adb187",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-24_6.res",
+   "snow_roof_triangles": 1895,
+   "source_count": 32,
+   "source_hash": "e5c8d52b8b7c54e4",
+   "source_ids": [
+    "kw:building:osm:w461412547",
+    "kw:building:osm:w597417976",
+    "kw:building:osm:w597417977",
+    "kw:building:osm:w597417986",
+    "kw:building:osm:w597417987",
+    "kw:building:osm:w597417989",
+    "kw:building:osm:w597417990",
+    "kw:building:osm:w597417991",
+    "kw:building:osm:w597417993",
+    "kw:building:osm:w597417994",
+    "kw:building:osm:w597417995",
+    "kw:building:osm:w597417996",
+    "kw:building:osm:w597417999",
+    "kw:building:osm:w597418000",
+    "kw:building:osm:w597418002",
+    "kw:building:osm:w597418004",
+    "kw:building:osm:w597418005",
+    "kw:building:osm:w597418006",
+    "kw:building:osm:w597419732",
+    "kw:building:osm:w597419734",
+    "kw:building:osm:w597419738",
+    "kw:building:osm:w597419740",
+    "kw:building:osm:w597419741",
+    "kw:building:osm:w597419745",
+    "kw:building:osm:w597419746",
+    "kw:building:osm:w597419758",
+    "kw:building:osm:w597419760",
+    "kw:building:osm:w597419761",
+    "kw:building:osm:w597419764",
+    "kw:building:osm:w597421864",
+    "kw:building:osm:w598167437",
+    "kw:building:osm:w598167441"
+   ],
+   "surfaces": 2,
+   "triangles": 3973
+  },
+  {
+   "bounds": {
+    "max": [
+     -2936.23,
+     14.77,
+     1030.83
+    ],
+    "min": [
+     -3078.43,
+     2.69,
+     888.23
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1767,
+    "walls": 1698
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -3008.0,
+    960.0
+   ],
+   "chunk": "-6:1",
+   "cluster_id": "c128_-24_7",
+   "detail_cell": "kw_bld_c128_-24_7",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-24_7.scn",
+   "detail_triangles": 3465,
+   "grid": [
+    -24,
+    7
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "ee1d5d50b966c802",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-24_7.res",
+   "snow_roof_triangles": 1767,
+   "source_count": 31,
+   "source_hash": "faa04fd383a3662f",
+   "source_ids": [
+    "kw:building:osm:w461635187",
+    "kw:building:osm:w523724083",
+    "kw:building:osm:w523724084",
+    "kw:building:osm:w523724085",
+    "kw:building:osm:w523724086",
+    "kw:building:osm:w523724087",
+    "kw:building:osm:w523724088",
+    "kw:building:osm:w523724089",
+    "kw:building:osm:w523724090",
+    "kw:building:osm:w523724091",
+    "kw:building:osm:w523724092",
+    "kw:building:osm:w523727124",
+    "kw:building:osm:w597417971",
+    "kw:building:osm:w597417972",
+    "kw:building:osm:w597417973",
+    "kw:building:osm:w597417974",
+    "kw:building:osm:w597417975",
+    "kw:building:osm:w597419748",
+    "kw:building:osm:w597419751",
+    "kw:building:osm:w597419753",
+    "kw:building:osm:w597419755",
+    "kw:building:osm:w597419756",
+    "kw:building:osm:w597421870",
+    "kw:building:osm:w597421872",
+    "kw:building:osm:w597421878",
+    "kw:building:osm:w597421883",
+    "kw:building:osm:w597421886",
+    "kw:building:osm:w597421894",
+    "kw:building:osm:w597421896",
+    "kw:building:osm:w716823548",
+    "kw:building:osm:w716823550"
+   ],
+   "surfaces": 2,
+   "triangles": 3465
+  },
+  {
+   "bounds": {
+    "max": [
+     -2936.47,
+     15.83,
+     1151.81
+    ],
+    "min": [
+     -3076.51,
+     1.77,
+     1018.88
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 2570,
+    "walls": 2144
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -3008.0,
+    1088.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-24_8",
+   "detail_cell": "kw_bld_c128_-24_8",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-24_8.scn",
+   "detail_triangles": 4714,
+   "grid": [
+    -24,
+    8
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "f7a893f5e0cf6610",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-24_8.res",
+   "snow_roof_triangles": 2570,
+   "source_count": 41,
+   "source_hash": "1e5e7b66ca8af72f",
+   "source_ids": [
+    "kw:building:osm:w339439074",
+    "kw:building:osm:w461635186",
+    "kw:building:osm:w523724093",
+    "kw:building:osm:w523724493",
+    "kw:building:osm:w523724494",
+    "kw:building:osm:w523724499",
+    "kw:building:osm:w523724500",
+    "kw:building:osm:w716823525",
+    "kw:building:osm:w716823526",
+    "kw:building:osm:w716823527",
+    "kw:building:osm:w716823528",
+    "kw:building:osm:w716823529",
+    "kw:building:osm:w716823531",
+    "kw:building:osm:w716823533",
+    "kw:building:osm:w716823534",
+    "kw:building:osm:w716823535",
+    "kw:building:osm:w716823536",
+    "kw:building:osm:w716823537",
+    "kw:building:osm:w716823538",
+    "kw:building:osm:w716823539",
+    "kw:building:osm:w716823540",
+    "kw:building:osm:w716823542",
+    "kw:building:osm:w716823543",
+    "kw:building:osm:w716823544",
+    "kw:building:osm:w716823546",
+    "kw:building:osm:w716823547",
+    "kw:building:osm:w716823549",
+    "kw:building:osm:w716823552",
+    "kw:building:osm:w716823553",
+    "kw:building:osm:w716823554",
+    "kw:building:osm:w716823556",
+    "kw:building:osm:w716823557",
+    "kw:building:osm:w716823560",
+    "kw:building:osm:w716823561",
+    "kw:building:osm:w716823562",
+    "kw:building:osm:w716823563",
+    "kw:building:osm:w716823564",
+    "kw:building:osm:w716823565",
+    "kw:building:osm:w716823566",
+    "kw:building:osm:w716823569",
+    "kw:building:usa_structures:32250703"
+   ],
+   "surfaces": 2,
+   "triangles": 4714
+  },
+  {
+   "bounds": {
+    "max": [
+     -2941.44,
+     12.53,
+     1285.23
+    ],
+    "min": [
+     -3075.65,
+     2.06,
+     1152.43
+    ]
+   },
+   "bucket_triangles": {
+    "snow_roof": 1685,
+    "walls": 1826
+   },
+   "build_version": "kw_hlod.1",
+   "builder_version": "kw_chunk_builder.11",
+   "centre_local": [
+    -3008.0,
+    1216.0
+   ],
+   "chunk": "-6:2",
+   "cluster_id": "c128_-24_9",
+   "detail_cell": "kw_bld_c128_-24_9",
+   "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-24_9.scn",
+   "detail_triangles": 3511,
+   "grid": [
+    -24,
+    9
+   ],
+   "materials": [
+    "snow_roof",
+    "walls"
+   ],
+   "proxy_digest": "54bbf52e8eafd64d",
+   "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-24_9.res",
+   "snow_roof_triangles": 1685,
+   "source_count": 32,
+   "source_hash": "1c86deefca02547e",
+   "source_ids": [
+    "kw:building:osm:w339439066",
+    "kw:building:osm:w339439067",
+    "kw:building:osm:w629606236",
+    "kw:building:osm:w629606238",
+    "kw:building:osm:w629606241",
+    "kw:building:osm:w630286087",
+    "kw:building:osm:w630286088",
+    "kw:building:osm:w630286089",
+    "kw:building:osm:w630286090",
+    "kw:building:osm:w630286091",
+    "kw:building:osm:w630286094",
+    "kw:building:osm:w630286095",
+    "kw:building:osm:w630286097",
+    "kw:building:osm:w630286098",
+    "kw:building:osm:w630286099",
+    "kw:building:osm:w630286100",
+    "kw:building:osm:w630286101",
+    "kw:building:osm:w630286102",
+    "kw:building:osm:w630286103",
+    "kw:building:osm:w630286104",
+    "kw:building:osm:w630286105",
+    "kw:building:osm:w689168384",
+    "kw:building:osm:w689168385",
+    "kw:building:osm:w689168386",
+    "kw:building:osm:w689168388",
+    "kw:building:osm:w689168389",
+    "kw:building:osm:w689168390",
+    "kw:building:osm:w689168393",
+    "kw:building:osm:w716823558",
+    "kw:building:osm:w716823559",
+    "kw:building:osm:w716823570",
+    "kw:building:usa_structures:32250224"
+   ],
+   "surfaces": 2,
+   "triangles": 3511
+  }
+ ],
+ "detail_band_m": 230.51,
+ "excluded": [],
+ "policy": {
+  "authored": "excluded: features with an authored scene (727 Fort St, Fort Zachary Taylor, and any keep/keep_locked/needs_rebase asset) stay Tier 0 in their chunk and are listed in the manifest; manual proxies are phase 2",
+  "included": "generated static opaque buildings (mesh kind building, regen_action generate) of the listed chunks",
+  "props": "excluded: Reality props are 0.15 m cylinders already batched as one MultiMesh per chunk; at the switch distance they cover about one pixel",
+  "terrain_vegetation_gameplay": "excluded in v1"
+ },
+ "schema": "kw_reality.hlod_manifest.v1",
+ "totals": {
+  "clusters": 64,
+  "detail_triangles": 243587,
+  "sources": 2176,
+  "surfaces": 133,
+  "triangles": 243587
+ },
+ "winter": {
+  "roof_snow_max_slope_from": "static_snow.slope_zero_deg",
+  "roofs": "fold_into_proxy",
+  "thin_items_cull": "visibility_range_end at the cluster detail band (cluster radius + load margin)"
+ }
+}
