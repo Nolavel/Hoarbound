@@ -420,6 +420,8 @@ func _finish() -> void:
 	f.close()
 	print("gate: report -> ", path)
 	print("gate: hitch attribution ", JSON.stringify(report["hitches"]).left(1500))
+	for h: Dictionary in _hitches.slice(0, 30):
+		print("gate: hitch detail ", JSON.stringify(h))  # repeated at the end: CI log tails cut the mid-run lines
 	print("gate: hlod ", JSON.stringify(_hlod_stats()))
 	print("gate: verdict ", JSON.stringify(report["verdict"]))
 	quit(0 if not report["verdict"].values().has(false) else 1)
