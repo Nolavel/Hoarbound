@@ -8,8 +8,8 @@ const GROUP: StringName = &"dev_diorama_map"
 const PANEL_SIZE: Vector2 = Vector2(500.0, 320.0)
 const PANEL_OFFSET: Vector2 = Vector2(20.0, 20.0)
 const RENDER_SIZE: Vector2i = Vector2i(640, 360)
-const CAMERA_HEIGHT_M: float = 30.0
-const CAMERA_FOV_DEG: float = 36.0
+const CAMERA_HEIGHT_M: float = 90.0
+const CAMERA_FOV_DEG: float = 50.0
 const CAMERA_YAW_DEG: float = 12.0
 const CAMERA_PITCH_DEG: float = 64.0
 const FOLLOW_RESPONSE: float = 9.0
@@ -218,14 +218,15 @@ func _build_ui() -> void:
 	_marker = Label.new()
 	_marker.name = "HenryMarker"
 	_marker.text = "●"
-	_marker.custom_minimum_size = Vector2(18.0, 18.0)
 	_marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_marker.add_theme_font_size_override("font_size", 18)
-	_marker.add_theme_color_override("font_color", Color(1.0, 0.76, 0.24))
-	_marker.add_theme_color_override("font_outline_color", Color(0.02, 0.02, 0.025, 0.95))
-	_marker.add_theme_constant_override("outline_size", 4)
+	## Henry stands out on snow from 90 m: a large saturated red dot with a white rim.
+	_marker.custom_minimum_size = Vector2(30.0, 30.0)
+	_marker.add_theme_font_size_override("font_size", 30)
+	_marker.add_theme_color_override("font_color", Color(1.0, 0.16, 0.1))
+	_marker.add_theme_color_override("font_outline_color", Color(1.0, 1.0, 1.0, 0.95))
+	_marker.add_theme_constant_override("outline_size", 7)
 	_map_area.add_child(_marker)
 	_marker.reset_size()
 
@@ -346,15 +347,17 @@ func _add_world_label(entry: Dictionary) -> void:
 	label.layers = MAP_LABEL_MASK
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
+	## Same size on screen at any camera height.
+	label.fixed_size = true
 	label.outline_size = 7
 	if kind == &"street":
 		label.font_size = 30
-		label.pixel_size = 0.030
+		label.pixel_size = 0.0017
 		label.modulate = Color(0.90, 0.94, 0.98)
 		label.outline_modulate = Color(0.025, 0.035, 0.045, 0.94)
 	else:
 		label.font_size = 24
-		label.pixel_size = 0.026
+		label.pixel_size = 0.0016
 		label.modulate = Color(1.0, 0.82, 0.44)
 		label.outline_modulate = Color(0.04, 0.03, 0.015, 0.94)
 	_labels_root.add_child(label)
