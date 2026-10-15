@@ -199,6 +199,8 @@ func _build_ui() -> void:
 
 	_camera = Camera3D.new()
 	_camera.name = "DioramaCamera"
+	## Moved in _process, so physics interpolation would draw (and project) it a tick behind.
+	_camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	_camera.fov = CAMERA_FOV_DEG
 	_camera.near = 0.15
