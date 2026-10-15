@@ -1,0 +1,34 @@
+[
+ {
+  "area": "Old Town, south end",
+  "frames": 210,
+  "ground_y": 0.805525028801209,
+  "henry": [
+   -2751.30004882812,
+   1.80550420284271,
+   1850.30004882812
+  ],
+  "png": "street_02_duval_street.png",
+  "street": "Duval Street",
+  "wanted": [
+   -2751.30004882812,
+   1850.30004882812
+  ]
+ },
+ {
+  "area": "Stock Island",
+  "frames": 215,
+  "ground_y": 0.788751497864723,
+  "henry": [
+   2956.19995117188,
+   1.78873074054718,
+   -560.5
+  ],
+  "png": "street_09_5th_street.png",
+  "street": "5th Street",
+  "wanted": [
+   2956.19995117188,
+   -560.5
+  ]
+ }
+]

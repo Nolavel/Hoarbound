@@ -6,6 +6,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added
+
+- Dev street spawn (owner request): `World` → Developer tools → **Dev Spawn Street** picks one of ten streets from different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
+
+### Fixed
+
+- Ground lost under the start after island-wide HLOD (CI `key-west-reality` red on f8082a57: the dev teleport trace had 9 of 9 targets wrong). At boot `KeyWestRealityGround` indexes every node in the stream container. HLOD cluster scenes carry their source chunk's `chunk_id`, so indexing a cluster dropped that chunk's terrain and building outlines. With HLOD only in Old Town the start chunks never had clusters; now `-8:3`, `-8:4` and `-9:3` do. Effects: heights fell back to 1.0 m, the F6 wait never ended, and snow ignored the fort-area outlines. A node with `cluster_id` is no longer indexed; its buildings are already in the chunk root's `snow_footprints`. `test_key_west_reality_ground` checks that a cluster leaves its chunk's ground and outlines. Trace after the fix: 0 of 9 wrong.
+
 ### Changed
 
 - Fort Zachary Taylor collision simplified in Blender: `tools/blender/landmark_collision.py` (Blender 5.2 `bpy`, Decimate Collapse 0.2) adds a `FortSurfaceCollision-colonly` copy of 8,238 faces (was 41,197) to the fort `.glb`; the visual mesh is byte-identical. Error from every source vertex and face centre: mean 0.8, p99 5.1, max 12.5 cm. The fort chunk's `Buildings` attach drops from 66–80 ms to 12 ms (`measure_attach_parts`, `kw_gen_-9_3`). A 1 m ray grid against the exact surface: p99 8 cm. `HeightMapShape3D` was measured and rejected (285 ms to build). New `test_landmark_collision`; method and table in `REALITY_HLOD.md`.

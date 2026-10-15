@@ -1,7 +1,7 @@
 class_name KeyWestDevWaypoints
 extends Node3D
-## Debug-build navigation: F5 cycles route goals and addresses (beacon, distance/bearing line); F6 holds Henry at the
-## target until its ground is live, then stands him on a free spot outside buildings. Freed in release builds.
+## Debug-build navigation: F5 cycles route goals and addresses, F6 holds Henry at the target until its ground is live,
+## then stands him on a free spot; World.dev_spawn_street starts him on a street the same way. Freed in release builds.
 
 const ROUTE_PATH: String = "res://data/world/key_west/reality/routes/first_exit_gate.json"
 const BEACON_HEIGHT_M: float = 150.0
@@ -29,6 +29,8 @@ var _index: RealityIndex
 var _targets: Array[Dictionary] = []  # {"name", "at": Vector3 (xz), "spots": PackedVector2Array, preferred first}
 var _pending: PackedVector2Array = PackedVector2Array()
 var _pending_since_ms: int = 0
+var _pending_name: String = ""
+var _pending_yaw: float = NAN
 var _warned: bool = false
 var _current: int = -1
 var _beacon: MeshInstance3D
@@ -43,13 +45,17 @@ func on_world_ready(context: WorldContext) -> void:
 	_player = context.player
 	_camera = context.camera
 	_ground = get_parent().find_child("RealityGround", false, false) as KeyWestRealityGround
+	set_process(false)
+	set_physics_process(false)
+	var world: World = context.world as World
+	var street: Dictionary = world.dev_spawn() if world != null else {}
+	if not street.is_empty():
+		teleport_to(street["at"], deg_to_rad(float(street["heading_deg"])), "%s (%s)" % [street["name"], street["area"]])
 	var input_systems: Node = get_node_or_null(^"/root/InputSystems")
 	if input_systems == null or not input_systems.has_signal(&"dev_waypoint_next_pressed"):
 		return
 	input_systems.connect(&"dev_waypoint_next_pressed", next_target)
 	input_systems.connect(&"dev_waypoint_teleport_pressed", teleport)
-	set_process(false)
-	set_physics_process(false)
 
 
 ## Next target, or off after the last; the list is read on first use.
@@ -62,18 +68,16 @@ func next_target() -> void:
 
 ## Moves Henry to the current target and holds him there until its ground is live, then sets him down on a free spot.
 func teleport() -> void:
-	if _current < 0 or _player == null or is_teleporting():
+	if _current < 0 or is_teleporting():
 		return
-	_pending = _targets[_current]["spots"]
-	_pending_since_ms = Time.get_ticks_msec()
-	_warned = false
-	## The streamer loads around Henry, so he waits at the target with his own physics off and cannot fall.
-	_player.set_physics_process(false)
-	_player.global_position = Vector3(_pending[0].x, _player.global_position.y, _pending[0].y)
-	if _player is CharacterBody3D:
-		(_player as CharacterBody3D).velocity = Vector3.ZERO
-	_player.reset_physics_interpolation()
-	set_physics_process(true)
+	_hold(_targets[_current]["spots"], _targets[_current]["name"], NAN)
+
+
+## Same as teleport(), to a free spot near xz, then faces Henry and the camera along yaw (radians, Godot -Z forward).
+func teleport_to(xz: Vector2, yaw: float, label: String) -> void:
+	if is_teleporting():
+		return
+	_hold(PackedVector2Array([xz]), label, yaw)
 
 
 ## True while a teleport waits for its ground.
@@ -213,15 +217,37 @@ func _body_shape() -> CollisionShape3D:
 	return null
 
 
+func _hold(spots: PackedVector2Array, label: String, yaw: float) -> void:
+	if _player == null:
+		return
+	_pending = spots
+	_pending_name = label
+	_pending_yaw = yaw
+	_pending_since_ms = Time.get_ticks_msec()
+	_warned = false
+	## The streamer loads around Henry, so he waits at the target with his own physics off and cannot fall.
+	_player.set_physics_process(false)
+	_player.global_position = Vector3(_pending[0].x, _player.global_position.y, _pending[0].y)
+	if _player is CharacterBody3D:
+		(_player as CharacterBody3D).velocity = Vector3.ZERO
+	_player.reset_physics_interpolation()
+	set_physics_process(true)
+
+
 func _land(at: Vector3) -> void:
 	_player.global_position = at
 	if _player is CharacterBody3D:
 		(_player as CharacterBody3D).velocity = Vector3.ZERO
 	_player.reset_physics_interpolation()
 	_player.set_physics_process(true)
+	if not is_nan(_pending_yaw):
+		_player.global_rotation.y = _pending_yaw
 	if _camera is TpsCamera:
-		(_camera as TpsCamera).snap_to_target()
-	print("Dev waypoint: teleported to %s at %s" % [_targets[_current]["name"] if _current >= 0 else "?", at])
+		var tps: TpsCamera = _camera as TpsCamera
+		if not is_nan(_pending_yaw):
+			tps.set_look(_pending_yaw, tps.start_pitch_deg)
+		tps.snap_to_target()
+	print("Dev waypoint: teleported to %s at %s" % [_pending_name, at])
 
 
 func _show() -> void:

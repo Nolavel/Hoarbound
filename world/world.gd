@@ -37,6 +37,7 @@ const WORLD_UI_SCENES: Array[PackedScene] = [
 
 const UI_CANVAS_LAYER_INDEX: int = 40
 const SPAWN_CLEARANCE: float = 1.0
+const DEV_STREET_SPAWNS_PATH: String = "res://data/world/key_west/reality/routes/dev_street_spawns.json"
 
 @export_group("Scene wiring")
 @export var world_profile: WorldProfile
@@ -50,6 +51,10 @@ const SPAWN_CLEARANCE: float = 1.0
 @export var enable_runtime_debug_panel: bool = true
 @export var print_runtime_debug_stats: bool = false
 @export var enable_runtime_dev_map: bool = false
+## Debug builds: start mid-street on this street (dev_street_spawns.json) instead of the scenario spawn.
+@export_enum("Scenario spawn", "Whitehead Street", "Duval Street", "Truman Avenue", "White Street", "Flagler Avenue",
+		"South Roosevelt Boulevard", "North Roosevelt Boulevard", "Sigsbee Road", "5th Street", "College Road")
+var dev_spawn_street: int = 0
 
 var _systems: Array[Node] = []
 var _context: WorldContext
@@ -186,6 +191,29 @@ func _place_player() -> void:
 		follow_camera.snap_to_target()
 	first_spawner_marker.queue_free()
 	first_spawner_marker = null
+
+
+## The chosen dev street {"name", "area", "at": Vector2 (local xz), "heading_deg"}, or {} for the scenario spawn.
+func dev_spawn() -> Dictionary:
+	if dev_spawn_street <= 0 or not OS.is_debug_build():
+		return {}
+	var wanted: String = dev_street_names()[dev_spawn_street]
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(DEV_STREET_SPAWNS_PATH))
+	for street: Dictionary in (data as Dictionary).get("streets", []) if data is Dictionary else []:
+		if String(street["name"]) == wanted:
+			var at: Array = street["at"]
+			return {"name": wanted, "area": String(street["area"]), "at": Vector2(float(at[0]), float(at[1])),
+				"heading_deg": float(street["heading_deg"])}
+	push_warning("World: no dev street spawn named '%s'" % wanted)
+	return {}
+
+
+## Dropdown labels of dev_spawn_street, index 0 being the scenario spawn.
+func dev_street_names() -> PackedStringArray:
+	for property: Dictionary in get_property_list():
+		if property["name"] == "dev_spawn_street":
+			return String(property["hint_string"]).split(",")
+	return PackedStringArray()
 
 
 func _build_context() -> WorldContext:

@@ -140,7 +140,8 @@ func _on_cell(id: StringName, state: StreamingSystem.CellState) -> void:
 
 
 func _index(chunk: Node) -> void:
-	if not chunk.has_meta("chunk_id"):
+	## An HLOD cluster names its source chunk too but carries no terrain; indexing it would drop that chunk's ground.
+	if not chunk.has_meta("chunk_id") or chunk.has_meta("cluster_id"):
 		return
 	var parts: PackedStringArray = String(chunk.get_meta("chunk_id")).split(":")
 	var key: Vector2i = Vector2i(int(parts[0]), int(parts[1]))
