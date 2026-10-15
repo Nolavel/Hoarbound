@@ -26,8 +26,8 @@ func _initialize() -> void:
 		_check(hammer.held_fit.rotation_deg.is_equal_approx(Vector3(-55, 0, 0)), "hammer fit lost the production rotation")
 	if road_flare != null and road_flare.held_fit != null:
 		_check(road_flare.held_fit.hand == HeldFit.Hand.LEFT, "flare moved off the torch hand")
-		_check(road_flare.held_fit.offset.is_equal_approx(Vector3(0, 0.12, 0.06)), "flare fit lost the production socket offset")
-		_check(road_flare.held_fit.rotation_deg.is_equal_approx(Vector3(-55, 0, 90)), "flare fit lost the former quarter-turn pose")
+		_check(road_flare.held_fit.offset.is_equal_approx(Vector3(0.055, 0.1, 0.05)), "flare fit lost the production socket offset")
+		_check(road_flare.held_fit.rotation_deg.is_equal_approx(Vector3(86, 0, 0)), "flare fit lost the upright torch pose")
 
 	var hammer_prop: Node3D = HeldPropFactory.make(&"hammer", hammer)
 	var flare_prop: Node3D = HeldPropFactory.make(&"road_flare", road_flare)

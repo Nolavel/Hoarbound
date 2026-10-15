@@ -441,12 +441,15 @@ func _update_cone(delta: float, shoulder: Vector3, want: float, view_yaw: float,
 ## centre line if that gives the boom more room. Same-frame casts, one damp; returns the share.
 func _update_recompose(delta: float, safe: Vector3, pivot: Vector3, offset: Vector3, back: Vector3, want: float) -> float:
 	var goal: float = 0.0
+	var centre_worse: bool = false
 	if _last_eye_distance < recompose_distance + 0.3 and offset.length() > 0.05:
 		var eye: Vector3 = get_eye_position()
 		var near: float = _free_eye_distance(safe, pivot + offset, back, want, eye)
-		if near < recompose_distance and _free_eye_distance(safe, pivot, back, want, eye) > near + 0.05:
+		var centre: float = _free_eye_distance(safe, pivot, back, want, eye)
+		if near < recompose_distance and centre > near + 0.05:
 			goal = clampf(inverse_lerp(recompose_distance, body_fade_start, near), 0.0, 1.0)
-	var rate: float = recompose_in_rate if goal > _recompose else recompose_out_rate
+		centre_worse = centre < near - 0.02  # back to a wall: the centre line would bring the camera closer
+	var rate: float = recompose_in_rate if goal > _recompose or centre_worse else recompose_out_rate
 	_recompose = goal if not _has_position else lerpf(_recompose, goal, _damp(rate, delta))
 	return _recompose
 

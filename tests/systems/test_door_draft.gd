@@ -57,7 +57,9 @@ func _run() -> void:
 	weather.direction = -breach.get_facing()
 	var previous_area: float = closed_area
 	for angle: float in [30.0, 60.0, 105.0]:
-		door.door_hinge.rotation.y = deg_to_rad(angle)
+		## The door's angle is its state; the hinge transform and the breach exposure are derived from it.
+		door.current_angle_rad = deg_to_rad(angle)
+		door._apply_hinge_angle()
 		door._sync_breach_exposure()
 		var area: float = _area(door.get_draft_regions())
 		_check(area > previous_area, "moving aperture did not follow actual leaf")
