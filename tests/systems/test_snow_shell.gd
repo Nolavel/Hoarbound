@@ -130,7 +130,7 @@ func _test_deeper_snow_is_slower() -> void:
 
 func _test_the_world_builds_it() -> void:
 	var source: String = FileAccess.get_file_as_string("res://world/world.gd")
-	_check(source.contains("snow/snow_shell.gd"), "world.gd does not build the snow shell")
+	_check(source.contains("snow/deterministic_snow_shell.gd"), "world.gd does not build the snow shell")
 
 
 func _test_the_city_wind_field_varies_depth() -> void:
@@ -263,7 +263,7 @@ func _test_tiers_size_the_captures() -> void:
 		var packed: SubViewport = shell.get_node("SnowPacked0")
 		var want: int = 1024 if tier == "high" else 512
 		_check(contact.size == Vector2i(want, want), "%s contact capture is %s" % [tier, contact.size])
-		_check(packed.size == Vector2i(1024, 1024), "%s packed field is %s" % [tier, packed.size])
+		_check(packed.size == Vector2i(896, 896), "%s packed field is %s" % [tier, packed.size])
 		shell.free()
 	ProjectSettings.set_setting("hfn/snow/quality", before)
 

@@ -9,7 +9,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var world := (load("res://scenes/world/key_west/key_west.tscn") as PackedScene).instantiate() as World
+	var world := (load("res://scenes/world/key_west/key_west_reality.tscn") as PackedScene).instantiate() as World
 	root.add_child(world)
 	await process_frame
 	await process_frame

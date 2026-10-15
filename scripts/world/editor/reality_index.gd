@@ -97,6 +97,43 @@ func pick_ray(origin: Vector3, direction: Vector3, max_m: float) -> Dictionary:
 	return {}
 
 
+## Map labels near `point` in the dev diorama map's entry format: the nearest house numbers over their roofs,
+## then the nearest street names once each ({kind, text, position}).
+func map_label_entries(point: Vector2, radius_m: float = 95.0, max_house_numbers: int = 22, max_street_names: int = 8) -> Array[Dictionary]:
+	var near: Array = []
+	var seen: Dictionary = {}
+	var lo: Vector2i = Vector2i(floori((point.x - radius_m) / CELL_M), floori((point.y - radius_m) / CELL_M))
+	var hi: Vector2i = Vector2i(floori((point.x + radius_m) / CELL_M), floori((point.y + radius_m) / CELL_M))
+	for cx: int in range(lo.x, hi.x + 1):
+		for cz: int in range(lo.y, hi.y + 1):
+			for i: int in _cells.get(Vector2i(cx, cz), []):
+				if seen.has(i):
+					continue
+				seen[i] = true
+				var b: Dictionary = buildings[i]
+				var c := Vector2(float(b["c"][0]), float(b["c"][1]))
+				var d: float = c.distance_to(point)
+				if d <= radius_m:
+					near.append([d, b, c])
+	near.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	var entries: Array[Dictionary] = []
+	var streets: Dictionary = {}
+	var houses: int = 0
+	for item: Array in near:
+		var b: Dictionary = item[1]
+		var c: Vector2 = item[2]
+		var top: float = float(b["y"]) + float(b["h"])
+		var number: String = String(b["number"]).strip_edges()
+		if not number.is_empty() and houses < max_house_numbers:
+			entries.append({"distance": item[0], "kind": &"house", "text": number, "position": Vector3(c.x, top + 1.8, c.y)})
+			houses += 1
+		var street: String = String(b["street"]).strip_edges()
+		if not street.is_empty() and not streets.has(street) and streets.size() < max_street_names:
+			streets[street] = true
+			entries.append({"distance": item[0], "kind": &"street", "text": street, "position": Vector3(c.x, top + 5.0, c.y)})
+	return entries
+
+
 ## The authored asset bound to a feature, or an empty dictionary.
 func asset_of(feature_id: String) -> Dictionary:
 	return _assets.get(feature_id, {})

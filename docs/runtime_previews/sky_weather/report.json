@@ -1,0 +1,36 @@
+{
+	"camera_contract": "same runtime TPS camera position and noon lighting; camera tilted upward 24 deg for cloud readability",
+	"samples": [
+		{
+			"cloud_density": 4.224,
+			"cloud_mask_threshold": 0.3,
+			"cloud_mask_top": 0.92,
+			"cloud_opacity": 0.88,
+			"cloud_shadow_strength": 0.34,
+			"cloud_shape_contrast": 0.52,
+			"profile": "calm",
+			"snowfall_density": 0.0
+		},
+		{
+			"cloud_density": 4.872,
+			"cloud_mask_threshold": 0.255,
+			"cloud_mask_top": 0.821,
+			"cloud_opacity": 0.916,
+			"cloud_shadow_strength": 0.412,
+			"cloud_shape_contrast": 0.601,
+			"profile": "snowfall",
+			"snowfall_density": 0.45
+		},
+		{
+			"cloud_density": 5.592,
+			"cloud_mask_threshold": 0.205,
+			"cloud_mask_top": 0.711,
+			"cloud_opacity": 0.956,
+			"cloud_shadow_strength": 0.492,
+			"cloud_shape_contrast": 0.691,
+			"profile": "blizzard",
+			"snowfall_density": 0.95
+		}
+	],
+	"threshold_semantics": "lower cloud_coverage uniform = more visible cloud"
+}

@@ -43,6 +43,22 @@
  "pipeline_version": "1.0.0",
  "built_at": "2026-10-10T13:11:09+00:00",
  "asset": "assets/world/key_west/landmarks/kw_fort_zachary_taylor.glb",
- "asset_sha256": "4a0e045801538fbd345518f7fff6c0000b4aa00c61c3d1ada03066d2ca7dea55",
- "triangles": 43691
+ "asset_sha256": "4b3d56edd862786a15615ee643474e8872008e3234a87f7df3cd47089a23c892",
+ "triangles": 43691,
+ "collision": {
+  "FortSurface": {
+   "node": "FortSurface",
+   "method": "Blender 5.2.2 LTS Decimate Collapse ratio 0.2",
+   "source_triangles": 41197,
+   "collision_triangles": 8238,
+   "error": {
+    "mean_m": 0.0078,
+    "p99_m": 0.0514,
+    "max_m": 0.125
+   },
+   "error_measure": "distance from every source vertex and face centre to the collision copy",
+   "tool": "tools/blender/landmark_collision.py",
+   "built_at": "2026-10-15T07:19:48+00:00"
+  }
+ }
 }

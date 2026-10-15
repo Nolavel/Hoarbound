@@ -25,7 +25,8 @@ switching to this revision so it loads the new plugin code.
 The nightly stove, door and pickup fixes from PR #137 and Key West First Exit
 from PR #140 are preserved through a merge of `origin/main` into `codex`.
 The Key West profile remains selected through the existing
-`HFN_WORLD=key_west_test` launch contract; the default world is unchanged.
+`HFN_WORLD=key_west_test` launch contract; the default world is unchanged. (That profile and the
+legacy island were removed on 2026-10-15; the main scene is `key_west_reality.tscn`.)
 The generated UID companions for the ten new Key West scripts are included.
 
 The vendored `handlers/texture_handler.gd` contains an upstream blank line at

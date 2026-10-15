@@ -1,14 +1,14 @@
 class_name KeyWestRealityGround
 extends Node3D
-## Ground heights, building outlines and settled snow of the active Reality chunks, for systems
-## written against IslandTerrain + KeyWestCity. Reads only chunks the StreamingSystem made live.
+## Ground heights, building outlines and settled snow of the active Reality chunks, for the snow and
+## height consumers (get_height, snow obstacles). Reads only chunks the StreamingSystem made live.
 
 const GROUND_GROUP: StringName = &"snow_ground"
 const OBSTACLE_GROUP: StringName = &"snow_obstacles"
 const CELL_M: float = 8.0
 const CHUNK_M: float = 512.0
 const FALLBACK_Y: float = 1.0
-## Snow cover build time per frame, as the legacy city (ChunkedCityMassing.SNOW_BUDGET_USEC).
+## Snow cover build time per frame.
 const SNOW_BUDGET_USEC: int = 3000
 ## A sample on a chunk's far edge belongs to the next chunk; nudge back into this one.
 const EDGE_NUDGE_M: float = 0.01
@@ -77,6 +77,11 @@ func get_height(x: float, z: float) -> float:
 	var top: float = lerpf(data[cz * n + cx], data[cz * n + cx + 1], tx)
 	var bottom: float = lerpf(data[(cz + 1) * n + cx], data[(cz + 1) * n + cx + 1], tx)
 	return lerpf(top, bottom, tz)
+
+
+## True once the chunk under x/z is live, so get_height reads real ground there and not FALLBACK_Y.
+func has_ground_at(x: float, z: float) -> bool:
+	return not _tile_at(x, z).is_empty()
 
 
 ## Building outlines touching bounds, for SnowChunkCover's exact footprint cut.

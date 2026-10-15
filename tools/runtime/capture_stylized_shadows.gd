@@ -4,7 +4,7 @@ extends SceneTree
 ## Key West frames. `-- brush` compares spray masks; `-- shimmer` shifts the camera;
 ## `-- review` takes the author's review angles.
 
-const MAIN_SCENE: String = "res://scenes/world/key_west/key_west.tscn"
+const MAIN_SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const OUT_DIR: String = "res://docs/runtime_previews/stylized_shadows"
 const BRUSH_OUT_DIR: String = "res://docs/runtime_previews/shadow_brush"
 const SHIMMER_OUT_DIR: String = "res://docs/runtime_previews/shadow_shimmer"
@@ -12,6 +12,8 @@ const REVIEW_OUT_DIR: String = "res://docs/runtime_previews/shadow_review"
 ## Densest Duval Street block in the city snapshot: seven buildings within 25 m.
 const DUVAL := Vector2(-3072.7, 1374.3)
 const DUVAL_HEADING_DEG: float = 34.1
+## The inside camera keeps this far in front of the first wall between it and Henry.
+const WALL_MARGIN_M: float = 0.35
 ## Extra queue steps while a far placement streams its city chunks in.
 const STREAM_WAIT_STEPS: int = 6
 ## About half a pixel on the ground 4-5 m ahead of the TPS camera.
@@ -20,8 +22,6 @@ const BRUSH_MASKS: Dictionary[String, String] = {
 	"dry": "res://assets/textures/shadows/shadow_brush_dry.png",
 	"flat": "res://assets/textures/shadows/shadow_brush_flat.png",
 }
-const BUNKER := Vector2(-3452.88, 2273.84)
-const SHELTER := Vector2(-3579.85, 1574.51)
 const FIRST_ACTION_FRAME: int = 20
 const SETTLE_FRAMES: int = 6
 const GRADES: Array[StringName] = [&"HFN_ColdAsh_Day", &"HFN_ColdAsh_Dusk", &"HFN_ColdAsh_Night"]
@@ -29,7 +29,14 @@ const GRADES: Array[StringName] = [&"HFN_ColdAsh_Day", &"HFN_ColdAsh_Dusk", &"HF
 var _scene: Node3D
 var _player: Player
 var _camera: TpsCamera
-var _terrain: IslandTerrain
+## Ground height source of the loaded world (Reality ground or legacy IslandTerrain).
+var _ground: Node
+## The shelter zone centre and the way out through its door, read from the scene.
+var _shelter_xz: Vector2
+var _outward: Vector2 = Vector2.UP
+## Set by a placement: the next settle step stands Henry on the ground once it is live.
+var _snap_pending: bool = false
+var _settle_tries: int = 0
 var _stove: HeatSource
 var _grade: ColorGradeController
 var _day_night: DayNightManager
@@ -43,7 +50,6 @@ var _out_dir: String = OUT_DIR
 
 
 func _initialize() -> void:
-	OS.set_environment("HFN_WORLD", "key_west_test")
 	var brush: bool = OS.get_cmdline_user_args().has("brush")
 	var shimmer: bool = OS.get_cmdline_user_args().has("shimmer")
 	var review: bool = OS.get_cmdline_user_args().has("review")
@@ -105,11 +111,11 @@ func _process(_delta: float) -> bool:
 	_frame += 1
 	if _frame == 8:
 		_bind()
-	if _frame > 80 and (_player == null or _terrain == null or _stove == null):
+	if _frame > 80 and (_player == null or _ground == null or _stove == null):
 		push_error("stylized shadow capture: production scene did not bind")
 		quit(1)
 		return true
-	if _player == null or _terrain == null or _stove == null or _frame < _next_frame:
+	if _player == null or _ground == null or _stove == null or _frame < _next_frame:
 		return false
 	if _queue.is_empty():
 		RenderingServer.global_shader_parameter_set(&"stylized_shadow_strength", 1.0)
@@ -126,10 +132,14 @@ func _process(_delta: float) -> bool:
 func _bind() -> void:
 	_player = get_first_node_in_group(&"player") as Player
 	_camera = _scene.get_node_or_null(^"PlayerCamera") as TpsCamera
-	_terrain = _scene.get_node_or_null(^"IslandTerrain") as IslandTerrain
-	var zone := _scene.find_child("ShelterZone", true, false)
+	_ground = CaptureWorldSupport.ground_of(_scene)
+	var zone := _scene.find_child("ShelterZone", true, false) as Node3D
 	if zone != null:
 		_stove = zone.find_child("Stove", true, false) as HeatSource
+		_shelter_xz = Vector2(zone.global_position.x, zone.global_position.z)
+		var door := zone.find_child("Door", true, false) as Node3D
+		if door != null:
+			_outward = (Vector2(door.global_position.x, door.global_position.z) - _shelter_xz).normalized()
 	for node: Node in _scene.find_children("*", "ColorGradeController", true, false):
 		_grade = node as ColorGradeController
 	for node: Node in _scene.find_children("*", "DayNightManager", true, false):
@@ -219,10 +229,11 @@ func _set_hour(hour: float) -> void:
 
 
 func _place_outside(distance: float = 26.0) -> void:
-	var at: Vector2 = SHELTER + (BUNKER - SHELTER).normalized() * distance
-	var y: float = maxf(_terrain.get_height(at.x, at.y), 0.0) + 1.0
-	_player.global_position = Vector3(at.x, y, at.y)
-	var direction := (SHELTER - at).normalized()
+	var at: Vector2 = _shelter_xz + _outward * distance
+	_player.global_position = Vector3(at.x, CaptureWorldSupport.height(_scene, at.x, at.y) + 1.0, at.y)
+	_snap_pending = true
+	_queue.push_front(_stream_settle)
+	var direction := (_shelter_xz - at).normalized()
 	var yaw: float = atan2(direction.x, direction.y) + PI
 	_player.global_rotation.y = yaw
 	if _camera != null:
@@ -234,8 +245,9 @@ func _place_outside(distance: float = 26.0) -> void:
 
 ## Henry walks up Duval Street, the camera looking along it.
 func _place_street() -> void:
-	var y: float = maxf(_terrain.get_height(DUVAL.x, DUVAL.y), 0.0) + 1.0
-	_player.global_position = Vector3(DUVAL.x, y, DUVAL.y)
+	_player.global_position = Vector3(DUVAL.x, CaptureWorldSupport.height(_scene, DUVAL.x, DUVAL.y) + 1.0, DUVAL.y)
+	_snap_pending = true
+	_queue.push_front(_stream_settle)
 	var yaw: float = deg_to_rad(DUVAL_HEADING_DEG) + PI
 	_player.global_rotation.y = yaw
 	if _camera != null:
@@ -255,6 +267,7 @@ func _review(name: String, weather: StringName, hour: float, place: Callable) ->
 		_day_night.force_update_lighting()
 	place.call()
 	_queue.push_front(_pair.bind(name))
+	_queue.push_front(_stream_settle)
 	for i: int in STREAM_WAIT_STEPS:
 		_queue.push_front(func() -> void: pass)
 
@@ -271,9 +284,39 @@ func _place_inside() -> void:
 	_player.global_position = _stove.to_global(Vector3(1.1, 1.0, 0.35))
 	_player.global_rotation.y = _stove.global_rotation.y + PI * 0.5
 	_capture_camera()
-	_inside_camera.global_position = _stove.to_global(Vector3(4.6, 1.7, 4.5))
+	_queue.push_front(_aim_inside_camera)
+	_queue.push_front(_stream_settle)
+
+
+## Across the room from Henry, pulled in front of the first wall like a spring arm: the 727 room is
+## smaller than the legacy hut, and the authored spot lies 1.1 m outside its wall.
+func _aim_inside_camera() -> void:
+	var from: Vector3 = _player.global_position + Vector3.UP * 0.5
+	var wanted: Vector3 = _stove.to_global(Vector3(4.6, 1.7, 4.5))
+	var query := PhysicsRayQueryParameters3D.create(from, wanted)
+	query.exclude = [_player.get_rid()]
+	var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(query)
+	if not hit.is_empty():
+		wanted = (hit["position"] as Vector3) - (wanted - from).normalized() * WALL_MARGIN_M
+	_inside_camera.global_position = wanted
 	_inside_camera.look_at(_stove.to_global(Vector3(1.6, 0.2, 0.2)), Vector3.UP)
 	_inside_camera.make_current()
+
+
+## Holds the queue until Henry's chunk is live and the streamer quiet, then stands him on the ground if a
+## placement asked for it (Reality streams; on the legacy island this passes at once).
+func _stream_settle() -> void:
+	var xz := Vector2(_player.global_position.x, _player.global_position.z)
+	if not CaptureWorldSupport.is_settled(_scene, xz) and _settle_tries < 1000:
+		_settle_tries += 1
+		_queue.push_front(_stream_settle)
+		return
+	if _settle_tries >= 1000:
+		push_warning("stylized shadow capture: Henry's chunk did not stream in")
+	_settle_tries = 0
+	if _snap_pending:
+		_snap_pending = false
+		_player.global_position.y = CaptureWorldSupport.height(_scene, xz.x, xz.y) + 1.0
 
 
 ## Close camera on Henry's torso from an offset in his own frame (x right, z behind).

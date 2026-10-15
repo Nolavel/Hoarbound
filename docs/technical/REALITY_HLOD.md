@@ -269,6 +269,86 @@ CPU. Every cell loads an empty scene, so only the bookkeeping is timed. Two runs
   when both the far cell and the chunk are out.
 - **Guard:** the boundary test runs the real far view and fails on any blocking proxy load.
 
+### The 11 ms `attach_part`: it is collision, not node attachment (2026-10-14)
+
+The owner's audit (#219, point C) asked for the 11 ms `attach_part` of `kw_gen_-4_2` to be broken into stages and time
+sliced, after the deadline queue of Godot-Open-World-Database (`batch_processor.gd`, `batch_time_limit_ms`). Measured
+first, with `tools/runtime/measure_attach_parts.gd` (every chunk scene and part on the island, 1,456 scenes):
+
+- `add_child` costs 0.02–0.4 ms per part, so slicing the attach does not help.
+- The cost is the first `instantiate()` of a freshly loaded part. A repeat instantiate of the same part costs 2–3 ms.
+- For a part with a `ConcavePolygonShape3D` (every `Buildings` part), the gap is one collision rebuild.
+  - In debug builds `CollisionShape3D::set_shape` writes its debug colour into a shape whose debug properties were never
+    set (`shape_3d.cpp`, `collision_shape_3d.cpp`, Godot master).
+  - For a concave shape that calls `shape_set_data` again: 4.7–8 ms per `Buildings` part, and 39 ms for the fort chunk
+    `-9_3`.
+  - A repeat `set_shape` costs 0.02 ms.
+  - Release templates compile this out.
+- Island-wide, first instantiate: p99 6.3 ms, max 39.5 ms, 4 scenes over 10 ms. Repeat instantiate: p99 3.5 ms, max 9.7 ms.
+
+**Rejected: warming the shapes on a worker.** `PhysicsServer3DWrapMT` with `run_on_separate_thread = false` (ours) runs
+every call from a non-main thread on the main thread. It queues the call and flushes it at `sync()` or before the next
+direct call (`server_wrap_mt_common.h`, `flush_if_pending`). The rebuild only moved: in the boundary test the next chunk
+root's instantiate took 7–8 ms while 4–5 warm tasks were queued.
+
+The loader's own `set_faces` is queued the same way. A frame that only finishes loading a `Buildings` part takes 15–22 ms,
+85 ms for `-9_3`; a mesh-only part takes 7 ms. That cost exists in release builds too.
+
+| Physics | Buildings instantiate (debug) | Frame that finishes loading a Buildings part |
+|---|---|---|
+| GodotPhysics (current `DEFAULT`) | 9–18 ms, `-9_3` 84 ms | 19–22 ms, `-9_3` 85 ms |
+| Jolt (built in; default for new projects since 4.6) | 2–3 ms | 10–12 ms, `-9_3` 75 ms |
+| GodotPhysics on a separate thread | 0.5–2.6 ms | unchanged: `sync()` waits for the same build every frame |
+
+Jolt builds a mesh shape lazily when it is first used, so a part pays one build instead of two, and a cheaper one.
+
+**Jolt on the full suite:** the same 10 suites fail as on GodotPhysics, with identical messages. They fail on current
+`main` too and are not in CI: `dev_diorama_map`, `door_draft`, `doorway_camera`, `held_fit`, `held_light`,
+`passage_traversal`, `snow_contact_pipeline`, `snow_shell`, `street_props_streaming`, `tps_camera_orbit`.
+
+**Jolt on the gate and the 727 loop (one machine, same route):**
+
+| | GodotPhysics | Jolt |
+|---|---|---|
+| frame p50 / p95 / p99 | 6.86 / 14.53 / 17.33 ms | 6.83 / 14.32 / 17.26 ms |
+| frames > 33 / > 50 ms | 93 / 12 | 74 / 18 |
+| static memory peak | 403 MB | 439 MB |
+
+- Both runs fail the local 50 ms rule: most hitches have no cell change, i.e. this container's noise; CI passes the same
+  gate.
+- The 727 loop passes under Jolt.
+- Decision: Jolt from now on. It is one revertable line in `project.godot`; Henry's movement feel needs the owner's
+  check.
+
+The fort chunk `-9_3` stays an outlier under either engine. `kw_fort_zachary_taylor.glb` carries two concave
+collision meshes of 43,691 faces in all. The largest generated `Buildings` chunk has 8,466 faces; the island median is
+884. The fix is a simplified collision mesh for the fort, authored in Blender, as a separate asset task.
+
+### Fort collision simplified in Blender (2026-10-15)
+
+`tools/blender/landmark_collision.py` (Blender 5.2 `bpy`) runs the fort's `FortSurface-col` mesh through Decimate
+Collapse at ratio 0.2 and writes the copy into the same `.glb` as `FortSurfaceCollision-colonly`; the visual node
+loses its `-col` suffix. The visual buffers stay byte-identical. The walls (`FortWalls-col`, 2,494 faces) keep
+their own trimesh. The manifest marks the asset `artist_modified`, so `landmarks.py` does not overwrite it.
+
+How the method was chosen (all measured on the fort, Jolt, this container):
+
+| Option | Faces | Error (3D, source vertices and face centres): mean / p99 / max | Build |
+|---|---|---|---|
+| current trimesh | 41,197 | 0 | 89.5 ms for a 41k-face trimesh |
+| Dissolve 2° | 20,954 | 0.2 / 1.6 / 3.8 cm | |
+| Dissolve 4° | 14,446 | 0.7 / 4.1 / 33 cm | 20.9 ms for 14.5k faces |
+| **Collapse 0.2** | **8,238** | **0.8 / 5.1 / 12.5 cm** | |
+| Collapse 0.12 | 4,943 | 1.5 / 10.8 / 36.5 cm | 5.8 ms for 5k faces |
+| `HeightMapShape3D` 270×380 at 0.5 m (holes as NaN work) | — | 0 at the samples | 285 ms: rejected |
+
+Splitting into tiles inside one `.glb` would not help: the resource's shapes are all built when it finishes loading.
+
+Result, `measure_attach_parts.gd` on `kw_gen_-9_3`, two runs each: the `Buildings` part (the fort) 66–80 ms → 11.6–12.0
+ms. The chunk root (26–40 ms) does not contain the fort and is unchanged. Walking surface against an exact trimesh of the
+visual surface, 1 m ray grid (5,230 rays): median 5 mm, p99 8 cm, 5 rays over 30 cm (vertical wall edges), 1 miss at the
+rim. `test_landmark_collision` guards this.
+
 ## 4. Reproducibility and dirty rebuild
 
 - **Source hash:** `sha256` over the build settings (HLOD build version, chunk builder version, cluster size, snow

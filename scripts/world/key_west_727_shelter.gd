@@ -66,7 +66,7 @@ func build() -> void:
 	_place_furniture()
 	_add_stove_pipe(float(doc["elements"]["roof_top_navd88_m"]["above_ground_m"]))
 	StylizedEnvironmentMaterial.apply_to_tree(_house)
-	KeyWestFirstExit.add_cabinet_fade_volume(_house)
+	ShelterCabinet.add_cabinet_fade_volume(_house)
 	add_child(_house)
 	_add_spawn()
 

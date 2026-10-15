@@ -8,7 +8,7 @@ state.
 
 - Upper-left corner.
 - 500 x 320 px panel with a 20 px screen margin.
-- Perspective camera, 36 degree FOV, fixed 30 m height.
+- Perspective camera, 50 degree FOV, fixed 90 m height (about 160 x 100 m round Henry). Its own environment has no fog: the world's depth fog is opaque at 100 m, the camera's distance to Henry. It leaves out the snow contact and screen-pass layers.
 - 64 degree downward pitch with a 12 degree yaw offset. The trapezoid comes from
   the real perspective camera; the viewport texture is not distorted.
 
@@ -23,9 +23,8 @@ The gold dot marks Henry.
 
 ## Map-only labels
 
-The frozen Key West OSM snapshot already carries building addresses and named
-roads. ChunkedCityMassing.get_map_label_entries() exposes a bounded local
-selection around Henry:
+The Reality building index carries building addresses and named roads.
+`RealityIndex.map_label_entries()` exposes a bounded local selection around Henry:
 
 - nearest house numbers render in warm amber above their buildings;
 - nearest unique street names render in pale text above the road surface;

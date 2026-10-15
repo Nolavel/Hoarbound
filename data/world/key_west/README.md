@@ -1,7 +1,8 @@
 # Key West runtime snapshot
 
-These are the frozen city, visual enrichment and ocean-connectivity data used by
-`scenes/world/key_west/key_west.tscn`. They were recovered unchanged from the
+These are the frozen city, visual enrichment and ocean-connectivity data. The legacy
+`key_west.tscn` that first used them was removed on 2026-10-15; they remain sources for the Reality
+Library (`tools/world/reality/acquire.py`) and the snow wind bake. They were recovered unchanged from the
 verified First Exit Actions run `36574726378` at commit
 `968def1a0fb883c871d36718c597c09972ae4b23`.
 

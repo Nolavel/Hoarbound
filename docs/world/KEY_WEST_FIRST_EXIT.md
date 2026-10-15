@@ -5,8 +5,9 @@
 > `kw:building:osm:w524088621` (no separate source footprint). Roles live in
 > `data/world/key_west/reality/overrides/first_exit_landmarks.geojson`.
 
-The main scene `scenes/world/key_west/key_west.tscn` pins the `key_west_test`
-profile and owns the default F5 gameplay start.
+The main scene is `scenes/world/key_west/key_west_reality.tscn` (Reality profile). The legacy
+`key_west.tscn` / `key_west_test` route described below was removed on 2026-10-15; the anchors
+remain the design reference.
 
 ## Canonical route anchors
 

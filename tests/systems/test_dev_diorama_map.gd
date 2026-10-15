@@ -45,10 +45,12 @@ func _test_enabled_world_toggles_and_follows() -> void:
 	_check(not map.is_map_open(), "authorized map starts open instead of waiting for M")
 
 	map._on_toggle_requested()
+	await process_frame  # containers lay out a frame after they are shown
 	_check(map.is_map_open() and map.visible, "first M did not open authorized map")
-	_check(is_equal_approx(map.get_height_m(), 30.0), "map height is not fixed at 30 m")
+	_check(is_equal_approx(map.get_height_m(), 90.0), "map height is not fixed at 90 m")
 	_check(map.get_focus_world().distance_to(player.global_position) < 0.01, "map did not center on Henry")
 	_check((main_camera.cull_mask & DevDioramaMap.MAP_LABEL_MASK) == 0, "TPS camera still sees map-only labels")
+	_check((map.get_map_cull_mask() & RenderLayers.SCREEN_PASS) == 0, "map camera draws the player camera's fullscreen pass")
 	_check_live_viewport_projection(map)
 	_check_marker_tracks_ground_position(map, player)
 
@@ -119,8 +121,8 @@ func _make_fixture(enabled: bool) -> Dictionary:
 	root.add_child(world)
 	var player := CharacterBody3D.new()
 	player.name = "Player"
-	player.global_position = Vector3(12.0, 2.0, -8.0)
 	world.add_child(player)
+	player.global_position = Vector3(12.0, 2.0, -8.0)
 	var collision := CollisionShape3D.new()
 	collision.name = "Main_Collision"
 	var capsule := CapsuleShape3D.new()

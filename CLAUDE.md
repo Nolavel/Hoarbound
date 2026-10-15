@@ -66,10 +66,13 @@ rule changes) and `global.json` (take `main`'s).
 - Renderer: Forward+ / Vulkan. CI runs headless suites only; render locally on
   CPU via lavapipe (`tools/ci/render.sh`).
 - Main development scene: `res://tests/scenes/TestScene.tscn`.
-- Main terrain is `IslandTerrain` from the preserved NOAA crop in
-  `world/terrain/source/key_west/`; Graciosa sources live in `archive/graciosa/`.
+- Main game scene: `res://scenes/world/key_west/key_west_reality.tscn` (Reality chunks).
+  The legacy Key West island (`key_west.tscn`, `ChunkedCityMassing`, NOAA preview crop) was
+  removed on 2026-10-15 (`docs/technical/LEGACY_ISLAND_REMOVAL.md`); NOAA sources stay in
+  `world/terrain/source/key_west/`. `IslandTerrain` remains for Graciosa (`archive/graciosa/`).
   NOAA base heights remain unchanged. Authored height edits use Blender
   (`tools/blender/`), never hand-written code.
+- 3D physics: Jolt (`physics/3d/physics_engine`).
 
 ## GDExtension (production C++)
 

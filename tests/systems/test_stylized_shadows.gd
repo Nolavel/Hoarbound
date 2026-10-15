@@ -43,14 +43,10 @@ func _run() -> void:
 		"transparent material should stay on its original path"
 	)
 
-	var city := KeyWestCityVisuals.make_materials()
-	_check(city.get("building") is ShaderMaterial, "city building material bypasses stylized lighting")
-	_check(city.get("asphalt") is ShaderMaterial, "city road material bypasses stylized lighting")
-	var line := city.get("white_line") as StandardMaterial3D
-	_check(
-		line != null and line.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED,
-		"road marking should remain deliberately unshaded"
-	)
+	## Reality chunk buildings and the shared winter trees take stylized lighting.
+	_check(StylizedEnvironmentMaterial.make_static(Color(0.6, 0.6, 0.6), 0.9) is ShaderMaterial, "Reality building material bypasses stylized lighting")
+	for key: String in WinterTreeMeshes.materials():
+		_check(WinterTreeMeshes.materials()[key] is ShaderMaterial, "tree material %s bypasses stylized lighting" % key)
 
 	## Stock Godot only: the contract reads its globals and no engine sampler.
 	var contract_source := FileAccess.get_file_as_string(

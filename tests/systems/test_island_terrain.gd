@@ -28,11 +28,6 @@ func _physics_process(_delta: float) -> bool:
 			_check_heights()
 			_check_detail()
 			_check_collision()
-			_focus.global_position = Vector3(-3453.655, 0.0, 2268.294)
-			_check(_terrain.reload_heightmap("res://world/terrain/key_west_preview_2m_la8.png", "res://world/terrain/key_west_preview_2m_la8.json"), "Key West terrain failed to load")
-		7:
-			_check(is_equal_approx(_terrain.heightmap.metres_per_px, 2.0), "Key West collision test needs 2 m pixels")
-			_check_collision_at(Vector2(_focus.position.x, _focus.position.z))
 			_finish()
 	return false
 

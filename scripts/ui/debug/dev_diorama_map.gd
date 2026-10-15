@@ -8,8 +8,8 @@ const GROUP: StringName = &"dev_diorama_map"
 const PANEL_SIZE: Vector2 = Vector2(500.0, 320.0)
 const PANEL_OFFSET: Vector2 = Vector2(20.0, 20.0)
 const RENDER_SIZE: Vector2i = Vector2i(640, 360)
-const CAMERA_HEIGHT_M: float = 30.0
-const CAMERA_FOV_DEG: float = 36.0
+const CAMERA_HEIGHT_M: float = 90.0
+const CAMERA_FOV_DEG: float = 50.0
 const CAMERA_YAW_DEG: float = 12.0
 const CAMERA_PITCH_DEG: float = 64.0
 const FOLLOW_RESPONSE: float = 9.0
@@ -21,7 +21,8 @@ const LABEL_REFRESH_SECONDS: float = 0.75
 var _context: WorldContext
 var _player: Node3D
 var _terrain: IslandTerrain
-var _city: ChunkedCityMassing
+var _reality_index: RealityIndex
+var _label_signature: String = ""
 var _focus: Vector3 = Vector3.ZERO
 var _label_focus := Vector2(INF, INF)
 var _label_elapsed: float = LABEL_REFRESH_SECONDS
@@ -69,7 +70,6 @@ func on_world_ready(context: WorldContext) -> void:
 	set_process(false)
 	if context.world != null:
 		_terrain = context.world.find_child("IslandTerrain", true, false) as IslandTerrain
-		_city = _find_city(context.world)
 	if context.camera != null:
 		context.camera.cull_mask &= ~MAP_LABEL_MASK
 	if _player == null:
@@ -122,6 +122,10 @@ func get_focus_world() -> Vector3:
 	return _focus
 
 
+func get_map_cull_mask() -> int:
+	return _camera.cull_mask if _camera != null else 0
+
+
 func get_map_image() -> Image:
 	if _viewport == null or _viewport.get_texture() == null:
 		return null
@@ -168,7 +172,7 @@ func _build_ui() -> void:
 	header.add_child(title)
 
 	_status_label = Label.new()
-	_status_label.text = "FOLLOW  ·  30m"
+	_status_label.text = "FOLLOW  ·  %dm" % int(CAMERA_HEIGHT_M)
 	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_status_label.add_theme_font_size_override("font_size", 11)
 	_status_label.add_theme_color_override("font_color", Color(0.68, 0.73, 0.77))
@@ -199,11 +203,14 @@ func _build_ui() -> void:
 
 	_camera = Camera3D.new()
 	_camera.name = "DioramaCamera"
+	## Moved in _process, so physics interpolation would draw (and project) it a tick behind.
+	_camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	_camera.fov = CAMERA_FOV_DEG
 	_camera.near = 0.15
 	_camera.far = 1200.0
-	_camera.cull_mask = ((1 << 20) - 1) & ~RenderLayers.SNOW_CONTACT
+	_camera.cull_mask = ((1 << 20) - 1) & ~(RenderLayers.SNOW_CONTACT | RenderLayers.SCREEN_PASS)
+	_camera.environment = _map_environment()
 	_viewport.add_child(_camera)
 	_camera.make_current()
 
@@ -214,14 +221,15 @@ func _build_ui() -> void:
 	_marker = Label.new()
 	_marker.name = "HenryMarker"
 	_marker.text = "●"
-	_marker.custom_minimum_size = Vector2(18.0, 18.0)
 	_marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_marker.add_theme_font_size_override("font_size", 18)
-	_marker.add_theme_color_override("font_color", Color(1.0, 0.76, 0.24))
-	_marker.add_theme_color_override("font_outline_color", Color(0.02, 0.02, 0.025, 0.95))
-	_marker.add_theme_constant_override("outline_size", 4)
+	## Henry stands out on snow from 90 m: a large saturated red dot with a white rim.
+	_marker.custom_minimum_size = Vector2(30.0, 30.0)
+	_marker.add_theme_font_size_override("font_size", 30)
+	_marker.add_theme_color_override("font_color", Color(1.0, 0.16, 0.1))
+	_marker.add_theme_color_override("font_outline_color", Color(1.0, 1.0, 1.0, 0.95))
+	_marker.add_theme_constant_override("outline_size", 7)
 	_map_area.add_child(_marker)
 	_marker.reset_size()
 
@@ -233,6 +241,17 @@ func _panel_style() -> StyleBoxFlat:
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(5)
 	return style
+
+
+## The world's depth fog is opaque by 100 m, about the map camera's distance to Henry; the map draws without it.
+func _map_environment() -> Environment:
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.16, 0.18, 0.2)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.62, 0.65, 0.7)
+	env.ambient_light_energy = 0.7
+	return env
 
 
 func _update_camera() -> void:
@@ -308,15 +327,21 @@ func _marker_world_point() -> Vector3:
 func _refresh_labels() -> void:
 	if _labels_root == null:
 		return
-	for child: Node in _labels_root.get_children():
-		child.queue_free()
 	_label_elapsed = 0.0
 	_label_focus = Vector2(_focus.x, _focus.z)
-	if _city == null:
-		_city = _find_city(_context.world) if _context != null and _context.world != null else null
-	if _city == null:
+	## House numbers and street names come from the Reality building index.
+	if _reality_index == null:
+		_reality_index = RealityIndex.new()
+		if not _reality_index.load_index():
+			return
+	var entries: Array[Dictionary] = _reality_index.map_label_entries(_label_focus, LABEL_RADIUS_M)
+	## The same labels as last time stay as they are: rebuilding them each refresh made them flicker.
+	var signature: String = str(entries.map(func(e: Dictionary) -> Array: return [e.get("text", ""), e.get("position", Vector3.ZERO)]))
+	if signature == _label_signature:
 		return
-	var entries: Array[Dictionary] = _city.get_map_label_entries(_label_focus, LABEL_RADIUS_M)
+	_label_signature = signature
+	for child: Node in _labels_root.get_children():
+		child.queue_free()
 	for entry: Dictionary in entries:
 		_add_world_label(entry)
 
@@ -330,30 +355,20 @@ func _add_world_label(entry: Dictionary) -> void:
 	label.layers = MAP_LABEL_MASK
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
+	## Same size on screen at any camera height.
+	label.fixed_size = true
 	label.outline_size = 7
 	if kind == &"street":
 		label.font_size = 30
-		label.pixel_size = 0.030
+		label.pixel_size = 0.0017
 		label.modulate = Color(0.90, 0.94, 0.98)
 		label.outline_modulate = Color(0.025, 0.035, 0.045, 0.94)
 	else:
 		label.font_size = 24
-		label.pixel_size = 0.026
+		label.pixel_size = 0.0016
 		label.modulate = Color(1.0, 0.82, 0.44)
 		label.outline_modulate = Color(0.04, 0.03, 0.015, 0.94)
 	_labels_root.add_child(label)
-
-
-func _find_city(node: Node) -> ChunkedCityMassing:
-	if node == null:
-		return null
-	if node is ChunkedCityMassing:
-		return node as ChunkedCityMassing
-	for child: Node in node.get_children():
-		var found := _find_city(child)
-		if found != null:
-			return found
-	return null
 
 
 func _resize_to_viewport() -> void:

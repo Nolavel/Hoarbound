@@ -1,10 +1,10 @@
 extends SceneTree
 
-## Key West shelter doorway, #170: entry, middle and exit frames of a straight
-## pass, a 35-degree approach, and a stop in the door with the mouse turned aside.
+## Shelter doorway (#170), now the 727 door in Key West Reality: entry, middle and exit frames of a
+## straight pass, a 35-degree approach, and a stop in the door with the mouse turned aside.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --windowed --resolution 960x540 --fixed-fps 60 --script res://tools/runtime/capture_tps_doorway.gd -- <label>
 
-const SCENE: String = "res://scenes/world/key_west/key_west.tscn"
+const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const OUT_ROOT: String = "user://shots/tps_doorway"
 ## Signed distance past the door plane, inward positive, for each frame.
 const MOMENTS: Array = [["entry", -0.8], ["middle", 0.0], ["exit", 0.8]]
@@ -51,11 +51,15 @@ func _run() -> void:
 	_cam = _scene.find_child("PlayerCamera", true, false) as Camera3D
 	var zone := _scene.find_child("ShelterZone", true, false) as Node3D
 	var breach := zone.find_child("Door", true, false) as Node3D
+	var leaf: Node3D = null
 	for node: Node in get_nodes_in_group(&"hinged_doors"):
 		if (node as Node3D).global_position.distance_to(breach.global_position) < 1.0:
-			node.call(&"load_door_save_data", {"latched": false, "angle_deg": float(node.get("open_angle_deg"))})
+			leaf = node as Node3D
+			leaf.call(&"load_door_save_data", {"latched": false, "angle_deg": float(leaf.get("open_angle_deg"))})
+	if not await CaptureWorldSupport.wait_streamed(self, _scene, _player, Vector2(breach.global_position.x, breach.global_position.z)):
+		push_warning("tps doorway: the door's chunk did not stream in")
 	_door = _floor_point(breach.global_position)
-	_inward = Vector3(zone.global_position.x - _door.x, 0.0, zone.global_position.z - _door.z).normalized()
+	_inward = _inward_axis(leaf if leaf != null else breach, zone)
 	_dir = ProjectSettings.globalize_path(OUT_ROOT.path_join(_label))
 	DirAccess.make_dir_recursive_absolute(_dir)
 	RenderingServer.render_loop_enabled = false
@@ -124,7 +128,8 @@ func _place(at: Vector3, heading: Vector3) -> void:
 func _shoot(name: String) -> void:
 	RenderingServer.render_loop_enabled = true
 	await _frames(3)
-	root.get_texture().get_image().save_png(_dir.path_join(name + ".png"))
+	if DisplayServer.get_name() != "headless":  # headless is a dry run: the walk and the log only
+		root.get_texture().get_image().save_png(_dir.path_join(name + ".png"))
 	RenderingServer.render_loop_enabled = false
 	var eye: Vector3 = _eye()
 	var fade: float = float(_cam.call(&"get_body_fade")) if _cam.has_method(&"get_body_fade") else 0.0
@@ -148,6 +153,12 @@ func _floor_point(at: Vector3) -> Vector3:
 	query.exclude = [_player.get_rid()]
 	var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(query)
 	return (hit["position"] as Vector3) + Vector3.UP * 1.0 if not hit.is_empty() else at
+
+
+## The door's own axis, flat, turned toward the room; the 727 door sits in a side wall, off the zone centre.
+func _inward_axis(door: Node3D, zone: Node3D) -> Vector3:
+	var axis := Vector3(door.global_basis.z.x, 0.0, door.global_basis.z.z).normalized()
+	return axis if (zone.global_position - door.global_position).dot(axis) >= 0.0 else -axis
 
 
 func _frames(count: int) -> void:

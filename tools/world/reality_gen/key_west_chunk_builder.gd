@@ -96,9 +96,9 @@ func _init() -> void:
 	terrain.set_shader_parameter(&"ice_level_m", float(frame["vertical"]["tidal_datums_navd88_m"]["MSL"]) - ICE_UNDER_WATER_M)
 	_mat["terrain"] = terrain
 	## The legacy city's own procedural palms and winter-bare broadleaf trees.
-	var props: Dictionary = KeyWestStreetProps._materials()
-	_palm_mesh = KeyWestStreetProps._palm_mesh(props)
-	_bare_mesh = KeyWestStreetProps._bare_tree_mesh(props)
+	var props: Dictionary = WinterTreeMeshes.materials()
+	_palm_mesh = WinterTreeMeshes.palm(props)
+	_bare_mesh = WinterTreeMeshes.bare_tree(props)
 	_bare_aabb = _bare_mesh.get_aabb()
 	_pole_mesh = _cylinder(0.12, 0.16, 1.0, _mat["pole"])
 	_prop_mesh = _cylinder(0.15, 0.15, 1.0, _mat["prop"])
@@ -528,7 +528,7 @@ func _tree(feature: Dictionary, m: Dictionary) -> Node3D:
 	var base: Vector3 = Vector3(float(p[0]), _ground(float(p[0]), float(p[1]), float(m["base_y"])), float(p[1]))
 	var yaw: float = float(abs(hash(String(feature["feature_id"]))) % 628) * 0.01
 	if r < h * PALM_CROWN_RATIO:
-		var s: float = h / KeyWestStreetProps.PALM_BASE_HEIGHT_M
+		var s: float = h / WinterTreeMeshes.PALM_BASE_HEIGHT_M
 		_batch(feature, "Palms", _palm_mesh, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), base))
 		_count("palms")
 	else:

@@ -117,7 +117,8 @@ func _build() -> void:
 func _check_nozzle_direction(context: String) -> void:
 	var flare: Node3D = _visual.get_held_prop()
 	var nozzle: Vector3 = (_body.global_basis.inverse() * flare.global_basis.y).normalized()
-	_check(nozzle.y > 0.1 and nozzle.dot((Vector3.LEFT + Vector3.FORWARD).normalized()) > 0.6,
+	## Tipped up out of the fist at chest height (flare pass 2): above level and never back into Henry.
+	_check(nozzle.y > 0.1 and nozzle.dot(Vector3.BACK) < 0.3,
 		"%s flare points towards Henry's legs/body: %s" % [context, nozzle])
 
 

@@ -281,8 +281,6 @@ func _physics_process(_delta: float) -> void:
 		return
 	if _city == null and _world_root != null:
 		_city = get_tree().get_first_node_in_group(&"snow_obstacles") as Node3D
-		if _city == null:
-			_city = _world_root.find_child("KeyWestCity", true, false) as Node3D
 	var at: Vector3 = _player.global_position
 	var travel := Vector2.ZERO
 	if _player is CharacterBody3D:
@@ -775,6 +773,7 @@ func _build_capture() -> void:
 	_contact.disable_3d = false
 	_contact.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_contact_cam = Camera3D.new()
+	_contact_cam.name = "ContactCamera"
 	_contact_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
 	_contact_cam.size = window_m
 	_contact_cam.near = 0.05

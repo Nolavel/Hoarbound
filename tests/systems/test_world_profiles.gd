@@ -25,18 +25,13 @@ func _run() -> void:
 		_check(graciosa.world_data_path == StreamingSystem.DEFAULT_WORLD_DATA, "Graciosa world data path changed")
 		_check(graciosa.is_runtime_ready(), "existing Graciosa profile is not runtime-ready")
 
-	var key_west: WorldProfile = WorldProfileCatalog.load_profile(&"key_west_test")
-	_check(key_west != null, "Key West profile does not load")
+	var key_west: WorldProfile = WorldProfileCatalog.load_profile(&"key_west_reality")
+	_check(key_west != null, "Key West Reality profile does not load")
 	if key_west != null:
-		_check(key_west.experimental, "Key West profile is not marked experimental")
-		_check(key_west.terrain_is_configured(), "Key West terrain paths are not configured")
-		_check(key_west.terrain_image_path != IslandHeightmap.DEFAULT_IMAGE, "Key West reuses the Graciosa image")
-		_check(key_west.terrain_meta_path != IslandHeightmap.DEFAULT_META, "Key West reuses the Graciosa metadata")
-		_check(key_west.content_scene_exists(), "Key West content scene does not exist")
-		if key_west.terrain_files_exist():
-			_check(key_west.is_runtime_ready(), "Key West with imported NOAA terrain is not runtime-ready")
-		else:
-			_check(not key_west.is_runtime_ready(), "Key West became runtime-ready without NOAA terrain")
+		_check(not key_west.terrain_is_configured(), "Key West Reality chunks carry their own terrain, no heightmap")
+		_check(key_west.content_scene_exists(), "Key West Reality content scene does not exist")
+		_check(key_west.world_data_exists(), "Key West Reality streamed world data is missing")
+	_check(not ResourceLoader.exists("res://data/world_profiles/key_west_test.tres"), "the deleted legacy Key West profile is back")
 
 	var missing_terrain := WorldProfile.new()
 	missing_terrain.id = &"missing_terrain"

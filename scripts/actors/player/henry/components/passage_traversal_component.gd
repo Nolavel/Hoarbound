@@ -74,6 +74,9 @@ func _physics_process(delta: float) -> void:
 	var feet: Vector3 = _feet()
 	if _info != null and not _in_zone(_info, feet, 0.3):
 		_drop()
+	## An authored passage lives as long as its node; a freed marker or an unloaded chunk ends it.
+	if _info != null and _info.authored and not is_instance_valid(instance_from_id(_info.source_id)):
+		_drop()
 	var fresh: PassageInfo = _authored_near(feet)
 	_saw_corridor = false
 	if fresh == null and (_info == null or not _info.authored):

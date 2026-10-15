@@ -20,7 +20,7 @@ WORLD_UI_SCENES         Control scenes,               parent: a CanvasLayer
 Three lists rather than one, because the three categories are constructed
 differently and parented differently. Adding anything is **one line**.
 
-The main Key West scene (`scenes/world/key_west/key_west.tscn`) and the archived
+The main Key West scene (`scenes/world/key_west/key_west_reality.tscn`) and the archived
 Graciosa scene carry this script; its root is `World` and it has a `StreamContainer`.
 The old `GameRouter.gd` did one job — move the player onto a marker and free it
 — and that job is `_place_player()` here.

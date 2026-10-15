@@ -1,10 +1,9 @@
 # World profiles
 
-The default playable scene is `scenes/world/key_west/key_west.tscn`. It assigns
-`key_west_test.tres` to World's exported `world_profile`, so normal F5/F6 startup
-selects Key West without environment setup. The scene's IslandTerrain uses the
-same Key West image/metadata paths; World reuses an already loaded matching
-heightmap instead of rebuilding it during initialization.
+The default playable scene is `scenes/world/key_west/key_west_reality.tscn`. It assigns
+`key_west_reality.tres` to World's exported `world_profile`; the Reality chunks carry their own
+terrain, so the profile has no heightmap. (`key_west_test.tres` and the legacy `key_west.tscn`
+were removed on 2026-10-15.) Graciosa still uses `IslandTerrain` with its heightmap paths.
 
 `WorldProfile` stores dataset paths, streaming/content selection, initial weather
 and provenance. World forwards the chosen resource to existing systems through
