@@ -17,6 +17,9 @@ on 2026-10-15 (`git grep`, excluding `archive/`, `shots/` and docs).
 4. Palm and bare-tree meshes moved to the shared `WinterTreeMeshes`; the Reality chunk builder no longer uses
    `KeyWestStreetProps` (chunk digests unchanged).
 5. `test_stove_world_time` and `test_doorway_camera` run on the Reality scene (727 stove and door).
+6. Five capture tools load the Reality scene: `sky_weather`, `dev_diorama_map`, `tps_doorway`,
+   `motion_matching_street`, `stylized_shadows`. `tps_doorway` takes the way in from the door's own axis: the 727
+   door sits in a side wall, and the line from the zone centre missed the opening by about 64 degrees.
 
 ## Blockers: Reality still uses these (move or rename, never just delete)
 
@@ -83,6 +86,8 @@ Still failing, listed in `tools/ci/known_failing_suites.txt` with the reason:
 2. `test_doorway_camera` and `test_stove_world_time` on the Reality scene (727 door and stove).
 3. Capture tools to Reality or retired.
 4. Remove the legacy branches in `snow_shell`, `runtime_performance_policy`, `dev_diorama_map`, `world.gd`.
+   Each branch serves only the legacy scene, which still loads and runs in CI; removing them first would break it.
+   This step therefore lands in the same change as step 5, after the owner approves deletion.
 5. Delete the legacy scene, profile, First Exit content, city scripts, `IslandTerrain`, the preview crop and the
    legacy-only tests and tools; CI drops `test_key_west_first_exit` and the preview crop step.
 6. Graciosa (separate): a small fixture for `test_streaming`, then `StreamingSystem.DEFAULT_WORLD_DATA`, then
