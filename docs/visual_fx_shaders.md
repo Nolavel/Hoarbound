@@ -59,11 +59,24 @@ pane in front of a wall: priority 127 gave (0.74, 0.75, 0.76), the wash alone; p
 (0.95, 0.35, 0.36), the pane over the washed wall. The material uses `render_priority = -128`: first
 among transparents, so snow and glass draw over the wash. Opaque windows are unaffected either way.
 
-**Strength rule (owner decision, 2026-10-15).** The wash belongs to the snowstorm: `wash_strength` mixes
-the whole pass with the untouched frame. It is **10 %** in calm weather (no snow) and rises with snowfall
+**Atmosphere strength rule (owner decision, 2026-10-15).** The wash belongs to the snowstorm: `wash_strength`
+mixes only the distance atmosphere with the untouched frame. It is **10 %** in calm weather (no snow) and rises with snowfall
 to **100 %** in a blizzard: `lerp(0.1, 1.0, smoothstep(0, 0.95, snowfall_density))`. Calm is 10 %, windy
 (0.15) about 16 %, ordinary snowfall (0.45) about 52 %, blizzard 100 %. The values live in
 `PainterlyAtmospherePass` (`WASH_CLEAR`, `WASH_FULL_SNOW`).
+
+**Permanent paper rule (owner decision, 2026-10-16).** The paper sheet is Hoarbound's visual identity, not
+storm density. A restrained cold sheet tint and screen-stable tooth are applied after the weather-driven atmosphere
+mix. `paper_strength` therefore stays at 1.0 in calm, snowfall and blizzard weather. The production pass exposes it
+separately from `wash_strength`; weather updates must not change it.
+
+**Wet edge treatment (owner experiment, 2026-10-16).** One broad world-space noise field offsets the mid/far
+distance thresholds by up to 4 m, breaking the clean fog bands into stable wet-on-wet fronts. The existing four-neighbour
+depth check is reused: most silhouette blur remains guarded, while selected 18–82 m discontinuities receive a small
+soft bleed and broken dark pigment deposit. This is deliberately not a global outline and adds no extra depth samples.
+
+**Windows.** The post-process does not synthesize facade windows. Generated-building window surfaces and landmark
+glass/frost materials own window placement, darkness, frost and heat response; the wash only grades the pixels they render.
 
 **Sky rule (owner decision, 2026-10-15).** Sky pixels have no depth and would count as the farthest
 distance, so the full far wash erased the parallax clouds and the horizon haze. `sky_affect` is the share of
@@ -113,3 +126,4 @@ from the pane edges, crystals at the front).
   - `KeyWest727Shelter` feeds `heated_warmth` = heated offset / max heated offset of its `ShelterZone` on
     `warmth_changed`. Coverage = mix(cold, 0.2, warmth). The unheated clinic rooms stay at their cold coverage.
 - `test_window_frost` checks all three rules.
+

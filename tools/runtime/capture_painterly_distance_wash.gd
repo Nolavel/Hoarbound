@@ -46,6 +46,7 @@ var _player: CharacterBody3D
 var _camera: Camera3D
 var _ground: Node
 var _streaming: StreamingSystem
+var _weather: WeatherController
 var _post: MeshInstance3D
 var _material: ShaderMaterial
 var _records: Array[Dictionary] = []
@@ -89,8 +90,9 @@ func _run() -> void:
 	_camera = _ctx.camera as Camera3D
 	_ground = _world.find_child("RealityGround", true, false)
 	_streaming = _ctx.get_system(preload("res://core/world/streaming_system.gd")) as StreamingSystem
-	if _player == null or _camera == null or _ground == null:
-		_fail("missing player, TPS camera, or RealityGround")
+	_weather = get_first_node_in_group(PainterlyAtmospherePass.WEATHER_GROUP) as WeatherController
+	if _player == null or _camera == null or _ground == null or _weather == null:
+		_fail("missing player, TPS camera, RealityGround, or WeatherController")
 		return
 
 	_hide_hud()
@@ -100,6 +102,11 @@ func _run() -> void:
 	if _post == null or _material == null:
 		_fail("production TPS camera is missing PainterlyAtmosphere or its material")
 		return
+
+	# Review the complete visual contract rather than a faint calm-weather fraction.
+	# Before/after frames still use the same blizzard state, so only the pass changes.
+	_weather.set_weather(&"blizzard", true)
+	await _wait_frames(3)
 
 	print("painterly distance wash: production_pass=%s rendering_driver=%s camera_mask=0x%X post_layers=0x%X" % [
 		_post.get_path(),
@@ -145,8 +152,8 @@ func _run() -> void:
 			await _wait_frames(3)
 			_save_image(_capture_image(), _out.path_join("painterly_depth_probe.png"))
 
-			# Material diagnostics: grayscale paper tooth, then RGB =
-			# world blotch / dry-brush pigment / warm-window aperture.
+			# Material diagnostics: grayscale permanent paper tooth, then RGB =
+			# irregular wash front / pigment pooling / edge-bleed scope.
 			_material.set_shader_parameter(&"debug_mode", 3)
 			await _wait_frames(3)
 			_save_image(_capture_image(), _out.path_join("painterly_paper_probe.png"))
@@ -322,9 +329,11 @@ func _write_report() -> void:
 			"32-70+ m background lifts decisively toward a pale cold paper/snow mass",
 			"dark buildings become charcoal before dissolving into the wash",
 			"18-40 m mid-ground retains darker ink mass before far-distance lift takes over",
-			"paper tooth is restrained and screen-stable rather than swimming over world geometry",
+			"paper tooth and cold sheet tint stay present independently of weather strength",
+			"distance bands break into broad world-stable wet-on-wet fronts",
+			"selected mid-distance depth edges receive broken pigment pooling and restrained bleed",
 			"pigment blotches and dry-brush breakup are world-stable and strongest on darker middle planes",
-			"rare dark warm window apertures use world-space facade cells and preserve existing warm highlights",
+			"the post-process never invents windows; authored window and frost materials own them",
 			"blur stays secondary and is suppressed at depth discontinuities",
 			"CI probes the fullscreen pass before the expensive multi-shot/video capture",
 			"CI fails if before/wash mean RGB delta stays visually negligible",
@@ -348,20 +357,21 @@ func _write_report() -> void:
 			"blur_end_m": 70.0,
 			"blur_strength": 0.16,
 			"blur_radius_px": 2.2,
+			"edge_bleed_strength": 0.08,
+			"pigment_pool_strength": 0.14,
 			"horizon_band": 0.16,
 			"horizon_paper_boost": 0.08,
+			"paper_strength": 1.0,
+			"paper_base_mix": 0.035,
 			"paper_grain_strength": 0.024,
 			"paper_grain_scale_px": 2.25,
 			"blotch_scale": 0.11,
 			"blotch_mix_variation": 0.23,
 			"blotch_value_variation": 0.045,
+			"wash_edge_scale": 0.045,
+			"wash_edge_variation_m": 4.0,
 			"dry_brush_scale": 0.65,
 			"dry_brush_strength": 0.16,
-			"warm_window_color_srgb": [0.22, 0.16, 0.12],
-			"warm_window_strength": 0.78,
-			"warm_window_sparsity": 0.94,
-			"warm_window_range_m": [20.0, 62.0],
-			"warm_window_cell_m": [2.8, 2.2],
 		},
 		"verification": {
 			"post_probe_mean_rgb_delta_8bit": snappedf(_post_probe_delta_8bit, 0.001),
@@ -370,10 +380,12 @@ func _write_report() -> void:
 			"required_visible_wash_delta_8bit": MIN_VISIBLE_WASH_DELTA_8BIT,
 		},
 		"capture": {
+			"weather": "blizzard",
 			"settle_frames_after_active": SETTLE_FRAMES,
 			"max_stream_wait_frames": MAX_WAIT_FRAMES,
 			"video_fps": VIDEO_FPS,
 			"video_frames": _video_frame_count,
+			"video_duration_seconds": float(_video_frame_count) / float(VIDEO_FPS),
 			"video_start_xyz": [_video_start.x, _video_start.y, _video_start.z],
 			"video_end_xyz": [_video_end.x, _video_end.y, _video_end.z],
 			"henry_travel_m": snappedf(_video_distance_m, 0.01),
@@ -390,4 +402,5 @@ func _write_report() -> void:
 func _fail(message: String) -> void:
 	push_error("painterly distance wash: %s" % message)
 	quit(1)
+
 

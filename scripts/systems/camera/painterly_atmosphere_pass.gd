@@ -2,7 +2,7 @@ class_name PainterlyAtmospherePass
 extends MeshInstance3D
 
 ## Fullscreen atmospheric value wash attached to the production TPS camera.
-## It deliberately owns only distance fog, paper tooth and broad pigment breakup;
+## It deliberately owns only distance fog, permanent paper tooth and broad pigment breakup;
 ## object materials remain responsible for surface-bound brush language.
 
 const ENABLE_SETTING := &"hfn/visual/painterly_atmosphere_enabled"
@@ -13,11 +13,13 @@ const SKY_AFFECT_CLEAR: float = 0.1
 const SKY_AFFECT_HEAVY: float = 1.0
 const HEAVY_SNOW_START: float = 0.45
 const HEAVY_SNOW_FULL: float = 0.95
-## Whole-pass strength (owner rule): 10% without snow, rising with snowfall to 100% in a blizzard.
+## Atmospheric strength (owner rule): 10% without snow, rising with snowfall to 100% in a blizzard.
+## Paper strength is separate and remains stable through every weather profile.
 const WASH_CLEAR: float = 0.1
 const WASH_FULL_SNOW: float = 0.95
 
 @export var effect_enabled: bool = true
+@export_range(0.0, 1.5, 0.01) var paper_strength: float = 1.0
 
 var _material: ShaderMaterial
 
@@ -29,6 +31,7 @@ func _ready() -> void:
 		push_error("PainterlyAtmospherePass requires a ShaderMaterial override")
 		visible = false
 		return
+	_sync_paper_strength()
 	_sync_viewport_size()
 	get_viewport().size_changed.connect(_sync_viewport_size)
 	_apply_visibility()
@@ -49,13 +52,18 @@ func get_shader_material() -> ShaderMaterial:
 	return _material
 
 
+func set_paper_strength(value: float) -> void:
+	paper_strength = clampf(value, 0.0, 1.5)
+	_sync_paper_strength()
+
+
 ## The wash's sky share for a snowfall density; the weather's own blend makes the change gradual.
 static func sky_affect_for(snowfall_density: float) -> float:
 	var heavy: float = smoothstep(HEAVY_SNOW_START, HEAVY_SNOW_FULL, snowfall_density)
 	return lerpf(SKY_AFFECT_CLEAR, SKY_AFFECT_HEAVY, heavy)
 
 
-## The wash's overall strength for a snowfall density: the wash is the snowstorm's, so calm weather barely shows it.
+## Atmospheric strength for a snowfall density. The permanent paper layer is not part of this curve.
 static func wash_strength_for(snowfall_density: float) -> float:
 	return lerpf(WASH_CLEAR, 1.0, smoothstep(0.0, WASH_FULL_SNOW, snowfall_density))
 
@@ -87,3 +95,10 @@ func _sync_viewport_size() -> void:
 	if _material == null:
 		return
 	_material.set_shader_parameter(&"viewport_size", get_viewport().get_visible_rect().size)
+
+
+func _sync_paper_strength() -> void:
+	if _material == null:
+		return
+	_material.set_shader_parameter(&"paper_strength", paper_strength)
+

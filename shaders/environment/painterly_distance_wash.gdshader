@@ -5,8 +5,9 @@ render_mode unshaded, fog_disabled, cull_disabled, depth_test_disabled, depth_dr
 // This is atmospheric value shaping, not a replacement for the surface-bound
 // PainterlySurface material contract.
 // Distance removes information in broad painted stages rather than simulating DOF.
-// Near silhouettes stay crisp; distant architecture loses chroma and local detail,
-// while world-stable pigment breakup and a restrained paper tooth prevent sterile fog.
+// Near silhouettes stay readable; distant architecture loses chroma and local detail.
+// Broad world-stable wash fronts, restrained edge pooling and a permanent paper
+// tooth keep the result painted without turning it into a universal outline pass.
 
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear_mipmap, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
@@ -32,12 +33,17 @@ uniform float blur_end_m : hint_range(10.0, 250.0, 1.0) = 70.0;
 uniform float blur_strength : hint_range(0.0, 1.0, 0.01) = 0.16;
 uniform float blur_radius_px : hint_range(0.0, 6.0, 0.1) = 2.2;
 uniform float silhouette_guard_m : hint_range(0.5, 30.0, 0.5) = 6.0;
+uniform float edge_bleed_strength : hint_range(0.0, 0.25, 0.005) = 0.08;
+uniform float pigment_pool_strength : hint_range(0.0, 0.35, 0.005) = 0.14;
 uniform vec2 viewport_size = vec2(1600.0, 1000.0);
 
 // Share of the wash the sky takes, like Environment.fog_sky_affect: the authored sky and horizon haze stay.
 uniform float sky_affect : hint_range(0.0, 1.0, 0.01) = 0.1;
-// Whole-pass strength, set by PainterlyAtmospherePass from snowfall: 0.1 in calm weather, 1.0 in a blizzard.
+// Atmospheric wash strength, set by PainterlyAtmospherePass from snowfall.
 uniform float wash_strength : hint_range(0.0, 1.0, 0.01) = 1.0;
+// Permanent sheet identity. It is deliberately independent of snowfall.
+uniform float paper_strength : hint_range(0.0, 1.5, 0.01) = 1.0;
+uniform float paper_base_mix : hint_range(0.0, 0.12, 0.001) = 0.035;
 
 uniform float horizon_band : hint_range(0.01, 0.5, 0.01) = 0.16;
 uniform float horizon_paper_boost : hint_range(0.0, 0.5, 0.01) = 0.08;
@@ -47,15 +53,10 @@ uniform float paper_grain_scale_px : hint_range(1.0, 8.0, 0.25) = 2.25;
 uniform float blotch_scale : hint_range(0.01, 1.0, 0.01) = 0.11;
 uniform float blotch_mix_variation : hint_range(0.0, 0.5, 0.01) = 0.23;
 uniform float blotch_value_variation : hint_range(0.0, 0.12, 0.005) = 0.045;
+uniform float wash_edge_scale : hint_range(0.005, 0.2, 0.005) = 0.045;
+uniform float wash_edge_variation_m : hint_range(0.0, 12.0, 0.25) = 4.0;
 uniform float dry_brush_scale : hint_range(0.1, 4.0, 0.05) = 0.65;
 uniform float dry_brush_strength : hint_range(0.0, 0.4, 0.01) = 0.16;
-
-uniform vec4 warm_window_color : source_color = vec4(0.22, 0.16, 0.12, 1.0);
-uniform float warm_window_strength : hint_range(0.0, 1.0, 0.01) = 0.78;
-uniform float warm_window_sparsity : hint_range(0.80, 0.995, 0.005) = 0.94;
-uniform float warm_window_near_m : hint_range(0.0, 100.0, 1.0) = 20.0;
-uniform float warm_window_far_m : hint_range(10.0, 150.0, 1.0) = 62.0;
-uniform vec2 warm_window_cell_m = vec2(2.8, 2.2);
 
 // CI-only diagnostic modes used by the capture harness to prove that the
 // fullscreen pass is drawing, depth is readable and material masks are active.
@@ -100,11 +101,6 @@ vec3 view_position_at(vec2 uv, mat4 inverse_projection) {
 }
 
 
-vec3 world_position_at(vec2 uv, mat4 inverse_projection, mat4 inverse_view) {
-	return (inverse_view * vec4(view_position_at(uv, inverse_projection), 1.0)).xyz;
-}
-
-
 float distance_at(vec2 uv, mat4 inverse_projection) {
 	float raw_depth = textureLod(depth_texture, uv, 0.0).r;
 	// Reverse-Z: 0 is the far plane/sky, 1 is the near plane.
@@ -115,21 +111,13 @@ float distance_at(vec2 uv, mat4 inverse_projection) {
 }
 
 
-float silhouette_guard(vec2 uv, float center_distance, vec2 pixel, mat4 inverse_projection) {
+float depth_discontinuity(vec2 uv, float center_distance, vec2 pixel, mat4 inverse_projection) {
 	float d0 = distance_at(clamp(uv + vec2(pixel.x, 0.0), vec2(0.0), vec2(1.0)), inverse_projection);
 	float d1 = distance_at(clamp(uv - vec2(pixel.x, 0.0), vec2(0.0), vec2(1.0)), inverse_projection);
 	float d2 = distance_at(clamp(uv + vec2(0.0, pixel.y), vec2(0.0), vec2(1.0)), inverse_projection);
 	float d3 = distance_at(clamp(uv - vec2(0.0, pixel.y), vec2(0.0), vec2(1.0)), inverse_projection);
 	float delta = max(max(abs(d0 - center_distance), abs(d1 - center_distance)), max(abs(d2 - center_distance), abs(d3 - center_distance)));
-	return 1.0 - smoothstep(silhouette_guard_m, silhouette_guard_m * 2.5, delta);
-}
-
-
-float window_shape(vec2 grid_position) {
-	vec2 centered = abs(fract(grid_position) - vec2(0.5));
-	float horizontal = 1.0 - smoothstep(0.16, 0.23, centered.x);
-	float vertical = 1.0 - smoothstep(0.18, 0.29, centered.y);
-	return horizontal * vertical;
+	return smoothstep(silhouette_guard_m, silhouette_guard_m * 2.5, delta);
 }
 
 
@@ -146,21 +134,46 @@ void fragment() {
 		float depth_band = clamp(distance_m / max(far_full_m, 1.0), 0.0, 1.0);
 		ALBEDO = vec3(depth_band);
 	} else {
+		vec3 view_pos = view_position_at(uv, INV_PROJECTION_MATRIX);
+		vec3 view_dir = normalize(view_pos);
+		vec3 world_dir = normalize((INV_VIEW_MATRIX * vec4(view_dir, 0.0)).xyz);
+		vec3 world_pos = (INV_VIEW_MATRIX * vec4(view_pos, 1.0)).xyz;
+
+		// Break the clean distance bands into broad wet-on-wet fronts. One low-frequency
+		// field offsets the thresholds by a few metres and stays fixed to the city.
+		vec2 wash_edge_uv = vec2(
+			world_pos.x + world_pos.z * 0.31,
+			world_pos.z - world_pos.x * 0.27
+		) * wash_edge_scale;
+		float wash_edge_noise = value_noise_2d(wash_edge_uv);
+		float wash_offset_m = (wash_edge_noise - 0.5) * 2.0 * wash_edge_variation_m * has_geometry;
+
 		// Keep the first ~18 m effectively untouched, then remove information in
-		// readable painted planes. Mid-ground ink stays darker than the far wash.
+		// readable but irregular painted planes. Mid-ground ink stays darker than the far wash.
 		float sky_scope = mix(sky_affect, 1.0, has_geometry);
-		float mid = smoothstep(mid_start_m, max(mid_full_m, mid_start_m + 0.001), distance_m) * sky_scope;
-		float far = smoothstep(far_start_m, max(far_full_m, far_start_m + 0.001), distance_m) * sky_scope;
+		float mid_start = mid_start_m + wash_offset_m;
+		float mid_full = max(mid_full_m + wash_offset_m * 0.65, mid_start + 0.001);
+		float far_start = far_start_m + wash_offset_m * 0.85;
+		float far_full = max(far_full_m + wash_offset_m * 1.25, far_start + 0.001);
+		float mid = smoothstep(mid_start, mid_full, distance_m) * sky_scope;
+		float far = smoothstep(far_start, far_full, distance_m) * sky_scope;
 		float mid_only = mid * (1.0 - far * 0.72);
 
 		vec2 pixel = 1.0 / max(viewport_size, vec2(1.0));
-		float blur_amount = smoothstep(blur_start_m, max(blur_end_m, blur_start_m + 0.001), distance_m) * blur_strength;
-		float edge_guard = silhouette_guard(uv, distance_m, pixel * max(blur_radius_px, 1.0), INV_PROJECTION_MATRIX);
+		float blur_start = blur_start_m + wash_offset_m * 0.5;
+		float blur_end = max(blur_end_m + wash_offset_m * 0.75, blur_start + 0.001);
+		float blur_amount = smoothstep(blur_start, blur_end, distance_m) * blur_strength;
+		float depth_edge = depth_discontinuity(uv, distance_m, pixel * max(blur_radius_px, 1.0), INV_PROJECTION_MATRIX);
+		float edge_guard = 1.0 - depth_edge;
+		float edge_range = smoothstep(mid_start_m - 2.0, mid_start_m + 6.0, distance_m);
+		edge_range *= 1.0 - smoothstep(far_full_m - 10.0, far_full_m + 12.0, distance_m);
+		float edge_breakup = 0.55 + wash_edge_noise * 0.45;
+		float edge_scope = depth_edge * edge_range * edge_breakup * has_geometry;
 		float blur_lod = log2(max(blur_radius_px, 1.0));
 		vec3 soft = textureLod(screen_texture, uv, blur_lod).rgb;
-		vec3 color = mix(source, soft, blur_amount * edge_guard);
+		float soft_mix = clamp(blur_amount * edge_guard + edge_scope * edge_bleed_strength, 0.0, 1.0);
+		vec3 color = mix(source, soft, soft_mix);
 
-		float source_luma = dot(source, vec3(0.2126, 0.7152, 0.0722));
 		float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
 		float desat = clamp(mid * mid_desaturation + far * far_desaturation, 0.0, 1.0);
 		color = mix(color, vec3(luma), desat);
@@ -173,10 +186,6 @@ void fragment() {
 		float dark_lift = clamp(mid * mid_dark_value_lift + far * far_dark_value_lift, 0.0, 0.9);
 		color += (vec3(1.0) - color) * dark_lift * dark_mask;
 
-		vec3 view_pos = view_position_at(uv, INV_PROJECTION_MATRIX);
-		vec3 view_dir = normalize(view_pos);
-		vec3 world_dir = normalize((INV_VIEW_MATRIX * vec4(view_dir, 0.0)).xyz);
-		vec3 world_pos = world_position_at(uv, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX);
 		float horizon = 1.0 - smoothstep(0.0, horizon_band, abs(world_dir.y));
 
 		// The low-frequency pigment field lives in world space, so it does not swim
@@ -195,6 +204,13 @@ void fragment() {
 		color = mix(color, wash_color.rgb, paper_mix);
 		color += vec3((blotch - 0.5) * 2.0 * blotch_value_variation * pigment_scope);
 
+		// A broken dark deposit on selected geometry edges, followed by the restrained
+		// soft mix above, reads as pooling plus wet bleed rather than a toon outline.
+		float pool_breakup = smoothstep(0.20, 0.78, blotch * 0.72 + wash_edge_noise * 0.28);
+		float pigment_pool = edge_scope * pool_breakup;
+		float pool_weight = mix(0.55, 1.0, dark_mask);
+		color *= 1.0 - pigment_pool * pigment_pool_strength * pool_weight;
+
 		// Sparse anisotropic pigment catches dark mid-ground masses like a dry brush.
 		vec2 dry_uv = vec2(pigment_uv.x * dry_brush_scale * 6.0, pigment_uv.y * dry_brush_scale * 1.35);
 		float dry_field = value_noise_2d(dry_uv + vec2(17.3, 4.9));
@@ -202,44 +218,24 @@ void fragment() {
 		float dry_scope = dry_brush * mid_only * dark_mask * has_geometry;
 		color *= 1.0 - dry_scope * dry_brush_strength;
 
-		// Rare procedural window apertures are evaluated in world space and only on
-		// continuous, facade-like surfaces. Existing warm highlights are protected.
-		vec3 surface_cross = cross(dFdx(world_pos), dFdy(world_pos));
-		float surface_cross_length = length(surface_cross);
-		vec3 surface_normal = surface_cross / max(surface_cross_length, 0.0001);
-		float facade = (1.0 - smoothstep(0.34, 0.72, abs(surface_normal.y))) * step(0.0001, surface_cross_length);
-		bool faces_z = abs(surface_normal.z) >= abs(surface_normal.x);
-		vec2 facade_position = faces_z ? vec2(world_pos.x, world_pos.y) : vec2(world_pos.z, world_pos.y);
-		vec2 window_grid = facade_position / max(warm_window_cell_m, vec2(0.1));
-		vec2 window_cell = floor(window_grid);
-		float orientation_seed = faces_z ? 19.0 : 43.0;
-		float rare_cell = step(warm_window_sparsity, hash21(window_cell + vec2(orientation_seed, 7.0)));
-		float aperture = window_shape(window_grid) * rare_cell;
-		float window_range = smoothstep(warm_window_near_m, warm_window_near_m + 5.0, distance_m);
-		window_range *= 1.0 - smoothstep(warm_window_far_m - 10.0, warm_window_far_m, distance_m);
-		float wall_value = smoothstep(0.13, 0.32, source_luma) * (1.0 - smoothstep(0.72, 0.92, source_luma));
-		float existing_warm = smoothstep(0.015, 0.10, source.r - source.b) * smoothstep(0.16, 0.58, source_luma);
-		float warm_window = max(aperture * facade * wall_value * edge_guard, existing_warm * 0.7);
-		warm_window *= window_range * has_geometry;
-		float warm_energy = mix(0.72, 1.0, hash21(window_cell + vec2(3.0, 71.0)));
-		vec3 warm_target = warm_window_color.rgb * warm_energy;
-		color = mix(color, warm_target, warm_window * warm_window_strength);
-
-		// Paper tooth stays subtle and screen-stable: this is the sheet, not another
-		// layer of world material noise. Near gameplay readability is mostly intact.
+		// Paper is applied after the weather-driven atmosphere mix. It therefore stays
+		// present in calm weather instead of disappearing with the snowstorm wash.
 		vec2 grain_cell = floor((uv * viewport_size) / max(paper_grain_scale_px, 1.0));
 		float grain = hash21(grain_cell + vec2(5.0, 113.0));
-		float grain_scope = clamp(0.30 + mid * 0.35 + far * 0.35, 0.0, 1.0);
-		color *= 1.0 + (grain - 0.5) * 2.0 * paper_grain_strength * grain_scope;
+		float grain_scope = clamp(0.60 + mid * 0.18 + far * 0.22, 0.0, 1.0);
+		vec3 final_color = mix(source, clamp(color, vec3(0.0), vec3(1.0)), wash_strength);
+		final_color = mix(final_color, wash_color.rgb, paper_base_mix * paper_strength * grain_scope);
+		final_color *= 1.0 + (grain - 0.5) * 2.0 * paper_grain_strength * paper_strength * grain_scope;
 
 		if (debug_mode == 3) {
 			ALBEDO = vec3(grain);
 		} else if (debug_mode == 4) {
-			ALBEDO = vec3(blotch, dry_brush, warm_window);
+			ALBEDO = vec3(wash_edge_noise, pigment_pool, edge_scope);
 		} else {
-			ALBEDO = mix(source, clamp(color, vec3(0.0), vec3(1.0)), wash_strength);
+			ALBEDO = clamp(final_color, vec3(0.0), vec3(1.0));
 		}
 	}
 	ALPHA = 1.0;
 }
+
 

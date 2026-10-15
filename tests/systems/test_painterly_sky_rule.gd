@@ -1,7 +1,7 @@
 extends SceneTree
 
-## Painterly wash rules, driven by the live weather: whole-pass strength 10% calm to 100% blizzard, sky share 10% up to
-## ordinary snowfall then rising to 100%; the pass keeps its layer and draws before transparents (snow, glass).
+## Painterly wash rules: atmospheric strength follows live weather, while paper stays constant;
+## the pass keeps its layer and draws before transparents (snow, glass).
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 
@@ -60,16 +60,20 @@ func _check_live_weather() -> void:
 	var material: ShaderMaterial = wash.get_shader_material()
 	## Screen texture holds only opaque geometry; drawn after transparents the pass would erase snow and glass.
 	_check(material.render_priority == Material.RENDER_PRIORITY_MIN, "painterly pass does not draw before transparents")
+	var permanent_paper: float = float(material.get_shader_parameter(&"paper_strength"))
+	_check(is_equal_approx(permanent_paper, 1.0), "production paper strength is not 100%")
 	(weather as WeatherController).set_weather(&"calm", true)
 	await process_frame
 	await process_frame
 	_check(is_equal_approx(float(material.get_shader_parameter(&"sky_affect")), 0.1), "calm weather did not give a 10% sky share")
 	_check(is_equal_approx(float(material.get_shader_parameter(&"wash_strength")), 0.1), "calm weather did not give a 10% wash")
+	_check(is_equal_approx(float(material.get_shader_parameter(&"paper_strength")), permanent_paper), "calm weather changed permanent paper")
 	(weather as WeatherController).set_weather(&"blizzard", true)
 	await process_frame
 	await process_frame
 	_check(is_equal_approx(float(material.get_shader_parameter(&"sky_affect")), 1.0), "blizzard did not give a 100% sky share")
 	_check(is_equal_approx(float(material.get_shader_parameter(&"wash_strength")), 1.0), "blizzard did not give a full wash")
+	_check(is_equal_approx(float(material.get_shader_parameter(&"paper_strength")), permanent_paper), "blizzard changed permanent paper")
 	scene.queue_free()
 	await process_frame
 
@@ -78,3 +82,4 @@ func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures += 1
 		push_error("painterly sky rule: " + message)
+
