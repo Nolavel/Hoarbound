@@ -214,7 +214,7 @@ jobs:
           sudo apt-get install -y -qq gdal-bin python3-numpy python3-pil python3-pyproj ffmpeg
 
       - name: Seed frozen production Key West snapshots
-        if: contains(github.event.head_commit.message, '[key-west-tps]') || contains(github.event.head_commit.message, '[key-west-first-exit]')
+        if: contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[key-west-tps]') || contains(github.event.head_commit.message, '[key-west-first-exit]')
         run: |
           mkdir -p docs/runtime_previews/key_west
           cp data/world/key_west/city_preview.json docs/runtime_previews/key_west/city_preview.json
@@ -234,7 +234,7 @@ jobs:
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          if [[ "$COMMIT_MESSAGE" == *"[key-west-tps]"* || "$COMMIT_MESSAGE" == *"[key-west-first-exit]"* ]]; then
+          if [[ "$COMMIT_MESSAGE" == *"[painterly-wash-preview]"* || "$COMMIT_MESSAGE" == *"[key-west-tps]"* || "$COMMIT_MESSAGE" == *"[key-west-first-exit]"* ]]; then
             HFN_REUSE_CITY_JSON=1 bash tools/world/build_key_west_preview.sh
           else
             bash tools/world/build_key_west_preview.sh
