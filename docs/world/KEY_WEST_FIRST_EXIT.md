@@ -126,3 +126,29 @@ the real World.
 The `spawn_at_shelter` debug/start option should resolve to the canonical primary
 shelter at 727 Fort Street once #211 integration is complete. Until that code
 migration lands, any legacy vacant-lot target is transitional only.
+
+## Dev street spawn
+
+For walking the terrain away from the route: select the `World` node of
+`key_west_reality.tscn`, set **Developer tools → Dev Spawn Street** to a street
+and run. In debug builds Henry starts mid-street there, facing along it;
+"Scenario spawn" (the default) keeps the authored start. Release builds ignore it.
+
+| Street | Part of the island |
+|---|---|
+| Whitehead Street | Old Town, west |
+| Duval Street | Old Town, south end |
+| Truman Avenue | midtown |
+| White Street | midtown, south shore |
+| Flagler Avenue | New Town |
+| South Roosevelt Boulevard | Smathers Beach road |
+| North Roosevelt Boulevard | north shore |
+| Sigsbee Road | Dredgers Key |
+| 5th Street | Stock Island |
+| College Road | Stock Island, north |
+
+Points: `data/world/key_west/reality/routes/dev_street_spawns.json`. Each is on
+the street's centreline where it is farthest from building outlines, with ground
+above MHHW within 8 m. Henry is held until the chunk is live, the same way as
+the F6 teleport (`KeyWestDevWaypoints.teleport_to`). Test:
+`test_dev_street_spawns`. Frames: `tools/runtime/capture_dev_street_spawn.gd`.

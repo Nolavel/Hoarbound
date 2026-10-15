@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## KeyWestRealityGround serves heights and building outlines of streamed Reality chunks to
-## the snow shell. Uses a synthetic chunk, so it needs no generated scenes.
+## the snow shell; an HLOD cluster of a chunk leaves the chunk's data alone. Uses a synthetic chunk, so it needs
+## no generated scenes.
 ## Run: godot --headless --script tests/systems/test_key_west_reality_ground.gd
 
 var _failures: int = 0
@@ -26,6 +27,15 @@ func _run() -> void:
 	## A sample on the chunk's far edge (the next chunk is not loaded) still reads this chunk.
 	_check(absf(ground.get_height(-6 * 512.0, 3 * 512.0 + 0.5) - 4.0) < 0.01, "far-edge height fell back: %f" % ground.get_height(-6 * 512.0, 3 * 512.0 + 0.5))
 	_check(ground.get_snow_obstacles_in_rect(Rect2(Vector2(-7 * 512.0, 3 * 512.0), Vector2.ONE * 512.0)).size() == 1, "outline missing from the chunk rect")
+	## A streamed HLOD cluster names its source chunk; seeing it (boot scan of the container) must not drop that chunk.
+	var cluster := Node3D.new()
+	cluster.set_meta("chunk_id", "-7:3")
+	cluster.set_meta("cluster_id", "c128_-28_12")
+	root.add_child(cluster)
+	ground._index(cluster)
+	_check(ground.has_ground_at(-7 * 512.0 + 1.0, 3 * 512.0 + 0.5), "an HLOD cluster of the chunk dropped its ground")
+	_check(ground.has_snow_obstacle_at(Vector2(-7 * 512.0 + 15.0, 3 * 512.0 + 15.0)), "an HLOD cluster of the chunk dropped its outlines")
+	cluster.free()
 	_check(ground.get_snow_obstacles_in_rect(Rect2(Vector2(-7 * 512.0 + 100.0, 3 * 512.0 + 100.0), Vector2.ONE * 50.0)).is_empty(), "outline reported in a rect it does not touch")
 	ground._on_cell(&"kw_gen_-7_3", StreamingSystem.CellState.UNLOADED)
 	_check(ground.get_height(-7 * 512.0 + 1.0, 3 * 512.0 + 0.5) == KeyWestRealityGround.FALLBACK_Y, "unloaded chunk still answers heights")

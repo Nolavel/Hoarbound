@@ -64,3 +64,39 @@ the wash the sky takes, as `Environment.fog_sky_affect` is for engine fog:
 Measured on a TPS frame at Duval St (clear-sky region, saturation / luma): no wash 0.097 / 142, sky 0%
 0.096 / 142, 10% 0.067 / 155, 25% 0.044 / 171, 100% 0.028 / 213. Sheet:
 `docs/runtime_previews/painterly_sky/sky_options.png`.
+
+## Tree Snow
+
+`shaders/environment/vegetation/tree_snow.gdshader` (and `_double_sided` for fronds), used by every material of
+`WinterTreeMeshes` (palms, bare winter trees). It is the stylized environment surface plus one surface step through
+the body's `HFN_FRAGMENT_EXTRA` hook (`tree_snow.gdshaderinc`):
+- Snow settles on up-facing tops of fronds, limbs and twigs by the world normal, with the live `snow_cover`
+  (`snow_weight` from `snow_surface.gdshaderinc`, the same response as `snow_prop`). Vertical trunks stay bare.
+- Drooping palm fronds hold 80 % of it (`tree_snow_hold`); limbs and twigs hold all of it.
+- Rime grows on steep bark with `frost_amount`, only on the windward side (`snow_wind` points downwind).
+Utility wires, fences and pole tops already carry static snow ridges and caps from the chunk builder
+(`_add_ridge`, `WinterSnow_Poles`). Check: `tools/runtime/capture_tree_snow.gd` renders both trees at cover 0, 0.5, 1.
+
+## Window Frost
+
+Owner rule (2026-10-15):
+- **Houses with nothing inside:** every pane is fully frosted (100 %).
+- **A house with content inside:** each pane keeps 60–80 % frost, fixed per window.
+- **A room a stove has warmed:** its panes clear down to 20 %, gradually, as the room warms.
+
+Pattern: `shaders/environment/windows/frost_pattern.gdshaderinc`, ported from the GDExtension frost lab (frost grows in
+from the pane edges, crystals at the front).
+- **Generated buildings:** the chunk builder adds a `windows` surface to each building mesh
+  (`KeyWestChunkBuilder._window_row`).
+  - Panes are 1.0 × 1.4 m with a 0.9 m sill, every 3.2 m along each straight facade (outline points within 0.35 m of
+    a line form one facade), one row per storey.
+  - Storeys come from `levels`, else from the measured wall height / 3.2 m.
+  - Material: `frosted_window.gdshader`, opaque and lit like the walls. `COLOR.r` is the coverage
+    (`EMPTY_HOUSE_FROST` = 1), `COLOR.g` the pattern seed.
+  - HLOD proxies leave the panes out.
+- **Enterable landmarks (727 Fort St):** the real `Glass` openings use `frosted_glass.gdshader` (see-through).
+  - `tools/world/reality/landmark_glass_frost.py` writes per-pane data into the asset: `COLOR.r` = cold coverage 60–80 %
+    (hash of the window name), `COLOR.g` = heated room, `COLOR.b` = seed, plus pane UVs.
+  - `KeyWest727Shelter` feeds `heated_warmth` = heated offset / max heated offset of its `ShelterZone` on
+    `warmth_changed`. Coverage = mix(cold, 0.2, warmth). The unheated clinic rooms stay at their cold coverage.
+- `test_window_frost` checks all three rules.

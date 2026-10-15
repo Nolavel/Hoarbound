@@ -3,7 +3,7 @@ extends RefCounted
 ## Builds one Reality Library chunk (editor interchange JSON v2) into a Node3D tree with meshes,
 ## collision and the per-node metadata contract. Editor-time only; never used at runtime.
 
-const GENERATOR_VERSION: String = "kw_chunk_builder.11"
+const GENERATOR_VERSION: String = "kw_chunk_builder.12"
 const GROUPS: Array[String] = ["Terrain", "Buildings", "Roads", "Barriers", "Infrastructure", "Vegetation", "Coastal", "LandUse", "Winter", "Anchors"]
 const WALL_SINK_M: float = 0.3
 const WIRE_SAG_RATIO: float = 0.015
@@ -30,6 +30,20 @@ const STATIC_SNOW_COLOR: Color = Color(0.8, 0.83, 0.88)
 ## Snow on a wire this wide (cable plus crust) and on a pole top this wide.
 const WIRE_SNOW_HALF_M: float = 0.02
 const POLE_SNOW_RADIUS_M: float = 0.16
+## Facade windows on generated buildings: a common sash window, its sill, the spacing along a wall,
+## and how far the pane stands off the wall. Storeys come from the footprint's levels, else from the
+## measured wall height at STOREY_M each.
+const WINDOW_SIZE_M: Vector2 = Vector2(1.0, 1.4)
+const WINDOW_SILL_M: float = 0.9
+const WINDOW_PITCH_M: float = 3.2
+const WINDOW_OFFSET_M: float = 0.04
+const WINDOW_EAVE_GAP_M: float = 0.25
+const STOREY_M: float = 3.2
+## Measured outlines step in ~1 m edges; points within this of a straight run belong to one facade.
+const FACADE_TOLERANCE_M: float = 0.35
+## Frost on the windows of a building with nothing inside it covers the whole pane.
+const EMPTY_HOUSE_FROST: float = 1.0
+const FROSTED_WINDOW_SHADER: Shader = preload("res://shaders/environment/windows/frosted_window.gdshader")
 ## Winter dressing is not drawn past this distance; the far mesh carries no caps.
 const WINTER_VISIBLE_M: float = 450.0
 ## HLOD v1 (docs/technical/REALITY_HLOD.md): chunks listed here move their generated buildings into cluster cells.
@@ -78,6 +92,9 @@ func _init() -> void:
 	_mat["hedge"] = _material(Color(0.24, 0.40, 0.22), true)
 	_mat["pole"] = _material(Color(0.33, 0.27, 0.21))
 	_mat["wire"] = _material(Color(0.08, 0.08, 0.08), true)
+	var windows: ShaderMaterial = ShaderMaterial.new()
+	windows.shader = FROSTED_WINDOW_SHADER
+	_mat["windows"] = windows
 	_mat["static_snow"] = _material(STATIC_SNOW_COLOR, true)
 	_mat["static_snow"].set_shader_parameter(&"use_vertex_color", true)
 	_mat["canopy"] = _material(Color(0.18, 0.38, 0.20))
@@ -244,6 +261,11 @@ func _building(feature: Dictionary, m: Dictionary) -> Node3D:
 	var origin: Vector3 = Vector3(centre.x, base, centre.y)
 	var walls: SurfaceTool = SurfaceTool.new()
 	walls.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var placeholder: bool = String(m["roof_source"]) == "flat_cap_placeholder"
+	var panes: SurfaceTool = SurfaceTool.new()
+	panes.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var pane_count: int = 0
+	var levels: int = int(feature.get("attrs", {}).get("levels", 0))
 	for r: int in range(rings.size()):
 		var ring: PackedVector2Array = _points(rings[r])
 		var ring_tops: Array = tops[r]
@@ -269,9 +291,12 @@ func _building(feature: Dictionary, m: Dictionary) -> Node3D:
 			var b1: Vector3 = Vector3(b.x, tb, b.y)
 			_triangle(walls, a0, b0, b1, normal)
 			_triangle(walls, a0, b1, a1, normal)
+		if r == 0 and not placeholder:
+			for f: Array in _facades(ring, ring_tops, flip):
+				pane_count += _window_row(panes, f[0] - centre, f[1] - centre, float(f[2]) - base, f[3], levels,
+					"%s|%d" % [feature["feature_id"], f[4]])
 	walls.index()
 	var mesh: ArrayMesh = walls.commit(null, MESH_FLAGS)
-	var placeholder: bool = String(m["roof_source"]) == "flat_cap_placeholder"
 	mesh.surface_set_material(0, _mat["walls_placeholder"] if placeholder else _mat["walls"])
 	mesh.surface_set_name(0, "walls")
 	var roof: SurfaceTool = SurfaceTool.new()
@@ -295,11 +320,19 @@ func _building(feature: Dictionary, m: Dictionary) -> Node3D:
 			roof_mat = _mat["roof_placeholder"] if placeholder else _mat["roof_flat"]
 		mesh.surface_set_material(1, roof_mat)
 		mesh.surface_set_name(1, "roof")
+	var slots: Array[String] = ["walls", "roof"]
+	if pane_count > 0:
+		panes.index()
+		panes.commit(mesh, MESH_FLAGS)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, _mat["windows"])
+		mesh.surface_set_name(mesh.get_surface_count() - 1, "windows")
+		slots.append("windows")
+		_count("windows", pane_count)
 	var instance: MeshInstance3D = MeshInstance3D.new()
 	instance.name = feature["node_name"]
 	instance.mesh = mesh
 	instance.position = origin
-	instance.set_meta("material_slots", ["walls", "roof"])
+	instance.set_meta("material_slots", slots)
 	instance.set_meta("roof_source", m["roof_source"])
 	if m.has("roof_model"):
 		instance.set_meta("roof_model", m["roof_model"])
@@ -307,6 +340,88 @@ func _building(feature: Dictionary, m: Dictionary) -> Node3D:
 	_collect_collision(feature["feature_id"], m, base)
 	_count("buildings")
 	return instance
+
+
+## Straight facades of a closed outline: [a, b, lowest wall top, outward normal, start index] each.
+## Consecutive points stay in one facade while they keep within FACADE_TOLERANCE_M of its line.
+func _facades(ring: PackedVector2Array, tops: Array, flip: bool) -> Array:
+	var n: int = ring.size()
+	var start: int = 0
+	var sharpest: float = 2.0
+	for i: int in range(n):
+		var d0: Vector2 = (ring[i] - ring[(i - 1 + n) % n]).normalized()
+		var d1: Vector2 = (ring[(i + 1) % n] - ring[i]).normalized()
+		if d0.dot(d1) < sharpest:
+			sharpest = d0.dot(d1)
+			start = i
+	var out: Array = []
+	var anchor: int = 0
+	while anchor < n:
+		var end: int = anchor + 1
+		while end + 1 <= n and _straight(ring, start, anchor, end + 1):
+			end += 1
+		var a: Vector2 = ring[(start + anchor) % n]
+		var b: Vector2 = ring[(start + end) % n]
+		var low: float = INF
+		for k: int in range(anchor, end + 1):
+			low = minf(low, float(tops[(start + k) % n]))
+		var side: Vector2 = (b - a).normalized().orthogonal()
+		if flip:
+			side = -side
+		if not a.is_equal_approx(b):
+			out.append([a, b, low, Vector3(side.x, 0.0, side.y), (start + anchor) % n])
+		anchor = end
+	return out
+
+
+## True when every outline point between from and to (offsets past start) lies near their chord.
+func _straight(ring: PackedVector2Array, start: int, from: int, to: int) -> bool:
+	var n: int = ring.size()
+	var a: Vector2 = ring[(start + from) % n]
+	var b: Vector2 = ring[(start + to) % n]
+	for k: int in range(from + 1, to):
+		var p: Vector2 = ring[(start + k) % n]
+		if Geometry2D.get_closest_point_to_segment(p, a, b).distance_to(p) > FACADE_TOLERANCE_M:
+			return false
+	return true
+
+
+## One row of panes per storey along a wall from a to b (building-local plan points), standing
+## WINDOW_OFFSET_M off the wall. Returns how many panes it added.
+func _window_row(st: SurfaceTool, a: Vector2, b: Vector2, wall_top: float, normal: Vector3, levels: int, seed_key: String) -> int:
+	var length: float = a.distance_to(b)
+	if length < WINDOW_SIZE_M.x + 1.0:
+		return 0
+	var storeys: int = levels if levels > 0 else maxi(1, int(floor(wall_top / STOREY_M)))
+	var storey_h: float = wall_top / float(storeys)
+	var columns: int = maxi(1, int(floor((length - 0.8) / WINDOW_PITCH_M)))
+	var along: Vector2 = (b - a) / length
+	var off: Vector3 = normal * WINDOW_OFFSET_M
+	var half: Vector3 = Vector3(along.x, 0.0, along.y) * WINDOW_SIZE_M.x * 0.5
+	var added: int = 0
+	for storey: int in range(storeys):
+		var y0: float = storey * storey_h + minf(WINDOW_SILL_M, storey_h * 0.3)
+		var y1: float = y0 + minf(WINDOW_SIZE_M.y, storey_h * 0.5)
+		if y1 > wall_top - WINDOW_EAVE_GAP_M:
+			break
+		for c: int in range(columns):
+			var p: Vector2 = a + (b - a) * ((float(c) + 0.5) / float(columns))
+			var centre: Vector3 = Vector3(p.x, 0.0, p.y) + off
+			var seed: float = float(absi(hash("%s|%d|%d" % [seed_key, storey, c])) % 1000) / 1000.0
+			var col: Color = Color(EMPTY_HOUSE_FROST, seed, 0.0)
+			var q: Array[Vector3] = [centre - half + Vector3.UP * y0, centre + half + Vector3.UP * y0,
+				centre + half + Vector3.UP * y1, centre - half + Vector3.UP * y1]
+			var uv: Array[Vector2] = [Vector2(0.0, 1.0), Vector2(1.0, 1.0), Vector2(1.0, 0.0), Vector2(0.0, 0.0)]
+			for tri: Array in [[0, 1, 2], [0, 2, 3]]:
+				if (q[tri[2]] - q[tri[0]]).cross(q[tri[1]] - q[tri[0]]).dot(normal) < 0.0:
+					tri = [tri[0], tri[2], tri[1]]  # front face toward the street, as _triangle winds walls
+				for k: int in tri:
+					st.set_color(col)
+					st.set_uv(uv[k])
+					st.set_normal(normal)
+					st.add_vertex(q[k])
+			added += 1
+	return added
 
 
 func _ribbon(feature: Dictionary, m: Dictionary) -> Node3D:

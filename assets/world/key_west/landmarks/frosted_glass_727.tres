@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/environment/windows/frosted_glass.gdshader" id="1_glass"]
+
+[resource]
+shader = ExtResource("1_glass")
+shader_parameter/heated_warmth = 0.0
+shader_parameter/unheated_warmth = 0.0
+shader_parameter/warm_coverage = 0.2

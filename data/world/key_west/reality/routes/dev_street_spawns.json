@@ -1,0 +1,107 @@
+{
+ "schema": "kw_reality.dev_street_spawns.v1",
+ "note": "Developer spawn points for World.dev_spawn_street: one per street, from different parts of the island. Each point lies on the street's centreline at the spot farthest from any building outline (open ground, mid-street), checked on land in the terrain export; heading_deg faces along the street (Godot yaw, -Z forward).",
+ "method": "named primary..residential road ribbons of the editor export over 300 m long; centreline sampled every ~4 m; distance to building outlines densified at 2 m",
+ "streets": [
+  {
+   "name": "Whitehead Street",
+   "area": "Old Town, west",
+   "at": [
+    -3476.9,
+    1014.8
+   ],
+   "heading_deg": 33.1,
+   "open_m": 28.5
+  },
+  {
+   "name": "Duval Street",
+   "area": "Old Town, south end",
+   "at": [
+    -2751.3,
+    1850.3
+   ],
+   "heading_deg": -146.0,
+   "open_m": 24.5
+  },
+  {
+   "name": "Truman Avenue",
+   "area": "midtown",
+   "at": [
+    -2166.1,
+    980.5
+   ],
+   "heading_deg": 124.2,
+   "open_m": 28.8
+  },
+  {
+   "name": "White Street",
+   "area": "midtown, south shore",
+   "at": [
+    -1524.6,
+    1894.4
+   ],
+   "heading_deg": 35.4,
+   "open_m": 83.5
+  },
+  {
+   "name": "Flagler Avenue",
+   "area": "New Town",
+   "at": [
+    509.3,
+    385.8
+   ],
+   "heading_deg": 108.7,
+   "open_m": 35.9
+  },
+  {
+   "name": "South Roosevelt Boulevard",
+   "area": "Smathers Beach road",
+   "at": [
+    646.4,
+    1383.5
+   ],
+   "heading_deg": 87.2,
+   "open_m": 476.6
+  },
+  {
+   "name": "North Roosevelt Boulevard",
+   "area": "north shore",
+   "at": [
+    481.6,
+    -575.4
+   ],
+   "heading_deg": -59.5,
+   "open_m": 122.1
+  },
+  {
+   "name": "Sigsbee Road",
+   "area": "Dredgers Key, north-west",
+   "at": [
+    -276.7,
+    -713.6
+   ],
+   "heading_deg": -138.1,
+   "open_m": 305.9
+  },
+  {
+   "name": "5th Street",
+   "area": "Stock Island",
+   "at": [
+    2956.2,
+    -560.5
+   ],
+   "heading_deg": -179.6,
+   "open_m": 57.8
+  },
+  {
+   "name": "College Road",
+   "area": "Stock Island, north",
+   "at": [
+    2989.4,
+    -1648.8
+   ],
+   "heading_deg": 30.3,
+   "open_m": 211.0
+  }
+ ]
+}
