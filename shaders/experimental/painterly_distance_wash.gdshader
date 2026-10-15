@@ -2,36 +2,37 @@ shader_type spatial;
 render_mode unshaded, fog_disabled, cull_disabled, depth_test_disabled, depth_draw_never;
 
 // Experimental Hoarbound painterly distance wash.
-// Reference target: depth removes information aggressively. Near silhouettes stay
-// crisp; mid-distance buildings lose local contrast/chroma; far architecture
-// becomes a pale cold mass that can nearly merge with snow/sky. This is not DOF.
+// Reference target: depth removes information in three readable stages.
+// Near silhouettes stay crisp; mid-distance facades collapse into broader value
+// masses; far architecture becomes pale cold paper/snow mass. This is not DOF.
 
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear_mipmap, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 
-uniform float wash_start_m : hint_range(0.0, 100.0, 0.5) = 10.0;
-uniform float wash_end_m : hint_range(10.0, 250.0, 1.0) = 72.0;
-uniform float wash_curve : hint_range(0.25, 2.0, 0.01) = 0.68;
-uniform float wash_strength : hint_range(0.0, 1.0, 0.01) = 0.82;
+uniform float mid_start_m : hint_range(0.0, 100.0, 0.5) = 12.0;
+uniform float mid_full_m : hint_range(5.0, 150.0, 0.5) = 35.0;
+uniform float far_start_m : hint_range(10.0, 200.0, 1.0) = 35.0;
+uniform float far_full_m : hint_range(20.0, 300.0, 1.0) = 90.0;
 uniform vec4 wash_color : source_color = vec4(0.92, 0.94, 0.95, 1.0);
 
-uniform float desaturation : hint_range(0.0, 1.0, 0.01) = 0.78;
-uniform float contrast_compression : hint_range(0.0, 1.0, 0.01) = 0.60;
-uniform float dark_value_lift : hint_range(0.0, 1.0, 0.01) = 0.44;
+uniform float mid_desaturation : hint_range(0.0, 1.0, 0.01) = 0.52;
+uniform float far_desaturation : hint_range(0.0, 1.0, 0.01) = 0.26;
+uniform float mid_contrast_compression : hint_range(0.0, 1.0, 0.01) = 0.38;
+uniform float far_contrast_compression : hint_range(0.0, 1.0, 0.01) = 0.28;
+uniform float mid_dark_value_lift : hint_range(0.0, 1.0, 0.01) = 0.28;
+uniform float far_dark_value_lift : hint_range(0.0, 1.0, 0.01) = 0.26;
+uniform float mid_paper_mix : hint_range(0.0, 1.0, 0.01) = 0.34;
+uniform float far_paper_mix : hint_range(0.0, 1.0, 0.01) = 0.48;
 
-uniform float far_erase_start_m : hint_range(10.0, 200.0, 1.0) = 42.0;
-uniform float far_erase_end_m : hint_range(20.0, 300.0, 1.0) = 95.0;
-uniform float far_erase_strength : hint_range(0.0, 0.5, 0.01) = 0.16;
-
-uniform float blur_start_m : hint_range(0.0, 150.0, 1.0) = 25.0;
-uniform float blur_end_m : hint_range(10.0, 250.0, 1.0) = 85.0;
-uniform float blur_strength : hint_range(0.0, 1.0, 0.01) = 0.33;
-uniform float blur_radius_px : hint_range(0.0, 6.0, 0.1) = 3.0;
+uniform float blur_start_m : hint_range(0.0, 150.0, 1.0) = 28.0;
+uniform float blur_end_m : hint_range(10.0, 250.0, 1.0) = 90.0;
+uniform float blur_strength : hint_range(0.0, 1.0, 0.01) = 0.24;
+uniform float blur_radius_px : hint_range(0.0, 6.0, 0.1) = 2.6;
 uniform float silhouette_guard_m : hint_range(0.5, 30.0, 0.5) = 6.0;
 uniform vec2 viewport_size = vec2(1280.0, 720.0);
 
 uniform float horizon_band : hint_range(0.01, 0.5, 0.01) = 0.16;
-uniform float horizon_boost : hint_range(0.0, 0.5, 0.01) = 0.22;
+uniform float horizon_paper_boost : hint_range(0.0, 0.5, 0.01) = 0.10;
 
 
 void vertex() {
@@ -51,7 +52,7 @@ vec3 view_position_at(vec2 uv) {
 float distance_at(vec2 uv) {
 	float raw_depth = textureLod(depth_texture, uv, 0.0).r;
 	if (raw_depth >= 0.999999) {
-		return far_erase_end_m * 2.0;
+		return far_full_m * 2.0;
 	}
 	return length(view_position_at(uv));
 }
@@ -72,20 +73,12 @@ void fragment() {
 	vec3 source = textureLod(screen_texture, uv, 0.0).rgb;
 	float distance_m = distance_at(uv);
 
-	float wash_linear = smoothstep(wash_start_m, max(wash_end_m, wash_start_m + 0.001), distance_m);
-	float wash = pow(clamp(wash_linear, 0.0, 1.0), wash_curve);
-	float far_erase = smoothstep(far_erase_start_m, max(far_erase_end_m, far_erase_start_m + 0.001), distance_m);
+	// Explicit depth hierarchy. Nothing below mid_start_m is touched.
+	float mid = smoothstep(mid_start_m, max(mid_full_m, mid_start_m + 0.001), distance_m);
+	float far = smoothstep(far_start_m, max(far_full_m, far_start_m + 0.001), distance_m);
 
-	// The references lose the horizon into paper/snow. Keep this tied to the
-	// world horizon so camera pitch does not drag a visible screen-space band.
-	vec3 view_pos = view_position_at(uv);
-	vec3 view_dir = normalize(view_pos);
-	vec3 world_dir = normalize((INV_VIEW_MATRIX * vec4(view_dir, 0.0)).xyz);
-	float horizon = 1.0 - smoothstep(0.0, horizon_band, abs(world_dir.y));
-	wash = clamp(wash + horizon * horizon_boost * sqrt(max(wash, 0.0)), 0.0, 1.0);
-
-	// Softness is secondary. Preserve depth discontinuities so Henry, nearby
-	// poles and tree trunks stay graphic instead of bleeding into the background.
+	// Softness is deliberately secondary. Preserve depth discontinuities so Henry,
+	// nearby poles and tree trunks stay graphic instead of bleeding into background.
 	vec2 pixel = 1.0 / max(viewport_size, vec2(1.0));
 	float blur_amount = smoothstep(blur_start_m, max(blur_end_m, blur_start_m + 0.001), distance_m) * blur_strength;
 	float edge_guard = silhouette_guard(uv, distance_m, pixel * max(blur_radius_px, 1.0));
@@ -94,19 +87,28 @@ void fragment() {
 	vec3 color = mix(source, soft, blur_amount * edge_guard);
 
 	float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-	color = mix(color, vec3(luma), wash * desaturation);
+	float desat = clamp(mid * mid_desaturation + far * far_desaturation, 0.0, 1.0);
+	color = mix(color, vec3(luma), desat);
 
-	// Compress local value range before whitening. This is the main painterly
-	// simplification: a distant facade should read as one mass, not a faded PBR asset.
-	color = (color - vec3(0.5)) * (1.0 - wash * contrast_compression) + vec3(0.5);
+	// Mid-ground first loses local value separation. Far-field compression stacks
+	// on top so a facade reads as a broad painted mass rather than faded PBR detail.
+	float compression = clamp(mid * mid_contrast_compression + far * far_contrast_compression, 0.0, 0.92);
+	color = (color - vec3(0.5)) * (1.0 - compression) + vec3(0.5);
 
-	// Dark architecture must lift much faster than snow/highlights. The reference
-	// keeps a readable silhouette, but abandons near-black values with distance.
+	// Lift dark architecture toward charcoal before it merges into cold paper.
 	float dark_mask = 1.0 - smoothstep(0.16, 0.68, luma);
-	color += (vec3(1.0) - color) * (wash * dark_value_lift * dark_mask);
+	float dark_lift = clamp(mid * mid_dark_value_lift + far * far_dark_value_lift, 0.0, 0.9);
+	color += (vec3(1.0) - color) * dark_lift * dark_mask;
 
-	// Final paper merge: moderate in the midground, decisive in the far field.
-	float paper_mix = clamp(wash * wash_strength + far_erase * far_erase_strength, 0.0, 0.98);
+	// World-space horizon wash: no camera-fixed horizontal band.
+	vec3 view_pos = view_position_at(uv);
+	vec3 view_dir = normalize(view_pos);
+	vec3 world_dir = normalize((INV_VIEW_MATRIX * vec4(view_dir, 0.0)).xyz);
+	float horizon = 1.0 - smoothstep(0.0, horizon_band, abs(world_dir.y));
+
+	float paper_mix = mid * mid_paper_mix + far * far_paper_mix;
+	paper_mix += horizon * horizon_paper_boost * mid;
+	paper_mix = clamp(paper_mix, 0.0, 0.94);
 	color = mix(color, wash_color.rgb, paper_mix);
 
 	ALBEDO = clamp(color, vec3(0.0), vec3(1.0));

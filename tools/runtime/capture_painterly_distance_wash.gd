@@ -10,8 +10,10 @@ extends SceneTree
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const SHADER_PATH := "res://shaders/experimental/painterly_distance_wash.gdshader"
 const DEFAULT_OUT := "res://docs/runtime_previews/key_west"
-const SETTLE_FRAMES := 150
-const ORBIT_FRAMES := 96
+const CHUNK_M := 512.0
+const SETTLE_FRAMES := 40
+const MAX_WAIT_FRAMES := 600
+const ORBIT_FRAMES := 64
 const ORBIT_DEGREES := 34.0
 
 const SHOTS: Array[Dictionary] = [
@@ -38,6 +40,7 @@ var _ctx: Variant
 var _player: CharacterBody3D
 var _camera: Node3D
 var _ground: Node
+var _streaming: StreamingSystem
 var _post: MeshInstance3D
 var _material: ShaderMaterial
 var _records: Array[Dictionary] = []
@@ -72,6 +75,7 @@ func _run() -> void:
 	_player = _ctx.player as CharacterBody3D
 	_camera = _ctx.camera as Node3D
 	_ground = _world.find_child("RealityGround", true, false)
+	_streaming = _ctx.get_system(preload("res://core/world/streaming_system.gd")) as StreamingSystem
 	if _player == null or _camera == null or _ground == null:
 		_fail("missing player, TPS camera, or RealityGround")
 		return
@@ -85,7 +89,7 @@ func _run() -> void:
 	for shot_index in range(SHOTS.size()):
 		var shot: Dictionary = SHOTS[shot_index]
 		_place(shot)
-		await _wait_frames(SETTLE_FRAMES)
+		await _wait_until_streamed(shot)
 
 		_post.visible = false
 		await _wait_frames(3)
@@ -153,11 +157,32 @@ func _place(shot: Dictionary) -> void:
 		_camera.call(&"make_current")
 
 
+func _wait_until_streamed(shot: Dictionary) -> void:
+	if _streaming == null:
+		push_warning("painterly distance wash: StreamingSystem unavailable; using short fallback settle")
+		await _wait_frames(SETTLE_FRAMES)
+		return
+
+	var active_at := -1
+	for frame in range(MAX_WAIT_FRAMES + 1):
+		var p := _player.global_position
+		var own := StringName("kw_gen_%d_%d" % [floori(p.x / CHUNK_M), floori(p.z / CHUNK_M)])
+		if active_at < 0 and _streaming.get_state(own) == StreamingSystem.CellState.ACTIVE:
+			active_at = frame
+			# Ground height is authoritative only after the target chunk becomes active.
+			_place(shot)
+		if active_at >= 0 and frame - active_at >= SETTLE_FRAMES:
+			return
+		await process_frame
+
+	push_warning("painterly distance wash: stream wait hit %d-frame safety cap" % MAX_WAIT_FRAMES)
+
+
 func _capture_orbit() -> void:
 	var shot: Dictionary = SHOTS[1]
 	_place(shot)
 	_post.visible = true
-	await _wait_frames(SETTLE_FRAMES)
+	await _wait_until_streamed(shot)
 
 	var at: Vector2 = shot["at"]
 	var look: Vector2 = shot["look"]
@@ -195,35 +220,41 @@ func _write_report() -> void:
 		"status": "experimental; codex only; not connected to production path",
 		"scene": SCENE,
 		"reference_contract": [
-			"near silhouettes remain crisp and high-contrast",
-			"wash is already readable around 20-30 m instead of waiting for the horizon",
-			"mid-distance facades collapse into broad value masses",
-			"dark buildings lift aggressively toward cold paper instead of staying black",
-			"far architecture can nearly merge with snow/sky while keeping a silhouette",
+			"0-12 m foreground remains effectively untouched",
+			"12-35 m mid-ground loses local contrast/chroma and collapses into broader values",
+			"35-90+ m background lifts toward a pale cold paper/snow mass",
+			"dark buildings become charcoal before dissolving into the wash",
 			"blur stays secondary and is suppressed at depth discontinuities",
+			"streaming capture waits for the target chunk ACTIVE state instead of fixed long sleeps",
 		],
 		"parameters": {
-			"wash_start_m": 10.0,
-			"wash_end_m": 72.0,
-			"wash_curve": 0.68,
-			"wash_strength": 0.82,
+			"mid_start_m": 12.0,
+			"mid_full_m": 35.0,
+			"far_start_m": 35.0,
+			"far_full_m": 90.0,
 			"wash_color_srgb": [0.92, 0.94, 0.95],
-			"desaturation": 0.78,
-			"contrast_compression": 0.60,
-			"dark_value_lift": 0.44,
-			"far_erase_start_m": 42.0,
-			"far_erase_end_m": 95.0,
-			"far_erase_strength": 0.16,
-			"blur_start_m": 25.0,
-			"blur_end_m": 85.0,
-			"blur_strength": 0.33,
-			"blur_radius_px": 3.0,
+			"mid_desaturation": 0.52,
+			"far_desaturation": 0.26,
+			"mid_contrast_compression": 0.38,
+			"far_contrast_compression": 0.28,
+			"mid_dark_value_lift": 0.28,
+			"far_dark_value_lift": 0.26,
+			"mid_paper_mix": 0.34,
+			"far_paper_mix": 0.48,
+			"blur_start_m": 28.0,
+			"blur_end_m": 90.0,
+			"blur_strength": 0.24,
+			"blur_radius_px": 2.6,
 			"horizon_band": 0.16,
-			"horizon_boost": 0.22,
+			"horizon_paper_boost": 0.10,
+		},
+		"capture": {
+			"settle_frames_after_active": SETTLE_FRAMES,
+			"max_stream_wait_frames": MAX_WAIT_FRAMES,
+			"orbit_frames": ORBIT_FRAMES,
+			"orbit_degrees": ORBIT_DEGREES,
 		},
 		"static_shots": _records,
-		"orbit_frames": ORBIT_FRAMES,
-		"orbit_degrees": ORBIT_DEGREES,
 	}
 	var file := FileAccess.open(_out.path_join("source_report.json"), FileAccess.WRITE)
 	if file != null:
