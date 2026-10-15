@@ -36,6 +36,8 @@ uniform vec2 viewport_size = vec2(1600.0, 1000.0);
 
 // Share of the wash the sky takes, like Environment.fog_sky_affect: the authored sky and horizon haze stay.
 uniform float sky_affect : hint_range(0.0, 1.0, 0.01) = 0.1;
+// Whole-pass strength, set by PainterlyAtmospherePass from snowfall: 0.1 in calm weather, 1.0 in a blizzard.
+uniform float wash_strength : hint_range(0.0, 1.0, 0.01) = 1.0;
 
 uniform float horizon_band : hint_range(0.01, 0.5, 0.01) = 0.16;
 uniform float horizon_paper_boost : hint_range(0.0, 0.5, 0.01) = 0.08;
@@ -235,7 +237,7 @@ void fragment() {
 		} else if (debug_mode == 4) {
 			ALBEDO = vec3(blotch, dry_brush, warm_window);
 		} else {
-			ALBEDO = clamp(color, vec3(0.0), vec3(1.0));
+			ALBEDO = mix(source, clamp(color, vec3(0.0), vec3(1.0)), wash_strength);
 		}
 	}
 	ALPHA = 1.0;

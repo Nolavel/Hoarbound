@@ -6,7 +6,7 @@
 [ext_resource type="Shader" path="res://shaders/environment/painterly_distance_wash.gdshader" id="4_wash"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_atmosphere"]
-render_priority = 127
+render_priority = -128
 shader = ExtResource("4_wash")
 
 [sub_resource type="QuadMesh" id="QuadMesh_atmosphere"]

@@ -52,6 +52,19 @@ Fullscreen pass on the player camera: `scenes/game/systems/camera/tps_camera.tsc
 covers the screen of any camera that draws it, so every other camera sharing the world (the dev diorama map,
 the snow contact camera) leaves that layer out of its cull mask.
 
+**Draw order.** In 3D the screen texture is copied after the opaque pass, so it never holds transparent
+surfaces (Godot docs, *Screen-reading shaders*). The quad writes every pixel, so drawn after the
+transparents it erased them: falling snow and the 727 frosted glass vanished. Measured with a red 80 %
+pane in front of a wall: priority 127 gave (0.74, 0.75, 0.76), the wash alone; priority −128 gives
+(0.95, 0.35, 0.36), the pane over the washed wall. The material uses `render_priority = -128`: first
+among transparents, so snow and glass draw over the wash. Opaque windows are unaffected either way.
+
+**Strength rule (owner decision, 2026-10-15).** The wash belongs to the snowstorm: `wash_strength` mixes
+the whole pass with the untouched frame. It is **10 %** in calm weather (no snow) and rises with snowfall
+to **100 %** in a blizzard: `lerp(0.1, 1.0, smoothstep(0, 0.95, snowfall_density))`. Calm is 10 %, windy
+(0.15) about 16 %, ordinary snowfall (0.45) about 52 %, blizzard 100 %. The values live in
+`PainterlyAtmospherePass` (`WASH_CLEAR`, `WASH_FULL_SNOW`).
+
 **Sky rule (owner decision, 2026-10-15).** Sky pixels have no depth and would count as the farthest
 distance, so the full far wash erased the parallax clouds and the horizon haze. `sky_affect` is the share of
 the wash the sky takes, as `Environment.fog_sky_affect` is for engine fog:

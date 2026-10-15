@@ -13,6 +13,9 @@ const SKY_AFFECT_CLEAR: float = 0.1
 const SKY_AFFECT_HEAVY: float = 1.0
 const HEAVY_SNOW_START: float = 0.45
 const HEAVY_SNOW_FULL: float = 0.95
+## Whole-pass strength (owner rule): 10% without snow, rising with snowfall to 100% in a blizzard.
+const WASH_CLEAR: float = 0.1
+const WASH_FULL_SNOW: float = 0.95
 
 @export var effect_enabled: bool = true
 
@@ -52,9 +55,15 @@ static func sky_affect_for(snowfall_density: float) -> float:
 	return lerpf(SKY_AFFECT_CLEAR, SKY_AFFECT_HEAVY, heavy)
 
 
+## The wash's overall strength for a snowfall density: the wash is the snowstorm's, so calm weather barely shows it.
+static func wash_strength_for(snowfall_density: float) -> float:
+	return lerpf(WASH_CLEAR, 1.0, smoothstep(0.0, WASH_FULL_SNOW, snowfall_density))
+
+
 func set_snowfall_density(snowfall_density: float) -> void:
 	if _material != null:
 		_material.set_shader_parameter(&"sky_affect", sky_affect_for(snowfall_density))
+		_material.set_shader_parameter(&"wash_strength", wash_strength_for(snowfall_density))
 
 
 func _apply_visibility() -> void:
