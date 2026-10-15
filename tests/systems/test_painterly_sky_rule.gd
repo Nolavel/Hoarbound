@@ -68,6 +68,8 @@ func _check_live_weather() -> void:
 	_check(float(material.get_shader_parameter(&"internal_ink_strength")) > 0.0, "internal ink edges are disabled")
 	var value_steps: float = float(material.get_shader_parameter(&"value_steps"))
 	_check(value_steps >= 6.0 and value_steps <= 8.0, "production value terrace escaped the restrained 6-8 step range")
+	_check(float(material.get_shader_parameter(&"mid_ink_hold")) >= 0.35, "mid-ground charcoal mass is too weak")
+	_check(float(material.get_shader_parameter(&"mid_paper_mix")) <= 0.22, "mid-ground paper lift is washing out the charcoal mass")
 	(weather as WeatherController).set_weather(&"calm", true)
 	await process_frame
 	await process_frame

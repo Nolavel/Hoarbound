@@ -78,9 +78,10 @@ soft bleed and broken dark pigment deposit. This is deliberately not a global ou
 **Advanced pigment/value pass (owner experiment, 2026-10-15).** The fuller reference match remains in the same
 fullscreen pass and adds four bounded cues: a second metre-scale world-space pigment field, broken drying rims on the
 irregular mid/far wash fronts, a weak seven-family value terrace, and derivative-based ink on authored internal facade
-divisions. The ink explicitly rejects depth silhouettes, so Henry and every roof do not acquire a toon outline. Mid-ground
-ink hold rises from 0.22 to 0.28 while its dark-value lift falls from 0.10 to 0.08; the 18–40 m building masses therefore
-stay darker before the far paper wash takes over. Paper remains a separate post-weather layer and now combines fine tooth
+divisions. The ink explicitly rejects depth silhouettes, so Henry and every roof do not acquire a toon outline. Visual A/B
+showed the first 0.28/0.08 pass was too timid, so production mid-ground ink hold is 0.38, dark-value lift is 0.04, and
+mid paper mix is 0.21; the 18–40 m building masses therefore stay darker before the far paper wash takes over. Paper
+remains a separate post-weather layer and now combines fine tooth
 with a very low-amplitude directional fibre. Cost stays bounded: one additional procedural value-noise evaluation, two
 cheap paper hashes and screen derivatives, with no additional scene-color or depth texture samples.
 

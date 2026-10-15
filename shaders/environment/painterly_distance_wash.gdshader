@@ -22,13 +22,13 @@ uniform float mid_desaturation : hint_range(0.0, 1.0, 0.01) = 0.34;
 uniform float far_desaturation : hint_range(0.0, 1.0, 0.01) = 0.48;
 uniform float mid_contrast_compression : hint_range(0.0, 1.0, 0.01) = 0.24;
 uniform float far_contrast_compression : hint_range(0.0, 1.0, 0.01) = 0.40;
-uniform float mid_dark_value_lift : hint_range(0.0, 1.0, 0.01) = 0.08;
+uniform float mid_dark_value_lift : hint_range(0.0, 1.0, 0.01) = 0.04;
 uniform float far_dark_value_lift : hint_range(0.0, 1.0, 0.01) = 0.32;
-uniform float mid_ink_hold : hint_range(0.0, 0.5, 0.01) = 0.28;
-uniform float mid_paper_mix : hint_range(0.0, 1.0, 0.01) = 0.27;
+uniform float mid_ink_hold : hint_range(0.0, 0.5, 0.01) = 0.38;
+uniform float mid_paper_mix : hint_range(0.0, 1.0, 0.01) = 0.21;
 uniform float far_paper_mix : hint_range(0.0, 1.0, 0.01) = 0.44;
 uniform float value_steps : hint_range(4.0, 12.0, 1.0) = 7.0;
-uniform float value_terrace_strength : hint_range(0.0, 0.5, 0.01) = 0.18;
+uniform float value_terrace_strength : hint_range(0.0, 0.5, 0.01) = 0.22;
 
 uniform float blur_start_m : hint_range(0.0, 150.0, 1.0) = 26.0;
 uniform float blur_end_m : hint_range(10.0, 250.0, 1.0) = 70.0;
@@ -36,9 +36,9 @@ uniform float blur_strength : hint_range(0.0, 1.0, 0.01) = 0.16;
 uniform float blur_radius_px : hint_range(0.0, 6.0, 0.1) = 2.2;
 uniform float silhouette_guard_m : hint_range(0.5, 30.0, 0.5) = 6.0;
 uniform float edge_bleed_strength : hint_range(0.0, 0.25, 0.005) = 0.095;
-uniform float pigment_pool_strength : hint_range(0.0, 0.35, 0.005) = 0.18;
-uniform float drying_rim_strength : hint_range(0.0, 0.25, 0.005) = 0.08;
-uniform float internal_ink_strength : hint_range(0.0, 0.25, 0.005) = 0.09;
+uniform float pigment_pool_strength : hint_range(0.0, 0.35, 0.005) = 0.20;
+uniform float drying_rim_strength : hint_range(0.0, 0.25, 0.005) = 0.105;
+uniform float internal_ink_strength : hint_range(0.0, 0.25, 0.005) = 0.12;
 uniform vec2 viewport_size = vec2(1600.0, 1000.0);
 
 // Share of the wash the sky takes, like Environment.fog_sky_affect: the authored sky and horizon haze stay.
@@ -56,14 +56,14 @@ uniform float paper_grain_strength : hint_range(0.0, 0.08, 0.001) = 0.024;
 uniform float paper_grain_scale_px : hint_range(1.0, 8.0, 0.25) = 2.25;
 uniform float paper_fiber_strength : hint_range(0.0, 0.04, 0.001) = 0.008;
 uniform float blotch_scale : hint_range(0.01, 1.0, 0.01) = 0.11;
-uniform float blotch_mix_variation : hint_range(0.0, 0.5, 0.01) = 0.23;
-uniform float blotch_value_variation : hint_range(0.0, 0.12, 0.005) = 0.045;
+uniform float blotch_mix_variation : hint_range(0.0, 0.5, 0.01) = 0.27;
+uniform float blotch_value_variation : hint_range(0.0, 0.12, 0.005) = 0.055;
 uniform float granulation_scale : hint_range(1.0, 8.0, 0.25) = 3.75;
-uniform float granulation_strength : hint_range(0.0, 0.2, 0.005) = 0.065;
+uniform float granulation_strength : hint_range(0.0, 0.2, 0.005) = 0.085;
 uniform float wash_edge_scale : hint_range(0.005, 0.2, 0.005) = 0.045;
 uniform float wash_edge_variation_m : hint_range(0.0, 12.0, 0.25) = 4.0;
 uniform float dry_brush_scale : hint_range(0.1, 4.0, 0.05) = 0.65;
-uniform float dry_brush_strength : hint_range(0.0, 0.4, 0.01) = 0.16;
+uniform float dry_brush_strength : hint_range(0.0, 0.4, 0.01) = 0.20;
 
 // CI-only diagnostic modes used by the capture harness to prove that the
 // fullscreen pass is drawing, depth is readable and material masks are active.
@@ -190,7 +190,7 @@ void fragment() {
 		float compression = clamp(mid * mid_contrast_compression + far * far_contrast_compression, 0.0, 0.92);
 		color = (color - vec3(0.5)) * (1.0 - compression) + vec3(0.5);
 
-		float dark_mask = 1.0 - smoothstep(0.16, 0.68, luma);
+		float dark_mask = 1.0 - smoothstep(0.18, 0.78, luma);
 		color *= 1.0 - mid_only * mid_ink_hold * dark_mask;
 		float dark_lift = clamp(mid * mid_dark_value_lift + far * far_dark_value_lift, 0.0, 0.9);
 		color += (vec3(1.0) - color) * dark_lift * dark_mask;
