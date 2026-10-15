@@ -1087,7 +1087,3 @@ painterly_surface_brush_strength={
 "type": "float",
 "value": 0.06
 }
-painterly_surface_brush_mask={
-"type": "sampler2D",
-"value": "res://assets/textures/shadows/shadow_brush_dry.png"
-}

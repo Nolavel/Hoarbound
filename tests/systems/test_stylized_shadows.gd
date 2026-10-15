@@ -67,14 +67,11 @@ func _run() -> void:
 		"painterly_surface_strength",
 		"painterly_surface_pigment_strength",
 		"painterly_surface_brush_strength",
-		"painterly_surface_brush_mask",
 	]:
 		_check(
 			ProjectSettings.has_setting("shader_globals/%s" % global_name),
 			"missing painterly surface global: %s" % global_name
 		)
-	var surface_mask: Dictionary = ProjectSettings.get_setting("shader_globals/painterly_surface_brush_mask", {})
-	_check(load(String(surface_mask.get("value", ""))) is Texture2D, "painterly surface mask does not point at a texture")
 	var surface_contract := FileAccess.get_file_as_string(
 		"res://shaders/environment/materials/painterly_surface.gdshaderinc"
 	)

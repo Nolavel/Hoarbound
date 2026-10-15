@@ -66,7 +66,7 @@ void fragment() {
 	vec3 color = fresh_color * (1.0 - snow_breakup(v_world, 5.0) * 0.03);
 	color *= mix(1.0, 1.03, smoothstep(0.1, 0.4, depth));
 	ALBEDO = snow_thin_tint(snow_wind_tint(color, city_at(v_world.xz) * v_shore), depth);
-	ALBEDO = hfn_painterly_surface_color(ALBEDO, v_world, n, 0.42);
+	ALBEDO = hfn_painterly_surface_color(ALBEDO, v_world, n, 0.24);
 	ROUGHNESS = 0.85;
 }
 

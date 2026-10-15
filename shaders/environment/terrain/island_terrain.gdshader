@@ -51,7 +51,7 @@ void fragment() {
 	ground *= 0.9 + grain * 0.2;
 	float snow = snow_weight(world_normal, world_pos, snow_softness);
 	ALBEDO = mix(ground, snow_color.rgb, snow);
-	ALBEDO = hfn_painterly_surface_color(ALBEDO, world_pos, world_normal, mix(0.72, 0.38, snow));
+	ALBEDO = hfn_painterly_surface_color(ALBEDO, world_pos, world_normal, mix(0.65, 0.24, snow));
 	ROUGHNESS = mix(0.95, 0.85, snow);
 	float ice = step(0.5, ice_cover);
 	ALBEDO = mix(ALBEDO, FROZEN_SEA_ALBEDO, ice);
