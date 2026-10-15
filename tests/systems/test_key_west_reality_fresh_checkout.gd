@@ -1,10 +1,14 @@
 extends SceneTree
 
 ## Zero-setup review: key_west_reality.tscn boots from the committed snapshot (no unpack or generation);
-## Henry stands on the streamed chunk before the bunker and far meshes register. Not the rebuild check.
+## Henry stands on the streamed chunk at the scene's chosen start (bunker, or 727 with spawn_at_shelter) and far
+## meshes register. Not the rebuild check.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const WORLD_DATA: String = "res://scenes/world/key_west/generated/world_data.tres"
+const ROUTE_PATH: String = "res://data/world/key_west/reality/routes/first_exit_gate.json"
+## How far from the start's landmark (bunker door, 727 entrance goal) Henry may wake.
+const START_RADIUS_M: float = 12.0
 const CHUNK_M: float = 512.0
 const MAX_FRAMES: int = 1800
 ## Frames after the spawn chunk is active: collision registers, far meshes take a frame each.
@@ -67,9 +71,7 @@ func _process(_delta: float) -> bool:
 	q.exclude = [(player as CollisionObject3D).get_rid()]
 	var hit: Dictionary = space.intersect_ray(q)
 	_check(not hit.is_empty() and feet.y - (hit["position"] as Vector3).y < 1.6, "Henry at %s has no ground under him" % feet)
-	var bunker: Node3D = _world.find_child("BunkerPortal", true, false) as Node3D
-	_check(bunker != null and Vector2(bunker.global_position.x - feet.x, bunker.global_position.z - feet.z).length() < 12.0,
-		"Henry does not wake in front of the bunker")
+	_check_start(Vector2(feet.x, feet.z))
 	var far: int = 0
 	for id: StringName in streaming.get_active_chunks():
 		far += 1 if String(id).begins_with("kw_far_") else 0
@@ -84,6 +86,21 @@ func _process(_delta: float) -> bool:
 		print("reality fresh checkout: chunk %s active after %d frames, %d far meshes; all checks passed" % [own, _frames, far])
 		quit(0)
 	return true
+
+
+## Henry wakes where the scene says: before the 727 door with spawn_at_shelter, else before the bunker.
+func _check_start(feet: Vector2) -> void:
+	if bool(_world.get(&"spawn_at_shelter")):
+		var route: Variant = JSON.parse_string(FileAccess.get_file_as_string(ROUTE_PATH))
+		var entrance: Vector2 = Vector2.INF
+		for goal: Dictionary in (route as Dictionary).get("goals", []) if route is Dictionary else []:
+			if goal["name"] == "727_fort_st_entrance":
+				entrance = Vector2(float(goal["xz"][0]), float(goal["xz"][1]))
+		_check(entrance.distance_to(feet) < START_RADIUS_M, "Henry at %s does not wake in front of the 727 shelter" % feet)
+		return
+	var bunker: Node3D = _world.find_child("BunkerPortal", true, false) as Node3D
+	_check(bunker != null and Vector2(bunker.global_position.x, bunker.global_position.z).distance_to(feet) < START_RADIUS_M,
+		"Henry does not wake in front of the bunker")
 
 
 func _check(condition: bool, message: String) -> void:
