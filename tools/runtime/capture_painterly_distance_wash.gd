@@ -5,7 +5,7 @@ extends SceneTree
 ## TPS camera; no production scene or material is modified.
 ##
 ## The existing [key-west-preview] job uploads docs/runtime_previews/key_west/*.png,
-## so this experiment deliberately writes its stills and orbit frames there.
+## so this experiment deliberately writes its stills, diagnostics and orbit there.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const SHADER_PATH := "res://shaders/experimental/painterly_distance_wash.gdshader"
@@ -15,6 +15,9 @@ const SETTLE_FRAMES := 40
 const MAX_WAIT_FRAMES := 600
 const ORBIT_FRAMES := 64
 const ORBIT_DEGREES := 34.0
+const SAMPLE_STEP := 8
+const MIN_POST_PROBE_DELTA_8BIT := 20.0
+const MIN_VISIBLE_WASH_DELTA_8BIT := 4.0
 
 const SHOTS: Array[Dictionary] = [
 	{
@@ -38,12 +41,14 @@ var _out := DEFAULT_OUT
 var _world: Node3D
 var _ctx: Variant
 var _player: CharacterBody3D
-var _camera: Node3D
+var _camera: Camera3D
 var _ground: Node
 var _streaming: StreamingSystem
 var _post: MeshInstance3D
 var _material: ShaderMaterial
 var _records: Array[Dictionary] = []
+var _post_probe_delta_8bit := -1.0
+var _max_wash_delta_8bit := 0.0
 
 
 func _initialize() -> void:
@@ -73,7 +78,7 @@ func _run() -> void:
 		return
 
 	_player = _ctx.player as CharacterBody3D
-	_camera = _ctx.camera as Node3D
+	_camera = _ctx.camera as Camera3D
 	_ground = _world.find_child("RealityGround", true, false)
 	_streaming = _ctx.get_system(preload("res://core/world/streaming_system.gd")) as StreamingSystem
 	if _player == null or _camera == null or _ground == null:
@@ -86,20 +91,47 @@ func _run() -> void:
 		_fail("could not build painterly distance wash post-process")
 		return
 
+	print("painterly distance wash: rendering_driver=%s camera_mask=0x%X post_layers=0x%X" % [
+		RenderingServer.get_current_rendering_driver_name(),
+		_camera.cull_mask,
+		_post.layers,
+	])
+
 	for shot_index in range(SHOTS.size()):
 		var shot: Dictionary = SHOTS[shot_index]
 		_place(shot)
 		await _wait_until_streamed(shot)
 
+		_material.set_shader_parameter(&"debug_mode", 0)
 		_post.visible = false
 		await _wait_frames(3)
+		var before_image := _capture_image()
 		var before_path := _out.path_join(String(shot["name"]) + "_before.png")
-		_save_frame(before_path)
+		_save_image(before_image, before_path)
 
 		_post.visible = true
 		await _wait_frames(5)
+		var wash_image := _capture_image()
 		var after_path := _out.path_join(String(shot["name"]) + "_wash.png")
-		_save_frame(after_path)
+		_save_image(wash_image, after_path)
+		var wash_delta := _mean_rgb_delta_8bit(before_image, wash_image)
+		_max_wash_delta_8bit = maxf(_max_wash_delta_8bit, wash_delta)
+
+		if shot_index == 0:
+			# Unmissable magenta probe. If this is not visibly different, the
+			# fullscreen mesh is not drawing and CI must not report success.
+			_material.set_shader_parameter(&"debug_mode", 1)
+			await _wait_frames(3)
+			var post_probe := _capture_image()
+			_save_image(post_probe, _out.path_join("painterly_post_probe.png"))
+			_post_probe_delta_8bit = _mean_rgb_delta_8bit(before_image, post_probe)
+
+			# Depth visualization is equally explicit: black = near, white = far.
+			_material.set_shader_parameter(&"debug_mode", 2)
+			await _wait_frames(3)
+			_save_image(_capture_image(), _out.path_join("painterly_depth_probe.png"))
+			_material.set_shader_parameter(&"debug_mode", 0)
+			await _wait_frames(2)
 
 		_records.append({
 			"shot": shot["name"],
@@ -107,11 +139,24 @@ func _run() -> void:
 			"look_xz": [shot["look"].x, shot["look"].y],
 			"before": before_path,
 			"wash": after_path,
+			"mean_rgb_delta_8bit": snappedf(wash_delta, 0.001),
 		})
 
 	await _capture_orbit()
 	_write_report()
-	print("painterly distance wash: complete -> %s" % _out)
+
+	if _post_probe_delta_8bit < MIN_POST_PROBE_DELTA_8BIT:
+		_fail("fullscreen post probe did not render: mean RGB delta %.3f < %.3f" % [_post_probe_delta_8bit, MIN_POST_PROBE_DELTA_8BIT])
+		return
+	if _max_wash_delta_8bit < MIN_VISIBLE_WASH_DELTA_8BIT:
+		_fail("distance wash is still visually negligible: max mean RGB delta %.3f < %.3f" % [_max_wash_delta_8bit, MIN_VISIBLE_WASH_DELTA_8BIT])
+		return
+
+	print("painterly distance wash: verified post_delta=%.3f max_wash_delta=%.3f -> %s" % [
+		_post_probe_delta_8bit,
+		_max_wash_delta_8bit,
+		_out,
+	])
 	quit(0)
 
 
@@ -126,12 +171,20 @@ func _build_post_process() -> void:
 
 	var quad := QuadMesh.new()
 	quad.size = Vector2(2.0, 2.0)
+	quad.flip_faces = true
+
 	_post = MeshInstance3D.new()
 	_post.name = "PainterlyDistanceWash_EXPERIMENT"
 	_post.mesh = quad
 	_post.material_override = _material
 	_post.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_post.extra_cull_margin = 100000.0
+	_post.ignore_occlusion_culling = true
+	_post.layers = 1
+	# Keep the CPU-side AABB unambiguously in front of the active camera. The
+	# shader still writes clip-space POSITION, so this transform does not move the pass.
+	_post.position = Vector3(0.0, 0.0, -1.0)
+	_camera.cull_mask |= _post.layers
 	_camera.add_child(_post)
 
 
@@ -153,8 +206,7 @@ func _place(shot: Dictionary) -> void:
 	var yaw := atan2(-direction.x, -direction.z)
 	_player.rotation.y = yaw
 	_camera.call(&"set_look", yaw, -8.0)
-	if _camera.has_method(&"make_current"):
-		_camera.call(&"make_current")
+	_camera.make_current()
 
 
 func _wait_until_streamed(shot: Dictionary) -> void:
@@ -181,6 +233,7 @@ func _wait_until_streamed(shot: Dictionary) -> void:
 func _capture_orbit() -> void:
 	var shot: Dictionary = SHOTS[1]
 	_place(shot)
+	_material.set_shader_parameter(&"debug_mode", 0)
 	_post.visible = true
 	await _wait_until_streamed(shot)
 
@@ -194,7 +247,7 @@ func _capture_orbit() -> void:
 		var yaw_offset := deg_to_rad(ORBIT_DEGREES) * sin(t * TAU)
 		_camera.call(&"set_look", base_yaw + yaw_offset, -8.0)
 		await process_frame
-		_save_frame(_out.path_join("painterly_frame_%04d.png" % i))
+		_save_image(_capture_image(), _out.path_join("painterly_frame_%04d.png" % i))
 
 
 func _ground_height(x: float, z: float) -> float:
@@ -208,10 +261,32 @@ func _wait_frames(count: int) -> void:
 		await process_frame
 
 
-func _save_frame(path: String) -> void:
-	var error := root.get_viewport().get_texture().get_image().save_png(path)
+func _capture_image() -> Image:
+	return root.get_viewport().get_texture().get_image()
+
+
+func _save_image(image: Image, path: String) -> void:
+	var error := image.save_png(path)
 	if error != OK:
 		push_error("painterly distance wash: save failed %s (%d)" % [path, error])
+
+
+func _mean_rgb_delta_8bit(a: Image, b: Image) -> float:
+	if a == null or b == null or a.is_empty() or b.is_empty():
+		return 0.0
+	var width := mini(a.get_width(), b.get_width())
+	var height := mini(a.get_height(), b.get_height())
+	var total := 0.0
+	var samples := 0
+	for y in range(0, height, SAMPLE_STEP):
+		for x in range(0, width, SAMPLE_STEP):
+			var ca := a.get_pixel(x, y)
+			var cb := b.get_pixel(x, y)
+			total += absf(ca.r - cb.r) + absf(ca.g - cb.g) + absf(ca.b - cb.b)
+			samples += 3
+	if samples == 0:
+		return 0.0
+	return (total / float(samples)) * 255.0
 
 
 func _write_report() -> void:
@@ -220,33 +295,40 @@ func _write_report() -> void:
 		"status": "experimental; codex only; not connected to production path",
 		"scene": SCENE,
 		"reference_contract": [
-			"0-12 m foreground remains effectively untouched",
-			"12-35 m mid-ground loses local contrast/chroma and collapses into broader values",
-			"35-90+ m background lifts toward a pale cold paper/snow mass",
+			"0-18 m foreground remains effectively untouched",
+			"18-32 m mid-ground visibly loses local contrast/chroma and collapses into broader values",
+			"32-70+ m background lifts decisively toward a pale cold paper/snow mass",
 			"dark buildings become charcoal before dissolving into the wash",
 			"blur stays secondary and is suppressed at depth discontinuities",
-			"streaming capture waits for the target chunk ACTIVE state instead of fixed long sleeps",
+			"CI fails if the fullscreen post probe is not clearly visible",
+			"CI fails if before/wash mean RGB delta stays visually negligible",
 		],
 		"parameters": {
-			"mid_start_m": 12.0,
-			"mid_full_m": 35.0,
-			"far_start_m": 35.0,
-			"far_full_m": 90.0,
-			"wash_color_srgb": [0.92, 0.94, 0.95],
-			"mid_desaturation": 0.52,
-			"far_desaturation": 0.26,
-			"mid_contrast_compression": 0.38,
-			"far_contrast_compression": 0.28,
-			"mid_dark_value_lift": 0.28,
-			"far_dark_value_lift": 0.26,
-			"mid_paper_mix": 0.34,
-			"far_paper_mix": 0.48,
-			"blur_start_m": 28.0,
-			"blur_end_m": 90.0,
-			"blur_strength": 0.24,
-			"blur_radius_px": 2.6,
+			"mid_start_m": 18.0,
+			"mid_full_m": 32.0,
+			"far_start_m": 32.0,
+			"far_full_m": 70.0,
+			"wash_color_srgb": [0.90, 0.92, 0.94],
+			"mid_desaturation": 0.45,
+			"far_desaturation": 0.45,
+			"mid_contrast_compression": 0.36,
+			"far_contrast_compression": 0.38,
+			"mid_dark_value_lift": 0.32,
+			"far_dark_value_lift": 0.34,
+			"mid_paper_mix": 0.38,
+			"far_paper_mix": 0.42,
+			"blur_start_m": 26.0,
+			"blur_end_m": 70.0,
+			"blur_strength": 0.18,
+			"blur_radius_px": 2.4,
 			"horizon_band": 0.16,
-			"horizon_paper_boost": 0.10,
+			"horizon_paper_boost": 0.08,
+		},
+		"verification": {
+			"post_probe_mean_rgb_delta_8bit": snappedf(_post_probe_delta_8bit, 0.001),
+			"max_wash_mean_rgb_delta_8bit": snappedf(_max_wash_delta_8bit, 0.001),
+			"required_post_probe_delta_8bit": MIN_POST_PROBE_DELTA_8BIT,
+			"required_visible_wash_delta_8bit": MIN_VISIBLE_WASH_DELTA_8BIT,
 		},
 		"capture": {
 			"settle_frames_after_active": SETTLE_FRAMES,
