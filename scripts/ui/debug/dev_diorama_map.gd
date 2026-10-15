@@ -170,7 +170,7 @@ func _build_ui() -> void:
 	header.add_child(title)
 
 	_status_label = Label.new()
-	_status_label.text = "FOLLOW  ·  30m"
+	_status_label.text = "FOLLOW  ·  %dm" % int(CAMERA_HEIGHT_M)
 	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_status_label.add_theme_font_size_override("font_size", 11)
 	_status_label.add_theme_color_override("font_color", Color(0.68, 0.73, 0.77))
@@ -208,6 +208,7 @@ func _build_ui() -> void:
 	_camera.near = 0.15
 	_camera.far = 1200.0
 	_camera.cull_mask = ((1 << 20) - 1) & ~RenderLayers.SNOW_CONTACT
+	_camera.environment = _map_environment()
 	_viewport.add_child(_camera)
 	_camera.make_current()
 
@@ -238,6 +239,17 @@ func _panel_style() -> StyleBoxFlat:
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(5)
 	return style
+
+
+## The world's depth fog is opaque by 100 m, about the map camera's distance to Henry; the map draws without it.
+func _map_environment() -> Environment:
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.16, 0.18, 0.2)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.62, 0.65, 0.7)
+	env.ambient_light_energy = 0.7
+	return env
 
 
 func _update_camera() -> void:
