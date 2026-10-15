@@ -34,7 +34,7 @@ The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs
 - Engine: **Godot 4.8-dev6 .NET**
 - Renderer: **Forward+ / Vulkan**
 - Main scene: `res://scenes/world/key_west/key_west_reality.tscn` (Key West Reality)
-- Physics: **Jolt** (built into Godot)
+- Physics: **GodotPhysics3D** (Jolt tried and reverted, 2026-10-15)
 - Current world: **Key West**
 
 ## Project documents

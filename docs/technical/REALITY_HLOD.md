@@ -319,6 +319,10 @@ Jolt builds a mesh shape lazily when it is first used, so a part pays one build 
 - The 727 loop passes under Jolt.
 - Decision: Jolt from now on. It is one revertable line in `project.godot`; Henry's movement feel needs the owner's
   check.
+- **Reverted to GodotPhysics3D (owner's play test, 2026-10-15).** On the owner's machine the game ran slower, with
+  more hitches, and Henry's contact with the snow pushed him out of it erratically. The CI gate had shown parity,
+  but the play test is the acceptance criterion. Attach costs return to the GodotPhysics column above; the fort's
+  simplified collision (below) still applies. A Jolt retry needs a profile on the owner's route first.
 
 The fort chunk `-9_3` stays an outlier under either engine. `kw_fort_zachary_taylor.glb` carries two concave
 collision meshes of 43,691 faces in all. The largest generated `Buildings` chunk has 8,466 faces; the island median is

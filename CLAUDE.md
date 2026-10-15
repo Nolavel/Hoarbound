@@ -72,7 +72,8 @@ rule changes) and `global.json` (take `main`'s).
   `world/terrain/source/key_west/`. `IslandTerrain` remains for Graciosa (`archive/graciosa/`).
   NOAA base heights remain unchanged. Authored height edits use Blender
   (`tools/blender/`), never hand-written code.
-- 3D physics: Jolt (`physics/3d/physics_engine`).
+- 3D physics: GodotPhysics3D (`physics/3d/physics_engine`). Jolt was tried on 2026-10-15 and reverted on the
+  owner's play test (slower, more hitches, odd snow contact); revisit only with profiling on that route.
 
 ## GDExtension (production C++)
 
