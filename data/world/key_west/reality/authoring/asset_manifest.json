@@ -23,8 +23,8 @@
   {
    "feature_id": "kw:building:osm:w524088621",
    "asset_id": "kw_asset:landmark:w524088621",
-   "asset_revision": 2,
-   "authoring_state": "generated",
+   "asset_revision": 3,
+   "authoring_state": "artist_modified",
    "kind": "landmark",
    "godot_scene": "res://assets/world/key_west/landmarks/kw_fort_zachary_taylor.glb",
    "origin_local": [
@@ -34,9 +34,10 @@
    ],
    "source_geometry_hash": "706ee6e594e44eb3",
    "last_generator_version": "1.0.0",
-   "asset_sha256": "4a0e045801538fbd345518f7fff6c0000b4aa00c61c3d1ada03066d2ca7dea55",
+   "asset_sha256": "4b3d56edd862786a15615ee643474e8872008e3234a87f7df3cd47089a23c892",
    "landmark_spec": "data/world/key_west/reality/landmarks/kw_fort_zachary_taylor.json",
-   "updated_at": "2026-10-10T09:08:52+00:00"
+   "updated_at": "2026-10-15T07:19:48+00:00",
+   "authored_by": "tools/blender/landmark_collision.py (simplified collision; visual mesh unchanged)"
   }
  ]
 }

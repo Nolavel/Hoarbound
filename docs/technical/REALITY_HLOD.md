@@ -324,6 +324,31 @@ The fort chunk `-9_3` stays an outlier under either engine. `kw_fort_zachary_tay
 collision meshes of 43,691 faces in all. The largest generated `Buildings` chunk has 8,466 faces; the island median is
 884. The fix is a simplified collision mesh for the fort, authored in Blender, as a separate asset task.
 
+### Fort collision simplified in Blender (2026-10-15)
+
+`tools/blender/landmark_collision.py` (Blender 5.2 `bpy`) runs the fort's `FortSurface-col` mesh through Decimate
+Collapse at ratio 0.2 and writes the copy into the same `.glb` as `FortSurfaceCollision-colonly`; the visual node
+loses its `-col` suffix. The visual buffers stay byte-identical. The walls (`FortWalls-col`, 2,494 faces) keep
+their own trimesh. The manifest marks the asset `artist_modified`, so `landmarks.py` does not overwrite it.
+
+How the method was chosen (all measured on the fort, Jolt, this container):
+
+| Option | Faces | Error (3D, source vertices and face centres): mean / p99 / max | Build |
+|---|---|---|---|
+| current trimesh | 41,197 | 0 | 89.5 ms for a 41k-face trimesh |
+| Dissolve 2° | 20,954 | 0.2 / 1.6 / 3.8 cm | |
+| Dissolve 4° | 14,446 | 0.7 / 4.1 / 33 cm | 20.9 ms for 14.5k faces |
+| **Collapse 0.2** | **8,238** | **0.8 / 5.1 / 12.5 cm** | |
+| Collapse 0.12 | 4,943 | 1.5 / 10.8 / 36.5 cm | 5.8 ms for 5k faces |
+| `HeightMapShape3D` 270×380 at 0.5 m (holes as NaN work) | — | 0 at the samples | 285 ms: rejected |
+
+Splitting into tiles inside one `.glb` would not help: the resource's shapes are all built when it finishes loading.
+
+Result, `measure_attach_parts.gd` on `kw_gen_-9_3`, two runs each: the `Buildings` part (the fort) 66–80 ms → 11.6–12.0
+ms. The chunk root (26–40 ms) does not contain the fort and is unchanged. Walking surface against an exact trimesh of the
+visual surface, 1 m ray grid (5,230 rays): median 5 mm, p99 8 cm, 5 rays over 30 cm (vertical wall edges), 1 miss at the
+rim. `test_landmark_collision` guards this.
+
 ## 4. Reproducibility and dirty rebuild
 
 - **Source hash:** `sha256` over the build settings (HLOD build version, chunk builder version, cluster size, snow
