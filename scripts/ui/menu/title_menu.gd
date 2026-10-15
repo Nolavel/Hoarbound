@@ -8,7 +8,7 @@ const SETTINGS_PANEL_SCRIPT: GDScript = preload("res://scripts/ui/menu/camera_se
 
 @export_group("Scenes")
 ## The scene New game and Continue both open.
-@export_file("*.tscn") var game_scene: String = "res://scenes/world/key_west/key_west.tscn"
+@export_file("*.tscn") var game_scene: String = "res://scenes/world/key_west/key_west_reality.tscn"
 
 var _continue_button: Button
 var _status_label: Label

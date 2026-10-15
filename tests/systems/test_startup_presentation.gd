@@ -5,7 +5,7 @@ extends SceneTree
 ## Run: godot --headless --script tests/systems/test_startup_presentation.gd
 
 const CARD_PATH: String = "res://scenes/splash/splash_scene.tscn"
-const MAIN_PATH: String = "res://scenes/world/key_west/key_west.tscn"
+const MAIN_PATH: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const LEGACY_SPLASH_PATH: String = "res://assets/textures/ui/splash/Splash_testing.png"
 const PREMIUM_BLACK := Color(0.0627451, 0.0627451, 0.0627451, 1.0)
 

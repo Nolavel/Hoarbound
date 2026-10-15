@@ -1,11 +1,12 @@
 extends SceneTree
 
+## The legacy island; the game's main scene is Key West Reality (test_startup_presentation checks that).
+const LEGACY_SCENE: String = "res://scenes/world/key_west/key_west.tscn"
+
 var _failures: int = 0
 
 func _initialize() -> void:
-	var main_path: String = String(ProjectSettings.get_setting("application/run/main_scene", ""))
-	_check(main_path == "res://scenes/world/key_west/key_west.tscn", "F5 does not launch Key West")
-	var main := (load(main_path) as PackedScene).instantiate() as World
+	var main := (load(LEGACY_SCENE) as PackedScene).instantiate() as World
 	_check(main.world_profile != null and main.world_profile.id == &"key_west_test", "main scene does not pin Key West")
 	var terrain := main.get_node(^"IslandTerrain") as IslandTerrain
 	_check(terrain.heightmap_image_path == main.world_profile.terrain_image_path, "main terrain and profile disagree")

@@ -33,7 +33,8 @@ The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs
 
 - Engine: **Godot 4.8-dev6 .NET**
 - Renderer: **Forward+ / Vulkan**
-- Main scene: `res://scenes/world/key_west/key_west.tscn`
+- Main scene: `res://scenes/world/key_west/key_west_reality.tscn` (Key West Reality)
+- Physics: **Jolt** (built into Godot)
 - Current world: **Key West**
 
 ## Project documents
@@ -57,7 +58,7 @@ The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs
 ┌─ PRODUCT ───────────────────────────────────────────────────────────────┐
 │ GAME       Hoarbound — third-person systemic survival in frozen Key West.
 │ TARGET     First Exit A — one 10–15 min bunker -> shelter -> sleep/save loop.
-│ RUN        Godot 4.8-dev6 .NET -> F5 -> res://scenes/world/key_west/key_west.tscn.
+│ RUN        Godot 4.8-dev6 .NET -> F5 -> res://scenes/world/key_west/key_west_reality.tscn.
 └────────────────────────────────────────────────────────────────────────┘
 
 ┌─ RUNTIME OWNERSHIP ────────────────────────────────────────────────────┐
