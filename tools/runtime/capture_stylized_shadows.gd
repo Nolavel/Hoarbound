@@ -12,6 +12,8 @@ const REVIEW_OUT_DIR: String = "res://docs/runtime_previews/shadow_review"
 ## Densest Duval Street block in the city snapshot: seven buildings within 25 m.
 const DUVAL := Vector2(-3072.7, 1374.3)
 const DUVAL_HEADING_DEG: float = 34.1
+## The inside camera keeps this far in front of the first wall between it and Henry.
+const WALL_MARGIN_M: float = 0.35
 ## Extra queue steps while a far placement streams its city chunks in.
 const STREAM_WAIT_STEPS: int = 6
 ## About half a pixel on the ground 4-5 m ahead of the TPS camera.
@@ -282,10 +284,23 @@ func _place_inside() -> void:
 	_player.global_position = _stove.to_global(Vector3(1.1, 1.0, 0.35))
 	_player.global_rotation.y = _stove.global_rotation.y + PI * 0.5
 	_capture_camera()
-	_inside_camera.global_position = _stove.to_global(Vector3(4.6, 1.7, 4.5))
+	_queue.push_front(_aim_inside_camera)
+	_queue.push_front(_stream_settle)
+
+
+## Across the room from Henry, pulled in front of the first wall like a spring arm: the 727 room is
+## smaller than the legacy hut, and the authored spot lies 1.1 m outside its wall.
+func _aim_inside_camera() -> void:
+	var from: Vector3 = _player.global_position + Vector3.UP * 0.5
+	var wanted: Vector3 = _stove.to_global(Vector3(4.6, 1.7, 4.5))
+	var query := PhysicsRayQueryParameters3D.create(from, wanted)
+	query.exclude = [_player.get_rid()]
+	var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(query)
+	if not hit.is_empty():
+		wanted = (hit["position"] as Vector3) - (wanted - from).normalized() * WALL_MARGIN_M
+	_inside_camera.global_position = wanted
 	_inside_camera.look_at(_stove.to_global(Vector3(1.6, 0.2, 0.2)), Vector3.UP)
 	_inside_camera.make_current()
-	_queue.push_front(_stream_settle)
 
 
 ## Holds the queue until Henry's chunk is live and the streamer quiet, then stands him on the ground if a
