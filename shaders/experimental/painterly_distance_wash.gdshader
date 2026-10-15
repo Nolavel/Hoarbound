@@ -45,34 +45,34 @@ void vertex() {
 }
 
 
-vec3 view_position_at(vec2 uv) {
+vec3 view_position_at(vec2 uv, mat4 inverse_projection) {
 	float raw_depth = textureLod(depth_texture, uv, 0.0).r;
 #if CURRENT_RENDERER == RENDERER_COMPATIBILITY
 	vec3 ndc = vec3(uv, raw_depth) * 2.0 - 1.0;
 #else
 	vec3 ndc = vec3(uv * 2.0 - 1.0, raw_depth);
 #endif
-	vec4 view = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
+	vec4 view = inverse_projection * vec4(ndc, 1.0);
 	float safe_w = abs(view.w) > 0.000001 ? view.w : 1.0;
 	return view.xyz / safe_w;
 }
 
 
-float distance_at(vec2 uv) {
+float distance_at(vec2 uv, mat4 inverse_projection) {
 	float raw_depth = textureLod(depth_texture, uv, 0.0).r;
 	// Reverse-Z: 0 is the far plane/sky, 1 is the near plane.
 	if (raw_depth <= 0.000001) {
 		return far_full_m * 2.0;
 	}
-	return max(-view_position_at(uv).z, 0.0);
+	return max(-view_position_at(uv, inverse_projection).z, 0.0);
 }
 
 
-float silhouette_guard(vec2 uv, float center_distance, vec2 pixel) {
-	float d0 = distance_at(clamp(uv + vec2(pixel.x, 0.0), vec2(0.0), vec2(1.0)));
-	float d1 = distance_at(clamp(uv - vec2(pixel.x, 0.0), vec2(0.0), vec2(1.0)));
-	float d2 = distance_at(clamp(uv + vec2(0.0, pixel.y), vec2(0.0), vec2(1.0)));
-	float d3 = distance_at(clamp(uv - vec2(0.0, pixel.y), vec2(0.0), vec2(1.0)));
+float silhouette_guard(vec2 uv, float center_distance, vec2 pixel, mat4 inverse_projection) {
+	float d0 = distance_at(clamp(uv + vec2(pixel.x, 0.0), vec2(0.0), vec2(1.0)), inverse_projection);
+	float d1 = distance_at(clamp(uv - vec2(pixel.x, 0.0), vec2(0.0), vec2(1.0)), inverse_projection);
+	float d2 = distance_at(clamp(uv + vec2(0.0, pixel.y), vec2(0.0), vec2(1.0)), inverse_projection);
+	float d3 = distance_at(clamp(uv - vec2(0.0, pixel.y), vec2(0.0), vec2(1.0)), inverse_projection);
 	float delta = max(max(abs(d0 - center_distance), abs(d1 - center_distance)), max(abs(d2 - center_distance), abs(d3 - center_distance)));
 	return 1.0 - smoothstep(silhouette_guard_m, silhouette_guard_m * 2.5, delta);
 }
@@ -81,7 +81,7 @@ float silhouette_guard(vec2 uv, float center_distance, vec2 pixel) {
 void fragment() {
 	vec2 uv = SCREEN_UV;
 	vec3 source = textureLod(screen_texture, uv, 0.0).rgb;
-	float distance_m = distance_at(uv);
+	float distance_m = distance_at(uv, INV_PROJECTION_MATRIX);
 
 	if (debug_mode == 1) {
 		ALBEDO = mix(source, vec3(1.0, 0.0, 1.0), 0.78);
@@ -102,7 +102,7 @@ void fragment() {
 
 	vec2 pixel = 1.0 / max(viewport_size, vec2(1.0));
 	float blur_amount = smoothstep(blur_start_m, max(blur_end_m, blur_start_m + 0.001), distance_m) * blur_strength;
-	float edge_guard = silhouette_guard(uv, distance_m, pixel * max(blur_radius_px, 1.0));
+	float edge_guard = silhouette_guard(uv, distance_m, pixel * max(blur_radius_px, 1.0), INV_PROJECTION_MATRIX);
 	float blur_lod = log2(max(blur_radius_px, 1.0));
 	vec3 soft = textureLod(screen_texture, uv, blur_lod).rgb;
 	vec3 color = mix(source, soft, blur_amount * edge_guard);
@@ -118,7 +118,7 @@ void fragment() {
 	float dark_lift = clamp(mid * mid_dark_value_lift + far * far_dark_value_lift, 0.0, 0.9);
 	color += (vec3(1.0) - color) * dark_lift * dark_mask;
 
-	vec3 view_pos = view_position_at(uv);
+	vec3 view_pos = view_position_at(uv, INV_PROJECTION_MATRIX);
 	vec3 view_dir = normalize(view_pos);
 	vec3 world_dir = normalize((INV_VIEW_MATRIX * vec4(view_dir, 0.0)).xyz);
 	float horizon = 1.0 - smoothstep(0.0, horizon_band, abs(world_dir.y));
