@@ -68,6 +68,10 @@ void fragment() {
 		NORMAL_MAP_DEPTH = normal_scale;
 	}
 	EMISSION = emission_color * emission_energy;
+	// HFN_FRAGMENT_EXTRA: optional per-family surface step (e.g. tree_snow lays snow on branch tops).
+#ifdef HFN_FRAGMENT_EXTRA
+	HFN_FRAGMENT_EXTRA
+#endif
 }
 
 void light() {

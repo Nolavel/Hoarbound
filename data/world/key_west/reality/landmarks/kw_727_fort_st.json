@@ -1034,6 +1034,101 @@
  "pipeline_version": "1.0.0",
  "built_at": "2026-10-10T23:19:23+00:00",
  "asset": "assets/world/key_west/landmarks/kw_727_fort_st.glb",
- "asset_sha256": "cad52b9f21cdf92eecdf9c213c93b3bc2e78ca6ea0b43e23aa286ecf1f5e4a87",
- "triangles": 1256
+ "asset_sha256": "729e642207e45ef1ee79f36383bf5db9f93fcbe1f344766a74376577da573d48",
+ "triangles": 1256,
+ "window_frost": {
+  "tool": "tools/world/reality/landmark_glass_frost.py",
+  "cold_coverage_range": [
+   0.6,
+   0.8
+  ],
+  "warm_coverage": 0.2,
+  "windows": {
+   "FrontWindow1": {
+    "room": "waiting",
+    "heated": true,
+    "cold_coverage": 0.793,
+    "vertices": 36
+   },
+   "FrontWindow2": {
+    "room": "waiting",
+    "heated": true,
+    "cold_coverage": 0.782,
+    "vertices": 36
+   },
+   "SideWindowWest": {
+    "room": "waiting",
+    "heated": true,
+    "cold_coverage": 0.689,
+    "vertices": 36
+   },
+   "SideWindowEast": {
+    "room": "waiting",
+    "heated": true,
+    "cold_coverage": 0.633,
+    "vertices": 36
+   },
+   "DentalWindow": {
+    "room": "dental",
+    "heated": false,
+    "cold_coverage": 0.7,
+    "vertices": 36
+   },
+   "DentalWestWindow": {
+    "room": "dental",
+    "heated": false,
+    "cold_coverage": 0.774,
+    "vertices": 36
+   },
+   "Exam1Window": {
+    "room": "exam_1",
+    "heated": false,
+    "cold_coverage": 0.627,
+    "vertices": 36
+   },
+   "Exam2Window": {
+    "room": "exam_2",
+    "heated": false,
+    "cold_coverage": 0.796,
+    "vertices": 36
+   },
+   "PharmacyWindow": {
+    "room": "pharmacy",
+    "heated": false,
+    "cold_coverage": 0.623,
+    "vertices": 36
+   },
+   "StorageWindow": {
+    "room": "storage",
+    "heated": false,
+    "cold_coverage": 0.675,
+    "vertices": 36
+   },
+   "StorageEastWindow": {
+    "room": "storage",
+    "heated": false,
+    "cold_coverage": 0.72,
+    "vertices": 36
+   },
+   "OfficeEastWindow": {
+    "room": "office",
+    "heated": false,
+    "cold_coverage": 0.679,
+    "vertices": 36
+   },
+   "OfficeFrontWindow": {
+    "room": "office",
+    "heated": false,
+    "cold_coverage": 0.622,
+    "vertices": 36
+   },
+   "RestroomWindow": {
+    "room": "restroom_w",
+    "heated": false,
+    "cold_coverage": 0.712,
+    "vertices": 36
+   }
+  },
+  "built_at": "2026-10-15T08:57:16+00:00"
+ }
 }

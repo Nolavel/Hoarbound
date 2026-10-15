@@ -88,6 +88,12 @@ The frost integration scene is
 loader that instantiates the registered native class; progression, material
 setup, slider handling and frame updates live in C++.
 
+The lab's frost pattern is now the production one in
+`shaders/environment/windows/frost_pattern.gdshaderinc` (window frost in the game,
+`docs/visual_fx_shaders.md`). The lab still carries its own inline copy in
+`hoarbound_frost_controller.cpp`; it should load the production shader on its next
+native rebuild, so the pattern lives in one place.
+
 ## Daily workflow after production integration
 
 Normal feature work still starts on `codex`; `main` remains the reviewed

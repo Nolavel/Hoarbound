@@ -5,13 +5,18 @@ extends RefCounted
 
 ## A palm mesh is this tall at scale 1; placements scale it to the measured height.
 const PALM_BASE_HEIGHT_M: float = 9.0
+## Stylized environment surface plus snow on branch tops, driven by the live snow cover.
+const SNOW_SHADER: Shader = preload("res://shaders/environment/vegetation/tree_snow.gdshader")
+const SNOW_DOUBLE_SIDED_SHADER: Shader = preload("res://shaders/environment/vegetation/tree_snow_double_sided.gdshader")
+## Drooping palm fronds shed part of what settles on them; limbs and twigs keep it.
+const FROND_SNOW_HOLD: float = 0.8
 
 
 ## The four materials the trees use, keyed as `palm()` and `bare_tree()` expect.
 static func materials() -> Dictionary:
 	return {
 		"palm_trunk": _mat(Color(0.36, 0.33, 0.29), 0.95),
-		"palm_frond": _mat(Color(0.34, 0.33, 0.24), 0.9, true),
+		"palm_frond": _mat(Color(0.34, 0.33, 0.24), 0.9, true, FROND_SNOW_HOLD),
 		"bark": _mat(Color(0.27, 0.24, 0.21), 0.95),
 		"twig": _mat(Color(0.3, 0.27, 0.24), 0.95),
 	}
@@ -52,8 +57,11 @@ static func bare_tree(m: Dictionary) -> ArrayMesh:
 	return _compose(parts)
 
 
-static func _mat(color: Color, roughness: float, double_sided: bool = false) -> Material:
-	return StylizedEnvironmentMaterial.make(color, roughness, false, double_sided)
+static func _mat(color: Color, roughness: float, double_sided: bool = false, snow_hold: float = 1.0) -> Material:
+	var material: ShaderMaterial = StylizedEnvironmentMaterial.make(color, roughness, false, double_sided)
+	material.shader = SNOW_DOUBLE_SIDED_SHADER if double_sided else SNOW_SHADER
+	material.set_shader_parameter("tree_snow_hold", snow_hold)
+	return material
 
 
 ## Merges primitive parts into one mesh, one surface per material.

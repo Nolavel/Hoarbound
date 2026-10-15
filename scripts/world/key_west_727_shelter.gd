@@ -17,6 +17,8 @@ const CLINIC_OFFSET_C: float = 4.0
 const CLINIC_WIND_EXPOSURE: float = 0.15
 const CLINIC_WINDOW_SEVERITY: float = 0.2
 const SPAWN_BEFORE_RAMP_M: float = 2.0
+## The landmark glass (frosted_glass.gdshader): its heated-room panes clear as the stove warms that room.
+const FROSTED_GLASS: ShaderMaterial = preload("res://assets/world/key_west/landmarks/frosted_glass_727.tres")
 const PIPE_ABOVE_ROOF_M: float = 0.8
 const BOX_COLOURS: Dictionary = {"counter": Color(0.62, 0.56, 0.48), "bench": Color(0.36, 0.40, 0.46),
 	"exam_table": Color(0.70, 0.74, 0.72), "desk": Color(0.55, 0.47, 0.38), "dental_chair": Color(0.42, 0.56, 0.60),
@@ -60,6 +62,8 @@ func build() -> void:
 	_remap_node_refs(zone.get_node(^"FrontWindow1"), window_proto)
 	_place_door(zone)
 	_place_zone(zone, true)
+	zone.warmth_changed.connect(_on_heated_warmth.bind(zone))
+	_on_heated_warmth(0.0, zone)
 	var clinic: ThermalZone = _clinic_zone(zone)
 	_place_windows(zone, clinic, window_proto)
 	window_proto.free()
@@ -83,6 +87,13 @@ func place_supplies(supplies: Array[ItemPickup], sockets: Dictionary) -> void:
 		_house.add_child(pickup)
 
 
+## How far a stove has warmed a zone, 0..1 of what the zone can be heated by; the glass reads it.
+static func frost_warmth(zone: ThermalZone) -> float:
+	if zone == null or zone.max_heated_offset_c <= 0.0:
+		return 0.0
+	return clampf(zone.get_heated_offset_c() / zone.max_heated_offset_c, 0.0, 1.0)
+
+
 ## Plan point (u, v) at height y, in House space.
 func plan_point(uv: Array, y: float) -> Vector3:
 	return Vector3(float(uv[0]), y, float(uv[1]))
@@ -98,6 +109,10 @@ func _opening(opening_name: String) -> Dictionary:
 		if o["name"] == opening_name:
 			return o
 	return {}
+
+
+func _on_heated_warmth(_offset_c: float, zone: ThermalZone) -> void:
+	FROSTED_GLASS.set_shader_parameter(&"heated_warmth", frost_warmth(zone))
 
 
 func _place_door(zone: ThermalZone) -> void:
