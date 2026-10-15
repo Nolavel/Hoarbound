@@ -10,7 +10,7 @@ extends SceneTree
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const SHADER_PATH := "res://shaders/experimental/painterly_distance_wash.gdshader"
 const DEFAULT_OUT := "res://docs/runtime_previews/key_west"
-const SETTLE_FRAMES := 90
+const SETTLE_FRAMES := 150
 const ORBIT_FRAMES := 96
 const ORBIT_DEGREES := 34.0
 
@@ -196,25 +196,30 @@ func _write_report() -> void:
 		"scene": SCENE,
 		"reference_contract": [
 			"near silhouettes remain crisp and high-contrast",
-			"distance removes contrast and chroma before adding softness",
-			"dark buildings lift toward cold paper instead of staying black",
-			"horizon receives a restrained world-space wash",
-			"blur is tiny and suppressed at depth discontinuities",
+			"wash is already readable around 20-30 m instead of waiting for the horizon",
+			"mid-distance facades collapse into broad value masses",
+			"dark buildings lift aggressively toward cold paper instead of staying black",
+			"far architecture can nearly merge with snow/sky while keeping a silhouette",
+			"blur stays secondary and is suppressed at depth discontinuities",
 		],
 		"parameters": {
-			"wash_start_m": 18.0,
-			"wash_end_m": 95.0,
-			"wash_strength": 0.72,
-			"wash_color_srgb": [0.86, 0.89, 0.91],
-			"desaturation": 0.58,
-			"contrast_compression": 0.34,
-			"dark_value_lift": 0.18,
-			"blur_start_m": 28.0,
-			"blur_end_m": 105.0,
-			"blur_strength": 0.24,
-			"blur_radius_px": 2.2,
-			"horizon_band": 0.13,
-			"horizon_boost": 0.14,
+			"wash_start_m": 10.0,
+			"wash_end_m": 72.0,
+			"wash_curve": 0.68,
+			"wash_strength": 0.82,
+			"wash_color_srgb": [0.92, 0.94, 0.95],
+			"desaturation": 0.78,
+			"contrast_compression": 0.60,
+			"dark_value_lift": 0.44,
+			"far_erase_start_m": 42.0,
+			"far_erase_end_m": 95.0,
+			"far_erase_strength": 0.16,
+			"blur_start_m": 25.0,
+			"blur_end_m": 85.0,
+			"blur_strength": 0.33,
+			"blur_radius_px": 3.0,
+			"horizon_band": 0.16,
+			"horizon_boost": 0.22,
 		},
 		"static_shots": _records,
 		"orbit_frames": ORBIT_FRAMES,
