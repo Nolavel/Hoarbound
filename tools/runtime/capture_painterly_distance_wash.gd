@@ -141,6 +141,15 @@ func _run() -> void:
 			_material.set_shader_parameter(&"debug_mode", 2)
 			await _wait_frames(3)
 			_save_image(_capture_image(), _out.path_join("painterly_depth_probe.png"))
+
+			# Material diagnostics: grayscale paper tooth, then RGB =
+			# world blotch / dry-brush pigment / warm-window aperture.
+			_material.set_shader_parameter(&"debug_mode", 3)
+			await _wait_frames(3)
+			_save_image(_capture_image(), _out.path_join("painterly_paper_probe.png"))
+			_material.set_shader_parameter(&"debug_mode", 4)
+			await _wait_frames(3)
+			_save_image(_capture_image(), _out.path_join("painterly_material_masks.png"))
 			_material.set_shader_parameter(&"debug_mode", 0)
 			await _wait_frames(2)
 
@@ -330,6 +339,10 @@ func _write_report() -> void:
 			"18-32 m mid-ground visibly loses local contrast/chroma and collapses into broader values",
 			"32-70+ m background lifts decisively toward a pale cold paper/snow mass",
 			"dark buildings become charcoal before dissolving into the wash",
+			"18-40 m mid-ground retains darker ink mass before far-distance lift takes over",
+			"paper tooth is restrained and screen-stable rather than swimming over world geometry",
+			"pigment blotches and dry-brush breakup are world-stable and strongest on darker middle planes",
+			"rare warm windows use world-space facade cells and preserve existing warm highlights",
 			"blur stays secondary and is suppressed at depth discontinuities",
 			"CI probes the fullscreen pass before the expensive multi-shot/video capture",
 			"CI fails if before/wash mean RGB delta stays visually negligible",
@@ -340,20 +353,33 @@ func _write_report() -> void:
 			"far_start_m": 32.0,
 			"far_full_m": 70.0,
 			"wash_color_srgb": [0.90, 0.92, 0.94],
-			"mid_desaturation": 0.45,
-			"far_desaturation": 0.45,
-			"mid_contrast_compression": 0.36,
-			"far_contrast_compression": 0.38,
-			"mid_dark_value_lift": 0.32,
-			"far_dark_value_lift": 0.34,
-			"mid_paper_mix": 0.38,
-			"far_paper_mix": 0.42,
+			"mid_desaturation": 0.34,
+			"far_desaturation": 0.48,
+			"mid_contrast_compression": 0.24,
+			"far_contrast_compression": 0.40,
+			"mid_dark_value_lift": 0.10,
+			"far_dark_value_lift": 0.32,
+			"mid_ink_hold": 0.18,
+			"mid_paper_mix": 0.27,
+			"far_paper_mix": 0.44,
 			"blur_start_m": 26.0,
 			"blur_end_m": 70.0,
-			"blur_strength": 0.18,
-			"blur_radius_px": 2.4,
+			"blur_strength": 0.16,
+			"blur_radius_px": 2.2,
 			"horizon_band": 0.16,
 			"horizon_paper_boost": 0.08,
+			"paper_grain_strength": 0.018,
+			"paper_grain_scale_px": 2.25,
+			"blotch_scale": 0.11,
+			"blotch_mix_variation": 0.18,
+			"blotch_value_variation": 0.035,
+			"dry_brush_scale": 0.65,
+			"dry_brush_strength": 0.12,
+			"warm_window_color_srgb": [1.0, 0.48, 0.16],
+			"warm_window_strength": 0.78,
+			"warm_window_sparsity": 0.94,
+			"warm_window_range_m": [20.0, 62.0],
+			"warm_window_cell_m": [2.8, 2.2],
 		},
 		"verification": {
 			"post_probe_mean_rgb_delta_8bit": snappedf(_post_probe_delta_8bit, 0.001),
