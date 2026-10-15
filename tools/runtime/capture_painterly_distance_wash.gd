@@ -3,6 +3,7 @@ extends SceneTree
 ## Production-path verification for Hoarbound's painterly distance wash.
 ## It uses the real Key West Reality scene, TPS camera and the atmosphere pass
 ## embedded in that camera. The harness never constructs a substitute effect.
+## Review artifacts must be captured from the exact branch head being handed off.
 ##
 ## The existing [key-west-preview] job uploads docs/runtime_previews/key_west/*.png,
 ## so this verifier deliberately writes its stills, diagnostics and walk there.
