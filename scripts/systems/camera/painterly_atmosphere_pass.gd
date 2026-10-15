@@ -13,6 +13,7 @@ var _material: ShaderMaterial
 
 
 func _ready() -> void:
+	layers = RenderLayers.SCREEN_PASS  # its vertex shader covers the screen of any camera that draws it
 	_material = material_override as ShaderMaterial
 	if _material == null:
 		push_error("PainterlyAtmospherePass requires a ShaderMaterial override")

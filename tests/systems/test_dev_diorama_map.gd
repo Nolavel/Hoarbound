@@ -50,6 +50,7 @@ func _test_enabled_world_toggles_and_follows() -> void:
 	_check(is_equal_approx(map.get_height_m(), 90.0), "map height is not fixed at 90 m")
 	_check(map.get_focus_world().distance_to(player.global_position) < 0.01, "map did not center on Henry")
 	_check((main_camera.cull_mask & DevDioramaMap.MAP_LABEL_MASK) == 0, "TPS camera still sees map-only labels")
+	_check((map.get_map_cull_mask() & RenderLayers.SCREEN_PASS) == 0, "map camera draws the player camera's fullscreen pass")
 	_check_live_viewport_projection(map)
 	_check_marker_tracks_ground_position(map, player)
 

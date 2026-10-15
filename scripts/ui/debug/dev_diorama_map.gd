@@ -124,6 +124,10 @@ func get_focus_world() -> Vector3:
 	return _focus
 
 
+func get_map_cull_mask() -> int:
+	return _camera.cull_mask if _camera != null else 0
+
+
 func get_map_image() -> Image:
 	if _viewport == null or _viewport.get_texture() == null:
 		return null
@@ -207,7 +211,7 @@ func _build_ui() -> void:
 	_camera.fov = CAMERA_FOV_DEG
 	_camera.near = 0.15
 	_camera.far = 1200.0
-	_camera.cull_mask = ((1 << 20) - 1) & ~RenderLayers.SNOW_CONTACT
+	_camera.cull_mask = ((1 << 20) - 1) & ~(RenderLayers.SNOW_CONTACT | RenderLayers.SCREEN_PASS)
 	_camera.environment = _map_environment()
 	_viewport.add_child(_camera)
 	_camera.make_current()
