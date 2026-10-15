@@ -87,7 +87,7 @@ func _test_local_contact_target_keeps_packed_field_large() -> void:
 	root.add_child(shell)
 	var contact := shell.get_node("SnowContact") as SubViewport
 	var packed := shell.get_node("SnowPacked0") as SubViewport
-	var camera := contact.get_node("Camera3D") as Camera3D
+	var camera := contact.get_node("ContactCamera") as Camera3D
 	_check(contact.size == Vector2i(256, 256), "contact target is not 256²")
 	_check(is_equal_approx(camera.size, 6.4), "contact camera does not cover 6.4 m")
 	_check(packed.size == Vector2i(896, 896), "HIGH packed field is not 896²")

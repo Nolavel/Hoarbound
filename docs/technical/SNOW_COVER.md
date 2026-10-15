@@ -91,7 +91,7 @@ front moves inward, and noise only breaks up that front.
 | Tier | What runs |
 |---|---|
 | Low (HD 620 class) | cover + rime from the shared include, decal footprints, bounded snowfall particles. No compute, no POM. |
-| Medium (Forward+) | as high, but the per-frame contact capture is 512² (packed field stays 1024²). Gain unproven on a real GPU. |
+| Medium (Forward+) | as high, but the per-frame contact capture is 512² (packed field stays 896²). Gain unproven on a real GPU. |
 | High (Forward+) | the above, plus — later — a local L0 accumulation field, POM near the camera, compute evolution. |
 
 Nobody enables compute on the low tier by default.
@@ -300,7 +300,9 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
 - **Window.** 25.6 m, moved in 3.2 m steps; packing is shifted with it. The
   mesh remains 3 cm in a 2.75 m half-width core and coarsens to 25 cm at the
   edge. This is 113,569 vertices instead of 167,281 with the former 3.5 m core.
-- **Cost.** Contact capture remains 1024². Packed snow and each of its three
+- **Cost.** The base `SnowShell` contact capture is 1024² over the window; the game builds
+  `DeterministicSnowShell`, whose contact capture is a local 256² over 6.4 m around Henry (the same
+  2.5 cm texel), rendered only on a snow pass. Packed snow and each of its three
   shape passes are 896² (2.86 cm per texel, formerly 1024² / 2.5 cm), reducing
   each pass's pixel area by 23.4%. The accumulator skips neighbour field and
   contact samples when the packed-height difference cannot overcome either

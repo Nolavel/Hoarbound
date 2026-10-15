@@ -775,6 +775,7 @@ func _build_capture() -> void:
 	_contact.disable_3d = false
 	_contact.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_contact_cam = Camera3D.new()
+	_contact_cam.name = "ContactCamera"
 	_contact_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
 	_contact_cam.size = window_m
 	_contact_cam.near = 0.05
