@@ -21,7 +21,7 @@ uniform float mid_contrast_compression : hint_range(0.0, 1.0, 0.01) = 0.24;
 uniform float far_contrast_compression : hint_range(0.0, 1.0, 0.01) = 0.40;
 uniform float mid_dark_value_lift : hint_range(0.0, 1.0, 0.01) = 0.10;
 uniform float far_dark_value_lift : hint_range(0.0, 1.0, 0.01) = 0.32;
-uniform float mid_ink_hold : hint_range(0.0, 0.5, 0.01) = 0.18;
+uniform float mid_ink_hold : hint_range(0.0, 0.5, 0.01) = 0.22;
 uniform float mid_paper_mix : hint_range(0.0, 1.0, 0.01) = 0.27;
 uniform float far_paper_mix : hint_range(0.0, 1.0, 0.01) = 0.44;
 
@@ -35,15 +35,15 @@ uniform vec2 viewport_size = vec2(1600.0, 1000.0);
 uniform float horizon_band : hint_range(0.01, 0.5, 0.01) = 0.16;
 uniform float horizon_paper_boost : hint_range(0.0, 0.5, 0.01) = 0.08;
 
-uniform float paper_grain_strength : hint_range(0.0, 0.08, 0.001) = 0.018;
+uniform float paper_grain_strength : hint_range(0.0, 0.08, 0.001) = 0.024;
 uniform float paper_grain_scale_px : hint_range(1.0, 8.0, 0.25) = 2.25;
 uniform float blotch_scale : hint_range(0.01, 1.0, 0.01) = 0.11;
-uniform float blotch_mix_variation : hint_range(0.0, 0.5, 0.01) = 0.18;
-uniform float blotch_value_variation : hint_range(0.0, 0.12, 0.005) = 0.035;
+uniform float blotch_mix_variation : hint_range(0.0, 0.5, 0.01) = 0.23;
+uniform float blotch_value_variation : hint_range(0.0, 0.12, 0.005) = 0.045;
 uniform float dry_brush_scale : hint_range(0.1, 4.0, 0.05) = 0.65;
-uniform float dry_brush_strength : hint_range(0.0, 0.4, 0.01) = 0.12;
+uniform float dry_brush_strength : hint_range(0.0, 0.4, 0.01) = 0.16;
 
-uniform vec4 warm_window_color : source_color = vec4(1.0, 0.48, 0.16, 1.0);
+uniform vec4 warm_window_color : source_color = vec4(0.22, 0.16, 0.12, 1.0);
 uniform float warm_window_strength : hint_range(0.0, 1.0, 0.01) = 0.78;
 uniform float warm_window_sparsity : hint_range(0.80, 0.995, 0.005) = 0.94;
 uniform float warm_window_near_m : hint_range(0.0, 100.0, 1.0) = 20.0;
@@ -215,7 +215,7 @@ void fragment() {
 		warm_window *= window_range * has_geometry;
 		float warm_energy = mix(0.72, 1.0, hash21(window_cell + vec2(3.0, 71.0)));
 		vec3 warm_target = warm_window_color.rgb * warm_energy;
-		color = mix(color, max(color, warm_target), warm_window * warm_window_strength);
+		color = mix(color, warm_target, warm_window * warm_window_strength);
 
 		// Paper tooth stays subtle and screen-stable: this is the sheet, not another
 		// layer of world material noise. Near gameplay readability is mostly intact.
