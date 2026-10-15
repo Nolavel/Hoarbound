@@ -34,6 +34,9 @@ uniform float blur_radius_px : hint_range(0.0, 6.0, 0.1) = 2.2;
 uniform float silhouette_guard_m : hint_range(0.5, 30.0, 0.5) = 6.0;
 uniform vec2 viewport_size = vec2(1600.0, 1000.0);
 
+// Share of the wash the sky takes, like Environment.fog_sky_affect: the authored sky and horizon haze stay.
+uniform float sky_affect : hint_range(0.0, 1.0, 0.01) = 0.1;
+
 uniform float horizon_band : hint_range(0.01, 0.5, 0.01) = 0.16;
 uniform float horizon_paper_boost : hint_range(0.0, 0.5, 0.01) = 0.08;
 
@@ -143,8 +146,9 @@ void fragment() {
 	} else {
 		// Keep the first ~18 m effectively untouched, then remove information in
 		// readable painted planes. Mid-ground ink stays darker than the far wash.
-		float mid = smoothstep(mid_start_m, max(mid_full_m, mid_start_m + 0.001), distance_m);
-		float far = smoothstep(far_start_m, max(far_full_m, far_start_m + 0.001), distance_m);
+		float sky_scope = mix(sky_affect, 1.0, has_geometry);
+		float mid = smoothstep(mid_start_m, max(mid_full_m, mid_start_m + 0.001), distance_m) * sky_scope;
+		float far = smoothstep(far_start_m, max(far_full_m, far_start_m + 0.001), distance_m) * sky_scope;
 		float mid_only = mid * (1.0 - far * 0.72);
 
 		vec2 pixel = 1.0 / max(viewport_size, vec2(1.0));
