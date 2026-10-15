@@ -75,6 +75,8 @@ func build_proxy(cluster_id: String, features: Array) -> Dictionary:
 		var offset: Vector3 = instance.position - centre
 		var mesh: ArrayMesh = instance.mesh
 		for s: int in range(mesh.get_surface_count()):
+			if mesh.surface_get_name(s) == "windows":
+				continue  # under a pixel at the proxy distance, like the culled thin winter items
 			var key: String = _material_keys.get(mesh.surface_get_material(s).get_instance_id(), "unknown")
 			var arrays: Array = mesh.surface_get_arrays(s)
 			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]

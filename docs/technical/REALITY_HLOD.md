@@ -392,3 +392,14 @@ The `key-west-reality` job, after the chunk rebuild:
   - proxies without children;
   - round trips;
   - a wobble inside the hysteresis band.
+
+## Island-wide (2026-10-15)
+
+Owner request. The Old Town block showed −41 to −67 % draw calls (section 3), and the streamer scales to the whole
+island's cells (`scan()` 0.002–0.29 ms at 7,803 cells). `config/hlod.json` now lists every chunk with at least one
+generated building: 114 chunks, 13,214 buildings.
+- Build: 995 clusters in 53 s (`build_key_west_hlod_cli.gd --clean --all`); `generated/hlod` 30 MB plus
+  `generated/clusters` 67 MB; the chunk parts shrink from 504 MB to 460 MB as buildings move into clusters.
+- The new facade windows (`KeyWestChunkBuilder._window_row`) stay out of the proxies.
+- `test_key_west_reality_hlod`, `test_key_west_reality_hlod_boundary`, `test_streaming` and the fresh-checkout test
+  pass on the island-wide build. The production gate and the island benchmark run in CI on this commit.
