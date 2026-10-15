@@ -41,10 +41,17 @@ jobs:
         run: tools/ci/import_gate.sh
 
       - name: All suites
+        ## No -e: the summary and each failed suite's errors must print even when the run fails.
+        shell: bash {0}
         run: |
           SUITE_TIMEOUT=400 tools/ci/run_tests.sh > suites.log 2>&1
           code=$?
-          grep -E "^(== |FAILED|KNOWN FAILING|all suites passed)" suites.log
+          grep -E "^(FAILED|KNOWN FAILING|all suites passed)" suites.log
+          for name in $(grep -oP "^FAILED: \K[^ ]+(?= \(exit)" suites.log); do
+            echo "---- $name"
+            awk -v s="== $name" '$0 == s {on=1; next} /^== / {on=0} on' suites.log \
+              | grep -E "ERROR:|SCRIPT ERROR|FAIL|failed|Parse Error" | grep -v "Parameter \"t\" is null" | head -30
+          done
           exit $code
 
       - name: Upload suite log
