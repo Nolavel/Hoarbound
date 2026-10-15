@@ -53,15 +53,27 @@ on 2026-10-15 (`git grep`, excluding `archive/`, `shots/` and docs).
 - **`world/terrain/source/key_west/` (NOAA crop and receipt):** source provenance. CLAUDE.md keeps the rule that NOAA
   base heights are never edited in code.
 
-## Found while checking: 10 suites that fail on `main` and are not in CI
+## The 10 suites that failed outside CI (2026-10-15)
 
-The same 10 suites fail on current `main` with GodotPhysics and with Jolt, with identical messages:
-`test_dev_diorama_map`, `test_door_draft`, `test_doorway_camera`, `test_held_fit`, `test_held_light`,
-`test_passage_traversal`, `test_snow_contact_pipeline`, `test_snow_shell`, `test_street_props_streaming`,
-`test_tps_camera_orbit`.
+They had failed since the start of this repository's history; Jenova once forced every Godot exit code to 0. Eight now
+pass:
 
-`tools/ci/run_tests.sh` runs them, but `checks.yml` runs only named suites. Several are legacy-island tests and go with
-the island; the others (door draft, held items, camera orbit, passage traversal) need their own fix.
+| Suite | Cause | Fix |
+|---|---|---|
+| `test_door_draft` | drove the hinge transform, not the door's angle state | test sets `current_angle_rad` |
+| `test_held_fit`, `test_held_light` | pinned the pre-"flare pass 2" sideways pose | authored upright fit is the reference (render-checked) |
+| `test_passage_traversal` | **game bug:** an authored passage outlived its freed node | the component drops it |
+| `test_dev_diorama_map` | **game bug:** map camera moved in `_process` under physics interpolation | interpolation off on that camera |
+| `test_snow_contact_pipeline` | unnamed contact camera | named `ContactCamera` |
+| `test_snow_shell` | expected 1024² packed field and `snow_shell.gd` in `world.gd` | 896², `deterministic_snow_shell.gd` |
+| `test_street_props_streaming` | expected island-wide palms/trees/poles | all kinds per chunk (legacy island) |
+
+Still failing, listed in `tools/ci/known_failing_suites.txt` with the reason:
+- `test_doorway_camera`: doorway camera tuning; it moves to the 727 door with this plan.
+- `test_tps_camera_orbit`: improved 3 → 2 failed checks by a recompose fix; the rest is boom smoothing near the fade
+  end.
+
+`.github/workflows/suites.yml` now runs every suite on every push, report-only; `checks` stays the gate on `main`.
 
 ## Order (one commit each, import gate and tests green)
 

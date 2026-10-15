@@ -1,0 +1,55 @@
+name: suites
+
+## Every headless suite under tests/systems, on every push. Report only: `checks` stays the gate on main,
+## because the suites still churn with the mechanics. A suite in tools/ci/known_failing_suites.txt is
+## reported, not counted; one that starts passing fails this run until it is taken off the list.
+on:
+  push:
+    branches: [main, codex, claudeflow]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  workflow_dispatch:
+
+concurrency:
+  group: suites-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot (headless only)
+        run: SKIP_APT=1 tools/ci/setup_env.sh
+
+      - name: Import gate (clean import, every script compiles)
+        run: tools/ci/import_gate.sh
+
+      - name: All suites
+        run: |
+          SUITE_TIMEOUT=400 tools/ci/run_tests.sh > suites.log 2>&1
+          code=$?
+          grep -E "^(== |FAILED|KNOWN FAILING|all suites passed)" suites.log
+          exit $code
+
+      - name: Upload suite log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: suites-log
+          path: suites.log
