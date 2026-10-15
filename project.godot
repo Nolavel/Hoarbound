@@ -1051,6 +1051,10 @@ snow_window={
 "type": "vec4",
 "value": Vector4(0, 0, 0, 0)
 }
+snow_field={
+"type": "sampler2D",
+"value": ""
+}
 frost_amount={
 "type": "float",
 "value": 0.3
@@ -1071,11 +1075,4 @@ stylized_shadow_brush_mix={
 "type": "float",
 "value": 1.0
 }
-<<<<<<< Updated upstream
 
-=======
-snow_field={
-"type": "sampler2D",
-"value": ""
-}
->>>>>>> Stashed changes
