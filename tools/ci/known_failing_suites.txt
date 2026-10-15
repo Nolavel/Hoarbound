@@ -1,4 +1,4 @@
 ## Suites known to fail, with the reason; tools/ci/run_tests.sh reports them without failing the run.
 ## Remove a line in the commit that fixes its suite (a listed suite that passes fails the run).
-test_doorway_camera.gd  # doorway camera tuning: 90 deg of mouse after the door turns 65-75 deg; Henry off screen in the stand sweeps. Moves to the 727 door with the legacy island (docs/technical/LEGACY_ISLAND_REMOVAL.md)
+test_doorway_camera.gd  # on the 727 door: Henry off screen in the full-turn stand sweeps (also on the legacy door) and for 1-6 frames in the yaw/pitch swings; doorway camera tuning
 test_tps_camera_orbit.gd  # back to a wall at yaw 330 the boom smoothing passes 0.23 m from the eyes, under the 0.25 m fade end (camera tuning)

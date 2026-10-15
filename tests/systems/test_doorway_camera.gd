@@ -6,7 +6,7 @@ extends SceneTree
 ## Run: godot --headless --path . --script res://tests/systems/test_doorway_camera.gd [-- <label> [pivot=<share>] [scenario...]]
 ## With a label, rows and a summary go to user://traces/tps_doorway/<label>/; add --fixed-fps 144 for frame-exact traces.
 
-const SCENE: String = "res://scenes/world/key_west/key_west.tscn"
+const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const OUT_ROOT: String = "user://traces/tps_doorway"
 ## Radians of turn per pixel, as InputSystems.MOUSE_SENSITIVITY.
 const MOUSE_SENSITIVITY: float = 0.003
@@ -98,6 +98,10 @@ func _run() -> void:
 		_cam.framing_pivot_share = _pivot_share
 	if not _find_door():
 		_fail("no shelter door in %s" % SCENE)
+		_finish()
+		return
+	if not await _wait_for_streamed_door():
+		_fail("the door's chunk never streamed in")
 		_finish()
 		return
 	for scenario: String in _selected:
@@ -288,6 +292,25 @@ func _mouse_freedom(tag: StringName) -> void:
 
 
 # --- Door frame ---------------------------------------------------------------
+
+## Reality streams the walls around the door: stand Henry there and wait until its chunk is live and quiet.
+func _wait_for_streamed_door() -> bool:
+	var ground := _scene.find_child("RealityGround", true, false) as KeyWestRealityGround
+	if ground == null:
+		return true
+	await _place(-2.0, 0.0, 0.0, -10.0)
+	var quiet: int = 0
+	for i: int in range(6000):
+		var live: bool = ground.has_ground_at(_center.x, _center.z)
+		var busy: bool = false
+		for streaming: Node in _scene.find_children("*", "StreamingSystem", true, false):
+			busy = busy or not (streaming as StreamingSystem)._transient.is_empty()
+		quiet = quiet + 1 if live and not busy else 0
+		if quiet >= 30:
+			return true
+		await _ticks(1)
+	return false
+
 
 func _find_door() -> bool:
 	var zone := _scene.find_child("ShelterZone", true, false) as Node3D

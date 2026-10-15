@@ -16,6 +16,7 @@ on 2026-10-15 (`git grep`, excluding `archive/`, `shots/` and docs).
 3. `test_key_west_first_exit` now loads the legacy scene by path instead of asserting it is the main scene.
 4. Palm and bare-tree meshes moved to the shared `WinterTreeMeshes`; the Reality chunk builder no longer uses
    `KeyWestStreetProps` (chunk digests unchanged).
+5. `test_stove_world_time` and `test_doorway_camera` run on the Reality scene (727 stove and door).
 
 ## Blockers: Reality still uses these (move or rename, never just delete)
 
@@ -31,7 +32,7 @@ on 2026-10-15 (`git grep`, excluding `archive/`, `shots/` and docs).
 
 | Piece | Still loaded by |
 |---|---|
-| `scenes/world/key_west/key_west.tscn` | tests `test_doorway_camera`, `test_key_west_first_exit`, `test_stove_world_time`; capture tools `capture_dev_diorama_map`, `capture_key_west_first_exit`, `capture_motion_matching_street`, `capture_quick_access`, `capture_sky_weather`, `capture_stylized_shadows`, `capture_tps_doorway` |
+| `scenes/world/key_west/key_west.tscn` | test `test_key_west_first_exit`; capture tools `capture_dev_diorama_map`, `capture_key_west_first_exit`, `capture_motion_matching_street`, `capture_quick_access`, `capture_sky_weather`, `capture_stylized_shadows`, `capture_tps_doorway` |
 | `data/world_profiles/key_west_test.tres` | `key_west.tscn`, `test_key_west_first_exit` |
 | `key_west_first_exit.tscn`, `scripts/world/key_west_first_exit.gd` | `key_west_test.tres`; CI runs `test_key_west_first_exit` |
 | `ChunkedCityMassing`, `key_west_city_visuals.gd`, `key_west_street_props.gd` (after the mesh helper moves) | legacy scene, `capture_key_west*.gd`, `bake_key_west_chunk_snow.gd` |
