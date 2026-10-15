@@ -1075,3 +1075,19 @@ stylized_shadow_brush_mix={
 "type": "float",
 "value": 1.0
 }
+painterly_surface_strength={
+"type": "float",
+"value": 1.0
+}
+painterly_surface_pigment_strength={
+"type": "float",
+"value": 0.14
+}
+painterly_surface_brush_strength={
+"type": "float",
+"value": 0.06
+}
+painterly_surface_brush_mask={
+"type": "sampler2D",
+"value": "res://assets/textures/shadows/shadow_brush_dry.png"
+}

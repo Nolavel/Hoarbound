@@ -4,6 +4,7 @@ shader_type spatial;
 
 #include "res://shaders/environment/snow/snow_surface.gdshaderinc"
 #include "res://shaders/environment/stylized_shadow.gdshaderinc"
+#include "res://shaders/environment/materials/painterly_surface.gdshaderinc"
 #include "res://shaders/environment/ice/frozen_sea_surface.gdshaderinc"
 
 uniform vec4 sand_color : source_color = vec4(0.62, 0.58, 0.49, 1.0);
@@ -50,6 +51,7 @@ void fragment() {
 	ground *= 0.9 + grain * 0.2;
 	float snow = snow_weight(world_normal, world_pos, snow_softness);
 	ALBEDO = mix(ground, snow_color.rgb, snow);
+	ALBEDO = hfn_painterly_surface_color(ALBEDO, world_pos, world_normal, mix(0.72, 0.38, snow));
 	ROUGHNESS = mix(0.95, 0.85, snow);
 	float ice = step(0.5, ice_cover);
 	ALBEDO = mix(ALBEDO, FROZEN_SEA_ALBEDO, ice);

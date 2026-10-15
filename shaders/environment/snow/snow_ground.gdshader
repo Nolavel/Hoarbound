@@ -5,6 +5,7 @@ render_mode cull_back, depth_draw_opaque;
 // contact accumulator. See docs/technical/SNOW_COVER.md.
 #include "res://shaders/environment/snow/snow_surface.gdshaderinc"
 #include "res://shaders/environment/stylized_shadow.gdshaderinc"
+#include "res://shaders/environment/materials/painterly_surface.gdshaderinc"
 
 // R: snow top (world y), G: settled depth, B: 1 where cut away, A: city wind factor.
 uniform sampler2D field : filter_linear, repeat_disable;
@@ -271,6 +272,7 @@ void fragment() {
 	color = mix(color, wall_color * strata, wall * 0.5);
 	color *= 1.0 - crack * 0.22;
 	ALBEDO = snow_thin_tint(snow_wind_tint(color, v_city), v_depth);
+	ALBEDO = hfn_painterly_surface_color(ALBEDO, v_world, n, 0.42);
 	ROUGHNESS = mix(0.85, 0.6, packed);
 	// Freshly broken grains at a print's edge sparkle more than the settled top.
 	float glint = step(mix(0.996, 0.985, wall), snow_hash(floor(v_world.xz * 140.0))) * v_edge;

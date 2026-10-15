@@ -61,6 +61,33 @@ func _run() -> void:
 	var brush_mask: Dictionary = ProjectSettings.get_setting("shader_globals/stylized_shadow_brush_mask", {})
 	_check(load(String(brush_mask.get("value", ""))) is Texture2D, "brush mask global does not point at a texture")
 
+	## Surface pigment is an explicit static-world opt-in: buildings and ground use it;
+	## Henry and ordinary movable props keep their existing material response.
+	for global_name: String in [
+		"painterly_surface_strength",
+		"painterly_surface_pigment_strength",
+		"painterly_surface_brush_strength",
+		"painterly_surface_brush_mask",
+	]:
+		_check(
+			ProjectSettings.has_setting("shader_globals/%s" % global_name),
+			"missing painterly surface global: %s" % global_name
+		)
+	var surface_mask: Dictionary = ProjectSettings.get_setting("shader_globals/painterly_surface_brush_mask", {})
+	_check(load(String(surface_mask.get("value", ""))) is Texture2D, "painterly surface mask does not point at a texture")
+	var surface_contract := FileAccess.get_file_as_string(
+		"res://shaders/environment/materials/painterly_surface.gdshaderinc"
+	)
+	_check(surface_contract.contains("hfn_painterly_surface_color"), "painterly surface contract is missing")
+	var static_surface := FileAccess.get_file_as_string(
+		"res://shaders/environment/materials/stylized_environment_static.gdshader"
+	)
+	var moving_surface := FileAccess.get_file_as_string(
+		"res://shaders/environment/materials/stylized_environment.gdshader"
+	)
+	_check(static_surface.contains("#define HFN_PAINTERLY_SURFACE"), "static buildings did not opt into PainterlySurface")
+	_check(not moving_surface.contains("#define HFN_PAINTERLY_SURFACE"), "moving materials unexpectedly opted into PainterlySurface")
+
 	if _failures > 0:
 		push_error("stylized shadows: %d check(s) failed" % _failures)
 		quit(1)

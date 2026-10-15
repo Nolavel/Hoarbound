@@ -1,4 +1,7 @@
 #include "res://shaders/environment/stylized_shadow.gdshaderinc"
+#ifdef HFN_PAINTERLY_SURFACE
+#include "res://shaders/environment/materials/painterly_surface.gdshaderinc"
+#endif
 
 uniform vec4 albedo_color : source_color = vec4(1.0);
 uniform float roughness : hint_range(0.0, 1.0) = 0.9;
@@ -32,6 +35,7 @@ const float HFN_BAYER4[16] = float[](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0,
 #endif
 
 varying vec3 stylized_noise_pos;
+varying vec3 stylized_world_normal;
 
 void vertex() {
 	// HFN_VERTEX_EXTRA: optional per-family vertex step (e.g. snow_stems lifts stems with the snow).
@@ -39,6 +43,7 @@ void vertex() {
 	HFN_VERTEX_EXTRA
 #endif
 	stylized_noise_pos = shadow_noise_in_model_space ? VERTEX : (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	stylized_world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
 void fragment() {
@@ -61,6 +66,9 @@ void fragment() {
 		base *= texture(albedo_texture, uv);
 	}
 	ALBEDO = base.rgb;
+#ifdef HFN_PAINTERLY_SURFACE
+	ALBEDO = hfn_painterly_surface_color(ALBEDO, stylized_noise_pos, stylized_world_normal, 1.0);
+#endif
 	ROUGHNESS = roughness;
 	METALLIC = metallic;
 	if (use_normal_texture) {

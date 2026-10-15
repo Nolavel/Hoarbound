@@ -20,6 +20,7 @@ const MIN_WALK_DISTANCE_M := 2.0
 const SAMPLE_STEP := 8
 const MIN_POST_PROBE_DELTA_8BIT := 20.0
 const MIN_VISIBLE_WASH_DELTA_8BIT := 4.0
+const MIN_SURFACE_DELTA_8BIT := 0.7
 
 const SHOTS: Array[Dictionary] = [
 	{
@@ -53,6 +54,7 @@ var _material: ShaderMaterial
 var _records: Array[Dictionary] = []
 var _post_probe_delta_8bit := -1.0
 var _max_wash_delta_8bit := 0.0
+var _surface_delta_8bit := 0.0
 var _video_start := Vector3.ZERO
 var _video_end := Vector3.ZERO
 var _video_distance_m := 0.0
@@ -107,6 +109,7 @@ func _run() -> void:
 	# Review the complete visual contract rather than a faint calm-weather fraction.
 	# Before/after frames still use the same blizzard state, so only the pass changes.
 	_weather.set_weather(&"blizzard", true)
+	RenderingServer.global_shader_parameter_set(&"painterly_surface_strength", 1.0)
 	await _wait_frames(3)
 
 	print("painterly distance wash: production_pass=%s rendering_driver=%s camera_mask=0x%X post_layers=0x%X" % [
@@ -124,6 +127,18 @@ func _run() -> void:
 		_material.set_shader_parameter(&"debug_mode", 0)
 		_set_post_enabled(false)
 		await _wait_frames(3)
+
+		if shot_index == 0:
+			RenderingServer.global_shader_parameter_set(&"painterly_surface_strength", 0.0)
+			await _wait_frames(3)
+			var surface_off := _capture_image()
+			_save_image(surface_off, _out.path_join("painterly_surface_off.png"))
+			RenderingServer.global_shader_parameter_set(&"painterly_surface_strength", 1.0)
+			await _wait_frames(3)
+			var surface_on := _capture_image()
+			_save_image(surface_on, _out.path_join("painterly_surface_on.png"))
+			_surface_delta_8bit = _mean_rgb_delta_8bit(surface_off, surface_on)
+
 		var before_image := _capture_image()
 		var before_path := _out.path_join(String(shot["name"]) + "_before.png")
 		_save_image(before_image, before_path)
@@ -179,6 +194,9 @@ func _run() -> void:
 	await _capture_tps_walk()
 	_write_report()
 
+	if _surface_delta_8bit < MIN_SURFACE_DELTA_8BIT:
+		_fail("PainterlySurface is visually negligible: mean RGB delta %.3f < %.3f" % [_surface_delta_8bit, MIN_SURFACE_DELTA_8BIT])
+		return
 	if _max_wash_delta_8bit < MIN_VISIBLE_WASH_DELTA_8BIT:
 		_fail("distance wash is still visually negligible: max mean RGB delta %.3f < %.3f" % [_max_wash_delta_8bit, MIN_VISIBLE_WASH_DELTA_8BIT])
 		return
@@ -189,7 +207,8 @@ func _run() -> void:
 		_fail("Henry did not traverse the street: %.2f m < %.2f m" % [_video_distance_m, MIN_WALK_DISTANCE_M])
 		return
 
-	print("painterly distance wash: verified post_delta=%.3f max_wash_delta=%.3f walk=%.2fm frames=%d -> %s" % [
+	print("painterly distance wash: verified surface_delta=%.3f post_delta=%.3f max_wash_delta=%.3f walk=%.2fm frames=%d -> %s" % [
+		_surface_delta_8bit,
 		_post_probe_delta_8bit,
 		_max_wash_delta_8bit,
 		_video_distance_m,
@@ -324,8 +343,8 @@ func _mean_rgb_delta_8bit(a: Image, b: Image) -> float:
 
 func _write_report() -> void:
 	var report := {
-		"feature": "Painterly Atmosphere / Distance Wash",
-		"status": "production TPS camera pass; verified through the shipping scene path",
+		"feature": "Painterly Atmosphere / Surface Experiment",
+		"status": "experimental surface pigment plus production TPS distance wash; verified through the shipping scene path",
 		"scene": SCENE,
 		"reference_contract": [
 			"0-18 m foreground remains effectively untouched",
@@ -334,6 +353,8 @@ func _write_report() -> void:
 			"dark buildings become charcoal before dissolving into the wash",
 			"18-40 m mid-ground retains darker ink mass before far-distance lift takes over",
 			"paper tooth and cold sheet tint stay present independently of weather strength",
+			"large pigment masses live in PainterlySurface on static buildings and ground, not in the camera pass",
+			"directional brush flow follows the dominant surface plane; Henry and movable props stay untouched",
 			"distance bands break into broad world-stable wet-on-wet fronts",
 			"selected mid-distance depth edges receive stronger broken pigment pooling and restrained bleed",
 			"irregular wash fronts carry narrow broken drying rims, weighted toward dark architecture",
@@ -387,8 +408,16 @@ func _write_report() -> void:
 			"wash_edge_variation_m": 4.0,
 			"dry_brush_scale": 0.65,
 			"dry_brush_strength": 0.20,
+			"surface_pigment_scale_m": 7.5,
+			"surface_pigment_strength": 0.14,
+			"surface_brush_direction": [0.32, 0.95],
+			"surface_brush_length_m": 5.5,
+			"surface_brush_width_m": 0.65,
+			"surface_brush_strength": 0.06,
 		},
 		"verification": {
+			"surface_on_off_mean_rgb_delta_8bit": snappedf(_surface_delta_8bit, 0.001),
+			"required_surface_delta_8bit": MIN_SURFACE_DELTA_8BIT,
 			"post_probe_mean_rgb_delta_8bit": snappedf(_post_probe_delta_8bit, 0.001),
 			"max_wash_mean_rgb_delta_8bit": snappedf(_max_wash_delta_8bit, 0.001),
 			"required_post_probe_delta_8bit": MIN_POST_PROBE_DELTA_8BIT,

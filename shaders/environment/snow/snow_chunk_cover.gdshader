@@ -6,6 +6,7 @@ render_mode cull_back, depth_draw_opaque;
 // pixel, so they read on a coarse grid. See docs/technical/SNOW_COVER.md.
 #include "res://shaders/environment/snow/snow_surface.gdshaderinc"
 #include "res://shaders/environment/stylized_shadow.gdshaderinc"
+#include "res://shaders/environment/materials/painterly_surface.gdshaderinc"
 
 // xy: window min corner, z: window size, w: 1 when the window is live.
 global uniform vec4 snow_window;
@@ -65,6 +66,7 @@ void fragment() {
 	vec3 color = fresh_color * (1.0 - snow_breakup(v_world, 5.0) * 0.03);
 	color *= mix(1.0, 1.03, smoothstep(0.1, 0.4, depth));
 	ALBEDO = snow_thin_tint(snow_wind_tint(color, city_at(v_world.xz) * v_shore), depth);
+	ALBEDO = hfn_painterly_surface_color(ALBEDO, v_world, n, 0.42);
 	ROUGHNESS = 0.85;
 }
 
