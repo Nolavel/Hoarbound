@@ -152,14 +152,17 @@ func _run() -> void:
 			await _wait_frames(3)
 			_save_image(_capture_image(), _out.path_join("painterly_depth_probe.png"))
 
-			# Material diagnostics: grayscale permanent paper tooth, then RGB =
-			# irregular wash front / pigment pooling / edge-bleed scope.
+			# Material diagnostics: grayscale permanent paper tooth; advanced RGB =
+			# drying rim / fine pigment / internal ink; base RGB = wash front / pool / bleed.
 			_material.set_shader_parameter(&"debug_mode", 3)
 			await _wait_frames(3)
 			_save_image(_capture_image(), _out.path_join("painterly_paper_probe.png"))
 			_material.set_shader_parameter(&"debug_mode", 4)
 			await _wait_frames(3)
 			_save_image(_capture_image(), _out.path_join("painterly_material_masks.png"))
+			_material.set_shader_parameter(&"debug_mode", 5)
+			await _wait_frames(3)
+			_save_image(_capture_image(), _out.path_join("painterly_base_masks.png"))
 			_material.set_shader_parameter(&"debug_mode", 0)
 			await _wait_frames(2)
 
@@ -331,8 +334,12 @@ func _write_report() -> void:
 			"18-40 m mid-ground retains darker ink mass before far-distance lift takes over",
 			"paper tooth and cold sheet tint stay present independently of weather strength",
 			"distance bands break into broad world-stable wet-on-wet fronts",
-			"selected mid-distance depth edges receive broken pigment pooling and restrained bleed",
-			"pigment blotches and dry-brush breakup are world-stable and strongest on darker middle planes",
+			"selected mid-distance depth edges receive stronger broken pigment pooling and restrained bleed",
+			"irregular wash fronts carry narrow broken drying rims, weighted toward dark architecture",
+			"broad blotches plus metre-scale granulation stay world-stable and avoid pixel-scale crawling",
+			"seven softly blended value families simplify mid-distance digital gradients",
+			"authored facade divisions receive broken internal ink without outlining every silhouette",
+			"paper combines screen-stable tooth and sparse directional fibre independently of weather",
 			"the post-process never invents windows; authored window and frost materials own them",
 			"blur stays secondary and is suppressed at depth discontinuities",
 			"CI probes the fullscreen pass before the expensive multi-shot/video capture",
@@ -348,26 +355,33 @@ func _write_report() -> void:
 			"far_desaturation": 0.48,
 			"mid_contrast_compression": 0.24,
 			"far_contrast_compression": 0.40,
-			"mid_dark_value_lift": 0.10,
+			"mid_dark_value_lift": 0.08,
 			"far_dark_value_lift": 0.32,
-			"mid_ink_hold": 0.22,
+			"mid_ink_hold": 0.28,
 			"mid_paper_mix": 0.27,
 			"far_paper_mix": 0.44,
+			"value_steps": 7.0,
+			"value_terrace_strength": 0.18,
 			"blur_start_m": 26.0,
 			"blur_end_m": 70.0,
 			"blur_strength": 0.16,
 			"blur_radius_px": 2.2,
-			"edge_bleed_strength": 0.08,
-			"pigment_pool_strength": 0.14,
+			"edge_bleed_strength": 0.095,
+			"pigment_pool_strength": 0.18,
+			"drying_rim_strength": 0.08,
+			"internal_ink_strength": 0.09,
 			"horizon_band": 0.16,
 			"horizon_paper_boost": 0.08,
 			"paper_strength": 1.0,
 			"paper_base_mix": 0.035,
 			"paper_grain_strength": 0.024,
 			"paper_grain_scale_px": 2.25,
+			"paper_fiber_strength": 0.008,
 			"blotch_scale": 0.11,
 			"blotch_mix_variation": 0.23,
 			"blotch_value_variation": 0.045,
+			"granulation_scale": 3.75,
+			"granulation_strength": 0.065,
 			"wash_edge_scale": 0.045,
 			"wash_edge_variation_m": 4.0,
 			"dry_brush_scale": 0.65,

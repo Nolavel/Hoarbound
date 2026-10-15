@@ -2,7 +2,7 @@ class_name PainterlyAtmospherePass
 extends MeshInstance3D
 
 ## Fullscreen atmospheric value wash attached to the production TPS camera.
-## It deliberately owns only distance fog, permanent paper tooth and broad pigment breakup;
+## It deliberately owns only distance fog, permanent paper tooth, staged values and broad pigment breakup;
 ## object materials remain responsible for surface-bound brush language.
 
 const ENABLE_SETTING := &"hfn/visual/painterly_atmosphere_enabled"
