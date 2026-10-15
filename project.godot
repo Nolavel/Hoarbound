@@ -1016,8 +1016,8 @@ locale/translations=PackedStringArray("res://localization/strings.en.translation
 
 [physics]
 
-common/physics_interpolation=true
 3d/physics_engine="Jolt Physics"
+common/physics_interpolation=true
 
 [rendering]
 
@@ -1075,4 +1075,3 @@ stylized_shadow_brush_mix={
 "type": "float",
 "value": 1.0
 }
-

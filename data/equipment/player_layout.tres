@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="EquipmentLayout" format=3 uid="uid://dtk4ig1rt1a1b"]
+[gd_resource type="Resource" script_class="EquipmentLayout" format=3 uid="uid://jpt8ejmtoeu6"]
 
 [ext_resource type="Script" uid="uid://jupvim8nmjrv" path="res://core/equipment/equipment_layout.gd" id="layout"]
 [ext_resource type="Script" uid="uid://40y6ohgf4m2w" path="res://core/equipment/equipment_slot_definition.gd" id="slot"]
