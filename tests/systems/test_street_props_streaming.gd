@@ -1,12 +1,11 @@
 extends SceneTree
 
-## Small street props are filed per city chunk and stream in with it; tall
-## silhouettes stay island-wide. Run: godot --headless --script tests/systems/test_street_props_streaming.gd
+## Every street prop kind, tall silhouettes included, is filed per city chunk and streams in with it.
+## Run: godot --headless --script tests/systems/test_street_props_streaming.gd
 
 const CITY_JSON: String = "res://data/world/key_west/city_preview.json"
 const ENRICHMENT_JSON: String = "res://data/world/key_west/visual_enrichment.json"
-const STREAMED: Array[String] = ["Benches", "FireHydrants", "AbandonedCars", "Scrub"]
-const GLOBAL: Array[String] = ["Palms", "BareTrees", "PowerPoles"]
+const STREAMED: Array[String] = ["Benches", "FireHydrants", "AbandonedCars", "Scrub", "Palms", "BareTrees", "PowerPoles"]
 
 var _failures: int = 0
 
@@ -24,8 +23,6 @@ func _run() -> void:
 	KeyWestStreetProps.visuals.clear()
 	var first: Node3D = KeyWestStreetProps.build(terrain, enrichment, roads)
 	var snapshot: Dictionary = _snapshot()
-	for kind: String in GLOBAL:
-		_check(first.get_node_or_null(kind) != null, "%s is no longer an island-wide silhouette" % kind)
 	for kind: String in STREAMED:
 		_check(first.get_node_or_null(kind) == null, "%s is still drawn island-wide" % kind)
 		_check(snapshot.has(kind), "%s was filed under no chunk" % kind)
@@ -75,6 +72,8 @@ func _check_chunks_hold_their_own() -> void:
 					"%s in chunk %s lies outside it at %s" % [kind, key, xf.origin])
 		var node: Node3D = KeyWestStreetProps.build_chunk_visuals(key)
 		for child: Node in node.get_children():
+			if not child is MultiMeshInstance3D:
+				continue  # the crossings mesh is one merged surface, not instances
 			var count: int = (child as MultiMeshInstance3D).multimesh.instance_count
 			_check(count == (kinds[String(child.name)][1] as Array).size(), "%s in chunk %s lost instances" % [child.name, key])
 		node.free()
