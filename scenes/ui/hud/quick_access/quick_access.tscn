@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://du35xfeu5l60j" path="res://scripts/ui/hud/quick_access/quick_access_ui.gd" id="1_foftq"]
 [ext_resource type="Shader" uid="uid://esfpmy6egd8p" path="res://assets/materials/Shaders/BG_frame.gdshader" id="2_foftq"]
+[ext_resource type="Script" path="res://scripts/ui/hud/quick_access/quick_access_focus_motion.gd" id="3_focus"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_mcvqx"]
 shader = ExtResource("2_foftq")
@@ -47,6 +48,18 @@ shader_parameter/reveal_softness = 0.16
 shader_parameter/reveal_curve = 0.75
 shader_parameter/corner_radius = 0.1
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hands"]
+shader = ExtResource("2_foftq")
+shader_parameter/base_color = Color(0, 0, 0, 1)
+shader_parameter/fade_start = 0.1
+shader_parameter/fade_end = 1.0
+shader_parameter/fade_direction = 4
+shader_parameter/fade_curve = 1.0
+shader_parameter/reveal = 1.0
+shader_parameter/reveal_softness = 0.16
+shader_parameter/reveal_curve = 0.75
+shader_parameter/corner_radius = 0.1
+
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_ne5id"]
 gradient = SubResource("Gradient_4cph5")
 
@@ -58,6 +71,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_foftq")
+
+[node name="FocusMotion" type="Node" parent="."]
+process_priority = 100
+script = ExtResource("3_focus")
 
 [node name="CoatLeft" type="Control" parent="." unique_id=1421168442]
 anchors_preset = 0
@@ -169,7 +186,7 @@ offset_right = 40.0
 offset_bottom = 40.0
 
 [node name="Background" type="TextureRect" parent="Hands" unique_id=1263383869]
-material = SubResource("ShaderMaterial_foftq")
+material = SubResource("ShaderMaterial_hands")
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0

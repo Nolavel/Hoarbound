@@ -23,7 +23,8 @@ uniform float fade_end : hint_range(0.0, 1.0) = 0.96;
 // 1 = fade влево
 // 2 = fade вверх
 // 3 = fade вниз
-uniform int fade_direction : hint_range(0, 3) = 0;
+// 4 = плотный центр -> прозрачность к обоим боковым краям
+uniform int fade_direction : hint_range(0, 4) = 0;
 
 // Форма fade.
 uniform float fade_curve : hint_range(0.1, 4.0) = 1.35;
@@ -91,8 +92,13 @@ float get_fade_progress(vec2 uv) {
 		return 1.0 - uv.y;
 	}
 
-	// Solid сверху -> transparent снизу.
-	return uv.y;
+	if (fade_direction == 3) {
+		// Solid сверху -> transparent снизу.
+		return uv.y;
+	}
+
+	// Prompt-like status strip: solid in the centre, transparent at both ends.
+	return clamp(abs(uv.x - 0.5) * 2.0, 0.0, 1.0);
 }
 
 
@@ -144,7 +150,7 @@ void fragment() {
 	// Reveal не просто меняет opacity всей плашки.
 	//
 	// Он двигает прозрачную границу от solid side к transparent side.
-	// Поэтому плашка визуально "растягивается".
+	// Для centered fade это раскрытие симметрично от центра в обе стороны.
 	// --------------------------------------------------------------------
 
 	float reveal_value = pow(
