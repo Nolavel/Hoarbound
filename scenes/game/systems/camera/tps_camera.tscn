@@ -1,7 +1,18 @@
-[gd_scene load_steps=3 format=3 uid="uid://dputwp1am8vfu"]
+[gd_scene load_steps=7 format=3 uid="uid://dputwp1am8vfu"]
 
 [ext_resource type="Script" path="res://scripts/systems/camera/tps_camera.gd" id="1_tps"]
 [ext_resource type="Script" path="res://scripts/systems/camera/tps_interaction_framing.gd" id="2_interaction"]
+[ext_resource type="Script" path="res://scripts/systems/camera/painterly_atmosphere_pass.gd" id="3_atmosphere"]
+[ext_resource type="Shader" path="res://shaders/environment/painterly_distance_wash.gdshader" id="4_wash"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_atmosphere"]
+render_priority = 127
+shader = ExtResource("4_wash")
+
+[sub_resource type="QuadMesh" id="QuadMesh_atmosphere"]
+material = SubResource("ShaderMaterial_atmosphere")
+size = Vector2(2, 2)
+flip_faces = true
 
 [node name="PlayerCamera" type="Camera3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 3)
@@ -10,3 +21,13 @@ script = ExtResource("1_tps")
 
 [node name="InteractionFraming" type="Node" parent="."]
 script = ExtResource("2_interaction")
+
+[node name="PainterlyAtmosphere" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0, -1)
+cast_shadow = 0
+extra_cull_margin = 100000.0
+ignore_occlusion_culling = true
+mesh = SubResource("QuadMesh_atmosphere")
+material_override = SubResource("ShaderMaterial_atmosphere")
+script = ExtResource("3_atmosphere")
+

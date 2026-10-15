@@ -1,7 +1,9 @@
 shader_type spatial;
 render_mode unshaded, fog_disabled, cull_disabled, depth_test_disabled, depth_draw_never;
 
-// Experimental Hoarbound painterly distance wash.
+// Hoarbound painterly atmosphere pass for the production TPS camera.
+// This is atmospheric value shaping, not a replacement for the surface-bound
+// PainterlySurface material contract.
 // Distance removes information in broad painted stages rather than simulating DOF.
 // Near silhouettes stay crisp; distant architecture loses chroma and local detail,
 // while world-stable pigment breakup and a restrained paper tooth prevent sterile fog.
@@ -234,3 +236,4 @@ void fragment() {
 	}
 	ALPHA = 1.0;
 }
+

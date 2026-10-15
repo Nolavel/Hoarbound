@@ -1,14 +1,14 @@
 extends SceneTree
 
-## Experimental reference-matching capture for Hoarbound's painterly distance wash.
-## Runs only from CI / codex. It uses the real Key West Reality scene and game
-## TPS camera; no production scene or material is modified.
+## Production-path verification for Hoarbound's painterly distance wash.
+## It uses the real Key West Reality scene, TPS camera and the atmosphere pass
+## embedded in that camera. The harness never constructs a substitute effect.
 ##
 ## The existing [key-west-preview] job uploads docs/runtime_previews/key_west/*.png,
-## so this experiment deliberately writes its stills, diagnostics and orbit there.
+## so this verifier deliberately writes its stills, diagnostics and walk there.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
-const SHADER_PATH := "res://shaders/experimental/painterly_distance_wash.gdshader"
+const POST_NODE := ^"PainterlyAtmosphere"
 const DEFAULT_OUT := "res://docs/runtime_previews/key_west"
 const CHUNK_M := 512.0
 const SETTLE_FRAMES := 40
@@ -94,12 +94,15 @@ func _run() -> void:
 		return
 
 	_hide_hud()
-	_build_post_process()
+	_post = _camera.get_node_or_null(POST_NODE) as MeshInstance3D
+	if _post != null:
+		_material = _post.material_override as ShaderMaterial
 	if _post == null or _material == null:
-		_fail("could not build painterly distance wash post-process")
+		_fail("production TPS camera is missing PainterlyAtmosphere or its material")
 		return
 
-	print("painterly distance wash: rendering_driver=%s camera_mask=0x%X post_layers=0x%X" % [
+	print("painterly distance wash: production_pass=%s rendering_driver=%s camera_mask=0x%X post_layers=0x%X" % [
+		_post.get_path(),
 		RenderingServer.get_current_rendering_driver_name(),
 		_camera.cull_mask,
 		_post.layers,
@@ -111,13 +114,13 @@ func _run() -> void:
 		await _wait_until_streamed(shot)
 
 		_material.set_shader_parameter(&"debug_mode", 0)
-		_post.visible = false
+		_set_post_enabled(false)
 		await _wait_frames(3)
 		var before_image := _capture_image()
 		var before_path := _out.path_join(String(shot["name"]) + "_before.png")
 		_save_image(before_image, before_path)
 
-		_post.visible = true
+		_set_post_enabled(true)
 		await _wait_frames(5)
 		var wash_image := _capture_image()
 		var after_path := _out.path_join(String(shot["name"]) + "_wash.png")
@@ -185,32 +188,11 @@ func _run() -> void:
 	quit(0)
 
 
-func _build_post_process() -> void:
-	var shader := load(SHADER_PATH) as Shader
-	if shader == null:
-		return
-	_material = ShaderMaterial.new()
-	_material.shader = shader
-	_material.render_priority = 127
-	_material.set_shader_parameter(&"viewport_size", root.get_viewport().get_visible_rect().size)
-
-	var quad := QuadMesh.new()
-	quad.size = Vector2(2.0, 2.0)
-	quad.flip_faces = true
-
-	_post = MeshInstance3D.new()
-	_post.name = "PainterlyDistanceWash_EXPERIMENT"
-	_post.mesh = quad
-	_post.material_override = _material
-	_post.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_post.extra_cull_margin = 100000.0
-	_post.ignore_occlusion_culling = true
-	_post.layers = 1
-	# Keep the CPU-side AABB unambiguously in front of the active camera. The
-	# shader still writes clip-space POSITION, so this transform does not move the pass.
-	_post.position = Vector3(0.0, 0.0, -1.0)
-	_camera.cull_mask |= _post.layers
-	_camera.add_child(_post)
+func _set_post_enabled(value: bool) -> void:
+	if _post.has_method(&"set_effect_enabled"):
+		_post.call(&"set_effect_enabled", value)
+	else:
+		_post.visible = value
 
 
 func _hide_hud() -> void:
@@ -264,7 +246,7 @@ func _capture_tps_walk() -> void:
 	_release_motion_input()
 	_place(shot)
 	_material.set_shader_parameter(&"debug_mode", 0)
-	_post.visible = true
+	_set_post_enabled(true)
 	await _wait_until_streamed(shot)
 	await _wait_frames(8)
 
@@ -331,8 +313,8 @@ func _mean_rgb_delta_8bit(a: Image, b: Image) -> float:
 
 func _write_report() -> void:
 	var report := {
-		"experiment": "Painterly Distance Wash",
-		"status": "experimental atmosphere pass; codex only; not connected to production path",
+		"feature": "Painterly Atmosphere / Distance Wash",
+		"status": "production TPS camera pass; verified through the shipping scene path",
 		"scene": SCENE,
 		"reference_contract": [
 			"0-18 m foreground remains effectively untouched",
@@ -408,3 +390,4 @@ func _write_report() -> void:
 func _fail(message: String) -> void:
 	push_error("painterly distance wash: %s" % message)
 	quit(1)
+
