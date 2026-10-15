@@ -306,6 +306,20 @@ Jolt builds a mesh shape lazily when it is first used, so a part pays one build 
 `main` too and are not in CI: `dev_diorama_map`, `door_draft`, `doorway_camera`, `held_fit`, `held_light`,
 `passage_traversal`, `snow_contact_pipeline`, `snow_shell`, `street_props_streaming`, `tps_camera_orbit`.
 
+**Jolt on the gate and the 727 loop (one machine, same route):**
+
+| | GodotPhysics | Jolt |
+|---|---|---|
+| frame p50 / p95 / p99 | 6.86 / 14.53 / 17.33 ms | 6.83 / 14.32 / 17.26 ms |
+| frames > 33 / > 50 ms | 93 / 12 | 74 / 18 |
+| static memory peak | 403 MB | 439 MB |
+
+- Both runs fail the local 50 ms rule: most hitches have no cell change, i.e. this container's noise; CI passes the same
+  gate.
+- The 727 loop passes under Jolt.
+- Decision: Jolt from now on. It is one revertable line in `project.godot`; Henry's movement feel needs the owner's
+  check.
+
 The fort chunk `-9_3` stays an outlier under either engine. `kw_fort_zachary_taylor.glb` carries two concave
 collision meshes of 43,691 faces in all. The largest generated `Buildings` chunk has 8,466 faces; the island median is
 884. The fix is a simplified collision mesh for the fort, authored in Blender, as a separate asset task.
