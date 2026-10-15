@@ -22,6 +22,8 @@ var _context: WorldContext
 var _player: Node3D
 var _terrain: IslandTerrain
 var _city: ChunkedCityMassing
+var _reality_index: RealityIndex
+var _label_signature: String = ""
 var _focus: Vector3 = Vector3.ZERO
 var _label_focus := Vector2(INF, INF)
 var _label_elapsed: float = LABEL_REFRESH_SECONDS
@@ -310,15 +312,27 @@ func _marker_world_point() -> Vector3:
 func _refresh_labels() -> void:
 	if _labels_root == null:
 		return
-	for child: Node in _labels_root.get_children():
-		child.queue_free()
 	_label_elapsed = 0.0
 	_label_focus = Vector2(_focus.x, _focus.z)
 	if _city == null:
 		_city = _find_city(_context.world) if _context != null and _context.world != null else null
-	if _city == null:
+	var entries: Array[Dictionary] = []
+	if _city != null:
+		entries = _city.get_map_label_entries(_label_focus, LABEL_RADIUS_M)
+	else:
+		## Key West Reality has no ChunkedCityMassing: addresses come from the Reality building index.
+		if _reality_index == null:
+			_reality_index = RealityIndex.new()
+			if not _reality_index.load_index():
+				return
+		entries = _reality_index.map_label_entries(_label_focus, LABEL_RADIUS_M)
+	## The same labels as last time stay as they are: rebuilding them each refresh made them flicker.
+	var signature: String = str(entries.map(func(e: Dictionary) -> Array: return [e.get("text", ""), e.get("position", Vector3.ZERO)]))
+	if signature == _label_signature:
 		return
-	var entries: Array[Dictionary] = _city.get_map_label_entries(_label_focus, LABEL_RADIUS_M)
+	_label_signature = signature
+	for child: Node in _labels_root.get_children():
+		child.queue_free()
 	for entry: Dictionary in entries:
 		_add_world_label(entry)
 
