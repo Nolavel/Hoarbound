@@ -40,4 +40,4 @@ Quick Access icons use the same Google Material Symbols Rounded family as the ex
 
 ## Verification
 
-Commit marker `[quick-access-preview]` activates the existing `checks` workflow's Quick Access preview job. The capture now loads production `key_west.tscn`, keeps Henry as a live grounded `Player` with normal idle/AnimationTree processing, runs the selector sequence in the real Key West scene, encodes an MP4 and uploads key PNGs plus `report.json`.
+Commit marker `[quick-access-preview]` activates the existing `checks` workflow's Quick Access preview job. The capture loads production `key_west_reality.tscn` (it waits for the street chunk to stream in), keeps Henry as a live grounded `Player` with normal idle/AnimationTree processing, runs the selector sequence in the real Key West scene, encodes an MP4 and uploads key PNGs plus `report.json`.

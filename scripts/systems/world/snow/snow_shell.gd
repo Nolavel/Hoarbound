@@ -281,8 +281,6 @@ func _physics_process(_delta: float) -> void:
 		return
 	if _city == null and _world_root != null:
 		_city = get_tree().get_first_node_in_group(&"snow_obstacles") as Node3D
-		if _city == null:
-			_city = _world_root.find_child("KeyWestCity", true, false) as Node3D
 	var at: Vector3 = _player.global_position
 	var travel := Vector2.ZERO
 	if _player is CharacterBody3D:

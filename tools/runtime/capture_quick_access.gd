@@ -1,9 +1,9 @@
 extends SceneTree
 
-## Presentation capture for production Quick Access in the real Key West scene.
+## Presentation capture for production Quick Access in the real Key West scene (Reality, streamed).
 ## Henry stays a normal live Player: physics, idle animation and AnimationTree run.
 
-const MAIN_SCENE := "res://scenes/world/key_west/key_west.tscn"
+const MAIN_SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const METRICS := "res://data/characters/henry_metrics.tres"
 const OUT_DIR := "res://docs/runtime_previews/quick_access"
 const FRAME_DIR := OUT_DIR + "/frames"
@@ -37,7 +37,6 @@ var _proof_empty_slot := false
 
 func _initialize() -> void:
 	Engine.max_fps = FPS
-	OS.set_environment("HFN_WORLD", "key_west_test")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(FRAME_DIR))
 	var metrics := load(METRICS) as HenryMetrics
 	if metrics != null and metrics.standing_top > 1.0:
@@ -69,7 +68,7 @@ func _run() -> void:
 	if splash != null:
 		splash.queue_free()
 	_release_movement_input()
-	_place_on_street()
+	await _place_on_street()
 	_player.hold_still(30.0)
 	_suppress_unrelated_hud()
 
@@ -83,7 +82,7 @@ func _run() -> void:
 	# Let streaming, collision and the ordinary idle AnimationTree settle.
 	for _i in range(72):
 		await process_frame
-	_place_on_street()
+	await _place_on_street()
 	_player.hold_still(30.0)
 	for _i in range(24):
 		await process_frame
@@ -121,9 +120,9 @@ func _place_on_street() -> void:
 	var start := STREET_A.lerp(STREET_B, START_SHARE)
 	var along := (STREET_B - STREET_A).normalized()
 	_heading = Vector3(along.x, 0.0, along.y)
-	var terrain := _scene.get_node_or_null(^"IslandTerrain") as IslandTerrain
-	var ground := maxf(terrain.get_height(start.x, start.y), 0.0) if terrain != null else 0.0
-	_player.global_position = Vector3(start.x, ground + 1.0, start.y)
+	if not await CaptureWorldSupport.wait_streamed(self, _scene, _player, start):
+		push_warning("QuickAccessCapture: the street chunk did not stream in")
+	_player.global_position = Vector3(start.x, CaptureWorldSupport.height(_scene, start.x, start.y) + 1.0, start.y)
 	_player.velocity = Vector3.ZERO
 	_player.global_rotation.y = atan2(-_heading.x, -_heading.z)
 	_player.reset_physics_interpolation()

@@ -26,8 +26,8 @@ that. The CPU candidates below are generation stalls.
    - Cost not measured.
    - NOAA heights never change, so **bake the meshes before considering native
      code**.
-3. **City chunk activation** (`KeyWestStreetProps.build_chunk_body`,
-   `KeyWestCityVisuals.build_supplemental_node`, snow height sampling).
+3. **City chunk activation** (legacy city, removed 2026-10-15 with the legacy island;
+   Reality chunks are pre-generated scenes, see `REALITY_HLOD.md`).
    - About 2.3 s per chunk outside the now-baked snow clipping, of which about
      1.1 s is height sampling.
    - **Bake** like the snow cover in 6bf7131 before porting.

@@ -255,7 +255,7 @@ Known persistence ownership covers major player, weather, thermal, shelter, snow
 
 ## Production world
 
-`project.godot` launches `res://scenes/world/key_west/key_west.tscn`.
+`project.godot` launches `res://scenes/world/key_west/key_west_reality.tscn`.
 
 `world/world.gd` is the composition root for world systems, shared context and UI / runtime services.
 

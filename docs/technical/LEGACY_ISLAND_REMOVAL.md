@@ -3,9 +3,9 @@
 The game's main scene is `res://scenes/world/key_west/key_west_reality.tscn` since 2026-10-15. This applies to
 `run/main_scene` and the title menu's `game_scene`. The owner decided it; it was proposed in #219.
 
-The legacy island is `key_west.tscn`: `IslandTerrain` on the NOAA crop, `ChunkedCityMassing`, and the First Exit
-content. It still loads. Nothing has been deleted yet. This page lists what blocks deletion, re-checked against the code
-on 2026-10-15 (`git grep`, excluding `archive/`, `shots/` and docs).
+The legacy island was `key_west.tscn`: `IslandTerrain` on the NOAA preview crop, `ChunkedCityMassing`, and the
+First Exit content. **The owner approved deletion and it was removed on 2026-10-15.** This page records what went,
+what stays, and why.
 
 ## Done
 
@@ -21,42 +21,40 @@ on 2026-10-15 (`git grep`, excluding `archive/`, `shots/` and docs).
    `motion_matching_street`, `stylized_shadows`. `tps_doorway` takes the way in from the door's own axis: the 727
    door sits in a side wall, and the line from the zone centre missed the opening by about 64 degrees.
 
-## Blockers: Reality still uses these (move or rename, never just delete)
+## Removed (2026-10-15)
 
-| Legacy piece | Reality user | Move to |
-|---|---|---|
-| `shaders/environment/terrain/island_terrain.gdshader` | `key_west_chunk_builder.gd` (chunk terrain; paving takes snow through its paved mode) | keep; it is the terrain shader, not legacy |
-| `scripts/systems/world/terrain/island_terrain.gd` | `snow_shell.gd` preloads it as `TERRAIN_SCRIPT` (it already reads `snow_ground` for Reality) | drop the preload once the legacy branch goes |
-| `ChunkedCityMassing` type | `runtime_performance_policy.gd`, `dev_diorama_map.gd` (typed vars; null under Reality) | remove the legacy branch |
-| `IslandTerrain` in `world/world.gd` | profiles with terrain data only; the Reality profile has none | remove with the last terrain profile |
-| `data/world/key_west/snow_wind.png` | `SnowChunkCover`/`snow_shell` default when a profile has none; Reality sets its own | point the default at the Reality bake |
+- Scenes and profile: `scenes/world/key_west/key_west.tscn`, `key_west_first_exit.tscn`,
+  `data/world_profiles/key_west_test.tres`, `scripts/world/key_west_first_exit.gd`.
+- Legacy city: `ChunkedCityMassing`, `KeyWestCityVisuals`, `KeyWestStreetProps`, `data/world/key_west/far_city/`,
+  `data/world/key_west/snow_chunk/`.
+- NOAA preview crop `world/terrain/key_west_preview_2m_la8.*` (the NOAA sources stay).
+- Tools: `bake_key_west_chunk_snow.gd`, `bake_key_west_far_city.py`, `build_key_west_preview.sh`,
+  `capture_key_west.gd`, `capture_key_west_tps.gd`, `capture_key_west_first_exit.gd`.
+- Tests: `test_key_west_first_exit`, `test_city_meshes`, `test_street_props_streaming`.
+- Legacy branches (step 4): `runtime_performance_policy` loses the legacy city residency and its streaming margin
+  (both ran only when `KeyWestCity` existed, never under Reality); `dev_diorama_map` takes labels only from the Reality
+  index; `snow_shell` finds snow obstacles only through the `snow_obstacles` group (Reality ground).
+- CI: the `key-west-preview` job keeps only its Reality captures (`[painterly-wash-preview]`, `[stylized-shadows]`,
+  `[sky-weather-preview]`); the `[key-west-preview]`, `[key-west-tps]` and `[key-west-first-exit]` tags and the preview
+  crop build are gone.
+- Ported instead of removed: `capture_quick_access` (Codex) loads the Reality scene and waits for the street chunk;
+  `test_world_profiles` checks the Reality profile; `test_stylized_shadows` checks the Reality building and tree
+  materials; `test_island_terrain` keeps its Graciosa checks without the Key West crop step.
 
-## Delete once the blockers are moved
+## Kept on purpose
 
-| Piece | Still loaded by |
-|---|---|
-| `scenes/world/key_west/key_west.tscn` | test `test_key_west_first_exit`; capture tools `capture_dev_diorama_map`, `capture_key_west_first_exit`, `capture_motion_matching_street`, `capture_quick_access`, `capture_sky_weather`, `capture_stylized_shadows`, `capture_tps_doorway` |
-| `data/world_profiles/key_west_test.tres` | `key_west.tscn`, `test_key_west_first_exit` |
-| `key_west_first_exit.tscn`, `scripts/world/key_west_first_exit.gd` | `key_west_test.tres`; CI runs `test_key_west_first_exit` |
-| `ChunkedCityMassing`, `key_west_city_visuals.gd`, `key_west_street_props.gd` (after the mesh helper moves) | legacy scene, `capture_key_west*.gd`, `bake_key_west_chunk_snow.gd` |
-| `IslandTerrain`, `IslandHeightmap` | legacy scene and the tests and tools above |
-| `world/terrain/key_west_preview_2m_la8.*` | legacy profile, CI step, `tools/world/build_key_west_preview.sh`; `tools/world/reality/build.py` only names it in provenance |
-| tools `bake_key_west_chunk_snow.gd`, `bake_key_west_far_city.py`, `build_key_west_preview.sh`, `capture_key_west.gd`, `capture_key_west_tps.gd`, `capture_first_exit.gd` | legacy island only |
-| tests `test_island_terrain`, `test_city_meshes`, `test_street_props_streaming` | legacy island only |
-
-**Tests that must move to the Reality scene first**, because they guard behaviour Reality also has:
-- `test_doorway_camera`: doorway camera at a shelter door; Reality has the 727 door.
-- `test_stove_world_time`: authored day/night driver and stove.
-
-**The capture tools** either move to `key_west_reality.tscn` or retire. `capture_quick_access` arrived from `main` on
-2026-10-15 and already loads the legacy scene.
-
-## Keep
-
-- **`data/world/key_west/city_preview.json`:** a Reality library source (`tools/world/reality/acquire.py`, `conflate.py`,
-  `build.py`, `config/sources.json`, receipts).
-- **`world/terrain/source/key_west/` (NOAA crop and receipt):** source provenance. CLAUDE.md keeps the rule that NOAA
-  base heights are never edited in code.
+- **`IslandTerrain` and `IslandHeightmap`:** the Graciosa profile, `tools/world/build_first_exit_blockout.gd` (it
+  generates the hut template the 727 shelter uses) and test fixtures use them. They go with Graciosa (step 6).
+  `world.gd` and `snow_shell` keep their `IslandTerrain` paths for the same reason.
+- **`island_terrain.gdshader`:** the Reality chunk terrain shader (paved mode).
+- **`data/world/key_west/city_preview.json`, `visual_enrichment.json`, `ocean_connected_mask.png`:** Reality Library
+  sources (`tools/world/reality/acquire.py`) and the snow wind bake.
+- **`data/world/key_west/snow_wind.png`:** the default wind field of `snow_shell`/`SnowChunkCover` and its tests;
+  Reality sets `snow_wind_reality.png` in its profile.
+- **`world/terrain/source/key_west/` (NOAA crop and receipt):** source provenance; its receipt still lists the removed
+  derived crop, as a record. NOAA base heights are never edited in code.
+- `tools/world/reality/build.py` names the removed crop in one provenance string; changing it would change the
+  library outputs, so it stays.
 
 ## The 10 suites that failed outside CI (2026-10-15)
 
@@ -80,15 +78,11 @@ Still failing, listed in `tools/ci/known_failing_suites.txt` with the reason:
 
 `.github/workflows/suites.yml` now runs every suite on every push, report-only; `checks` stays the gate on `main`.
 
-## Order (one commit each, import gate and tests green)
+## Order (done)
 
-1. Shared vegetation mesh helper out of `KeyWestStreetProps`; regenerate nothing (same meshes), check the chunk digest.
-2. `test_doorway_camera` and `test_stove_world_time` on the Reality scene (727 door and stove).
-3. Capture tools to Reality or retired.
-4. Remove the legacy branches in `snow_shell`, `runtime_performance_policy`, `dev_diorama_map`, `world.gd`.
-   Each branch serves only the legacy scene, which still loads and runs in CI; removing them first would break it.
-   This step therefore lands in the same change as step 5, after the owner approves deletion.
-5. Delete the legacy scene, profile, First Exit content, city scripts, `IslandTerrain`, the preview crop and the
-   legacy-only tests and tools; CI drops `test_key_west_first_exit` and the preview crop step.
-6. Graciosa (separate): a small fixture for `test_streaming`, then `StreamingSystem.DEFAULT_WORLD_DATA`, then
-   `archive/graciosa`.
+1. Shared vegetation mesh helper out of `KeyWestStreetProps`; chunk digest unchanged.
+2. `test_doorway_camera` and `test_stove_world_time` on the Reality scene.
+3. Capture tools to Reality.
+4. and 5. Legacy branches and legacy files removed in one change, after the owner's approval.
+6. Still open, separate: Graciosa (a small fixture for `test_streaming`, then `StreamingSystem.DEFAULT_WORLD_DATA`,
+   then `archive/graciosa` and `IslandTerrain`).

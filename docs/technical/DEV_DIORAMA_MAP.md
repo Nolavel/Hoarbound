@@ -23,9 +23,8 @@ The gold dot marks Henry.
 
 ## Map-only labels
 
-The frozen Key West OSM snapshot already carries building addresses and named
-roads. ChunkedCityMassing.get_map_label_entries() exposes a bounded local
-selection around Henry:
+The Reality building index carries building addresses and named roads.
+`RealityIndex.map_label_entries()` exposes a bounded local selection around Henry:
 
 - nearest house numbers render in warm amber above their buildings;
 - nearest unique street names render in pale text above the road surface;

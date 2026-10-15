@@ -326,8 +326,9 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
 
 ### Chunk snow streaming
 
-Chunk cover geometry is baked with `tools/world/bake_key_west_chunk_snow.gd`
-and stored per city chunk under `data/world/key_west/snow_chunk/`. The runtime
+(Legacy island only; the bake tool and `data/world/key_west/snow_chunk/` were removed with it on
+2026-10-15. Reality chunks build cover from `KeyWestRealityGround`.) Chunk cover geometry was baked with
+`tools/world/bake_key_west_chunk_snow.gd` and stored per city chunk. The runtime
 loads only active chunk meshes, then applies the live weather material. Source
 generation remains a fallback for missing or incompatible bake files: it uses
 the 12-chunk LRU and 4 ms slices, with a synchronous near-window build to avoid

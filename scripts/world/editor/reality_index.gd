@@ -98,7 +98,7 @@ func pick_ray(origin: Vector3, direction: Vector3, max_m: float) -> Dictionary:
 
 
 ## Map labels near `point` in the dev diorama map's entry format: the nearest house numbers over their roofs,
-## then the nearest street names once each; the same shape ChunkedCityMassing.get_map_label_entries returns.
+## then the nearest street names once each ({kind, text, position}).
 func map_label_entries(point: Vector2, radius_m: float = 95.0, max_house_numbers: int = 22, max_street_names: int = 8) -> Array[Dictionary]:
 	var near: Array = []
 	var seen: Dictionary = {}
