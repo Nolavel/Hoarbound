@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Captures the follow-only developer diorama map with OSM address/street labels.
 
-const MAIN_SCENE: String = "res://scenes/world/key_west/key_west.tscn"
+const MAIN_SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const OUT_DIR: String = "res://docs/runtime_previews/dev_diorama_map"
 const BIND_FRAME: int = 35
 const FIRST_CAPTURE_FRAME: int = 60
@@ -16,7 +16,6 @@ var _next_capture: int = FIRST_CAPTURE_FRAME
 
 
 func _initialize() -> void:
-	OS.set_environment("HFN_WORLD", "key_west_test")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 	_scene = (load(MAIN_SCENE) as PackedScene).instantiate() as Node3D
 	if _scene is World:

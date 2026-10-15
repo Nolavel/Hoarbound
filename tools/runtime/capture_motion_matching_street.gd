@@ -3,7 +3,7 @@ extends SceneTree
 ## Production street review: in the real Key West scene Henry walks, sprints and stops
 ## on Southard Street; side-follow frames plus a per-frame gait trace (report.json).
 
-const MAIN_SCENE := "res://scenes/world/key_west/key_west.tscn"
+const MAIN_SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const DEFAULT_OUT_DIR := "res://docs/runtime_previews/motion_matching_street"
 ## A straight 980 m stretch of Southard Street (Old Town), world x/z.
 const STREET_A := Vector2(-2431.5, 554.8)
@@ -37,7 +37,6 @@ var _trace: Array[Dictionary] = []
 
 
 func _initialize() -> void:
-	OS.set_environment("HFN_WORLD", "key_west_test")
 	_run.call_deferred()
 
 
@@ -60,6 +59,11 @@ func _run() -> void:
 	var splash := _scene.get_node_or_null(^"StartupTitleCard")
 	if splash != null:
 		splash.queue_free()
+	## Reality streams the street in: Henry waits over the start, physics off, until it is live.
+	_player.set_physics_process(false)
+	if not await CaptureWorldSupport.wait_streamed(self, _scene, _player, STREET_A.lerp(STREET_B, START_SHARE)):
+		push_warning("MotionMatchingStreetCapture: the street did not stream in")
+	_player.set_physics_process(true)
 	_place_on_street()
 	_build_view()
 	for side in ["l", "r"]:
@@ -122,8 +126,7 @@ func _place_on_street() -> void:
 	var start := STREET_A.lerp(STREET_B, START_SHARE)
 	var along := (STREET_B - STREET_A).normalized()
 	_heading = Vector3(along.x, 0.0, along.y)
-	var terrain := _scene.get_node_or_null(^"IslandTerrain") as IslandTerrain
-	var ground := maxf(terrain.get_height(start.x, start.y), 0.0) if terrain != null else 0.0
+	var ground: float = CaptureWorldSupport.height(_scene, start.x, start.y)
 	_player.global_position = Vector3(start.x, ground + 1.0, start.y)
 	_player.velocity = Vector3.ZERO
 	_player.global_rotation.y = atan2(-_heading.x, -_heading.z)

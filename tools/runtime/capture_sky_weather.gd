@@ -1,6 +1,6 @@
 extends SceneTree
 
-const MAIN_SCENE: String = "res://scenes/world/key_west/key_west.tscn"
+const MAIN_SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const OUT_DIR: String = "res://docs/runtime_previews/sky_weather"
 const PROFILE_IDS: Array[StringName] = [&"calm", &"snowfall", &"blizzard"]
 const SHOT_NAMES: Array[String] = [
@@ -25,7 +25,6 @@ var _report_rows: Array[Dictionary] = []
 
 
 func _initialize() -> void:
-	OS.set_environment("HFN_WORLD", "key_west_test")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 	_scene = (load(MAIN_SCENE) as PackedScene).instantiate() as Node3D
 	root.add_child(_scene)

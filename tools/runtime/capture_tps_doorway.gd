@@ -1,10 +1,10 @@
 extends SceneTree
 
-## Key West shelter doorway, #170: entry, middle and exit frames of a straight
-## pass, a 35-degree approach, and a stop in the door with the mouse turned aside.
+## Shelter doorway (#170), now the 727 door in Key West Reality: entry, middle and exit frames of a
+## straight pass, a 35-degree approach, and a stop in the door with the mouse turned aside.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --windowed --resolution 960x540 --fixed-fps 60 --script res://tools/runtime/capture_tps_doorway.gd -- <label>
 
-const SCENE: String = "res://scenes/world/key_west/key_west.tscn"
+const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const OUT_ROOT: String = "user://shots/tps_doorway"
 ## Signed distance past the door plane, inward positive, for each frame.
 const MOMENTS: Array = [["entry", -0.8], ["middle", 0.0], ["exit", 0.8]]
@@ -54,6 +54,8 @@ func _run() -> void:
 	for node: Node in get_nodes_in_group(&"hinged_doors"):
 		if (node as Node3D).global_position.distance_to(breach.global_position) < 1.0:
 			node.call(&"load_door_save_data", {"latched": false, "angle_deg": float(node.get("open_angle_deg"))})
+	if not await CaptureWorldSupport.wait_streamed(self, _scene, _player, Vector2(breach.global_position.x, breach.global_position.z)):
+		push_warning("tps doorway: the door's chunk did not stream in")
 	_door = _floor_point(breach.global_position)
 	_inward = Vector3(zone.global_position.x - _door.x, 0.0, zone.global_position.z - _door.z).normalized()
 	_dir = ProjectSettings.globalize_path(OUT_ROOT.path_join(_label))
