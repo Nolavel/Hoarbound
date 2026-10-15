@@ -13,8 +13,9 @@ const DEFAULT_OUT := "res://docs/runtime_previews/key_west"
 const CHUNK_M := 512.0
 const SETTLE_FRAMES := 40
 const MAX_WAIT_FRAMES := 600
-const ORBIT_FRAMES := 64
-const ORBIT_DEGREES := 34.0
+const VIDEO_FRAMES := 72
+const VIDEO_FPS := 12
+const MIN_WALK_DISTANCE_M := 2.0
 const SAMPLE_STEP := 8
 const MIN_POST_PROBE_DELTA_8BIT := 20.0
 const MIN_VISIBLE_WASH_DELTA_8BIT := 4.0
@@ -38,6 +39,7 @@ const SHOTS: Array[Dictionary] = [
 ]
 
 var _out := DEFAULT_OUT
+var _frame_dir := ""
 var _world: Node3D
 var _ctx: Variant
 var _player: CharacterBody3D
@@ -49,6 +51,10 @@ var _material: ShaderMaterial
 var _records: Array[Dictionary] = []
 var _post_probe_delta_8bit := -1.0
 var _max_wash_delta_8bit := 0.0
+var _video_start := Vector3.ZERO
+var _video_end := Vector3.ZERO
+var _video_distance_m := 0.0
+var _video_frame_count := 0
 
 
 func _initialize() -> void:
@@ -56,6 +62,8 @@ func _initialize() -> void:
 	if not args.is_empty():
 		_out = String(args[0])
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out))
+	_frame_dir = _out.path_join("painterly_video_frames")
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_frame_dir))
 	_run()
 
 
@@ -125,6 +133,9 @@ func _run() -> void:
 			var post_probe := _capture_image()
 			_save_image(post_probe, _out.path_join("painterly_post_probe.png"))
 			_post_probe_delta_8bit = _mean_rgb_delta_8bit(before_image, post_probe)
+			if _post_probe_delta_8bit < MIN_POST_PROBE_DELTA_8BIT:
+				_fail("fullscreen post probe did not render: mean RGB delta %.3f < %.3f" % [_post_probe_delta_8bit, MIN_POST_PROBE_DELTA_8BIT])
+				return
 
 			# Depth visualization is equally explicit: black = near, white = far.
 			_material.set_shader_parameter(&"debug_mode", 2)
@@ -142,19 +153,24 @@ func _run() -> void:
 			"mean_rgb_delta_8bit": snappedf(wash_delta, 0.001),
 		})
 
-	await _capture_orbit()
+	await _capture_tps_walk()
 	_write_report()
 
-	if _post_probe_delta_8bit < MIN_POST_PROBE_DELTA_8BIT:
-		_fail("fullscreen post probe did not render: mean RGB delta %.3f < %.3f" % [_post_probe_delta_8bit, MIN_POST_PROBE_DELTA_8BIT])
-		return
 	if _max_wash_delta_8bit < MIN_VISIBLE_WASH_DELTA_8BIT:
 		_fail("distance wash is still visually negligible: max mean RGB delta %.3f < %.3f" % [_max_wash_delta_8bit, MIN_VISIBLE_WASH_DELTA_8BIT])
 		return
+	if _video_frame_count != VIDEO_FRAMES:
+		_fail("TPS video captured %d/%d frames" % [_video_frame_count, VIDEO_FRAMES])
+		return
+	if _video_distance_m < MIN_WALK_DISTANCE_M:
+		_fail("Henry did not traverse the street: %.2f m < %.2f m" % [_video_distance_m, MIN_WALK_DISTANCE_M])
+		return
 
-	print("painterly distance wash: verified post_delta=%.3f max_wash_delta=%.3f -> %s" % [
+	print("painterly distance wash: verified post_delta=%.3f max_wash_delta=%.3f walk=%.2fm frames=%d -> %s" % [
 		_post_probe_delta_8bit,
 		_max_wash_delta_8bit,
+		_video_distance_m,
+		_video_frame_count,
 		_out,
 	])
 	quit(0)
@@ -189,6 +205,10 @@ func _build_post_process() -> void:
 
 
 func _hide_hud() -> void:
+	# Review evidence is the TPS image itself. Hide every runtime HUD/debug canvas;
+	# the 3D weather, Henry and world keep rendering normally.
+	for node: Node in _world.find_children("*", "CanvasLayer", true, false):
+		(node as CanvasLayer).visible = false
 	for node_name: StringName in [&"MouseCursorUI", &"VitalHUD"]:
 		var node := _player.get_node_or_null(NodePath(String(node_name)))
 		if node is CanvasItem:
@@ -230,24 +250,35 @@ func _wait_until_streamed(shot: Dictionary) -> void:
 	push_warning("painterly distance wash: stream wait hit %d-frame safety cap" % MAX_WAIT_FRAMES)
 
 
-func _capture_orbit() -> void:
+func _capture_tps_walk() -> void:
 	var shot: Dictionary = SHOTS[1]
+	_release_motion_input()
 	_place(shot)
 	_material.set_shader_parameter(&"debug_mode", 0)
 	_post.visible = true
 	await _wait_until_streamed(shot)
+	await _wait_frames(8)
 
-	var at: Vector2 = shot["at"]
-	var look: Vector2 = shot["look"]
-	var direction := Vector3(look.x - at.x, 0.0, look.y - at.y).normalized()
-	var base_yaw := atan2(-direction.x, -direction.z)
+	_video_start = _player.global_position
+	_save_image(_capture_image(), _out.path_join("painterly_tps_video_start.png"))
+	Input.action_press(&"move_forward", 0.82)
 
-	for i in range(ORBIT_FRAMES):
-		var t := float(i) / float(maxi(ORBIT_FRAMES - 1, 1))
-		var yaw_offset := deg_to_rad(ORBIT_DEGREES) * sin(t * TAU)
-		_camera.call(&"set_look", base_yaw + yaw_offset, -8.0)
+	for i in range(VIDEO_FRAMES):
 		await process_frame
-		_save_image(_capture_image(), _out.path_join("painterly_frame_%04d.png" % i))
+		await RenderingServer.frame_post_draw
+		_save_image(_capture_image(), _frame_dir.path_join("frame_%04d.png" % i))
+		_video_frame_count += 1
+
+	_release_motion_input()
+	await _wait_frames(3)
+	_video_end = _player.global_position
+	_video_distance_m = Vector2(_video_start.x, _video_start.z).distance_to(Vector2(_video_end.x, _video_end.z))
+	_save_image(_capture_image(), _out.path_join("painterly_tps_video_end.png"))
+
+
+func _release_motion_input() -> void:
+	for action: StringName in [&"move_forward", &"move_backward", &"move_left", &"move_right", &"sprint"]:
+		Input.action_release(action)
 
 
 func _ground_height(x: float, z: float) -> float:
@@ -292,7 +323,7 @@ func _mean_rgb_delta_8bit(a: Image, b: Image) -> float:
 func _write_report() -> void:
 	var report := {
 		"experiment": "Painterly Distance Wash",
-		"status": "experimental; codex only; not connected to production path",
+		"status": "experimental atmosphere pass; codex only; not connected to production path",
 		"scene": SCENE,
 		"reference_contract": [
 			"0-18 m foreground remains effectively untouched",
@@ -300,7 +331,7 @@ func _write_report() -> void:
 			"32-70+ m background lifts decisively toward a pale cold paper/snow mass",
 			"dark buildings become charcoal before dissolving into the wash",
 			"blur stays secondary and is suppressed at depth discontinuities",
-			"CI fails if the fullscreen post probe is not clearly visible",
+			"CI probes the fullscreen pass before the expensive multi-shot/video capture",
 			"CI fails if before/wash mean RGB delta stays visually negligible",
 		],
 		"parameters": {
@@ -333,8 +364,13 @@ func _write_report() -> void:
 		"capture": {
 			"settle_frames_after_active": SETTLE_FRAMES,
 			"max_stream_wait_frames": MAX_WAIT_FRAMES,
-			"orbit_frames": ORBIT_FRAMES,
-			"orbit_degrees": ORBIT_DEGREES,
+			"video_fps": VIDEO_FPS,
+			"video_frames": _video_frame_count,
+			"video_start_xyz": [_video_start.x, _video_start.y, _video_start.z],
+			"video_end_xyz": [_video_end.x, _video_end.y, _video_end.z],
+			"henry_travel_m": snappedf(_video_distance_m, 0.01),
+			"camera_is_current": _camera.is_current(),
+			"video_output": _out.path_join("painterly_tps_walk.mp4"),
 		},
 		"static_shots": _records,
 	}

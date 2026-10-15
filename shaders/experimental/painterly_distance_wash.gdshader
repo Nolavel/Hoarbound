@@ -85,15 +85,10 @@ void fragment() {
 
 	if (debug_mode == 1) {
 		ALBEDO = mix(source, vec3(1.0, 0.0, 1.0), 0.78);
-		ALPHA = 1.0;
-		return;
-	}
-	if (debug_mode == 2) {
+	} else if (debug_mode == 2) {
 		float depth_band = clamp(distance_m / max(far_full_m, 1.0), 0.0, 1.0);
 		ALBEDO = vec3(depth_band);
-		ALPHA = 1.0;
-		return;
-	}
+	} else {
 
 	// Keep the first ~18 m effectively untouched, then remove information quickly
 	// enough that a 20-70 m street view visibly separates into painted depth planes.
@@ -128,6 +123,7 @@ void fragment() {
 	paper_mix = clamp(paper_mix, 0.0, 0.90);
 	color = mix(color, wash_color.rgb, paper_mix);
 
-	ALBEDO = clamp(color, vec3(0.0), vec3(1.0));
+		ALBEDO = clamp(color, vec3(0.0), vec3(1.0));
+	}
 	ALPHA = 1.0;
 }
