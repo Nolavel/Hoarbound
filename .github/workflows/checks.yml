@@ -197,7 +197,7 @@ jobs:
           retention-days: 7
 
   key-west-preview:
-    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[key-west-preview]') || contains(github.event.head_commit.message, '[key-west-tps]') || contains(github.event.head_commit.message, '[key-west-first-exit]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]'))
+    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[key-west-preview]') || contains(github.event.head_commit.message, '[key-west-tps]') || contains(github.event.head_commit.message, '[key-west-first-exit]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -217,10 +217,10 @@ jobs:
         if: "!contains(github.event.head_commit.message, '[stylized-shadows]') && !contains(github.event.head_commit.message, '[sky-weather-preview]')"
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq gdal-bin python3-numpy python3-pil python3-pyproj
+          sudo apt-get install -y -qq gdal-bin python3-numpy python3-pil python3-pyproj ffmpeg
 
       - name: Seed frozen production Key West snapshots
-        if: contains(github.event.head_commit.message, '[key-west-tps]') || contains(github.event.head_commit.message, '[key-west-first-exit]')
+        if: contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[key-west-tps]') || contains(github.event.head_commit.message, '[key-west-first-exit]')
         run: |
           mkdir -p docs/runtime_previews/key_west
           cp data/world/key_west/city_preview.json docs/runtime_previews/key_west/city_preview.json
@@ -240,7 +240,7 @@ jobs:
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          if [[ "$COMMIT_MESSAGE" == *"[key-west-tps]"* || "$COMMIT_MESSAGE" == *"[key-west-first-exit]"* ]]; then
+          if [[ "$COMMIT_MESSAGE" == *"[painterly-wash-preview]"* || "$COMMIT_MESSAGE" == *"[key-west-tps]"* || "$COMMIT_MESSAGE" == *"[key-west-first-exit]"* ]]; then
             HFN_REUSE_CITY_JSON=1 bash tools/world/build_key_west_preview.sh
           else
             bash tools/world/build_key_west_preview.sh
@@ -262,7 +262,9 @@ jobs:
           export XDG_RUNTIME_DIR=/tmp/xdg
           mkdir -p "$XDG_RUNTIME_DIR"
           SCRIPT="tools/runtime/capture_key_west.gd"
-          if [[ "$COMMIT_MESSAGE" == *"[sky-weather-preview]"* ]]; then
+          if [[ "$COMMIT_MESSAGE" == *"[painterly-wash-preview]"* ]]; then
+            SCRIPT="tools/runtime/capture_painterly_distance_wash.gd"
+          elif [[ "$COMMIT_MESSAGE" == *"[sky-weather-preview]"* ]]; then
             SCRIPT="tools/runtime/capture_sky_weather.gd"
           elif [[ "$COMMIT_MESSAGE" == *"[stylized-shadows]"* ]]; then
             "$HOME/.local/bin/godot" --headless --path . --script tests/systems/test_stylized_shadows.gd
@@ -273,20 +275,37 @@ jobs:
           elif [[ "$COMMIT_MESSAGE" == *"[key-west-tps]"* ]]; then
             SCRIPT="tools/runtime/capture_key_west_tps.gd"
           fi
+          mkdir -p docs/runtime_previews/key_west
+          set -o pipefail
           xvfb-run -a "$HOME/.local/bin/godot" \
             --path . \
             --resolution 1600x1000 \
             --rendering-driver vulkan \
             --rendering-method forward_plus \
             --audio-driver Dummy \
-            --script "$SCRIPT"
+            --script "$SCRIPT" 2>&1 | tee docs/runtime_previews/key_west/capture.log
+          if grep -q "SHADER ERROR" docs/runtime_previews/key_west/capture.log; then
+            echo "Shader compilation error found in capture log."
+            exit 1
+          fi
+          if [[ "$COMMIT_MESSAGE" == *"[painterly-wash-preview]"* ]]; then
+            ffmpeg -y -framerate 12 \
+              -i docs/runtime_previews/key_west/painterly_video_frames/frame_%04d.png \
+              -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+              docs/runtime_previews/key_west/painterly_tps_walk.mp4
+            test -s docs/runtime_previews/key_west/painterly_tps_walk.mp4
+            ffprobe -v error -show_entries stream=width,height,avg_frame_rate,nb_frames \
+              -show_entries format=duration -of json docs/runtime_previews/key_west/painterly_tps_walk.mp4
+          fi
 
       - name: Upload Key West previews
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ contains(github.event.head_commit.message, '[sky-weather-preview]') && 'hoarbound-sky-weather' || (contains(github.event.head_commit.message, '[stylized-shadows]') && 'hoarbound-stylized-shadows' || (contains(github.event.head_commit.message, '[key-west-first-exit]') && 'hoarbound-key-west-first-exit' || (contains(github.event.head_commit.message, '[key-west-tps]') && 'hoarbound-key-west-tps' || 'hoarbound-key-west-preview'))) }}
+          name: ${{ contains(github.event.head_commit.message, '[painterly-wash-preview]') && 'hoarbound-painterly-wash' || (contains(github.event.head_commit.message, '[sky-weather-preview]') && 'hoarbound-sky-weather' || (contains(github.event.head_commit.message, '[stylized-shadows]') && 'hoarbound-stylized-shadows' || (contains(github.event.head_commit.message, '[key-west-first-exit]') && 'hoarbound-key-west-first-exit' || (contains(github.event.head_commit.message, '[key-west-tps]') && 'hoarbound-key-west-tps' || 'hoarbound-key-west-preview')))) }}
           path: |
             docs/runtime_previews/key_west/*.png
+            docs/runtime_previews/key_west/*.mp4
+            docs/runtime_previews/key_west/capture.log
             docs/runtime_previews/key_west/source_report.json
             docs/runtime_previews/key_west/city_preview.json
             docs/runtime_previews/key_west/ocean_connected_mask.png

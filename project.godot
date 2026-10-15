@@ -74,6 +74,7 @@ theme/custom_font="res://assets/fonts/IM Fell English SC/IMFellEnglishSC-Regular
 [hfn]
 
 snow/quality="high"
+visual/painterly_atmosphere_enabled=true
 
 [importer_defaults]
 
@@ -1073,3 +1074,4 @@ stylized_shadow_brush_mix={
 "type": "float",
 "value": 1.0
 }
+
