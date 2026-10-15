@@ -1,0 +1,8 @@
+straight_entry: past door -0.75 m, camera 1.27 m from the eyes, body fade 0.00
+straight_middle: past door 0.06 m, camera 1.19 m from the eyes, body fade 0.00
+straight_exit: past door 0.85 m, camera 1.15 m from the eyes, body fade 0.00
+angled_entry: past door -0.76 m, camera 1.24 m from the eyes, body fade 0.00
+angled_middle: past door 0.04 m, camera 1.19 m from the eyes, body fade 0.00
+angled_exit: past door 0.85 m, camera 1.08 m from the eyes, body fade 0.00
+aside_35: past door 0.61 m, camera 1.14 m from the eyes, body fade 0.00
+aside_70: past door 0.95 m, camera 1.09 m from the eyes, body fade 0.00
