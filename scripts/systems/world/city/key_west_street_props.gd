@@ -26,7 +26,7 @@ const TREE_ROW_SPACING_M: float = 7.0
 const WOOD_SPACING_M: float = 12.0
 const SCRUB_SPACING_M: float = 5.0
 const CROSSING_LENGTH_M: float = 3.0
-const PALM_BASE_HEIGHT_M: float = 9.0
+const PALM_BASE_HEIGHT_M: float = WinterTreeMeshes.PALM_BASE_HEIGHT_M
 const CAR_BAY_M: Vector2 = Vector2(3.0, 6.5)
 ## Share of parking bays holding an abandoned car.
 const CAR_FILL: float = 0.18
@@ -774,39 +774,12 @@ static func _basket_mesh(m: Dictionary) -> ArrayMesh:
 	])
 
 
-## Palm from the Graciosa blockout: four bent trunk segments, drooping fronds; 9 m tall.
 static func _palm_mesh(m: Dictionary) -> ArrayMesh:
-	var parts: Array = []
-	var seg: float = PALM_BASE_HEIGHT_M / 4.0
-	var top := Vector3(0, -0.3, 0)
-	var tilt: float = 0.0
-	for i: int in range(4):
-		tilt += deg_to_rad(4.0 + float(i) * 1.5)
-		var dir := Vector3(0, cos(tilt), -sin(tilt))
-		var r: float = 0.2 - 0.03 * float(i)
-		parts.append([_cyl(r, seg + 0.15, 7, r - 0.03), Transform3D(Basis(Vector3.RIGHT, -tilt), top + dir * seg * 0.5), m["palm_trunk"]])
-		top += dir * seg
-	for k: int in range(7):
-		var yaw: float = TAU * float(k) / 7.0
-		var droop: float = deg_to_rad(25.0 + float(k % 3) * 12.0)
-		var b := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, droop)
-		parts.append([_box(Vector3(0.45, 0.03, 3.0)), Transform3D(b, top + b * Vector3(0, 0, 1.4)), m["palm_frond"]])
-	return _compose(parts)
+	return WinterTreeMeshes.palm(m)
 
 
-## Leafless winter tree: trunk, five limbs and a second tier of twigs.
 static func _bare_tree_mesh(m: Dictionary) -> ArrayMesh:
-	var parts: Array = [[_cyl(0.22, 3.2, 7, 0.15), _at(0, 1.6, 0), m["bark"]]]
-	for k: int in range(5):
-		var yaw: float = TAU * float(k) / 5.0 + 0.3
-		var limb := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, deg_to_rad(38.0 + float(k % 2) * 12.0))
-		var base := Vector3(0, 2.6 + float(k % 3) * 0.3, 0)
-		parts.append([_cyl(0.1, 2.6, 5, 0.05), Transform3D(limb, base + limb * Vector3(0, 1.3, 0)), m["bark"]])
-		var tip: Vector3 = base + limb * Vector3(0, 2.4, 0)
-		for j: int in range(2):
-			var twig := Basis(Vector3.UP, yaw + (float(j) - 0.5) * 1.1) * Basis(Vector3.RIGHT, deg_to_rad(25.0))
-			parts.append([_cyl(0.04, 1.4, 4, 0.015), Transform3D(twig, tip + twig * Vector3(0, 0.7, 0)), m["twig"]])
-	return _compose(parts)
+	return WinterTreeMeshes.bare_tree(m)
 
 
 ## Bare shrub: a fan of thin stems.

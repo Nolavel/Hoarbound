@@ -14,12 +14,13 @@ on 2026-10-15 (`git grep`, excluding `archive/`, `shots/` and docs).
    `scripts/world/first_exit/shelter_cabinet.gd` (`ShelterCabinet`). The 727 shelter no longer calls legacy code. No
    behaviour change.
 3. `test_key_west_first_exit` now loads the legacy scene by path instead of asserting it is the main scene.
+4. Palm and bare-tree meshes moved to the shared `WinterTreeMeshes`; the Reality chunk builder no longer uses
+   `KeyWestStreetProps` (chunk digests unchanged).
 
 ## Blockers: Reality still uses these (move or rename, never just delete)
 
 | Legacy piece | Reality user | Move to |
 |---|---|---|
-| `KeyWestStreetProps._materials`, `_palm_mesh`, `_bare_tree_mesh`, `PALM_BASE_HEIGHT_M` | `key_west_chunk_builder.gd` (palms and bare trees in every chunk) | a shared vegetation mesh helper |
 | `shaders/environment/terrain/island_terrain.gdshader` | `key_west_chunk_builder.gd` (chunk terrain; paving takes snow through its paved mode) | keep; it is the terrain shader, not legacy |
 | `scripts/systems/world/terrain/island_terrain.gd` | `snow_shell.gd` preloads it as `TERRAIN_SCRIPT` (it already reads `snow_ground` for Reality) | drop the preload once the legacy branch goes |
 | `ChunkedCityMassing` type | `runtime_performance_policy.gd`, `dev_diorama_map.gd` (typed vars; null under Reality) | remove the legacy branch |
