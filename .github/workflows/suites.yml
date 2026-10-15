@@ -40,6 +40,10 @@ jobs:
       - name: Import gate (clean import, every script compiles)
         run: tools/ci/import_gate.sh
 
+      - name: Unpack the committed editor interchange (sha256-checked)
+        ## The HLOD suites read the chunk exports as their sources, as the key-west-reality job does.
+        run: python3 tools/world/reality/export_pack.py unpack
+
       - name: All suites
         ## No -e: the summary and each failed suite's errors must print even when the run fails.
         shell: bash {0}
