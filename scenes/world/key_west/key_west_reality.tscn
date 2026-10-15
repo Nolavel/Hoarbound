@@ -1,4 +1,4 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://dakk7c54hpbk5"]
 
 [ext_resource type="Script" uid="uid://c5lmffi200345" path="res://world/world.gd" id="1_world"]
 [ext_resource type="Resource" path="res://data/world_profiles/key_west_reality.tres" id="2_profile"]
@@ -7,22 +7,23 @@
 [ext_resource type="PackedScene" uid="uid://cvv8y27vmgjfi" path="res://scenes/game/systems/world/WorldEnvironmentSystem.tscn" id="6_environment"]
 [ext_resource type="PackedScene" uid="uid://dx7ctf36hw7md" path="res://scenes/splash/splash_scene.tscn" id="7_startup"]
 
-[node name="World" type="Node3D" node_paths=PackedStringArray("stream_container", "player", "camera")]
+[node name="World" type="Node3D" unique_id=710103619 node_paths=PackedStringArray("stream_container", "player", "camera")]
 script = ExtResource("1_world")
 world_profile = ExtResource("2_profile")
 stream_container = NodePath("StreamContainer")
 player = NodePath("Player")
 camera = NodePath("PlayerCamera")
+spawn_at_shelter = true
 print_runtime_debug_stats = true
 enable_runtime_dev_map = true
 
-[node name="StartupTitleCard" parent="." instance=ExtResource("7_startup")]
+[node name="StartupTitleCard" parent="." unique_id=4800439 instance=ExtResource("7_startup")]
 
-[node name="StreamContainer" type="Node3D" parent="."]
+[node name="StreamContainer" type="Node3D" parent="." unique_id=11709767]
 
-[node name="Player" parent="." instance=ExtResource("3_player")]
+[node name="Player" parent="." unique_id=716484156 instance=ExtResource("3_player")]
 
-[node name="PlayerCamera" parent="." node_paths=PackedStringArray("player") instance=ExtResource("4_camera")]
+[node name="PlayerCamera" parent="." unique_id=1646655247 node_paths=PackedStringArray("player") instance=ExtResource("4_camera")]
 player = NodePath("../Player")
 
-[node name="WorldEnvironmentSystem" parent="." instance=ExtResource("6_environment")]
+[node name="WorldEnvironmentSystem" parent="." unique_id=275466072 instance=ExtResource("6_environment")]
