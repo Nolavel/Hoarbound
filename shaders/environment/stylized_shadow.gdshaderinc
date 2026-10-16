@@ -3,13 +3,19 @@
 
 global uniform float stylized_shadow_strength;
 // Brush-stroke mask for the spray (tools/art/generate_shadow_brush_masks.py); mix 0 keeps
-// the value noise, 1 uses the mask.
+// the value noise, 1 uses the mask. Experimental capture mode uses values > 1.5 to select
+// the painted-edge path without changing the production ProjectSettings contract.
 global uniform sampler2D stylized_shadow_brush_mask : filter_linear_mipmap, repeat_enable;
 global uniform float stylized_shadow_brush_mix;
 
-// Lookup offset: amplitude in metres and base frequency in cycles per metre.
+// Production lookup offset: amplitude in metres and base frequency in cycles per metre.
 const float HFN_SHADOW_OFFSET_M = 0.18;
 const float HFN_SHADOW_OFFSET_FREQ = 3.0;
+// Painted-edge experiment: one coarse displacement layer, smaller than production FBM.
+const float HFN_PAINTED_OFFSET_M = 0.095;
+const float HFN_PAINTED_OFFSET_FREQ = 2.35;
+const float HFN_PAINTED_EDGE_SHIFT = 0.18;
+const float HFN_PAINTED_EDGE_AMOUNT = 0.88;
 // Spray: base frequency and cut shift; half the jitter stays below both margins.
 const float HFN_SHADOW_SPRAY_FREQ = 9.0;
 const float HFN_SHADOW_SPRAY_JITTER = 0.6;
@@ -17,7 +23,7 @@ const float HFN_SHADOW_SPRAY_CONTRAST = 2.5;
 // One mask tile covers this many metres; contrast maps mask 0..1 onto the spray.
 const float HFN_SHADOW_BRUSH_TILE_M = 1.5;
 const float HFN_SHADOW_BRUSH_CONTRAST = 1.4;
-// Three tones of the directional shadow term: core 0, mid, lit 1.
+// Three tones of the production directional shadow term: core 0, mid, lit 1.
 const float HFN_SHADOW_CUT_LOW = 0.34;
 const float HFN_SHADOW_CUT_HIGH = 0.66;
 const float HFN_SHADOW_MID_TONE = 0.45;
@@ -88,17 +94,42 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 	float strength = clamp(stylized_shadow_strength, 0.0, 1.0);
 	float pixel_m = max(length(fwidth(noise_pos)), 1e-5);
 	vec3 n = normalize((inv_view * vec4(view_normal, 0.0)).xyz);
-	vec3 noise = hfn_shadow_fbm3(noise_pos, HFN_SHADOW_OFFSET_FREQ, pixel_m);
-	vec3 tangent = noise - n * dot(noise, n);
-	vec3 offset = (view * vec4(tangent * HFN_SHADOW_OFFSET_M * offset_scale * strength, 0.0)).xyz;
+	bool painted_edge = stylized_shadow_brush_mix > 1.5;
 	float brush_mix = clamp(stylized_shadow_brush_mix, 0.0, 1.0);
-	float spray = 0.0;
-	if (brush_mix < 1.0) {
-		spray = hfn_shadow_fbm3(noise_pos + vec3(41.3, -7.9, 23.1), HFN_SHADOW_SPRAY_FREQ, pixel_m).x;
-		spray = clamp(spray * HFN_SHADOW_SPRAY_CONTRAST, -1.0, 1.0);
-	}
+	float brush = 0.0;
 	if (brush_mix > 0.0) {
-		spray = mix(spray, hfn_shadow_brush(noise_pos, n, pixel_m), brush_mix);
+		brush = hfn_shadow_brush(noise_pos, n, pixel_m);
+	}
+
+	vec3 noise;
+	float offset_m;
+	if (painted_edge) {
+		// One coarse octave gives the cast edge a broad hand-placed wobble. The dry-brush mask
+		// modulates displacement magnitude, so the silhouette opens/closes in stroke-shaped patches
+		// instead of receiving a second texture only after shadow filtering.
+		float keep = 1.0 - smoothstep(0.2, 0.45, HFN_PAINTED_OFFSET_FREQ * pixel_m);
+		noise = hfn_shadow_noise3(noise_pos * HFN_PAINTED_OFFSET_FREQ + vec3(13.7, -5.1, 29.3)) * keep;
+		offset_m = HFN_PAINTED_OFFSET_M * (0.58 + 0.42 * abs(brush));
+	} else {
+		noise = hfn_shadow_fbm3(noise_pos, HFN_SHADOW_OFFSET_FREQ, pixel_m);
+		offset_m = HFN_SHADOW_OFFSET_M;
+	}
+	vec3 tangent = noise - n * dot(noise, n);
+	vec3 offset = (view * vec4(tangent * offset_m * offset_scale * strength, 0.0)).xyz;
+
+	float spray = 0.0;
+	if (painted_edge) {
+		// The same authored mask drives the edge tone. A little coarse-noise residue prevents a
+		// perfectly repeated stamp while keeping the brush shape dominant.
+		spray = clamp(brush * 0.88 + noise.x * 0.12, -1.0, 1.0);
+	} else {
+		if (brush_mix < 1.0) {
+			spray = hfn_shadow_fbm3(noise_pos + vec3(41.3, -7.9, 23.1), HFN_SHADOW_SPRAY_FREQ, pixel_m).x;
+			spray = clamp(spray * HFN_SHADOW_SPRAY_CONTRAST, -1.0, 1.0);
+		}
+		if (brush_mix > 0.0) {
+			spray = mix(spray, brush, brush_mix);
+		}
 	}
 	return vec4(offset, spray);
 }
@@ -116,6 +147,18 @@ float hfn_stylized_shadow(float attenuation, bool directional) {
 	if (!directional || strength <= 0.0) {
 		return base;
 	}
+
+	if (stylized_shadow_brush_mix > 1.5) {
+		// Painted-edge experiment: keep the physical core and lit field. Only the existing
+		// penumbra is reshaped by a continuous brush-shifted ramp; unlike the production
+		// three-tone cut there are no hard 0/0.45/1 shading steps to crawl under camera motion.
+		float edge = smoothstep(0.06, 0.28, base) * (1.0 - smoothstep(0.72, 0.96, base));
+		float threshold_shift = hfn_shadow_spray * HFN_PAINTED_EDGE_SHIFT;
+		float painted = smoothstep(0.12 + threshold_shift, 0.88 + threshold_shift, base);
+		float amount = clamp(edge * HFN_PAINTED_EDGE_AMOUNT, 0.0, 1.0) * strength;
+		return mix(base, painted, amount);
+	}
+
 	float v = base + hfn_shadow_spray * 0.5 * HFN_SHADOW_SPRAY_JITTER;
 	float tone = mix(step(HFN_SHADOW_CUT_LOW, v) * HFN_SHADOW_MID_TONE, 1.0, step(HFN_SHADOW_CUT_HIGH, v));
 	return mix(base, tone, strength);
