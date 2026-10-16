@@ -10,6 +10,9 @@ uniform float painterly_pigment_scale_m : hint_range(2.0, 20.0) = 10.5;
 uniform vec2 painterly_brush_direction = vec2(0.32, 0.95);
 uniform float painterly_brush_length_m : hint_range(1.0, 16.0) = 9.0;
 uniform float painterly_brush_width_m : hint_range(0.2, 3.0) = 1.1;
+uniform float painterly_wall_scale_ratio : hint_range(0.35, 1.0) = 0.55;
+uniform float painterly_wall_pigment_gain : hint_range(1.0, 2.2) = 1.65;
+uniform float painterly_wall_brush_gain : hint_range(1.0, 2.4) = 1.80;
 
 
 float hfn_painterly_surface_hash(ivec2 cell) {
@@ -70,13 +73,18 @@ vec3 hfn_painterly_surface_color(
 	vec3 n = world_normal / max(length(world_normal), 1e-5);
 	vec2 plane = hfn_painterly_surface_plane(world_pos, n);
 	float plane_seed = dot(abs(n), vec3(13.1, 29.7, 47.3));
+	// Vertical architecture needs a denser and darker deposit than open snow.
+	// Normal weighting keeps that extra signal on walls instead of globally
+	// increasing the cost or contrast of every opted-in surface.
+	float wallness = 1.0 - smoothstep(0.18, 0.72, abs(n.y));
+	float pigment_scale = painterly_pigment_scale_m * mix(1.0, painterly_wall_scale_ratio, wallness);
 
 	// Rotate the metre-space domain so the broad cells never align to walls or chunk axes.
 	vec2 rotated = vec2(
 		plane.x * 0.8 - plane.y * 0.6,
 		plane.x * 0.6 + plane.y * 0.8
 	);
-	vec2 mass_uv = rotated / max(painterly_pigment_scale_m, 0.1);
+	vec2 mass_uv = rotated / max(pigment_scale, 0.1);
 	mass_uv += vec2(0.17, 0.31) * plane_seed;
 	float mass_raw = hfn_painterly_surface_noise(mass_uv);
 	float mass = smoothstep(0.18, 0.78, mass_raw);
@@ -95,21 +103,28 @@ vec3 hfn_painterly_surface_color(
 	float stroke = smoothstep(0.30, 0.72, stroke_raw);
 	float stroke_edge = 1.0 - smoothstep(0.04, 0.16, abs(stroke_raw - 0.52));
 
-	float pigment = clamp(painterly_surface_pigment_strength, 0.0, 0.40);
-	float brush = clamp(painterly_surface_brush_strength, 0.0, 0.24);
+	float pigment = clamp(painterly_surface_pigment_strength, 0.0, 0.40)
+		* mix(1.0, painterly_wall_pigment_gain, wallness);
+	float brush = clamp(painterly_surface_brush_strength, 0.0, 0.24)
+		* mix(1.0, painterly_wall_brush_gain, wallness);
 	float mass_delta = (mass - 0.34) * pigment;
 	float stroke_delta = (stroke - 0.46) * 2.0 * brush * (0.35 + 0.65 * mass);
 	float pooled_edge = mass_edge * pigment * (0.32 + 0.68 * mass);
 	float ended_bleed = stroke_edge * brush * (0.25 + 0.75 * mass);
 	float value_factor = clamp(
 		1.0 - strength * (mass_delta + stroke_delta + pooled_edge * 0.25 + ended_bleed * 0.14),
-		0.70,
-		1.10
+		mix(0.70, 0.58, wallness),
+		mix(1.10, 1.06, wallness)
 	);
 
 	// Pooling stays neutral-cool; it must not invent warm windows or a new paper layer.
-	float pool = clamp(strength * (pooled_edge * 0.55 + ended_bleed * 0.25), 0.0, 0.13);
+	float pool = clamp(
+		strength * (pooled_edge * 0.55 + ended_bleed * 0.25),
+		0.0,
+		mix(0.13, 0.18, wallness)
+	);
+	vec3 pool_tint = mix(vec3(0.86, 0.91, 0.98), vec3(0.78, 0.85, 0.94), wallness);
 	vec3 value_shaped = base_color * value_factor;
-	return mix(value_shaped, value_shaped * vec3(0.86, 0.91, 0.98), pool);
+	return mix(value_shaped, value_shaped * pool_tint, pool);
 }
 

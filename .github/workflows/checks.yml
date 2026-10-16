@@ -273,12 +273,19 @@ jobs:
               -filter_complex "[0:v]trim=start=0:end=2,setpts=PTS-STARTPTS,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='0-2s  OFF':fontcolor=white:fontsize=42:x=40:y=38:box=1:boxcolor=black@0.72:boxborderw=16[off];[1:v]trim=start=0:end=2,setpts=PTS-STARTPTS,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='2-4s  ON':fontcolor=white:fontsize=42:x=40:y=38:box=1:boxcolor=0x155A66@0.84:boxborderw=16[on];[2:v]trim=start=0:end=2,setpts=PTS-STARTPTS[split];[off][on][split]concat=n=3:v=1:a=0[review]" \
               -map "[review]" -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
               docs/runtime_previews/key_west/painterly_surface_review_6s.mp4
+            ffmpeg -y \
+              -i docs/runtime_previews/key_west/painterly_surface_off_walk.mp4 \
+              -i docs/runtime_previews/key_west/painterly_tps_walk.mp4 \
+              -filter_complex "[0:v]scale=960:540,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='OFF  BASE':fontcolor=white:fontsize=30:x=24:y=22:box=1:boxcolor=black@0.72:boxborderw=12[off_full];[1:v]scale=960:540,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='ON  PAINTERLYSURFACE':fontcolor=white:fontsize=30:x=24:y=22:box=1:boxcolor=0x155A66@0.86:boxborderw=12[on_full];[0:v]crop=iw/2:ih/2:0:0,scale=960:540,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='OFF  FACADE 1-1':fontcolor=white:fontsize=28:x=24:y=22:box=1:boxcolor=black@0.72:boxborderw=12[off_detail];[1:v]crop=iw/2:ih/2:0:0,scale=960:540,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='ON  MASS / BRUSH / POOL':fontcolor=white:fontsize=28:x=24:y=22:box=1:boxcolor=0x155A66@0.86:boxborderw=12[on_detail];[off_full][on_full]hstack=inputs=2[top];[off_detail][on_detail]hstack=inputs=2[bottom];[top][bottom]vstack=inputs=2[evidence]" \
+              -map "[evidence]" -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+              docs/runtime_previews/key_west/painterly_surface_evidence_6s.mp4
             test -s docs/runtime_previews/key_west/painterly_tps_walk.mp4
             test -s docs/runtime_previews/key_west/painterly_surface_off_walk.mp4
             test -s docs/runtime_previews/key_west/painterly_surface_split_walk.mp4
             test -s docs/runtime_previews/key_west/painterly_surface_review_6s.mp4
+            test -s docs/runtime_previews/key_west/painterly_surface_evidence_6s.mp4
             ffprobe -v error -show_entries stream=width,height,avg_frame_rate,nb_frames \
-              -show_entries format=duration -of json docs/runtime_previews/key_west/painterly_surface_review_6s.mp4
+              -show_entries format=duration -of json docs/runtime_previews/key_west/painterly_surface_evidence_6s.mp4
           fi
 
       - name: Upload Key West previews

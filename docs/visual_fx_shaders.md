@@ -46,14 +46,18 @@ at night, and the stove frame under each outdoor LUT. It runs in the existing
 
 `shaders/environment/materials/painterly_surface.gdshaderinc` binds broad pigment masses and directional brush
 flow to the dominant world-space plane of static buildings and ground. It is separate from the camera-space paper
-and distance wash: Henry, movable props and the sky do not opt in. Current review tuning uses 10.5 m pigment masses,
-9.0 × 1.1 m directional marks, global pigment/brush strengths 0.22/0.10, and a reduced 0.38 weight on snow.
+and distance wash: Henry, movable props and the sky do not opt in. Current review tuning uses 10.5 m pigment masses
+on horizontal surfaces and a 0.55 wall scale ratio (about 5.8 m), 9.0 × 1.1 m directional marks, global
+pigment/brush strengths 0.22/0.10, wall gains 1.65/1.80, and a reduced 0.38 weight on snow. Wall projection
+follows the vertical surface plane so facade marks rise with the building instead of reading as screen-space noise.
 
 The two existing value-noise evaluations also provide a narrow pigment deposit at irregular fill boundaries and a
 weaker ended-bleed band around strokes. No texture sample or fullscreen pass was added. `painterly_surface_strength = 0`
 restores the base materials. The `[painterly-wash-preview]` capture records matched OFF and ON walks under ordinary
 snowfall (the permanent cold paper layer remains active) and uploads a six-second OFF → ON → vertical-split review;
-amplified heatmaps are diagnostics only and are not acceptance evidence.
+it also uploads a six-second 2 × 2 evidence view with both full frames and an unamplified 1:1 facade crop.
+The capture has a separate facade-region visibility gate. Amplified heatmaps are diagnostics only and are not
+acceptance evidence.
 
 ## Painterly Distance Wash
 

@@ -21,6 +21,7 @@ const SAMPLE_STEP := 8
 const MIN_POST_PROBE_DELTA_8BIT := 20.0
 const MIN_VISIBLE_WASH_DELTA_8BIT := 4.0
 const MIN_SURFACE_DELTA_8BIT := 0.7
+const MIN_FACADE_DELTA_8BIT := 3.0
 
 const SHOTS: Array[Dictionary] = [
 	{
@@ -56,6 +57,7 @@ var _records: Array[Dictionary] = []
 var _post_probe_delta_8bit := -1.0
 var _max_wash_delta_8bit := 0.0
 var _surface_delta_8bit := 0.0
+var _surface_facade_delta_8bit := 0.0
 var _video_start := Vector3.ZERO
 var _video_end := Vector3.ZERO
 var _video_distance_m := 0.0
@@ -141,6 +143,11 @@ func _run() -> void:
 			var surface_on := _capture_image()
 			_save_image(surface_on, _out.path_join("painterly_surface_on.png"))
 			_surface_delta_8bit = _mean_rgb_delta_8bit(surface_off, surface_on)
+			_surface_facade_delta_8bit = _mean_rgb_delta_rect_8bit(
+				surface_off,
+				surface_on,
+				Rect2(0.0, 0.18, 0.42, 0.30)
+			)
 
 		var before_image := _capture_image()
 		var before_path := _out.path_join(String(shot["name"]) + "_before.png")
@@ -199,6 +206,9 @@ func _run() -> void:
 
 	if _surface_delta_8bit < MIN_SURFACE_DELTA_8BIT:
 		_fail("PainterlySurface is visually negligible: mean RGB delta %.3f < %.3f" % [_surface_delta_8bit, MIN_SURFACE_DELTA_8BIT])
+		return
+	if _surface_facade_delta_8bit < MIN_FACADE_DELTA_8BIT:
+		_fail("PainterlySurface facade signal is visually negligible: mean RGB delta %.3f < %.3f" % [_surface_facade_delta_8bit, MIN_FACADE_DELTA_8BIT])
 		return
 	if _max_wash_delta_8bit < MIN_VISIBLE_WASH_DELTA_8BIT:
 		_fail("distance wash is still visually negligible: max mean RGB delta %.3f < %.3f" % [_max_wash_delta_8bit, MIN_VISIBLE_WASH_DELTA_8BIT])
@@ -361,6 +371,28 @@ func _mean_rgb_delta_8bit(a: Image, b: Image) -> float:
 	return (total / float(samples)) * 255.0
 
 
+func _mean_rgb_delta_rect_8bit(a: Image, b: Image, normalized_rect: Rect2) -> float:
+	if a == null or b == null or a.is_empty() or b.is_empty():
+		return 0.0
+	var width := mini(a.get_width(), b.get_width())
+	var height := mini(a.get_height(), b.get_height())
+	var x0 := clampi(floori(normalized_rect.position.x * width), 0, width - 1)
+	var y0 := clampi(floori(normalized_rect.position.y * height), 0, height - 1)
+	var x1 := clampi(ceili(normalized_rect.end.x * width), x0 + 1, width)
+	var y1 := clampi(ceili(normalized_rect.end.y * height), y0 + 1, height)
+	var total := 0.0
+	var samples := 0
+	for y in range(y0, y1, SAMPLE_STEP):
+		for x in range(x0, x1, SAMPLE_STEP):
+			var ca := a.get_pixel(x, y)
+			var cb := b.get_pixel(x, y)
+			total += absf(ca.r - cb.r) + absf(ca.g - cb.g) + absf(ca.b - cb.b)
+			samples += 3
+	if samples == 0:
+		return 0.0
+	return (total / float(samples)) * 255.0
+
+
 func _write_report() -> void:
 	var report := {
 		"feature": "Painterly Atmosphere / Surface Experiment",
@@ -430,16 +462,21 @@ func _write_report() -> void:
 			"dry_brush_scale": 0.65,
 			"dry_brush_strength": 0.20,
 			"surface_pigment_scale_m": 10.5,
+			"surface_wall_scale_ratio": 0.55,
+			"surface_wall_pigment_gain": 1.65,
 			"surface_pigment_strength": 0.22,
 			"surface_brush_direction": [0.32, 0.95],
 			"surface_brush_length_m": 9.0,
 			"surface_brush_width_m": 1.1,
+			"surface_wall_brush_gain": 1.80,
 			"surface_brush_strength": 0.10,
 			"surface_snow_weight": 0.38,
 		},
 		"verification": {
 			"surface_on_off_mean_rgb_delta_8bit": snappedf(_surface_delta_8bit, 0.001),
 			"required_surface_delta_8bit": MIN_SURFACE_DELTA_8BIT,
+			"surface_facade_mean_rgb_delta_8bit": snappedf(_surface_facade_delta_8bit, 0.001),
+			"required_facade_delta_8bit": MIN_FACADE_DELTA_8BIT,
 			"post_probe_mean_rgb_delta_8bit": snappedf(_post_probe_delta_8bit, 0.001),
 			"max_wash_mean_rgb_delta_8bit": snappedf(_max_wash_delta_8bit, 0.001),
 			"required_post_probe_delta_8bit": MIN_POST_PROBE_DELTA_8BIT,
@@ -463,6 +500,7 @@ func _write_report() -> void:
 			"surface_off_video_output": _out.path_join("painterly_surface_off_walk.mp4"),
 			"surface_split_video_output": _out.path_join("painterly_surface_split_walk.mp4"),
 			"surface_review_video_output": _out.path_join("painterly_surface_review_6s.mp4"),
+			"surface_evidence_video_output": _out.path_join("painterly_surface_evidence_6s.mp4"),
 		},
 		"static_shots": _records,
 	}
