@@ -8,6 +8,8 @@ const FPS: int = 30
 const SHELTER_SECONDS: float = 5.0
 const OUTDOOR_SEGMENT_SECONDS: float = 5.0 / 3.0
 const PREPARE_FRAMES: int = 40
+## The in-between LUTs bake on worker threads; a CPU renderer (lavapipe) slows that down.
+const BAKE_TIMEOUT_FRAMES: int = 3000
 const OUTDOOR_STEPS: Array[Dictionary] = [
 	{"from": &"HFN_ColdAsh_Day", "to": &"HFN_ColdAsh_Dusk"},
 	{"from": &"HFN_ColdAsh_Dusk", "to": &"HFN_ColdAsh_Night"},
@@ -46,9 +48,13 @@ func _process(_delta: float) -> bool:
 		&"prepare":
 			if _frame < PREPARE_FRAMES:
 				return false
-			if not _wire():
+			if _grade == null and not _wire():
 				quit(1)
 				return true
+			if not _grade.is_lut_blend_ready():
+				if _frame < PREPARE_FRAMES + BAKE_TIMEOUT_FRAMES:
+					return false
+				push_warning("color grade blend capture: in-between LUTs not baked; blends will snap")
 			_grade.shelter_blend_s = SHELTER_SECONDS
 			_grade.time_blend_s = OUTDOOR_SEGMENT_SECONDS
 			_grade.initialize_for_interior(false)

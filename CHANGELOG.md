@@ -8,6 +8,17 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Colour grade crossfade (from Grok's `grok` branch).
+  - Grok's rules are kept:
+    - outdoor LUTs blend over ±0.5 h corridors at 05/07/17/21 h;
+    - Shelter fades in and out over 0.5 s;
+    - `blend_outdoor_profiles` and the capture tool.
+  - His fullscreen blend pass is replaced. It graded the linear pre-tonemap image with the Environment adjustment
+    off: a 0.22 mean colour pop at the start and end of every blend, and the painterly far wash was erased.
+  - Now `LutBlendCache` bakes in-between LUTs for every profile pair on worker threads (UE4 CombineLUTs approach).
+    The nearest of 16 steps goes into the Environment's own LUT; brightness, contrast and saturation lerp.
+  - Ends match the snaps within frame noise (0.005 / 0.002). Each step is below 0.005.
+  - `test_lut_blend_cache`; `docs/visual_fx_shaders.md` → Color Grade Blend.
 - Dev street spawn (owner request): `World` → Developer tools → **Dev Spawn Street** picks one of ten streets from different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
 
 ### Fixed

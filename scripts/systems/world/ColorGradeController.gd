@@ -2,6 +2,7 @@ extends Node
 class_name ColorGradeController
 
 ## Dual-LUT blend: outdoor time corridors + shelter wall-clock crossfade.
+## The in-between LUT is pre-baked (LutBlendCache) and stays on the Environment's post-tonemap grade.
 
 signal profile_changed(profile_id: StringName)
 signal interior_state_changed(is_inside: bool)
@@ -23,7 +24,6 @@ const TIME_BLEND_HALF_HOURS: float = 0.5
 @export var night_profile: ColorGradeProfile
 @export var shelter_profile: ColorGradeProfile
 @export var default_profile_id: StringName = DAY_PROFILE_ID
-@export var blend_pass: ColorGradeBlendPass
 @export_range(0.05, 3.0, 0.05) var shelter_blend_s: float = 0.5
 @export_range(0.05, 10.0, 0.05) var time_blend_s: float = 2.5
 
@@ -41,10 +41,15 @@ var _blend_speed: float = 0.0
 var _timed_blend_active: bool = false
 var _from_weather_affects: bool = true
 var _to_weather_affects: bool = true
+var _lut_cache: LutBlendCache
+var _blend_lut: ImageTexture3D
+var _blend_lut_from: StringName
+var _blend_lut_to: StringName
+var _blend_lut_step: int = -1
 
 func _ready() -> void:
 	_outdoor_profile_id = default_profile_id if default_profile_id != SHELTER_PROFILE_ID else DAY_PROFILE_ID
-	_resolve_blend_pass.call_deferred()
+	_start_lut_bake()
 	if not set_profile(default_profile_id):
 		push_warning("ColorGradeController: default profile unavailable; using day.")
 		_outdoor_profile_id = DAY_PROFILE_ID
@@ -227,7 +232,6 @@ func _snap_to_profile(profile: ColorGradeProfile, weather_affects: bool) -> bool
 	_blend_weight = 1.0
 	_timed_blend_active = false
 	_to_weather_affects = weather_affects
-	_disable_blend_pass()
 	var environment: Environment = world_environment.environment
 	environment.adjustment_enabled = true
 	environment.adjustment_color_correction = profile.lut
@@ -300,35 +304,51 @@ func _push_visual_state() -> void:
 		return
 	if _from_profile == null or _to_profile == null or _from_profile.lut == null or _to_profile.lut == null:
 		return
-	_resolve_blend_pass()
 	var environment: Environment = world_environment.environment
-	environment.adjustment_enabled = false
 	var from_bcs: Vector3 = _bcs(_from_profile, _from_weather_affects)
 	var to_bcs: Vector3 = _bcs(_to_profile, _to_weather_affects)
-	if is_instance_valid(blend_pass) and blend_pass.is_effect_enabled():
-		blend_pass.configure(_from_profile.lut, _to_profile.lut, _blend_weight, from_bcs.x, to_bcs.x, from_bcs.y, to_bcs.y, from_bcs.z, to_bcs.z)
-		blend_pass.set_blend_active(true)
+	environment.adjustment_enabled = true
+	environment.adjustment_color_correction = _lut_for_weight()
+	environment.adjustment_brightness = lerpf(from_bcs.x, to_bcs.x, _blend_weight)
+	environment.adjustment_contrast = lerpf(from_bcs.y, to_bcs.y, _blend_weight)
+	environment.adjustment_saturation = lerpf(from_bcs.z, to_bcs.z, _blend_weight)
+
+
+## Nearest baked in-between LUT, uploaded only when the step changes; the nearer source LUT until baked.
+func _lut_for_weight() -> Texture3D:
+	var step: int = roundi(_blend_weight * LutBlendCache.STEPS)
+	if step >= LutBlendCache.STEPS or _from_profile == _to_profile:
+		return _to_profile.lut
+	if step <= 0:
+		return _from_profile.lut
+	var from_id: StringName = _from_profile.profile_id
+	var to_id: StringName = _to_profile.profile_id
+	if _blend_lut != null and step == _blend_lut_step and from_id == _blend_lut_from and to_id == _blend_lut_to:
+		return _blend_lut
+	var slices: Array[Image] = []
+	if _lut_cache != null:
+		slices = _lut_cache.get_slices(from_id, to_id, step)
+	if slices.is_empty():
+		return _to_profile.lut if step * 2 >= LutBlendCache.STEPS else _from_profile.lut
+	if _blend_lut == null:
+		_blend_lut = ImageTexture3D.new()
+		_blend_lut.create(slices[0].get_format(), slices[0].get_width(), slices[0].get_height(), slices.size(), false, slices)
 	else:
-		environment.adjustment_enabled = true
-		environment.adjustment_color_correction = (_to_profile.lut if _blend_weight >= 0.5 else _from_profile.lut)
-		environment.adjustment_brightness = lerpf(from_bcs.x, to_bcs.x, _blend_weight)
-		environment.adjustment_contrast = lerpf(from_bcs.y, to_bcs.y, _blend_weight)
-		environment.adjustment_saturation = lerpf(from_bcs.z, to_bcs.z, _blend_weight)
+		_blend_lut.update(slices)
+	_blend_lut_from = from_id
+	_blend_lut_to = to_id
+	_blend_lut_step = step
+	return _blend_lut
 
-func _disable_blend_pass() -> void:
-	if is_instance_valid(blend_pass):
-		blend_pass.set_blend_active(false)
 
-func _resolve_blend_pass() -> void:
-	if is_instance_valid(blend_pass):
-		return
-	var tree := get_tree()
-	if tree == null:
-		return
-	var found := tree.get_first_node_in_group(&"color_grade_blend_pass") as ColorGradeBlendPass
-	if found != null:
-		blend_pass = found
-		return
-	var cam := tree.root.find_child("ColorGradeBlend", true, false) as ColorGradeBlendPass
-	if cam != null:
-		blend_pass = cam
+func _start_lut_bake() -> void:
+	_lut_cache = LutBlendCache.new()
+	for profile: ColorGradeProfile in [day_profile, dusk_profile, night_profile, shelter_profile]:
+		if profile != null:
+			_lut_cache.add_profile(profile.profile_id, profile.lut)
+	_lut_cache.start_bake()
+
+
+## True once every profile pair has its in-between LUTs (never on a renderer without texture readback).
+func is_lut_blend_ready() -> bool:
+	return _lut_cache != null and _lut_cache.is_baked()

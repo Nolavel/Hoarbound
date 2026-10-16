@@ -164,6 +164,38 @@ frame minus a 48 px blur), Codex state → now:
 `test_sky_weather_character` checks the ordering. `tools/runtime/capture_sky_weather.gd` (`[sky-weather-preview]`)
 shoots all eight states on open Petronia Street.
 
+## Color Grade Blend
+
+`ColorGradeController` crossfades its LUT profiles (Day, Dusk, Night, Shelter) by Grok's rules:
+- a ±0.5 h smoothstep corridor at 05, 07, 17 and 21 h;
+- a wall-clock fade (`shelter_blend_s`, 0.5 s) when entering or leaving a shelter.
+
+The in-between LUT stays on the Environment's own grade (`adjustment_color_correction`). This is the same
+approach as UE4's CombineLUTs: blend the LUTs, not the frames.
+- `LutBlendCache` reads the four 33³ LUTs back once at `_ready`.
+- Worker threads bake 15 in-between steps for each of the 6 profile pairs (9.7 MB). This takes ~1 s of
+  background CPU on 4 cores, or ~9 s when lavapipe shares those cores.
+- A blend uploads the nearest step into one `ImageTexture3D` (0.4–0.7 ms, only when the step changes).
+  Brightness, contrast and saturation lerp continuously.
+- Until the bake ends, or where texels cannot be read back (headless), it snaps to the nearer source LUT, as before.
+
+Grok's first version drew the blend in a fullscreen spatial pass. That pass sees the linear pre-tonemap image
+and turns the Environment adjustment off, so it graded a different image. Probe on lavapipe, mean |Δ| per
+pixel, against the Environment snap:
+
+| Weight | Spatial pass | Baked Environment LUT |
+| --- | --- | --- |
+| ≈0 vs Day | 0.217 | 0.005 |
+| ≈1 vs Night | 0.226 | 0.002 |
+
+- The pass also erased the painterly far wash.
+- A 1/16 step changes the frame by 0.002–0.005, which is within frame-to-frame noise (Day→Night total: 0.032).
+- Evidence: `runtime_previews/color_grade_blend/env_lut_blend_vs_pass.png`.
+  - Top row: pass Day snap, pass w≈0, then the new Day snap, the new w≈0 and Night.
+  - Bottom row: steps 0, 4, 8, 12 and 16.
+- Checks: `test_lut_blend_cache`, plus the videos from `tools/runtime/capture_color_grade_blend.gd`
+  (`[color-grade-blend]`).
+
 ## Tree Snow
 
 `shaders/environment/vegetation/tree_snow.gdshader` (and `_double_sided` for fronds), used by every material of
