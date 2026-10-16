@@ -2,8 +2,9 @@ shader_type spatial;
 render_mode specular_disabled, ambient_light_disabled;
 
 // Hoarbound reference-lab candidate: large pigment masses, pooled edge and sparse dry gaps.
-// The cast-shadow lookup still decides WHERE shadow exists. The interior value structure is
-// painted independently from penumbra width so the language does not depend on a wide PCF filter.
+// The physical cast-shadow lookup decides WHERE shadow exists. Interior value structure is
+// painted independently from penumbra width; silhouette tearing is deliberately excluded here
+// so this lab measures the pigment language alone.
 uniform vec3 paper_color = vec3(0.88, 0.90, 0.91);
 uniform vec3 wash_color = vec3(0.30, 0.39, 0.47);
 uniform vec3 mass_color = vec3(0.16, 0.25, 0.33);
@@ -45,47 +46,40 @@ void vertex() {
 void fragment() {
 	ALBEDO = paper_color;
 	ROUGHNESS = 1.0;
-
-	// Tear the lookup itself with a single coarse, world-locked displacement. Unlike the old
-	// three-octave production experiment this is intentionally one broad decision per ~2 m.
-	float ox = noise2(world_pos.xz * 0.46 + vec2(7.3, 19.1)) * 2.0 - 1.0;
-	float oz = noise2(world_pos.xz * 0.46 + vec2(-13.7, 5.9)) * 2.0 - 1.0;
-	vec3 offset_world = vec3(ox, 0.0, oz) * 0.16;
-	LIGHT_VERTEX = VERTEX + (VIEW_MATRIX * vec4(offset_world, 0.0)).xyz;
 }
 
 void light() {
 	float ndl = max(dot(NORMAL, LIGHT), 0.0);
 	float shadow = clamp(ATTENUATION, 0.0, 1.0);
 
-	// These fields are deliberately coarse enough to read as painted masses rather than grain.
+	// Coarse world-space fields: roughly 1-3 m decisions, not high-frequency material noise.
 	float broad = fbm(world_pos.xz * 0.42 + vec2(3.7, 11.2));
 	float secondary = noise2(world_pos.xz * 0.92 + vec2(21.7, 4.3));
 	vec2 brush_dir = normalize(vec2(0.93, 0.37));
 	float stroke = sin(dot(world_pos.xz, brush_dir) * 3.1 + broad * 3.8) * 0.5 + 0.5;
 	float pigment = clamp(broad * 0.68 + secondary * 0.20 + stroke * 0.12, 0.0, 1.0);
 
-	// Build the shadow body from large tonal islands even when ATTENUATION is already 0.
-	// This is the important distinction from penumbra-only noise/three-tone experiments.
-	float dark_mass = smoothstep(0.48, 0.64, pigment);
-	float deep_mass = smoothstep(0.69, 0.82, pigment);
-	vec3 painted_shadow = mix(wash_color, mass_color, dark_mass * 0.88);
-	painted_shadow = mix(painted_shadow, core_color, deep_mass * 0.88);
+	// The entire binary/core part of the physical shadow now carries large tonal islands.
+	// No dependency on a broad soft-filter penumbra is required for these masses to exist.
+	float dark_mass = smoothstep(0.46, 0.61, pigment);
+	float deep_mass = smoothstep(0.66, 0.79, pigment);
+	vec3 painted_shadow = mix(wash_color, mass_color, dark_mass * 0.90);
+	painted_shadow = mix(painted_shadow, core_color, deep_mass * 0.86);
 
-	// Sparse dry openings: wide strokes lift pigment to a mid-value, never all the way to paper.
-	float dry_field = secondary * 0.48 + stroke * 0.52;
-	float dry_gap = smoothstep(0.78, 0.91, dry_field) * (1.0 - deep_mass * 0.72);
-	painted_shadow = mix(painted_shadow, dry_color, dry_gap * 0.78);
+	// Sparse directional dry openings lift the wash only to a mid-value. They cannot punch
+	// through to white paper, which keeps the cast shadow coherent as one large shape.
+	float dry_field = secondary * 0.42 + stroke * 0.58;
+	float dry_gap = smoothstep(0.80, 0.92, dry_field) * (1.0 - deep_mass * 0.76);
+	painted_shadow = mix(painted_shadow, dry_color, dry_gap * 0.72);
 
-	// Pigment pooling belongs to the physical boundary. Keep it narrow and dark so it reads as
-	// capillary accumulation rather than another fuzzy shadow band.
+	// Narrow physical-boundary pooling. This is deliberately a small accent, not the main effect.
 	float rim = 1.0 - smoothstep(0.025, 0.115, abs(shadow - 0.53));
-	float pool_variation = mix(0.55, 1.0, secondary);
-	painted_shadow = mix(painted_shadow, pool_color, rim * pool_variation * 0.92);
+	float pool_variation = mix(0.58, 1.0, secondary);
+	painted_shadow = mix(painted_shadow, pool_color, rim * pool_variation * 0.90);
 
-	// The real shadow map only gates the painted body at its outer edge. A narrow transition is
-	// enough; interior pigment structure no longer needs Soft High / a giant penumbra to exist.
-	float lit = smoothstep(0.74, 0.98, shadow);
+	// ATTENUATION is only the outer membership/transition mask here. The interior colour above
+	// remains visible even when the physical shadow has already saturated to its core value.
+	float lit = smoothstep(0.72, 0.96, shadow);
 	vec3 colour = mix(painted_shadow, paper_color, lit);
 	DIFFUSE_LIGHT += colour * LIGHT_COLOR * ndl * 0.74;
 }
