@@ -105,7 +105,7 @@ The product documents are not optional background reading.
 - Godot: **4.8 dev6 .NET (mono)**
 - Godot.NET.Sdk: **4.8.0-dev.6**
 - .NET target: **net8.0**
-- Main development scene: `res://tests/scenes/TestScene.tscn`
+- Main development scene: `res://scenes/world/key_west/key_west_reality.tscn`
 - Terrain is `IslandTerrain` built from the heightmap PNG; edit heights in Blender, not in code.
 
 ## Repository hygiene
