@@ -1,0 +1,78 @@
+name: color-grade-blend
+
+## Dual-LUT blend review: 5 s outdoor→shelter + 5 s outdoor Day/Dusk/Night.
+## Runs on workflow_dispatch or push with [color-grade-blend] in the commit message.
+## Artifacts: Actions → this run → hoarbound-color-grade-blend (MP4 + PNG frames).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, grok, codex, claudeflow]
+    paths-ignore:
+      - "**/*.md"
+
+concurrency:
+  group: color-grade-blend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[color-grade-blend]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Capture dual-LUT blend videos
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR" docs/runtime_previews/color_grade_blend
+          set -o pipefail
+          xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 960x540 \
+            --fixed-fps 30 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script res://tools/runtime/capture_color_grade_blend.gd \
+            2>&1 | tee docs/runtime_previews/color_grade_blend/capture.log
+          if grep -q "SHADER ERROR" docs/runtime_previews/color_grade_blend/capture.log; then
+            echo "Shader compilation error in capture log."
+            exit 1
+          fi
+          test -s docs/runtime_previews/color_grade_blend/shelter_outdoor_to_inside_5s.mp4 \
+            || test -d docs/runtime_previews/color_grade_blend/shelter_5s
+          ls -la docs/runtime_previews/color_grade_blend/ || true
+
+      - name: Upload blend artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-color-grade-blend
+          path: |
+            docs/runtime_previews/color_grade_blend/**/*.mp4
+            docs/runtime_previews/color_grade_blend/**/*.png
+            docs/runtime_previews/color_grade_blend/capture.log
+          if-no-files-found: warn
+          retention-days: 14
