@@ -197,7 +197,8 @@ jobs:
           retention-days: 7
 
   key-west-preview:
-    ## Lavapipe captures on the Key West Reality scene, chosen by a commit tag.
+    ## Lavapipe/Forward+ captures on the Key West Reality scene, chosen by a commit tag.
+    ## Painterly preview is diagnostic A/B: CONTROL and TEST run as independent Godot processes.
     if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -223,16 +224,15 @@ jobs:
       - name: Import gate
         run: tools/ci/import_gate.sh
 
-      - name: Capture Key West
+      - name: Capture Key West (non-painterly previews)
+        if: ${{ !contains(github.event.head_commit.message, '[painterly-wash-preview]') }}
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export XDG_RUNTIME_DIR=/tmp/xdg
           mkdir -p "$XDG_RUNTIME_DIR"
-          if [[ "$COMMIT_MESSAGE" == *"[painterly-wash-preview]"* ]]; then
-            SCRIPT="tools/runtime/capture_painterly_distance_wash.gd"
-          elif [[ "$COMMIT_MESSAGE" == *"[sky-weather-preview]"* ]]; then
+          if [[ "$COMMIT_MESSAGE" == *"[sky-weather-preview]"* ]]; then
             SCRIPT="tools/runtime/capture_sky_weather.gd"
           else
             "$HOME/.local/bin/godot" --headless --path . --script tests/systems/test_stylized_shadows.gd
@@ -251,44 +251,145 @@ jobs:
             echo "Shader compilation error found in capture log."
             exit 1
           fi
-          if [[ "$COMMIT_MESSAGE" == *"[painterly-wash-preview]"* ]]; then
-            ffmpeg -y -framerate 12 \
-              -i docs/runtime_previews/key_west/painterly_video_frames/frame_%04d.png \
-              -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
-              docs/runtime_previews/key_west/painterly_tps_walk.mp4
-            ffmpeg -y -framerate 12 \
-              -i docs/runtime_previews/key_west/painterly_surface_off_frames/frame_%04d.png \
-              -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
-              docs/runtime_previews/key_west/painterly_surface_off_walk.mp4
+
+      - name: Painterly A/B CONTROL (post OFF, surface OFF, full blizzard)
+        id: painterly_control
+        if: contains(github.event.head_commit.message, '[painterly-wash-preview]')
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          OUT="docs/runtime_previews/key_west/painterly_ab/control"
+          mkdir -p "$OUT"
+          set +e
+          timeout 420 xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 1600x1000 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script tools/runtime/diagnose_painterly_ab.gd \
+            -- "res://$OUT" control >"$OUT/capture.log" 2>&1
+          rc=$?
+          if grep -q "SHADER ERROR" "$OUT/capture.log"; then rc=90; fi
+          count=$(find "$OUT/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | wc -l)
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          echo "frame_count=$count" >> "$GITHUB_OUTPUT"
+          echo "PAINTERLY_AB CONTROL exit=$rc frames=$count"
+          exit 0
+
+      - name: Painterly A/B TEST (post ON, surface ON, full blizzard)
+        id: painterly_test
+        if: contains(github.event.head_commit.message, '[painterly-wash-preview]')
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          OUT="docs/runtime_previews/key_west/painterly_ab/test"
+          mkdir -p "$OUT"
+          set +e
+          timeout 420 xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 1600x1000 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script tools/runtime/diagnose_painterly_ab.gd \
+            -- "res://$OUT" test >"$OUT/capture.log" 2>&1
+          rc=$?
+          if grep -q "SHADER ERROR" "$OUT/capture.log"; then rc=90; fi
+          count=$(find "$OUT/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | wc -l)
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          echo "frame_count=$count" >> "$GITHUB_OUTPUT"
+          echo "PAINTERLY_AB TEST exit=$rc frames=$count"
+          exit 0
+
+      - name: Encode painterly A/B evidence
+        if: always() && contains(github.event.head_commit.message, '[painterly-wash-preview]')
+        run: |
+          set +e
+          ROOT="docs/runtime_previews/key_west/painterly_ab"
+          for arm in control test; do
+            dir="$ROOT/$arm"
+            last=$(find "$dir/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | sort | tail -n 1)
+            if [[ -n "$last" ]]; then cp "$last" "$dir/last_partial.png"; fi
+            count=$(find "$dir/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | wc -l)
+            if [[ "$count" -eq 72 ]]; then
+              ffmpeg -y -framerate 12 -i "$dir/frames/frame_%04d.png" \
+                -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+                "$dir/${arm}_walk.mp4" >/dev/null 2>&1
+            fi
+          done
+          if [[ -s "$ROOT/control/control_walk.mp4" && -s "$ROOT/test/test_walk.mp4" ]]; then
             ffmpeg -y \
-              -i docs/runtime_previews/key_west/painterly_surface_off_walk.mp4 \
-              -i docs/runtime_previews/key_west/painterly_tps_walk.mp4 \
-              -filter_complex "[0:v]crop=iw/2:ih:0:0[left];[1:v]crop=iw/2:ih:iw/2:0[right];[left][right]hstack=inputs=2,drawbox=x=iw/2-2:y=0:w=4:h=ih:color=white@0.9:t=fill,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='OFF  BASE MATERIAL':fontcolor=white:fontsize=34:x=34:y=34:box=1:boxcolor=black@0.68:boxborderw=14,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='ON  PAINTERLYSURFACE':fontcolor=white:fontsize=34:x=w/2+34:y=34:box=1:boxcolor=0x155A66@0.82:boxborderw=14[split]" \
+              -i "$ROOT/control/control_walk.mp4" \
+              -i "$ROOT/test/test_walk.mp4" \
+              -filter_complex "[0:v]crop=iw/2:ih:0:0[left];[1:v]crop=iw/2:ih:iw/2:0[right];[left][right]hstack=inputs=2,drawbox=x=iw/2-2:y=0:w=4:h=ih:color=white@0.9:t=fill,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='CONTROL  PAINTERLY OFF':fontcolor=white:fontsize=34:x=34:y=34:box=1:boxcolor=black@0.68:boxborderw=14,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='TEST  PAINTERLY ON':fontcolor=white:fontsize=34:x=w/2+34:y=34:box=1:boxcolor=0x155A66@0.82:boxborderw=14[split]" \
               -map "[split]" -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
-              docs/runtime_previews/key_west/painterly_surface_split_walk.mp4
-            ffmpeg -y \
-              -i docs/runtime_previews/key_west/painterly_surface_off_walk.mp4 \
-              -i docs/runtime_previews/key_west/painterly_tps_walk.mp4 \
-              -i docs/runtime_previews/key_west/painterly_surface_split_walk.mp4 \
-              -filter_complex "[0:v]trim=start=0:end=2,setpts=PTS-STARTPTS,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='0-2s  OFF':fontcolor=white:fontsize=42:x=40:y=38:box=1:boxcolor=black@0.72:boxborderw=16[off];[1:v]trim=start=0:end=2,setpts=PTS-STARTPTS,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='2-4s  ON':fontcolor=white:fontsize=42:x=40:y=38:box=1:boxcolor=0x155A66@0.84:boxborderw=16[on];[2:v]trim=start=0:end=2,setpts=PTS-STARTPTS[split];[off][on][split]concat=n=3:v=1:a=0[review]" \
-              -map "[review]" -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
-              docs/runtime_previews/key_west/painterly_surface_review_6s.mp4
-            ffmpeg -y \
-              -i docs/runtime_previews/key_west/painterly_surface_off_walk.mp4 \
-              -i docs/runtime_previews/key_west/painterly_tps_walk.mp4 \
-              -filter_complex "[0:v]scale=960:540,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='OFF  BASE':fontcolor=white:fontsize=30:x=24:y=22:box=1:boxcolor=black@0.72:boxborderw=12[off_full];[1:v]scale=960:540,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='ON  PAINTERLYSURFACE':fontcolor=white:fontsize=30:x=24:y=22:box=1:boxcolor=0x155A66@0.86:boxborderw=12[on_full];[0:v]crop=iw/2:ih/2:0:0,scale=960:540,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='OFF  FACADE 1-1':fontcolor=white:fontsize=28:x=24:y=22:box=1:boxcolor=black@0.72:boxborderw=12[off_detail];[1:v]crop=iw/2:ih/2:0:0,scale=960:540,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='ON  MASS / BRUSH / POOL':fontcolor=white:fontsize=28:x=24:y=22:box=1:boxcolor=0x155A66@0.86:boxborderw=12[on_detail];[off_full][on_full]hstack=inputs=2[top];[off_detail][on_detail]hstack=inputs=2[bottom];[top][bottom]vstack=inputs=2[evidence]" \
-              -map "[evidence]" -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
-              docs/runtime_previews/key_west/painterly_surface_evidence_6s.mp4
-            test -s docs/runtime_previews/key_west/painterly_tps_walk.mp4
-            test -s docs/runtime_previews/key_west/painterly_surface_off_walk.mp4
-            test -s docs/runtime_previews/key_west/painterly_surface_split_walk.mp4
-            test -s docs/runtime_previews/key_west/painterly_surface_review_6s.mp4
-            test -s docs/runtime_previews/key_west/painterly_surface_evidence_6s.mp4
-            ffprobe -v error -show_entries stream=width,height,avg_frame_rate,nb_frames \
-              -show_entries format=duration -of json docs/runtime_previews/key_west/painterly_surface_evidence_6s.mp4
+              docs/runtime_previews/key_west/painterly_ab_split_6s.mp4 >/dev/null 2>&1
           fi
+          exit 0
+
+      - name: Classify painterly A/B
+        if: always() && contains(github.event.head_commit.message, '[painterly-wash-preview]')
+        env:
+          CONTROL_RC: ${{ steps.painterly_control.outputs.exit_code }}
+          TEST_RC: ${{ steps.painterly_test.outputs.exit_code }}
+          CONTROL_FRAMES: ${{ steps.painterly_control.outputs.frame_count }}
+          TEST_FRAMES: ${{ steps.painterly_test.outputs.frame_count }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          from pathlib import Path
+
+          def integer(name, fallback=-1):
+              try:
+                  return int(os.environ.get(name, ""))
+              except ValueError:
+                  return fallback
+
+          cr = integer("CONTROL_RC")
+          tr = integer("TEST_RC")
+          cf = integer("CONTROL_FRAMES", 0)
+          tf = integer("TEST_FRAMES", 0)
+          expected = 72
+
+          if cr == 0 and tr == 0 and cf == expected and tf == expected:
+              classification = "BOTH_ARMS_PASS__COMBINED_HARNESS_OR_ACCEPTANCE_SUSPECT"
+              ok = True
+          elif cr != 0 and tr != 0:
+              classification = "COMMON_SCENE_RUNTIME_RENDERER_OR_INIT_FAILURE"
+              ok = False
+          elif cr == 0 and tr != 0:
+              classification = "PAINTERLY_PATH_FAILURE"
+              ok = False
+          elif cr != 0 and tr == 0:
+              classification = "CONTROL_ONLY_FAILURE_OR_HARNESS_ASYMMETRY"
+              ok = False
+          else:
+              classification = "CAPTURE_OUTPUT_FAILURE"
+              ok = False
+
+          report = {
+              "diagnostic": "independent-process painterly A/B",
+              "renderer_contract": "Lavapipe Vulkan / Forward+",
+              "weather": "blizzard",
+              "expected_frames_per_arm": expected,
+              "control": {"exit_code": cr, "frame_count": cf, "painterly_post": False, "painterly_surface_strength": 0.0},
+              "test": {"exit_code": tr, "frame_count": tf, "painterly_post": True, "painterly_surface_strength": 1.0},
+              "classification": classification,
+              "passes_diagnostic": ok,
+          }
+          out = Path("docs/runtime_previews/key_west/source_report.json")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+          print("PAINTERLY_AB_CLASSIFICATION", classification)
+          print(json.dumps(report, indent=2))
+          sys.exit(0 if ok else 1)
+          PY
 
       - name: Upload Key West previews
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ contains(github.event.head_commit.message, '[painterly-wash-preview]') && 'hoarbound-painterly-wash' || (contains(github.event.head_commit.message, '[sky-weather-preview]') && 'hoarbound-sky-weather' || 'hoarbound-stylized-shadows') }}
@@ -297,10 +398,13 @@ jobs:
             docs/runtime_previews/key_west/*.mp4
             docs/runtime_previews/key_west/capture.log
             docs/runtime_previews/key_west/source_report.json
+            docs/runtime_previews/key_west/painterly_ab/*/*.png
+            docs/runtime_previews/key_west/painterly_ab/*/*.mp4
+            docs/runtime_previews/key_west/painterly_ab/*/*.log
+            docs/runtime_previews/key_west/painterly_ab/*/*.json
             docs/runtime_previews/stylized_shadows/*.png
             docs/runtime_previews/stylized_shadows/report.json
             docs/runtime_previews/sky_weather/*.png
             docs/runtime_previews/sky_weather/report.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 3
-
