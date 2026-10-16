@@ -245,7 +245,8 @@ jobs:
 
       - name: Stylized-shadow contract test
         if: contains(github.event.head_commit.message, '[stylized-shadows]')
-        run: "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script tests/systems/test_stylized_shadows.gd
+        run: |
+          "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script tests/systems/test_stylized_shadows.gd
 
       - name: Stylized shadows BASELINE (production three-tone, open Duval Street)
         id: shadow_baseline
