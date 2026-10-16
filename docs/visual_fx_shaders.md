@@ -42,6 +42,19 @@ Key West frames outside at noon, inside the shelter at noon and by stove light
 at night, and the stove frame under each outdoor LUT. It runs in the existing
 `checks.yml` Key West render job with the `[stylized-shadows]` commit marker.
 
+## Painterly Surface (experiment)
+
+`shaders/environment/materials/painterly_surface.gdshaderinc` binds broad pigment masses and directional brush
+flow to the dominant world-space plane of static buildings and ground. It is separate from the camera-space paper
+and distance wash: Henry, movable props and the sky do not opt in. Current review tuning uses 10.5 m pigment masses,
+9.0 × 1.1 m directional marks, global pigment/brush strengths 0.22/0.10, and a reduced 0.38 weight on snow.
+
+The two existing value-noise evaluations also provide a narrow pigment deposit at irregular fill boundaries and a
+weaker ended-bleed band around strokes. No texture sample or fullscreen pass was added. `painterly_surface_strength = 0`
+restores the base materials. The `[painterly-wash-preview]` capture records matched OFF and ON walks under ordinary
+snowfall (the permanent cold paper layer remains active) and uploads a six-second OFF → ON → vertical-split review;
+amplified heatmaps are diagnostics only and are not acceptance evidence.
+
 ## Painterly Distance Wash
 
 Fullscreen pass on the player camera: `scenes/game/systems/camera/tps_camera.tscn` →
@@ -136,4 +149,5 @@ from the pane edges, crystals at the front).
   - `KeyWest727Shelter` feeds `heated_warmth` = heated offset / max heated offset of its `ShelterZone` on
     `warmth_changed`. Coverage = mix(cold, 0.2, warmth). The unheated clinic rooms stay at their cold coverage.
 - `test_window_frost` checks all three rules.
+
 

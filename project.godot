@@ -1081,9 +1081,9 @@ painterly_surface_strength={
 }
 painterly_surface_pigment_strength={
 "type": "float",
-"value": 0.14
+"value": 0.22
 }
 painterly_surface_brush_strength={
 "type": "float",
-"value": 0.06
+"value": 0.1
 }

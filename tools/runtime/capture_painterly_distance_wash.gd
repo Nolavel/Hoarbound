@@ -42,6 +42,7 @@ const SHOTS: Array[Dictionary] = [
 
 var _out := DEFAULT_OUT
 var _frame_dir := ""
+var _surface_off_frame_dir := ""
 var _world: Node3D
 var _ctx: Variant
 var _player: CharacterBody3D
@@ -67,7 +68,9 @@ func _initialize() -> void:
 		_out = String(args[0])
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out))
 	_frame_dir = _out.path_join("painterly_video_frames")
+	_surface_off_frame_dir = _out.path_join("painterly_surface_off_frames")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_frame_dir))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_surface_off_frame_dir))
 	_run()
 
 
@@ -272,29 +275,46 @@ func _wait_until_streamed(shot: Dictionary) -> void:
 
 
 func _capture_tps_walk() -> void:
+	# Capture the same authored route twice. The workflow turns these two frame
+	# sets into a real OFF/ON split; no amplified diagnostic image is substituted.
+	# Ordinary snowfall keeps the permanent cold paper layer while avoiding the
+	# 100% blizzard wash that deliberately erases material detail at distance.
+	_weather.set_weather(&"snowfall", true)
+	await _wait_frames(8)
+	await _capture_tps_walk_variant(_surface_off_frame_dir, 0.0, false)
+	await _capture_tps_walk_variant(_frame_dir, 1.0, true)
+	RenderingServer.global_shader_parameter_set(&"painterly_surface_strength", 1.0)
+
+
+func _capture_tps_walk_variant(frame_dir: String, surface_strength: float, track_metrics: bool) -> void:
 	var shot: Dictionary = SHOTS[1]
 	_release_motion_input()
 	_place(shot)
 	_material.set_shader_parameter(&"debug_mode", 0)
 	_set_post_enabled(true)
+	RenderingServer.global_shader_parameter_set(&"painterly_surface_strength", surface_strength)
 	await _wait_until_streamed(shot)
 	await _wait_frames(8)
 
-	_video_start = _player.global_position
-	_save_image(_capture_image(), _out.path_join("painterly_tps_video_start.png"))
+	var start := _player.global_position
+	if track_metrics:
+		_video_start = start
+		_save_image(_capture_image(), _out.path_join("painterly_tps_video_start.png"))
 	Input.action_press(&"move_forward", 0.82)
 
 	for i in range(VIDEO_FRAMES):
 		await process_frame
 		await RenderingServer.frame_post_draw
-		_save_image(_capture_image(), _frame_dir.path_join("frame_%04d.png" % i))
-		_video_frame_count += 1
+		_save_image(_capture_image(), frame_dir.path_join("frame_%04d.png" % i))
+		if track_metrics:
+			_video_frame_count += 1
 
 	_release_motion_input()
 	await _wait_frames(3)
-	_video_end = _player.global_position
-	_video_distance_m = Vector2(_video_start.x, _video_start.z).distance_to(Vector2(_video_end.x, _video_end.z))
-	_save_image(_capture_image(), _out.path_join("painterly_tps_video_end.png"))
+	if track_metrics:
+		_video_end = _player.global_position
+		_video_distance_m = Vector2(_video_start.x, _video_start.z).distance_to(Vector2(_video_end.x, _video_end.z))
+		_save_image(_capture_image(), _out.path_join("painterly_tps_video_end.png"))
 
 
 func _release_motion_input() -> void:
@@ -355,6 +375,7 @@ func _write_report() -> void:
 			"paper tooth and cold sheet tint stay present independently of weather strength",
 			"large pigment masses live in PainterlySurface on static buildings and ground, not in the camera pass",
 			"directional brush flow follows the dominant surface plane; Henry and movable props stay untouched",
+			"surface fill boundaries carry restrained pooling and ended bleed before the camera wash",
 			"distance bands break into broad world-stable wet-on-wet fronts",
 			"selected mid-distance depth edges receive stronger broken pigment pooling and restrained bleed",
 			"irregular wash fronts carry narrow broken drying rims, weighted toward dark architecture",
@@ -408,12 +429,13 @@ func _write_report() -> void:
 			"wash_edge_variation_m": 4.0,
 			"dry_brush_scale": 0.65,
 			"dry_brush_strength": 0.20,
-			"surface_pigment_scale_m": 9.0,
-			"surface_pigment_strength": 0.14,
+			"surface_pigment_scale_m": 10.5,
+			"surface_pigment_strength": 0.22,
 			"surface_brush_direction": [0.32, 0.95],
-			"surface_brush_length_m": 7.0,
-			"surface_brush_width_m": 0.85,
-			"surface_brush_strength": 0.06,
+			"surface_brush_length_m": 9.0,
+			"surface_brush_width_m": 1.1,
+			"surface_brush_strength": 0.10,
+			"surface_snow_weight": 0.38,
 		},
 		"verification": {
 			"surface_on_off_mean_rgb_delta_8bit": snappedf(_surface_delta_8bit, 0.001),
@@ -424,7 +446,10 @@ func _write_report() -> void:
 			"required_visible_wash_delta_8bit": MIN_VISIBLE_WASH_DELTA_8BIT,
 		},
 		"capture": {
-			"weather": "blizzard",
+			"weather": {
+				"static_shots": "blizzard",
+				"surface_walk": "snowfall",
+			},
 			"settle_frames_after_active": SETTLE_FRAMES,
 			"max_stream_wait_frames": MAX_WAIT_FRAMES,
 			"video_fps": VIDEO_FPS,
@@ -435,6 +460,9 @@ func _write_report() -> void:
 			"henry_travel_m": snappedf(_video_distance_m, 0.01),
 			"camera_is_current": _camera.is_current(),
 			"video_output": _out.path_join("painterly_tps_walk.mp4"),
+			"surface_off_video_output": _out.path_join("painterly_surface_off_walk.mp4"),
+			"surface_split_video_output": _out.path_join("painterly_surface_split_walk.mp4"),
+			"surface_review_video_output": _out.path_join("painterly_surface_review_6s.mp4"),
 		},
 		"static_shots": _records,
 	}
@@ -446,5 +474,6 @@ func _write_report() -> void:
 func _fail(message: String) -> void:
 	push_error("painterly distance wash: %s" % message)
 	quit(1)
+
 
 

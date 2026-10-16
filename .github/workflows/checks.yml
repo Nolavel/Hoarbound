@@ -256,9 +256,29 @@ jobs:
               -i docs/runtime_previews/key_west/painterly_video_frames/frame_%04d.png \
               -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
               docs/runtime_previews/key_west/painterly_tps_walk.mp4
+            ffmpeg -y -framerate 12 \
+              -i docs/runtime_previews/key_west/painterly_surface_off_frames/frame_%04d.png \
+              -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+              docs/runtime_previews/key_west/painterly_surface_off_walk.mp4
+            ffmpeg -y \
+              -i docs/runtime_previews/key_west/painterly_surface_off_walk.mp4 \
+              -i docs/runtime_previews/key_west/painterly_tps_walk.mp4 \
+              -filter_complex "[0:v]crop=iw/2:ih:0:0[left];[1:v]crop=iw/2:ih:iw/2:0[right];[left][right]hstack=inputs=2,drawbox=x=iw/2-2:y=0:w=4:h=ih:color=white@0.9:t=fill,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='OFF  BASE MATERIAL':fontcolor=white:fontsize=34:x=34:y=34:box=1:boxcolor=black@0.68:boxborderw=14,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='ON  PAINTERLYSURFACE':fontcolor=white:fontsize=34:x=w/2+34:y=34:box=1:boxcolor=0x155A66@0.82:boxborderw=14[split]" \
+              -map "[split]" -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+              docs/runtime_previews/key_west/painterly_surface_split_walk.mp4
+            ffmpeg -y \
+              -i docs/runtime_previews/key_west/painterly_surface_off_walk.mp4 \
+              -i docs/runtime_previews/key_west/painterly_tps_walk.mp4 \
+              -i docs/runtime_previews/key_west/painterly_surface_split_walk.mp4 \
+              -filter_complex "[0:v]trim=start=0:end=2,setpts=PTS-STARTPTS,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='0-2s  OFF':fontcolor=white:fontsize=42:x=40:y=38:box=1:boxcolor=black@0.72:boxborderw=16[off];[1:v]trim=start=0:end=2,setpts=PTS-STARTPTS,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='2-4s  ON':fontcolor=white:fontsize=42:x=40:y=38:box=1:boxcolor=0x155A66@0.84:boxborderw=16[on];[2:v]trim=start=0:end=2,setpts=PTS-STARTPTS[split];[off][on][split]concat=n=3:v=1:a=0[review]" \
+              -map "[review]" -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+              docs/runtime_previews/key_west/painterly_surface_review_6s.mp4
             test -s docs/runtime_previews/key_west/painterly_tps_walk.mp4
+            test -s docs/runtime_previews/key_west/painterly_surface_off_walk.mp4
+            test -s docs/runtime_previews/key_west/painterly_surface_split_walk.mp4
+            test -s docs/runtime_previews/key_west/painterly_surface_review_6s.mp4
             ffprobe -v error -show_entries stream=width,height,avg_frame_rate,nb_frames \
-              -show_entries format=duration -of json docs/runtime_previews/key_west/painterly_tps_walk.mp4
+              -show_entries format=duration -of json docs/runtime_previews/key_west/painterly_surface_review_6s.mp4
           fi
 
       - name: Upload Key West previews
@@ -276,3 +296,4 @@ jobs:
             docs/runtime_previews/sky_weather/report.json
           if-no-files-found: error
           retention-days: 3
+
