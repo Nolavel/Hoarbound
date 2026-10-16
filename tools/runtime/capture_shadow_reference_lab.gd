@@ -7,6 +7,7 @@ const OUT := "res://docs/runtime_previews/stylized_shadows"
 const SETTLE_FRAMES := 8
 const CONTACT_CELL := Vector2i(600, 400)
 const CONTACT_GAP := 8
+const CONTACT_COLUMNS := 4
 
 const VARIANTS := [
 	{
@@ -44,6 +45,12 @@ const VARIANTS := [
 		"label": "Ink cross-hatch",
 		"shader": "res://shaders/experimental/shadow_reference_lab/ink_hatch.gdshader",
 		"source": "Classic NPR hatching family, world-space and shadow-density driven",
+	},
+	{
+		"id": "06_pigment_mass",
+		"label": "Pigment masses + pooling + dry gaps",
+		"shader": "res://shaders/experimental/shadow_reference_lab/pigment_mass.gdshader",
+		"source": "Hoarbound hybrid candidate: coarse world-space pigment masses, pooled rim and sparse dry-brush gaps",
 	},
 ]
 
@@ -204,19 +211,20 @@ func _write_contact_sheet(images: Array[Image]) -> bool:
 	if images.size() != VARIANTS.size():
 		_fail("contact sheet image count mismatch")
 		return false
-	var width := CONTACT_CELL.x * 3 + CONTACT_GAP * 4
-	var height := CONTACT_CELL.y * 2 + CONTACT_GAP * 3
+	var rows := ceili(float(images.size()) / float(CONTACT_COLUMNS))
+	var width := CONTACT_CELL.x * CONTACT_COLUMNS + CONTACT_GAP * (CONTACT_COLUMNS + 1)
+	var height := CONTACT_CELL.y * rows + CONTACT_GAP * (rows + 1)
 	var sheet := Image.create(width, height, false, Image.FORMAT_RGBA8)
 	sheet.fill(Color(0.07, 0.08, 0.09, 1.0))
 	for i in range(images.size()):
 		var tile := images[i].duplicate()
 		tile.resize(CONTACT_CELL.x, CONTACT_CELL.y, Image.INTERPOLATE_LANCZOS)
 		tile.convert(Image.FORMAT_RGBA8)
-		var col := i % 3
-		var row := i / 3
+		var col := i % CONTACT_COLUMNS
+		var row := i / CONTACT_COLUMNS
 		var at := Vector2i(CONTACT_GAP + col * (CONTACT_CELL.x + CONTACT_GAP), CONTACT_GAP + row * (CONTACT_CELL.y + CONTACT_GAP))
 		sheet.blit_rect(tile, Rect2i(Vector2i.ZERO, CONTACT_CELL), at)
-	var err := sheet.save_png(OUT.path_join("contact_sheet_3x2.png"))
+	var err := sheet.save_png(OUT.path_join("contact_sheet_4x2.png"))
 	if err != OK:
 		_fail("contact sheet save failed (%d)" % err)
 		return false
@@ -225,9 +233,12 @@ func _write_contact_sheet(images: Array[Image]) -> bool:
 
 func _write_report(captured: Array[String]) -> void:
 	var variants: Array[Dictionary] = []
+	var order: Array[String] = []
 	for variant: Dictionary in VARIANTS:
+		var id := String(variant["id"])
+		order.append(id)
 		variants.append({
-			"id": String(variant["id"]),
+			"id": id,
 			"label": String(variant["label"]),
 			"shader": String(variant["shader"]),
 			"source_family": String(variant["source"]),
@@ -236,13 +247,14 @@ func _write_report(captured: Array[String]) -> void:
 		"diagnostic": "isolated shadow reference lab",
 		"production_path_modified": false,
 		"renderer": RenderingServer.get_current_rendering_driver_name(),
-		"contact_sheet_order": ["00_physical", "01_flat_wash", "02_toon_warble", "03_fuzzy_painterly", "04_watercolour_pool", "05_ink_hatch"],
+		"contact_sheet_order": order,
 		"variants": variants,
 		"captured": captured,
 		"notes": [
 			"All variants use the same camera, sun, caster geometry and physical shadow map.",
 			"External projects are used as visual/technical references only; no third-party textures or source code are copied.",
 			"The lab is for author selection, not production acceptance or performance measurement.",
+			"06_pigment_mass is a Hoarbound-specific hybrid candidate, still isolated from production.",
 		],
 	}
 	var file := FileAccess.open(OUT.path_join("report.json"), FileAccess.WRITE)
