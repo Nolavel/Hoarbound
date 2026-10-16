@@ -26,14 +26,16 @@ func _run() -> void:
 func _check_curve() -> void:
 	_check(is_equal_approx(PainterlyAtmospherePass.sky_affect_for(0.0), 0.1), "calm sky share is not 10%")
 	_check(is_equal_approx(PainterlyAtmospherePass.sky_affect_for(0.45), 0.1), "ordinary snowfall sky share is not 10%")
-	_check(is_equal_approx(PainterlyAtmospherePass.sky_affect_for(0.95), 1.0), "blizzard sky share is not 100%")
+	var blizzard_sky_share := PainterlyAtmospherePass.sky_affect_for(0.95)
+	_check(is_equal_approx(blizzard_sky_share, 0.95), "blizzard sky share is not 95%")
+	_check(is_equal_approx(1.0 - blizzard_sky_share, PainterlyAtmospherePass.SKY_SOURCE_MIN), "blizzard does not preserve the native sky signal floor")
 	var previous: float = 0.0
 	for i: int in range(21):
 		var value: float = PainterlyAtmospherePass.sky_affect_for(float(i) / 20.0)
 		_check(value >= previous - 0.0001, "sky share falls as snowfall grows at %.2f" % (float(i) / 20.0))
 		previous = value
 	var mid: float = PainterlyAtmospherePass.sky_affect_for(0.7)
-	_check(mid > 0.1 and mid < 1.0, "sky share does not rise gradually between snowfall and blizzard")
+	_check(mid > 0.1 and mid < 0.95, "sky share does not rise gradually between snowfall and blizzard")
 	_check(is_equal_approx(PainterlyAtmospherePass.wash_strength_for(0.0), 0.1), "calm wash strength is not 10%")
 	_check(is_equal_approx(PainterlyAtmospherePass.wash_strength_for(0.95), 1.0), "blizzard wash strength is not 100%")
 	var snowfall: float = PainterlyAtmospherePass.wash_strength_for(0.45)
@@ -71,7 +73,7 @@ func _check_live_weather() -> void:
 	(weather as WeatherController).set_weather(&"blizzard", true)
 	await process_frame
 	await process_frame
-	_check(is_equal_approx(float(material.get_shader_parameter(&"sky_affect")), 1.0), "blizzard did not give a 100% sky share")
+	_check(is_equal_approx(float(material.get_shader_parameter(&"sky_affect")), 0.95), "blizzard did not give a 95% sky wash share")
 	_check(is_equal_approx(float(material.get_shader_parameter(&"wash_strength")), 1.0), "blizzard did not give a full wash")
 	_check(is_equal_approx(float(material.get_shader_parameter(&"paper_strength")), permanent_paper), "blizzard changed permanent paper")
 	scene.queue_free()
@@ -82,4 +84,3 @@ func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures += 1
 		push_error("painterly sky rule: " + message)
-

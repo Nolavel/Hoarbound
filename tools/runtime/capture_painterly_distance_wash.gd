@@ -16,6 +16,7 @@ const SETTLE_FRAMES := 40
 const MAX_WAIT_FRAMES := 600
 const VIDEO_FRAMES := 72
 const VIDEO_FPS := 12
+const BLIZZARD_REVIEW_PITCH_DEG := 8.0
 const MIN_WALK_DISTANCE_M := 2.0
 const SAMPLE_STEP := 8
 const MIN_POST_PROBE_DELTA_8BIT := 20.0
@@ -287,9 +288,9 @@ func _wait_until_streamed(shot: Dictionary) -> void:
 func _capture_tps_walk() -> void:
 	# Capture the same authored route twice. The workflow turns these two frame
 	# sets into a real OFF/ON split; no amplified diagnostic image is substituted.
-	# Ordinary snowfall keeps the permanent cold paper layer while avoiding the
-	# 100% blizzard wash that deliberately erases material detail at distance.
-	_weather.set_weather(&"snowfall", true)
+	# This acceptance pass deliberately uses the live full blizzard binding so the
+	# residual native cloud mass can be judged through the near-white painterly veil.
+	_weather.set_weather(&"blizzard", true)
 	await _wait_frames(8)
 	await _capture_tps_walk_variant(_surface_off_frame_dir, 0.0, false)
 	await _capture_tps_walk_variant(_frame_dir, 1.0, true)
@@ -304,6 +305,10 @@ func _capture_tps_walk_variant(frame_dir: String, surface_strength: float, track
 	_set_post_enabled(true)
 	RenderingServer.global_shader_parameter_set(&"painterly_surface_strength", surface_strength)
 	await _wait_until_streamed(shot)
+	# Raise only the review camera after streaming has finished resetting the shot.
+	# The 8-degree pitch keeps street/building silhouettes while giving the sky enough
+	# frame area to judge ghost cloud masses in a full whiteout.
+	_camera.call(&"set_look", _player.rotation.y, BLIZZARD_REVIEW_PITCH_DEG)
 	await _wait_frames(8)
 
 	var start := _player.global_position
@@ -405,6 +410,7 @@ func _write_report() -> void:
 			"dark buildings become charcoal before dissolving into the wash",
 			"18-40 m mid-ground retains darker ink mass before far-distance lift takes over",
 			"paper tooth and cold sheet tint stay present independently of weather strength",
+			"full blizzard preserves a 5% native sky signal floor so broad cloud mass can ghost through without regaining hard cloud contours",
 			"large pigment masses live in PainterlySurface on static buildings and ground, not in the camera pass",
 			"directional brush flow follows the dominant surface plane; Henry and movable props stay untouched",
 			"surface fill boundaries carry restrained pooling and ended bleed before the camera wash",
@@ -471,6 +477,7 @@ func _write_report() -> void:
 			"surface_wall_brush_gain": 1.80,
 			"surface_brush_strength": 0.10,
 			"surface_snow_weight": 0.38,
+			"blizzard_native_sky_signal_floor": 0.05,
 		},
 		"verification": {
 			"surface_on_off_mean_rgb_delta_8bit": snappedf(_surface_delta_8bit, 0.001),
@@ -485,13 +492,14 @@ func _write_report() -> void:
 		"capture": {
 			"weather": {
 				"static_shots": "blizzard",
-				"surface_walk": "snowfall",
+				"surface_walk": "blizzard",
 			},
 			"settle_frames_after_active": SETTLE_FRAMES,
 			"max_stream_wait_frames": MAX_WAIT_FRAMES,
 			"video_fps": VIDEO_FPS,
 			"video_frames": _video_frame_count,
 			"video_duration_seconds": float(_video_frame_count) / float(VIDEO_FPS),
+			"video_pitch_deg": BLIZZARD_REVIEW_PITCH_DEG,
 			"video_start_xyz": [_video_start.x, _video_start.y, _video_start.z],
 			"video_end_xyz": [_video_end.x, _video_end.y, _video_end.z],
 			"henry_travel_m": snappedf(_video_distance_m, 0.01),
@@ -512,6 +520,3 @@ func _write_report() -> void:
 func _fail(message: String) -> void:
 	push_error("painterly distance wash: %s" % message)
 	quit(1)
-
-
-

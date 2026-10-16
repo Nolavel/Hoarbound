@@ -8,9 +8,11 @@ extends MeshInstance3D
 const ENABLE_SETTING := &"hfn/visual/painterly_atmosphere_enabled"
 const WEATHER_GROUP: StringName = &"weather_controller"
 ## Sky share of the wash (docs/visual_fx_shaders.md): 10% in clear and ordinary snowfall weather,
-## rising smoothly to 100% between ordinary snowfall and a blizzard as snowfall density grows.
+## rising smoothly toward a near-whiteout blizzard. Full blizzard deliberately keeps 5% of the
+## native sky signal so the authored broad cloud mass can remain barely legible through the wash.
 const SKY_AFFECT_CLEAR: float = 0.1
-const SKY_AFFECT_HEAVY: float = 1.0
+const SKY_SOURCE_MIN: float = 0.05
+const SKY_AFFECT_HEAVY: float = 1.0 - SKY_SOURCE_MIN
 const HEAVY_SNOW_START: float = 0.45
 const HEAVY_SNOW_FULL: float = 0.95
 ## Atmospheric strength (owner rule): 10% without snow, rising with snowfall to 100% in a blizzard.
@@ -101,4 +103,3 @@ func _sync_paper_strength() -> void:
 	if _material == null:
 		return
 	_material.set_shader_parameter(&"paper_strength", paper_strength)
-
