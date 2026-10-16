@@ -1,9 +1,9 @@
 shader_type spatial;
-render_mode specular_disabled;
+render_mode specular_disabled, ambient_light_disabled;
 
-uniform vec3 paper_color = vec3(0.86, 0.88, 0.88);
-uniform vec3 ink_color = vec3(0.17, 0.21, 0.23);
-uniform vec3 wash_color = vec3(0.43, 0.47, 0.48);
+uniform vec3 paper_color = vec3(0.90, 0.91, 0.90);
+uniform vec3 ink_color = vec3(0.07, 0.10, 0.12);
+uniform vec3 wash_color = vec3(0.31, 0.37, 0.39);
 
 varying vec3 world_pos;
 
@@ -26,12 +26,12 @@ void light() {
 	float ndl = max(dot(NORMAL, LIGHT), 0.0);
 	float shadow = clamp(ATTENUATION, 0.0, 1.0);
 	float density = 1.0 - shadow;
-	float line_a = stripe((world_pos.x + world_pos.z * 0.78) * 2.35, 0.050);
-	float line_b = stripe((world_pos.x - world_pos.z * 0.92) * 2.15 + 0.31, 0.045);
-	float first = line_a * smoothstep(0.16, 0.38, density);
-	float second = line_b * smoothstep(0.55, 0.78, density);
-	float hatch = clamp(first * 0.68 + second * 0.74, 0.0, 1.0);
-	float base_wash = smoothstep(0.08, 0.88, shadow);
+	float line_a = stripe((world_pos.x + world_pos.z * 0.78) * 2.35, 0.060);
+	float line_b = stripe((world_pos.x - world_pos.z * 0.92) * 2.15 + 0.31, 0.052);
+	float first = line_a * smoothstep(0.12, 0.34, density);
+	float second = line_b * smoothstep(0.46, 0.72, density);
+	float hatch = clamp(first * 0.78 + second * 0.88, 0.0, 1.0);
+	float base_wash = smoothstep(0.08, 0.90, shadow);
 	vec3 colour = mix(wash_color, paper_color, base_wash);
 	colour = mix(colour, ink_color, hatch);
 	DIFFUSE_LIGHT += colour * LIGHT_COLOR * ndl;

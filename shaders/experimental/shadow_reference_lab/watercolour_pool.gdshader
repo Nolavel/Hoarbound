@@ -1,9 +1,9 @@
 shader_type spatial;
-render_mode specular_disabled;
+render_mode specular_disabled, ambient_light_disabled;
 
-uniform vec3 paper_color = vec3(0.85, 0.88, 0.89);
-uniform vec3 wash_color = vec3(0.30, 0.37, 0.42);
-uniform vec3 pool_color = vec3(0.19, 0.25, 0.30);
+uniform vec3 paper_color = vec3(0.91, 0.92, 0.91);
+uniform vec3 wash_color = vec3(0.24, 0.34, 0.40);
+uniform vec3 pool_color = vec3(0.08, 0.15, 0.21);
 
 varying vec3 world_pos;
 
@@ -44,13 +44,13 @@ void fragment() {
 void light() {
 	float ndl = max(dot(NORMAL, LIGHT), 0.0);
 	float shadow = clamp(ATTENUATION, 0.0, 1.0);
-	float coarse = fbm(world_pos.xz * 0.30);
-	float fine = noise2(world_pos.xz * 1.55 + vec2(5.2, 17.9));
-	float warped = clamp(shadow + (coarse - 0.5) * 0.20, 0.0, 1.0);
-	float wash = smoothstep(0.10, 0.88, warped);
-	float edge = 1.0 - smoothstep(0.035, 0.18, abs(warped - 0.50));
-	float pooling = edge * (0.58 + 0.42 * fine);
+	float coarse = fbm(world_pos.xz * 0.28);
+	float fine = noise2(world_pos.xz * 1.45 + vec2(5.2, 17.9));
+	float warped = clamp(shadow + (coarse - 0.5) * 0.26, 0.0, 1.0);
+	float wash = smoothstep(0.09, 0.90, warped);
+	float edge = 1.0 - smoothstep(0.025, 0.16, abs(warped - 0.50));
+	float pooling = edge * (0.48 + 0.52 * fine);
 	vec3 colour = mix(wash_color, paper_color, wash);
-	colour = mix(colour, pool_color, pooling * 0.58);
+	colour = mix(colour, pool_color, pooling * 0.82);
 	DIFFUSE_LIGHT += colour * LIGHT_COLOR * ndl;
 }

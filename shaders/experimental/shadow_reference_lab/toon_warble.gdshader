@@ -1,8 +1,8 @@
 shader_type spatial;
-render_mode specular_disabled;
+render_mode specular_disabled, ambient_light_disabled;
 
-uniform vec3 paper_color = vec3(0.84, 0.87, 0.88);
-uniform vec3 shadow_color = vec3(0.24, 0.30, 0.34);
+uniform vec3 paper_color = vec3(0.89, 0.91, 0.92);
+uniform vec3 shadow_color = vec3(0.12, 0.18, 0.23);
 
 varying vec3 world_pos;
 
@@ -34,8 +34,8 @@ void light() {
 	float shadow = clamp(ATTENUATION, 0.0, 1.0);
 	float n = noise2(world_pos.xz * 0.85);
 	float wave = sin((world_pos.x * 1.25 + world_pos.z * 0.72) * 3.0 + n * 3.2) * 0.5 + 0.5;
-	float threshold = 0.50 + (n - 0.5) * 0.22 + (wave - 0.5) * 0.10;
-	float toon = smoothstep(threshold - 0.055, threshold + 0.055, shadow);
+	float threshold = 0.50 + (n - 0.5) * 0.28 + (wave - 0.5) * 0.14;
+	float toon = smoothstep(threshold - 0.04, threshold + 0.04, shadow);
 	vec3 painted = mix(shadow_color, paper_color, toon);
 	DIFFUSE_LIGHT += painted * LIGHT_COLOR * ndl;
 }

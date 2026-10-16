@@ -1,8 +1,8 @@
 shader_type spatial;
-render_mode specular_disabled;
+render_mode specular_disabled, ambient_light_disabled;
 
-uniform vec3 paper_color = vec3(0.84, 0.87, 0.88);
-uniform vec3 shadow_color = vec3(0.28, 0.34, 0.38);
+uniform vec3 paper_color = vec3(0.88, 0.90, 0.91);
+uniform vec3 shadow_color = vec3(0.16, 0.22, 0.27);
 
 void fragment() {
 	ALBEDO = paper_color;

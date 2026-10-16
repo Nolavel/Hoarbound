@@ -1,8 +1,9 @@
 shader_type spatial;
-render_mode specular_disabled;
+render_mode specular_disabled, ambient_light_disabled;
 
-uniform vec3 paper_color = vec3(0.84, 0.87, 0.88);
-uniform vec3 shadow_color = vec3(0.27, 0.33, 0.37);
+uniform vec3 paper_color = vec3(0.90, 0.91, 0.91);
+uniform vec3 shadow_color = vec3(0.14, 0.20, 0.25);
+uniform vec3 dry_mid_color = vec3(0.42, 0.48, 0.51);
 
 varying vec3 world_pos;
 
@@ -43,14 +44,16 @@ void fragment() {
 void light() {
 	float ndl = max(dot(NORMAL, LIGHT), 0.0);
 	float shadow = clamp(ATTENUATION, 0.0, 1.0);
-	float broad = fbm(world_pos.xz * 0.52);
+	float broad = fbm(world_pos.xz * 0.46);
 	vec2 stroke_dir = normalize(vec2(0.94, 0.34));
-	float stroke = sin(dot(world_pos.xz, stroke_dir) * 5.4 + broad * 4.1) * 0.5 + 0.5;
-	float edge_band = 1.0 - smoothstep(0.10, 0.36, abs(shadow - 0.5));
-	float shifted = clamp(shadow + (broad - 0.5) * 0.34 * edge_band + (stroke - 0.5) * 0.17 * edge_band, 0.0, 1.0);
-	float painted = smoothstep(0.19, 0.82, shifted);
-	float dry_gap = smoothstep(0.73, 0.91, broad * 0.67 + stroke * 0.33) * edge_band;
-	painted = max(painted, dry_gap * 0.82);
-	vec3 colour = mix(shadow_color, paper_color, painted);
-	DIFFUSE_LIGHT += colour * LIGHT_COLOR * ndl;
+	float stroke = sin(dot(world_pos.xz, stroke_dir) * 4.8 + broad * 4.4) * 0.5 + 0.5;
+	float edge_band = 1.0 - smoothstep(0.08, 0.34, abs(shadow - 0.5));
+	float shifted = clamp(shadow + (broad - 0.5) * 0.40 * edge_band + (stroke - 0.5) * 0.22 * edge_band, 0.0, 1.0);
+	float fill = smoothstep(0.16, 0.84, shifted);
+	float dry_gap = smoothstep(0.68, 0.88, broad * 0.62 + stroke * 0.38) * edge_band;
+	float mid_patch = (1.0 - smoothstep(0.28, 0.60, abs(shifted - 0.57))) * edge_band;
+	vec3 painted = mix(shadow_color, paper_color, fill);
+	painted = mix(painted, dry_mid_color, mid_patch * 0.46);
+	painted = mix(painted, paper_color, dry_gap * 0.70);
+	DIFFUSE_LIGHT += painted * LIGHT_COLOR * ndl;
 }
