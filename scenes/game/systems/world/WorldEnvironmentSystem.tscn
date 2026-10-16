@@ -1,7 +1,7 @@
 [gd_scene load_steps=18 format=3 uid="uid://cvv8y27vmgjfi"]
 
 [ext_resource type="Script" uid="uid://naxaityb4qy1" path="res://scripts/systems/world/WorldEnvironmentController.gd" id="1_tiy4q"]
-[ext_resource type="Script" uid="uid://drvu6b4aca7sh" path="res://scripts/systems/world/DayNightManager.gd" id="2_n3v7b"]
+[ext_resource type="Script" path="res://scripts/systems/world/painterly_day_night_manager.gd" id="2_n3v7b"]
 [ext_resource type="Script" uid="uid://55v0lqkceeog" path="res://scripts/systems/world/TimeAccelerator.gd" id="3_6seis"]
 [ext_resource type="Script" uid="uid://dgvkrwulefgho" path="res://scripts/systems/world/debug_accelerator.gd" id="4_12hek"]
 [ext_resource type="Script" uid="uid://8gru2hyu4uym" path="res://scripts/systems/world/DayNightSettings.gd" id="5_prwu1"]
