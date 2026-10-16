@@ -148,11 +148,10 @@ func _build_lab() -> void:
 
 	var camera := Camera3D.new()
 	camera.name = "ReferenceCamera"
-	camera.position = Vector3(8.8, 6.7, 10.6)
 	camera.fov = 44.0
 	_world.add_child(camera)
-	camera.look_at(Vector3(0.0, 0.45, 0.25), Vector3.UP)
-	camera.make_current()
+	camera.look_at_from_position(Vector3(8.8, 6.7, 10.6), Vector3(0.0, 0.45, 0.25), Vector3.UP)
+	camera.current = true
 
 
 func _matte(color: Color) -> StandardMaterial3D:
@@ -212,6 +211,7 @@ func _write_contact_sheet(images: Array[Image]) -> bool:
 	for i in range(images.size()):
 		var tile := images[i].duplicate()
 		tile.resize(CONTACT_CELL.x, CONTACT_CELL.y, Image.INTERPOLATE_LANCZOS)
+		tile.convert(Image.FORMAT_RGBA8)
 		var col := i % 3
 		var row := i / 3
 		var at := Vector2i(CONTACT_GAP + col * (CONTACT_CELL.x + CONTACT_GAP), CONTACT_GAP + row * (CONTACT_CELL.y + CONTACT_GAP))
