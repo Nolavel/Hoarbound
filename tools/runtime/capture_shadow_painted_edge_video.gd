@@ -5,11 +5,14 @@ extends SceneTree
 ## breaks the edge with a metre-scale low-frequency field, and leaves sparse detached
 ## mid-tone pigment islands before returning to clean snow. Both arms run as separate
 ## processes on the same open Duval Street spawn, weather, clock, camera and movement input.
+## The baseline process also launches the isolated shadow-reference lab once so the existing
+## stylized-shadow preview workflow can capture multiple visual families without a second CI path.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA := "res://data/world/key_west/reality/routes/dev_street_spawns.json"
 const STREET_NAME := "Duval Street"
 const DEFAULT_OUT := "res://docs/runtime_previews/key_west/shadow_painted_ab/painted"
+const REFERENCE_LAB_SCRIPT := "res://tools/runtime/capture_shadow_reference_lab.gd"
 const CHUNK_M := 512.0
 const SETTLE_FRAMES := 40
 const MAX_WAIT_FRAMES := 600
@@ -130,6 +133,9 @@ func _run() -> void:
 	if _video_distance_m < MIN_WALK_DISTANCE_M:
 		_fail("Henry did not traverse the street: %.2f m < %.2f m" % [_video_distance_m, MIN_WALK_DISTANCE_M])
 		return
+	if _arm == "baseline" and not _run_reference_lab():
+		_fail("shadow reference lab subprocess failed")
+		return
 
 	print("SHADOW_PAINTED_AB pass arm=%s frames=%d walk=%.2fm out=%s" % [
 		_arm,
@@ -138,6 +144,27 @@ func _run() -> void:
 		_out,
 	])
 	quit(0)
+
+
+func _run_reference_lab() -> bool:
+	var output: Array = []
+	var project_path := ProjectSettings.globalize_path("res://")
+	var args := PackedStringArray([
+		"--path", project_path,
+		"--resolution", "1200x800",
+		"--rendering-driver", "vulkan",
+		"--rendering-method", "forward_plus",
+		"--audio-driver", "Dummy",
+		"--script", REFERENCE_LAB_SCRIPT,
+	])
+	print("SHADOW_REFERENCE_LAB launching isolated process")
+	var rc := OS.execute(OS.get_executable_path(), args, output, true)
+	for line: Variant in output:
+		print(String(line).strip_edges())
+	if rc != 0:
+		push_error("SHADOW_REFERENCE_LAB subprocess exit=%d" % rc)
+		return false
+	return true
 
 
 func _load_street() -> bool:
