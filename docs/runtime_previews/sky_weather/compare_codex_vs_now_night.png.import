@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://qxc5talip7pl"
-path="res://.godot/imported/03_heavy_snow.png-30c4fdfad87affc7a5820e382311d45c.ctex"
+uid="uid://nka4g53dp8j2"
+path="res://.godot/imported/compare_codex_vs_now_night.png-43dff1fd8fc04cf33cdd540d6ae28f01.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/runtime_previews/sky_weather/03_heavy_snow.png"
-dest_files=["res://.godot/imported/03_heavy_snow.png-30c4fdfad87affc7a5820e382311d45c.ctex"]
+source_file="res://docs/runtime_previews/sky_weather/compare_codex_vs_now_night.png"
+dest_files=["res://.godot/imported/compare_codex_vs_now_night.png-43dff1fd8fc04cf33cdd540d6ae28f01.ctex"]
 
 [params]
 

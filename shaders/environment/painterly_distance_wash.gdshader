@@ -193,7 +193,8 @@ void fragment() {
 		float dark_mask = 1.0 - smoothstep(0.18, 0.78, luma);
 		color *= 1.0 - mid_only * mid_ink_hold * dark_mask;
 		float dark_lift = clamp(mid * mid_dark_value_lift + far * far_dark_value_lift, 0.0, 0.9);
-		color += (vec3(1.0) - color) * dark_lift * dark_mask;
+		// Darks lift toward the wash of the hour: paper by day, ink at night (white would grey out the night).
+		color += (max(wash_color.rgb, color) - color) * dark_lift * dark_mask;
 
 		float horizon = 1.0 - smoothstep(0.0, horizon_band, abs(world_dir.y));
 

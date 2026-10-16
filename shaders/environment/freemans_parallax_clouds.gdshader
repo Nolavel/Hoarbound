@@ -135,6 +135,9 @@ uniform float cloud_parallax_mid_scale : hint_range(1.0, 4.0, 0.05) = 1.65;
 uniform float cloud_parallax_high_scale : hint_range(1.0, 6.0, 0.05) = 2.55;
 uniform float cloud_shape_contrast : hint_range(0.0, 1.0, 0.01) = 0.52;
 uniform float cloud_shadow_strength : hint_range(0.0, 1.0, 0.01) = 0.34;
+/* Sun- or moon-lit cloud tops: thin edges and tops go brighter than the sky, dense bellies stay dark,
+which is what makes a cloud read as a volume. 0 keeps the historical dark-slate cloud. */
+uniform float cloud_top_light : hint_range(0.0, 1.0, 0.01) = 0.0;
 // Legacy name: this value is the cloud-mask threshold. Lower = more visible cloud.
 uniform float cloud_coverage : hint_range(0.0, 0.95, 0.01) = 0.34;
 // Upper edge of the cloud-mask smoothstep. Lower values make surviving noise
@@ -483,6 +486,16 @@ vec3 hfn_apply_parallax_clouds(vec3 atmosphere_color, vec3 sun_direction, vec3 e
 	cloud_lit += light_color * transmission * (0.035 + rim * 0.045);
 
 	vec3 cloud_rgb = mix(cloud_lit, cloud_shadow, shape * 0.72);
+	if (cloud_top_light > 0.0) {
+		/* Directional self-shadow, the usual 2D cloud lighting trick: one more height sample toward the light.
+		Where the deck thickens toward the light this side is in its shade (belly); the other side is the lit top. */
+		vec2 toward_light = normalize(sun_direction.xz + vec2(0.0001, 0.0));
+		float light_side = hfn_layered_clouds(cloud_position.xz + toward_light * 0.035, view_slant, wind_uv);
+		float self_shadow = clamp((light_side - cloud_height) * 4.0, 0.0, 1.0);
+		vec3 top_tone = max(mix(atmosphere_color, vec3(1.0), 0.6) + light_color * 0.02, cloud_color.rgb * 1.6);
+		vec3 volume_rgb = mix(top_tone, cloud_shadow, clamp(self_shadow + shape * 0.15, 0.0, 1.0));
+		cloud_rgb = mix(cloud_rgb, volume_rgb, cloud_top_light);
+	}
 	float horizon_factor = 1.0 - smoothstep(0.02, 0.30, eye_direction.y);
 	cloud_rgb = mix(cloud_rgb, atmosphere_color, horizon_factor * 0.12);
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dqwan0o0jo1m7"
-path="res://.godot/imported/01_clear.png-8537c6ca65e8954314bb70e099252512.ctex"
+uid="uid://co0fifab1njen"
+path="res://.godot/imported/07_night_snowfall.png-fea3b9f54cbe96e175f7d5305010c792.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/runtime_previews/sky_weather/01_clear.png"
-dest_files=["res://.godot/imported/01_clear.png-8537c6ca65e8954314bb70e099252512.ctex"]
+source_file="res://docs/runtime_previews/sky_weather/07_night_snowfall.png"
+dest_files=["res://.godot/imported/07_night_snowfall.png-fea3b9f54cbe96e175f7d5305010c792.ctex"]
 
 [params]
 

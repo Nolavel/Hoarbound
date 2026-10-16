@@ -13,10 +13,12 @@ const STREET_PITCH_DEG: float = 10.0
 const SHOTS: Array[Dictionary] = [
 	{"name": "01_day_calm", "profile": &"calm", "hour": 12.0, "period": "day"},
 	{"name": "02_day_windy", "profile": &"windy", "hour": 12.0, "period": "day"},
-	{"name": "03_day_blizzard", "profile": &"blizzard", "hour": 12.0, "period": "day"},
-	{"name": "04_night_calm", "profile": &"calm", "hour": 23.0, "period": "night"},
-	{"name": "05_night_windy", "profile": &"windy", "hour": 23.0, "period": "night"},
-	{"name": "06_night_blizzard", "profile": &"blizzard", "hour": 23.0, "period": "night"},
+	{"name": "03_day_snowfall", "profile": &"snowfall", "hour": 12.0, "period": "day"},
+	{"name": "04_day_blizzard", "profile": &"blizzard", "hour": 12.0, "period": "day"},
+	{"name": "05_night_calm", "profile": &"calm", "hour": 23.0, "period": "night"},
+	{"name": "06_night_windy", "profile": &"windy", "hour": 23.0, "period": "night"},
+	{"name": "07_night_snowfall", "profile": &"snowfall", "hour": 23.0, "period": "night"},
+	{"name": "08_night_blizzard", "profile": &"blizzard", "hour": 23.0, "period": "night"},
 ]
 
 const FIRST_CAPTURE_FRAME: int = 240
@@ -58,7 +60,7 @@ func _process(_delta: float) -> bool:
 			quit(1)
 			return true
 		_write_report()
-		print("sky weather capture: complete six-frame day/night street matrix")
+		print("sky weather capture: complete eight-frame day/night street matrix")
 		quit()
 		return true
 
@@ -153,6 +155,8 @@ func _capture_current(shot: Dictionary) -> void:
 		"cloud_mask_top": mask_top,
 		"cloud_shape_contrast": shape_contrast,
 		"cloud_shadow_strength": shadow_strength,
+		"cloud_top_light": float(_day_night.sky_material.get_shader_parameter("cloud_top_light")),
+		"cloud_sag": float(_day_night.sky_material.get_shader_parameter("cloud_sag")),
 		"png": path,
 	})
 
@@ -171,14 +175,14 @@ func _capture_current(shot: Dictionary) -> void:
 
 
 func _validate_capture_contract() -> bool:
-	if _report_rows.size() != 6:
-		push_error("sky weather capture: expected six day/night samples")
+	if _report_rows.size() != SHOTS.size():
+		push_error("sky weather capture: expected %d day/night samples" % SHOTS.size())
 		return false
 
-	for offset in [0, 3]:
+	for offset in [0, 4]:
 		var calm: Dictionary = _report_rows[offset]
 		var windy: Dictionary = _report_rows[offset + 1]
-		var blizzard: Dictionary = _report_rows[offset + 2]
+		var blizzard: Dictionary = _report_rows[offset + 3]
 		var calm_threshold := float(calm["cloud_mask_threshold"])
 		var windy_threshold := float(windy["cloud_mask_threshold"])
 		var blizzard_threshold := float(blizzard["cloud_mask_threshold"])
@@ -197,7 +201,7 @@ func _validate_capture_contract() -> bool:
 
 func _write_report() -> void:
 	var report := {
-		"camera_contract": "one fixed open Petronia Street TPS camera for all six frames",
+		"camera_contract": "one fixed open Petronia Street TPS camera for all eight frames",
 		"street_at_xz": [STREET_AT.x, STREET_AT.y],
 		"street_look_xz": [STREET_LOOK.x, STREET_LOOK.y],
 		"camera_pitch_deg": STREET_PITCH_DEG,

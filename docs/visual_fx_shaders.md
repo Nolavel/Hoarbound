@@ -118,6 +118,52 @@ Measured on a TPS frame at Duval St (clear-sky region, saturation / luma): no wa
 0.096 / 142, 10% 0.067 / 155, 25% 0.044 / 171, 100% 0.028 / 213. Sheet:
 `docs/runtime_previews/painterly_sky/sky_options.png`.
 
+## Sky Weather Character
+
+`PainterlyDayNightManager` (`scripts/systems/world/painterly_day_night_manager.gd`) is the sky's art-direction
+layer over `DayNightManager`. One rule set, read the same way by day and by night:
+
+- **Wind sculpts cloud bodies.** Wind 1 → 7 m/s raises shape contrast, belly shadow and parallax detail, grows
+  bigger bodies (`cloud_sag` × 0.68) and lowers the mask threshold a little. Wind also clears the air over the
+  clouds (world fog sky share 0.25 → 0.08). Windy (8 m/s) is the most sculpted sky.
+- **Snow closes the deck.** Snowfall 0.06 → 0.40 merges bodies into a low heavy deck (`cloud_sag` × 0.55) with
+  dark bellies and few lit tops.
+- **A blizzard veils it.** Snowfall 0.60 → 0.95 fades all of that out again and raises the fog sky share to 0.60.
+  The painterly wash supplies the whiteout.
+- **Lit tops** (new sky shader uniform `cloud_top_light`): one extra height sample toward the light (the usual
+  2D cloud self-shadow) turns the side facing the sun or moon light and leaves the bellies dark. That is what
+  makes a cloud read as a volume rather than a smudge. Calm 0.55, windy about 0.74, snowfall about 0.24,
+  blizzard 0.1; 0 keeps the old dark-slate cloud.
+- **Night.** The moon lights the deck: `cloud_color` gains `MOON_CLOUD_LIGHT` × (0.45 + 0.55 × readability),
+  and tops stay at least 0.65 lit. Before, night clouds were 0.035–0.075 times an exposure of 0.24, black on
+  black. The volumetric fog is lit by the ambient light, so at night it keeps only 25 % of its sky share;
+  otherwise it greys the dark sky out.
+- **The wash takes the hour's light.** `PainterlyAtmospherePass.set_daylight()`:
+  - wash and paper colour go from paper (0.90, 0.92, 0.94) by day to blue-grey ink (0.13, 0.16, 0.22) at night;
+  - darks lift toward that colour, not toward white, so a night blizzard is a dark veil, not a white sheet.
+
+| | Calm | Windy | Snowfall | Blizzard |
+|---|---|---|---|---|
+| Day | clear sky, a few soft clouds | broken bodies, lit tops, dark bellies | low grey deck with seams | white veil |
+| Night | dark clear sky | moonlit broken clouds | moonlit heavy deck | dark grey veil |
+
+Measured on the eight-state Petronia Street capture (same camera; sky band luminance mean and local contrast =
+frame minus a 48 px blur), Codex state → now:
+
+| | Day mean | Day local | Night mean | Night local |
+|---|---|---|---|---|
+| Calm | 0.623 → 0.623 | 0.0122 → 0.0123 | 0.195 → 0.054 | 0.0062 → 0.0072 |
+| Windy | 0.600 → 0.571 | 0.0122 → 0.0137 | 0.203 → 0.118 | 0.0121 → 0.0232 |
+| Snowfall | 0.610 → 0.581 | 0.0164 → 0.0140 | 0.297 → 0.184 | 0.0238 → 0.0250 |
+| Blizzard | 0.815 → 0.805 | 0.0421 → 0.0410 | 0.768 → 0.338 | 0.0668 → 0.0324 |
+
+- Night is the clear gain: the sky is dark again, and windy night clouds have twice the local contrast.
+- By day the change is smaller. This camera looks at the horizon band, where fog and the far wash dominate.
+- The snowfall deck merges into smoother, darker masses, so its local contrast drops slightly.
+
+`test_sky_weather_character` checks the ordering. `tools/runtime/capture_sky_weather.gd` (`[sky-weather-preview]`)
+shoots all eight states on open Petronia Street.
+
 ## Tree Snow
 
 `shaders/environment/vegetation/tree_snow.gdshader` (and `_double_sided` for fronds), used by every material of

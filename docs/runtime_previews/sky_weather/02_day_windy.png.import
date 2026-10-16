@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://lmqb2pl1yvbo"
-path="res://.godot/imported/02_moderate_snow.png-d09b56b6899a70101d5ec4c54fb31f6d.ctex"
+uid="uid://c8silq21176vq"
+path="res://.godot/imported/02_day_windy.png-587bffb056699a041063bba0fc46e12f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/runtime_previews/sky_weather/02_moderate_snow.png"
-dest_files=["res://.godot/imported/02_moderate_snow.png-d09b56b6899a70101d5ec4c54fb31f6d.ctex"]
+source_file="res://docs/runtime_previews/sky_weather/02_day_windy.png"
+dest_files=["res://.godot/imported/02_day_windy.png-587bffb056699a041063bba0fc46e12f.ctex"]
 
 [params]
 

@@ -12,6 +12,27 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Sky weather character, finishing Codex's cloud pass (owner review: windy clouds and the night barely differed).
+  - Causes:
+    - clouds followed snowfall only, so windy (snow 0.15) looked calm;
+    - the sky shader's sun term is scaled by a Beer transmittance of about 0.02, so clouds had no lit side and
+      read as dark smoke;
+    - night clouds were black on black;
+    - the volumetric fog and the paper-white wash greyed the night out.
+  - Now `PainterlyDayNightManager`:
+    - wind sculpts bodies (contrast, bellies, size, clearer air over them);
+    - snow closes the deck;
+    - a blizzard veils it;
+    - the moon lights the deck at night.
+  - New sky uniform `cloud_top_light`: a directional self-shadow, one height sample toward the light, gives lit tops
+    and dark bellies.
+  - The wash and paper colour follow daylight (paper → ink), and darks lift toward it.
+  - Petronia Street capture, Codex → now:
+    - Night sky mean: calm 0.195 → 0.054, blizzard 0.768 → 0.338 (no more white night sheet).
+    - Night windy cloud local contrast: 0.0121 → 0.0232.
+    - Day windy: 0.0122 → 0.0137. The day change is smaller because the camera sees mostly the hazy horizon band.
+  - New `test_sky_weather_character`; `capture_sky_weather` shoots eight states (snowfall added). Rules in
+    `docs/visual_fx_shaders.md`.
 - Physics back on GodotPhysics3D (owner decision after the play test). Jolt ran slower on the owner's machine, with more hitches and erratic snow contact. `project.godot` names the engine explicitly; the Jolt measurements stay in `REALITY_HLOD.md`.
 - Painterly wash erased every transparent surface. The pass reads the screen texture (opaque geometry only), writes every pixel and drew last among transparents (`render_priority = 127`). Falling snow and the 727 frosted glass vanished under it, and the owner saw no snow and a clear 727 window. Test pane: 127 → (0.74, 0.75, 0.76), the pane gone; −128 → (0.95, 0.35, 0.36). The pass now draws first among transparents (`render_priority = -128`).
 - Painterly wash strength follows snowfall (owner rule): new `wash_strength` mixes the pass with the untouched frame, 10 % in calm weather up to 100 % in a blizzard (`PainterlyAtmospherePass.wash_strength_for`). Before, the full wash showed in calm weather too. `test_painterly_sky_rule` checks the curve, the live binding and the draw order.

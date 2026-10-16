@@ -19,6 +19,10 @@ const HEAVY_SNOW_FULL: float = 0.95
 ## Paper strength is separate and remains stable through every weather profile.
 const WASH_CLEAR: float = 0.1
 const WASH_FULL_SNOW: float = 0.95
+## The wash and paper take the light of the hour: pale paper by day, blue-grey ink at night.
+const DAY_WASH_COLOR: Color = Color(0.90, 0.92, 0.94)
+const NIGHT_WASH_COLOR: Color = Color(0.13, 0.16, 0.22)
+const GROUP: StringName = &"painterly_atmosphere"
 
 @export var effect_enabled: bool = true
 @export_range(0.0, 1.5, 0.01) var paper_strength: float = 1.0
@@ -33,6 +37,7 @@ func _ready() -> void:
 		push_error("PainterlyAtmospherePass requires a ShaderMaterial override")
 		visible = false
 		return
+	add_to_group(GROUP)
 	_sync_paper_strength()
 	_sync_viewport_size()
 	get_viewport().size_changed.connect(_sync_viewport_size)
@@ -57,6 +62,16 @@ func get_shader_material() -> ShaderMaterial:
 func set_paper_strength(value: float) -> void:
 	paper_strength = clampf(value, 0.0, 1.5)
 	_sync_paper_strength()
+
+
+## Daylight 1 at day, 0 at night (DayNightManager's day progress); the wash colour follows it.
+func set_daylight(daylight: float) -> void:
+	if _material != null:
+		_material.set_shader_parameter(&"wash_color", wash_color_for(daylight))
+
+
+static func wash_color_for(daylight: float) -> Color:
+	return NIGHT_WASH_COLOR.lerp(DAY_WASH_COLOR, clampf(daylight, 0.0, 1.0))
 
 
 ## The wash's sky share for a snowfall density; the weather's own blend makes the change gradual.
