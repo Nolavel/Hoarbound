@@ -198,7 +198,7 @@ jobs:
 
   key-west-preview:
     ## Lavapipe/Forward+ captures on the Key West Reality scene, chosen by a commit tag.
-    ## Painterly preview is diagnostic A/B: CONTROL and TEST run as independent Godot processes.
+    ## Painterly and stylized-shadow previews use independent CONTROL/TEST Godot processes.
     if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -216,7 +216,7 @@ jobs:
         run: tools/ci/setup_env.sh
 
       - name: Install video tools
-        if: contains(github.event.head_commit.message, '[painterly-wash-preview]')
+        if: contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]')
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
@@ -224,21 +224,12 @@ jobs:
       - name: Import gate
         run: tools/ci/import_gate.sh
 
-      - name: Capture Key West (non-painterly previews)
-        if: ${{ !contains(github.event.head_commit.message, '[painterly-wash-preview]') }}
-        env:
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+      - name: Capture Key West sky/weather
+        if: contains(github.event.head_commit.message, '[sky-weather-preview]')
         run: |
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR"
-          if [[ "$COMMIT_MESSAGE" == *"[sky-weather-preview]"* ]]; then
-            SCRIPT="tools/runtime/capture_sky_weather.gd"
-          else
-            "$HOME/.local/bin/godot" --headless --path . --script tests/systems/test_stylized_shadows.gd
-            SCRIPT="tools/runtime/capture_stylized_shadows.gd"
-          fi
-          mkdir -p docs/runtime_previews/key_west
+          mkdir -p "$XDG_RUNTIME_DIR" docs/runtime_previews/key_west
           set -o pipefail
           xvfb-run -a "$HOME/.local/bin/godot" \
             --path . \
@@ -246,11 +237,148 @@ jobs:
             --rendering-driver vulkan \
             --rendering-method forward_plus \
             --audio-driver Dummy \
-            --script "$SCRIPT" 2>&1 | tee docs/runtime_previews/key_west/capture.log
+            --script tools/runtime/capture_sky_weather.gd 2>&1 | tee docs/runtime_previews/key_west/capture.log
           if grep -q "SHADER ERROR" docs/runtime_previews/key_west/capture.log; then
             echo "Shader compilation error found in capture log."
             exit 1
           fi
+
+      - name: Stylized-shadow contract test
+        if: contains(github.event.head_commit.message, '[stylized-shadows]')
+        run: "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script tests/systems/test_stylized_shadows.gd
+
+      - name: Stylized shadows BASELINE (production three-tone, open Duval Street)
+        id: shadow_baseline
+        if: contains(github.event.head_commit.message, '[stylized-shadows]')
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          OUT="docs/runtime_previews/key_west/shadow_painted_ab/baseline"
+          mkdir -p "$OUT"
+          set +e
+          timeout 420 xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 1600x1000 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script tools/runtime/capture_shadow_painted_edge_video.gd \
+            -- "res://$OUT" baseline >"$OUT/capture.log" 2>&1
+          rc=$?
+          if grep -q "SHADER ERROR" "$OUT/capture.log"; then rc=90; fi
+          count=$(find "$OUT/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | wc -l)
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          echo "frame_count=$count" >> "$GITHUB_OUTPUT"
+          echo "SHADOW_PAINTED_AB BASELINE exit=$rc frames=$count"
+          exit 0
+
+      - name: Stylized shadows PAINTED EDGE (continuous brush penumbra, open Duval Street)
+        id: shadow_painted
+        if: contains(github.event.head_commit.message, '[stylized-shadows]')
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          OUT="docs/runtime_previews/key_west/shadow_painted_ab/painted"
+          mkdir -p "$OUT"
+          set +e
+          timeout 420 xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 1600x1000 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script tools/runtime/capture_shadow_painted_edge_video.gd \
+            -- "res://$OUT" painted >"$OUT/capture.log" 2>&1
+          rc=$?
+          if grep -q "SHADER ERROR" "$OUT/capture.log"; then rc=90; fi
+          count=$(find "$OUT/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | wc -l)
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          echo "frame_count=$count" >> "$GITHUB_OUTPUT"
+          echo "SHADOW_PAINTED_AB PAINTED exit=$rc frames=$count"
+          exit 0
+
+      - name: Encode stylized-shadow A/B evidence
+        if: always() && contains(github.event.head_commit.message, '[stylized-shadows]')
+        run: |
+          set +e
+          ROOT="docs/runtime_previews/key_west/shadow_painted_ab"
+          for arm in baseline painted; do
+            dir="$ROOT/$arm"
+            last=$(find "$dir/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | sort | tail -n 1)
+            if [[ -n "$last" ]]; then cp "$last" "$dir/last_partial.png"; fi
+            count=$(find "$dir/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | wc -l)
+            if [[ "$count" -eq 72 ]]; then
+              ffmpeg -y -framerate 12 -i "$dir/frames/frame_%04d.png" \
+                -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+                "$dir/${arm}_walk_6s.mp4" >/dev/null 2>&1
+            fi
+          done
+          if [[ -s "$ROOT/baseline/baseline_walk_6s.mp4" && -s "$ROOT/painted/painted_walk_6s.mp4" ]]; then
+            ffmpeg -y \
+              -i "$ROOT/baseline/baseline_walk_6s.mp4" \
+              -i "$ROOT/painted/painted_walk_6s.mp4" \
+              -filter_complex "[0:v]scale=iw/2:-2[left];[1:v]scale=iw/2:-2[right];[left][right]hstack=inputs=2,drawbox=x=iw/2-2:y=0:w=4:h=ih:color=white@0.9:t=fill,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='BASELINE  THREE-TONE':fontcolor=white:fontsize=28:x=24:y=24:box=1:boxcolor=black@0.68:boxborderw=12,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='PAINTED EDGE  CONTINUOUS':fontcolor=white:fontsize=28:x=w/2+24:y=24:box=1:boxcolor=black@0.68:boxborderw=12[split]" \
+              -map "[split]" -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+              docs/runtime_previews/key_west/shadow_painted_ab_split_6s.mp4 >/dev/null 2>&1
+          fi
+          exit 0
+
+      - name: Classify stylized-shadow A/B
+        if: always() && contains(github.event.head_commit.message, '[stylized-shadows]')
+        env:
+          BASELINE_RC: ${{ steps.shadow_baseline.outputs.exit_code }}
+          PAINTED_RC: ${{ steps.shadow_painted.outputs.exit_code }}
+          BASELINE_FRAMES: ${{ steps.shadow_baseline.outputs.frame_count }}
+          PAINTED_FRAMES: ${{ steps.shadow_painted.outputs.frame_count }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          from pathlib import Path
+
+          def integer(name, fallback=-1):
+              try:
+                  return int(os.environ.get(name, ""))
+              except ValueError:
+                  return fallback
+
+          br = integer("BASELINE_RC")
+          pr = integer("PAINTED_RC")
+          bf = integer("BASELINE_FRAMES", 0)
+          pf = integer("PAINTED_FRAMES", 0)
+          expected = 72
+          ok = br == 0 and pr == 0 and bf == expected and pf == expected
+          if ok:
+              classification = "BOTH_ARMS_PASS__AUTHOR_VISUAL_REVIEW_REQUIRED"
+          elif br == 0 and pr != 0:
+              classification = "PAINTED_EDGE_PATH_FAILURE"
+          elif br != 0 and pr == 0:
+              classification = "BASELINE_ONLY_FAILURE_OR_HARNESS_ASYMMETRY"
+          elif br != 0 and pr != 0:
+              classification = "COMMON_SCENE_RUNTIME_RENDERER_OR_INIT_FAILURE"
+          else:
+              classification = "CAPTURE_OUTPUT_FAILURE"
+
+          report = {
+              "diagnostic": "stylized shadow painted-edge independent-process A/B",
+              "renderer_contract": "Lavapipe Vulkan / Forward+",
+              "street": "Duval Street",
+              "weather": "calm",
+              "hour": 15.0,
+              "expected_frames_per_arm": expected,
+              "baseline": {"exit_code": br, "frame_count": bf, "shadow_mode": "production_three_tone"},
+              "painted": {"exit_code": pr, "frame_count": pf, "shadow_mode": "painted_edge_continuous"},
+              "classification": classification,
+              "passes_diagnostic": ok,
+          }
+          out = Path("docs/runtime_previews/key_west/shadow_painted_ab/source_report.json")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+          print("SHADOW_PAINTED_AB_CLASSIFICATION", classification)
+          print(json.dumps(report, indent=2))
+          sys.exit(0 if ok else 1)
+          PY
 
       - name: Painterly A/B CONTROL (post OFF, surface OFF, full blizzard)
         id: painterly_control
@@ -402,6 +530,11 @@ jobs:
             docs/runtime_previews/key_west/painterly_ab/*/*.mp4
             docs/runtime_previews/key_west/painterly_ab/*/*.log
             docs/runtime_previews/key_west/painterly_ab/*/*.json
+            docs/runtime_previews/key_west/shadow_painted_ab/*.json
+            docs/runtime_previews/key_west/shadow_painted_ab/*/*.png
+            docs/runtime_previews/key_west/shadow_painted_ab/*/*.mp4
+            docs/runtime_previews/key_west/shadow_painted_ab/*/*.log
+            docs/runtime_previews/key_west/shadow_painted_ab/*/*.json
             docs/runtime_previews/stylized_shadows/*.png
             docs/runtime_previews/stylized_shadows/report.json
             docs/runtime_previews/sky_weather/*.png
