@@ -1,10 +1,10 @@
 extends SceneTree
 
 ## Six-second moving A/B for the stock-Godot stylized-shadow experiment.
-## Baseline keeps the shipped dry-brush three-tone path. Painted removes the hard
-## tone cut, uses one coarse lookup displacement layer, and lets the authored brush
-## reshape only the continuous penumbra. Both arms run as separate processes on the
-## same open Duval Street spawn, weather, clock, camera and movement input.
+## Baseline keeps the shipped dry-brush three-tone path. Painted keeps the dark core,
+## breaks the edge with a metre-scale low-frequency field, and leaves sparse detached
+## mid-tone pigment islands before returning to clean snow. Both arms run as separate
+## processes on the same open Duval Street spawn, weather, clock, camera and movement input.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA := "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -236,7 +236,7 @@ func _write_report(status: String, failure: String) -> void:
 		"street_at": [_street_at.x, _street_at.y],
 		"weather": "calm",
 		"hour": REVIEW_HOUR,
-		"shadow_mode": "painted_edge_continuous" if _arm == "painted" else "production_three_tone",
+		"shadow_mode": "painted_edge_sparse_breakup" if _arm == "painted" else "production_three_tone",
 		"brush_mix_runtime": 2.0 if _arm == "painted" else 1.0,
 		"rendering_driver": RenderingServer.get_current_rendering_driver_name(),
 		"video_fps": VIDEO_FPS,

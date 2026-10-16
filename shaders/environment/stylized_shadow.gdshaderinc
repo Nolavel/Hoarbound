@@ -14,8 +14,13 @@ const float HFN_SHADOW_OFFSET_FREQ = 3.0;
 // Painted-edge experiment: one coarse displacement layer, smaller than production FBM.
 const float HFN_PAINTED_OFFSET_M = 0.095;
 const float HFN_PAINTED_OFFSET_FREQ = 2.35;
-const float HFN_PAINTED_EDGE_SHIFT = 0.18;
-const float HFN_PAINTED_EDGE_AMOUNT = 0.88;
+const float HFN_PAINTED_EDGE_SHIFT = 0.14;
+const float HFN_PAINTED_EDGE_AMOUNT = 0.92;
+// Second painted-edge pass: metre-scale, sparse breakup. This is deliberately much coarser
+// than the dry-brush texture so it reads as authored pigment islands, not procedural grain.
+const float HFN_PAINTED_BLOB_FREQ = 0.62;
+const float HFN_PAINTED_STROKE_TONE = 0.40;
+const float HFN_PAINTED_ISLAND_TONE = 0.58;
 // Spray: base frequency and cut shift; half the jitter stays below both margins.
 const float HFN_SHADOW_SPRAY_FREQ = 9.0;
 const float HFN_SHADOW_SPRAY_JITTER = 0.6;
@@ -88,7 +93,7 @@ float hfn_shadow_brush(vec3 noise_pos, vec3 n, float pixel_m) {
 }
 
 
-// View-space LIGHT_VERTEX offset in the surface plane; also returns the spray.
+// View-space LIGHT_VERTEX offset in the surface plane; also returns the paint field.
 // noise_pos is metric and fixed to the surface: world for static meshes, model for movers.
 vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 view, float offset_scale) {
 	float strength = clamp(stylized_shadow_strength, 0.0, 1.0);
@@ -103,13 +108,18 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 
 	vec3 noise;
 	float offset_m;
+	float painted_field = 0.0;
 	if (painted_edge) {
-		// One coarse octave gives the cast edge a broad hand-placed wobble. The dry-brush mask
-		// modulates displacement magnitude, so the silhouette opens/closes in stroke-shaped patches
-		// instead of receiving a second texture only after shadow filtering.
+		// Broad silhouette wobble stays single-octave. A second, much lower-frequency field
+		// decides where a stroke grows outward; those rare lobes are what can detach into
+		// pigment islands instead of turning the whole penumbra into uniform fuzz.
 		float keep = 1.0 - smoothstep(0.2, 0.45, HFN_PAINTED_OFFSET_FREQ * pixel_m);
 		noise = hfn_shadow_noise3(noise_pos * HFN_PAINTED_OFFSET_FREQ + vec3(13.7, -5.1, 29.3)) * keep;
-		offset_m = HFN_PAINTED_OFFSET_M * (0.58 + 0.42 * abs(brush));
+		float blob_keep = 1.0 - smoothstep(0.2, 0.45, HFN_PAINTED_BLOB_FREQ * pixel_m);
+		float blob = hfn_shadow_noise3(noise_pos * HFN_PAINTED_BLOB_FREQ + vec3(-17.3, 9.1, 6.7)).x * blob_keep;
+		painted_field = clamp(blob * 0.72 + brush * 0.22 + noise.x * 0.06, -1.0, 1.0);
+		float lobe = smoothstep(0.38, 0.74, painted_field);
+		offset_m = HFN_PAINTED_OFFSET_M * (0.58 + 0.30 * abs(brush) + 0.50 * lobe);
 	} else {
 		noise = hfn_shadow_fbm3(noise_pos, HFN_SHADOW_OFFSET_FREQ, pixel_m);
 		offset_m = HFN_SHADOW_OFFSET_M;
@@ -119,9 +129,10 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 
 	float spray = 0.0;
 	if (painted_edge) {
-		// The same authored mask drives the edge tone. A little coarse-noise residue prevents a
-		// perfectly repeated stamp while keeping the brush shape dominant.
-		spray = clamp(brush * 0.88 + noise.x * 0.12, -1.0, 1.0);
+		// One coherent field now controls both continuity and detached islands. Its spatial scale
+		// is intentionally larger than the texture detail so the breakup reads as a few painted
+		// decisions rather than noise sprinkled over every shadow edge.
+		spray = painted_field;
 	} else {
 		if (brush_mix < 1.0) {
 			spray = hfn_shadow_fbm3(noise_pos + vec3(41.3, -7.9, 23.1), HFN_SHADOW_SPRAY_FREQ, pixel_m).x;
@@ -149,13 +160,26 @@ float hfn_stylized_shadow(float attenuation, bool directional) {
 	}
 
 	if (stylized_shadow_brush_mix > 1.5) {
-		// Painted-edge experiment: keep the physical core and lit field. Only the existing
-		// penumbra is reshaped by a continuous brush-shifted ramp; unlike the production
-		// three-tone cut there are no hard 0/0.45/1 shading steps to crawl under camera motion.
-		float edge = smoothstep(0.06, 0.28, base) * (1.0 - smoothstep(0.72, 0.96, base));
-		float threshold_shift = hfn_shadow_spray * HFN_PAINTED_EDGE_SHIFT;
-		float painted = smoothstep(0.12 + threshold_shift, 0.88 + threshold_shift, base);
-		float amount = clamp(edge * HFN_PAINTED_EDGE_AMOUNT, 0.0, 1.0) * strength;
+		// Painted-edge breakup experiment. The physical dark core remains untouched. Past it,
+		// a broad stroke exists only where the metre-scale field says pigment survived; farther
+		// toward the light, a much higher threshold leaves sparse mid-tone islands. The last band
+		// explicitly returns to the unmodified shadow map so open snow stays clean.
+		float field = hfn_shadow_spray;
+		float threshold_shift = field * HFN_PAINTED_EDGE_SHIFT;
+		float continuous = smoothstep(0.12 + threshold_shift, 0.88 + threshold_shift, base);
+
+		float stroke_zone = smoothstep(0.08, 0.22, base) * (1.0 - smoothstep(0.50, 0.70, base));
+		float island_zone = smoothstep(0.46, 0.58, base) * (1.0 - smoothstep(0.80, 0.93, base));
+		float stroke_mask = smoothstep(-0.44, 0.12, field);
+		float island_mask = smoothstep(0.38, 0.74, field);
+
+		float broken_stroke = mix(continuous, min(continuous, HFN_PAINTED_STROKE_TONE), stroke_zone * stroke_mask * 0.86);
+		float with_islands = mix(broken_stroke, min(broken_stroke, HFN_PAINTED_ISLAND_TONE), island_zone * island_mask * 0.92);
+		float clean_snow = smoothstep(0.88, 0.98, base);
+		float painted = mix(with_islands, base, clean_snow);
+
+		float active_edge = smoothstep(0.045, 0.18, base) * (1.0 - smoothstep(0.91, 0.985, base));
+		float amount = clamp(active_edge * HFN_PAINTED_EDGE_AMOUNT, 0.0, 1.0) * strength;
 		return mix(base, painted, amount);
 	}
 
