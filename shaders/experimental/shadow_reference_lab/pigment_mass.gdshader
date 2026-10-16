@@ -1,13 +1,15 @@
 shader_type spatial;
 render_mode specular_disabled, ambient_light_disabled;
 
-// Hoarbound reference-lab candidate: large pigment masses, a pooled dark rim and
-// sparse dry gaps. World-space fields stay coarse on purpose; this is not a grain/noise pass.
-uniform vec3 paper_color = vec3(0.82, 0.86, 0.88);
-uniform vec3 wash_color = vec3(0.24, 0.34, 0.43);
-uniform vec3 core_color = vec3(0.055, 0.09, 0.14);
-uniform vec3 pool_color = vec3(0.025, 0.055, 0.09);
-uniform vec3 mass_color = vec3(0.14, 0.23, 0.31);
+// Hoarbound reference-lab candidate: large pigment masses, pooled edge and sparse dry gaps.
+// The cast-shadow lookup still decides WHERE shadow exists. The interior value structure is
+// painted independently from penumbra width so the language does not depend on a wide PCF filter.
+uniform vec3 paper_color = vec3(0.88, 0.90, 0.91);
+uniform vec3 wash_color = vec3(0.30, 0.39, 0.47);
+uniform vec3 mass_color = vec3(0.16, 0.25, 0.33);
+uniform vec3 core_color = vec3(0.055, 0.085, 0.13);
+uniform vec3 pool_color = vec3(0.018, 0.045, 0.075);
+uniform vec3 dry_color = vec3(0.48, 0.56, 0.61);
 
 varying vec3 world_pos;
 
@@ -43,46 +45,47 @@ void vertex() {
 void fragment() {
 	ALBEDO = paper_color;
 	ROUGHNESS = 1.0;
+
+	// Tear the lookup itself with a single coarse, world-locked displacement. Unlike the old
+	// three-octave production experiment this is intentionally one broad decision per ~2 m.
+	float ox = noise2(world_pos.xz * 0.46 + vec2(7.3, 19.1)) * 2.0 - 1.0;
+	float oz = noise2(world_pos.xz * 0.46 + vec2(-13.7, 5.9)) * 2.0 - 1.0;
+	vec3 offset_world = vec3(ox, 0.0, oz) * 0.16;
+	LIGHT_VERTEX = VERTEX + (VIEW_MATRIX * vec4(offset_world, 0.0)).xyz;
 }
 
 void light() {
 	float ndl = max(dot(NORMAL, LIGHT), 0.0);
 	float shadow = clamp(ATTENUATION, 0.0, 1.0);
 
-	// Metre-scale structure: broad pooling field plus one authored brush direction.
-	float broad = fbm(world_pos.xz * 0.24);
-	float medium = noise2(world_pos.xz * 0.58 + vec2(21.7, 4.3));
+	// These fields are deliberately coarse enough to read as painted masses rather than grain.
+	float broad = fbm(world_pos.xz * 0.42 + vec2(3.7, 11.2));
+	float secondary = noise2(world_pos.xz * 0.92 + vec2(21.7, 4.3));
 	vec2 brush_dir = normalize(vec2(0.93, 0.37));
-	float stroke = sin(dot(world_pos.xz, brush_dir) * 2.65 + broad * 4.2) * 0.5 + 0.5;
+	float stroke = sin(dot(world_pos.xz, brush_dir) * 3.1 + broad * 3.8) * 0.5 + 0.5;
+	float pigment = clamp(broad * 0.68 + secondary * 0.20 + stroke * 0.12, 0.0, 1.0);
 
-	// The physical shadow map still defines where shadow can exist. These fields only reshape
-	// its value language into large painted decisions rather than fine procedural breakup.
-	float warped = clamp(shadow + (broad - 0.5) * 0.30 + (stroke - 0.5) * 0.14, 0.0, 1.0);
-	float wash = 1.0 - smoothstep(0.30, 0.90, warped);
-	float core = 1.0 - smoothstep(0.10, 0.39, warped);
+	// Build the shadow body from large tonal islands even when ATTENUATION is already 0.
+	// This is the important distinction from penumbra-only noise/three-tone experiments.
+	float dark_mass = smoothstep(0.48, 0.64, pigment);
+	float deep_mass = smoothstep(0.69, 0.82, pigment);
+	vec3 painted_shadow = mix(wash_color, mass_color, dark_mass * 0.88);
+	painted_shadow = mix(painted_shadow, core_color, deep_mass * 0.88);
 
-	// Pool pigment around the main wash boundary. The rim is irregular but coherent.
-	float rim = 1.0 - smoothstep(0.025, 0.145, abs(warped - 0.48));
-	float pooling = rim * mix(0.42, 1.0, medium);
+	// Sparse dry openings: wide strokes lift pigment to a mid-value, never all the way to paper.
+	float dry_field = secondary * 0.48 + stroke * 0.52;
+	float dry_gap = smoothstep(0.78, 0.91, dry_field) * (1.0 - deep_mass * 0.72);
+	painted_shadow = mix(painted_shadow, dry_color, dry_gap * 0.78);
 
-	// A few broad darker masses survive inside the wash. These are deliberately sparse.
-	float mass_field = broad * 0.68 + medium * 0.32;
-	float mass = smoothstep(0.58, 0.76, mass_field)
-		* smoothstep(0.08, 0.25, warped)
-		* (1.0 - smoothstep(0.70, 0.91, warped));
+	// Pigment pooling belongs to the physical boundary. Keep it narrow and dark so it reads as
+	// capillary accumulation rather than another fuzzy shadow band.
+	float rim = 1.0 - smoothstep(0.025, 0.115, abs(shadow - 0.53));
+	float pool_variation = mix(0.55, 1.0, secondary);
+	painted_shadow = mix(painted_shadow, pool_color, rim * pool_variation * 0.92);
 
-	// Dry-brush holes belong only to the mid wash, never to the core or clean snow.
-	float dry_field = medium * 0.56 + stroke * 0.44;
-	float dry_gap = smoothstep(0.76, 0.91, dry_field)
-		* smoothstep(0.34, 0.54, warped)
-		* (1.0 - smoothstep(0.72, 0.88, warped));
-
-	vec3 colour = mix(paper_color, wash_color, wash);
-	colour = mix(colour, core_color, core);
-	colour = mix(colour, pool_color, pooling * 0.84);
-	colour = mix(colour, mass_color, mass * 0.78);
-	colour = mix(colour, paper_color, dry_gap * 0.82);
-
-	// Keep the filmic reference rig from washing the values back toward white.
-	DIFFUSE_LIGHT += colour * LIGHT_COLOR * ndl * 0.70;
+	// The real shadow map only gates the painted body at its outer edge. A narrow transition is
+	// enough; interior pigment structure no longer needs Soft High / a giant penumbra to exist.
+	float lit = smoothstep(0.74, 0.98, shadow);
+	vec3 colour = mix(painted_shadow, paper_color, lit);
+	DIFFUSE_LIGHT += colour * LIGHT_COLOR * ndl * 0.74;
 }
