@@ -18,7 +18,8 @@ const STREET_NAME := "Duval Street"
 const OUT := "res://docs/runtime_previews/key_west/snow_clipmap"
 const CHUNK_M := 512.0
 const SETTLE_FRAMES := 60
-const PHASE_SETTLE_FRAMES := 45
+const POST_RECENTER_SETTLE_FRAMES := 12
+const PHASE_SETTLE_FRAMES := 20
 const MAX_WAIT_FRAMES := 600
 const VIDEO_FRAMES := 72
 const PHASE_FRAMES := VIDEO_FRAMES / 2
@@ -112,7 +113,10 @@ func _run() -> void:
 	_place()
 	await _wait_until_streamed()
 	_shell.recentre_to(Vector2(_player.global_position.x, _player.global_position.z))
-	await _wait_frames(SETTLE_FRAMES)
+	## Streaming already waited a full settle window. After the explicit recenter we
+	## only need a short visual stabilization, otherwise lavapipe burns most of the
+	## capture timeout rendering frames that never enter the six-second proof.
+	await _wait_frames(POST_RECENTER_SETTLE_FRAMES)
 	_camera.call(&"set_look", _street_yaw, REVIEW_PITCH_DEG)
 	_camera.make_current()
 	await _wait_frames(8)
