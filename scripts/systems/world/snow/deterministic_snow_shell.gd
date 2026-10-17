@@ -13,6 +13,7 @@ const FOOT_STAMPS_PER_PLANT: int = 3
 const MAX_PLANTS_PER_PASS: int = 5
 const MAX_FOOT_PAD_STAMPS: int = 16
 const MIN_STAMP_DEPTH_M: float = 0.012
+const CHUNK_SHADER_PATH: String = "snow_chunk_cover.gdshader"
 
 var _plant_point: Array[Vector3] = [Vector3.INF, Vector3.INF]
 var _plant_normal: Array[Vector3] = [Vector3.UP, Vector3.UP]
@@ -21,6 +22,15 @@ var _interactions: RefCounted = INTERACTION_QUEUE.new()
 var _contact_origin: Vector2 = Vector2(INF, INF)
 var _snow_pass_elapsed: float = 0.0
 var _snow_pass_interval: float = 0.25
+## Phase 3.1 retains one older high-detail window behind the live clipmap. The
+## retained shell is static and only renders where the live window no longer does.
+## It is refreshed only when the two windows are almost disjoint, moving the real
+## local->chunk ownership handoff tens of metres behind normal traversal.
+var _trail_mesh: MeshInstance3D
+var _trail_material: ShaderMaterial
+var _trail_origin: Vector2 = Vector2(INF, INF)
+var _trail_packed_tex: ImageTexture
+var _chunk_snow_material: ShaderMaterial
 
 
 func _ready() -> void:
@@ -52,11 +62,10 @@ func _install_surface_geometry(quality: StringName) -> void:
 	if not bool(ProjectSettings.get_setting("hfn/snow/clipmap_geometry", true)):
 		_mesh.set_meta(&"snow_geometry", "legacy_graded_grid")
 		return
-	## Phase 3.1: keep ownership shifts smaller than half the L0 core. 1.6 m stays
-	## exactly aligned to the active lattices: 8 SnowField texels, 20 high-tier L0
-	## cells and 10 high-tier L1 cells (medium is aligned too). This prevents one
-	## recenter from replacing almost the whole near patch behind Henry at once.
-	recentre_step_m = minf(recentre_step_m, 1.6)
+	## Keep recenter aligned with SnowTrackStore's 3.2 m persistence tiles. Phase 3.1
+	## fixes the moving handoff with a retained trail shell rather than breaking that
+	## persistence contract by changing the recenter lattice.
+	recentre_step_m = SnowTrackStore.TILE_M
 	var core: float = SURFACE_CLIPMAP.DEFAULT_L0_HALF_M
 	var fine: float = SURFACE_CLIPMAP.DEFAULT_L0_SPACING_M
 	var coarse: float = SURFACE_CLIPMAP.DEFAULT_L1_SPACING_M
@@ -74,6 +83,98 @@ func _install_surface_geometry(quality: StringName) -> void:
 	_mesh.set_meta(&"snow_l0_half_m", core)
 	_mesh.set_meta(&"snow_l0_spacing_m", fine)
 	_mesh.set_meta(&"snow_l1_spacing_m", coarse)
+
+
+## Keep the immediately traversed surface on the same high-detail representation
+## instead of exposing SnowChunkCover at every 3.2 m recenter. The live shell still
+## owns deformation around Henry; the retained shell is read-only history.
+func _apply_window(old: Vector2, wanted: Vector2, cover: float, wind: Vector2) -> void:
+	if old.x != INF and (_trail_origin.x == INF or _trail_refresh_due(wanted)):
+		_capture_trail_snapshot(old)
+	super(old, wanted, cover, wind)
+	_sync_trail_after_window(wanted)
+
+
+func _trail_refresh_due(wanted: Vector2) -> bool:
+	if _trail_origin.x == INF:
+		return true
+	var dx: float = absf(wanted.x - _trail_origin.x)
+	var dz: float = absf(wanted.y - _trail_origin.y)
+	## Leave at least one persistence tile of overlap before replacing history.
+	return maxf(dx, dz) >= window_m - recentre_step_m
+
+
+## Snapshot only the slowly-changing base/normal fields. Departed deformation is
+## reconstructed from SnowTrackStore after the base class files the outgoing tile.
+func _capture_trail_snapshot(old: Vector2) -> void:
+	if _mesh == null or _surface == null or _field_tex == null:
+		return
+	var field_image: Image = _field_tex.get_image()
+	if field_image == null or field_image.is_empty():
+		return
+	var material := _surface.duplicate(true) as ShaderMaterial
+	material.set_shader_parameter("field", ImageTexture.create_from_image(field_image))
+	if _settled_normal_tex != null:
+		var normal_image: Image = _settled_normal_tex.get_image()
+		if normal_image != null and not normal_image.is_empty():
+			material.set_shader_parameter("settled_normal_field", ImageTexture.create_from_image(normal_image))
+	if _far_grid_tex != null:
+		var far_image: Image = _far_grid_tex.get_image()
+		if far_image != null and not far_image.is_empty():
+			material.set_shader_parameter("far_grid", ImageTexture.create_from_image(far_image))
+	material.set_shader_parameter("origin", old)
+	material.set_shader_parameter("clip_outside_window", true)
+	material.set_shader_parameter("packed_rg_only", true)
+	material.set_shader_parameter("debug_lod_ownership", false)
+
+	if _trail_mesh == null:
+		_trail_mesh = MeshInstance3D.new()
+		_trail_mesh.name = "SnowTrailMesh"
+		_trail_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_trail_mesh.extra_cull_margin = 400.0
+		add_child(_trail_mesh)
+	_trail_mesh.mesh = _mesh.mesh
+	_trail_mesh.material_override = material
+	_trail_material = material
+	_trail_origin = old
+	var half: float = window_m * 0.5
+	_trail_mesh.global_position = Vector3(old.x + half, 0.0, old.y + half)
+	_trail_mesh.visible = true
+
+
+func _sync_trail_after_window(wanted: Vector2) -> void:
+	if _trail_mesh == null or _trail_material == null or _trail_origin.x == INF:
+		_set_chunk_trail_window(Vector4.ZERO)
+		return
+	var live := Vector4(wanted.x, wanted.y, window_m, 1.0)
+	_trail_material.set_shader_parameter("clip_window", live)
+	## Only tiles that have left the live window need to exist on the trail. Those
+	## are exactly the tiles SnowShell._keep_tracks just committed to the store.
+	var restore_side: int = maxi(packed_res / 4, 32)
+	var restored: Image = tracks.restore(_trail_origin, window_m, restore_side)
+	if _trail_packed_tex == null or _trail_packed_tex.get_width() != restore_side:
+		_trail_packed_tex = ImageTexture.create_from_image(restored)
+	else:
+		_trail_packed_tex.update(restored)
+	_trail_material.set_shader_parameter("packed_field", _trail_packed_tex)
+	_trail_material.set_shader_parameter("packed_texel_m", window_m / float(restore_side))
+	_set_chunk_trail_window(Vector4(_trail_origin.x, _trail_origin.y, window_m, 1.0))
+
+
+## SnowChunkCover instances share one material. Finding any live instance gives us
+## that shared material, and newly streamed chunks inherit the retained-window hole.
+func _set_chunk_trail_window(value: Vector4) -> void:
+	if _chunk_snow_material == null and _world_root != null:
+		for node: Node in _world_root.find_children("*", "MeshInstance3D", true, false):
+			var mesh_instance := node as MeshInstance3D
+			if mesh_instance.mesh == null or mesh_instance.mesh.get_surface_count() == 0:
+				continue
+			var material := mesh_instance.get_active_material(0) as ShaderMaterial
+			if material != null and material.shader != null and material.shader.resource_path.ends_with(CHUNK_SHADER_PATH):
+				_chunk_snow_material = material
+				break
+	if _chunk_snow_material != null:
+		_chunk_snow_material.set_shader_parameter("trail_window", value)
 
 
 ## Synthetic sole/drag meshes still drive IK timing and VFX, but no longer write
