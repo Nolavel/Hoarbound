@@ -1,16 +1,16 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-// Persistent deformation field, ping-ponged between two viewports.
-// R: compression below the settled top. G: displaced snow piled above it.
-// Keeping the two states separate prevents the same smoothing path from turning
-// compacted floors and loose heaps into one soft signed-height blob.
+// Persistent deformation-state v2, ping-ponged between two viewports.
+// R: compression below settled top (metres).
+// G: displaced snow piled above it (metres).
+// B: broken crust / disturbance (0..1).
+// A: compacted density / age reserve (0..1; currently density-biased).
 uniform sampler2D previous : filter_nearest, repeat_disable;
-// V1 persistence restores compression only; displaced mass intentionally starts
-// at zero when a window region is restored until persistence v2 exists.
+// Persistence v2 restores R+G. Older RF restores still work because missing G samples as 0.
 uniform sampler2D restore : filter_linear, repeat_disable;
 uniform sampler2D contact_tex : filter_nearest, repeat_disable;
-// Settled field: R snow top (world y), G depth, B cut away.
+// Settled field: R snow top (world y), G depth, B cut away / softness below 0.5.
 uniform sampler2D field : filter_linear, repeat_disable;
 uniform float base_y = 0.0;
 // The deformation field and contact capture have independent world windows.
@@ -103,7 +103,8 @@ bool held(vec2 uv, vec3 settled) {
 	return contact < settled.r + 0.02 && contact > settled.r - settled.g - 0.3;
 }
 
-// Heap raised by one boot: peaks just outside the sole, biased towards travel.
+// Heap raised by one boot. The main ridge sits outside the sole, but the forward
+// lobe carries more mass and the ridge is quantized into centimetre-scale clumps.
 float deposit(vec2 uv, vec4 a, vec4 b) {
 	if (b.z <= 0.0) {
 		return 0.0;
@@ -117,9 +118,12 @@ float deposit(vec2 uv, vec4 a, vec4 b) {
 	}
 	float outside = (r - 1.0) * length(local) / r;
 	float x = outside / rim_uv;
-	float bias = 1.0 + b.w * dot(normalize(local), vec2(1.0, 0.0));
-	float lumps = 0.6 + 0.8 * lump_noise(uv * 1024.0 / 2.0);
-	return b.z * x * exp(1.0 - x) * bias * lumps;
+	float forward = clamp(local.x / max(b.x * 3.0, 1e-6), -1.0, 1.0);
+	float directional = 1.0 + b.w * mix(-0.55, 1.35, forward * 0.5 + 0.5);
+	vec2 clump_cell = floor(uv * vec2(textureSize(previous, 0)) / 3.0);
+	float clump = 0.48 + 0.92 * lump_noise(clump_cell + floor(a.xy * 97.0));
+	float ridge = x * exp(1.0 - x);
+	return b.z * ridge * directional * clump;
 }
 
 void fragment() {
@@ -130,12 +134,17 @@ void fragment() {
 	vec3 settled = texture(field, uv).rgb;
 	bool snow = settled.b < 0.5;
 	bool kept = from.x >= 0.0 && from.y >= 0.0 && from.x <= 1.0 && from.y <= 1.0;
-	float compression = texture(restore, uv).r;
-	float displaced = 0.0;
+	vec4 restored = texture(restore, uv);
+	float compression = max(restored.r, 0.0);
+	float displaced = max(restored.g, 0.0);
+	float disturbance = 0.0;
+	float density = 0.0;
 	if (kept) {
-		vec2 previous_state = texture(previous, from).rg;
-		compression = previous_state.r;
-		displaced = previous_state.g;
+		vec4 previous_state = texture(previous, from);
+		compression = max(previous_state.r, 0.0);
+		displaced = max(previous_state.g, 0.0);
+		disturbance = clamp(previous_state.b, 0.0, 1.0);
+		density = clamp(previous_state.a, 0.0, 1.0);
 		// Compression walls steeper than the snow can hold shed into the pit.
 		if (snow && !held(uv, settled)) {
 			float here = compression;
@@ -167,34 +176,58 @@ void fragment() {
 				moved += k_edge * max(there - here - talus, 0.0);
 				moved -= k_edge * max(here - there - talus, 0.0);
 			}
-			compression = here + moved;
+			compression = max(here + moved, 0.0);
 		}
 	}
+
+	// Snowfall/refill removes visible deformation first. Broken crust and density
+	// recover more slowly so an old track does not instantly become virgin snow.
 	compression *= 1.0 - fill;
 	displaced *= 1.0 - fill;
+	disturbance *= 1.0 - fill * 0.72;
+	density *= 1.0 - fill * 0.42;
+
 	// Fallen clumps raise the floor in lumps, most near the wall they broke from.
 	if (collapse.w > 0.0) {
 		float r = distance(uv, collapse.xy) / max(collapse.z, 1e-6);
 		if (r < 1.0 && compression > 0.0) {
-			float lumps = lump_noise(uv * 1024.0 / 3.0);
-			compression *= 1.0 - collapse.w * (0.4 + 0.6 * lumps) * smoothstep(0.0, 1.0, r + 0.3);
+			float lumps = lump_noise(uv * size / 3.0);
+			float fall_share = collapse.w * (0.4 + 0.6 * lumps) * smoothstep(0.0, 1.0, r + 0.3);
+			compression *= 1.0 - fall_share;
+			disturbance = max(disturbance, fall_share * 0.85);
 		}
 	}
-	// Pushed powder now has its own positive state instead of negative compression.
+
+	// Pushed powder has its own positive state instead of negative compression.
 	if (snow) {
-		displaced += deposit(uv, deposit_l_a, deposit_l_b) + deposit(uv, deposit_r_a, deposit_r_b);
+		float deposited = deposit(uv, deposit_l_a, deposit_l_b) + deposit(uv, deposit_r_a, deposit_r_b);
+		displaced += deposited;
+		float heap_share = clamp(deposited / max(rim_max, 0.001), 0.0, 1.0);
+		disturbance = max(disturbance, heap_share * 0.42);
+		// Freshly pushed powder is loose even next to a dense print floor.
+		density = mix(density, min(density, 0.16), heap_share);
 	}
+
 	// B below 0.5 is softness (x0.49): wind crust holds a foot, powder lets it sink.
 	float give = settled.g * max_pack * clamp(settled.b / 0.49, 0.0, 1.0);
 	if (!snow) {
 		compression = 0.0;
 		displaced = 0.0;
+		disturbance = 0.0;
+		density = 0.0;
 	} else {
 		// Guaranteed discrete plant path. This does not depend on a rendered contact
 		// frame existing at the exact instant the animated boot touched down.
-		compression = max(compression, min(foot_stamp_depth(uv), give));
-		// Continuous body/item/sole capture. The contact camera is local, so its
-		// sub-texel taps are converted back into deformation-field UV distance.
+		float stamped = min(foot_stamp_depth(uv), give);
+		compression = max(compression, stamped);
+		float stamp_share = stamped / max(give, 0.001);
+		float crust_share = 1.0 - powder_at(settled.b);
+		float slab_hash = edge_hash(floor(uv * size / 3.0), 17.0);
+		float slab_break = mix(0.35, 1.0, smoothstep(0.2, 0.8, slab_hash));
+		disturbance = max(disturbance, stamp_share * mix(0.24, 1.0, crust_share) * slab_break);
+		density = max(density, stamp_share * mix(0.72, 0.96, crust_share));
+
+		// Continuous body/item contact remains for deep wade and irregular objects.
 		float contact_texel_m = contact_window_m / float(textureSize(contact_tex, 0).x);
 		vec2 half_texel = vec2(0.35 * contact_texel_m / field_window_m);
 		float live_pressed = 0.0;
@@ -206,9 +239,16 @@ void fragment() {
 				live_pressed += min(into, give);
 			}
 		}
-		compression = max(compression, live_pressed * 0.25);
+		float body_press = live_pressed * 0.25;
+		compression = max(compression, body_press);
+		float body_share = body_press / max(give, 0.001);
+		disturbance = max(disturbance, body_share * mix(0.18, 0.72, crust_share));
+		density = max(density, body_share * 0.82);
+
 		compression = clamp(compression, 0.0, give);
 		displaced = clamp(displaced, 0.0, min(rim_max, settled.g + 0.05));
+		disturbance = clamp(disturbance, 0.0, 1.0);
+		density = clamp(density, 0.0, 1.0);
 	}
-	COLOR = vec4(compression, displaced, 0.0, 1.0);
+	COLOR = vec4(compression, displaced, disturbance, density);
 }

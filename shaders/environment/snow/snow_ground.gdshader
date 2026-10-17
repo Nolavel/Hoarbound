@@ -9,7 +9,7 @@ render_mode cull_back, depth_draw_opaque;
 
 // R: snow top (world y), G: settled depth, B: 1 where cut away, A: city wind factor.
 uniform sampler2D field : filter_linear, repeat_disable;
-// R: compression below settled top. G: displaced snow piled above it.
+// R compression, G displaced mass, B broken crust/disturbance, A compacted density.
 uniform sampler2D packed_field : filter_linear, repeat_disable;
 uniform sampler2D settled_normal_field : filter_linear, repeat_disable;
 uniform bool use_settled_normal_field = false;
@@ -41,6 +41,8 @@ uniform float jag_powder_m = 0.01;
 varying vec3 v_world;
 varying float v_packed;
 varying float v_displaced;
+varying float v_disturbance;
+varying float v_density;
 varying float v_rim;
 varying float v_cut;
 varying float v_edge;
@@ -81,8 +83,8 @@ float far_grid_top(vec4 far) {
 	return far.r + snow_settled_depth * mix(far.g, far.b, snow_storm_share);
 }
 
-vec2 deformation_at(vec2 uv) {
-	return texture(packed_field, uv).rg;
+vec4 deformation_at(vec2 uv) {
+	return texture(packed_field, uv);
 }
 
 float packed_at(vec2 uv) {
@@ -90,7 +92,7 @@ float packed_at(vec2 uv) {
 }
 
 float deformation_load_at(vec2 uv) {
-	vec2 state = deformation_at(uv);
+	vec4 state = deformation_at(uv);
 	return state.r - state.g;
 }
 
@@ -183,16 +185,30 @@ void vertex() {
 	vec2 uv = (world.xz - origin) / window_m;
 	vec4 f = texture(field, uv);
 	v_crust = f.b < 0.5 ? 1.0 - smoothstep(0.45, 0.95, f.b / 0.49) : 0.0;
-	v_jag = edge_jag(world.xz, v_crust);
+
+	// Read disturbance before jittering the lookup. Broken crust owns the jagged
+	// silhouette; undisturbed powder stays close to the boot shape.
+	vec4 seed_state = deformation_at(uv);
+	v_disturbance = clamp(seed_state.b, 0.0, 1.0);
+	v_density = clamp(seed_state.a, 0.0, 1.0);
+	float broken_edge = clamp(max(v_crust * 0.7, v_disturbance), 0.0, 1.0);
+	v_jag = edge_jag(world.xz, broken_edge);
 	uv += v_jag;
-	vec2 deformation = deformation_at(uv);
+	vec4 deformation = deformation_at(uv);
 	v_packed = max(deformation.r, 0.0);
 	v_displaced = max(deformation.g, 0.0);
-	// Compacted floors keep small grain-height variation without becoming negative.
-	v_packed = max(v_packed + (snow_noise(world.xz * 9.0) - 0.5) * 0.02 * smoothstep(0.02, 0.06, v_packed), 0.0);
-	// Loose heaps stay irregular without running through the compression smoother.
-	v_displaced *= 0.72 + snow_noise(world.xz * 16.0) * 0.56;
-	v_rim = rim_at(uv, world.xz, v_packed, v_crust);
+	v_disturbance = max(v_disturbance, clamp(deformation.b, 0.0, 1.0));
+	v_density = max(v_density, clamp(deformation.a, 0.0, 1.0));
+
+	// Dense print floors should read flat and load-bearing. Only loose/young floors
+	// retain centimetre grain-height wobble.
+	float floor_grain = (snow_noise(world.xz * 9.0) - 0.5) * 0.02;
+	floor_grain *= smoothstep(0.02, 0.06, v_packed) * (1.0 - v_density * 0.92);
+	v_packed = max(v_packed + floor_grain, 0.0);
+	// Loose heaps keep chunk-scale irregularity without entering the compression smoother.
+	float heap_chunk = 0.66 + snow_noise(floor(world.xz * 13.0) / 13.0 * 17.0) * 0.68;
+	v_displaced *= mix(0.82 + snow_noise(world.xz * 16.0) * 0.36, heap_chunk, v_disturbance * 0.65);
+	v_rim = rim_at(uv, world.xz, v_packed, clamp(max(v_crust, v_disturbance * 0.85), 0.0, 1.0));
 	v_cut = f.b;
 	float ground = f.r - f.g;
 	float shore = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, ground);
@@ -261,11 +277,13 @@ void fragment() {
 	// Near kerbs and walls the real mesh edge still matters.
 	vec3 geo = normalize(cross(dFdy(v_world), dFdx(v_world)));
 	vec3 n = normalize(mix(smooth_n, geo, smoothstep(0.6, 1.2, ground_slope)) + vec3(slope.x, 0.0, slope.y) * 0.6);
-	// Crust breaks along cracks that run out from a print's lip into the slab.
+	// B is the persistent broken-crust signal. It can retain fracture structure even
+	// after the lip itself has partly collapsed, instead of regenerating cracks from blur.
 	float lip = smoothstep(0.003, 0.02, rim_height) + wall * 0.5 * (1.0 - smoothstep(0.02, 0.06, packed_height));
+	float fracture = clamp(max(v_disturbance, lip * v_crust), 0.0, 1.0);
 	float crack = 0.0;
-	if (lip > 0.0 && v_crust > 0.0) {
-		crack = (1.0 - smoothstep(0.015, 0.05, crack_distance(v_world.xz * 14.0))) * clamp(lip, 0.0, 1.0) * v_crust;
+	if (fracture > 0.02) {
+		crack = (1.0 - smoothstep(0.015, 0.05, crack_distance(v_world.xz * 14.0))) * fracture;
 		if (crack > 0.0) {
 			n = normalize(n + vec3(snow_noise(v_world.xz * 40.0) - 0.5, 0.0, snow_noise(v_world.xz * 40.0 + 7.0) - 0.5) * crack * 0.6);
 		}
@@ -289,7 +307,7 @@ void fragment() {
 	float surface_roughness = mix(0.85, 0.6, packed);
 	ROUGHNESS = mix(surface_roughness, 0.92, heap);
 	// Freshly broken grains at a print's edge sparkle more than the settled top.
-	float glint = step(mix(0.996, 0.985, wall), snow_hash(floor(v_world.xz * 140.0))) * v_edge;
+	float glint = step(mix(0.996, 0.985, max(wall, fracture)), snow_hash(floor(v_world.xz * 140.0))) * v_edge;
 	EMISSION = vec3(glint * 0.25 * (1.0 - packed * (1.0 - wall)));
 }
 
