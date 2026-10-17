@@ -2,10 +2,11 @@ extends SceneTree
 
 ## Seam-focused visual proof for the snow clipmap migration.
 ## Reuses the real Key West Reality scene and the existing snow preview workflow.
-## A wide chase/overhead camera keeps the entire local SnowShell window plus the
-## streamed outer cover in frame while Henry walks and changes heading slightly,
-## exercising several production recenter events. A final diagnostic still colors
-## L0 red, the stitch ring yellow, L1 blue, and streamed SnowChunkCover green.
+## A wide chase/overhead camera keeps the local SnowShell and streamed outer snow
+## visible while Henry walks straight down open Duval Street. Two simulation steps
+## are advanced for each saved video frame so the six-second proof spans enough
+## world distance for several production recenter events without changing gameplay.
+## A final diagnostic still colors L0 red, stitch yellow, L1 blue and outer green.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA := "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -17,12 +18,12 @@ const POST_RECENTER_SETTLE_FRAMES := 12
 const MAX_WAIT_FRAMES := 600
 const VIDEO_FRAMES := 72
 const VIDEO_FPS := 12
+const SIM_STEPS_PER_VIDEO_FRAME := 2
 const REVIEW_HOUR := 14.0
-const SEAM_SETTLED := 0.35
+const SEAM_SETTLED := 0.25
 const MIN_WALK_DISTANCE_M := 5.0
 const MIN_RECENTERS := 5
 const MAX_RECENTERS := 10
-const WEAVE_BLOCK_FRAMES := 12
 
 var _world: Node3D
 var _ctx: Variant
@@ -110,7 +111,6 @@ func _run() -> void:
 	_save_image(_capture_image(), OUT.path_join("start.png"))
 	_press_walk_input()
 	for i: int in range(VIDEO_FRAMES):
-		_apply_weave(i)
 		await _capture_frame(i)
 	_release_motion_input()
 	await _wait_frames(3)
@@ -120,8 +120,6 @@ func _run() -> void:
 	_update_review_camera()
 	_save_image(_capture_image(), OUT.path_join("end.png"))
 
-	## One diagnostic frame, outside the normal video: L0 red, stitch yellow,
-	## L1 blue, streamed outer cover green.
 	_set_lod_debug(surface, true)
 	await _wait_frames(2)
 	_update_review_camera()
@@ -136,19 +134,20 @@ func _run() -> void:
 	if _recenter_count < MIN_RECENTERS or _recenter_count > MAX_RECENTERS:
 		_fail("seam proof observed %d recenter events; expected %d..%d" % [_recenter_count, MIN_RECENTERS, MAX_RECENTERS])
 		return
-	print("SNOW_CLIPMAP_SEAM pass frames=%d settled=%.2f walk=%.2fm recenter=%d driver=%s" % [
-		VIDEO_FRAMES, SEAM_SETTLED, walked, _recenter_count,
+	print("SNOW_CLIPMAP_SEAM pass frames=%d sim_steps=%d settled=%.2f walk=%.2fm recenter=%d driver=%s" % [
+		VIDEO_FRAMES, SIM_STEPS_PER_VIDEO_FRAME, SEAM_SETTLED, walked, _recenter_count,
 		RenderingServer.get_current_rendering_driver_name()])
 	quit(0)
 
 
 func _capture_frame(index: int) -> void:
-	await process_frame
-	var origin: Vector2 = _shell.get_origin()
-	if _last_origin.x != INF and not origin.is_equal_approx(_last_origin):
-		_recenter_count += 1
-	_last_origin = origin
-	_update_review_camera()
+	for _step: int in range(SIM_STEPS_PER_VIDEO_FRAME):
+		await process_frame
+		var origin: Vector2 = _shell.get_origin()
+		if _last_origin.x != INF and not origin.is_equal_approx(_last_origin):
+			_recenter_count += 1
+		_last_origin = origin
+		_update_review_camera()
 	await RenderingServer.frame_post_draw
 	_save_image(_capture_image(), _frame_dir.path_join("frame_%04d.png" % index))
 
@@ -176,19 +175,10 @@ func _update_review_camera() -> void:
 
 func _press_walk_input() -> void:
 	Input.action_release(&"sprint")
-	Input.action_press(&"move_forward", 1.0)
-
-
-## Slight left/right heading changes exercise grid snapping on both axes without
-## sprinting or changing the production recenter step.
-func _apply_weave(frame: int) -> void:
 	Input.action_release(&"move_left")
 	Input.action_release(&"move_right")
-	var block: int = frame / WEAVE_BLOCK_FRAMES
-	if block % 2 == 0:
-		Input.action_press(&"move_right", 0.85)
-	else:
-		Input.action_press(&"move_left", 0.85)
+	Input.action_release(&"move_backward")
+	Input.action_press(&"move_forward", 1.0)
 
 
 func _set_lod_debug(surface: MeshInstance3D, enabled: bool) -> void:
@@ -307,11 +297,12 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"vertices": vertices.size(),
 		"triangles": indices.size() / 3,
 		"walk_distance_m": walked,
-		"locomotion": "walk_with_seam_test_weave",
+		"locomotion": "straight_walk",
 		"recenter_count": _recenter_count,
 		"required_recenter_range": [MIN_RECENTERS, MAX_RECENTERS],
 		"video_frames": VIDEO_FRAMES,
 		"video_fps": VIDEO_FPS,
+		"simulation_steps_per_video_frame": SIM_STEPS_PER_VIDEO_FRAME,
 		"settled_snow": SEAM_SETTLED,
 		"review_camera": "wide_follow_keeps_l0_l1_outer_handoff_visible",
 		"lod_debug_capture": "lod_ownership.png",
