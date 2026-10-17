@@ -1,9 +1,9 @@
 extends SceneTree
 
 ## Phase 3.1 proof for the production snow clipmap.
-## The video uses the real third-person camera. Two fixed-camera stills observe the
-## same untouched world patch before/after several recenter events, and two low-Y
-## close-ups show a planted boot settling into the deformed surface.
+## Video: real third-person camera at production walk speed.
+## Fixed pair: the exact same untouched patch before/after 5-10 recenter events.
+## Foot pair: low-Y side view of one real planted boot at early and deep sink.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA := "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -21,6 +21,8 @@ const MIN_WALK_DISTANCE_M := 8.0
 const MIN_RECENTERS := 5
 const MAX_RECENTERS := 10
 const TPS_PITCH_DEG := -12.0
+const FOOT_CONTACT_SINK_M := 0.035
+const FOOT_PRESSED_SINK_M := 0.12
 
 var _world: Node3D
 var _ctx: Variant
@@ -41,6 +43,9 @@ var _frame_dir := ""
 var _start := Vector3.ZERO
 var _last_origin := Vector2(INF, INF)
 var _recenter_count := 0
+var _foot_side := -1
+var _foot_contact_saved := false
+var _foot_pressed_saved := false
 var _foot_sink_samples: Array[float] = []
 
 
@@ -105,7 +110,6 @@ func _run() -> void:
 	_shell.recentre_to(Vector2(_player.global_position.x, _player.global_position.z))
 	await _wait_frames(POST_RECENTER_SETTLE_FRAMES)
 
-	## Production TPS is the primary acceptance view, not the old overhead seam camera.
 	if _camera.has_method(&"set_look"):
 		_camera.call(&"set_look", _street_yaw, TPS_PITCH_DEG)
 	_camera.make_current()
@@ -114,6 +118,7 @@ func _run() -> void:
 	_start = _player.global_position
 	_last_origin = _shell.get_origin()
 	_build_fixed_camera(_start)
+	_build_foot_camera()
 	await _capture_with_camera(_fixed_camera, OUT.path_join("handoff_fixed_before.png"))
 	_camera.make_current()
 	await RenderingServer.frame_post_draw
@@ -122,6 +127,7 @@ func _run() -> void:
 	_press_walk_input()
 	for i: int in range(VIDEO_FRAMES):
 		await _capture_tps_frame(i)
+		await _maybe_capture_foot_y()
 	_release_motion_input()
 	_player.velocity = Vector3.ZERO
 	await _wait_frames(1)
@@ -131,16 +137,7 @@ func _run() -> void:
 	_camera.make_current()
 	await RenderingServer.frame_post_draw
 	_save_image(_capture_image(), OUT.path_join("end.png"))
-
-	## Same world-space patch, same camera and frozen lighting. It begins inside the
-	## local window and ends behind it, so any ownership-induced visual rewrite is obvious.
 	await _capture_with_camera(_fixed_camera, OUT.path_join("handoff_fixed_after.png"))
-
-	## Low-Y side view: two real rendered moments while the stopped stance settles.
-	_build_foot_camera()
-	await _capture_foot_y(OUT.path_join("foot_y_contact.png"))
-	await _wait_frames(2)
-	await _capture_foot_y(OUT.path_join("foot_y_pressed.png"))
 	_camera.make_current()
 
 	_write_report(surface, walked)
@@ -150,9 +147,12 @@ func _run() -> void:
 	if _recenter_count < MIN_RECENTERS or _recenter_count > MAX_RECENTERS:
 		_fail("TPS proof observed %d recenter events; expected %d..%d" % [_recenter_count, MIN_RECENTERS, MAX_RECENTERS])
 		return
-	print("SNOW_CLIPMAP_PHASE31 pass frames=%d settled=%.2f traverse=%.2fm recenter=%d step=%.2fm walk=%.2f driver=%s" % [
+	if not _foot_contact_saved or not _foot_pressed_saved:
+		_fail("foot-Y proof did not capture both sink stages")
+		return
+	print("SNOW_CLIPMAP_PHASE31 pass frames=%d settled=%.2f traverse=%.2fm recenter=%d step=%.2fm walk=%.2f foot=%s driver=%s" % [
 		VIDEO_FRAMES, SEAM_SETTLED, walked, _recenter_count, _shell.recentre_step_m,
-		_mover.walk_speed, RenderingServer.get_current_rendering_driver_name()])
+		_mover.walk_speed, str(_foot_sink_samples), RenderingServer.get_current_rendering_driver_name()])
 	quit(0)
 
 
@@ -167,6 +167,40 @@ func _capture_tps_frame(index: int) -> void:
 	_save_image(_capture_image(), _frame_dir.path_join("frame_%04d.png" % index))
 
 
+func _maybe_capture_foot_y() -> void:
+	if _foot_contact_saved and _foot_pressed_saved:
+		return
+	var left: float = _shell.get_foot_sink(0)
+	var right: float = _shell.get_foot_sink(1)
+	if _foot_side < 0:
+		var side: int = 0 if left >= right else 1
+		var sink: float = maxf(left, right)
+		if sink >= FOOT_CONTACT_SINK_M:
+			_foot_side = side
+			await _capture_foot_stage(OUT.path_join("foot_y_contact.png"), sink)
+			_foot_contact_saved = true
+		return
+	var same_sink: float = _shell.get_foot_sink(_foot_side)
+	if not _foot_pressed_saved and same_sink >= FOOT_PRESSED_SINK_M:
+		await _capture_foot_stage(OUT.path_join("foot_y_pressed.png"), same_sink)
+		_foot_pressed_saved = true
+
+
+## Freeze simulation for the extra render frame so the two stills really correspond
+## to the measured sink stage instead of sinking further while the camera switches.
+func _capture_foot_stage(path: String, sink_m: float) -> void:
+	_update_foot_camera(_foot_side)
+	var previous_scale: float = Engine.time_scale
+	Engine.time_scale = 0.0
+	_foot_camera.make_current()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	_save_image(_capture_image(), path)
+	Engine.time_scale = previous_scale
+	_camera.make_current()
+	_foot_sink_samples.append(sink_m)
+
+
 func _build_fixed_camera(start: Vector3) -> void:
 	_fixed_camera = Camera3D.new()
 	_fixed_camera.name = "SnowHandoffFixedCamera"
@@ -176,7 +210,8 @@ func _build_fixed_camera(start: Vector3) -> void:
 	_world.add_child(_fixed_camera)
 	var forward: Vector3 = Basis(Vector3.UP, _street_yaw) * Vector3.FORWARD
 	var right: Vector3 = forward.cross(Vector3.UP).normalized()
-	## Untouched patch: local at the start, outer cover after the traversal.
+	## This patch starts behind Henry, exactly where the old capture visibly rewrote
+	## from local snow to coarse chunk cover during the traversal.
 	var patch := start - forward * 5.0 + right * 4.0
 	var ground_y := _ground_height(patch.x, patch.z)
 	var target := Vector3(patch.x, ground_y + 0.08, patch.z)
@@ -187,32 +222,21 @@ func _build_fixed_camera(start: Vector3) -> void:
 func _build_foot_camera() -> void:
 	_foot_camera = Camera3D.new()
 	_foot_camera.name = "SnowFootYCamera"
-	_foot_camera.fov = 34.0
-	_foot_camera.near = 0.03
-	_foot_camera.far = 20.0
+	_foot_camera.fov = 27.0
+	_foot_camera.near = 0.025
+	_foot_camera.far = 12.0
 	_world.add_child(_foot_camera)
-	_update_foot_camera()
 
 
-func _update_foot_camera() -> void:
-	if _foot_camera == null or _player == null:
-		return
+func _update_foot_camera(side: int) -> void:
 	var forward: Vector3 = Basis(Vector3.UP, _street_yaw) * Vector3.FORWARD
 	var right: Vector3 = forward.cross(Vector3.UP).normalized()
-	var p := _player.global_position
+	var p: Vector3 = _player.global_position
 	var ground_y := _ground_height(p.x, p.z)
-	var target := Vector3(p.x, ground_y + 0.16, p.z)
-	_foot_camera.global_position = target + right * 1.15 - forward * 0.18 + Vector3.UP * 0.08
+	var lateral: float = -0.14 if side == 0 else 0.14
+	var target := Vector3(p.x, ground_y + 0.17, p.z) + right * lateral + forward * 0.04
+	_foot_camera.global_position = target + right * (0.72 if side == 0 else -0.72) - forward * 0.08 + Vector3.UP * 0.03
 	_foot_camera.look_at(target, Vector3.UP)
-
-
-func _capture_foot_y(path: String) -> void:
-	_update_foot_camera()
-	_foot_camera.make_current()
-	await process_frame
-	await RenderingServer.frame_post_draw
-	_save_image(_capture_image(), path)
-	_foot_sink_samples.append(maxf(_shell.get_foot_sink(0), _shell.get_foot_sink(1)))
 
 
 func _capture_with_camera(camera: Camera3D, path: String) -> void:
@@ -314,7 +338,7 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var report := {
-		"diagnostic": "snow Phase 3.1 TPS recenter and Y-foot proof",
+		"diagnostic": "snow Phase 3.1 TPS recenter, retained trail and Y-foot proof",
 		"scene": SCENE,
 		"street": STREET_NAME,
 		"renderer": RenderingServer.get_current_rendering_driver_name(),
@@ -338,6 +362,7 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"fixed_handoff_pair": ["handoff_fixed_before.png", "handoff_fixed_after.png"],
 		"foot_y_captures": ["foot_y_contact.png", "foot_y_pressed.png"],
 		"foot_sink_samples_m": _foot_sink_samples,
+		"trail_shell": "retained_previous_window",
 	}
 	var file := FileAccess.open(OUT.path_join("report.json"), FileAccess.WRITE)
 	file.store_string(JSON.stringify(report, "\t"))
