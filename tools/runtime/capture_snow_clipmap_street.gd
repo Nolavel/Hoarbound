@@ -1,9 +1,12 @@
 extends SceneTree
 
-## Six-second visual proof for the first L0/L1 snow-surface migration step.
-## Runs in the real Key West Reality world on open Duval Street, forces a full
-## settled snowpack but calm air, and makes Henry sprint across multiple snapped
-## snow-window positions so LOD stitching and recenter popping are visible.
+## Six-second visual proof for the current snow migration slice.
+## Runs in the real Key West Reality world on open Duval Street. The first three
+## seconds use shallow settled snow and must stay below the wade threshold, so
+## only deterministic heel/forefoot prints are allowed. Capture pauses off-camera,
+## deepens the snow, verifies the threshold is crossed, then records three seconds
+## of the continuous deep-wade/body-plough path. Both phases keep the same camera,
+## renderer and street so the visual distinction is reviewable in one video.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA := "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -11,9 +14,13 @@ const STREET_NAME := "Duval Street"
 const OUT := "res://docs/runtime_previews/key_west/snow_clipmap"
 const CHUNK_M := 512.0
 const SETTLE_FRAMES := 60
+const PHASE_SETTLE_FRAMES := 45
 const MAX_WAIT_FRAMES := 600
 const VIDEO_FRAMES := 72
+const PHASE_FRAMES := VIDEO_FRAMES / 2
 const VIDEO_FPS := 12
+const SHALLOW_SETTLED := 0.45
+const DEEP_SETTLED := 1.0
 const REVIEW_PITCH_DEG := -13.0
 const REVIEW_HOUR := 14.0
 const MIN_WALK_DISTANCE_M := 3.2
@@ -34,6 +41,8 @@ var _frame_dir := ""
 var _start := Vector3.ZERO
 var _last_origin := Vector2(INF, INF)
 var _recenter_count := 0
+var _shallow_depth_m := 0.0
+var _deep_depth_m := 0.0
 
 
 func _initialize() -> void:
@@ -87,7 +96,7 @@ func _run() -> void:
 
 	_hide_hud()
 	_weather.set_weather(&"calm", true)
-	_presentation.load_save_data({"settled": 1.0, "frost": 0.35, "storm": 0.4})
+	_presentation.load_save_data({"settled": SHALLOW_SETTLED, "frost": 0.35, "storm": 0.4})
 	_day_night.total_game_time_hours = floorf(_day_night.total_game_time_hours / 24.0) * 24.0 + REVIEW_HOUR
 	_day_night.force_update_lighting()
 	_day_night.set_process(false)
@@ -99,23 +108,35 @@ func _run() -> void:
 	_camera.make_current()
 	await _wait_frames(8)
 
+	_shallow_depth_m = _depth_here()
+	if _shallow_depth_m >= _shell.wade_depth_m:
+		_fail("shallow phase depth %.3f m reached wade threshold %.3f m" % [_shallow_depth_m, _shell.wade_depth_m])
+		return
+
 	_start = _player.global_position
 	_last_origin = _shell.get_origin()
 	_save_image(_capture_image(), OUT.path_join("start.png"))
-	Input.action_press(&"move_forward", 1.0)
-	Input.action_press(&"sprint", 1.0)
+	_press_motion_input()
+	for i: int in range(PHASE_FRAMES):
+		await _capture_frame(i)
+	_release_motion_input()
 
-	for i: int in range(VIDEO_FRAMES):
-		await process_frame
-		var origin: Vector2 = _shell.get_origin()
-		if _last_origin.x != INF and not origin.is_equal_approx(_last_origin):
-			_recenter_count += 1
-		_last_origin = origin
-		await RenderingServer.frame_post_draw
-		_save_image(_capture_image(), _frame_dir.path_join("frame_%04d.png" % i))
+	## Do not record the cover transition: the second half begins only after the
+	## live SnowField has rebuilt and Henry has entered the deep-wade state.
+	_presentation.load_save_data({"settled": DEEP_SETTLED, "frost": 0.35, "storm": 0.4})
+	await _wait_frames(PHASE_SETTLE_FRAMES)
+	_deep_depth_m = _depth_here()
+	if _deep_depth_m <= _shell.wade_depth_m:
+		_fail("deep phase depth %.3f m did not cross wade threshold %.3f m" % [_deep_depth_m, _shell.wade_depth_m])
+		return
+	await _wait_frames(4)
 
+	_press_motion_input()
+	for i: int in range(PHASE_FRAMES, VIDEO_FRAMES):
+		await _capture_frame(i)
 	_release_motion_input()
 	await _wait_frames(3)
+
 	var finish := _player.global_position
 	var walked := Vector2(_start.x, _start.z).distance_to(Vector2(finish.x, finish.z))
 	_save_image(_capture_image(), OUT.path_join("end.png"))
@@ -126,9 +147,29 @@ func _run() -> void:
 	if _recenter_count < 1:
 		_fail("snow window never recentered during the visual proof")
 		return
-	print("SNOW_CLIPMAP_PREVIEW pass frames=%d walk=%.2fm recenter=%d driver=%s" % [
-		VIDEO_FRAMES, walked, _recenter_count, RenderingServer.get_current_rendering_driver_name()])
+	print("SNOW_CLIPMAP_PREVIEW pass frames=%d shallow=%.3fm deep=%.3fm threshold=%.3fm walk=%.2fm recenter=%d driver=%s" % [
+		VIDEO_FRAMES, _shallow_depth_m, _deep_depth_m, _shell.wade_depth_m, walked,
+		_recenter_count, RenderingServer.get_current_rendering_driver_name()])
 	quit(0)
+
+
+func _capture_frame(index: int) -> void:
+	await process_frame
+	var origin: Vector2 = _shell.get_origin()
+	if _last_origin.x != INF and not origin.is_equal_approx(_last_origin):
+		_recenter_count += 1
+	_last_origin = origin
+	await RenderingServer.frame_post_draw
+	_save_image(_capture_image(), _frame_dir.path_join("frame_%04d.png" % index))
+
+
+func _press_motion_input() -> void:
+	Input.action_press(&"move_forward", 1.0)
+	Input.action_press(&"sprint", 1.0)
+
+
+func _depth_here() -> float:
+	return _shell.field.get_depth(_player.global_position.x, _player.global_position.z)
 
 
 func _load_street() -> bool:
@@ -230,6 +271,12 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"recenter_count": _recenter_count,
 		"video_frames": VIDEO_FRAMES,
 		"video_fps": VIDEO_FPS,
+		"phase_frames": PHASE_FRAMES,
+		"shallow_settled_snow": SHALLOW_SETTLED,
+		"deep_settled_snow": DEEP_SETTLED,
+		"shallow_depth_m": _shallow_depth_m,
+		"deep_depth_m": _deep_depth_m,
+		"wade_depth_m": _shell.wade_depth_m,
 		"settled_snow": _presentation.get_settled_snow(),
 	}
 	var file := FileAccess.open(OUT.path_join("report.json"), FileAccess.WRITE)
