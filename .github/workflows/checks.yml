@@ -251,6 +251,28 @@ jobs:
             -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
             "$OUT/snow_clipmap_duval_6s.mp4" >/dev/null 2>&1
           test -s "$OUT/snow_clipmap_duval_6s.mp4"
+          # Stationary camera: observe the *same* ground patch while clipmap ownership recedes.
+          # One fixed shot for every three TPS frames (24 @ 4fps = six seconds).
+          fixed_count=$(find "$OUT/fixed_frames" -maxdepth 1 -type f -name 'frame_*.png' | wc -l)
+          test "$fixed_count" -eq 24
+          ffmpeg -y -framerate 4 -i "$OUT/fixed_frames/frame_%04d.png" \
+            -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -movflags +faststart \
+            "$OUT/snow_fixed_handoff_6s.mp4" >/dev/null 2>&1
+          test -s "$OUT/snow_fixed_handoff_6s.mp4"
+          # Pixel difference is observational, not a geometry proof:
+          # moving Henry, shadows and volumetrics also register.
+          ffmpeg -y -framerate 4 -i "$OUT/fixed_frames/frame_%04d.png" \
+            -loop 1 -framerate 4 -i "$OUT/handoff_fixed_before.png" \
+            -filter_complex "[0:v][1:v]blend=all_mode=difference,eq=contrast=2.6:brightness=0.02,format=yuv420p[diff]" \
+            -map "[diff]" -frames:v 24 -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p \
+            -movflags +faststart "$OUT/snow_fixed_difference_6s.mp4" >/dev/null 2>&1
+          test -s "$OUT/snow_fixed_difference_6s.mp4"
+          ffmpeg -y -i "$OUT/snow_fixed_handoff_6s.mp4" -i "$OUT/snow_fixed_difference_6s.mp4" \
+            -filter_complex "[0:v][1:v]hstack=inputs=2[v]" -map "[v]" -an \
+            -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -movflags +faststart \
+            "$OUT/snow_fixed_vs_difference_6s.mp4" >/dev/null 2>&1
+          test -s "$OUT/snow_fixed_vs_difference_6s.mp4"
+          ffmpeg -y -i "$OUT/snow_fixed_difference_6s.mp4" -frames:v 1 "$OUT/snow_first_difference.png" >/dev/null 2>&1
           cat "$OUT/report.json"
 
       - name: Capture Key West sky/weather

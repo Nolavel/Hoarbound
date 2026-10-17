@@ -2,8 +2,9 @@ extends SceneTree
 
 ## Phase 3.1 proof for the production snow clipmap.
 ## Video: real third-person camera at production walk speed.
-## Fixed pair: the exact same untouched patch before/after 5-10 recenter events.
-## Foot pair: low-Y side view of one real planted boot at early and deep sink.
+## Fixed-video: the same world-space patch throughout 5-10 recenter events.
+## Numerical witness: stable world-space heightfield samples across live/retained ownership.
+## Foot pair: side view of a REAL boot joint at early and deep sink; no debug-sole rendering.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA := "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -15,6 +16,9 @@ const POST_RECENTER_SETTLE_FRAMES := 6
 const MAX_WAIT_FRAMES := 600
 const VIDEO_FRAMES := 72
 const VIDEO_FPS := 12
+const FIXED_EVERY_N_FRAMES := 3 # 24 fixed-camera frames / 6 seconds = 4 FPS
+const HEIGHT_WITNESS_SPACING_M := 0.5
+const HEIGHT_WITNESS_RADIUS := 3
 const REVIEW_HOUR := 14.0
 const SEAM_SETTLED := 0.25
 const MIN_WALK_DISTANCE_M := 8.0
@@ -40,6 +44,15 @@ var _mover: MovementController
 var _street_at := Vector2.ZERO
 var _street_yaw := 0.0
 var _frame_dir := ""
+var _fixed_frame_dir := ""
+var _fixed_patch := Vector2.ZERO
+var _fixed_frames_written := 0
+var _height_witnesses: Array[Dictionary] = []
+var _baseline_heights: Array[float] = []
+var _height_delta_max_m := 0.0
+var _height_samples_compared := 0
+var _retained_points_after := 0
+var _live_points_before := 0
 var _start := Vector3.ZERO
 var _last_origin := Vector2(INF, INF)
 var _recenter_count := 0
@@ -57,7 +70,9 @@ func _initialize() -> void:
 		return
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	_frame_dir = OUT.path_join("frames")
+	_fixed_frame_dir = OUT.path_join("fixed_frames")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_frame_dir))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_fixed_frame_dir))
 	_run()
 
 
@@ -119,6 +134,7 @@ func _run() -> void:
 	_last_origin = _shell.get_origin()
 	_build_fixed_camera(_start)
 	_build_foot_camera()
+	_record_height_witness("before")
 	await _capture_with_camera(_fixed_camera, OUT.path_join("handoff_fixed_before.png"))
 	_camera.make_current()
 	await RenderingServer.frame_post_draw
@@ -128,6 +144,8 @@ func _run() -> void:
 	for i: int in range(VIDEO_FRAMES):
 		await _capture_tps_frame(i)
 		await _maybe_capture_foot_y()
+		if i % FIXED_EVERY_N_FRAMES == 0:
+			await _capture_fixed_frame()
 	_release_motion_input()
 	_player.velocity = Vector3.ZERO
 	await _wait_frames(1)
@@ -138,6 +156,7 @@ func _run() -> void:
 	await RenderingServer.frame_post_draw
 	_save_image(_capture_image(), OUT.path_join("end.png"))
 	await _capture_with_camera(_fixed_camera, OUT.path_join("handoff_fixed_after.png"))
+	_record_height_witness("after")
 	_camera.make_current()
 
 	_write_report(surface, walked)
@@ -150,6 +169,12 @@ func _run() -> void:
 	if not _foot_contact_saved or not _foot_pressed_saved:
 		_fail("foot-Y proof did not capture both sink stages")
 		return
+	if _fixed_frames_written != VIDEO_FRAMES / FIXED_EVERY_N_FRAMES:
+		_fail("stationary camera: expected 24 frames, got %d" % _fixed_frames_written)
+		return
+	if _live_points_before <= 0 or _retained_points_after <= 0 or _height_samples_compared <= 0:
+		_fail("heightfield witness did not cross live -> retained ownership")
+		return
 	print("SNOW_CLIPMAP_PHASE31 pass frames=%d settled=%.2f traverse=%.2fm recenter=%d step=%.2fm walk=%.2f foot=%s driver=%s" % [
 		VIDEO_FRAMES, SEAM_SETTLED, walked, _recenter_count, _shell.recentre_step_m,
 		_mover.walk_speed, str(_foot_sink_samples), RenderingServer.get_current_rendering_driver_name()])
@@ -161,10 +186,100 @@ func _capture_tps_frame(index: int) -> void:
 	var origin: Vector2 = _shell.get_origin()
 	if _last_origin.x != INF and not origin.is_equal_approx(_last_origin):
 		_recenter_count += 1
+		_record_height_witness("recenter_%d" % _recenter_count)
 	_last_origin = origin
 	_camera.make_current()
 	await RenderingServer.frame_post_draw
 	_save_image(_capture_image(), _frame_dir.path_join("frame_%04d.png" % index))
+
+
+
+## Keep the same real-time traversal, but freeze exactly one render frame for
+## each side-camera shot. Recording 24 frames rather than 72 stays inside the
+## existing 420-second Lavapipe budget and avoids a second workflow.
+func _capture_fixed_frame() -> void:
+	var previous_scale: float = Engine.time_scale
+	Engine.time_scale = 0.0
+	_fixed_camera.make_current()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	_save_image(_capture_image(), _fixed_frame_dir.path_join("frame_%04d.png" % _fixed_frames_written))
+	_fixed_frames_written += 1
+	_camera.make_current()
+	Engine.time_scale = previous_scale
+
+
+## This is a HEIGHTFIELD witness, not a claim to sample the final tessellated
+## GPU vertex. The numeric base height must not suddenly jump when the owner
+## changes from live SnowField to the retained frozen field image.
+func _record_height_witness(stage: String) -> void:
+	var live_origin: Vector2 = _shell.get_origin()
+	var trail_origin: Vector2 = _shell.get("_trail_origin")
+	var trail_material := _shell.get("_trail_material") as ShaderMaterial
+	var trail_image: Image
+	if trail_material != null:
+		var tex := trail_material.get_shader_parameter("field") as Texture2D
+		if tex != null:
+			trail_image = tex.get_image()
+	var samples: Array[Dictionary] = []
+	var max_error: float = 0.0
+	var matched := 0
+	var owners := {"live": 0, "retained": 0, "outer": 0}
+	for z: int in range(-HEIGHT_WITNESS_RADIUS, HEIGHT_WITNESS_RADIUS + 1):
+		for x: int in range(-HEIGHT_WITNESS_RADIUS, HEIGHT_WITNESS_RADIUS + 1):
+			var at := _fixed_patch + Vector2(x, z) * HEIGHT_WITNESS_SPACING_M
+			var owner := "outer"
+			var height: float = -INF
+			if _in_window(at, live_origin):
+				height = _shell.field.get_snow_top(at.x, at.y)
+				owner = "live"
+			elif trail_image != null and _in_window(at, trail_origin):
+				owner = "retained"
+				height = _bilinear_red(trail_image, (at - trail_origin) / _shell.window_m)
+			owners[owner] = int(owners[owner]) + 1
+			var entry := {"xz": [at.x, at.y], "owner": owner, "heightfield_top_m": height if is_finite(height) else null}
+			if stage == "before":
+				_baseline_heights.append(height)
+			else:
+				var original: float = _baseline_heights[samples.size()]
+				if is_finite(height) and is_finite(original):
+					var delta: float = absf(height - original)
+					entry["baseline_delta_m"] = delta
+					max_error = maxf(max_error, delta)
+					matched += 1
+				samples.append(entry)
+	_height_delta_max_m = maxf(_height_delta_max_m, max_error)
+	_height_samples_compared += matched
+	if stage == "before":
+		_live_points_before = int(owners["live"])
+	if stage == "after":
+		_retained_points_after = int(owners["retained"])
+	_height_witnesses.append({
+		"stage": stage, "recenter_count": _recenter_count,
+		"origin": [live_origin.x, live_origin.y],
+		"owners": owners, "compared": matched,
+		"max_heightfield_delta_m": max_error, "samples": samples,
+	})
+
+
+func _in_window(at: Vector2, origin: Vector2) -> bool:
+	if not is_finite(origin.x):
+		return false
+	var margin := 0.25
+	return at.x >= origin.x + margin and at.y >= origin.y + margin \
+		and at.x < origin.x + _shell.window_m - margin \
+		and at.y < origin.y + _shell.window_m - margin
+
+
+func _bilinear_red(img: Image, uv: Vector2) -> float:
+	var p := uv * Vector2(img.get_width(), img.get_height()) - Vector2(0.5, 0.5)
+	var px := clampi(floori(p.x), 0, img.get_width() - 2)
+	var py := clampi(floori(p.y), 0, img.get_height() - 2)
+	var fx := clampf(p.x - float(px), 0.0, 1.0)
+	var fy := clampf(p.y - float(py), 0.0, 1.0)
+	var a: float = lerpf(img.get_pixel(px, py).r, img.get_pixel(px + 1, py).r, fx)
+	var b: float = lerpf(img.get_pixel(px, py + 1).r, img.get_pixel(px + 1, py + 1).r, fx)
+	return lerpf(a, b, fy)
 
 
 func _maybe_capture_foot_y() -> void:
@@ -192,6 +307,7 @@ func _capture_foot_stage(path: String, sink_m: float) -> void:
 	_update_foot_camera(_foot_side)
 	var previous_scale: float = Engine.time_scale
 	Engine.time_scale = 0.0
+	_foot_camera.cull_mask = _camera.cull_mask & ~SnowShell.CONTACT_LAYER
 	_foot_camera.make_current()
 	await process_frame
 	await RenderingServer.frame_post_draw
@@ -213,6 +329,7 @@ func _build_fixed_camera(start: Vector3) -> void:
 	## This patch starts behind Henry, exactly where the old capture visibly rewrote
 	## from local snow to coarse chunk cover during the traversal.
 	var patch := start - forward * 5.0 + right * 4.0
+	_fixed_patch = Vector2(patch.x, patch.z)
 	var ground_y := _ground_height(patch.x, patch.z)
 	var target := Vector3(patch.x, ground_y + 0.08, patch.z)
 	_fixed_camera.global_position = target - forward * 5.0 - right * 5.5 + Vector3.UP * 5.0
@@ -222,20 +339,33 @@ func _build_fixed_camera(start: Vector3) -> void:
 func _build_foot_camera() -> void:
 	_foot_camera = Camera3D.new()
 	_foot_camera.name = "SnowFootYCamera"
-	_foot_camera.fov = 27.0
-	_foot_camera.near = 0.025
+	_foot_camera.fov = 48.0
+	_foot_camera.near = 0.08
 	_foot_camera.far = 12.0
 	_world.add_child(_foot_camera)
 
 
 func _update_foot_camera(side: int) -> void:
+	## An actual rendered foot bone, never a guessed offset from the pelvis.
+	## Previous camera was under the snow/inside the contact geometry (red/black).
+	var sensor := _player.find_child("FootContactSensor", true, false) as FootContactSensor
+	var boot := Vector3.INF
+	if sensor != null and sensor.visual != null and sensor.visual.skeleton != null:
+		var skeleton: Skeleton3D = sensor.visual.skeleton
+		var index: int = skeleton.find_bone("foot_l" if side == 0 else "foot_r")
+		if index >= 0:
+			boot = skeleton.global_transform * skeleton.get_bone_global_pose(index).origin
+	if not is_finite(boot.x):
+		push_warning("snow Phase 3.1: foot bone missing; using contact plane fallback")
+		var p: Vector3 = _player.global_position
+		boot = Vector3(p.x, _ground_height(p.x, p.z) + 0.12, p.z)
 	var forward: Vector3 = Basis(Vector3.UP, _street_yaw) * Vector3.FORWARD
 	var right: Vector3 = forward.cross(Vector3.UP).normalized()
-	var p: Vector3 = _player.global_position
-	var ground_y := _ground_height(p.x, p.z)
-	var lateral: float = -0.14 if side == 0 else 0.14
-	var target := Vector3(p.x, ground_y + 0.17, p.z) + right * lateral + forward * 0.04
-	_foot_camera.global_position = target + right * (0.72 if side == 0 else -0.72) - forward * 0.08 + Vector3.UP * 0.03
+	var ground_y: float = _ground_height(boot.x, boot.z)
+	var target := Vector3(boot.x, maxf(ground_y + 0.14, boot.y - 0.03), boot.z)
+	## 1.65m out, 0.56m up, steeply downward: safely outside both snow
+	## and the red contact/collision helper meshes.
+	_foot_camera.global_position = target + right * (1.65 if side == 0 else -1.65) - forward * 0.30 + Vector3.UP * 0.56
 	_foot_camera.look_at(target, Vector3.UP)
 
 
@@ -360,6 +490,17 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"video_camera": "production_tps",
 		"settled_snow": SEAM_SETTLED,
 		"fixed_handoff_pair": ["handoff_fixed_before.png", "handoff_fixed_after.png"],
+		"fixed_camera_frames": _fixed_frames_written,
+		"fixed_camera_fps": VIDEO_FPS / FIXED_EVERY_N_FRAMES,
+		"heightfield_witness": {
+			"method": "world-space CPU SnowField heightfield versus retained frozen field R; NOT full GPU-displaced vertex",
+			"location": [_fixed_patch.x, _fixed_patch.y],
+			"max_delta_m": _height_delta_max_m,
+			"compared_samples": _height_samples_compared,
+			"live_before": _live_points_before,
+			"retained_after": _retained_points_after,
+			"stages": _height_witnesses,
+		},
 		"foot_y_captures": ["foot_y_contact.png", "foot_y_pressed.png"],
 		"foot_sink_samples_m": _foot_sink_samples,
 		"trail_shell": "retained_previous_window",
