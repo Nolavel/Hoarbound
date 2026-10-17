@@ -8,8 +8,11 @@ render_mode cull_back, depth_draw_opaque;
 #include "res://shaders/environment/stylized_shadow.gdshaderinc"
 #include "res://shaders/environment/materials/painterly_surface.gdshaderinc"
 
-// xy: window min corner, z: window size, w: 1 when the window is live.
+// xy: current window min corner, z: size, w: 1 when live.
 global uniform vec4 snow_window;
+// A retained previous high-detail window. This is a regular material uniform set
+// on SnowChunkCover's shared material; it keeps the coarse cover out of the trail.
+uniform vec4 trail_window = vec4(0.0);
 uniform vec3 fresh_color : source_color = vec3(0.8, 0.83, 0.88);
 // Capture-only ownership overlay. Runtime keeps this false.
 uniform bool debug_lod_ownership = false;
@@ -47,10 +50,17 @@ void vertex() {
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
+bool inside_window(vec2 xz, vec4 window) {
+	if (window.w < 0.5) {
+		return false;
+	}
+	vec2 uv = (xz - window.xy) / max(window.z, 0.001);
+	return all(greaterThan(uv, vec2(0.0))) && all(lessThan(uv, vec2(1.0)));
+}
+
 void fragment() {
 	HFN_SHADOW_FRAGMENT(v_world);
-	vec2 in_window = (v_world.xz - snow_window.xy) / max(snow_window.z, 0.001);
-	bool inside = snow_window.w > 0.5 && all(greaterThan(in_window, vec2(0.0))) && all(lessThan(in_window, vec2(1.0)));
+	bool inside = inside_window(v_world.xz, snow_window) || inside_window(v_world.xz, trail_window);
 	float depth = depth_at(v_world.xz, v_shore);
 	if (inside || depth < 0.012) {
 		discard;
