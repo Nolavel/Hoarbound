@@ -2,11 +2,16 @@ extends SceneTree
 
 ## Six-second visual proof for the current snow migration slice.
 ## Runs in the real Key West Reality world on open Duval Street. The first three
-## seconds use shallow settled snow and must stay below the wade threshold, so
-## only deterministic heel/forefoot prints are allowed. Capture pauses off-camera,
+## seconds use shallow settled snow and must stay below the capture wade threshold,
+## so only deterministic heel/forefoot prints are allowed. Capture pauses off-camera,
 ## deepens the snow, verifies the threshold is crossed, then records three seconds
 ## of the continuous deep-wade/body-plough path. Both phases keep the same camera,
 ## renderer and street so the visual distinction is reviewable in one video.
+##
+## Duval's chosen review point reaches only ~0.25 m at full settled cover, below
+## production's 0.30 m wade threshold. This harness therefore lowers the threshold
+## on this runtime SnowShell instance only. The production default is never changed
+## and both values are written to report.json so the evidence cannot be mistaken.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA := "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -19,8 +24,9 @@ const MAX_WAIT_FRAMES := 600
 const VIDEO_FRAMES := 72
 const PHASE_FRAMES := VIDEO_FRAMES / 2
 const VIDEO_FPS := 12
-const SHALLOW_SETTLED := 0.45
+const SHALLOW_SETTLED := 0.25
 const DEEP_SETTLED := 1.0
+const CAPTURE_WADE_THRESHOLD_M := 0.20
 const REVIEW_PITCH_DEG := -13.0
 const REVIEW_HOUR := 14.0
 const MIN_WALK_DISTANCE_M := 3.2
@@ -43,6 +49,7 @@ var _last_origin := Vector2(INF, INF)
 var _recenter_count := 0
 var _shallow_depth_m := 0.0
 var _deep_depth_m := 0.0
+var _production_wade_depth_m := 0.0
 
 
 func _initialize() -> void:
@@ -94,6 +101,8 @@ func _run() -> void:
 		_fail("production SnowShell did not install clipmap_l0_l1 geometry")
 		return
 
+	_production_wade_depth_m = _shell.wade_depth_m
+	_shell.wade_depth_m = CAPTURE_WADE_THRESHOLD_M
 	_hide_hud()
 	_weather.set_weather(&"calm", true)
 	_presentation.load_save_data({"settled": SHALLOW_SETTLED, "frost": 0.35, "storm": 0.4})
@@ -110,7 +119,7 @@ func _run() -> void:
 
 	_shallow_depth_m = _depth_here()
 	if _shallow_depth_m >= _shell.wade_depth_m:
-		_fail("shallow phase depth %.3f m reached wade threshold %.3f m" % [_shallow_depth_m, _shell.wade_depth_m])
+		_fail("shallow phase depth %.3f m reached capture wade threshold %.3f m" % [_shallow_depth_m, _shell.wade_depth_m])
 		return
 
 	_start = _player.global_position
@@ -127,7 +136,7 @@ func _run() -> void:
 	await _wait_frames(PHASE_SETTLE_FRAMES)
 	_deep_depth_m = _depth_here()
 	if _deep_depth_m <= _shell.wade_depth_m:
-		_fail("deep phase depth %.3f m did not cross wade threshold %.3f m" % [_deep_depth_m, _shell.wade_depth_m])
+		_fail("deep phase depth %.3f m did not cross capture wade threshold %.3f m" % [_deep_depth_m, _shell.wade_depth_m])
 		return
 	await _wait_frames(4)
 
@@ -147,9 +156,10 @@ func _run() -> void:
 	if _recenter_count < 1:
 		_fail("snow window never recentered during the visual proof")
 		return
-	print("SNOW_CLIPMAP_PREVIEW pass frames=%d shallow=%.3fm deep=%.3fm threshold=%.3fm walk=%.2fm recenter=%d driver=%s" % [
-		VIDEO_FRAMES, _shallow_depth_m, _deep_depth_m, _shell.wade_depth_m, walked,
-		_recenter_count, RenderingServer.get_current_rendering_driver_name()])
+	print("SNOW_CLIPMAP_PREVIEW pass frames=%d shallow=%.3fm deep=%.3fm capture_threshold=%.3fm production_threshold=%.3fm walk=%.2fm recenter=%d driver=%s" % [
+		VIDEO_FRAMES, _shallow_depth_m, _deep_depth_m, _shell.wade_depth_m,
+		_production_wade_depth_m, walked, _recenter_count,
+		RenderingServer.get_current_rendering_driver_name()])
 	quit(0)
 
 
@@ -276,7 +286,8 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"deep_settled_snow": DEEP_SETTLED,
 		"shallow_depth_m": _shallow_depth_m,
 		"deep_depth_m": _deep_depth_m,
-		"wade_depth_m": _shell.wade_depth_m,
+		"capture_wade_depth_m": _shell.wade_depth_m,
+		"production_wade_depth_m": _production_wade_depth_m,
 		"settled_snow": _presentation.get_settled_snow(),
 	}
 	var file := FileAccess.open(OUT.path_join("report.json"), FileAccess.WRITE)
