@@ -8,6 +8,7 @@ cd "$PROJECT_DIR"
 
 for suite in \
 	test_snow_architecture_contract \
+	test_snow_surface_clipmap \
 	test_snow_contact_pipeline \
 	test_snow_shell \
 	test_snow_tracks; do

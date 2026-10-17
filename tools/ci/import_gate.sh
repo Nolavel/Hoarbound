@@ -57,8 +57,7 @@ fi
 
 ## Snow architecture work uses the existing cheap checks workflow, but only for
 ## explicitly tagged commits so ordinary imports do not inherit mechanic churn.
-## This gate is headless only: no Vulkan, screenshots or capture harness.
-if [[ "$EVENT_MESSAGE" == *"[snow-architecture]"* ]]; then
+if [[ "$EVENT_MESSAGE" == *"[snow-architecture]"* || "$EVENT_MESSAGE" == *"[snow-clipmap-preview]"* ]]; then
 	GODOT="$GODOT" bash "$PROJECT_DIR/tools/ci/snow_architecture_gate.sh" || exit $?
 fi
 
