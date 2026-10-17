@@ -31,7 +31,6 @@ float city_at(vec2 xz) {
 	return mix(w.r, w.g, snow_storm_share) * wind_max;
 }
 
-// Settled depth here; the vertex's shore fade (UV.y) keeps the sea edge clean.
 float depth_at(vec2 xz, float shore) {
 	return snow_base_depth(xz, city_at(xz) * shore);
 }
@@ -44,8 +43,6 @@ void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_shore = UV.y;
 	v_ground_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	// Geometry carries only the smooth base, which Henry's window meets exactly;
-	// ridges live in the per-pixel normal below.
 	VERTEX.y += snow_base_geom(city_at(world.xz) * v_shore);
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
@@ -58,17 +55,6 @@ void fragment() {
 	if (inside || depth < 0.012) {
 		discard;
 	}
-	if (debug_lod_ownership) {
-		// Green owns the streamed outer field. The local clipmap shader uses
-		// red/yellow/blue for L0/transition/L1 in the same diagnostic frame.
-		vec3 owner = vec3(0.12, 0.82, 0.28);
-		ALBEDO = owner;
-		ROUGHNESS = 1.0;
-		EMISSION = owner * 0.12;
-		NORMAL = normalize((VIEW_MATRIX * vec4(v_ground_normal, 0.0)).xyz);
-		return;
-	}
-	// Ridge slope from the depth function itself, not the 2 m mesh.
 	float e = 0.08;
 	float gx = (depth_at(v_world.xz + vec2(e, 0.0), v_shore) - depth_at(v_world.xz - vec2(e, 0.0), v_shore)) / (2.0 * e);
 	float gz = (depth_at(v_world.xz + vec2(0.0, e), v_shore) - depth_at(v_world.xz - vec2(0.0, e), v_shore)) / (2.0 * e);
@@ -80,8 +66,14 @@ void fragment() {
 	ALBEDO = snow_thin_tint(snow_wind_tint(color, city_at(v_world.xz) * v_shore), depth);
 	ALBEDO = hfn_painterly_surface_color(ALBEDO, v_world, n, 0.38);
 	ROUGHNESS = 0.85;
+	if (debug_lod_ownership) {
+		vec3 owner = vec3(0.12, 0.82, 0.28);
+		ALBEDO = owner;
+		ROUGHNESS = 1.0;
+		EMISSION = owner * 0.12;
+		NORMAL = normalize((VIEW_MATRIX * vec4(v_ground_normal, 0.0)).xyz);
+	}
 }
-
 
 void light() {
 	float ndotl = max(dot(NORMAL, LIGHT), 0.0);
