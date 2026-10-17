@@ -52,6 +52,11 @@ func _install_surface_geometry(quality: StringName) -> void:
 	if not bool(ProjectSettings.get_setting("hfn/snow/clipmap_geometry", true)):
 		_mesh.set_meta(&"snow_geometry", "legacy_graded_grid")
 		return
+	## Phase 3.1: keep ownership shifts smaller than half the L0 core. 1.6 m stays
+	## exactly aligned to the active lattices: 8 SnowField texels, 20 high-tier L0
+	## cells and 10 high-tier L1 cells (medium is aligned too). This prevents one
+	## recenter from replacing almost the whole near patch behind Henry at once.
+	recentre_step_m = minf(recentre_step_m, 1.6)
 	var core: float = SURFACE_CLIPMAP.DEFAULT_L0_HALF_M
 	var fine: float = SURFACE_CLIPMAP.DEFAULT_L0_SPACING_M
 	var coarse: float = SURFACE_CLIPMAP.DEFAULT_L1_SPACING_M
