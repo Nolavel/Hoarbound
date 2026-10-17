@@ -198,8 +198,8 @@ jobs:
 
   key-west-preview:
     ## Lavapipe/Forward+ captures on the Key West Reality scene, chosen by a commit tag.
-    ## Painterly and stylized-shadow previews use independent CONTROL/TEST Godot processes.
-    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]'))
+    ## Painterly, stylized-shadow and snow previews reuse this one render path.
+    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -216,13 +216,42 @@ jobs:
         run: tools/ci/setup_env.sh
 
       - name: Install video tools
-        if: contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]')
+        if: contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]')
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
 
       - name: Import gate
         run: tools/ci/import_gate.sh
+
+      - name: Snow clipmap open-street proof
+        if: contains(github.event.head_commit.message, '[snow-clipmap-preview]')
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          OUT="docs/runtime_previews/key_west/snow_clipmap"
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+          set -o pipefail
+          timeout 420 xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 960x540 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script tools/runtime/capture_snow_clipmap_street.gd 2>&1 | tee "$OUT/capture.log"
+          if grep -q "SHADER ERROR" "$OUT/capture.log"; then
+            echo "Shader compilation error found in snow clipmap capture."
+            exit 1
+          fi
+          count=$(find "$OUT/frames" -maxdepth 1 -type f -name 'frame_*.png' | wc -l)
+          test "$count" -eq 72
+          ffmpeg -y -framerate 12 -i "$OUT/frames/frame_%04d.png" \
+            -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
+            "$OUT/snow_clipmap_duval_6s.mp4" >/dev/null 2>&1
+          test -s "$OUT/snow_clipmap_duval_6s.mp4"
+          cat "$OUT/report.json"
 
       - name: Capture Key West sky/weather
         if: contains(github.event.head_commit.message, '[sky-weather-preview]')
@@ -521,12 +550,16 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ contains(github.event.head_commit.message, '[painterly-wash-preview]') && 'hoarbound-painterly-wash' || (contains(github.event.head_commit.message, '[sky-weather-preview]') && 'hoarbound-sky-weather' || 'hoarbound-stylized-shadows') }}
+          name: ${{ contains(github.event.head_commit.message, '[snow-clipmap-preview]') && 'hoarbound-snow-clipmap' || (contains(github.event.head_commit.message, '[painterly-wash-preview]') && 'hoarbound-painterly-wash' || (contains(github.event.head_commit.message, '[sky-weather-preview]') && 'hoarbound-sky-weather' || 'hoarbound-stylized-shadows')) }}
           path: |
             docs/runtime_previews/key_west/*.png
             docs/runtime_previews/key_west/*.mp4
             docs/runtime_previews/key_west/capture.log
             docs/runtime_previews/key_west/source_report.json
+            docs/runtime_previews/key_west/snow_clipmap/*.png
+            docs/runtime_previews/key_west/snow_clipmap/*.mp4
+            docs/runtime_previews/key_west/snow_clipmap/*.json
+            docs/runtime_previews/key_west/snow_clipmap/*.log
             docs/runtime_previews/key_west/painterly_ab/*/*.png
             docs/runtime_previews/key_west/painterly_ab/*/*.mp4
             docs/runtime_previews/key_west/painterly_ab/*/*.log
