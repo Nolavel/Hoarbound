@@ -48,6 +48,8 @@ var _fixed_frame_dir := ""
 var _fixed_patch := Vector2.ZERO
 var _fixed_frames_written := 0
 var _height_witnesses: Array[Dictionary] = []
+var _edge_witnesses: Array[Dictionary] = []
+var _edge_handoff_delta: float = 0.0
 var _baseline_heights: Array[float] = []
 var _height_delta_max_m := 0.0
 var _height_samples_compared := 0
@@ -135,6 +137,7 @@ func _run() -> void:
 	_build_fixed_camera(_start)
 	_build_foot_camera()
 	_record_height_witness("before")
+	_record_edge_witness("before")
 	await _capture_with_camera(_fixed_camera, OUT.path_join("handoff_fixed_before.png"))
 	_camera.make_current()
 	await RenderingServer.frame_post_draw
@@ -157,6 +160,7 @@ func _run() -> void:
 	_save_image(_capture_image(), OUT.path_join("end.png"))
 	await _capture_with_camera(_fixed_camera, OUT.path_join("handoff_fixed_after.png"))
 	_record_height_witness("after")
+	_record_edge_witness("after")
 	_camera.make_current()
 
 	_write_report(surface, walked)
@@ -168,6 +172,9 @@ func _run() -> void:
 		return
 	if not _foot_contact_saved or not _foot_pressed_saved:
 		_fail("foot-Y proof did not capture both sink stages")
+		return
+	if _edge_handoff_delta > 0.05:
+		_fail("fixed-patch fade changed %.3f across owner switch" % _edge_handoff_delta)
 		return
 	if _fixed_frames_written != VIDEO_FRAMES / FIXED_EVERY_N_FRAMES:
 		_fail("stationary camera: expected 24 frames, got %d" % _fixed_frames_written)
@@ -187,6 +194,7 @@ func _capture_tps_frame(index: int) -> void:
 	if _last_origin.x != INF and not origin.is_equal_approx(_last_origin):
 		_recenter_count += 1
 		_record_height_witness("recenter_%d" % _recenter_count)
+		_record_edge_witness("recenter_%d" % _recenter_count)
 	_last_origin = origin
 	_camera.make_current()
 	await RenderingServer.frame_post_draw
@@ -260,6 +268,36 @@ func _record_height_witness(stage: String) -> void:
 		"owners": owners, "compared": matched,
 		"max_heightfield_delta_m": max_error, "samples": samples,
 	})
+
+
+## Mirror snow_ground.gdshader's smoothstep-of-union at a fixed world point.
+## This only gates discontinuities across an actual owner change; it does not
+## mistake weather, Henry or newly produced footprints for geometry changes.
+func _record_edge_witness(stage: String) -> void:
+	var live: Vector2 = _shell.get_origin()
+	var trail: Vector2 = _shell.get("_trail_origin")
+	var own: float = _edge_at(_fixed_patch, live)
+	var historical: float = _edge_at(_fixed_patch, trail)
+	var combined: float = maxf(own, historical)
+	var owner: String = "live" if _in_window(_fixed_patch, live) else ("retained" if _in_window(_fixed_patch, trail) else "outer")
+	var previous: Dictionary = _edge_witnesses.back() if not _edge_witnesses.is_empty() else {}
+	if not previous.is_empty() and owner != String(previous.get("owner", "")) and owner != "outer":
+		_edge_handoff_delta = maxf(_edge_handoff_delta, absf(combined - float(previous.get("combined_fade", 0.0))))
+	_edge_witnesses.append({
+		"stage": stage, "owner": owner, "live_fade": own,
+		"historical_fade": historical, "combined_fade": combined,
+	})
+
+
+func _edge_at(at: Vector2, origin: Vector2) -> float:
+	if not is_finite(origin.x):
+		return 0.0
+	var rim: Vector2 = Vector2(
+		minf(at.x - origin.x, origin.x + _shell.window_m - at.x),
+		minf(at.y - origin.y, origin.y + _shell.window_m - at.y)
+	)
+	var t: float = clampf(minf(rim.x, rim.y) / 6.0, 0.0, 1.0)
+	return t * t * (3.0 - 2.0 * t)
 
 
 func _in_window(at: Vector2, origin: Vector2) -> bool:
@@ -496,6 +534,8 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 			"method": "world-space CPU SnowField heightfield versus retained frozen field R; NOT full GPU-displaced vertex",
 			"location": [_fixed_patch.x, _fixed_patch.y],
 			"max_delta_m": _height_delta_max_m,
+			"recenter_edge_witness": _edge_witnesses,
+			"max_edge_handoff_delta": _edge_handoff_delta,
 			"compared_samples": _height_samples_compared,
 			"live_before": _live_points_before,
 			"retained_after": _retained_points_after,

@@ -18,6 +18,8 @@ uniform bool use_settled_normal_field = false;
 // window, so the two high-detail surfaces never z-fight in their overlap.
 uniform bool clip_outside_window = false;
 uniform vec4 clip_window = vec4(0.0);
+// Live/retained material must agree about coverage near a handoff.
+uniform vec4 trail_window = vec4(0.0);
 // Nearby vertices of the baked city cover: ground, prevailing*shore,
 // storm*shore, shore. Only the outer transition samples this tiny texture.
 uniform sampler2D far_grid : filter_nearest, repeat_disable;
@@ -181,6 +183,20 @@ float settled_top(vec2 xz) {
 	return f.r - f.g + mix(snow_base_depth(xz, f.a), f.g, edge);
 }
 
+float snow_union_edge(vec2 world_xz) {
+	vec2 own_uv = (world_xz - origin) / window_m;
+	vec2 own_rim = min(own_uv, vec2(1.0) - own_uv) * window_m;
+	float own = smoothstep(0.0, 6.0, min(own_rim.x, own_rim.y));
+	vec4 neighbor = clip_outside_window ? clip_window : trail_window;
+	if (neighbor.w < 0.5) {
+		return own;
+	}
+	vec2 other_uv = (world_xz - neighbor.xy) / max(neighbor.z, 0.001);
+	vec2 other_rim = min(other_uv, vec2(1.0) - other_uv) * neighbor.z;
+	float other = smoothstep(0.0, 6.0, min(other_rim.x, other_rim.y));
+	return max(own, other);
+}
+
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	vec2 uv = (world.xz - origin) / window_m;
@@ -207,8 +223,8 @@ void vertex() {
 	float ground = f.r - f.g;
 	float shore = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, ground);
 	v_city = use_baked_baseline ? baked_city_at(world.xz) * shore : f.a;
-	vec2 to_edge = min(uv - v_jag, 1.0 - uv + v_jag) * window_m;
-	v_edge = smoothstep(0.0, 6.0, min(to_edge.x, to_edge.y));
+	// World patch shares a union fade across both owners; no per-recenter fade jump.
+	v_edge = snow_union_edge(world.xz);
 	v_ground = ground;
 	float base = snow_base_geom(f.a);
 	v_depth = use_baked_baseline ? snow_base_depth(world.xz, v_city) : mix(snow_base_depth(world.xz, f.a), f.g, v_edge);

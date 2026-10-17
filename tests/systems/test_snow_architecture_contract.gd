@@ -111,8 +111,8 @@ func _test_deformation_channels_are_separate() -> void:
 	var shape: String = FileAccess.get_file_as_string("res://shaders/environment/snow/snow_shape.gdshader")
 	var ground: String = FileAccess.get_file_as_string("res://shaders/environment/snow/snow_ground.gdshader")
 	_check(accum.contains("COLOR = vec4(compression, displaced, disturbance, density);"), "accumulator no longer writes RGBA deformation-state v2")
-	_check(accum.contains("float disturbance = 0.0;"), "broken-crust disturbance channel is missing")
-	_check(accum.contains("float density = 0.0;"), "density/freshness reserve channel is missing")
+	_check(accum.contains("float disturbance = clamp(restored.b"), "broken-crust restore channel is missing")
+	_check(accum.contains("float density = clamp(restored.a"), "density restore channel is missing")
 	_check(accum.contains("displaced += deposited;"), "boot displacement is not accumulated into the displaced channel")
 	_check(accum.contains("vec4 restored = texture(restore, uv);"), "accumulator does not read multi-channel persistence restore")
 	_check(not accum.contains("packed -= deposit"), "legacy signed packed/deposit representation returned")
@@ -124,6 +124,11 @@ func _test_deformation_channels_are_separate() -> void:
 	_check(ground.contains("varying float v_density;"), "surface shader does not expose compacted density")
 	_check(ground.contains("float local_delta = -v_packed + v_displaced + v_rim;"), "surface shader does not apply the shared compression/displacement sign convention")
 	_check(ground.contains("float fracture = clamp(max(v_disturbance"), "surface fractures are not driven by persistent disturbance")
+	_check(ground.contains("v_edge = snow_union_edge(world.xz);"), "moving window fades the deformation")
+	_check(ground.contains("return max(own, other);"), "live/retained shader has no shared union")
+	var historical: String = FileAccess.get_file_as_string("res://scripts/systems/world/snow/deterministic_snow_shell.gd")
+	_check(historical.contains("set_shader_parameter(\"packed_rg_only\", false)"), "retained shell drops BA")
+	_check(historical.contains("set_shader_parameter(\"trail_window\", retained)"), "live shell lacks retained coverage")
 
 
 func _test_snow_field_matches_base_height_contract() -> void:

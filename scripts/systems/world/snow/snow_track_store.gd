@@ -2,25 +2,27 @@ class_name SnowTrackStore
 extends RefCounted
 ## Snow deformation that left Henry's window, kept as coarse world tiles with the
 ## fill clock they were stored at; restored with the fill-in since then applied at once.
-## Persistence v2 stores compression and displaced mass independently.
+## Persistence v3 stores compression, displaced mass, broken crust and density.
+## Old signed v1 / two-channel v2 saves remain readable.
 
 ## Side of one tile in metres; the window moves in steps of this size.
 const TILE_M: float = 3.2
 ## Texels along one tile side (10 cm each).
-const TILE_TEX: int = 32
+const TILE_TEX: int = 64
+const LEGACY_TILE_TEX: int = 32
 ## Metres per stored byte step for compression and displaced mass.
 const DEPTH_STEP_M: float = 0.005
 ## Legacy byte that meant zero in the old signed one-channel save format.
 const ZERO_BYTE: int = 32
-const FORMAT_VERSION: int = 2
-const CHANNELS: int = 2
+const FORMAT_VERSION: int = 3
+const CHANNELS: int = 4
 ## Tiles kept at most; the longest-filled ones go first.
 const MAX_TILES: int = 4096
 ## Deformation below this after fill-in is not worth keeping, metres.
 const MIN_DEFORM_M: float = 0.01
 
-## Tile key -> [clock stamp, PackedByteArray]. V2 bytes are interleaved R,G.
-## Legacy entries remain TILE_TEX² bytes and are decoded as signed R/G on restore.
+## Tile key -> [clock stamp, PackedByteArray]. V3: 64x64 RGBA.
+## V2: 32x32 RG; V1: 32x32 signed R/G.
 var tiles: Dictionary = {}
 ## Fill-in done so far, as -ln(share left); deformation left after a span is exp(-Δ).
 var clock: float = 0.0
@@ -31,7 +33,7 @@ func advance(fill: float) -> void:
 	clock += -log(maxf(1.0 - clampf(fill, 0.0, 0.999999), 1e-6))
 
 
-## Files every tile of `field` (R compression, G displaced mass) that lies outside
+## Files every tile of `field` (RG metres, BA 0..1) that lies outside
 ## `keep`, the window that stays on screen.
 func store(field: Image, origin: Vector2, window_m: float, keep: Rect2) -> void:
 	var tiles_across: int = roundi(window_m / TILE_M)
@@ -46,15 +48,20 @@ func store(field: Image, origin: Vector2, window_m: float, keep: Rect2) -> void:
 			var bytes := PackedByteArray()
 			bytes.resize(TILE_TEX * TILE_TEX * CHANNELS)
 			var any: bool = false
+			var full_state: bool = field.get_format() != Image.FORMAT_RGF and field.get_format() != Image.FORMAT_RF
 			for y: int in range(TILE_TEX):
 				for x: int in range(TILE_TEX):
 					var state: Color = region.get_pixel(x, y)
 					var i: int = (y * TILE_TEX + x) * CHANNELS
 					var compression: int = clampi(roundi(maxf(state.r, 0.0) / DEPTH_STEP_M), 0, 255)
 					var displaced: int = clampi(roundi(maxf(state.g, 0.0) / DEPTH_STEP_M), 0, 255)
+					var broken: int = clampi(roundi(clampf(state.b, 0.0, 1.0) * 255.0), 0, 255) if full_state else 0
+					var dense: int = clampi(roundi(clampf(state.a, 0.0, 1.0) * 255.0), 0, 255) if full_state else 0
 					bytes[i] = compression
 					bytes[i + 1] = displaced
-					any = any or compression != 0 or displaced != 0
+					bytes[i + 2] = broken
+					bytes[i + 3] = dense
+					any = any or compression != 0 or displaced != 0 or broken != 0 or dense != 0
 			var key: Vector2i = tile_key(corner + Vector2.ONE * TILE_M * 0.5)
 			if any:
 				tiles[key] = [clock, bytes]
@@ -63,10 +70,10 @@ func store(field: Image, origin: Vector2, window_m: float, keep: Rect2) -> void:
 	_trim()
 
 
-## Deformation for a window at `origin`, `side` texels across, with fill-in since
-## each tile was stored already applied. R compression, G displaced mass.
+## Restore full RGBA deformation: B/A weather-age slower than R/G.
+## Accepts the old signed 1-channel and v2 R/G tile formats.
 func restore(origin: Vector2, window_m: float, side: int) -> Image:
-	var out := Image.create_empty(side, side, false, Image.FORMAT_RGF)
+	var out := Image.create_empty(side, side, false, Image.FORMAT_RGBAF)
 	var tiles_across: int = roundi(window_m / TILE_M)
 	var px: int = side / tiles_across
 	for ty: int in range(tiles_across):
@@ -75,26 +82,42 @@ func restore(origin: Vector2, window_m: float, side: int) -> Image:
 			if not tiles.has(key):
 				continue
 			var entry: Array = tiles[key]
-			var left: float = exp(-(clock - float(entry[0])))
-			if 255.0 * DEPTH_STEP_M * left < MIN_DEFORM_M:
+			var age: float = maxf(clock - float(entry[0]), 0.0)
+			var left: float = exp(-age)
+			var left_b: float = exp(-age * 0.72)
+			var left_a: float = exp(-age * 0.42)
+			if left < 0.000001 and left_b < 0.000001 and left_a < 0.000001:
 				continue
-			var small := Image.create_empty(TILE_TEX, TILE_TEX, false, Image.FORMAT_RGF)
 			var bytes: PackedByteArray = entry[1]
-			if bytes.size() == TILE_TEX * TILE_TEX * CHANNELS:
-				for i: int in range(TILE_TEX * TILE_TEX):
-					var compression: float = float(bytes[i * CHANNELS]) * DEPTH_STEP_M * left
-					var displaced: float = float(bytes[i * CHANNELS + 1]) * DEPTH_STEP_M * left
-					small.set_pixel(i % TILE_TEX, i / TILE_TEX, Color(compression, displaced, 0.0, 1.0))
-			elif bytes.size() == TILE_TEX * TILE_TEX:
-				## V1/older compatibility: positive signed bytes were compression, negative
-				## signed bytes were the pre-split displaced heap representation.
-				for i: int in range(bytes.size()):
-					var signed_steps: int = int(bytes[i]) - ZERO_BYTE
-					var compression: float = float(maxi(signed_steps, 0)) * DEPTH_STEP_M * left
-					var displaced: float = float(maxi(-signed_steps, 0)) * DEPTH_STEP_M * left
-					small.set_pixel(i % TILE_TEX, i / TILE_TEX, Color(compression, displaced, 0.0, 1.0))
-			else:
+			var source_side: int = TILE_TEX
+			var channels: int = CHANNELS
+			if bytes.size() == LEGACY_TILE_TEX * LEGACY_TILE_TEX * 2:
+				source_side = LEGACY_TILE_TEX
+				channels = 2
+			elif bytes.size() == LEGACY_TILE_TEX * LEGACY_TILE_TEX:
+				source_side = LEGACY_TILE_TEX
+				channels = 1
+			elif bytes.size() != TILE_TEX * TILE_TEX * CHANNELS:
 				continue
+			var small := Image.create_empty(source_side, source_side, false, Image.FORMAT_RGBAF)
+			for i: int in range(source_side * source_side):
+				var compression: float = 0.0
+				var displaced: float = 0.0
+				var disturbed: float = 0.0
+				var density: float = 0.0
+				if channels == CHANNELS:
+					compression = float(bytes[i * channels]) * DEPTH_STEP_M * left
+					displaced = float(bytes[i * channels + 1]) * DEPTH_STEP_M * left
+					disturbed = float(bytes[i * channels + 2]) / 255.0 * left_b
+					density = float(bytes[i * channels + 3]) / 255.0 * left_a
+				elif channels == 2:
+					compression = float(bytes[i * channels]) * DEPTH_STEP_M * left
+					displaced = float(bytes[i * channels + 1]) * DEPTH_STEP_M * left
+				else:
+					var signed_steps: int = int(bytes[i]) - ZERO_BYTE
+					compression = float(maxi(signed_steps, 0)) * DEPTH_STEP_M * left
+					displaced = float(maxi(-signed_steps, 0)) * DEPTH_STEP_M * left
+				small.set_pixel(i % source_side, i / source_side, Color(compression, displaced, disturbed, density))
 			small.resize(px, px, Image.INTERPOLATE_BILINEAR)
 			out.blit_rect(small, Rect2i(0, 0, px, px), Vector2i(tx * px, ty * px))
 	return out
@@ -133,9 +156,10 @@ func load_save_data(data: Dictionary) -> void:
 		var bytes: PackedByteArray = Marshalls.base64_to_raw(String(entry[1]))
 		if version >= FORMAT_VERSION and bytes.size() == TILE_TEX * TILE_TEX * CHANNELS:
 			tiles[Vector2i(int(parts[0]), int(parts[1]))] = [float(entry[0]), bytes]
-		elif bytes.size() == TILE_TEX * TILE_TEX:
-			## Very old saves used byte zero as signed zero; normalize them to the
-			## current legacy zero so restore can decode both depression and heap.
+		elif version == 2 and bytes.size() == LEGACY_TILE_TEX * LEGACY_TILE_TEX * 2:
+			tiles[Vector2i(int(parts[0]), int(parts[1]))] = [float(entry[0]), bytes]
+		elif bytes.size() == LEGACY_TILE_TEX * LEGACY_TILE_TEX:
+			## Normalize the earliest signed-byte format.
 			var lift: int = ZERO_BYTE - saved_zero
 			if lift != 0:
 				for i: int in range(bytes.size()):

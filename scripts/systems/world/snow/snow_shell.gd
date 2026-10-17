@@ -845,7 +845,7 @@ func _build_capture() -> void:
 		vp.add_child(rect)
 		_accum.append(vp)
 		_accum_mat.append(mat)
-	_restore_tex = ImageTexture.create_from_image(Image.create_empty(packed_res / 4, packed_res / 4, false, Image.FORMAT_RF))
+	_restore_tex = ImageTexture.create_from_image(Image.create_empty(packed_res / 4, packed_res / 4, false, Image.FORMAT_RGBAF))
 	for mat: ShaderMaterial in _accum_mat:
 		mat.set_shader_parameter("restore", _restore_tex)
 	_accum_mat[0].set_shader_parameter("previous", _accum[1].get_texture())

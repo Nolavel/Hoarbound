@@ -124,7 +124,8 @@ func _capture_trail_snapshot(old: Vector2) -> void:
 			material.set_shader_parameter("far_grid", ImageTexture.create_from_image(far_image))
 	material.set_shader_parameter("origin", old)
 	material.set_shader_parameter("clip_outside_window", true)
-	material.set_shader_parameter("packed_rg_only", true)
+	material.set_shader_parameter("packed_rg_only", false)
+	material.set_shader_parameter("trail_window", Vector4.ZERO)
 	material.set_shader_parameter("debug_lod_ownership", false)
 
 	if _trail_mesh == null:
@@ -145,12 +146,13 @@ func _capture_trail_snapshot(old: Vector2) -> void:
 func _sync_trail_after_window(wanted: Vector2) -> void:
 	if _trail_mesh == null or _trail_material == null or _trail_origin.x == INF:
 		_set_chunk_trail_window(Vector4.ZERO)
+		_surface.set_shader_parameter("trail_window", Vector4.ZERO)
 		return
 	var live := Vector4(wanted.x, wanted.y, window_m, 1.0)
 	_trail_material.set_shader_parameter("clip_window", live)
 	## Only tiles that have left the live window need to exist on the trail. Those
 	## are exactly the tiles SnowShell._keep_tracks just committed to the store.
-	var restore_side: int = maxi(packed_res / 4, 32)
+	var restore_side: int = maxi(packed_res / 2, 64)
 	var restored: Image = tracks.restore(_trail_origin, window_m, restore_side)
 	if _trail_packed_tex == null or _trail_packed_tex.get_width() != restore_side:
 		_trail_packed_tex = ImageTexture.create_from_image(restored)
@@ -158,7 +160,9 @@ func _sync_trail_after_window(wanted: Vector2) -> void:
 		_trail_packed_tex.update(restored)
 	_trail_material.set_shader_parameter("packed_field", _trail_packed_tex)
 	_trail_material.set_shader_parameter("packed_texel_m", window_m / float(restore_side))
-	_set_chunk_trail_window(Vector4(_trail_origin.x, _trail_origin.y, window_m, 1.0))
+	var retained := Vector4(_trail_origin.x, _trail_origin.y, window_m, 1.0)
+	_surface.set_shader_parameter("trail_window", retained)
+	_set_chunk_trail_window(retained)
 
 
 ## SnowChunkCover instances share one material. Finding any live instance gives us

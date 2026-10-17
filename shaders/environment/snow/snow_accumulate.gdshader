@@ -1,13 +1,13 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-// Persistent deformation-state v2, ping-ponged between two viewports.
+// Persistent deformation-state v3, ping-ponged between two viewports.
 // R: compression below settled top (metres).
 // G: displaced snow piled above it (metres).
 // B: broken crust / disturbance (0..1).
 // A: compacted density / age reserve (0..1; currently density-biased).
 uniform sampler2D previous : filter_nearest, repeat_disable;
-// Persistence v2 restores R+G. Older RF restores still work because missing G samples as 0.
+// Persistence v3 restores R/G/B/A, including the B/A weather-age decay.
 uniform sampler2D restore : filter_linear, repeat_disable;
 uniform sampler2D contact_tex : filter_nearest, repeat_disable;
 // Settled field: R snow top (world y), G depth, B cut away / softness below 0.5.
@@ -137,8 +137,8 @@ void fragment() {
 	vec4 restored = texture(restore, uv);
 	float compression = max(restored.r, 0.0);
 	float displaced = max(restored.g, 0.0);
-	float disturbance = 0.0;
-	float density = 0.0;
+	float disturbance = clamp(restored.b, 0.0, 1.0);
+	float density = clamp(restored.a, 0.0, 1.0);
 	if (kept) {
 		vec4 previous_state = texture(previous, from);
 		compression = max(previous_state.r, 0.0);
