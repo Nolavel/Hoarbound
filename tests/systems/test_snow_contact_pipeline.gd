@@ -15,8 +15,11 @@ func _process(_delta: float) -> bool:
 func _run() -> void:
 	_test_three_probe_contact_follows_camber()
 	_test_stamp_basis_is_tangent_plane()
+	_test_footprint_splits_heel_and_forefoot()
 	_test_twenty_plants_are_retained_without_rendering()
 	_test_local_contact_target_keeps_packed_field_large()
+	_test_walk_pads_are_not_live_contact_geometry()
+	_test_deep_wade_owns_body_plough()
 	_test_sensor_uses_pre_modifier_probe()
 	_test_quality_profiles_keep_contact_precision()
 	if _failures > 0:
@@ -69,6 +72,22 @@ func _test_stamp_basis_is_tangent_plane() -> void:
 	_check(local.length() < 1e-6, "stamp centre does not map to its own tangent basis")
 
 
+func _test_footprint_splits_heel_and_forefoot() -> void:
+	var encoded: Array[Vector4] = SHELL_SCRIPT.footprint_pad_uniforms(
+		Vector3.ZERO, Vector3.UP, Vector3.FORWARD, 0.15, 0.055,
+		Vector2(-12.8, -12.8), 25.6, 0.08
+	)
+	_check(encoded.size() == 4, "one accepted plant did not encode heel + forefoot")
+	var heel_uv := Vector2(encoded[0].x, encoded[0].y)
+	var fore_uv := Vector2(encoded[2].x, encoded[2].y)
+	var separation_m: float = heel_uv.distance_to(fore_uv) * 25.6
+	_check(separation_m > 0.1, "heel and forefoot collapsed into one continuous oval")
+	_check(is_equal_approx(encoded[1].z, 0.08), "heel lost the accepted plant depth")
+	_check(encoded[3].z > 0.0 and encoded[3].z < encoded[1].z, "forefoot depth is not distinct from heel strike")
+	_check(SHELL_SCRIPT.MAX_PLANTS_PER_PASS * 2 == SHELL_SCRIPT.MAX_FOOT_PAD_STAMPS,
+		"plant batch can overflow the 16-pad shader contract")
+
+
 func _test_twenty_plants_are_retained_without_rendering() -> void:
 	var shell: Node = SHELL_SCRIPT.new()
 	for i: int in range(20):
@@ -94,6 +113,31 @@ func _test_local_contact_target_keeps_packed_field_large() -> void:
 	shell.free()
 	ProjectSettings.set_setting("hfn/graphics/quality", before_graphics)
 	ProjectSettings.set_setting("hfn/snow/quality", before_snow)
+
+
+func _test_walk_pads_are_not_live_contact_geometry() -> void:
+	var before_graphics: Variant = ProjectSettings.get_setting("hfn/graphics/quality", "low")
+	var before_snow: Variant = ProjectSettings.get_setting("hfn/snow/quality", "high")
+	ProjectSettings.set_setting("hfn/graphics/quality", "high")
+	ProjectSettings.set_setting("hfn/snow/quality", "high")
+	var shell: Node3D = SHELL_SCRIPT.new()
+	root.add_child(shell)
+	for node_name: String in ["SoleHeel0", "SoleBall0", "SoleHeel1", "SoleBall1", "Drag0", "Drag1"]:
+		var pad := shell.get_node_or_null(node_name) as MeshInstance3D
+		_check(pad != null, "%s was not built" % node_name)
+		if pad != null:
+			_check(pad.layers == 0, "%s still writes the live contact heightfield during ordinary walking" % node_name)
+	shell.free()
+	ProjectSettings.set_setting("hfn/graphics/quality", before_graphics)
+	ProjectSettings.set_setting("hfn/snow/quality", before_snow)
+
+
+func _test_deep_wade_owns_body_plough() -> void:
+	var source: String = FileAccess.get_file_as_string("res://scripts/systems/world/snow/snow_shell.gd")
+	_check(source.contains("var wading: bool = depth > wade_depth_m"), "deep-wade threshold no longer owns the continuous body path")
+	_check(source.contains("tag_contact(_player, wading)"), "player body is not toggled on the live contact layer by deep-wade state")
+	var deterministic: String = FileAccess.get_file_as_string("res://scripts/systems/world/snow/deterministic_snow_shell.gd")
+	_check(deterministic.contains("_detach_walk_pads_from_contact_capture"), "deterministic walking still shares the live body-plough capture")
 
 
 func _test_sensor_uses_pre_modifier_probe() -> void:

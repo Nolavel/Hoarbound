@@ -7,7 +7,9 @@ const HEIGHT_CONTRACT: GDScript = preload("res://scripts/systems/world/snow/snow
 const SURFACE_CLIPMAP: GDScript = preload("res://scripts/systems/world/snow/snow_surface_clipmap.gd")
 const CONTACT_WINDOW_M: float = 6.4
 const CONTACT_RES: int = 256
-const MAX_STAMPS_PER_PASS: int = 16
+## One accepted plant becomes two deterministic pads (heel + forefoot).
+const MAX_PLANTS_PER_PASS: int = 8
+const MAX_FOOT_PAD_STAMPS: int = 16
 const MIN_STAMP_DEPTH_M: float = 0.012
 
 var _plant_point: Array[Vector3] = [Vector3.INF, Vector3.INF]
@@ -32,8 +34,9 @@ func _ready() -> void:
 	contact_res = CONTACT_RES
 	_contact.size = Vector2i(CONTACT_RES, CONTACT_RES)
 	_contact_cam.size = CONTACT_WINDOW_M
-	## Foot plants are persistent stamps now, so the contact viewport no longer
-	## needs to render every display frame. It wakes only for a snow simulation pass.
+	_detach_walk_pads_from_contact_capture()
+	## Foot plants are persistent deterministic stamps. The live contact viewport
+	## is retained for pickups and for Henry's body only once deep-wade is active.
 	_contact.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	for mat: ShaderMaterial in _accum_mat:
 		mat.set_shader_parameter("field_window_m", window_m)
@@ -64,6 +67,19 @@ func _install_surface_geometry(quality: StringName) -> void:
 	_mesh.set_meta(&"snow_l0_half_m", core)
 	_mesh.set_meta(&"snow_l0_spacing_m", fine)
 	_mesh.set_meta(&"snow_l1_spacing_m", coarse)
+
+
+## Synthetic sole/drag meshes still drive IK timing and VFX, but no longer write
+## the live contact heightfield. Normal walking is therefore only discrete heel +
+## forefoot stamps. The real player visual is tagged onto CONTACT_LAYER by the base
+## SnowShell only when depth > wade_depth_m, leaving body plough as a deep-wade path.
+func _detach_walk_pads_from_contact_capture() -> void:
+	for pad: MeshInstance3D in _heels:
+		pad.layers &= ~CONTACT_LAYER
+	for pad: MeshInstance3D in _balls:
+		pad.layers &= ~CONTACT_LAYER
+	for drag: MeshInstance3D in _drags:
+		drag.layers &= ~CONTACT_LAYER
 
 
 func _apply_startup_profile(profile: Dictionary) -> void:
@@ -198,14 +214,47 @@ static func stamp_uniforms(
 	]
 
 
+## One step is two pads with a small arch gap. This keeps ordinary walking from
+## becoming a continuous capsule/trench while still preserving heel strike and
+## forefoot push-off as one accepted FootContactSensor event.
+static func footprint_pad_uniforms(
+	position: Vector3,
+	normal: Vector3,
+	forward: Vector3,
+	half_length_m: float,
+	half_width_m: float,
+	field_origin: Vector2,
+	field_window_m: float,
+	depth_m: float
+) -> Array[Vector4]:
+	var up: Vector3 = normal.normalized() if normal.length_squared() > 0.0001 else Vector3.UP
+	var toe: Vector3 = forward - up * forward.dot(up)
+	if toe.length_squared() < 0.0001:
+		toe = Vector3.FORWARD - up * Vector3.FORWARD.dot(up)
+	toe = toe.normalized()
+	var heel_centre: Vector3 = position - toe * half_length_m * 0.52
+	var fore_centre: Vector3 = position + toe * half_length_m * 0.40
+	var heel: Array[Vector4] = stamp_uniforms(
+		heel_centre, up, toe,
+		maxf(half_length_m * 0.34, 0.035), maxf(half_width_m * 0.78, 0.025),
+		field_origin, field_window_m, depth_m
+	)
+	var fore: Array[Vector4] = stamp_uniforms(
+		fore_centre, up, toe,
+		maxf(half_length_m * 0.42, 0.045), maxf(half_width_m, 0.03),
+		field_origin, field_window_m, depth_m * 0.9
+	)
+	return [heel[0], heel[1], fore[0], fore[1]]
+
+
 func _upload_pending_stamps(mat: ShaderMaterial) -> int:
-	var batch: Array = _interactions.call(&"peek_batch", MAX_STAMPS_PER_PASS)
+	var batch: Array = _interactions.call(&"peek_batch", MAX_PLANTS_PER_PASS)
 	var consumed: int = batch.size()
 	var a: Array[Vector4] = []
 	var b: Array[Vector4] = []
-	a.resize(MAX_STAMPS_PER_PASS)
-	b.resize(MAX_STAMPS_PER_PASS)
-	for i: int in range(MAX_STAMPS_PER_PASS):
+	a.resize(MAX_FOOT_PAD_STAMPS)
+	b.resize(MAX_FOOT_PAD_STAMPS)
+	for i: int in range(MAX_FOOT_PAD_STAMPS):
 		a[i] = Vector4.ZERO
 		b[i] = Vector4.ZERO
 
@@ -225,7 +274,7 @@ func _upload_pending_stamps(mat: ShaderMaterial) -> int:
 			press = minf(press, give)
 			var side: int = int(stamp["side"])
 			var half_length: float = maxf(_sole_len[side] * 0.5, 0.12)
-			var encoded: Array[Vector4] = stamp_uniforms(
+			var encoded: Array[Vector4] = footprint_pad_uniforms(
 				position,
 				stamp["normal"],
 				stamp["forward"],
@@ -235,9 +284,12 @@ func _upload_pending_stamps(mat: ShaderMaterial) -> int:
 				window_m,
 				press
 			)
-			a[active_count] = encoded[0]
-			b[active_count] = encoded[1]
-			active_count += 1
+			for pad: int in range(2):
+				if active_count >= MAX_FOOT_PAD_STAMPS:
+					break
+				a[active_count] = encoded[pad * 2]
+				b[active_count] = encoded[pad * 2 + 1]
+				active_count += 1
 
 	mat.set_shader_parameter("foot_stamp_count", active_count)
 	mat.set_shader_parameter("foot_stamp_a", a)
