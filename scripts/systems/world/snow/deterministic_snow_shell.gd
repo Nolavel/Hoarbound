@@ -4,6 +4,7 @@ extends "res://scripts/systems/world/snow/snow_shell.gd"
 const GRAPHICS: GDScript = preload("res://scripts/settings/graphics_quality.gd")
 const INTERACTION_QUEUE: GDScript = preload("res://scripts/systems/world/snow/snow_interaction_queue.gd")
 const HEIGHT_CONTRACT: GDScript = preload("res://scripts/systems/world/snow/snow_height_contract.gd")
+const SURFACE_CLIPMAP: GDScript = preload("res://scripts/systems/world/snow/snow_surface_clipmap.gd")
 const CONTACT_WINDOW_M: float = 6.4
 const CONTACT_RES: int = 256
 const MAX_STAMPS_PER_PASS: int = 16
@@ -19,13 +20,15 @@ var _snow_pass_interval: float = 0.25
 
 
 func _ready() -> void:
-	var profile: Dictionary = GRAPHICS.profile_for(GRAPHICS.load_quality())
+	var quality: StringName = GRAPHICS.load_quality()
+	var profile: Dictionary = GRAPHICS.profile_for(quality)
 	_apply_startup_profile(profile)
 	contact_res = CONTACT_RES
 	super()
 	add_to_group(&"graphics_quality_consumer")
 	if _surface == null:
 		return
+	_install_surface_geometry(quality)
 	contact_res = CONTACT_RES
 	_contact.size = Vector2i(CONTACT_RES, CONTACT_RES)
 	_contact_cam.size = CONTACT_WINDOW_M
@@ -36,6 +39,31 @@ func _ready() -> void:
 		mat.set_shader_parameter("field_window_m", window_m)
 		mat.set_shader_parameter("contact_window_m", CONTACT_WINDOW_M)
 		mat.set_shader_parameter("foot_stamp_count", 0)
+
+
+## Geometry-only migration proof. The old graded grid still exists in SnowShell and
+## can be restored with hfn/snow/clipmap_geometry=false for A/B or rollback.
+func _install_surface_geometry(quality: StringName) -> void:
+	if not bool(ProjectSettings.get_setting("hfn/snow/clipmap_geometry", true)):
+		_mesh.set_meta(&"snow_geometry", "legacy_graded_grid")
+		return
+	var core: float = SURFACE_CLIPMAP.DEFAULT_L0_HALF_M
+	var fine: float = SURFACE_CLIPMAP.DEFAULT_L0_SPACING_M
+	var coarse: float = SURFACE_CLIPMAP.DEFAULT_L1_SPACING_M
+	match quality:
+		GRAPHICS.LOW:
+			core = 2.56
+			fine = 0.16
+			coarse = 0.32
+		GRAPHICS.MEDIUM:
+			core = 3.2
+			fine = 0.1
+			coarse = 0.2
+	_mesh.mesh = SURFACE_CLIPMAP.build(window_m, core, fine, coarse)
+	_mesh.set_meta(&"snow_geometry", "clipmap_l0_l1")
+	_mesh.set_meta(&"snow_l0_half_m", core)
+	_mesh.set_meta(&"snow_l0_spacing_m", fine)
+	_mesh.set_meta(&"snow_l1_spacing_m", coarse)
 
 
 func _apply_startup_profile(profile: Dictionary) -> void:
