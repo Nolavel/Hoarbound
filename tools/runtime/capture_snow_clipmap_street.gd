@@ -1,12 +1,13 @@
 extends SceneTree
 
 ## Seam-focused visual proof for the snow clipmap migration.
-## Reuses the real Key West Reality scene and the existing snow preview workflow.
+## Reuses the real Key West Reality scene and existing snow preview workflow.
 ## A wide chase/overhead camera keeps the local SnowShell and streamed outer snow
-## visible while Henry walks straight down open Duval Street. Two simulation steps
-## are advanced for each saved video frame so the six-second proof spans enough
-## world distance for several production recenter events without changing gameplay.
-## A final diagnostic still colors L0 red, stitch yellow, L1 blue and outer green.
+## visible while Henry traverses open Duval Street. The capture temporarily doubles
+## walk speed so 72 Lavapipe frames cross 5-10 production recenter boundaries without
+## doubling render time. Production movement values are restored before exit and
+## recorded alongside the capture-only value in report.json.
+## Final diagnostic: L0 red, stitch yellow, L1 blue, streamed outer green.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA := "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -18,10 +19,10 @@ const POST_RECENTER_SETTLE_FRAMES := 12
 const MAX_WAIT_FRAMES := 600
 const VIDEO_FRAMES := 72
 const VIDEO_FPS := 12
-const SIM_STEPS_PER_VIDEO_FRAME := 2
 const REVIEW_HOUR := 14.0
 const SEAM_SETTLED := 0.25
-const MIN_WALK_DISTANCE_M := 5.0
+const CAPTURE_WALK_SPEED_MPS := 3.0
+const MIN_WALK_DISTANCE_M := 10.0
 const MIN_RECENTERS := 5
 const MAX_RECENTERS := 10
 
@@ -36,6 +37,8 @@ var _weather: WeatherController
 var _day_night: DayNightManager
 var _presentation: SnowPresentationSystem
 var _shell: SnowShell
+var _mover: MovementController
+var _production_walk_speed_mps := 0.0
 var _street_at := Vector2.ZERO
 var _street_yaw := 0.0
 var _frame_dir := ""
@@ -81,11 +84,12 @@ func _run() -> void:
 	_weather = _ctx.get_system(preload("res://scripts/systems/world/WeatherController.gd")) as WeatherController
 	_presentation = _ctx.get_system(preload("res://scripts/systems/world/snow/snow_presentation_system.gd")) as SnowPresentationSystem
 	_shell = SnowShell.active
+	_mover = _player.get_node_or_null(^"MovementController") as MovementController if _player != null else null
 	for node: Node in _world.find_children("*", "DayNightManager", true, false):
 		_day_night = node as DayNightManager
 		break
-	if _player == null or _camera == null or _ground == null or _weather == null or _day_night == null or _presentation == null or _shell == null:
-		_fail("missing player/camera/ground/weather/day-night/snow presentation/snow shell")
+	if _player == null or _camera == null or _ground == null or _weather == null or _day_night == null or _presentation == null or _shell == null or _mover == null:
+		_fail("missing player/camera/ground/weather/day-night/snow presentation/snow shell/movement")
 		return
 
 	var surface := _shell.get_node_or_null("SnowShellMesh") as MeshInstance3D
@@ -93,6 +97,7 @@ func _run() -> void:
 		_fail("production SnowShell did not install clipmap_l0_l1 geometry")
 		return
 
+	_production_walk_speed_mps = _mover.walk_speed
 	_hide_hud()
 	_weather.set_weather(&"calm", true)
 	_presentation.load_save_data({"settled": SEAM_SETTLED, "frost": 0.35, "storm": 0.4})
@@ -109,10 +114,12 @@ func _run() -> void:
 	_start = _player.global_position
 	_last_origin = _shell.get_origin()
 	_save_image(_capture_image(), OUT.path_join("start.png"))
+	_mover.walk_speed = CAPTURE_WALK_SPEED_MPS
 	_press_walk_input()
 	for i: int in range(VIDEO_FRAMES):
 		await _capture_frame(i)
 	_release_motion_input()
+	_mover.walk_speed = _production_walk_speed_mps
 	await _wait_frames(3)
 
 	var finish := _player.global_position
@@ -129,25 +136,24 @@ func _run() -> void:
 	_write_report(surface, walked)
 
 	if walked < MIN_WALK_DISTANCE_M:
-		_fail("Henry walked %.2f m; need %.2f m for seam proof" % [walked, MIN_WALK_DISTANCE_M])
+		_fail("Henry traversed %.2f m; need %.2f m for seam proof" % [walked, MIN_WALK_DISTANCE_M])
 		return
 	if _recenter_count < MIN_RECENTERS or _recenter_count > MAX_RECENTERS:
 		_fail("seam proof observed %d recenter events; expected %d..%d" % [_recenter_count, MIN_RECENTERS, MAX_RECENTERS])
 		return
-	print("SNOW_CLIPMAP_SEAM pass frames=%d sim_steps=%d settled=%.2f walk=%.2fm recenter=%d driver=%s" % [
-		VIDEO_FRAMES, SIM_STEPS_PER_VIDEO_FRAME, SEAM_SETTLED, walked, _recenter_count,
-		RenderingServer.get_current_rendering_driver_name()])
+	print("SNOW_CLIPMAP_SEAM pass frames=%d settled=%.2f traverse=%.2fm recenter=%d production_walk=%.2f capture_walk=%.2f driver=%s" % [
+		VIDEO_FRAMES, SEAM_SETTLED, walked, _recenter_count, _production_walk_speed_mps,
+		CAPTURE_WALK_SPEED_MPS, RenderingServer.get_current_rendering_driver_name()])
 	quit(0)
 
 
 func _capture_frame(index: int) -> void:
-	for _step: int in range(SIM_STEPS_PER_VIDEO_FRAME):
-		await process_frame
-		var origin: Vector2 = _shell.get_origin()
-		if _last_origin.x != INF and not origin.is_equal_approx(_last_origin):
-			_recenter_count += 1
-		_last_origin = origin
-		_update_review_camera()
+	await process_frame
+	var origin: Vector2 = _shell.get_origin()
+	if _last_origin.x != INF and not origin.is_equal_approx(_last_origin):
+		_recenter_count += 1
+	_last_origin = origin
+	_update_review_camera()
 	await RenderingServer.frame_post_draw
 	_save_image(_capture_image(), _frame_dir.path_join("frame_%04d.png" % index))
 
@@ -296,13 +302,14 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"outer_step_m": SnowChunkCover.STEP_M,
 		"vertices": vertices.size(),
 		"triangles": indices.size() / 3,
-		"walk_distance_m": walked,
-		"locomotion": "straight_walk",
+		"traverse_distance_m": walked,
+		"locomotion": "capture_only_fast_walk",
+		"production_walk_speed_mps": _production_walk_speed_mps,
+		"capture_walk_speed_mps": CAPTURE_WALK_SPEED_MPS,
 		"recenter_count": _recenter_count,
 		"required_recenter_range": [MIN_RECENTERS, MAX_RECENTERS],
 		"video_frames": VIDEO_FRAMES,
 		"video_fps": VIDEO_FPS,
-		"simulation_steps_per_video_frame": SIM_STEPS_PER_VIDEO_FRAME,
 		"settled_snow": SEAM_SETTLED,
 		"review_camera": "wide_follow_keeps_l0_l1_outer_handoff_visible",
 		"lod_debug_capture": "lod_ownership.png",
@@ -316,5 +323,7 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 
 func _fail(message: String) -> void:
 	_release_motion_input()
+	if _mover != null and _production_walk_speed_mps > 0.0:
+		_mover.walk_speed = _production_walk_speed_mps
 	push_error("SNOW_CLIPMAP_SEAM %s" % message)
 	quit(1)
