@@ -11,8 +11,13 @@ render_mode cull_back, depth_draw_opaque;
 uniform sampler2D field : filter_linear, repeat_disable;
 // R compression, G displaced mass, B broken crust/disturbance, A compacted density.
 uniform sampler2D packed_field : filter_linear, repeat_disable;
+uniform bool packed_rg_only = false;
 uniform sampler2D settled_normal_field : filter_linear, repeat_disable;
 uniform bool use_settled_normal_field = false;
+// A retained history shell uses the same shader but only outside the current live
+// window, so the two high-detail surfaces never z-fight in their overlap.
+uniform bool clip_outside_window = false;
+uniform vec4 clip_window = vec4(0.0);
 // Nearby vertices of the baked city cover: ground, prevailing*shore,
 // storm*shore, shore. Only the outer transition samples this tiny texture.
 uniform sampler2D far_grid : filter_nearest, repeat_disable;
@@ -86,7 +91,11 @@ float far_grid_top(vec4 far) {
 }
 
 vec4 deformation_at(vec2 uv) {
-	return texture(packed_field, uv);
+	vec4 state = texture(packed_field, uv);
+	if (packed_rg_only) {
+		state.ba = vec2(0.0);
+	}
+	return state;
 }
 
 float packed_at(vec2 uv) {
@@ -221,6 +230,12 @@ void vertex() {
 }
 
 void fragment() {
+	if (clip_outside_window && clip_window.w > 0.5) {
+		vec2 clip_uv = (v_world.xz - clip_window.xy) / max(clip_window.z, 0.001);
+		if (all(greaterThan(clip_uv, vec2(0.0))) && all(lessThan(clip_uv, vec2(1.0)))) {
+			discard;
+		}
+	}
 	HFN_SHADOW_FRAGMENT(v_world);
 	vec2 uv = (v_world.xz - origin) / window_m;
 	float grain = snow_hash(floor(v_world.xz * 40.0));
