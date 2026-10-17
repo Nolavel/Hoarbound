@@ -11,6 +11,8 @@ render_mode cull_back, depth_draw_opaque;
 // xy: window min corner, z: window size, w: 1 when the window is live.
 global uniform vec4 snow_window;
 uniform vec3 fresh_color : source_color = vec3(0.8, 0.83, 0.88);
+// Capture-only ownership overlay. Runtime keeps this false.
+uniform bool debug_lod_ownership = false;
 // Baked city wind field (R prevailing, G storm), sampled per pixel so lee tongues
 // and scoured streets shade at 2 m even far from the mesh vertices.
 uniform sampler2D wind_tex : filter_linear, repeat_disable;
@@ -55,6 +57,16 @@ void fragment() {
 	float depth = depth_at(v_world.xz, v_shore);
 	if (inside || depth < 0.012) {
 		discard;
+	}
+	if (debug_lod_ownership) {
+		// Green owns the streamed outer field. The local clipmap shader uses
+		// red/yellow/blue for L0/transition/L1 in the same diagnostic frame.
+		vec3 owner = vec3(0.12, 0.82, 0.28);
+		ALBEDO = owner;
+		ROUGHNESS = 1.0;
+		EMISSION = owner * 0.12;
+		NORMAL = normalize((VIEW_MATRIX * vec4(v_ground_normal, 0.0)).xyz);
+		return;
 	}
 	// Ridge slope from the depth function itself, not the 2 m mesh.
 	float e = 0.08;

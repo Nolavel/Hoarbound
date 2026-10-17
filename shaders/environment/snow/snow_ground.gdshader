@@ -28,6 +28,10 @@ uniform sampler2D wind_tex : filter_linear, repeat_disable;
 uniform vec2 wind_origin = vec2(0.0);
 uniform vec2 wind_extent = vec2(0.0);
 uniform float wind_max = 2.5;
+// Capture-only clipmap ownership overlay. Runtime keeps this false.
+uniform bool debug_lod_ownership = false;
+uniform float debug_l0_half_m = 3.84;
+uniform float debug_l1_transition_m = 4.0;
 // Matches island_terrain snow_color so the window edge does not read as a patch.
 uniform vec3 fresh_color : source_color = vec3(0.8, 0.83, 0.88);
 uniform vec3 packed_color : source_color = vec3(0.5, 0.56, 0.68);
@@ -248,6 +252,19 @@ void fragment() {
 	float thin_cut = mix(0.012, 0.012 + grain * 0.02, v_edge);
 	if (v_cut > 0.5 || v_depth < thin_cut || ground_slope > 1.5) {
 		discard;
+	}
+	if (debug_lod_ownership) {
+		vec2 centre = origin + vec2(window_m * 0.5);
+		vec2 d = abs(v_world.xz - centre);
+		float ring = max(d.x, d.y);
+		vec3 owner = ring <= debug_l0_half_m
+			? vec3(0.92, 0.16, 0.12)
+			: (ring <= debug_l1_transition_m ? vec3(0.95, 0.72, 0.10) : vec3(0.14, 0.34, 0.96));
+		ALBEDO = owner;
+		ROUGHNESS = 1.0;
+		EMISSION = owner * 0.12;
+		NORMAL = normalize((VIEW_MATRIX * vec4(vec3(0.0, 1.0, 0.0), 0.0)).xyz);
+		return;
 	}
 	float packed_height = v_packed * v_edge;
 	float displaced_height = v_displaced * v_edge;

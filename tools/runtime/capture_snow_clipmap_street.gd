@@ -1,16 +1,11 @@
 extends SceneTree
 
-## Six-second visual proof for the current snow migration slice.
-## Runs in the real Key West Reality world on open Duval Street. Henry only walks:
-## the first three seconds use shallow settled snow and show deterministic sole
-## prints; capture pauses off-camera, deepens the snow, then records three seconds
-## of the continuous deep-wade/body-plough path. No sprint input is used.
-##
-## The exact snow depth changes along Duval while Henry walks. The shallow half uses
-## the untouched production wade threshold. After the cover transition the harness
-## measures the actual shallow/deep depths and, only for the recorded deep half,
-## selects a threshold between them. report.json records that capture-only threshold
-## alongside the production value so this cannot be mistaken for gameplay tuning.
+## Seam-focused visual proof for the snow clipmap migration.
+## Reuses the real Key West Reality scene and the existing snow preview workflow.
+## A wide chase/overhead camera keeps the entire local SnowShell window plus the
+## streamed outer cover in frame while Henry walks and changes heading slightly,
+## exercising several production recenter events. A final diagnostic still colors
+## L0 red, the stitch ring yellow, L1 blue, and streamed SnowChunkCover green.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA := "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -19,22 +14,21 @@ const OUT := "res://docs/runtime_previews/key_west/snow_clipmap"
 const CHUNK_M := 512.0
 const SETTLE_FRAMES := 60
 const POST_RECENTER_SETTLE_FRAMES := 12
-const PHASE_SETTLE_FRAMES := 20
 const MAX_WAIT_FRAMES := 600
 const VIDEO_FRAMES := 72
-const PHASE_FRAMES := VIDEO_FRAMES / 2
 const VIDEO_FPS := 12
-const SHALLOW_SETTLED := 0.25
-const DEEP_SETTLED := 1.0
-const MIN_PHASE_DEPTH_DELTA_M := 0.025
-const REVIEW_PITCH_DEG := -13.0
 const REVIEW_HOUR := 14.0
-const MIN_WALK_DISTANCE_M := 1.5
+const SEAM_SETTLED := 0.35
+const MIN_WALK_DISTANCE_M := 5.0
+const MIN_RECENTERS := 5
+const MAX_RECENTERS := 10
+const WEAVE_BLOCK_FRAMES := 12
 
 var _world: Node3D
 var _ctx: Variant
 var _player: CharacterBody3D
 var _camera: Camera3D
+var _review_camera: Camera3D
 var _ground: Node
 var _streaming: StreamingSystem
 var _weather: WeatherController
@@ -47,10 +41,6 @@ var _frame_dir := ""
 var _start := Vector3.ZERO
 var _last_origin := Vector2(INF, INF)
 var _recenter_count := 0
-var _shallow_depth_m := 0.0
-var _deep_depth_m := 0.0
-var _capture_wade_depth_m := 0.0
-var _production_wade_depth_m := 0.0
 
 
 func _initialize() -> void:
@@ -102,72 +92,52 @@ func _run() -> void:
 		_fail("production SnowShell did not install clipmap_l0_l1 geometry")
 		return
 
-	_production_wade_depth_m = _shell.wade_depth_m
-	_capture_wade_depth_m = _production_wade_depth_m
 	_hide_hud()
 	_weather.set_weather(&"calm", true)
-	_presentation.load_save_data({"settled": SHALLOW_SETTLED, "frost": 0.35, "storm": 0.4})
+	_presentation.load_save_data({"settled": SEAM_SETTLED, "frost": 0.35, "storm": 0.4})
 	_day_night.total_game_time_hours = floorf(_day_night.total_game_time_hours / 24.0) * 24.0 + REVIEW_HOUR
 	_day_night.force_update_lighting()
 	_day_night.set_process(false)
 	_place()
 	await _wait_until_streamed()
 	_shell.recentre_to(Vector2(_player.global_position.x, _player.global_position.z))
-	## Streaming already waited a full settle window. After the explicit recenter we
-	## only need a short visual stabilization, otherwise lavapipe burns most of the
-	## capture timeout rendering frames that never enter the six-second proof.
 	await _wait_frames(POST_RECENTER_SETTLE_FRAMES)
-	_camera.call(&"set_look", _street_yaw, REVIEW_PITCH_DEG)
-	_camera.make_current()
-	await _wait_frames(8)
-
-	_shallow_depth_m = _depth_here()
-	if _shallow_depth_m >= _production_wade_depth_m:
-		_fail("shallow phase depth %.3f m reached production wade threshold %.3f m" % [_shallow_depth_m, _production_wade_depth_m])
-		return
+	_build_review_camera()
+	await _wait_frames(4)
 
 	_start = _player.global_position
 	_last_origin = _shell.get_origin()
 	_save_image(_capture_image(), OUT.path_join("start.png"))
 	_press_walk_input()
-	for i: int in range(PHASE_FRAMES):
-		await _capture_frame(i)
-	_release_motion_input()
-
-	## Do not record the cover transition. Measure the actual depth at the point
-	## reached by ordinary walking, then choose a capture-only threshold that cleanly
-	## separates the already-recorded shallow half from the deep half.
-	_presentation.load_save_data({"settled": DEEP_SETTLED, "frost": 0.35, "storm": 0.4})
-	await _wait_frames(PHASE_SETTLE_FRAMES)
-	_deep_depth_m = _depth_here()
-	if _deep_depth_m <= _shallow_depth_m + MIN_PHASE_DEPTH_DELTA_M:
-		_fail("deep phase %.3f m did not separate from shallow %.3f m by %.3f m" % [_deep_depth_m, _shallow_depth_m, MIN_PHASE_DEPTH_DELTA_M])
-		return
-	_capture_wade_depth_m = minf(_production_wade_depth_m, (_shallow_depth_m + _deep_depth_m) * 0.5)
-	if not (_shallow_depth_m < _capture_wade_depth_m and _deep_depth_m > _capture_wade_depth_m):
-		_fail("measured depths do not bracket capture threshold %.3f m (shallow %.3f, deep %.3f)" % [_capture_wade_depth_m, _shallow_depth_m, _deep_depth_m])
-		return
-	_shell.wade_depth_m = _capture_wade_depth_m
-	await _wait_frames(4)
-
-	_press_walk_input()
-	for i: int in range(PHASE_FRAMES, VIDEO_FRAMES):
+	for i: int in range(VIDEO_FRAMES):
+		_apply_weave(i)
 		await _capture_frame(i)
 	_release_motion_input()
 	await _wait_frames(3)
 
 	var finish := _player.global_position
 	var walked := Vector2(_start.x, _start.z).distance_to(Vector2(finish.x, finish.z))
+	_update_review_camera()
 	_save_image(_capture_image(), OUT.path_join("end.png"))
+
+	## One diagnostic frame, outside the normal video: L0 red, stitch yellow,
+	## L1 blue, streamed outer cover green.
+	_set_lod_debug(surface, true)
+	await _wait_frames(2)
+	_update_review_camera()
+	await RenderingServer.frame_post_draw
+	_save_image(_capture_image(), OUT.path_join("lod_ownership.png"))
+	_set_lod_debug(surface, false)
 	_write_report(surface, walked)
+
 	if walked < MIN_WALK_DISTANCE_M:
-		_fail("Henry walked %.2f m; need %.2f m to prove ordinary gait motion" % [walked, MIN_WALK_DISTANCE_M])
+		_fail("Henry walked %.2f m; need %.2f m for seam proof" % [walked, MIN_WALK_DISTANCE_M])
 		return
-	## Recenter count is informational here. The clipmap topology/recenter contract is
-	## covered elsewhere; this visual proof is specifically about gait and snow marks.
-	print("SNOW_CLIPMAP_PREVIEW pass mode=walk frames=%d shallow=%.3fm deep=%.3fm capture_threshold=%.3fm production_threshold=%.3fm walk=%.2fm recenter=%d driver=%s" % [
-		VIDEO_FRAMES, _shallow_depth_m, _deep_depth_m, _capture_wade_depth_m,
-		_production_wade_depth_m, walked, _recenter_count,
+	if _recenter_count < MIN_RECENTERS or _recenter_count > MAX_RECENTERS:
+		_fail("seam proof observed %d recenter events; expected %d..%d" % [_recenter_count, MIN_RECENTERS, MAX_RECENTERS])
+		return
+	print("SNOW_CLIPMAP_SEAM pass frames=%d settled=%.2f walk=%.2fm recenter=%d driver=%s" % [
+		VIDEO_FRAMES, SEAM_SETTLED, walked, _recenter_count,
 		RenderingServer.get_current_rendering_driver_name()])
 	quit(0)
 
@@ -178,8 +148,30 @@ func _capture_frame(index: int) -> void:
 	if _last_origin.x != INF and not origin.is_equal_approx(_last_origin):
 		_recenter_count += 1
 	_last_origin = origin
+	_update_review_camera()
 	await RenderingServer.frame_post_draw
 	_save_image(_capture_image(), _frame_dir.path_join("frame_%04d.png" % index))
+
+
+func _build_review_camera() -> void:
+	_review_camera = Camera3D.new()
+	_review_camera.name = "SnowSeamReviewCamera"
+	_review_camera.fov = 70.0
+	_review_camera.near = 0.1
+	_review_camera.far = 400.0
+	_world.add_child(_review_camera)
+	_review_camera.make_current()
+	_update_review_camera()
+
+
+func _update_review_camera() -> void:
+	if _review_camera == null or _player == null:
+		return
+	var forward: Vector3 = Basis(Vector3.UP, _street_yaw) * Vector3.FORWARD
+	var right: Vector3 = forward.cross(Vector3.UP).normalized()
+	var target: Vector3 = _player.global_position + forward * 1.5
+	_review_camera.global_position = target - forward * 17.0 + right * 5.0 + Vector3.UP * 19.0
+	_review_camera.look_at(target, Vector3.UP)
 
 
 func _press_walk_input() -> void:
@@ -187,8 +179,36 @@ func _press_walk_input() -> void:
 	Input.action_press(&"move_forward", 1.0)
 
 
-func _depth_here() -> float:
-	return _shell.field.get_depth(_player.global_position.x, _player.global_position.z)
+## Slight left/right heading changes exercise grid snapping on both axes without
+## sprinting or changing the production recenter step.
+func _apply_weave(frame: int) -> void:
+	Input.action_release(&"move_left")
+	Input.action_release(&"move_right")
+	var block: int = frame / WEAVE_BLOCK_FRAMES
+	if block % 2 == 0:
+		Input.action_press(&"move_right", 0.85)
+	else:
+		Input.action_press(&"move_left", 0.85)
+
+
+func _set_lod_debug(surface: MeshInstance3D, enabled: bool) -> void:
+	var local_mat := surface.material_override as ShaderMaterial
+	if local_mat != null:
+		local_mat.set_shader_parameter("debug_lod_ownership", enabled)
+		local_mat.set_shader_parameter("debug_l0_half_m", float(surface.get_meta(&"snow_l0_half_m", 3.84)))
+		local_mat.set_shader_parameter(
+			"debug_l1_transition_m",
+			float(surface.get_meta(&"snow_l0_half_m", 3.84)) + float(surface.get_meta(&"snow_l1_spacing_m", 0.16))
+		)
+	for node: Node in _world.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null or mesh_instance.mesh.get_surface_count() == 0:
+			continue
+		var material := mesh_instance.get_active_material(0) as ShaderMaterial
+		if material == null or material.shader == null:
+			continue
+		if material.shader.resource_path.ends_with("snow_chunk_cover.gdshader"):
+			material.set_shader_parameter("debug_lod_ownership", enabled)
 
 
 func _load_street() -> bool:
@@ -223,8 +243,6 @@ func _place() -> void:
 	_player.velocity = Vector3.ZERO
 	_player.rotation.y = _street_yaw
 	_player.reset_physics_interpolation()
-	_camera.call(&"set_look", _street_yaw, REVIEW_PITCH_DEG)
-	_camera.make_current()
 	if _streaming != null:
 		_streaming.scan(_player.global_position)
 
@@ -243,7 +261,7 @@ func _wait_until_streamed() -> void:
 		if active_at >= 0 and frame - active_at >= SETTLE_FRAMES:
 			return
 		await process_frame
-	push_warning("snow clipmap preview: stream wait hit %d-frame safety cap" % MAX_WAIT_FRAMES)
+	push_warning("snow clipmap seam preview: stream wait hit %d-frame safety cap" % MAX_WAIT_FRAMES)
 
 
 func _release_motion_input() -> void:
@@ -277,6 +295,7 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var report := {
+		"diagnostic": "snow clipmap seam and recenter proof",
 		"scene": SCENE,
 		"street": STREET_NAME,
 		"renderer": RenderingServer.get_current_rendering_driver_name(),
@@ -284,21 +303,20 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"l0_half_m": float(surface.get_meta(&"snow_l0_half_m", 0.0)),
 		"l0_spacing_m": float(surface.get_meta(&"snow_l0_spacing_m", 0.0)),
 		"l1_spacing_m": float(surface.get_meta(&"snow_l1_spacing_m", 0.0)),
+		"outer_step_m": SnowChunkCover.STEP_M,
 		"vertices": vertices.size(),
 		"triangles": indices.size() / 3,
 		"walk_distance_m": walked,
-		"locomotion": "walk",
+		"locomotion": "walk_with_seam_test_weave",
 		"recenter_count": _recenter_count,
+		"required_recenter_range": [MIN_RECENTERS, MAX_RECENTERS],
 		"video_frames": VIDEO_FRAMES,
 		"video_fps": VIDEO_FPS,
-		"phase_frames": PHASE_FRAMES,
-		"shallow_settled_snow": SHALLOW_SETTLED,
-		"deep_settled_snow": DEEP_SETTLED,
-		"shallow_depth_m": _shallow_depth_m,
-		"deep_depth_m": _deep_depth_m,
-		"capture_wade_depth_m": _capture_wade_depth_m,
-		"production_wade_depth_m": _production_wade_depth_m,
-		"settled_snow": _presentation.get_settled_snow(),
+		"settled_snow": SEAM_SETTLED,
+		"review_camera": "wide_follow_keeps_l0_l1_outer_handoff_visible",
+		"lod_debug_capture": "lod_ownership.png",
+		"lod_debug_legend": {"L0": "red", "transition": "yellow", "L1": "blue", "outer": "green"},
+		"foot_pin_reach_m": 0.34,
 	}
 	var file := FileAccess.open(OUT.path_join("report.json"), FileAccess.WRITE)
 	file.store_string(JSON.stringify(report, "\t"))
@@ -307,5 +325,5 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 
 func _fail(message: String) -> void:
 	_release_motion_input()
-	push_error("SNOW_CLIPMAP_PREVIEW %s" % message)
+	push_error("SNOW_CLIPMAP_SEAM %s" % message)
 	quit(1)

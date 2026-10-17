@@ -31,9 +31,10 @@ const PELVIS: StringName = &"pelvis"
 @export_range(0.0, 1.0) var plough_share: float = 0.5
 ## Ankle bone height above the sole, metres.
 @export var ankle_m: float = 0.08
-## Farthest a planted boot is held against the clip's glide, metres; past it the
-## boot lets go and slides rather than stretching the leg.
-@export var lock_reach_m: float = 0.1
+## Farthest a planted boot can be IK-pinned to its original print before the leg
+## must give. Ordinary walking stamps deformation once at plant time, so the pin
+## must not creep forward every 10 cm while the deformation stays behind.
+@export var lock_reach_m: float = 0.34
 ## How fast the pin fades in on a plant and out on a lift, per second.
 @export var lock_blend_rate: float = 10.0
 
@@ -111,8 +112,9 @@ func _on_plant(skeleton: Skeleton3D, side: int, depth: float) -> void:
 	_hip_v -= plant_dip_mps * clampf(depth / maxf(plant_dip_depth_m, 0.01), 0.0, 1.0)
 
 
-## World offset that holds a planted boot on its print against the clip's glide,
-## faded by the lock weight; after a lift the last offset eases out.
+## World offset that holds a planted boot on its original print against the clip's
+## glide. Once the leg reaches the safety radius the requested IK offset clamps,
+## but the anchor itself never re-pins forward into undeformed snow.
 func _pin(skeleton: Skeleton3D, side: int) -> Vector3:
 	var weight: float = _lock_weight[side]
 	if weight <= 0.001:
@@ -125,10 +127,7 @@ func _pin(skeleton: Skeleton3D, side: int) -> Vector3:
 		var ankle: Vector3 = skeleton.global_transform * skeleton.get_bone_global_pose(f).origin
 		var gap := Vector3(_lock_at[side].x - ankle.x, 0.0, _lock_at[side].z - ankle.z)
 		if gap.length() > lock_reach_m:
-			## Let go: re-pin at the reach limit so the boot slides, never snaps.
-			var over: Vector3 = gap.normalized() * (gap.length() - lock_reach_m)
-			_lock_at[side] -= over
-			gap -= over
+			gap = gap.normalized() * lock_reach_m
 		_lock_offset[side] = gap
 	return _lock_offset[side] * smoothstep(0.0, 1.0, weight)
 
