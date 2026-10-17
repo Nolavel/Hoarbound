@@ -2,6 +2,8 @@ class_name DeterministicSnowShell
 extends "res://scripts/systems/world/snow/snow_shell.gd"
 
 const GRAPHICS: GDScript = preload("res://scripts/settings/graphics_quality.gd")
+const INTERACTION_QUEUE: GDScript = preload("res://scripts/systems/world/snow/snow_interaction_queue.gd")
+const HEIGHT_CONTRACT: GDScript = preload("res://scripts/systems/world/snow/snow_height_contract.gd")
 const CONTACT_WINDOW_M: float = 6.4
 const CONTACT_RES: int = 256
 const MAX_STAMPS_PER_PASS: int = 16
@@ -10,7 +12,7 @@ const MIN_STAMP_DEPTH_M: float = 0.012
 var _plant_point: Array[Vector3] = [Vector3.INF, Vector3.INF]
 var _plant_normal: Array[Vector3] = [Vector3.UP, Vector3.UP]
 var _plant_forward: Array[Vector3] = [Vector3.FORWARD, Vector3.FORWARD]
-var _foot_stamps: Array[Dictionary] = []
+var _interactions: RefCounted = INTERACTION_QUEUE.new()
 var _contact_origin: Vector2 = Vector2(INF, INF)
 var _snow_pass_elapsed: float = 0.0
 var _snow_pass_interval: float = 0.25
@@ -72,7 +74,7 @@ func _process(delta: float) -> void:
 		return
 	_snow_pass_elapsed += delta
 	var urgent: bool = (
-		not _foot_stamps.is_empty()
+		not bool(_interactions.call(&"is_empty"))
 		or _pending_shift != Vector2.ZERO
 		or _pending_collapse != Vector4.ZERO
 		or _warmup > 0
@@ -85,34 +87,24 @@ func _process(delta: float) -> void:
 	_contact.render_target_update_mode = SubViewport.UPDATE_ONCE
 	var consumed: int = _upload_pending_stamps(_accum_mat[_parity])
 	super(pass_delta)
-	for _i: int in range(consumed):
-		_foot_stamps.pop_front()
+	_interactions.call(&"consume", consumed)
 
 
 func _on_foot_planted(
 	side: int, position: Vector3, normal: Vector3, forward: Vector3, speed_mps: float
 ) -> void:
-	if side < 0 or side >= 2:
+	var stamp: Dictionary = _interactions.call(
+		&"push_foot_plant", side, position, normal, forward, speed_mps
+	)
+	if stamp.is_empty():
 		return
-	var up: Vector3 = normal.normalized() if normal.length_squared() > 0.0001 else Vector3.UP
-	var toe: Vector3 = forward - up * forward.dot(up)
-	if toe.length_squared() < 0.0001:
-		toe = Vector3.FORWARD - up * Vector3.FORWARD.dot(up)
-	toe = toe.normalized()
-	_plant_point[side] = position
-	_plant_normal[side] = up
-	_plant_forward[side] = toe
-	_foot_stamps.append({
-		"side": side,
-		"position": position,
-		"normal": up,
-		"forward": toe,
-		"speed": speed_mps,
-	})
+	_plant_point[side] = stamp["position"]
+	_plant_normal[side] = stamp["normal"]
+	_plant_forward[side] = stamp["forward"]
 
 
 func get_pending_foot_stamp_count() -> int:
-	return _foot_stamps.size()
+	return int(_interactions.call(&"size"))
 
 
 func _update_local_contact(centre: Vector2) -> void:
@@ -120,10 +112,7 @@ func _update_local_contact(centre: Vector2) -> void:
 		return
 	var half: float = CONTACT_WINDOW_M * 0.5
 	var texel_m: float = CONTACT_WINDOW_M / float(CONTACT_RES)
-	var wanted := Vector2(
-		snappedf(centre.x - half, texel_m),
-		snappedf(centre.y - half, texel_m)
-	)
+	var wanted: Vector2 = HEIGHT_CONTRACT.snapped_window_origin(centre, CONTACT_WINDOW_M, texel_m)
 	_contact_origin = wanted
 	_contact_cam.size = CONTACT_WINDOW_M
 	_contact_cam.global_transform = Transform3D(
@@ -159,7 +148,9 @@ static func stamp_uniforms(
 	else:
 		right = right.normalized()
 
-	var centre_uv := (Vector2(position.x, position.z) - field_origin) / field_window_m
+	var centre_uv: Vector2 = HEIGHT_CONTRACT.world_to_uv(
+		Vector2(position.x, position.z), field_origin, field_window_m
+	)
 	var f := Vector2(toe.x, toe.z) * (half_length_m / field_window_m)
 	var r := Vector2(right.x, right.z) * (half_width_m / field_window_m)
 	var det: float = f.x * r.y - r.x * f.y
@@ -180,7 +171,8 @@ static func stamp_uniforms(
 
 
 func _upload_pending_stamps(mat: ShaderMaterial) -> int:
-	var consumed: int = mini(_foot_stamps.size(), MAX_STAMPS_PER_PASS)
+	var batch: Array = _interactions.call(&"peek_batch", MAX_STAMPS_PER_PASS)
+	var consumed: int = batch.size()
 	var a: Array[Vector4] = []
 	var b: Array[Vector4] = []
 	a.resize(MAX_STAMPS_PER_PASS)
@@ -191,8 +183,8 @@ func _upload_pending_stamps(mat: ShaderMaterial) -> int:
 
 	var active_count: int = 0
 	if field.origin.x != INF:
-		for i: int in range(consumed):
-			var stamp: Dictionary = _foot_stamps[i]
+		for stamp_variant: Variant in batch:
+			var stamp: Dictionary = stamp_variant
 			var position: Vector3 = stamp["position"]
 			var depth: float = field.get_depth(position.x, position.z)
 			var softness: float = field.get_softness(position.x, position.z)
@@ -283,7 +275,8 @@ func _place_soles(delta: float) -> void:
 		_raise[side] = clampf(depth - _sink[side], 0.0, depth) if top > -INF else 0.0
 		if top > -INF:
 			_queue_rim(side, _sink[side] - was, softness)
-		var bottom: float = top - _sink[side] if top > -INF else -1000.0
+		var ground: float = top - depth if top > -INF else -1000.0
+		var bottom: float = HEIGHT_CONTRACT.visible_top(ground, depth, _sink[side], 0.0) if top > -INF else -1000.0
 		var dig: Vector2 = _roll_dig(side, foot, softness)
 		var fwd := Vector3(_sole_fwd[side].x, 0.0, _sole_fwd[side].y)
 		var centre := Vector3(at.x, 0.0, at.y)

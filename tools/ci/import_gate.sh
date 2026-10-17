@@ -6,6 +6,7 @@ set -uo pipefail
 GODOT="${GODOT:-$HOME/.local/bin/godot}"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 LOG="$(mktemp)"
+EVENT_MESSAGE=""
 
 ## Motion-matching retarget spikes stage public source motion only in CI and
 ## never commit third-party animation binaries. Marker-specific staging runs
@@ -53,4 +54,12 @@ if ! "$GODOT" --headless --path "$PROJECT_DIR" --script res://tools/ci/compile_s
 	echo "import gate: a script does not compile" >&2
 	exit 1
 fi
+
+## Snow architecture work uses the existing cheap checks workflow, but only for
+## explicitly tagged commits so ordinary imports do not inherit mechanic churn.
+## This gate is headless only: no Vulkan, screenshots or capture harness.
+if [[ "$EVENT_MESSAGE" == *"[snow-architecture]"* ]]; then
+	GODOT="$GODOT" bash "$PROJECT_DIR/tools/ci/snow_architecture_gate.sh" || exit $?
+fi
+
 echo "import gate: clean"
