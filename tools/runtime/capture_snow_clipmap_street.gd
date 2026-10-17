@@ -1,17 +1,15 @@
 extends SceneTree
 
 ## Six-second visual proof for the current snow migration slice.
-## Runs in the real Key West Reality world on open Duval Street. The first three
-## seconds use shallow settled snow and must stay below the capture wade threshold,
-## so only deterministic heel/forefoot prints are allowed. Capture pauses off-camera,
-## deepens the snow, verifies the threshold is crossed, then records three seconds
-## of the continuous deep-wade/body-plough path. Both phases keep the same camera,
-## renderer and street so the visual distinction is reviewable in one video.
+## Runs in the real Key West Reality world on open Duval Street. Henry only walks:
+## the first three seconds use shallow settled snow and show deterministic sole
+## prints; capture pauses off-camera, deepens the snow, then records three seconds
+## of the continuous deep-wade/body-plough path. No sprint input is used.
 ##
-## Duval's chosen review point reaches only ~0.25 m at full settled cover, below
-## production's 0.30 m wade threshold. This harness therefore lowers the threshold
-## on this runtime SnowShell instance only. The production default is never changed
-## and both values are written to report.json so the evidence cannot be mistaken.
+## Duval's chosen review point may remain below production's 0.30 m wade threshold
+## at full settled cover. This harness therefore lowers the threshold on this runtime
+## SnowShell instance only, while report.json records both capture and production
+## values so the visual proof cannot be mistaken for a production tuning change.
 
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA := "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -125,7 +123,7 @@ func _run() -> void:
 	_start = _player.global_position
 	_last_origin = _shell.get_origin()
 	_save_image(_capture_image(), OUT.path_join("start.png"))
-	_press_motion_input()
+	_press_walk_input()
 	for i: int in range(PHASE_FRAMES):
 		await _capture_frame(i)
 	_release_motion_input()
@@ -140,7 +138,7 @@ func _run() -> void:
 		return
 	await _wait_frames(4)
 
-	_press_motion_input()
+	_press_walk_input()
 	for i: int in range(PHASE_FRAMES, VIDEO_FRAMES):
 		await _capture_frame(i)
 	_release_motion_input()
@@ -151,12 +149,12 @@ func _run() -> void:
 	_save_image(_capture_image(), OUT.path_join("end.png"))
 	_write_report(surface, walked)
 	if walked < MIN_WALK_DISTANCE_M:
-		_fail("Henry moved %.2f m; need %.2f m to exercise a window recenter" % [walked, MIN_WALK_DISTANCE_M])
+		_fail("Henry walked %.2f m; need %.2f m to exercise a window recenter" % [walked, MIN_WALK_DISTANCE_M])
 		return
 	if _recenter_count < 1:
 		_fail("snow window never recentered during the visual proof")
 		return
-	print("SNOW_CLIPMAP_PREVIEW pass frames=%d shallow=%.3fm deep=%.3fm capture_threshold=%.3fm production_threshold=%.3fm walk=%.2fm recenter=%d driver=%s" % [
+	print("SNOW_CLIPMAP_PREVIEW pass mode=walk frames=%d shallow=%.3fm deep=%.3fm capture_threshold=%.3fm production_threshold=%.3fm walk=%.2fm recenter=%d driver=%s" % [
 		VIDEO_FRAMES, _shallow_depth_m, _deep_depth_m, _shell.wade_depth_m,
 		_production_wade_depth_m, walked, _recenter_count,
 		RenderingServer.get_current_rendering_driver_name()])
@@ -173,9 +171,9 @@ func _capture_frame(index: int) -> void:
 	_save_image(_capture_image(), _frame_dir.path_join("frame_%04d.png" % index))
 
 
-func _press_motion_input() -> void:
+func _press_walk_input() -> void:
+	Input.action_release(&"sprint")
 	Input.action_press(&"move_forward", 1.0)
-	Input.action_press(&"sprint", 1.0)
 
 
 func _depth_here() -> float:
@@ -278,6 +276,7 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"vertices": vertices.size(),
 		"triangles": indices.size() / 3,
 		"walk_distance_m": walked,
+		"locomotion": "walk",
 		"recenter_count": _recenter_count,
 		"video_frames": VIDEO_FRAMES,
 		"video_fps": VIDEO_FPS,

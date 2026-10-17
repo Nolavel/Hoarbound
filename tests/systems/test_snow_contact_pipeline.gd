@@ -15,7 +15,7 @@ func _process(_delta: float) -> bool:
 func _run() -> void:
 	_test_three_probe_contact_follows_camber()
 	_test_stamp_basis_is_tangent_plane()
-	_test_footprint_splits_heel_and_forefoot()
+	_test_footprint_shapes_heel_forefoot_and_toe_shove()
 	_test_twenty_plants_are_retained_without_rendering()
 	_test_local_contact_target_keeps_packed_field_large()
 	_test_walk_pads_are_not_live_contact_geometry()
@@ -72,20 +72,26 @@ func _test_stamp_basis_is_tangent_plane() -> void:
 	_check(local.length() < 1e-6, "stamp centre does not map to its own tangent basis")
 
 
-func _test_footprint_splits_heel_and_forefoot() -> void:
+func _test_footprint_shapes_heel_forefoot_and_toe_shove() -> void:
 	var encoded: Array[Vector4] = SHELL_SCRIPT.footprint_pad_uniforms(
 		Vector3.ZERO, Vector3.UP, Vector3.FORWARD, 0.15, 0.055,
-		Vector2(-12.8, -12.8), 25.6, 0.08
+		Vector2(-12.8, -12.8), 25.6, 0.08, 2.0
 	)
-	_check(encoded.size() == 4, "one accepted plant did not encode heel + forefoot")
+	_check(encoded.size() == 6, "one accepted plant did not encode heel + forefoot + toe shove")
 	var heel_uv := Vector2(encoded[0].x, encoded[0].y)
 	var fore_uv := Vector2(encoded[2].x, encoded[2].y)
-	var separation_m: float = heel_uv.distance_to(fore_uv) * 25.6
-	_check(separation_m > 0.1, "heel and forefoot collapsed into one continuous oval")
+	var shove_uv := Vector2(encoded[4].x, encoded[4].y)
+	var heel_fore_m: float = heel_uv.distance_to(fore_uv) * 25.6
+	var fore_shove_m: float = fore_uv.distance_to(shove_uv) * 25.6
+	_check(heel_fore_m > 0.1, "heel and forefoot collapsed into one continuous oval")
+	_check(fore_shove_m > 0.05, "toe shove did not extend ahead of the forefoot")
+	_check(shove_uv.y < fore_uv.y, "toe shove is not forward for a Vector3.FORWARD plant")
 	_check(is_equal_approx(encoded[1].z, 0.08), "heel lost the accepted plant depth")
-	_check(encoded[3].z > 0.0 and encoded[3].z < encoded[1].z, "forefoot depth is not distinct from heel strike")
-	_check(SHELL_SCRIPT.MAX_PLANTS_PER_PASS * 2 == SHELL_SCRIPT.MAX_FOOT_PAD_STAMPS,
-		"plant batch can overflow the 16-pad shader contract")
+	_check(encoded[3].z > encoded[5].z, "toe shove is not shallower than the loaded forefoot")
+	_check(encoded[5].z > 0.0 and encoded[5].z < encoded[1].z * 0.5, "toe shove depth is too strong for a push-off scrape")
+	_check(SHELL_SCRIPT.FOOT_STAMPS_PER_PLANT == 3, "footprint contract is no longer three zones")
+	_check(SHELL_SCRIPT.MAX_PLANTS_PER_PASS * SHELL_SCRIPT.FOOT_STAMPS_PER_PLANT <= SHELL_SCRIPT.MAX_FOOT_PAD_STAMPS,
+		"plant batch can overflow the 16-stamp shader contract")
 
 
 func _test_twenty_plants_are_retained_without_rendering() -> void:

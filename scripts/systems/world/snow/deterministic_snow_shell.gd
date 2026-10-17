@@ -7,8 +7,10 @@ const HEIGHT_CONTRACT: GDScript = preload("res://scripts/systems/world/snow/snow
 const SURFACE_CLIPMAP: GDScript = preload("res://scripts/systems/world/snow/snow_surface_clipmap.gd")
 const CONTACT_WINDOW_M: float = 6.4
 const CONTACT_RES: int = 256
-## One accepted plant becomes two deterministic pads (heel + forefoot).
-const MAX_PLANTS_PER_PASS: int = 8
+## One accepted plant becomes three deterministic sole zones: heel, forefoot and
+## a short shallow toe shove. Five plants fit into the existing 16-stamp shader contract.
+const FOOT_STAMPS_PER_PLANT: int = 3
+const MAX_PLANTS_PER_PASS: int = 5
 const MAX_FOOT_PAD_STAMPS: int = 16
 const MIN_STAMP_DEPTH_M: float = 0.012
 
@@ -70,9 +72,9 @@ func _install_surface_geometry(quality: StringName) -> void:
 
 
 ## Synthetic sole/drag meshes still drive IK timing and VFX, but no longer write
-## the live contact heightfield. Normal walking is therefore only discrete heel +
-## forefoot stamps. The real player visual is tagged onto CONTACT_LAYER by the base
-## SnowShell only when depth > wade_depth_m, leaving body plough as a deep-wade path.
+## the live contact heightfield. Normal walking is therefore only discrete sole
+## stamps. The real player visual is tagged onto CONTACT_LAYER by the base SnowShell
+## only when depth > wade_depth_m, leaving body plough as a deep-wade path.
 func _detach_walk_pads_from_contact_capture() -> void:
 	for pad: MeshInstance3D in _heels:
 		pad.layers &= ~CONTACT_LAYER
@@ -214,9 +216,10 @@ static func stamp_uniforms(
 	]
 
 
-## One step is two pads with a small arch gap. This keeps ordinary walking from
-## becoming a continuous capsule/trench while still preserving heel strike and
-## forefoot push-off as one accepted FootContactSensor event.
+## Approximate a boot sole with three compact zones instead of one smooth capsule.
+## Heel stays narrow, the ball/forefoot carries the broad load, and a small shallow
+## stamp in front records the snow scraped/pushed by the toe at push-off. The shove
+## grows with walking speed but never becomes a continuous drag path.
 static func footprint_pad_uniforms(
 	position: Vector3,
 	normal: Vector3,
@@ -225,26 +228,36 @@ static func footprint_pad_uniforms(
 	half_width_m: float,
 	field_origin: Vector2,
 	field_window_m: float,
-	depth_m: float
+	depth_m: float,
+	speed_mps: float = 1.4
 ) -> Array[Vector4]:
 	var up: Vector3 = normal.normalized() if normal.length_squared() > 0.0001 else Vector3.UP
 	var toe: Vector3 = forward - up * forward.dot(up)
 	if toe.length_squared() < 0.0001:
 		toe = Vector3.FORWARD - up * Vector3.FORWARD.dot(up)
 	toe = toe.normalized()
-	var heel_centre: Vector3 = position - toe * half_length_m * 0.52
-	var fore_centre: Vector3 = position + toe * half_length_m * 0.40
+	var heel_centre: Vector3 = position - toe * half_length_m * 0.56
+	var fore_centre: Vector3 = position + toe * half_length_m * 0.36
+	var shove_centre: Vector3 = position + toe * half_length_m * 0.92
+	var shove_strength: float = clampf((speed_mps - 0.5) / 2.5, 0.0, 1.0)
 	var heel: Array[Vector4] = stamp_uniforms(
 		heel_centre, up, toe,
-		maxf(half_length_m * 0.34, 0.035), maxf(half_width_m * 0.78, 0.025),
+		maxf(half_length_m * 0.30, 0.035), maxf(half_width_m * 0.72, 0.024),
 		field_origin, field_window_m, depth_m
 	)
 	var fore: Array[Vector4] = stamp_uniforms(
 		fore_centre, up, toe,
-		maxf(half_length_m * 0.42, 0.045), maxf(half_width_m, 0.03),
+		maxf(half_length_m * 0.40, 0.045), maxf(half_width_m * 1.02, 0.03),
 		field_origin, field_window_m, depth_m * 0.9
 	)
-	return [heel[0], heel[1], fore[0], fore[1]]
+	var shove: Array[Vector4] = stamp_uniforms(
+		shove_centre, up, toe,
+		maxf(half_length_m * lerpf(0.22, 0.30, shove_strength), 0.03),
+		maxf(half_width_m * lerpf(0.48, 0.62, shove_strength), 0.022),
+		field_origin, field_window_m,
+		depth_m * lerpf(0.18, 0.36, shove_strength)
+	)
+	return [heel[0], heel[1], fore[0], fore[1], shove[0], shove[1]]
 
 
 func _upload_pending_stamps(mat: ShaderMaterial) -> int:
@@ -282,9 +295,10 @@ func _upload_pending_stamps(mat: ShaderMaterial) -> int:
 				sole_width_m * 0.5,
 				field.origin,
 				window_m,
-				press
+				press,
+				speed_mps
 			)
-			for pad: int in range(2):
+			for pad: int in range(FOOT_STAMPS_PER_PLANT):
 				if active_count >= MAX_FOOT_PAD_STAMPS:
 					break
 				a[active_count] = encoded[pad * 2]
