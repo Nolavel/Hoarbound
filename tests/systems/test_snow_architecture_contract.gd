@@ -18,6 +18,7 @@ func _run() -> void:
 	_test_queue_canonicalizes_foot_basis()
 	_test_height_contract_round_trips_world_mapping()
 	_test_height_contract_preserves_old_compression_result()
+	_test_deformation_channels_are_separate()
 	_test_snow_field_matches_base_height_contract()
 	_test_shell_uses_render_independent_queue()
 	if _failures > 0:
@@ -98,9 +99,25 @@ func _test_height_contract_preserves_old_compression_result() -> void:
 	var old_bottom: float = ground + depth - compression
 	var contracted: float = HEIGHT_SCRIPT.visible_top(ground, depth, compression, 0.0)
 	_check(is_equal_approx(contracted, old_bottom), "height contract changed existing top - sink behaviour")
+	_check(is_equal_approx(HEIGHT_SCRIPT.deformation_delta(0.17, 0.05), -0.12), "compression/displaced delta has the wrong sign")
+	_check(is_equal_approx(HEIGHT_SCRIPT.visible_top(ground, depth, 0.17, 0.05), ground + depth - 0.12), "combined compression + displaced height is wrong")
 	_check(is_equal_approx(HEIGHT_SCRIPT.visible_top(ground, depth, 0.0, 0.08), ground + depth + 0.08), "displaced mass was not added to visible height")
 	_check(is_equal_approx(HEIGHT_SCRIPT.visible_top(ground, depth, 2.0, 0.0), ground), "over-compression pushed snow below hard ground")
 	_check(is_equal_approx(HEIGHT_SCRIPT.depth_from_top(ground, ground - 1.0), 0.0), "depth_from_top returned negative snow")
+
+
+func _test_deformation_channels_are_separate() -> void:
+	var accum: String = FileAccess.get_file_as_string("res://shaders/environment/snow/snow_accumulate.gdshader")
+	var shape: String = FileAccess.get_file_as_string("res://shaders/environment/snow/snow_shape.gdshader")
+	var ground: String = FileAccess.get_file_as_string("res://shaders/environment/snow/snow_ground.gdshader")
+	_check(accum.contains("COLOR = vec4(compression, displaced, 0.0, 1.0);"), "accumulator no longer writes compression/displaced as independent RG channels")
+	_check(accum.contains("displaced += deposit"), "boot displacement is not accumulated into the displaced channel")
+	_check(not accum.contains("packed -= deposit"), "legacy signed packed/deposit representation returned")
+	_check(shape.contains("vec2 state = texture(source, UV).rg;"), "shape pass does not read both deformation channels")
+	_check(shape.contains("max(displaced, 0.0)"), "shape pass dropped the displaced channel")
+	_check(not shape.contains("5x5 Gaussian"), "legacy common Gaussian blur returned")
+	_check(ground.contains("float local_delta = -v_packed + v_displaced + v_rim;"), "surface shader does not apply the shared compression/displacement sign convention")
+	_check(ground.contains("float displaced_height = v_displaced * v_edge;"), "surface material does not expose displaced heap height")
 
 
 func _test_snow_field_matches_base_height_contract() -> void:

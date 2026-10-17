@@ -8,13 +8,14 @@ static func base_top(ground_height: float, settled_depth: float) -> float:
 	return ground_height + maxf(settled_depth, 0.0)
 
 
+static func deformation_delta(compression_m: float = 0.0, displaced_m: float = 0.0) -> float:
+	return maxf(displaced_m, 0.0) - maxf(compression_m, 0.0)
+
+
 static func visible_depth(
 	settled_depth: float, compression_m: float = 0.0, displaced_m: float = 0.0
 ) -> float:
-	return maxf(
-		maxf(settled_depth, 0.0) + maxf(displaced_m, 0.0) - maxf(compression_m, 0.0),
-		0.0
-	)
+	return maxf(maxf(settled_depth, 0.0) + deformation_delta(compression_m, displaced_m), 0.0)
 
 
 static func visible_top(
