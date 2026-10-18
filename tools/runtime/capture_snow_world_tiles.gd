@@ -1,9 +1,8 @@
 extends SceneTree
 
-## Isolated world-tile proof. No production snow shader / SnowShell path changed.
-## Actual Henry locomotion; experimental boot stamps are placed by travelled
-## distance (not yet actual FootContactSensor callbacks).
-const EXPERIMENT: GDScript = preload("res://scripts/systems/world/snow/world_snow_tile_prototype.gd")
+## Real Key West production world-tile renderer, backed by the live SnowShell
+## and real FootContactSensor events. Includes movement/fixed/GPU recenter proofs.
+const EXPERIMENT: GDScript = preload("res://scripts/systems/world/snow/world_snow_tile_surface.gd")
 const SCENE := "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA := "res://data/world/key_west/reality/routes/dev_street_spawns.json"
 const OUT := "res://docs/runtime_previews/key_west/snow_world_tiles"
@@ -24,7 +23,7 @@ var _weather: WeatherController
 var _day_night: DayNightManager
 var _presentation: SnowPresentationSystem
 var _shell: SnowShell
-var _prototype: WorldSnowTilePrototype
+var _prototype: WorldSnowTileSurface
 var _fixed: Camera3D
 var _gpu: Camera3D
 var _street_at := Vector2.ZERO
@@ -48,6 +47,7 @@ var _errors: Array[String] = []
 func _initialize() -> void:
     ProjectSettings.set_setting("hfn/graphics/quality", "high")
     ProjectSettings.set_setting("hfn/snow/quality", "high")
+    ProjectSettings.set_setting("hfn/snow/world_tiles", true)
     if not _read_street():
         return
     DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT.path_join("walk_frames")))
@@ -102,14 +102,15 @@ func _run() -> void:
     _forward = Vector2(fwd3.x, fwd3.z).normalized()
     _last_stamp = Vector2(_start.x, _start.z)
 
-    # Disable old rendering and writes ONLY inside this capture process.
-    _shell.set_process(false)
-    _shell.set_physics_process(false)
-    _hide_production_snow()
-    _prototype = EXPERIMENT.new() as WorldSnowTilePrototype
-    _prototype.name = "ExperimentalFixedWorldSnowTiles"
-    _world.add_child(_prototype)
-    _prototype.configure(Callable(self, "_baked_top"), Vector2(_start.x, _start.z))
+    # Production mode is installed inside DeterministicSnowShell, not an isolated
+    # replacement scene. The real simulation and foot events remain running.
+    if not _shell is DeterministicSnowShell:
+        _fail("not running production DeterministicSnowShell")
+        return
+    _prototype = (_shell as DeterministicSnowShell).get_world_tiles()
+    if _prototype == null:
+        _fail("production WorldSnowTiles was not installed")
+        return
 
     _setup_cameras()
     if _camera.has_method(&"set_look"):
@@ -144,7 +145,7 @@ func _run() -> void:
     await _snapshot(_fixed, OUT.path_join("return_fixed.png"))
 
     # Stage C: no stamps, no actor movement, constant world camera/weather/light.
-    # Streaming tile instances may disappear/recreate; IMAGE and mesh are world IDs.
+    # Streaming mesh instances may disappear/recreate; data/mesh are world IDs.
     var old_scale := Engine.time_scale
     Engine.time_scale = 0.0
     _frozen_fingerprint = _prototype.deformation_fingerprint()
@@ -184,14 +185,9 @@ func _run() -> void:
 
 func _travel_frame(index: int, forward_leg: bool) -> void:
     await process_frame
-    _hide_production_snow()
     var pos := Vector2(_player.global_position.x, _player.global_position.z)
     _prototype.focus(pos)
-    if pos.distance_to(_last_stamp) > 0.58:
-        var direction: Vector2 = (pos - _last_stamp).normalized()
-        _prototype.stamp(pos, direction, _stamp_side)
-        _stamp_side = 1 - _stamp_side
-        _last_stamp = pos
+    # Real foot-contact stamps are written by DeterministicSnowShell.
     _camera.make_current()
     await RenderingServer.frame_post_draw
     _save_image(_screen(), OUT.path_join("walk_frames/frame_%04d.png" % index))
@@ -385,10 +381,10 @@ func _save_image(img: Image, path: String) -> void:
 
 func _save_report() -> void:
     var out := {
-        "kind": "isolated world-fixed snow tile prototype; NOT production replacement",
-        "scene": SCENE, "production_snow_visible": false,
-        "stamps": "distance-based along real Henry input trajectory, not yet real boot-contact events",
-        "baseline": "ground terrain height + 0.29m sampled once at world-aligned mesh vertices",
+        "kind": "PRODUCTION world-fixed L0/L1/L2 snow tiles + native streamed SnowChunkCover",
+        "scene": SCENE, "production_snow_visible": true,
+        "stamps": "real FootContactSensor events plus persistent native SnowTrackStore",
+        "baseline": "native 2m SnowChunkCover terrain triangles + same shader snow_base_geom",
         "renderer": RenderingServer.get_current_rendering_driver_name(),
         "forward_m": _distance_forward, "return_m": _distance_return,
         "tiles_at_start": _before, "tiles_at_end": _after,

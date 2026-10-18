@@ -8,9 +8,10 @@ extends Node3D
 const TILE_M := 3.2
 const GRID := 32 # 0.10m vertices, 33 samples incl. exact shared borders
 const SIDE := GRID + 1
-const RADIUS := 2 # 5x5 resident tiles, persistent offscreen storage
+const RADIUS := 2 # prototype default; production config uses radius_tiles=6
 const SURFACE_SHADER: Shader = preload("res://shaders/environment/snow/snow_world_tiles_experiment.gdshader")
 
+var radius_tiles: int = RADIUS
 var _top_at: Callable
 var _data: Dictionary = {} # Vector2i -> Image, never mutated except stamping
 var _surface: Dictionary = {} # Vector2i -> MeshInstance3D
@@ -45,13 +46,13 @@ func focus(world_xz: Vector2) -> void:
     # Leave history and mesh vertex data untouched; only instances are culled.
     for old_key: Variant in _surface.keys():
         var key: Vector2i = old_key
-        if maxi(absi(key.x - at.x), absi(key.y - at.y)) > RADIUS:
+        if maxi(absi(key.x - at.x), absi(key.y - at.y)) > radius_tiles:
             var old: MeshInstance3D = _surface[key]
             _surface.erase(key)
             old.queue_free()
             mesh_unloads += 1
-    for z: int in range(at.y - RADIUS, at.y + RADIUS + 1):
-        for x: int in range(at.x - RADIUS, at.x + RADIUS + 1):
+    for z: int in range(at.y - radius_tiles, at.y + radius_tiles + 1):
+        for x: int in range(at.x - radius_tiles, at.x + radius_tiles + 1):
             var key := Vector2i(x, z)
             if not _surface.has(key):
                 _install(key)
@@ -123,7 +124,7 @@ func stamp(at: Vector2, forward: Vector2, side: int, press_m: float = 0.12) -> v
     if facing.length_squared() < 0.5:
         return
     var right := Vector2(-facing.y, facing.x)
-    var center: Vector2 = at + right * (0.13 if side == 0 else -0.13)
+    var center: Vector2 = at if side < 0 else at + right * (0.13 if side == 0 else -0.13)
     var lo: Vector2i = cell_for(center - Vector2.ONE * 0.38)
     var hi: Vector2i = cell_for(center + Vector2.ONE * 0.38)
     for z: int in range(lo.y, hi.y + 1):

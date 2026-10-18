@@ -16,6 +16,13 @@ uniform vec4 trail_window = vec4(0.0);
 uniform vec3 fresh_color : source_color = vec3(0.8, 0.83, 0.88);
 // Capture-only ownership overlay. Runtime keeps this false.
 uniform bool debug_lod_ownership = false;
+// Fixed-world 3-LOD tiles own pixels near Henry; legacy recenter windows have
+// no fragment ownership while this mode is enabled. Exactly complementary
+// world-space dither in snow_world_tiles_production.gdshader.
+uniform bool world_tiles_active = false;
+float world_tile_detail(vec2 world_xz) {
+	return 1.0 - smoothstep(12.0, 17.0, distance(world_xz, snow_player_xz));
+}
 // Same GPU-height witness encoding as SnowShell; render-only, default off.
 uniform bool debug_gpu_height = false;
 uniform float debug_height_reference = 0.0;
@@ -66,14 +73,21 @@ void fragment() {
 	bool in_live = inside_window(v_world.xz, snow_window);
 	bool in_trail = inside_window(v_world.xz, trail_window);
 	float depth = depth_at(v_world.xz, v_shore);
-	if (in_live || depth < 0.012) {
+	if (depth < 0.012) {
 		discard;
 	}
-	// Reciprocal fragment ownership with the retained history mesh.
-	// Under 20m all retained pixels belong to the deformable history,
-	// over 28m they are purely stable streamed chunk snow.
-	if (in_trail && snow_trail_dither(v_world.xz) <= snow_trail_detail(v_world.xz)) {
-		discard;
+	if (world_tiles_active) {
+		if (snow_trail_dither(v_world.xz) < world_tile_detail(v_world.xz)) {
+			discard;
+		}
+	} else {
+		if (in_live) {
+			discard;
+		}
+		// Legacy retained window handoff (rollback).
+		if (in_trail && snow_trail_dither(v_world.xz) <= snow_trail_detail(v_world.xz)) {
+			discard;
+		}
 	}
 	// Same world-space normal and snow tint as the fine shell's outer rim.
 	// The displaced world position already contains the base snow geometry.

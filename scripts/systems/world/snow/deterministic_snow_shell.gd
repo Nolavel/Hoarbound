@@ -14,6 +14,7 @@ const MAX_PLANTS_PER_PASS: int = 5
 const MAX_FOOT_PAD_STAMPS: int = 16
 const MIN_STAMP_DEPTH_M: float = 0.012
 const CHUNK_SHADER_PATH: String = "snow_chunk_cover.gdshader"
+const WORLD_TILES_SCRIPT: GDScript = preload("res://scripts/systems/world/snow/world_snow_tile_surface.gd")
 
 var _plant_point: Array[Vector3] = [Vector3.INF, Vector3.INF]
 var _plant_normal: Array[Vector3] = [Vector3.UP, Vector3.UP]
@@ -32,6 +33,7 @@ var _trail_origin: Vector2 = Vector2(INF, INF)
 var _trail_packed_tex: ImageTexture
 var _trail_shape_image: Image
 var _chunk_snow_material: ShaderMaterial
+var _world_tiles: WorldSnowTileSurface
 
 
 func _ready() -> void:
@@ -101,6 +103,12 @@ func _install_surface_geometry(quality: StringName) -> void:
 ## instead of exposing SnowChunkCover at every 3.2 m recenter. The live shell still
 ## owns deformation around Henry; the retained shell is read-only history.
 func _apply_window(old: Vector2, wanted: Vector2, cover: float, wind: Vector2) -> void:
+	if _world_tiles != null:
+		# The simulator still owns contacts/packing/saves. Render geometry is
+		# permanently world-keyed and must not receive moving GPU snapshots.
+		super(old, wanted, cover, wind)
+		_mesh.visible = false
+		return
 	## Capture the EXACT rendered GPU state while it still uses the old window.
 	## SnowTrackStore is intentionally a quantized SAVE format, not suitable for
 	## replacing visible history on every 3.2m recenter.
@@ -265,6 +273,34 @@ func on_world_ready(context: WorldContext) -> void:
 	if _player != null:
 		var at: Vector3 = _player.global_position
 		_update_local_contact(Vector2(at.x, at.z))
+	if bool(ProjectSettings.get_setting("hfn/snow/world_tiles", true)) and _terrain != null and _player != null:
+		# Runtime uses the real snow/terrain/weather and the existing foot sensor.
+		# The original moving clipmap remains a one-switch rollback path.
+		_world_tiles = WORLD_TILES_SCRIPT.new() as WorldSnowTileSurface
+		_world_tiles.name = "WorldSnowTiles"
+		_world_tiles.track_store = tracks
+		_world_tiles.snow_field = field
+		_world_tiles.radius_tiles = 6
+		add_child(_world_tiles)
+		_world_tiles.configure(Callable(self, "_world_tile_ground"), Vector2(_player.global_position.x, _player.global_position.z))
+		_mesh.visible = false
+		SnowChunkCover._ensure_shared()
+		_chunk_snow_material = SnowChunkCover._material
+		if _chunk_snow_material != null:
+			_chunk_snow_material.set_shader_parameter("world_tiles_active", true)
+
+
+func _world_tile_ground(x: float, z: float) -> float:
+	return float(_terrain.call(&"get_height", x, z)) if _terrain != null else 0.0
+
+
+func get_world_tiles() -> WorldSnowTileSurface:
+	return _world_tiles
+
+
+func _exit_tree() -> void:
+	if _chunk_snow_material != null:
+		_chunk_snow_material.set_shader_parameter("world_tiles_active", false)
 
 
 func _physics_process(delta: float) -> void:
@@ -272,6 +308,8 @@ func _physics_process(delta: float) -> void:
 	if _player != null and _contact_cam != null:
 		var at: Vector3 = _player.global_position
 		_update_local_contact(Vector2(at.x, at.z))
+		if _world_tiles != null:
+			_world_tiles.focus(Vector2(at.x, at.z))
 
 
 func _process(delta: float) -> void:
@@ -306,6 +344,13 @@ func _on_foot_planted(
 	_plant_point[side] = stamp["position"]
 	_plant_normal[side] = stamp["normal"]
 	_plant_forward[side] = stamp["forward"]
+	if _world_tiles != null:
+		var xz := Vector2(position.x, position.z)
+		var heading := Vector2(forward.x, forward.z)
+		var snow_depth: float = field.get_depth(position.x, position.z)
+		var softness: float = field.get_softness(position.x, position.z)
+		var press: float = clampf(snow_depth * max_pack * softness * 0.65, MIN_STAMP_DEPTH_M, 0.24)
+		_world_tiles.stamp(xz, heading, -1, press)
 
 
 func get_pending_foot_stamp_count() -> int:
