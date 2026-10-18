@@ -58,6 +58,9 @@ func _install(key: Vector2i) -> void:
 	mat.set_shader_parameter("tile_origin", key_origin(key))
 	mat.set_shader_parameter("tile_m", TILE_M)
 	mat.set_shader_parameter("debug_height", debug_height)
+	# Make 1-2 cm GPU vertex-height differences visible in the proof capture.
+	# Ignored while debug_height is disabled in the production view.
+	mat.set_shader_parameter("debug_height_gain", 2.0)
 	mat.set_shader_parameter("reference_y", reference_y)
 	if snow_field != null and snow_field.wind_texture != null:
 		mat.set_shader_parameter("wind_tex", snow_field.wind_texture)
