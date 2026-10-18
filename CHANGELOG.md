@@ -23,6 +23,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Godot AI and ItemFitter now default to the Inspector dock group instead of a separate lower-right group. Existing editor layouts retain their saved placement.
 - Sky weather character, finishing Codex's cloud pass (owner review: windy clouds and the night barely differed).
   - Causes:
     - clouds followed snowfall only, so windy (snow 0.15) looked calm;

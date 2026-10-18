@@ -580,7 +580,7 @@ func _continue_enter_tree_after_update_barrier() -> void:
 	_dock.post_update_action_requested.connect(_on_dock_post_update_action_requested)
 	_client_jobs.set_client_health_blocked(_client_health_is_blocked())
 	_publish_dock_status_snapshots()
-	add_control_to_dock(DOCK_SLOT_RIGHT_BL, _dock)
+	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
 	_dock.present_client_work_snapshot(_client_jobs.snapshot())
 	_startup_trace_phase("dock_attached")
 	## Activation barrier: no process, socket, or probe effect begins until all
