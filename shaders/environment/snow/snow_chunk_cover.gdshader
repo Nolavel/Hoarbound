@@ -35,6 +35,8 @@ float world_tile_detail(vec2 world_xz) {
 // Same GPU-height witness encoding as SnowShell; render-only, default off.
 uniform bool debug_gpu_height = false;
 uniform float debug_height_reference = 0.0;
+// Capture-only scale. Production rendering never uses this diagnostic value.
+uniform float debug_height_gain = 0.08;
 // Baked city wind field (R prevailing, G storm), sampled per pixel so lee tongues
 // and scoured streets shade at 2 m even far from the mesh vertices.
 uniform sampler2D wind_tex : filter_linear, repeat_disable;
@@ -138,7 +140,7 @@ void fragment() {
 	if (debug_gpu_height || (is_world_tile && debug_height)) {
 		float height_origin = is_world_tile ? reference_y : debug_height_reference;
 		ALBEDO = vec3(0.0);
-		EMISSION = vec3(clamp(0.5 + (v_world.y - height_origin) * 0.08, 0.0, 1.0), 0.32, 0.90);
+		EMISSION = vec3(clamp(0.5 + (v_world.y - height_origin) * debug_height_gain, 0.0, 1.0), 0.32, 0.90);
 		ROUGHNESS = 1.0;
 		NORMAL = normalize((VIEW_MATRIX * vec4(vec3(0.0, 1.0, 0.0), 0.0)).xyz);
 	} else if (debug_lod_ownership) {
