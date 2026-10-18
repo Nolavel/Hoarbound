@@ -20,6 +20,15 @@ uniform bool debug_lod_ownership = false;
 // no fragment ownership while this mode is enabled. Exactly complementary
 // world-space dither in snow_world_tiles_production.gdshader.
 uniform bool world_tiles_active = false;
+// One shader for streamed cover and immutable 3-LOD tiles. The original
+// split material produced a clearly visible circular colour/normal halo.
+uniform bool is_world_tile = false;
+uniform sampler2D deformation : filter_linear, repeat_disable;
+uniform vec2 tile_origin = vec2(0.0);
+uniform float tile_m = 3.2;
+uniform bool debug_height = false;
+uniform float reference_y = 0.0;
+uniform vec3 packed_color : source_color = vec3(0.5, 0.56, 0.68);
 float world_tile_detail(vec2 world_xz) {
 	return 1.0 - smoothstep(12.0, 17.0, distance(world_xz, snow_player_xz));
 }
@@ -51,12 +60,28 @@ float depth_at(vec2 xz, float shore) {
 varying vec3 v_world;
 varying vec3 v_ground_normal;
 varying float v_shore;
+varying float tile_compression;
+varying float tile_displacement;
 
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_shore = UV.y;
 	v_ground_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	VERTEX.y += snow_base_geom(city_at(world.xz) * v_shore);
+	if (is_world_tile) {
+		// Same baked source 2m triangle at any fine/medium/coarse LOD;
+		// UV2 packs prevailing and storm vertex snow factors times shore.
+		VERTEX.y += snow_settled_depth * mix(UV2.x, UV2.y, snow_storm_share);
+		vec2 sample_uv = clamp((world.xz - tile_origin) / tile_m, vec2(0.0), vec2(1.0));
+		sample_uv = sample_uv * (32.0 / 33.0) + vec2(0.5 / 33.0);
+		vec4 print_state = texture(deformation, sample_uv);
+		tile_compression = max(print_state.r, 0.0);
+		tile_displacement = max(print_state.g, 0.0);
+		VERTEX.y += tile_displacement - tile_compression;
+	} else {
+		VERTEX.y += snow_base_geom(city_at(world.xz) * v_shore);
+		tile_compression = 0.0;
+		tile_displacement = 0.0;
+	}
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
@@ -76,7 +101,11 @@ void fragment() {
 	if (depth < 0.012) {
 		discard;
 	}
-	if (world_tiles_active) {
+	if (is_world_tile) {
+		if (snow_trail_dither(v_world.xz) >= world_tile_detail(v_world.xz)) {
+			discard;
+		}
+	} else if (world_tiles_active) {
 		if (snow_trail_dither(v_world.xz) < world_tile_detail(v_world.xz)) {
 			discard;
 		}
@@ -99,9 +128,17 @@ void fragment() {
 		snow_outer_albedo(fresh_color, v_world, depth, city), v_world, n, 0.38
 	);
 	ROUGHNESS = 0.85;
-	if (debug_gpu_height) {
+	if (is_world_tile) {
+		float packed = smoothstep(0.007, 0.12, tile_compression);
+		float rim = smoothstep(0.006, 0.04, tile_displacement);
+		ALBEDO = mix(ALBEDO, packed_color, packed * 0.72);
+		ALBEDO *= 1.0 + rim * 0.055;
+		ROUGHNESS = mix(0.85, 0.72, packed);
+	}
+	if (debug_gpu_height || (is_world_tile && debug_height)) {
+		float height_origin = is_world_tile ? reference_y : debug_height_reference;
 		ALBEDO = vec3(0.0);
-		EMISSION = vec3(clamp(0.5 + (v_world.y - debug_height_reference) * 0.08, 0.0, 1.0), 0.28, 1.0);
+		EMISSION = vec3(clamp(0.5 + (v_world.y - height_origin) * 0.08, 0.0, 1.0), 0.32, 0.90);
 		ROUGHNESS = 1.0;
 		NORMAL = normalize((VIEW_MATRIX * vec4(vec3(0.0, 1.0, 0.0), 0.0)).xyz);
 	} else if (debug_lod_ownership) {

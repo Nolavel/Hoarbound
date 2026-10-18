@@ -6,7 +6,7 @@ extends "res://scripts/systems/world/snow/world_snow_tile_prototype.gd"
 ## topology densities (10/20/40 cm). Once a tile is visited, it is never
 ## downgraded; its deformation image is never resampled on a focus change.
 ## All LOD borders sample the same 10 cm world positions, with zipper collars.
-const PRODUCTION_SHADER: Shader = preload("res://shaders/environment/snow/snow_world_tiles_production.gdshader")
+const PRODUCTION_SHADER: Shader = preload("res://shaders/environment/snow/snow_chunk_cover.gdshader")
 const GROUND_STEP_M: float = 2.0
 const SEA_M: float = 0.04
 var snow_field: SnowField
@@ -52,6 +52,8 @@ func _install(key: Vector2i) -> void:
 		mesh_builds += 1
 	var mat := ShaderMaterial.new()
 	mat.shader = PRODUCTION_SHADER
+	mat.set_shader_parameter("is_world_tile", true)
+	mat.set_shader_parameter("world_tiles_active", true)
 	mat.set_shader_parameter("deformation", _frozen[key])
 	mat.set_shader_parameter("tile_origin", key_origin(key))
 	mat.set_shader_parameter("tile_m", TILE_M)
