@@ -16,6 +16,8 @@ const POST_RECENTER_SETTLE_FRAMES := 6
 const MAX_WAIT_FRAMES := 600
 const VIDEO_FRAMES := 72
 const VIDEO_FPS := 12
+const OUTER_HANDOFF_STEPS := 16
+const OUTER_HANDOFF_FPS := 4
 const FIXED_EVERY_N_FRAMES := 3 # 24 fixed-camera frames / 6 seconds = 4 FPS
 const HEIGHT_WITNESS_SPACING_M := 0.5
 const HEIGHT_WITNESS_RADIUS := 3
@@ -45,6 +47,11 @@ var _street_at := Vector2.ZERO
 var _street_yaw := 0.0
 var _frame_dir := ""
 var _fixed_frame_dir := ""
+var _outer_frame_dir := ""
+var _outer_frames_written := 0
+var _outer_ownership: Array[Dictionary] = []
+var _outer_was_retained := false
+var _outer_was_chunk := false
 var _fixed_patch := Vector2.ZERO
 var _fixed_frames_written := 0
 var _height_witnesses: Array[Dictionary] = []
@@ -73,8 +80,10 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	_frame_dir = OUT.path_join("frames")
 	_fixed_frame_dir = OUT.path_join("fixed_frames")
+	_outer_frame_dir = OUT.path_join("outer_frames")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_frame_dir))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_fixed_frame_dir))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_outer_frame_dir))
 	_run()
 
 
@@ -162,6 +171,9 @@ func _run() -> void:
 	_record_height_witness("after")
 	_record_edge_witness("after")
 	_camera.make_current()
+	# Stage 2: same fixed camera observes retained history turning into
+	# SnowChunkCover, without changing the real-TPS first six seconds.
+	await _probe_outer_owner_transition()
 
 	_write_report(surface, walked)
 	if walked < MIN_WALK_DISTANCE_M:
@@ -172,6 +184,9 @@ func _run() -> void:
 		return
 	if not _foot_contact_saved or not _foot_pressed_saved:
 		_fail("foot-Y proof did not capture both sink stages")
+		return
+	if not _outer_was_retained or not _outer_was_chunk or _outer_frames_written != OUTER_HANDOFF_STEPS:
+		_fail("outer probe did not observe retained->chunk with all expected frames")
 		return
 	if _edge_handoff_delta > 0.05:
 		_fail("fixed-patch fade changed %.3f across owner switch" % _edge_handoff_delta)
@@ -200,6 +215,41 @@ func _capture_tps_frame(index: int) -> void:
 	await RenderingServer.frame_post_draw
 	_save_image(_capture_image(), _frame_dir.path_join("frame_%04d.png" % index))
 
+
+
+## Controlled stress test: snapshot at the SAME world-space patch after each
+## real recenter/owner change. The player is frozen: there is no animation,
+## weather clock or new footstep to corrupt the static comparison. This stage
+## is *not* presented as real walking and runs after the normal 6s TPS video.
+func _probe_outer_owner_transition() -> void:
+	var old_physics: bool = _shell.is_physics_processing()
+	_shell.set_physics_process(false)
+	var old_scale: float = Engine.time_scale
+	Engine.time_scale = 0.0
+	var start_origin: Vector2 = _shell.get_origin()
+	for i: int in range(OUTER_HANDOFF_STEPS):
+		var wanted: Vector2 = start_origin + Vector2(float(i + 1) * _shell.recentre_step_m, 0.0)
+		_shell.recentre_to(wanted + Vector2.ONE * (_shell.window_m * 0.5))
+		_fixed_camera.make_current()
+		await process_frame
+		await RenderingServer.frame_post_draw
+		_save_image(_capture_image(), _outer_frame_dir.path_join("frame_%04d.png" % i))
+		_outer_frames_written += 1
+		var live: Vector2 = _shell.get_origin()
+		var previous: Vector2 = _shell.get("_trail_origin")
+		var owner: String = "live" if _in_window(_fixed_patch, live) else ("retained" if _in_window(_fixed_patch, previous) else "chunk")
+		_outer_was_retained = _outer_was_retained or owner == "retained"
+		_outer_was_chunk = _outer_was_chunk or owner == "chunk"
+		_outer_ownership.append({
+			"step": i + 1,
+			"owner": owner,
+			"live_origin": [live.x, live.y],
+			"retained_origin": [previous.x, previous.y],
+			"fixed_patch_xz": [_fixed_patch.x, _fixed_patch.y],
+		})
+	_camera.make_current()
+	Engine.time_scale = old_scale
+	_shell.set_physics_process(old_physics)
 
 
 ## Keep the same real-time traversal, but freeze exactly one render frame for
@@ -544,6 +594,14 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"foot_y_captures": ["foot_y_contact.png", "foot_y_pressed.png"],
 		"foot_sink_samples_m": _foot_sink_samples,
 		"trail_shell": "retained_previous_window",
+		"outer_handoff_probe": {
+			"kind": "frozen-weather forced recenter; TPS stage is real walking",
+			"fixed_frames": _outer_frames_written,
+			"fixed_fps": OUTER_HANDOFF_FPS,
+			"retained_seen": _outer_was_retained,
+			"chunk_seen": _outer_was_chunk,
+			"steps": _outer_ownership,
+		},
 	}
 	var file := FileAccess.open(OUT.path_join("report.json"), FileAccess.WRITE)
 	file.store_string(JSON.stringify(report, "\t"))

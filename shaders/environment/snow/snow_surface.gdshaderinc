@@ -134,3 +134,24 @@ vec2 snow_ripple_slope(vec2 xz, float city) {
 	float amp = 0.06 * mix(1.0, 0.35, snow_ridge_openness(city));
 	return vec2(hx - h, hz - h) / e * 0.9 * amp;
 }
+
+// Shared world-space shading for SnowShell's outer rim and SnowChunkCover.
+// Geometric snow-base slope is already in the displaced vertex positions;
+// only ridge and ripple shading slopes are added to the terrain normal.
+vec2 snow_outer_detail_slope(vec2 xz, float city) {
+	const float e = 0.08;
+	float hx = snow_base_depth(xz + vec2(e, 0.0), city) - snow_base_depth(xz - vec2(e, 0.0), city);
+	float hz = snow_base_depth(xz + vec2(0.0, e), city) - snow_base_depth(xz - vec2(0.0, e), city);
+	return vec2(hx, hz) / (2.0 * e) + snow_ripple_slope(xz, city);
+}
+
+vec3 snow_outer_normal(vec3 geometric_normal, vec2 xz, float city) {
+	vec2 detail = snow_outer_detail_slope(xz, city);
+	return normalize(normalize(geometric_normal) - vec3(detail.x, 0.0, detail.y));
+}
+
+vec3 snow_outer_albedo(vec3 fresh, vec3 world, float depth, float city) {
+	vec3 color = fresh * (1.0 - snow_breakup(world, 5.0) * 0.03);
+	color *= mix(1.0, 1.03, smoothstep(0.1, 0.4, depth));
+	return snow_thin_tint(snow_wind_tint(color, city), depth);
+}

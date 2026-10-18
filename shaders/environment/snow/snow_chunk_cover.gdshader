@@ -65,16 +65,15 @@ void fragment() {
 	if (inside || depth < 0.012) {
 		discard;
 	}
-	float e = 0.08;
-	float gx = (depth_at(v_world.xz + vec2(e, 0.0), v_shore) - depth_at(v_world.xz - vec2(e, 0.0), v_shore)) / (2.0 * e);
-	float gz = (depth_at(v_world.xz + vec2(0.0, e), v_shore) - depth_at(v_world.xz - vec2(0.0, e), v_shore)) / (2.0 * e);
-	vec2 ripple = snow_ripple_slope(v_world.xz, city_at(v_world.xz) * v_shore);
-	vec3 n = normalize(normalize(v_ground_normal) - vec3(gx + ripple.x, 0.0, gz + ripple.y));
+	// Same world-space normal and snow tint as the fine shell's outer rim.
+	// The displaced world position already contains the base snow geometry.
+	vec3 geo = normalize(cross(dFdy(v_world), dFdx(v_world)));
+	float city = city_at(v_world.xz) * v_shore;
+	vec3 n = snow_outer_normal(geo, v_world.xz, city);
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
-	vec3 color = fresh_color * (1.0 - snow_breakup(v_world, 5.0) * 0.03);
-	color *= mix(1.0, 1.03, smoothstep(0.1, 0.4, depth));
-	ALBEDO = snow_thin_tint(snow_wind_tint(color, city_at(v_world.xz) * v_shore), depth);
-	ALBEDO = hfn_painterly_surface_color(ALBEDO, v_world, n, 0.38);
+	ALBEDO = hfn_painterly_surface_color(
+		snow_outer_albedo(fresh_color, v_world, depth, city), v_world, n, 0.38
+	);
 	ROUGHNESS = 0.85;
 	if (debug_lod_ownership) {
 		vec3 owner = vec3(0.12, 0.82, 0.28);

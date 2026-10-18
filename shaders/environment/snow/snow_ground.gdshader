@@ -285,6 +285,16 @@ void fragment() {
 	smooth_n = normalize(smooth_n - vec3(ripple.x, 0.0, ripple.y));
 	vec3 geo = normalize(cross(dFdy(v_world), dFdx(v_world)));
 	vec3 n = normalize(mix(smooth_n, geo, smoothstep(0.6, 1.2, ground_slope)) + vec3(slope.x, 0.0, slope.y) * 0.6);
+	// Match the static streamed-cover normal at the physical outside boundary,
+	// independent of the CPU SnowField normal cache and changing LOD mesh.
+	float outer_mix = 1.0 - smoothstep(0.1, 0.95, v_edge);
+	float outer_city = v_city;
+	if (use_baked_baseline && use_far_grid) {
+		vec4 far = far_grid_at(v_world.xz);
+		outer_city = baked_city_at(v_world.xz) * far.a;
+	}
+	vec3 outer_n = snow_outer_normal(geo, v_world.xz, outer_city);
+	n = normalize(mix(n, outer_n, outer_mix));
 	float lip = smoothstep(0.003, 0.02, rim_height) + wall * 0.5 * (1.0 - smoothstep(0.02, 0.06, packed_height));
 	float fracture = clamp(max(v_disturbance, lip * v_crust), 0.0, 1.0);
 	float crack = 0.0;
@@ -307,8 +317,14 @@ void fragment() {
 	color *= 1.0 - crack * 0.22;
 	ALBEDO = snow_thin_tint(snow_wind_tint(color, v_city), v_depth);
 	ALBEDO = hfn_painterly_surface_color(ALBEDO, v_world, n, 0.38);
+	vec3 far_albedo = hfn_painterly_surface_color(
+		snow_outer_albedo(fresh_color, v_world,
+			snow_base_depth(v_world.xz, outer_city), outer_city),
+		v_world, outer_n, 0.38
+	);
+	ALBEDO = mix(ALBEDO, far_albedo, outer_mix);
 	float surface_roughness = mix(0.85, 0.6, packed);
-	ROUGHNESS = mix(surface_roughness, 0.92, heap);
+	ROUGHNESS = mix(mix(surface_roughness, 0.92, heap), 0.85, outer_mix);
 	float glint = step(mix(0.996, 0.985, max(wall, fracture)), snow_hash(floor(v_world.xz * 140.0))) * v_edge;
 	EMISSION = vec3(glint * 0.25 * (1.0 - packed * (1.0 - wall)));
 	if (debug_lod_ownership) {

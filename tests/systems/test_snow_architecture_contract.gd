@@ -21,6 +21,7 @@ func _run() -> void:
 	_test_deformation_channels_are_separate()
 	_test_snow_field_matches_base_height_contract()
 	_test_shell_uses_render_independent_queue()
+	_test_chunk_shell_shared_outer_shading_and_proof()
 	if _failures > 0:
 		push_error("snow architecture: %d check(s) failed" % _failures)
 		quit(1)
@@ -158,3 +159,21 @@ func _test_shell_uses_render_independent_queue() -> void:
 	_check(source.contains("snow_height_contract.gd"), "shell does not depend on SnowHeightContract")
 	_check(not source.contains("var _foot_stamps"), "legacy foot-stamp array still owns interactions")
 	shell.free()
+
+
+## Shader contract regression: the outer chunk and both shell owners MUST share
+## world-space normal and tint functions. A 6s live-trail proof alone is
+## insufficient: a real retained->chunk recenter sequence is mandatory.
+func _test_chunk_shell_shared_outer_shading_and_proof() -> void:
+	var inc: String = FileAccess.get_file_as_string("res://shaders/environment/snow/snow_surface.gdshaderinc")
+	var chunk: String = FileAccess.get_file_as_string("res://shaders/environment/snow/snow_chunk_cover.gdshader")
+	var ground: String = FileAccess.get_file_as_string("res://shaders/environment/snow/snow_ground.gdshader")
+	var capture: String = FileAccess.get_file_as_string("res://tools/runtime/capture_snow_clipmap_phase31.gd")
+	_check(inc.contains("vec3 snow_outer_normal("), "outer normal contract missing from common include")
+	_check(inc.contains("vec3 snow_outer_albedo("), "outer albedo contract missing from common include")
+	_check(chunk.contains("snow_outer_normal(geo,"), "chunk has independent snow normal")
+	_check(ground.contains("snow_outer_normal(geo,"), "local shell has independent rim normal")
+	_check(chunk.contains("snow_outer_albedo(fresh_color,"), "chunk has independent surface tint")
+	_check(ground.contains("snow_outer_albedo(fresh_color,"), "local shell has independent rim tint")
+	_check(capture.contains("func _probe_outer_owner_transition()"), "no retained-to-chunk stress capture")
+	_check(capture.contains("_outer_was_retained or not _outer_was_chunk"), "outer capture missing ownership verification")
