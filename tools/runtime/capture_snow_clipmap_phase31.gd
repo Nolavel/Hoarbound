@@ -17,6 +17,7 @@ const MAX_WAIT_FRAMES := 600
 const VIDEO_FRAMES := 72
 const VIDEO_FPS := 12
 const OUTER_HANDOFF_STEPS := 16
+const GPU_CAPTURE_LAYER := 1 << 19 # layer 20; isolated diagnostic snow only
 const GPU_HEIGHT_DELTA_LIMIT := 0.02 # encoded pixel delta; NOT metres
 const GPU_CHANGED_FRACTION_LIMIT := 0.005
 const OUTER_HANDOFF_FPS := 4
@@ -188,7 +189,7 @@ func _run() -> void:
 	# Stage 2: same fixed camera observes retained history turning into
 	# SnowChunkCover, without changing the real-TPS first six seconds.
 	await _probe_outer_owner_transition()
-	_gpu_pass = _gpu_min_covered >= 800 and _gpu_max_changed_fraction <= GPU_CHANGED_FRACTION_LIMIT
+	_gpu_pass = _gpu_min_covered >= 5000 and _gpu_max_changed_fraction <= GPU_CHANGED_FRACTION_LIMIT
 	_write_report(surface, walked)
 	if walked < MIN_WALK_DISTANCE_M:
 		_fail("Henry traversed %.2f m; need %.2f m for TPS seam proof" % [walked, MIN_WALK_DISTANCE_M])
@@ -494,7 +495,22 @@ func _build_gpu_camera() -> void:
 	_gpu_camera.size = 10.0
 	_gpu_camera.near = 0.1
 	_gpu_camera.far = 55.0
+	_gpu_camera.cull_mask = GPU_CAPTURE_LAYER
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color.BLACK
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	_gpu_camera.environment = env
 	_world.add_child(_gpu_camera)
+	# Capture only snow; the terrain/debug/nav geometry in the normal world
+	# previously occupied almost every pixel and made the 30px mask invalid.
+	for node: Node in _world.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance == null or mesh_instance.mesh == null or mesh_instance.mesh.get_surface_count() == 0:
+			continue
+		var mat := mesh_instance.get_active_material(0) as ShaderMaterial
+		if mat != null and mat.shader != null and mat.shader.resource_path.ends_with("snow_chunk_cover.gdshader"):
+			mesh_instance.layers |= GPU_CAPTURE_LAYER
 	var ground_y: float = _ground_height(_fixed_patch.x, _fixed_patch.y)
 	_gpu_camera.global_position = Vector3(_fixed_patch.x, ground_y + 35.0, _fixed_patch.y)
 	_gpu_camera.look_at(Vector3(_fixed_patch.x, ground_y, _fixed_patch.y), Vector3.FORWARD)
@@ -504,6 +520,12 @@ func _set_gpu_height_mode(enabled: bool) -> void:
 	var live := _shell.get("_surface") as ShaderMaterial
 	var trail := _shell.get("_trail_material") as ShaderMaterial
 	var chunk := _shell.get("_chunk_snow_material") as ShaderMaterial
+	var live_mesh := _shell.get("_mesh") as MeshInstance3D
+	var trail_mesh := _shell.get("_trail_mesh") as MeshInstance3D
+	if live_mesh != null:
+		live_mesh.layers |= GPU_CAPTURE_LAYER
+	if trail_mesh != null:
+		trail_mesh.layers |= GPU_CAPTURE_LAYER
 	for value: Variant in [live, trail, chunk]:
 		var mat := value as ShaderMaterial
 		if mat != null:
@@ -737,7 +759,7 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"trail_shell": "retained_previous_window",
 		"gpu_history": "frozen shaped GPU RGBA; world-tile copy on departure; save quantization only outside live/retained",
 		"gpu_height_witness": {
-			"method": "GPU vertex displacement encoded in emission; top-down fixed camera, frozen player/weather/light",
+			"method": "GPU vertex displacement encoded in emission, isolated snow-only layer 20, fixed top-down camera, frozen player/weather/light",
 			"comparison": "baseline versus 16 forced recenters; pixel red difference, NOT metres",
 			"frames": OUTER_HANDOFF_STEPS + 1,
 			"min_covered_samples": _gpu_min_covered,
