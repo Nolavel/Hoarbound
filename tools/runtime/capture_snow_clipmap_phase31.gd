@@ -244,7 +244,7 @@ func _probe_outer_owner_transition() -> void:
 		var owner: String = "live" if _in_window(_fixed_patch, live) else ("retained" if _in_window(_fixed_patch, previous) else "chunk")
 		_outer_was_retained = _outer_was_retained or owner == "retained"
 		_outer_was_chunk = _outer_was_chunk or owner == "chunk"
-		var t: float = clampf(_fixed_patch.distance_to(virtual_player) / 8.0 - 2.5, 0.0, 1.0)
+		var t: float = clampf((_fixed_patch.distance_to(virtual_player) - 18.0) / 7.0, 0.0, 1.0)
 		var detail: float = 1.0 - t * t * (3.0 - 2.0 * t)
 		if owner == "chunk" and not _outer_ownership.is_empty():
 			var prior: Dictionary = _outer_ownership.back()
