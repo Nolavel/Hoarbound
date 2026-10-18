@@ -88,7 +88,7 @@ func _world_ground(x: float, z: float) -> Vector4:
 	return a + (b - a) * f.x + (c - a) * f.y if f.x + f.y <= 1.0 else d + (c - d) * (1.0 - f.x) + (b - d) * (1.0 - f.y)
 
 
-func _ground_node(coord: Vector2i) -> Vector2:
+func _ground_node(coord: Vector2i) -> Vector4:
 	if _ground_cache.has(coord):
 		return _ground_cache[coord]
 	var x: float = float(coord.x) * GROUND_STEP_M
