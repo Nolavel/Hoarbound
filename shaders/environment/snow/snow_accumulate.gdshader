@@ -120,8 +120,8 @@ float deposit(vec2 uv, vec4 a, vec4 b) {
 	float x = outside / rim_uv;
 	float forward = clamp(local.x / max(b.x * 3.0, 1e-6), -1.0, 1.0);
 	float directional = 1.0 + b.w * mix(-0.55, 1.35, forward * 0.5 + 0.5);
-	vec2 clump_cell = floor(uv * vec2(textureSize(previous, 0)) / 3.0);
-	float clump = 0.48 + 0.92 * lump_noise(clump_cell + floor(a.xy * 97.0));
+	vec2 clump_cell = floor((field_origin + uv * field_window_m) / (3.0 * field_window_m / float(textureSize(previous, 0).x)));
+	float clump = 0.48 + 0.92 * lump_noise(clump_cell + floor((field_origin + a.xy * field_window_m) * (97.0 / field_window_m)));
 	float ridge = x * exp(1.0 - x);
 	return b.z * ridge * directional * clump;
 }
@@ -149,7 +149,9 @@ void fragment() {
 		if (snow && !held(uv, settled)) {
 			float here = compression;
 			float soft_here = powder_at(settled.b);
-			vec2 pix = floor(uv * size);
+			// World position, never the sliding viewport pixel ID: a recenter must not
+			// reseed weather erosion at the same piece of snow.
+			vec2 pix = floor((field_origin + uv * field_window_m) / (field_window_m / size.x));
 			float moved = 0.0;
 			for (int k = 0; k < 8; k++) {
 				vec2 dir = vec2(float(k % 3) - 1.0, float(k / 3) - 1.0);
@@ -191,7 +193,7 @@ void fragment() {
 	if (collapse.w > 0.0) {
 		float r = distance(uv, collapse.xy) / max(collapse.z, 1e-6);
 		if (r < 1.0 && compression > 0.0) {
-			float lumps = lump_noise(uv * size / 3.0);
+			float lumps = lump_noise((field_origin + uv * field_window_m) / (3.0 * field_window_m / size.x));
 			float fall_share = collapse.w * (0.4 + 0.6 * lumps) * smoothstep(0.0, 1.0, r + 0.3);
 			compression *= 1.0 - fall_share;
 			disturbance = max(disturbance, fall_share * 0.85);

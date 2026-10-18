@@ -130,6 +130,9 @@ func _test_deformation_channels_are_separate() -> void:
 	var historical: String = FileAccess.get_file_as_string("res://scripts/systems/world/snow/deterministic_snow_shell.gd")
 	_check(historical.contains("set_shader_parameter(\"packed_rg_only\", false)"), "retained shell drops BA")
 	_check(historical.contains("set_shader_parameter(\"trail_window\", retained)"), "live shell lacks retained coverage")
+	_check(historical.contains("_copy_departed_tiles(old, wanted, old_shape)"), "retained GPU relief is not copied from the leaving live window")
+	_check(historical.contains("_trail_shape_image.blit_rect(old_shape"), "GPU deformation texture is resampled instead of kept world-anchored")
+	_check(not historical.contains("var restore_side: int = maxi(packed_res / 2, 64)"), "lossy persisted snow is still replacing visible retained relief")
 
 
 func _test_snow_field_matches_base_height_contract() -> void:

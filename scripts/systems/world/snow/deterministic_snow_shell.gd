@@ -30,6 +30,7 @@ var _trail_mesh: MeshInstance3D
 var _trail_material: ShaderMaterial
 var _trail_origin: Vector2 = Vector2(INF, INF)
 var _trail_packed_tex: ImageTexture
+var _trail_shape_image: Image
 var _chunk_snow_material: ShaderMaterial
 
 
@@ -99,8 +100,16 @@ func _install_surface_geometry(quality: StringName) -> void:
 ## instead of exposing SnowChunkCover at every 3.2 m recenter. The live shell still
 ## owns deformation around Henry; the retained shell is read-only history.
 func _apply_window(old: Vector2, wanted: Vector2, cover: float, wind: Vector2) -> void:
+	## Capture the EXACT rendered GPU state while it still uses the old window.
+	## SnowTrackStore is intentionally a quantized SAVE format, not suitable for
+	## replacing visible history on every 3.2m recenter.
+	var old_shape: Image = null
+	if old.x != INF and _shape.size() > 2:
+		old_shape = _shape[2].get_texture().get_image()
 	if old.x != INF and (_trail_origin.x == INF or _trail_refresh_due(wanted)):
-		_capture_trail_snapshot(old)
+		_capture_trail_snapshot(old, old_shape)
+	if old_shape != null and not old_shape.is_empty():
+		_copy_departed_tiles(old, wanted, old_shape)
 	super(old, wanted, cover, wind)
 	_sync_trail_after_window(wanted)
 
@@ -116,9 +125,11 @@ func _trail_refresh_due(wanted: Vector2) -> bool:
 
 ## Snapshot only the slowly-changing base/normal fields. Departed deformation is
 ## reconstructed from SnowTrackStore after the base class files the outgoing tile.
-func _capture_trail_snapshot(old: Vector2) -> void:
+func _capture_trail_snapshot(old: Vector2, old_shape: Image) -> void:
 	if _mesh == null or _surface == null or _field_tex == null:
 		return
+	if old_shape == null or old_shape.is_empty():
+		return  # Never install a moving live GPU texture as retained history.
 	var field_image: Image = _field_tex.get_image()
 	if field_image == null or field_image.is_empty():
 		return
@@ -133,6 +144,11 @@ func _capture_trail_snapshot(old: Vector2) -> void:
 		if far_image != null and not far_image.is_empty():
 			material.set_shader_parameter("far_grid", ImageTexture.create_from_image(far_image))
 	material.set_shader_parameter("origin", old)
+	if old_shape != null and not old_shape.is_empty():
+		_trail_shape_image = old_shape.duplicate()
+		_trail_packed_tex = ImageTexture.create_from_image(_trail_shape_image)
+		material.set_shader_parameter("packed_field", _trail_packed_tex)
+		material.set_shader_parameter("packed_texel_m", window_m / float(_trail_shape_image.get_width()))
 	material.set_shader_parameter("clip_outside_window", true)
 	material.set_shader_parameter("packed_rg_only", false)
 	material.set_shader_parameter("trail_window", Vector4.ZERO)
@@ -153,6 +169,35 @@ func _capture_trail_snapshot(old: Vector2) -> void:
 	_trail_mesh.visible = true
 
 
+
+## Copy only the tiles that just left the live window, at their ORIGINAL GPU
+## resolution, to the fixed-world history image. Existing trail tiles stay
+## bit-identical through later recenters. The compressed track store remains the
+## long-term save/streaming representation, not the rendered owner.
+func _copy_departed_tiles(old: Vector2, wanted: Vector2, old_shape: Image) -> void:
+	if _trail_shape_image == null or _trail_packed_tex == null or _trail_origin.x == INF:
+		return
+	var tiles: int = roundi(window_m / SnowTrackStore.TILE_M)
+	var pixels: int = old_shape.get_width() / tiles
+	if old_shape.get_width() != _trail_shape_image.get_width() or pixels <= 0:
+		return
+	var keep := Rect2(wanted, Vector2.ONE * window_m)
+	var history := Rect2(_trail_origin, Vector2.ONE * window_m)
+	var dirty: bool = false
+	for iz: int in range(tiles):
+		for ix: int in range(tiles):
+			var corner: Vector2 = old + Vector2(ix, iz) * SnowTrackStore.TILE_M
+			var rect := Rect2(corner, Vector2.ONE * SnowTrackStore.TILE_M)
+			if keep.encloses(rect) or not history.encloses(rect):
+				continue
+			var offset: Vector2 = (corner - _trail_origin) / SnowTrackStore.TILE_M
+			var to := Vector2i(roundi(offset.x) * pixels, roundi(offset.y) * pixels)
+			_trail_shape_image.blit_rect(old_shape, Rect2i(ix * pixels, iz * pixels, pixels, pixels), to)
+			dirty = true
+	if dirty:
+		_trail_packed_tex.update(_trail_shape_image)
+
+
 func _sync_trail_after_window(wanted: Vector2) -> void:
 	if _trail_mesh == null or _trail_material == null or _trail_origin.x == INF:
 		_set_chunk_trail_window(Vector4.ZERO)
@@ -160,16 +205,9 @@ func _sync_trail_after_window(wanted: Vector2) -> void:
 		return
 	var live := Vector4(wanted.x, wanted.y, window_m, 1.0)
 	_trail_material.set_shader_parameter("clip_window", live)
-	## Only tiles that have left the live window need to exist on the trail. Those
-	## are exactly the tiles SnowShell._keep_tracks just committed to the store.
-	var restore_side: int = maxi(packed_res / 2, 64)
-	var restored: Image = tracks.restore(_trail_origin, window_m, restore_side)
-	if _trail_packed_tex == null or _trail_packed_tex.get_width() != restore_side:
-		_trail_packed_tex = ImageTexture.create_from_image(restored)
-	else:
-		_trail_packed_tex.update(restored)
-	_trail_material.set_shader_parameter("packed_field", _trail_packed_tex)
-	_trail_material.set_shader_parameter("packed_texel_m", window_m / float(restore_side))
+	## History uses the full-resolution, frozen GPU state composited tile by
+	## tile as each region departs; DO NOT overwrite it with a lossy 448px
+	## SnowTrackStore.restore() every recenter. That changed visible vertices.
 	var retained := Vector4(_trail_origin.x, _trail_origin.y, window_m, 1.0)
 	_surface.set_shader_parameter("trail_window", retained)
 	_set_chunk_trail_window(retained)

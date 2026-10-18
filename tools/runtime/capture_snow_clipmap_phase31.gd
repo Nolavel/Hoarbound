@@ -183,6 +183,10 @@ func _run() -> void:
 	if _recenter_count < MIN_RECENTERS or _recenter_count > MAX_RECENTERS:
 		_fail("TPS proof observed %d recenter events; expected %d..%d" % [_recenter_count, MIN_RECENTERS, MAX_RECENTERS])
 		return
+	var retained_texture := _shell.get("_trail_packed_tex") as ImageTexture
+	if retained_texture == null or retained_texture.get_width() != _shell.packed_res:
+		_fail("retained GPU history lost source resolution during the window handoff")
+		return
 	if not _foot_contact_saved or not _foot_pressed_saved:
 		_fail("foot-Y proof did not capture both sink stages")
 		return
@@ -641,6 +645,7 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"foot_y_captures": ["foot_y_contact.png", "foot_y_pressed.png"],
 		"foot_sink_samples_m": _foot_sink_samples,
 		"trail_shell": "retained_previous_window",
+		"gpu_history": "frozen shaped GPU RGBA; world-tile copy on departure; save quantization only outside live/retained",
 		"outer_handoff_probe": {
 			"kind": "frozen-weather forced recenter; TPS stage is real walking",
 			"fixed_frames": _outer_frames_written,
