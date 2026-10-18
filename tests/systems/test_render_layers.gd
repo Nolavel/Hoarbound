@@ -39,6 +39,8 @@ func _test_reserved_layers_do_not_overlap() -> void:
 	_check(RenderLayers.SNOW_CONTACT & RenderLayers.DEV_MAP_LABEL == 0, "snow contact and dev map labels share a layer")
 	## Layers 1-6 carry the world, Henry and gizmos.
 	_check(RenderLayers.RESERVED & 0b111111 == 0, "a reserved layer overlaps the world layers")
+	_check(RenderLayers.SNOW_TILE_EXPERIMENT & RenderLayers.SNOW_CONTACT == 0, "experimental witness conflicts with contact camera")
+	_check(RenderLayers.SNOW_TILE_EXPERIMENT & RenderLayers.DEV_MAP_LABEL == 0, "experimental witness conflicts with dev map")
 
 
 func _test_owners_use_the_reserved_masks() -> void:
@@ -49,6 +51,7 @@ func _test_owners_use_the_reserved_masks() -> void:
 func _test_layers_are_named() -> void:
 	_check(String(ProjectSettings.get_setting("layer_names/3d_render/layer_19", "")) == "snow_contact", "layer 19 is not named snow_contact")
 	_check(String(ProjectSettings.get_setting("layer_names/3d_render/layer_20", "")) == "dev_map_label", "layer 20 is not named dev_map_label")
+	_check(String(ProjectSettings.get_setting("layer_names/3d_render/layer_21", "")) == "snow_tile_experiment", "layer 21 is not named snow_tile_experiment")
 
 
 ## Only RenderLayers may spell out the reserved bits.

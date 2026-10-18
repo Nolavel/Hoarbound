@@ -204,14 +204,17 @@ func _setup_cameras() -> void:
     var center := Vector3(_start.x, _baked_top(_start.x, _start.z), _start.z)
     _fixed = Camera3D.new()
     _fixed.name = "WorldSnowTilesFixedCamera"
-    _fixed.fov = 60.0
-    _fixed.near = 0.08
-    _fixed.far = 90.0
+    # Previous oblique camera landed inside roof/terrain: red-on-black invalid.
+    # High orthographic survey of the same world trail; no moving camera.
+    _fixed.projection = Camera3D.PROJECTION_ORTHOGONAL
+    _fixed.size = 25.0
+    _fixed.near = 0.1
+    _fixed.far = 120.0
     _world.add_child(_fixed)
     var dir := Vector3(_forward.x, 0.0, _forward.y)
-    var right := dir.cross(Vector3.UP).normalized()
-    _fixed.global_position = center - dir * 8.0 + right * 5.5 + Vector3.UP * 9.0
-    _fixed.look_at(center + dir * 3.0, Vector3.UP)
+    var fixed_center := center + dir * 4.5
+    _fixed.global_position = fixed_center + Vector3.UP * 45.0
+    _fixed.look_at(fixed_center, Vector3.FORWARD)
 
     _gpu = Camera3D.new()
     _gpu.name = "WorldSnowTileGpuHeightWitness"
@@ -219,7 +222,7 @@ func _setup_cameras() -> void:
     _gpu.size = 5.0
     _gpu.near = 0.1
     _gpu.far = 50.0
-    _gpu.cull_mask = 1 << 19
+    _gpu.cull_mask = RenderLayers.SNOW_TILE_EXPERIMENT
     var env := Environment.new()
     env.background_mode = Environment.BG_COLOR
     env.background_color = Color.BLACK

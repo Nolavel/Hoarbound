@@ -80,7 +80,7 @@ func _install(key: Vector2i) -> void:
     inst.material_override = mat
     inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     inst.extra_cull_margin = 2.0
-    inst.layers = 1 | (1 << 19) # normal render + isolated diagnostic layer 20
+    inst.layers = 1 | RenderLayers.SNOW_TILE_EXPERIMENT # normal + isolated layer 21
     add_child(inst)
     _surface[key] = inst
 
@@ -166,16 +166,22 @@ func set_height_debug(enabled: bool, reference: float) -> void:
 
 
 func deformation_fingerprint() -> int:
-    # Quantized 0.01mm counts for all stored vertex samples; no recenter mixing.
+    # Stable, order-independent hash of NONEMPTY WORLD SAMPLES ONLY.
+    # Streaming in an untouched tile must never count as a changed footprint.
+    # The previous hash included blank texels and falsely failed all 16 snaps.
     var sum: int = 0
-    var keys: Array = _data.keys()
-    # Creation order is stable: no tiles are removed from _data.
-    for key: Variant in keys:
+    for variant: Variant in _data.keys():
+        var key: Vector2i = variant
         var img: Image = _data[key]
         for z: int in range(SIDE):
             for x: int in range(SIDE):
                 var p: Color = img.get_pixel(x, z)
-                sum = (sum * 31 + roundi(p.r * 100000.0) + roundi(p.g * 100000.0) * 7) % 2147483629
+                var r: int = roundi(p.r * 100000.0)
+                var g: int = roundi(p.g * 100000.0)
+                if r == 0 and g == 0:
+                    continue
+                var site: int = posmod((key.x * GRID + x) * 73856093 + (key.y * GRID + z) * 19349663, 2147483629)
+                sum = posmod(sum + posmod(site * (r + 7 * g), 2147483629), 2147483629)
     return sum
 
 

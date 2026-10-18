@@ -10,4 +10,6 @@ const SNOW_CONTACT: int = 1 << 18
 ## Layer 20: dev map labels, seen only by the dev diorama camera.
 const DEV_MAP_LABEL: int = 1 << 19
 ## Every reserved special layer; ordinary cameras leave these out.
-const RESERVED: int = SNOW_CONTACT | DEV_MAP_LABEL
+## Layer 21: EXPERIMENT ONLY; top-down vertex-height witness for fixed-world tile snow.
+const SNOW_TILE_EXPERIMENT: int = 1 << 20
+const RESERVED: int = SNOW_CONTACT | DEV_MAP_LABEL | SNOW_TILE_EXPERIMENT
