@@ -173,6 +173,9 @@ func _run() -> void:
         _save_report()
         _fail("; ".join(_errors))
         return
+    # The existing CI video step consumes report.json for BOTH outcomes.
+    # Previously only _fail() persisted it, so a passing GPU test failed CI.
+    _save_report()
     print("SNOW_WORLD_TILES_EXP PASS forward=%.2fm return=%.2fm stamps=%d GPUmax=%.5f samples=%d tiles=%s renderer=%s" % [
         _distance_forward, _distance_return, _prototype.stamp_count, _stress_max_diff,
         _stress_min_coverage, str(_after), RenderingServer.get_current_rendering_driver_name()])
@@ -208,6 +211,10 @@ func _setup_cameras() -> void:
     # High orthographic survey of the same world trail; no moving camera.
     _fixed.projection = Camera3D.PROJECTION_ORTHOGONAL
     _fixed.size = 25.0
+    # Exclude the main-camera SCREEN_PASS (layer 18). It corrupts the top-down
+    # survey into red shapes on black in the real Vulkan CI capture.
+    # Regular scene props stay visible on layer 1; fixed snow tiles also carry 21.
+    _fixed.cull_mask = 1 | RenderLayers.SNOW_TILE_EXPERIMENT
     _fixed.near = 0.1
     _fixed.far = 120.0
     _world.add_child(_fixed)
