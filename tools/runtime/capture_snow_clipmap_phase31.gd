@@ -17,6 +17,8 @@ const MAX_WAIT_FRAMES := 600
 const VIDEO_FRAMES := 72
 const VIDEO_FPS := 12
 const OUTER_HANDOFF_STEPS := 16
+const GPU_HEIGHT_DELTA_LIMIT := 0.02 # encoded pixel delta; NOT metres
+const GPU_CHANGED_FRACTION_LIMIT := 0.005
 const OUTER_HANDOFF_FPS := 4
 const FIXED_EVERY_N_FRAMES := 3 # 24 fixed-camera frames / 6 seconds = 4 FPS
 const HEIGHT_WITNESS_SPACING_M := 0.5
@@ -36,6 +38,7 @@ var _player: CharacterBody3D
 var _camera: Camera3D
 var _fixed_camera: Camera3D
 var _foot_camera: Camera3D
+var _gpu_camera: Camera3D
 var _ground: Node
 var _streaming: StreamingSystem
 var _weather: WeatherController
@@ -48,6 +51,13 @@ var _street_yaw := 0.0
 var _frame_dir := ""
 var _fixed_frame_dir := ""
 var _outer_frame_dir := ""
+var _gpu_frame_dir := ""
+var _gpu_baseline: Image
+var _gpu_max_delta := 0.0
+var _gpu_max_changed_fraction := 0.0
+var _gpu_min_covered := 2147483647
+var _gpu_steps: Array[Dictionary] = []
+var _gpu_pass := false
 var _outer_frames_written := 0
 var _outer_ownership: Array[Dictionary] = []
 var _outer_was_retained := false
@@ -81,9 +91,11 @@ func _initialize() -> void:
 	_frame_dir = OUT.path_join("frames")
 	_fixed_frame_dir = OUT.path_join("fixed_frames")
 	_outer_frame_dir = OUT.path_join("outer_frames")
+	_gpu_frame_dir = OUT.path_join("gpu_height_frames")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_frame_dir))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_fixed_frame_dir))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_outer_frame_dir))
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_gpu_frame_dir))
 	_run()
 
 
@@ -144,6 +156,7 @@ func _run() -> void:
 	_start = _player.global_position
 	_last_origin = _shell.get_origin()
 	_build_fixed_camera(_start)
+	_build_gpu_camera()
 	_build_foot_camera()
 	await _capture_radial_lod_debug()
 	_record_height_witness("before")
@@ -175,7 +188,7 @@ func _run() -> void:
 	# Stage 2: same fixed camera observes retained history turning into
 	# SnowChunkCover, without changing the real-TPS first six seconds.
 	await _probe_outer_owner_transition()
-
+	_gpu_pass = _gpu_min_covered >= 800 and _gpu_max_changed_fraction <= GPU_CHANGED_FRACTION_LIMIT
 	_write_report(surface, walked)
 	if walked < MIN_WALK_DISTANCE_M:
 		_fail("Henry traversed %.2f m; need %.2f m for TPS seam proof" % [walked, MIN_WALK_DISTANCE_M])
@@ -257,6 +270,8 @@ func _probe_outer_owner_transition() -> void:
 	var old_scale: float = Engine.time_scale
 	Engine.time_scale = 0.0
 	var start_origin: Vector2 = _shell.get_origin()
+	var static_player := Vector2(_player.global_position.x, _player.global_position.z)
+	await _capture_gpu_height_frame(0, static_player)
 	for i: int in range(OUTER_HANDOFF_STEPS):
 		var wanted: Vector2 = start_origin + Vector2(float(i + 1) * _shell.recentre_step_m, 0.0)
 		_shell.recentre_to(wanted + Vector2.ONE * (_shell.window_m * 0.5))
@@ -290,6 +305,8 @@ func _probe_outer_owner_transition() -> void:
 			"retained_origin": [previous.x, previous.y],
 			"fixed_patch_xz": [_fixed_patch.x, _fixed_patch.y],
 		})
+		await _capture_gpu_height_frame(i + 1, static_player)
+		RenderingServer.global_shader_parameter_set(&"snow_player_xz", virtual_player)
 	_camera.make_current()
 	Engine.time_scale = old_scale
 	_shell.set_physics_process(old_physics)
@@ -465,6 +482,79 @@ func _build_fixed_camera(start: Vector3) -> void:
 	var target := Vector3(patch.x, ground_y + 0.08, patch.z)
 	_fixed_camera.global_position = target - forward * 5.0 - right * 5.5 + Vector3.UP * 5.0
 	_fixed_camera.look_at(target, Vector3.UP)
+
+
+
+## Production spatial vertex displacement, read through diagnostic emission.
+## The production vertex() calculation is not bypassed by this instrument.
+func _build_gpu_camera() -> void:
+	_gpu_camera = Camera3D.new()
+	_gpu_camera.name = "SnowGpuVertexHeightCamera"
+	_gpu_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	_gpu_camera.size = 10.0
+	_gpu_camera.near = 0.1
+	_gpu_camera.far = 55.0
+	_world.add_child(_gpu_camera)
+	var ground_y: float = _ground_height(_fixed_patch.x, _fixed_patch.y)
+	_gpu_camera.global_position = Vector3(_fixed_patch.x, ground_y + 35.0, _fixed_patch.y)
+	_gpu_camera.look_at(Vector3(_fixed_patch.x, ground_y, _fixed_patch.y), Vector3.FORWARD)
+
+
+func _set_gpu_height_mode(enabled: bool) -> void:
+	var live := _shell.get("_surface") as ShaderMaterial
+	var trail := _shell.get("_trail_material") as ShaderMaterial
+	var chunk := _shell.get("_chunk_snow_material") as ShaderMaterial
+	for value: Variant in [live, trail, chunk]:
+		var mat := value as ShaderMaterial
+		if mat != null:
+			mat.set_shader_parameter("debug_gpu_height", enabled)
+			mat.set_shader_parameter("debug_height_reference", _ground_height(_fixed_patch.x, _fixed_patch.y))
+
+
+func _capture_gpu_height_frame(i: int, static_player: Vector2) -> void:
+	RenderingServer.global_shader_parameter_set(&"snow_player_xz", static_player)
+	_set_gpu_height_mode(true)
+	_gpu_camera.make_current()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var img: Image = _capture_image()
+	_save_image(img, _gpu_frame_dir.path_join("frame_%04d.png" % i))
+	if _gpu_baseline == null:
+		_gpu_baseline = img.duplicate()
+	else:
+		var witness: Dictionary = _compare_gpu_height_frames(_gpu_baseline, img)
+		witness["recenter"] = i
+		_gpu_steps.append(witness)
+		_gpu_max_delta = maxf(_gpu_max_delta, float(witness["max_red_delta"]))
+		_gpu_max_changed_fraction = maxf(_gpu_max_changed_fraction, float(witness["changed_fraction"]))
+		_gpu_min_covered = mini(_gpu_min_covered, int(witness["covered_samples"]))
+	_set_gpu_height_mode(false)
+	_fixed_camera.make_current()
+
+
+## Compare output from the FINAL GPU vertex shader, not SnowField CPU data.
+## G/B mask identifies visible snow; R encodes Y at each interpolated pixel.
+func _compare_gpu_height_frames(before: Image, after: Image) -> Dictionary:
+	var covered: int = 0
+	var changed: int = 0
+	var max_delta: float = 0.0
+	for y: int in range(6, mini(before.get_height(), after.get_height()) - 6, 5):
+		for x: int in range(6, mini(before.get_width(), after.get_width()) - 6, 5):
+			var a: Color = before.get_pixel(x, y)
+			var b: Color = after.get_pixel(x, y)
+			if a.b <= 0.35 or b.b <= 0.35 or a.g <= 0.16 or b.g <= 0.16:
+				continue
+			covered += 1
+			var delta: float = absf(a.r - b.r)
+			max_delta = maxf(max_delta, delta)
+			if delta > GPU_HEIGHT_DELTA_LIMIT:
+				changed += 1
+	return {
+		"covered_samples": covered,
+		"changed_samples": changed,
+		"changed_fraction": float(changed) / float(maxi(covered, 1)),
+		"max_red_delta": max_delta,
+	}
 
 
 func _build_foot_camera() -> void:
@@ -646,6 +736,18 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"foot_sink_samples_m": _foot_sink_samples,
 		"trail_shell": "retained_previous_window",
 		"gpu_history": "frozen shaped GPU RGBA; world-tile copy on departure; save quantization only outside live/retained",
+		"gpu_height_witness": {
+			"method": "GPU vertex displacement encoded in emission; top-down fixed camera, frozen player/weather/light",
+			"comparison": "baseline versus 16 forced recenters; pixel red difference, NOT metres",
+			"frames": OUTER_HANDOFF_STEPS + 1,
+			"min_covered_samples": _gpu_min_covered,
+			"max_red_delta": _gpu_max_delta,
+			"max_changed_fraction": _gpu_max_changed_fraction,
+			"red_delta_threshold": GPU_HEIGHT_DELTA_LIMIT,
+			"changed_fraction_threshold": GPU_CHANGED_FRACTION_LIMIT,
+			"pass": _gpu_pass,
+			"steps": _gpu_steps,
+		},
 		"outer_handoff_probe": {
 			"kind": "frozen-weather forced recenter; TPS stage is real walking",
 			"fixed_frames": _outer_frames_written,

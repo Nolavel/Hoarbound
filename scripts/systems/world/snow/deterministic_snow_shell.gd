@@ -94,6 +94,7 @@ func _install_surface_geometry(quality: StringName) -> void:
 	_mesh.set_meta(&"snow_l1_radius_m", middle_radius)
 	_surface.set_shader_parameter("debug_l0_half_m", core)
 	_surface.set_shader_parameter("debug_l1_transition_m", middle_radius)
+	_surface.set_shader_parameter("lod_coarse_spacing_m", outer)
 
 
 ## Keep the immediately traversed surface on the same high-detail representation

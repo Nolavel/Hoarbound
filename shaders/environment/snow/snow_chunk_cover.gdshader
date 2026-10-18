@@ -16,6 +16,9 @@ uniform vec4 trail_window = vec4(0.0);
 uniform vec3 fresh_color : source_color = vec3(0.8, 0.83, 0.88);
 // Capture-only ownership overlay. Runtime keeps this false.
 uniform bool debug_lod_ownership = false;
+// Same GPU-height witness encoding as SnowShell; render-only, default off.
+uniform bool debug_gpu_height = false;
+uniform float debug_height_reference = 0.0;
 // Baked city wind field (R prevailing, G storm), sampled per pixel so lee tongues
 // and scoured streets shade at 2 m even far from the mesh vertices.
 uniform sampler2D wind_tex : filter_linear, repeat_disable;
@@ -82,7 +85,12 @@ void fragment() {
 		snow_outer_albedo(fresh_color, v_world, depth, city), v_world, n, 0.38
 	);
 	ROUGHNESS = 0.85;
-	if (debug_lod_ownership) {
+	if (debug_gpu_height) {
+		ALBEDO = vec3(0.0);
+		EMISSION = vec3(clamp(0.5 + (v_world.y - debug_height_reference) * 0.08, 0.0, 1.0), 0.28, 1.0);
+		ROUGHNESS = 1.0;
+		NORMAL = normalize((VIEW_MATRIX * vec4(vec3(0.0, 1.0, 0.0), 0.0)).xyz);
+	} else if (debug_lod_ownership) {
 		vec3 owner = vec3(0.12, 0.82, 0.28);
 		ALBEDO = owner;
 		ROUGHNESS = 1.0;

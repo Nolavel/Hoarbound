@@ -37,6 +37,11 @@ uniform vec2 wind_extent = vec2(0.0);
 uniform float wind_max = 2.5;
 // Capture-only clipmap ownership overlay. Runtime keeps this false.
 uniform bool debug_lod_ownership = false;
+// Diagnostic emission encodes the FINAL vertex world height after GPU displacement.
+uniform bool debug_gpu_height = false;
+uniform float debug_height_reference = 0.0;
+// World-grid LOD morph; rings use 0.08/0.16/0.32m (LOW/MEDIUM scale too).
+uniform float lod_coarse_spacing_m = 0.32;
 uniform float debug_l0_half_m = 3.84;
 uniform float debug_l1_transition_m = 7.68;
 // Matches island_terrain snow_color so the window edge does not read as a patch.
@@ -89,6 +94,7 @@ vec4 far_grid_at(vec2 xz) {
 }
 
 float far_grid_top(vec4 far) {
+	// Exactly the SnowChunkCover vertex baseline (no procedural ridge geometry).
 	return far.r + snow_settled_depth * mix(far.g, far.b, snow_storm_share);
 }
 
@@ -183,6 +189,30 @@ float settled_top(vec2 xz) {
 	return f.r - f.g + mix(snow_base_depth(xz, f.a), f.g, edge);
 }
 
+// The coarse shell and fine shell sample the same 0.32m WORLD lattice.
+ // Near a moving LOD boundary fine detail converges continuously to the
+ // vertex field that the next lower-resolution mesh can represent.
+float snow_lod_coarse_deform(vec2 xz) {
+	float step_m = max(lod_coarse_spacing_m, 0.08);
+	vec2 lattice = floor(xz / step_m) * step_m;
+	vec2 t = clamp((xz - lattice) / step_m, vec2(0.0), vec2(1.0));
+	vec2 uv00 = (lattice - origin) / window_m;
+	vec2 dx = vec2(step_m / window_m, 0.0);
+	vec2 dz = vec2(0.0, step_m / window_m);
+	vec4 a = deformation_at(uv00);
+	vec4 b = deformation_at(uv00 + dx);
+	vec4 c = deformation_at(uv00 + dz);
+	vec4 d = deformation_at(uv00 + dx + dz);
+	float h00 = max(a.g, 0.0) - max(a.r, 0.0);
+	float h10 = max(b.g, 0.0) - max(b.r, 0.0);
+	float h01 = max(c.g, 0.0) - max(c.r, 0.0);
+	float h11 = max(d.g, 0.0) - max(d.r, 0.0);
+	// Triangulation with the same diagonal as 2m SnowChunkCover.
+	return t.x + t.y <= 1.0
+		? h00 + (h10 - h00) * t.x + (h01 - h00) * t.y
+		: h11 + (h01 - h11) * (1.0 - t.x) + (h10 - h11) * (1.0 - t.y);
+}
+
 float snow_union_edge(vec2 world_xz) {
 	vec2 own_uv = (world_xz - origin) / window_m;
 	vec2 own_rim = min(own_uv, vec2(1.0) - own_uv) * window_m;
@@ -223,13 +253,10 @@ void vertex() {
 	float ground = f.r - f.g;
 	float shore = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, ground);
 	v_city = use_baked_baseline ? baked_city_at(world.xz) * shore : f.a;
-	// World patch shares a union fade across both owners; no per-recenter fade jump.
-	v_edge = snow_union_edge(world.xz);
-	// Before old history is evicted, morph its geometry/normal/colour to the
-	// world-anchored coarse surface. Do NOT fade against moving square edges.
-	if (clip_outside_window) {
-		v_edge *= snow_trail_detail(world.xz);
-	}
+	// IMPORTANT: moving square recenter must NOT alter vertex height. Fade the
+	// deformation once by world-distance to Henry, continuously in both owners.
+	// snow_union_edge() is only a legacy non-baked fallback (test-floor mode).
+	v_edge = (use_baked_baseline && use_far_grid) ? snow_trail_detail(world.xz) : snow_union_edge(world.xz);
 	v_ground = ground;
 	float base = snow_base_geom(f.a);
 	v_depth = use_baked_baseline ? snow_base_depth(world.xz, v_city) : mix(snow_base_depth(world.xz, f.a), f.g, v_edge);
@@ -237,13 +264,23 @@ void vertex() {
 	float top = use_baked_baseline
 		? ground + snow_base_geom(v_city) + local_delta * v_edge
 		: ground + mix(base, f.g + local_delta, v_edge);
-	if (use_baked_baseline && use_far_grid && v_edge < 1.0) {
+	if (use_baked_baseline && use_far_grid) {
+		// Same world-fixed 2m barycentric reference as the streamed chunk.
+		// Previously mix(far_grid, local SnowField, snow_union_edge()) changed
+		// the UNTOUCHED ground height whenever the 25.6m window recentered.
 		vec4 far = far_grid_at(world.xz);
-		float far_shore_city = baked_city_at(world.xz) * far.a;
-		v_ground = mix(far.r, ground, v_edge);
-		v_city = mix(far_shore_city, v_city, v_edge);
-		v_depth = mix(snow_base_depth(world.xz, far_shore_city), v_depth, v_edge);
-		top = mix(far_grid_top(far), top, v_edge);
+		v_ground = far.r;
+		v_city = baked_city_at(world.xz) * far.a;
+		v_depth = snow_base_depth(world.xz, v_city);
+		float detail_y = local_delta * v_edge;
+		// Morph the extra fine triangles to a stable world 32cm displacement
+		// field BEFORE mesh topology can change at L0/L1/L2 recenter.
+		// The morph center follows Henry continuously, never the snapped window.
+		float r = distance(world.xz, snow_player_xz);
+		float morph = smoothstep(max(debug_l0_half_m - 1.0, 1.0),
+			debug_l1_transition_m - 0.5, r);
+		detail_y = mix(detail_y, snow_lod_coarse_deform(world.xz) * v_edge, morph);
+		top = far_grid_top(far) + detail_y;
 	}
 	float drawn_top = max(top, v_ground + 0.004);
 	VERTEX.y = drawn_top - MODEL_MATRIX[3].y;
@@ -335,7 +372,14 @@ void fragment() {
 	ROUGHNESS = mix(mix(surface_roughness, 0.92, heap), 0.85, outer_mix);
 	float glint = step(mix(0.996, 0.985, max(wall, fracture)), snow_hash(floor(v_world.xz * 140.0))) * v_edge;
 	EMISSION = vec3(glint * 0.25 * (1.0 - packed * (1.0 - wall)));
-	if (debug_lod_ownership) {
+	if (debug_gpu_height) {
+		// Distinctive blue/green snow mask, emission encodes GPU-displaced Y.
+		// Light/weather/tonemap are fixed during this orthographic probe.
+		ALBEDO = vec3(0.0);
+		EMISSION = vec3(clamp(0.5 + (v_world.y - debug_height_reference) * 0.08, 0.0, 1.0), 0.28, 1.0);
+		ROUGHNESS = 1.0;
+		NORMAL = normalize((VIEW_MATRIX * vec4(vec3(0.0, 1.0, 0.0), 0.0)).xyz);
+	} else if (debug_lod_ownership) {
 		vec2 centre = origin + vec2(window_m * 0.5);
 		vec2 d = abs(v_world.xz - centre);
 		float ring = length(v_world.xz - centre);
