@@ -121,8 +121,8 @@ func _run() -> void:
 		return
 
 	var surface := _shell.get_node_or_null("SnowShellMesh") as MeshInstance3D
-	if surface == null or String(surface.get_meta(&"snow_geometry", "")) != "clipmap_l0_l1":
-		_fail("production SnowShell did not install clipmap_l0_l1 geometry")
+	if surface == null or String(surface.get_meta(&"snow_geometry", "")) != "clipmap_l0_l1_l2":
+		_fail("production SnowShell did not install three radial LOD zones")
 		return
 
 	_hide_hud()
@@ -145,6 +145,7 @@ func _run() -> void:
 	_last_origin = _shell.get_origin()
 	_build_fixed_camera(_start)
 	_build_foot_camera()
+	await _capture_radial_lod_debug()
 	_record_height_witness("before")
 	_record_edge_witness("before")
 	await _capture_with_camera(_fixed_camera, OUT.path_join("handoff_fixed_before.png"))
@@ -201,6 +202,31 @@ func _run() -> void:
 		VIDEO_FRAMES, SEAM_SETTLED, walked, _recenter_count, _shell.recentre_step_m,
 		_mover.walk_speed, str(_foot_sink_samples), RenderingServer.get_current_rendering_driver_name()])
 	quit(0)
+
+
+
+## Static overview of the actual three radial tessellation zones.
+## Capture-only debug shader overlay; restored before TPS or deformation proof.
+func _capture_radial_lod_debug() -> void:
+	var surface := _shell.get_node_or_null("SnowShellMesh") as MeshInstance3D
+	if surface == null:
+		return
+	var material := surface.material_override as ShaderMaterial
+	if material == null:
+		return
+	var overview := Camera3D.new()
+	overview.name = "SnowRadialLodCamera"
+	overview.projection = Camera3D.PROJECTION_ORTHOGONAL
+	overview.size = 31.0
+	overview.far = 100.0
+	_world.add_child(overview)
+	overview.global_position = _player.global_position + Vector3(0.0, 40.0, 0.0)
+	overview.look_at(_player.global_position, Vector3.FORWARD)
+	material.set_shader_parameter("debug_lod_ownership", true)
+	await _capture_with_camera(overview, OUT.path_join("radial_three_ring_debug.png"))
+	material.set_shader_parameter("debug_lod_ownership", false)
+	_camera.make_current()
+	overview.queue_free()
 
 
 func _capture_tps_frame(index: int) -> void:
@@ -574,6 +600,14 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 		"street": STREET_NAME,
 		"renderer": RenderingServer.get_current_rendering_driver_name(),
 		"geometry": String(surface.get_meta(&"snow_geometry", "")),
+		"radial_lod": {
+			"l0_radius_m": float(surface.get_meta(&"snow_l0_half_m", 0.0)),
+			"l1_radius_m": float(surface.get_meta(&"snow_l1_radius_m", 0.0)),
+			"l0_spacing_m": float(surface.get_meta(&"snow_l0_spacing_m", 0.0)),
+			"l1_spacing_m": float(surface.get_meta(&"snow_l1_spacing_m", 0.0)),
+			"l2_spacing_m": float(surface.get_meta(&"snow_l2_spacing_m", 0.0)),
+			"anchoring": "3.2m recenter on 0.32m L2 world grid"
+		},
 		"l0_half_m": float(surface.get_meta(&"snow_l0_half_m", 0.0)),
 		"l0_spacing_m": float(surface.get_meta(&"snow_l0_spacing_m", 0.0)),
 		"l1_spacing_m": float(surface.get_meta(&"snow_l1_spacing_m", 0.0)),

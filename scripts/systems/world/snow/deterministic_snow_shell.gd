@@ -56,7 +56,7 @@ func _ready() -> void:
 		mat.set_shader_parameter("foot_stamp_count", 0)
 
 
-## Geometry-only migration proof. The old graded grid still exists in SnowShell and
+## Three world-anchored radial LOD zones. Old graded grid still exists in SnowShell and
 ## can be restored with hfn/snow/clipmap_geometry=false for A/B or rollback.
 func _install_surface_geometry(quality: StringName) -> void:
 	if not bool(ProjectSettings.get_setting("hfn/snow/clipmap_geometry", true)):
@@ -69,20 +69,30 @@ func _install_surface_geometry(quality: StringName) -> void:
 	var core: float = SURFACE_CLIPMAP.DEFAULT_L0_HALF_M
 	var fine: float = SURFACE_CLIPMAP.DEFAULT_L0_SPACING_M
 	var coarse: float = SURFACE_CLIPMAP.DEFAULT_L1_SPACING_M
+	var outer: float = SURFACE_CLIPMAP.DEFAULT_L2_SPACING_M
+	var middle_radius: float = SURFACE_CLIPMAP.DEFAULT_L1_RADIUS_M
 	match quality:
 		GRAPHICS.LOW:
 			core = 2.56
 			fine = 0.16
 			coarse = 0.32
+			outer = 0.64
+			middle_radius = 6.4
 		GRAPHICS.MEDIUM:
 			core = 3.2
 			fine = 0.1
 			coarse = 0.2
-	_mesh.mesh = SURFACE_CLIPMAP.build(window_m, core, fine, coarse)
-	_mesh.set_meta(&"snow_geometry", "clipmap_l0_l1")
+			outer = 0.4
+			middle_radius = 7.2
+	_mesh.mesh = SURFACE_CLIPMAP.build(window_m, core, fine, coarse, outer, middle_radius)
+	_mesh.set_meta(&"snow_geometry", "clipmap_l0_l1_l2")
 	_mesh.set_meta(&"snow_l0_half_m", core)
 	_mesh.set_meta(&"snow_l0_spacing_m", fine)
 	_mesh.set_meta(&"snow_l1_spacing_m", coarse)
+	_mesh.set_meta(&"snow_l2_spacing_m", outer)
+	_mesh.set_meta(&"snow_l1_radius_m", middle_radius)
+	_surface.set_shader_parameter("debug_l0_half_m", core)
+	_surface.set_shader_parameter("debug_l1_transition_m", middle_radius)
 
 
 ## Keep the immediately traversed surface on the same high-detail representation

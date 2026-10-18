@@ -38,7 +38,7 @@ uniform float wind_max = 2.5;
 // Capture-only clipmap ownership overlay. Runtime keeps this false.
 uniform bool debug_lod_ownership = false;
 uniform float debug_l0_half_m = 3.84;
-uniform float debug_l1_transition_m = 4.0;
+uniform float debug_l1_transition_m = 7.68;
 // Matches island_terrain snow_color so the window edge does not read as a patch.
 uniform vec3 fresh_color : source_color = vec3(0.8, 0.83, 0.88);
 uniform vec3 packed_color : source_color = vec3(0.5, 0.56, 0.68);
@@ -338,7 +338,7 @@ void fragment() {
 	if (debug_lod_ownership) {
 		vec2 centre = origin + vec2(window_m * 0.5);
 		vec2 d = abs(v_world.xz - centre);
-		float ring = max(d.x, d.y);
+		float ring = length(v_world.xz - centre);
 		vec3 owner = ring <= debug_l0_half_m
 			? vec3(0.92, 0.16, 0.12)
 			: (ring <= debug_l1_transition_m ? vec3(0.95, 0.72, 0.10) : vec3(0.14, 0.34, 0.96));

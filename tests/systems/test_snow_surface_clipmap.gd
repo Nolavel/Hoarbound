@@ -12,9 +12,10 @@ func _process(_delta: float) -> bool:
 
 
 func _run() -> void:
-	_test_two_level_mesh_is_watertight()
+	_test_three_radial_zones_are_watertight()
 	_test_geometry_budget_is_lower_than_legacy_shell()
 	_test_production_shell_installs_clipmap()
+	_test_recenter_is_world_lattice_aligned()
 	if _failures > 0:
 		push_error("snow surface clipmap: %d check(s) failed" % _failures)
 		quit(1)
@@ -30,7 +31,7 @@ func _check(condition: bool, message: String) -> void:
 	push_error("snow surface clipmap: %s" % message)
 
 
-func _test_two_level_mesh_is_watertight() -> void:
+func _test_three_radial_zones_are_watertight() -> void:
 	var mesh: ArrayMesh = CLIPMAP.build(25.6, 3.84, 0.08, 0.16)
 	_check(mesh.get_surface_count() == 1, "clipmap did not build one draw surface")
 	var arrays: Array = mesh.surface_get_arrays(0)
@@ -63,20 +64,20 @@ func _test_two_level_mesh_is_watertight() -> void:
 				internal_open += 1
 		elif count != 2:
 			overlap_edges += 1
-	_check(internal_open == 0, "%d open internal edges at an L0/L1 stitch" % internal_open)
+	_check(internal_open == 0, "%d open internal edges at a radial L0/L1/L2 stitch" % internal_open)
 	_check(overlap_edges == 0, "%d geometric edges are covered by overlapping triangles" % overlap_edges)
 	_check(perimeter_edges > 0, "outer perimeter was not found")
 
 
 func _test_geometry_budget_is_lower_than_legacy_shell() -> void:
-	var stats: Dictionary = CLIPMAP.describe(25.6, 3.84, 0.08, 0.16)
+	var stats: Dictionary = CLIPMAP.describe(25.6, 3.84, 0.08, 0.16, 0.32, 7.68)
 	var vertices: int = int(stats["vertices"])
 	var triangles: int = int(stats["triangles"])
 	## The shipped graded grid at HIGH is 74,529 vertices / 147,968 triangles.
-	## This first two-level proof should roughly halve that before L2/far work starts.
-	_check(vertices > 10000, "L0/L1 mesh is implausibly sparse: %d vertices" % vertices)
-	_check(vertices < 40000, "L0/L1 mesh lost its geometry-budget advantage: %d vertices" % vertices)
-	_check(triangles > 20000 and triangles < 80000, "unexpected triangle budget: %d" % triangles)
+	## Three radial zones stay below the legacy mesh vertex budget.
+	_check(vertices > 20000, "L0/L1 mesh is implausibly sparse: %d vertices" % vertices)
+	_check(vertices < 74529, "L0/L1 mesh lost its geometry-budget advantage: %d vertices" % vertices)
+	_check(triangles > 20000 and triangles < 147968, "unexpected triangle budget: %d" % triangles)
 
 
 func _test_production_shell_installs_clipmap() -> void:
@@ -93,12 +94,26 @@ func _test_production_shell_installs_clipmap() -> void:
 	if surface != null and surface.mesh != null:
 		var arrays: Array = surface.mesh.surface_get_arrays(0)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var expected: int = int(CLIPMAP.describe(25.6, 3.84, 0.08, 0.16)["vertices"])
-		_check(vertices.size() == expected, "DeterministicSnowShell did not install the L0/L1 mesh")
+		var expected: int = int(CLIPMAP.describe(25.6, 3.84, 0.08, 0.16, 0.32, 7.68)["vertices"])
+		_check(vertices.size() == expected, "DeterministicSnowShell did not install radial L0/L1/L2")
 	shell.free()
 	ProjectSettings.set_setting("hfn/graphics/quality", old_graphics)
 	ProjectSettings.set_setting("hfn/snow/quality", old_snow)
 	ProjectSettings.set_setting("hfn/snow/clipmap_geometry", old_clipmap)
+
+
+
+## A 3.2m recenter translates the same L2 0.32m lattice by exactly 10
+## whole tiles. Already-passed L2 triangles therefore retain world vertices.
+func _test_recenter_is_world_lattice_aligned() -> void:
+	var stats: Dictionary = CLIPMAP.describe(25.6, 3.84, 0.08, 0.16, 0.32, 7.68)
+	var step: float = float(stats["l2_spacing_m"])
+	_check(absf(3.2 / step - roundf(3.2 / step)) < 0.00001, "recenter shifts the L2 lattice between world positions")
+	var mesh: ArrayMesh = CLIPMAP.build(25.6, 3.84, 0.08, 0.16, 0.32, 7.68)
+	var v: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	for p: Vector3 in v:
+		_check(absf(p.x / 0.08 - roundf(p.x / 0.08)) < 0.0001, "L0 vertex X is not on the world height sample lattice")
+		_check(absf(p.z / 0.08 - roundf(p.z / 0.08)) < 0.0001, "L0 vertex Z is not on the world height sample lattice")
 
 
 func _count_edge(edges: Dictionary, a: Vector3, b: Vector3) -> void:
