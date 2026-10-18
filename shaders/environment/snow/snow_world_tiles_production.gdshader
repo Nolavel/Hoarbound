@@ -44,7 +44,9 @@ void vertex() {
     v_rim = max(stamp.g, 0.0);
     v_shore = UV.y;
     v_city = city_at(world.xz) * v_shore;
-    VERTEX.y += snow_base_geom(v_city) + v_rim - v_press;
+    // Interpolated from the *same* 2m chunk vertices, not freshly sampled
+    // at higher-detail points. Prevents baseline pops as the LOD changes.
+    VERTEX.y += snow_settled_depth * mix(UV2.x, UV2.y, snow_storm_share) + v_rim - v_press;
     v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 

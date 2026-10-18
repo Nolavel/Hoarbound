@@ -12,7 +12,7 @@ const SEA_M: float = 0.04
 var snow_field: SnowField
 var track_store: SnowTrackStore
 var _levels: Dictionary = {} # permanent tile key -> finest topology ever requested
-var _ground_cache: Dictionary = {} # 2m lattice point -> (elevation, shoreline share)
+var _ground_cache: Dictionary = {} # 2m point -> (height, shore, prev*shore, storm*shore)
 
 
 func focus(world_xz: Vector2) -> void:
@@ -74,7 +74,7 @@ func _install(key: Vector2i) -> void:
 	_surface[key] = inst
 
 
-func _world_ground(x: float, z: float) -> Vector2:
+func _world_ground(x: float, z: float) -> Vector4:
 	# Reconstruct exactly the two triangles in SnowChunkCover._shade_row;
 	# no sampling of a moving SnowField or new DEM heights at each recenter.
 	var x0: int = floori(x / GROUND_STEP_M)
@@ -95,13 +95,17 @@ func _ground_node(coord: Vector2i) -> Vector2:
 	var z: float = float(coord.y) * GROUND_STEP_M
 	var h: float = float(_top_at.call(x, z))
 	var shore: float = smoothstep(SEA_M + 0.05, SEA_M + 0.8, h)
-	var sample := Vector2(h, shore)
+	# Equivalent to SnowChunkCover's 2m GPU vertex evaluation. Barycentric
+	# interpolation of BOTH weather factors is exact for any intermediate LOD,
+	# so upgrading triangles does not modify the untouched settled surface.
+	var winds: Vector2 = snow_field.wind_factors(Vector2(x, z)) if snow_field != null else Vector2.ONE
+	var sample := Vector4(h, shore, winds.x * shore, winds.y * shore)
 	_ground_cache[coord] = sample
 	return sample
 
 
 func _point(vertices: PackedVector3Array, normals: PackedVector3Array,
-	uvs: PackedVector2Array, x: float, z: float) -> int:
+	uvs: PackedVector2Array, uv2s: PackedVector2Array, x: float, z: float) -> int:
 	var sample := _world_ground(x, z)
 	var ex: float = _world_ground(x + 0.1, z).x - _world_ground(x - 0.1, z).x
 	var ez: float = _world_ground(x, z + 0.1).x - _world_ground(x, z - 0.1).x
@@ -109,6 +113,7 @@ func _point(vertices: PackedVector3Array, normals: PackedVector3Array,
 	vertices.append(Vector3(x, sample.x, z))
 	normals.append(Vector3(-ex, 0.2, -ez).normalized())
 	uvs.append(Vector2(0.0, sample.y))
+	uv2s.append(Vector2(sample.z, sample.w))
 	return idx
 
 
@@ -126,6 +131,7 @@ func _build_baked_mesh(key: Vector2i) -> ArrayMesh:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var uv2s := PackedVector2Array()
 	var indices := PackedInt32Array()
 	var start: float = inset
 	var side: float = TILE_M - 2.0 * inset
@@ -135,7 +141,7 @@ func _build_baked_mesh(key: Vector2i) -> ArrayMesh:
 	# high-resolution 10cm tile perimeter for ALL three LODs.
 	for iz: int in range(cells + 1):
 		for ix: int in range(cells + 1):
-			_point(verts, normals, uvs, origin.x + start + float(ix) * stride,
+			_point(verts, normals, uvs, uv2s, origin.x + start + float(ix) * stride,
 				origin.y + start + float(iz) * stride)
 	for iz: int in range(cells):
 		for ix: int in range(cells):
@@ -151,12 +157,12 @@ func _build_baked_mesh(key: Vector2i) -> ArrayMesh:
 			for i: int in range(GRID):
 				var t: float = float(i) / float(GRID)
 				var q := _perimeter_point(origin, 0.0, side_id, t)
-				outer_idx.append(_point(verts, normals, uvs, q.x, q.y))
+				outer_idx.append(_point(verts, normals, uvs, uv2s, q.x, q.y))
 				outer_time.append(float(side_id) + t)
 			for i: int in range(cells):
 				var t: float = float(i) / float(cells)
 				var q := _perimeter_point(origin, inset, side_id, t)
-				inner_idx.append(_point(verts, normals, uvs, q.x, q.y))
+				inner_idx.append(_point(verts, normals, uvs, uv2s, q.x, q.y))
 				inner_time.append(float(side_id) + t)
 		var ai: int = 0
 		var bi: int = 0
@@ -181,6 +187,7 @@ func _build_baked_mesh(key: Vector2i) -> ArrayMesh:
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2s
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

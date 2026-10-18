@@ -39,6 +39,7 @@ var _stress_min_coverage := 2147483647
 var _stress_stats: Array[Dictionary] = []
 var _baseline: Image
 var _frozen_fingerprint: int = 0
+var _tile_history_snapshot: Dictionary = {}
 var _before: Dictionary
 var _after: Dictionary
 var _errors: Array[String] = []
@@ -148,16 +149,20 @@ func _run() -> void:
     # Streaming mesh instances may disappear/recreate; data/mesh are world IDs.
     var old_scale := Engine.time_scale
     Engine.time_scale = 0.0
-    _frozen_fingerprint = _prototype.deformation_fingerprint()
     var spot := Vector2(_start.x, _start.z)
     _prototype.focus(spot)
+    _frozen_fingerprint = _prototype.deformation_fingerprint()
+    _tile_history_snapshot = _history_snapshot()
     await _stress_frame(0)
     var shifts := [-1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0]
     for i: int in range(STRESS_STEPS):
         _prototype.focus(spot + Vector2(TILE_M * float(shifts[i]), 0.0))
         await _stress_frame(i + 1)
-        if _prototype.deformation_fingerprint() != _frozen_fingerprint:
-            _errors.append("permanent world tile data changed on recenter step %d" % (i + 1))
+        # Restoring an unseen tile from SnowTrackStore expands the in-memory
+        # history set but is NOT a mutation. Check each pre-existing world tile
+        # by ID and exact bytes instead of hashing all newly loaded records.
+        if not _history_unchanged():
+            _errors.append("existing world tile data changed on recenter step %d" % (i + 1))
     _prototype.focus(spot)
     Engine.time_scale = old_scale
     _after = _prototype.coverage()
@@ -253,6 +258,22 @@ func _stress_frame(index: int) -> void:
         _stress_min_coverage = mini(_stress_min_coverage, int(metric["snow_samples"]))
     _prototype.set_height_debug(false, 0.0)
     _fixed.make_current()
+
+
+func _history_snapshot() -> Dictionary:
+    var record: Dictionary = {}
+    for key: Variant in _prototype._data.keys():
+        record[key] = (_prototype._data[key] as Image).get_data().sha256_text()
+    return record
+
+
+func _history_unchanged() -> bool:
+    for key: Variant in _tile_history_snapshot.keys():
+        if not _prototype._data.has(key):
+            return false
+        if (_prototype._data[key] as Image).get_data().sha256_text() != String(_tile_history_snapshot[key]):
+            return false
+    return true
 
 
 func _difference(a: Image, b: Image) -> Dictionary:
@@ -388,6 +409,7 @@ func _save_report() -> void:
         "renderer": RenderingServer.get_current_rendering_driver_name(),
         "forward_m": _distance_forward, "return_m": _distance_return,
         "tiles_at_start": _before, "tiles_at_end": _after,
+        "lod_tiers": _prototype.get_lod_summary(), "frozen_tiles_checked": _tile_history_snapshot.size(),
         "frozen_world_data_fingerprint": _frozen_fingerprint,
         "stress_recenter_steps": STRESS_STEPS,
         "gpu_height_witness": {"min_samples": _stress_min_coverage, "max_pixel_difference": _stress_max_diff, "steps": _stress_stats, "threshold": 0.012},

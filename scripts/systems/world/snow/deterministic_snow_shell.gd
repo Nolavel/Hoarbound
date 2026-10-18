@@ -34,6 +34,7 @@ var _trail_packed_tex: ImageTexture
 var _trail_shape_image: Image
 var _chunk_snow_material: ShaderMaterial
 var _world_tiles: WorldSnowTileSurface
+var _world_tiles_requested: bool = false
 
 
 func _ready() -> void:
@@ -273,21 +274,36 @@ func on_world_ready(context: WorldContext) -> void:
 	if _player != null:
 		var at: Vector3 = _player.global_position
 		_update_local_contact(Vector2(at.x, at.z))
-	if bool(ProjectSettings.get_setting("hfn/snow/world_tiles", true)) and _terrain != null and _player != null:
-		# Runtime uses the real snow/terrain/weather and the existing foot sensor.
-		# The original moving clipmap remains a one-switch rollback path.
-		_world_tiles = WORLD_TILES_SCRIPT.new() as WorldSnowTileSurface
-		_world_tiles.name = "WorldSnowTiles"
-		_world_tiles.track_store = tracks
-		_world_tiles.snow_field = field
-		_world_tiles.radius_tiles = 6
-		add_child(_world_tiles)
-		_world_tiles.configure(Callable(self, "_world_tile_ground"), Vector2(_player.global_position.x, _player.global_position.z))
-		_mesh.visible = false
-		SnowChunkCover._ensure_shared()
-		_chunk_snow_material = SnowChunkCover._material
-		if _chunk_snow_material != null:
-			_chunk_snow_material.set_shader_parameter("world_tiles_active", true)
+	# KeyWestRealityGround only knows DEM heights for LIVE streamed chunks.
+	# Installing at on_world_ready baked fallback y=1.0 into permanent tiles.
+	# Defer until the real chunk+border are indexed; keep legacy surface until then.
+	_world_tiles_requested = bool(ProjectSettings.get_setting("hfn/snow/world_tiles", true)) and _terrain != null and _player != null
+
+
+func _start_world_tiles_if_ready() -> void:
+	if not _world_tiles_requested or _world_tiles != null or _terrain == null or _player == null:
+		return
+	var player_at := Vector2(_player.global_position.x, _player.global_position.z)
+	if _terrain.has_method(&"has_ground_at"):
+		# The complete 13x13 streaming buffer must have valid terrain, not
+		# fallback height samples at construction time.
+		var reach: float = 6.0 * SnowTrackStore.TILE_M + SnowTrackStore.TILE_M
+		for offset: Vector2 in [Vector2(-reach, -reach), Vector2(reach, -reach),
+			Vector2(-reach, reach), Vector2(reach, reach), Vector2.ZERO]:
+			if not bool(_terrain.call(&"has_ground_at", player_at.x + offset.x, player_at.y + offset.y)):
+				return
+	_world_tiles = WORLD_TILES_SCRIPT.new() as WorldSnowTileSurface
+	_world_tiles.name = "WorldSnowTiles"
+	_world_tiles.track_store = tracks
+	_world_tiles.snow_field = field
+	_world_tiles.radius_tiles = 6
+	add_child(_world_tiles)
+	_world_tiles.configure(Callable(self, "_world_tile_ground"), player_at)
+	_mesh.visible = false
+	SnowChunkCover._ensure_shared()
+	_chunk_snow_material = SnowChunkCover._material
+	if _chunk_snow_material != null:
+		_chunk_snow_material.set_shader_parameter("world_tiles_active", true)
 
 
 func _world_tile_ground(x: float, z: float) -> float:
@@ -304,6 +320,7 @@ func _exit_tree() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_start_world_tiles_if_ready()
 	super(delta)
 	if _player != null and _contact_cam != null:
 		var at: Vector3 = _player.global_position
