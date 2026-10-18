@@ -60,9 +60,16 @@ bool inside_window(vec2 xz, vec4 window) {
 
 void fragment() {
 	HFN_SHADOW_FRAGMENT(v_world);
-	bool inside = inside_window(v_world.xz, snow_window) || inside_window(v_world.xz, trail_window);
+	bool in_live = inside_window(v_world.xz, snow_window);
+	bool in_trail = inside_window(v_world.xz, trail_window);
 	float depth = depth_at(v_world.xz, v_shore);
-	if (inside || depth < 0.012) {
+	if (in_live || depth < 0.012) {
+		discard;
+	}
+	// Reciprocal fragment ownership with the retained history mesh.
+	// Under 20m all retained pixels belong to the deformable history,
+	// over 28m they are purely stable streamed chunk snow.
+	if (in_trail && snow_trail_dither(v_world.xz) <= snow_trail_detail(v_world.xz)) {
 		discard;
 	}
 	// Same world-space normal and snow tint as the fine shell's outer rim.

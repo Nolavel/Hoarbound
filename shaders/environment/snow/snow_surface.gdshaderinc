@@ -155,3 +155,18 @@ vec3 snow_outer_albedo(vec3 fresh, vec3 world, float depth, float city) {
 	color *= mix(1.0, 1.03, smoothstep(0.1, 0.4, depth));
 	return snow_thin_tint(snow_wind_tint(color, city), depth);
 }
+
+// History remains logically persisted forever, but expensive geometric
+// footprint relief is represented only near Henry. Beyond 28m it becomes
+// streamed static snow. The fade follows WORLD distance to the continuously
+// moving character rather than the 3.2m square recenter grid.
+global uniform vec2 snow_player_xz;
+float snow_trail_detail(vec2 world_xz) {
+	return 1.0 - smoothstep(20.0, 28.0, distance(world_xz, snow_player_xz));
+}
+
+// Use the SAME deterministic world-space dither on both opaque meshes:
+// exactly one of trail/chunk owns each transition pixel (no z fighting).
+float snow_trail_dither(vec2 world_xz) {
+	return snow_hash(floor(world_xz * 18.0));
+}

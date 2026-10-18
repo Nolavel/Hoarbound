@@ -282,6 +282,7 @@ func _physics_process(_delta: float) -> void:
 	if _city == null and _world_root != null:
 		_city = get_tree().get_first_node_in_group(&"snow_obstacles") as Node3D
 	var at: Vector3 = _player.global_position
+	RenderingServer.global_shader_parameter_set(&"snow_player_xz", Vector2(at.x, at.z))
 	var travel := Vector2.ZERO
 	if _player is CharacterBody3D:
 		var v: Vector3 = (_player as CharacterBody3D).velocity

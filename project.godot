@@ -1051,6 +1051,10 @@ snow_window={
 "type": "vec4",
 "value": Vector4(0, 0, 0, 0)
 }
+snow_player_xz={
+"type": "vec2",
+"value": Vector2(0, 0)
+}
 snow_field={
 "type": "sampler2D",
 "value": ""

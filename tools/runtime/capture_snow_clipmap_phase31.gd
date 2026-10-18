@@ -230,6 +230,10 @@ func _probe_outer_owner_transition() -> void:
 	for i: int in range(OUTER_HANDOFF_STEPS):
 		var wanted: Vector2 = start_origin + Vector2(float(i + 1) * _shell.recentre_step_m, 0.0)
 		_shell.recentre_to(wanted + Vector2.ONE * (_shell.window_m * 0.5))
+		# Simulate the actor following the window. The real gameplay fade uses
+		# the continuously moving Henry position, NOT snapped recenter.
+		var virtual_player: Vector2 = wanted + Vector2.ONE * (_shell.window_m * 0.5)
+		RenderingServer.global_shader_parameter_set(&"snow_player_xz", virtual_player)
 		_fixed_camera.make_current()
 		await process_frame
 		await RenderingServer.frame_post_draw
@@ -240,9 +244,18 @@ func _probe_outer_owner_transition() -> void:
 		var owner: String = "live" if _in_window(_fixed_patch, live) else ("retained" if _in_window(_fixed_patch, previous) else "chunk")
 		_outer_was_retained = _outer_was_retained or owner == "retained"
 		_outer_was_chunk = _outer_was_chunk or owner == "chunk"
+		var t: float = clampf(_fixed_patch.distance_to(virtual_player) / 8.0 - 2.5, 0.0, 1.0)
+		var detail: float = 1.0 - t * t * (3.0 - 2.0 * t)
+		if owner == "chunk" and not _outer_ownership.is_empty():
+			var prior: Dictionary = _outer_ownership.back()
+			if String(prior.get("owner", "")) == "retained" and float(prior.get("history_detail", 1.0)) > 0.05:
+				_fail("history was evicted before the distance fade finished")
+				return
 		_outer_ownership.append({
 			"step": i + 1,
 			"owner": owner,
+			"history_detail": detail,
+			"virtual_player_xz": [virtual_player.x, virtual_player.y],
 			"live_origin": [live.x, live.y],
 			"retained_origin": [previous.x, previous.y],
 			"fixed_patch_xz": [_fixed_patch.x, _fixed_patch.y],

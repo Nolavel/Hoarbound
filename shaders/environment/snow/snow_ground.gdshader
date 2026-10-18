@@ -225,6 +225,11 @@ void vertex() {
 	v_city = use_baked_baseline ? baked_city_at(world.xz) * shore : f.a;
 	// World patch shares a union fade across both owners; no per-recenter fade jump.
 	v_edge = snow_union_edge(world.xz);
+	// Before old history is evicted, morph its geometry/normal/colour to the
+	// world-anchored coarse surface. Do NOT fade against moving square edges.
+	if (clip_outside_window) {
+		v_edge *= snow_trail_detail(world.xz);
+	}
 	v_ground = ground;
 	float base = snow_base_geom(f.a);
 	v_depth = use_baked_baseline ? snow_base_depth(world.xz, v_city) : mix(snow_base_depth(world.xz, f.a), f.g, v_edge);
@@ -246,6 +251,9 @@ void vertex() {
 }
 
 void fragment() {
+	if (clip_outside_window && snow_trail_dither(v_world.xz) > snow_trail_detail(v_world.xz)) {
+		discard;
+	}
 	if (clip_outside_window && clip_window.w > 0.5) {
 		vec2 clip_uv = (v_world.xz - clip_window.xy) / max(clip_window.z, 0.001);
 		if (all(greaterThan(clip_uv, vec2(0.0))) && all(lessThan(clip_uv, vec2(1.0)))) {
