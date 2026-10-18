@@ -19,6 +19,7 @@ const VIDEO_FPS := 12
 const OUTER_HANDOFF_STEPS := 16
 const GPU_CAPTURE_LAYER := 1 << 19 # layer 20; isolated diagnostic snow only
 const GPU_HEIGHT_DELTA_LIMIT := 0.02 # encoded pixel delta; NOT metres
+const GPU_MAX_RED_DELTA_LIMIT := 0.02 # a narrow but tall seam must also fail
 const GPU_CHANGED_FRACTION_LIMIT := 0.005
 const OUTER_HANDOFF_FPS := 4
 const FIXED_EVERY_N_FRAMES := 3 # 24 fixed-camera frames / 6 seconds = 4 FPS
@@ -189,7 +190,7 @@ func _run() -> void:
 	# Stage 2: same fixed camera observes retained history turning into
 	# SnowChunkCover, without changing the real-TPS first six seconds.
 	await _probe_outer_owner_transition()
-	_gpu_pass = _gpu_min_covered >= 5000 and _gpu_max_changed_fraction <= GPU_CHANGED_FRACTION_LIMIT
+	_gpu_pass = _gpu_min_covered >= 5000 and _gpu_max_changed_fraction <= GPU_CHANGED_FRACTION_LIMIT and _gpu_max_delta <= GPU_MAX_RED_DELTA_LIMIT
 	_write_report(surface, walked)
 	if walked < MIN_WALK_DISTANCE_M:
 		_fail("Henry traversed %.2f m; need %.2f m for TPS seam proof" % [walked, MIN_WALK_DISTANCE_M])
@@ -767,6 +768,8 @@ func _write_report(surface: MeshInstance3D, walked: float) -> void:
 			"max_changed_fraction": _gpu_max_changed_fraction,
 			"red_delta_threshold": GPU_HEIGHT_DELTA_LIMIT,
 			"changed_fraction_threshold": GPU_CHANGED_FRACTION_LIMIT,
+			"max_red_delta_threshold": GPU_MAX_RED_DELTA_LIMIT,
+			"handoff_note": "forced recenter with player frozen can evict retained snow; full 16-step witness must FAIL if a tall localized seam appears",
 			"pass": _gpu_pass,
 			"steps": _gpu_steps,
 		},
