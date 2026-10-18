@@ -263,7 +263,7 @@ func _stress_frame(index: int) -> void:
 func _history_snapshot() -> Dictionary:
     var record: Dictionary = {}
     for key: Variant in _prototype._data.keys():
-        record[key] = (_prototype._data[key] as Image).get_data().sha256_text()
+        record[key] = (_prototype._data[key] as Image).get_data()
     return record
 
 
@@ -271,7 +271,7 @@ func _history_unchanged() -> bool:
     for key: Variant in _tile_history_snapshot.keys():
         if not _prototype._data.has(key):
             return false
-        if (_prototype._data[key] as Image).get_data().sha256_text() != String(_tile_history_snapshot[key]):
+        if (_prototype._data[key] as Image).get_data() != (_tile_history_snapshot[key] as PackedByteArray):
             return false
     return true
 
