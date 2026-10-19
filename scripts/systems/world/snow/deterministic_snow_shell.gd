@@ -292,10 +292,12 @@ func _start_world_tiles_if_ready() -> void:
 			Vector2(-reach, reach), Vector2(reach, reach), Vector2.ZERO]:
 			if not bool(_terrain.call(&"has_ground_at", player_at.x + offset.x, player_at.y + offset.y)):
 				return
+	# Match the same baked wind source used by streamed SnowChunkCover.
+	SnowChunkCover._ensure_shared()
 	_world_tiles = WORLD_TILES_SCRIPT.new() as WorldSnowTileSurface
 	_world_tiles.name = "WorldSnowTiles"
 	_world_tiles.track_store = tracks
-	_world_tiles.snow_field = field
+	_world_tiles.snow_field = SnowChunkCover._field if SnowChunkCover._field != null else field
 	_world_tiles.radius_tiles = 6
 	add_child(_world_tiles)
 	_world_tiles.configure(Callable(self, "_world_tile_ground"), player_at)

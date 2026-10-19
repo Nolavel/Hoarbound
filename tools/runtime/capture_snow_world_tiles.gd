@@ -29,6 +29,7 @@ var _gpu: Camera3D
 var _macro: Camera3D
 var _stress_focus := Vector2.ZERO
 var _print_anchor := Vector2.ZERO
+var _deepest_visible_press_m := 0.0
 var _street_at := Vector2.ZERO
 var _yaw := 0.0
 var _start := Vector3.ZERO
@@ -154,7 +155,6 @@ func _run() -> void:
     # camera must look at observed relief, never an arbitrary clean patch.
     _print_anchor = _strongest_print()
     _setup_closeup(_print_anchor)
-    _save_image(_screen(), OUT.path_join("return_fixed.png"))
 
     # Stage C: no stamps, no actor movement, constant world camera/weather/light.
     # Streaming mesh instances may disappear/recreate; data/mesh are world IDs.
@@ -187,6 +187,8 @@ func _run() -> void:
         _errors.append("real Henry did not traverse and return at least 3m")
     if _prototype.stamp_count < 6:
         _errors.append("fewer than six actual-path prototype stamps")
+    if _deepest_visible_press_m < 0.01:
+        _errors.append("no actual visible Duval Street footprint near the static camera")
     if _stress_min_coverage < 7000:
         _errors.append("GPU height probe had too few visible snow samples")
     if _stress_max_diff > 0.012:
@@ -247,7 +249,7 @@ func _setup_cameras() -> void:
     _gpu = Camera3D.new()
     _gpu.name = "WorldSnowTileGpuHeightWitness"
     _gpu.projection = Camera3D.PROJECTION_ORTHOGONAL
-    _gpu.size = 5.0
+    _gpu.size = 1.6
     _gpu.near = 0.1
     _gpu.far = 50.0
     _gpu.cull_mask = RenderLayers.SNOW_TILE_EXPERIMENT
@@ -263,18 +265,26 @@ func _setup_cameras() -> void:
 
 # Find the deepest REAL stamped position for the close-up and GPU probe.
 func _strongest_print() -> Vector2:
+    # Boot at the shelter produces unrelated earlier stamps. Select only
+    # resident, genuinely pressed vertices along THIS 11m Duval walk.
     var highest := -1.0
     var where := Vector2(_start.x, _start.z)
-    for raw_key: Variant in _prototype._data.keys():
+    var start_xz := Vector2(_start.x, _start.z)
+    for raw_key: Variant in _prototype._surface.keys():
         var key: Vector2i = raw_key
         var img: Image = _prototype._data[key]
         var origin: Vector2 = WorldSnowTilePrototype.key_origin(key)
         for z: int in range(WorldSnowTilePrototype.SIDE):
             for x: int in range(WorldSnowTilePrototype.SIDE):
-                var state: Color = img.get_pixel(x, z)
-                if state.r > highest:
-                    highest = state.r
-                    where = origin + Vector2(x, z) * 0.1
+                var at: Vector2 = origin + Vector2(x, z) * 0.1
+                var along: float = (at - start_xz).dot(_forward)
+                if along < 0.3 or along > 9.0 or at.distance_to(start_xz) > 10.0:
+                    continue
+                var press: float = img.get_pixel(x, z).r
+                if press > highest:
+                    highest = press
+                    where = at
+    _deepest_visible_press_m = maxf(highest, 0.0)
     return where
 
 
@@ -284,7 +294,7 @@ func _setup_closeup(at: Vector2) -> void:
     _macro = Camera3D.new()
     _macro.name = "FixedFootReliefCloseup"
     _macro.projection = Camera3D.PROJECTION_ORTHOGONAL
-    _macro.size = 3.2
+    _macro.size = 2.6
     _macro.near = 0.05
     _macro.far = 70.0
     _macro.cull_mask = 1
@@ -521,6 +531,7 @@ func _save_report() -> void:
         "frozen_world_data_fingerprint": _frozen_fingerprint,
         "stress_recenter_steps": STRESS_STEPS,
         "foot_probe_xz": [_print_anchor.x, _print_anchor.y],
+        "max_actual_visible_press_m": _deepest_visible_press_m,
         "radial_shader_center_moves_with_recenter": true,
         "gpu_height_witness": {"min_samples": _stress_min_coverage, "max_pixel_difference": _stress_max_diff, "steps": _stress_stats, "threshold": 0.012, "signal": _gpu_height_signal, "minimum_signal_span": 0.015},
         "passes": _errors.is_empty() and _stress_min_coverage >= 7000 and _stress_max_diff <= 0.012,
