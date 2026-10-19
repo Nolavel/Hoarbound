@@ -326,6 +326,9 @@ func _physics_process(delta: float) -> void:
 		var at: Vector3 = _player.global_position
 		_update_local_contact(Vector2(at.x, at.z))
 		if _world_tiles != null:
+			# The radial tile/chunk owner must follow the real player every frame,
+			# not remain frozen at the spawn point while only tile residency moves.
+			RenderingServer.global_shader_parameter_set(&"snow_player_xz", Vector2(at.x, at.z))
 			_world_tiles.focus(Vector2(at.x, at.z))
 
 

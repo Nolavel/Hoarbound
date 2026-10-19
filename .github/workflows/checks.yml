@@ -322,7 +322,7 @@ jobs:
           runtime_rc=${PIPESTATUS[0]}
           set -e
           # Encode even on a FAIL: owner must be able to inspect the broken frames.
-          for group in "walk_frames:world_tiles_walk_return_8s:12" "fixed_frames:world_tiles_fixed_8s:6" "stress_frames:world_tiles_gpu_17steps:4"; do
+          for group in "walk_frames:world_tiles_walk_return_8s:12" "fixed_frames:world_tiles_fixed_8s:6" "stress_frames:world_tiles_gpu_17steps:4" "natural_recenter_frames:world_tiles_natural_recenter_17steps:4" "foot_closeup_frames:world_tiles_real_foot_closeup_17steps:4"; do
             IFS=: read -r folder name fps <<< "$group"
             count=$(find "$OUT/$folder" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | wc -l)
             echo "WORLD_TILES_CAPTURE $folder frames=$count"

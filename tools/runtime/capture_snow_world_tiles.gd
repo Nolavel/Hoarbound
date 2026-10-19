@@ -26,6 +26,9 @@ var _shell: SnowShell
 var _prototype: WorldSnowTileSurface
 var _fixed: Camera3D
 var _gpu: Camera3D
+var _macro: Camera3D
+var _stress_focus := Vector2.ZERO
+var _print_anchor := Vector2.ZERO
 var _street_at := Vector2.ZERO
 var _yaw := 0.0
 var _start := Vector3.ZERO
@@ -55,6 +58,8 @@ func _initialize() -> void:
     DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT.path_join("walk_frames")))
     DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT.path_join("fixed_frames")))
     DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT.path_join("stress_frames")))
+    DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT.path_join("natural_recenter_frames")))
+    DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT.path_join("foot_closeup_frames")))
     _run()
 
 
@@ -145,6 +150,11 @@ func _run() -> void:
     _after = _prototype.coverage()
     _save_image(_screen(), OUT.path_join("return_end.png"))
     await _snapshot(_fixed, OUT.path_join("return_fixed.png"))
+    # Choose a REAL pressed vertex from the recorded foot contacts; the close
+    # camera must look at observed relief, never an arbitrary clean patch.
+    _print_anchor = _strongest_print()
+    _setup_closeup(_print_anchor)
+    _save_image(_screen(), OUT.path_join("return_fixed.png"))
 
     # Stage C: no stamps, no actor movement, constant world camera/weather/light.
     # Streaming mesh instances may disappear/recreate; data/mesh are world IDs.
@@ -152,12 +162,15 @@ func _run() -> void:
     Engine.time_scale = 0.0
     var spot := Vector2(_start.x, _start.z)
     _prototype.focus(spot)
+    _player.visible = false  # The stationary scene must expose the snow, not Henry.
+    _stress_focus = spot
     _frozen_fingerprint = _prototype.deformation_fingerprint()
     _tile_history_snapshot = _history_snapshot()
     await _stress_frame(0)
     var shifts := [-1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1, 0]
     for i: int in range(STRESS_STEPS):
-        _prototype.focus(spot + Vector2(TILE_M * float(shifts[i]), 0.0))
+        _stress_focus = spot + Vector2(TILE_M * float(shifts[i]), 0.0)
+        _prototype.focus(_stress_focus)
         await _stress_frame(i + 1)
         # Restoring an unseen tile from SnowTrackStore expands the in-memory
         # history set but is NOT a mutation. Check each pre-existing world tile
@@ -165,6 +178,8 @@ func _run() -> void:
         if not _history_unchanged():
             _errors.append("existing world tile data changed on recenter step %d" % (i + 1))
     _prototype.focus(spot)
+    RenderingServer.global_shader_parameter_set(&"snow_player_xz", spot)
+    _player.visible = true
     Engine.time_scale = old_scale
     _after = _prototype.coverage()
 
@@ -246,10 +261,63 @@ func _setup_cameras() -> void:
     _gpu.look_at(center, Vector3.FORWARD)
 
 
+# Find the deepest REAL stamped position for the close-up and GPU probe.
+func _strongest_print() -> Vector2:
+    var highest := -1.0
+    var where := Vector2(_start.x, _start.z)
+    for raw_key: Variant in _prototype._data.keys():
+        var key: Vector2i = raw_key
+        var img: Image = _prototype._data[key]
+        var origin: Vector2 = WorldSnowTilePrototype.key_origin(key)
+        for z: int in range(WorldSnowTilePrototype.SIDE):
+            for x: int in range(WorldSnowTilePrototype.SIDE):
+                var state: Color = img.get_pixel(x, z)
+                if state.r > highest:
+                    highest = state.r
+                    where = origin + Vector2(x, z) * 0.1
+    return where
+
+
+func _setup_closeup(at: Vector2) -> void:
+    var center := Vector3(at.x, _baked_top(at.x, at.y), at.y)
+    var back := Vector3(-_forward.x, 0.0, -_forward.y)
+    _macro = Camera3D.new()
+    _macro.name = "FixedFootReliefCloseup"
+    _macro.projection = Camera3D.PROJECTION_ORTHOGONAL
+    _macro.size = 3.2
+    _macro.near = 0.05
+    _macro.far = 70.0
+    _macro.cull_mask = 1
+    _world.add_child(_macro)
+    _macro.global_position = center + back * 1.25 + Vector3.UP * 1.7
+    _macro.look_at(center, Vector3.UP)
+    _gpu.global_position = center + Vector3.UP * 30.0
+    _gpu.look_at(center, Vector3.FORWARD)
+    # Runtime-created UI layers may not exist at the beginning of a capture.
+    for node: Node in _world.find_children("*", "CanvasLayer", true, false):
+        (node as CanvasLayer).visible = false
+
+
 func _stress_frame(index: int) -> void:
-    _prototype.set_height_debug(true, _baked_top(_start.x, _start.z))
+    # The old test moved tile residency but LEFT the radial shader transition
+    # at Henry's spawn. This one forces BOTH recenter and render ownership.
+    _prototype.set_height_debug(false, 0.0)
+    _fixed.make_current()
+    await process_frame
+    RenderingServer.global_shader_parameter_set(&"snow_player_xz", _stress_focus)
+    await RenderingServer.frame_post_draw
+    _save_image(_screen(), OUT.path_join("natural_recenter_frames/frame_%04d.png" % index))
+
+    _macro.make_current()
+    await process_frame
+    RenderingServer.global_shader_parameter_set(&"snow_player_xz", _stress_focus)
+    await RenderingServer.frame_post_draw
+    _save_image(_screen(), OUT.path_join("foot_closeup_frames/frame_%04d.png" % index))
+
+    _prototype.set_height_debug(true, _baked_top(_print_anchor.x, _print_anchor.y))
     _gpu.make_current()
     await process_frame
+    RenderingServer.global_shader_parameter_set(&"snow_player_xz", _stress_focus)
     await RenderingServer.frame_post_draw
     var img: Image = _screen()
     _save_image(img, OUT.path_join("stress_frames/frame_%04d.png" % index))
@@ -452,6 +520,8 @@ func _save_report() -> void:
         "lod_tiers": _prototype.get_lod_summary(), "frozen_tiles_checked": _tile_history_snapshot.size(),
         "frozen_world_data_fingerprint": _frozen_fingerprint,
         "stress_recenter_steps": STRESS_STEPS,
+        "foot_probe_xz": [_print_anchor.x, _print_anchor.y],
+        "radial_shader_center_moves_with_recenter": true,
         "gpu_height_witness": {"min_samples": _stress_min_coverage, "max_pixel_difference": _stress_max_diff, "steps": _stress_stats, "threshold": 0.012, "signal": _gpu_height_signal, "minimum_signal_span": 0.015},
         "passes": _errors.is_empty() and _stress_min_coverage >= 7000 and _stress_max_diff <= 0.012,
         "errors": _errors,

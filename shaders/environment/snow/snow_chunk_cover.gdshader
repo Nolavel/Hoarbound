@@ -137,10 +137,18 @@ void fragment() {
 		ALBEDO *= 1.0 + rim * 0.055;
 		ROUGHNESS = mix(0.85, 0.72, packed);
 	}
-	if (debug_gpu_height || (is_world_tile && debug_height)) {
-		float height_origin = is_world_tile ? reference_y : debug_height_reference;
+	if (is_world_tile && debug_height) {
+		// The actual deformation applied to VERTEX.y, in metres: black-red
+		// depression, light-red raised rim, neutral for untouched settled snow.
+		// Unlike absolute Y this is readable on a level city street.
+		float displacement_m = tile_displacement - tile_compression;
 		ALBEDO = vec3(0.0);
-		EMISSION = vec3(clamp(0.5 + (v_world.y - height_origin) * debug_height_gain, 0.0, 1.0), 0.32, 0.90);
+		EMISSION = vec3(clamp(0.5 + displacement_m * 3.5, 0.0, 1.0), 0.32, 0.90);
+		ROUGHNESS = 1.0;
+		NORMAL = normalize((VIEW_MATRIX * vec4(vec3(0.0, 1.0, 0.0), 0.0)).xyz);
+	} else if (debug_gpu_height) {
+		ALBEDO = vec3(0.0);
+		EMISSION = vec3(clamp(0.5 + (v_world.y - debug_height_reference) * debug_height_gain, 0.0, 1.0), 0.32, 0.90);
 		ROUGHNESS = 1.0;
 		NORMAL = normalize((VIEW_MATRIX * vec4(vec3(0.0, 1.0, 0.0), 0.0)).xyz);
 	} else if (debug_lod_ownership) {
