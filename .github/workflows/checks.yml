@@ -199,7 +199,7 @@ jobs:
   key-west-preview:
     ## Lavapipe/Forward+ captures on the Key West Reality scene, chosen by a commit tag.
     ## Painterly, stylized-shadow and snow previews reuse this one render path.
-    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]'))
+    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[interior-shadow-preview]'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -370,6 +370,39 @@ jobs:
             echo "Shader compilation error found in capture log."
             exit 1
           fi
+
+      - name: 727 fixed-camera interior shadow A/B (existing capture harness)
+        if: contains(github.event.head_commit.message, '[interior-shadow-preview]')
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          OUT="docs/runtime_previews/key_west/727_shadow_interior_ab"
+          mkdir -p "$OUT"
+          set -o pipefail
+          timeout 480 xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . --resolution 1600x1000 --rendering-driver vulkan \
+            --rendering-method forward_plus --audio-driver Dummy \
+            --script res://tools/runtime/capture_stylized_shadows.gd -- interior-ab \
+            2>&1 | tee "$OUT/capture.log"
+          if grep -q "SHADER ERROR" "$OUT/capture.log"; then
+            echo "Shader compilation failed in 727 interior shadow capture"
+            exit 1
+          fi
+          test -s "$OUT/01_current_smooth.png"
+          test -s "$OUT/02_interior_torn.png"
+          test -s "$OUT/report.json"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          out=Path('docs/runtime_previews/key_west/727_shadow_interior_ab')
+          r=json.loads((out/'report.json').read_text())
+          assert r['frames']==['01_current_smooth','02_interior_torn'], r['frames']
+          assert [x['state'] for x in r['interior_states']]==[0.0,1.0]
+          assert len({x['camera'] for x in r['interior_states']})==1
+          assert len({x['stove_energy'] for x in r['interior_states']})==1
+          print('INTERIOR_SHADOW_AB CAPTURE',r['frames'],'same camera, same stove energy')
+          PY
 
       - name: Stylized-shadow contract test
         if: contains(github.event.head_commit.message, '[stylized-shadows]')
@@ -674,6 +707,9 @@ jobs:
             docs/runtime_previews/key_west/shadow_painted_ab/*/*.json
             docs/runtime_previews/stylized_shadows/*.png
             docs/runtime_previews/stylized_shadows/report.json
+            docs/runtime_previews/key_west/727_shadow_interior_ab/*.png
+            docs/runtime_previews/key_west/727_shadow_interior_ab/*.json
+            docs/runtime_previews/key_west/727_shadow_interior_ab/*.log
             docs/runtime_previews/sky_weather/*.png
             docs/runtime_previews/sky_weather/report.json
           if-no-files-found: warn

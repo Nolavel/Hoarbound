@@ -9,6 +9,7 @@ const OUT_DIR: String = "res://docs/runtime_previews/stylized_shadows"
 const BRUSH_OUT_DIR: String = "res://docs/runtime_previews/shadow_brush"
 const SHIMMER_OUT_DIR: String = "res://docs/runtime_previews/shadow_shimmer"
 const REVIEW_OUT_DIR: String = "res://docs/runtime_previews/shadow_review"
+const INTERIOR_AB_OUT_DIR: String = "res://docs/runtime_previews/key_west/727_shadow_interior_ab"
 ## Densest Duval Street block in the city snapshot: seven buildings within 25 m.
 const DUVAL := Vector2(-3072.7, 1374.3)
 const DUVAL_HEADING_DEG: float = 34.1
@@ -47,13 +48,21 @@ var _next_frame: int = FIRST_ACTION_FRAME
 var _queue: Array[Callable] = []
 var _saved: Array[String] = []
 var _out_dir: String = OUT_DIR
+var _interior_test: bool = false
+var _interior_fixed_transform: Transform3D
+var _interior_fixed_light_energy: float = -1.0
+var _interior_fixed_light_transform: Transform3D
+var _interior_state_log: Array[Dictionary] = []
 
 
 func _initialize() -> void:
 	var brush: bool = OS.get_cmdline_user_args().has("brush")
 	var shimmer: bool = OS.get_cmdline_user_args().has("shimmer")
 	var review: bool = OS.get_cmdline_user_args().has("review")
-	if brush:
+	_interior_test = OS.get_cmdline_user_args().has("interior-ab")
+	if _interior_test:
+		_out_dir = INTERIOR_AB_OUT_DIR
+	elif brush:
 		_out_dir = BRUSH_OUT_DIR
 	elif shimmer:
 		_out_dir = SHIMMER_OUT_DIR
@@ -63,6 +72,23 @@ func _initialize() -> void:
 	RenderingServer.global_shader_parameter_set(&"stylized_shadow_strength", 1.0)
 	_scene = (load(MAIN_SCENE) as PackedScene).instantiate() as Node3D
 	root.add_child(_scene)
+	if _interior_test:
+		## Real 727 scene, burning stove, one camera, same light and material state.
+		## Historical screenshot supplied by the author is a separate reference:
+		## it is not fabricated by pretending a new frame came from old code.
+		_queue = [
+			_set_hour.bind(23.0),
+			_place_inside,
+			_light_stove,
+			_freeze_motion,
+			_frame_close_stove,
+			_lock_interior_shadow_ab,
+			_set_interior_shadow_mode.bind(0.0),
+			_capture.bind("01_current_smooth"),
+			_set_interior_shadow_mode.bind(1.0),
+			_capture.bind("02_interior_torn"),
+		]
+		return
 	if brush:
 		_queue = [
 			_set_hour.bind(12.0),
@@ -119,6 +145,8 @@ func _process(_delta: float) -> bool:
 		return false
 	if _queue.is_empty():
 		RenderingServer.global_shader_parameter_set(&"stylized_shadow_strength", 1.0)
+		if _interior_test:
+			RenderingServer.global_shader_parameter_set(&"stylized_shadow_interior_mode", 0.0)
 		_write_report()
 		print("[stylized-shadows] production regression capture complete")
 		quit()
@@ -207,6 +235,45 @@ func _freeze_motion() -> void:
 	for node: Node in _scene.find_children("*", "SnowfallVFX", true, false):
 		(node as Node3D).visible = false
 	_player.process_mode = Node.PROCESS_MODE_DISABLED
+
+
+## Capture contract: only the interior mode changes between the two images.
+## Disable the zone binder and stochastic flame animation; do not change meshes,
+## camera, world time, light range, or light transform between arms.
+func _lock_interior_shadow_ab() -> void:
+	if _day_night != null:
+		_day_night.force_update_lighting()
+		_day_night.set_process(false)
+	if _weather != null:
+		_weather.set_weather(&"calm", true)
+	for child: Node in _scene.get_children():
+		if child is ShelterShadowBinder:
+			child.set_process(false)
+	if _grade != null:
+		_grade.initialize_for_interior(true)
+	for node: Node in _scene.find_children("*", "Node", true, false):
+		if node is StoveVisual:
+			node.set_process(false)
+	GraphicsQuality.apply(_scene.get_tree(), GraphicsQuality.HIGH)
+	RenderingServer.global_shader_parameter_set(&"stylized_shadow_strength", 1.0)
+	RenderingServer.global_shader_parameter_set(&"stylized_shadow_brush_mix", 1.0)
+	_interior_fixed_transform = _capture_camera().global_transform
+	if _stove.flame_light == null or not _stove.flame_light.visible:
+		push_error("INTERIOR_SHADOW_AB: stove room light not burning")
+		quit(1)
+		return
+	_interior_fixed_light_energy = _stove.flame_light.light_energy
+	_interior_fixed_light_transform = _stove.flame_light.global_transform
+	print("INTERIOR_SHADOW_AB fixed camera=", _interior_fixed_transform,
+		" stove energy=", _interior_fixed_light_energy,
+		" renderer=", RenderingServer.get_current_rendering_driver_name())
+
+
+func _set_interior_shadow_mode(strength: float) -> void:
+	RenderingServer.global_shader_parameter_set(&"stylized_shadow_interior_mode", strength)
+	_interior_state_log.append({"state": strength, "camera": str(_capture_camera().global_transform),
+		"stove_energy": _stove.flame_light.light_energy if _stove.flame_light != null else -1.0})
+	print("INTERIOR_SHADOW_AB state=", strength)
 
 
 ## Back to the project's shipped spray: Shader Globals in project.godot.
@@ -370,6 +437,19 @@ func _find_streaming() -> StreamingSystem:
 
 
 func _capture(name: String) -> void:
+	if _interior_test:
+		if _capture_camera().global_transform != _interior_fixed_transform:
+			push_error("INTERIOR_SHADOW_AB: camera moved between states")
+			quit(1)
+			return
+		if _stove.flame_light == null or not is_equal_approx(_stove.flame_light.light_energy, _interior_fixed_light_energy):
+			push_error("INTERIOR_SHADOW_AB: stove light changed between states")
+			quit(1)
+			return
+		if _stove.flame_light.global_transform != _interior_fixed_light_transform:
+			push_error("INTERIOR_SHADOW_AB: stove light transform changed")
+			quit(1)
+			return
 	var image := root.get_texture().get_image()
 	if image == null:
 		push_error("stylized shadow capture: viewport image is null")
@@ -390,6 +470,10 @@ func _write_report() -> void:
 		"scene": MAIN_SCENE,
 		"frames": _saved,
 		"contract": "torn shadow lookup for all lights + three-tone directional shadow",
+		"interior_ab": _interior_test,
+		"interior_states": _interior_state_log,
+		"historical_reference": "Author-provided pre-change screenshot; separate from matched-camera render A/B",
+		"stove_energy_fixed": _interior_fixed_light_energy if _interior_test else null,
 	}
 	var file := FileAccess.open("%s/report.json" % _out_dir, FileAccess.WRITE)
 	if file == null:
