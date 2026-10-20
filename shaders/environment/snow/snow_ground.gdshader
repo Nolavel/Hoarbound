@@ -212,10 +212,8 @@ float crack_distance(vec2 p) {
 	return f2 - f1;
 }
 
-// Pit slope from the smooth packed field, never steeper than repose: shading does
-// not step with the mesh triangles.
-// Sobel over three texels: the wall dilation raises walls in per-texel terraces that a
-// narrow difference would draw as contour bands on walls and floors.
+// Pit slope from the shaped field (a three-texel Sobel smooths lumpy floors), never
+// steeper than repose: shading does not step with the mesh triangles.
 vec2 packed_slope(vec2 uv) {
 	float t = packed_texel_m * 3.0 / window_m;
 	float pp = packed_at(uv + vec2(t, t));
@@ -388,7 +386,7 @@ void fragment() {
 	}
 	float footprint = length(fwidth(v_world.xz));
 	snow_apply_grain(n, albedo, v_world.xz, footprint, 1.0 - 0.6 * floor_pack);
-	// Sun flashes off ice facets: packed snow has crushed them, broken walls show fresh ones.
+	// Sun flashes off ice facets; a pressed print has crushed them.
 	vec4 facet = snow_glint_facet(v_world.xz, n, footprint);
 	v_glint_n = normalize((VIEW_MATRIX * vec4(facet.xyz, 0.0)).xyz);
 	v_glint = facet.w * (1.0 - smoothstep(0.01, 0.06, packed_height));
@@ -402,6 +400,7 @@ void fragment() {
 		ALBEDO = vec3(0.0);
 		ROUGHNESS = 1.0;
 		SPECULAR = 0.0;
+		v_glint = 0.0;
 		EMISSION = snow_debug_height(v_world.y);
 	}
 }

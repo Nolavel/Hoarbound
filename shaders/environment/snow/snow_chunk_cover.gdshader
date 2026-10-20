@@ -32,11 +32,11 @@ void fragment() {
 	vec3 n;
 	vec3 albedo;
 	float depth;
+	float footprint = length(fwidth(v_world.xz));
 	snow_far_shade(v_world, v_ground_normal, v_shore, n, albedo, depth);
 	if (inside || depth < 0.012) {
 		discard;
 	}
-	float footprint = length(fwidth(v_world.xz));
 	snow_apply_grain(n, albedo, v_world.xz, footprint, 1.0);
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	ALBEDO = hfn_painterly_surface_color(albedo, v_world, vec3(0.0, 1.0, 0.0), 0.38);
@@ -49,6 +49,7 @@ void fragment() {
 		ALBEDO = vec3(0.0);
 		ROUGHNESS = 1.0;
 		SPECULAR = 0.0;
+		v_glint = 0.0;
 		EMISSION = snow_debug_height(v_world.y);
 	}
 }

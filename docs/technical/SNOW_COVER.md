@@ -237,9 +237,8 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   so idle feet used to be lifted onto the snow top with the hips following 60 %
   of it, and Henry stood with bent knees. Hips now follow the lower boot fully.
 - **Broken edges.** `snow_ground` breaks each print outline with world noise
-  (`jag_crust_m` 2.5 cm, `jag_powder_m` 1 cm), tints cut walls blue with faint
-  strata of past snowfalls, runs crack seams (cellular F2−F1) out from crust
-  lips, and lets freshly broken grains glint more.
+  (`jag_crust_m` 2.5 cm, `jag_powder_m` 1 cm), tints cut walls blue, darkens
+  deep pits and runs crack seams (cellular F2−F1) out from crust lips.
 - **Footsteps.** `WorldAudioBinder` reads depth and softness under each plant
   and picks a bank by what the boot meets. The banks are synthesised by
   `tools/audio/generate_snow_footsteps.py` (field recordings tried first did not
@@ -302,7 +301,9 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   (G, B; A freshness), and `snow_ground` draws the exact outline, broken crust or
   slumped powder walls, and the tread from it per pixel: chevron lugs on the
   forefoot, transverse bars on the heel, a centre channel and a lugged rim. The
-  uv is affine in xz, so filtering keeps it exact; the tread fades once a pixel
+  uv is affine in xz and written 7.5 cm past the outline, so filtering keeps it
+  exact through the wall band; a wading body pressing over 5 cm below an old print
+  erases its outline. The tread fades once a pixel
   spans it and as the print fills in. The heel digs `heel_dig_m` extra on strike and the
   ball `toe_dig_m` as the clip lifts the heel, scaled by pace and softness: a
   print is deep at both ends and shallow under the arch. On toe-off in powder

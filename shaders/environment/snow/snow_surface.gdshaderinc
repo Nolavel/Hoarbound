@@ -245,10 +245,12 @@ vec4 snow_glint_facet(vec2 xz, vec3 n, float footprint) {
 
 // The facet's flash under one light (view-space vectors), to add to SPECULAR_LIGHT.
 float snow_glint_light(vec3 facet, float weight, vec3 light, vec3 view) {
-	if (weight <= 0.0) {
+	float lit = dot(facet, light);
+	if (weight <= 0.0 || lit <= 0.0) {
 		return 0.0;
 	}
-	return pow(max(dot(facet, normalize(light + view)), 0.0), 220.0) * weight * 7.0;
+	vec3 h = light + view;
+	return pow(max(dot(facet, h * inversesqrt(max(dot(h, h), 1e-6))), 0.0), 220.0) * weight * 7.0 * min(lit * 10.0, 1.0);
 }
 
 // Henry's snow LOD: xy his position, z the Chebyshev radius inside which the

@@ -101,8 +101,8 @@ vec4 foot_stamps(vec2 uv) {
 		float edge = boot_edge_m(local, boot_half_m);
 		float inside = 1.0 - smoothstep(-0.006, 0.0, edge);
 		result.x = max(result.x, b.z * boot_press(local.x) * inside);
-		// The outline and its wall band live on the sole and a centimetre around it.
-		if (edge < 0.015) {
+		// The outline's wall band needs the sole uv a texel and a half past its widest wall.
+		if (edge < 0.075) {
 			result.zw = local;
 		}
 	}
@@ -226,9 +226,9 @@ void fragment() {
 				live_pressed += min(into, give);
 			}
 		}
-		// Where the body or a dragged item presses deeper than the boot, the floor is no
-		// longer the boot's: drop its outline, or it would draw rings on trench walls.
-		if (live_pressed * 0.25 > max(packed, stamp.x) + 0.02) {
+		// Off this pass's stamps, contact pressing far below the floor (a wading body)
+		// erases the old print's outline; the boot's own sinking stays within the margin.
+		if (stamp.z >= 9.0 && live_pressed * 0.25 > packed + 0.05) {
 			print_uv.z = 0.0;
 		}
 		packed = max(packed, live_pressed * 0.25);
