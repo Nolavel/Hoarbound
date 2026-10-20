@@ -50,11 +50,22 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - Independent review (Sonnet agent + `/code-review high`): prints shade per pixel in coarse rings, narrower morph
     bands, no string `has_method`/`connect` seams, retry cap at the coast. It also caught that the wall lee ramps
     never ran over the baked map; they are now out of the drawn base until the chunk bake carries them.
-- Tight-space camera composition (owner reference). In a cramped room Henry sits low at the frame's left (right
-  shoulder), eyes at 27 % / 45 %, sliding towards 15 % when the camera is almost inside him; the far shoulder always
-  stays in frame. The shoulder offset keeps a constant screen angle (aim and walk stay together); what walls leave and
-  the height come from an off-axis lens shift (`PROJECTION_FRUSTUM`), so the camera never moves into a wall.
-  `docs/technical/TPS_CAMERA.md` → Tight-space composition.
+- Henry is never see-through in play (owner rule). A body guard predicts where each mouse step would put the camera
+  and soft-stops turns that take it closer than 0.8–0.6 m to his eyes (turning out is free); walking into a wall
+  speeds up the shoulder lift; the framing offset follows the real camera distance; over the shoulder the view keeps
+  his eyes inside the frame. The fade remains only as an emergency at 0.45 m. 727 trace: faded frames 0 in every
+  phase (were up to 59). `docs/technical/TPS_CAMERA.md` → Body guard.
+- Shoulder lift in corners (owner request): with little room behind Henry the camera climbs over his shoulder (70° up
+  the orbit, view tilted 35°, pivot up to 0.3 m under the ceiling) instead of pressing into him. In the 727 corner his
+  head left the frame in 1 of 240 turn frames (was 51) and facing the corridor wall in none (was 25).
+  `docs/technical/TPS_CAMERA.md` → Shoulder lift.
+- Tight-space camera composition (owner reference): Henry at the frame's left (eyes at 27 %) in cramped rooms, after
+  Cinemachine Third Person Follow, Grossman's framing (NZGDC 2025) and Nesky (GDC 2014). Measured first with
+  `tools/runtime/trace_camera_tight.gd` in 727: the composition followed the view (0.50–0.80 at the stove during one
+  turn), a room search turned the camera 30° by itself, and the mouse stuck at −81° in the corridor. Now the
+  composition reads room all round Henry (0.58–0.59), the shoulder offset scales with the boom (no lens shift, aim and
+  walk share the centre), recompose eases with hysteresis, no automatic turns in tight spaces, and the doorway mouse
+  stop applies only while Henry passes a door. `docs/technical/TPS_CAMERA.md` → Tight-space composition.
 - Quick Access in tight spaces gathers in a cross at the screen centre (coats left/right, pack lid above, thigh below).
   The old diagonal orbit took each pocket's side from its projected anchor, so two pockets could land in one corner
   and overlap; places are now fixed and spaced from the real card sizes, and the cross is bounded as a whole.
@@ -107,6 +118,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - 53k vertices on high instead of 113k. A/B evidence: `checks.yml` `snow-surface` job (new vs `main`).
   - `test_snow_clipmap` (CPU emulation of the vertex morph), `tools/runtime/capture_snow_surface.gd` +
     `analyze_snow_surface.py`, `checks.yml` → `snow-surface` job; `docs/technical/SNOW_COVER.md` → Drawn surface.
+- The 727 corridor (1.8 m wide, doors on both sides) was guessed as a 1.76 m deep doorway, so the mouse soft-stopped
+  in its cone along the whole corridor. Guessed openings deeper than `max_guessed_depth` (1.2 m) are corridors.
+
 - 727 Fort St shell (walls, partitions, floor, ceiling) shades with the stylized shadow contract again. Reality chunks
   instanced the glb with its plain `StandardMaterial3D`, so indoor stove shadows lost their torn edge after the shelter
   moved from the First Exit hut into 727. A post-import script (`tools/import/stylized_landmark_import.gd`) converts
@@ -117,6 +131,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   ellipsis. The 4.3.0 self-update had reverted its Inspector-group slot; restored. Customizations are listed in
   `docs/technical/GODOT_AI_INTEGRATION.md`.
 
+- Godot AI and ItemFitter now default to the Inspector dock group instead of a separate lower-right group. Existing editor layouts retain their saved placement.
 - Sky weather character, finishing Codex's cloud pass (owner review: windy clouds and the night barely differed).
   - Causes:
     - clouds followed snowfall only, so windy (snow 0.15) looked calm;

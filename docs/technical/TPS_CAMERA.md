@@ -276,23 +276,71 @@ nothing changes. Only then does the body fade, as before.
 
 ### Tight-space composition
 
-Author's reference (2026-10-20): in a tight space Henry sits low at the left of the
-frame (right shoulder; mirrored on the left), eyes at 27 % from the left and 45 % from
-the top, so the room stays readable. `_composition` rises as the boom shrinks below
-half its range (`composition_open_share`) and eases at `composition_rate`.
+Author's reference (2026-10-20): in a tight space Henry sits at the left of the frame
+(right shoulder; mirrored on the left), eyes at 27 % of the width, so the room stays
+readable. References: Cinemachine Third Person Follow (rig shape set by state, walls only
+shorten the arm), Jacob Grossman's framing (NZGDC 2025: offset = framing × half-width at
+the distance) and John Nesky's "50 Game Camera Mistakes" (GDC 2014: never fight the player).
 
-- Physical first: the shoulder offset keeps a constant screen angle, `boom ×
-  tan(eye angle)` from the real FOV and aspect, instead of `tight_shoulder_fraction`.
-  The view still looks along the control yaw, so walking heads for the crosshair.
-- What walls leave (shoulder sweep, recompose) and the height are added by a lens
-  shift: an off-axis `PROJECTION_FRUSTUM`, the camera does not move. Gameplay rays
-  through the screen centre follow the shifted projection.
-- Closer than `recompose_distance` to the eyes the target slides towards 15 % from
-  the left, but the far shoulder always keeps `composition_edge_margin` from the edge.
-- `get_composition()` is read by Quick Access, which then gathers its cards in a
-  cross at the screen centre.
-- The horizontal lens shift is the one place aim and walk can part: only where a wall
-  stops the shoulder offset.
+- `_composition` comes from `measure_room()`: rods all round Henry, evenly weighted, so
+  turning the camera never changes it. The boom keeps the view-based `measure_openness()`.
+- Shoulder offset = `_boom × tan(eye angle)` from the real FOV and aspect: it scales with
+  the boom, so Henry's screen spot holds while the boom breathes. Pitch does not move it.
+- In a doorway the passage owns the framing; the composition gives way by `_passage_blend`.
+- No lens shift: aim and walk always share the screen centre. Where a wall stops the
+  shoulder, Henry honestly comes towards the centre (the rig bends).
+- Above `tight_auto_look_cutoff` no room search or whiskers turn the view.
+- `recompose` eases at 4 in / 1.5 out and keeps its goal until it moves by
+  `recompose_hysteresis`.
+- The doorway mouse soft-stop and view clamp apply only while Henry is in the doorway or
+  walking at it (`_passage_traversal`); standing beside one the mouse is free.
+- `get_composition()` is read by Quick Access, which then gathers its cards in a cross at
+  the screen centre.
+
+Measured with `tools/runtime/trace_camera_tight.gd` (727, full mouse turn): at the stove
+the composition held 0.58–0.59 (was 0.50–0.80) and Henry's eyes 32–33 % (were 26–30 %);
+the corridor turned the full circle (the mouse stuck at −81°, see passages below); the
+automatic turn stayed at 0 (was up to 30° in a corner). Known limit: facing a wall in a
+1.8 m corridor or a room corner the shoulder has no room and the camera comes close to
+Henry, who fades.
+
+### Shoulder lift
+
+Back to a wall or in a corner the camera climbs over Henry's shoulder instead of pressing
+into him (close quarters in God of War and The Last of Us). `_lift` follows how little
+level room is behind Henry along the view (`_update_lift`, cast from inside him, so the
+lift never changes the room it reads): full at 0.3 m, gone at 1.0 m, rates 3 in, 1.5 out.
+At full lift the camera body climbs 70° up the orbit and the pivot rises up to 0.3 m under
+the ceiling, while the view tilts only 35°: Henry sits low in the frame, the room ahead
+stays visible. Yaw is untouched, so walking still follows the mouse; a doorway turns the
+lift off. Measured in the 727 corner (full turn): Henry's head off screen in 1 frame of
+240 (was 51), the camera closer than 0.8 m in 43 (was 121); facing the corridor wall
+0 off screen (was 25).
+
+### Body guard (no see-through Henry)
+
+Author's rule (2026-10-20): Henry is never see-through in play. Many shipped games fade
+the character (Witcher 3, A Hat in Time's geometry dithering); here the camera is kept
+out of him instead, with Nesky's soft wall:
+
+- Before each mouse step `_body_guard` predicts, with stateless casts from the last frame's
+  pivot, shoulder offset and lift, how close the camera would come to the eyes at the new
+  yaw or pitch. Closer than `guard_soft_distance` (0.8 m) the step is scaled down, at
+  `guard_eye_distance` (0.6 m) it stops. Turning out of trouble is always free.
+- Walking presses the camera too, where the guard cannot act: the lift then climbs up to
+  4x faster (`_pressed`).
+- The composition offset uses the distance the camera really has (`_dist_pct`), so a
+  pressed camera keeps Henry on his spot instead of pushing him out at the side.
+- Over the shoulder the view tilts down as far as Henry's eyes need to stay
+  `shoulder_lift_frame_margin_deg` inside the lower edge, from where they really are.
+- The body fade starts at 0.45 m (was 0.8 m), an emergency only; recompose keeps its own
+  0.8 m (`recompose_full_distance`).
+
+727 trace with S held into each wall or corner added: frames with Henry faded 0 in every
+phase (were 42 corner turn, 59 corner pitch, 55 corridor turn, 26 restroom back-in). The
+mouse is held off 41–47° of a full turn in the corner and the corridor. Known limit: backing
+into the 3.6 × 2.8 m restroom wall the camera can only sit almost above Henry, and his
+eyes touch the lower frame edge for 11 of 75 frames.
 
 ## What stops the boom
 
