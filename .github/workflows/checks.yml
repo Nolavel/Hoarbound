@@ -202,6 +202,8 @@ jobs:
     if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[interior-shadow-preview]') || contains(github.event.head_commit.message, '[shadow-style-preview]'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -697,6 +699,8 @@ jobs:
               --script res://tools/runtime/capture_shadow_style_ab.gd \
               -- "$arm" "res://$ROOT/$arm" > "$ROOT/$arm/capture.log" 2>&1 || status=1
             if grep -q "SHADER ERROR" "$ROOT/$arm/capture.log"; then status=1; fi
+            echo "SHADOW_STYLE arm=$arm capture tail:"
+            tail -n 12 "$ROOT/$arm/capture.log"
             count=$(find "$ROOT/$arm/frames" -maxdepth 1 -name 'frame_*.png' -type f 2>/dev/null | wc -l)
             if [[ "$count" -ne 72 ]]; then status=1; fi
             if [[ "$count" -eq 72 ]]; then
@@ -728,8 +732,42 @@ jobs:
           PY
           exit "$status"
 
+      - name: Keep shadow-style video reachable when Actions storage is full
+        if: always() && contains(github.event.head_commit.message, '[shadow-style-preview]')
+        env:
+          GH_EVIDENCE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, urllib.request
+          from pathlib import Path
+          root = Path("docs/runtime_previews/key_west/shadow_style_abc")
+          files = [root / "shadow_style_abc_6s.mp4"]
+          files += [root / arm / shot for arm in ("baseline", "mass", "mass_edge")
+                    for shot in ("wide.png", "boundary.png", "warm_corner.png")]
+          for path in files:
+              if not path.is_file():
+                  print("SHADOW_STYLE_BLOB missing", path)
+                  continue
+              payload = json.dumps({"content": base64.b64encode(path.read_bytes()).decode("ascii"),
+                                    "encoding": "base64"}).encode("utf-8")
+              request = urllib.request.Request(
+                  "https://api.github.com/repos/Nolavel/Hoarbound/git/blobs",
+                  data=payload,
+                  headers={"Authorization": "Bearer " + os.environ["GH_EVIDENCE_TOKEN"],
+                           "Accept": "application/vnd.github+json",
+                           "Content-Type": "application/json"},
+                  method="POST")
+              try:
+                  with urllib.request.urlopen(request, timeout=60) as response:
+                      sha = json.load(response)["sha"]
+                  print("SHADOW_STYLE_BLOB", path.as_posix(), sha, path.stat().st_size)
+              except Exception as error:
+                  print("SHADOW_STYLE_BLOB failed", path, str(error))
+          PY
+
       - name: Upload Key West previews
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: ${{ contains(github.event.head_commit.message, '[snow-world-tiles-preview]') && 'hoarbound-snow-world-tiles' || (contains(github.event.head_commit.message, '[snow-clipmap-preview]') && 'hoarbound-snow-clipmap' || (contains(github.event.head_commit.message, '[painterly-wash-preview]') && 'hoarbound-painterly-wash' || (contains(github.event.head_commit.message, '[sky-weather-preview]') && 'hoarbound-sky-weather' || 'hoarbound-stylized-shadows'))) }}
