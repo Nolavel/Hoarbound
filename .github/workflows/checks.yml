@@ -420,7 +420,7 @@ jobs:
 
   snow-surface:
     ## Snow surface stability A/B on Duval Street (tools/runtime/capture_snow_surface.gd):
-    ## `new` is this commit, `old` swaps in the snow shell/shaders of `baseline_ref`.
+    ## `new` is this commit; a dispatch also runs `old`, the snow shell/shaders of `baseline_ref`.
     ## Dispatch with preview=snow-surface, or push with [snow-surface] in the commit message.
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'snow-surface') ||
@@ -430,7 +430,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [new, old]
+        variant: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["new","old"]' || '["new"]') }}
     env:
       OUT: docs/runtime_previews/snow_surface/${{ matrix.variant }}
     steps:
@@ -548,15 +548,21 @@ jobs:
 
   snow-walk:
     ## Henry's walk through the snowpack on Duval Street (tools/runtime/capture_snow_walk.gd):
-    ## TPS and leg-height videos of crust holding and breaking, drift pockets and boot prints.
+    ## TPS and leg-height videos of crust holding and breaking, drift pockets and boot prints,
+    ## in fresh loose snow and in an old dry crust (snowpack firmness 0 and 1).
     ## Dispatch with preview=snow-walk, or push with [snow-walk] in the commit message.
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'snow-walk') ||
       (github.event_name == 'push' && contains(github.event.head_commit.message, '[snow-walk]'))
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        snowpack: [fresh, crust]
     env:
-      OUT: docs/runtime_previews/snow_walk
+      OUT: docs/runtime_previews/snow_walk/${{ matrix.snowpack }}
+      FIRMNESS: ${{ matrix.snowpack == 'fresh' && '0.0' || '1.0' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -580,7 +586,7 @@ jobs:
 
       - name: Snow suites
         run: |
-          for suite in test_snow_resistance test_snow_contact_pipeline test_snow_shell test_snow_clipmap; do
+          for suite in test_snow_resistance test_snow_presentation test_snow_contact_pipeline test_snow_shell test_snow_clipmap; do
             log="$(mktemp)"
             "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script "res://tests/systems/$suite.gd" 2>&1 | tee "$log"
             if grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|FAIL" "$log"; then
@@ -599,7 +605,7 @@ jobs:
             --rendering-method forward_plus \
             --audio-driver Dummy \
             --fixed-fps 30 \
-            --script res://tools/runtime/capture_snow_walk.gd -- "$OUT" > "$OUT/raw.log" 2>&1 || status=$?
+            --script res://tools/runtime/capture_snow_walk.gd -- "$OUT" "$FIRMNESS" > "$OUT/raw.log" 2>&1 || status=$?
           grep -v PerfJSON "$OUT/raw.log" > "$OUT/capture.log" || true
           rm -f "$OUT/raw.log"
           tail -n 40 "$OUT/capture.log"
@@ -641,7 +647,7 @@ jobs:
               data = json.loads(report.read_text())
               frames = data["frames"]
               deepest = max((max(f["sink"]) for f in frames), default=0.0)
-              print("SNOW_WALK_SUMMARY", json.dumps({"plunges": data["plunges"], "frames": len(frames), "deepest_sink_m": deepest,
+              print("SNOW_WALK_SUMMARY", json.dumps({"firmness": data.get("firmness"), "plunges": data["plunges"], "frames": len(frames), "deepest_sink_m": deepest,
                   "max_depth_m": max((f["depth"] for f in frames), default=0.0)}))
           PY
           ## Artifacts are not reachable from every reviewer's sandbox: the sheet also goes to the log.
@@ -651,7 +657,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hoarbound-snow-walk
+          name: hoarbound-snow-walk-${{ matrix.snowpack }}
           path: |
             ${{ env.OUT }}/*.mp4
             ${{ env.OUT }}/*.png

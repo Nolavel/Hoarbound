@@ -55,6 +55,8 @@ var settled_wind: Vector2 = Vector2(0, -1)
 var use_baked_baseline: bool = false
 ## Share of fresh storm snow over the old prevailing base; set per rebuild.
 var storm_share: float = 0.4
+## 0 fresh loose snow .. 1 hard crust over a weak base (SnowPresentationSystem); set per rebuild.
+var firmness: float = 0.5
 
 static var _wind_cache: Dictionary = {}
 
@@ -78,6 +80,7 @@ var _job_spans: Array[Vector3i] = []
 var _job_shift: Vector2i = Vector2i.ZERO
 var _job_origin: Vector2 = Vector2.ZERO
 var _job_storm: float = 0.4
+var _job_firmness: float = 0.5
 var _job_cover: float = 0.0
 var _job_wind: Vector2 = Vector2(0, -1)
 var _job_ahead: Vector2i = Vector2i.ZERO
@@ -238,6 +241,7 @@ func begin_rebuild(new_origin: Vector2, cover: float, wind: Vector2) -> void:
 	_job_origin = new_origin
 	_job_cover = clampf(cover, 0.0, 1.0)
 	_job_storm = clampf(storm_share, 0.0, 1.0)
+	_job_firmness = clampf(firmness, 0.0, 1.0)
 	_job_wind = wind.normalized() if wind.length_squared() > 0.0001 else Vector2(0, -1)
 	var grid_origin: Vector2 = new_origin - Vector2(APRON, APRON) * texel_m()
 	var n: int = res + 2 * APRON
@@ -319,11 +323,13 @@ func get_snow_top(x: float, z: float) -> float:
 
 
 ## Settled depth at a world point (bilinear), 0 outside the window.
-## How far a foot can press the snow here, 0.4 wind crust to 1.0 loose powder:
-## scoured ground is packed hard, lee drifts are soft, with patches between.
-func softness(at: Vector2, city: float) -> float:
+## How far a foot can press the snow here, 0.4 crust to 1.0 loose: fresh snow is loose
+## everywhere; as it hardens, scoured ground crusts first and lee drifts last.
+func softness(at: Vector2, city: float, hardness: float = 0.5) -> float:
 	var patch: float = _density_noise.get_noise_2d(at.x, at.y) * 0.25
-	return clampf(0.7 + (city - 1.0) * 0.35 + patch, 0.4, 1.0)
+	var hard: float = 0.45 + (city - 1.0) * 0.35 + patch
+	var loose: float = 0.95 + patch * 0.2
+	return clampf(lerpf(loose, hard, clampf(hardness, 0.0, 1.0)), 0.4, 1.0)
 
 
 ## Softness stored in the field image (0 outside the window or on cut cells).
@@ -601,7 +607,7 @@ func _output_row(ty: int) -> void:
 		_job_px[o + 1] = top - g.x
 		## B: 1 where snow is cut away, else softness scaled below 0.5.
 		var city: float = lerpf(_prevail[k], _storm[k], _job_storm)
-		_job_px[o + 2] = 1.0 if g.x < sea_level_m + 0.02 else softness(_grid_world(APRON + tx, APRON + ty), city) * SOFTNESS_SCALE
+		_job_px[o + 2] = 1.0 if g.x < sea_level_m + 0.02 else softness(_grid_world(APRON + tx, APRON + ty), city, _job_firmness) * SOFTNESS_SCALE
 		_job_px[o + 3] = lerpf(_prevail[k], _storm[k], _job_storm)
 
 

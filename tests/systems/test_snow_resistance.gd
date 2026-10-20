@@ -15,6 +15,7 @@ func _process(_delta: float) -> bool:
 	_test_drift_pockets_plunge_deep()
 	_test_same_place_same_snow()
 	_test_sink_reaches_the_plunge_after_the_break()
+	_test_old_crust_holds_harder_then_drops_deeper()
 	if _failures > 0:
 		push_error("snow resistance: %d check(s) failed" % _failures)
 		quit(1)
@@ -92,3 +93,20 @@ func _test_sink_reaches_the_plunge_after_the_break() -> void:
 	var after: float = SnowResistance.sink_at(p, 0.6, 0.2, 0.0)
 	_check(before <= p.support + 0.0001, "the boot rests on the crust until it breaks")
 	_check(absf(after - p.plunge) < 0.01, "then it drops to the plunge (got %.3f)" % after)
+
+
+## Dry old crust over depth hoar: harder to break than young crust, but once broken
+## the leg drops further and faster.
+func _test_old_crust_holds_harder_then_drops_deeper() -> void:
+	var young_broke: int = 0
+	var old_broke: int = 0
+	for i: int in range(400):
+		var at := Vector2(float(i % 20) * 0.9 - 70.0, float(i / 20) * 0.9)
+		var young: SnowResistance.Plant = SnowResistance.plant(at, 0.4, 0.3, 0.0, 0.4, MAX_PACK, 1.0, 0.1)
+		var old: SnowResistance.Plant = SnowResistance.plant(at, 0.4, 0.3, 0.0, 0.4, MAX_PACK, 1.0, 1.0)
+		young_broke += int(young.broke())
+		old_broke += int(old.broke())
+		if young.broke() and old.broke():
+			_check(old.plunge > young.plunge and old.drop_s < young.drop_s, "a broken old crust drops deeper and faster")
+			_check(old.plunge <= 0.4 * 0.95 + 0.0001, "the drop stops short of the ground")
+	_check(old_broke < young_broke and old_broke > 20, "old crust breaks less often, yet still breaks (%d vs %d)" % [old_broke, young_broke])

@@ -8,6 +8,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Leeward wall drifts baked into the Key West wind map (owner request: the lee side of every house had
+  deeper drifts, the windward side less).
+  - `bake_key_west_snow_wind.py --reality`: ASCE 7-16 leeward drift per wall, height from the roof run along
+    the wind (0.3–1.1 m at full cover, capped at half the wall), tapering over 4 hd; windward banks halved.
+    `factor_max` 2.5 → 6.0. Chunk cover, clipmap rings and SnowField read the same map, so drifts are drawn
+    and waded alike.
+- Snowpack firmness (owner request: furrows belong to fresh wet snow; a dry cold pack is a crust that breaks
+  with difficulty, then the leg drops fast).
+  - `SnowPresentationSystem.firmness` (saved): snowfall buries the crust, dry cold and wind harden it over a
+    day, a thaw softens it. It sets the field's softness, crust strength and how deep and fast a broken crust
+    drops; only loose snow (firmness < 0.5) lets the wading body and dragging toe cut a trench.
+  - Tests in `test_snow_presentation`, `test_snow_resistance`, `test_snow_shell`; `snow-walk` CI runs both packs.
 - Snowpack and boot prints (owner request).
   - `SnowResistance`: wind crust holds a boot until the step's load breaks it (strength varies in ~1.6 m patches,
     running breaks more), drifts hide soft pockets where a leg plunges almost to the ground; a plunge dips the
@@ -49,7 +61,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     cover yields inside 6.25 m through the `snow_lod` global. SnowField mirrors the base for Henry's feet.
   - Wind relief: sastrugi with a steep lee face replace the blotchy ripple, the same in both layers and in chunk
     geometry; slopes are analytic (one noise lookup with its gradient).
-  - Witness on Duval Street (main → first pass): largest step 453 → 43 mm, coverage flips 376k → 0.
+  - Witness on Duval Street, 88 frames: largest step main 453 mm → first pass 43 mm → one base surface
+    0.06 mm; steps over 2 mm and coverage flips 0 in every distance band. GPU on lavapipe 1347 → 1754 ms
+    median (+30 %, software rasteriser).
   - The blue, sunken square in captures was the capture hiding every Control, including the snow passes'
     ColorRects: the shaped field stayed at the clear colour (7 cm packed everywhere). Captures hide only root UI.
   - 53k vertices on high instead of 113k. A/B evidence: `checks.yml` `snow-surface` job (new vs `main`).

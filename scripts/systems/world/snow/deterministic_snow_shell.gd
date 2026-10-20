@@ -237,7 +237,7 @@ func _resistance_at(at: Vector2, load_share: float, impact: float = -1.0) -> Sno
 		impact = clampf(_speed / maxf(impact_speed_mps, 0.1), 0.0, 1.0)
 	var depth: float = field.get_depth(at.x, at.y)
 	var drift: float = maxf(depth - field.settled_depth(_cover()), 0.0)
-	return SnowResistance.plant(at, depth, field.get_softness(at.x, at.y), drift, impact, max_pack, load_share)
+	return SnowResistance.plant(at, depth, field.get_softness(at.x, at.y), drift, impact, max_pack, load_share, field.firmness)
 
 
 func _place_soles(delta: float) -> void:

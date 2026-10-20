@@ -4,7 +4,8 @@
 For two wind directions (prevailing and storm) every 2 m cell of the city gets
 a depth factor from upwind fetch, building shelter, street canyons, corner
 speed-up, windward banks with a scoured wall foot, and deposition where the wind
-slows. Writes data/world/key_west/snow_wind.png (RGBA8):
+slows, and a leeward drift against every wall (ASCE 7-16 sec. 7.7 drift shape:
+peak hd at the wall, width 4 hd). Writes data/world/key_west/snow_wind.png (RGBA8):
   R prevailing depth factor, G storm depth factor, B shelter, A building footprint.
 Factor 0..255 maps to 0..FACTOR_MAX times the settled depth.
 Run: python3 tools/world/bake_key_west_snow_wind.py  (needs numpy, pillow)
@@ -31,7 +32,7 @@ REALITY_OUT = Path("data/world/key_west/snow_wind_reality.png")
 CELL_M = 2.0
 # Bake only the city plus a margin; the rest of the island keeps factor 1.
 MARGIN_M = 200.0
-FACTOR_MAX = 2.5
+FACTOR_MAX = 6.0
 # Compass bearing the wind blows FROM: winter trades ESE, northers veer ENE.
 PREVAILING_FROM_DEG = 112.5
 STORM_FROM_DEG = 77.5
@@ -42,6 +43,14 @@ SHELTER_REACH = 6.0  # lee shadow length in obstacle heights
 OBSTACLE_M = 2.0
 BANK_REACH_M = 24.0  # windward bank reach in front of a wall
 WALL_GAP_M = 2.5  # scoured gap at a windward wall foot
+# Settled depth at full cover (SnowField.cover_depth_m.y): factors are depth over it.
+SETTLED_FULL_M = 0.25
+# Leeward drift at full cover (ASCE 7 leeward drift): ground load of settled snow at
+# 150 kg/m3, peak capped at half the wall, width 4 hd.
+GROUND_LOAD_PSF = SETTLED_FULL_M * 150.0 / 4.882
+DRIFT_HEIGHT_SHARE = 0.5
+DRIFT_WIDTH_RATIO = 4.0
+FT = 0.3048
 
 
 def frame(report: dict) -> tuple[float, float]:
@@ -78,7 +87,7 @@ def shifted(a: np.ndarray, dx: int, dz: int, fill: float) -> np.ndarray:
     return out
 
 
-def field(height: np.ndarray, sea: np.ndarray, from_deg: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def field(height: np.ndarray, sea: np.ndarray, from_deg: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     # Local frame: +x east, +z south. Upwind unit vector points toward the source.
     b = math.radians(from_deg)
     up = np.array([math.sin(b), -math.cos(b)])
@@ -88,16 +97,31 @@ def field(height: np.ndarray, sea: np.ndarray, from_deg: float) -> tuple[np.ndar
     fetch = np.full(height.shape, FETCH_MAX_M, dtype=np.float32)
     shelter = np.zeros(height.shape, dtype=np.float32)
     seen = np.zeros(height.shape, dtype=bool)
+    lee_h = np.zeros(height.shape, dtype=np.float32)
+    # Roof run along the wind behind the first wall: the drift's snow source (ASCE lu).
+    roof = np.zeros(height.shape, dtype=np.float32)
+    left = np.zeros(height.shape, dtype=bool)
     for s in range(1, steps + 1):
         dx, dz = round(up[0] * s), round(up[1] * s)
         hit = shifted(height, dx, dz, 0.0)
         dist = s * CELL_M
         newly = (hit > OBSTACLE_M) & ~seen
         fetch[newly] = dist
+        lee_h[newly] = hit[newly]
         seen |= hit > OBSTACLE_M
+        left |= seen & (hit <= OBSTACLE_M)
+        roof += (seen & ~left) * CELL_M
         # Lee shadow: an obstacle h tall shelters about SHELTER_REACH * h downwind.
         shelter = np.maximum(shelter, np.clip(hit * SHELTER_REACH / dist - 0.5, 0.0, 1.0))
     exposure = np.clip(fetch / FETCH_FULL_M, 0.0, 1.0)
+    # Leeward drift: snow blown off the roof and round the walls settles in the wake,
+    # deepest at the lee wall and tapering over 4 hd (ASCE 7 drift width).
+    lu_ft = np.maximum(roof, 25.0 * FT) / FT
+    hd_asce = (0.43 * np.cbrt(lu_ft) * (GROUND_LOAD_PSF + 10.0) ** 0.25 - 1.5) * FT
+    hd = np.minimum(lee_h * DRIFT_HEIGHT_SHARE, np.maximum(hd_asce, 0.0))
+    reach = DRIFT_WIDTH_RATIO * hd + CELL_M
+    x = np.clip((fetch - CELL_M) / np.maximum(reach, 1e-3), 0.0, 1.0)
+    drift = np.where((fetch < FETCH_MAX_M) & ~blocked, hd * (1.0 - x * x * (3.0 - 2.0 * x)), 0.0) / SETTLED_FULL_M
     # Canyon: walls close on both flanks while the street runs with the wind.
     walls = np.zeros(height.shape, dtype=np.float32)
     for sign in (1, -1):
@@ -135,11 +159,13 @@ def field(height: np.ndarray, sea: np.ndarray, from_deg: float) -> tuple[np.ndar
     lag = round(12.0 / CELL_M)
     upwind_exposure = shifted(exposure, round(up[0] * lag), round(up[1] * lag), 1.0)
     deposit = np.clip((upwind_exposure - exposure) * 2.0, 0.0, 1.0)
-    factor = 0.45 + 0.9 * (1.0 - erosion) + 0.7 * shelter * (1.0 - blocked) + 0.6 * deposit + 0.6 * bank
+    # The windward bank stays low: the wind's push at a facade scours more than it lays.
+    factor = 0.45 + 0.9 * (1.0 - erosion) + 0.7 * shelter * (1.0 - blocked) + 0.6 * deposit + 0.3 * bank
     factor = np.where(gap, factor * 0.6, factor)
     factor[blocked] = 1.0
     factor[sea] = 0.0
-    return np.clip(factor, 0.0, FACTOR_MAX), shelter, exposure
+    drift[sea] = 0.0
+    return np.clip(factor, 0.0, FACTOR_MAX), shelter, exposure, drift
 
 
 def blur(a: np.ndarray, r: float) -> np.ndarray:
@@ -202,18 +228,21 @@ def main() -> None:
     else:
         width_m, height_m = frame(json.loads(REPORT.read_text()))
         sea = water(w, h, x0, z0, width_m, height_m)
-    prev, shelter, exposure = field(height, sea, PREVAILING_FROM_DEG)
-    storm, _, _ = field(height, sea, STORM_FROM_DEG)
+    prev, shelter, exposure, prev_drift = field(height, sea, PREVAILING_FROM_DEG)
+    storm, _, _, storm_drift = field(height, sea, STORM_FROM_DEG)
     to8 = lambda a, top: np.clip(a / top * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    # Drifts keep their crest: a lighter blur than the broad wind field.
+    prev_all = blur(prev, 1.5) + blur(prev_drift, 1.0)
+    storm_all = blur(storm, 1.5) + blur(storm_drift, 1.0)
     rgba = np.dstack([
-        to8(blur(prev, 1.5), FACTOR_MAX), to8(blur(storm, 1.5), FACTOR_MAX),
+        to8(prev_all, FACTOR_MAX), to8(storm_all, FACTOR_MAX),
         to8(blur(shelter, 1.5), 1.0), to8((height > 0.0).astype(np.float32), 1.0),
     ])
     Image.fromarray(rgba, mode="RGBA").save(out, optimize=True)
     meta = {"cell_m": CELL_M, "origin": [x0, z0], "size": [w, h], "factor_max": FACTOR_MAX,
             "prevailing_from_deg": PREVAILING_FROM_DEG, "storm_from_deg": STORM_FROM_DEG}
     out.with_suffix(".json").write_text(json.dumps(meta, indent=1) + "\n")
-    print(f"wrote {out} {w}x{h}, mean factor {prev[~sea].mean():.2f}")
+    print(f"wrote {out} {w}x{h}, mean factor {prev_all[~sea].mean():.2f}, max {prev_all.max():.2f} / {storm_all.max():.2f}")
 
 
 if __name__ == "__main__":

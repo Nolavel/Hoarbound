@@ -27,7 +27,7 @@ const FAR_GRID_MARGIN_M: float = 6.0
 const FAR_RETRIES: int = 8
 ## Walking pace the travel lead is sized for, when working out the window's reach.
 const WALK_MPS: float = 4.0
-## Change in storm share that is worth rebuilding the window for.
+## Change in storm share or snowpack firmness that is worth rebuilding the window for.
 const STORM_REBUILD_STEP: float = 0.05
 ## Rebuild settled depth for weather accumulation even while Henry stands still.
 const COVER_REBUILD_STEP: float = 0.02
@@ -125,6 +125,9 @@ const CONTACT_LAYER: int = RenderLayers.SNOW_CONTACT
 @export var wade_depth_m: float = 0.3
 ## Henry starts leaning into the snow at the first depth and fully wades by the second.
 @export var wade_gait_m: Vector2 = Vector2(0.3, 0.55)
+## Snowpack firmness above which snow holds its shape: no trench behind a wading body
+## or a dragging toe, only the holes the boots punch.
+@export_range(0.0, 1.0) var plough_firmness: float = 0.5
 ## Width of the boot's outsole at the ball, metres.
 @export var sole_width_m: float = 0.11
 ## Width and length of the toe that drags through snow on a lifted foot.
@@ -186,7 +189,7 @@ var _live_cover: float = -1.0
 var _player: Node3D
 var _mover: Node
 var _weather: WeatherController
-var _presentation: Node
+var _presentation: SnowPresentationSystem
 ## IslandTerrain, or a node in group snow_ground with get_height(x, z) (streamed Reality chunks).
 var _terrain: Node
 var _city: Node3D
@@ -265,7 +268,7 @@ func on_world_ready(context: WorldContext) -> void:
 	_world_root = context.world
 	active = self
 	_weather = context.get_system(WEATHER_SCRIPT) as WeatherController
-	_presentation = context.get_system(PRESENTATION_SCRIPT)
+	_presentation = context.get_system(PRESENTATION_SCRIPT) as SnowPresentationSystem
 	_terrain = context.find_in_scene(TERRAIN_SCRIPT)
 	if _terrain == null and is_inside_tree():
 		_terrain = get_tree().get_first_node_in_group(&"snow_ground")
@@ -325,7 +328,7 @@ func _physics_process(_delta: float) -> void:
 		_mover.set(&"snow_accel_multiplier", get_accel_multiplier(depth))
 	if _gait != null:
 		_gait.set(&"wade", clampf(inverse_lerp(wade_gait_m.x, wade_gait_m.y, depth), 0.0, 1.0))
-	var wading: bool = depth > wade_depth_m
+	var wading: bool = depth > wade_depth_m and _ploughs_through()
 	if wading != _wading:
 		_wading = wading
 		tag_contact(_player, wading)
@@ -527,6 +530,7 @@ func recentre_to(centre: Vector2) -> void:
 	var cover: float = _cover()
 	var wind: Vector2 = _wind()
 	field.storm_share = _storm_share()
+	field.firmness = _firmness()
 	field.rebuild(wanted, cover, wind)
 	_apply_window(old, wanted, cover, wind)
 
@@ -591,7 +595,8 @@ func _follow(henry: Vector2, lead: Vector2 = Vector2.ZERO) -> void:
 	var restorm: bool = absf(storm - field.storm_share) >= STORM_REBUILD_STEP
 	var cover: float = _cover()
 	var reaccumulate: bool = absf(cover - _live_cover) >= COVER_REBUILD_STEP
-	if field.origin.x != INF and wanted.is_equal_approx(field.origin) and not restorm and not reaccumulate:
+	var refirm: bool = absf(_firmness() - field.firmness) >= STORM_REBUILD_STEP
+	if field.origin.x != INF and wanted.is_equal_approx(field.origin) and not restorm and not reaccumulate and not refirm:
 		return
 	if field.origin.x == INF or wanted.distance_to(field.origin) > window_m * 0.5:
 		recentre_to(centre)
@@ -600,6 +605,7 @@ func _follow(henry: Vector2, lead: Vector2 = Vector2.ZERO) -> void:
 	_move_cover = cover
 	_move_wind = _wind()
 	field.storm_share = storm
+	field.firmness = _firmness()
 	field.begin_rebuild(wanted, _move_cover, _move_wind)
 	if field.step_rebuild(budget):
 		_apply_window(_move_from, field.origin, _move_cover, _move_wind)
@@ -768,7 +774,7 @@ func _build_surface() -> void:
 ## as it actually dips into the snow, so a low swing drags a furrow.
 func _place_drag(side: int, foot: Dictionary, planted: bool) -> void:
 	var drag: MeshInstance3D = _drags[side]
-	drag.visible = not foot.is_empty() and not planted
+	drag.visible = not foot.is_empty() and not planted and _ploughs_through()
 	if not drag.visible:
 		_ploughs[side].emitting = false
 		_last_toe[side] = Vector3.INF
@@ -1091,14 +1097,26 @@ func _viewport(node_name: String, side: int) -> SubViewport:
 ## Settled cover, never read back from RenderingServer (that stalls).
 ## Share of fresh storm snow, from the presentation system; 0.4 without one.
 func _storm_share() -> float:
-	if _presentation != null and _presentation.has_method(&"get_storm_share"):
-		return clampf(float(_presentation.call(&"get_storm_share")), 0.0, 1.0)
+	if _presentation != null:
+		return clampf(_presentation.get_storm_share(), 0.0, 1.0)
 	return field.storm_share
+
+
+## Snowpack firmness from the presentation system; the field's own without one.
+func _firmness() -> float:
+	if _presentation != null:
+		return clampf(_presentation.get_firmness(), 0.0, 1.0)
+	return field.firmness
+
+
+## Fresh, loose snow ploughs into a trench; an old crust only takes boot holes.
+func _ploughs_through() -> bool:
+	return _firmness() < plough_firmness
 
 
 func _cover() -> float:
 	if _presentation != null:
-		return clampf(float(_presentation.call(&"get_settled_snow")), 0.0, 1.0)
+		return clampf(_presentation.get_settled_snow(), 0.0, 1.0)
 	if _weather != null:
 		return clampf(_weather.get_snow_cover(), 0.0, 1.0)
 	return 0.5

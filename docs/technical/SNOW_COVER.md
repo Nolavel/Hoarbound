@@ -415,6 +415,23 @@ snowfall it consolidates back to `calm_storm_share` over hours. SnowField keeps
 both factors per cell, so a share change rebuilds depth only. A settled-cover
 change of at least 0.02 also rebuilds depth, independently of window movement.
 
+### Snowpack firmness
+
+`SnowPresentationSystem` owns a third piece of snow state, `firmness` (saved): 0 is fresh, loose
+snow, 1 a hard crust over a weak base. Falling snow buries the crust (`bury_per_hour` x density);
+without snowfall it hardens toward the air's target (`crust_starts_c` -1 C to `crust_full_c` -12 C,
+none above freezing) at `harden_per_hour`, doubled in a storm wind. This is how real packs differ:
+wet maritime snow is cohesive and ploughs, a dry continental pack grows a wind slab over sugary
+depth hoar (postholing).
+
+- `SnowField.softness` lerps from loose everywhere (0.95) to hard, where scoured ground crusts
+  first and lee drifts last; the field reads it per rebuild, and a change of 0.05 rebuilds.
+- `SnowResistance`: an old crust is up to 1.4x stronger, but once a boot breaks it the leg drops
+  to 95 % of the depth with a 35 ms time constant (young crust: max_pack, 90 ms).
+- Below `SnowShell.plough_firmness` (0.5) a wading body and a dragging toe cut a trench; above it
+  the boots only punch holes.
+- The `snow-walk` CI job walks both packs (`fresh` firmness 0, `crust` firmness 1).
+
 ### Wind field per world and static snow
 
 The baked city wind field (`tools/world/bake_key_west_snow_wind.py`) is chosen by the world
@@ -423,6 +440,15 @@ profile (`WorldProfile.snow_wind_field_path`; empty keeps the legacy `snow_wind.
 Reality uses `snow_wind_reality.png`, baked with `--reality` from the generated Reality
 buildings (editor index, heights above ground) and the library's land polygons; the legacy
 bake had a Truman Annex block that does not exist and missed Reality buildings.
+
+Every wall also gets a leeward drift (ASCE 7-16 sec. 7.7 drift shape): peak height
+hd = 0.43 lu^(1/3) (pg + 10)^(1/4) - 1.5 ft, with lu the roof run along the wind behind the
+wall (the snow source, at least 25 ft) and pg the settled snow at full cover (0.25 m at
+150 kg/m3), capped at half the wall; the drift tapers over 4 hd. At full cover that is
+0.3-1.1 m against Key West houses, on the WSW faces for the ENE storm wind, while windward
+faces keep a scoured gap and only a low bank. Drifts get a lighter blur than the broad wind
+field so they keep a crest. `factor_max` is 6.0 (8-bit step 6 mm at full cover). Chunk cover,
+clipmap rings and SnowField all read the same map, so the drift is drawn and walked alike.
 
 Static snow (roof caps, ridges on fences and wires, caps on pole tops) is separate: it is
 generated offline into each chunk's `Winter` group (data layer `winter`), never deformed and

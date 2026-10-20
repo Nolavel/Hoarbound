@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Henry walks, turns into wall drifts and runs on Duval Street: TPS, leg-height and boot-print
-## frames for the snow-walk CI job. Args: <out_dir>; run with Vulkan and --fixed-fps 30.
+## frames for the snow-walk CI job. Args: <out_dir> [firmness 0..1]; Vulkan, --fixed-fps 30.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA: String = "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -12,6 +12,7 @@ const FPS: int = 30
 const CAPTURE_EVERY: int = 2
 
 var _out: String = ""
+var _firmness: float = 1.0
 var _world: Node3D
 var _ctx: Variant
 var _player: CharacterBody3D
@@ -35,6 +36,8 @@ func _initialize() -> void:
 		_fail("output directory required")
 		return
 	_out = args[0]
+	if args.size() > 1:
+		_firmness = clampf(args[1].to_float(), 0.0, 1.0)
 	for dir: String in ["tps", "legs"]:
 		DirAccess.make_dir_recursive_absolute(_out.path_join(dir))
 	if _read_street():
@@ -71,7 +74,7 @@ func _run() -> void:
 	root.scaling_3d_scale = 1.0
 	weather.set_weather(&"calm", true)
 	## Middling cover: boot prints below wading depth, crusted scour on the street, deeper drifts.
-	presentation.load_save_data({"settled": 0.5, "frost": 0.35, "storm": 0.6})
+	presentation.load_save_data({"settled": 0.5, "frost": 0.35, "storm": 0.6, "firmness": _firmness})
 	for node: Node in _world.find_children("*", "DayNightManager", true, false):
 		var day := node as DayNightManager
 		## Low afternoon sun: relief and prints throw shadows.
@@ -119,7 +122,7 @@ func _capture(frame: int, shell: DeterministicSnowShell) -> void:
 	_camera.make_current()
 	var p: Vector3 = _player.global_position
 	_frames.append({"frame": frame, "henry": [p.x, p.y, p.z], "sink": [shell.get_foot_sink(0), shell.get_foot_sink(1)],
-		"depth": shell.field.get_depth(p.x, p.z), "plunges": shell.plunge_count})
+		"depth": shell.field.get_depth(p.x, p.z), "softness": shell.field.get_softness(p.x, p.z), "plunges": shell.plunge_count})
 
 
 ## Side view at leg height, beside Henry's travel, so a leg going through shows.
@@ -166,7 +169,7 @@ func _release() -> void:
 
 
 func _save_report(shell: DeterministicSnowShell) -> void:
-	var report := {"scene": SCENE, "street": STREET, "plunges": shell.plunge_count, "frames": _frames}
+	var report := {"scene": SCENE, "street": STREET, "firmness": _firmness, "plunges": shell.plunge_count, "frames": _frames}
 	var f := FileAccess.open(_out.path_join("report.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(report, "\t"))
 	f.close()
