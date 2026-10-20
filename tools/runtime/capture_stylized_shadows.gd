@@ -171,7 +171,7 @@ func _process(_delta: float) -> bool:
 		return true
 	var step: Callable = _queue.pop_front()
 	step.call()
-	_next_frame = _frame + SETTLE_FRAMES
+	_next_frame = _frame + (2 if _interior_test else SETTLE_FRAMES)
 	return false
 
 

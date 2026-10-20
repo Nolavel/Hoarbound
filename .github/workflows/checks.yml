@@ -380,8 +380,8 @@ jobs:
           OUT="docs/runtime_previews/key_west/727_shadow_interior_ab"
           mkdir -p "$OUT"
           set -o pipefail
-          timeout 480 xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . --resolution 1600x1000 --rendering-driver vulkan \
+          timeout 680 xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . --resolution 1024x640 --rendering-driver vulkan \
             --rendering-method forward_plus --audio-driver Dummy \
             --script res://tools/runtime/capture_stylized_shadows.gd -- interior-ab \
             2>&1 | tee "$OUT/capture.log"
