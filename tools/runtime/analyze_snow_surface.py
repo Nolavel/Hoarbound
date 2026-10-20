@@ -107,6 +107,8 @@ def main():
         "step_over_2mm_px_total": sum(s.get("over_2mm_px", 0) for s in steps),
         "step_over_10mm_px_total": sum(s.get("over_10mm_px", 0) for s in steps),
         "coverage_flips_px_total": sum(s["coverage_flips_px"] for s in steps),
+        "step_over_2mm_px_by_band": {f"{lo}-{hi}m": sum(s.get(f"band_{lo}_{hi}_over_2mm_px", 0) for s in steps)
+            for lo, hi in [(0, 4), (4, 8), (8, 12), (12, 16), (16, 99)]},
         "first_to_last_over_2mm_px": int((total[both] > 0.002).sum()),
         "first_to_last_over_10mm_px": int((total[both] > 0.010).sum()),
         "first_to_last_max_mm": float(total[both].max() * 1000) if both.any() else 0.0,

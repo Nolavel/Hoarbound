@@ -107,7 +107,7 @@ void far_triangle(vec2 xz, out ivec2 a, out ivec2 b, out ivec2 c, out vec3 w) {
 float far_corner_top(ivec2 corner) {
 	vec4 g = texelFetch(far_grid, corner, 0);
 	vec2 xz = far_grid_origin + vec2(corner) * far_grid_step;
-	return g.r + snow_base_geom(snow_city_at(xz) * g.g);
+	return g.r + snow_base_depth(xz, snow_city_at(xz) * g.g);
 }
 
 // UV offset that breaks a print's outline: two octaves of world noise, so the
@@ -255,6 +255,9 @@ void vertex() {
 		top = mix(top, coarse, morph);
 	}
 	VERTEX.y = top - MODEL_MATRIX[3].y;
+	// The mesh has no slope of its own; the shadow normal bias needs a real up, or
+	// the snow shadows itself (the old shell's blue square against the chunk cover).
+	NORMAL = vec3(0.0, 1.0, 0.0);
 	v_world = vec3(world.x, top, world.z);
 	v_packed = s.packed;
 	v_rim = s.rim;

@@ -19,8 +19,8 @@ void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_shore = UV.y;
 	v_ground_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	// Geometry carries only the smooth base; snow_ground's outer band draws the same triangles.
-	VERTEX.y += snow_base_geom(snow_city_at(world.xz) * v_shore);
+	// Settled depth with the wind's ridges at the 2 m vertices; snow_ground's outer band draws the same triangles.
+	VERTEX.y += snow_base_depth(world.xz, snow_city_at(world.xz) * v_shore);
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 

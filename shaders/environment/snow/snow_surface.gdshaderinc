@@ -81,17 +81,49 @@ float snow_vnoise(vec2 p) {
 	);
 }
 
-// Wind-cut drift ridge, 0..1: a gentle rise into the wind and a steep lee drop
-// every ~6 m, crests wandering and broken into segments (sastrugi). SnowField.ridge_at() mirrors it.
-float snow_ridge(vec2 xz, vec2 wind) {
+// Value noise with its gradient: (value, d/dx, d/dy), one lookup for shading slopes.
+vec3 snow_vnoise_d(vec2 p) {
+	vec2 fl = floor(p);
+	ivec2 i = ivec2(fl);
+	vec2 f = p - fl;
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	vec2 du = 6.0 * f * (1.0 - f);
+	float a = snow_ihash(i);
+	float b = snow_ihash(i + ivec2(1, 0));
+	float c = snow_ihash(i + ivec2(0, 1));
+	float d = snow_ihash(i + ivec2(1, 1));
+	float k = a - b - c + d;
+	return vec3(a + (b - a) * u.x + (c - a) * u.y + k * u.x * u.y,
+		du * vec2(b - a + k * u.y, c - a + k * u.x));
+}
+
+// Derivative of smoothstep(e0, e1, x) with respect to x.
+float snow_smoothstep_d(float e0, float e1, float x) {
+	float t = clamp((x - e0) / (e1 - e0), 0.0, 1.0);
+	return 6.0 * t * (1.0 - t) / (e1 - e0);
+}
+
+// Wind-cut drift ridge with its xz gradient, (crest 0..1, d/dx, d/dz): a gentle rise
+// into the wind and a steep lee drop every ~6 m, crests wandering and broken into
+// segments (sastrugi). SnowField.ridge_at() mirrors the crest.
+vec3 snow_ridge_d(vec2 xz, vec2 wind) {
 	vec2 side = vec2(-wind.y, wind.x);
 	float along = dot(xz, wind);
 	float across = dot(xz, side);
-	float warp = snow_vnoise(vec2(along * 0.05, across * 0.2)) * 2.5;
-	float s = fract(along * 0.16 + warp);
-	float profile = smoothstep(0.0, 0.8, s) * (1.0 - smoothstep(0.8, 1.0, s));
-	float segment = smoothstep(0.35, 0.75, snow_vnoise(vec2(along * 0.12, across * 0.45) + vec2(11.0, 5.0)));
-	return profile * segment;
+	vec3 n1 = snow_vnoise_d(vec2(along * 0.05, across * 0.2));
+	float s = fract(along * 0.16 + n1.x * 2.5);
+	vec2 ds = 0.16 * wind + 2.5 * (n1.y * 0.05 * wind + n1.z * 0.2 * side);
+	float rise = smoothstep(0.0, 0.8, s);
+	float drop = 1.0 - smoothstep(0.8, 1.0, s);
+	float d_profile = snow_smoothstep_d(0.0, 0.8, s) * drop - rise * snow_smoothstep_d(0.8, 1.0, s);
+	vec3 n2 = snow_vnoise_d(vec2(along * 0.12, across * 0.45) + vec2(11.0, 5.0));
+	float segment = smoothstep(0.35, 0.75, n2.x);
+	vec2 d_segment = snow_smoothstep_d(0.35, 0.75, n2.x) * (n2.y * 0.12 * wind + n2.z * 0.45 * side);
+	return vec3(rise * drop * segment, d_profile * ds * segment + rise * drop * d_segment);
+}
+
+float snow_ridge(vec2 xz, vec2 wind) {
+	return snow_ridge_d(xz, wind).x;
 }
 
 // Settled depth at a world point from the shared globals and the city wind factor.
@@ -106,14 +138,19 @@ float snow_ridge_openness(float city) {
 	return 1.0 - smoothstep(0.85, 1.35, city);
 }
 
-// Smooth settled depth, the part a 2 m grid can hold; both layers meet on it.
+// Smooth settled depth before the wind's ridges.
 float snow_base_geom(float city) {
 	return snow_settled_depth * city;
 }
 
+// How much ridge the wind cuts where the city factor is `city`.
+float snow_ridge_amount(float city) {
+	return snow_drift_m * min(city, 1.5) * snow_ridge_openness(city);
+}
+
 // Full settled depth with wind ridges, for shading and thin-snow tint.
 float snow_base_depth(vec2 xz, float city) {
-	return snow_base_geom(city) + snow_drift_m * min(city, 1.5) * snow_ridge_openness(city) * snow_ridge(xz, snow_wind);
+	return snow_base_geom(city) + snow_ridge_amount(city) * snow_ridge(xz, snow_wind);
 }
 
 // Thin snow lets the ground grey through; full cover reads white.
@@ -132,19 +169,17 @@ vec3 snow_wind_tint(vec3 snow, float city) {
 // sastrugi aligned with the wind where it runs free, soft ripple in sheltered snow.
 vec2 snow_ripple_slope(vec2 xz, float city) {
 	float open = snow_ridge_openness(city);
-	float e = 0.05;
-	vec2 p = xz * 0.9;
-	float h = snow_vnoise(p) * 0.6 + snow_vnoise(p * 2.3 + vec2(3.0, 7.0)) * 0.4;
-	float hx = snow_vnoise(p + vec2(e, 0.0)) * 0.6 + snow_vnoise((p + vec2(e, 0.0)) * 2.3 + vec2(3.0, 7.0)) * 0.4;
-	float hz = snow_vnoise(p + vec2(0.0, e)) * 0.6 + snow_vnoise((p + vec2(0.0, e)) * 2.3 + vec2(3.0, 7.0)) * 0.4;
-	vec2 soft = vec2(hx - h, hz - h) / e * 0.9 * 0.06;
-	// Small sastrugi: ~0.7 m apart along the wind, each with a steep lee face.
-	float d = 0.02;
-	float s0 = snow_ridge(xz * 9.0, snow_wind);
-	float sx = snow_ridge((xz + vec2(d, 0.0)) * 9.0, snow_wind);
-	float sz = snow_ridge((xz + vec2(0.0, d)) * 9.0, snow_wind);
-	vec2 cut = vec2(sx - s0, sz - s0) / d * 0.012;
-	return mix(soft, cut, open);
+	vec2 slope = vec2(0.0);
+	if (open < 0.99) {
+		vec2 p = xz * 0.9;
+		vec2 g = snow_vnoise_d(p).yz * 0.6 + snow_vnoise_d(p * 2.3 + vec2(3.0, 7.0)).yz * 0.4 * 2.3;
+		slope += g * 0.9 * 0.06 * (1.0 - open);
+	}
+	if (open > 0.01) {
+		// Small sastrugi: ~0.7 m apart along the wind, each with a steep lee face.
+		slope += snow_ridge_d(xz * 9.0, snow_wind).yz * 9.0 * 0.012 * open;
+	}
+	return slope;
 }
 
 // Henry's snow LOD: xy his position, z the Chebyshev radius inside which the

@@ -44,6 +44,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - Wind relief, same in near and far shading (the near normal cache had no ridges, so ridges appeared in a ring
     at the old handoff): sastrugi with a steep lee face replace the blotchy ripple; over the baked map SnowField
     adds drift ridges and each wall's lee ramp to the depth Henry's feet read, and the near surface draws that top.
+  - The near snow mesh never had vertex normals, so the shadow normal bias made it shadow itself: a blue square
+    around Henry against the white chunk cover (also on the old shell). The rings now carry and set up normals.
+  - Chunk geometry carries the same wind ridges at its 2 m vertices, so near and far differ only by the grid's
+    interpolation; ridge and ripple slopes are analytic (one noise lookup with its gradient, not 5–8 lookups).
   - 53k vertices on high instead of 113k. A/B evidence: `checks.yml` `snow-surface` job (new vs `main`).
   - `test_snow_clipmap` (CPU emulation of the vertex morph), `tools/runtime/capture_snow_surface.gd` +
     `analyze_snow_surface.py`, `checks.yml` → `snow-surface` job; `docs/technical/SNOW_COVER.md` → Drawn surface.

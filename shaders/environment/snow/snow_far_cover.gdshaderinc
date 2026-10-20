@@ -28,12 +28,19 @@ float snow_far_depth(vec2 xz, float shore) {
 
 // Normal, albedo (before the painterly pass) and depth of the far cover at a pixel.
 void snow_far_shade(vec3 world, vec3 ground_normal, float shore, out vec3 n, out vec3 albedo, out float depth) {
-	depth = snow_far_depth(world.xz, shore);
-	// Ridge slope from the depth function itself, not the 2 m mesh.
-	float e = 0.08;
-	float gx = (snow_far_depth(world.xz + vec2(e, 0.0), shore) - snow_far_depth(world.xz - vec2(e, 0.0), shore)) / (2.0 * e);
-	float gz = (snow_far_depth(world.xz + vec2(0.0, e), shore) - snow_far_depth(world.xz - vec2(0.0, e), shore)) / (2.0 * e);
 	float city = snow_city_at(world.xz) * shore;
+	vec3 ridge = snow_ridge_d(world.xz, snow_wind);
+	float amount = snow_ridge_amount(city);
+	depth = snow_base_geom(city) + amount * ridge.x;
+	// Depth slope per pixel, not from the 2 m mesh: the city factor by differences,
+	// the ridge analytically.
+	float e = 0.08;
+	vec2 d_city = vec2(snow_city_at(world.xz + vec2(e, 0.0)) - snow_city_at(world.xz - vec2(e, 0.0)),
+		snow_city_at(world.xz + vec2(0.0, e)) - snow_city_at(world.xz - vec2(0.0, e))) * shore / (2.0 * e);
+	float d_amount = (snow_ridge_amount(city + 0.01) - snow_ridge_amount(city - 0.01)) / 0.02;
+	vec2 g = (snow_settled_depth + d_amount * ridge.x) * d_city + amount * ridge.yz;
+	float gx = g.x;
+	float gz = g.y;
 	vec2 ripple = snow_ripple_slope(world.xz, city);
 	n = normalize(normalize(ground_normal) - vec3(gx + ripple.x, 0.0, gz + ripple.y));
 	vec3 color = fresh_color * (1.0 - snow_breakup(world, 5.0) * 0.03);

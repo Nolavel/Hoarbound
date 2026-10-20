@@ -394,6 +394,8 @@ visibly crawled and popped (measured with the witness below). It is replaced by:
   wind runs free (wind-oriented ripple normals, as Journey's sand, GDC 2013).
   Near and far shading use the same relief, so ridges no longer appear in a
   ring at the handoff (the old near cache was ridge-free).
+- **Normals.** The rings set an up vertex normal: without one the shadow normal
+  bias let the snow shadow itself into the stylized blue (the old shell's square).
 - **Shading.** The outer band computes the chunk cover's normal, albedo and
   thin-snow cut from the same include (`snow_far_cover.gdshaderinc`) and the
   same lattice normals, so material matches across the handoff too.
