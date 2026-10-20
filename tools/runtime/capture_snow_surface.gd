@@ -1,12 +1,7 @@
 extends SceneTree
 
-## Snow surface stability capture on the real Key West Reality street.
-## Henry walks Duval Street; a fixed top-down witness camera records the drawn
-## snow height (encoded by the snow shaders' debug_height mode) and a fixed
-## oblique camera records the shaded surface. tools/runtime/analyze_snow_surface.py
-## turns the frames into height deltas at fixed world points.
-## Usage: xvfb-run godot --path . --rendering-driver vulkan --resolution 960x540
-##   --fixed-fps 30 --script res://tools/runtime/capture_snow_surface.gd -- <out_dir> [walk_m]
+## Henry walks Duval Street while a fixed top-down witness records drawn snow height (debug_height)
+## for analyze_snow_surface.py; args: <out_dir> [walk_m]. Run with Vulkan and --fixed-fps 30.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA: String = "res://data/world/key_west/reality/routes/dev_street_spawns.json"

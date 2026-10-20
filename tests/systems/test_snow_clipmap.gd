@@ -1,9 +1,7 @@
 extends SceneTree
 
-## SnowClipmap: ring layout, mesh lattice and the vertex morph that keeps a fixed
-## world point's drawn height continuous while Henry walks and the rings snap.
-## The morph is emulated on the CPU exactly as snow_ground.gdshader computes it.
-## Run: godot --headless --script tests/systems/test_snow_clipmap.gd
+## SnowClipmap layout and the vertex morph (emulated as snow_ground computes it) that keeps
+## a world point's height continuous while the rings snap. Run headless with --script.
 
 var _failures: int = 0
 

@@ -1,9 +1,7 @@
 class_name SnowResistance
 extends RefCounted
-## The snowpack between the drawn top and hard ground, felt only through the boots.
-## Loose snow compacts under a step; wind crust holds until the step's load breaks
-## it; drifts hide soft pockets where a leg plunges almost to the ground. Henry's
-## collider stays on the ground: this only says how deep each boot goes, and when.
+## Snowpack between the drawn top and hard ground, felt through the boots: crust holds
+## until a step's load breaks it, drift pockets plunge a leg. Henry's collider stays on the ground.
 
 ## Crust strength varies in patches about this wide, metres: the same-looking surface
 ## holds in one place and gives way a stride further on.
@@ -25,9 +23,8 @@ class Plant extends RefCounted:
 		return break_s < INF
 
 
-## A plant at `at` in `depth` metres of snow of `softness` (1 powder, 0 wind crust).
-## `drift` is the depth above the settled cover; `impact` 0 walking slowly .. 1 running;
-## `load_share` is the body weight on this boot (standing on both: about half).
+## A plant at `at`: `softness` 1 powder .. 0 crust, `drift` depth above the settled cover,
+## `impact` 0 slow walk .. 1 run, `load_share` the weight on this boot (about half standing).
 static func plant(at: Vector2, depth: float, softness: float, drift: float, impact: float, max_pack: float, load_share: float = 1.0) -> Plant:
 	var p := Plant.new()
 	var give: float = depth * max_pack

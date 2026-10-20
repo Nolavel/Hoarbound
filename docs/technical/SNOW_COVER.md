@@ -227,7 +227,7 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   give. Wind crust holds a boot until the step's load (more when running, about
   half when standing on both) beats its strength, which varies in ~1.6 m patches
   across the world; then, after a beat, the leg drops to the full give. Drifts
-  (snow deeper than the settled cover: lee ramps, banks) hide ~1 m soft pockets
+  (snow deeper than the settled cover: lee ramps, banks, tall ridge crests) hide ~1 m soft pockets
   where a leg plunges almost to the ground. The surface looks the same either way.
   A plunge dips Henry's speed like a deep plant, plays a crust snap and a deep
   whump (`crust_broke`), and the hips follow the lower boot as before: one leg

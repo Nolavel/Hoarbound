@@ -206,8 +206,8 @@ func _bind_shell() -> void:
 	_shell = SnowShell.active
 	if not _shell.foot_lifted.is_connected(_on_foot_lifted):
 		_shell.foot_lifted.connect(_on_foot_lifted)
-	if _shell.has_signal(&"crust_broke") and not _shell.is_connected(&"crust_broke", _on_crust_broke):
-		_shell.connect(&"crust_broke", _on_crust_broke)
+	if not _shell.crust_broke.is_connected(_on_crust_broke):
+		_shell.crust_broke.connect(_on_crust_broke)
 
 
 ## A boot breaking through crust or into a drift pocket: the slab snaps, then the snow gives.

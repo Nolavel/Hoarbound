@@ -1,8 +1,7 @@
 extends SceneTree
 
-## SnowResistance: loose snow compacts, wind crust holds or breaks under the step's
-## load, drift pockets plunge a leg almost to the ground, all deterministic by place.
-## Run: godot --headless --script tests/systems/test_snow_resistance.gd
+## SnowResistance: powder compacts, crust holds or breaks under a step, drift pockets plunge
+## a leg, all deterministic by place. Run headless with --script.
 
 const MAX_PACK: float = 0.85
 

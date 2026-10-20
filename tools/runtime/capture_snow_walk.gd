@@ -1,10 +1,7 @@
 extends SceneTree
 
-## Henry walks, turns into a wall's drift and runs on Duval Street while three cameras
-## record what the snowpack does to him: the TPS view, a side view at leg height and,
-## at the end, a close look down at his boot prints. For the snow-walk CI job.
-## Usage: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30
-##   --script res://tools/runtime/capture_snow_walk.gd -- <out_dir>
+## Henry walks, turns into wall drifts and runs on Duval Street: TPS, leg-height and boot-print
+## frames for the snow-walk CI job. Args: <out_dir>; run with Vulkan and --fixed-fps 30.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA: String = "res://data/world/key_west/reality/routes/dev_street_spawns.json"

@@ -6,6 +6,8 @@ extends Node3D
 
 ## A boot left its print: where, how deep it had sunk and how soft the snow was.
 signal foot_lifted(side: int, position: Vector3, sink_m: float, softness: float)
+## A boot broke through crust or into a drift pocket and plunged `plunge_m` deep.
+signal crust_broke(side: int, position: Vector3, plunge_m: float)
 
 const SURFACE_SHADER: Shader = preload("res://shaders/environment/snow/snow_ground.gdshader")
 const CONTACT_SHADER: Shader = preload("res://shaders/environment/snow/snow_contact_depth.gdshader")
@@ -21,6 +23,8 @@ const MEDIUM_CONTACT_RES: int = 512
 const LOD_OVERLAP_M: float = 0.15
 ## The chunk lattice around the window reaches this far past it, for a lagging rebuild.
 const FAR_GRID_MARGIN_M: float = 6.0
+## Times a lattice with not-yet-streamed points is resampled, once per half second.
+const FAR_RETRIES: int = 8
 ## Walking pace the travel lead is sized for, when working out the window's reach.
 const WALK_MPS: float = 4.0
 ## Change in storm share that is worth rebuilding the window for.
@@ -41,12 +45,11 @@ const CONTACT_LAYER: int = RenderLayers.SNOW_CONTACT
 @export var near_spacing_m: float = 0.03
 ## Half width of that dense core; each ring outwards doubles the spacing.
 @export var near_half_m: float = 2.75
-## Chebyshev distances from Henry: prints fade out of the drawn snow over the first
-## band, the field's detail hands the surface to the chunk cover's triangles over
-## the second, and the chunk cover draws beyond the radius. All stay inside what
-## the window guarantees around Henry (detail_reach_m()).
+## Chebyshev distance from Henry over which prints fade out of the drawn snow; inside detail_reach_m().
 @export var deform_fade_m: Vector2 = Vector2(4.5, 6.0)
+## Over this band the field's detail hands the surface to the chunk cover's triangles.
 @export var far_fade_m: Vector2 = Vector2(4.5, 6.0)
+## Inside this Chebyshev radius the clipmap draws, outside it the chunk cover.
 @export var cut_radius_m: float = 6.25
 ## Texels along one side of the settled field.
 @export_range(32, 256) var field_res: int = 128
@@ -124,9 +127,8 @@ const CONTACT_LAYER: int = RenderLayers.SNOW_CONTACT
 @export var wade_depth_m: float = 0.3
 ## Henry starts leaning into the snow at the first depth and fully wades by the second.
 @export var wade_gait_m: Vector2 = Vector2(0.3, 0.55)
-## Width of one sole and how far it reaches past the heel and toe bones.
+## Width of the boot's outsole at the ball, metres.
 @export var sole_width_m: float = 0.11
-@export var sole_margin_m: float = 0.05
 ## Width and length of the toe that drags through snow on a lifted foot.
 @export var drag_size_m: Vector2 = Vector2(0.07, 0.14)
 ## Extra depth the heel digs on strike and the ball on push-off, metres: a
@@ -159,8 +161,10 @@ var _surface: ShaderMaterial
 var _mesh: MeshInstance3D
 var _clipmap: SnowClipmap
 var _far_ready: bool = false
-## Some lattice points sat on a chunk that was not live yet; retried until all are real ground.
-var _far_partial: bool = false
+## Lattice refreshes left for points on chunks that were not live yet (sea never streams in).
+var _far_retries: int = 0
+## Frame the rings were last placed, so a pass frame does not place them twice.
+var _lod_frame: int = -1
 var _contact: SubViewport
 var _contact_cam: Camera3D
 var _contact_quad: ShaderMaterial
@@ -649,10 +653,9 @@ func _refresh_settled_normals() -> void:
 	_surface.set_shader_parameter("use_settled_normal_field", true)
 
 
-## The chunk cover's 2 m lattice around the window: ground, shore fade and the
-## vertex normal SnowChunkCover gives each point, so the clipmap's outer band
-## draws exactly its triangles. ~500 terrain samples per window move.
-func _refresh_far_grid(window_origin: Vector2) -> void:
+## The chunk cover's 2 m lattice around the window (ground, shore, vertex normal), so the
+## clipmap's outer band draws exactly its triangles. ~500 terrain samples per window move.
+func _refresh_far_grid(window_origin: Vector2, retry: bool = false) -> void:
 	if _terrain == null or not field.use_baked_baseline:
 		_surface.set_shader_parameter("use_far_grid", false)
 		_far_grid_origin = Vector2(INF, INF)
@@ -661,7 +664,7 @@ func _refresh_far_grid(window_origin: Vector2) -> void:
 	var step_m: float = SnowChunkCover.STEP_M
 	var low: Vector2 = window_origin - Vector2.ONE * FAR_GRID_MARGIN_M
 	var grid_origin := Vector2(floorf(low.x / step_m), floorf(low.y / step_m)) * step_m
-	if grid_origin == _far_grid_origin:
+	if grid_origin == _far_grid_origin and not retry:
 		return
 	var n: int = ceili((window_m + FAR_GRID_MARGIN_M * 2.0) / step_m) + 2
 	## One extra row each side for the central differences of the normals.
@@ -669,14 +672,14 @@ func _refresh_far_grid(window_origin: Vector2) -> void:
 	heights.resize((n + 2) * (n + 2))
 	var known := PackedByteArray()
 	known.resize((n + 2) * (n + 2))
-	var streams: bool = _terrain.has_method(&"has_ground_at")
-	_far_partial = false
+	var streamed := _terrain as KeyWestRealityGround
+	var partial: bool = false
 	for z: int in range(n + 2):
 		for x: int in range(n + 2):
 			var at: Vector2 = grid_origin + Vector2(x - 1, z - 1) * step_m
 			heights[z * (n + 2) + x] = _terrain.get_height(at.x, at.y)
-			known[z * (n + 2) + x] = 1 if not streams or bool(_terrain.call(&"has_ground_at", at.x, at.y)) else 0
-			_far_partial = _far_partial or known[z * (n + 2) + x] == 0
+			known[z * (n + 2) + x] = 1 if streamed == null or streamed.has_ground_at(at.x, at.y) else 0
+			partial = partial or known[z * (n + 2) + x] == 0
 	var image := Image.create_empty(n, n, false, Image.FORMAT_RGBAF)
 	for z: int in range(n):
 		for x: int in range(n):
@@ -695,6 +698,12 @@ func _refresh_far_grid(window_origin: Vector2) -> void:
 	_surface.set_shader_parameter("far_grid_origin", grid_origin)
 	_surface.set_shader_parameter("far_grid_step", step_m)
 	_surface.set_shader_parameter("use_far_grid", true)
+	if not partial:
+		_far_retries = 0
+	elif not retry:
+		_far_retries = FAR_RETRIES
+	else:
+		_far_retries -= 1
 	_far_grid_origin = grid_origin
 	_far_ready = true
 
@@ -717,19 +726,20 @@ func detail_reach_m() -> float:
 ## The rings follow Henry every frame, snapped so each vertex keeps its world lattice;
 ## snow_lod tells both snow shaders where he is and where the chunk cover takes over.
 func _follow_lod() -> void:
-	if _mesh == null or _player == null:
+	if _mesh == null or _player == null or _lod_frame == Engine.get_process_frames():
 		return
+	_lod_frame = Engine.get_process_frames()
 	## Where Henry is drawn this frame, not his last physics tick.
 	var at: Vector3 = _player.get_global_transform_interpolated().origin
 	var snapped: Vector2 = _clipmap.snapped_origin(Vector2(at.x, at.z))
 	_mesh.global_position = Vector3(snapped.x, 0.0, snapped.y)
 	var live: bool = field.origin.x != INF
 	_mesh.visible = live
-	if _far_partial and live and Engine.get_process_frames() % 30 == 0:
-		_far_grid_origin = Vector2(INF, INF)
-		_refresh_far_grid(field.origin)
-	RenderingServer.global_shader_parameter_set(&"snow_lod",
-		Vector4(at.x, at.z, cut_radius_m if _far_ready else 0.0, 1.0 if live else 0.0))
+	if _far_retries > 0 and live and _lod_frame % 30 == 0:
+		_refresh_far_grid(field.origin, true)
+	## Without the chunk lattice the rings draw out to their edge and the chunk cover yields all of it.
+	var cut: float = cut_radius_m if _far_ready else _clipmap.outer_half()
+	RenderingServer.global_shader_parameter_set(&"snow_lod", Vector4(at.x, at.z, cut, 1.0 if live else 0.0))
 
 
 func _build_surface() -> void:

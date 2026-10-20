@@ -46,7 +46,8 @@ static func plan(near_spacing_m: float, near_half_m: float, outer_half_m: float)
 	for i: int in range(map.spacings.size()):
 		var inner: float = map.halves[i - 1] if i > 0 else 0.0
 		var finish: float = map.halves[i] - slack
-		var start: float = maxf(inner + slack, finish - (map.halves[i] - inner) * 0.5)
+		## A dozen spacings of morph: wide enough to be gradual, few vertices sample three times.
+		var start: float = maxf(inner + slack, finish - clampf(map.spacings[i] * 12.0, 0.3, (map.halves[i] - inner) * 0.5))
 		if i == map.spacings.size() - 1:
 			## The outermost ring never meets a coarser one inside the drawn area.
 			map.morph_bands.append(Vector2(1.0e6, 1.0e6 + 1.0))
@@ -114,7 +115,8 @@ func build() -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var h: float = outer_half()
-	mesh.custom_aabb = AABB(Vector3(-h, -50.0, -h), Vector3(h * 2.0, 100.0, h * 2.0))
+	## Heights come from the shader: any ground from below sea level to a mountain top.
+	mesh.custom_aabb = AABB(Vector3(-h, -1000.0, -h), Vector3(h * 2.0, 4000.0, h * 2.0))
 	return mesh
 
 

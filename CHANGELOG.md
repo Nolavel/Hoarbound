@@ -16,6 +16,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     persistent stamp and the contact soles. The packed field carries each print's sole uv, and `snow_ground` draws
     the exact outline and the lug tread per pixel.
   - `capture_snow_walk.gd` and the `snow-walk` job in `checks.yml`: TPS and leg-height videos of the walk.
+  - Independent review (Sonnet agent + `/code-review high`) caught that the wall lee ramps never ran over the baked
+    map (the field skipped its wall layer): fixed, with a regression check in `test_snow_shell`. Also: prints shade
+    per pixel in coarse rings, narrower morph bands, no string `has_method`/`connect` seams, retry cap at the coast.
 - Colour grade crossfade (from Grok's `grok` branch).
   - Grok's rules are kept:
     - outdoor LUTs blend over ±0.5 h corridors at 05/07/17/21 h;

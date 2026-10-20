@@ -409,9 +409,9 @@ func _stage_spans(stage: int) -> Array[Vector3i]:
 
 
 func _next_stage() -> void:
-	## The baked city factor already contains lee deposition and wind scour.
-	## Rebuilding those from nearby live colliders would make settled snow move.
-	_job_stage = STAGE_DEPTH if use_baked_baseline and _job_stage == STAGE_GROUND else _job_stage + 1
+	## The baked city factor holds the bed and macro drifts; only the wall layer is
+	## still needed, for each wall's own lee ramp.
+	_job_stage = STAGE_WALL if use_baked_baseline and _job_stage == STAGE_GROUND else _job_stage + 1
 	_job_cursor = 0
 	if _job_stage <= STAGE_WALL:
 		_job_spans = _stage_spans(_job_stage)

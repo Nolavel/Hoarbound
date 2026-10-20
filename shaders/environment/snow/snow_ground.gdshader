@@ -313,11 +313,14 @@ void fragment() {
 	float roughness = 0.85;
 	vec3 emission = vec3(0.0);
 	if (near > 0.0) {
-		// Pit walls are sharper than the mesh, so they also come in through the normal.
-		float packed_height = v_packed * v_deform;
+		// Prints read per pixel, not from the ring's vertices, so coarse rings keep their shape.
+		vec4 pf = texture(print_field, uv);
+		float packed_px = packed_at(uv + v_jag);
+		packed_px = mix(packed_px, pf.r, clamp(pf.a, 0.0, 1.0) * step(0.003, pf.r));
+		float packed_height = packed_px * v_deform;
 		float rim_height = v_rim * v_deform;
 		vec2 raw_slope = vec2(0.0);
-		if (abs(v_packed) > 0.0005 || v_rim > 0.0005) {
+		if (abs(packed_px) > 0.0005 || v_rim > 0.0005) {
 			raw_slope = packed_slope(uv + v_jag);
 		}
 		vec2 slope = raw_slope * v_deform;
@@ -349,7 +352,6 @@ void fragment() {
 		}
 		// The boot's outsole, exact per pixel: its uv is affine in xz, so filtering keeps it.
 		float lug_groove = 0.0;
-		vec4 pf = texture(print_field, uv);
 		float fresh_print = clamp(pf.a, 0.0, 1.0) * v_deform * smoothstep(0.003, 0.012, packed_height);
 		if (fresh_print > 0.02) {
 			mat2 dw = mat2(dFdx(v_world.xz), dFdy(v_world.xz));

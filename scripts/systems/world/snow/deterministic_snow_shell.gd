@@ -1,14 +1,14 @@
 class_name DeterministicSnowShell
 extends "res://scripts/systems/world/snow/snow_shell.gd"
 
-## A boot broke through wind crust or into a drift pocket and plunged `plunge_m` deep.
-signal crust_broke(side: int, position: Vector3, plunge_m: float)
-
 const GRAPHICS: GDScript = preload("res://scripts/settings/graphics_quality.gd")
 const CONTACT_WINDOW_M: float = 6.4
 const CONTACT_RES: int = 256
 const MAX_STAMPS_PER_PASS: int = 16
 const MIN_STAMP_DEPTH_M: float = 0.012
+
+## Plants that broke through since the world loaded; captures read it.
+var plunge_count: int = 0
 
 var _plant_point: Array[Vector3] = [Vector3.INF, Vector3.INF]
 var _plant_normal: Array[Vector3] = [Vector3.UP, Vector3.UP]
@@ -20,8 +20,6 @@ var _snow_pass_interval: float = 0.25
 ## How each planted boot settles (SnowResistance), and whether it has broken through yet.
 var _plants: Array[SnowResistance.Plant] = [null, null]
 var _plunged: Array[bool] = [false, false]
-## Plants that broke through since the world loaded; captures read it.
-var plunge_count: int = 0
 
 
 func _ready() -> void:
@@ -212,7 +210,6 @@ func _upload_pending_stamps(mat: ShaderMaterial) -> int:
 			## through the contact soles as the boot sinks.
 			var support: float = _resistance_at(Vector2(position.x, position.z), 1.0, impact).support
 			var press: float = minf(maxf(MIN_STAMP_DEPTH_M, support * lerpf(0.6, 1.0, impact)), give)
-			var side: int = int(stamp["side"])
 			var half_length: float = boot_half_m().x
 			var encoded: Array[Vector4] = stamp_uniforms(
 				position,

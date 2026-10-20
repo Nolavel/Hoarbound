@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_storm_share_rebuilds_in_place()
 	_test_a_boot_sinks_over_its_stance()
 	_test_wind_crust_is_harder_than_powder()
+	_test_baked_field_ramps_snow_in_a_walls_lee()
 	if _failures > 0:
 		push_error("snow shell: %d check(s) failed" % _failures)
 		quit(1)
@@ -321,3 +322,19 @@ func _test_wind_crust_is_harder_than_powder() -> void:
 	field.rebuild(Vector2(-12.8, -12.8), 0.8, Vector2(0, -1))
 	var s: float = field.get_softness(10.0, 0.0)
 	_check(s >= 0.4 and s <= 1.0, "the field image lost its softness: %.2f" % s)
+
+
+## Over the baked map the wall layer still runs: a wall's own lee ramp shows up in the depth.
+func _test_baked_field_ramps_snow_in_a_walls_lee() -> void:
+	var walled := SnowField.new()
+	var open := SnowField.new()
+	walled.ground_sampler = _synthetic_ground
+	open.ground_sampler = func(at: Vector2) -> Vector2: return Vector2(0.3 + at.x * 0.02 + sin(at.y * 0.7) * 0.05, 0.0)
+	for f: SnowField in [walled, open]:
+		f.sea_level_m = -100.0
+		f.use_baked_baseline = true
+		## Wind blowing towards -z: the long wall at z 4..4.4 shelters the snow just south of it.
+		f.settled_wind = Vector2(0.0, -1.0)
+		f.rebuild(Vector2(-8.0, -8.0), 0.8, Vector2(0.0, -1.0))
+	var lee: float = walled.get_depth(4.0, 3.4) - open.get_depth(4.0, 3.4)
+	_check(lee > 0.05, "baked mode builds no lee ramp behind a wall (%.3f m extra)" % lee)

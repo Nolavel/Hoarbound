@@ -39,9 +39,8 @@ static func press(u: float) -> float:
 	return lerpf(1.0, 0.45, shank) * lerpf(1.0, 0.85, smoothstep(0.6, 1.0, u))
 
 
-## Prism of the outsole part between `u0` and `u1`, toe towards -Z, in a unit box
-## (x and z in -0.5..0.5, y in -0.5..0.5), to be scaled to sole width, height, length.
-## The arched shank's underside sits `arch` of the box height above the rest.
+## Prism of the outsole between `u0` and `u1` in a unit box, toe towards -Z, to scale to
+## sole width, height and length; the shank's underside sits `arch` above the rest.
 static func build_mesh(u0: float, u1: float, arch: float = 0.06) -> ArrayMesh:
 	var ring := PackedVector2Array()
 	var lift := PackedFloat32Array()
