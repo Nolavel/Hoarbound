@@ -219,7 +219,7 @@ float snow_grain_albedo(vec2 xz, float footprint) {
 // Grain on the final, up-facing surface; it fades on cut walls, where a pattern in xz
 // would stretch into vertical streaks. `amount` 0..1 (packed floors are smoother).
 void snow_apply_grain(inout vec3 n, inout vec3 albedo, vec2 xz, float footprint, float amount) {
-	float up = smoothstep(0.55, 0.85, n.y) * amount;
+	float up = smoothstep(0.88, 0.97, n.y) * amount;
 	if (up <= 0.0) {
 		return;
 	}
