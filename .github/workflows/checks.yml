@@ -202,8 +202,6 @@ jobs:
     if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[interior-shadow-preview]') || contains(github.event.head_commit.message, '[shadow-style-preview]'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -700,7 +698,9 @@ jobs:
               -- "$arm" "res://$ROOT/$arm" > "$ROOT/$arm/capture.log" 2>&1 || status=1
             if grep -q "SHADER ERROR" "$ROOT/$arm/capture.log"; then status=1; fi
             echo "SHADOW_STYLE arm=$arm capture tail:"
+            grep -B 3 -A 8 -E "SHADER ERROR|Shader compilation failed|^ERROR:" "$ROOT/$arm/capture.log" | head -n 100 || true
             tail -n 12 "$ROOT/$arm/capture.log"
+            if grep -q -E "SHADER ERROR|Shader compilation failed" "$ROOT/$arm/capture.log"; then status=1; break; fi
             count=$(find "$ROOT/$arm/frames" -maxdepth 1 -name 'frame_*.png' -type f 2>/dev/null | wc -l)
             if [[ "$count" -ne 72 ]]; then status=1; fi
             if [[ "$count" -eq 72 ]]; then
@@ -732,37 +732,23 @@ jobs:
           PY
           exit "$status"
 
-      - name: Keep shadow-style video reachable when Actions storage is full
+      - name: Recover shadow-style video from job log when artifact storage is full
         if: always() && contains(github.event.head_commit.message, '[shadow-style-preview]')
-        env:
-          GH_EVIDENCE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python3 - <<'PY'
-          import base64, json, os, urllib.request
+          import base64
           from pathlib import Path
           root = Path("docs/runtime_previews/key_west/shadow_style_abc")
-          files = [root / "shadow_style_abc_6s.mp4"]
-          files += [root / arm / shot for arm in ("baseline", "mass", "mass_edge")
-                    for shot in ("wide.png", "boundary.png", "warm_corner.png")]
-          for path in files:
-              if not path.is_file():
-                  print("SHADOW_STYLE_BLOB missing", path)
-                  continue
-              payload = json.dumps({"content": base64.b64encode(path.read_bytes()).decode("ascii"),
-                                    "encoding": "base64"}).encode("utf-8")
-              request = urllib.request.Request(
-                  "https://api.github.com/repos/Nolavel/Hoarbound/git/blobs",
-                  data=payload,
-                  headers={"Authorization": "Bearer " + os.environ["GH_EVIDENCE_TOKEN"],
-                           "Accept": "application/vnd.github+json",
-                           "Content-Type": "application/json"},
-                  method="POST")
-              try:
-                  with urllib.request.urlopen(request, timeout=60) as response:
-                      sha = json.load(response)["sha"]
-                  print("SHADOW_STYLE_BLOB", path.as_posix(), sha, path.stat().st_size)
-              except Exception as error:
-                  print("SHADOW_STYLE_BLOB failed", path, str(error))
+          video = root / "shadow_style_abc_6s.mp4"
+          logs = [root / arm / "capture.log" for arm in ("baseline", "mass", "mass_edge")]
+          if video.is_file() and all(p.is_file() and "Shader compilation failed" not in p.read_text(errors="replace") for p in logs):
+              encoded = base64.b64encode(video.read_bytes()).decode("ascii")
+              print("SHADOW_STYLE_VIDEO_BEGIN", video.stat().st_size)
+              for i in range(0, len(encoded), 3000):
+                  print("SHADOW_STYLE_VIDEO_CHUNK", i // 3000, encoded[i:i + 3000])
+              print("SHADOW_STYLE_VIDEO_END", (len(encoded) + 2999) // 3000)
+          else:
+              print("SHADOW_STYLE_VIDEO_SKIPPED shader failed or video missing")
           PY
 
       - name: Upload Key West previews
