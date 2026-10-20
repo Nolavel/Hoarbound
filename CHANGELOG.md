@@ -8,6 +8,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Snowpack and boot prints (owner request).
+  - `SnowResistance`: wind crust holds a boot until the step's load breaks it (strength varies in ~1.6 m patches,
+    running breaks more), drifts hide soft pockets where a leg plunges almost to the ground; a plunge dips the
+    stride and plays a crust snap. Collision stays on the ground. `test_snow_resistance`.
+  - Prints are Henry's army boot outsole (`BootSole`): heel block, arched shank, ball, round toe, in both the
+    persistent stamp and the contact soles. The packed field carries each print's sole uv, and `snow_ground` draws
+    the exact outline and the lug tread per pixel.
+  - `capture_snow_walk.gd` and the `snow-walk` job in `checks.yml`: TPS and leg-height videos of the walk.
 - Colour grade crossfade (from Grok's `grok` branch).
   - Grok's rules are kept:
     - outdoor LUTs blend over ±0.5 h corridors at 05/07/17/21 h;

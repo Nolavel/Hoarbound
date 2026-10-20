@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       preview:
-        description: "Empty re-checks Key West Reality; snow-surface runs only the snow A/B"
+        description: "Empty re-checks Key West Reality; snow-surface or snow-walk runs only that capture"
         default: ""
       baseline_ref:
         description: "snow-surface: ref whose snow code is the `old` variant"
@@ -541,5 +541,120 @@ jobs:
             ${{ env.OUT }}/capture.log
             ${{ env.OUT }}/oblique/0000.png
             ${{ env.OUT }}/tps/0000.png
+          if-no-files-found: warn
+          retention-days: 7
+
+  snow-walk:
+    ## Henry's walk through the snowpack on Duval Street (tools/runtime/capture_snow_walk.gd):
+    ## TPS and leg-height videos of crust holding and breaking, drift pockets and boot prints.
+    ## Dispatch with preview=snow-walk, or push with [snow-walk] in the commit message.
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'snow-walk') ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[snow-walk]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      OUT: docs/runtime_previews/snow_walk
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Snow suites
+        run: |
+          for suite in test_snow_resistance test_snow_contact_pipeline test_snow_shell test_snow_clipmap; do
+            log="$(mktemp)"
+            "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script "res://tests/systems/$suite.gd" 2>&1 | tee "$log"
+            if grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|FAIL" "$log"; then
+              echo "FAILED: $suite"; exit 1
+            fi
+          done
+
+      - name: Capture the walk
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR" "$OUT"
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$HOME/.local/bin/godot" \
+            --path . \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --fixed-fps 30 \
+            --script res://tools/runtime/capture_snow_walk.gd -- "$OUT" > "$OUT/raw.log" 2>&1 || status=$?
+          grep -v PerfJSON "$OUT/raw.log" > "$OUT/capture.log" || true
+          rm -f "$OUT/raw.log"
+          tail -n 40 "$OUT/capture.log"
+          [ "${status:-0}" -eq 0 ] || exit "$status"
+          if grep -qE "SHADER ERROR|SCRIPT ERROR|SNOW_WALK_CAPTURE FAIL" "$OUT/capture.log"; then
+            echo "Capture reported an error."
+            exit 1
+          fi
+
+      - name: Encode videos and review sheet
+        if: always()
+        run: |
+          for view in tps legs; do
+            if ls "$OUT/$view"/*.png >/dev/null 2>&1; then
+              ffmpeg -y -loglevel error -framerate 15 -i "$OUT/$view/%04d.png" -vf "scale=960:-2" -c:v libx264 -pix_fmt yuv420p -crf 22 "$OUT/$view.mp4"
+            fi
+          done
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          from PIL import Image
+          out = Path(os.environ["OUT"])
+          tiles = []
+          for view in ("legs", "tps"):
+              frames = sorted((out / view).glob("*.png"))
+              if frames:
+                  tiles += [frames[int(i * (len(frames) - 1) / 3)] for i in (0, 1, 2, 3)]
+          tiles += sorted(out.glob("prints_*.png"))
+          if tiles:
+              cols = 4
+              rows = (len(tiles) + cols - 1) // cols
+              sheet = Image.new("RGB", (480 * cols, 270 * rows))
+              for k, t in enumerate(tiles):
+                  sheet.paste(Image.open(t).convert("RGB").resize((480, 270)), ((k % cols) * 480, (k // cols) * 270))
+              sheet.save(out / "review_sheet.jpg", quality=72)
+          report = out / "report.json"
+          if report.exists():
+              data = json.loads(report.read_text())
+              frames = data["frames"]
+              deepest = max((max(f["sink"]) for f in frames), default=0.0)
+              print("SNOW_WALK_SUMMARY", json.dumps({"plunges": data["plunges"], "frames": len(frames), "deepest_sink_m": deepest,
+                  "max_depth_m": max((f["depth"] for f in frames), default=0.0)}))
+          PY
+          ## Artifacts are not reachable from every reviewer's sandbox: the sheet also goes to the log.
+          if [ -f "$OUT/review_sheet.jpg" ]; then echo "REVIEW_SHEET_BEGIN"; base64 -w 0 "$OUT/review_sheet.jpg"; echo; echo "REVIEW_SHEET_END"; fi
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-snow-walk
+          path: |
+            ${{ env.OUT }}/*.mp4
+            ${{ env.OUT }}/*.png
+            ${{ env.OUT }}/*.jpg
+            ${{ env.OUT }}/report.json
+            ${{ env.OUT }}/capture.log
           if-no-files-found: warn
           retention-days: 7

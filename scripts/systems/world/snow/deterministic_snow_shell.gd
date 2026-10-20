@@ -1,6 +1,9 @@
 class_name DeterministicSnowShell
 extends "res://scripts/systems/world/snow/snow_shell.gd"
 
+## A boot broke through wind crust or into a drift pocket and plunged `plunge_m` deep.
+signal crust_broke(side: int, position: Vector3, plunge_m: float)
+
 const GRAPHICS: GDScript = preload("res://scripts/settings/graphics_quality.gd")
 const CONTACT_WINDOW_M: float = 6.4
 const CONTACT_RES: int = 256
@@ -14,6 +17,11 @@ var _foot_stamps: Array[Dictionary] = []
 var _contact_origin: Vector2 = Vector2(INF, INF)
 var _snow_pass_elapsed: float = 0.0
 var _snow_pass_interval: float = 0.25
+## How each planted boot settles (SnowResistance), and whether it has broken through yet.
+var _plants: Array[SnowResistance.Plant] = [null, null]
+var _plunged: Array[bool] = [false, false]
+## Plants that broke through since the world loaded; captures read it.
+var plunge_count: int = 0
 
 
 func _ready() -> void:
@@ -195,16 +203,17 @@ func _upload_pending_stamps(mat: ShaderMaterial) -> int:
 			var stamp: Dictionary = _foot_stamps[i]
 			var position: Vector3 = stamp["position"]
 			var depth: float = field.get_depth(position.x, position.z)
-			var softness: float = field.get_softness(position.x, position.z)
-			var give: float = depth * max_pack * softness
+			var give: float = depth * max_pack
 			if give <= 0.0001:
 				continue
 			var speed_mps: float = float(stamp["speed"])
 			var impact: float = clampf(speed_mps / maxf(impact_speed_mps, 0.1), 0.0, 1.0)
-			var press: float = maxf(MIN_STAMP_DEPTH_M, give * lerpf(0.35, impact_share, impact))
-			press = minf(press, give)
+			## The outsole's first imprint is where the boot rests; a plunge deepens it
+			## through the contact soles as the boot sinks.
+			var support: float = _resistance_at(Vector2(position.x, position.z), 1.0, impact).support
+			var press: float = minf(maxf(MIN_STAMP_DEPTH_M, support * lerpf(0.6, 1.0, impact)), give)
 			var side: int = int(stamp["side"])
-			var half_length: float = maxf(_sole_len[side] * 0.5, 0.12)
+			var half_length: float = boot_half_m().x
 			var encoded: Array[Vector4] = stamp_uniforms(
 				position,
 				stamp["normal"],
@@ -223,6 +232,15 @@ func _upload_pending_stamps(mat: ShaderMaterial) -> int:
 	mat.set_shader_parameter("foot_stamp_a", a)
 	mat.set_shader_parameter("foot_stamp_b", b)
 	return consumed
+
+
+## How the snow under `at` takes a boot carrying `load_share` of Henry's weight.
+func _resistance_at(at: Vector2, load_share: float, impact: float = -1.0) -> SnowResistance.Plant:
+	if impact < 0.0:
+		impact = clampf(_speed / maxf(impact_speed_mps, 0.1), 0.0, 1.0)
+	var depth: float = field.get_depth(at.x, at.y)
+	var drift: float = maxf(depth - field.settled_depth(_cover()), 0.0)
+	return SnowResistance.plant(at, depth, field.get_softness(at.x, at.y), drift, impact, max_pack, load_share)
 
 
 func _place_soles(delta: float) -> void:
@@ -260,9 +278,11 @@ func _place_soles(delta: float) -> void:
 				_sole_basis[side] = Basis.looking_at(along.normalized(), Vector3.UP)
 				_sole_fwd[side] = Vector2(along.x, along.z).normalized()
 				_sole_at[side] = Vector2((heel.x + toe_bone.x) * 0.5, (heel.z + toe_bone.z) * 0.5)
-			_sole_len[side] = heel.distance_to(toe_bone) + sole_margin_m * 2.0
+			_sole_len[side] = BootSole.LENGTH_M
 			_heel_rest[side] = heel.y - (foot["ball"] as Vector3).y
 			_stance[side] = 0.0
+			_plants[side] = _resistance_at(_sole_at[side], 0.6 if standing else 1.0)
+			_plunged[side] = false
 			if not standing:
 				_since_plant = 0.0
 				var here: float = field.get_depth(_sole_at[side].x, _sole_at[side].y)
@@ -275,24 +295,29 @@ func _place_soles(delta: float) -> void:
 		var top: float = field.get_snow_top(at.x, at.y)
 		var depth: float = field.get_depth(at.x, at.y)
 		var softness: float = field.get_softness(at.x, at.y)
-		var give: float = depth * max_pack * softness
 		var was: float = _sink[side]
 		var impact: float = clampf(_speed / maxf(impact_speed_mps, 0.1), 0.0, 1.0)
-		_sink[side] = sink_after(_stance[side], give, sink_time_s / (1.0 + impact), impact * impact_share)
+		var plant: SnowResistance.Plant = _plants[side]
+		_sink[side] = SnowResistance.sink_at(plant, _stance[side], sink_time_s / (1.0 + impact), impact * impact_share)
+		if plant.broke() and not _plunged[side] and _stance[side] > plant.break_s:
+			## The leg goes through: a stumble in the stride, like a deep-snow plant.
+			_plunged[side] = true
+			plunge_count += 1
+			_since_plant = 0.0
+			_plant_wade = maxf(_plant_wade, clampf(plant.plunge / deep_snow_m, 0.0, 1.0))
+			crust_broke.emit(side, Vector3(at.x, top, at.y), plant.plunge)
 		_foot_top[side] = top
 		_raise[side] = clampf(depth - _sink[side], 0.0, depth) if top > -INF else 0.0
 		if top > -INF:
 			_queue_rim(side, _sink[side] - was, softness)
 		var bottom: float = top - _sink[side] if top > -INF else -1000.0
 		var dig: Vector2 = _roll_dig(side, foot, softness)
-		var fwd := Vector3(_sole_fwd[side].x, 0.0, _sole_fwd[side].y)
 		var centre := Vector3(at.x, 0.0, at.y)
-		var length: float = _sole_len[side]
+		## Heel block and forefoot of the same outsole, each digging on its own.
+		var sole_scale := Vector3(sole_width_m, 0.3, BootSole.LENGTH_M)
 		_heels[side].global_transform = Transform3D(
-			_sole_basis[side].scaled_local(Vector3(sole_width_m * 0.85, 0.3, length * 0.44)),
-			centre - fwd * length * 0.28 + Vector3.UP * (bottom - dig.x + 0.15)
+			_sole_basis[side].scaled_local(sole_scale), centre + Vector3.UP * (bottom - dig.x + 0.15)
 		)
 		_balls[side].global_transform = Transform3D(
-			_sole_basis[side].scaled_local(Vector3(sole_width_m, 0.3, length * 0.64)),
-			centre + fwd * length * 0.17 + Vector3.UP * (bottom - dig.y + 0.15)
+			_sole_basis[side].scaled_local(sole_scale), centre + Vector3.UP * (bottom - dig.y + 0.15)
 		)

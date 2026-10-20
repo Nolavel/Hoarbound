@@ -6,6 +6,7 @@ render_mode cull_back, depth_draw_opaque;
 // prints, and outwards the chunk cover's own 2 m triangles. See docs/technical/SNOW_COVER.md.
 #include "res://shaders/environment/snow/snow_surface.gdshaderinc"
 #include "res://shaders/environment/snow/snow_far_cover.gdshaderinc"
+#include "res://shaders/environment/snow/boot_sole.gdshaderinc"
 #include "res://shaders/environment/stylized_shadow.gdshaderinc"
 #include "res://shaders/environment/materials/painterly_surface.gdshaderinc"
 
@@ -13,6 +14,9 @@ render_mode cull_back, depth_draw_opaque;
 uniform sampler2D field : filter_linear, repeat_disable;
 // R: metres packed down, walls shaped to the repose slope and softened.
 uniform sampler2D packed_field : filter_linear, repeat_disable;
+// The accumulator before shaping: R packed, G B sole-local uv of the newest print, A its freshness.
+uniform sampler2D print_field : filter_linear, repeat_disable;
+uniform vec2 boot_half_m = vec2(0.1525, 0.055);
 uniform sampler2D settled_normal_field : filter_linear, repeat_disable;
 uniform bool use_settled_normal_field = false;
 // Chunk cover lattice around the window: ground, shore fade, ground normal x and z.
@@ -162,6 +166,9 @@ SnowSample snow_sample(vec2 xz) {
 		s.jag = edge_jag(xz, s.crust);
 		vec2 puv = uv + s.jag;
 		s.packed = packed_at(puv);
+		// A fresh boot print keeps its own outline: the unshaped field, not the softened one.
+		vec4 pf = texture(print_field, uv);
+		s.packed = mix(s.packed, pf.r, clamp(pf.a, 0.0, 1.0) * step(0.003, pf.r));
 		// The floor of a print is lumpy: grains pack unevenly under a boot.
 		s.packed += (snow_noise(xz * 9.0) - 0.5) * 0.02 * smoothstep(0.02, 0.06, s.packed);
 		// Pushed-aside snow heaps in crumbs, not a smooth bead.
@@ -337,9 +344,45 @@ void fragment() {
 				near_n = normalize(near_n + vec3(snow_noise(v_world.xz * 40.0) - 0.5, 0.0, snow_noise(v_world.xz * 40.0 + 7.0) - 0.5) * crack * 0.6);
 			}
 		}
+		// The boot's outsole, exact per pixel: its uv is affine in xz, so filtering keeps it.
+		float lug_groove = 0.0;
+		vec4 pf = texture(print_field, uv);
+		float fresh_print = clamp(pf.a, 0.0, 1.0) * v_deform * smoothstep(0.003, 0.012, packed_height);
+		if (fresh_print > 0.02) {
+			mat2 dw = mat2(dFdx(v_world.xz), dFdy(v_world.xz));
+			float det = determinant(dw);
+			if (abs(det) > 1e-10) {
+				mat2 to_sole = mat2(dFdx(pf.gb), dFdy(pf.gb)) * inverse(dw);
+				vec2 sole = pf.gb;
+				float e = 0.01;
+				float edge = boot_edge_m(sole, boot_half_m);
+				vec2 g_edge = vec2(boot_edge_m(sole + vec2(e, 0.0), boot_half_m) - boot_edge_m(sole - vec2(e, 0.0), boot_half_m),
+					boot_edge_m(sole + vec2(0.0, e), boot_half_m) - boot_edge_m(sole - vec2(0.0, e), boot_half_m)) / (2.0 * e);
+				vec2 out_xz = transpose(to_sole) * g_edge;
+				// Crust breaks off near vertical; powder walls slump wider.
+				float wall_w = mix(0.03, 0.012, v_crust);
+				float band = smoothstep(-wall_w, -wall_w * 0.4, edge) * (1.0 - smoothstep(0.0, wall_w * 0.3, edge));
+				if (dot(out_xz, out_xz) > 1e-6) {
+					near_n = normalize(near_n - vec3(out_xz.x, 0.0, out_xz.y) / length(out_xz) * band * fresh_print * min(packed_height / wall_w, 2.5));
+				}
+				wall = max(wall, band * fresh_print);
+				// Lugs press grooves into the floor; the tread fades once a pixel spans it.
+				float tread = fresh_print * (1.0 - smoothstep(0.002, 0.006, length(fwidth(v_world.xz)))) * (1.0 - smoothstep(-0.006, -0.001, edge));
+				if (tread > 0.01) {
+					vec2 eu = vec2(0.0015) / boot_half_m;
+					float lug = boot_lug(sole, boot_half_m);
+					vec2 g_lug = vec2(boot_lug(sole + vec2(eu.x, 0.0), boot_half_m) - boot_lug(sole - vec2(eu.x, 0.0), boot_half_m),
+						boot_lug(sole + vec2(0.0, eu.y), boot_half_m) - boot_lug(sole - vec2(0.0, eu.y), boot_half_m)) / (2.0 * eu);
+					vec2 lug_xz = transpose(to_sole) * g_lug;
+					near_n = normalize(near_n + vec3(lug_xz.x, 0.0, lug_xz.y) * 0.004 * tread);
+					lug_groove = lug * tread;
+				}
+			}
+		}
 		float packed = smoothstep(0.01, 0.08, packed_height);
 		float crust = smoothstep(0.005, 0.04, rim_height);
 		vec3 color = mix(fresh_color, packed_color, packed);
+		color *= 1.0 - 0.1 * lug_groove;
 		float heap = smoothstep(0.004, 0.03, -packed_height);
 		color *= 1.0 + crust * 0.06 + heap * 0.04 - snow_breakup(v_world, 5.0) * 0.03;
 		// Deep drifts read a touch brighter on the crest; shallow cover equals the terrain.

@@ -222,6 +222,16 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   reach the bottom of the pit they made. `MovementController.snow_speed_multiplier`
   falls from 1.0 at 5 cm to 0.6 at 50 cm of snow, `snow_accel_multiplier` to
   0.45: deep snow is slow to get going in.
+- **Snowpack under the boot (`SnowResistance`).** What lies between the drawn
+  top and the ground is felt, not seen. Loose snow compacts by its share of the
+  give. Wind crust holds a boot until the step's load (more when running, about
+  half when standing on both) beats its strength, which varies in ~1.6 m patches
+  across the world; then, after a beat, the leg drops to the full give. Drifts
+  (snow deeper than the settled cover: lee ramps, banks) hide ~1 m soft pockets
+  where a leg plunges almost to the ground. The surface looks the same either way.
+  A plunge dips Henry's speed like a deep plant, plays a crust snap and a deep
+  whump (`crust_broke`), and the hips follow the lower boot as before: one leg
+  through drops the body, both take it waist-deep. Deterministic by place.
 - **Standing.** Standing still (under 0.15 m/s, on the floor) both boots count
   as planted and rest in their prints; the step sensor only plants moving steps,
   so idle feet used to be lifted onto the snow top with the hips following 60 %
@@ -283,10 +293,17 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   fill in. In Key West the near and far heights share the baked baseline.
   Where the snow thins under ~2 cm the shell is discarded and the ground shows,
   instead of the two surfaces z-fighting at the shore.
-- **Prints.** Below `wade_depth_m` (30 cm) only planted soles press: a sole of
-  two overlapping ovals (heel and forefoot, so it has a boot's waist) is set
-  where each foot lands and held until it lifts, so the gliding walk clip
-  leaves separate prints. The heel digs `heel_dig_m` extra on strike and the
+- **Prints.** Below `wade_depth_m` (30 cm) only planted soles press: Henry's army
+  boot outsole (`BootSole`, 30.5 cm: a square-shouldered heel block with a straight
+  breast, a narrow arched shank that presses at 45 %, a wide ball and a round toe)
+  is set where each foot lands and held until it lifts, so the gliding walk clip
+  leaves separate prints. The persistent stamp and the contact soles use the same
+  outline. The stamp also writes the print's sole-local uv into the packed field
+  (G, B; A freshness), and `snow_ground` draws the exact outline, broken crust or
+  slumped powder walls, and the tread from it per pixel: chevron lugs on the
+  forefoot, transverse bars on the heel, a centre channel and a lugged rim. The
+  uv is affine in xz, so filtering keeps it exact; the tread fades once a pixel
+  spans it and as the print fills in. The heel digs `heel_dig_m` extra on strike and the
   ball `toe_dig_m` as the clip lifts the heel, scaled by pace and softness: a
   print is deep at both ends and shallow under the arch. On toe-off in powder
   a burst of grains is flicked ahead. Deeper, Henry's whole mesh ploughs.

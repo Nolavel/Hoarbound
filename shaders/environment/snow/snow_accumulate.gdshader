@@ -3,6 +3,8 @@ render_mode blend_disabled;
 
 // Persistent packed-snow field, ping-ponged between two viewports.
 // R: metres packed below the settled top, negative where displaced snow piles up.
+// G, B: sole-local uv of the newest boot print around this texel, A: its freshness;
+// snow_ground draws the exact outsole and tread from them (affine, so filtering is exact).
 // Model after Sumner, O'Brien & Hodgins 1999: a boot compresses part of the snow,
 // displaces the rest onto a rim, and walls erode to their slope, conserving mass.
 uniform sampler2D previous : filter_nearest, repeat_disable;
@@ -12,7 +14,11 @@ uniform sampler2D restore : filter_linear, repeat_disable;
 uniform sampler2D contact_tex : filter_nearest, repeat_disable;
 // Settled field: R snow top (world y), G depth, B cut away.
 uniform sampler2D field : filter_linear, repeat_disable;
+#include "res://shaders/environment/snow/boot_sole.gdshaderinc"
+
 uniform float base_y = 0.0;
+// Outsole half length and half width, metres.
+uniform vec2 boot_half_m = vec2(0.1525, 0.055);
 // The packed field and contact capture have independent world windows.
 uniform vec2 field_origin = vec2(0.0);
 uniform float field_window_m = 25.6;
@@ -75,10 +81,12 @@ float contact_height(vec2 field_uv) {
 	return texture(contact_tex, vec2(contact_uv.x, 1.0 - contact_uv.y)).r + base_y;
 }
 
-// A persistent plant event. Its inverse 2D basis was built from the foot's
-// tangent-plane forward/right vectors, so road slope and camber are preserved.
-float foot_stamp_depth(vec2 uv) {
-	float pressed = 0.0;
+// Persistent plant events, pressed in the army boot's outsole. Their inverse 2D basis
+// was built from the foot's tangent-plane forward/right vectors, so slope and camber
+// are preserved. Returns the press depth and, for the newest print whose box covers
+// this texel, its sole-local uv (z, w; 9 when none).
+vec4 foot_stamps(vec2 uv) {
+	vec4 result = vec4(0.0, 0.0, 9.0, 9.0);
 	for (int i = 0; i < 16; i++) {
 		if (i >= foot_stamp_count) {
 			break;
@@ -87,13 +95,14 @@ float foot_stamp_depth(vec2 uv) {
 		vec4 b = foot_stamp_b[i];
 		vec2 d = uv - a.xy;
 		vec2 local = vec2(dot(d, a.zw), dot(d, b.xy));
-		float r2 = dot(local, local);
-		if (r2 <= 1.0 && b.w > 0.5) {
-			float edge = 1.0 - smoothstep(0.82, 1.0, r2);
-			pressed = max(pressed, b.z * edge);
+		if (b.w < 0.5 || abs(local.x) > 1.3 || abs(local.y) > 1.7) {
+			continue;
 		}
+		float inside = 1.0 - smoothstep(-0.006, 0.0, boot_edge_m(local, boot_half_m));
+		result.x = max(result.x, b.z * boot_press(local.x) * inside);
+		result.zw = local;
 	}
-	return pressed;
+	return result;
 }
 
 // True where something on the contact layer holds the snow down at this texel:
@@ -131,8 +140,10 @@ void fragment() {
 	bool snow = settled.b < 0.5;
 	bool kept = from.x >= 0.0 && from.y >= 0.0 && from.x <= 1.0 && from.y <= 1.0;
 	float packed = texture(restore, uv).r;
+	vec3 print_uv = vec3(0.0);
 	if (kept) {
 		packed = texture(previous, from).r;
+		print_uv = texture(previous, from).gba;
 		// Walls steeper than the snow can hold shed into the pit, mass for mass.
 		// Each edge flux is symmetric, so both texels agree on what moved.
 		if (snow && !held(uv, settled)) {
@@ -186,12 +197,18 @@ void fragment() {
 	}
 	// B below 0.5 is softness (x0.49): wind crust holds a foot, powder lets it sink.
 	float give = settled.g * max_pack * clamp(settled.b / 0.49, 0.0, 1.0);
+	// Prints fade with the snow that fills them; a new plant takes over its box.
+	print_uv.z *= 1.0 - fill;
+	vec4 stamp = foot_stamps(uv);
+	if (stamp.z < 9.0) {
+		print_uv = vec3(stamp.zw, 1.0);
+	}
 	if (!snow) {
 		packed = 0.0;
 	} else {
 		// Guaranteed discrete plant path. This does not depend on a rendered contact
 		// frame existing at the exact instant the animated boot touched down.
-		packed = max(packed, min(foot_stamp_depth(uv), give));
+		packed = max(packed, min(stamp.x, give));
 		// Continuous body/item/sole capture. The contact camera is local, so its
 		// sub-texel taps are converted back into packed-field UV distance.
 		float contact_texel_m = contact_window_m / float(textureSize(contact_tex, 0).x);
@@ -208,5 +225,8 @@ void fragment() {
 		packed = max(packed, live_pressed * 0.25);
 		packed = clamp(packed, -min(rim_max, settled.g + 0.05), give);
 	}
-	COLOR = vec4(packed, 0.0, 0.0, 1.0);
+	if (!snow) {
+		print_uv = vec3(0.0);
+	}
+	COLOR = vec4(packed, print_uv.xy, print_uv.z);
 }

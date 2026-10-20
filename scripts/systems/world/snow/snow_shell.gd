@@ -357,7 +357,7 @@ func _place_soles(delta: float) -> void:
 				along = Vector3.FORWARD * 0.2
 			_sole_basis[side] = Basis.looking_at(along.normalized(), Vector3.UP)
 			_sole_fwd[side] = Vector2(along.x, along.z).normalized()
-			_sole_len[side] = along.length() + sole_margin_m * 2.0
+			_sole_len[side] = BootSole.LENGTH_M
 			_sole_at[side] = Vector2((heel.x + toe.x) * 0.5, (heel.z + toe.z) * 0.5)
 			_heel_rest[side] = heel.y - (foot["ball"] as Vector3).y
 			_stance[side] = 0.0
@@ -385,16 +385,14 @@ func _place_soles(delta: float) -> void:
 		## Outside the window there is no snow to press: park the sole far below.
 		var bottom: float = top - _sink[side] if top > -INF else -1000.0
 		var dig: Vector2 = _roll_dig(side, foot, softness)
-		var fwd := Vector3(_sole_fwd[side].x, 0.0, _sole_fwd[side].y)
 		var centre := Vector3(at.x, 0.0, at.y)
-		var length: float = _sole_len[side]
+		## Heel block and forefoot of the same outsole, each digging on its own.
+		var sole_scale := Vector3(sole_width_m, 0.3, BootSole.LENGTH_M)
 		_heels[side].global_transform = Transform3D(
-			_sole_basis[side].scaled_local(Vector3(sole_width_m * 0.85, 0.3, length * 0.44)),
-			centre - fwd * length * 0.28 + Vector3.UP * (bottom - dig.x + 0.15)
+			_sole_basis[side].scaled_local(sole_scale), centre + Vector3.UP * (bottom - dig.x + 0.15)
 		)
 		_balls[side].global_transform = Transform3D(
-			_sole_basis[side].scaled_local(Vector3(sole_width_m, 0.3, length * 0.64)),
-			centre + fwd * length * 0.17 + Vector3.UP * (bottom - dig.y + 0.15)
+			_sole_basis[side].scaled_local(sole_scale), centre + Vector3.UP * (bottom - dig.y + 0.15)
 		)
 
 
@@ -510,6 +508,7 @@ func _process(delta: float) -> void:
 	_pending_shift = Vector2.ZERO
 	_accum[target].render_target_update_mode = SubViewport.UPDATE_ONCE
 	_shape_mat[0].set_shader_parameter("source", _accum[target].get_texture())
+	_surface.set_shader_parameter("print_field", _accum[target].get_texture())
 	for vp: SubViewport in _shape:
 		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_parity = 1 - _parity
@@ -528,6 +527,11 @@ func recentre_to(centre: Vector2) -> void:
 	field.storm_share = _storm_share()
 	field.rebuild(wanted, cover, wind)
 	_apply_window(old, wanted, cover, wind)
+
+
+## Outsole half length and half width, metres, for the stamp and the drawn tread.
+func boot_half_m() -> Vector2:
+	return Vector2(BootSole.LENGTH_M * 0.5, sole_width_m * 0.5)
 
 
 ## Speed share while wading through `depth_m` of settled snow.
@@ -743,6 +747,7 @@ func _build_surface() -> void:
 	_surface.set_shader_parameter("repose_tan", tan(deg_to_rad(crust_wall_deg)))
 	_surface.set_shader_parameter("deform_fade", deform_fade_m)
 	_surface.set_shader_parameter("far_fade", far_fade_m)
+	_surface.set_shader_parameter("boot_half_m", boot_half_m())
 	_mesh = MeshInstance3D.new()
 	_mesh.name = "SnowShellMesh"
 	_build_rings(false)
@@ -838,11 +843,17 @@ func _build_capture() -> void:
 	oval.height = 1.0
 	oval.radial_segments = 20
 	oval.rings = 1
+	## The army boot's outsole in two parts, so heel strike and toe push-off dig apart.
+	var heel_block: ArrayMesh = BootSole.build_mesh(-1.0, BootSole.BREAST_U)
+	var forefoot: ArrayMesh = BootSole.build_mesh(BootSole.BREAST_U, 1.0)
+	var both_sides := StandardMaterial3D.new()
+	both_sides.cull_mode = BaseMaterial3D.CULL_DISABLED
 	for i: int in range(2):
 		for pad: String in ["Heel", "Ball"]:
 			var sole := MeshInstance3D.new()
 			sole.name = "Sole%s%d" % [pad, i]
-			sole.mesh = oval
+			sole.mesh = heel_block if pad == "Heel" else forefoot
+			sole.material_override = both_sides
 			sole.layers = CONTACT_LAYER
 			sole.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			sole.visible = false
@@ -865,6 +876,8 @@ func _build_capture() -> void:
 	for i: int in range(2):
 		var vp: SubViewport = _viewport("SnowPacked%d" % i, packed_res)
 		vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		## Alpha carries print freshness, not coverage.
+		vp.transparent_bg = true
 		var mat := ShaderMaterial.new()
 		mat.shader = ACCUMULATE_SHADER
 		mat.set_shader_parameter("contact_tex", _contact.get_texture())
@@ -875,6 +888,7 @@ func _build_capture() -> void:
 		mat.set_shader_parameter("talus_crust", tan(deg_to_rad(crust_wall_deg)) * tex_m)
 		mat.set_shader_parameter("roughness", crumble)
 		mat.set_shader_parameter("rim_uv", rim_peak_m / window_m)
+		mat.set_shader_parameter("boot_half_m", boot_half_m())
 		var rect := ColorRect.new()
 		rect.size = Vector2(packed_res, packed_res)
 		rect.material = mat
