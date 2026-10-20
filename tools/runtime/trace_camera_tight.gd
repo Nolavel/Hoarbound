@@ -96,7 +96,7 @@ func _bind() -> bool:
 	_house = shelter.get_node(^"House") as Node3D
 	_floor_y = float(shelter.interior["floor_y"])
 	_csv = FileAccess.open(_abs(_out).path_join("trace.csv"), FileAccess.WRITE)
-	_csv.store_line("spot,phase,frame,yaw_deg,view_yaw_deg,pitch,auto_yaw_deg,auto_pitch_deg,openness,boom,side,shoulder_pct,recompose,composition,eye_distance,passage_blend,traversal,eye_sx,eye_sy,cam_x,cam_y,cam_z")
+	_csv.store_line("spot,phase,frame,yaw_deg,view_yaw_deg,pitch,auto_yaw_deg,auto_pitch_deg,openness,boom,side,shoulder_pct,recompose,composition,lift,eye_distance,passage_blend,traversal,eye_sx,eye_sy,cam_x,cam_y,cam_z")
 	return true
 
 
@@ -136,10 +136,10 @@ func _record() -> void:
 	state.merge({"spot": SPOTS[_spot][0], "phase": _phase, "frame": _phase_frame, "eye_sx": eye.x, "eye_sy": eye.y,
 		"cam": cam})
 	_rows.append(state)
-	_csv.store_line("%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f" % [
+	_csv.store_line("%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f" % [
 		state.spot, state.phase, state.frame, rad_to_deg(state.yaw), rad_to_deg(state.view_yaw), state.pitch,
 		state.auto_yaw_deg, state.auto_pitch_deg, state.openness, state.boom, state.side, state.shoulder_pct,
-		state.recompose, state.composition, state.eye_distance, state.passage_blend, state.traversal, eye.x, eye.y,
+		state.recompose, state.composition, state.lift, state.eye_distance, state.passage_blend, state.traversal, eye.x, eye.y,
 		cam.x, cam.y, cam.z])
 
 
@@ -155,7 +155,7 @@ func _finish() -> void:
 	for key: String in groups:
 		var rows: Array = groups[key]
 		var sum: Dictionary = {"frames": rows.size()}
-		for field: String in ["boom", "side", "composition", "eye_sx", "eye_sy", "openness"]:
+		for field: String in ["boom", "side", "composition", "lift", "eye_sx", "eye_sy", "openness"]:
 			var lo: float = INF
 			var hi: float = -INF
 			var jump: float = 0.0
@@ -173,6 +173,15 @@ func _finish() -> void:
 			if i > 0 and (float(rows[i].recompose) > 0.5) != (float(rows[i - 1].recompose) > 0.5):
 				flips += 1
 		sum["recompose_flips"] = flips
+		var off: int = 0
+		var close: int = 0
+		for row: Dictionary in rows:
+			if float(row.eye_sx) < 0.0 or float(row.eye_sx) > 1.0 or float(row.eye_sy) < 0.0 or float(row.eye_sy) > 1.0:
+				off += 1
+			if float(row.eye_distance) < 0.8:
+				close += 1
+		sum["eye_off_frames"] = off
+		sum["close_frames"] = close
 		sum["auto_turn_max_deg"] = snappedf(auto_max, 0.1)
 		report[key] = sum
 	var file: FileAccess = FileAccess.open(_abs(_out).path_join("report.json"), FileAccess.WRITE)

@@ -150,6 +150,21 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## Above this composition the space is tight: no room search and no whiskers turn the view.
 @export_range(0.0, 1.0, 0.05) var tight_auto_look_cutoff: float = 0.3
 
+@export_group("Shoulder lift")
+## Back to a wall or in a corner, the camera body climbs the orbit over Henry's shoulder and
+## looks down at him instead of pressing into him (GoW / TLOU close quarters).
+## How far the camera body climbs the orbit at full lift, and how far the view tilts down
+## with it: less, so Henry sits low in the frame and the room ahead stays in view.
+@export_range(0.0, 85.0, 1.0) var shoulder_lift_pitch_deg: float = 70.0
+@export_range(0.0, 60.0, 1.0) var shoulder_lift_view_deg: float = 35.0
+## Extra pivot height at full lift, capped by the ceiling, metres.
+@export var shoulder_lift_rise: float = 0.3
+## Free room behind Henry (level, along the view) at which the lift is full and at which it is gone.
+@export var shoulder_lift_full_room: float = 0.3
+@export var shoulder_lift_free_room: float = 1.0
+@export_range(0.1, 20.0, 0.1) var shoulder_lift_in_rate: float = 3.0
+@export_range(0.1, 20.0, 0.1) var shoulder_lift_out_rate: float = 1.5
+
 @export_group("Fade")
 ## Render layers of Henry's body; his parts near the camera dither out when it is inside his reach.
 @export_flags_3d_render var body_layers: int = 16
@@ -220,6 +235,8 @@ var _fov_offset: float = 0.0
 var _composition: float = 0.0
 ## Recompose goal the shoulder is easing to; replaced only past recompose_hysteresis.
 var _recompose_goal: float = 0.0
+## 0 with room behind Henry, 1 with the camera fully over his shoulder.
+var _lift: float = 0.0
 ## Lateral shoulder offset asked for this frame, before walls (for traces).
 var _last_side: float = 0.0
 
@@ -446,6 +463,10 @@ func _update_rig(delta: float) -> void:
 		orbit_pitch = lerpf(view_pitch, clampf(view_pitch, -_cone.z, _cone.w), blend)
 	else:
 		_cone = Vector4(PI, PI, 90.0, 90.0)
+	var lift: float = _update_lift(delta, safe, view_yaw) * (1.0 - _passage_blend)
+	view_pitch = clampf(view_pitch - lift * shoulder_lift_view_deg, pitch_min_deg, pitch_max_deg)
+	orbit_pitch = clampf(orbit_pitch - lift * shoulder_lift_pitch_deg, -85.0, pitch_max_deg)
+	pivot += Vector3.UP * lift * _lift_rise(pivot)
 	var right := Vector3(cos(orbit_yaw), 0.0, -sin(orbit_yaw))
 	var back: Vector3 = _back(orbit_yaw, orbit_pitch)
 	side *= 1.0 - _update_recompose(delta, safe, pivot, right * side, back, want)
@@ -520,8 +541,25 @@ func get_debug_state() -> Dictionary:
 	return {"yaw": _yaw, "view_yaw": get_view_yaw(), "pitch": get_view_pitch_deg(),
 		"auto_yaw_deg": rad_to_deg(_auto_yaw), "auto_pitch_deg": _auto_pitch_deg,
 		"openness": _openness, "room": _room, "boom": _boom, "side": _last_side, "shoulder_pct": _shoulder_pct,
-		"recompose": _recompose, "composition": _composition, "eye_distance": _last_eye_distance,
+		"recompose": _recompose, "composition": _composition, "lift": _lift, "eye_distance": _last_eye_distance,
 		"passage_blend": _passage_blend, "traversal": _passage_traversal() if is_instance_valid(player) else 0.0}
+
+
+## Eases the shoulder lift to how little level room is behind Henry along the view. Cast from
+## inside him, so the lift never changes the room it reads (no feedback across frames).
+func _update_lift(delta: float, safe: Vector3, view_yaw: float) -> float:
+	var room: float = _probe.sweep(safe, _back(view_yaw, 0.0) * maxf(_boom, shoulder_lift_free_room))
+	var goal: float = 1.0 - smoothstep(shoulder_lift_full_room, shoulder_lift_free_room, room)
+	var rate: float = shoulder_lift_in_rate if goal > _lift else shoulder_lift_out_rate
+	_lift = goal if not _has_position else lerpf(_lift, goal, _damp(rate, delta))
+	return _lift
+
+
+## Pivot rise at full lift: shoulder_lift_rise, or what the ceiling leaves above the pivot.
+func _lift_rise(pivot: Vector3) -> float:
+	var clearance: float = collision_radius + collision_surface_margin
+	var room: float = _probe.ray(pivot, Vector3.UP * (shoulder_lift_rise + clearance)) - clearance
+	return clampf(room, 0.0, shoulder_lift_rise)
 
 
 ## 1 while Henry is in a doorway or walking at it, 0 while he stands beside one: only a

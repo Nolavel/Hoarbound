@@ -8,6 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Shoulder lift in corners (owner request): with little room behind Henry the camera climbs over his shoulder (70° up
+  the orbit, view tilted 35°, pivot up to 0.3 m under the ceiling) instead of pressing into him. In the 727 corner his
+  head left the frame in 1 of 240 turn frames (was 51) and facing the corridor wall in none (was 25).
+  `docs/technical/TPS_CAMERA.md` → Shoulder lift.
 - Tight-space camera composition (owner reference): Henry at the frame's left (eyes at 27 %) in cramped rooms, after
   Cinemachine Third Person Follow, Grossman's framing (NZGDC 2025) and Nesky (GDC 2014). Measured first with
   `tools/runtime/trace_camera_tight.gd` in 727: the composition followed the view (0.50–0.80 at the stove during one

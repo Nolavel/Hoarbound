@@ -304,6 +304,19 @@ automatic turn stayed at 0 (was up to 30° in a corner). Known limit: facing a w
 1.8 m corridor or a room corner the shoulder has no room and the camera comes close to
 Henry, who fades.
 
+### Shoulder lift
+
+Back to a wall or in a corner the camera climbs over Henry's shoulder instead of pressing
+into him (close quarters in God of War and The Last of Us). `_lift` follows how little
+level room is behind Henry along the view (`_update_lift`, cast from inside him, so the
+lift never changes the room it reads): full at 0.3 m, gone at 1.0 m, rates 3 in, 1.5 out.
+At full lift the camera body climbs 70° up the orbit and the pivot rises up to 0.3 m under
+the ceiling, while the view tilts only 35°: Henry sits low in the frame, the room ahead
+stays visible. Yaw is untouched, so walking still follows the mouse; a doorway turns the
+lift off. Measured in the 727 corner (full turn): Henry's head off screen in 1 frame of
+240 (was 51), the camera closer than 0.8 m in 43 (was 121); facing the corridor wall
+0 off screen (was 25). Henry still dithers where even the lifted boom stays short.
+
 ## What stops the boom
 
 `TpsBoomProbe.passes()` decides this per collider shape:
