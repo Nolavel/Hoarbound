@@ -152,6 +152,8 @@ jobs:
       - name: Upload reality reports
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: hoarbound-key-west-reality
           path: |
@@ -199,6 +201,8 @@ jobs:
       - name: Upload loop report
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: hoarbound-key-west-727-loop
           path: docs/runtime_previews/key_west_727_loop/loop_report.json
@@ -400,6 +404,8 @@ jobs:
       - name: Upload Key West previews
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: ${{ contains(github.event.head_commit.message, '[painterly-wash-preview]') && 'hoarbound-painterly-wash' || (contains(github.event.head_commit.message, '[sky-weather-preview]') && 'hoarbound-sky-weather' || 'hoarbound-stylized-shadows') }}
           path: |
@@ -534,6 +540,8 @@ jobs:
       - name: Upload
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: hoarbound-snow-surface-${{ matrix.variant }}
           path: |
@@ -659,6 +667,8 @@ jobs:
       - name: Upload
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: hoarbound-snow-walk-${{ matrix.snowpack }}
           path: |

@@ -100,6 +100,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- CI: report uploads (`suites` log, capture previews) no longer fail the run when the repository's artifact
+  storage quota is full; every suite had passed on `main` while the job showed red for the upload alone.
 - Outer snow cover no longer crawls or pops while Henry walks (owner report; Codex's `codex` attempts kept the moving square).
   - Cause, measured with a fixed top-down height witness on Duval Street: the shell was one graded square mesh
     that jumped 3.2 m with the field window and blended into the chunk cover over a window-relative 6 m band.
