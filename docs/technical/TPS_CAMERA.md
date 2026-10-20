@@ -315,7 +315,32 @@ the ceiling, while the view tilts only 35°: Henry sits low in the frame, the ro
 stays visible. Yaw is untouched, so walking still follows the mouse; a doorway turns the
 lift off. Measured in the 727 corner (full turn): Henry's head off screen in 1 frame of
 240 (was 51), the camera closer than 0.8 m in 43 (was 121); facing the corridor wall
-0 off screen (was 25). Henry still dithers where even the lifted boom stays short.
+0 off screen (was 25).
+
+### Body guard (no see-through Henry)
+
+Author's rule (2026-10-20): Henry is never see-through in play. Many shipped games fade
+the character (Witcher 3, A Hat in Time's geometry dithering); here the camera is kept
+out of him instead, with Nesky's soft wall:
+
+- Before each mouse step `_body_guard` predicts, with stateless casts from the last frame's
+  pivot, shoulder offset and lift, how close the camera would come to the eyes at the new
+  yaw or pitch. Closer than `guard_soft_distance` (0.8 m) the step is scaled down, at
+  `guard_eye_distance` (0.6 m) it stops. Turning out of trouble is always free.
+- Walking presses the camera too, where the guard cannot act: the lift then climbs up to
+  4x faster (`_pressed`).
+- The composition offset uses the distance the camera really has (`_dist_pct`), so a
+  pressed camera keeps Henry on his spot instead of pushing him out at the side.
+- Over the shoulder the view tilts down as far as Henry's eyes need to stay
+  `shoulder_lift_frame_margin_deg` inside the lower edge, from where they really are.
+- The body fade starts at 0.45 m (was 0.8 m), an emergency only; recompose keeps its own
+  0.8 m (`recompose_full_distance`).
+
+727 trace with S held into each wall or corner added: frames with Henry faded 0 in every
+phase (were 42 corner turn, 59 corner pitch, 55 corridor turn, 26 restroom back-in). The
+mouse is held off 41–47° of a full turn in the corner and the corridor. Known limit: backing
+into the 3.6 × 2.8 m restroom wall the camera can only sit almost above Henry, and his
+eyes touch the lower frame edge for 11 of 75 frames.
 
 ## What stops the boom
 

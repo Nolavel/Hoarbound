@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Henry is never see-through in play (owner rule). A body guard predicts where each mouse step would put the camera
+  and soft-stops turns that take it closer than 0.8–0.6 m to his eyes (turning out is free); walking into a wall
+  speeds up the shoulder lift; the framing offset follows the real camera distance; over the shoulder the view keeps
+  his eyes inside the frame. The fade remains only as an emergency at 0.45 m. 727 trace: faded frames 0 in every
+  phase (were up to 59). `docs/technical/TPS_CAMERA.md` → Body guard.
 - Shoulder lift in corners (owner request): with little room behind Henry the camera climbs over his shoulder (70° up
   the orbit, view tilted 35°, pivot up to 0.3 m under the ceiling) instead of pressing into him. In the 727 corner his
   head left the frame in 1 of 240 turn frames (was 51) and facing the corridor wall in none (was 25).

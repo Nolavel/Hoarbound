@@ -11,6 +11,8 @@ const SETTLE_FRAMES: int = 60
 const TURN_FRAMES: int = 240
 const IDLE_FRAMES: int = 150
 const PITCH_FRAMES: int = 150
+## Henry backs into the spot's wall or corner with S held: the camera is pressed by walking.
+const BACK_FRAMES: int = 75
 ## Frames saved during the turn, one every this many.
 const SHOT_EVERY: int = 30
 ## [name, Henry (u, v), facing point (u, v)] in the shelter plan frame.
@@ -78,6 +80,12 @@ func _process(_delta: float) -> bool:
 			_feed_look(Vector2(0.0, -step if _phase_frame < PITCH_FRAMES / 4 or _phase_frame > PITCH_FRAMES * 3 / 4 else step))
 			_record()
 			if _phase_frame >= PITCH_FRAMES:
+				_begin(&"back_in")
+				Input.action_press(&"move_backward")
+		"back_in":
+			_record()
+			if _phase_frame >= BACK_FRAMES:
+				Input.action_release(&"move_backward")
 				_phase = ""
 	if _spot >= SPOTS.size():
 		_finish()
@@ -134,7 +142,7 @@ func _record() -> void:
 	var eye: Vector2 = _camera.unproject_position(_camera.get_eye_position()) / size
 	var cam: Vector3 = _camera.global_position
 	state.merge({"spot": SPOTS[_spot][0], "phase": _phase, "frame": _phase_frame, "eye_sx": eye.x, "eye_sy": eye.y,
-		"cam": cam})
+		"cam": cam, "body_fade": _camera.get_body_fade()}, true)
 	_rows.append(state)
 	_csv.store_line("%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f" % [
 		state.spot, state.phase, state.frame, rad_to_deg(state.yaw), rad_to_deg(state.view_yaw), state.pitch,
@@ -175,13 +183,17 @@ func _finish() -> void:
 		sum["recompose_flips"] = flips
 		var off: int = 0
 		var close: int = 0
+		var faded: int = 0
 		for row: Dictionary in rows:
+			if float(row.body_fade) > 0.01:
+				faded += 1
 			if float(row.eye_sx) < 0.0 or float(row.eye_sx) > 1.0 or float(row.eye_sy) < 0.0 or float(row.eye_sy) > 1.0:
 				off += 1
 			if float(row.eye_distance) < 0.8:
 				close += 1
 		sum["eye_off_frames"] = off
 		sum["close_frames"] = close
+		sum["faded_frames"] = faded
 		sum["auto_turn_max_deg"] = snappedf(auto_max, 0.1)
 		report[key] = sum
 	var file: FileAccess = FileAccess.open(_abs(_out).path_join("report.json"), FileAccess.WRITE)
