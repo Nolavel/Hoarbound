@@ -317,7 +317,16 @@ func _test_wind_crust_is_harder_than_powder() -> void:
 		powder += field.softness(at, 1.8)
 		_check(field.softness(at, 1.0) >= 0.4 and field.softness(at, 1.0) <= 1.0, "softness left 0.4..1")
 	_check(crust < powder - 4.0, "wind crust gives as much as powder")
+	## Fresh snow is loose even on scoured ground; an old crust is hard there.
+	var fresh: float = 0.0
+	var old: float = 0.0
+	for i: int in range(40):
+		var at := Vector2(float(i) * 3.7, float(i) * -2.3)
+		fresh += field.softness(at, 0.3, 0.0)
+		old += field.softness(at, 0.3, 1.0)
+	_check(fresh / 40.0 > 0.85 and old / 40.0 < 0.5, "fresh %.2f / old %.2f softness on scoured ground" % [fresh / 40.0, old / 40.0])
 	field.ground_sampler = _synthetic_ground
 	field.rebuild(Vector2(-12.8, -12.8), 0.8, Vector2(0, -1))
 	var s: float = field.get_softness(10.0, 0.0)
 	_check(s >= 0.4 and s <= 1.0, "the field image lost its softness: %.2f" % s)
+

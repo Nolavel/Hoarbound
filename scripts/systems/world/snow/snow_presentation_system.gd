@@ -45,6 +45,16 @@ const EPSILON: float = 0.002
 ## How fast rime grows or sheds, per game hour; it never snaps.
 @export var frost_per_hour: float = 0.25
 
+@export_group("Snowpack")
+## Air at or below which settled snow starts to harden into crust over a weak base.
+@export var crust_starts_c: float = -1.0
+## Air at which the crust grows hardest: dry cold snow, not wet maritime snow.
+@export var crust_full_c: float = -12.0
+## How fast settled snow hardens towards the air's crust, per game hour; wind doubles it.
+@export var harden_per_hour: float = 0.04
+## How fast falling snow buries the crust under a loose layer, per hour at full density.
+@export var bury_per_hour: float = 0.5
+
 @export_group("Fallback")
 ## Cover used when no weather is running, so a bare scene still reads as winter.
 @export_range(0.0, 1.0) var default_snow_cover: float = 0.5
@@ -56,6 +66,7 @@ var _hours: GameHourTracker = GameHourTracker.new()
 var _settled: float = -1.0
 var _frost: float = -1.0
 var _storm: float = -1.0
+var _firmness: float = -1.0
 var _written_storm: float = -1.0
 var _written_cover: float = -1.0
 var _written_frost: float = -1.0
@@ -89,11 +100,12 @@ func advance_hours(hours: float) -> void:
 		_settled = move_toward(_settled, target, build_per_hour * clampf(density, 0.0, 1.0) * hours)
 	else:
 		_settled = move_toward(_settled, target, settle_per_hour * hours)
-	var air: float = _thermal.get_outdoor_air_c() if _thermal != null else -10.0
+	var air: float = _air_c()
 	if air > 0.0:
 		_settled = maxf(0.0, _settled - melt_per_hour_per_c * air * hours)
 	_frost = move_toward(_frost, target_frost(), frost_per_hour * hours)
 	_storm = _advance_storm(_storm, density, hours)
+	_firmness = _advance_firmness(_firmness, density, air, hours)
 	refresh()
 
 
@@ -106,6 +118,24 @@ func _advance_storm(storm: float, density: float, hours: float) -> float:
 		var target: float = clampf(wind / maxf(storm_wind_mps, 0.1), 0.0, 1.0)
 		return move_toward(storm, target, storm_build_per_hour * falling * hours)
 	return move_toward(storm, calm_storm_share, storm_consolidate_per_hour * hours)
+
+
+## Fresh snow lies loose over whatever crust there was; left alone in dry cold it
+## hardens into a crust over a weak base, faster in wind. Thaw leaves it wet and soft.
+func _advance_firmness(firmness: float, density: float, air: float, hours: float) -> float:
+	var falling: float = clampf(density, 0.0, 1.0)
+	if falling > 0.05:
+		return move_toward(firmness, 0.0, bury_per_hour * falling * hours)
+	var wind: float = _weather.get_wind_speed_mps() if _weather != null else 0.0
+	var rate: float = harden_per_hour * (1.0 + clampf(wind / maxf(storm_wind_mps, 0.1), 0.0, 1.0))
+	return move_toward(firmness, target_firmness(air), rate * hours)
+
+
+## Crust the air would grow if it lasted: none at a thaw, hardest in dry cold.
+func target_firmness(air: float) -> float:
+	if air > 0.0:
+		return 0.0
+	return clampf(inverse_lerp(crust_starts_c, crust_full_c, air), 0.0, 1.0)
 
 
 ## Cover the current weather would leave if it lasted forever.
@@ -130,6 +160,12 @@ func get_frost() -> float:
 	return _frost
 
 
+## 0 fresh loose snow (wet snow ploughs a trench) .. 1 hard crust over a weak base
+## (holds, then a boot breaks through and drops).
+func get_firmness() -> float:
+	return _firmness
+
+
 ## Share of the settled snow laid in the storm's pattern, 0 old base to 1 fresh.
 func get_storm_share() -> float:
 	return _storm
@@ -152,13 +188,14 @@ func get_save_key() -> StringName:
 
 
 func get_save_data() -> Dictionary:
-	return {"settled": _settled, "frost": _frost, "storm": _storm}
+	return {"settled": _settled, "frost": _frost, "storm": _storm, "firmness": _firmness}
 
 
 func load_save_data(data: Dictionary) -> void:
 	_settled = clampf(float(data.get("settled", weather_snow_cover())), 0.0, 1.0)
 	_frost = clampf(float(data.get("frost", target_frost())), 0.0, 1.0)
 	_storm = clampf(float(data.get("storm", calm_storm_share)), 0.0, 1.0)
+	_firmness = clampf(float(data.get("firmness", target_firmness(_air_c()))), 0.0, 1.0)
 	_hours.reset()
 	refresh()
 
@@ -184,6 +221,12 @@ func _seed_if_needed() -> void:
 		_frost = target_frost()
 	if _storm < 0.0:
 		_storm = calm_storm_share
+	if _firmness < 0.0:
+		_firmness = target_firmness(_air_c())
+
+
+func _air_c() -> float:
+	return _thermal.get_outdoor_air_c() if _thermal != null else -10.0
 
 
 func _write(global_name: StringName, value: float, is_cover: bool) -> void:

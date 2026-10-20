@@ -184,20 +184,19 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   and Henry's shell shader derive visible settled height from the same terrain,
   baked wind texture, shore fade and world coordinates. `SnowField` mirrors the
   baseline for gameplay and tracks; its CPU grid updates in bounded steps.
-  Henry's moving window adds packed tracks. The local ray-derived lee, scour
-  and blurred bed remain for scenes without the baked map. Baked prevailing wind
-  fixes settled ridge orientation; current gusts drive weather effects instead.
-  Cover changes rebuild the field even while Henry stands still. The local
-  mesh keeps its 3 cm core for prints, then grows to 50 cm spacing at its rim.
-  In the outer 6 m it approaches the same two-triangle interpolation as the
-  static 2 m chunk mesh; a small grid of far-cover vertex inputs is refreshed
-  when that 2 m lattice shifts. This matches the geometry at the square edge
-  while keeping the detailed surface and packed tracks close to Henry.
+  Henry's moving window adds packed tracks. Over the baked map SnowField mirrors
+  the drawn base exactly (ground on the chunk's 2 m triangles, settled depth and
+  wind ridges), so feet stand on what is drawn. Wall lee ramps are not in the
+  base yet: they belong in the chunk bake, where both layers would carry them. The
+  ray-derived lee, scour and blurred bed remain for scenes without the baked map.
+  Baked prevailing wind fixes ridge orientation; current gusts drive weather
+  effects instead.
+  Cover changes rebuild the field even while Henry stands still. How the
+  surface is drawn and handed to the chunk cover is in *Drawn surface* below.
   SnowField also prepares a 40 cm settled-normal image row by row under its
   existing rebuild budget, publishing it with the matching height image.
-  The fragment shader uses those normals in the core and computes the slope
-  directly across the outer transition. Height, normal and far-grid textures
-  update in place when their dimensions are unchanged.
+  Height, normal and far-grid textures update in place when their dimensions
+  are unchanged.
 - **Geometry presses the snow.** Anything on render layer 20 (`CONTACT_LAYER`)
   packs the snow where it is lower than the snow top: Henry's whole mesh, and
   resting `ItemPickup`s, tagged by `tag_contact()`. A print is the real boot
@@ -223,14 +222,23 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   reach the bottom of the pit they made. `MovementController.snow_speed_multiplier`
   falls from 1.0 at 5 cm to 0.6 at 50 cm of snow, `snow_accel_multiplier` to
   0.45: deep snow is slow to get going in.
+- **Snowpack under the boot (`SnowResistance`).** What lies between the drawn
+  top and the ground is felt, not seen. Loose snow compacts by its share of the
+  give. Wind crust holds a boot until the step's load (more when running, about
+  half when standing on both) beats its strength, which varies in ~1.6 m patches
+  across the world; then, after a beat, the leg drops to the full give. Drifts
+  (snow deeper than the settled cover: lee ramps, banks, tall ridge crests) hide ~1 m soft pockets
+  where a leg plunges almost to the ground. The surface looks the same either way.
+  A plunge dips Henry's speed like a deep plant, plays a crust snap and a deep
+  whump (`crust_broke`), and the hips follow the lower boot as before: one leg
+  through drops the body, both take it waist-deep. Deterministic by place.
 - **Standing.** Standing still (under 0.15 m/s, on the floor) both boots count
   as planted and rest in their prints; the step sensor only plants moving steps,
   so idle feet used to be lifted onto the snow top with the hips following 60 %
   of it, and Henry stood with bent knees. Hips now follow the lower boot fully.
 - **Broken edges.** `snow_ground` breaks each print outline with world noise
-  (`jag_crust_m` 2.5 cm, `jag_powder_m` 1 cm), tints cut walls blue with faint
-  strata of past snowfalls, runs crack seams (cellular F2−F1) out from crust
-  lips, and lets freshly broken grains glint more.
+  (`jag_crust_m` 2.5 cm, `jag_powder_m` 1 cm), tints cut walls blue, darkens
+  deep pits and runs crack seams (cellular F2−F1) out from crust lips.
 - **Footsteps.** `WorldAudioBinder` reads depth and softness under each plant
   and picks a bank by what the boot meets. The banks are synthesised by
   `tools/audio/generate_snow_footsteps.py` (field recordings tried first did not
@@ -284,10 +292,19 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   fill in. In Key West the near and far heights share the baked baseline.
   Where the snow thins under ~2 cm the shell is discarded and the ground shows,
   instead of the two surfaces z-fighting at the shore.
-- **Prints.** Below `wade_depth_m` (30 cm) only planted soles press: a sole of
-  two overlapping ovals (heel and forefoot, so it has a boot's waist) is set
-  where each foot lands and held until it lifts, so the gliding walk clip
-  leaves separate prints. The heel digs `heel_dig_m` extra on strike and the
+- **Prints.** Below `wade_depth_m` (30 cm) only planted soles press: Henry's army
+  boot outsole (`BootSole`, 30.5 cm: a square-shouldered heel block with a straight
+  breast, a narrow arched shank that presses at 45 %, a wide ball and a round toe)
+  is set where each foot lands and held until it lifts, so the gliding walk clip
+  leaves separate prints. The persistent stamp and the contact soles use the same
+  outline. The stamp also writes the print's sole-local uv into the packed field
+  (G, B; A freshness), and `snow_ground` draws the exact outline, broken crust or
+  slumped powder walls, and the tread from it per pixel: chevron lugs on the
+  forefoot, transverse bars on the heel, a centre channel and a lugged rim. The
+  uv is affine in xz and written 7.5 cm past the outline, so filtering keeps it
+  exact through the wall band; a wading body pressing over 5 cm below an old print
+  erases its outline. The tread fades once a pixel
+  spans it and as the print fills in. The heel digs `heel_dig_m` extra on strike and the
   ball `toe_dig_m` as the clip lifts the heel, scaled by pace and softness: a
   print is deep at both ends and shallow under the arch. On toe-off in powder
   a burst of grains is flicked ahead. Deeper, Henry's whole mesh ploughs.
@@ -297,9 +314,8 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   furrow along every swing: toe-off scuffs and touchdown
   marks in shallow snow, drag furrows where the swing stays low. Nothing
   presses while the toe is above the surface.
-- **Window.** 25.6 m, moved in 3.2 m steps; packing is shifted with it. The
-  mesh remains 3 cm in a 2.75 m half-width core and coarsens to 25 cm at the
-  edge. This is 113,569 vertices instead of 167,281 with the former 3.5 m core.
+- **Window.** 25.6 m of field and packing, moved in 3.2 m steps; packing is
+  shifted with it by whole texels. The drawn mesh is not tied to it (below).
 - **Cost.** The base `SnowShell` contact capture is 1024² over the window; the game builds
   `DeterministicSnowShell`, whose contact capture is a local 256² over 6.4 m around Henry (the same
   2.5 cm texel), rendered only on a snow pass. Packed snow and each of its three
@@ -343,13 +359,76 @@ cross. Only those cells are clipped, so snow reaches the wall without square
 street gaps or triangles crossing the building. A malformed source polygon that
 cannot be triangulated is left uncut and warned about.
 
-The far shader cuts out its cover inside the moving SnowShell square. SnowShell
-prepares the replacement field and mesh before publishing that square to the
-far shader and does not cast its displaced surface into the shadow map. Packed
-material and normal contributions now fade over the same outer 6 m as height;
-the thin-cover cutoff matches the far shader at the border.
-Local cut cells and the different terrain tessellation can still make the
-handoff visible; a representative runtime walk is required to accept it.
+The chunk shader discards its cover inside Henry's `snow_lod` square, where the
+clipmap below draws the same surface.
+
+### Drawn surface: clipmap rings
+
+The old shell was one graded square mesh that jumped 3.2 m with the window and
+blended into the chunk cover over its outer 6 m. Every jump put a world point
+under different vertices and a different blend weight, so the outer cover
+visibly crawled and popped (measured with the witness below). Any blend of two
+different base surfaces by distance breathes as Henry walks, so the method is the
+one shipped in Batman: Arkham Origins (GDC 2014) and God of War Ragnarök: one base
+snow surface everywhere, and only the character's deformation is local.
+
+- **One base surface.** With the chunk lattice the drawn base is exactly the
+  chunk cover's: terrain on its 2 m triangles (same diagonal) + `snow_base_depth`
+  (settled depth and wind ridges), shaded by the same `snow_far_shade`. The rings
+  draw that surface plus Henry's deformation (packed prints, rims, tread), which
+  alone fades with distance. Without the baked map the base is SnowField's top.
+- **Rings (`SnowClipmap`).** Nested square rings, spacing doubling outwards from
+  3.1 cm (geometry clipmaps, Losasso & Hoppe 2004). The mesh is built once and
+  follows Henry every frame, snapped to the coarsest spacing, so every vertex
+  stays on its ring's world lattice. 53k vertices on high (was 113k).
+- **Morph, not blend.** Towards its outer edge each ring morphs its odd vertices
+  onto the next ring's lattice by Chebyshev distance from Henry (CDLOD, Strugar
+  2009). A point that changes ring after a snap is already on the coarse surface,
+  so nothing pops; neighbouring rings share boundary heights, so nothing cracks.
+  Every spacing divides 2 m, so any ring reproduces the chunk triangles exactly.
+- **Bands.** Henry's deformation fades out between 4.5 and 6 m from him; the
+  chunk cover draws beyond 6.25 m (both draw a 15 cm overlap of the same surface).
+  The fade sits inside what the window guarantees around Henry (`detail_reach_m()`:
+  half window − half step − walking lead − 1 m lag); a lagging rebuild fades the
+  deformation near the window edge instead.
+- **Wind relief.** `snow_ridge` cuts sastrugi: a gentle rise into the wind and a
+  steep lee drop every ~6 m, crests wandering and broken into segments; small
+  ~0.7 m sastrugi of the same shape replace the old blotchy ripple wherever the
+  wind runs free (wind-oriented ripple normals, as Journey's sand, GDC 2013).
+  Both layers shade the same relief, so ridges no longer appear in a ring around
+  Henry (the old near cache was ridge-free).
+- **Material (testers: "jelly").** The cover had no detail below the 2 m
+  lattice and the ~0.7 m ripple, a uniform albedo (±3 %) and a plastic
+  specular, so shadowed snow was a flat blue fill and lit snow a smooth cream.
+  Shared helpers in `snow_surface.gdshaderinc`, used by both layers at every
+  pixel (shading only, so nothing breathes with distance):
+  - `snow_apply_grain`: value-noise grain at 7 cm and 2.4 cm as a normal slope,
+    with grain hollows darker (less sky); each octave fades before a pixel spans
+    it (no far shimmer). Only on level snow (n.y over ~0.9): an xz pattern on a
+    cut wall stretches into streaks. `snow_patch_albedo`: ±4 % over ~1.7 m.
+  - Painterly pigment gets the ground's up vector, not the shading normal: the
+    shared pass seeds its noise with the normal, and a curved trench wall swept
+    it into agate rings (isolated with an albedo-only debug render).
+  - `snow_glint_facet` / `snow_glint_light`: 15 % of 2.2 cm cells hold a tilted
+    ice facet; `light()` flashes it toward the sun (Blinn exponent 220), so
+    sparkle follows the view and sun and is absent in shadow. Packed print
+    floors have crushed facets and do not glint.
+  - `SPECULAR` 0.3 (ice F0 ~0.02), roughness 0.9.
+  - `snow_city_smooth`: the wind map with a cubic B-spline (GPU Gems 2 ch. 20,
+    four bilinear taps) for shading slopes, so drifts read rounded, not as the
+    bilinear 2 m facets; geometry still uses the bilinear map, matching SnowField.
+  - Prints: the old `sin(depth x 110)` "strata" drew topographic rings on every
+    lumpy print floor and the emission confetti glints were view-independent;
+    both are gone. Floor lumps are 6 mm, deep pits darken with depth (less sky).
+- **Captures.** Snow passes draw their fields with ColorRects in SubViewports;
+  a capture that hides every Control leaves the shaped field at the clear colour
+  (7 cm "packed" everywhere: a blue, sunken square). Hide only the root's UI.
+- **Witness.** `tools/runtime/capture_snow_surface.gd` walks Henry down Duval
+  Street and records a fixed top-down camera whose snow shaders write their
+  drawn height (`debug_height`); `analyze_snow_surface.py` reports height
+  changes at fixed world points away from his trail. The `snow-surface`
+  job in `checks.yml` (dispatch `preview=snow-surface`) runs it as an A/B against `main`'s snow code. `test_snow_clipmap.gd`
+  checks the same invariance on the CPU.
 
 ### Storm layer
 
@@ -360,6 +439,23 @@ snowfall it consolidates back to `calm_storm_share` over hours. SnowField keeps
 both factors per cell, so a share change rebuilds depth only. A settled-cover
 change of at least 0.02 also rebuilds depth, independently of window movement.
 
+### Snowpack firmness
+
+`SnowPresentationSystem` owns a third piece of snow state, `firmness` (saved): 0 is fresh, loose
+snow, 1 a hard crust over a weak base. Falling snow buries the crust (`bury_per_hour` x density);
+without snowfall it hardens toward the air's target (`crust_starts_c` -1 C to `crust_full_c` -12 C,
+none above freezing) at `harden_per_hour`, doubled in a storm wind. This is how real packs differ:
+wet maritime snow is cohesive and ploughs, a dry continental pack grows a wind slab over sugary
+depth hoar (postholing).
+
+- `SnowField.softness` lerps from loose everywhere (0.95) to hard, where scoured ground crusts
+  first and lee drifts last; the field reads it per rebuild, and a change of 0.05 rebuilds.
+- `SnowResistance`: an old crust is up to 1.4x stronger, but once a boot breaks it the leg drops
+  to 95 % of the depth with a 35 ms time constant (young crust: max_pack, 90 ms).
+- Below `SnowShell.plough_firmness` (0.5) a wading body and a dragging toe cut a trench; above it
+  the boots only punch holes.
+- The `snow-walk` CI job walks both packs (`fresh` firmness 0, `crust` firmness 1).
+
 ### Wind field per world and static snow
 
 The baked city wind field (`tools/world/bake_key_west_snow_wind.py`) is chosen by the world
@@ -368,6 +464,17 @@ profile (`WorldProfile.snow_wind_field_path`; empty keeps the legacy `snow_wind.
 Reality uses `snow_wind_reality.png`, baked with `--reality` from the generated Reality
 buildings (editor index, heights above ground) and the library's land polygons; the legacy
 bake had a Truman Annex block that does not exist and missed Reality buildings.
+
+Every wall also gets a leeward drift (ASCE 7-16 sec. 7.7 drift shape): peak height
+hd = 0.43 lu^(1/3) (pg + 10)^(1/4) - 1.5 ft, with lu the roof run along the wind behind the
+wall (the snow source, at least 25 ft) and pg the settled snow at full cover (0.25 m at
+150 kg/m3), capped at half the wall; the drift tapers over 4 hd. At full cover that is
+0.3-1.1 m against Key West houses, on the WSW faces for the ENE storm wind, while windward
+faces keep a scoured gap and only a low bank. The lee eddy at the wall foot keeps a trough
+(0.55 hd at the wall); the drift crests 3 m out and tails off downwind, the shape of real
+lee drifts behind solid barriers. Drifts get only a 1-2-1 pass, not the broad field's
+blur, so the trough and crest survive on the 2 m lattice. `factor_max` is 8.5 (8-bit step 8 mm at full cover; drift crests reach ~8). Chunk cover,
+clipmap rings and SnowField all read the same map, so the drift is drawn and walked alike.
 
 Static snow (roof caps, ridges on fences and wires, caps on pole tops) is separate: it is
 generated offline into each chunk's `Winter` group (data layer `winter`), never deformed and
