@@ -445,8 +445,8 @@ func _aim_inside_camera() -> void:
 ## witness for the style decision; a close shot of Henry's backpack is not.
 func _frame_shadow_boundary() -> void:
 	var camera := _capture_camera()
-	camera.fov = 38.0
-	camera.look_at(_stove.to_global(Vector3(2.8, 0.08, 1.3)), Vector3.UP)
+	camera.fov = 48.0
+	camera.look_at(_stove.to_global(Vector3(2.8, 0.9, 1.3)), Vector3.UP)
 	camera.make_current()
 
 
