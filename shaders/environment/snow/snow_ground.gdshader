@@ -328,7 +328,9 @@ void fragment() {
 	float packed_height = packed_px * v_deform;
 	float rim_height = v_rim * v_deform;
 	if (abs(packed_height) > 0.0005 || rim_height > 0.0005) {
-		vec2 raw_slope = packed_slope(uv + v_jag);
+		// The jag breaks the outline only: on a deep wall it would shift the sample by centimetres
+		// of height and marble the shading.
+		vec2 raw_slope = packed_slope(uv);
 		vec2 slope = raw_slope * v_deform;
 		float wall = smoothstep(0.35, 1.6, length(raw_slope)) * v_deform;
 		// Pit walls are sharper than the mesh, so they also come in through the normal.
