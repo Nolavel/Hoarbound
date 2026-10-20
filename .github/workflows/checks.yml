@@ -199,7 +199,7 @@ jobs:
   key-west-preview:
     ## Lavapipe/Forward+ captures on the Key West Reality scene, chosen by a commit tag.
     ## Painterly, stylized-shadow and snow previews reuse this one render path.
-    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[interior-shadow-preview]') || contains(github.event.head_commit.message, '[shadow-style-preview]'))
+    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[interior-shadow-preview]') || contains(github.event.head_commit.message, '[shadow-style-preview]') || contains(github.event.head_commit.message, '[shadow-style-727-preview]'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -216,7 +216,7 @@ jobs:
         run: tools/ci/setup_env.sh
 
       - name: Install video tools
-        if: contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[shadow-style-preview]')
+        if: contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[shadow-style-preview]') || contains(github.event.head_commit.message, '[shadow-style-727-preview]')
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
@@ -407,8 +407,75 @@ jobs:
           print('INTERIOR_SHADOW_AB eight frames, four matched-camera pairs:', r['frames'])
           PY
 
+      - name: 727 production-material shadow style A/B/C
+        if: contains(github.event.head_commit.message, '[shadow-style-727-preview]')
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          OUT="docs/runtime_previews/key_west/727_shadow_style_abc"
+          mkdir -p "$OUT"
+          set -o pipefail
+          timeout 680 xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . --resolution 1024x640 --rendering-driver vulkan \
+            --rendering-method forward_plus --audio-driver Dummy \
+            --script res://tools/runtime/capture_stylized_shadows.gd -- style-abc \
+            2>&1 | tee "$OUT/capture.log"
+          if grep -q -E "SHADER ERROR|Shader compilation failed" "$OUT/capture.log"; then
+            exit 1
+          fi
+          for shot in 01_noon_room 02_noon_close 03_night_room 04_night_close; do
+            for arm in baseline mass mass_edge; do test -s "$OUT/${shot}_${arm}.png"; done
+          done
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          out = Path("docs/runtime_previews/key_west/727_shadow_style_abc")
+          data = json.loads((out / "report.json").read_text())
+          assert len(data["frames"]) == 12, data["frames"]
+          states = data["style_states"]
+          assert [x["arm"] for x in states] == ["baseline", "mass", "mass_edge"] * 4
+          for i in range(0, 12, 3):
+              assert len({x["camera"] for x in states[i:i+3]}) == 1
+              assert len({x["stove_energy"] for x in states[i:i+3]}) == 1
+          assert (out / "01_noon_room_baseline.png").read_bytes() != (out / "01_noon_room_mass.png").read_bytes(), "colour mass had no visible effect"
+          print("SHADOW_STYLE_727 12 matched frames and noon colour effect")
+          PY
+          : > "$OUT/clips.txt"
+          for shot in 01_noon_room 02_noon_close 03_night_room 04_night_close; do
+            ffmpeg -y -loop 1 -t 2 -i "$OUT/${shot}_baseline.png" \
+              -loop 1 -t 2 -i "$OUT/${shot}_mass.png" \
+              -loop 1 -t 2 -i "$OUT/${shot}_mass_edge.png" \
+              -filter_complex "[0:v]scale=512:320,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='A  CURRENT':fontcolor=white:fontsize=18:x=12:y=12:box=1:boxcolor=black@0.72:boxborderw=6[a];[1:v]scale=512:320,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='B  MASS':fontcolor=white:fontsize=18:x=12:y=12:box=1:boxcolor=black@0.72:boxborderw=6[b];[2:v]scale=512:320,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='C  MASS + EDGE':fontcolor=white:fontsize=18:x=12:y=12:box=1:boxcolor=black@0.72:boxborderw=6[c];[a][b][c]hstack=inputs=3[v]" \
+              -map "[v]" -t 2 -r 12 -an -c:v libx264 -preset fast -crf 18 \
+              -pix_fmt yuv420p "$OUT/${shot}.mp4" >/dev/null 2>&1
+            printf "file '%s.mp4'\n" "$shot" >> "$OUT/clips.txt"
+          done
+          ffmpeg -y -f concat -safe 0 -i "$OUT/clips.txt" -c copy \
+            "$OUT/727_shadow_style_abc_8s.mp4" >/dev/null 2>&1
+          test -s "$OUT/727_shadow_style_abc_8s.mp4"
+
+      - name: Recover 727 video from job log when artifact storage is full
+        if: always() && contains(github.event.head_commit.message, '[shadow-style-727-preview]')
+        run: |
+          python3 - <<'PY'
+          import base64
+          from pathlib import Path
+          root = Path("docs/runtime_previews/key_west/727_shadow_style_abc")
+          video = root / "727_shadow_style_abc_8s.mp4"
+          log = root / "capture.log"
+          if video.is_file() and log.is_file() and "Shader compilation failed" not in log.read_text(errors="replace"):
+              encoded = base64.b64encode(video.read_bytes()).decode("ascii")
+              print("SHADOW_STYLE_727_VIDEO_BEGIN", video.stat().st_size)
+              for i in range(0, len(encoded), 3000):
+                  print("SHADOW_STYLE_727_VIDEO_CHUNK", i // 3000, encoded[i:i + 3000])
+              print("SHADOW_STYLE_727_VIDEO_END", (len(encoded) + 2999) // 3000)
+          else:
+              print("SHADOW_STYLE_727_VIDEO_SKIPPED")
+          PY
+
       - name: Stylized-shadow contract test
-        if: contains(github.event.head_commit.message, '[stylized-shadows]')
+        if: contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[shadow-style-727-preview]')
         run: |
           "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script tests/systems/test_stylized_shadows.gd
 
@@ -789,6 +856,10 @@ jobs:
             docs/runtime_previews/key_west/shadow_style_abc/*/*.mp4
             docs/runtime_previews/key_west/shadow_style_abc/*/*.json
             docs/runtime_previews/key_west/shadow_style_abc/*/*.log
+            docs/runtime_previews/key_west/727_shadow_style_abc/*.png
+            docs/runtime_previews/key_west/727_shadow_style_abc/*.mp4
+            docs/runtime_previews/key_west/727_shadow_style_abc/*.json
+            docs/runtime_previews/key_west/727_shadow_style_abc/*.log
             docs/runtime_previews/sky_weather/*.png
             docs/runtime_previews/sky_weather/report.json
           if-no-files-found: warn

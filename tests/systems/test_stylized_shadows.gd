@@ -64,6 +64,12 @@ func _run() -> void:
 			ProjectSettings.has_setting("shader_globals/%s" % global_name),
 			"missing global shader parameter: %s" % global_name
 		)
+	for global_name: String in ["stylized_shadow_mass_strength", "stylized_shadow_edge_strength"]:
+		var setting: String = "shader_globals/" + global_name
+		_check(ProjectSettings.has_setting(setting), "missing experimental shadow control: %s" % global_name)
+		if ProjectSettings.has_setting(setting):
+			_check(is_zero_approx(float((ProjectSettings.get_setting(setting) as Dictionary).get("value", -1.0))),
+				"experimental shadow control must default to zero: %s" % global_name)
 	var brush_mask: Dictionary = ProjectSettings.get_setting("shader_globals/stylized_shadow_brush_mask", {})
 	_check(load(String(brush_mask.get("value", ""))) is Texture2D, "brush mask global does not point at a texture")
 

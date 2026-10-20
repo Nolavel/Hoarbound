@@ -1072,6 +1072,14 @@ stylized_shadow_strength={
 "type": "float",
 "value": 1.0
 }
+stylized_shadow_mass_strength={
+"type": "float",
+"value": 0.0
+}
+stylized_shadow_edge_strength={
+"type": "float",
+"value": 0.0
+}
 stylized_shadow_interior_mode={
 "type": "float",
 "value": 0.0

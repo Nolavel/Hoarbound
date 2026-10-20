@@ -2,6 +2,9 @@
 // HFN_SHADOW_FRAGMENT(world_pos); light() multiplies N.L by hfn_stylized_shadow().
 
 global uniform float stylized_shadow_strength;
+// Experimental style witness. Both are 0 in project.godot; the capture harness alone toggles them.
+global uniform float stylized_shadow_mass_strength;
+global uniform float stylized_shadow_edge_strength;
 // Set by ShelterShadowBinder from ThermalManager.sheltered_changed; never a weather/lighting override.
 // 0 = outdoor production lookup, 1 = stronger torn indoor local-light silhouettes.
 global uniform float stylized_shadow_interior_mode;
@@ -299,4 +302,29 @@ float hfn_stylized_shadow(float attenuation, bool directional) {
 	float outdoor = mix(base, tone, strength);
 	return mix(outdoor, hfn_legacy_shadow_attenuation(base, true, hfn_shadow_legacy_pos),
 		clamp(stylized_shadow_interior_mode, 0.0, 1.0) * strength);
+}
+
+
+// Experimental colour mass and boundary stages. Their default zero strengths preserve
+// hfn_stylized_shadow() exactly. Only the directional shadow is recoloured: local
+// ATTENUATION also carries inverse-square falloff and the stove must stay untouched.
+vec3 hfn_shadow_style_response(float attenuation, bool directional) {
+	float physical = clamp(attenuation, 0.0, 1.0);
+	float edge = clamp(stylized_shadow_edge_strength, 0.0, 1.0);
+	if (directional && edge > 0.0) {
+		float band = smoothstep(0.12, 0.32, physical)
+			* (1.0 - smoothstep(0.70, 0.92, physical));
+		float coarse = sin(hfn_shadow_legacy_pos.x * 2.1 + hfn_shadow_legacy_pos.z * 0.7)
+			* sin(hfn_shadow_legacy_pos.z * 2.7 - hfn_shadow_legacy_pos.y * 0.6);
+		float stroke = sin(hfn_shadow_legacy_pos.x * 5.1 - hfn_shadow_legacy_pos.z * 1.9);
+		physical = clamp(physical + edge * band * (coarse * 0.23 + stroke * 0.07), 0.0, 1.0);
+	}
+	float tone = hfn_stylized_shadow(physical, directional);
+	float mass = clamp(stylized_shadow_mass_strength, 0.0, 1.0);
+	if (!directional || mass <= 0.0) {
+		return vec3(tone);
+	}
+	float shade = 1.0 - smoothstep(0.18, 0.82, tone);
+	vec3 pigment = vec3(0.16, 0.23, 0.29);
+	return mix(vec3(tone), mix(vec3(tone), pigment, shade), mass);
 }

@@ -10,6 +10,7 @@ const BRUSH_OUT_DIR: String = "res://docs/runtime_previews/shadow_brush"
 const SHIMMER_OUT_DIR: String = "res://docs/runtime_previews/shadow_shimmer"
 const REVIEW_OUT_DIR: String = "res://docs/runtime_previews/shadow_review"
 const INTERIOR_AB_OUT_DIR: String = "res://docs/runtime_previews/key_west/727_shadow_interior_ab"
+const STYLE_ABC_OUT_DIR: String = "res://docs/runtime_previews/key_west/727_shadow_style_abc"
 ## Densest Duval Street block in the city snapshot: seven buildings within 25 m.
 const DUVAL := Vector2(-3072.7, 1374.3)
 const DUVAL_HEADING_DEG: float = 34.1
@@ -49,6 +50,8 @@ var _queue: Array[Callable] = []
 var _saved: Array[String] = []
 var _out_dir: String = OUT_DIR
 var _interior_test: bool = false
+var _style_test: bool = false
+var _style_state_log: Array[Dictionary] = []
 var _interior_fixed_transform: Transform3D
 var _interior_fixed_light_energy: float = -1.0
 var _interior_fixed_light_transform: Transform3D
@@ -60,7 +63,10 @@ func _initialize() -> void:
 	var shimmer: bool = OS.get_cmdline_user_args().has("shimmer")
 	var review: bool = OS.get_cmdline_user_args().has("review")
 	_interior_test = OS.get_cmdline_user_args().has("interior-ab")
-	if _interior_test:
+	_style_test = OS.get_cmdline_user_args().has("style-abc")
+	if _style_test:
+		_out_dir = STYLE_ABC_OUT_DIR
+	elif _interior_test:
 		_out_dir = INTERIOR_AB_OUT_DIR
 	elif brush:
 		_out_dir = BRUSH_OUT_DIR
@@ -72,6 +78,37 @@ func _initialize() -> void:
 	RenderingServer.global_shader_parameter_set(&"stylized_shadow_strength", 1.0)
 	_scene = (load(MAIN_SCENE) as PackedScene).instantiate() as Node3D
 	root.add_child(_scene)
+	if _style_test:
+		## Production 727 materials, unchanged geometry, three independently selected
+		## shadow states. Every triplet shares a locked camera and stove light.
+		_queue = [
+			_set_hour.bind(12.0),
+			_place_inside,
+			_light_stove,
+			_freeze_motion,
+			_aim_inside_camera,
+			_lock_interior_shadow_ab,
+			_set_style_arm.bind("baseline"), _capture.bind("01_noon_room_baseline"),
+			_set_style_arm.bind("mass"), _capture.bind("01_noon_room_mass"),
+			_set_style_arm.bind("mass_edge"), _capture.bind("01_noon_room_mass_edge"),
+			_frame_close_stove,
+			_lock_interior_shadow_ab,
+			_set_style_arm.bind("baseline"), _capture.bind("02_noon_close_baseline"),
+			_set_style_arm.bind("mass"), _capture.bind("02_noon_close_mass"),
+			_set_style_arm.bind("mass_edge"), _capture.bind("02_noon_close_mass_edge"),
+			_set_hour.bind(23.0),
+			_aim_inside_camera,
+			_lock_interior_shadow_ab,
+			_set_style_arm.bind("baseline"), _capture.bind("03_night_room_baseline"),
+			_set_style_arm.bind("mass"), _capture.bind("03_night_room_mass"),
+			_set_style_arm.bind("mass_edge"), _capture.bind("03_night_room_mass_edge"),
+			_frame_close_stove,
+			_lock_interior_shadow_ab,
+			_set_style_arm.bind("baseline"), _capture.bind("04_night_close_baseline"),
+			_set_style_arm.bind("mass"), _capture.bind("04_night_close_mass"),
+			_set_style_arm.bind("mass_edge"), _capture.bind("04_night_close_mass_edge"),
+		]
+		return
 	if _interior_test:
 		## Real 727 scene, burning stove, one camera, same light and material state.
 		## Historical screenshot supplied by the author is a separate reference:
@@ -163,15 +200,17 @@ func _process(_delta: float) -> bool:
 		return false
 	if _queue.is_empty():
 		RenderingServer.global_shader_parameter_set(&"stylized_shadow_strength", 1.0)
-		if _interior_test:
+		if _interior_test or _style_test:
 			RenderingServer.global_shader_parameter_set(&"stylized_shadow_interior_mode", 0.0)
+			RenderingServer.global_shader_parameter_set(&"stylized_shadow_mass_strength", 0.0)
+			RenderingServer.global_shader_parameter_set(&"stylized_shadow_edge_strength", 0.0)
 		_write_report()
 		print("[stylized-shadows] production regression capture complete")
 		quit()
 		return true
 	var step: Callable = _queue.pop_front()
 	step.call()
-	_next_frame = _frame + (2 if _interior_test else SETTLE_FRAMES)
+	_next_frame = _frame + (2 if _interior_test or _style_test else SETTLE_FRAMES)
 	return false
 
 
@@ -292,6 +331,15 @@ func _set_interior_shadow_mode(strength: float) -> void:
 	_interior_state_log.append({"state": strength, "camera": str(_capture_camera().global_transform),
 		"stove_energy": _stove.flame_light.light_energy if _stove.flame_light != null else -1.0})
 	print("INTERIOR_SHADOW_AB state=", strength)
+
+
+func _set_style_arm(arm: String) -> void:
+	RenderingServer.global_shader_parameter_set(&"stylized_shadow_interior_mode", 0.0)
+	RenderingServer.global_shader_parameter_set(&"stylized_shadow_mass_strength", 0.0 if arm == "baseline" else 1.0)
+	RenderingServer.global_shader_parameter_set(&"stylized_shadow_edge_strength", 1.0 if arm == "mass_edge" else 0.0)
+	_style_state_log.append({"arm": arm, "camera": str(_capture_camera().global_transform),
+		"stove_energy": _stove.flame_light.light_energy if _stove.flame_light != null else -1.0})
+	print("SHADOW_STYLE_727 state=", arm)
 
 
 ## Back to the project's shipped spray: Shader Globals in project.godot.
@@ -455,7 +503,7 @@ func _find_streaming() -> StreamingSystem:
 
 
 func _capture(name: String) -> void:
-	if _interior_test:
+	if _interior_test or _style_test:
 		if _capture_camera().global_transform != _interior_fixed_transform:
 			push_error("INTERIOR_SHADOW_AB: camera moved between states")
 			quit(1)
@@ -489,6 +537,8 @@ func _write_report() -> void:
 		"frames": _saved,
 		"contract": "torn shadow lookup for all lights + three-tone directional shadow",
 		"interior_ab": _interior_test,
+		"style_abc": _style_test,
+		"style_states": _style_state_log,
 		"interior_states": _interior_state_log,
 		"historical_reference": "2026-09-22 bd11bdf ink edge + 2026-09-30 eae9776 / 34f1bf1 local ink + warp; screenshot from author is a different room",
 		"shader_mode": "original historical shader math isolated to interior, outdoors unchanged",
