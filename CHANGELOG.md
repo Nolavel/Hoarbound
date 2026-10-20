@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Rooms frame Henry low-left (owner note): any room uses the tight composition and the camera rises until his eyes
+  sit at mid-height (stove 29–30 % / 46–47 %, was 33 % / 37 %). Auto shoulder swap when the player's side is walled off
+  and the other is free, with delays, never in doorways or during mouse turns (Sifu, a Borderlands 4 camera mod;
+  Ghost Recon Breakpoint's complaints). Deoccluder-style hold measured worse and ships off. Open camera items are
+  listed in `docs/technical/TPS_CAMERA.md` → Open items.
 - Henry is never see-through in play (owner rule). A body guard predicts where each mouse step would put the camera
   and soft-stops turns that take it closer than 0.8–0.6 m to his eyes (turning out is free); walking into a wall
   speeds up the shoulder lift; the framing offset follows the real camera distance; over the shoulder the view keeps

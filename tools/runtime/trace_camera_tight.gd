@@ -3,7 +3,7 @@ extends SceneTree
 ## Tight-space camera trace in the real 727 shelter: at each spot Henry stands still while the
 ## mouse turns the camera a full circle, then rests, then sweeps pitch. Every frame logs the
 ## framing state; report.json sums how much the frame moves on its own while the player turns.
-## Run (windowed, headless is 64x64): godot --path . --resolution 1280x720 --fixed-fps 30 --script res://tools/runtime/trace_camera_tight.gd -- [out_dir]
+## Run (windowed, headless is 64x64): godot --path . --resolution 1280x720 --fixed-fps 30 --script res://tools/runtime/trace_camera_tight.gd -- [out_dir] [spot,spot]
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const WARMUP_FRAMES: int = 300
@@ -21,9 +21,15 @@ const SPOTS: Array = [
 	["corridor", Vector2(-3.0, -0.7), Vector2(6.0, -0.7)],
 	["exam_corner", Vector2(-6.3, -5.9), Vector2(-4.5, -4.0)],
 	["restroom", Vector2(-11.1, 1.6), Vector2(-11.1, 0.4)],
+	["hug_wall_a", Vector2(-8.0, -1.3), Vector2(8.0, -1.3)],
+	["hug_wall_b", Vector2(-8.0, -0.1), Vector2(8.0, -0.1)],
 ]
+## Frames Henry walks forward (W) after the other phases: along a corridor wall at the hug spots.
+const WALK_FRAMES: int = 90
 
 var _out: String = "user://shots/camera_tight_trace"
+## Spots this run visits: all, or the comma-separated names in the second argument.
+var _spots: Array = SPOTS.duplicate()
 var _world: Node3D
 var _house: Node3D
 var _floor_y: float = 0.15
@@ -42,6 +48,9 @@ func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if args.size() > 0:
 		_out = args[0]
+	if args.size() > 1:
+		var names: PackedStringArray = args[1].split(",")
+		_spots = SPOTS.filter(func(spot: Array) -> bool: return names.has(String(spot[0])))
 	DirAccess.make_dir_recursive_absolute(_abs(_out))
 	_world = (load(SCENE) as PackedScene).instantiate() as Node3D
 	_world.set(&"spawn_at_shelter", true)
@@ -68,7 +77,7 @@ func _process(_delta: float) -> bool:
 			_feed_look(Vector2(TAU / float(TURN_FRAMES), 0.0))
 			_record()
 			if _phase_frame % SHOT_EVERY == 0:
-				_shot("%s_turn_%03d" % [SPOTS[_spot][0], _phase_frame])
+				_shot("%s_turn_%03d" % [_spots[_spot][0], _phase_frame])
 			if _phase_frame >= TURN_FRAMES:
 				_begin(&"idle")
 		"idle":
@@ -87,7 +96,20 @@ func _process(_delta: float) -> bool:
 			if _phase_frame >= BACK_FRAMES:
 				Input.action_release(&"move_backward")
 				_phase = ""
-	if _spot >= SPOTS.size():
+				if String(_spots[_spot][0]).begins_with("hug"):
+					_next_spot_keep()
+					_begin(&"walk")
+					Input.action_press(&"move_forward")
+		"walk":
+			_record()
+			if _phase_frame >= WALK_FRAMES:
+				Input.action_release(&"move_forward")
+				_phase = ""
+	if _phase == "walk" and _phase_frame % 10 == 0:
+		var st: Dictionary = _camera.get_debug_state()
+		print("camera trace: walk %d own=%.2f other=%.2f swap=%.2f passage=%.2f side=%.2f" % [_phase_frame,
+			st.get("swap_own", 0.0), st.get("swap_other", 0.0), st.get("swap", 0.0), st.passage_blend, st.side])
+	if _spot >= _spots.size():
 		_finish()
 		return true
 	return false
@@ -110,9 +132,9 @@ func _bind() -> bool:
 
 func _next_spot() -> void:
 	_spot += 1
-	if _spot >= SPOTS.size():
+	if _spot >= _spots.size():
 		return
-	var spot: Array = SPOTS[_spot]
+	var spot: Array = _spots[_spot]
 	var at: Vector3 = _plan(spot[1])
 	var face: Vector3 = _plan(spot[2])
 	_player.global_position = at
@@ -122,6 +144,19 @@ func _next_spot() -> void:
 	_camera.set_look(atan2(-to.x, -to.z), -10.0)
 	_camera.snap_to_target()
 	_begin(&"settle")
+
+
+## Puts Henry back on the current spot, facing along the wall, before the walk.
+func _next_spot_keep() -> void:
+	var spot: Array = _spots[_spot]
+	var at: Vector3 = _plan(spot[1])
+	var face: Vector3 = _plan(spot[2])
+	_player.global_position = at
+	_player.velocity = Vector3.ZERO
+	_player.look_at(Vector3(face.x, at.y, face.z), Vector3.UP)
+	var to: Vector3 = face - at
+	_camera.set_look(atan2(-to.x, -to.z), -10.0)
+	_camera.snap_to_target()
 
 
 func _begin(phase: StringName) -> void:
@@ -141,7 +176,7 @@ func _record() -> void:
 	var size: Vector2 = root.get_viewport().get_visible_rect().size
 	var eye: Vector2 = _camera.unproject_position(_camera.get_eye_position()) / size
 	var cam: Vector3 = _camera.global_position
-	state.merge({"spot": SPOTS[_spot][0], "phase": _phase, "frame": _phase_frame, "eye_sx": eye.x, "eye_sy": eye.y,
+	state.merge({"spot": _spots[_spot][0], "phase": _phase, "frame": _phase_frame, "eye_sx": eye.x, "eye_sy": eye.y,
 		"cam": cam, "body_fade": _camera.get_body_fade()}, true)
 	_rows.append(state)
 	_csv.store_line("%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f" % [
@@ -194,6 +229,11 @@ func _finish() -> void:
 		sum["eye_off_frames"] = off
 		sum["close_frames"] = close
 		sum["faded_frames"] = faded
+		var crossed: int = 0
+		for row: Dictionary in rows:
+			if float(row.get("swap", 0.0)) > 0.5:
+				crossed += 1
+		sum["crossed_frames"] = crossed
 		sum["auto_turn_max_deg"] = snappedf(auto_max, 0.1)
 		report[key] = sum
 	var file: FileAccess = FileAccess.open(_abs(_out).path_join("report.json"), FileAccess.WRITE)
@@ -207,10 +247,10 @@ func _print_passage() -> void:
 	var traversal: PassageTraversalComponent = _player.get_node_or_null(^"PassageTraversalComponent") as PassageTraversalComponent
 	var info: PassageInfo = traversal.get_nearby_passage() if traversal != null else null
 	if info == null:
-		print("camera trace: %s no passage" % SPOTS[_spot][0])
+		print("camera trace: %s no passage" % _spots[_spot][0])
 		return
 	var feet: Vector3 = _player.global_position
-	print("camera trace: %s passage engaged=%s along=%.2f lateral=%.2f half_depth=%.2f width=%.2f" % [SPOTS[_spot][0],
+	print("camera trace: %s passage engaged=%s along=%.2f lateral=%.2f half_depth=%.2f width=%.2f" % [_spots[_spot][0],
 		traversal.is_active(), info.along_of(feet), info.lateral_of(feet), info.half_depth(), info.clear_width])
 
 

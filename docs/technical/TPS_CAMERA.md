@@ -342,6 +342,44 @@ mouse is held off 41–47° of a full turn in the corner and the corridor. Known
 into the 3.6 × 2.8 m restroom wall the camera can only sit almost above Henry, and his
 eyes touch the lower frame edge for 11 of 75 frames.
 
+### Rooms frame Henry low-left; auto shoulder (2026-10-21)
+
+- Any room counts as tight (`composition_open_share` 0.85, was 0.5) and the camera rises
+  along its own up axis until Henry's eyes sit at `composition_eye_screen_y` (0.5 of the
+  height), on the real camera distance, fading out as the player looks up (Grossman's
+  pitch curves). 727 stove: eyes at 29–30 % / 46–47 % (were 33 % / 37 %), so the body
+  no longer blocks the middle of the room.
+- Auto shoulder: with the player's side under `swap_blocked_share` (0.7) of the offset
+  free and the other side `swap_margin` (0.35) freer for `swap_after_s`, the camera
+  crosses; it comes back after `swap_back_after_s` with its own side over
+  `swap_free_share`. Never in a doorway and never while the mouse turns (Ghost Recon
+  Breakpoint players switch theirs off because it fights them); `auto_shoulder_swap`
+  turns it off. References: Sifu, a Borderlands 4 camera mod (which had to stop it
+  swapping in every doorway). 727 corridor walk along a wall: crossed after ~0.4 s, Henry
+  mirrored to the right; before he left the frame for 8 frames.
+- Cinemachine Deoccluder's strategies map to this rig: pull forward = boom collision,
+  preserve height = shoulder lift, preserve distance = auto shoulder. Its Smoothing Time
+  is `collision_hold_time`, off by default: any hold (boom, boom while walking, lift)
+  kept the camera in Henry longer in the trace (fades 0 → 8 backing into a wall) and
+  blocked the shoulder cross.
+
+## Open items (camera, 2026-10-21)
+
+Found with `tools/runtime/trace_camera_tight.gd`, not yet solved:
+
+- Backing into a wall in the 3.6 × 2.8 m restroom, and turning in the exam-room corner,
+  the camera can only sit almost above Henry: his eyes touch the lower frame edge (13 of
+  75 back-in frames, 22 of 240 corner-turn frames). Candidate: authored camera hints for
+  tiny rooms, Cinemachine ClearShot style (a few placed shots, best one by shot quality;
+  Nesky: hints matter most in small closed spaces).
+- Turning next to a corridor wall still fades Henry for 7–8 of 240 frames: the body
+  guard's stateless prediction and the smoothed rig disagree for a moment.
+- Body guard thresholds (0.6 / 0.8 m), lift (70° body, 35° view) and auto-shoulder
+  timings are untuned by hand; only trace numbers so far.
+- `test_doorway_camera` still fails two checks it failed before this work (yaw_swing
+  one-frame pops 0.68 m, stand_sweep_30 Henry off screen).
+- `collision_hold_time` is available for hand tests but measured worse at every value tried.
+
 ## What stops the boom
 
 `TpsBoomProbe.passes()` decides this per collider shape:

@@ -88,6 +88,9 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## Seconds to ease toward a feeler's limit, and to ease back out after any wall.
 @export_range(0.01, 1.0, 0.01) var blend_in_time: float = 0.1
 @export_range(0.01, 2.0, 0.01) var blend_out_time: float = 0.2
+## Seconds the camera lifted over the shoulder holds before it eases back down (Cinemachine
+## Deoccluder's Smoothing Time). Off: in the 727 trace any hold kept the camera in Henry longer.
+@export_range(0.0, 2.0, 0.05) var collision_hold_time: float = 0.0
 @export_flags_3d_physics var collision_mask: int = 0xFFFFFFFF
 ## Colliders narrower than this in their middle axis never stop the boom: they fade.
 @export var thin_extent: float = 0.6
@@ -153,10 +156,28 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## of the screen width from the left, on the right shoulder; mirrored on the left one.
 @export_range(0.05, 0.5, 0.01) var composition_eye_screen_x: float = 0.27
 ## Room all round Henry (measure_room, eased like the boom) below which the composition is full.
-@export_range(0.05, 1.0, 0.05) var composition_open_share: float = 0.5
+@export_range(0.05, 1.0, 0.05) var composition_open_share: float = 0.85
+## Henry's eyes at this share of the screen height from the top in the composition: the
+## camera rises along its own up axis by what that needs (Grossman's framing, vertical).
+@export_range(0.2, 0.7, 0.01) var composition_eye_screen_y: float = 0.5
 @export_range(0.1, 20.0, 0.1) var composition_rate: float = 1.5
 ## Above this composition the space is tight: no room search and no whiskers turn the view.
 @export_range(0.0, 1.0, 0.05) var tight_auto_look_cutoff: float = 0.3
+
+@export_group("Auto shoulder")
+## With the player's shoulder side walled off and the other side free, the camera crosses to
+## the other shoulder and comes back once its own side is clear (Sifu; a Borderlands 4 camera
+## mod). Ghost Recon Breakpoint players turn theirs off, so it waits, holds and stays out of doorways.
+@export var auto_shoulder_swap: bool = true
+## Crosses when the player's side has less than swap_blocked_share of the shoulder offset free
+## and the other side has at least swap_margin more; comes back above swap_free_share.
+@export_range(0.0, 1.0, 0.05) var swap_blocked_share: float = 0.7
+@export_range(0.0, 1.0, 0.05) var swap_margin: float = 0.35
+@export_range(0.0, 1.0, 0.05) var swap_free_share: float = 0.85
+## Seconds the player's side must stay walled off before crossing, and clear before coming back.
+@export var swap_after_s: float = 0.4
+@export var swap_back_after_s: float = 1.0
+@export var swap_duration_s: float = 0.35
 
 @export_group("Shoulder lift")
 ## Back to a wall or in a corner, the camera body climbs the orbit over Henry's shoulder and
@@ -212,6 +233,8 @@ var _crouch: float = 0.0
 ## Shares of each boom leg left after walls, Lyra's DistBlockedPct.
 var _shoulder_pct: float = 1.0
 var _dist_pct: float = 1.0
+## Seconds since the lift last climbed.
+var _lift_hold: float = 0.0
 ## Free length behind the shoulder this frame, before the margin.
 var _boom_room: float = INF
 ## View offset the room search glides to while Henry stands: yaw radians, pitch degrees.
@@ -249,6 +272,11 @@ var _composition: float = 0.0
 var _recompose_goal: float = 0.0
 ## 0 with room behind Henry, 1 with the camera fully over his shoulder.
 var _lift: float = 0.0
+## 0 on the player's shoulder, 1 crossed to the other one; the timer counts the condition.
+var _swap: float = 0.0
+var _swap_goal: float = 0.0
+var _swap_timer: float = 0.0
+var _swap_rooms: Vector2 = Vector2.ONE
 ## Last rig inputs, for the body guard's prediction: pivot, orbit pitch lift (degrees).
 var _last_pivot: Vector3 = Vector3.ZERO
 var _last_lift_pitch: float = 0.0
@@ -452,6 +480,7 @@ func _update_rig(delta: float) -> void:
 	var want: float = (_boom + _pullback) * _look_up_scale(view_pitch)
 	var roominess: float = clampf(inverse_lerp(near_distance, far_distance, _boom), 0.0, 1.0)
 	var shoulder_now: float = _shoulder.update(delta)
+	shoulder_now *= _update_auto_swap(delta, safe, view_yaw, shoulder_now)
 	var side: float = shoulder_now * lerpf(tight_shoulder_fraction, 1.0, roominess)
 	var goal_composition: float = 1.0 - smoothstep(0.0, composition_open_share, pow(_room, openness_exponent))
 	_composition = goal_composition if not _has_position else lerpf(_composition, goal_composition, _damp(composition_rate, delta))
@@ -484,6 +513,10 @@ func _update_rig(delta: float) -> void:
 	view_pitch = clampf(view_pitch - lift * shoulder_lift_view_deg, pitch_min_deg, pitch_max_deg)
 	orbit_pitch = clampf(orbit_pitch - lift * shoulder_lift_pitch_deg, -85.0, pitch_max_deg)
 	pivot += Vector3.UP * lift * _lift_rise(pivot)
+	var cam_up: Vector3 = Basis.from_euler(Vector3(deg_to_rad(orbit_pitch), orbit_yaw, 0.0)).y
+	## Pitch-driven like Grossman's framing curves: looking up, Henry already drops in the frame.
+	var look_up: float = smoothstep(-10.0, 25.0, view_pitch)
+	pivot += cam_up * _composition_up(pivot, cam_up, want) * framing * (1.0 - lift) * (1.0 - look_up)
 	_last_pivot = pivot
 	_last_lift_pitch = lift * shoulder_lift_pitch_deg
 	var right := Vector3(cos(orbit_yaw), 0.0, -sin(orbit_yaw))
@@ -561,7 +594,7 @@ func get_debug_state() -> Dictionary:
 	return {"yaw": _yaw, "view_yaw": get_view_yaw(), "pitch": get_view_pitch_deg(),
 		"auto_yaw_deg": rad_to_deg(_auto_yaw), "auto_pitch_deg": _auto_pitch_deg,
 		"openness": _openness, "room": _room, "boom": _boom, "side": _last_side, "shoulder_pct": _shoulder_pct,
-		"recompose": _recompose, "composition": _composition, "lift": _lift, "body_fade": get_body_fade(), "eye_distance": _last_eye_distance,
+		"recompose": _recompose, "composition": _composition, "lift": _lift, "body_fade": get_body_fade(), "swap": _swap, "swap_own": _swap_rooms.x, "swap_other": _swap_rooms.y, "eye_distance": _last_eye_distance,
 		"passage_blend": _passage_blend, "traversal": _passage_traversal() if is_instance_valid(player) else 0.0}
 
 
@@ -572,6 +605,12 @@ func _update_lift(delta: float, safe: Vector3, view_yaw: float) -> float:
 	var goal: float = 1.0 - smoothstep(shoulder_lift_full_room, shoulder_lift_free_room, room)
 	## Pressed towards Henry by walking (the mouse guard cannot help), the lift climbs up to 4x faster.
 	var rate: float = shoulder_lift_in_rate * (1.0 + 3.0 * _pressed()) if goal > _lift else shoulder_lift_out_rate
+	if goal > _lift:
+		_lift_hold = 0.0
+	else:
+		_lift_hold += delta
+		if _lift_hold < collision_hold_time:
+			rate = 0.0
 	_lift = goal if not _has_position else lerpf(_lift, goal, _damp(rate, delta))
 	return _lift
 
@@ -631,6 +670,39 @@ func _passage_traversal() -> float:
 	if _passage != null and _passage.get_passage() != null:
 		return 1.0
 	return smoothstep(0.2, 1.0, Vector2(player.velocity.x, player.velocity.z).length())
+
+
+## Rise along the camera's up axis that puts Henry's eyes at composition_eye_screen_y, on the
+## distance the camera really has; the shoulder sweep still owns the ceiling.
+func _composition_up(pivot: Vector3, cam_up: Vector3, want: float) -> float:
+	var eye_up: float = (get_eye_position() - pivot).dot(cam_up)
+	var target_ndc: float = 1.0 - 2.0 * composition_eye_screen_y
+	return clampf(eye_up - target_ndc * want * _dist_pct * _half_tangents().y, -0.1, 0.4)
+
+
+## Multiplier for the player's shoulder: 1 on it, -1 crossed, eased between. Crosses when that
+## side stays walled off and the other is free; comes back once it has been clear a while.
+func _update_auto_swap(delta: float, safe: Vector3, view_yaw: float, shoulder: float) -> float:
+	if not auto_shoulder_swap or _passage_blend > 0.05 or absf(shoulder) < 0.05:
+		_swap_goal = 0.0
+		_swap_timer = 0.0
+	else:
+		var right := Vector3(cos(view_yaw), 0.0, -sin(view_yaw))
+		var reach: float = maxf(absf(shoulder) * lerpf(tight_shoulder_fraction, 1.0, 0.5), 0.4)
+		var own: float = _probe.sweep(safe, right * signf(shoulder) * reach) / reach
+		var other: float = _probe.sweep(safe, -right * signf(shoulder) * reach) / reach
+		_swap_rooms = Vector2(own, other)
+		## Never while the mouse turns: the player owns the view then and the body guard holds walls.
+		var settled: bool = _auto.get_idle_time() > 0.3 or Vector2(player.velocity.x, player.velocity.z).length() > 0.5
+		var wants_cross: bool = settled and own < swap_blocked_share and other - own >= swap_margin
+		var wants_home: bool = own > swap_free_share
+		var leaving: bool = wants_cross if _swap_goal == 0.0 else wants_home
+		_swap_timer = _swap_timer + delta if leaving else 0.0
+		if leaving and _swap_timer >= (swap_after_s if _swap_goal == 0.0 else swap_back_after_s):
+			_swap_goal = 1.0 - _swap_goal
+			_swap_timer = 0.0
+	_swap = move_toward(_swap, _swap_goal, delta / maxf(swap_duration_s, 0.01)) if _has_position else _swap_goal
+	return 1.0 - 2.0 * smoothstep(0.0, 1.0, _swap)
 
 
 ## Lateral offset per metre of boom that puts the eyes at composition_eye_screen_x:
