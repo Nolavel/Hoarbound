@@ -73,6 +73,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - 53k vertices on high instead of 113k. A/B evidence: `checks.yml` `snow-surface` job (new vs `main`).
   - `test_snow_clipmap` (CPU emulation of the vertex morph), `tools/runtime/capture_snow_surface.gd` +
     `analyze_snow_surface.py`, `checks.yml` → `snow-surface` job; `docs/technical/SNOW_COVER.md` → Drawn surface.
+- Godot AI and ItemFitter now default to the Inspector dock group instead of a separate lower-right group. Existing editor layouts retain their saved placement.
 - Sky weather character, finishing Codex's cloud pass (owner review: windy clouds and the night barely differed).
   - Causes:
     - clouds followed snowfall only, so windy (snow 0.15) looked calm;

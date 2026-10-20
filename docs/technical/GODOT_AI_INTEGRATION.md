@@ -4,7 +4,9 @@ The project vendors the complete Godot AI 4.2.3 distribution from
 `hi-godot/godot-ai`, source commit `f58314d9473d11efef94dd68b523e1b52643d736`.
 The original archive SHA-256 and source metadata are recorded in
 `godot_ai_vendor_receipt.json`. All 313 installed files match the supplied
-release inventory byte for byte; the upstream MIT license is included.
+release inventory byte for byte at installation; the upstream MIT license is included.
+Local customization: `plugin.gd` defaults the dock to the Inspector group
+(`DOCK_SLOT_RIGHT_UL`). Saved editor layouts still take precedence.
 
 ## Conflict decision
 
