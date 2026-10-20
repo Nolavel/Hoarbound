@@ -98,9 +98,13 @@ vec4 foot_stamps(vec2 uv) {
 		if (b.w < 0.5 || abs(local.x) > 1.3 || abs(local.y) > 1.7) {
 			continue;
 		}
-		float inside = 1.0 - smoothstep(-0.006, 0.0, boot_edge_m(local, boot_half_m));
+		float edge = boot_edge_m(local, boot_half_m);
+		float inside = 1.0 - smoothstep(-0.006, 0.0, edge);
 		result.x = max(result.x, b.z * boot_press(local.x) * inside);
-		result.zw = local;
+		// The outline and its wall band live on the sole and a centimetre around it.
+		if (edge < 0.015) {
+			result.zw = local;
+		}
 	}
 	return result;
 }
@@ -221,6 +225,11 @@ void fragment() {
 			if (into > 0.0 && contact > settled.r - settled.g - 0.3) {
 				live_pressed += min(into, give);
 			}
+		}
+		// Where the body or a dragged item presses deeper than the boot, the floor is no
+		// longer the boot's: drop its outline, or it would draw rings on trench walls.
+		if (live_pressed * 0.25 > max(packed, stamp.x) + 0.02) {
+			print_uv.z = 0.0;
 		}
 		packed = max(packed, live_pressed * 0.25);
 		packed = clamp(packed, -min(rim_max, settled.g + 0.05), give);
