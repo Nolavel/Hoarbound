@@ -39,7 +39,7 @@ void fragment() {
 	float footprint = length(fwidth(v_world.xz));
 	snow_apply_grain(n, albedo, v_world.xz, footprint, 1.0);
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
-	ALBEDO = hfn_painterly_surface_color(albedo, v_world, n, 0.38);
+	ALBEDO = hfn_painterly_surface_color(albedo, v_world, vec3(0.0, 1.0, 0.0), 0.38);
 	ROUGHNESS = 0.9;
 	SPECULAR = 0.3;
 	vec4 facet = snow_glint_facet(v_world.xz, n, footprint);

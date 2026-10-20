@@ -393,7 +393,9 @@ void fragment() {
 	v_glint_n = normalize((VIEW_MATRIX * vec4(facet.xyz, 0.0)).xyz);
 	v_glint = facet.w * (1.0 - smoothstep(0.01, 0.06, packed_height));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
-	ALBEDO = hfn_painterly_surface_color(albedo, v_world, n, 0.38);
+	// Pigment on the ground plane: the painterly noise is seeded by the normal, which on a
+	// curved trench wall sweeps it through dozens of periods (agate rings).
+	ALBEDO = hfn_painterly_surface_color(albedo, v_world, vec3(0.0, 1.0, 0.0), 0.38);
 	ROUGHNESS = roughness;
 	SPECULAR = 0.3;
 	if (debug_height) {

@@ -401,9 +401,13 @@ snow surface everywhere, and only the character's deformation is local.
   specular, so shadowed snow was a flat blue fill and lit snow a smooth cream.
   Shared helpers in `snow_surface.gdshaderinc`, used by both layers at every
   pixel (shading only, so nothing breathes with distance):
-  - `snow_grain_slope`: value-noise grain at 7 cm and 2.4 cm as a normal slope;
-    each octave fades out before a pixel spans it (no far shimmer).
-  - `snow_grain_albedo`: wind-packed patches (±3.5 % over ~1.7 m) and grain (±3 %).
+  - `snow_apply_grain`: value-noise grain at 7 cm and 2.4 cm as a normal slope,
+    with grain hollows darker (less sky); each octave fades before a pixel spans
+    it (no far shimmer). Only on level snow (n.y over ~0.9): an xz pattern on a
+    cut wall stretches into streaks. `snow_patch_albedo`: ±4 % over ~1.7 m.
+  - Painterly pigment gets the ground's up vector, not the shading normal: the
+    shared pass seeds its noise with the normal, and a curved trench wall swept
+    it into agate rings (isolated with an albedo-only debug render).
   - `snow_glint_facet` / `snow_glint_light`: 15 % of 2.2 cm cells hold a tilted
     ice facet; `light()` flashes it toward the sun (Blinn exponent 220), so
     sparkle follows the view and sun and is absent in shadow. Packed print

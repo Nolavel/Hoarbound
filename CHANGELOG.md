@@ -17,12 +17,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Snow material and drift crests (testers: the snow read as jelly).
   - Causes, from close-up frames on Duval Street: no detail under the 2 m lattice and the ~0.7 m ripple, a
     near-uniform albedo (±3 %) and plastic specular, so shadowed snow was a flat blue fill; print floors drew
-    topographic rings (`sin(depth × 110)` strata over lumpy floors), deep trench walls were marbled by the
-    outline jag shifting their slope samples, and glints were view-independent emission confetti.
-  - Now both layers share per-pixel grain (7 cm and 2.4 cm, each fading before a pixel spans it), albedo
-    patches and grain hollows, ice facets that flash toward the sun in `light()` (none in shadow, none on
-    packed floors), `SPECULAR` 0.3 and a cubic B-spline wind map for shading slopes. Print slopes use a
-    two-texel Sobel without the jag; deep pits darken with depth.
+    topographic rings (`sin(depth × 110)` strata over lumpy floors) and glints were view-independent
+    emission confetti. Deep trench walls showed agate rings; a debug render split albedo from normal and
+    put them in the albedo: the shared painterly pass seeds its pigment noise with the surface normal,
+    which on a curved trench wall sweeps through dozens of noise periods. Snow now passes the ground's up
+    vector to that pass in both layers.
+  - Now both layers share per-pixel grain on level snow (7 cm and 2.4 cm, each fading before a pixel spans
+    it), albedo patches and grain hollows, ice facets that flash toward the sun in `light()` (none in shadow,
+    none on packed floors), `SPECULAR` 0.3 and a cubic B-spline wind map for shading slopes. Print slopes use
+    a three-texel Sobel without the outline jag; deep pits darken with depth; a boot's outline and tread are
+    kept only on and around its sole, not where the wading body pressed deeper.
   - Lee drifts keep a trough at the wall foot (the lee eddy) and crest 3 m out, with only a 1-2-1 pass so the
     crest survives on the 2 m lattice; `factor_max` 8.5 so crests are not clipped.
 - Snowpack firmness (owner request: furrows belong to fresh wet snow; a dry cold pack is a crust that breaks
