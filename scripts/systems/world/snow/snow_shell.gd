@@ -159,6 +159,8 @@ var _surface: ShaderMaterial
 var _mesh: MeshInstance3D
 var _clipmap: SnowClipmap
 var _far_ready: bool = false
+## Some lattice points sat on a chunk that was not live yet; retried until all are real ground.
+var _far_partial: bool = false
 var _contact: SubViewport
 var _contact_cam: Camera3D
 var _contact_quad: ShaderMaterial
@@ -237,6 +239,15 @@ func _ready() -> void:
 	field.ground_sampler = _sample_ground
 	_build_surface()
 	_build_capture()
+
+
+## A freed shell leaves no hole in the next world's chunk cover.
+func _exit_tree() -> void:
+	if active == self:
+		active = null
+		live_window = Vector4.ZERO
+		RenderingServer.global_shader_parameter_set(&"snow_window", live_window)
+		RenderingServer.global_shader_parameter_set(&"snow_lod", Vector4.ZERO)
 
 
 ## World system hook (world.gd): the profile's wind field, or the legacy bake when it names none.
@@ -652,17 +663,24 @@ func _refresh_far_grid(window_origin: Vector2) -> void:
 	## One extra row each side for the central differences of the normals.
 	var heights := PackedFloat32Array()
 	heights.resize((n + 2) * (n + 2))
+	var known := PackedByteArray()
+	known.resize((n + 2) * (n + 2))
+	var streams: bool = _terrain.has_method(&"has_ground_at")
+	_far_partial = false
 	for z: int in range(n + 2):
 		for x: int in range(n + 2):
 			var at: Vector2 = grid_origin + Vector2(x - 1, z - 1) * step_m
 			heights[z * (n + 2) + x] = _terrain.get_height(at.x, at.y)
+			known[z * (n + 2) + x] = 1 if not streams or bool(_terrain.call(&"has_ground_at", at.x, at.y)) else 0
+			_far_partial = _far_partial or known[z * (n + 2) + x] == 0
 	var image := Image.create_empty(n, n, false, Image.FORMAT_RGBAF)
 	for z: int in range(n):
 		for x: int in range(n):
 			var k: int = (z + 1) * (n + 2) + x + 1
 			var ground: float = heights[k]
+			## No chunk cover lies on ground that is not streamed in yet: draw no snow there either.
 			var shore: float = smoothstep(SnowChunkCover.SEA_LEVEL_M + SnowChunkCover.SHORE_M.x,
-				SnowChunkCover.SEA_LEVEL_M + SnowChunkCover.SHORE_M.y, ground)
+				SnowChunkCover.SEA_LEVEL_M + SnowChunkCover.SHORE_M.y, ground) if known[k] == 1 else 0.0
 			var normal := Vector3(-(heights[k + 1] - heights[k - 1]), 2.0 * step_m, -(heights[k + n + 2] - heights[k - n - 2])).normalized()
 			image.set_pixel(x, z, Color(ground, shore, normal.x, normal.z))
 	if _far_grid_tex == null or _far_grid_tex.get_width() != n:
@@ -703,6 +721,9 @@ func _follow_lod() -> void:
 	_mesh.global_position = Vector3(snapped.x, 0.0, snapped.y)
 	var live: bool = field.origin.x != INF
 	_mesh.visible = live
+	if _far_partial and live and Engine.get_process_frames() % 30 == 0:
+		_far_grid_origin = Vector2(INF, INF)
+		_refresh_far_grid(field.origin)
 	RenderingServer.global_shader_parameter_set(&"snow_lod",
 		Vector4(at.x, at.z, cut_radius_m if _far_ready else 0.0, 1.0 if live else 0.0))
 

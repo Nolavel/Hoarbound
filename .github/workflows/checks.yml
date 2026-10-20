@@ -496,14 +496,18 @@ jobs:
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export XDG_RUNTIME_DIR=/tmp/xdg
           mkdir -p "$XDG_RUNTIME_DIR" "$OUT"
-          set -o pipefail
           xvfb-run -a -s "-screen 0 1920x1080x24" "$HOME/.local/bin/godot" \
             --path . \
             --rendering-driver vulkan \
             --rendering-method forward_plus \
             --audio-driver Dummy \
             --fixed-fps 30 \
-            --script res://tools/runtime/capture_snow_surface.gd -- "$OUT" 10 2>&1 | grep -v PerfJSON | tee "$OUT/capture.log"
+            --script res://tools/runtime/capture_snow_surface.gd -- "$OUT" 10 > "$OUT/raw.log" 2>&1 || status=$?
+          grep '^\[PerfJSON\]' "$OUT/raw.log" | sed 's/^\[PerfJSON\] //' > "$OUT/perf.jsonl" || true
+          grep -v PerfJSON "$OUT/raw.log" > "$OUT/capture.log" || true
+          rm -f "$OUT/raw.log"
+          tail -n 40 "$OUT/capture.log"
+          [ "${status:-0}" -eq 0 ] || exit "$status"
           if grep -qE "SHADER ERROR|SCRIPT ERROR|SNOW_SURFACE_CAPTURE FAIL" "$OUT/capture.log"; then
             echo "Capture reported an error."
             exit 1

@@ -107,6 +107,21 @@ def main():
     img[..., 1] = (near_path * 60).astype(np.uint8)
     img[..., 2] = (((d0 != dn) & ~near_path) * 255).astype(np.uint8)
     Image.fromarray(img).save(cap / "first_to_last_heat.png")
+    perf_path = cap / "perf.jsonl"
+    if perf_path.exists():
+        gpu = []
+        for line in perf_path.read_text().splitlines():
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            for view in row.get("viewports", []):
+                if view.get("path") == "/root":
+                    gpu.append(view.get("gpu_ms", 0.0))
+        if gpu:
+            ## Lavapipe rasterises on the CPU: only the old/new ratio means anything.
+            summary["root_gpu_ms_median"] = float(np.median(gpu))
+            summary["root_gpu_samples"] = len(gpu)
     (cap / "analysis.json").write_text(json.dumps({"summary": summary, "steps": steps}, indent=1))
     print(json.dumps(summary, indent=1))
 
