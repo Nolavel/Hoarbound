@@ -218,6 +218,8 @@ var _fov_offset: float = 0.0
 var _composition: float = 0.0
 ## Lens shift in NDC: what walls left of the composition after the shoulder offset.
 var _lens: Vector2 = Vector2.ZERO
+## Lateral shoulder offset asked for this frame, before walls (for traces).
+var _last_side: float = 0.0
 
 
 func _ready() -> void:
@@ -428,6 +430,7 @@ func _update_rig(delta: float) -> void:
 	var right := Vector3(cos(orbit_yaw), 0.0, -sin(orbit_yaw))
 	var back: Vector3 = _back(orbit_yaw, orbit_pitch)
 	side *= 1.0 - _update_recompose(delta, safe, pivot, right * side, back, want)
+	_last_side = side
 	_apply_fov_offset(_passage_fov() * _passage_blend + recompose_fov_deg * _recompose)
 	var shoulder: Vector3 = _sweep_shoulder(delta, safe, pivot + right * side)
 	var camera: Vector3 = shoulder + back * want * _blend_boom(delta, shoulder, back, want)
@@ -490,6 +493,15 @@ func _free_eye_distance(safe: Vector3, shoulder: Vector3, back: Vector3, want: f
 ## 0 in the open, 1 with Henry framed low at the side of a tight space.
 func get_composition() -> float:
 	return _composition
+
+
+## Framing state of the last frame, for tools/runtime/trace_camera_tight.gd.
+func get_debug_state() -> Dictionary:
+	return {"yaw": _yaw, "view_yaw": get_view_yaw(), "pitch": get_view_pitch_deg(),
+		"auto_yaw_deg": rad_to_deg(_auto_yaw), "auto_pitch_deg": _auto_pitch_deg,
+		"openness": _openness, "boom": _boom, "side": _last_side, "shoulder_pct": _shoulder_pct,
+		"recompose": _recompose, "composition": _composition, "lens_x": _lens.x, "lens_y": _lens.y,
+		"eye_distance": _last_eye_distance}
 
 
 ## Lateral offset per metre of boom that puts the eyes at composition_eye_screen.x.
