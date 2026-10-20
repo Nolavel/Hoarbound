@@ -45,10 +45,8 @@ const CONTACT_LAYER: int = RenderLayers.SNOW_CONTACT
 @export var near_spacing_m: float = 0.03
 ## Half width of that dense core; each ring outwards doubles the spacing.
 @export var near_half_m: float = 2.75
-## Chebyshev distance from Henry over which prints fade out of the drawn snow; inside detail_reach_m().
+## Chebyshev distance from Henry over which his deformation fades out; inside detail_reach_m().
 @export var deform_fade_m: Vector2 = Vector2(4.5, 6.0)
-## Over this band the field's detail hands the surface to the chunk cover's triangles.
-@export var far_fade_m: Vector2 = Vector2(4.5, 6.0)
 ## Inside this Chebyshev radius the clipmap draws, outside it the chunk cover.
 @export var cut_radius_m: float = 6.25
 ## Texels along one side of the settled field.
@@ -756,7 +754,6 @@ func _build_surface() -> void:
 	_surface.set_shader_parameter("sea_level_m", sea_level_m)
 	_surface.set_shader_parameter("repose_tan", tan(deg_to_rad(crust_wall_deg)))
 	_surface.set_shader_parameter("deform_fade", deform_fade_m)
-	_surface.set_shader_parameter("far_fade", far_fade_m)
 	_surface.set_shader_parameter("boot_half_m", boot_half_m())
 	_mesh = MeshInstance3D.new()
 	_mesh.name = "SnowShellMesh"
@@ -1137,7 +1134,7 @@ func _exclude() -> Array[RID]:
 func _sample_ground(at: Vector2) -> Vector2:
 	var ground_y: float = _base_y
 	if _terrain != null:
-		ground_y = _terrain.get_height(at.x, at.y)
+		ground_y = _lattice_height(at) if field.use_baked_baseline else _terrain.get_height(at.x, at.y)
 	if _terrain != null and _city != null and bool(_city.call(&"has_snow_obstacle_at", at)):
 		return Vector2(ground_y, 1.0)
 	if not is_inside_tree():
@@ -1169,6 +1166,19 @@ func _sample_ground(at: Vector2) -> Vector2:
 	if _terrain != null and hit_at.y <= ground_y + 0.3:
 		return Vector2(ground_y, 0.0)
 	return Vector2(hit_at.y, 0.0)
+
+
+## Terrain under `at` as the chunk cover's 2 m triangles carry it, so feet stand on the drawn base.
+func _lattice_height(at: Vector2) -> float:
+	var step: float = SnowChunkCover.STEP_M
+	var cell := Vector2(floorf(at.x / step), floorf(at.y / step))
+	var f: Vector2 = at / step - cell
+	var a: Vector2 = cell * step
+	if f.x + f.y <= 1.0:
+		return _terrain.get_height(a.x, a.y) * (1.0 - f.x - f.y) + _terrain.get_height(a.x + step, a.y) * f.x \
+			+ _terrain.get_height(a.x, a.y + step) * f.y
+	return _terrain.get_height(a.x + step, a.y + step) * (f.x + f.y - 1.0) + _terrain.get_height(a.x, a.y + step) * (1.0 - f.x) \
+		+ _terrain.get_height(a.x + step, a.y) * (1.0 - f.y)
 
 
 ## Exact city footprints above own the static obstacle mask. A streamed city

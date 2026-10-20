@@ -16,9 +16,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     persistent stamp and the contact soles. The packed field carries each print's sole uv, and `snow_ground` draws
     the exact outline and the lug tread per pixel.
   - `capture_snow_walk.gd` and the `snow-walk` job in `checks.yml`: TPS and leg-height videos of the walk.
-  - Independent review (Sonnet agent + `/code-review high`) caught that the wall lee ramps never ran over the baked
-    map (the field skipped its wall layer): fixed, with a regression check in `test_snow_shell`. Also: prints shade
-    per pixel in coarse rings, narrower morph bands, no string `has_method`/`connect` seams, retry cap at the coast.
+  - Independent review (Sonnet agent + `/code-review high`): prints shade per pixel in coarse rings, narrower morph
+    bands, no string `has_method`/`connect` seams, retry cap at the coast. It also caught that the wall lee ramps
+    never ran over the baked map; they are now out of the drawn base until the chunk bake carries them.
 - Colour grade crossfade (from Grok's `grok` branch).
   - Grok's rules are kept:
     - outdoor LUTs blend over ±0.5 h corridors at 05/07/17/21 h;
@@ -39,18 +39,19 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     that jumped 3.2 m with the field window and blended into the chunk cover over a window-relative 6 m band.
     Each jump put every world point under different vertices and blend weights; the drawn height changed only
     on window moves.
-  - Now one height function (field ground + baked settled depth − prints, handing over to the chunk cover's own
-    2 m triangles 4.5–6 m from Henry) drawn by `SnowClipmap` rings: spacing doubles from 3.1 cm, the mesh follows
-    Henry snapped to its coarsest spacing, and each ring morphs onto the next one's lattice by distance
-    (geometry clipmaps, Losasso & Hoppe 2004; CDLOD, Strugar 2009). The chunk cover takes over beyond 6.25 m
-    through the `snow_lod` global; both share `snow_far_cover.gdshaderinc`, so geometry and shading match.
-  - Wind relief, same in near and far shading (the near normal cache had no ridges, so ridges appeared in a ring
-    at the old handoff): sastrugi with a steep lee face replace the blotchy ripple; over the baked map SnowField
-    adds drift ridges and each wall's lee ramp to the depth Henry's feet read, and the near surface draws that top.
-  - The near snow mesh never had vertex normals, so the shadow normal bias made it shadow itself: a blue square
-    around Henry against the white chunk cover (also on the old shell). The rings now carry and set up normals.
-  - Chunk geometry carries the same wind ridges at its 2 m vertices, so near and far differ only by the grid's
-    interpolation; ridge and ripple slopes are analytic (one noise lookup with its gradient, not 5–8 lookups).
+  - Method (Batman: Arkham Origins, GDC 2014; God of War Ragnarök): one base snow surface everywhere, only
+    Henry's deformation is local. With the chunk lattice the rings draw exactly the chunk cover's surface (terrain
+    on its 2 m triangles + settled depth and wind ridges) and shading (`snow_far_shade`), plus prints that fade
+    4.5–6 m out. A first pass blended a field-based near surface into the chunk one by distance; it breathed in
+    a 4–8 m band (10.1M pixel-steps over 2 mm on the witness) and was replaced.
+  - `SnowClipmap` rings: spacing doubles from 3.1 cm, the mesh follows Henry snapped to its coarsest spacing and
+    morphs ring to ring by distance (geometry clipmaps, Losasso & Hoppe 2004; CDLOD, Strugar 2009). The chunk
+    cover yields inside 6.25 m through the `snow_lod` global. SnowField mirrors the base for Henry's feet.
+  - Wind relief: sastrugi with a steep lee face replace the blotchy ripple, the same in both layers and in chunk
+    geometry; slopes are analytic (one noise lookup with its gradient).
+  - Witness on Duval Street (main → first pass): largest step 453 → 43 mm, coverage flips 376k → 0.
+  - The blue, sunken square in captures was the capture hiding every Control, including the snow passes'
+    ColorRects: the shaped field stayed at the clear colour (7 cm packed everywhere). Captures hide only root UI.
   - 53k vertices on high instead of 113k. A/B evidence: `checks.yml` `snow-surface` job (new vs `main`).
   - `test_snow_clipmap` (CPU emulation of the vertex morph), `tools/runtime/capture_snow_surface.gd` +
     `analyze_snow_surface.py`, `checks.yml` → `snow-surface` job; `docs/technical/SNOW_COVER.md` → Drawn surface.

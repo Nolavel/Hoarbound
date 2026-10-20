@@ -184,13 +184,13 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   and Henry's shell shader derive visible settled height from the same terrain,
   baked wind texture, shore fade and world coordinates. `SnowField` mirrors the
   baseline for gameplay and tracks; its CPU grid updates in bounded steps.
-  Henry's moving window adds packed tracks. Over the baked map SnowField adds
-  what 2 m cells cannot hold: drift ridges and each wall's own lee ramp (the local
-  `_lee`, ASCE 7 drift scale like `lee_m`; the windward scour stays the bake's).
-  Near Henry the drawn top *is* SnowField's top, so feet and eyes agree. The
-  ray-derived scour and blurred bed remain for scenes without the baked map.
-  Baked prevailing wind fixes ridge and lee orientation; current gusts drive
-  weather effects instead.
+  Henry's moving window adds packed tracks. Over the baked map SnowField mirrors
+  the drawn base exactly (ground on the chunk's 2 m triangles, settled depth and
+  wind ridges), so feet stand on what is drawn. Wall lee ramps are not in the
+  base yet: they belong in the chunk bake, where both layers would carry them. The
+  ray-derived lee, scour and blurred bed remain for scenes without the baked map.
+  Baked prevailing wind fixes ridge orientation; current gusts drive weather
+  effects instead.
   Cover changes rebuild the field even while Henry stands still. How the
   surface is drawn and handed to the chunk cover is in *Drawn surface* below.
   SnowField also prepares a 40 cm settled-normal image row by row under its
@@ -366,13 +366,16 @@ clipmap below draws the same surface.
 The old shell was one graded square mesh that jumped 3.2 m with the window and
 blended into the chunk cover over its outer 6 m. Every jump put a world point
 under different vertices and a different blend weight, so the outer cover
-visibly crawled and popped (measured with the witness below). It is replaced by:
+visibly crawled and popped (measured with the witness below). Any blend of two
+different base surfaces by distance breathes as Henry walks, so the method is the
+one shipped in Batman: Arkham Origins (GDC 2014) and God of War Ragnarök: one base
+snow surface everywhere, and only the character's deformation is local.
 
-- **One height function.** For any world XZ the drawn top is a pure function of
-  position, the field textures and Henry's position: SnowField ground + baked
-  settled depth − packed prints near Henry, handing over to the chunk cover's own
-  value (2 m triangles of terrain + `snow_base_geom`, same diagonal) further out.
-  Window moves never change it: field and packing are world-aligned texels.
+- **One base surface.** With the chunk lattice the drawn base is exactly the
+  chunk cover's: terrain on its 2 m triangles (same diagonal) + `snow_base_depth`
+  (settled depth and wind ridges), shaded by the same `snow_far_shade`. The rings
+  draw that surface plus Henry's deformation (packed prints, rims, tread), which
+  alone fades with distance. Without the baked map the base is SnowField's top.
 - **Rings (`SnowClipmap`).** Nested square rings, spacing doubling outwards from
   3.1 cm (geometry clipmaps, Losasso & Hoppe 2004). The mesh is built once and
   follows Henry every frame, snapped to the coarsest spacing, so every vertex
@@ -382,23 +385,20 @@ visibly crawled and popped (measured with the witness below). It is replaced by:
   2009). A point that changes ring after a snap is already on the coarse surface,
   so nothing pops; neighbouring rings share boundary heights, so nothing cracks.
   Every spacing divides 2 m, so any ring reproduces the chunk triangles exactly.
-- **Bands.** Prints fade out and the field's detail hands over to the chunk
-  surface between 4.5 and 6 m from Henry; the chunk cover draws beyond 6.25 m
-  (both draw a 15 cm overlap, where they are the same surface and shading).
-  These sit inside what the window guarantees around Henry
-  (`detail_reach_m()`: half window − half step − walking lead − 1 m lag); a
-  lagging rebuild falls back to the chunk surface near the window edge.
+- **Bands.** Henry's deformation fades out between 4.5 and 6 m from him; the
+  chunk cover draws beyond 6.25 m (both draw a 15 cm overlap of the same surface).
+  The fade sits inside what the window guarantees around Henry (`detail_reach_m()`:
+  half window − half step − walking lead − 1 m lag); a lagging rebuild fades the
+  deformation near the window edge instead.
 - **Wind relief.** `snow_ridge` cuts sastrugi: a gentle rise into the wind and a
   steep lee drop every ~6 m, crests wandering and broken into segments; small
   ~0.7 m sastrugi of the same shape replace the old blotchy ripple wherever the
   wind runs free (wind-oriented ripple normals, as Journey's sand, GDC 2013).
-  Near and far shading use the same relief, so ridges no longer appear in a
-  ring at the handoff (the old near cache was ridge-free).
-- **Normals.** The rings set an up vertex normal: without one the shadow normal
-  bias let the snow shadow itself into the stylized blue (the old shell's square).
-- **Shading.** The outer band computes the chunk cover's normal, albedo and
-  thin-snow cut from the same include (`snow_far_cover.gdshaderinc`) and the
-  same lattice normals, so material matches across the handoff too.
+  Both layers shade the same relief, so ridges no longer appear in a ring around
+  Henry (the old near cache was ridge-free).
+- **Captures.** Snow passes draw their fields with ColorRects in SubViewports;
+  a capture that hides every Control leaves the shaped field at the clear colour
+  (7 cm "packed" everywhere: a blue, sunken square). Hide only the root's UI.
 - **Witness.** `tools/runtime/capture_snow_surface.gd` walks Henry down Duval
   Street and records a fixed top-down camera whose snow shaders write their
   drawn height (`debug_height`); `analyze_snow_surface.py` reports height

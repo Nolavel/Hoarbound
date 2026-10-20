@@ -74,8 +74,10 @@ func _run() -> void:
 		return
 	for node: Node in _world.find_children("*", "CanvasLayer", true, false):
 		(node as CanvasLayer).visible = false
+	## Only the screen's own UI: the snow passes draw their fields with ColorRects in SubViewports.
 	for node: Node in _world.find_children("*", "Control", true, false):
-		(node as Control).visible = false
+		if node.get_viewport() == root:
+			(node as Control).visible = false
 	root.scaling_3d_scale = 1.0
 	root.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	_weather.set_weather(&"calm", true)

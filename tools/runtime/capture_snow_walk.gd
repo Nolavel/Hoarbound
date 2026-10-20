@@ -64,12 +64,14 @@ func _run() -> void:
 		return
 	for node: Node in _world.find_children("*", "CanvasLayer", true, false):
 		(node as CanvasLayer).visible = false
+	## Only the screen's own UI: the snow passes draw their fields with ColorRects in SubViewports.
 	for node: Node in _world.find_children("*", "Control", true, false):
-		(node as Control).visible = false
+		if node.get_viewport() == root:
+			(node as Control).visible = false
 	root.scaling_3d_scale = 1.0
 	weather.set_weather(&"calm", true)
-	## Deep cover with a strong storm share: crusted scour on the street, drifts at the walls.
-	presentation.load_save_data({"settled": 0.9, "frost": 0.35, "storm": 0.6})
+	## Middling cover: boot prints below wading depth, crusted scour on the street, deeper drifts.
+	presentation.load_save_data({"settled": 0.5, "frost": 0.35, "storm": 0.6})
 	for node: Node in _world.find_children("*", "DayNightManager", true, false):
 		var day := node as DayNightManager
 		## Low afternoon sun: relief and prints throw shadows.

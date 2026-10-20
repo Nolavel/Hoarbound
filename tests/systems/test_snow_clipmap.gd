@@ -125,9 +125,9 @@ func _test_the_chunk_triangles_are_drawn_exactly(map: SnowClipmap) -> void:
 func _test_detail_stays_inside_the_window() -> void:
 	var shell: SnowShell = load("res://scripts/systems/world/snow/snow_shell.gd").new()
 	var reach: float = shell.detail_reach_m()
-	_check(shell.deform_fade_m.y <= reach and shell.far_fade_m.y <= reach, "fades finish inside the window's reach (%.2f m)" % reach)
+	_check(shell.deform_fade_m.y <= reach, "the deformation fades inside the window's reach (%.2f m)" % reach)
 	_check(shell.cut_radius_m + SnowShell.LOD_OVERLAP_M <= reach, "the chunk handoff lies inside the window's reach")
-	_check(shell.far_fade_m.y <= shell.cut_radius_m - SnowShell.LOD_OVERLAP_M, "the surface is the chunk's before the chunk draws")
+	_check(shell.deform_fade_m.y <= shell.cut_radius_m - SnowShell.LOD_OVERLAP_M, "no deformation is left where the chunk cover draws")
 	shell.free()
 
 
