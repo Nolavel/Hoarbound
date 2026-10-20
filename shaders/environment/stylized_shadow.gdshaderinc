@@ -2,6 +2,9 @@
 // HFN_SHADOW_FRAGMENT(world_pos); light() multiplies N.L by hfn_stylized_shadow().
 
 global uniform float stylized_shadow_strength;
+// Set by ShelterShadowBinder from ThermalManager.sheltered_changed; never a weather/lighting override.
+// 0 = outdoor production lookup, 1 = stronger torn indoor local-light silhouettes.
+global uniform float stylized_shadow_interior_mode;
 // Brush-stroke mask for the spray (tools/art/generate_shadow_brush_masks.py); mix 0 keeps
 // the value noise, 1 uses the mask. Experimental capture mode uses values > 1.5 to select
 // the painted-edge path without changing the production ProjectSettings contract.
@@ -11,6 +14,10 @@ global uniform float stylized_shadow_brush_mix;
 // Production lookup offset: amplitude in metres and base frequency in cycles per metre.
 const float HFN_SHADOW_OFFSET_M = 0.18;
 const float HFN_SHADOW_OFFSET_FREQ = 3.0;
+// Interior preserves the stock-Godot shadow sampling and local-light falloff,
+// but restores the broader torn edges of the earlier shelter look.
+const float HFN_SHADOW_INDOOR_OFFSET_M = 0.40;
+const float HFN_SHADOW_INDOOR_DETAIL_FREQ = 8.0;
 // Painted-edge experiment: one coarse displacement layer, smaller than production FBM.
 const float HFN_PAINTED_OFFSET_M = 0.095;
 const float HFN_PAINTED_OFFSET_FREQ = 2.35;
@@ -97,6 +104,7 @@ float hfn_shadow_brush(vec3 noise_pos, vec3 n, float pixel_m) {
 // noise_pos is metric and fixed to the surface: world for static meshes, model for movers.
 vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 view, float offset_scale) {
 	float strength = clamp(stylized_shadow_strength, 0.0, 1.0);
+	float indoor = clamp(stylized_shadow_interior_mode, 0.0, 1.0);
 	float pixel_m = max(length(fwidth(noise_pos)), 1e-5);
 	vec3 n = normalize((inv_view * vec4(view_normal, 0.0)).xyz);
 	bool painted_edge = stylized_shadow_brush_mix > 1.5;
@@ -122,7 +130,16 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 		offset_m = HFN_PAINTED_OFFSET_M * (0.58 + 0.30 * abs(brush) + 0.50 * lobe);
 	} else {
 		noise = hfn_shadow_fbm3(noise_pos, HFN_SHADOW_OFFSET_FREQ, pixel_m);
-		offset_m = HFN_SHADOW_OFFSET_M;
+		if (indoor > 0.0) {
+			// Old shelter reference: finer tears on the receiving surface. No local
+			// ATTENUATION tone cut: that would break the SpotLight's radial falloff.
+			float fine_keep = 1.0 - smoothstep(0.2, 0.45, HFN_SHADOW_INDOOR_DETAIL_FREQ * pixel_m);
+			vec3 fine = hfn_shadow_noise3(
+				noise_pos * HFN_SHADOW_INDOOR_DETAIL_FREQ + vec3(7.3, -14.1, 23.9)
+			) * fine_keep;
+			noise = mix(noise, noise * 0.76 + fine * 0.48, indoor);
+		}
+		offset_m = mix(HFN_SHADOW_OFFSET_M, HFN_SHADOW_INDOOR_OFFSET_M, indoor);
 	}
 	vec3 tangent = noise - n * dot(noise, n);
 	vec3 offset = (view * vec4(tangent * offset_m * offset_scale * strength, 0.0)).xyz;

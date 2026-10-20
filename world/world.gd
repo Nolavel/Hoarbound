@@ -21,6 +21,7 @@ const WORLD_SYSTEM_SCRIPTS: Array[GDScript] = [
 	preload("res://scripts/systems/survival/thermal_manager.gd"),
 	preload("res://scripts/systems/survival/shelter_state.gd"),
 	preload("res://scripts/systems/world/shelter_grade_binder.gd"),
+	preload("res://scripts/systems/world/shelter_shadow_binder.gd"),
 	preload("res://scripts/systems/audio/world_audio_binder.gd"),
 	preload("res://scripts/systems/save/sleep_controller.gd"),
 	preload("res://scripts/systems/save/session_state.gd"),

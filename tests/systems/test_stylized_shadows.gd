@@ -53,7 +53,12 @@ func _run() -> void:
 		"res://shaders/environment/stylized_shadow.gdshaderinc"
 	)
 	_check(not contract_source.contains("sample_directional_shadow"), "shared contract calls an engine-patched sampler")
-	for global_name: String in ["stylized_shadow_strength", "stylized_shadow_brush_mask", "stylized_shadow_brush_mix"]:
+	_check(contract_source.contains("HFN_SHADOW_INDOOR_OFFSET_M"), "indoor torn-edge mode is missing")
+	_check(
+		World.WORLD_SYSTEM_SCRIPTS.has(load("res://scripts/systems/world/shelter_shadow_binder.gd")),
+		"world does not install the interior shadow state binder"
+	)
+	for global_name: String in ["stylized_shadow_strength", "stylized_shadow_brush_mask", "stylized_shadow_brush_mix", "stylized_shadow_interior_mode"]:
 		_check(
 			ProjectSettings.has_setting("shader_globals/%s" % global_name),
 			"missing global shader parameter: %s" % global_name
