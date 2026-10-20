@@ -17,8 +17,15 @@ const WALL: float = 0.03
 const DOOR_W: float = 0.44
 const DOOR_H: float = 0.34
 const FLUE_H: float = 1.7
-## Thermal warm-up remains simulation-driven. Presentation must read immediately.
-const VISUAL_FIRE_FLOOR: float = 0.50
+## Fire strength at the catch, before the warm-up grows it: the firebox shows a small
+## flame at once, the room brightens with the burn (author request 2026-10-20).
+const FIREBOX_CATCH_STRENGTH: float = 0.45
+const ROOM_CATCH_STRENGTH: float = 0.2
+## Shown strength follows the stepped simulation intensity at this rate, per second.
+const STRENGTH_FOLLOW_RATE: float = 3.0
+## Noise flicker: a slow swell (a little brighter, a little dimmer) over fast flame jitter.
+const FLICKER_SLOW_HZ: float = 0.35
+const FLICKER_FAST_HZ: float = 9.0
 const FIREBOX_LIGHT_ENERGY: float = 1.9
 const FIREBOX_LIGHT_RANGE: float = 2.2
 const ROOM_LIGHT_ENERGY: float = 4.2
@@ -37,6 +44,8 @@ var _embers: StandardMaterial3D
 var _logs: Array[Node3D] = []
 var _glow: OmniLight3D
 var _flicker_t: float = 0.0
+var _flicker_noise: FastNoiseLite
+var _shown_t: float = 0.0
 var _door: Node3D
 var _flames: Array[MeshInstance3D] = []
 ## 0..1 while a lighting act catches: a weak flame that grows before the fire takes.
@@ -49,6 +58,11 @@ func _ready() -> void:
 	if source == null:
 		source = get_parent() as HeatSource
 	_build()
+	_flicker_noise = FastNoiseLite.new()
+	_flicker_noise.noise_type = FastNoiseLite.TYPE_PERLIN
+	_flicker_noise.frequency = 0.01
+	_flicker_noise.fractal_octaves = 2
+	_flicker_noise.seed = randi()
 	if source != null:
 		source.fuel_changed.connect(func(_f: float) -> void: _refresh())
 		source.burning_changed.connect(func(_b: bool) -> void: _refresh())
@@ -125,33 +139,27 @@ func get_room_light_energy() -> float:
 	return source.flame_light.light_energy
 
 
-func _visual_fire_strength() -> float:
+## Burn progress 0..1 from the source's warm-up (intensity 0.08 -> 1), eased so the
+## fire grows slowly at first and settles into its nominal burn.
+func _fire_growth() -> float:
 	if _acting and _kindle > 0.0 and not _burning():
-		return clampf(_kindle, 0.0, 1.0)
+		return 0.0
 	if source == null or not source.is_burning():
 		return 0.0
-	## Heat starts at 8% during the 20 s warm-up, but a caught flame must still
-	## light the room immediately. Presentation ramps 50% -> 100% independently.
-	return lerpf(
-		VISUAL_FIRE_FLOOR,
-		1.0,
-		clampf(source.get_intensity(), 0.0, 1.0)
-	)
+	return smoothstep(0.0, 1.0, inverse_lerp(0.08, 1.0, clampf(source.get_intensity(), 0.08, 1.0)))
 
 
-func _apply_fire_presentation(flicker: float) -> void:
-	var strength: float = _visual_fire_strength()
-	_glow.light_energy = FIREBOX_LIGHT_ENERGY * flicker * strength
-	_embers.emission_energy_multiplier = EMBER_EMISSION_ENERGY * flicker * strength
-	var flame_scale: float = maxf(strength, 0.35)
+func _apply_fire_presentation(slow: float, fast: float) -> void:
+	var lit: bool = _burning() or (_acting and _kindle > 0.0)
+	var firebox: float = lerpf(FIREBOX_CATCH_STRENGTH, 1.0, _shown_t) if lit else 0.0
+	var room: float = lerpf(ROOM_CATCH_STRENGTH, 1.0, _shown_t) if lit else 0.0
+	_glow.light_energy = FIREBOX_LIGHT_ENERGY * (0.85 + 0.10 * slow + 0.05 * fast) * firebox
+	_embers.emission_energy_multiplier = EMBER_EMISSION_ENERGY * (0.85 + 0.12 * slow + 0.02 * fast) * firebox
+	var flame_scale: float = maxf(firebox, 0.35)
 	for flame: MeshInstance3D in _flames:
-		flame.scale.y = (0.72 + 0.28 * flicker) * flame_scale
+		flame.scale.y = (0.86 + 0.08 * slow + 0.06 * fast) * flame_scale
 	if source != null and source.flame_light != null and source.flame_light.visible:
-		source.flame_light.light_energy = (
-			ROOM_LIGHT_ENERGY
-			* (0.90 + 0.10 * flicker)
-			* strength
-		)
+		source.flame_light.light_energy = ROOM_LIGHT_ENERGY * (0.97 + 0.07 * slow + 0.03 * fast) * room
 
 
 func _process(delta: float) -> void:
@@ -161,8 +169,13 @@ func _process(delta: float) -> void:
 	if not is_glowing():
 		return
 	_flicker_t += delta
-	var flicker: float = 0.82 + 0.18 * sin(_flicker_t * 7.3) * sin(_flicker_t * 3.1 + 1.7)
-	_apply_fire_presentation(flicker)
+	_shown_t = move_toward(_shown_t, _fire_growth(), STRENGTH_FOLLOW_RATE * delta)
+	_apply_fire_presentation(_flicker(FLICKER_SLOW_HZ, 0.0), _flicker(FLICKER_FAST_HZ, 5000.0))
+
+
+## Perlin layer in -1..1; the raw noise rarely leaves +-0.6, so it is rescaled.
+func _flicker(hz: float, offset: float) -> float:
+	return clampf(_flicker_noise.get_noise_1d(_flicker_t * hz * 100.0 + offset) * 1.6, -1.0, 1.0)
 
 
 func _burning() -> bool:
@@ -183,8 +196,9 @@ func _refresh() -> void:
 	_embers.albedo_color = Color(0.9, 0.35, 0.1) if burning else Color(0.18, 0.17, 0.16)
 	if _glow.visible:
 		## Successful ignition must be visible immediately, before the next frame.
-		_apply_fire_presentation(1.0)
+		_apply_fire_presentation(0.0, 0.0)
 	else:
+		_shown_t = 0.0
 		_glow.light_energy = 0.0
 		_embers.emission_energy_multiplier = 0.0
 
