@@ -8,6 +8,48 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Leeward wall drifts baked into the Key West wind map (owner request: the lee side of every house had
+  deeper drifts, the windward side less).
+  - `bake_key_west_snow_wind.py --reality`: ASCE 7-16 leeward drift per wall, height from the roof run along
+    the wind (0.3–1.1 m at full cover, capped at half the wall), tapering over 4 hd; windward banks halved.
+    `factor_max` 2.5 → 8.5. Chunk cover, clipmap rings and SnowField read the same map, so drifts are drawn
+    and waded alike.
+- Snow material and drift crests (testers: the snow read as jelly).
+  - Causes, from close-up frames on Duval Street: no detail under the 2 m lattice and the ~0.7 m ripple, a
+    near-uniform albedo (±3 %) and plastic specular, so shadowed snow was a flat blue fill; print floors drew
+    topographic rings (`sin(depth × 110)` strata over lumpy floors) and glints were view-independent
+    emission confetti. Deep trench walls showed agate rings; a debug render split albedo from normal and
+    put them in the albedo: the shared painterly pass seeds its pigment noise with the surface normal,
+    which on a curved trench wall sweeps through dozens of noise periods. Snow now passes the ground's up
+    vector to that pass in both layers.
+  - Now both layers share per-pixel grain on level snow (7 cm and 2.4 cm, each fading before a pixel spans
+    it), albedo patches and grain hollows, ice facets that flash toward the sun in `light()` (none in shadow,
+    none on packed floors), `SPECULAR` 0.3 and a cubic B-spline wind map for shading slopes. Print slopes use
+    a three-texel Sobel without the outline jag; deep pits darken with depth; a boot's outline and tread are
+    kept only on and around its sole, not where the wading body pressed deeper.
+  - Lee drifts keep a trough at the wall foot (the lee eddy) and crest 3 m out, with only a 1-2-1 pass so the
+    crest survives on the 2 m lattice; `factor_max` 8.5 so crests are not clipped.
+- Snowpack firmness (owner request: furrows belong to fresh wet snow; a dry cold pack is a crust that breaks
+  with difficulty, then the leg drops fast).
+  - `SnowPresentationSystem.firmness` (saved): snowfall buries the crust, dry cold and wind harden it over a
+    day, a thaw softens it. It sets the field's softness, crust strength and how deep and fast a broken crust
+    drops; only loose snow (firmness < 0.5) lets the wading body and dragging toe cut a trench.
+  - Tests in `test_snow_presentation`, `test_snow_resistance`, `test_snow_shell`; `snow-walk` CI runs both packs.
+    Duval Street walk: fresh pack 3 plunges (drift pockets only), crust pack 29 with clean-walled postholes.
+  - `snow-walk` reads the GPU print field under every standing boot (`SNOW_WALK_GHOSTS`) to chase the
+    "walks through drawn snow without a mark" report: 0 of 509 boots in over 5 cm of snow left no print on
+    this route, so the report is not reproduced here yet.
+- Snowpack and boot prints (owner request).
+  - `SnowResistance`: wind crust holds a boot until the step's load breaks it (strength varies in ~1.6 m patches,
+    running breaks more), drifts hide soft pockets where a leg plunges almost to the ground; a plunge dips the
+    stride and plays a crust snap. Collision stays on the ground. `test_snow_resistance`.
+  - Prints are Henry's army boot outsole (`BootSole`): heel block, arched shank, ball, round toe, in both the
+    persistent stamp and the contact soles. The packed field carries each print's sole uv, and `snow_ground` draws
+    the exact outline and the lug tread per pixel.
+  - `capture_snow_walk.gd` and the `snow-walk` job in `checks.yml`: TPS and leg-height videos of the walk.
+  - Independent review (Sonnet agent + `/code-review high`): prints shade per pixel in coarse rings, narrower morph
+    bands, no string `has_method`/`connect` seams, retry cap at the coast. It also caught that the wall lee ramps
+    never ran over the baked map; they are now out of the drawn base until the chunk bake carries them.
 - Henry is never see-through in play (owner rule). A body guard predicts where each mouse step would put the camera
   and soft-stops turns that take it closer than 0.8–0.6 m to his eyes (turning out is free); walking into a wall
   speeds up the shoulder lift; the framing offset follows the real camera distance; over the shoulder the view keeps
@@ -53,6 +95,29 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Outer snow cover no longer crawls or pops while Henry walks (owner report; Codex's `codex` attempts kept the moving square).
+  - Cause, measured with a fixed top-down height witness on Duval Street: the shell was one graded square mesh
+    that jumped 3.2 m with the field window and blended into the chunk cover over a window-relative 6 m band.
+    Each jump put every world point under different vertices and blend weights; the drawn height changed only
+    on window moves.
+  - Method (Batman: Arkham Origins, GDC 2014; God of War Ragnarök): one base snow surface everywhere, only
+    Henry's deformation is local. With the chunk lattice the rings draw exactly the chunk cover's surface (terrain
+    on its 2 m triangles + settled depth and wind ridges) and shading (`snow_far_shade`), plus prints that fade
+    4.5–6 m out. A first pass blended a field-based near surface into the chunk one by distance; it breathed in
+    a 4–8 m band (10.1M pixel-steps over 2 mm on the witness) and was replaced.
+  - `SnowClipmap` rings: spacing doubles from 3.1 cm, the mesh follows Henry snapped to its coarsest spacing and
+    morphs ring to ring by distance (geometry clipmaps, Losasso & Hoppe 2004; CDLOD, Strugar 2009). The chunk
+    cover yields inside 6.25 m through the `snow_lod` global. SnowField mirrors the base for Henry's feet.
+  - Wind relief: sastrugi with a steep lee face replace the blotchy ripple, the same in both layers and in chunk
+    geometry; slopes are analytic (one noise lookup with its gradient).
+  - Witness on Duval Street, 88 frames: largest step main 453 mm → first pass 43 mm → one base surface
+    0.06 mm; steps over 2 mm and coverage flips 0 in every distance band. GPU on lavapipe 1347 → 1754 ms
+    median (+30 %, software rasteriser).
+  - The blue, sunken square in captures was the capture hiding every Control, including the snow passes'
+    ColorRects: the shaped field stayed at the clear colour (7 cm packed everywhere). Captures hide only root UI.
+  - 53k vertices on high instead of 113k. A/B evidence: `checks.yml` `snow-surface` job (new vs `main`).
+  - `test_snow_clipmap` (CPU emulation of the vertex morph), `tools/runtime/capture_snow_surface.gd` +
+    `analyze_snow_surface.py`, `checks.yml` → `snow-surface` job; `docs/technical/SNOW_COVER.md` → Drawn surface.
 - The 727 corridor (1.8 m wide, doors on both sides) was guessed as a 1.76 m deep doorway, so the mouse soft-stopped
   in its cone along the whole corridor. Guessed openings deeper than `max_guessed_depth` (1.2 m) are corridors.
 

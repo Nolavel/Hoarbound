@@ -23,6 +23,7 @@ func _run() -> void:
 	_test_frost_grows_over_hours_not_instantly()
 	_test_state_survives_a_save_round_trip()
 	_test_storm_snow_builds_and_settles()
+	_test_fresh_snow_is_loose_and_dry_cold_crusts_it()
 	_test_the_globals_are_declared()
 	_test_there_is_one_writer()
 	_test_the_world_builds_it()
@@ -241,6 +242,35 @@ func _test_storm_snow_builds_and_settles() -> void:
 	saved["storm"] = 0.8
 	other.load_save_data(saved)
 	_check(is_equal_approx(other.get_storm_share(), 0.8), "the storm share was not restored from a save")
+	_dispose(other)
+	_dispose(system)
+	_dispose(weather)
+
+
+## Snowfall buries the crust under loose snow; dry cold hardens it again over a day,
+## a thaw leaves it soft. Survives a save.
+func _test_fresh_snow_is_loose_and_dry_cold_crusts_it() -> void:
+	var weather := _make_weather(&"calm")
+	var thermal := _make_thermal(-15.0)
+	var system := _make_system(weather, thermal)
+	_check(system.get_firmness() > 0.9, "settled snow in -15 C starts as crust, got %.2f" % system.get_firmness())
+	weather.set_weather(&"blizzard", true)
+	system.advance_hours(3.0)
+	_check(system.get_firmness() < 0.2, "three hours of blizzard left the crust at %.2f" % system.get_firmness())
+	weather.set_weather(&"calm", true)
+	system.advance_hours(2.0)
+	var young: float = system.get_firmness()
+	_check(young > 0.0 and young < 0.5, "two calm hours hardened the new snow to %.2f, expected a little" % young)
+	system.advance_hours(36.0)
+	_check(system.get_firmness() > 0.9, "a cold day and a half left the crust at %.2f" % system.get_firmness())
+	thermal._outdoor_air_c = 3.0
+	system.advance_hours(36.0)
+	_check(system.get_firmness() < 0.1, "a thaw left the crust at %.2f" % system.get_firmness())
+	var saved: Dictionary = system.get_save_data()
+	saved["firmness"] = 0.7
+	var other := _make_system(weather, _make_thermal(-15.0))
+	other.load_save_data(saved)
+	_check(is_equal_approx(other.get_firmness(), 0.7), "firmness was not restored from a save")
 	_dispose(other)
 	_dispose(system)
 	_dispose(weather)

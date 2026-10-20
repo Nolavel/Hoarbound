@@ -6,6 +6,8 @@ extends Node3D
 
 ## A boot left its print: where, how deep it had sunk and how soft the snow was.
 signal foot_lifted(side: int, position: Vector3, sink_m: float, softness: float)
+## A boot broke through crust or into a drift pocket and plunged `plunge_m` deep.
+signal crust_broke(side: int, position: Vector3, plunge_m: float)
 
 const SURFACE_SHADER: Shader = preload("res://shaders/environment/snow/snow_ground.gdshader")
 const CONTACT_SHADER: Shader = preload("res://shaders/environment/snow/snow_contact_depth.gdshader")
@@ -17,7 +19,15 @@ const PRESENTATION_SCRIPT: GDScript = preload("res://scripts/systems/world/snow/
 const PICKUP_SCRIPT: GDScript = preload("res://scripts/environment/interactive/item_pickup.gd")
 ## Contact capture side on the medium tier; the packed field keeps its resolution.
 const MEDIUM_CONTACT_RES: int = 512
-## Change in storm share that is worth rebuilding the window for.
+## Width both surfaces draw across the clipmap/chunk handoff (SNOW_LOD_OVERLAP_M in the shader).
+const LOD_OVERLAP_M: float = 0.15
+## The chunk lattice around the window reaches this far past it, for a lagging rebuild.
+const FAR_GRID_MARGIN_M: float = 6.0
+## Times a lattice with not-yet-streamed points is resampled, once per half second.
+const FAR_RETRIES: int = 8
+## Walking pace the travel lead is sized for, when working out the window's reach.
+const WALK_MPS: float = 4.0
+## Change in storm share or snowpack firmness that is worth rebuilding the window for.
 const STORM_REBUILD_STEP: float = 0.05
 ## Rebuild settled depth for weather accumulation even while Henry stands still.
 const COVER_REBUILD_STEP: float = 0.02
@@ -30,12 +40,15 @@ const CONTACT_LAYER: int = RenderLayers.SNOW_CONTACT
 @export_group("Window")
 ## Side of the square window around the player, in metres.
 @export var window_m: float = 25.6
-## Mesh spacing around Henry, where prints are read up close, in metres.
+## Mesh spacing around Henry, where prints are read up close, in metres
+## (rounded to a power-of-two fraction of the 2 m chunk lattice).
 @export var near_spacing_m: float = 0.03
-## Half width of that dense core; spacing grows towards the window edge.
+## Half width of that dense core; each ring outwards doubles the spacing.
 @export var near_half_m: float = 2.75
-## Mesh spacing at the window edge, in metres.
-@export var far_spacing_m: float = 0.5
+## Chebyshev distance from Henry over which his deformation fades out; inside detail_reach_m().
+@export var deform_fade_m: Vector2 = Vector2(4.5, 6.0)
+## Inside this Chebyshev radius the clipmap draws, outside it the chunk cover.
+@export var cut_radius_m: float = 6.25
 ## Texels along one side of the settled field.
 @export_range(32, 256) var field_res: int = 128
 ## Texels along one side of the packed-snow field.
@@ -112,9 +125,11 @@ const CONTACT_LAYER: int = RenderLayers.SNOW_CONTACT
 @export var wade_depth_m: float = 0.3
 ## Henry starts leaning into the snow at the first depth and fully wades by the second.
 @export var wade_gait_m: Vector2 = Vector2(0.3, 0.55)
-## Width of one sole and how far it reaches past the heel and toe bones.
+## Snowpack firmness above which snow holds its shape: no trench behind a wading body
+## or a dragging toe, only the holes the boots punch.
+@export_range(0.0, 1.0) var plough_firmness: float = 0.5
+## Width of the boot's outsole at the ball, metres.
 @export var sole_width_m: float = 0.11
-@export var sole_margin_m: float = 0.05
 ## Width and length of the toe that drags through snow on a lifted foot.
 @export var drag_size_m: Vector2 = Vector2(0.07, 0.14)
 ## Extra depth the heel digs on strike and the ball on push-off, metres: a
@@ -145,6 +160,12 @@ var _far_grid_tex: ImageTexture
 var _far_grid_origin: Vector2 = Vector2(INF, INF)
 var _surface: ShaderMaterial
 var _mesh: MeshInstance3D
+var _clipmap: SnowClipmap
+var _far_ready: bool = false
+## Lattice refreshes left for points on chunks that were not live yet (sea never streams in).
+var _far_retries: int = 0
+## Frame the rings were last placed, so a pass frame does not place them twice.
+var _lod_frame: int = -1
 var _contact: SubViewport
 var _contact_cam: Camera3D
 var _contact_quad: ShaderMaterial
@@ -168,7 +189,7 @@ var _live_cover: float = -1.0
 var _player: Node3D
 var _mover: Node
 var _weather: WeatherController
-var _presentation: Node
+var _presentation: SnowPresentationSystem
 ## IslandTerrain, or a node in group snow_ground with get_height(x, z) (streamed Reality chunks).
 var _terrain: Node
 var _city: Node3D
@@ -225,6 +246,15 @@ func _ready() -> void:
 	_build_capture()
 
 
+## A freed shell leaves no hole in the next world's chunk cover.
+func _exit_tree() -> void:
+	if active == self:
+		active = null
+		live_window = Vector4.ZERO
+		RenderingServer.global_shader_parameter_set(&"snow_window", live_window)
+		RenderingServer.global_shader_parameter_set(&"snow_lod", Vector4.ZERO)
+
+
 ## World system hook (world.gd): the profile's wind field, or the legacy bake when it names none.
 func apply_world_profile(profile: WorldProfile) -> void:
 	wind_field_path = profile.snow_wind_field_path if profile.snow_wind_field_path != "" else SnowChunkCover.WIND_FIELD_PATH
@@ -238,7 +268,7 @@ func on_world_ready(context: WorldContext) -> void:
 	_world_root = context.world
 	active = self
 	_weather = context.get_system(WEATHER_SCRIPT) as WeatherController
-	_presentation = context.get_system(PRESENTATION_SCRIPT)
+	_presentation = context.get_system(PRESENTATION_SCRIPT) as SnowPresentationSystem
 	_terrain = context.find_in_scene(TERRAIN_SCRIPT)
 	if _terrain == null and is_inside_tree():
 		_terrain = get_tree().get_first_node_in_group(&"snow_ground")
@@ -247,6 +277,7 @@ func on_world_ready(context: WorldContext) -> void:
 	if _terrain != null and not wind_field_path.is_empty():
 		field.use_baked_baseline = field.load_wind_field(wind_field_path)
 		_surface.set_shader_parameter("use_baked_baseline", field.use_baked_baseline)
+		_build_rings(field.use_baked_baseline)
 		if field.use_baked_baseline:
 			RenderingServer.global_shader_parameter_set(&"snow_wind", field.settled_wind)
 			_surface.set_shader_parameter("wind_tex", field.wind_texture)
@@ -297,7 +328,7 @@ func _physics_process(_delta: float) -> void:
 		_mover.set(&"snow_accel_multiplier", get_accel_multiplier(depth))
 	if _gait != null:
 		_gait.set(&"wade", clampf(inverse_lerp(wade_gait_m.x, wade_gait_m.y, depth), 0.0, 1.0))
-	var wading: bool = depth > wade_depth_m
+	var wading: bool = depth > wade_depth_m and _ploughs_through()
 	if wading != _wading:
 		_wading = wading
 		tag_contact(_player, wading)
@@ -331,7 +362,7 @@ func _place_soles(delta: float) -> void:
 				along = Vector3.FORWARD * 0.2
 			_sole_basis[side] = Basis.looking_at(along.normalized(), Vector3.UP)
 			_sole_fwd[side] = Vector2(along.x, along.z).normalized()
-			_sole_len[side] = along.length() + sole_margin_m * 2.0
+			_sole_len[side] = BootSole.LENGTH_M
 			_sole_at[side] = Vector2((heel.x + toe.x) * 0.5, (heel.z + toe.z) * 0.5)
 			_heel_rest[side] = heel.y - (foot["ball"] as Vector3).y
 			_stance[side] = 0.0
@@ -359,16 +390,14 @@ func _place_soles(delta: float) -> void:
 		## Outside the window there is no snow to press: park the sole far below.
 		var bottom: float = top - _sink[side] if top > -INF else -1000.0
 		var dig: Vector2 = _roll_dig(side, foot, softness)
-		var fwd := Vector3(_sole_fwd[side].x, 0.0, _sole_fwd[side].y)
 		var centre := Vector3(at.x, 0.0, at.y)
-		var length: float = _sole_len[side]
+		## Heel block and forefoot of the same outsole, each digging on its own.
+		var sole_scale := Vector3(sole_width_m, 0.3, BootSole.LENGTH_M)
 		_heels[side].global_transform = Transform3D(
-			_sole_basis[side].scaled_local(Vector3(sole_width_m * 0.85, 0.3, length * 0.44)),
-			centre - fwd * length * 0.28 + Vector3.UP * (bottom - dig.x + 0.15)
+			_sole_basis[side].scaled_local(sole_scale), centre + Vector3.UP * (bottom - dig.x + 0.15)
 		)
 		_balls[side].global_transform = Transform3D(
-			_sole_basis[side].scaled_local(Vector3(sole_width_m, 0.3, length * 0.64)),
-			centre + fwd * length * 0.17 + Vector3.UP * (bottom - dig.y + 0.15)
+			_sole_basis[side].scaled_local(sole_scale), centre + Vector3.UP * (bottom - dig.y + 0.15)
 		)
 
 
@@ -454,6 +483,7 @@ func get_foot_snow_top(side: int) -> float:
 
 
 func _process(delta: float) -> void:
+	_follow_lod()
 	var camera: Camera3D = get_viewport().get_camera_3d()
 	if camera != null and camera != _contact_cam:
 		camera.cull_mask &= ~CONTACT_LAYER
@@ -483,6 +513,7 @@ func _process(delta: float) -> void:
 	_pending_shift = Vector2.ZERO
 	_accum[target].render_target_update_mode = SubViewport.UPDATE_ONCE
 	_shape_mat[0].set_shader_parameter("source", _accum[target].get_texture())
+	_surface.set_shader_parameter("print_field", _accum[target].get_texture())
 	for vp: SubViewport in _shape:
 		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_parity = 1 - _parity
@@ -499,8 +530,14 @@ func recentre_to(centre: Vector2) -> void:
 	var cover: float = _cover()
 	var wind: Vector2 = _wind()
 	field.storm_share = _storm_share()
+	field.firmness = _firmness()
 	field.rebuild(wanted, cover, wind)
 	_apply_window(old, wanted, cover, wind)
+
+
+## Outsole half length and half width, metres, for the stamp and the drawn tread.
+func boot_half_m() -> Vector2:
+	return Vector2(BootSole.LENGTH_M * 0.5, sole_width_m * 0.5)
 
 
 ## Speed share while wading through `depth_m` of settled snow.
@@ -558,7 +595,8 @@ func _follow(henry: Vector2, lead: Vector2 = Vector2.ZERO) -> void:
 	var restorm: bool = absf(storm - field.storm_share) >= STORM_REBUILD_STEP
 	var cover: float = _cover()
 	var reaccumulate: bool = absf(cover - _live_cover) >= COVER_REBUILD_STEP
-	if field.origin.x != INF and wanted.is_equal_approx(field.origin) and not restorm and not reaccumulate:
+	var refirm: bool = absf(_firmness() - field.firmness) >= STORM_REBUILD_STEP
+	if field.origin.x != INF and wanted.is_equal_approx(field.origin) and not restorm and not reaccumulate and not refirm:
 		return
 	if field.origin.x == INF or wanted.distance_to(field.origin) > window_m * 0.5:
 		recentre_to(centre)
@@ -567,6 +605,7 @@ func _follow(henry: Vector2, lead: Vector2 = Vector2.ZERO) -> void:
 	_move_cover = cover
 	_move_wind = _wind()
 	field.storm_share = storm
+	field.firmness = _firmness()
 	field.begin_rebuild(wanted, _move_cover, _move_wind)
 	if field.step_rebuild(budget):
 		_apply_window(_move_from, field.origin, _move_cover, _move_wind)
@@ -594,7 +633,6 @@ func _apply_window(old: Vector2, wanted: Vector2, cover: float, wind: Vector2) -
 	_refresh_settled_normals()
 	_surface.set_shader_parameter("origin", wanted)
 	_refresh_far_grid(wanted)
-	_mesh.global_position = Vector3(wanted.x + half, 0.0, wanted.y + half)
 	_contact_cam.global_transform = Transform3D(
 		Basis(Vector3.RIGHT, Vector3.BACK, Vector3.DOWN),
 		Vector3(wanted.x + half, _base_y - 5.0, wanted.y + half)
@@ -619,27 +657,43 @@ func _refresh_settled_normals() -> void:
 	_surface.set_shader_parameter("use_settled_normal_field", true)
 
 
-## The far cover is a 2 m triangle grid, not the bilinear 20 cm SnowField.
-## Store just the nearby vertex heights and both baked wind factors. Its size is
-## independent of the city's 512 m chunks, and rebuilding it needs ~300 samples.
-func _refresh_far_grid(window_origin: Vector2) -> void:
+## The chunk cover's 2 m lattice around the window (ground, shore, vertex normal), so the
+## clipmap's outer band draws exactly its triangles. ~500 terrain samples per window move.
+func _refresh_far_grid(window_origin: Vector2, retry: bool = false) -> void:
 	if _terrain == null or not field.use_baked_baseline:
 		_surface.set_shader_parameter("use_far_grid", false)
 		_far_grid_origin = Vector2(INF, INF)
+		_far_ready = false
 		return
 	var step_m: float = SnowChunkCover.STEP_M
-	var grid_origin := Vector2(floorf(window_origin.x / step_m), floorf(window_origin.y / step_m)) * step_m - Vector2.ONE * step_m
-	if grid_origin == _far_grid_origin:
+	var low: Vector2 = window_origin - Vector2.ONE * FAR_GRID_MARGIN_M
+	var grid_origin := Vector2(floorf(low.x / step_m), floorf(low.y / step_m)) * step_m
+	if grid_origin == _far_grid_origin and not retry:
 		return
-	var n: int = ceili(window_m / step_m) + 4
+	var n: int = ceili((window_m + FAR_GRID_MARGIN_M * 2.0) / step_m) + 2
+	## One extra row each side for the central differences of the normals.
+	var heights := PackedFloat32Array()
+	heights.resize((n + 2) * (n + 2))
+	var known := PackedByteArray()
+	known.resize((n + 2) * (n + 2))
+	var streamed := _terrain as KeyWestRealityGround
+	var partial: bool = false
+	for z: int in range(n + 2):
+		for x: int in range(n + 2):
+			var at: Vector2 = grid_origin + Vector2(x - 1, z - 1) * step_m
+			heights[z * (n + 2) + x] = _terrain.get_height(at.x, at.y)
+			known[z * (n + 2) + x] = 1 if streamed == null or streamed.has_ground_at(at.x, at.y) else 0
+			partial = partial or known[z * (n + 2) + x] == 0
 	var image := Image.create_empty(n, n, false, Image.FORMAT_RGBAF)
 	for z: int in range(n):
 		for x: int in range(n):
-			var at: Vector2 = grid_origin + Vector2(x, z) * step_m
-			var ground: float = _terrain.get_height(at.x, at.y)
-			var shore: float = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, ground)
-			var wind: Vector2 = field.wind_factors(at)
-			image.set_pixel(x, z, Color(ground, wind.x * shore, wind.y * shore, shore))
+			var k: int = (z + 1) * (n + 2) + x + 1
+			var ground: float = heights[k]
+			## No chunk cover lies on ground that is not streamed in yet: draw no snow there either.
+			var shore: float = smoothstep(SnowChunkCover.SEA_LEVEL_M + SnowChunkCover.SHORE_M.x,
+				SnowChunkCover.SEA_LEVEL_M + SnowChunkCover.SHORE_M.y, ground) if known[k] == 1 else 0.0
+			var normal := Vector3(-(heights[k + 1] - heights[k - 1]), 2.0 * step_m, -(heights[k + n + 2] - heights[k - n - 2])).normalized()
+			image.set_pixel(x, z, Color(ground, shore, normal.x, normal.z))
 	if _far_grid_tex == null or _far_grid_tex.get_width() != n:
 		_far_grid_tex = ImageTexture.create_from_image(image)
 		_surface.set_shader_parameter("far_grid", _far_grid_tex)
@@ -648,7 +702,48 @@ func _refresh_far_grid(window_origin: Vector2) -> void:
 	_surface.set_shader_parameter("far_grid_origin", grid_origin)
 	_surface.set_shader_parameter("far_grid_step", step_m)
 	_surface.set_shader_parameter("use_far_grid", true)
+	if not partial:
+		_far_retries = 0
+	elif not retry:
+		_far_retries = FAR_RETRIES
+	else:
+		_far_retries -= 1
 	_far_grid_origin = grid_origin
+	_far_ready = true
+
+
+## Rings out to the chunk handoff when a chunk cover takes over, else over the whole window.
+func _build_rings(chunk_cover: bool) -> void:
+	var outer: float = cut_radius_m + LOD_OVERLAP_M + 0.2 if chunk_cover else window_m * 0.5 + recentre_step_m * 0.5
+	var plan: SnowClipmap = SnowClipmap.plan(near_spacing_m, near_half_m, outer)
+	if _clipmap == null or _clipmap.halves != plan.halves:
+		_clipmap = plan
+		_mesh.mesh = _clipmap.build()
+
+
+## How far around Henry the live field is sure to reach: half the window, less a
+## recentre step's snap, the travel lead at walking pace and a metre of rebuild lag.
+func detail_reach_m() -> float:
+	return window_m * 0.5 - recentre_step_m * 0.5 - minf(WALK_MPS * lead_s, lead_max_m) - 1.0
+
+
+## The rings follow Henry every frame, snapped so each vertex keeps its world lattice;
+## snow_lod tells both snow shaders where he is and where the chunk cover takes over.
+func _follow_lod() -> void:
+	if _mesh == null or _player == null or _lod_frame == Engine.get_process_frames():
+		return
+	_lod_frame = Engine.get_process_frames()
+	## Where Henry is drawn this frame, not his last physics tick.
+	var at: Vector3 = _player.get_global_transform_interpolated().origin
+	var snapped: Vector2 = _clipmap.snapped_origin(Vector2(at.x, at.z))
+	_mesh.global_position = Vector3(snapped.x, 0.0, snapped.y)
+	var live: bool = field.origin.x != INF
+	_mesh.visible = live
+	if _far_retries > 0 and live and _lod_frame % 30 == 0:
+		_refresh_far_grid(field.origin, true)
+	## Without the chunk lattice the rings draw out to their edge and the chunk cover yields all of it.
+	var cut: float = cut_radius_m if _far_ready else _clipmap.outer_half()
+	RenderingServer.global_shader_parameter_set(&"snow_lod", Vector4(at.x, at.z, cut, 1.0 if live else 0.0))
 
 
 func _build_surface() -> void:
@@ -664,21 +759,22 @@ func _build_surface() -> void:
 	_surface.set_shader_parameter("use_baked_baseline", field.use_baked_baseline)
 	_surface.set_shader_parameter("sea_level_m", sea_level_m)
 	_surface.set_shader_parameter("repose_tan", tan(deg_to_rad(crust_wall_deg)))
+	_surface.set_shader_parameter("deform_fade", deform_fade_m)
+	_surface.set_shader_parameter("boot_half_m", boot_half_m())
 	_mesh = MeshInstance3D.new()
 	_mesh.name = "SnowShellMesh"
-	_mesh.mesh = _graded_grid()
+	_build_rings(false)
 	_mesh.material_override = _surface
 	_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_mesh.extra_cull_margin = 400.0
+	_mesh.visible = false
 	add_child(_mesh)
 
 
-## A square grid, dense near the middle where Henry stands and coarser outwards.
 ## A lifted foot's toe follows the boot every frame and presses only as deep
 ## as it actually dips into the snow, so a low swing drags a furrow.
 func _place_drag(side: int, foot: Dictionary, planted: bool) -> void:
 	var drag: MeshInstance3D = _drags[side]
-	drag.visible = not foot.is_empty() and not planted
+	drag.visible = not foot.is_empty() and not planted and _ploughs_through()
 	if not drag.visible:
 		_ploughs[side].emitting = false
 		_last_toe[side] = Vector3.INF
@@ -726,48 +822,6 @@ func _visible_lift(side: int) -> float:
 	return feet.get_lift(side) if feet != null else 0.0
 
 
-func _graded_grid() -> ArrayMesh:
-	var half: float = window_m * 0.5
-	var side: PackedFloat32Array = [0.0]
-	var at: float = 0.0
-	var step: float = near_spacing_m
-	while at < half:
-		if at >= near_half_m:
-			step = minf(step * 1.08, far_spacing_m)
-		at = minf(at + step, half)
-		side.append(at)
-	var axis: PackedFloat32Array = []
-	for i: int in range(side.size() - 1, 0, -1):
-		axis.append(-side[i])
-	axis.append_array(side)
-	var n: int = axis.size()
-	var verts := PackedVector3Array()
-	verts.resize(n * n)
-	for iz: int in range(n):
-		for ix: int in range(n):
-			verts[iz * n + ix] = Vector3(axis[ix], 0.0, axis[iz])
-	var indices := PackedInt32Array()
-	indices.resize((n - 1) * (n - 1) * 6)
-	var k: int = 0
-	for iz: int in range(n - 1):
-		for ix: int in range(n - 1):
-			var a: int = iz * n + ix
-			indices[k] = a
-			indices[k + 1] = a + 1
-			indices[k + 2] = a + n
-			indices[k + 3] = a + 1
-			indices[k + 4] = a + n + 1
-			indices[k + 5] = a + n
-			k += 6
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
-
-
 func _build_capture() -> void:
 	_contact = _viewport("SnowContact", contact_res)
 	_contact.disable_3d = false
@@ -802,11 +856,17 @@ func _build_capture() -> void:
 	oval.height = 1.0
 	oval.radial_segments = 20
 	oval.rings = 1
+	## The army boot's outsole in two parts, so heel strike and toe push-off dig apart.
+	var heel_block: ArrayMesh = BootSole.build_mesh(-1.0, BootSole.BREAST_U)
+	var forefoot: ArrayMesh = BootSole.build_mesh(BootSole.BREAST_U, 1.0)
+	var both_sides := StandardMaterial3D.new()
+	both_sides.cull_mode = BaseMaterial3D.CULL_DISABLED
 	for i: int in range(2):
 		for pad: String in ["Heel", "Ball"]:
 			var sole := MeshInstance3D.new()
 			sole.name = "Sole%s%d" % [pad, i]
-			sole.mesh = oval
+			sole.mesh = heel_block if pad == "Heel" else forefoot
+			sole.material_override = both_sides
 			sole.layers = CONTACT_LAYER
 			sole.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			sole.visible = false
@@ -829,6 +889,8 @@ func _build_capture() -> void:
 	for i: int in range(2):
 		var vp: SubViewport = _viewport("SnowPacked%d" % i, packed_res)
 		vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		## Alpha carries print freshness, not coverage.
+		vp.transparent_bg = true
 		var mat := ShaderMaterial.new()
 		mat.shader = ACCUMULATE_SHADER
 		mat.set_shader_parameter("contact_tex", _contact.get_texture())
@@ -839,6 +901,7 @@ func _build_capture() -> void:
 		mat.set_shader_parameter("talus_crust", tan(deg_to_rad(crust_wall_deg)) * tex_m)
 		mat.set_shader_parameter("roughness", crumble)
 		mat.set_shader_parameter("rim_uv", rim_peak_m / window_m)
+		mat.set_shader_parameter("boot_half_m", boot_half_m())
 		var rect := ColorRect.new()
 		rect.size = Vector2(packed_res, packed_res)
 		rect.material = mat
@@ -1034,14 +1097,26 @@ func _viewport(node_name: String, side: int) -> SubViewport:
 ## Settled cover, never read back from RenderingServer (that stalls).
 ## Share of fresh storm snow, from the presentation system; 0.4 without one.
 func _storm_share() -> float:
-	if _presentation != null and _presentation.has_method(&"get_storm_share"):
-		return clampf(float(_presentation.call(&"get_storm_share")), 0.0, 1.0)
+	if _presentation != null:
+		return clampf(_presentation.get_storm_share(), 0.0, 1.0)
 	return field.storm_share
+
+
+## Snowpack firmness from the presentation system; the field's own without one.
+func _firmness() -> float:
+	if _presentation != null:
+		return clampf(_presentation.get_firmness(), 0.0, 1.0)
+	return field.firmness
+
+
+## Fresh, loose snow ploughs into a trench; an old crust only takes boot holes.
+func _ploughs_through() -> bool:
+	return _firmness() < plough_firmness
 
 
 func _cover() -> float:
 	if _presentation != null:
-		return clampf(float(_presentation.call(&"get_settled_snow")), 0.0, 1.0)
+		return clampf(_presentation.get_settled_snow(), 0.0, 1.0)
 	if _weather != null:
 		return clampf(_weather.get_snow_cover(), 0.0, 1.0)
 	return 0.5
@@ -1077,7 +1152,7 @@ func _exclude() -> Array[RID]:
 func _sample_ground(at: Vector2) -> Vector2:
 	var ground_y: float = _base_y
 	if _terrain != null:
-		ground_y = _terrain.get_height(at.x, at.y)
+		ground_y = _lattice_height(at) if field.use_baked_baseline else _terrain.get_height(at.x, at.y)
 	if _terrain != null and _city != null and bool(_city.call(&"has_snow_obstacle_at", at)):
 		return Vector2(ground_y, 1.0)
 	if not is_inside_tree():
@@ -1109,6 +1184,19 @@ func _sample_ground(at: Vector2) -> Vector2:
 	if _terrain != null and hit_at.y <= ground_y + 0.3:
 		return Vector2(ground_y, 0.0)
 	return Vector2(hit_at.y, 0.0)
+
+
+## Terrain under `at` as the chunk cover's 2 m triangles carry it, so feet stand on the drawn base.
+func _lattice_height(at: Vector2) -> float:
+	var step: float = SnowChunkCover.STEP_M
+	var cell := Vector2(floorf(at.x / step), floorf(at.y / step))
+	var f: Vector2 = at / step - cell
+	var a: Vector2 = cell * step
+	if f.x + f.y <= 1.0:
+		return _terrain.get_height(a.x, a.y) * (1.0 - f.x - f.y) + _terrain.get_height(a.x + step, a.y) * f.x \
+			+ _terrain.get_height(a.x, a.y + step) * f.y
+	return _terrain.get_height(a.x + step, a.y + step) * (f.x + f.y - 1.0) + _terrain.get_height(a.x, a.y + step) * (1.0 - f.x) \
+		+ _terrain.get_height(a.x + step, a.y) * (1.0 - f.y)
 
 
 ## Exact city footprints above own the static obstacle mask. A streamed city

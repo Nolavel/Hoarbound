@@ -206,6 +206,17 @@ func _bind_shell() -> void:
 	_shell = SnowShell.active
 	if not _shell.foot_lifted.is_connected(_on_foot_lifted):
 		_shell.foot_lifted.connect(_on_foot_lifted)
+	if not _shell.crust_broke.is_connected(_on_crust_broke):
+		_shell.crust_broke.connect(_on_crust_broke)
+
+
+## A boot breaking through crust or into a drift pocket: the slab snaps, then the snow gives.
+func _on_crust_broke(_side: int, position: Vector3, plunge_m: float) -> void:
+	var deep: float = clampf(plunge_m / maxf(full_sink_m, 0.01), 0.0, 1.0)
+	if snow_crust_event != null:
+		_sound.call(&"play", snow_crust_event, position, lerpf(-4.0, 1.0, deep), lerpf(1.05, 0.95, deep))
+	if snow_deep_event != null:
+		_sound.call(&"play", snow_deep_event, position, lerpf(-10.0, -2.0, deep), lerpf(0.9, 0.78, deep))
 
 
 func _air_c() -> float:
