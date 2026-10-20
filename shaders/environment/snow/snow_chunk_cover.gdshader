@@ -14,6 +14,8 @@ uniform bool debug_height = false;
 varying vec3 v_world;
 varying vec3 v_ground_normal;
 varying float v_shore;
+varying vec3 v_glint_n;
+varying float v_glint;
 
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -36,7 +38,11 @@ void fragment() {
 	}
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	ALBEDO = hfn_painterly_surface_color(albedo, v_world, n, 0.38);
-	ROUGHNESS = 0.85;
+	ROUGHNESS = 0.9;
+	SPECULAR = 0.3;
+	vec4 facet = snow_glint_facet(v_world.xz, n, length(fwidth(v_world.xz)));
+	v_glint_n = normalize((VIEW_MATRIX * vec4(facet.xyz, 0.0)).xyz);
+	v_glint = facet.w;
 	if (debug_height) {
 		ALBEDO = vec3(0.0);
 		ROUGHNESS = 1.0;
@@ -50,4 +56,5 @@ void light() {
 	float ndotl = max(dot(NORMAL, LIGHT), 0.0);
 	float attenuation = hfn_stylized_shadow(ATTENUATION, LIGHT_IS_DIRECTIONAL);
 	DIFFUSE_LIGHT += ndotl * attenuation * LIGHT_COLOR / PI;
+	SPECULAR_LIGHT += snow_glint_light(v_glint_n, v_glint, LIGHT, VIEW) * attenuation * LIGHT_COLOR;
 }

@@ -50,6 +50,9 @@ SETTLED_FULL_M = 0.25
 GROUND_LOAD_PSF = SETTLED_FULL_M * 150.0 / 4.882
 DRIFT_HEIGHT_SHARE = 0.5
 DRIFT_WIDTH_RATIO = 4.0
+# The lee eddy keeps a trough at the wall foot; the drift crests this far out, metres.
+DRIFT_CREST_M = 3.0
+DRIFT_MOAT = 0.55  # trough height at the wall, share of hd
 FT = 0.3048
 
 
@@ -114,14 +117,16 @@ def field(height: np.ndarray, sea: np.ndarray, from_deg: float) -> tuple[np.ndar
         # Lee shadow: an obstacle h tall shelters about SHELTER_REACH * h downwind.
         shelter = np.maximum(shelter, np.clip(hit * SHELTER_REACH / dist - 0.5, 0.0, 1.0))
     exposure = np.clip(fetch / FETCH_FULL_M, 0.0, 1.0)
-    # Leeward drift: snow blown off the roof and round the walls settles in the wake,
-    # deepest at the lee wall and tapering over 4 hd (ASCE 7 drift width).
+    # Leeward drift: snow blown off the roof settles in the wake. The eddy at the wall
+    # scours a trough, the drift crests DRIFT_CREST_M out and tapers over 4 hd (ASCE 7 width).
     lu_ft = np.maximum(roof, 25.0 * FT) / FT
     hd_asce = (0.43 * np.cbrt(lu_ft) * (GROUND_LOAD_PSF + 10.0) ** 0.25 - 1.5) * FT
     hd = np.minimum(lee_h * DRIFT_HEIGHT_SHARE, np.maximum(hd_asce, 0.0))
-    reach = DRIFT_WIDTH_RATIO * hd + CELL_M
-    x = np.clip((fetch - CELL_M) / np.maximum(reach, 1e-3), 0.0, 1.0)
-    drift = np.where((fetch < FETCH_MAX_M) & ~blocked, hd * (1.0 - x * x * (3.0 - 2.0 * x)), 0.0) / SETTLED_FULL_M
+    d = fetch - CELL_M * 0.5  # cell centre to the wall face
+    rise = np.clip(d / DRIFT_CREST_M, 0.0, 1.0)
+    rise = DRIFT_MOAT + (1.0 - DRIFT_MOAT) * rise * rise * (3.0 - 2.0 * rise)
+    x = np.clip((d - DRIFT_CREST_M) / np.maximum(DRIFT_WIDTH_RATIO * hd, 1e-3), 0.0, 1.0)
+    drift = np.where((fetch < FETCH_MAX_M) & ~blocked, hd * rise * (1.0 - x * x * (3.0 - 2.0 * x)), 0.0) / SETTLED_FULL_M
     # Canyon: walls close on both flanks while the street runs with the wind.
     walls = np.zeros(height.shape, dtype=np.float32)
     for sign in (1, -1):
@@ -184,6 +189,17 @@ def blur(a: np.ndarray, r: float) -> np.ndarray:
     return out
 
 
+def soften(a: np.ndarray) -> np.ndarray:
+    """One 1-2-1 pass per axis: breaks ray stair-steps, keeps a 2 m crest."""
+    out = a.astype(np.float32)
+    for axis in (0, 1):
+        pad = np.pad(out, [(1, 1) if ax == axis else (0, 0) for ax in (0, 1)], mode="edge")
+        n = out.shape[axis]
+        out = (np.take(pad, np.arange(0, n), axis=axis) + 2.0 * np.take(pad, np.arange(1, n + 1), axis=axis)
+               + np.take(pad, np.arange(2, n + 2), axis=axis)) * 0.25
+    return out
+
+
 def reality_city() -> dict:
     """Generated Reality buildings as the legacy city shape: footprint (local x, z) and height above ground."""
     doc = json.loads(REALITY_INDEX.read_text())
@@ -231,9 +247,9 @@ def main() -> None:
     prev, shelter, exposure, prev_drift = field(height, sea, PREVAILING_FROM_DEG)
     storm, _, _, storm_drift = field(height, sea, STORM_FROM_DEG)
     to8 = lambda a, top: np.clip(a / top * 255.0 + 0.5, 0, 255).astype(np.uint8)
-    # Drifts keep their crest: a lighter blur than the broad wind field.
-    prev_all = blur(prev, 1.5) + blur(prev_drift, 1.0)
-    storm_all = blur(storm, 1.5) + blur(storm_drift, 1.0)
+    # Drifts keep their crest and trough: only a 1-2-1 pass, not the broad field's blur.
+    prev_all = blur(prev, 1.5) + soften(prev_drift)
+    storm_all = blur(storm, 1.5) + soften(storm_drift)
     rgba = np.dstack([
         to8(prev_all, FACTOR_MAX), to8(storm_all, FACTOR_MAX),
         to8(blur(shelter, 1.5), 1.0), to8((height > 0.0).astype(np.float32), 1.0),

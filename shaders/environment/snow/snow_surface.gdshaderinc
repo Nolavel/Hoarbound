@@ -182,6 +182,54 @@ vec2 snow_ripple_slope(vec2 xz, float city) {
 	return slope;
 }
 
+// Grain a few centimetres across, as a slope: snow is clumped crystals, not a gel.
+// Each octave fades before a pixel spans it, so the far cover does not shimmer.
+vec2 snow_grain_slope(vec2 xz, float footprint) {
+	vec2 g = vec2(0.0);
+	float coarse = 1.0 - smoothstep(0.015, 0.05, footprint);
+	if (coarse > 0.0) {
+		g += snow_vnoise_d(xz * 14.0).yz * (14.0 * 0.0045 * coarse);
+		float fine = 1.0 - smoothstep(0.005, 0.016, footprint);
+		if (fine > 0.0) {
+			g += snow_vnoise_d(xz * 41.0 + vec2(5.3, 1.7)).yz * (41.0 * 0.0013 * fine);
+		}
+	}
+	return g;
+}
+
+// Brightness variation: wind-packed patches a metre or two across, then grain.
+float snow_grain_albedo(vec2 xz, float footprint) {
+	float v = (snow_vnoise_d(xz * 0.6 + vec2(3.1, 9.2)).x - 0.5) * 0.07;
+	float fine = 1.0 - smoothstep(0.008, 0.025, footprint);
+	if (fine > 0.0) {
+		v += (snow_vnoise_d(xz * 33.0 + vec2(1.3, 7.9)).x - 0.5) * 0.06 * fine;
+	}
+	return 1.0 + v;
+}
+
+// Ice facets that flash toward the sun: a few per square decimetre, each a tilted
+// mirror in a 2 cm cell. xyz the facet normal (world), w its weight 0..1.
+vec4 snow_glint_facet(vec2 xz, vec3 n, float footprint) {
+	vec2 p = xz * 45.0;
+	ivec2 c = ivec2(floor(p));
+	float on = step(0.85, snow_ihash(c)) * (1.0 - smoothstep(0.012, 0.035, footprint));
+	if (on <= 0.0) {
+		return vec4(n, 0.0);
+	}
+	vec2 centre = vec2(snow_ihash(c + ivec2(17, 3)), snow_ihash(c + ivec2(5, 29))) * 0.6 + 0.2;
+	float disc = 1.0 - smoothstep(0.1, 0.2, length(fract(p) - centre));
+	vec3 tilt = vec3(snow_ihash(c + ivec2(41, 7)) - 0.5, 0.0, snow_ihash(c + ivec2(13, 53)) - 0.5) * 1.6;
+	return vec4(normalize(n + tilt), on * disc);
+}
+
+// The facet's flash under one light (view-space vectors), to add to SPECULAR_LIGHT.
+float snow_glint_light(vec3 facet, float weight, vec3 light, vec3 view) {
+	if (weight <= 0.0) {
+		return 0.0;
+	}
+	return pow(max(dot(facet, normalize(light + view)), 0.0), 220.0) * weight * 7.0;
+}
+
 // Henry's snow LOD: xy his position, z the Chebyshev radius inside which the
 // clipmap (snow_ground) draws and outside which the chunk cover does, w 1 when live.
 global uniform vec4 snow_lod;

@@ -396,6 +396,25 @@ snow surface everywhere, and only the character's deformation is local.
   wind runs free (wind-oriented ripple normals, as Journey's sand, GDC 2013).
   Both layers shade the same relief, so ridges no longer appear in a ring around
   Henry (the old near cache was ridge-free).
+- **Material (testers: "jelly").** The cover had no detail below the 2 m
+  lattice and the ~0.7 m ripple, a uniform albedo (±3 %) and a plastic
+  specular, so shadowed snow was a flat blue fill and lit snow a smooth cream.
+  Shared helpers in `snow_surface.gdshaderinc`, used by both layers at every
+  pixel (shading only, so nothing breathes with distance):
+  - `snow_grain_slope`: value-noise grain at 7 cm and 2.4 cm as a normal slope;
+    each octave fades out before a pixel spans it (no far shimmer).
+  - `snow_grain_albedo`: wind-packed patches (±3.5 % over ~1.7 m) and grain (±3 %).
+  - `snow_glint_facet` / `snow_glint_light`: 15 % of 2.2 cm cells hold a tilted
+    ice facet; `light()` flashes it toward the sun (Blinn exponent 220), so
+    sparkle follows the view and sun and is absent in shadow. Packed print
+    floors have crushed facets and do not glint.
+  - `SPECULAR` 0.3 (ice F0 ~0.02), roughness 0.9.
+  - `snow_city_smooth`: the wind map with a cubic B-spline (GPU Gems 2 ch. 20,
+    four bilinear taps) for shading slopes, so drifts read rounded, not as the
+    bilinear 2 m facets; geometry still uses the bilinear map, matching SnowField.
+  - Prints: the old `sin(depth x 110)` "strata" drew topographic rings on every
+    lumpy print floor and the emission confetti glints were view-independent;
+    both are gone. Floor lumps are 6 mm, deep pits darken with depth (less sky).
 - **Captures.** Snow passes draw their fields with ColorRects in SubViewports;
   a capture that hides every Control leaves the shaped field at the clear colour
   (7 cm "packed" everywhere: a blue, sunken square). Hide only the root's UI.
@@ -446,8 +465,10 @@ hd = 0.43 lu^(1/3) (pg + 10)^(1/4) - 1.5 ft, with lu the roof run along the wind
 wall (the snow source, at least 25 ft) and pg the settled snow at full cover (0.25 m at
 150 kg/m3), capped at half the wall; the drift tapers over 4 hd. At full cover that is
 0.3-1.1 m against Key West houses, on the WSW faces for the ENE storm wind, while windward
-faces keep a scoured gap and only a low bank. Drifts get a lighter blur than the broad wind
-field so they keep a crest. `factor_max` is 6.0 (8-bit step 6 mm at full cover). Chunk cover,
+faces keep a scoured gap and only a low bank. The lee eddy at the wall foot keeps a trough
+(0.55 hd at the wall); the drift crests 3 m out and tails off downwind, the shape of real
+lee drifts behind solid barriers. Drifts get only a 1-2-1 pass, not the broad field's
+blur, so the trough and crest survive on the 2 m lattice. `factor_max` is 6.0 (8-bit step 6 mm at full cover). Chunk cover,
 clipmap rings and SnowField all read the same map, so the drift is drawn and walked alike.
 
 Static snow (roof caps, ridges on fences and wires, caps on pole tops) is separate: it is

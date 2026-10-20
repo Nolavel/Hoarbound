@@ -53,6 +53,9 @@ varying float v_ground;
 varying float v_city;
 varying float v_crust;
 varying vec2 v_jag;
+// Ice facet for the sun's flash (view space) and its weight, from fragment() to light().
+varying vec3 v_glint_n;
+varying float v_glint;
 
 // Everything the surface is at one world point; `deform` is the share of Henry's
 // deformation there, fading with his distance.
@@ -174,7 +177,7 @@ SnowSample snow_sample(vec2 xz) {
 		vec4 pf = texture(print_field, uv);
 		s.packed = mix(s.packed, pf.r, clamp(pf.a, 0.0, 1.0) * step(0.003, pf.r));
 		// The floor of a print is lumpy: grains pack unevenly under a boot.
-		s.packed += (snow_noise(xz * 9.0) - 0.5) * 0.02 * smoothstep(0.02, 0.06, s.packed);
+		s.packed += (snow_noise(xz * 9.0) - 0.5) * 0.006 * smoothstep(0.02, 0.06, s.packed);
 		// Pushed-aside snow heaps in crumbs, not a smooth bead.
 		s.packed -= snow_noise(xz * 16.0) * 0.012 * smoothstep(0.004, 0.03, -s.packed);
 		s.rim = rim_at(puv, xz, s.packed, s.crust);
@@ -293,12 +296,13 @@ void fragment() {
 			float sz = settled_top(v_world.xz + vec2(0.0, e)) - settled_top(v_world.xz - vec2(0.0, e));
 			n = normalize(vec3(-sx / (2.0 * e), 1.0, -sz / (2.0 * e)));
 		}
-		vec2 ripple = snow_ripple_slope(v_world.xz, v_city);
+		float footprint = length(fwidth(v_world.xz));
+		vec2 ripple = snow_ripple_slope(v_world.xz, v_city) + snow_grain_slope(v_world.xz, footprint);
 		// Near kerbs and walls the real mesh edge still matters.
 		vec3 geo = normalize(cross(dFdy(v_world), dFdx(v_world)));
 		n = normalize(mix(normalize(n - vec3(ripple.x, 0.0, ripple.y)), geo, smoothstep(0.6, 1.2, ground_slope)));
 		depth = v_depth;
-		albedo = fresh_color * (1.0 - snow_breakup(v_world, 5.0) * 0.03) * mix(1.0, 1.03, smoothstep(0.1, 0.4, depth));
+		albedo = fresh_color * snow_grain_albedo(v_world.xz, footprint) * mix(1.0, 1.03, smoothstep(0.1, 0.4, depth));
 		albedo = snow_thin_tint(snow_wind_tint(albedo, v_city), depth);
 		thin_cut += snow_hash(floor(v_world.xz * 40.0)) * 0.02;
 	}
@@ -307,8 +311,7 @@ void fragment() {
 	if (v_cut > 0.5 || depth < thin_cut || ground_slope > 1.5) {
 		discard;
 	}
-	float roughness = 0.85;
-	vec3 emission = vec3(0.0);
+	float roughness = 0.9;
 	// Henry's deformation, layered on the base: prints, rims, broken crust, the boot's tread.
 	vec4 pf = texture(print_field, uv);
 	float packed_px = 0.0;
@@ -369,18 +372,19 @@ void fragment() {
 		float crust = smoothstep(0.005, 0.04, rim_height);
 		float heap = smoothstep(0.004, 0.03, -packed_height);
 		albedo = mix(albedo, packed_color, packed) * (1.0 - 0.1 * lug_groove) * (1.0 + crust * 0.06 + heap * 0.04);
-		// Cut walls show blue and the layers of past snowfalls; cracks read as dark seams.
-		float strata = 0.94 + 0.06 * sin(packed_height * 110.0 + snow_noise(v_world.xz * 4.0) * 6.0);
-		albedo = mix(albedo, wall_color * strata, wall * 0.5) * (1.0 - crack * 0.22);
-		roughness = mix(0.85, 0.6, packed);
-		// Freshly broken grains at a print's edge sparkle more than the settled top.
-		float glint = step(mix(0.996, 0.985, wall), snow_hash(floor(v_world.xz * 140.0))) * v_deform;
-		emission = vec3(glint * 0.25 * (1.0 - packed * (1.0 - wall)));
+		// Cut walls show blue; cracks read as dark seams; deep pits see less sky.
+		albedo = mix(albedo, wall_color, wall * 0.5) * (1.0 - crack * 0.22);
+		albedo *= 1.0 - 0.22 * smoothstep(0.03, 0.3, packed_height);
+		roughness = mix(0.9, 0.7, packed);
 	}
+	// Sun flashes off ice facets: packed snow has crushed them, broken walls show fresh ones.
+	vec4 facet = snow_glint_facet(v_world.xz, n, length(fwidth(v_world.xz)));
+	v_glint_n = normalize((VIEW_MATRIX * vec4(facet.xyz, 0.0)).xyz);
+	v_glint = facet.w * (1.0 - smoothstep(0.01, 0.06, packed_height));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	ALBEDO = hfn_painterly_surface_color(albedo, v_world, n, 0.38);
 	ROUGHNESS = roughness;
-	EMISSION = emission;
+	SPECULAR = 0.3;
 	if (debug_height) {
 		ALBEDO = vec3(0.0);
 		ROUGHNESS = 1.0;
@@ -393,4 +397,5 @@ void light() {
 	float ndotl = max(dot(NORMAL, LIGHT), 0.0);
 	float attenuation = hfn_stylized_shadow(ATTENUATION, LIGHT_IS_DIRECTIONAL);
 	DIFFUSE_LIGHT += ndotl * attenuation * LIGHT_COLOR / PI;
+	SPECULAR_LIGHT += snow_glint_light(v_glint_n, v_glint, LIGHT, VIEW) * attenuation * LIGHT_COLOR;
 }
