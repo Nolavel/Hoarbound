@@ -24,8 +24,10 @@ on:
         description: "snow-surface: ref whose snow code is the `old` variant"
         default: "origin/main"
 
+## Each long capture has its own group, so a later push or dispatch of another kind
+## does not cancel it.
 concurrency:
-  group: checks-${{ github.ref }}
+  group: checks-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[snow-surface]') && 'snow-surface' || contains(github.event.head_commit.message, '[snow-walk]') && 'snow-walk' || github.event.inputs.preview || 'base' }}
   cancel-in-progress: true
 
 jobs:
