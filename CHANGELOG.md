@@ -8,6 +8,25 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Tight-space camera composition (owner reference). In a cramped room Henry sits low at the frame's left (right
+  shoulder), eyes at 27 % / 45 %, sliding towards 15 % when the camera is almost inside him; the far shoulder always
+  stays in frame. The shoulder offset keeps a constant screen angle (aim and walk stay together); what walls leave and
+  the height come from an off-axis lens shift (`PROJECTION_FRUSTUM`), so the camera never moves into a wall.
+  `docs/technical/TPS_CAMERA.md` → Tight-space composition.
+- Quick Access in tight spaces gathers in a cross at the screen centre (coats left/right, pack lid above, thigh below).
+  The old diagonal orbit took each pocket's side from its projected anchor, so two pockets could land in one corner
+  and overlap; places are now fixed and spaced from the real card sizes, and the cross is bounded as a whole.
+- Stove fire burns unevenly (owner request). It catches small and grows with the `HeatSource` warm-up
+  (0.08 -> 1 intensity, smoothstep): the firebox starts at 45%, the room light at 20%. At the nominal burn
+  two Perlin layers replace the old sine product: a slow swell (~0.35 Hz, a little brighter or dimmer, never
+  repeating) and fast flame jitter (~9 Hz); embers follow mostly the swell. Mean energies match the old ones.
+  `test_stove_visual` now checks a dim catch and a nominal warmed burn.
+- Interior shadow mode (owner request). Outdoors shadows keep the dry-brush edge. Under a shelter roof they
+  return to the earlier value-noise edge (4186533).
+  - `stylized_shadow_interior_mode` now feeds the shared shadow include and turns the brush mix down to 0.
+  - `ShelterGradeBinder` fades it with the LUT, on `sheltered_changed` over `shelter_blend_s`.
+  - 727 Fort St floor is dark old wood (`floor_old_wood_727.tres`), swapped for the glb `floor_vinyl` on import,
+    so the stove shadows read on it.
 - Colour grade crossfade (from Grok's `grok` branch).
   - Grok's rules are kept:
     - outdoor LUTs blend over ±0.5 h corridors at 05/07/17/21 h;
@@ -22,6 +41,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Dev street spawn (owner request): `World` → Developer tools → **Dev Spawn Street** picks one of ten streets from different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
 
 ### Fixed
+
+- 727 Fort St shell (walls, partitions, floor, ceiling) shades with the stylized shadow contract again. Reality chunks
+  instanced the glb with its plain `StandardMaterial3D`, so indoor stove shadows lost their torn edge after the shelter
+  moved from the First Exit hut into 727. A post-import script (`tools/import/stylized_landmark_import.gd`) converts
+  the surfaces; `test_key_west_727_shelter` checks them.
+
+- Editor docks no longer stretch the editor past the screen: ItemFitter (min 360×760) and Reality scroll inside their
+  tabs. Godot AI dock: its one-line labels and buttons clip with an
+  ellipsis. The 4.3.0 self-update had reverted its Inspector-group slot; restored. Customizations are listed in
+  `docs/technical/GODOT_AI_INTEGRATION.md`.
 
 - Godot AI and ItemFitter now default to the Inspector dock group instead of a separate lower-right group. Existing editor layouts retain their saved placement.
 - Sky weather character, finishing Codex's cloud pass (owner review: windy clouds and the night barely differed).

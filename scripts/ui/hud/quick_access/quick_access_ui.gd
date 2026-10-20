@@ -9,6 +9,13 @@ const QUICK_PREV: StringName = &"quick_prev"
 const QUICK_USE: StringName = &"quick_use"
 const SELECTOR_TIMEOUT_SECONDS := 5.0
 const ORBIT_GAP_PX := 24.0
+## Fixed cross places of the pockets round HANDS in the tight layout (x right, y down).
+const CROSS_PLACES: Dictionary = {
+	PATH_COAT_LEFT: Vector2(-1.0, 0.0),
+	PATH_COAT_RIGHT: Vector2(1.0, 0.0),
+	PATH_PACK_LID: Vector2(0.0, -1.0),
+	PATH_THIGH_LEFT: Vector2(0.0, 1.0),
+}
 const DIRECT_ACTIONS: Array[StringName] = [
 	&"select item slot 1", &"select item slot 2", &"select item slot 3", &"select item slot 4"
 ]
@@ -834,7 +841,8 @@ func _update_card_positions(camera: Camera3D, delta: float, snap: bool) -> void:
 			var projected: Vector2 = raw_targets[path]
 			projected = _soft_bound_slot_position(slot, projected, viewport_size, margin, edge_blend_px)
 			bounded_targets[path] = _clamp_slot_position(slot, projected, viewport_size, margin)
-		target_orbit_blend = maxf(_tight_camera_factor(camera), _crowding_factor(visible_specs, bounded_targets))
+		var tight := _screen_centre_share(camera) if camera is TpsCamera else _tight_camera_factor(camera)
+		target_orbit_blend = maxf(tight, _crowding_factor(visible_specs, bounded_targets))
 	if snap:
 		_orbit_blend = target_orbit_blend
 	else:
@@ -849,10 +857,11 @@ func _update_card_positions(camera: Camera3D, delta: float, snap: bool) -> void:
 		var path := StringName(spec["path"])
 		var slot := spec["slot"] as Control
 		var target: Vector2 = raw_targets[path]
+		target = _soft_bound_slot_position(slot, target, viewport_size, margin, edge_blend_px)
+		## The cross is already bounded as a whole; per-card edge pushes would close it up.
 		if orbit_targets.has(path):
 			var orbit_target: Vector2 = orbit_targets[path]
 			target = target.lerp(orbit_target, _orbit_blend)
-		target = _soft_bound_slot_position(slot, target, viewport_size, margin, edge_blend_px)
 		var next_position := target if snap else slot.position.lerp(target, follow_blend)
 		slot.position = _clamp_slot_position(slot, next_position, viewport_size, margin)
 
@@ -896,6 +905,9 @@ func _crowding_factor(specs: Array[Dictionary], positions: Dictionary) -> float:
 	return smoothstep(0.0, 1.0, maximum_pressure)
 
 
+## Tight layout: a cross round HANDS with fixed places (coats left and right, pack lid
+## above, thigh below), spaced from the real card sizes so no two cards can touch.
+## Its centre glides from Henry's hands to the screen centre with the camera composition.
 func _build_orbit_targets(
 	specs: Array[Dictionary],
 	positions: Dictionary,
@@ -906,59 +918,32 @@ func _build_orbit_targets(
 	var result: Dictionary = {}
 	if not positions.has(&"hands"):
 		return result
-	var card_half_width := 0.0
-	var card_half_height := 0.0
+	var card_half := Vector2.ZERO
 	for spec: Dictionary in specs:
-		if StringName(spec["path"]) == &"hands":
-			continue
-		var slot := spec["slot"] as Control
-		card_half_width = maxf(card_half_width, slot.size.x * slot.scale.x * 0.5)
-		card_half_height = maxf(card_half_height, slot.size.y * slot.scale.y * 0.5)
-	var hands_half_size := hands.size * hands.scale * 0.5
-	var radius_x := (card_half_width * 2.0 + ORBIT_GAP_PX) / sqrt(2.0)
-	var radius_y := (card_half_height + hands_half_size.y + ORBIT_GAP_PX) * sqrt(2.0)
-	var maximum_radius_x := maxf(0.0, (viewport_size.x * 0.5 - margin - card_half_width) * sqrt(2.0))
-	var maximum_radius_y := maxf(0.0, (viewport_size.y * 0.5 - margin - card_half_height) * sqrt(2.0))
-	radius_x = minf(radius_x, maximum_radius_x)
-	radius_y = minf(radius_y, maximum_radius_y)
-	var extent_x := maxf(radius_x / sqrt(2.0) + card_half_width, hands_half_size.x)
-	var extent_y := maxf(radius_y / sqrt(2.0) + card_half_height, hands_half_size.y)
-	var hands_position: Vector2 = positions[&"hands"]
-	var orbit_center := _slot_center(hands, hands_position)
-	orbit_center.x = _clamp_center(orbit_center.x, margin + extent_x, viewport_size.x - margin - extent_x)
-	orbit_center.y = _clamp_center(orbit_center.y, margin + extent_y, viewport_size.y - margin - extent_y)
+		if StringName(spec["path"]) != &"hands":
+			var slot := spec["slot"] as Control
+			card_half = card_half.max(slot.size * slot.scale * 0.5)
+	var hands_half := hands.size * hands.scale * 0.5
+	var step_x := hands_half.x + card_half.x + ORBIT_GAP_PX
+	var step_y := maxf(hands_half.y, card_half.y) + card_half.y + ORBIT_GAP_PX
+	var extent := Vector2(step_x + card_half.x, step_y + card_half.y)
+	var orbit_center := _slot_center(hands, positions[&"hands"]).lerp(viewport_size * 0.5, _screen_centre_share(camera))
+	orbit_center.x = _clamp_center(orbit_center.x, margin + extent.x, viewport_size.x - margin - extent.x)
+	orbit_center.y = _clamp_center(orbit_center.y, margin + extent.y, viewport_size.y - margin - extent.y)
 	result[&"hands"] = _slot_position_for_center(hands, orbit_center)
-
 	for spec: Dictionary in specs:
 		var path := StringName(spec["path"])
 		if path == &"hands" or not positions.has(path):
 			continue
-		var direction := _orbit_direction(spec, camera)
-		var slot := spec["slot"] as Control
-		var screen_offset: Vector2 = spec["offset"]
-		var pocket_center := orbit_center + Vector2(
-			direction.x * radius_x / sqrt(2.0),
-			direction.y * radius_y / sqrt(2.0)
-		) + screen_offset
-		result[path] = _slot_position_for_center(slot, pocket_center)
+		var place: Vector2 = CROSS_PLACES.get(path, Vector2.ZERO)
+		result[path] = _slot_position_for_center(spec["slot"] as Control, orbit_center + place * Vector2(step_x, step_y))
 	return result
 
 
-func _orbit_direction(spec: Dictionary, camera: Camera3D) -> Vector2:
-	var path := StringName(spec["path"])
-	var anchor := spec["anchor"] as Node3D
-	var side := 1.0
-	var has_projected_side := false
-	if anchor != null and hands_anchor != null:
-		var offset := anchor.global_position - hands_anchor.global_position
-		var screen_side := offset.dot(camera.global_basis.x.normalized())
-		if absf(screen_side) > 0.001:
-			side = signf(screen_side)
-			has_projected_side = true
-	if not has_projected_side:
-		side = -1.0 if path in [PATH_COAT_LEFT, PATH_THIGH_LEFT] else 1.0
-	var vertical := -1.0 if path in [PATH_COAT_LEFT, PATH_COAT_RIGHT] else 1.0
-	return Vector2(side, vertical).normalized()
+## 1 when the camera frames Henry in a tight space: the cards then gather at the screen centre.
+func _screen_centre_share(camera: Camera3D) -> float:
+	var tps := camera as TpsCamera
+	return tps.get_composition() if tps != null else 0.0
 
 
 func _slot_rect(slot: Control, position: Vector2) -> Rect2:
