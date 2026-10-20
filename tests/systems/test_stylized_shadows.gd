@@ -53,7 +53,8 @@ func _run() -> void:
 		"res://shaders/environment/stylized_shadow.gdshaderinc"
 	)
 	_check(not contract_source.contains("sample_directional_shadow"), "shared contract calls an engine-patched sampler")
-	_check(contract_source.contains("HFN_SHADOW_INDOOR_OFFSET_M"), "indoor torn-edge mode is missing")
+	_check(contract_source.contains("hfn_legacy_shadow_attenuation"), "historical solid-core/perimeter shading is missing")
+	_check(contract_source.contains("hfn_legacy_world_warp"), "historical quantized world-warp is missing")
 	_check(
 		World.WORLD_SYSTEM_SCRIPTS.has(load("res://scripts/systems/world/shelter_shadow_binder.gd")),
 		"world does not install the interior shadow state binder"

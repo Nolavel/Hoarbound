@@ -389,19 +389,22 @@ jobs:
             echo "Shader compilation failed in 727 interior shadow capture"
             exit 1
           fi
-          test -s "$OUT/01_current_smooth.png"
-          test -s "$OUT/02_interior_torn.png"
+          for id in 01_noon_close_current 02_noon_close_legacy 03_noon_room_current 04_noon_room_legacy 05_night_room_current 06_night_room_legacy 07_night_close_current 08_night_close_legacy; do
+            test -s "$OUT/$id.png"
+          done
           test -s "$OUT/report.json"
           python3 - <<'PY'
           import json
           from pathlib import Path
           out=Path('docs/runtime_previews/key_west/727_shadow_interior_ab')
           r=json.loads((out/'report.json').read_text())
-          assert r['frames']==['01_current_smooth','02_interior_torn'], r['frames']
-          assert [x['state'] for x in r['interior_states']]==[0.0,1.0]
-          assert len({x['camera'] for x in r['interior_states']})==1
-          assert len({x['stove_energy'] for x in r['interior_states']})==1
-          print('INTERIOR_SHADOW_AB CAPTURE',r['frames'],'same camera, same stove energy')
+          assert len(r['frames'])==8, r['frames']
+          states=r['interior_states']
+          assert [x['state'] for x in states]==[0.0,1.0]*4, states
+          for i in range(0,8,2):
+              assert states[i]['camera']==states[i+1]['camera'], (i,'camera changed')
+              assert states[i]['stove_energy']==states[i+1]['stove_energy'], (i,'stove flicker')
+          print('INTERIOR_SHADOW_AB eight frames, four matched-camera pairs:', r['frames'])
           PY
 
       - name: Stylized-shadow contract test

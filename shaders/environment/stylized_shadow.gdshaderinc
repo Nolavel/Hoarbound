@@ -14,10 +14,8 @@ global uniform float stylized_shadow_brush_mix;
 // Production lookup offset: amplitude in metres and base frequency in cycles per metre.
 const float HFN_SHADOW_OFFSET_M = 0.18;
 const float HFN_SHADOW_OFFSET_FREQ = 3.0;
-// Interior preserves the stock-Godot shadow sampling and local-light falloff,
-// but restores the broader torn edges of the earlier shelter look.
-const float HFN_SHADOW_INDOOR_OFFSET_M = 0.40;
-const float HFN_SHADOW_INDOOR_DETAIL_FREQ = 8.0;
+// The previously improvised 0.40 m/8 Hz indoor mode was not the old shader.
+// Historical edge and warp implementations are below, gated to interiors.
 // Painted-edge experiment: one coarse displacement layer, smaller than production FBM.
 const float HFN_PAINTED_OFFSET_M = 0.095;
 const float HFN_PAINTED_OFFSET_FREQ = 2.35;
@@ -41,6 +39,7 @@ const float HFN_SHADOW_CUT_HIGH = 0.66;
 const float HFN_SHADOW_MID_TONE = 0.45;
 
 varying float hfn_shadow_spray;
+varying vec3 hfn_shadow_legacy_pos;
 
 
 // PCG3D integer hash (Jarzynski & Olano 2020, "Hash Functions for GPU Rendering").
@@ -84,6 +83,89 @@ vec3 hfn_shadow_fbm3(vec3 world_pos, float freq, float pixel_m) {
 	return sum / 0.926;
 }
 
+
+// Legacy implementation from the project's actual older commits.
+
+//// INTERIOR LEGACY SHADOW CONTRACT
+// Recovered from 2026-09-22 bd11bdf (solid core / torn perimeter) and
+// 2026-09-30 eae9776 + 34f1bf1 (local ink, quantised world warp).
+// Values are the authored historical defaults, not a new procedural approximation.
+// Isolated behind stylized_shadow_interior_mode; outdoor remains unchanged.
+const float HFN_LEGACY_SHADOW_WARP_M = 0.28;
+const float HFN_LEGACY_MACRO_FREQ = 0.42;
+const float HFN_LEGACY_DETAIL_FREQ = 1.35;
+const float HFN_LEGACY_SHADOW_PATTERN_THRESHOLD = 0.52;
+const float HFN_LEGACY_SHADOW_BREAK_SOFTNESS = 0.055;
+const float HFN_LEGACY_SHADOW_FLOOR = 0.035;
+const float HFN_LEGACY_EDGE_LIGHT = 0.17;
+const float HFN_LEGACY_LOCAL_STRENGTH = 0.45;
+
+float hfn_legacy_hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+float hfn_legacy_value_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+	float a = hfn_legacy_hash(i);
+	float b = hfn_legacy_hash(i + vec2(1.0, 0.0));
+	float c = hfn_legacy_hash(i + vec2(0.0, 1.0));
+	float d = hfn_legacy_hash(i + vec2(1.0, 1.0));
+	return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float hfn_legacy_world_noise(vec3 world_pos, float scale) {
+	vec3 p = world_pos * max(scale, 0.0001);
+	float xz = hfn_legacy_value_noise(p.xz);
+	float xy = hfn_legacy_value_noise(p.xy + vec2(17.0, 3.0));
+	float yz = hfn_legacy_value_noise(p.yz + vec2(-5.0, 23.0));
+	return xz * 0.50 + xy * 0.25 + yz * 0.25;
+}
+
+// Exact 34f1bf1 quantised-island warp, with historical .28/.12/.45/.28 constants.
+vec3 hfn_legacy_world_warp(vec3 world_pos) {
+	float macro_a = hfn_legacy_world_noise(world_pos + vec3(17.3, 0.0, -6.1), 0.12);
+	float macro_b = hfn_legacy_world_noise(world_pos + vec3(-9.7, 3.1, 13.9), 0.12);
+	float detail_a = hfn_legacy_world_noise(world_pos + vec3(2.6, -7.2, 5.8), 0.45);
+	float detail_b = hfn_legacy_world_noise(world_pos + vec3(-4.4, 8.3, -12.7), 0.45);
+	vec2 macro = vec2(macro_a, macro_b) * 2.0 - 1.0;
+	vec2 detail = vec2(detail_a, detail_b) * 2.0 - 1.0;
+	vec2 warp = mix(macro, detail, 0.28);
+	float amplitude_noise = hfn_legacy_world_noise(world_pos + vec3(31.0, -11.0, 7.0), 0.12 * 0.47);
+	float island = mix(0.42, 1.0, step(0.48, amplitude_noise));
+	float amplitude = mix(island, amplitude_noise, 0.22);
+	return vec3(warp.x, 0.0, warp.y) * HFN_LEGACY_SHADOW_WARP_M * amplitude;
+}
+
+// Sept 22 ragged edge: preserve the centre, break only the perimeter.
+// For Omni/Spot the Sept 30 local branch retains ATTENUATION as a multiplier,
+// so we do not replace the inverse-square/range falloff with an artificial 1.0.
+float hfn_legacy_shadow_attenuation(float attenuation, bool directional, vec3 world_pos) {
+	float base = clamp(attenuation, 0.0, 1.0);
+	float physical_shadow = 1.0 - base;
+	float macro = hfn_legacy_world_noise(world_pos, HFN_LEGACY_MACRO_FREQ);
+	float detail = hfn_legacy_world_noise(world_pos + vec3(11.7, -4.3, 7.1), HFN_LEGACY_DETAIL_FREQ);
+	float core_start = directional ? 0.48 : 0.72;
+	float core_end = directional ? 0.68 : 0.94;
+	float gate_end_start = directional ? 0.50 : 0.74;
+	float gate_end = directional ? 0.72 : 0.96;
+	float solid_core = smoothstep(core_start, core_end, physical_shadow);
+	float perimeter_gate = smoothstep(0.10, 0.22, physical_shadow)
+		* (1.0 - smoothstep(gate_end_start, gate_end, physical_shadow));
+	float edge_field = physical_shadow * 0.56 + macro * 0.78 + (detail - 0.5) * 0.10 * 0.22;
+	float ragged_edge = smoothstep(
+		HFN_LEGACY_SHADOW_PATTERN_THRESHOLD - HFN_LEGACY_SHADOW_BREAK_SOFTNESS,
+		HFN_LEGACY_SHADOW_PATTERN_THRESHOLD + HFN_LEGACY_SHADOW_BREAK_SOFTNESS, edge_field);
+	float ink_mask = clamp(max(solid_core, ragged_edge * perimeter_gate), 0.0, 1.0);
+	float edge_darkness = mix(HFN_LEGACY_EDGE_LIGHT, HFN_LEGACY_SHADOW_FLOOR, smoothstep(0.42, 0.72, macro));
+	float ink_darkness = mix(edge_darkness, HFN_LEGACY_SHADOW_FLOOR, solid_core);
+	if (directional) {
+		return mix(1.0, ink_darkness, ink_mask * 0.95);
+	}
+	float local_ink = mix(base, base * ink_darkness, ink_mask);
+	return mix(base, local_ink, HFN_LEGACY_LOCAL_STRENGTH);
+}
 
 // Brush mask on the three world planes, faded like the spray's base octave: mip
 // averages keep the unpainted gaps, so they never settle to 0.5 on their own.
@@ -130,19 +212,15 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 		offset_m = HFN_PAINTED_OFFSET_M * (0.58 + 0.30 * abs(brush) + 0.50 * lobe);
 	} else {
 		noise = hfn_shadow_fbm3(noise_pos, HFN_SHADOW_OFFSET_FREQ, pixel_m);
-		if (indoor > 0.0) {
-			// Old shelter reference: finer tears on the receiving surface. No local
-			// ATTENUATION tone cut: that would break the SpotLight's radial falloff.
-			float fine_keep = 1.0 - smoothstep(0.2, 0.45, HFN_SHADOW_INDOOR_DETAIL_FREQ * pixel_m);
-			vec3 fine = hfn_shadow_noise3(
-				noise_pos * HFN_SHADOW_INDOOR_DETAIL_FREQ + vec3(7.3, -14.1, 23.9)
-			) * fine_keep;
-			noise = mix(noise, noise * 0.76 + fine * 0.48, indoor);
-		}
-		offset_m = mix(HFN_SHADOW_OFFSET_M, HFN_SHADOW_INDOOR_OFFSET_M, indoor);
+		offset_m = HFN_SHADOW_OFFSET_M;
 	}
 	vec3 tangent = noise - n * dot(noise, n);
-	vec3 offset = (view * vec4(tangent * offset_m * offset_scale * strength, 0.0)).xyz;
+	// Historical 34f1bf1 world-space lookup perturbation, including its
+	// hard amplitude islands. Only the receiver lookup moves, not the mesh.
+	vec3 current_warp = tangent * offset_m;
+	vec3 old_warp = hfn_legacy_world_warp(noise_pos);
+	vec3 offset = (view * vec4(mix(current_warp, old_warp, indoor)
+		* offset_scale * strength, 0.0)).xyz;
 
 	float spray = 0.0;
 	if (painted_edge) {
@@ -163,7 +241,7 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 }
 
 
-#define HFN_SHADOW_FRAGMENT_SCALED(noise_pos, offset_scale) vec4 hfn_prep = hfn_shadow_prepare(noise_pos, NORMAL, INV_VIEW_MATRIX, VIEW_MATRIX, offset_scale); LIGHT_VERTEX = VERTEX + hfn_prep.xyz; hfn_shadow_spray = hfn_prep.w
+#define HFN_SHADOW_FRAGMENT_SCALED(noise_pos, offset_scale) vec4 hfn_prep = hfn_shadow_prepare(noise_pos, NORMAL, INV_VIEW_MATRIX, VIEW_MATRIX, offset_scale); LIGHT_VERTEX = VERTEX + hfn_prep.xyz; hfn_shadow_spray = hfn_prep.w; hfn_shadow_legacy_pos = noise_pos
 #define HFN_SHADOW_FRAGMENT(world_pos) HFN_SHADOW_FRAGMENT_SCALED(world_pos, 1.0)
 
 
@@ -172,7 +250,23 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 float hfn_stylized_shadow(float attenuation, bool directional) {
 	float base = clamp(attenuation, 0.0, 1.0);
 	float strength = clamp(stylized_shadow_strength, 0.0, 1.0);
-	if (!directional || strength <= 0.0) {
+	if (strength <= 0.0) {
+		return base;
+	}
+	// Recover historical shadow logic in shelter: no new approximation, and
+	// outside always keeps the 2026-10 production shadow contract.
+	float indoor = clamp(stylized_shadow_interior_mode, 0.0, 1.0);
+	if (indoor > 0.0) {
+		float historical = hfn_legacy_shadow_attenuation(base, directional, hfn_shadow_legacy_pos);
+		if (indoor >= 1.0) {
+			return mix(base, historical, strength);
+		}
+		if (!directional) {
+			return mix(base, historical, indoor * strength);
+		}
+		// Directional outdoor branch below still needs evaluation to blend.
+	}
+	if (!directional) {
 		return base;
 	}
 
@@ -202,5 +296,7 @@ float hfn_stylized_shadow(float attenuation, bool directional) {
 
 	float v = base + hfn_shadow_spray * 0.5 * HFN_SHADOW_SPRAY_JITTER;
 	float tone = mix(step(HFN_SHADOW_CUT_LOW, v) * HFN_SHADOW_MID_TONE, 1.0, step(HFN_SHADOW_CUT_HIGH, v));
-	return mix(base, tone, strength);
+	float outdoor = mix(base, tone, strength);
+	return mix(outdoor, hfn_legacy_shadow_attenuation(base, true, hfn_shadow_legacy_pos),
+		clamp(stylized_shadow_interior_mode, 0.0, 1.0) * strength);
 }

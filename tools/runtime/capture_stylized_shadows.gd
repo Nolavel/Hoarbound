@@ -77,16 +77,34 @@ func _initialize() -> void:
 		## Historical screenshot supplied by the author is a separate reference:
 		## it is not fabricated by pretending a new frame came from old code.
 		_queue = [
-			_set_hour.bind(23.0),
+			_set_hour.bind(12.0),
 			_place_inside,
 			_light_stove,
 			_freeze_motion,
 			_frame_close_stove,
 			_lock_interior_shadow_ab,
 			_set_interior_shadow_mode.bind(0.0),
-			_capture.bind("01_current_smooth"),
+			_capture.bind("01_noon_close_current"),
 			_set_interior_shadow_mode.bind(1.0),
-			_capture.bind("02_interior_torn"),
+			_capture.bind("02_noon_close_legacy"),
+			_aim_inside_camera,
+			_lock_interior_shadow_ab,
+			_set_interior_shadow_mode.bind(0.0),
+			_capture.bind("03_noon_room_current"),
+			_set_interior_shadow_mode.bind(1.0),
+			_capture.bind("04_noon_room_legacy"),
+			_set_hour.bind(23.0),
+			_lock_interior_shadow_ab,
+			_set_interior_shadow_mode.bind(0.0),
+			_capture.bind("05_night_room_current"),
+			_set_interior_shadow_mode.bind(1.0),
+			_capture.bind("06_night_room_legacy"),
+			_frame_close_stove,
+			_lock_interior_shadow_ab,
+			_set_interior_shadow_mode.bind(0.0),
+			_capture.bind("07_night_close_current"),
+			_set_interior_shadow_mode.bind(1.0),
+			_capture.bind("08_night_close_legacy"),
 		]
 		return
 	if brush:
@@ -472,7 +490,8 @@ func _write_report() -> void:
 		"contract": "torn shadow lookup for all lights + three-tone directional shadow",
 		"interior_ab": _interior_test,
 		"interior_states": _interior_state_log,
-		"historical_reference": "Author-provided pre-change screenshot; separate from matched-camera render A/B",
+		"historical_reference": "2026-09-22 bd11bdf ink edge + 2026-09-30 eae9776 / 34f1bf1 local ink + warp; screenshot from author is a different room",
+		"shader_mode": "original historical shader math isolated to interior, outdoors unchanged",
 		"stove_energy_fixed": _interior_fixed_light_energy if _interior_test else null,
 	}
 	var file := FileAccess.open("%s/report.json" % _out_dir, FileAccess.WRITE)
