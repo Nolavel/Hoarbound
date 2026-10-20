@@ -31,8 +31,7 @@ void light() {
 	// unchanged so the warm lamp cannot turn its range edge into pigment.
 	if (!LIGHT_IS_DIRECTIONAL) {
 		DIFFUSE_LIGHT += ndl * hfn_stylized_shadow(physical, false) * LIGHT_COLOR / PI;
-		return;
-	}
+	} else {
 
 	// Only the physical penumbra is displaced. Its world-space field is fixed
 	// across frames; light distance attenuation remains intact outside this band.
@@ -52,4 +51,5 @@ void light() {
 	vec3 painted = mix(vec3(tone), mix(vec3(tone), shadow_pigment, shade),
 		mass_strength);
 	DIFFUSE_LIGHT += painted * ndl * LIGHT_COLOR / PI;
+	}
 }
