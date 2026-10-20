@@ -647,6 +647,9 @@ jobs:
               data = json.loads(report.read_text())
               frames = data["frames"]
               deepest = max((max(f["sink"]) for f in frames), default=0.0)
+              feet = [b for f in frames for b in f.get("feet", []) if b["depth"] > 0.05]
+              ghosts = [b for b in feet if b["pressed"] < 0.01]
+              print("SNOW_WALK_GHOSTS", json.dumps({"standing_in_snow": len(feet), "no_print": len(ghosts), "examples": ghosts[:8]}))
               print("SNOW_WALK_SUMMARY", json.dumps({"firmness": data.get("firmness"), "plunges": data["plunges"], "frames": len(frames), "deepest_sink_m": deepest,
                   "max_depth_m": max((f["depth"] for f in frames), default=0.0)}))
           PY

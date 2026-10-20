@@ -122,7 +122,31 @@ func _capture(frame: int, shell: DeterministicSnowShell) -> void:
 	_camera.make_current()
 	var p: Vector3 = _player.global_position
 	_frames.append({"frame": frame, "henry": [p.x, p.y, p.z], "sink": [shell.get_foot_sink(0), shell.get_foot_sink(1)],
-		"depth": shell.field.get_depth(p.x, p.z), "softness": shell.field.get_softness(p.x, p.z), "plunges": shell.plunge_count})
+		"depth": shell.field.get_depth(p.x, p.z), "softness": shell.field.get_softness(p.x, p.z), "plunges": shell.plunge_count,
+		"feet": _feet(shell)})
+
+
+## Each standing boot: snow depth under it, its sink and the print the GPU field actually holds
+## there. A boot deep in drawn snow with no print is the "walks through without a mark" bug.
+func _feet(shell: DeterministicSnowShell) -> Array:
+	var tex := shell._surface.get_shader_parameter("print_field") as Texture2D
+	var img: Image = tex.get_image() if tex != null else null
+	var out: Array = []
+	for side: int in range(2):
+		if shell._stance[side] < 0.2:
+			continue
+		var at: Vector2 = shell._sole_at[side]
+		var pressed: float = 0.0
+		if img != null and not img.is_empty() and shell.field.origin.x != INF:
+			var uv: Vector2 = (at - shell.field.origin) / shell.window_m
+			var c := Vector2i((uv * Vector2(img.get_size())).floor())
+			for dy: int in range(-3, 4):
+				for dx: int in range(-3, 4):
+					var q: Vector2i = (c + Vector2i(dx, dy)).clamp(Vector2i.ZERO, img.get_size() - Vector2i.ONE)
+					pressed = maxf(pressed, img.get_pixelv(q).r)
+		out.append({"side": side, "at": [at.x, at.y], "depth": shell.field.get_depth(at.x, at.y),
+			"sink": shell._sink[side], "pressed": pressed, "cut": shell.field.get_softness(at.x, at.y) <= 0.0})
+	return out
 
 
 ## Side view at leg height, beside Henry's travel, so a leg going through shows.
