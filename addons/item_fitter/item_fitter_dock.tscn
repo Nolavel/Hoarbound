@@ -2,23 +2,18 @@
 
 [ext_resource type="Script" path="res://addons/item_fitter/item_fitter_dock.gd" id="1_dock"]
 
-[node name="ItemFitter" type="Control"]
-custom_minimum_size = Vector2(360, 760)
+[node name="ItemFitter" type="ScrollContainer"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+horizontal_scroll_mode = 0
 script = ExtResource("1_dock")
 
 [node name="Layout" type="VBoxContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 6.0
-offset_top = 6.0
-offset_right = -6.0
-offset_bottom = -6.0
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 6
 
 [node name="ItemLabel" type="Label" parent="Layout"]
@@ -70,7 +65,7 @@ text = "0.00 / 0.00 s"
 horizontal_alignment = 2
 
 [node name="PreviewFrame" type="SubViewportContainer" parent="Layout"]
-custom_minimum_size = Vector2(340, 360)
+custom_minimum_size = Vector2(0, 240)
 layout_mode = 2
 size_flags_vertical = 3
 stretch = true
