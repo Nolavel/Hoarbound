@@ -514,7 +514,11 @@ jobs:
           fi
 
       - name: Height witness analysis
-        run: python3 tools/runtime/analyze_snow_surface.py "$OUT"
+        run: |
+          python3 -m pip install --quiet numpy pillow
+          python3 tools/runtime/analyze_snow_surface.py "$OUT"
+          ## Artifacts are not reachable from every reviewer's sandbox: the sheet also goes to the log.
+          echo "REVIEW_SHEET_BEGIN"; base64 -w 0 "$OUT/review_sheet.jpg"; echo; echo "REVIEW_SHEET_END"
 
       - name: Encode videos
         if: always()

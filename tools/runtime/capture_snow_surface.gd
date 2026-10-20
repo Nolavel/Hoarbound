@@ -29,6 +29,8 @@ var _presentation: SnowPresentationSystem
 var _day_night: DayNightManager
 var _witness: Camera3D
 var _oblique: Camera3D
+## Eye-level views across the street at each side's wall foot, first and last frame only.
+var _walls: Array[Camera3D] = []
 var _street_at: Vector2 = Vector2.ZERO
 var _yaw: float = 0.0
 var _start: Vector3 = Vector3.ZERO
@@ -99,6 +101,7 @@ func _run() -> void:
 		_camera.call(&"set_look", _yaw, -18.0)
 	await _wait_frames(20)
 	await _capture(0)
+	await _capture_walls("first")
 	Input.action_press(&"move_forward", 1.0)
 	var frame: int = 1
 	while Vector2(_player.global_position.x - _start.x, _player.global_position.z - _start.z).length() < _walk_m and frame < 2000:
@@ -110,9 +113,19 @@ func _run() -> void:
 	for i: int in range(30):
 		await process_frame
 	await _capture(frame)
+	await _capture_walls("last")
 	_save_report()
 	print("SNOW_SURFACE_CAPTURE done frames=%d walked=%.2f" % [_frames.size(), Vector2(_player.global_position.x - _start.x, _player.global_position.z - _start.z).length()])
 	quit(0)
+
+
+func _capture_walls(tag: String) -> void:
+	for i: int in range(_walls.size()):
+		_walls[i].make_current()
+		await process_frame
+		await RenderingServer.frame_post_draw
+		_save(root.get_texture().get_image(), "wall_%d_%s.png" % [i, tag])
+	_camera.make_current()
 
 
 func _capture(frame: int) -> void:
@@ -181,6 +194,15 @@ func _setup_cameras() -> void:
 	var eye: Vector3 = _start + side * 5.0 + Vector3.UP * 2.2 - Vector3(_forward.x, 0.0, _forward.y) * 3.0
 	_oblique.global_position = eye
 	_oblique.look_at(centre + Vector3(_forward.x, 0.0, _forward.y) * 6.0 + Vector3.UP * 0.2, Vector3.UP)
+	for sign: float in [-1.0, 1.0]:
+		var cam := Camera3D.new()
+		cam.fov = 55.0
+		cam.cull_mask = _camera.cull_mask
+		_world.add_child(cam)
+		var at: Vector3 = _start + Vector3(_forward.x, 0.0, _forward.y) * 3.0
+		cam.global_position = at - side * sign * 1.5 + Vector3.UP * 1.3
+		cam.look_at(at + side * sign * 9.0 + Vector3.UP * 0.3, Vector3.UP)
+		_walls.append(cam)
 
 
 func _save_report() -> void:

@@ -184,9 +184,13 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   and Henry's shell shader derive visible settled height from the same terrain,
   baked wind texture, shore fade and world coordinates. `SnowField` mirrors the
   baseline for gameplay and tracks; its CPU grid updates in bounded steps.
-  Henry's moving window adds packed tracks. The local ray-derived lee, scour
-  and blurred bed remain for scenes without the baked map. Baked prevailing wind
-  fixes settled ridge orientation; current gusts drive weather effects instead.
+  Henry's moving window adds packed tracks. Over the baked map SnowField adds
+  what 2 m cells cannot hold: drift ridges and each wall's own lee ramp (the local
+  `_lee`, ASCE 7 drift scale like `lee_m`; the windward scour stays the bake's).
+  Near Henry the drawn top *is* SnowField's top, so feet and eyes agree. The
+  ray-derived scour and blurred bed remain for scenes without the baked map.
+  Baked prevailing wind fixes ridge and lee orientation; current gusts drive
+  weather effects instead.
   Cover changes rebuild the field even while Henry stands still. How the
   surface is drawn and handed to the chunk cover is in *Drawn surface* below.
   SnowField also prepares a 40 cm settled-normal image row by row under its
@@ -367,6 +371,12 @@ visibly crawled and popped (measured with the witness below). It is replaced by:
   These sit inside what the window guarantees around Henry
   (`detail_reach_m()`: half window − half step − walking lead − 1 m lag); a
   lagging rebuild falls back to the chunk surface near the window edge.
+- **Wind relief.** `snow_ridge` cuts sastrugi: a gentle rise into the wind and a
+  steep lee drop every ~6 m, crests wandering and broken into segments; small
+  ~0.7 m sastrugi of the same shape replace the old blotchy ripple wherever the
+  wind runs free (wind-oriented ripple normals, as Journey's sand, GDC 2013).
+  Near and far shading use the same relief, so ridges no longer appear in a
+  ring at the handoff (the old near cache was ridge-free).
 - **Shading.** The outer band computes the chunk cover's normal, albedo and
   thin-snow cut from the same include (`snow_far_cover.gdshaderinc`) and the
   same lattice normals, so material matches across the handoff too.

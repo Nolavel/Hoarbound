@@ -143,8 +143,9 @@ SnowSample snow_sample(vec2 xz) {
 	s.ground = f.r - f.g;
 	float shore = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, s.ground);
 	s.city = use_baked_baseline ? snow_city_at(xz) * shore : f.a;
-	float base_top = use_baked_baseline ? s.ground + snow_base_geom(s.city) : f.r;
-	s.depth = use_baked_baseline ? snow_base_depth(xz, s.city) : f.g;
+	// SnowField's top: settled depth, drift ridges and wall lee ramps, the same numbers Henry's feet read.
+	float base_top = f.r;
+	s.depth = f.g;
 	if (!use_far_grid) {
 		// No chunk cover to hand over to: the snow thins to nothing at the window edge.
 		base_top = s.ground + (base_top - s.ground) * trust;
@@ -188,15 +189,9 @@ SnowSample snow_sample(vec2 xz) {
 	return s;
 }
 
-// Settled top with ridges, for shading where no cached normal exists and for strata.
+// Settled top before prints, for shading where no cached normal exists and for strata.
 float settled_top(vec2 xz) {
-	vec4 f = texture(field, (xz - origin) / window_m);
-	if (use_baked_baseline) {
-		float ground = f.r - f.g;
-		float shore = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, ground);
-		return ground + snow_base_depth(xz, snow_city_at(xz) * shore);
-	}
-	return f.r;
+	return texture(field, (xz - origin) / window_m).r;
 }
 
 // Distance to the nearest cell border of a jittered grid (F2 - F1), for cracks.

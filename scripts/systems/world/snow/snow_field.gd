@@ -128,12 +128,16 @@ func load_wind_field(png_path: String) -> bool:
 	return true
 
 
-## Wind ridge crest 0..1; mirrors snow_ridge() in snow_surface.gdshaderinc bit for bit.
+## Wind-cut drift ridge 0..1 (gentle rise into the wind, steep lee drop); mirrors
+## snow_ridge() in snow_surface.gdshaderinc.
 static func ridge_at(xz: Vector2, wind: Vector2) -> float:
 	var side := Vector2(-wind.y, wind.x)
-	var q := Vector2(xz.dot(wind) * 0.16, xz.dot(side) * 0.55)
-	var n: float = _vnoise(q) * 0.7 + _vnoise(q * 2.0 + Vector2(11.0, 5.0)) * 0.3
-	return smoothstep(0.45, 0.85, n)
+	var along: float = xz.dot(wind)
+	var across: float = xz.dot(side)
+	var warp: float = _vnoise(Vector2(along * 0.05, across * 0.2)) * 2.5
+	var s: float = fposmod(along * 0.16 + warp, 1.0)
+	var profile: float = smoothstep(0.0, 0.8, s) * (1.0 - smoothstep(0.8, 1.0, s))
+	return profile * smoothstep(0.35, 0.75, _vnoise(Vector2(along * 0.12, across * 0.45) + Vector2(11.0, 5.0)))
 
 
 static func _ihash(x: int, y: int) -> float:
@@ -526,10 +530,12 @@ func _shifted_v2(arr: PackedVector2Array, shift: Vector2i) -> PackedVector2Array
 func _begin_assemble() -> void:
 	var m: int = res + 2
 	var step: int = maxi(1, roundi(0.35 / texel_m()))
-	_job_ahead = Vector2i(roundi(_job_wind.x * step), roundi(_job_wind.y * step))
+	## Baked drifts follow the prevailing wind, so the local lee does too.
+	var wind: Vector2 = settled_wind if use_baked_baseline else _job_wind
+	_job_ahead = Vector2i(roundi(wind.x * step), roundi(wind.y * step))
 	_job_upwind.clear()
 	for k: int in range(1, 9):
-		_job_upwind.append(Vector2i(roundi(_job_wind.x * step * k), roundi(_job_wind.y * step * k)))
+		_job_upwind.append(Vector2i(roundi(wind.x * step * k), roundi(wind.y * step * k)))
 	_job_depth = PackedFloat32Array()
 	_job_depth.resize(m * m)
 	_job_weight = PackedFloat32Array()
@@ -554,7 +560,12 @@ func _assemble_row(lj: int) -> void:
 		var city: float = lerpf(_prevail[k], _storm[k], _job_storm)
 		if use_baked_baseline:
 			var shore: float = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, g.x)
-			_job_depth[lj * m + li] = settled * city * shore
+			var cs: float = city * shore
+			var ridge: float = amp * ridge_at(at, settled_wind) * minf(cs, 1.5) * ridge_openness(cs)
+			## The bake holds lee banks only at 2 m; each wall's own lee ramp is filled in
+			## here. Its windward scour is already in the bake, so no windward pile.
+			var wall_lee: float = _job_cover * lee_m * _lee(i, j, _job_upwind, _job_ahead, false) * shore
+			_job_depth[lj * m + li] = maxf(settled * cs + ridge, wall_lee)
 			_job_weight[lj * m + li] = 1.0
 			continue
 		var drift: float = amp * ridge_at(at, _job_wind) * minf(city, 1.5) * ridge_openness(city)
@@ -678,8 +689,9 @@ func _wall_share(i: int, j: int) -> float:
 	return clampf(float(walls) / 3.0, 0.0, 1.0)
 
 
-## 0..1: how much an obstacle upwind shelters this point.
-func _lee(i: int, j: int, upwind: Array[Vector2i], ahead: Vector2i) -> float:
+## 0..1: how much an obstacle upwind shelters this point; with `windward`, also a
+## pile against a wall just downwind.
+func _lee(i: int, j: int, upwind: Array[Vector2i], ahead: Vector2i, windward: bool = true) -> float:
 	var n: int = _n
 	var pile: float = 0.0
 	for k: int in range(8):
@@ -689,6 +701,8 @@ func _lee(i: int, j: int, upwind: Array[Vector2i], ahead: Vector2i) -> float:
 			break
 		var kk: float = float(k + 1)
 		pile = maxf(pile, _wall[sy * n + sx] * smoothstep(0.0, 1.5, kk) * (1.0 - kk / 9.0))
+	if not windward:
+		return pile
 	var fx: int = clampi(i + ahead.x, 0, n - 1)
 	var fy: int = clampi(j + ahead.y, 0, n - 1)
 	pile = maxf(pile, 0.6 * _wall[fy * n + fx])

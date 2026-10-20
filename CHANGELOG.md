@@ -33,6 +33,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     Henry snapped to its coarsest spacing, and each ring morphs onto the next one's lattice by distance
     (geometry clipmaps, Losasso & Hoppe 2004; CDLOD, Strugar 2009). The chunk cover takes over beyond 6.25 m
     through the `snow_lod` global; both share `snow_far_cover.gdshaderinc`, so geometry and shading match.
+  - Wind relief, same in near and far shading (the near normal cache had no ridges, so ridges appeared in a ring
+    at the old handoff): sastrugi with a steep lee face replace the blotchy ripple; over the baked map SnowField
+    adds drift ridges and each wall's lee ramp to the depth Henry's feet read, and the near surface draws that top.
   - 53k vertices on high instead of 113k. A/B evidence: `checks.yml` `snow-surface` job (new vs `main`).
   - `test_snow_clipmap` (CPU emulation of the vertex morph), `tools/runtime/capture_snow_surface.gd` +
     `analyze_snow_surface.py`, `checks.yml` → `snow-surface` job; `docs/technical/SNOW_COVER.md` → Drawn surface.

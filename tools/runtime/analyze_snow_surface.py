@@ -26,6 +26,26 @@ def decode(path):
     return h, drawn
 
 
+def contact_sheet(cap):
+    """First, middle and last frame of the TPS and oblique views, 3 x 2 at 480 px."""
+    rows = []
+    for view in ("tps", "oblique"):
+        frames = sorted((cap / view).glob("*.png"))
+        if not frames:
+            return None
+        picks = [frames[0], frames[len(frames) // 2], frames[-1]]
+        rows.append([Image.open(f).convert("RGB").resize((480, 270)) for f in picks])
+    walls = [cap / f"wall_{i}_{tag}.png" for i in (0, 1) for tag in ("first", "last")]
+    if all(p.exists() for p in walls):
+        rows.append([Image.open(p).convert("RGB").resize((480, 270)) for p in walls[:3]])
+        rows.append([Image.open(walls[3]).convert("RGB").resize((480, 270))])
+    sheet = Image.new("RGB", (480 * 3, 270 * len(rows)))
+    for r, row in enumerate(rows):
+        for c, img in enumerate(row):
+            sheet.paste(img, (c * 480, r * 270))
+    return sheet
+
+
 def world_grid(report, shape):
     w = report["witness"]
     hgt, wid = shape
@@ -122,6 +142,9 @@ def main():
             ## Lavapipe rasterises on the CPU: only the old/new ratio means anything.
             summary["root_gpu_ms_median"] = float(np.median(gpu))
             summary["root_gpu_samples"] = len(gpu)
+    sheet = contact_sheet(cap)
+    if sheet is not None:
+        sheet.save(cap / "review_sheet.jpg", quality=72)
     (cap / "analysis.json").write_text(json.dumps({"summary": summary, "steps": steps}, indent=1))
     print(json.dumps(summary, indent=1))
 
