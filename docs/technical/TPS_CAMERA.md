@@ -276,23 +276,33 @@ nothing changes. Only then does the body fade, as before.
 
 ### Tight-space composition
 
-Author's reference (2026-10-20): in a tight space Henry sits low at the left of the
-frame (right shoulder; mirrored on the left), eyes at 27 % from the left and 45 % from
-the top, so the room stays readable. `_composition` rises as the boom shrinks below
-half its range (`composition_open_share`) and eases at `composition_rate`.
+Author's reference (2026-10-20): in a tight space Henry sits at the left of the frame
+(right shoulder; mirrored on the left), eyes at 27 % of the width, so the room stays
+readable. References: Cinemachine Third Person Follow (rig shape set by state, walls only
+shorten the arm), Jacob Grossman's framing (NZGDC 2025: offset = framing × half-width at
+the distance) and John Nesky's "50 Game Camera Mistakes" (GDC 2014: never fight the player).
 
-- Physical first: the shoulder offset keeps a constant screen angle, `boom ×
-  tan(eye angle)` from the real FOV and aspect, instead of `tight_shoulder_fraction`.
-  The view still looks along the control yaw, so walking heads for the crosshair.
-- What walls leave (shoulder sweep, recompose) and the height are added by a lens
-  shift: an off-axis `PROJECTION_FRUSTUM`, the camera does not move. Gameplay rays
-  through the screen centre follow the shifted projection.
-- Closer than `recompose_distance` to the eyes the target slides towards 15 % from
-  the left, but the far shoulder always keeps `composition_edge_margin` from the edge.
-- `get_composition()` is read by Quick Access, which then gathers its cards in a
-  cross at the screen centre.
-- The horizontal lens shift is the one place aim and walk can part: only where a wall
-  stops the shoulder offset.
+- `_composition` comes from `measure_room()`: rods all round Henry, evenly weighted, so
+  turning the camera never changes it. The boom keeps the view-based `measure_openness()`.
+- Shoulder offset = `_boom × tan(eye angle)` from the real FOV and aspect: it scales with
+  the boom, so Henry's screen spot holds while the boom breathes. Pitch does not move it.
+- In a doorway the passage owns the framing; the composition gives way by `_passage_blend`.
+- No lens shift: aim and walk always share the screen centre. Where a wall stops the
+  shoulder, Henry honestly comes towards the centre (the rig bends).
+- Above `tight_auto_look_cutoff` no room search or whiskers turn the view.
+- `recompose` eases at 4 in / 1.5 out and keeps its goal until it moves by
+  `recompose_hysteresis`.
+- The doorway mouse soft-stop and view clamp apply only while Henry is in the doorway or
+  walking at it (`_passage_traversal`); standing beside one the mouse is free.
+- `get_composition()` is read by Quick Access, which then gathers its cards in a cross at
+  the screen centre.
+
+Measured with `tools/runtime/trace_camera_tight.gd` (727, full mouse turn): at the stove
+the composition held 0.58–0.59 (was 0.50–0.80) and Henry's eyes 32–33 % (were 26–30 %);
+the corridor turned the full circle (the mouse stuck at −81°, see passages below); the
+automatic turn stayed at 0 (was up to 30° in a corner). Known limit: facing a wall in a
+1.8 m corridor or a room corner the shoulder has no room and the camera comes close to
+Henry, who fades.
 
 ## What stops the boom
 

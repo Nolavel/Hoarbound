@@ -3,7 +3,7 @@ extends SceneTree
 ## Tight-space camera trace in the real 727 shelter: at each spot Henry stands still while the
 ## mouse turns the camera a full circle, then rests, then sweeps pitch. Every frame logs the
 ## framing state; report.json sums how much the frame moves on its own while the player turns.
-## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/trace_camera_tight.gd -- [out_dir]
+## Run (windowed, headless is 64x64): godot --path . --resolution 1280x720 --fixed-fps 30 --script res://tools/runtime/trace_camera_tight.gd -- [out_dir]
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const WARMUP_FRAMES: int = 300
@@ -61,6 +61,8 @@ func _process(_delta: float) -> bool:
 			if _phase_frame >= SETTLE_FRAMES:
 				_begin(&"turn")
 		"turn":
+			if _phase_frame == 1:
+				_print_passage()
 			_feed_look(Vector2(TAU / float(TURN_FRAMES), 0.0))
 			_record()
 			if _phase_frame % SHOT_EVERY == 0:
@@ -94,7 +96,7 @@ func _bind() -> bool:
 	_house = shelter.get_node(^"House") as Node3D
 	_floor_y = float(shelter.interior["floor_y"])
 	_csv = FileAccess.open(_abs(_out).path_join("trace.csv"), FileAccess.WRITE)
-	_csv.store_line("spot,phase,frame,yaw_deg,view_yaw_deg,pitch,auto_yaw_deg,auto_pitch_deg,openness,boom,side,shoulder_pct,recompose,composition,lens_x,lens_y,eye_distance,eye_sx,eye_sy,cam_x,cam_y,cam_z")
+	_csv.store_line("spot,phase,frame,yaw_deg,view_yaw_deg,pitch,auto_yaw_deg,auto_pitch_deg,openness,boom,side,shoulder_pct,recompose,composition,eye_distance,passage_blend,traversal,eye_sx,eye_sy,cam_x,cam_y,cam_z")
 	return true
 
 
@@ -134,10 +136,10 @@ func _record() -> void:
 	state.merge({"spot": SPOTS[_spot][0], "phase": _phase, "frame": _phase_frame, "eye_sx": eye.x, "eye_sy": eye.y,
 		"cam": cam})
 	_rows.append(state)
-	_csv.store_line("%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f" % [
+	_csv.store_line("%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f" % [
 		state.spot, state.phase, state.frame, rad_to_deg(state.yaw), rad_to_deg(state.view_yaw), state.pitch,
 		state.auto_yaw_deg, state.auto_pitch_deg, state.openness, state.boom, state.side, state.shoulder_pct,
-		state.recompose, state.composition, state.lens_x, state.lens_y, state.eye_distance, eye.x, eye.y,
+		state.recompose, state.composition, state.eye_distance, state.passage_blend, state.traversal, eye.x, eye.y,
 		cam.x, cam.y, cam.z])
 
 
@@ -153,7 +155,7 @@ func _finish() -> void:
 	for key: String in groups:
 		var rows: Array = groups[key]
 		var sum: Dictionary = {"frames": rows.size()}
-		for field: String in ["boom", "side", "composition", "lens_x", "lens_y", "eye_sx", "eye_sy", "openness"]:
+		for field: String in ["boom", "side", "composition", "eye_sx", "eye_sy", "openness"]:
 			var lo: float = INF
 			var hi: float = -INF
 			var jump: float = 0.0
@@ -178,6 +180,17 @@ func _finish() -> void:
 	file.close()
 	print("camera trace: done -> ", _abs(_out))
 	quit(0)
+
+
+func _print_passage() -> void:
+	var traversal: PassageTraversalComponent = _player.get_node_or_null(^"PassageTraversalComponent") as PassageTraversalComponent
+	var info: PassageInfo = traversal.get_nearby_passage() if traversal != null else null
+	if info == null:
+		print("camera trace: %s no passage" % SPOTS[_spot][0])
+		return
+	var feet: Vector3 = _player.global_position
+	print("camera trace: %s passage engaged=%s along=%.2f lateral=%.2f half_depth=%.2f width=%.2f" % [SPOTS[_spot][0],
+		traversal.is_active(), info.along_of(feet), info.lateral_of(feet), info.half_depth(), info.clear_width])
 
 
 func _shot(shot_name: String) -> void:

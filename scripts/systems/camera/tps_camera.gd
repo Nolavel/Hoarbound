@@ -135,20 +135,20 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## that gives it room; the body fade only follows if it still cannot.
 @export var recompose_distance: float = 1.1
 @export_range(0.0, 10.0, 0.5) var recompose_fov_deg: float = 3.0
-@export_range(0.5, 30.0, 0.5) var recompose_in_rate: float = 12.0
-@export_range(0.1, 20.0, 0.1) var recompose_out_rate: float = 2.0
+@export_range(0.5, 30.0, 0.5) var recompose_in_rate: float = 4.0
+@export_range(0.1, 20.0, 0.1) var recompose_out_rate: float = 1.5
+## A new recompose goal must differ by this much before the shoulder moves again.
+@export_range(0.0, 1.0, 0.05) var recompose_hysteresis: float = 0.35
 
 @export_group("Composition")
-## Tight-space framing (author's reference): Henry's eyes at this screen share, from the
-## left and from the top, on the right shoulder; mirrored on the left one.
-@export var composition_eye_screen: Vector2 = Vector2(0.27, 0.45)
-## Eyes' screen share from the left once the camera is almost inside Henry.
-@export_range(0.05, 0.5, 0.01) var composition_corner_x: float = 0.15
-## Roominess (boom between near and far) below which the composition takes over fully.
+## Tight-space framing (author's reference, Grossman's framing): Henry's eyes at this share
+## of the screen width from the left, on the right shoulder; mirrored on the left one.
+@export_range(0.05, 0.5, 0.01) var composition_eye_screen_x: float = 0.27
+## Room all round Henry (measure_room, eased like the boom) below which the composition is full.
 @export_range(0.05, 1.0, 0.05) var composition_open_share: float = 0.5
-@export_range(0.1, 20.0, 0.1) var composition_rate: float = 2.5
-## Screen share kept between Henry's far shoulder and the frame edge.
-@export_range(0.0, 0.2, 0.01) var composition_edge_margin: float = 0.04
+@export_range(0.1, 20.0, 0.1) var composition_rate: float = 1.5
+## Above this composition the space is tight: no room search and no whiskers turn the view.
+@export_range(0.0, 1.0, 0.05) var tight_auto_look_cutoff: float = 0.3
 
 @export_group("Fade")
 ## Render layers of Henry's body; his parts near the camera dither out when it is inside his reach.
@@ -177,6 +177,8 @@ var _pivot_smooth: Vector3 = Vector3.ZERO
 var _lead: Vector3 = Vector3.ZERO
 var _pullback: float = 0.0
 var _openness: float = 1.0
+## Room all round Henry, view-independent: drives the tight-space composition.
+var _room: float = 1.0
 var _boom: float = 3.0
 ## Crouch share of the framing: 0 standing, 1 crouched.
 var _crouch: float = 0.0
@@ -216,8 +218,8 @@ var _last_eye_distance: float = INF
 var _fov_offset: float = 0.0
 ## 0 in the open, 1 with the tight-space composition fully on.
 var _composition: float = 0.0
-## Lens shift in NDC: what walls left of the composition after the shoulder offset.
-var _lens: Vector2 = Vector2.ZERO
+## Recompose goal the shoulder is easing to; replaced only past recompose_hysteresis.
+var _recompose_goal: float = 0.0
 ## Lateral shoulder offset asked for this frame, before walls (for traces).
 var _last_side: float = 0.0
 
@@ -269,6 +271,7 @@ func _process(delta: float) -> void:
 	_apply_lean_and_shoulder_input(delta)
 	_probe.begin(get_world_3d().direct_space_state, [player.get_rid()])
 	_openness = measure_openness()
+	_room = measure_room()
 	var wanted: float = get_target_distance()
 	var rate: float = close_in_rate if wanted < _boom else open_out_rate
 	_boom = wanted if not _has_position else lerpf(_boom, wanted, _damp(rate, delta))
@@ -386,6 +389,19 @@ func measure_openness() -> float:
 	return clampf(free_sum / weight_sum * (ceiling / ceiling_clearance), 0.0, 1.0)
 
 
+## Casts the rods now and returns 0..1: free room all round Henry, evenly weighted, times
+## room above him. It ignores the view, so turning the camera never changes the composition.
+func measure_room() -> float:
+	var origin: Vector3 = _safe_origin()
+	var count: int = maxi(probe_count * 2, 4)
+	var free_sum: float = 0.0
+	for i: int in range(count):
+		var angle: float = TAU * float(i) / float(count)
+		free_sum += _probe.ray(origin, Vector3(sin(angle), 0.0, cos(angle)) * probe_length)
+	var ceiling: float = _probe.ray(origin, Vector3.UP * ceiling_clearance)
+	return clampf(free_sum / (probe_length * float(count)) * (ceiling / ceiling_clearance), 0.0, 1.0)
+
+
 func _update_rig(delta: float) -> void:
 	var speed_ratio: float = _player_speed_ratio()
 	_pullback = lerpf(_pullback, speed_ratio * sprint_pullback, _damp(pullback_smoothing, delta))
@@ -405,10 +421,12 @@ func _update_rig(delta: float) -> void:
 	var roominess: float = clampf(inverse_lerp(near_distance, far_distance, _boom), 0.0, 1.0)
 	var shoulder_now: float = _shoulder.update(delta)
 	var side: float = shoulder_now * lerpf(tight_shoulder_fraction, 1.0, roominess)
-	var goal_composition: float = 1.0 - smoothstep(0.0, composition_open_share, roominess)
+	var goal_composition: float = 1.0 - smoothstep(0.0, composition_open_share, pow(_room, openness_exponent))
 	_composition = goal_composition if not _has_position else lerpf(_composition, goal_composition, _damp(composition_rate, delta))
 	var shoulder_sign: float = clampf(shoulder_now / maxf(shoulder_offset, 0.01), -1.0, 1.0)
-	side = lerpf(side, shoulder_sign * want * _composition_tan_x(), _composition) + _lean * lean_camera_offset
+	## A doorway owns its framing: the composition gives way to it.
+	var framing: float = _composition * (1.0 - _passage_blend)
+	side = lerpf(side, shoulder_sign * _boom * _composition_tan_x(), framing) + _lean * lean_camera_offset
 	var orbit_yaw: float = view_yaw
 	var orbit_pitch: float = view_pitch
 	if _framing.has_passage() and _passage_blend > 0.001:
@@ -418,9 +436,10 @@ func _update_rig(delta: float) -> void:
 		var axis_yaw: float = _framing.axis_yaw()
 		var limits: Vector2 = _view_yaw_limits()
 		var off: float = angle_difference(axis_yaw, view_yaw)
-		view_yaw = wrapf(axis_yaw + lerpf(off, clampf(off, -limits.x, limits.y), blend), -PI, PI)
+		var look_blend: float = blend * _passage_traversal()
+		view_yaw = wrapf(axis_yaw + lerpf(off, clampf(off, -limits.x, limits.y), look_blend), -PI, PI)
 		var pitch_range: Vector2 = _passage_pitch_range()
-		view_pitch = lerpf(view_pitch, clampf(view_pitch, pitch_range.x, pitch_range.y), blend)
+		view_pitch = lerpf(view_pitch, clampf(view_pitch, pitch_range.x, pitch_range.y), look_blend)
 		_update_cone(delta, pivot + _framing.right() * side, want, view_yaw, view_pitch)
 		off = angle_difference(axis_yaw, view_yaw)
 		orbit_yaw = wrapf(axis_yaw + lerpf(off, clampf(off, -_cone.x, _cone.y), blend), -PI, PI)
@@ -446,7 +465,6 @@ func _update_rig(delta: float) -> void:
 	global_position = camera
 	global_rotation = Vector3(deg_to_rad(view_pitch + _sway_deg), view_yaw, 0.0)
 	_last_eye_distance = camera.distance_to(get_eye_position())
-	_update_lens(delta, -1.0 if shoulder_sign < 0.0 else 1.0)
 	_update_fades(delta, camera)
 
 
@@ -474,8 +492,10 @@ func _update_recompose(delta: float, safe: Vector3, pivot: Vector3, offset: Vect
 		if near < recompose_distance and centre > near + 0.05:
 			goal = clampf(inverse_lerp(recompose_distance, body_fade_start, near), 0.0, 1.0)
 		centre_worse = centre < near - 0.02  # back to a wall: the centre line would bring the camera closer
-	var rate: float = recompose_in_rate if goal > _recompose or centre_worse else recompose_out_rate
-	_recompose = goal if not _has_position else lerpf(_recompose, goal, _damp(rate, delta))
+	if not _has_position or absf(goal - _recompose_goal) >= recompose_hysteresis or goal == 0.0 or goal == 1.0:
+		_recompose_goal = goal
+	var rate: float = recompose_in_rate if _recompose_goal > _recompose or centre_worse else recompose_out_rate
+	_recompose = _recompose_goal if not _has_position else lerpf(_recompose, _recompose_goal, _damp(rate, delta))
 	return _recompose
 
 
@@ -499,57 +519,30 @@ func get_composition() -> float:
 func get_debug_state() -> Dictionary:
 	return {"yaw": _yaw, "view_yaw": get_view_yaw(), "pitch": get_view_pitch_deg(),
 		"auto_yaw_deg": rad_to_deg(_auto_yaw), "auto_pitch_deg": _auto_pitch_deg,
-		"openness": _openness, "boom": _boom, "side": _last_side, "shoulder_pct": _shoulder_pct,
-		"recompose": _recompose, "composition": _composition, "lens_x": _lens.x, "lens_y": _lens.y,
-		"eye_distance": _last_eye_distance}
+		"openness": _openness, "room": _room, "boom": _boom, "side": _last_side, "shoulder_pct": _shoulder_pct,
+		"recompose": _recompose, "composition": _composition, "eye_distance": _last_eye_distance,
+		"passage_blend": _passage_blend, "traversal": _passage_traversal() if is_instance_valid(player) else 0.0}
 
 
-## Lateral offset per metre of boom that puts the eyes at composition_eye_screen.x.
+## 1 while Henry is in a doorway or walking at it, 0 while he stands beside one: only a
+## traversal may soft-stop the mouse (Nesky, GDC 2014: honour the player's intent).
+func _passage_traversal() -> float:
+	if _passage != null and _passage.get_passage() != null:
+		return 1.0
+	return smoothstep(0.2, 1.0, Vector2(player.velocity.x, player.velocity.z).length())
+
+
+## Lateral offset per metre of boom that puts the eyes at composition_eye_screen_x:
+## it scales with the boom, so the framing holds at any distance (Grossman, NZGDC 2025).
 func _composition_tan_x() -> float:
-	return (1.0 - 2.0 * composition_eye_screen.x) * _half_tangents().x
+	return (1.0 - 2.0 * composition_eye_screen_x) * _half_tangents().x
 
 
-## Tangents of the half view angles (x, y) of the unshifted frustum.
+## Tangents of the half view angles (x, y).
 func _half_tangents() -> Vector2:
 	var aspect: float = get_viewport().get_visible_rect().size.aspect() if is_inside_tree() else 16.0 / 9.0
 	var t: float = tan(deg_to_rad(fov) * 0.5)
 	return Vector2(t * aspect, t) if keep_aspect == KEEP_HEIGHT else Vector2(t, t / maxf(aspect, 0.01))
-
-
-## Point in NDC of the unshifted frustum; z < 0 when it is not in front of the camera.
-func _ndc(point: Vector3) -> Vector3:
-	var local: Vector3 = global_transform.affine_inverse() * point
-	if local.z > -near:
-		return Vector3(0.0, 0.0, -1.0)
-	var t: Vector2 = _half_tangents()
-	return Vector3(local.x / -local.z / t.x, local.y / -local.z / t.y, 1.0)
-
-
-## Shifts the lens so the eyes land on the composition target the shoulder could not
-## reach, never pushing the far shoulder out of frame (off-axis projection, no move).
-func _update_lens(delta: float, side_sign: float) -> void:
-	var goal := Vector2.ZERO
-	var eye: Vector3 = get_eye_position()
-	var eye_ndc: Vector3 = _ndc(eye)
-	if _composition > 0.001 and eye_ndc.z > 0.0:
-		var corner: float = clampf(inverse_lerp(recompose_distance, body_fade_start, _last_eye_distance), 0.0, 1.0)
-		var screen_x: float = lerpf(composition_eye_screen.x, composition_corner_x, corner)
-		var target := Vector2((2.0 * screen_x - 1.0) * side_sign, 1.0 - 2.0 * composition_eye_screen.y)
-		goal = (Vector2(eye_ndc.x, eye_ndc.y) - target) * _composition
-		var drop: float = _eye_height() - _pivot_height()
-		var reach: float = metrics.shoulder_joint_width * 0.5 + 0.12
-		var far_shoulder: Vector3 = eye - global_basis.x.normalized() * side_sign * reach + Vector3.DOWN * drop
-		var shoulder_ndc: Vector3 = _ndc(far_shoulder)
-		var edge: float = 1.0 - 2.0 * composition_edge_margin
-		if shoulder_ndc.z > 0.0 and (shoulder_ndc.x - goal.x) * side_sign < -edge:
-			goal.x = shoulder_ndc.x + edge * side_sign
-	_lens = goal if not _has_position else _lens.lerp(goal, _damp(composition_rate * 2.0, delta))
-	if _lens.length_squared() < 1e-8:
-		projection = PROJECTION_PERSPECTIVE
-		return
-	var t: Vector2 = _half_tangents()
-	var frustum_size: float = 2.0 * near * (t.y if keep_aspect == KEEP_HEIGHT else t.x)
-	set_frustum(frustum_size, Vector2(_lens.x * near * t.x, _lens.y * near * t.y), near, far)
 
 
 ## Sets how much FOV this camera adds over the base, capped at max_fov_deg.
@@ -605,9 +598,10 @@ func _sweep_shoulder(delta: float, safe: Vector3, goal: Vector3) -> Vector3:
 
 ## Turns the player did not make, once the mouse rests: room search while Henry
 ## stands cramped, recentring and whiskers while he moves. They only offset the view.
-## A doorway owns the framing: any offset glides out and none starts.
+## A doorway or a tight space owns the framing: any offset glides out and none starts
+## (Nesky, GDC 2014: never push the camera against the player in closed spaces).
 func _update_auto_look(delta: float, safe: Vector3, speed_ratio: float) -> void:
-	if _passage_blend > 0.01:
+	if _passage_blend > 0.01 or _composition > tight_auto_look_cutoff:
 		_room_active = false
 		_auto_yaw = move_toward(_auto_yaw, 0.0, deg_to_rad(_auto.room_rate_deg) * delta)
 		_auto_pitch_deg = move_toward(_auto_pitch_deg, 0.0, _auto.room_rate_deg * delta)
@@ -815,7 +809,7 @@ func _apply_look_input() -> Vector2:
 		* y_sign
 	)
 	## In a doorway the mouse eases into a soft stop instead of a wall; back in is always free.
-	var weight: float = _passage_blend if _framing.has_passage() else 0.0
+	var weight: float = _passage_blend * _passage_traversal() if _framing.has_passage() else 0.0
 	if weight > 0.001 and yaw_step != 0.0:
 		var axis_yaw: float = _framing.axis_yaw()
 		var turn: float = signf(yaw_step)
