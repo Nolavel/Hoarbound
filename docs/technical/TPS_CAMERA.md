@@ -274,6 +274,26 @@ shoulder gives way to it, fully at 0.8 m, with +3° FOV. It goes in at rate 12
 and out at rate 2. With Henry's back to a wall the centre line is worse, so
 nothing changes. Only then does the body fade, as before.
 
+### Tight-space composition
+
+Author's reference (2026-10-20): in a tight space Henry sits low at the left of the
+frame (right shoulder; mirrored on the left), eyes at 27 % from the left and 45 % from
+the top, so the room stays readable. `_composition` rises as the boom shrinks below
+half its range (`composition_open_share`) and eases at `composition_rate`.
+
+- Physical first: the shoulder offset keeps a constant screen angle, `boom ×
+  tan(eye angle)` from the real FOV and aspect, instead of `tight_shoulder_fraction`.
+  The view still looks along the control yaw, so walking heads for the crosshair.
+- What walls leave (shoulder sweep, recompose) and the height are added by a lens
+  shift: an off-axis `PROJECTION_FRUSTUM`, the camera does not move. Gameplay rays
+  through the screen centre follow the shifted projection.
+- Closer than `recompose_distance` to the eyes the target slides towards 15 % from
+  the left, but the far shoulder always keeps `composition_edge_margin` from the edge.
+- `get_composition()` is read by Quick Access, which then gathers its cards in a
+  cross at the screen centre.
+- The horizontal lens shift is the one place aim and walk can part: only where a wall
+  stops the shoulder offset.
+
 ## What stops the boom
 
 `TpsBoomProbe.passes()` decides this per collider shape:

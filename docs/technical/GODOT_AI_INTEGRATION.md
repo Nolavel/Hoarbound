@@ -5,8 +5,13 @@ The project vendors the complete Godot AI 4.2.3 distribution from
 The original archive SHA-256 and source metadata are recorded in
 `godot_ai_vendor_receipt.json`. All 313 installed files match the supplied
 release inventory byte for byte at installation; the upstream MIT license is included.
-Local customization: `plugin.gd` defaults the dock to the Inspector group
-(`DOCK_SLOT_RIGHT_UL`). Saved editor layouts still take precedence.
+The plugin self-updated to 4.3.0 on 2026-10-20 (`plugin.cfg`); the update overwrites
+local edits, so re-apply these after every update:
+
+- `plugin.gd` defaults the dock to the Inspector group (`DOCK_SLOT_RIGHT_UL`).
+  Saved editor layouts still take precedence.
+- `mcp_dock.gd` `_make_shrinkable`: one-line labels and buttons clip with an
+  ellipsis, so the dock never forces the editor wider than the screen.
 
 ## Conflict decision
 

@@ -36,12 +36,17 @@ animation/fps=30
 animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
-import_script/path=""
+import_script/path="res://tools/import/stylized_landmark_import.gd"
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
 _subresources={
 "materials": {
+"floor_vinyl": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/world/key_west/landmarks/floor_old_wood_727.tres",
+"use_external/path": "res://assets/world/key_west/landmarks/floor_old_wood_727.tres"
+},
 "window_glass": {
 "use_external/enabled": true,
 "use_external/fallback_path": "res://assets/world/key_west/landmarks/frosted_glass_727.tres",

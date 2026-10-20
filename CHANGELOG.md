@@ -35,6 +35,25 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - Independent review (Sonnet agent + `/code-review high`): prints shade per pixel in coarse rings, narrower morph
     bands, no string `has_method`/`connect` seams, retry cap at the coast. It also caught that the wall lee ramps
     never ran over the baked map; they are now out of the drawn base until the chunk bake carries them.
+- Tight-space camera composition (owner reference). In a cramped room Henry sits low at the frame's left (right
+  shoulder), eyes at 27 % / 45 %, sliding towards 15 % when the camera is almost inside him; the far shoulder always
+  stays in frame. The shoulder offset keeps a constant screen angle (aim and walk stay together); what walls leave and
+  the height come from an off-axis lens shift (`PROJECTION_FRUSTUM`), so the camera never moves into a wall.
+  `docs/technical/TPS_CAMERA.md` → Tight-space composition.
+- Quick Access in tight spaces gathers in a cross at the screen centre (coats left/right, pack lid above, thigh below).
+  The old diagonal orbit took each pocket's side from its projected anchor, so two pockets could land in one corner
+  and overlap; places are now fixed and spaced from the real card sizes, and the cross is bounded as a whole.
+- Stove fire burns unevenly (owner request). It catches small and grows with the `HeatSource` warm-up
+  (0.08 -> 1 intensity, smoothstep): the firebox starts at 45%, the room light at 20%. At the nominal burn
+  two Perlin layers replace the old sine product: a slow swell (~0.35 Hz, a little brighter or dimmer, never
+  repeating) and fast flame jitter (~9 Hz); embers follow mostly the swell. Mean energies match the old ones.
+  `test_stove_visual` now checks a dim catch and a nominal warmed burn.
+- Interior shadow mode (owner request). Outdoors shadows keep the dry-brush edge. Under a shelter roof they
+  return to the earlier value-noise edge (4186533).
+  - `stylized_shadow_interior_mode` now feeds the shared shadow include and turns the brush mix down to 0.
+  - `ShelterGradeBinder` fades it with the LUT, on `sheltered_changed` over `shelter_blend_s`.
+  - 727 Fort St floor is dark old wood (`floor_old_wood_727.tres`), swapped for the glb `floor_vinyl` on import,
+    so the stove shadows read on it.
 - Colour grade crossfade (from Grok's `grok` branch).
   - Grok's rules are kept:
     - outdoor LUTs blend over ±0.5 h corridors at 05/07/17/21 h;
@@ -73,7 +92,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - 53k vertices on high instead of 113k. A/B evidence: `checks.yml` `snow-surface` job (new vs `main`).
   - `test_snow_clipmap` (CPU emulation of the vertex morph), `tools/runtime/capture_snow_surface.gd` +
     `analyze_snow_surface.py`, `checks.yml` → `snow-surface` job; `docs/technical/SNOW_COVER.md` → Drawn surface.
-- Godot AI and ItemFitter now default to the Inspector dock group instead of a separate lower-right group. Existing editor layouts retain their saved placement.
+- 727 Fort St shell (walls, partitions, floor, ceiling) shades with the stylized shadow contract again. Reality chunks
+  instanced the glb with its plain `StandardMaterial3D`, so indoor stove shadows lost their torn edge after the shelter
+  moved from the First Exit hut into 727. A post-import script (`tools/import/stylized_landmark_import.gd`) converts
+  the surfaces; `test_key_west_727_shelter` checks them.
+
+- Editor docks no longer stretch the editor past the screen: ItemFitter (min 360×760) and Reality scroll inside their
+  tabs. Godot AI dock: its one-line labels and buttons clip with an
+  ellipsis. The 4.3.0 self-update had reverted its Inspector-group slot; restored. Customizations are listed in
+  `docs/technical/GODOT_AI_INTEGRATION.md`.
+
 - Sky weather character, finishing Codex's cloud pass (owner review: windy clouds and the night barely differed).
   - Causes:
     - clouds followed snowfall only, so windy (snow 0.15) looked calm;

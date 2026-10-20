@@ -10,13 +10,20 @@ const FOLLOW_MAX_M: float = 600.0
 const CAPTURE_SCRIPT: GDScript = preload("res://addons/reality_editor/capture_demo.gd")
 
 var _dock: RealityEditorDock
+## Scrolls the dock, so its tall form never pushes the editor past the screen.
+var _scroll: ScrollContainer
 var _since: float = 0.0
 
 
 func _enter_tree() -> void:
 	_dock = RealityEditorDock.new()
 	_dock.undo_redo = get_undo_redo()
-	add_control_to_dock(EditorPlugin.DOCK_SLOT_RIGHT_UL, _dock)
+	_dock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll = ScrollContainer.new()
+	_scroll.name = "Reality"
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.add_child(_dock)
+	add_control_to_dock(EditorPlugin.DOCK_SLOT_RIGHT_UL, _scroll)
 	if OS.has_environment(CAPTURE_SCRIPT.ENV):
 		var demo: Node = CAPTURE_SCRIPT.new()
 		demo.set(&"dock", _dock)
@@ -26,8 +33,9 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	if _dock == null:
 		return
-	remove_control_from_docks(_dock)
-	_dock.queue_free()
+	remove_control_from_docks(_scroll)
+	_scroll.queue_free()
+	_scroll = null
 	_dock = null
 
 

@@ -54,6 +54,19 @@ changes by ΔL\* 0.67 mean, 1.56 p95 (around the just-noticeable difference).
 
 The shelter stove's room light (`Flame`) casts shadows; the firebox glow does not.
 
+### Interior mode
+
+Outdoors the spray is the dry-brush mask; under a shelter roof it falls back to the
+value-noise spray (the 4186533 look, author choice 2026-10-20). The global
+`stylized_shadow_interior_mode` scales `stylized_shadow_brush_mix` by `1 − mode`.
+`ShelterGradeBinder` drives it from `ThermalManager.sheltered_changed` over the same
+`shelter_blend_s` as the LUT crossfade, so grade and shadows change together.
+
+Landmark shells (`kw_727_fort_st.glb`) are instanced into Reality chunks as imported.
+Their import runs `tools/import/stylized_landmark_import.gd`, which applies
+`StylizedEnvironmentMaterial.apply_to_tree`; without it the 727 walls and floor stayed
+on `StandardMaterial3D` and the stove shadows had no torn edge.
+
 ## Why the earlier contract never matched the reference
 
 Measured on a replica of the reference scene (see Verification):
