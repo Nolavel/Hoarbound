@@ -20,6 +20,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     day, a thaw softens it. It sets the field's softness, crust strength and how deep and fast a broken crust
     drops; only loose snow (firmness < 0.5) lets the wading body and dragging toe cut a trench.
   - Tests in `test_snow_presentation`, `test_snow_resistance`, `test_snow_shell`; `snow-walk` CI runs both packs.
+    Duval Street walk: fresh pack 3 plunges (drift pockets only), crust pack 29 with clean-walled postholes.
+  - `snow-walk` reads the GPU print field under every standing boot (`SNOW_WALK_GHOSTS`) to chase the
+    "walks through drawn snow without a mark" report: 0 of 509 boots in over 5 cm of snow left no print on
+    this route, so the report is not reproduced here yet.
 - Snowpack and boot prints (owner request).
   - `SnowResistance`: wind crust holds a boot until the step's load breaks it (strength varies in ~1.6 m patches,
     running breaks more), drifts hide soft pockets where a leg plunges almost to the ground; a plunge dips the
