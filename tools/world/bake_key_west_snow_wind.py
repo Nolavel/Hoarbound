@@ -32,7 +32,7 @@ REALITY_OUT = Path("data/world/key_west/snow_wind_reality.png")
 CELL_M = 2.0
 # Bake only the city plus a margin; the rest of the island keeps factor 1.
 MARGIN_M = 200.0
-FACTOR_MAX = 6.0
+FACTOR_MAX = 8.5
 # Compass bearing the wind blows FROM: winter trades ESE, northers veer ENE.
 PREVAILING_FROM_DEG = 112.5
 STORM_FROM_DEG = 77.5

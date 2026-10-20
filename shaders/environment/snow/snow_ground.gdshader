@@ -214,11 +214,17 @@ float crack_distance(vec2 p) {
 
 // Pit slope from the smooth packed field, never steeper than repose: shading does
 // not step with the mesh triangles.
+// Sobel over two texels: the wall dilation leaves texel terraces that a central
+// difference would draw as contour lines on a print's floor.
 vec2 packed_slope(vec2 uv) {
-	float t = packed_texel_m * 1.5 / window_m;
-	float gx = packed_at(uv + vec2(t, 0.0)) - packed_at(uv - vec2(t, 0.0));
-	float gz = packed_at(uv + vec2(0.0, t)) - packed_at(uv - vec2(0.0, t));
-	vec2 g = vec2(gx, gz) / (2.0 * packed_texel_m * 1.5);
+	float t = packed_texel_m * 2.0 / window_m;
+	float pp = packed_at(uv + vec2(t, t));
+	float pm = packed_at(uv + vec2(t, -t));
+	float mp = packed_at(uv + vec2(-t, t));
+	float mm = packed_at(uv - vec2(t, t));
+	float gx = pp + pm + 2.0 * packed_at(uv + vec2(t, 0.0)) - mp - mm - 2.0 * packed_at(uv - vec2(t, 0.0));
+	float gz = pp + mp + 2.0 * packed_at(uv + vec2(0.0, t)) - pm - mm - 2.0 * packed_at(uv - vec2(0.0, t));
+	vec2 g = vec2(gx, gz) / (8.0 * packed_texel_m * 2.0);
 	float len = length(g);
 	return len > repose_tan ? g * (repose_tan / len) : g;
 }

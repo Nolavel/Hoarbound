@@ -199,10 +199,15 @@ vec2 snow_grain_slope(vec2 xz, float footprint) {
 
 // Brightness variation: wind-packed patches a metre or two across, then grain.
 float snow_grain_albedo(vec2 xz, float footprint) {
-	float v = (snow_vnoise_d(xz * 0.6 + vec2(3.1, 9.2)).x - 0.5) * 0.07;
-	float fine = 1.0 - smoothstep(0.008, 0.025, footprint);
-	if (fine > 0.0) {
-		v += (snow_vnoise_d(xz * 33.0 + vec2(1.3, 7.9)).x - 0.5) * 0.06 * fine;
+	float v = (snow_vnoise_d(xz * 0.6 + vec2(3.1, 9.2)).x - 0.5) * 0.08;
+	float mid = 1.0 - smoothstep(0.03, 0.09, footprint);
+	if (mid > 0.0) {
+		// Grain hollows see less sky: this keeps relief in shadowed snow, not a flat fill.
+		v -= (1.0 - snow_vnoise_d(xz * 14.0).x) * 0.07 * mid;
+		float fine = 1.0 - smoothstep(0.008, 0.025, footprint);
+		if (fine > 0.0) {
+			v += (snow_vnoise_d(xz * 33.0 + vec2(1.3, 7.9)).x - 0.5) * 0.06 * fine;
+		}
 	}
 	return 1.0 + v;
 }

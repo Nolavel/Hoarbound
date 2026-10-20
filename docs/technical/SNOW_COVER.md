@@ -468,7 +468,7 @@ wall (the snow source, at least 25 ft) and pg the settled snow at full cover (0.
 faces keep a scoured gap and only a low bank. The lee eddy at the wall foot keeps a trough
 (0.55 hd at the wall); the drift crests 3 m out and tails off downwind, the shape of real
 lee drifts behind solid barriers. Drifts get only a 1-2-1 pass, not the broad field's
-blur, so the trough and crest survive on the 2 m lattice. `factor_max` is 6.0 (8-bit step 6 mm at full cover). Chunk cover,
+blur, so the trough and crest survive on the 2 m lattice. `factor_max` is 8.5 (8-bit step 8 mm at full cover; drift crests reach ~8). Chunk cover,
 clipmap rings and SnowField all read the same map, so the drift is drawn and walked alike.
 
 Static snow (roof caps, ridges on fences and wires, caps on pole tops) is separate: it is

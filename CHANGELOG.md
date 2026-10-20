@@ -12,7 +12,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   deeper drifts, the windward side less).
   - `bake_key_west_snow_wind.py --reality`: ASCE 7-16 leeward drift per wall, height from the roof run along
     the wind (0.3–1.1 m at full cover, capped at half the wall), tapering over 4 hd; windward banks halved.
-    `factor_max` 2.5 → 6.0. Chunk cover, clipmap rings and SnowField read the same map, so drifts are drawn
+    `factor_max` 2.5 → 8.5. Chunk cover, clipmap rings and SnowField read the same map, so drifts are drawn
     and waded alike.
 - Snowpack firmness (owner request: furrows belong to fresh wet snow; a dry cold pack is a crust that breaks
   with difficulty, then the leg drops fast).
