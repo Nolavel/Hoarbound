@@ -27,7 +27,8 @@ var _street_at: Vector2 = Vector2.ZERO
 var _yaw: float = 0.0
 var _side: Vector3 = Vector3.RIGHT
 var _frames: Array[Dictionary] = []
-var _first_prints: Vector3 = Vector3.INF
+## Henry's travel direction, kept when he stops, so the prints camera finds his trail.
+var _travel: Vector3 = Vector3.FORWARD
 
 
 func _initialize() -> void:
@@ -96,8 +97,6 @@ func _run() -> void:
 		for i: int in range(roundi(float(phase[1]) * FPS)):
 			await process_frame
 			_follow_legs()
-			if _first_prints == Vector3.INF and frame > FPS * 2:
-				_first_prints = _player.global_position
 			if frame % CAPTURE_EVERY == 0:
 				await _capture(frame, shell)
 			frame += 1
@@ -129,19 +128,19 @@ func _follow_legs() -> void:
 	var v: Vector3 = _player.velocity
 	if Vector2(v.x, v.z).length() > 0.3:
 		_side = Vector3(-v.z, 0.0, v.x).normalized()
+		_travel = Vector3(v.x, 0.0, v.z).normalized()
 	var at: Vector3 = _player.global_position
 	_legs.global_position = at + _side * 2.4 + Vector3.UP * 0.75
 	_legs.look_at(at + Vector3.UP * 0.35, Vector3.UP)
 
 
+## The last metres of the trail while it is still fresh: from the side, then from behind.
 func _capture_prints() -> void:
-	var targets: Array[Vector3] = [_first_prints, _player.global_position]
-	for i: int in range(targets.size()):
-		var at: Vector3 = targets[i]
-		if at == Vector3.INF:
-			continue
-		_prints.global_position = at + _side * 0.9 + Vector3.UP * 1.5
-		_prints.look_at(at, Vector3.UP)
+	var trail: Vector3 = _player.global_position - _travel * 1.6
+	var eyes: Array[Vector3] = [_side * 1.1 + Vector3.UP * 1.3, -_travel * 1.4 + Vector3.UP * 1.6]
+	for i: int in range(eyes.size()):
+		_prints.global_position = trail + eyes[i]
+		_prints.look_at(trail, Vector3.UP)
 		_prints.make_current()
 		await process_frame
 		await RenderingServer.frame_post_draw
