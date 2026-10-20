@@ -435,6 +435,8 @@ jobs:
           assert len(data["frames"]) == 12, data["frames"]
           states = data["style_states"]
           assert [x["arm"] for x in states] == ["baseline", "mass", "mass_edge"] * 4
+          assert [x["mass"] for x in states] == [0.0, 0.45, 0.45] * 4
+          assert states[0]["camera"] != states[3]["camera"], "detail camera repeated room shot"
           for i in range(0, 12, 3):
               assert len({x["camera"] for x in states[i:i+3]}) == 1
               assert len({x["stove_energy"] for x in states[i:i+3]}) == 1

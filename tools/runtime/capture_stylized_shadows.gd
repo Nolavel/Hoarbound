@@ -91,7 +91,7 @@ func _initialize() -> void:
 			_set_style_arm.bind("baseline"), _capture.bind("01_noon_room_baseline"),
 			_set_style_arm.bind("mass"), _capture.bind("01_noon_room_mass"),
 			_set_style_arm.bind("mass_edge"), _capture.bind("01_noon_room_mass_edge"),
-			_frame_close_stove,
+			_frame_shadow_boundary,
 			_lock_interior_shadow_ab,
 			_set_style_arm.bind("baseline"), _capture.bind("02_noon_close_baseline"),
 			_set_style_arm.bind("mass"), _capture.bind("02_noon_close_mass"),
@@ -102,7 +102,7 @@ func _initialize() -> void:
 			_set_style_arm.bind("baseline"), _capture.bind("03_night_room_baseline"),
 			_set_style_arm.bind("mass"), _capture.bind("03_night_room_mass"),
 			_set_style_arm.bind("mass_edge"), _capture.bind("03_night_room_mass_edge"),
-			_frame_close_stove,
+			_frame_shadow_boundary,
 			_lock_interior_shadow_ab,
 			_set_style_arm.bind("baseline"), _capture.bind("04_night_close_baseline"),
 			_set_style_arm.bind("mass"), _capture.bind("04_night_close_mass"),
@@ -335,9 +335,11 @@ func _set_interior_shadow_mode(strength: float) -> void:
 
 func _set_style_arm(arm: String) -> void:
 	RenderingServer.global_shader_parameter_set(&"stylized_shadow_interior_mode", 0.0)
-	RenderingServer.global_shader_parameter_set(&"stylized_shadow_mass_strength", 0.0 if arm == "baseline" else 1.0)
+	RenderingServer.global_shader_parameter_set(&"stylized_shadow_mass_strength", 0.0 if arm == "baseline" else 0.45)
 	RenderingServer.global_shader_parameter_set(&"stylized_shadow_edge_strength", 1.0 if arm == "mass_edge" else 0.0)
-	_style_state_log.append({"arm": arm, "camera": str(_capture_camera().global_transform),
+	_style_state_log.append({"arm": arm, "mass": 0.0 if arm == "baseline" else 0.45,
+		"edge": 1.0 if arm == "mass_edge" else 0.0,
+		"camera": str(_capture_camera().global_transform),
 		"stove_energy": _stove.flame_light.light_energy if _stove.flame_light != null else -1.0})
 	print("SHADOW_STYLE_727 state=", arm)
 
@@ -424,6 +426,8 @@ func _place_inside() -> void:
 ## Across the room from Henry, pulled in front of the first wall like a spring arm: the 727 room is
 ## smaller than the legacy hut, and the authored spot lies 1.1 m outside its wall.
 func _aim_inside_camera() -> void:
+	if _style_test:
+		_capture_camera().fov = 62.0
 	var from: Vector3 = _player.global_position + Vector3.UP * 0.5
 	var wanted: Vector3 = _stove.to_global(Vector3(4.6, 1.7, 4.5))
 	var query := PhysicsRayQueryParameters3D.create(from, wanted)
@@ -434,6 +438,16 @@ func _aim_inside_camera() -> void:
 	_inside_camera.global_position = wanted
 	_inside_camera.look_at(_stove.to_global(Vector3(1.6, 0.2, 0.2)), Vector3.UP)
 	_inside_camera.make_current()
+
+
+## Crop the lit/shadow transition on the floor, keeping the room camera inside
+## the same wall clearance and the stove light fixed. This is the useful detail
+## witness for the style decision; a close shot of Henry's backpack is not.
+func _frame_shadow_boundary() -> void:
+	var camera := _capture_camera()
+	camera.fov = 38.0
+	camera.look_at(_stove.to_global(Vector3(2.8, 0.08, 1.3)), Vector3.UP)
+	camera.make_current()
 
 
 ## Holds the queue until Henry's chunk is live and the streamer quiet, then stands him on the ground if a
