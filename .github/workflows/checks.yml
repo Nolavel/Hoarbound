@@ -199,7 +199,7 @@ jobs:
   key-west-preview:
     ## Lavapipe/Forward+ captures on the Key West Reality scene, chosen by a commit tag.
     ## Painterly, stylized-shadow and snow previews reuse this one render path.
-    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[interior-shadow-preview]'))
+    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[interior-shadow-preview]') || contains(github.event.head_commit.message, '[shadow-style-preview]'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -216,7 +216,7 @@ jobs:
         run: tools/ci/setup_env.sh
 
       - name: Install video tools
-        if: contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]')
+        if: contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[shadow-style-preview]')
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
@@ -681,6 +681,53 @@ jobs:
           sys.exit(0 if ok else 1)
           PY
 
+      - name: Shadow style three-arm camera witness (isolated lab)
+        if: contains(github.event.head_commit.message, '[shadow-style-preview]')
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          ROOT="docs/runtime_previews/key_west/shadow_style_abc"
+          status=0
+          for arm in baseline mass mass_edge; do
+            mkdir -p "$ROOT/$arm"
+            timeout 300 xvfb-run -a "$HOME/.local/bin/godot" \
+              --path . --resolution 960x600 --rendering-driver vulkan \
+              --rendering-method forward_plus --audio-driver Dummy \
+              --script res://tools/runtime/capture_shadow_style_ab.gd \
+              -- "$arm" "res://$ROOT/$arm" > "$ROOT/$arm/capture.log" 2>&1 || status=1
+            if grep -q "SHADER ERROR" "$ROOT/$arm/capture.log"; then status=1; fi
+            count=$(find "$ROOT/$arm/frames" -maxdepth 1 -name 'frame_*.png' -type f 2>/dev/null | wc -l)
+            if [[ "$count" -ne 72 ]]; then status=1; fi
+            if [[ "$count" -eq 72 ]]; then
+              ffmpeg -y -framerate 12 -i "$ROOT/$arm/frames/frame_%04d.png" \
+                -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -movflags +faststart \
+                "$ROOT/$arm/$arm.mp4" >/dev/null 2>&1 || status=1
+            fi
+          done
+          if [[ -s "$ROOT/baseline/baseline.mp4" && -s "$ROOT/mass/mass.mp4" && -s "$ROOT/mass_edge/mass_edge.mp4" ]]; then
+            ffmpeg -y -i "$ROOT/baseline/baseline.mp4" -i "$ROOT/mass/mass.mp4" \
+              -i "$ROOT/mass_edge/mass_edge.mp4" \
+              -filter_complex "[0:v]scale=640:400,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='A  CURRENT SHADOW':fontcolor=white:fontsize=19:x=18:y=18:box=1:boxcolor=black@0.7:boxborderw=8[a];[1:v]scale=640:400,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='B  COLOUR MASS':fontcolor=white:fontsize=19:x=18:y=18:box=1:boxcolor=black@0.7:boxborderw=8[b];[2:v]scale=640:400,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='C  MASS + EDGE':fontcolor=white:fontsize=19:x=18:y=18:box=1:boxcolor=black@0.7:boxborderw=8[c];[a][b][c]hstack=inputs=3[v]" \
+              -map "[v]" -an -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p \
+              -movflags +faststart "$ROOT/shadow_style_abc_6s.mp4" >/dev/null 2>&1 || status=1
+          else
+            status=1
+          fi
+          python3 - <<'PY' || status=1
+          import json
+          from pathlib import Path
+          root = Path("docs/runtime_previews/key_west/shadow_style_abc")
+          reports = [json.loads((root / arm / "report.json").read_text()) for arm in ("baseline", "mass", "mass_edge")]
+          assert [r["mass_strength"] for r in reports] == [0, 1, 1]
+          assert [r["edge_strength"] for r in reports] == [0, 0, 1]
+          assert all(r["frames"] == 72 and r["shots"] == ["wide", "boundary", "warm_corner"] for r in reports)
+          assert reports[0]["camera_poses"] == reports[1]["camera_poses"] == reports[2]["camera_poses"], "camera/light changed across arms"
+          assert (root / "shadow_style_abc_6s.mp4").stat().st_size > 0
+          print("SHADOW_STYLE 3 arms / 3 matched shots / 72 frames each / split video")
+          PY
+          exit "$status"
+
       - name: Upload Key West previews
         if: always()
         uses: actions/upload-artifact@v4
@@ -713,6 +760,11 @@ jobs:
             docs/runtime_previews/key_west/727_shadow_interior_ab/*.png
             docs/runtime_previews/key_west/727_shadow_interior_ab/*.json
             docs/runtime_previews/key_west/727_shadow_interior_ab/*.log
+            docs/runtime_previews/key_west/shadow_style_abc/*.mp4
+            docs/runtime_previews/key_west/shadow_style_abc/*/*.png
+            docs/runtime_previews/key_west/shadow_style_abc/*/*.mp4
+            docs/runtime_previews/key_west/shadow_style_abc/*/*.json
+            docs/runtime_previews/key_west/shadow_style_abc/*/*.log
             docs/runtime_previews/sky_weather/*.png
             docs/runtime_previews/sky_weather/report.json
           if-no-files-found: warn
