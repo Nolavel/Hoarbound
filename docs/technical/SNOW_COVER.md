@@ -374,7 +374,7 @@ visibly crawled and popped (measured with the witness below). It is replaced by:
   Street and records a fixed top-down camera whose snow shaders write their
   drawn height (`debug_height`); `analyze_snow_surface.py` reports height
   changes at fixed world points away from his trail. The `snow-surface`
-  workflow runs it as an A/B against `main`'s snow code. `test_snow_clipmap.gd`
+  job in `checks.yml` (dispatch `preview=snow-surface`) runs it as an A/B against `main`'s snow code. `test_snow_clipmap.gd`
   checks the same invariance on the CPU.
 
 ### Storm layer

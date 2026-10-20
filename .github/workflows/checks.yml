@@ -16,6 +16,13 @@ on:
       - "docs/**"
       - "**/*.md"
   workflow_dispatch:
+    inputs:
+      preview:
+        description: "Empty re-checks Key West Reality; snow-surface runs only the snow A/B"
+        default: ""
+      baseline_ref:
+        description: "snow-surface: ref whose snow code is the `old` variant"
+        default: "origin/main"
 
 concurrency:
   group: checks-${{ github.ref }}
@@ -48,7 +55,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   key-west-reality:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
@@ -154,7 +161,7 @@ jobs:
   key-west-reality-fresh:
     ## Zero-setup review path: the committed snapshot exactly as cloned; no unpack, export or
     ## generation (the rebuild/digest job above is the reproducibility check).
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -408,3 +415,123 @@ jobs:
             docs/runtime_previews/sky_weather/report.json
           if-no-files-found: warn
           retention-days: 3
+
+  snow-surface:
+    ## Snow surface stability A/B on Duval Street (tools/runtime/capture_snow_surface.gd):
+    ## `new` is this commit, `old` swaps in the snow shell/shaders of `baseline_ref`.
+    ## Dispatch with preview=snow-surface, or push with [snow-surface] in the commit message.
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'snow-surface') ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[snow-surface]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [new, old]
+    env:
+      OUT: docs/runtime_previews/snow_surface/${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Swap in the baseline snow code (old variant)
+        if: matrix.variant == 'old'
+        env:
+          BASELINE: ${{ github.event.inputs.baseline_ref || 'origin/main' }}
+        run: |
+          git checkout "$BASELINE" -- scripts/systems/world/snow shaders/environment/snow scripts/settings/graphics_quality.gd
+          rm -f scripts/systems/world/snow/snow_clipmap.gd* shaders/environment/snow/snow_far_cover.gdshaderinc* tests/systems/test_snow_clipmap.gd*
+          ## The baseline shaders predate the witness readout: add the same debug_height branch.
+          python3 - <<'PY'
+          from pathlib import Path
+          inc = Path("shaders/environment/snow/snow_surface.gdshaderinc")
+          text = inc.read_text()
+          if "snow_debug_height" not in text:
+              inc.write_text(text + "\nvec3 snow_debug_height(float y) {\n\tvec3 v = vec3(fract(y / 4.0), fract(y / 0.25), fract(y / 0.016));\n\treturn mix(v / 12.92, pow((v + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), v));\n}\n")
+          for name in ("snow_ground.gdshader", "snow_chunk_cover.gdshader"):
+              p = Path("shaders/environment/snow") / name
+              s = p.read_text()
+              if "debug_height" in s:
+                  continue
+              s = s.replace("varying vec3 v_world;", "uniform bool debug_height = false;\nvarying vec3 v_world;", 1)
+              end = s.rindex("}", 0, s.index("\n\nvoid light()"))
+              s = s[:end] + "\tif (debug_height) {\n\t\tALBEDO = vec3(0.0);\n\t\tROUGHNESS = 1.0;\n\t\tSPECULAR = 0.0;\n\t\tEMISSION = snow_debug_height(v_world.y);\n\t}\n" + s[end:]
+              p.write_text(s)
+          PY
+          git status --short
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Snow suites (new variant)
+        if: matrix.variant == 'new'
+        run: |
+          for suite in test_snow_clipmap test_snow_shell test_snow_contact_pipeline test_snow_tracks test_snow_presentation; do
+            log="$(mktemp)"
+            "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script "res://tests/systems/$suite.gd" 2>&1 | tee "$log"
+            if grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|FAIL" "$log"; then
+              echo "FAILED: $suite"; exit 1
+            fi
+          done
+
+      - name: Capture Duval Street walk
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR" "$OUT"
+          set -o pipefail
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$HOME/.local/bin/godot" \
+            --path . \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --fixed-fps 30 \
+            --script res://tools/runtime/capture_snow_surface.gd -- "$OUT" 10 2>&1 | grep -v PerfJSON | tee "$OUT/capture.log"
+          if grep -qE "SHADER ERROR|SCRIPT ERROR|SNOW_SURFACE_CAPTURE FAIL" "$OUT/capture.log"; then
+            echo "Capture reported an error."
+            exit 1
+          fi
+
+      - name: Height witness analysis
+        run: python3 tools/runtime/analyze_snow_surface.py "$OUT"
+
+      - name: Encode videos
+        if: always()
+        run: |
+          for view in oblique tps witness; do
+            if ls "$OUT/$view"/*.png >/dev/null 2>&1; then
+              ffmpeg -y -loglevel error -framerate 10 -i "$OUT/$view/%04d.png" -vf "scale=960:-2" -c:v libx264 -pix_fmt yuv420p -crf 22 "$OUT/$view.mp4"
+            fi
+          done
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-snow-surface-${{ matrix.variant }}
+          path: |
+            ${{ env.OUT }}/*.json
+            ${{ env.OUT }}/*.png
+            ${{ env.OUT }}/*.mp4
+            ${{ env.OUT }}/capture.log
+            ${{ env.OUT }}/oblique/0000.png
+            ${{ env.OUT }}/tps/0000.png
+          if-no-files-found: warn
+          retention-days: 7
