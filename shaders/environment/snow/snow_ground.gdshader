@@ -214,17 +214,17 @@ float crack_distance(vec2 p) {
 
 // Pit slope from the smooth packed field, never steeper than repose: shading does
 // not step with the mesh triangles.
-// Sobel over two texels: the wall dilation leaves texel terraces that a central
-// difference would draw as contour lines on a print's floor.
+// Sobel over three texels: the wall dilation raises walls in per-texel terraces that a
+// narrow difference would draw as contour bands on walls and floors.
 vec2 packed_slope(vec2 uv) {
-	float t = packed_texel_m * 2.0 / window_m;
+	float t = packed_texel_m * 3.0 / window_m;
 	float pp = packed_at(uv + vec2(t, t));
 	float pm = packed_at(uv + vec2(t, -t));
 	float mp = packed_at(uv + vec2(-t, t));
 	float mm = packed_at(uv - vec2(t, t));
 	float gx = pp + pm + 2.0 * packed_at(uv + vec2(t, 0.0)) - mp - mm - 2.0 * packed_at(uv - vec2(t, 0.0));
 	float gz = pp + mp + 2.0 * packed_at(uv + vec2(0.0, t)) - pm - mm - 2.0 * packed_at(uv - vec2(0.0, t));
-	vec2 g = vec2(gx, gz) / (8.0 * packed_texel_m * 2.0);
+	vec2 g = vec2(gx, gz) / (8.0 * packed_texel_m * 3.0);
 	float len = length(g);
 	return len > repose_tan ? g * (repose_tan / len) : g;
 }
@@ -302,13 +302,12 @@ void fragment() {
 			float sz = settled_top(v_world.xz + vec2(0.0, e)) - settled_top(v_world.xz - vec2(0.0, e));
 			n = normalize(vec3(-sx / (2.0 * e), 1.0, -sz / (2.0 * e)));
 		}
-		float footprint = length(fwidth(v_world.xz));
-		vec2 ripple = snow_ripple_slope(v_world.xz, v_city) + snow_grain_slope(v_world.xz, footprint);
+		vec2 ripple = snow_ripple_slope(v_world.xz, v_city);
 		// Near kerbs and walls the real mesh edge still matters.
 		vec3 geo = normalize(cross(dFdy(v_world), dFdx(v_world)));
 		n = normalize(mix(normalize(n - vec3(ripple.x, 0.0, ripple.y)), geo, smoothstep(0.6, 1.2, ground_slope)));
 		depth = v_depth;
-		albedo = fresh_color * snow_grain_albedo(v_world.xz, footprint) * mix(1.0, 1.03, smoothstep(0.1, 0.4, depth));
+		albedo = fresh_color * snow_patch_albedo(v_world.xz) * mix(1.0, 1.03, smoothstep(0.1, 0.4, depth));
 		albedo = snow_thin_tint(snow_wind_tint(albedo, v_city), depth);
 		thin_cut += snow_hash(floor(v_world.xz * 40.0)) * 0.02;
 	}
@@ -318,6 +317,7 @@ void fragment() {
 		discard;
 	}
 	float roughness = 0.9;
+	float floor_pack = 0.0;
 	// Henry's deformation, layered on the base: prints, rims, broken crust, the boot's tread.
 	vec4 pf = texture(print_field, uv);
 	float packed_px = 0.0;
@@ -384,9 +384,12 @@ void fragment() {
 		albedo = mix(albedo, wall_color, wall * 0.5) * (1.0 - crack * 0.22);
 		albedo *= 1.0 - 0.22 * smoothstep(0.03, 0.3, packed_height);
 		roughness = mix(0.9, 0.7, packed);
+		floor_pack = packed;
 	}
+	float footprint = length(fwidth(v_world.xz));
+	snow_apply_grain(n, albedo, v_world.xz, footprint, 1.0 - 0.6 * floor_pack);
 	// Sun flashes off ice facets: packed snow has crushed them, broken walls show fresh ones.
-	vec4 facet = snow_glint_facet(v_world.xz, n, length(fwidth(v_world.xz)));
+	vec4 facet = snow_glint_facet(v_world.xz, n, footprint);
 	v_glint_n = normalize((VIEW_MATRIX * vec4(facet.xyz, 0.0)).xyz);
 	v_glint = facet.w * (1.0 - smoothstep(0.01, 0.06, packed_height));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);

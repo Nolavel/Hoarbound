@@ -197,12 +197,16 @@ vec2 snow_grain_slope(vec2 xz, float footprint) {
 	return g;
 }
 
-// Brightness variation: wind-packed patches a metre or two across, then grain.
+// Brightness of wind-packed patches a metre or two across.
+float snow_patch_albedo(vec2 xz) {
+	return 1.0 + (snow_vnoise_d(xz * 0.6 + vec2(3.1, 9.2)).x - 0.5) * 0.08;
+}
+
+// Grain brightness: hollows see less sky, which keeps relief in shadowed snow.
 float snow_grain_albedo(vec2 xz, float footprint) {
-	float v = (snow_vnoise_d(xz * 0.6 + vec2(3.1, 9.2)).x - 0.5) * 0.08;
+	float v = 0.0;
 	float mid = 1.0 - smoothstep(0.03, 0.09, footprint);
 	if (mid > 0.0) {
-		// Grain hollows see less sky: this keeps relief in shadowed snow, not a flat fill.
 		v -= (1.0 - snow_vnoise_d(xz * 14.0).x) * 0.07 * mid;
 		float fine = 1.0 - smoothstep(0.008, 0.025, footprint);
 		if (fine > 0.0) {
@@ -210,6 +214,18 @@ float snow_grain_albedo(vec2 xz, float footprint) {
 		}
 	}
 	return 1.0 + v;
+}
+
+// Grain on the final, up-facing surface; it fades on cut walls, where a pattern in xz
+// would stretch into vertical streaks. `amount` 0..1 (packed floors are smoother).
+void snow_apply_grain(inout vec3 n, inout vec3 albedo, vec2 xz, float footprint, float amount) {
+	float up = smoothstep(0.55, 0.85, n.y) * amount;
+	if (up <= 0.0) {
+		return;
+	}
+	vec2 g = snow_grain_slope(xz, footprint) * up;
+	n = normalize(n - vec3(g.x, 0.0, g.y));
+	albedo *= mix(1.0, snow_grain_albedo(xz, footprint), up);
 }
 
 // Ice facets that flash toward the sun: a few per square decimetre, each a tilted

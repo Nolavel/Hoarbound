@@ -36,11 +36,13 @@ void fragment() {
 	if (inside || depth < 0.012) {
 		discard;
 	}
+	float footprint = length(fwidth(v_world.xz));
+	snow_apply_grain(n, albedo, v_world.xz, footprint, 1.0);
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	ALBEDO = hfn_painterly_surface_color(albedo, v_world, n, 0.38);
 	ROUGHNESS = 0.9;
 	SPECULAR = 0.3;
-	vec4 facet = snow_glint_facet(v_world.xz, n, length(fwidth(v_world.xz)));
+	vec4 facet = snow_glint_facet(v_world.xz, n, footprint);
 	v_glint_n = normalize((VIEW_MATRIX * vec4(facet.xyz, 0.0)).xyz);
 	v_glint = facet.w;
 	if (debug_height) {

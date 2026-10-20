@@ -71,10 +71,9 @@ void snow_far_shade(vec3 world, vec3 ground_normal, float shore, out vec3 n, out
 	vec2 g = (snow_settled_depth + d_amount * ridge.x) * d_city + amount * ridge.yz;
 	float gx = g.x;
 	float gz = g.y;
-	float footprint = length(fwidth(world.xz));
-	vec2 ripple = snow_ripple_slope(world.xz, city) + snow_grain_slope(world.xz, footprint);
+	vec2 ripple = snow_ripple_slope(world.xz, city);
 	n = normalize(normalize(ground_normal) - vec3(gx + ripple.x, 0.0, gz + ripple.y));
-	vec3 color = fresh_color * snow_grain_albedo(world.xz, footprint);
+	vec3 color = fresh_color * snow_patch_albedo(world.xz);
 	color *= mix(1.0, 1.03, smoothstep(0.1, 0.4, depth));
 	albedo = snow_thin_tint(snow_wind_tint(color, city), depth);
 }
