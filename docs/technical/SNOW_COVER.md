@@ -187,17 +187,12 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   Henry's moving window adds packed tracks. The local ray-derived lee, scour
   and blurred bed remain for scenes without the baked map. Baked prevailing wind
   fixes settled ridge orientation; current gusts drive weather effects instead.
-  Cover changes rebuild the field even while Henry stands still. The local
-  mesh keeps its 3 cm core for prints, then grows to 50 cm spacing at its rim.
-  In the outer 6 m it approaches the same two-triangle interpolation as the
-  static 2 m chunk mesh; a small grid of far-cover vertex inputs is refreshed
-  when that 2 m lattice shifts. This matches the geometry at the square edge
-  while keeping the detailed surface and packed tracks close to Henry.
+  Cover changes rebuild the field even while Henry stands still. How the
+  surface is drawn and handed to the chunk cover is in *Drawn surface* below.
   SnowField also prepares a 40 cm settled-normal image row by row under its
   existing rebuild budget, publishing it with the matching height image.
-  The fragment shader uses those normals in the core and computes the slope
-  directly across the outer transition. Height, normal and far-grid textures
-  update in place when their dimensions are unchanged.
+  Height, normal and far-grid textures update in place when their dimensions
+  are unchanged.
 - **Geometry presses the snow.** Anything on render layer 20 (`CONTACT_LAYER`)
   packs the snow where it is lower than the snow top: Henry's whole mesh, and
   resting `ItemPickup`s, tagged by `tag_contact()`. A print is the real boot
@@ -297,9 +292,8 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   furrow along every swing: toe-off scuffs and touchdown
   marks in shallow snow, drag furrows where the swing stays low. Nothing
   presses while the toe is above the surface.
-- **Window.** 25.6 m, moved in 3.2 m steps; packing is shifted with it. The
-  mesh remains 3 cm in a 2.75 m half-width core and coarsens to 25 cm at the
-  edge. This is 113,569 vertices instead of 167,281 with the former 3.5 m core.
+- **Window.** 25.6 m of field and packing, moved in 3.2 m steps; packing is
+  shifted with it by whole texels. The drawn mesh is not tied to it (below).
 - **Cost.** The base `SnowShell` contact capture is 1024² over the window; the game builds
   `DeterministicSnowShell`, whose contact capture is a local 256² over 6.4 m around Henry (the same
   2.5 cm texel), rendered only on a snow pass. Packed snow and each of its three
@@ -343,13 +337,45 @@ cross. Only those cells are clipped, so snow reaches the wall without square
 street gaps or triangles crossing the building. A malformed source polygon that
 cannot be triangulated is left uncut and warned about.
 
-The far shader cuts out its cover inside the moving SnowShell square. SnowShell
-prepares the replacement field and mesh before publishing that square to the
-far shader and does not cast its displaced surface into the shadow map. Packed
-material and normal contributions now fade over the same outer 6 m as height;
-the thin-cover cutoff matches the far shader at the border.
-Local cut cells and the different terrain tessellation can still make the
-handoff visible; a representative runtime walk is required to accept it.
+The chunk shader discards its cover inside Henry's `snow_lod` square, where the
+clipmap below draws the same surface.
+
+### Drawn surface: clipmap rings
+
+The old shell was one graded square mesh that jumped 3.2 m with the window and
+blended into the chunk cover over its outer 6 m. Every jump put a world point
+under different vertices and a different blend weight, so the outer cover
+visibly crawled and popped (measured with the witness below). It is replaced by:
+
+- **One height function.** For any world XZ the drawn top is a pure function of
+  position, the field textures and Henry's position: SnowField ground + baked
+  settled depth − packed prints near Henry, handing over to the chunk cover's own
+  value (2 m triangles of terrain + `snow_base_geom`, same diagonal) further out.
+  Window moves never change it: field and packing are world-aligned texels.
+- **Rings (`SnowClipmap`).** Nested square rings, spacing doubling outwards from
+  3.1 cm (geometry clipmaps, Losasso & Hoppe 2004). The mesh is built once and
+  follows Henry every frame, snapped to the coarsest spacing, so every vertex
+  stays on its ring's world lattice. 53k vertices on high (was 113k).
+- **Morph, not blend.** Towards its outer edge each ring morphs its odd vertices
+  onto the next ring's lattice by Chebyshev distance from Henry (CDLOD, Strugar
+  2009). A point that changes ring after a snap is already on the coarse surface,
+  so nothing pops; neighbouring rings share boundary heights, so nothing cracks.
+  Every spacing divides 2 m, so any ring reproduces the chunk triangles exactly.
+- **Bands.** Prints fade out and the field's detail hands over to the chunk
+  surface between 4.5 and 6 m from Henry; the chunk cover draws beyond 6.25 m
+  (both draw a 15 cm overlap, where they are the same surface and shading).
+  These sit inside what the window guarantees around Henry
+  (`detail_reach_m()`: half window − half step − walking lead − 1 m lag); a
+  lagging rebuild falls back to the chunk surface near the window edge.
+- **Shading.** The outer band computes the chunk cover's normal, albedo and
+  thin-snow cut from the same include (`snow_far_cover.gdshaderinc`) and the
+  same lattice normals, so material matches across the handoff too.
+- **Witness.** `tools/runtime/capture_snow_surface.gd` walks Henry down Duval
+  Street and records a fixed top-down camera whose snow shaders write their
+  drawn height (`debug_height`); `analyze_snow_surface.py` reports height
+  changes at fixed world points away from his trail. The `snow-surface`
+  workflow runs it as an A/B against `main`'s snow code. `test_snow_clipmap.gd`
+  checks the same invariance on the CPU.
 
 ### Storm layer
 

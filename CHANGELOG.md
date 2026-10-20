@@ -23,6 +23,19 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Outer snow cover no longer crawls or pops while Henry walks (owner report; Codex's `codex` attempts kept the moving square).
+  - Cause, measured with a fixed top-down height witness on Duval Street: the shell was one graded square mesh
+    that jumped 3.2 m with the field window and blended into the chunk cover over a window-relative 6 m band.
+    Each jump put every world point under different vertices and blend weights; the drawn height changed only
+    on window moves.
+  - Now one height function (field ground + baked settled depth − prints, handing over to the chunk cover's own
+    2 m triangles 4.5–6 m from Henry) drawn by `SnowClipmap` rings: spacing doubles from 3.1 cm, the mesh follows
+    Henry snapped to its coarsest spacing, and each ring morphs onto the next one's lattice by distance
+    (geometry clipmaps, Losasso & Hoppe 2004; CDLOD, Strugar 2009). The chunk cover takes over beyond 6.25 m
+    through the `snow_lod` global; both share `snow_far_cover.gdshaderinc`, so geometry and shading match.
+  - 53k vertices on high instead of 113k. A/B evidence: `snow-surface` workflow (new vs `main`).
+  - `test_snow_clipmap` (CPU emulation of the vertex morph), `tools/runtime/capture_snow_surface.gd` +
+    `analyze_snow_surface.py`, `.github/workflows/snow-surface.yml`; `docs/technical/SNOW_COVER.md` → Drawn surface.
 - Sky weather character, finishing Codex's cloud pass (owner review: windy clouds and the night barely differed).
   - Causes:
     - clouds followed snowfall only, so windy (snow 0.15) looked calm;

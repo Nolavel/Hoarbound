@@ -1,9 +1,11 @@
 shader_type spatial;
 render_mode cull_back, depth_draw_opaque;
 
-// Snow surface around Henry. Height comes from SnowField, packing from the
-// contact accumulator. See docs/technical/SNOW_COVER.md.
+// Snow surface around Henry. SnowClipmap rings sample one world-space height
+// function: SnowField ground and settled snow near Henry, the packed field's
+// prints, and outwards the chunk cover's own 2 m triangles. See docs/technical/SNOW_COVER.md.
 #include "res://shaders/environment/snow/snow_surface.gdshaderinc"
+#include "res://shaders/environment/snow/snow_far_cover.gdshaderinc"
 #include "res://shaders/environment/stylized_shadow.gdshaderinc"
 #include "res://shaders/environment/materials/painterly_surface.gdshaderinc"
 
@@ -13,8 +15,7 @@ uniform sampler2D field : filter_linear, repeat_disable;
 uniform sampler2D packed_field : filter_linear, repeat_disable;
 uniform sampler2D settled_normal_field : filter_linear, repeat_disable;
 uniform bool use_settled_normal_field = false;
-// Nearby vertices of the baked city cover: ground, prevailing*shore,
-// storm*shore, shore. Only the outer transition samples this tiny texture.
+// Chunk cover lattice around the window: ground, shore fade, ground normal x and z.
 uniform sampler2D far_grid : filter_nearest, repeat_disable;
 uniform vec2 far_grid_origin = vec2(0.0);
 uniform float far_grid_step = 2.0;
@@ -24,12 +25,10 @@ uniform float window_m = 25.6;
 uniform float packed_texel_m = 0.05;
 uniform bool use_baked_baseline = false;
 uniform float sea_level_m = 0.04;
-uniform sampler2D wind_tex : filter_linear, repeat_disable;
-uniform vec2 wind_origin = vec2(0.0);
-uniform vec2 wind_extent = vec2(0.0);
-uniform float wind_max = 2.5;
-// Matches island_terrain snow_color so the window edge does not read as a patch.
-uniform vec3 fresh_color : source_color = vec3(0.8, 0.83, 0.88);
+// Chebyshev distance from Henry (snow_lod.xy) over which prints fade out and over
+// which the field's detail hands the surface to the chunk cover's triangles.
+uniform vec2 deform_fade = vec2(4.5, 6.0);
+uniform vec2 far_fade = vec2(4.5, 6.0);
 uniform vec3 packed_color : source_color = vec3(0.5, 0.56, 0.68);
 // Print walls: light scatters deep into snow and comes back blue from a cut face.
 uniform vec3 wall_color : source_color = vec3(0.56, 0.66, 0.82);
@@ -37,51 +36,74 @@ uniform vec3 wall_color : source_color = vec3(0.56, 0.66, 0.82);
 // snaps into jagged slabs, powder crumbles in finer bites.
 uniform float jag_crust_m = 0.025;
 uniform float jag_powder_m = 0.01;
+// Steepest a trench wall stands, as rise over run (loose snow ~40 degrees).
+uniform float repose_tan = 0.84;
+// Capture-only height readout (tools/runtime/capture_snow_surface.gd).
+uniform bool debug_height = false;
 
 varying vec3 v_world;
 varying float v_packed;
 varying float v_rim;
 varying float v_cut;
-varying float v_edge;
+varying float v_deform;
+varying float v_far;
 varying float v_depth;
 varying float v_ground;
 varying float v_city;
 varying float v_crust;
 varying vec2 v_jag;
 
-float baked_city_at(vec2 xz) {
-	if (wind_extent.x <= 0.0) {
-		return 1.0;
-	}
-	vec2 wind_uv = (xz - wind_origin) / wind_extent;
-	if (any(lessThan(wind_uv, vec2(0.0))) || any(greaterThan(wind_uv, vec2(1.0)))) {
-		return 1.0;
-	}
-	vec4 factors = texture(wind_tex, wind_uv);
-	return mix(factors.r, factors.g, snow_storm_share) * wind_max;
-}
-
-// Reconstruct the same two triangles as SnowChunkCover._shade_row. Bilinear
-// sampling differs from that mesh wherever the four terrain heights twist.
-vec4 far_grid_at(vec2 xz) {
-	vec2 p = (xz - far_grid_origin) / far_grid_step;
-	ivec2 cell = clamp(ivec2(floor(p)), ivec2(0), textureSize(far_grid, 0) - ivec2(2));
-	vec2 f = clamp(p - vec2(cell), vec2(0.0), vec2(1.0));
-	vec4 a = texelFetch(far_grid, cell, 0);
-	vec4 b = texelFetch(far_grid, cell + ivec2(1, 0), 0);
-	vec4 c = texelFetch(far_grid, cell + ivec2(0, 1), 0);
-	vec4 d = texelFetch(far_grid, cell + ivec2(1, 1), 0);
-	return f.x + f.y <= 1.0
-		? a + (b - a) * f.x + (c - a) * f.y
-		: d + (c - d) * (1.0 - f.x) + (b - d) * (1.0 - f.y);
-}
-
-float far_grid_top(vec4 far) {
-	return far.r + snow_settled_depth * mix(far.g, far.b, snow_storm_share);
-}
+// Everything the surface is at one world point. `deform` and `far` are the shares
+// of prints and of the chunk cover there; both follow Henry continuously.
+struct SnowSample {
+	float top;
+	float ground;
+	float city;
+	float depth;
+	float packed;
+	float rim;
+	float cut;
+	float crust;
+	float deform;
+	float far;
+	vec2 jag;
+};
 
 float packed_at(vec2 uv) {
 	return texture(packed_field, uv).r;
+}
+
+// 1 well inside the live field, 0 at its edge: a lagging rebuild never shows clamped texels.
+float window_trust(vec2 xz) {
+	vec2 uv = (xz - origin) / window_m;
+	vec2 to_edge = min(uv, 1.0 - uv) * window_m;
+	return smoothstep(0.5, 2.0, min(to_edge.x, to_edge.y));
+}
+
+// The chunk cover triangle under `xz`: corner texels and barycentric weights,
+// split along the same diagonal as SnowChunkCover and SnowClipmap.
+void far_triangle(vec2 xz, out ivec2 a, out ivec2 b, out ivec2 c, out vec3 w) {
+	vec2 p = (xz - far_grid_origin) / far_grid_step;
+	ivec2 cell = clamp(ivec2(floor(p)), ivec2(0), textureSize(far_grid, 0) - ivec2(2));
+	vec2 f = clamp(p - vec2(cell), vec2(0.0), vec2(1.0));
+	if (f.x + f.y <= 1.0) {
+		a = cell;
+		b = cell + ivec2(1, 0);
+		c = cell + ivec2(0, 1);
+		w = vec3(1.0 - f.x - f.y, f.x, f.y);
+	} else {
+		a = cell + ivec2(1, 1);
+		b = cell + ivec2(0, 1);
+		c = cell + ivec2(1, 0);
+		w = vec3(f.x + f.y - 1.0, 1.0 - f.x, 1.0 - f.y);
+	}
+}
+
+// A chunk cover vertex: terrain height lifted by snow_chunk_cover's vertex shader.
+float far_corner_top(ivec2 corner) {
+	vec4 g = texelFetch(far_grid, corner, 0);
+	vec2 xz = far_grid_origin + vec2(corner) * far_grid_step;
+	return g.r + snow_base_geom(snow_city_at(xz) * g.g);
 }
 
 // UV offset that breaks a print's outline: two octaves of world noise, so the
@@ -90,6 +112,91 @@ vec2 edge_jag(vec2 xz, float crust) {
 	vec2 a = vec2(snow_noise(xz * 9.0), snow_noise(xz * 9.0 + 31.7)) - 0.5;
 	vec2 b = vec2(snow_noise(xz * 27.0 + 5.1), snow_noise(xz * 27.0 + 13.3)) - 0.5;
 	return (a * 2.0 + b) * mix(jag_powder_m, jag_crust_m, crust) / window_m;
+}
+
+// Wind crust cracks into slabs that tilt up at a pit's edge. Displaced powder is
+// stored in the packed field itself (negative), so only crust gets this lip.
+float rim_at(vec2 uv, vec2 xz, float here, float crust) {
+	float d = packed_texel_m * 2.5 / window_m;
+	float around = 0.0;
+	for (int i = 0; i < 8; i++) {
+		float a = float(i) * 0.785398;
+		around += max(packed_at(uv + vec2(cos(a), sin(a)) * d), 0.0);
+		around += max(packed_at(uv + vec2(cos(a), sin(a)) * d * 0.5), 0.0) * 0.5;
+	}
+	around /= 12.0;
+	float lip = max(around - max(here, 0.0) * 1.5, 0.0);
+	float slab = 0.6 + 0.8 * snow_noise(xz * 6.0);
+	return lip * mix(0.15, 0.6, crust) * slab;
+}
+
+// The drawn surface at a world point. A pure function of position, the field
+// textures and Henry's position: the same point gives the same height from any ring.
+SnowSample snow_sample(vec2 xz) {
+	SnowSample s;
+	vec2 uv = (xz - origin) / window_m;
+	vec4 f = texture(field, uv);
+	float lod_d = snow_lod_distance(xz);
+	float trust = window_trust(xz);
+	s.deform = (1.0 - smoothstep(deform_fade.x, deform_fade.y, lod_d)) * trust;
+	s.far = use_far_grid ? max(smoothstep(far_fade.x, far_fade.y, lod_d), 1.0 - trust) : 0.0;
+	s.ground = f.r - f.g;
+	float shore = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, s.ground);
+	s.city = use_baked_baseline ? snow_city_at(xz) * shore : f.a;
+	float base_top = use_baked_baseline ? s.ground + snow_base_geom(s.city) : f.r;
+	s.depth = use_baked_baseline ? snow_base_depth(xz, s.city) : f.g;
+	if (!use_far_grid) {
+		// No chunk cover to hand over to: the snow thins to nothing at the window edge.
+		base_top = s.ground + (base_top - s.ground) * trust;
+		s.depth *= trust;
+	}
+	s.cut = f.b;
+	s.crust = f.b < 0.5 ? 1.0 - smoothstep(0.45, 0.95, f.b / 0.49) : 0.0;
+	s.packed = 0.0;
+	s.rim = 0.0;
+	s.jag = vec2(0.0);
+	if (s.deform > 0.0) {
+		// Walls already slope as the snow holds and are softened (snow_shape passes);
+		// the outline is broken up here, where it is drawn.
+		s.jag = edge_jag(xz, s.crust);
+		vec2 puv = uv + s.jag;
+		s.packed = packed_at(puv);
+		// The floor of a print is lumpy: grains pack unevenly under a boot.
+		s.packed += (snow_noise(xz * 9.0) - 0.5) * 0.02 * smoothstep(0.02, 0.06, s.packed);
+		// Pushed-aside snow heaps in crumbs, not a smooth bead.
+		s.packed -= snow_noise(xz * 16.0) * 0.012 * smoothstep(0.004, 0.03, -s.packed);
+		s.rim = rim_at(puv, xz, s.packed, s.crust);
+	}
+	if (s.far > 0.0) {
+		ivec2 a;
+		ivec2 b;
+		ivec2 c;
+		vec3 w;
+		far_triangle(xz, a, b, c, w);
+		vec4 ga = texelFetch(far_grid, a, 0);
+		vec4 gb = texelFetch(far_grid, b, 0);
+		vec4 gc = texelFetch(far_grid, c, 0);
+		float far_ground = ga.r * w.x + gb.r * w.y + gc.r * w.z;
+		float far_city = snow_city_at(xz) * (ga.g * w.x + gb.g * w.y + gc.g * w.z);
+		float far_top = far_corner_top(a) * w.x + far_corner_top(b) * w.y + far_corner_top(c) * w.z;
+		s.ground = mix(s.ground, far_ground, s.far);
+		s.city = mix(s.city, far_city, s.far);
+		s.depth = mix(s.depth, snow_base_depth(xz, far_city), s.far);
+		base_top = mix(base_top, far_top, s.far);
+	}
+	s.top = max(base_top + (s.rim - s.packed) * s.deform, s.ground + 0.004);
+	return s;
+}
+
+// Settled top with ridges, for shading where no cached normal exists and for strata.
+float settled_top(vec2 xz) {
+	vec4 f = texture(field, (xz - origin) / window_m);
+	if (use_baked_baseline) {
+		float ground = f.r - f.g;
+		float shore = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, ground);
+		return ground + snow_base_depth(xz, snow_city_at(xz) * shore);
+	}
+	return f.r;
 }
 
 // Distance to the nearest cell border of a jittered grid (F2 - F1), for cracks.
@@ -113,9 +220,6 @@ float crack_distance(vec2 p) {
 	return f2 - f1;
 }
 
-// Steepest a trench wall stands, as rise over run (loose snow ~40 degrees).
-uniform float repose_tan = 0.84;
-
 // Pit slope from the smooth packed field, never steeper than repose: shading does
 // not step with the mesh triangles.
 vec2 packed_slope(vec2 uv) {
@@ -127,156 +231,147 @@ vec2 packed_slope(vec2 uv) {
 	return len > repose_tan ? g * (repose_tan / len) : g;
 }
 
-// Wind crust cracks into slabs that tilt up at a pit's edge. Displaced powder is
-// stored in the packed field itself (negative), so only crust gets this lip.
-float rim_at(vec2 uv, vec2 xz, float here, float crust) {
-	float d = packed_texel_m * 2.5 / window_m;
-	float around = 0.0;
-	for (int i = 0; i < 8; i++) {
-		float a = float(i) * 0.785398;
-		around += max(packed_at(uv + vec2(cos(a), sin(a)) * d), 0.0);
-		around += max(packed_at(uv + vec2(cos(a), sin(a)) * d * 0.5), 0.0) * 0.5;
-	}
-	around /= 12.0;
-	float lip = max(around - max(here, 0.0) * 1.5, 0.0);
-	float slab = 0.6 + 0.8 * snow_noise(xz * 6.0);
-	return lip * mix(0.15, 0.6, crust) * slab;
-}
-
-// Snow top before packing, eased onto the chunk-wide base toward the edge.
-float settled_top(vec2 xz) {
-	vec2 uv = (xz - origin) / window_m;
-	vec4 f = texture(field, uv);
-	if (use_baked_baseline) {
-		float ground = f.r - f.g;
-		float shore = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, ground);
-		float local_top = ground + snow_base_depth(xz, baked_city_at(xz) * shore);
-		if (use_far_grid) {
-			vec2 to_edge = min(uv, 1.0 - uv) * window_m;
-			float edge = smoothstep(0.0, 6.0, min(to_edge.x, to_edge.y));
-			if (edge < 1.0) {
-				vec4 far = far_grid_at(xz);
-				float far_top = far.r + snow_base_depth(xz, baked_city_at(xz) * far.a);
-				return mix(far_top, local_top, edge);
-			}
-		}
-		return local_top;
-	}
-	vec2 to_edge = min(uv, 1.0 - uv) * window_m;
-	float edge = smoothstep(0.0, 6.0, min(to_edge.x, to_edge.y));
-	return f.r - f.g + mix(snow_base_depth(xz, f.a), f.g, edge);
-}
-
 
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	vec2 uv = (world.xz - origin) / window_m;
-	vec4 f = texture(field, uv);
-	// Walls already slope as the snow holds and are softened (snow_shape passes);
-	// the outline is broken up here, where it is drawn.
-	v_crust = f.b < 0.5 ? 1.0 - smoothstep(0.45, 0.95, f.b / 0.49) : 0.0;
-	v_jag = edge_jag(world.xz, v_crust);
-	uv += v_jag;
-	v_packed = packed_at(uv);
-	// The floor of a print is lumpy: grains pack unevenly under a boot.
-	v_packed += (snow_noise(world.xz * 9.0) - 0.5) * 0.02 * smoothstep(0.02, 0.06, v_packed);
-	// Pushed-aside snow heaps in crumbs, not a smooth bead.
-	v_packed -= snow_noise(world.xz * 16.0) * 0.012 * smoothstep(0.004, 0.03, -v_packed);
-	v_rim = rim_at(uv, world.xz, v_packed, v_crust);
-	v_cut = f.b;
-	float ground = f.r - f.g;
-	float shore = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, ground);
-	v_city = use_baked_baseline ? baked_city_at(world.xz) * shore : f.a;
-	vec2 to_edge = min(uv - v_jag, 1.0 - uv + v_jag) * window_m;
-	// Over the outer 6 m the detail fades out onto the chunk-wide base.
-	v_edge = smoothstep(0.0, 6.0, min(to_edge.x, to_edge.y));
-	v_ground = ground;
-	// Toward the window edge the surface eases onto the chunk-wide snow (snow_chunk_cover).
-	float base = snow_base_geom(f.a);
-	v_depth = use_baked_baseline ? snow_base_depth(world.xz, v_city) : mix(snow_base_depth(world.xz, f.a), f.g, v_edge);
-	float top = use_baked_baseline ? ground + snow_base_geom(v_city) + (-v_packed + v_rim) * v_edge : ground + mix(base, f.g - v_packed + v_rim, v_edge);
-	if (use_baked_baseline && use_far_grid && v_edge < 1.0) {
-		vec4 far = far_grid_at(world.xz);
-		float far_shore_city = baked_city_at(world.xz) * far.a;
-		v_ground = mix(far.r, ground, v_edge);
-		v_city = mix(far_shore_city, v_city, v_edge);
-		v_depth = mix(snow_base_depth(world.xz, far_shore_city), v_depth, v_edge);
-		top = mix(far_grid_top(far), top, v_edge);
+	SnowSample s = snow_sample(world.xz);
+	float top = s.top;
+	// Towards its outer edge a ring morphs onto the lattice of the next, coarser one
+	// (UV.x is its spacing, UV2 the band); at the edge it is that ring's surface.
+	float morph = smoothstep(UV2.x, UV2.y, snow_lod_distance(world.xz));
+	if (morph > 0.0) {
+		float sp = UV.x;
+		vec2 parity = mod(round(world.xz / sp), 2.0);
+		float coarse = top;
+		if (parity.x > 0.5 && parity.y > 0.5) {
+			coarse = 0.5 * (snow_sample(world.xz + vec2(sp, -sp)).top + snow_sample(world.xz + vec2(-sp, sp)).top);
+		} else if (parity.x > 0.5) {
+			coarse = 0.5 * (snow_sample(world.xz - vec2(sp, 0.0)).top + snow_sample(world.xz + vec2(sp, 0.0)).top);
+		} else if (parity.y > 0.5) {
+			coarse = 0.5 * (snow_sample(world.xz - vec2(0.0, sp)).top + snow_sample(world.xz + vec2(0.0, sp)).top);
+		}
+		top = mix(top, coarse, morph);
 	}
-	float drawn_top = max(top, v_ground + 0.004);
-	VERTEX.y = drawn_top - MODEL_MATRIX[3].y;
-	v_world = vec3(world.x, drawn_top, world.z);
+	VERTEX.y = top - MODEL_MATRIX[3].y;
+	v_world = vec3(world.x, top, world.z);
+	v_packed = s.packed;
+	v_rim = s.rim;
+	v_cut = s.cut;
+	v_deform = s.deform;
+	v_far = s.far;
+	v_depth = s.depth;
+	v_ground = s.ground;
+	v_city = s.city;
+	v_crust = s.crust;
+	v_jag = s.jag;
 }
 
 void fragment() {
 	HFN_SHADOW_FRAGMENT(v_world);
+	if (snow_lod.z > 0.0 && snow_lod_distance(v_world.xz) >= snow_lod.z + SNOW_LOD_OVERLAP_M) {
+		discard;
+	}
 	vec2 uv = (v_world.xz - origin) / window_m;
+	float far = v_far >= 0.999 ? 1.0 : v_far;
+	float near = 1.0 - far;
+	// The chunk cover's own shading, for the outer band.
+	vec3 far_n = vec3(0.0, 1.0, 0.0);
+	vec3 far_albedo = fresh_color;
+	float far_depth = 0.0;
+	if (far > 0.0) {
+		ivec2 a;
+		ivec2 b;
+		ivec2 c;
+		vec3 w;
+		far_triangle(v_world.xz, a, b, c, w);
+		vec4 ga = texelFetch(far_grid, a, 0);
+		vec4 gb = texelFetch(far_grid, b, 0);
+		vec4 gc = texelFetch(far_grid, c, 0);
+		vec3 na = vec3(ga.b, sqrt(max(1.0 - ga.b * ga.b - ga.a * ga.a, 0.0)), ga.a);
+		vec3 nb = vec3(gb.b, sqrt(max(1.0 - gb.b * gb.b - gb.a * gb.a, 0.0)), gb.a);
+		vec3 nc = vec3(gc.b, sqrt(max(1.0 - gc.b * gc.b - gc.a * gc.a, 0.0)), gc.a);
+		float shore = ga.g * w.x + gb.g * w.y + gc.g * w.z;
+		snow_far_shade(v_world, na * w.x + nb * w.y + nc * w.z, shore, far_n, far_albedo, far_depth);
+	}
 	float grain = snow_hash(floor(v_world.xz * 40.0));
+	float depth = mix(v_depth, far_depth, far);
 	// Where snow thins to a skin it would z-fight the ground: let the ground show.
 	// Where the ground under the snow jumps (a kerb, a wall foot) the mesh would
 	// hang a curtain between levels: no snow surface is that steep.
 	float ground_slope = fwidth(v_ground) / max(length(fwidth(v_world.xz)), 0.001);
-	float thin_cut = mix(0.012, 0.012 + grain * 0.02, v_edge);
-	if (v_cut > 0.5 || v_depth < thin_cut || ground_slope > 1.5) {
+	float thin_cut = mix(0.012, 0.012 + grain * 0.02, near);
+	if (v_cut > 0.5 || depth < thin_cut || (ground_slope > 1.5 && far < 1.0)) {
 		discard;
 	}
-	// Pit walls are sharper than the mesh, so they also come in through the normal.
-	float packed_height = v_packed * v_edge;
-	float rim_height = v_rim * v_edge;
-	vec2 raw_slope = vec2(0.0);
-	if (abs(v_packed) > 0.0005 || v_rim > 0.0005) {
-		raw_slope = packed_slope(uv + v_jag);
-	}
-	vec2 slope = raw_slope * v_edge;
-	float wall = smoothstep(0.35, 1.6, length(raw_slope)) * v_edge;
-	// Settled surface slope over ±0.4 m: the mesh facets at the 20 cm field texel
-	// would band the ridges, so shade from the smoothed field instead.
-	float normal_cache_share = use_settled_normal_field ? smoothstep(0.85, 0.98, v_edge) : 0.0;
-	vec3 smooth_n = vec3(0.0, 1.0, 0.0);
-	if (normal_cache_share < 1.0) {
-		float e = 0.4;
-		float sx = settled_top(v_world.xz + vec2(e, 0.0)) - settled_top(v_world.xz - vec2(e, 0.0));
-		float sz = settled_top(v_world.xz + vec2(0.0, e)) - settled_top(v_world.xz - vec2(0.0, e));
-		smooth_n = normalize(vec3(-sx / (2.0 * e), 1.0, -sz / (2.0 * e)));
-	}
-	if (normal_cache_share > 0.0) {
-		vec3 cached = texture(settled_normal_field, uv).rgb * 2.0 - 1.0;
-		smooth_n = normalize(mix(smooth_n, cached, normal_cache_share));
-	}
-	vec2 ripple = snow_ripple_slope(v_world.xz, v_city) * (1.0 - smoothstep(0.02, 0.08, packed_height));
-	smooth_n = normalize(smooth_n - vec3(ripple.x, 0.0, ripple.y));
-	// Near kerbs and walls the real mesh edge still matters.
-	vec3 geo = normalize(cross(dFdy(v_world), dFdx(v_world)));
-	vec3 n = normalize(mix(smooth_n, geo, smoothstep(0.6, 1.2, ground_slope)) + vec3(slope.x, 0.0, slope.y) * 0.6);
-	// Crust breaks along cracks that run out from a print's lip into the slab.
-	float lip = smoothstep(0.003, 0.02, rim_height) + wall * 0.5 * (1.0 - smoothstep(0.02, 0.06, packed_height));
-	float crack = 0.0;
-	if (lip > 0.0 && v_crust > 0.0) {
-		crack = (1.0 - smoothstep(0.015, 0.05, crack_distance(v_world.xz * 14.0))) * clamp(lip, 0.0, 1.0) * v_crust;
-		if (crack > 0.0) {
-			n = normalize(n + vec3(snow_noise(v_world.xz * 40.0) - 0.5, 0.0, snow_noise(v_world.xz * 40.0 + 7.0) - 0.5) * crack * 0.6);
+	vec3 n = far_n;
+	vec3 albedo = far_albedo;
+	float roughness = 0.85;
+	vec3 emission = vec3(0.0);
+	if (near > 0.0) {
+		// Pit walls are sharper than the mesh, so they also come in through the normal.
+		float packed_height = v_packed * v_deform;
+		float rim_height = v_rim * v_deform;
+		vec2 raw_slope = vec2(0.0);
+		if (abs(v_packed) > 0.0005 || v_rim > 0.0005) {
+			raw_slope = packed_slope(uv + v_jag);
 		}
+		vec2 slope = raw_slope * v_deform;
+		float wall = smoothstep(0.35, 1.6, length(raw_slope)) * v_deform;
+		// Settled surface slope over ±0.4 m: the mesh facets at the 20 cm field texel
+		// would band the ridges, so shade from the smoothed field instead.
+		vec3 smooth_n;
+		if (use_settled_normal_field) {
+			smooth_n = normalize(texture(settled_normal_field, uv).rgb * 2.0 - 1.0);
+		} else {
+			float e = 0.4;
+			float sx = settled_top(v_world.xz + vec2(e, 0.0)) - settled_top(v_world.xz - vec2(e, 0.0));
+			float sz = settled_top(v_world.xz + vec2(0.0, e)) - settled_top(v_world.xz - vec2(0.0, e));
+			smooth_n = normalize(vec3(-sx / (2.0 * e), 1.0, -sz / (2.0 * e)));
+		}
+		vec2 ripple = snow_ripple_slope(v_world.xz, v_city) * (1.0 - smoothstep(0.02, 0.08, packed_height));
+		smooth_n = normalize(smooth_n - vec3(ripple.x, 0.0, ripple.y));
+		// Near kerbs and walls the real mesh edge still matters.
+		vec3 geo = normalize(cross(dFdy(v_world), dFdx(v_world)));
+		vec3 near_n = normalize(mix(smooth_n, geo, smoothstep(0.6, 1.2, ground_slope)) + vec3(slope.x, 0.0, slope.y) * 0.6);
+		// Crust breaks along cracks that run out from a print's lip into the slab.
+		float lip = smoothstep(0.003, 0.02, rim_height) + wall * 0.5 * (1.0 - smoothstep(0.02, 0.06, packed_height));
+		float crack = 0.0;
+		if (lip > 0.0 && v_crust > 0.0) {
+			crack = (1.0 - smoothstep(0.015, 0.05, crack_distance(v_world.xz * 14.0))) * clamp(lip, 0.0, 1.0) * v_crust;
+			if (crack > 0.0) {
+				near_n = normalize(near_n + vec3(snow_noise(v_world.xz * 40.0) - 0.5, 0.0, snow_noise(v_world.xz * 40.0 + 7.0) - 0.5) * crack * 0.6);
+			}
+		}
+		float packed = smoothstep(0.01, 0.08, packed_height);
+		float crust = smoothstep(0.005, 0.04, rim_height);
+		vec3 color = mix(fresh_color, packed_color, packed);
+		float heap = smoothstep(0.004, 0.03, -packed_height);
+		color *= 1.0 + crust * 0.06 + heap * 0.04 - snow_breakup(v_world, 5.0) * 0.03;
+		// Deep drifts read a touch brighter on the crest; shallow cover equals the terrain.
+		color *= mix(1.0, 1.03, smoothstep(0.1, 0.4, v_depth));
+		// Cut walls show blue and the layers of past snowfalls; cracks read as dark seams.
+		float below = settled_top(v_world.xz) - v_world.y;
+		float strata = 0.94 + 0.06 * sin(below * 110.0 + snow_noise(v_world.xz * 4.0) * 6.0);
+		color = mix(color, wall_color * strata, wall * 0.5);
+		color *= 1.0 - crack * 0.22;
+		vec3 near_albedo = snow_thin_tint(snow_wind_tint(color, v_city), v_depth);
+		// Freshly broken grains at a print's edge sparkle more than the settled top.
+		float glint = step(mix(0.996, 0.985, wall), snow_hash(floor(v_world.xz * 140.0))) * v_deform;
+		n = normalize(mix(near_n, far_n, far));
+		albedo = mix(near_albedo, far_albedo, far);
+		roughness = mix(mix(0.85, 0.6, packed), 0.85, far);
+		emission = vec3(glint * 0.25 * (1.0 - packed * (1.0 - wall))) * near;
 	}
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
-
-	float packed = smoothstep(0.01, 0.08, packed_height);
-	float crust = smoothstep(0.005, 0.04, rim_height);
-	vec3 color = mix(fresh_color, packed_color, packed);
-	float heap = smoothstep(0.004, 0.03, -packed_height);
-	color *= 1.0 + crust * 0.06 + heap * 0.04 - snow_breakup(v_world, 5.0) * 0.03;
-	// Deep drifts read a touch brighter on the crest; shallow cover equals the terrain.
-	color *= mix(1.0, 1.03, smoothstep(0.1, 0.4, v_depth));
-	// Cut walls show blue and the layers of past snowfalls; cracks read as dark seams.
-	float below = settled_top(v_world.xz) - v_world.y;
-	float strata = 0.94 + 0.06 * sin(below * 110.0 + snow_noise(v_world.xz * 4.0) * 6.0);
-	color = mix(color, wall_color * strata, wall * 0.5);
-	color *= 1.0 - crack * 0.22;
-	ALBEDO = snow_thin_tint(snow_wind_tint(color, v_city), v_depth);
-	ALBEDO = hfn_painterly_surface_color(ALBEDO, v_world, n, 0.38);
-	ROUGHNESS = mix(0.85, 0.6, packed);
-	// Freshly broken grains at a print's edge sparkle more than the settled top.
-	float glint = step(mix(0.996, 0.985, wall), snow_hash(floor(v_world.xz * 140.0))) * v_edge;
-	EMISSION = vec3(glint * 0.25 * (1.0 - packed * (1.0 - wall)));
+	ALBEDO = hfn_painterly_surface_color(albedo, v_world, n, 0.38);
+	ROUGHNESS = roughness;
+	EMISSION = emission;
+	if (debug_height) {
+		ALBEDO = vec3(0.0);
+		ROUGHNESS = 1.0;
+		SPECULAR = 0.0;
+		EMISSION = snow_debug_height(v_world.y);
+	}
 }
 
 

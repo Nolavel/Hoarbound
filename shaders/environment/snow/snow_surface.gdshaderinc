@@ -134,3 +134,21 @@ vec2 snow_ripple_slope(vec2 xz, float city) {
 	float amp = 0.06 * mix(1.0, 0.35, snow_ridge_openness(city));
 	return vec2(hx - h, hz - h) / e * 0.9 * amp;
 }
+
+// Henry's snow LOD: xy his position, z the Chebyshev radius inside which the
+// clipmap (snow_ground) draws and outside which the chunk cover does, w 1 when live.
+global uniform vec4 snow_lod;
+// Both draw this far across the handoff; there they are the same surface.
+const float SNOW_LOD_OVERLAP_M = 0.15;
+
+float snow_lod_distance(vec2 xz) {
+	vec2 d = abs(xz - snow_lod.xy);
+	return max(d.x, d.y);
+}
+
+// Capture-only: the drawn height as emission, 4 m / 25 cm / 16 mm periods in RGB.
+// The sRGB encode is undone so an 8-bit readback stores each period linearly.
+vec3 snow_debug_height(float y) {
+	vec3 v = vec3(fract(y / 4.0), fract(y / 0.25), fract(y / 0.016));
+	return mix(v / 12.92, pow((v + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), v));
+}

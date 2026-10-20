@@ -17,6 +17,12 @@ const PRESENTATION_SCRIPT: GDScript = preload("res://scripts/systems/world/snow/
 const PICKUP_SCRIPT: GDScript = preload("res://scripts/environment/interactive/item_pickup.gd")
 ## Contact capture side on the medium tier; the packed field keeps its resolution.
 const MEDIUM_CONTACT_RES: int = 512
+## Width both surfaces draw across the clipmap/chunk handoff (SNOW_LOD_OVERLAP_M in the shader).
+const LOD_OVERLAP_M: float = 0.15
+## The chunk lattice around the window reaches this far past it, for a lagging rebuild.
+const FAR_GRID_MARGIN_M: float = 6.0
+## Walking pace the travel lead is sized for, when working out the window's reach.
+const WALK_MPS: float = 4.0
 ## Change in storm share that is worth rebuilding the window for.
 const STORM_REBUILD_STEP: float = 0.05
 ## Rebuild settled depth for weather accumulation even while Henry stands still.
@@ -30,12 +36,18 @@ const CONTACT_LAYER: int = RenderLayers.SNOW_CONTACT
 @export_group("Window")
 ## Side of the square window around the player, in metres.
 @export var window_m: float = 25.6
-## Mesh spacing around Henry, where prints are read up close, in metres.
+## Mesh spacing around Henry, where prints are read up close, in metres
+## (rounded to a power-of-two fraction of the 2 m chunk lattice).
 @export var near_spacing_m: float = 0.03
-## Half width of that dense core; spacing grows towards the window edge.
+## Half width of that dense core; each ring outwards doubles the spacing.
 @export var near_half_m: float = 2.75
-## Mesh spacing at the window edge, in metres.
-@export var far_spacing_m: float = 0.5
+## Chebyshev distances from Henry: prints fade out of the drawn snow over the first
+## band, the field's detail hands the surface to the chunk cover's triangles over
+## the second, and the chunk cover draws beyond the radius. All stay inside what
+## the window guarantees around Henry (detail_reach_m()).
+@export var deform_fade_m: Vector2 = Vector2(4.5, 6.0)
+@export var far_fade_m: Vector2 = Vector2(4.5, 6.0)
+@export var cut_radius_m: float = 6.25
 ## Texels along one side of the settled field.
 @export_range(32, 256) var field_res: int = 128
 ## Texels along one side of the packed-snow field.
@@ -145,6 +157,8 @@ var _far_grid_tex: ImageTexture
 var _far_grid_origin: Vector2 = Vector2(INF, INF)
 var _surface: ShaderMaterial
 var _mesh: MeshInstance3D
+var _clipmap: SnowClipmap
+var _far_ready: bool = false
 var _contact: SubViewport
 var _contact_cam: Camera3D
 var _contact_quad: ShaderMaterial
@@ -247,6 +261,7 @@ func on_world_ready(context: WorldContext) -> void:
 	if _terrain != null and not wind_field_path.is_empty():
 		field.use_baked_baseline = field.load_wind_field(wind_field_path)
 		_surface.set_shader_parameter("use_baked_baseline", field.use_baked_baseline)
+		_build_rings(field.use_baked_baseline)
 		if field.use_baked_baseline:
 			RenderingServer.global_shader_parameter_set(&"snow_wind", field.settled_wind)
 			_surface.set_shader_parameter("wind_tex", field.wind_texture)
@@ -454,6 +469,7 @@ func get_foot_snow_top(side: int) -> float:
 
 
 func _process(delta: float) -> void:
+	_follow_lod()
 	var camera: Camera3D = get_viewport().get_camera_3d()
 	if camera != null and camera != _contact_cam:
 		camera.cull_mask &= ~CONTACT_LAYER
@@ -594,7 +610,6 @@ func _apply_window(old: Vector2, wanted: Vector2, cover: float, wind: Vector2) -
 	_refresh_settled_normals()
 	_surface.set_shader_parameter("origin", wanted)
 	_refresh_far_grid(wanted)
-	_mesh.global_position = Vector3(wanted.x + half, 0.0, wanted.y + half)
 	_contact_cam.global_transform = Transform3D(
 		Basis(Vector3.RIGHT, Vector3.BACK, Vector3.DOWN),
 		Vector3(wanted.x + half, _base_y - 5.0, wanted.y + half)
@@ -619,27 +634,37 @@ func _refresh_settled_normals() -> void:
 	_surface.set_shader_parameter("use_settled_normal_field", true)
 
 
-## The far cover is a 2 m triangle grid, not the bilinear 20 cm SnowField.
-## Store just the nearby vertex heights and both baked wind factors. Its size is
-## independent of the city's 512 m chunks, and rebuilding it needs ~300 samples.
+## The chunk cover's 2 m lattice around the window: ground, shore fade and the
+## vertex normal SnowChunkCover gives each point, so the clipmap's outer band
+## draws exactly its triangles. ~500 terrain samples per window move.
 func _refresh_far_grid(window_origin: Vector2) -> void:
 	if _terrain == null or not field.use_baked_baseline:
 		_surface.set_shader_parameter("use_far_grid", false)
 		_far_grid_origin = Vector2(INF, INF)
+		_far_ready = false
 		return
 	var step_m: float = SnowChunkCover.STEP_M
-	var grid_origin := Vector2(floorf(window_origin.x / step_m), floorf(window_origin.y / step_m)) * step_m - Vector2.ONE * step_m
+	var low: Vector2 = window_origin - Vector2.ONE * FAR_GRID_MARGIN_M
+	var grid_origin := Vector2(floorf(low.x / step_m), floorf(low.y / step_m)) * step_m
 	if grid_origin == _far_grid_origin:
 		return
-	var n: int = ceili(window_m / step_m) + 4
+	var n: int = ceili((window_m + FAR_GRID_MARGIN_M * 2.0) / step_m) + 2
+	## One extra row each side for the central differences of the normals.
+	var heights := PackedFloat32Array()
+	heights.resize((n + 2) * (n + 2))
+	for z: int in range(n + 2):
+		for x: int in range(n + 2):
+			var at: Vector2 = grid_origin + Vector2(x - 1, z - 1) * step_m
+			heights[z * (n + 2) + x] = _terrain.get_height(at.x, at.y)
 	var image := Image.create_empty(n, n, false, Image.FORMAT_RGBAF)
 	for z: int in range(n):
 		for x: int in range(n):
-			var at: Vector2 = grid_origin + Vector2(x, z) * step_m
-			var ground: float = _terrain.get_height(at.x, at.y)
-			var shore: float = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, ground)
-			var wind: Vector2 = field.wind_factors(at)
-			image.set_pixel(x, z, Color(ground, wind.x * shore, wind.y * shore, shore))
+			var k: int = (z + 1) * (n + 2) + x + 1
+			var ground: float = heights[k]
+			var shore: float = smoothstep(SnowChunkCover.SEA_LEVEL_M + SnowChunkCover.SHORE_M.x,
+				SnowChunkCover.SEA_LEVEL_M + SnowChunkCover.SHORE_M.y, ground)
+			var normal := Vector3(-(heights[k + 1] - heights[k - 1]), 2.0 * step_m, -(heights[k + n + 2] - heights[k - n - 2])).normalized()
+			image.set_pixel(x, z, Color(ground, shore, normal.x, normal.z))
 	if _far_grid_tex == null or _far_grid_tex.get_width() != n:
 		_far_grid_tex = ImageTexture.create_from_image(image)
 		_surface.set_shader_parameter("far_grid", _far_grid_tex)
@@ -649,6 +674,37 @@ func _refresh_far_grid(window_origin: Vector2) -> void:
 	_surface.set_shader_parameter("far_grid_step", step_m)
 	_surface.set_shader_parameter("use_far_grid", true)
 	_far_grid_origin = grid_origin
+	_far_ready = true
+
+
+## Rings out to the chunk handoff when a chunk cover takes over, else over the whole window.
+func _build_rings(chunk_cover: bool) -> void:
+	var outer: float = cut_radius_m + LOD_OVERLAP_M + 0.2 if chunk_cover else window_m * 0.5 + recentre_step_m * 0.5
+	var plan: SnowClipmap = SnowClipmap.plan(near_spacing_m, near_half_m, outer)
+	if _clipmap == null or _clipmap.halves != plan.halves:
+		_clipmap = plan
+		_mesh.mesh = _clipmap.build()
+
+
+## How far around Henry the live field is sure to reach: half the window, less a
+## recentre step's snap, the travel lead at walking pace and a metre of rebuild lag.
+func detail_reach_m() -> float:
+	return window_m * 0.5 - recentre_step_m * 0.5 - minf(WALK_MPS * lead_s, lead_max_m) - 1.0
+
+
+## The rings follow Henry every frame, snapped so each vertex keeps its world lattice;
+## snow_lod tells both snow shaders where he is and where the chunk cover takes over.
+func _follow_lod() -> void:
+	if _mesh == null or _player == null:
+		return
+	## Where Henry is drawn this frame, not his last physics tick.
+	var at: Vector3 = _player.get_global_transform_interpolated().origin
+	var snapped: Vector2 = _clipmap.snapped_origin(Vector2(at.x, at.z))
+	_mesh.global_position = Vector3(snapped.x, 0.0, snapped.y)
+	var live: bool = field.origin.x != INF
+	_mesh.visible = live
+	RenderingServer.global_shader_parameter_set(&"snow_lod",
+		Vector4(at.x, at.z, cut_radius_m if _far_ready else 0.0, 1.0 if live else 0.0))
 
 
 func _build_surface() -> void:
@@ -664,16 +720,17 @@ func _build_surface() -> void:
 	_surface.set_shader_parameter("use_baked_baseline", field.use_baked_baseline)
 	_surface.set_shader_parameter("sea_level_m", sea_level_m)
 	_surface.set_shader_parameter("repose_tan", tan(deg_to_rad(crust_wall_deg)))
+	_surface.set_shader_parameter("deform_fade", deform_fade_m)
+	_surface.set_shader_parameter("far_fade", far_fade_m)
 	_mesh = MeshInstance3D.new()
 	_mesh.name = "SnowShellMesh"
-	_mesh.mesh = _graded_grid()
+	_build_rings(false)
 	_mesh.material_override = _surface
 	_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_mesh.extra_cull_margin = 400.0
+	_mesh.visible = false
 	add_child(_mesh)
 
 
-## A square grid, dense near the middle where Henry stands and coarser outwards.
 ## A lifted foot's toe follows the boot every frame and presses only as deep
 ## as it actually dips into the snow, so a low swing drags a furrow.
 func _place_drag(side: int, foot: Dictionary, planted: bool) -> void:
@@ -724,48 +781,6 @@ func _visible_lift(side: int) -> float:
 		return 0.0
 	var feet := _sensor.visual.skeleton.get_node_or_null(^"SnowFeet") as SnowFootModifier
 	return feet.get_lift(side) if feet != null else 0.0
-
-
-func _graded_grid() -> ArrayMesh:
-	var half: float = window_m * 0.5
-	var side: PackedFloat32Array = [0.0]
-	var at: float = 0.0
-	var step: float = near_spacing_m
-	while at < half:
-		if at >= near_half_m:
-			step = minf(step * 1.08, far_spacing_m)
-		at = minf(at + step, half)
-		side.append(at)
-	var axis: PackedFloat32Array = []
-	for i: int in range(side.size() - 1, 0, -1):
-		axis.append(-side[i])
-	axis.append_array(side)
-	var n: int = axis.size()
-	var verts := PackedVector3Array()
-	verts.resize(n * n)
-	for iz: int in range(n):
-		for ix: int in range(n):
-			verts[iz * n + ix] = Vector3(axis[ix], 0.0, axis[iz])
-	var indices := PackedInt32Array()
-	indices.resize((n - 1) * (n - 1) * 6)
-	var k: int = 0
-	for iz: int in range(n - 1):
-		for ix: int in range(n - 1):
-			var a: int = iz * n + ix
-			indices[k] = a
-			indices[k + 1] = a + 1
-			indices[k + 2] = a + n
-			indices[k + 3] = a + 1
-			indices[k + 4] = a + n + 1
-			indices[k + 5] = a + n
-			k += 6
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
 
 
 func _build_capture() -> void:

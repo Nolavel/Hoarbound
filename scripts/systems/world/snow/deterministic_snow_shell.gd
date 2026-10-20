@@ -39,7 +39,6 @@ func _ready() -> void:
 func _apply_startup_profile(profile: Dictionary) -> void:
 	packed_res = int(profile["snow_packed_res"])
 	near_half_m = float(profile["snow_near_half_m"])
-	far_spacing_m = float(profile["snow_far_spacing_m"])
 	_snow_pass_interval = 1.0 / maxf(float(profile["snow_sim_hz"]), 1.0)
 
 
@@ -68,6 +67,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	_follow_lod()
 	if _accum_mat.is_empty():
 		return
 	_snow_pass_elapsed += delta
