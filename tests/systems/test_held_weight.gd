@@ -40,6 +40,7 @@ func _run() -> void:
 	_hammer = _player.get_node(^"HammerComponent") as HammerComponent
 	_light = _player.get_node(^"HeldLightComponent") as HeldLightComponent
 	await _frames(20)
+	_hub.move_to_pack(&"pack/pack_lid")  # the starter mug; these checks need two free pockets
 	await _check_hammer_from_pocket()
 	await _check_hammer_from_pack()
 	await _check_hammer_lost_while_shown()
