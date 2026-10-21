@@ -726,7 +726,12 @@ func _refresh_far_grid(window_origin: Vector2, retry: bool = false) -> void:
 
 ## True while the field still rebuilds or waits to re-read ground that streamed in (BootLoadCapability).
 func has_boot_work() -> bool:
-	return field.is_rebuilding() or (_field_ground_partial and _field_retries > 0)
+	if field.is_rebuilding():
+		return true
+	var streamed := _terrain as KeyWestRealityGround
+	## Ground that never streams (open sea past the chunks) is not boot work; ground that did is.
+	return _field_ground_partial and _field_retries > 0 and streamed != null \
+		and streamed.has_surface_at(_field_unknown_at.x, _field_unknown_at.y)
 
 
 ## A field built before its chunks streamed in cached the fallback ground (a snow top up to

@@ -18,7 +18,13 @@ static func publish(owner: Node, provider: Object, pending_method: StringName) -
 
 ## True while any published provider in the tree still has start-up work.
 static func any_pending(tree: SceneTree) -> bool:
+	return not pending_names(tree).is_empty()
+
+
+## Names of the providers still at work (boot log).
+static func pending_names(tree: SceneTree) -> PackedStringArray:
+	var names: PackedStringArray = []
 	for node: Node in tree.get_nodes_in_group(GROUP):
 		if CapabilityContract.has(node, ID) and bool(CapabilityContract.invoke(node, ID, PENDING)):
-			return true
-	return false
+			names.append(String(node.name))
+	return names

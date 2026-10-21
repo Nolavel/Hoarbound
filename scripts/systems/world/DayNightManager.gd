@@ -110,6 +110,7 @@ var _sun_blend_left: float = 0.0
 var _weather: WeatherController
 var _sun_energy: float = 1.0
 var _ambient_energy: float = 1.0
+var _ambient_color: Color = Color.WHITE
 var _snow_beam: float = 1.0
 
 
@@ -356,7 +357,7 @@ func _update_environment_visuals(game_hour: float, snap_sun: bool = false) -> vo
 
 	ambient_energy = _ambient_energy_for_context(ambient_energy)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_color = ambient_color
+	_ambient_color = ambient_color
 	_ambient_energy = ambient_energy
 	_apply_snow_fill(environment)
 
@@ -440,9 +441,17 @@ func _dim_sun_in_snow(delta: float) -> void:
 		_apply_snow_fill(world_environment_node.environment)
 
 
-## The beam falling snow takes comes back as sky fill.
+## The beam falling snow takes comes back as diffuse fill in the sun's own colour (snow scatters it
+## unchanged); shelters keep their capped ambient.
 func _apply_snow_fill(environment: Environment) -> void:
-	environment.ambient_light_energy = _ambient_energy + SNOW_FILL_PER_SUN * _sun_energy * (1.0 - _snow_beam)
+	var fill: float = SNOW_FILL_PER_SUN * _sun_energy * (1.0 - _snow_beam)
+	var sheltered: bool = is_instance_valid(color_grade_controller) and color_grade_controller.is_inside_shelter()
+	if sheltered or not is_instance_valid(directional_light):
+		fill = 0.0
+	var energy: float = _ambient_energy + fill
+	environment.ambient_light_energy = energy
+	var sun_color: Color = directional_light.light_color if fill > 0.0 else _ambient_color
+	environment.ambient_light_color = (_ambient_color * _ambient_energy + sun_color * fill) / maxf(energy, 0.0001)
 
 
 ## Share of the sun's beam that reaches the ground through falling snow, 0 to 1.

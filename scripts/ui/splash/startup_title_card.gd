@@ -37,7 +37,8 @@ func _play_if_project_scene() -> void:
 	while BootLoadCapability.any_pending(get_tree()) \
 			and Time.get_ticks_msec() - waited_ms < int(max_boot_wait_seconds * 1000.0):
 		await get_tree().process_frame
-	print("[Boot] world shown after %.1f s of boot work" % ((Time.get_ticks_msec() - waited_ms) / 1000.0))
+	print("[Boot] world shown after %.1f s of boot work%s" % [(Time.get_ticks_msec() - waited_ms) / 1000.0,
+		", still pending: " + ", ".join(BootLoadCapability.pending_names(get_tree())) if BootLoadCapability.any_pending(get_tree()) else ""])
 	var fade := create_tween()
 	fade.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	fade.tween_property(_cover, "modulate:a", 0.0, fade_out_seconds) \
