@@ -24,8 +24,12 @@ const WEATHER_SCRIPT: GDScript = preload("res://scripts/systems/world/WeatherCon
 ## Slant path of the sun's beam through falling snow, metres: with Koschmieder's
 ## extinction 3.912 / visibility it leaves ~7 % of the sun in a 45 m blizzard, ~59 % in 220 m snowfall.
 const SNOW_BEAM_PATH_M: float = 30.0
-## Diffuse fill gained as falling snow scatters the beam it removes.
-const SNOW_AMBIENT_LIFT: float = 0.3
+## Ambient energy per unit of lost beam energy: snow scatters what it takes. Measured at the Duval
+## spawn (linear snow: sun 0.48, sky 0.086): 1.86 puts a blizzard at ~75 % of the clear-day snow.
+const SNOW_FILL_PER_SUN: float = 1.86
+## Under a full snow overcast the fill is grey-white (at the clock's brightness), not the blue of a clear sky.
+const SNOW_OVERCAST_COLOR: Color = Color(0.86, 0.88, 0.92)
+const SNOW_OVERCAST_SKY_SHARE: float = 0.35
 ## How fast the sun follows the weather, per second.
 const SNOW_SUN_RESPONSE: float = 0.5
 
@@ -109,6 +113,7 @@ var _sun_blend_left: float = 0.0
 var _weather: WeatherController
 var _sun_energy: float = 1.0
 var _ambient_energy: float = 1.0
+var _ambient_color: Color = Color.WHITE
 var _snow_beam: float = 1.0
 
 
@@ -355,9 +360,10 @@ func _update_environment_visuals(game_hour: float, snap_sun: bool = false) -> vo
 
 	ambient_energy = _ambient_energy_for_context(ambient_energy)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	_ambient_color = ambient_color
 	environment.ambient_light_color = ambient_color
 	_ambient_energy = ambient_energy
-	environment.ambient_light_energy = ambient_energy * (1.0 + SNOW_AMBIENT_LIFT * (1.0 - _snow_beam))
+	_apply_snow_fill(environment)
 
 	var cloud_color: Color = _calculate_cloud_color(game_hour)
 	var ground_color: Color = settings.night_ground_color.lerp(
@@ -436,7 +442,16 @@ func _dim_sun_in_snow(delta: float) -> void:
 	_snow_beam = lerpf(_snow_beam, _snow_beam_target(), 1.0 - exp(-SNOW_SUN_RESPONSE * delta))
 	directional_light.light_energy = _sun_energy * _snow_beam
 	if is_instance_valid(world_environment_node) and world_environment_node.environment != null:
-		world_environment_node.environment.ambient_light_energy = _ambient_energy * (1.0 + SNOW_AMBIENT_LIFT * (1.0 - _snow_beam))
+		_apply_snow_fill(world_environment_node.environment)
+
+
+## The beam falling snow takes comes back as grey-white fill.
+func _apply_snow_fill(environment: Environment) -> void:
+	var lost: float = 1.0 - _snow_beam
+	environment.ambient_light_energy = _ambient_energy + SNOW_FILL_PER_SUN * _sun_energy * lost
+	var grey: Color = SNOW_OVERCAST_COLOR * (_ambient_color.get_luminance() / SNOW_OVERCAST_COLOR.get_luminance())
+	environment.ambient_light_color = _ambient_color.lerp(Color(grey, 1.0), lost)
+	environment.ambient_light_sky_contribution = lerpf(1.0, SNOW_OVERCAST_SKY_SHARE, lost)
 
 
 ## Share of the sun's beam that reaches the ground through falling snow, 0 to 1.
