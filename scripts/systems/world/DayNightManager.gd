@@ -25,7 +25,7 @@ const WEATHER_SCRIPT: GDScript = preload("res://scripts/systems/world/WeatherCon
 ## extinction 3.912 / visibility it leaves ~7 % of the sun in a 45 m blizzard, ~59 % in 220 m snowfall.
 const SNOW_BEAM_PATH_M: float = 30.0
 ## Ambient energy per unit of lost beam energy: snow scatters what it takes. Measured at the Duval
-## spawn (linear snow: sun 0.48, sky 0.086): 1.86 puts a blizzard at ~75 % of the clear-day snow.
+## spawn (linear snow: sun 0.48, sky 0.086); measured after: snow at 77 % windy, 69 % snowfall, 51 % blizzard.
 const SNOW_FILL_PER_SUN: float = 1.86
 ## Under a full snow overcast the fill is grey-white (at the clock's brightness), not the blue of a clear sky.
 const SNOW_OVERCAST_COLOR: Color = Color(0.86, 0.88, 0.92)
