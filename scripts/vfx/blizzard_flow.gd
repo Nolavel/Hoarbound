@@ -35,6 +35,9 @@ const DRIFT_POOL_SIZE: int = 6
 const DRIFT_INTERVAL_S: float = 0.22
 ## Streamers start this close to Henry, metres.
 const DRIFT_REACH_M: float = 22.0
+## Temporal reprojection of the volumetric fog while the flow runs: Godot's default smears billows
+## moving at storm speed into a flat haze.
+const FLOW_REPROJECTION: float = 0.5
 
 var _weather: WeatherController
 var _ground: KeyWestRealityGround
@@ -45,6 +48,8 @@ var _flakes: Array[GPUParticles3D] = []
 var _lifts: Array[SnowLift] = []
 var _lift_index: int = 0
 var _drift_left: float = 0.0
+var _environment: Environment
+var _base_reprojection: float = -1.0
 var _targets: PackedFloat32Array = PackedFloat32Array()
 var _levels: PackedFloat32Array = PackedFloat32Array()
 var _reselect_left: float = 0.0
@@ -126,6 +131,7 @@ func _process(delta: float) -> void:
 		material.set_shader_parameter(&"density", _extinction * _levels[i])
 		material.set_shader_parameter(&"wind", along * wind)
 		_steer_flakes(i, along, wind, strength)
+	_soften_reprojection(strength)
 	_drift_left -= delta * strength
 	if _drift_left <= 0.0 and strength > 0.05:
 		_drift_left = DRIFT_INTERVAL_S * randf_range(0.6, 1.4)
@@ -194,6 +200,17 @@ func _place(slot: int, street: Dictionary) -> void:
 	volume.size = Vector3(a.distance_to(b) + 10.0, FLOW_HEIGHT_M, float(street["width"]) + 6.0)
 	_materials[slot].set_shader_parameter(&"scale_height", SNOW_SCALE_HEIGHT_M)
 	_targets[slot] = float(street["alignment"])
+
+
+func _soften_reprojection(strength: float) -> void:
+	if _environment == null:
+		_environment = get_viewport().world_3d.environment if get_viewport().world_3d != null else null
+		if _environment == null:
+			_environment = get_viewport().find_world_3d().environment
+		if _environment == null:
+			return
+		_base_reprojection = _environment.volumetric_fog_temporal_reprojection_amount
+	_environment.volumetric_fog_temporal_reprojection_amount = lerpf(_base_reprojection, FLOW_REPROJECTION, strength)
 
 
 ## Flakes ride the volume: the wind in its frame, as many as the flow is strong.
