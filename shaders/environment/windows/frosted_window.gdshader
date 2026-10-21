@@ -14,7 +14,7 @@ uniform float frame_width : hint_range(0.0, 0.2) = 0.06;
 uniform float rail_width : hint_range(0.0, 0.1) = 0.025;
 
 void frosted_window_apply(inout vec3 albedo, inout float rough, vec2 uv, vec4 color) {
-	vec2 f = frost_pattern(uv, color.r, color.g);
+	vec3 f = frost_pattern(uv, color.r, 0.0, color.g);
 	albedo = frost_color(uv, f, glass_tint, frost_tint);
 	rough = mix(0.18, 0.96, f.x);
 	float edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
