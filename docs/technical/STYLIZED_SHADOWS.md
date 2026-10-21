@@ -44,6 +44,22 @@ averages alone do not neutralise a stroke mask. Distant shadows therefore settle
 to three clean tones rather than sub-pixel noise. Noise and mask are fixed to the
 world, so they do not swim with the camera.
 
+The two cuts are one screen pixel wide (`smoothstep` over `fwidth` of the cut value), not hard `step`s.
+Godot's directional cascades are texel-snapped, so the shadow map itself holds under camera translation
+(measured, 256 px atlas, top-down camera moved by whole pixels: no edge change). A hard cut still flipped
+whole contour pixels on every sub-pixel camera move, and the TPS camera's damping moves it by fractions of
+a millimetre every tick, even after Henry stops. Measured on the same aligned frames, contour pixels that
+changed on a 1 px move: 0.112 % with hard cuts, 0.025 % with one-pixel cuts, 0.023 % with no stylisation.
+Technique: analytic antialiasing of a procedural threshold (Golus, "Anti-aliased Alpha Test", 2017).
+
+The sun also turns in steps (`DayNightSettings.sun_step_minutes`, eased over `sun_blend_seconds`): cascade
+stabilisation only holds while the light direction is fixed (Valient, "Stable Rendering of Cascaded Shadow
+Maps", ShaderX6), so a sun re-aimed every game minute moved every shadow every 2.5 s.
+
+Open: the game scene runs `shadow_blur = 1.1` at the default Soft Low filter, not the Soft High / 3.3 above.
+Soft High measured only 0.28 % against 0.35 % changed pixels on a 5 px move (old, misaligned metric), so it
+is not the cause of the boil; restoring the contract is an art call.
+
 ### Local lights
 
 In `light()` an omni or spot `ATTENUATION` is distance falloff × shadow, and

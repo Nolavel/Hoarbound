@@ -100,6 +100,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Static shadows' torn outlines boiled on every camera tick. The three-tone cut used hard `step`s, so the TPS
+  camera's sub-millimetre damping moves flipped whole contour pixels each frame; the cascades themselves are
+  texel-snapped and hold (measured). The cuts are now one pixel wide (`fwidth`): contour pixels changed by a
+  1 px move fell from 0.112 % to 0.025 % (0.023 % with no stylisation), the torn look unchanged.
 - Static shadows jumped every 2.5 s: the sun's direction was re-aimed every game minute (0.25° of azimuth, about
   11 cm at the tip of a 25 m pole shadow), and stable cascades hold only while the light does not turn. The sun
   now turns once per `sun_step_minutes` (4 game minutes, 10 s at the 60-minute day), eased over

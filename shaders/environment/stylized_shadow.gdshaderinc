@@ -120,6 +120,10 @@ float hfn_stylized_shadow(float attenuation, bool directional) {
 		return base;
 	}
 	float v = base + hfn_shadow_spray * 0.5 * HFN_SHADOW_SPRAY_JITTER;
-	float tone = mix(step(HFN_SHADOW_CUT_LOW, v) * HFN_SHADOW_MID_TONE, 1.0, step(HFN_SHADOW_CUT_HIGH, v));
+	// One-pixel cuts (fwidth): a hard step flips whole pixels on sub-pixel camera moves, so contours boiled.
+	float aa = max(fwidth(v), 1e-4) * 0.5;
+	float low = smoothstep(HFN_SHADOW_CUT_LOW - aa, HFN_SHADOW_CUT_LOW + aa, v);
+	float high = smoothstep(HFN_SHADOW_CUT_HIGH - aa, HFN_SHADOW_CUT_HIGH + aa, v);
+	float tone = mix(low * HFN_SHADOW_MID_TONE, 1.0, high);
 	return mix(base, tone, strength);
 }
