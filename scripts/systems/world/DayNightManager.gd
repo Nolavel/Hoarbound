@@ -439,6 +439,11 @@ func _dim_sun_in_snow(delta: float) -> void:
 		world_environment_node.environment.ambient_light_energy = _ambient_energy * (1.0 + SNOW_AMBIENT_LIFT * (1.0 - _snow_beam))
 
 
+## Share of the sun's beam that reaches the ground through falling snow, 0 to 1.
+func get_snow_beam() -> float:
+	return _snow_beam
+
+
 func _snow_beam_target() -> float:
 	var visibility: float = _weather.get_visibility_m() if _weather != null else 0.0
 	return exp(-3.912 * SNOW_BEAM_PATH_M / visibility) if visibility > 0.0 else 1.0

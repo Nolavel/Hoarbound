@@ -45,6 +45,9 @@ signal hlod_tiers_toggle_pressed()
 ## Debug waypoint edges (F5 next target, F6 teleport); only debug builds listen.
 signal dev_waypoint_next_pressed()
 signal dev_waypoint_teleport_pressed()
+## Debug weather edges (F8 cycles the weather, F9 shows its readout); only debug builds listen.
+signal dev_weather_cycle_pressed()
+signal weather_debug_toggle_pressed()
 
 const ACTION_MOVE_FORWARD: StringName = &"move_forward"
 const ACTION_MOVE_BACKWARD: StringName = &"move_backward"
@@ -59,6 +62,8 @@ const ACTION_DEV_MAP_TOGGLE: StringName = &"toggle_dev_map"
 const ACTION_HLOD_TIERS_TOGGLE: StringName = &"toggle_hlod_tiers"
 const ACTION_DEV_WAYPOINT_NEXT: StringName = &"dev_waypoint_next"
 const ACTION_DEV_WAYPOINT_TELEPORT: StringName = &"dev_waypoint_teleport"
+const ACTION_DEV_WEATHER_CYCLE: StringName = &"dev_weather_cycle"
+const ACTION_WEATHER_DEBUG_TOGGLE: StringName = &"toggle_weather_debug"
 const ACTION_LEAN_LEFT: StringName = &"lean_left"
 const ACTION_LEAN_RIGHT: StringName = &"lean_right"
 const ACTION_SWITCH_SHOULDER: StringName = &"switch_shoulder"
@@ -113,6 +118,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		dev_waypoint_next_pressed.emit()
 	if _pressed(event, ACTION_DEV_WAYPOINT_TELEPORT):
 		dev_waypoint_teleport_pressed.emit()
+	if _pressed(event, ACTION_DEV_WEATHER_CYCLE):
+		dev_weather_cycle_pressed.emit()
+	if _pressed(event, ACTION_WEATHER_DEBUG_TOGGLE):
+		weather_debug_toggle_pressed.emit()
 
 
 func _physics_process(delta: float) -> void:

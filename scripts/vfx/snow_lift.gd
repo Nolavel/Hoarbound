@@ -61,6 +61,14 @@ func lift(wind_speed_mps: float = 8.0, snow_cover: float = 1.0) -> void:
 	_restart_if_visible(_haze)
 
 
+## True while any layer of the last streamer is still drawing.
+func is_active() -> bool:
+	for layer: GPUParticles3D in [_creep, _saltation, _suspension, _haze]:
+		if layer.emitting:
+			return true
+	return false
+
+
 func _build_creep() -> GPUParticles3D:
 	var particles := _new_layer("SurfaceCreep", 180, 0.48, 0.18, 0.62)
 	particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY

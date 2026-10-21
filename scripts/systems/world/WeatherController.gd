@@ -173,6 +173,16 @@ func get_current_profile() -> WeatherProfile:
 	return _current
 
 
+## Share of the current profile blended in, 0 to 1.
+func get_blend() -> float:
+	return _blend
+
+
+## Game hours left before the scheduler picks the next profile.
+func get_remaining_hours() -> float:
+	return _remaining_h
+
+
 ## Blended ambient offset in degrees Celsius, before wind chill.
 func get_ambient_offset_c() -> float:
 	return _ambient_offset_c

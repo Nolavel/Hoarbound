@@ -40,6 +40,11 @@ func blow(wind_speed_mps: float, snow_cover: float) -> void:
 	_fade_shade(SHADE_ALPHA * cover * lerpf(0.6, 1.0, wind_t))
 
 
+## True while the plume is fed or its last puffs are in the air.
+func is_active() -> bool:
+	return _plume.emitting or (_shade.modulate.a > 0.01)
+
+
 func _build_plume() -> GPUParticles3D:
 	var particles := GPUParticles3D.new()
 	particles.name = "Plume"
