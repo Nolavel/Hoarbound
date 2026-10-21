@@ -8,6 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Key West mug model (owner request): `SurvivalItemVisual` draws `assets/items/mug/Mug_game_ready.glb` for the
+  mug, mug of snow and warm water (held, world pickups, shelter cabinet) instead of the grey cylinder. The model is
+  real scale (13 x 8.7 x 10 cm, base at 0); snow and water are a disc inside the measured 4.4 cm inner wall.
+  Henry starts with the mug in the pack lid pocket instead of the pack, so one Quick Access pocket is free at start.
 - Weather debug (debug builds, Key West), one key, 0. The first press shows the profile, scheduler or pin,
   blend, wind and drift gate, snowfall, visibility, cover, hour, sun beam, shelter state and the live streak,
   ground-drift and spindrift counts. Each next press pins calm, snowfall, windy, blizzard in turn; the one
