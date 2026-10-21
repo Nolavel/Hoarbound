@@ -197,8 +197,9 @@ void vertex() {
 	v_line = smoothstep(1.0, 2.0, v_stretch);
 	// Far flakes grow to min_px (at 1080 lines) and fade by as much, so distance thins the fall, not erases it.
 	float depth = max(-(MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).z, 0.05);
-	float px = length(MODELVIEW_MATRIX[0].xyz) * star_m * PROJECTION_MATRIX[1][1] * 540.0 / depth;
-	v_grow = max(min_px / max(px, 1e-4), 1.0);
+	// Vulkan's projection flips y, so [1][1] is negative there.
+	float px = length(MODELVIEW_MATRIX[0].xyz) * star_m * abs(PROJECTION_MATRIX[1][1]) * 540.0 / depth;
+	v_grow = clamp(min_px / max(px, 1e-4), 1.0, 16.0);
 	VERTEX.xy *= v_grow;
 	if (UV.x < 0.0) {
 		VERTEX.xy *= 1.0 - 0.5 * v_line;
