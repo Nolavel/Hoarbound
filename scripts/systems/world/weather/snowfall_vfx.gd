@@ -16,8 +16,9 @@ const FOREGROUND_HEIGHT: float = 1.0
 ## Wind (gusts included) where falling dots start to smear into lines, and where lines are full length.
 const STREAK_START_MPS: float = 6.0
 const STREAK_FULL_MPS: float = 20.0
-## Diameter of a calm-air flake dot, metres.
+## Diameter of a calm-air flake dot, metres; far dots never draw under FLAKE_MIN_PX at 1080 lines.
 const FLAKE_DOT_M: float = 0.016
+const FLAKE_MIN_PX: float = 2.5
 
 var weather_controller: WeatherController
 var follow_target: Node3D
@@ -171,10 +172,19 @@ func _build_flake_dot_mesh(diameter: float) -> ArrayMesh:
 shader_type spatial;
 render_mode unshaded, cull_disabled;
 
+uniform float dot_m;
+uniform float min_px;
+
 varying float v_stretch;
+varying float v_grow;
 
 void vertex() {
 	v_stretch = max(INSTANCE_CUSTOM.z, 1.0);
+	// Far dots grow to min_px (at 1080 lines) and fade by as much, so distance thins the fall, not erases it.
+	float depth = max(-(MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).z, 0.05);
+	float px = length(MODELVIEW_MATRIX[0].xyz) * dot_m * PROJECTION_MATRIX[1][1] * 540.0 / depth;
+	v_grow = max(min_px / max(px, 1e-4), 1.0);
+	VERTEX.xy *= v_grow;
 	VERTEX.y *= v_stretch;
 }
 
@@ -183,10 +193,12 @@ void fragment() {
 	float d = length(vec2(p.x, max(abs(p.y) - (v_stretch - 1.0) * 0.5, 0.0)));
 	float aa = max(fwidth(d), 1e-4);
 	ALBEDO = COLOR.rgb;
-	ALPHA = COLOR.a * (1.0 - smoothstep(0.5 - aa, 0.5, d)) * inversesqrt(v_stretch);
+	ALPHA = COLOR.a * (1.0 - smoothstep(0.5 - aa, 0.5, d)) * inversesqrt(v_stretch) / v_grow;
 }
 """
 	material.shader = draw_shader
+	material.set_shader_parameter("dot_m", diameter)
+	material.set_shader_parameter("min_px", FLAKE_MIN_PX)
 	mesh.surface_set_material(0, material)
 	return mesh
 
