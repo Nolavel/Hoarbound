@@ -49,4 +49,4 @@ metadata/source = "Debug builds only: F5 cycles First Exit route goals and liste
 
 [node name="WeatherDebug" type="Node" parent="."]
 script = ExtResource("9_weather_debug")
-metadata/source = "Debug builds only: F9 weather readout, F8 cycles calm, snowfall, windy, blizzard, then back to the scheduler"
+metadata/source = "Debug builds only: key 0 shows the weather readout, then cycles calm, snowfall, windy, blizzard and back to the scheduler"

@@ -1,8 +1,8 @@
 class_name WeatherDebug
 extends Node
 
-## Debug builds only: F9 shows a readout of what the weather is doing and why the wind effects
-## run or not; F8 pins the next weather in CYCLE, the last step hands it back to the scheduler.
+## Debug builds only, one key (0): the first press shows what the weather is doing and why the wind
+## effects run or not; each next press pins the next weather in CYCLE, the last one hands it back.
 
 const WEATHER_SCRIPT: GDScript = preload("res://scripts/systems/world/WeatherController.gd")
 const THERMAL_SCRIPT: GDScript = preload("res://scripts/systems/survival/thermal_manager.gd")
@@ -38,26 +38,26 @@ func on_world_ready(context: WorldContext) -> void:
 	if input_systems == null or not input_systems.has_signal(&"dev_weather_cycle_pressed"):
 		return
 	input_systems.connect(&"dev_weather_cycle_pressed", cycle_weather)
-	input_systems.connect(&"weather_debug_toggle_pressed", toggle)
 
 
-func toggle() -> void:
-	_layer.visible = not _layer.visible
-	_refresh_left = 0.0
-
-
-## Pins the next weather in CYCLE at once; the empty step returns control to the scheduler.
+## Shows the readout first; then pins the next weather in CYCLE at once. The empty step returns
+## control to the scheduler and hides the readout.
 func cycle_weather() -> void:
 	if _weather == null:
+		return
+	if not _layer.visible:
+		_layer.visible = true
+		_refresh_left = 0.0
 		return
 	_cycle_index = (_cycle_index + 1) % CYCLE.size()
 	var id: StringName = CYCLE[_cycle_index]
 	if id == &"":
 		var current: WeatherProfile = _weather.get_current_profile()
 		_weather.set_weather(current.id if current != null else &"calm", true)
-	else:
-		_weather.set_weather(id, true, PIN_HOURS)
-	_layer.visible = true
+		_cycle_index = -1
+		_layer.visible = false
+		return
+	_weather.set_weather(id, true, PIN_HOURS)
 	_refresh_left = 0.0
 
 
@@ -81,7 +81,7 @@ func _readout() -> String:
 	var bearing: float = fposmod(rad_to_deg(atan2(direction.x, -direction.z)), 360.0)
 	var lines: PackedStringArray = []
 	lines.append("WEATHER  %s  %s  blend %.2f  next in %.1f h" % [
-		profile.id if profile != null else "none", "pinned (F8)" if pinned else "scheduler",
+		profile.id if profile != null else "none", "pinned (0)" if pinned else "scheduler",
 		_weather.get_blend(), _weather.get_remaining_hours()])
 	lines.append("wind %.1f m/s toward %03d°  drift %s (from %.0f m/s)" % [
 		wind, int(bearing), "on" if wind >= WindGusts.MIN_WIND_MPS else "off", WindGusts.MIN_WIND_MPS])
@@ -99,7 +99,7 @@ func _readout() -> String:
 	if _snowfall != null and _snowfall.particles != null:
 		lines.append("snowfall emitting %s  ratio %.2f  at %s" % [
 			str(_snowfall.particles.emitting), _snowfall.particles.amount_ratio, str(_snowfall.global_position.round())])
-	lines.append("F8 next weather   F9 hide")
+	lines.append("0: next weather (calm, snowfall, windy, blizzard, back to scheduler)")
 	return "\n".join(lines)
 
 

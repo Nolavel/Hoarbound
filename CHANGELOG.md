@@ -8,9 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
-- Weather debug (debug builds, Key West): F9 shows the profile, scheduler or pin, blend, wind and drift gate,
-  snowfall, visibility, cover, hour, sun beam, shelter state and the live streak, ground-drift and spindrift
-  counts. F8 pins calm, snowfall, windy, blizzard in turn, then hands the weather back to the scheduler.
+- Weather debug (debug builds, Key West), one key, 0. The first press shows the profile, scheduler or pin,
+  blend, wind and drift gate, snowfall, visibility, cover, hour, sun beam, shelter state and the live streak,
+  ground-drift and spindrift counts. Each next press pins calm, snowfall, windy, blizzard in turn; the one
+  after blizzard hands the weather back to the scheduler and hides the readout.
 - Rooms frame Henry low-left (owner note): any room uses the tight composition and the camera rises until his eyes
   sit at mid-height (stove 29–30 % / 46–47 %, was 33 % / 37 %). Auto shoulder swap when the player's side is walled off
   and the other is free, with delays, never in doorways or during mouse turns (Sifu, a Borderlands 4 camera mod;
