@@ -24,7 +24,7 @@ const BURST_SPACING: float = 0.3
 ## Spots tried per ground streamer; one is drawn by transport score, so drift smokes off
 ## crests, scoured ground and lee eaves, and only now and then off plain cover.
 const DRIFT_CANDIDATES: int = 10
-const COVER_WEIGHT: float = 0.25
+const COVER_WEIGHT: float = 0.06
 const CREST_WEIGHT: float = 3.0
 const SCOUR_WEIGHT: float = 1.5
 const EAVE_WEIGHT: float = 3.0
