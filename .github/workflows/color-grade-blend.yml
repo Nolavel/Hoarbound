@@ -75,4 +75,4 @@ jobs:
             docs/runtime_previews/color_grade_blend/**/*.png
             docs/runtime_previews/color_grade_blend/capture.log
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3

@@ -66,3 +66,4 @@ jobs:
         with:
           name: suites-log
           path: suites.log
+          retention-days: 3
