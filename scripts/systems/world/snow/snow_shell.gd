@@ -274,6 +274,7 @@ func on_world_ready(context: WorldContext) -> void:
 	_player = context.player
 	_world_root = context.world
 	active = self
+	BootLoadCapability.publish(self, self, &"has_boot_work")
 	_weather = context.get_system(WEATHER_SCRIPT) as WeatherController
 	_presentation = context.get_system(PRESENTATION_SCRIPT) as SnowPresentationSystem
 	_terrain = context.find_in_scene(TERRAIN_SCRIPT)
@@ -721,6 +722,11 @@ func _refresh_far_grid(window_origin: Vector2, retry: bool = false) -> void:
 		_far_retries -= 1
 	_far_grid_origin = grid_origin
 	_far_ready = true
+
+
+## True while the field still rebuilds or waits to re-read ground that streamed in (BootLoadCapability).
+func has_boot_work() -> bool:
+	return field.is_rebuilding() or (_field_ground_partial and _field_retries > 0)
 
 
 ## A field built before its chunks streamed in cached the fallback ground (a snow top up to

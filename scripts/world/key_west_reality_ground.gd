@@ -28,6 +28,8 @@ var _snow: Dictionary = {}
 var _snow_root: Node3D
 var _pave_jobs: Dictionary = {}
 var _streets: Dictionary = {}
+## Chunks live at boot whose paving or cover is unfinished: built at full speed under the startup card.
+var _boot_keys: Dictionary = {}
 
 
 func _ready() -> void:
@@ -52,13 +54,29 @@ func _process(_delta: float) -> void:
 	if not _snow_jobs.is_empty():
 		var key: Vector2i = _nearest(_snow_jobs.keys(), centre)
 		var job: SnowChunkCover.Job = _snow_jobs[key]
-		if SnowChunkCover.step(job, 1 << 40 if _under_henry(key, window, centre) else SNOW_BUDGET_USEC):
+		if SnowChunkCover.step(job, 1 << 40 if _rush(key, window, centre) else SNOW_BUDGET_USEC):
 			_snow_jobs.erase(key)
 			_attach_snow(key, SnowChunkCover.finish(job))
+			_settle_boot(key)
 	if not _pave_jobs.is_empty():
 		var lot: Vector2i = _nearest(_pave_jobs.keys(), centre)
-		if _pave_step(lot, 1 << 40 if _under_henry(lot, window, centre) else PAVE_BUDGET_USEC):
+		if _pave_step(lot, 1 << 40 if _rush(lot, window, centre) else PAVE_BUDGET_USEC):
 			_pave_jobs.erase(lot)
+			_settle_boot(lot)
+
+
+## True while chunks live at boot still pave or build cover (BootLoadCapability).
+func has_boot_work() -> bool:
+	return not _boot_keys.is_empty()
+
+
+func _rush(key: Vector2i, window: Vector4, centre: Vector2) -> bool:
+	return _boot_keys.has(key) or _under_henry(key, window, centre)
+
+
+func _settle_boot(key: Vector2i) -> void:
+	if not _snow_jobs.has(key) and not _pave_jobs.has(key):
+		_boot_keys.erase(key)
 
 
 func _nearest(keys: Array, centre: Vector2) -> Vector2i:
@@ -81,6 +99,9 @@ func on_world_ready(context: WorldContext) -> void:
 	if _container != null:
 		for chunk: Node in _container.get_children():
 			_index(chunk)
+	for key: Vector2i in _snow_jobs.keys() + _pave_jobs.keys():
+		_boot_keys[key] = true
+	BootLoadCapability.publish(self, self, &"has_boot_work")
 
 
 ## Terrain height (NAVD88 m) at local x/z, bilinear on the chunk's HeightMapShape3D data.
@@ -371,6 +392,7 @@ func _drop(key: Vector2i) -> void:
 	_pave_jobs.erase(key)
 	_streets.erase(key)
 	_snow_jobs.erase(key)
+	_boot_keys.erase(key)
 	if _snow.has(key):
 		(_snow[key] as Node).queue_free()
 		_snow.erase(key)

@@ -46,7 +46,6 @@ var _volumes: Array[FogVolume] = []
 var _materials: Array[ShaderMaterial] = []
 var _flakes: Array[GPUParticles3D] = []
 var _lifts: Array[SnowLift] = []
-var _lift_index: int = 0
 var _drift_left: float = 0.0
 var _environment: Environment
 var _base_reprojection: float = -1.0
@@ -132,6 +131,10 @@ func _process(delta: float) -> void:
 		material.set_shader_parameter(&"wind", along * wind)
 		_steer_flakes(i, along, wind, strength)
 	_soften_reprojection(strength)
+	if _environment != null:
+		var ambient: Color = _environment.ambient_light_color.srgb_to_linear() * _environment.ambient_light_energy
+		for material: ShaderMaterial in _materials:
+			material.set_shader_parameter(&"ambient", Vector3(ambient.r, ambient.g, ambient.b))
 	_drift_left -= delta * strength
 	if _drift_left <= 0.0 and strength > 0.05:
 		_drift_left = DRIFT_INTERVAL_S * randf_range(0.6, 1.4)
@@ -236,24 +239,24 @@ func _spawn_drift(along: Vector3, wind: float) -> void:
 	for i: int in range(POOL_SIZE):
 		if _levels[i] > 0.3:
 			lit.append(i)
-	if lit.is_empty():
+	var camera: Camera3D = get_viewport().get_camera_3d()
+	var lift: SnowLift = null
+	for candidate: SnowLift in _lifts:
+		if not candidate.is_active():
+			lift = candidate
+			break
+	if lit.is_empty() or camera == null or lift == null:
 		return
-	var volume: FogVolume = _volumes[lit[randi() % lit.size()]]
-	var local := Vector3(randf_range(-0.5, 0.5) * volume.size.x, 0.0, randf_range(-0.4, 0.4) * volume.size.z)
-	var at: Vector3 = volume.global_transform * local
-	if Vector2(at.x - _player.global_position.x, at.z - _player.global_position.z).length() > DRIFT_REACH_M:
-		return
-	var from := Vector3(at.x, _player.global_position.y + 9.0, at.z)
-	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * 14.0))
-	if hit.is_empty() or (hit["normal"] as Vector3).y < 0.8:
-		return
-	var normal: Vector3 = hit["normal"]
-	var surface_along: Vector3 = (along - normal * along.dot(normal)).normalized()
-	var lift: SnowLift = _lifts[_lift_index]
-	_lift_index = (_lift_index + 1) % _lifts.size()
-	lift.global_transform = Transform3D(Basis(surface_along, normal, surface_along.cross(normal)).orthonormalized(),
-		(hit["position"] as Vector3) + normal * 0.025)
-	lift.lift(wind, _weather.get_snow_cover())
+	## A few tries: only sweeps seen whole on screen are worth playing.
+	for attempt: int in range(3):
+		var volume: FogVolume = _volumes[lit[randi() % lit.size()]]
+		var local := Vector3(randf_range(-0.5, 0.5) * volume.size.x, 0.0, randf_range(-0.4, 0.4) * volume.size.z)
+		var spot: Vector3 = volume.global_transform * local
+		if Vector2(spot.x - _player.global_position.x, spot.z - _player.global_position.z).length() > DRIFT_REACH_M:
+			continue
+		spot.y = _player.global_position.y
+		if lift.launch_through(spot, along, wind, _weather.get_snow_cover(), camera):
+			return
 
 
 func _build_flakes() -> GPUParticles3D:

@@ -25,7 +25,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   Henry starts with the mug in the pack lid pocket instead of the pack, so one Quick Access pocket is free at start.
 - Weather debug (debug builds, Key West), one key, 0. The first press shows the profile, scheduler or pin,
   blend, wind and drift gate, snowfall, visibility, cover, hour, sun beam, shelter state and the live streak,
-  ground-drift and spindrift counts. Each next press pins calm, snowfall, windy, blizzard in turn; the one
+  ground-drift counts. Each next press pins calm, snowfall, windy, blizzard in turn; the one
   after blizzard hands the weather back to the scheduler and hides the readout.
 - Rooms frame Henry low-left (owner note): any room uses the tight composition and the camera rises until his eyes
   sit at mid-height (stove 29–30 % / 46–47 %, was 33 % / 37 %). Auto shoulder swap when the player's side is walled off
@@ -119,6 +119,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Spindrift removed (owner: the plume "bubbles" do not fit). `SnowSpindrift` and its spawning in `WindGusts`
+  are gone; the original ground streamers stay. The blowing-snow threshold (`WindGusts.blowing_snow_threshold`)
+  stays for the blizzard flow.
 - A square of snow around Henry at scene start, then a hitch and it vanished (owner report). Road paving
   had been queued ahead of the chunk snow covers, so no cover was built (measured: 0 of 4 at frame 60)
   while paving ran. Henry's rings drew a square of snow over bare terrain until the queue cleared and the
@@ -231,13 +234,19 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
-- Spindrift: a second drift effect beside the original ground streamers (left as they were). It fires only
-  when the wind passes the blowing-snow threshold for the snowpack (5 m/s fresh to 10 m/s crusted, Li &
-  Pomeroy 1997), more often the further over it, and roof lips only once the weather has laid snow (cover 0.2). Plumes smoke off
-  drift crests (a lee drop of 2–8 cm over 1.2 m in the snow field) and lee roof eaves (a building footprint
-  whose roof is gone or 1.2 m lower 1.5 m downwind), only on fresh snow. They are lofted off the lip, with
-  two-tone puffs (white core, cool rim) and a soft decal shade on the snow under the plume, so they read on
-  white snow. Snowfall stays the six-armed stars (author call: the wind-line version read as rain).
+- Ground drift travels as a wave (owner note: it appeared in place, straight). Each `SnowLift` streamer is now a
+  sweep: the emitter runs downwind for 1.6–2.4 s at 0.45 of the 10 m wind along a shallow arc (bow 5–9 % of
+  its length, side at random), snapped to the ground, shedding its four layers into a world-space trail that
+  swells in and dies out. A 12 m/s sweep is ~9 m (was a fixed 5 m patch); it ends at a kerb over 0.6 m or a
+  slope. A sweep starts only when its start, middle and end are on screen and it crosses open snow (no
+  footprint at either end, no canopy over the start). Both drift sources use it: the wind drift ahead of Henry
+  and the blizzard flow streets (`test_snow_lift_sweep`). The technique is a moving emitter leaving a world-space
+  trail (Godot `local_coords = false`), as trail emitters do.
+- The world shows finished (owner note: a square of bare snow at start that went away a minute later). The
+  startup card now holds until boot work is done, through a new `BootLoadCapability` (`core/contracts/`):
+  `KeyWestRealityGround` reports the chunks live at boot until their paving and snow cover are built, and
+  builds them at full speed under the card; `SnowShell` reports a field rebuild or a pending ground re-read.
+  The card waits at most 30 s.
 - In falling snow the sun dims with visibility (Koschmieder extinction 3.912 / visibility over a 30 m beam
   path): ~7 % of the sun in a 45 m blizzard, ~59 % in 220 m snowfall, 75 % in 400 m windy weather. The lost
   beam returns as grey-white fill (1.86 ambient per unit of sun, measured: linear snow sun 0.48, sky 0.086),

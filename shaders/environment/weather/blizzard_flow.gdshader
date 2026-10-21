@@ -7,7 +7,8 @@ uniform vec3 wind = vec3(0.0);
 uniform float scale_height = 1.6;
 uniform sampler3D flow_noise : repeat_enable;
 uniform vec3 snow_albedo : source_color = vec3(0.97, 0.98, 1.0);
-uniform float glow = 0.18;
+// Overcast radiance the blown snow scatters (environment ambient, linear), set by the flow each frame.
+uniform vec3 ambient = vec3(0.5);
 
 void fog() {
 	// Height above the street: the box sits with its base just under the pavement.
@@ -25,6 +26,6 @@ void fog() {
 	// About 40 % of the box is cloud: the cores carry the box's mean extinction.
 	DENSITY = density * 5.0 * profile * shape * fade;
 	ALBEDO = snow_albedo;
-	// Blown snow forward-scatters the overcast: the billows read lighter than the fog behind them.
-	EMISSION = snow_albedo * glow * shape * profile;
+	// Godot scales EMISSION by density, so a core settles at this radiance: the overcast it scatters.
+	EMISSION = snow_albedo * ambient;
 }

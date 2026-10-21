@@ -96,8 +96,8 @@ func _readout() -> String:
 		lines.append("hour %02d:%02d  sun beam %d %%" % [int(hour), int(fmod(hour, 1.0) * 60.0), int(round(_day_night.get_snow_beam() * 100.0))])
 	lines.append("sheltered %s" % (str(_thermal.is_sheltered()) if _thermal != null else "?"))
 	if _gusts != null:
-		var counts: Vector3i = _gusts.get_active_counts()
-		lines.append("streaks %d  ground drift %d  spindrift %d" % [counts.x, counts.y, counts.z])
+		var counts: Vector2i = _gusts.get_active_counts()
+		lines.append("streaks %d  ground drift %d" % [counts.x, counts.y])
 	if _blizzard != null:
 		var extinction: float = _blizzard.get_extinction()
 		lines.append("blizzard flow %d streets  blown-snow visibility %s  (from %.1f m/s)" % [
