@@ -240,7 +240,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   swells in and dies out. A 12 m/s sweep is ~9 m (was a fixed 5 m patch); it ends at a kerb over 0.6 m or a
   slope. A sweep starts only when its start, middle and end are on screen and it crosses open snow (no
   footprint at either end, no canopy over the start). Both drift sources use it: the wind drift ahead of Henry
-  and the blizzard flow streets (`test_snow_lift_sweep`). The technique is a moving emitter leaving a world-space
+  and the blizzard flow streets (`test_snow_lift_sweep`). The head now rides the drawn snow top
+  (`SnowField.get_snow_top`): it stood on the physics ground, 0.23–0.49 m under the snow at the Duval spawn
+  (measured), so the grains were buried and the drift barely showed on snow. The technique is a moving emitter leaving a world-space
   trail (Godot `local_coords = false`), as trail emitters do.
 - The world shows finished (owner note: a square of bare snow at start that went away a minute later). The
   startup card now holds until boot work is done, through a new `BootLoadCapability` (`core/contracts/`):

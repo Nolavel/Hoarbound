@@ -19,6 +19,8 @@ const HEAD_WIND_SHARE: float = 0.45
 const BOW_PER_M: float = 0.09
 ## Highest step the head climbs or drops before the sweep ends (a kerb, not a wall).
 const MAX_STEP_M: float = 0.6
+## Deepest settled snow over the physics ground, metres.
+const DEEPEST_SNOW_M: float = 1.0
 ## Cover lower than this over a sweep start is a canopy or porch roof.
 const CANOPY_M: float = 5.0
 
@@ -91,9 +93,17 @@ func launch_through(spot: Vector3, along: Vector3, wind_speed_mps: float, snow_c
 		return false
 	surface_along = surface_along.normalized()
 	global_transform = Transform3D(Basis(surface_along, normal, surface_along.cross(normal)).orthonormalized(),
-		at + normal * 0.025)
+		_on_snow(at) + normal * 0.025)
 	lift(wind_speed_mps, snow_cover)
 	return true
+
+
+## The drawn snow top over a physics ground point: the ground lies a settled depth (~0.2–0.5 m) under it,
+## so grains emitted there were buried in the snow.
+static func _on_snow(ground: Vector3) -> Vector3:
+	var field: SnowField = SnowShell.active.field if is_instance_valid(SnowShell.active) else null
+	var top: float = field.get_snow_top(ground.x, ground.z) if field != null else -INF
+	return Vector3(ground.x, maxf(ground.y, top), ground.z)
 
 
 ## Plays one irregular ground-drift streamer, sweeping downwind from the current transform.
@@ -163,7 +173,8 @@ func _follow_ground(t: float) -> bool:
 	var point: Vector3 = _start.origin + along * _length * t + side * _bow * sin(PI * t)
 	var tangent: Vector3 = (along * _length + side * _bow * PI * cos(PI * t)).normalized()
 	var from: Vector3 = point + Vector3.UP * MAX_STEP_M
-	var query := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * MAX_STEP_M * 2.0)
+	## The head rides the snow top; the physics ground lies up to the deepest drift below it.
+	var query := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * (MAX_STEP_M * 2.0 + DEEPEST_SNOW_M))
 	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
 		return false
@@ -172,7 +183,7 @@ func _follow_ground(t: float) -> bool:
 		return false
 	tangent = (tangent - normal * tangent.dot(normal)).normalized()
 	global_transform = Transform3D(Basis(tangent, normal, tangent.cross(normal)).orthonormalized(),
-		(hit["position"] as Vector3) + normal * 0.025)
+		_on_snow(hit["position"]) + normal * 0.025)
 	return true
 
 
