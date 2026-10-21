@@ -112,6 +112,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- A square of snow around Henry at scene start, then a hitch and it vanished (owner report). Road paving
+  had been queued ahead of the chunk snow covers, so no cover was built (measured: 0 of 4 at frame 60)
+  while paving ran. Henry's rings drew a square of snow over bare terrain until the queue cleared and the
+  cover under him landed in one frame. Covers and paving now run side by side on their own budgets
+  (3 ms / 1.5 ms), the cover under Henry first. The field rebuild that follows paving is sliced like a
+  walking move instead of done at once.
 - Quick Access cards overlapping at some camera angles (owner note).
   - Cause: the layout blended spread and cross by how much the cards overlapped, so a partial overlap gave a
     partial blend that left them on top of each other (`test_quick_access_layout`: 71 overlaps on the old code).

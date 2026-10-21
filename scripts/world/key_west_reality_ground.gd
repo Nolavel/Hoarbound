@@ -10,6 +10,8 @@ const CHUNK_M: float = 512.0
 const FALLBACK_Y: float = 1.0
 ## Snow cover build time per frame.
 const SNOW_BUDGET_USEC: int = 3000
+## Road paving time per frame, beside the cover's.
+const PAVE_BUDGET_USEC: int = 1500
 ## A sample on a chunk's far edge belongs to the next chunk; nudge back into this one.
 const EDGE_NUDGE_M: float = 0.01
 ## Road ribbons ride a few centimetres over the terrain; anything higher is a deck the physics ray owns.
@@ -45,16 +47,18 @@ func _process(_delta: float) -> void:
 		return
 	var window: Vector4 = SnowShell.live_window
 	var centre: Vector2 = Vector2(window.x, window.y) + Vector2.ONE * window.z * 0.5
+	## Cover and paving run side by side on their own budgets: a cover waiting on paving left
+	## the chunk bare outside Henry's rings (a square of snow) until it all landed in one hitch.
+	if not _snow_jobs.is_empty():
+		var key: Vector2i = _nearest(_snow_jobs.keys(), centre)
+		var job: SnowChunkCover.Job = _snow_jobs[key]
+		if SnowChunkCover.step(job, 1 << 40 if _under_henry(key, window, centre) else SNOW_BUDGET_USEC):
+			_snow_jobs.erase(key)
+			_attach_snow(key, SnowChunkCover.finish(job))
 	if not _pave_jobs.is_empty():
 		var lot: Vector2i = _nearest(_pave_jobs.keys(), centre)
-		if _pave_step(lot, 1 << 40 if _under_henry(lot, window, centre) else SNOW_BUDGET_USEC):
+		if _pave_step(lot, 1 << 40 if _under_henry(lot, window, centre) else PAVE_BUDGET_USEC):
 			_pave_jobs.erase(lot)
-		return
-	var key: Vector2i = _nearest(_snow_jobs.keys(), centre)
-	var job: SnowChunkCover.Job = _snow_jobs[key]
-	if SnowChunkCover.step(job, 1 << 40 if _under_henry(key, window, centre) else SNOW_BUDGET_USEC):
-		_snow_jobs.erase(key)
-		_attach_snow(key, SnowChunkCover.finish(job))
 
 
 func _nearest(keys: Array, centre: Vector2) -> Vector2i:

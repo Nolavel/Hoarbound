@@ -733,14 +733,15 @@ func _retry_field_ground(live: bool) -> void:
 			or not streamed.has_surface_at(_field_unknown_at.x, _field_unknown_at.y):
 		return
 	_field_retries -= 1
-	var cover: float = _cover()
-	var wind: Vector2 = _wind()
+	_move_from = field.origin
+	_move_cover = _cover()
+	_move_wind = _wind()
 	field.storm_share = _storm_share()
 	field.firmness = _firmness()
 	field.invalidate()
 	_field_ground_partial = false
-	field.rebuild(field.origin, cover, wind)
-	_apply_window(field.origin, field.origin, cover, wind)
+	## Sliced like a walking move (_follow steps it): at once it stalled the game for a frame.
+	field.begin_rebuild(_move_from, _move_cover, _move_wind)
 
 
 ## Rings out to the chunk handoff when a chunk cover takes over, else over the whole window.
