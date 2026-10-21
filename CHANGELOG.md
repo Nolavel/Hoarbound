@@ -245,7 +245,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - The world shows finished (owner note: a square of bare snow at start that went away a minute later). The
   startup card now holds until boot work is done, through a new `BootLoadCapability` (`core/contracts/`):
   `KeyWestRealityGround` reports the chunks live at boot until their paving and snow cover are built, and
-  builds them at full speed under the card; `SnowShell` reports a field rebuild or a pending ground re-read.
+  builds them at full speed under the card; `SnowShell` reports a pending re-read of ground that streamed in
+  (weather rebuilds do not count: the old window stays drawn, and in a blizzard they run all the time).
   The card waits at most 30 s and logs who was still pending. A field sample over ground that never streams
   (open sea past the chunks) is not boot work: it held the first run at the 30 s cap.
 - In falling snow the sun dims with visibility (Koschmieder extinction 3.912 / visibility over a 30 m beam

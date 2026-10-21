@@ -75,8 +75,8 @@ func _rush(key: Vector2i, window: Vector4, centre: Vector2) -> bool:
 
 
 func _settle_boot(key: Vector2i) -> void:
-	if not _snow_jobs.has(key) and not _pave_jobs.has(key):
-		_boot_keys.erase(key)
+	if not _snow_jobs.has(key) and not _pave_jobs.has(key) and _boot_keys.erase(key) and _boot_keys.is_empty():
+		print("[Boot] ground paved and covered at %.1f s" % (Time.get_ticks_msec() / 1000.0))
 
 
 func _nearest(keys: Array, centre: Vector2) -> Vector2i:

@@ -724,12 +724,11 @@ func _refresh_far_grid(window_origin: Vector2, retry: bool = false) -> void:
 	_far_ready = true
 
 
-## True while the field still rebuilds or waits to re-read ground that streamed in (BootLoadCapability).
+## True while the field waits to re-read ground that has streamed in (BootLoadCapability). Weather
+## rebuilds do not count: the old window stays drawn until the new one swaps in.
 func has_boot_work() -> bool:
-	if field.is_rebuilding():
-		return true
 	var streamed := _terrain as KeyWestRealityGround
-	## Ground that never streams (open sea past the chunks) is not boot work; ground that did is.
+	## Ground that never streams (open sea past the chunks) is not boot work.
 	return _field_ground_partial and _field_retries > 0 and streamed != null \
 		and streamed.has_surface_at(_field_unknown_at.x, _field_unknown_at.y)
 
