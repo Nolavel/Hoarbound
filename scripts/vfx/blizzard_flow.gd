@@ -19,7 +19,7 @@ const TABLER_B: float = 4.85
 const MAX_EXTINCTION: float = 0.3
 ## Flow box height above the street and the e-folding height of blown snow in it, metres.
 const FLOW_HEIGHT_M: float = 7.0
-const SNOW_SCALE_HEIGHT_M: float = 1.6
+const SNOW_SCALE_HEIGHT_M: float = 3.0
 ## The weather has to have laid snow to blow.
 const MIN_COVER: float = 0.2
 const RESELECT_S: float = 0.5
