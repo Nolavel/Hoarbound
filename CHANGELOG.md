@@ -8,6 +8,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Floor snow prints (owner request): indoors Henry's boots leave white prints, the inverse of the snow print:
+  white where the tread's grooves packed with snow outside, broken into clumps (`BootSole.floor_print_image`,
+  the same lug pattern the snow shader presses). A step outside on snow fills the tread; each indoor step
+  leaves 20 % of what it holds, so about ten prints fade out step by step, and the tread melts empty in about
+  2 min in a 20 °C room. A print holds, then fades over its last half: 5 min in a 20 °C room, 25 min at
+  0 °C (`FloorSnowPrints`, `test_floor_snow_prints`).
 - Blizzard flow (`BlizzardFlow`, FUTURE_INTENT §10): blown snow as fog volumes on the wide streets
   (pavement ≥ 7 m, Key West's top ~15 % of road length) that run with the wind (|cos| ≥ 0.6, street-canyon
   channelling), up to six near Henry. Density is the blowing-snow extinction for the live 10 m wind, gusts
