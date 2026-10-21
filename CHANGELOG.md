@@ -242,7 +242,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   footprint at either end, no canopy over the start). Both drift sources use it: the wind drift ahead of Henry
   and the blizzard flow streets (`test_snow_lift_sweep`). The head now rides the drawn snow top
   (`SnowField.get_snow_top`): it stood on the physics ground, 0.23–0.49 m under the snow at the Duval spawn
-  (measured), so the grains were buried and the drift barely showed on snow. The technique is a moving emitter leaving a world-space
+  (measured), so the grains were buried and the drift barely showed on snow. On lit snow the grey grains
+  (0.8) still matched the surface, so the grains are lighter (0.95) and the sweep drags a soft cool shade
+  over the snow under its trail (owner's idea from the spindrift round). The technique is a moving emitter leaving a world-space
   trail (Godot `local_coords = false`), as trail emitters do.
 - The world shows finished (owner note: a square of bare snow at start that went away a minute later). The
   startup card now holds until boot work is done, through a new `BootLoadCapability` (`core/contracts/`):

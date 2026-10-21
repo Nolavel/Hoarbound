@@ -19,6 +19,10 @@ const HEAD_WIND_SHARE: float = 0.45
 const BOW_PER_M: float = 0.09
 ## Highest step the head climbs or drops before the sweep ends (a kerb, not a wall).
 const MAX_STEP_M: float = 0.6
+## Grains lighter than lit snow; the shade under the trail is a cool blue, as snow shadow is.
+const GRAIN_COLOR: Color = Color(0.95, 0.96, 0.98)
+const SHADE_COLOR: Color = Color(0.42, 0.48, 0.62)
+const SHADE_ALPHA: float = 0.16
 ## Deepest settled snow over the physics ground, metres.
 const DEEPEST_SNOW_M: float = 1.0
 ## Cover lower than this over a sweep start is a canopy or porch roof.
@@ -34,7 +38,8 @@ var _saltation: GPUParticles3D
 var _suspension: GPUParticles3D
 var _haze: GPUParticles3D
 var _layers: Array[GPUParticles3D] = []
-var _ratios: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
+var _shade: GPUParticles3D
+var _ratios: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0, 0.0])
 var _start: Transform3D
 var _length: float = 0.0
 var _bow: float = 0.0
@@ -48,7 +53,8 @@ func _ready() -> void:
 	_saltation = _build_saltation()
 	_suspension = _build_suspension()
 	_haze = _build_haze()
-	_layers = [_creep, _saltation, _suspension, _haze]
+	_shade = _build_shade()
+	_layers = [_creep, _saltation, _suspension, _haze, _shade]
 	set_physics_process(false)
 
 
@@ -133,6 +139,7 @@ func lift(wind_speed_mps: float = 8.0, snow_cover: float = 1.0) -> void:
 	)
 	_ratios[2] = cover * suspension_t * 0.32
 	_ratios[3] = cover * lerpf(0.5, 1.0, wind_t)
+	_ratios[4] = cover * lerpf(0.6, 1.0, wind_t)
 
 	_start = global_transform
 	_sweep_s = lerpf(SWEEP_S.x, SWEEP_S.y, wind_t)
@@ -299,6 +306,29 @@ func _build_haze() -> GPUParticles3D:
 	return particles
 
 
+## A soft cool shade the streamer drags over the snow: white grains on white snow read by it.
+func _build_shade() -> GPUParticles3D:
+	var particles := _new_layer("TrailShade", 40, 1.4, 0.4)
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	process.emission_box_extents = Vector3(streamer_length * 0.5, 0.0, streamer_width * 0.6)
+	process.direction = Vector3(1.0, 0.0, 0.0)
+	process.spread = 4.0
+	process.initial_velocity_min = 1.5
+	process.initial_velocity_max = 2.5
+	process.gravity = Vector3.ZERO
+	process.scale_min = 0.8
+	process.scale_max = 1.4
+	process.color_ramp = _make_ramp(SHADE_ALPHA, 0.55, SHADE_COLOR)
+	particles.process_material = process
+	particles.position.y = 0.03
+	var mesh := PlaneMesh.new()
+	mesh.size = Vector2(0.9, 0.9)
+	mesh.material = _make_quad(Vector2.ONE).material
+	particles.draw_pass_1 = mesh
+	return particles
+
+
 func _new_layer(
 	layer_name: String,
 	particle_count: int,
@@ -328,18 +358,12 @@ func _collide(process: ParticleProcessMaterial) -> void:
 	process.collision_bounce = 0.0
 
 
-func _make_ramp(peak_alpha: float, fade_from: float) -> GradientTexture1D:
+func _make_ramp(peak_alpha: float, fade_from: float, tint: Color = GRAIN_COLOR) -> GradientTexture1D:
 	var gradient := Gradient.new()
-	gradient.set_color(0, Color(0.8, 0.81, 0.83, 0.0))
-	gradient.add_point(0.08, Color(0.8, 0.81, 0.83, peak_alpha))
-	gradient.add_point(
-		fade_from,
-		Color(0.8, 0.81, 0.83, peak_alpha * 0.72)
-	)
-	gradient.set_color(
-		gradient.get_point_count() - 1,
-		Color(0.8, 0.81, 0.83, 0.0)
-	)
+	gradient.set_color(0, Color(tint, 0.0))
+	gradient.add_point(0.08, Color(tint, peak_alpha))
+	gradient.add_point(fade_from, Color(tint, peak_alpha * 0.72))
+	gradient.set_color(gradient.get_point_count() - 1, Color(tint, 0.0))
 	var ramp := GradientTexture1D.new()
 	ramp.gradient = gradient
 	return ramp
