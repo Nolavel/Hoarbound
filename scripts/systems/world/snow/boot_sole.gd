@@ -97,21 +97,24 @@ static func lug(uv: Vector2, half_m: Vector2) -> float:
 	return maxf(smoothstep(0.15, 0.25, chevron) * (1.0 - smoothstep(0.6, 0.7, chevron)) * channel, rim)
 
 
-## Snow a boot leaves on a floor: white where it packed into the grooves (the inverse of the
-## print it pressed), broken up as clumps fall out. Rows run heel (0) to toe; columns across.
+## Snow a boot leaves on a floor: white where it packed into the grooves (the inverse of the print
+## it pressed), broken into clumps. A square frame LENGTH_M wide: rows heel (0) to toe, sole centred.
 static func floor_print_image(width_m: float, px_per_m: float = 800.0, seed: int = 0) -> Image:
-	var size := Vector2i(int(width_m * px_per_m), int(LENGTH_M * px_per_m))
+	var side: int = int(LENGTH_M * px_per_m)
 	var half_m := Vector2(LENGTH_M * 0.5, width_m * 0.5)
 	var noise := FastNoiseLite.new()
 	noise.seed = seed
 	noise.frequency = 0.08
-	var image := Image.create(size.x, size.y, false, Image.FORMAT_LA8)
-	for y: int in range(size.y):
-		for x: int in range(size.x):
-			var uv := Vector2((float(y) + 0.5) / size.y * 2.0 - 1.0, (float(x) + 0.5) / size.x * 2.0 - 1.0)
+	var image := Image.create(side, side, false, Image.FORMAT_LA8)
+	for y: int in range(side):
+		for x: int in range(side):
+			var across: float = ((float(x) + 0.5) / side - 0.5) * LENGTH_M
+			var uv := Vector2((float(y) + 0.5) / side * 2.0 - 1.0, across / half_m.y)
 			var inside: float = 1.0 - smoothstep(-0.002, 0.0, edge_m(uv, half_m))
+			if inside <= 0.0:
+				image.set_pixel(x, y, Color(1.0, 1.0, 1.0, 0.0))
+				continue
 			var clump: float = smoothstep(-0.25, 0.25, noise.get_noise_2d(x, y))
-			var groove: float = (1.0 - lug(uv, half_m)) * inside * lerpf(0.35, 1.0, clump)
-			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, groove))
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, (1.0 - lug(uv, half_m)) * inside * lerpf(0.35, 1.0, clump)))
 	image.generate_mipmaps()
 	return image

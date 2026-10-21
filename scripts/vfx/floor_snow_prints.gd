@@ -16,8 +16,9 @@ const SHED_PER_STEP: float = 0.2
 const MIN_LOAD: float = 0.08
 ## Room air where prints melt slowest (0 °C) and fastest, °C.
 const WARM_ROOM_C: float = 20.0
-## Height the print projects through, metres: floor boards and sills step a few centimetres.
-const PROJECT_DEPTH_M: float = 0.2
+## The decal is a cube one sole long: a non-uniform decal box drops screen tiles of its
+## projection in Forward+ (godotengine/godot#73945); the texture carries the sole's shape.
+const DECAL_M: float = BootSole.LENGTH_M
 ## Default outsole width when no snow shell gives one, metres (SnowShell.sole_width_m).
 const SOLE_WIDTH_M: float = 0.11
 
@@ -60,10 +61,10 @@ func build() -> void:
 	if not _decals.is_empty():
 		return
 	for seed: int in range(2):
-		_textures.append(ImageTexture.create_from_image(BootSole.floor_print_image(_width_m, 800.0, seed)))
+		_textures.append(ImageTexture.create_from_image(BootSole.floor_print_image(_width_m, 600.0, seed)))
 	for i: int in range(POOL_SIZE):
 		var decal := Decal.new()
-		decal.size = Vector3(_width_m, PROJECT_DEPTH_M, BootSole.LENGTH_M)
+		decal.size = Vector3.ONE * DECAL_M
 		decal.texture_albedo = _textures[i % 2]
 		decal.upper_fade = 0.3
 		decal.lower_fade = 0.3

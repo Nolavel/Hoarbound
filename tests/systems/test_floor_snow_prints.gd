@@ -21,7 +21,8 @@ func _run() -> void:
 	var groove_px: Vector2i = Vector2i(-1, -1)
 	for y: int in range(image.get_height()):
 		for x: int in range(image.get_width()):
-			var uv := Vector2((float(y) + 0.5) / image.get_height() * 2.0 - 1.0, (float(x) + 0.5) / image.get_width() * 2.0 - 1.0)
+			var across: float = ((float(x) + 0.5) / image.get_width() - 0.5) * BootSole.LENGTH_M
+			var uv := Vector2((float(y) + 0.5) / image.get_height() * 2.0 - 1.0, across / half_m.y)
 			if BootSole.edge_m(uv, half_m) > -0.012 or uv.x < 0.2:
 				continue
 			var lug: float = BootSole.lug(uv, half_m)
@@ -32,7 +33,8 @@ func _run() -> void:
 	_check(lug_px.x >= 0 and groove_px.x >= 0, "no lug or groove found on the forefoot")
 	_check(image.get_pixelv(lug_px).a < 0.01, "a lug left snow on the floor")
 	_check(image.get_pixelv(groove_px).a > 0.3, "a groove left no snow on the floor")
-	_check(image.get_pixel(0, 0).a < 0.01, "snow outside the outsole")
+	_check(image.get_width() == image.get_height(), "the print frame is not square (godotengine/godot#73945)")
+	_check(image.get_pixel(0, 0).a < 0.01 and image.get_pixel(5, image.get_height() / 2).a < 0.01, "snow outside the outsole")
 
 	var prints := FloorSnowPrints.new()
 	root.add_child(prints)
@@ -52,6 +54,7 @@ func _run() -> void:
 	_check(alphas.size() >= 6 and alphas.size() <= 14, "prints indoors: %d" % alphas.size())
 	_check(alphas.size() > 1 and alphas[-1] < alphas[0], "prints did not fade step by step")
 	_check(first != null and first.global_basis.z.is_equal_approx(Vector3.FORWARD), "the print does not point the way Henry walked")
+	_check(first.size.x == first.size.y and first.size.y == first.size.z, "the decal box is not a cube (godotengine/godot#73945)")
 	prints.melt(100.0, 20.0, true)
 	_check(first.visible, "a print melted within 100 s in a warm room")
 	prints.melt(400.0, 20.0, true)
