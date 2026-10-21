@@ -100,6 +100,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Quick Access cards overlapping at some camera angles (owner note).
+  - Cause: the layout blended spread and cross by how much the cards overlapped, so a partial overlap gave a
+    partial blend that left them on top of each other (`test_quick_access_layout`: 71 overlaps on the old code).
+  - The layout is now spread or cross, never a mix; crowding or a tight framing latches the cross, and leaving
+    it needs twice the clearance, so it cannot flicker. Same test: 0 overlaps over 7 distances × 12 angles.
+- Quick Access drew an item into the hand while its pocket card still showed it. Drawing another pocket now
+  trades places: the drawn pocket keeps the held item, the hand shows the new one, and the pocket whose item
+  is in hand reads empty (`QuickAccessComponent.draw`, covered in `test_held_weight`).
 - Ground drift passed through roofs: its particles had no collision mode (default off). They now collide
   with the snowfall height field, which also stays up in wind without snowfall. Streamers no longer start
   under a roof or a canopy.
