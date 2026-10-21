@@ -114,12 +114,14 @@ func _build_particles() -> void:
 	_foreground_material = _make_process_material(Vector3(4.2, 2.0, 2.8), 0.66, 1.10)
 	foreground_particles = _make_particle_layer(
 		"ForegroundSnow", FOREGROUND_MAX_PARTICLES, 3.4, 0.026,
-		_build_wind_flake_mesh(FLAKE_STAR_M * 2.2, FLAKE_LINE_M * 1.7, 0.85),
+		_build_wind_flake_mesh(FLAKE_STAR_M * 2.2, FLAKE_LINE_M * 1.2, 0.85),
 		_foreground_material
 	)
 	foreground_particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
 	foreground_particles.randomness = 0.42
 	_foreground_material.set_shader_parameter("velocity_stretch_enabled", true)
+	## A metre from the lens a full-length line would bar half the frame.
+	_foreground_material.set_shader_parameter("stretch_max", 8.0)
 	foreground_particles.visibility_aabb = AABB(Vector3(-10.0, -8.0, -10.0), Vector3(20.0, 16.0, 20.0))
 	add_child(foreground_particles)
 
