@@ -25,12 +25,26 @@ const MIN_COVER: float = 0.2
 const RESELECT_S: float = 0.5
 ## Seconds for a volume to fade in or out, so the flow never pops.
 const FADE_S: float = 2.0
+## Flakes carried in each volume, and the share of the wind they fly at.
+const FLAKES_PER_VOLUME: int = 220
+const FLAKE_WIND_SHARE: float = 0.8
+## Extinction at which a volume carries all its flakes and its ground drift runs flat out, 1/m.
+const FULL_FLOW_EXTINCTION: float = 0.12
+## Ground streamers the flow keeps running along its streets, and their spacing at full flow, seconds.
+const DRIFT_POOL_SIZE: int = 6
+const DRIFT_INTERVAL_S: float = 0.22
+## Streamers start this close to Henry, metres.
+const DRIFT_REACH_M: float = 22.0
 
 var _weather: WeatherController
 var _ground: KeyWestRealityGround
 var _player: Node3D
 var _volumes: Array[FogVolume] = []
 var _materials: Array[ShaderMaterial] = []
+var _flakes: Array[GPUParticles3D] = []
+var _lifts: Array[SnowLift] = []
+var _lift_index: int = 0
+var _drift_left: float = 0.0
 var _targets: PackedFloat32Array = PackedFloat32Array()
 var _levels: PackedFloat32Array = PackedFloat32Array()
 var _reselect_left: float = 0.0
@@ -60,6 +74,13 @@ func _ready() -> void:
 		add_child(volume)
 		_volumes.append(volume)
 		_materials.append(material)
+		var flakes: GPUParticles3D = _build_flakes()
+		volume.add_child(flakes)
+		_flakes.append(flakes)
+	for i: int in range(DRIFT_POOL_SIZE):
+		var lift := SnowLift.new()
+		add_child(lift)
+		_lifts.append(lift)
 	_targets.resize(POOL_SIZE)
 	_levels.resize(POOL_SIZE)
 
@@ -97,12 +118,18 @@ func _process(delta: float) -> void:
 		_reselect_left = RESELECT_S
 		_reselect()
 	var along: Vector3 = _wind_along()
+	var strength: float = clampf(_extinction / FULL_FLOW_EXTINCTION, 0.0, 1.0)
 	for i: int in range(POOL_SIZE):
 		_levels[i] = move_toward(_levels[i], _targets[i], delta / FADE_S)
 		_volumes[i].visible = _levels[i] > 0.001
 		var material: ShaderMaterial = _materials[i]
 		material.set_shader_parameter(&"density", _extinction * _levels[i])
 		material.set_shader_parameter(&"wind", along * wind)
+		_steer_flakes(i, along, wind, strength)
+	_drift_left -= delta * strength
+	if _drift_left <= 0.0 and strength > 0.05:
+		_drift_left = DRIFT_INTERVAL_S * randf_range(0.6, 1.4)
+		_spawn_drift(along, wind)
 
 
 ## Puts the pool on the streets near Henry that best channel the wind; others fade out.
@@ -167,6 +194,77 @@ func _place(slot: int, street: Dictionary) -> void:
 	volume.size = Vector3(a.distance_to(b) + 10.0, FLOW_HEIGHT_M, float(street["width"]) + 6.0)
 	_materials[slot].set_shader_parameter(&"scale_height", SNOW_SCALE_HEIGHT_M)
 	_targets[slot] = float(street["alignment"])
+
+
+## Flakes ride the volume: the wind in its frame, as many as the flow is strong.
+func _steer_flakes(i: int, along: Vector3, wind: float, strength: float) -> void:
+	var flakes: GPUParticles3D = _flakes[i]
+	var amount: float = _levels[i] * strength
+	flakes.emitting = amount > 0.02
+	flakes.amount_ratio = amount
+	if not flakes.emitting:
+		return
+	var volume: FogVolume = _volumes[i]
+	var process := flakes.process_material as ParticleProcessMaterial
+	process.emission_box_extents = volume.size * Vector3(0.5, 0.25, 0.5)
+	process.direction = volume.global_basis.inverse() * (along + Vector3.DOWN * 0.08)
+	process.initial_velocity_min = wind * FLAKE_WIND_SHARE * 0.8
+	process.initial_velocity_max = wind * FLAKE_WIND_SHARE * 1.1
+	flakes.position = Vector3(0.0, -volume.size.y * 0.25, 0.0)
+
+
+## One ground streamer on an active flow street near Henry, running downwind.
+func _spawn_drift(along: Vector3, wind: float) -> void:
+	var lit: Array[int] = []
+	for i: int in range(POOL_SIZE):
+		if _levels[i] > 0.3:
+			lit.append(i)
+	if lit.is_empty():
+		return
+	var volume: FogVolume = _volumes[lit[randi() % lit.size()]]
+	var local := Vector3(randf_range(-0.5, 0.5) * volume.size.x, 0.0, randf_range(-0.4, 0.4) * volume.size.z)
+	var at: Vector3 = volume.global_transform * local
+	if Vector2(at.x - _player.global_position.x, at.z - _player.global_position.z).length() > DRIFT_REACH_M:
+		return
+	var from := Vector3(at.x, _player.global_position.y + 9.0, at.z)
+	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * 14.0))
+	if hit.is_empty() or (hit["normal"] as Vector3).y < 0.8:
+		return
+	var normal: Vector3 = hit["normal"]
+	var surface_along: Vector3 = (along - normal * along.dot(normal)).normalized()
+	var lift: SnowLift = _lifts[_lift_index]
+	_lift_index = (_lift_index + 1) % _lifts.size()
+	lift.global_transform = Transform3D(Basis(surface_along, normal, surface_along.cross(normal)).orthonormalized(),
+		(hit["position"] as Vector3) + normal * 0.025)
+	lift.lift(wind, _weather.get_snow_cover())
+
+
+func _build_flakes() -> GPUParticles3D:
+	var particles := GPUParticles3D.new()
+	particles.amount = FLAKES_PER_VOLUME
+	particles.amount_ratio = 0.0
+	particles.emitting = false
+	particles.lifetime = 1.6
+	particles.randomness = 0.5
+	particles.local_coords = false
+	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	particles.visibility_aabb = AABB(Vector3(-40.0, -6.0, -20.0), Vector3(80.0, 14.0, 40.0))
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	process.spread = 9.0
+	process.gravity = Vector3(0.0, -0.6, 0.0)
+	process.turbulence_enabled = true
+	process.turbulence_noise_strength = 1.2
+	process.turbulence_noise_scale = 3.0
+	process.turbulence_influence_min = 0.04
+	process.turbulence_influence_max = 0.12
+	process.scale_min = 0.7
+	process.scale_max = 1.3
+	process.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
+	particles.collision_base_size = 0.02
+	particles.process_material = process
+	particles.draw_pass_1 = SnowfallVFX.build_snowflake_mesh(0.016, 0.0024, 0.0065, 0.0017, true)
+	return particles
 
 
 func _wind_along() -> Vector3:
