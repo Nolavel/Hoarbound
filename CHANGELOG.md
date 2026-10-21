@@ -100,6 +100,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Static shadows jumped every 2.5 s: the sun's direction was re-aimed every game minute (0.25° of azimuth, about
+  11 cm at the tip of a 25 m pole shadow), and stable cascades hold only while the light does not turn. The sun
+  now turns once per `sun_step_minutes` (4 game minutes, 10 s at the 60-minute day), eased over
+  `sun_blend_seconds` (2 s); loads, clock jumps and acceleration snap (`test_sun_steps`).
 - Snow under Henry's feet could stand 20 cm off the drawn snow. Measured at the Duval spawn: field top minus
   lattice ground 0.41 m against a drawn 0.21 m. SnowField sampled ground before the chunk streamed in
   (`KeyWestRealityGround.FALLBACK_Y` 1.0 m against 0.8 m real) and kept that cache across window moves. The
