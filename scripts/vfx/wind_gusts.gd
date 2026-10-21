@@ -25,6 +25,10 @@ const BURST_SPACING: float = 0.3
 
 ## Spindrift: spots tried per plume, drawn by transport score among crest lips and lee eaves.
 const SPINDRIFT_POOL_SIZE: int = 4
+## 10 m wind that starts blowing snow, fresh to crusted (Li & Pomeroy 1997: ~4–11 m/s, dry snow).
+const SPINDRIFT_THRESHOLD_MPS: Vector2 = Vector2(5.0, 10.0)
+## A roof lip smokes only when the weather has laid snow on it.
+const SPINDRIFT_MIN_COVER: float = 0.2
 const SPINDRIFT_SLOW_INTERVAL: float = 2.4
 const SPINDRIFT_FAST_INTERVAL: float = 0.55
 const DRIFT_CANDIDATES: int = 12
@@ -74,6 +78,20 @@ func _ready() -> void:
 		var plume := SnowSpindrift.new()
 		add_child(plume)
 		_spindrifts.append(plume)
+
+
+## Streaks, ground streamers and spindrift plumes on screen now (debug readout).
+func get_active_counts() -> Vector3i:
+	var streaks: int = 0
+	for streak: WindStreak in _pool:
+		streaks += 1 if streak.visible else 0
+	var lifts: int = 0
+	for lift: SnowLift in _lifts:
+		lifts += 1 if lift.is_active() else 0
+	var plumes: int = 0
+	for plume: SnowSpindrift in _spindrifts:
+		plumes += 1 if plume.is_active() else 0
+	return Vector3i(streaks, lifts, plumes)
 
 
 ## Several streaks in quick succession: the moment the weather turns.
@@ -127,7 +145,9 @@ func _process(delta: float) -> void:
 	_spindrift_next -= delta
 	if _spindrift_next <= 0.0:
 		_spawn_spindrift(wind)
-		_spindrift_next = lerpf(SPINDRIFT_SLOW_INTERVAL, SPINDRIFT_FAST_INTERVAL, wind_t) * randf_range(0.7, 1.3)
+		## Just over the threshold a lip smokes now and then; well over it, steadily.
+		var excess: float = clampf((wind - _spindrift_threshold()) / _spindrift_threshold(), 0.0, 1.0)
+		_spindrift_next = lerpf(SPINDRIFT_SLOW_INTERVAL * 2.0, SPINDRIFT_FAST_INTERVAL, excess) * randf_range(0.7, 1.3)
 
 
 ## Places one decorative free streak in front of the camera.
@@ -217,7 +237,7 @@ func _spawn_drift(wind: float) -> void:
 
 ## Starts one spindrift plume off a lip the wind would strip: a drift crest or a lee roof eave.
 func _spawn_spindrift(wind: float) -> void:
-	if weather.get_snow_cover() <= 0.04:
+	if weather.get_snow_cover() < SPINDRIFT_MIN_COVER or wind < _spindrift_threshold():
 		return
 	var camera: Camera3D = get_viewport().get_camera_3d()
 	if camera == null:
@@ -255,6 +275,13 @@ func _spawn_spindrift(wind: float) -> void:
 		(chosen["position"] as Vector3) + normal * 0.05
 	)
 	plume.blow(wind, weather.get_snow_cover())
+
+
+## Wind that lifts snow off a lip: fresh snow goes first, a bonded crust holds to ~10 m/s.
+func _spindrift_threshold() -> float:
+	var field: SnowField = SnowShell.active.field if is_instance_valid(SnowShell.active) else null
+	var firmness: float = field.firmness if field != null else 0.5
+	return lerpf(SPINDRIFT_THRESHOLD_MPS.x, SPINDRIFT_THRESHOLD_MPS.y, clampf(firmness, 0.0, 1.0))
 
 
 ## Ground under `at` with its transport score, or empty where nothing could drift.

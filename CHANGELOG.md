@@ -8,6 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Weather debug (debug builds, Key West), one key, 0. The first press shows the profile, scheduler or pin,
+  blend, wind and drift gate, snowfall, visibility, cover, hour, sun beam, shelter state and the live streak,
+  ground-drift and spindrift counts. Each next press pins calm, snowfall, windy, blizzard in turn; the one
+  after blizzard hands the weather back to the scheduler and hides the readout.
 - Rooms frame Henry low-left (owner note): any room uses the tight composition and the camera rises until his eyes
   sit at mid-height (stove 29–30 % / 46–47 %, was 33 % / 37 %). Auto shoulder swap when the player's side is walled off
   and the other is free, with delays, never in doorways or during mouse turns (Sifu, a Borderlands 4 camera mod;
@@ -206,14 +210,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
-- Spindrift: a second drift effect beside the original ground streamers (left as they were). Plumes smoke off
+- Spindrift: a second drift effect beside the original ground streamers (left as they were). It fires only
+  when the wind passes the blowing-snow threshold for the snowpack (5 m/s fresh to 10 m/s crusted, Li &
+  Pomeroy 1997), more often the further over it, and roof lips only once the weather has laid snow (cover 0.2). Plumes smoke off
   drift crests (a lee drop of 2–8 cm over 1.2 m in the snow field) and lee roof eaves (a building footprint
   whose roof is gone or 1.2 m lower 1.5 m downwind), only on fresh snow. They are lofted off the lip, with
   two-tone puffs (white core, cool rim) and a soft decal shade on the snow under the plume, so they read on
   white snow. Snowfall stays the six-armed stars (author call: the wind-line version read as rain).
 - In falling snow the sun dims with visibility (Koschmieder extinction 3.912 / visibility over a 30 m beam
-  path): ~7 % of the sun in a 45 m blizzard, ~59 % in 220 m snowfall, 75 % in 400 m windy weather. Diffuse
-  fill rises by up to 30 %. Before, a blizzard kept full sun and hard shadows (`test_sun_steps`).
+  path): ~7 % of the sun in a 45 m blizzard, ~59 % in 220 m snowfall, 75 % in 400 m windy weather. The lost
+  beam returns as grey-white fill (1.86 ambient per unit of sun, measured: linear snow sun 0.48, sky 0.086),
+  so snow keeps (linear, measured at the Duval spawn) 77 % of clear day in windy weather, 69 % in snowfall and
+  51 % in a blizzard, against 29 % in the blizzard of the first version ("days went dark"). Before, a blizzard kept full sun and hard shadows (`test_sun_steps`).
 - Fort Zachary Taylor collision simplified in Blender: `tools/blender/landmark_collision.py` (Blender 5.2 `bpy`, Decimate Collapse 0.2) adds a `FortSurfaceCollision-colonly` copy of 8,238 faces (was 41,197) to the fort `.glb`; the visual mesh is byte-identical. Error from every source vertex and face centre: mean 0.8, p99 5.1, max 12.5 cm. The fort chunk's `Buildings` attach drops from 66–80 ms to 12 ms (`measure_attach_parts`, `kw_gen_-9_3`). A 1 m ray grid against the exact surface: p99 8 cm. `HeightMapShape3D` was measured and rejected (285 ms to build). New `test_landmark_collision`; method and table in `REALITY_HLOD.md`.
 - **Legacy Key West island removed** (owner approval, 2026-10-15). Gone: `key_west.tscn`, `key_west_first_exit.tscn`, the `key_west_test` profile, `KeyWestFirstExit`, the legacy city (`ChunkedCityMassing`, `KeyWestCityVisuals`, `KeyWestStreetProps`, `far_city/`, `snow_chunk/`), the NOAA preview crop, six legacy-only tools and three legacy-only tests. The legacy branches in `runtime_performance_policy`, `dev_diorama_map` and `snow_shell` went with them (none ran under Reality). The CI preview job keeps its Reality captures only. `capture_quick_access` now runs on Reality; `test_world_profiles`, `test_stylized_shadows` and `test_island_terrain` check Reality or Graciosa instead. Kept on purpose: `IslandTerrain`/`IslandHeightmap` (Graciosa, the hut template generator), the terrain shader, the Reality Library sources and the NOAA sources. Record: `docs/technical/LEGACY_ISLAND_REMOVAL.md`.
 - Owner tasks, 2026-10-15:
