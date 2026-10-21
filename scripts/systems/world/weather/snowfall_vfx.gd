@@ -157,7 +157,7 @@ func _make_particle_layer(
 
 
 ## A six-armed star plus a line quad (UV >= 0). The star dissolves into the line as the wind
-## stretch (INSTANCE_CUSTOM.z) grows; the line dims as it lengthens, like a flake blurred over the frame.
+## stretch (INSTANCE_CUSTOM.z, up to 20 calm lengths, ~28 cm) grows; the line dims as it lengthens.
 func _build_wind_flake_mesh() -> ArrayMesh:
 	var vertices := PackedVector3Array()
 	var uvs := PackedVector2Array()
@@ -194,8 +194,8 @@ varying float v_line;
 
 void vertex() {
 	v_stretch = max(INSTANCE_CUSTOM.z, 1.0);
-	v_line = smoothstep(1.0, 2.0, v_stretch);
-	// Far flakes grow to min_px (at 1080 lines) and fade by as much, so distance thins the fall, not erases it.
+	v_line = smoothstep(1.0, 3.0, v_stretch);
+	// Far flakes grow to min_px (at 1080 lines) and fade with it, so distance thins the fall, not erases it.
 	float depth = max(-(MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).z, 0.05);
 	// Vulkan's projection flips y, so [1][1] is negative there.
 	float px = length(MODELVIEW_MATRIX[0].xyz) * star_m * abs(PROJECTION_MATRIX[1][1]) * 540.0 / depth;
@@ -215,10 +215,10 @@ void fragment() {
 		vec2 p = (UV - 0.5) * vec2(1.0, len);
 		float d = length(vec2(p.x, max(abs(p.y) - (len - 1.0) * 0.5, 0.0)));
 		float aa = max(fwidth(d), 1e-4);
-		a = (1.0 - smoothstep(0.5 - aa, 0.5, d)) * v_line * inversesqrt(v_stretch);
+		a = (1.0 - smoothstep(0.5 - aa, 0.5, d)) * v_line / (1.0 + 0.05 * (v_stretch - 1.0));
 	}
 	ALBEDO = COLOR.rgb;
-	ALPHA = COLOR.a * a / v_grow;
+	ALPHA = COLOR.a * a * inversesqrt(v_grow);
 }
 """
 	material.shader = draw_shader

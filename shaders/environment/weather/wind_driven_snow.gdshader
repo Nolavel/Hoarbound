@@ -24,7 +24,7 @@ uniform float fade_from : hint_range(0.0, 1.0, 0.01) = 0.88;
 uniform bool velocity_stretch_enabled = false;
 // 0 calm to 1 storm, from WeatherController's wind including gusts: dots smear into lines.
 uniform float wind_streak : hint_range(0.0, 1.0, 0.01) = 0.0;
-uniform float stretch_max : hint_range(1.0, 8.0, 0.05) = 6.0;
+uniform float stretch_max : hint_range(1.0, 32.0, 0.05) = 20.0;
 // How fast a flake in flight follows a gust's new length, per second.
 uniform float stretch_response : hint_range(0.1, 20.0, 0.1) = 4.0;
 
