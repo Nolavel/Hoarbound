@@ -112,6 +112,7 @@ var _last_confirmed_path: StringName = &""
 var _opened := false
 var _selection_timeout_left := 0.0
 var _orbit_blend := 0.0
+var _cross_latched := false
 var _direct_busy := false
 var _refresh_left := 0.0
 var _reveal_tween: Tween
@@ -151,6 +152,7 @@ func show_quick_access() -> void:
 	if _opened or _direct_busy or not _can_open():
 		return
 	_opened = true
+	_cross_latched = false
 	_selection_timeout_left = SELECTOR_TIMEOUT_SECONDS
 	_sync_focus_on_open()
 	_refresh_content()
@@ -419,9 +421,8 @@ func _filled_paths() -> Array[StringName]:
 	var result: Array[StringName] = []
 	if quick_access_component == null or quick_access_component.hub == null:
 		return result
-	for zone: Dictionary in quick_access_component.hub.get_quick_access_zones():
-		var path := StringName(zone["path"])
-		if POCKET_ORDER.has(path) and StringName(zone["item_id"]) != &"":
+	for path: StringName in POCKET_ORDER:
+		if _zone_item(path) != &"":
 			result.append(path)
 	return result
 
@@ -435,7 +436,10 @@ func _zone(path: StringName) -> Dictionary:
 	return {}
 
 
+## What a pocket card shows: the pocket whose item is in hand reads empty, HANDS owns it.
 func _zone_item(path: StringName) -> StringName:
+	if quick_access_component != null and path == quick_access_component.get_held_source_zone():
+		return &""
 	return StringName(_zone(path).get("item_id", &""))
 
 
@@ -573,19 +577,14 @@ func _perform_draw(path: StringName) -> bool:
 	var index := _zone_index(path)
 	if index < 0:
 		return false
-	var player := _player()
-	if player != null:
-		for child: Node in player.get_children():
-			if child.has_method(&"put_away_unlit") and bool(child.call(&"put_away_unlit")):
-				break
-	quick_access_component.select(index)
-	return quick_access_component.use_selected()
+	return quick_access_component.draw(index)
 
 
 func _direct_draw_path(path: StringName) -> void:
 	if _zone_item(path) == &"":
 		return
 	_direct_busy = true
+	_cross_latched = false
 	_focus_path = path
 	_refresh_content()
 	_set_visible_state(false)
@@ -833,7 +832,7 @@ func _update_card_positions(camera: Camera3D, delta: float, snap: bool) -> void:
 		visible_specs.append(spec)
 
 	var target_orbit_blend := 0.0
-	if _opened and raw_targets.has(&"hands"):
+	if (_opened or _direct_busy) and raw_targets.has(&"hands"):
 		var bounded_targets: Dictionary = {}
 		for spec: Dictionary in visible_specs:
 			var path := StringName(spec["path"])
@@ -841,8 +840,8 @@ func _update_card_positions(camera: Camera3D, delta: float, snap: bool) -> void:
 			var projected: Vector2 = raw_targets[path]
 			projected = _soft_bound_slot_position(slot, projected, viewport_size, margin, edge_blend_px)
 			bounded_targets[path] = _clamp_slot_position(slot, projected, viewport_size, margin)
-		var tight := _screen_centre_share(camera) if camera is TpsCamera else _tight_camera_factor(camera)
-		target_orbit_blend = maxf(tight, _crowding_factor(visible_specs, bounded_targets))
+		_cross_latched = _wants_cross(camera, visible_specs, bounded_targets)
+		target_orbit_blend = 1.0 if _cross_latched else 0.0
 	if snap:
 		_orbit_blend = target_orbit_blend
 	else:
@@ -876,33 +875,25 @@ func _card_specs() -> Array[Dictionary]:
 	]
 
 
-func _crowding_factor(specs: Array[Dictionary], positions: Dictionary) -> float:
-	var maximum_pressure := 0.0
+## Spread or cross, never a mix: a partial blend of two layouts is what let cards overlap.
+## Leaving the cross needs twice the clearance and a lower framing share, so it cannot flicker.
+func _wants_cross(camera: Camera3D, specs: Array[Dictionary], positions: Dictionary) -> bool:
+	var tight := _screen_centre_share(camera) if camera is TpsCamera else _tight_camera_factor(camera)
+	var gap := ORBIT_GAP_PX * (2.0 if _cross_latched else 1.0)
+	return tight > (0.35 if _cross_latched else 0.5) or _cards_crowded(specs, positions, gap)
+
+
+func _cards_crowded(specs: Array[Dictionary], positions: Dictionary, gap: float) -> bool:
 	for i: int in range(specs.size()):
 		var path_a := StringName(specs[i]["path"])
 		if not positions.has(path_a):
 			continue
-		var slot_a := specs[i]["slot"] as Control
-		var position_a: Vector2 = positions[path_a]
-		var rect_a := _slot_rect(slot_a, position_a).grow(ORBIT_GAP_PX * 0.5)
+		var rect_a := _slot_rect(specs[i]["slot"] as Control, positions[path_a]).grow(gap * 0.5)
 		for j: int in range(i + 1, specs.size()):
 			var path_b := StringName(specs[j]["path"])
-			if not positions.has(path_b):
-				continue
-			var slot_b := specs[j]["slot"] as Control
-			var position_b: Vector2 = positions[path_b]
-			var rect_b := _slot_rect(slot_b, position_b).grow(ORBIT_GAP_PX * 0.5)
-			if not rect_a.intersects(rect_b):
-				continue
-			var overlap_width := minf(rect_a.end.x, rect_b.end.x) - maxf(rect_a.position.x, rect_b.position.x)
-			var overlap_height := minf(rect_a.end.y, rect_b.end.y) - maxf(rect_a.position.y, rect_b.position.y)
-			var minimum_card_dimension := minf(
-				minf(slot_a.size.x * slot_a.scale.x, slot_a.size.y * slot_a.scale.y),
-				minf(slot_b.size.x * slot_b.scale.x, slot_b.size.y * slot_b.scale.y)
-			)
-			var pressure := clampf(minf(overlap_width, overlap_height) / maxf(minimum_card_dimension, 1.0), 0.0, 1.0)
-			maximum_pressure = maxf(maximum_pressure, pressure)
-	return smoothstep(0.0, 1.0, maximum_pressure)
+			if positions.has(path_b) and rect_a.intersects(_slot_rect(specs[j]["slot"] as Control, positions[path_b]).grow(gap * 0.5)):
+				return true
+	return false
 
 
 ## Tight layout: a cross round HANDS with fixed places (coats left and right, pack lid
