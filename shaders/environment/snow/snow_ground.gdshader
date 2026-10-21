@@ -7,6 +7,14 @@ render_mode cull_back, depth_draw_opaque;
 #include "res://shaders/environment/snow/snow_surface.gdshaderinc"
 #include "res://shaders/environment/snow/snow_far_cover.gdshaderinc"
 #include "res://shaders/environment/snow/boot_sole.gdshaderinc"
+
+// Pixel size on the snow where the tread is exact and where it is its mean shade, metres.
+const float TREAD_RESOLVED_M = 0.004;
+const float TREAD_ALIASED_M = 0.011;
+// Share of the outsole the lugs cover (BootSole.lug averaged over the sole).
+const float TREAD_LUG_MEAN = 0.34;
+// A lug's slot in packed snow sees less sky: it darkens the floor this much.
+const float TREAD_SHADE = 0.28;
 #include "res://shaders/environment/stylized_shadow.gdshaderinc"
 #include "res://shaders/environment/materials/painterly_surface.gdshaderinc"
 
@@ -365,22 +373,29 @@ void fragment() {
 					n = normalize(n - vec3(out_xz.x, 0.0, out_xz.y) / length(out_xz) * band * fresh_print * min(packed_height / wall_w, 2.5));
 				}
 				wall = max(wall, band * fresh_print);
-				// Lugs press grooves into the floor; the tread fades once a pixel spans it.
-				float tread = fresh_print * (1.0 - smoothstep(0.002, 0.006, length(fwidth(v_world.xz)))) * (1.0 - smoothstep(-0.006, -0.001, edge));
+				// Lugs press grooves into the floor. Once a pixel spans a lug (~8 mm) the pattern blends to
+				// its mean shade instead of vanishing, as a mip chain filters a texture.
+				float tread = fresh_print * (1.0 - smoothstep(-0.006, -0.001, edge));
 				if (tread > 0.01) {
-					vec2 eu = vec2(0.0015) / boot_half_m;
-					vec2 g_lug = vec2(boot_lug(sole + vec2(eu.x, 0.0), boot_half_m) - boot_lug(sole - vec2(eu.x, 0.0), boot_half_m),
-						boot_lug(sole + vec2(0.0, eu.y), boot_half_m) - boot_lug(sole - vec2(0.0, eu.y), boot_half_m)) / (2.0 * eu);
-					vec2 lug_xz = transpose(to_sole) * g_lug;
-					n = normalize(n + vec3(lug_xz.x, 0.0, lug_xz.y) * 0.004 * tread);
-					lug_groove = boot_lug(sole, boot_half_m) * tread;
+					// Pixel footprint as its area's side: a grazing view stretches one axis, not both.
+					float detail = 1.0 - smoothstep(TREAD_RESOLVED_M, TREAD_ALIASED_M, sqrt(abs(determinant(dw))));
+					float lug = TREAD_LUG_MEAN;
+					if (detail > 0.01) {
+						vec2 eu = vec2(0.0015) / boot_half_m;
+						vec2 g_lug = vec2(boot_lug(sole + vec2(eu.x, 0.0), boot_half_m) - boot_lug(sole - vec2(eu.x, 0.0), boot_half_m),
+							boot_lug(sole + vec2(0.0, eu.y), boot_half_m) - boot_lug(sole - vec2(0.0, eu.y), boot_half_m)) / (2.0 * eu);
+						vec2 lug_xz = transpose(to_sole) * g_lug;
+						n = normalize(n + vec3(lug_xz.x, 0.0, lug_xz.y) * 0.004 * tread * detail);
+						lug = mix(TREAD_LUG_MEAN, boot_lug(sole, boot_half_m), detail);
+					}
+					lug_groove = lug * tread;
 				}
 			}
 		}
 		float packed = smoothstep(0.01, 0.08, packed_height);
 		float crust = smoothstep(0.005, 0.04, rim_height);
 		float heap = smoothstep(0.004, 0.03, -packed_height);
-		albedo = mix(albedo, packed_color, packed) * (1.0 - 0.1 * lug_groove) * (1.0 + crust * 0.06 + heap * 0.04);
+		albedo = mix(albedo, packed_color, packed) * (1.0 - TREAD_SHADE * lug_groove) * (1.0 + crust * 0.06 + heap * 0.04);
 		// Cut walls show blue; cracks read as dark seams; deep pits see less sky.
 		albedo = mix(albedo, wall_color, wall * 0.5) * (1.0 - crack * 0.22);
 		albedo *= 1.0 - 0.22 * smoothstep(0.03, 0.3, packed_height);

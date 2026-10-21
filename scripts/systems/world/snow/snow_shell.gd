@@ -274,6 +274,7 @@ func on_world_ready(context: WorldContext) -> void:
 	_player = context.player
 	_world_root = context.world
 	active = self
+	BootLoadCapability.publish(self, self, &"has_boot_work")
 	_weather = context.get_system(WEATHER_SCRIPT) as WeatherController
 	_presentation = context.get_system(PRESENTATION_SCRIPT) as SnowPresentationSystem
 	_terrain = context.find_in_scene(TERRAIN_SCRIPT)
@@ -723,6 +724,15 @@ func _refresh_far_grid(window_origin: Vector2, retry: bool = false) -> void:
 	_far_ready = true
 
 
+## True while the field waits to re-read ground that has streamed in (BootLoadCapability). Weather
+## rebuilds do not count: the old window stays drawn until the new one swaps in.
+func has_boot_work() -> bool:
+	var streamed := _terrain as KeyWestRealityGround
+	## Ground that never streams (open sea past the chunks) is not boot work.
+	return _field_ground_partial and _field_retries > 0 and streamed != null \
+		and streamed.has_surface_at(_field_unknown_at.x, _field_unknown_at.y)
+
+
 ## A field built before its chunks streamed in cached the fallback ground (a snow top up to
 ## decimetres off the drawn one): drop the cache and rebuild in place once they are live.
 func _retry_field_ground(live: bool) -> void:
@@ -733,14 +743,15 @@ func _retry_field_ground(live: bool) -> void:
 			or not streamed.has_surface_at(_field_unknown_at.x, _field_unknown_at.y):
 		return
 	_field_retries -= 1
-	var cover: float = _cover()
-	var wind: Vector2 = _wind()
+	_move_from = field.origin
+	_move_cover = _cover()
+	_move_wind = _wind()
 	field.storm_share = _storm_share()
 	field.firmness = _firmness()
 	field.invalidate()
 	_field_ground_partial = false
-	field.rebuild(field.origin, cover, wind)
-	_apply_window(field.origin, field.origin, cover, wind)
+	## Sliced like a walking move (_follow steps it): at once it stalled the game for a frame.
+	field.begin_rebuild(_move_from, _move_cover, _move_wind)
 
 
 ## Rings out to the chunk handoff when a chunk cover takes over, else over the whole window.

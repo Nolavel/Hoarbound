@@ -24,12 +24,9 @@ const WEATHER_SCRIPT: GDScript = preload("res://scripts/systems/world/WeatherCon
 ## Slant path of the sun's beam through falling snow, metres: with Koschmieder's
 ## extinction 3.912 / visibility it leaves ~7 % of the sun in a 45 m blizzard, ~59 % in 220 m snowfall.
 const SNOW_BEAM_PATH_M: float = 30.0
-## Ambient energy per unit of lost beam energy: snow scatters what it takes. Measured at the Duval
-## spawn (linear snow: sun 0.48, sky 0.086); measured after: snow at 77 % windy, 69 % snowfall, 51 % blizzard.
-const SNOW_FILL_PER_SUN: float = 1.86
-## Under a full snow overcast the fill is grey-white (at the clock's brightness), not the blue of a clear sky.
-const SNOW_OVERCAST_COLOR: Color = Color(0.86, 0.88, 0.92)
-const SNOW_OVERCAST_SKY_SHARE: float = 0.35
+## Ambient energy per unit of lost beam energy: snow scatters what it takes. 1.86 (a blizzard at 51 % of
+## clear-day snow) washed out the Cold Ash grade's blue shadows; 1.2 keeps them, sky-tinted.
+const SNOW_FILL_PER_SUN: float = 0.3
 ## How fast the sun follows the weather, per second.
 const SNOW_SUN_RESPONSE: float = 0.5
 
@@ -361,7 +358,6 @@ func _update_environment_visuals(game_hour: float, snap_sun: bool = false) -> vo
 	ambient_energy = _ambient_energy_for_context(ambient_energy)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	_ambient_color = ambient_color
-	environment.ambient_light_color = ambient_color
 	_ambient_energy = ambient_energy
 	_apply_snow_fill(environment)
 
@@ -445,13 +441,17 @@ func _dim_sun_in_snow(delta: float) -> void:
 		_apply_snow_fill(world_environment_node.environment)
 
 
-## The beam falling snow takes comes back as grey-white fill.
+## The beam falling snow takes comes back as diffuse fill in the sun's own colour (snow scatters it
+## unchanged); shelters keep their capped ambient.
 func _apply_snow_fill(environment: Environment) -> void:
-	var lost: float = 1.0 - _snow_beam
-	environment.ambient_light_energy = _ambient_energy + SNOW_FILL_PER_SUN * _sun_energy * lost
-	var grey: Color = SNOW_OVERCAST_COLOR * (_ambient_color.get_luminance() / SNOW_OVERCAST_COLOR.get_luminance())
-	environment.ambient_light_color = _ambient_color.lerp(Color(grey, 1.0), lost)
-	environment.ambient_light_sky_contribution = lerpf(1.0, SNOW_OVERCAST_SKY_SHARE, lost)
+	var fill: float = SNOW_FILL_PER_SUN * _sun_energy * (1.0 - _snow_beam)
+	var sheltered: bool = is_instance_valid(color_grade_controller) and color_grade_controller.is_inside_shelter()
+	if sheltered or not is_instance_valid(directional_light):
+		fill = 0.0
+	var energy: float = _ambient_energy + fill
+	environment.ambient_light_energy = energy
+	var sun_color: Color = directional_light.light_color if fill > 0.0 else _ambient_color
+	environment.ambient_light_color = (_ambient_color * _ambient_energy + sun_color * fill) / maxf(energy, 0.0001)
 
 
 ## Share of the sun's beam that reaches the ground through falling snow, 0 to 1.

@@ -71,3 +71,50 @@ static func build_mesh(u0: float, u1: float, arch: float = 0.06) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
+
+
+## Approximate distance to the outsole edge in metres, negative inside (mirrors boot_edge_m).
+static func edge_m(uv: Vector2, half_m: Vector2) -> float:
+	var w: float = half_width(clampf(uv.x, -0.999, 0.999))
+	var side: float = (absf(uv.y) - w) * half_m.y
+	var end: float = (absf(uv.x) - 1.0) * half_m.x
+	return maxf(side, end) if absf(uv.x) < 1.0 else maxf(end, absf(uv.y) * half_m.y - HEEL_HALF * half_m.y)
+
+
+## 1 on a lug, 0 in a groove (mirrors boot_lug): toe chevrons, heel bars, a smooth shank,
+## a centre channel and a lugged rim.
+static func lug(uv: Vector2, half_m: Vector2) -> float:
+	var m: Vector2 = uv * half_m
+	var edge: float = -edge_m(uv, half_m)
+	var channel: float = smoothstep(0.003, 0.005, absf(m.y))
+	var rim: float = 1.0 - smoothstep(0.006, 0.008, edge)
+	if uv.x < BREAST_U:
+		var bar: float = fposmod(m.x / 0.017, 1.0)
+		return maxf(smoothstep(0.15, 0.25, bar) * (1.0 - smoothstep(0.65, 0.75, bar)) * channel, rim)
+	if uv.x < 0.05:
+		return 0.0
+	var chevron: float = fposmod((m.x - absf(m.y) * 0.7) / 0.018, 1.0)
+	return maxf(smoothstep(0.15, 0.25, chevron) * (1.0 - smoothstep(0.6, 0.7, chevron)) * channel, rim)
+
+
+## Snow a boot leaves on a floor: white where it packed into the grooves (the inverse of the print
+## it pressed), broken into clumps. A square frame LENGTH_M wide: rows heel (0) to toe, sole centred.
+static func floor_print_image(width_m: float, px_per_m: float = 800.0, seed: int = 0) -> Image:
+	var side: int = int(LENGTH_M * px_per_m)
+	var half_m := Vector2(LENGTH_M * 0.5, width_m * 0.5)
+	var noise := FastNoiseLite.new()
+	noise.seed = seed
+	noise.frequency = 0.08
+	var image := Image.create(side, side, false, Image.FORMAT_LA8)
+	for y: int in range(side):
+		for x: int in range(side):
+			var across: float = ((float(x) + 0.5) / side - 0.5) * LENGTH_M
+			var uv := Vector2((float(y) + 0.5) / side * 2.0 - 1.0, across / half_m.y)
+			var inside: float = 1.0 - smoothstep(-0.002, 0.0, edge_m(uv, half_m))
+			if inside <= 0.0:
+				image.set_pixel(x, y, Color(1.0, 1.0, 1.0, 0.0))
+				continue
+			var clump: float = smoothstep(-0.25, 0.25, noise.get_noise_2d(x, y))
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, (1.0 - lug(uv, half_m)) * inside * lerpf(0.35, 1.0, clump)))
+	image.generate_mipmaps()
+	return image

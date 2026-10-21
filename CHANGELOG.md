@@ -8,13 +8,32 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Floor snow prints (owner request): indoors Henry's boots leave white prints, the inverse of the snow print:
+  white where the tread's grooves packed with snow outside, broken into clumps (`BootSole.floor_print_image`,
+  the same lug pattern the snow shader presses). A step outside on snow fills the tread; each indoor step
+  leaves 20 % of what it holds, so about ten prints fade out step by step, and the tread melts empty in about
+  2 min in a 20 °C room. A print holds, then fades over its last half: 5 min in a 20 °C room, 25 min at
+  0 °C (`FloorSnowPrints`, `test_floor_snow_prints`). The decal is a cube one sole long with the sole's
+  shape in its texture: a thin, long decal box lost screen tiles of the print in Forward+ (seen on the 727
+  floor; godotengine/godot#73945). The two prints bake in ~34 ms at load.
+- Blizzard flow (`BlizzardFlow`, FUTURE_INTENT §10): blown snow as fog volumes on the wide streets
+  (pavement ≥ 7 m, Key West's top ~15 % of road length) that run with the wind (|cos| ≥ 0.6, street-canyon
+  channelling), up to six near Henry. Density is the blowing-snow extinction for the live 10 m wind, gusts
+  included: Tabler's visibility V = 1.126e8·U^-4.85 m (TRB SR185) through Koschmieder 3.912 / V, capped at
+  ~13 m visibility. It starts only past the snowpack's blowing threshold (5–10 m/s) with snow laid. Densest
+  at the street and thinning with a 3 m scale height (body height); ~12 m billows with gaps and a 5 m tear
+  octave advect downwind; volumes fade in and out over 2 s. Each billow core settles at the overcast it
+  scatters (the environment ambient: Godot scales fog EMISSION by density), so the flow reads lighter than
+  the air, not as dark bands as with a fixed 0.18 glow (measured at forced density). Flakes ride each
+  volume and the ground streamers run along the flow streets, on screen only. Street centrelines come from the road ribbons `KeyWestRealityGround` already paves
+  (`get_wide_streets`, `test_key_west_reality_ground`). The weather readout shows the flow.
 - Key West mug model (owner request): `SurvivalItemVisual` draws `assets/items/mug/Mug_game_ready.glb` for the
   mug, mug of snow and warm water (held, world pickups, shelter cabinet) instead of the grey cylinder. The model is
   real scale (13 x 8.7 x 10 cm, base at 0); snow and water are a disc inside the measured 4.4 cm inner wall.
   Henry starts with the mug in the pack lid pocket instead of the pack, so one Quick Access pocket is free at start.
 - Weather debug (debug builds, Key West), one key, 0. The first press shows the profile, scheduler or pin,
   blend, wind and drift gate, snowfall, visibility, cover, hour, sun beam, shelter state and the live streak,
-  ground-drift and spindrift counts. Each next press pins calm, snowfall, windy, blizzard in turn; the one
+  ground-drift counts. Each next press pins calm, snowfall, windy, blizzard in turn; the one
   after blizzard hands the weather back to the scheduler and hides the readout.
 - Rooms frame Henry low-left (owner note): any room uses the tight composition and the camera rises until his eyes
   sit at mid-height (stove 29–30 % / 46–47 %, was 33 % / 37 %). Auto shoulder swap when the player's side is walled off
@@ -108,6 +127,21 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Boot tread readable at play distance (owner: the print "sometimes seems invisible"). The snow shader switched
+  the lug pattern off once a pixel on the snow passed 2–6 mm; at the shipped render scale (0.77, FSR) a fresh
+  print 2.5 m from the TPS camera spans 4 × 8 mm pixels (measured), so the tread showed only in steep
+  close views. Now the pattern blends to its mean shade (lugs cover 34 % of the sole) between 4 and 11 mm
+  pixels, measured as the pixel's area on the snow, the way a mip chain filters a texture; groove shade
+  0.1 → 0.28.
+- Spindrift removed (owner: the plume "bubbles" do not fit). `SnowSpindrift` and its spawning in `WindGusts`
+  are gone; the original ground streamers stay. The blowing-snow threshold (`WindGusts.blowing_snow_threshold`)
+  stays for the blizzard flow.
+- A square of snow around Henry at scene start, then a hitch and it vanished (owner report). Road paving
+  had been queued ahead of the chunk snow covers, so no cover was built (measured: 0 of 4 at frame 60)
+  while paving ran. Henry's rings drew a square of snow over bare terrain until the queue cleared and the
+  cover under him landed in one frame. Covers and paving now run side by side on their own budgets
+  (3 ms / 1.5 ms), the cover under Henry first. The field rebuild that follows paving is sliced like a
+  walking move instead of done at once.
 - Quick Access cards overlapping at some camera angles (owner note).
   - Cause: the layout blended spread and cross by how much the cards overlapped, so a partial overlap gave a
     partial blend that left them on top of each other (`test_quick_access_layout`: 71 overlaps on the old code).
@@ -214,18 +248,32 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
-- Spindrift: a second drift effect beside the original ground streamers (left as they were). It fires only
-  when the wind passes the blowing-snow threshold for the snowpack (5 m/s fresh to 10 m/s crusted, Li &
-  Pomeroy 1997), more often the further over it, and roof lips only once the weather has laid snow (cover 0.2). Plumes smoke off
-  drift crests (a lee drop of 2–8 cm over 1.2 m in the snow field) and lee roof eaves (a building footprint
-  whose roof is gone or 1.2 m lower 1.5 m downwind), only on fresh snow. They are lofted off the lip, with
-  two-tone puffs (white core, cool rim) and a soft decal shade on the snow under the plume, so they read on
-  white snow. Snowfall stays the six-armed stars (author call: the wind-line version read as rain).
+- Ground drift travels as a wave (owner note: it appeared in place, straight). Each `SnowLift` streamer is now a
+  sweep: the emitter runs downwind for 1.6–2.4 s at 0.45 of the 10 m wind along a shallow arc (bow 5–9 % of
+  its length, side at random), snapped to the ground, shedding its four layers into a world-space trail that
+  swells in and dies out. A 12 m/s sweep is ~9 m (was a fixed 5 m patch); it ends at a kerb over 0.6 m or a
+  slope. A sweep starts only when its start, middle and end are on screen and it crosses open snow (no
+  footprint at either end, no canopy over the start). Both drift sources use it: the wind drift ahead of Henry
+  and the blizzard flow streets (`test_snow_lift_sweep`). The head now rides the drawn snow top
+  (`SnowField.get_snow_top`): it stood on the physics ground, 0.23–0.49 m under the snow at the Duval spawn
+  (measured), so the grains were buried and the drift barely showed on snow. On lit snow the grey grains
+  (0.8) still matched the surface, so the grains are lighter (0.95) and the sweep drags a soft cool shade
+  over the snow under its trail (owner's idea from the spindrift round). The technique is a moving emitter leaving a world-space
+  trail (Godot `local_coords = false`), as trail emitters do.
+- The world shows finished (owner note: a square of bare snow at start that went away a minute later). The
+  startup card now holds until boot work is done, through a new `BootLoadCapability` (`core/contracts/`):
+  `KeyWestRealityGround` reports the chunks live at boot until their paving and snow cover are built, and
+  builds them at full speed under the card; `SnowShell` reports a pending re-read of ground that streamed in
+  (weather rebuilds do not count: the old window stays drawn, and in a blizzard they run all the time).
+  The card waits at most 30 s and logs who was still pending. A field sample over ground that never streams
+  (open sea past the chunks) is not boot work: it held the first run at the 30 s cap.
 - In falling snow the sun dims with visibility (Koschmieder extinction 3.912 / visibility over a 30 m beam
   path): ~7 % of the sun in a 45 m blizzard, ~59 % in 220 m snowfall, 75 % in 400 m windy weather. The lost
-  beam returns as grey-white fill (1.86 ambient per unit of sun, measured: linear snow sun 0.48, sky 0.086),
-  so snow keeps (linear, measured at the Duval spawn) 77 % of clear day in windy weather, 69 % in snowfall and
-  51 % in a blizzard, against 29 % in the blizzard of the first version ("days went dark"). Before, a blizzard kept full sun and hard shadows (`test_sun_steps`).
+  beam returns as ambient fill, 0.3 per unit of lost sun, in the sun's own colour (snow scatters it
+  unchanged) and never in shelters. 1.86 in grey washed out the LUT grade (ambient 3.1 against a 0.55 base);
+  the sky tint at 1.8 turned a blizzard blue; 1.2 in the sun's colour made a blizzard 132 % of clear day.
+  Measured on snow at the Duval spawn (linear): 81 % of clear day in windy weather, 74 % in snowfall, 53 % in
+  a blizzard, with the clear-day colour balance (blue minus red 35–38 against 33). Before, a blizzard kept full sun and hard shadows (`test_sun_steps`).
 - Fort Zachary Taylor collision simplified in Blender: `tools/blender/landmark_collision.py` (Blender 5.2 `bpy`, Decimate Collapse 0.2) adds a `FortSurfaceCollision-colonly` copy of 8,238 faces (was 41,197) to the fort `.glb`; the visual mesh is byte-identical. Error from every source vertex and face centre: mean 0.8, p99 5.1, max 12.5 cm. The fort chunk's `Buildings` attach drops from 66–80 ms to 12 ms (`measure_attach_parts`, `kw_gen_-9_3`). A 1 m ray grid against the exact surface: p99 8 cm. `HeightMapShape3D` was measured and rejected (285 ms to build). New `test_landmark_collision`; method and table in `REALITY_HLOD.md`.
 - **Legacy Key West island removed** (owner approval, 2026-10-15). Gone: `key_west.tscn`, `key_west_first_exit.tscn`, the `key_west_test` profile, `KeyWestFirstExit`, the legacy city (`ChunkedCityMassing`, `KeyWestCityVisuals`, `KeyWestStreetProps`, `far_city/`, `snow_chunk/`), the NOAA preview crop, six legacy-only tools and three legacy-only tests. The legacy branches in `runtime_performance_policy`, `dev_diorama_map` and `snow_shell` went with them (none ran under Reality). The CI preview job keeps its Reality captures only. `capture_quick_access` now runs on Reality; `test_world_profiles`, `test_stylized_shadows` and `test_island_terrain` check Reality or Graciosa instead. Kept on purpose: `IslandTerrain`/`IslandHeightmap` (Graciosa, the hut template generator), the terrain shader, the Reality Library sources and the NOAA sources. Record: `docs/technical/LEGACY_ISLAND_REMOVAL.md`.
 - Owner tasks, 2026-10-15:

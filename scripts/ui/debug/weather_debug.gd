@@ -18,6 +18,7 @@ var _thermal: ThermalManager
 var _day_night: DayNightManager
 var _snowfall: SnowfallVFX
 var _gusts: WindGusts
+var _blizzard: BlizzardFlow
 var _label: Label
 var _layer: CanvasLayer
 var _cycle_index: int = -1
@@ -33,6 +34,7 @@ func on_world_ready(context: WorldContext) -> void:
 	_day_night = context.find_in_scene(DAY_NIGHT_SCRIPT) as DayNightManager
 	_snowfall = context.find_in_scene(SNOWFALL_SCRIPT) as SnowfallVFX
 	_gusts = get_parent().find_child("WindGusts", false, false) as WindGusts
+	_blizzard = get_parent().find_child("BlizzardFlow", false, false) as BlizzardFlow
 	_build_overlay()
 	var input_systems: Node = get_node_or_null(^"/root/InputSystems")
 	if input_systems == null or not input_systems.has_signal(&"dev_weather_cycle_pressed"):
@@ -94,8 +96,13 @@ func _readout() -> String:
 		lines.append("hour %02d:%02d  sun beam %d %%" % [int(hour), int(fmod(hour, 1.0) * 60.0), int(round(_day_night.get_snow_beam() * 100.0))])
 	lines.append("sheltered %s" % (str(_thermal.is_sheltered()) if _thermal != null else "?"))
 	if _gusts != null:
-		var counts: Vector3i = _gusts.get_active_counts()
-		lines.append("streaks %d  ground drift %d  spindrift %d" % [counts.x, counts.y, counts.z])
+		var counts: Vector2i = _gusts.get_active_counts()
+		lines.append("streaks %d  ground drift %d" % [counts.x, counts.y])
+	if _blizzard != null:
+		var extinction: float = _blizzard.get_extinction()
+		lines.append("blizzard flow %d streets  blown-snow visibility %s  (from %.1f m/s)" % [
+			_blizzard.get_active_count(), "%.0f m" % (3.912 / extinction) if extinction > 0.0005 else "-",
+			WindGusts.blowing_snow_threshold()])
 	if _snowfall != null and _snowfall.particles != null:
 		lines.append("snowfall emitting %s  ratio %.2f  at %s" % [
 			str(_snowfall.particles.emitting), _snowfall.particles.amount_ratio, str(_snowfall.global_position.round())])
