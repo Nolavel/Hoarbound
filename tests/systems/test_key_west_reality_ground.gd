@@ -42,6 +42,7 @@ func _run() -> void:
 	_check(not ground.has_snow_obstacle_at(Vector2(-7 * 512.0 + 15.0, 3 * 512.0 + 15.0)), "unloaded chunk still answers obstacles")
 	chunk.free()
 	ground.free()
+	_test_roads_raise_the_surface()
 	if _failures > 0:
 		push_error("reality ground: %d check(s) failed" % _failures)
 		quit(1)
@@ -50,12 +51,11 @@ func _run() -> void:
 	quit(0)
 
 
-func _chunk(key: Vector2i) -> Node3D:
-	var n: int = 4
+func _chunk(key: Vector2i, n: int = 4, rise: float = 1.0) -> Node3D:
 	var data := PackedFloat32Array()
 	for row: int in range(n):
 		for col: int in range(n):
-			data.append(1.0 + col)
+			data.append(1.0 + col * rise)
 	var hm := HeightMapShape3D.new()
 	hm.map_width = n
 	hm.map_depth = n
@@ -80,6 +80,45 @@ func _chunk(key: Vector2i) -> Node3D:
 	root_node.set_meta("snow_footprints", [PackedVector2Array([o + Vector2(10, 10), o + Vector2(20, 10), o + Vector2(20, 20), o + Vector2(10, 20)])])
 	root_node.add_child(terrain)
 	return root_node
+
+
+## A road ribbon a few centimetres over the terrain is the ground snow lies on; a high deck is not.
+func _test_roads_raise_the_surface() -> void:
+	var ground := KeyWestRealityGround.new()
+	root.add_child(ground)
+	var key := Vector2i(-5, 2)
+	var o := Vector3(key.x * 512.0, 0.0, key.y * 512.0)
+	var chunk := _chunk(key, 8, 0.0)
+	var roads := Node3D.new()
+	roads.name = "Roads"
+	roads.add_child(_ribbon(o + Vector3(2.0, 1.07, 5.0), o + Vector3(12.0, 1.07, 7.0)))
+	roads.add_child(_ribbon(o + Vector3(2.0, 3.0, 10.0), o + Vector3(12.0, 3.0, 12.0)))
+	chunk.add_child(roads)
+	root.add_child(chunk)
+	ground._index(chunk)
+	_check(not ground.has_surface_at(o.x + 6.0, o.z + 6.0), "surface reported before the roads were paved")
+	_check(is_equal_approx(ground.get_surface_height(o.x + 6.0, o.z + 6.0), 1.0), "unpaved surface is not the terrain")
+	while not ground._pave_jobs.is_empty():
+		var lot: Vector2i = ground._pave_jobs.keys()[0]
+		if ground._pave_step(lot, 1 << 30):
+			ground._pave_jobs.erase(lot)
+	_check(ground.has_surface_at(o.x + 6.0, o.z + 6.0), "paved surface not reported")
+	_check(absf(ground.get_surface_height(o.x + 6.0, o.z + 6.0) - 1.07) < 0.001, "road not under the snow: %f" % ground.get_surface_height(o.x + 6.0, o.z + 6.0))
+	_check(absf(ground.get_surface_height(o.x + 6.0, o.z + 5.0) - 1.07) < 0.001, "road edge dips below the ribbon: %f" % ground.get_surface_height(o.x + 6.0, o.z + 5.0))
+	_check(is_equal_approx(ground.get_height(o.x + 6.0, o.z + 6.0), 1.0), "the road changed the terrain height")
+	_check(is_equal_approx(ground.get_surface_height(o.x + 6.0, o.z + 11.0), 1.0), "a 2 m deck became the snow's ground")
+	chunk.free()
+	ground.free()
+
+
+func _ribbon(lo: Vector3, hi: Vector3) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for p: Vector3 in [lo, Vector3(hi.x, lo.y, lo.z), Vector3(hi.x, hi.y, hi.z), lo, Vector3(hi.x, hi.y, hi.z), Vector3(lo.x, hi.y, hi.z)]:
+		st.add_vertex(p)
+	var ribbon := MeshInstance3D.new()
+	ribbon.mesh = st.commit()
+	return ribbon
 
 
 func _check(condition: bool, message: String) -> void:

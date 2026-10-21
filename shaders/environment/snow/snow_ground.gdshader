@@ -120,6 +120,9 @@ vec2 edge_jag(vec2 xz, float crust) {
 // Wind crust cracks into slabs that tilt up at a pit's edge. Displaced powder is
 // stored in the packed field itself (negative), so only crust gets this lip.
 float rim_at(vec2 uv, vec2 xz, float here, float crust) {
+	if (crust < 0.1) {
+		return 0.0;
+	}
 	float d = packed_texel_m * 2.5 / window_m;
 	float around = 0.0;
 	for (int i = 0; i < 8; i++) {
@@ -130,7 +133,7 @@ float rim_at(vec2 uv, vec2 xz, float here, float crust) {
 	around /= 12.0;
 	float lip = max(around - max(here, 0.0) * 1.5, 0.0);
 	float slab = 0.6 + 0.8 * snow_noise(xz * 6.0);
-	return lip * mix(0.15, 0.6, crust) * slab;
+	return lip * 0.6 * smoothstep(0.1, 0.5, crust) * slab;
 }
 
 // The drawn surface at a world point: one base surface everywhere (with the chunk

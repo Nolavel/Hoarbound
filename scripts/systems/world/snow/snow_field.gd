@@ -22,6 +22,8 @@ const STAGE_NORMAL: int = 8
 
 ## Ground height and obstacle flag at a world point, as Vector2(height, 0 or 1).
 var ground_sampler: Callable
+## True terrain height (finer than the 2 m lattice the baked surface stands on); optional.
+var terrain_sampler: Callable
 
 var window_m: float = 25.6
 var res: int = 128
@@ -69,6 +71,8 @@ var _col1: PackedFloat32Array = []
 var _row2: PackedFloat32Array = []
 var _bed: PackedFloat32Array = []
 var _wall: PackedFloat32Array = []
+## True terrain per cell: depth, and so how far a boot presses, is measured down to it.
+var _terrain_y: PackedFloat32Array = []
 ## Prevailing and storm wind factors per grid cell; mixed by storm_share at depth time.
 var _prevail: PackedFloat32Array = []
 var _storm: PackedFloat32Array = []
@@ -374,7 +378,7 @@ func _start_grid(grid_origin: Vector2, shift: Vector2i) -> void:
 	var n: int = res + 2 * APRON
 	if _n != n:
 		_n = n
-		for layer: String in ["_height", "_row1", "_col1", "_row2", "_bed", "_wall", "_prevail", "_storm", "_grain"]:
+		for layer: String in ["_height", "_row1", "_col1", "_row2", "_bed", "_wall", "_prevail", "_storm", "_grain", "_terrain_y"]:
 			var arr := PackedFloat32Array()
 			arr.resize(n * n)
 			set(layer, arr)
@@ -391,6 +395,7 @@ func _start_grid(grid_origin: Vector2, shift: Vector2i) -> void:
 		_prevail = _shifted(_prevail, shift)
 		_storm = _shifted(_storm, shift)
 		_grain = _shifted(_grain, shift)
+		_terrain_y = _shifted(_terrain_y, shift)
 	_grid_origin = grid_origin
 	_job_shift = shift
 
@@ -441,6 +446,7 @@ func _grid_span(stage: int, span: Vector3i) -> void:
 				var g: Vector2 = ground_sampler.call(at)
 				_ground[k] = g
 				_height[k] = g.x
+				_terrain_y[k] = float(terrain_sampler.call(at)) if terrain_sampler.is_valid() else g.x
 				var both: Vector2 = wind_factors(at)
 				_prevail[k] = both.x
 				_storm[k] = both.y
@@ -604,7 +610,8 @@ func _output_row(ty: int) -> void:
 		## Depth is measured from the real ground, so the shader's ground stays true.
 		var top: float = g.x + depth if use_baked_baseline else _bed[k] * shore + g.x * (1.0 - shore) + depth
 		_job_px[o] = top
-		_job_px[o + 1] = top - g.x
+		## Depth down to the true terrain: where it rises between lattice nodes, a print stops on it.
+		_job_px[o + 1] = maxf(top - maxf(g.x, _terrain_y[k]), 0.0)
 		## B: 1 where snow is cut away, else softness scaled below 0.5.
 		var city: float = lerpf(_prevail[k], _storm[k], _job_storm)
 		_job_px[o + 2] = 1.0 if g.x < sea_level_m + 0.02 else softness(_grid_world(APRON + tx, APRON + ty), city, _job_firmness) * SOFTNESS_SCALE

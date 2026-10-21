@@ -271,7 +271,8 @@ func _apply_conditions(wind_speed_mps: float, snowfall_density: float) -> void:
 	particles.amount_ratio = density * _quality_density_scale
 	particles.emitting = particles.amount_ratio > 0.005
 	if heightfield_service != null:
-		heightfield_service.set_active(density > 0.005)
+		## Ground drift collides with the same field, so wind alone keeps it up too.
+		heightfield_service.set_active(density > 0.005 or speed >= WindGusts.MIN_WIND_MPS)
 
 	var foreground_ratio: float = clampf(density * FOREGROUND_DENSITY_SCALE * _quality_density_scale, 0.0, 1.0)
 	foreground_particles.amount_ratio = foreground_ratio

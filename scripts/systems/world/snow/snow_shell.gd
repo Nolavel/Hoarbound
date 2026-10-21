@@ -164,6 +164,12 @@ var _clipmap: SnowClipmap
 var _far_ready: bool = false
 ## Lattice refreshes left for points on chunks that were not live yet (sea never streams in).
 var _far_retries: int = 0
+## Field rebuilds left to retry because some cells sampled ground before their chunk streamed in.
+var _field_retries: int = 0
+## Set while a field rebuild samples a cell whose chunk is not live yet (fallback height),
+## with the last such point: once it streams in, the field is rebuilt.
+var _field_ground_partial: bool = false
+var _field_unknown_at: Vector2 = Vector2.ZERO
 ## Frame the rings were last placed, so a pass frame does not place them twice.
 var _lod_frame: int = -1
 var _contact: SubViewport
@@ -242,6 +248,7 @@ func _ready() -> void:
 	field.drift_m = drift_m
 	field.lee_m = lee_m
 	field.ground_sampler = _sample_ground
+	field.terrain_sampler = _sample_terrain
 	_build_surface()
 	_build_capture()
 
@@ -531,6 +538,8 @@ func recentre_to(centre: Vector2) -> void:
 	var wind: Vector2 = _wind()
 	field.storm_share = _storm_share()
 	field.firmness = _firmness()
+	_field_ground_partial = false
+	_field_retries = FAR_RETRIES
 	field.rebuild(wanted, cover, wind)
 	_apply_window(old, wanted, cover, wind)
 
@@ -606,6 +615,8 @@ func _follow(henry: Vector2, lead: Vector2 = Vector2.ZERO) -> void:
 	_move_wind = _wind()
 	field.storm_share = storm
 	field.firmness = _firmness()
+	_field_ground_partial = false
+	_field_retries = FAR_RETRIES
 	field.begin_rebuild(wanted, _move_cover, _move_wind)
 	if field.step_rebuild(budget):
 		_apply_window(_move_from, field.origin, _move_cover, _move_wind)
@@ -712,6 +723,26 @@ func _refresh_far_grid(window_origin: Vector2, retry: bool = false) -> void:
 	_far_ready = true
 
 
+## A field built before its chunks streamed in cached the fallback ground (a snow top up to
+## decimetres off the drawn one): drop the cache and rebuild in place once they are live.
+func _retry_field_ground(live: bool) -> void:
+	if not _field_ground_partial or not live or field.is_rebuilding():
+		return
+	var streamed := _terrain as KeyWestRealityGround
+	if _lod_frame % 30 != 0 or _field_retries <= 0 or streamed == null \
+			or not streamed.has_surface_at(_field_unknown_at.x, _field_unknown_at.y):
+		return
+	_field_retries -= 1
+	var cover: float = _cover()
+	var wind: Vector2 = _wind()
+	field.storm_share = _storm_share()
+	field.firmness = _firmness()
+	field.invalidate()
+	_field_ground_partial = false
+	field.rebuild(field.origin, cover, wind)
+	_apply_window(field.origin, field.origin, cover, wind)
+
+
 ## Rings out to the chunk handoff when a chunk cover takes over, else over the whole window.
 func _build_rings(chunk_cover: bool) -> void:
 	var outer: float = cut_radius_m + LOD_OVERLAP_M + 0.2 if chunk_cover else window_m * 0.5 + recentre_step_m * 0.5
@@ -741,6 +772,7 @@ func _follow_lod() -> void:
 	_mesh.visible = live
 	if _far_retries > 0 and live and _lod_frame % 30 == 0:
 		_refresh_far_grid(field.origin, true)
+	_retry_field_ground(live)
 	## Without the chunk lattice the rings draw out to their edge and the chunk cover yields all of it.
 	var cut: float = cut_radius_m if _far_ready else _clipmap.outer_half()
 	RenderingServer.global_shader_parameter_set(&"snow_lod", Vector4(at.x, at.z, cut, 1.0 if live else 0.0))
@@ -1153,6 +1185,10 @@ func _sample_ground(at: Vector2) -> Vector2:
 	var ground_y: float = _base_y
 	if _terrain != null:
 		ground_y = _lattice_height(at) if field.use_baked_baseline else _terrain.get_height(at.x, at.y)
+		var streamed := _terrain as KeyWestRealityGround
+		if streamed != null and not streamed.has_surface_at(at.x, at.y):
+			_field_ground_partial = true
+			_field_unknown_at = at
 	if _terrain != null and _city != null and bool(_city.call(&"has_snow_obstacle_at", at)):
 		return Vector2(ground_y, 1.0)
 	if not is_inside_tree():
@@ -1184,6 +1220,14 @@ func _sample_ground(at: Vector2) -> Vector2:
 	if _terrain != null and hit_at.y <= ground_y + 0.3:
 		return Vector2(ground_y, 0.0)
 	return Vector2(hit_at.y, 0.0)
+
+
+## The ground snow lies on under `at`: the terrain at its own resolution, or a road ribbon over it.
+func _sample_terrain(at: Vector2) -> float:
+	var streamed := _terrain as KeyWestRealityGround
+	if streamed != null:
+		return streamed.get_surface_height(at.x, at.y)
+	return _terrain.get_height(at.x, at.y) if _terrain != null else _base_y
 
 
 ## Terrain under `at` as the chunk cover's 2 m triangles carry it, so feet stand on the drawn base.

@@ -152,6 +152,8 @@ jobs:
       - name: Upload reality reports
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: hoarbound-key-west-reality
           path: |
@@ -159,6 +161,7 @@ jobs:
             docs/runtime_previews/key_west_reality_gate/*.json
             scenes/world/key_west/generated/generation_report.json
           if-no-files-found: warn
+          retention-days: 3
 
   key-west-reality-fresh:
     ## Zero-setup review path: the committed snapshot exactly as cloned; no unpack, export or
@@ -199,11 +202,13 @@ jobs:
       - name: Upload loop report
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: hoarbound-key-west-727-loop
           path: docs/runtime_previews/key_west_727_loop/loop_report.json
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 3
 
   key-west-preview:
     ## Lavapipe/Forward+ captures on the Key West Reality scene, chosen by a commit tag.
@@ -400,6 +405,8 @@ jobs:
       - name: Upload Key West previews
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: ${{ contains(github.event.head_commit.message, '[painterly-wash-preview]') && 'hoarbound-painterly-wash' || (contains(github.event.head_commit.message, '[sky-weather-preview]') && 'hoarbound-sky-weather' || 'hoarbound-stylized-shadows') }}
           path: |
@@ -534,6 +541,8 @@ jobs:
       - name: Upload
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: hoarbound-snow-surface-${{ matrix.variant }}
           path: |
@@ -544,7 +553,7 @@ jobs:
             ${{ env.OUT }}/oblique/0000.png
             ${{ env.OUT }}/tps/0000.png
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 3
 
   snow-walk:
     ## Henry's walk through the snowpack on Duval Street (tools/runtime/capture_snow_walk.gd):
@@ -659,6 +668,8 @@ jobs:
       - name: Upload
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: hoarbound-snow-walk-${{ matrix.snowpack }}
           path: |
@@ -668,4 +679,4 @@ jobs:
             ${{ env.OUT }}/report.json
             ${{ env.OUT }}/capture.log
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 3

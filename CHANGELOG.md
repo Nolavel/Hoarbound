@@ -100,6 +100,38 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Ground drift passed through roofs: its particles had no collision mode (default off). They now collide
+  with the snowfall height field, which also stays up in wind without snowfall. Streamers no longer start
+  under a roof or a canopy.
+- Static shadows' torn outlines boiled on every camera tick. The three-tone cut used hard `step`s, so the TPS
+  camera's sub-millimetre damping moves flipped whole contour pixels each frame; the cascades themselves are
+  texel-snapped and hold (measured). The cuts are now one pixel wide (`fwidth`): contour pixels changed by a
+  1 px move fell from 0.112 % to 0.025 % (0.023 % with no stylisation), the torn look unchanged.
+- Static shadows jumped every 2.5 s: the sun's direction was re-aimed every game minute (0.25° of azimuth, about
+  11 cm at the tip of a 25 m pole shadow), and stable cascades hold only while the light does not turn. The sun
+  now turns once per `sun_step_minutes` (4 game minutes, 10 s at the 60-minute day), eased over
+  `sun_blend_seconds` (2 s); loads, clock jumps and acceleration snap (`test_sun_steps`).
+- Snow under Henry's feet could stand 20 cm off the drawn snow. Measured at the Duval spawn: field top minus
+  lattice ground 0.41 m against a drawn 0.21 m. SnowField sampled ground before the chunk streamed in
+  (`KeyWestRealityGround.FALLBACK_Y` 1.0 m against 0.8 m real) and kept that cache across window moves. The
+  shell now notes cells sampled off live ground and rebuilds the field in place once that ground streams in
+  (same retry scheme as the chunk lattice); after the fix 0.211 against 0.209. Depth, and so how far a boot
+  presses, is now measured down to the true terrain where its 1 m corridor tiles rise above the 2 m lattice
+  (`test_snow_shell`). The crust lip (`rim_at`) is gated to crust: on loose snow its 8-tap rings drew echo
+  contours around every print.
+- Boot prints on streets showed white holes in the forefoot and heel. Measured at the Duval spawn: snow top
+  1.011 m, road ribbon 0.876 m, terrain 0.802 m, so a full press (give 0.179 m) put the print floor 4 cm under
+  the asphalt and the road mesh drew through it. Road ribbons are exported as DEM + 5 cm sampled every 32 m, so
+  their lift over the terrain varies. `KeyWestRealityGround` now rasterises each chunk's road triangles into a
+  copy of its height tile (frame-budgeted, the chunk under Henry at once). The new `get_surface_height` is
+  the ground snow depth is measured to; decks over 0.3 m stay the physics ray's. The field rebuild retry
+  also never fired when the first build already saw unstreamed ground (its counter began at 0); every fresh
+  build now arms it (`test_key_west_reality_ground`).
+- CI: report uploads (`suites` log, capture previews) no longer fail the run when the repository's artifact
+  storage quota is full; every suite had passed on `main` while the job showed red for the upload alone.
+- CI report artifacts (captures, videos, suite logs) are kept 3 days. The suite log and the Reality reports had
+  no `retention-days`, so they stayed the default 90 days on every push and filled the storage quota. The
+  GDExtension binaries keep their own retention: the local installer downloads them.
 - Outer snow cover no longer crawls or pops while Henry walks (owner report; Codex's `codex` attempts kept the moving square).
   - Cause, measured with a fixed top-down height witness on Duval Street: the shell was one graded square mesh
     that jumped 3.2 m with the field window and blended into the chunk cover over a window-relative 6 m band.
@@ -166,6 +198,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Spindrift: a second drift effect beside the original ground streamers (left as they were). Plumes smoke off
+  drift crests (a lee drop of 2–8 cm over 1.2 m in the snow field) and lee roof eaves (a building footprint
+  whose roof is gone or 1.2 m lower 1.5 m downwind), only on fresh snow. They are lofted off the lip, with
+  two-tone puffs (white core, cool rim) and a soft decal shade on the snow under the plume, so they read on
+  white snow. Snowfall stays the six-armed stars (author call: the wind-line version read as rain).
+- In falling snow the sun dims with visibility (Koschmieder extinction 3.912 / visibility over a 30 m beam
+  path): ~7 % of the sun in a 45 m blizzard, ~59 % in 220 m snowfall, 75 % in 400 m windy weather. Diffuse
+  fill rises by up to 30 %. Before, a blizzard kept full sun and hard shadows (`test_sun_steps`).
 - Fort Zachary Taylor collision simplified in Blender: `tools/blender/landmark_collision.py` (Blender 5.2 `bpy`, Decimate Collapse 0.2) adds a `FortSurfaceCollision-colonly` copy of 8,238 faces (was 41,197) to the fort `.glb`; the visual mesh is byte-identical. Error from every source vertex and face centre: mean 0.8, p99 5.1, max 12.5 cm. The fort chunk's `Buildings` attach drops from 66–80 ms to 12 ms (`measure_attach_parts`, `kw_gen_-9_3`). A 1 m ray grid against the exact surface: p99 8 cm. `HeightMapShape3D` was measured and rejected (285 ms to build). New `test_landmark_collision`; method and table in `REALITY_HLOD.md`.
 - **Legacy Key West island removed** (owner approval, 2026-10-15). Gone: `key_west.tscn`, `key_west_first_exit.tscn`, the `key_west_test` profile, `KeyWestFirstExit`, the legacy city (`ChunkedCityMassing`, `KeyWestCityVisuals`, `KeyWestStreetProps`, `far_city/`, `snow_chunk/`), the NOAA preview crop, six legacy-only tools and three legacy-only tests. The legacy branches in `runtime_performance_policy`, `dev_diorama_map` and `snow_shell` went with them (none ran under Reality). The CI preview job keeps its Reality captures only. `capture_quick_access` now runs on Reality; `test_world_profiles`, `test_stylized_shadows` and `test_island_terrain` check Reality or Graciosa instead. Kept on purpose: `IslandTerrain`/`IslandHeightmap` (Graciosa, the hut template generator), the terrain shader, the Reality Library sources and the NOAA sources. Record: `docs/technical/LEGACY_ISLAND_REMOVAL.md`.
 - Owner tasks, 2026-10-15:

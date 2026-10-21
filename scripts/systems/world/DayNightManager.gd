@@ -20,6 +20,14 @@ enum TimeOfDay {
 
 const DEFAULT_SKY_SHADER: Shader = preload("res://shaders/environment/freemans_parallax_clouds.gdshader")
 const SIMULATION_CLOCK_SCRIPT: GDScript = preload("res://scripts/systems/time/simulation_clock.gd")
+const WEATHER_SCRIPT: GDScript = preload("res://scripts/systems/world/WeatherController.gd")
+## Slant path of the sun's beam through falling snow, metres: with Koschmieder's
+## extinction 3.912 / visibility it leaves ~7 % of the sun in a 45 m blizzard, ~59 % in 220 m snowfall.
+const SNOW_BEAM_PATH_M: float = 30.0
+## Diffuse fill gained as falling snow scatters the beam it removes.
+const SNOW_AMBIENT_LIFT: float = 0.3
+## How fast the sun follows the weather, per second.
+const SNOW_SUN_RESPONSE: float = 0.5
 
 const PERIOD_RU: Array[String] = [
 	"Полночь",
@@ -94,6 +102,14 @@ var sky_resource: Sky
 var sky_material: ShaderMaterial
 var _noise_texture: NoiseTexture2D
 var _cloud_time_s: float = 0.0
+var _sun_step: int = -1
+var _sun_from: Quaternion = Quaternion.IDENTITY
+var _sun_to: Quaternion = Quaternion.IDENTITY
+var _sun_blend_left: float = 0.0
+var _weather: WeatherController
+var _sun_energy: float = 1.0
+var _ambient_energy: float = 1.0
+var _snow_beam: float = 1.0
 
 
 func _ready() -> void:
@@ -114,6 +130,8 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	# Shader TIME ignores SceneTree pause. Drive cloud phase from this pausable node instead.
 	_cloud_time_s += delta
+	_ease_sun(delta)
+	_dim_sun_in_snow(delta)
 	if sky_material != null:
 		sky_material.set_shader_parameter("cloud_time", _cloud_time_s)
 
@@ -134,6 +152,8 @@ func _process(delta: float) -> void:
 
 ## Composition-root hook: the simulation clock becomes canonical once World exists.
 func on_world_ready(context: WorldContext) -> void:
+	_weather = context.get_system(WEATHER_SCRIPT) as WeatherController
+	_snow_beam = _snow_beam_target()
 	if simulation_clock == null:
 		simulation_clock = context.get_system(SIMULATION_CLOCK_SCRIPT) as SimulationClock
 	if simulation_clock == null:
@@ -261,7 +281,7 @@ func _force_update_visuals() -> void:
 	var hour: float = get_current_hour_float()
 	current_day = floori(total_game_time_hours / 24.0) + 1
 	is_day = _is_day(hour)
-	_update_environment_visuals(hour)
+	_update_environment_visuals(hour, true)
 	if is_instance_valid(color_grade_controller):
 		color_grade_controller.update_for_time(hour)
 	_emit_time_signals(hour)
@@ -282,7 +302,7 @@ func _on_game_minute_changed(game_hour: float, emit_edges: bool = true) -> void:
 		elif not was_day and is_day:
 			day_started.emit(current_day)
 
-	_update_environment_visuals(game_hour)
+	_update_environment_visuals(game_hour, not emit_edges)
 	if is_instance_valid(color_grade_controller):
 		color_grade_controller.update_for_time(game_hour)
 	_emit_time_signals(game_hour)
@@ -290,7 +310,7 @@ func _on_game_minute_changed(game_hour: float, emit_edges: bool = true) -> void:
 	time_update.emit(game_hour)
 
 
-func _update_environment_visuals(game_hour: float) -> void:
+func _update_environment_visuals(game_hour: float, snap_sun: bool = false) -> void:
 	if not is_instance_valid(directional_light):
 		return
 	if not is_instance_valid(world_environment_node) or world_environment_node.environment == null:
@@ -301,7 +321,6 @@ func _update_environment_visuals(game_hour: float) -> void:
 			return
 
 	var day_progress: float = _calculate_day_progress(game_hour)
-	var altitude: float = _calculate_light_altitude(game_hour)
 	var azimuth: float = _calculate_light_azimuth(game_hour)
 	var solar_altitude: float = _calculate_solar_altitude(game_hour)
 	var solar_direction: Vector3 = _direction_from_altitude_azimuth(solar_altitude, azimuth)
@@ -310,9 +329,10 @@ func _update_environment_visuals(game_hour: float) -> void:
 	var atmosphere_energy: float = _calculate_light_energy(game_hour, settings.day_atmosphere_light_energy)
 	var critical_factor: float = _calculate_critical_night_factor(game_hour)
 
-	directional_light.rotation_degrees = Vector3(-altitude, azimuth, 0.0)
+	_aim_sun(game_hour, snap_sun)
 	directional_light.light_color = light_color
-	directional_light.light_energy = light_energy * lerpf(1.0, 0.22, critical_factor)
+	_sun_energy = light_energy * lerpf(1.0, 0.22, critical_factor)
+	directional_light.light_energy = _sun_energy * _snow_beam
 	directional_light.light_volumetric_fog_energy = atmosphere_energy / maxf(light_energy, 0.0001)
 
 	var environment: Environment = world_environment_node.environment
@@ -336,7 +356,8 @@ func _update_environment_visuals(game_hour: float) -> void:
 	ambient_energy = _ambient_energy_for_context(ambient_energy)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	environment.ambient_light_color = ambient_color
-	environment.ambient_light_energy = ambient_energy
+	_ambient_energy = ambient_energy
+	environment.ambient_light_energy = ambient_energy * (1.0 + SNOW_AMBIENT_LIFT * (1.0 - _snow_beam))
 
 	var cloud_color: Color = _calculate_cloud_color(game_hour)
 	var ground_color: Color = settings.night_ground_color.lerp(
@@ -376,6 +397,51 @@ func _calculate_day_progress(game_hour: float) -> float:
 		progress = 1.0 - inverse_lerp(SUNSET_HOUR, DUSK_END_HOUR, game_hour)
 
 	return smoothstep(0.0, 1.0, clampf(progress, 0.0, 1.0))
+
+
+## Points the light at the sun of the current step; a new step eases in, a load or jump snaps.
+func _aim_sun(game_hour: float, snap: bool) -> void:
+	var step_minutes: float = maxf(float(settings.sun_step_minutes), 1.0)
+	var step: int = floori(total_game_time_hours * 60.0 / step_minutes + 1e-4)
+	if step == _sun_step and not snap:
+		return
+	var hour: float = fmod(float(step) * step_minutes / 60.0, 24.0)
+	var euler := Vector3(deg_to_rad(-_calculate_light_altitude(hour)), deg_to_rad(_calculate_light_azimuth(hour)), 0.0)
+	var target: Quaternion = Basis.from_euler(euler).get_rotation_quaternion()
+	var accelerating: bool = is_instance_valid(time_accelerator) and time_accelerator.is_accelerating
+	var jumped: bool = absi(step - _sun_step) > 1
+	_sun_step = step
+	if snap or jumped or accelerating or settings.sun_blend_seconds <= 0.0:
+		_sun_blend_left = 0.0
+		directional_light.quaternion = target
+		return
+	_sun_from = directional_light.quaternion
+	_sun_to = target
+	_sun_blend_left = settings.sun_blend_seconds
+
+
+func _ease_sun(delta: float) -> void:
+	if _sun_blend_left <= 0.0 or not is_instance_valid(directional_light):
+		return
+	_sun_blend_left = maxf(_sun_blend_left - delta, 0.0)
+	var t: float = smoothstep(0.0, 1.0, 1.0 - _sun_blend_left / maxf(settings.sun_blend_seconds, 0.001))
+	directional_light.quaternion = _sun_from.slerp(_sun_to, t)
+
+
+## The direct beam through falling snow (Koschmieder: extinction 3.912 / visibility), eased per
+## frame; the minute tick keeps the clock's energy, this scales it.
+func _dim_sun_in_snow(delta: float) -> void:
+	if _weather == null or not is_instance_valid(directional_light):
+		return
+	_snow_beam = lerpf(_snow_beam, _snow_beam_target(), 1.0 - exp(-SNOW_SUN_RESPONSE * delta))
+	directional_light.light_energy = _sun_energy * _snow_beam
+	if is_instance_valid(world_environment_node) and world_environment_node.environment != null:
+		world_environment_node.environment.ambient_light_energy = _ambient_energy * (1.0 + SNOW_AMBIENT_LIFT * (1.0 - _snow_beam))
+
+
+func _snow_beam_target() -> float:
+	var visibility: float = _weather.get_visibility_m() if _weather != null else 0.0
+	return exp(-3.912 * SNOW_BEAM_PATH_M / visibility) if visibility > 0.0 else 1.0
 
 
 func _calculate_light_azimuth(game_hour: float) -> float:
@@ -623,7 +689,7 @@ func _on_interior_state_changed(_is_inside: bool) -> void:
 
 
 func force_update_lighting() -> void:
-	_update_environment_visuals(get_current_hour_float())
+	_update_environment_visuals(get_current_hour_float(), true)
 
 
 func get_save_data() -> Dictionary:
