@@ -91,7 +91,9 @@ func _test_roads_raise_the_surface() -> void:
 	var chunk := _chunk(key, 8, 0.0)
 	var roads := Node3D.new()
 	roads.name = "Roads"
-	roads.add_child(_ribbon(o + Vector3(2.0, 1.07, 5.0), o + Vector3(12.0, 1.07, 7.0)))
+	var street := _ribbon(o + Vector3(2.0, 1.07, 5.0), o + Vector3(12.0, 1.07, 7.0))
+	street.set_meta("width_m", 8.0)
+	roads.add_child(street)
 	roads.add_child(_ribbon(o + Vector3(2.0, 3.0, 10.0), o + Vector3(12.0, 3.0, 12.0)))
 	chunk.add_child(roads)
 	root.add_child(chunk)
@@ -107,6 +109,13 @@ func _test_roads_raise_the_surface() -> void:
 	_check(absf(ground.get_surface_height(o.x + 6.0, o.z + 5.0) - 1.07) < 0.001, "road edge dips below the ribbon: %f" % ground.get_surface_height(o.x + 6.0, o.z + 5.0))
 	_check(is_equal_approx(ground.get_height(o.x + 6.0, o.z + 6.0), 1.0), "the road changed the terrain height")
 	_check(is_equal_approx(ground.get_surface_height(o.x + 6.0, o.z + 11.0), 1.0), "a 2 m deck became the snow's ground")
+	## A wide street's quad gives one centreline segment along it (BlizzardFlow places its flow there).
+	var streets: Array[Dictionary] = ground.get_wide_streets(Vector2(o.x + 6.0, o.z + 6.0), 5.0)
+	_check(streets.size() == 1, "wide street segments: %d" % streets.size())
+	if streets.size() == 1:
+		var a: Vector2 = streets[0]["a"]
+		var b: Vector2 = streets[0]["b"]
+		_check(absf(absf(a.x - b.x) - 10.0) < 0.01 and absf(a.y - (o.z + 6.0)) < 0.01, "street centreline wrong: %s %s" % [a, b])
 	chunk.free()
 	ground.free()
 

@@ -277,11 +277,15 @@ func _spawn_spindrift(wind: float) -> void:
 	plume.blow(wind, weather.get_snow_cover())
 
 
-## Wind that lifts snow off a lip: fresh snow goes first, a bonded crust holds to ~10 m/s.
-func _spindrift_threshold() -> float:
+## Wind that lifts snow: fresh snow goes first, a bonded crust holds to ~10 m/s (Li & Pomeroy 1997).
+static func blowing_snow_threshold() -> float:
 	var field: SnowField = SnowShell.active.field if is_instance_valid(SnowShell.active) else null
 	var firmness: float = field.firmness if field != null else 0.5
 	return lerpf(SPINDRIFT_THRESHOLD_MPS.x, SPINDRIFT_THRESHOLD_MPS.y, clampf(firmness, 0.0, 1.0))
+
+
+func _spindrift_threshold() -> float:
+	return blowing_snow_threshold()
 
 
 ## Ground under `at` with its transport score, or empty where nothing could drift.

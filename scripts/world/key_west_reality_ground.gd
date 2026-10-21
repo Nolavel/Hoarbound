@@ -14,6 +14,8 @@ const SNOW_BUDGET_USEC: int = 3000
 const EDGE_NUDGE_M: float = 0.01
 ## Road ribbons ride a few centimetres over the terrain; anything higher is a deck the physics ray owns.
 const PAVED_MAX_LIFT_M: float = 0.3
+## Pavement this wide or wider is a main street (Key West's top ~15 % of road length) the wind can run down.
+const WIDE_STREET_M: float = 7.0
 
 var _tiles: Dictionary = {}
 var _outlines: Dictionary = {}
@@ -23,6 +25,7 @@ var _snow_jobs: Dictionary = {}
 var _snow: Dictionary = {}
 var _snow_root: Node3D
 var _pave_jobs: Dictionary = {}
+var _streets: Dictionary = {}
 
 
 func _ready() -> void:
@@ -212,13 +215,64 @@ func _pave(key: Vector2i, chunk: Node) -> void:
 		if ribbon == null or ribbon.mesh == null:
 			continue
 		var xf: Transform3D = ribbon.global_transform
+		var first: int = tris.size()
 		for p: Vector3 in ribbon.mesh.get_faces():
 			tris.append(xf * p)
+		var width: float = float(ribbon.get_meta("width_m", 0.0))
+		if width >= WIDE_STREET_M:
+			_add_street_segments(key, tris, first, width)
 	if tris.is_empty():
 		tile["paved"] = true
 		return
 	_pave_jobs[key] = {"tris": tris, "next": 0, "surface": (tile["data"] as PackedFloat32Array).duplicate()}
 	set_process(true)
+
+
+## Wide-street segments within `radius` of `centre`: {a, b: Vector2 (centreline), width, y}.
+func get_wide_streets(centre: Vector2, radius: float) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for key: Vector2i in _streets.keys():
+		if not Rect2(Vector2(key) * CHUNK_M, Vector2.ONE * CHUNK_M).grow(radius).has_point(centre):
+			continue
+		for segment: Dictionary in _streets[key]:
+			var a: Vector2 = segment["a"]
+			var b: Vector2 = segment["b"]
+			if Geometry2D.get_closest_point_to_segment(centre, a, b).distance_to(centre) <= radius:
+				out.append(segment)
+	return out
+
+
+## One centreline segment per ribbon quad: the two short sides of the quad are its ends.
+func _add_street_segments(key: Vector2i, tris: PackedVector3Array, first: int, width: float) -> void:
+	if not _streets.has(key):
+		_streets[key] = [] as Array[Dictionary]
+	for i: int in range(first, tris.size() - 5, 6):
+		var corners: Array[Vector3] = []
+		for k: int in range(6):
+			var p: Vector3 = tris[i + k]
+			if not corners.any(func(c: Vector3) -> bool: return c.distance_squared_to(p) < 1e-4):
+				corners.append(p)
+		if corners.size() != 4:
+			continue
+		var ends: Array = _quad_ends(corners)
+		var a: Vector3 = (ends[0][0] + ends[0][1]) * 0.5
+		var b: Vector3 = (ends[1][0] + ends[1][1]) * 0.5
+		if Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z)) < 1.0:
+			continue
+		(_streets[key] as Array).append({"a": Vector2(a.x, a.z), "b": Vector2(b.x, b.z), "width": width, "y": (a.y + b.y) * 0.5})
+
+
+## The two disjoint corner pairs with the shortest total span: a ribbon quad's ends.
+func _quad_ends(c: Array[Vector3]) -> Array:
+	var pairings: Array = [[[c[0], c[1]], [c[2], c[3]]], [[c[0], c[2]], [c[1], c[3]]], [[c[0], c[3]], [c[1], c[2]]]]
+	var best: Array = pairings[0]
+	var best_span: float = INF
+	for pairing: Array in pairings:
+		var span: float = (pairing[0][0] as Vector3).distance_to(pairing[0][1]) + (pairing[1][0] as Vector3).distance_to(pairing[1][1])
+		if span < best_span:
+			best_span = span
+			best = pairing
+	return best
 
 
 func _pave_step(key: Vector2i, budget_usec: int) -> bool:
@@ -311,6 +365,7 @@ func _attach_snow(key: Vector2i, cover: MeshInstance3D) -> void:
 func _drop(key: Vector2i) -> void:
 	_tiles.erase(key)
 	_pave_jobs.erase(key)
+	_streets.erase(key)
 	_snow_jobs.erase(key)
 	if _snow.has(key):
 		(_snow[key] as Node).queue_free()

@@ -8,6 +8,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Blizzard flow (`BlizzardFlow`, FUTURE_INTENT §10): blown snow as fog volumes on the wide streets
+  (pavement ≥ 7 m, Key West's top ~15 % of road length) that run with the wind (|cos| ≥ 0.6, street-canyon
+  channelling), up to six near Henry. Density is the blowing-snow extinction for the live 10 m wind, gusts
+  included: Tabler's visibility V = 1.126e8·U^-4.85 m (TRB SR185) through Koschmieder 3.912 / V, capped at
+  ~13 m visibility. It starts only past the snowpack's blowing threshold (5–10 m/s) with snow laid. Densest
+  at the street and thinning with a 1.6 m scale height; two noise octaves advect downwind; volumes fade in
+  and out over 2 s. Street centrelines come from the road ribbons `KeyWestRealityGround` already paves
+  (`get_wide_streets`, `test_key_west_reality_ground`). The weather readout shows the flow.
 - Weather debug (debug builds, Key West), one key, 0. The first press shows the profile, scheduler or pin,
   blend, wind and drift gate, snowfall, visibility, cover, hour, sun beam, shelter state and the live streak,
   ground-drift and spindrift counts. Each next press pins calm, snowfall, windy, blizzard in turn; the one
