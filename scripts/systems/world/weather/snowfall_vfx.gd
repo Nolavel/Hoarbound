@@ -13,6 +13,11 @@ const FOREGROUND_MAX_PARTICLES: int = 32
 const FOREGROUND_DENSITY_SCALE: float = 0.08
 const FOREGROUND_DISTANCE: float = 2.4
 const FOREGROUND_HEIGHT: float = 1.0
+## Wind (gusts included) where falling dots start to smear into lines, and where lines are full length.
+const STREAK_START_MPS: float = 6.0
+const STREAK_FULL_MPS: float = 20.0
+## Diameter of a calm-air flake dot, metres.
+const FLAKE_DOT_M: float = 0.016
 
 var weather_controller: WeatherController
 var follow_target: Node3D
@@ -94,23 +99,21 @@ func _build_particles() -> void:
 	_process_material = _make_process_material(Vector3(24.0, 1.8, 18.0), 0.55, 1.00)
 	particles = _make_particle_layer(
 		"WorldSnow", WORLD_MAX_PARTICLES, 6.5, 0.012,
-		_build_snowflake_mesh(0.010, 0.0016, 0.0042, 0.00115, false),
+		_build_flake_dot_mesh(FLAKE_DOT_M),
 		_process_material
 	)
 	particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
 	_process_material.set_shader_parameter("velocity_stretch_enabled", true)
-	_process_material.set_shader_parameter("stretch_speed_start", 4.0)
-	_process_material.set_shader_parameter("stretch_speed_full", 7.0)
-	_process_material.set_shader_parameter("stretch_max", 1.90)
 	particles.visibility_aabb = AABB(Vector3(-48.0, -26.0, -48.0), Vector3(96.0, 52.0, 96.0))
 	add_child(particles)
 
 	_foreground_material = _make_process_material(Vector3(4.2, 2.0, 2.8), 0.66, 1.10)
 	foreground_particles = _make_particle_layer(
 		"ForegroundSnow", FOREGROUND_MAX_PARTICLES, 3.4, 0.026,
-		_build_snowflake_mesh(0.022, 0.0030, 0.0085, 0.0022, true),
+		_build_flake_dot_mesh(FLAKE_DOT_M * 2.0),
 		_foreground_material
 	)
+	foreground_particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD
 	foreground_particles.randomness = 0.42
 	_foreground_material.set_shader_parameter("velocity_stretch_enabled", false)
 	foreground_particles.visibility_aabb = AABB(Vector3(-10.0, -8.0, -10.0), Vector3(20.0, 16.0, 20.0))
@@ -150,76 +153,42 @@ func _make_particle_layer(
 	return layer
 
 
-func _build_snowflake_mesh(
-	arm_length: float,
-	arm_width: float,
-	branch_length: float,
-	branch_width: float,
-	use_material_billboard: bool
-) -> ArrayMesh:
-	var vertices := PackedVector3Array()
-	var indices := PackedInt32Array()
-	for arm_index: int in range(6):
-		var angle: float = deg_to_rad(float(arm_index) * 60.0)
-		var direction := Vector2(cos(angle), sin(angle))
-		_append_strip(vertices, indices, Vector2.ZERO, direction * arm_length, arm_width)
-		var branch_root: Vector2 = direction * arm_length * 0.56
-		for side: float in [-1.0, 1.0]:
-			var branch_direction: Vector2 = direction.rotated(deg_to_rad(42.0 * side))
-			_append_strip(vertices, indices, branch_root, branch_root + branch_direction * branch_length, branch_width)
-
+## One flake as a round dot that smears into a capsule along its screen velocity
+## (INSTANCE_CUSTOM.z), dimmer as it lengthens, like a flake blurred over the frame.
+func _build_flake_dot_mesh(diameter: float) -> ArrayMesh:
+	var half: float = diameter * 0.5
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_INDEX] = indices
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(-half, -half, 0.0), Vector3(half, -half, 0.0),
+		Vector3(half, half, 0.0), Vector3(-half, half, 0.0)])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0.0, 1.0), Vector2(1.0, 1.0), Vector2(1.0, 0.0), Vector2(0.0, 0.0)])
+	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 0, 2, 3])
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-
-	if use_material_billboard:
-		var material := StandardMaterial3D.new()
-		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		material.vertex_color_use_as_albedo = true
-		material.albedo_color = Color(0.94, 0.97, 1.0, 0.94)
-		material.cull_mode = BaseMaterial3D.CULL_DISABLED
-		mesh.surface_set_material(0, material)
-	else:
-		var material := ShaderMaterial.new()
-		var draw_shader := Shader.new()
-		draw_shader.code = """
+	var material := ShaderMaterial.new()
+	var draw_shader := Shader.new()
+	draw_shader.code = """
 shader_type spatial;
 render_mode unshaded, cull_disabled;
 
+varying float v_stretch;
+
 void vertex() {
-	VERTEX.y *= max(INSTANCE_CUSTOM.z, 1.0);
+	v_stretch = max(INSTANCE_CUSTOM.z, 1.0);
+	VERTEX.y *= v_stretch;
 }
 
 void fragment() {
+	vec2 p = (UV - 0.5) * vec2(1.0, v_stretch);
+	float d = length(vec2(p.x, max(abs(p.y) - (v_stretch - 1.0) * 0.5, 0.0)));
+	float aa = max(fwidth(d), 1e-4);
 	ALBEDO = COLOR.rgb;
-	ALPHA = COLOR.a;
+	ALPHA = COLOR.a * (1.0 - smoothstep(0.5 - aa, 0.5, d)) * inversesqrt(v_stretch);
 }
 """
-		material.shader = draw_shader
-		mesh.surface_set_material(0, material)
+	material.shader = draw_shader
+	mesh.surface_set_material(0, material)
 	return mesh
-
-
-func _append_strip(
-	vertices: PackedVector3Array,
-	indices: PackedInt32Array,
-	from: Vector2,
-	to: Vector2,
-	width: float
-) -> void:
-	var direction: Vector2 = (to - from).normalized()
-	var normal := Vector2(-direction.y, direction.x) * width * 0.5
-	var base: int = vertices.size()
-	vertices.append(Vector3(from.x + normal.x, from.y + normal.y, 0.0))
-	vertices.append(Vector3(from.x - normal.x, from.y - normal.y, 0.0))
-	vertices.append(Vector3(to.x - normal.x, to.y - normal.y, 0.0))
-	vertices.append(Vector3(to.x + normal.x, to.y + normal.y, 0.0))
-	indices.append_array(PackedInt32Array([base, base + 1, base + 2, base, base + 2, base + 3]))
 
 
 func _bind_weather() -> void:
@@ -262,6 +231,7 @@ func _apply_conditions(wind_speed_mps: float, snowfall_density: float) -> void:
 	var visual_speed: float = minf(speed * 0.26 + sqrt(speed) * 0.20, 7.2)
 	_last_direction = direction
 	_visual_wind_velocity = direction * visual_speed
+	_process_material.set_shader_parameter("wind_streak", smoothstep(STREAK_START_MPS, STREAK_FULL_MPS, speed))
 	for material: ShaderMaterial in [_process_material, _foreground_material]:
 		material.set_shader_parameter("wind_velocity", _visual_wind_velocity)
 		material.set_shader_parameter("turbulence_strength", lerpf(0.10, 1.20, clampf(speed / 28.0, 0.0, 1.0)))

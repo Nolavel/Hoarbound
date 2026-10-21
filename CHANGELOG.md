@@ -192,6 +192,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Falling snow reads as stylized dots that smear into lines with the wind. The smear follows
+  WeatherController's wind including gusts (dots under 6 m/s, full 6:1 lines at 20 m/s) and eases per flake,
+  so a gust stretches flakes already in flight; a smeared flake dims like a motion-blurred one. Before, the
+  six-armed flakes stretched only 1.9x on particle speed capped at 7.2 m/s, so windy and blizzard looked alike.
+- Ground drift starts where wind lifts snow, not anywhere ahead of Henry: each streamer draws one of ten
+  spots by transport score. Fresh snow only (field softness). Drift crests (lee drop of 2–8 cm over 1.2 m),
+  ground the baked wind map scours, and lee roof eaves weigh most, while plain cover keeps a small share.
+  Off a crest or an eave the plume starts at the lip.
 - Fort Zachary Taylor collision simplified in Blender: `tools/blender/landmark_collision.py` (Blender 5.2 `bpy`, Decimate Collapse 0.2) adds a `FortSurfaceCollision-colonly` copy of 8,238 faces (was 41,197) to the fort `.glb`; the visual mesh is byte-identical. Error from every source vertex and face centre: mean 0.8, p99 5.1, max 12.5 cm. The fort chunk's `Buildings` attach drops from 66–80 ms to 12 ms (`measure_attach_parts`, `kw_gen_-9_3`). A 1 m ray grid against the exact surface: p99 8 cm. `HeightMapShape3D` was measured and rejected (285 ms to build). New `test_landmark_collision`; method and table in `REALITY_HLOD.md`.
 - **Legacy Key West island removed** (owner approval, 2026-10-15). Gone: `key_west.tscn`, `key_west_first_exit.tscn`, the `key_west_test` profile, `KeyWestFirstExit`, the legacy city (`ChunkedCityMassing`, `KeyWestCityVisuals`, `KeyWestStreetProps`, `far_city/`, `snow_chunk/`), the NOAA preview crop, six legacy-only tools and three legacy-only tests. The legacy branches in `runtime_performance_policy`, `dev_diorama_map` and `snow_shell` went with them (none ran under Reality). The CI preview job keeps its Reality captures only. `capture_quick_access` now runs on Reality; `test_world_profiles`, `test_stylized_shadows` and `test_island_terrain` check Reality or Graciosa instead. Kept on purpose: `IslandTerrain`/`IslandHeightmap` (Graciosa, the hut template generator), the terrain shader, the Reality Library sources and the NOAA sources. Record: `docs/technical/LEGACY_ISLAND_REMOVAL.md`.
 - Owner tasks, 2026-10-15:
