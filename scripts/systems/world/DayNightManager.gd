@@ -26,7 +26,7 @@ const WEATHER_SCRIPT: GDScript = preload("res://scripts/systems/world/WeatherCon
 const SNOW_BEAM_PATH_M: float = 30.0
 ## Ambient energy per unit of lost beam energy: snow scatters what it takes. 1.86 (a blizzard at 51 % of
 ## clear-day snow) washed out the Cold Ash grade's blue shadows; 1.2 keeps them, sky-tinted.
-const SNOW_FILL_PER_SUN: float = 1.2
+const SNOW_FILL_PER_SUN: float = 0.3
 ## How fast the sun follows the weather, per second.
 const SNOW_SUN_RESPONSE: float = 0.5
 
