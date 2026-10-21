@@ -13,12 +13,15 @@ const FOREGROUND_MAX_PARTICLES: int = 32
 const FOREGROUND_DENSITY_SCALE: float = 0.08
 const FOREGROUND_DISTANCE: float = 2.4
 const FOREGROUND_HEIGHT: float = 1.0
-## Wind (gusts included) where falling dots start to smear into lines, and where lines are full length.
+## Wind (gusts included) where falling stars start to smear into lines, and where lines are full length.
 const STREAK_START_MPS: float = 6.0
 const STREAK_FULL_MPS: float = 20.0
-## Diameter of a calm-air flake dot, metres; far dots never draw under FLAKE_MIN_PX at 1080 lines.
-const FLAKE_DOT_M: float = 0.016
+## Star diameter, metres; far flakes never draw under FLAKE_MIN_PX at 1080 lines.
+const FLAKE_STAR_M: float = 0.020
 const FLAKE_MIN_PX: float = 2.5
+## Width of the wind line a star smears into, and its calm length in widths.
+const FLAKE_LINE_M: float = 0.007
+const FLAKE_LINE_ASPECT: float = 2.0
 
 var weather_controller: WeatherController
 var follow_target: Node3D
@@ -100,7 +103,7 @@ func _build_particles() -> void:
 	_process_material = _make_process_material(Vector3(24.0, 1.8, 18.0), 0.55, 1.00)
 	particles = _make_particle_layer(
 		"WorldSnow", WORLD_MAX_PARTICLES, 6.5, 0.012,
-		_build_flake_dot_mesh(FLAKE_DOT_M),
+		_build_wind_flake_mesh(),
 		_process_material
 	)
 	particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
@@ -111,10 +114,9 @@ func _build_particles() -> void:
 	_foreground_material = _make_process_material(Vector3(4.2, 2.0, 2.8), 0.66, 1.10)
 	foreground_particles = _make_particle_layer(
 		"ForegroundSnow", FOREGROUND_MAX_PARTICLES, 3.4, 0.026,
-		_build_flake_dot_mesh(FLAKE_DOT_M * 2.0),
+		_build_foreground_star_mesh(),
 		_foreground_material
 	)
-	foreground_particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD
 	foreground_particles.randomness = 0.42
 	_foreground_material.set_shader_parameter("velocity_stretch_enabled", false)
 	foreground_particles.visibility_aabb = AABB(Vector3(-10.0, -8.0, -10.0), Vector3(20.0, 16.0, 20.0))
@@ -154,16 +156,26 @@ func _make_particle_layer(
 	return layer
 
 
-## One flake as a round dot that smears into a capsule along its screen velocity
-## (INSTANCE_CUSTOM.z), dimmer as it lengthens, like a flake blurred over the frame.
-func _build_flake_dot_mesh(diameter: float) -> ArrayMesh:
-	var half: float = diameter * 0.5
+## A six-armed star plus a line quad (UV >= 0). The star dissolves into the line as the wind
+## stretch (INSTANCE_CUSTOM.z) grows; the line dims as it lengthens, like a flake blurred over the frame.
+func _build_wind_flake_mesh() -> ArrayMesh:
+	var vertices := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	_append_star(vertices, indices, FLAKE_STAR_M * 0.5)
+	uvs.resize(vertices.size())
+	uvs.fill(Vector2(-1.0, -1.0))
+	var half := Vector2(FLAKE_LINE_M * 0.5, FLAKE_LINE_M * FLAKE_LINE_ASPECT * 0.5)
+	var base: int = vertices.size()
+	vertices.append_array(PackedVector3Array([Vector3(-half.x, -half.y, 0.0), Vector3(half.x, -half.y, 0.0),
+		Vector3(half.x, half.y, 0.0), Vector3(-half.x, half.y, 0.0)]))
+	uvs.append_array(PackedVector2Array([Vector2(0.0, 1.0), Vector2(1.0, 1.0), Vector2(1.0, 0.0), Vector2(0.0, 0.0)]))
+	indices.append_array(PackedInt32Array([base, base + 1, base + 2, base, base + 2, base + 3]))
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(-half, -half, 0.0), Vector3(half, -half, 0.0),
-		Vector3(half, half, 0.0), Vector3(-half, half, 0.0)])
-	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0.0, 1.0), Vector2(1.0, 1.0), Vector2(1.0, 0.0), Vector2(0.0, 0.0)])
-	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 0, 2, 3])
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var material := ShaderMaterial.new()
@@ -172,35 +184,102 @@ func _build_flake_dot_mesh(diameter: float) -> ArrayMesh:
 shader_type spatial;
 render_mode unshaded, cull_disabled;
 
-uniform float dot_m;
+uniform float star_m;
 uniform float min_px;
+uniform float line_aspect;
 
 varying float v_stretch;
 varying float v_grow;
+varying float v_line;
 
 void vertex() {
 	v_stretch = max(INSTANCE_CUSTOM.z, 1.0);
-	// Far dots grow to min_px (at 1080 lines) and fade by as much, so distance thins the fall, not erases it.
+	v_line = smoothstep(1.0, 2.0, v_stretch);
+	// Far flakes grow to min_px (at 1080 lines) and fade by as much, so distance thins the fall, not erases it.
 	float depth = max(-(MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).z, 0.05);
-	float px = length(MODELVIEW_MATRIX[0].xyz) * dot_m * PROJECTION_MATRIX[1][1] * 540.0 / depth;
+	float px = length(MODELVIEW_MATRIX[0].xyz) * star_m * PROJECTION_MATRIX[1][1] * 540.0 / depth;
 	v_grow = max(min_px / max(px, 1e-4), 1.0);
 	VERTEX.xy *= v_grow;
-	VERTEX.y *= v_stretch;
+	if (UV.x < 0.0) {
+		VERTEX.xy *= 1.0 - 0.5 * v_line;
+	} else {
+		VERTEX.y *= v_stretch;
+	}
 }
 
 void fragment() {
-	vec2 p = (UV - 0.5) * vec2(1.0, v_stretch);
-	float d = length(vec2(p.x, max(abs(p.y) - (v_stretch - 1.0) * 0.5, 0.0)));
-	float aa = max(fwidth(d), 1e-4);
+	float a = 1.0 - v_line;
+	if (UV.x >= 0.0) {
+		float len = line_aspect * v_stretch;
+		vec2 p = (UV - 0.5) * vec2(1.0, len);
+		float d = length(vec2(p.x, max(abs(p.y) - (len - 1.0) * 0.5, 0.0)));
+		float aa = max(fwidth(d), 1e-4);
+		a = (1.0 - smoothstep(0.5 - aa, 0.5, d)) * v_line * inversesqrt(v_stretch);
+	}
 	ALBEDO = COLOR.rgb;
-	ALPHA = COLOR.a * (1.0 - smoothstep(0.5 - aa, 0.5, d)) * inversesqrt(v_stretch) / v_grow;
+	ALPHA = COLOR.a * a / v_grow;
 }
 """
 	material.shader = draw_shader
-	material.set_shader_parameter("dot_m", diameter)
+	material.set_shader_parameter("star_m", FLAKE_STAR_M)
 	material.set_shader_parameter("min_px", FLAKE_MIN_PX)
+	material.set_shader_parameter("line_aspect", FLAKE_LINE_ASPECT)
 	mesh.surface_set_material(0, material)
 	return mesh
+
+
+## The close-up layer's larger billboard stars; they never stretch.
+func _build_foreground_star_mesh() -> ArrayMesh:
+	var vertices := PackedVector3Array()
+	var indices := PackedInt32Array()
+	_append_star(vertices, indices, 0.022, 0.85)
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var material := StandardMaterial3D.new()
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.vertex_color_use_as_albedo = true
+	material.albedo_color = Color(0.94, 0.97, 1.0, 0.94)
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mesh.surface_set_material(0, material)
+	return mesh
+
+
+## Six arms with two side branches each; widths scale with `weight` (the close-up stars are finer).
+func _append_star(vertices: PackedVector3Array, indices: PackedInt32Array, arm_length: float, weight: float = 1.0) -> void:
+	var arm_width: float = arm_length * 0.16 * weight
+	var branch_length: float = arm_length * 0.42
+	var branch_width: float = arm_width * 0.72
+	for arm_index: int in range(6):
+		var angle: float = deg_to_rad(float(arm_index) * 60.0)
+		var direction := Vector2(cos(angle), sin(angle))
+		_append_strip(vertices, indices, Vector2.ZERO, direction * arm_length, arm_width)
+		var branch_root: Vector2 = direction * arm_length * 0.56
+		for side: float in [-1.0, 1.0]:
+			var branch_direction: Vector2 = direction.rotated(deg_to_rad(42.0 * side))
+			_append_strip(vertices, indices, branch_root, branch_root + branch_direction * branch_length, branch_width)
+
+
+func _append_strip(
+	vertices: PackedVector3Array,
+	indices: PackedInt32Array,
+	from: Vector2,
+	to: Vector2,
+	width: float
+) -> void:
+	var direction: Vector2 = (to - from).normalized()
+	var normal := Vector2(-direction.y, direction.x) * width * 0.5
+	var base: int = vertices.size()
+	vertices.append(Vector3(from.x + normal.x, from.y + normal.y, 0.0))
+	vertices.append(Vector3(from.x - normal.x, from.y - normal.y, 0.0))
+	vertices.append(Vector3(to.x - normal.x, to.y - normal.y, 0.0))
+	vertices.append(Vector3(to.x + normal.x, to.y + normal.y, 0.0))
+	indices.append_array(PackedInt32Array([base, base + 1, base + 2, base, base + 2, base + 3]))
 
 
 func _bind_weather() -> void:
