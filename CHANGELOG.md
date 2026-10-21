@@ -125,6 +125,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Boot tread readable at play distance (owner: the print "sometimes seems invisible"). The snow shader switched
+  the lug pattern off once a pixel on the snow passed 2–6 mm; at the shipped render scale (0.77, FSR) a fresh
+  print 2.5 m from the TPS camera spans 4 × 8 mm pixels (measured), so the tread showed only in steep
+  close views. Now the pattern blends to its mean shade (lugs cover 34 % of the sole) between 4 and 11 mm
+  pixels, measured as the pixel's area on the snow, the way a mip chain filters a texture; groove shade
+  0.1 → 0.28.
 - Spindrift removed (owner: the plume "bubbles" do not fit). `SnowSpindrift` and its spawning in `WindGusts`
   are gone; the original ground streamers stay. The blowing-snow threshold (`WindGusts.blowing_snow_threshold`)
   stays for the blizzard flow.
