@@ -83,6 +83,7 @@ func _build_creep() -> GPUParticles3D:
 	process.scale_min = 0.55
 	process.scale_max = 1.0
 	process.color_ramp = _make_ramp(0.70, 0.52)
+	_collide(process)
 	particles.process_material = process
 	particles.draw_pass_1 = _make_quad(Vector2(0.05, 0.32))
 	return particles
@@ -111,6 +112,7 @@ func _build_saltation() -> GPUParticles3D:
 	process.scale_min = 0.55
 	process.scale_max = 1.0
 	process.color_ramp = _make_ramp(0.82, 0.58)
+	_collide(process)
 	particles.process_material = process
 	particles.draw_pass_1 = _make_quad(Vector2(0.05, 0.09))
 	return particles
@@ -138,6 +140,7 @@ func _build_suspension() -> GPUParticles3D:
 	process.scale_min = 0.35
 	process.scale_max = 0.75
 	process.color_ramp = _make_ramp(0.32, 0.48)
+	_collide(process)
 	particles.process_material = process
 	particles.draw_pass_1 = _make_quad(Vector2(0.03, 0.05))
 	return particles
@@ -157,6 +160,7 @@ func _build_haze() -> GPUParticles3D:
 	process.scale_min = 0.7
 	process.scale_max = 1.2
 	process.color_ramp = _make_ramp(0.28, 0.5)
+	_collide(process)
 	particles.process_material = process
 	particles.position.y = 0.12
 	particles.draw_pass_1 = _make_quad(Vector2(0.35, 1.2))
@@ -190,18 +194,24 @@ func _new_layer(
 	return particles
 
 
-## Blown grains forward-scatter and read brighter than the lit snow under them, not grey on it.
+## Grains stop on the snowfall height field (SnowHeightFieldService), so they never pass through a roof.
+func _collide(process: ParticleProcessMaterial) -> void:
+	process.collision_mode = ParticleProcessMaterial.COLLISION_RIGID
+	process.collision_friction = 0.6
+	process.collision_bounce = 0.0
+
+
 func _make_ramp(peak_alpha: float, fade_from: float) -> GradientTexture1D:
 	var gradient := Gradient.new()
-	gradient.set_color(0, Color(0.97, 0.98, 1.0, 0.0))
-	gradient.add_point(0.08, Color(0.97, 0.98, 1.0, peak_alpha))
+	gradient.set_color(0, Color(0.8, 0.81, 0.83, 0.0))
+	gradient.add_point(0.08, Color(0.8, 0.81, 0.83, peak_alpha))
 	gradient.add_point(
 		fade_from,
-		Color(0.97, 0.98, 1.0, peak_alpha * 0.72)
+		Color(0.8, 0.81, 0.83, peak_alpha * 0.72)
 	)
 	gradient.set_color(
 		gradient.get_point_count() - 1,
-		Color(0.97, 0.98, 1.0, 0.0)
+		Color(0.8, 0.81, 0.83, 0.0)
 	)
 	var ramp := GradientTexture1D.new()
 	ramp.gradient = gradient

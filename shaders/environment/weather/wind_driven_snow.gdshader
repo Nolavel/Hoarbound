@@ -22,11 +22,9 @@ uniform float size_min : hint_range(0.1, 2.0, 0.05) = 0.62;
 uniform float size_max : hint_range(0.1, 2.0, 0.05) = 1.22;
 uniform float fade_from : hint_range(0.0, 1.0, 0.01) = 0.88;
 uniform bool velocity_stretch_enabled = false;
-// 0 calm to 1 storm, from WeatherController's wind including gusts: dots smear into lines.
-uniform float wind_streak : hint_range(0.0, 1.0, 0.01) = 0.0;
-uniform float stretch_max : hint_range(1.0, 32.0, 0.05) = 20.0;
-// How fast a flake in flight follows a gust's new length, per second.
-uniform float stretch_response : hint_range(0.1, 20.0, 0.1) = 4.0;
+uniform float stretch_speed_start : hint_range(0.0, 12.0, 0.1) = 4.0;
+uniform float stretch_speed_full : hint_range(0.0, 12.0, 0.1) = 7.0;
+uniform float stretch_max : hint_range(1.0, 4.0, 0.05) = 1.90;
 
 uint hfn_hash(uint x) {
 	x = ((x >> uint(16)) ^ x) * uint(73244475);
@@ -121,12 +119,16 @@ void process() {
 		float response = clamp(1.0 - exp(-drag * DELTA), 0.0, 1.0);
 		VELOCITY = mix(VELOCITY, target_velocity, response);
 
-		// Render-only wind streak, eased per flake so a gust stretches flakes already
-		// in flight. CUSTOM.z is consumed by the WorldSnow draw shader; collision scale stays.
+		// Render-only high-wind streak. CUSTOM.z is consumed by the WorldSnow
+		// draw shader, so collision scale stays constant.
 		float stretch = 1.0;
 		if (velocity_stretch_enabled) {
-			float target_stretch = mix(1.0, stretch_max * CUSTOM.y, wind_streak);
-			stretch = mix(max(CUSTOM.z, 1.0), target_stretch, clamp(1.0 - exp(-stretch_response * DELTA), 0.0, 1.0));
+			float speed_factor = smoothstep(
+				stretch_speed_start,
+				max(stretch_speed_full, stretch_speed_start + 0.01),
+				length(VELOCITY)
+			);
+			stretch = mix(1.0, stretch_max * CUSTOM.y, speed_factor);
 		}
 		CUSTOM.z = stretch;
 

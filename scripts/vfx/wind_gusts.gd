@@ -21,9 +21,11 @@ const DRIFT_FAST_INTERVAL: float = 0.28
 const BURST_COUNT: int = 5
 const BURST_SPACING: float = 0.3
 
-## Spots tried per ground streamer; one is drawn by transport score, so drift smokes off
-## crests, scoured ground and lee eaves, and only now and then off plain cover.
-const DRIFT_CANDIDATES: int = 10
+## Spindrift: spots tried per plume, drawn by transport score among crest lips and lee eaves.
+const SPINDRIFT_POOL_SIZE: int = 4
+const SPINDRIFT_SLOW_INTERVAL: float = 2.4
+const SPINDRIFT_FAST_INTERVAL: float = 0.55
+const DRIFT_CANDIDATES: int = 12
 const COVER_WEIGHT: float = 0.06
 const CREST_WEIGHT: float = 3.0
 const SCOUR_WEIGHT: float = 1.5
@@ -42,6 +44,9 @@ var player: Node3D
 var _pool: Array[WindStreak] = []
 var _lifts: Array[SnowLift] = []
 var _lift_index: int = 0
+var _spindrifts: Array[SnowSpindrift] = []
+var _spindrift_index: int = 0
+var _spindrift_next: float = 0.0
 var _next: float = 0.0
 var _drift_next: float = 0.0
 var _burst_left: int = 0
@@ -63,6 +68,10 @@ func _ready() -> void:
 		var lift := SnowLift.new()
 		add_child(lift)
 		_lifts.append(lift)
+	for i: int in range(SPINDRIFT_POOL_SIZE):
+		var plume := SnowSpindrift.new()
+		add_child(plume)
+		_spindrifts.append(plume)
 
 
 ## Several streaks in quick succession: the moment the weather turns.
@@ -113,6 +122,11 @@ func _process(delta: float) -> void:
 			wind_t
 		) * randf_range(0.72, 1.28)
 
+	_spindrift_next -= delta
+	if _spindrift_next <= 0.0:
+		_spawn_spindrift(wind)
+		_spindrift_next = lerpf(SPINDRIFT_SLOW_INTERVAL, SPINDRIFT_FAST_INTERVAL, wind_t) * randf_range(0.7, 1.3)
+
 
 ## Places one decorative free streak in front of the camera.
 func _spawn_streak(wind: float) -> void:
@@ -146,8 +160,57 @@ func _spawn_streak(wind: float) -> void:
 	streak.play()
 
 
-## Starts one elongated streamer where the wind would lift snow: crests, scour, lee eaves.
+## Starts one elongated streamer on the actual ground ahead of Henry.
 func _spawn_drift(wind: float) -> void:
+	if weather.get_snow_cover() <= 0.04:
+		return
+	var camera: Camera3D = get_viewport().get_camera_3d()
+	if camera == null:
+		return
+
+	var ahead: Vector3 = -camera.global_basis.z
+	ahead.y = 0.0
+	ahead = ahead.normalized()
+	var right: Vector3 = ahead.cross(Vector3.UP)
+	var above: Vector3 = player.global_position \
+		+ ahead * randf_range(3.5, 11.0) \
+		+ right * randf_range(-6.0, 6.0) \
+		+ Vector3.UP * 3.0
+
+	var query := PhysicsRayQueryParameters3D.create(
+		above,
+		above + Vector3.DOWN * 9.0
+	)
+	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return
+
+	var normal: Vector3 = hit["normal"]
+	if normal.dot(Vector3.UP) < 0.55:
+		return
+	## Never under a roof or a canopy: the grains would collide with it at once.
+	var up := PhysicsRayQueryParameters3D.create((hit["position"] as Vector3) + Vector3.UP * 0.3, (hit["position"] as Vector3) + Vector3.UP * 14.0)
+	if not get_world_3d().direct_space_state.intersect_ray(up).is_empty():
+		return
+
+	var along: Vector3 = _horizontal_wind()
+	var surface_along: Vector3 = along - normal * along.dot(normal)
+	if surface_along.length_squared() < 0.0025:
+		return
+	surface_along = surface_along.normalized()
+	var surface_side: Vector3 = surface_along.cross(normal).normalized()
+
+	var lift: SnowLift = _lifts[_lift_index]
+	_lift_index = (_lift_index + 1) % _lifts.size()
+	lift.global_transform = Transform3D(
+		Basis(surface_along, normal, surface_side).orthonormalized(),
+		hit["position"] + normal * 0.025
+	)
+	lift.lift(wind, weather.get_snow_cover())
+
+
+## Starts one spindrift plume off a lip the wind would strip: a drift crest or a lee roof eave.
+func _spawn_spindrift(wind: float) -> void:
 	if weather.get_snow_cover() <= 0.04:
 		return
 	var camera: Camera3D = get_viewport().get_camera_3d()
@@ -158,37 +221,34 @@ func _spawn_drift(wind: float) -> void:
 	ahead = ahead.normalized()
 	var right: Vector3 = ahead.cross(Vector3.UP)
 	var along: Vector3 = _horizontal_wind()
-	var spots: Array[Dictionary] = []
+	var lips: Array[Dictionary] = []
 	var total: float = 0.0
 	for i: int in range(DRIFT_CANDIDATES):
-		var spot: Dictionary = _drift_spot(player.global_position + ahead * randf_range(3.5, 11.0)
-			+ right * randf_range(-6.0, 6.0), along)
-		if spot.is_empty():
+		var spot: Dictionary = _drift_spot(player.global_position + ahead * randf_range(3.5, 14.0)
+			+ right * randf_range(-7.0, 7.0), along)
+		if spot.is_empty() or not bool(spot["lip"]):
 			continue
-		spots.append(spot)
+		lips.append(spot)
 		total += float(spot["score"])
-	if total <= 0.0:
+	if lips.is_empty() or total <= 0.0:
 		return
 	var pick: float = randf() * total
-	var chosen: Dictionary = spots[-1]
-	for spot: Dictionary in spots:
+	var chosen: Dictionary = lips[-1]
+	for spot: Dictionary in lips:
 		pick -= float(spot["score"])
 		if pick <= 0.0:
 			chosen = spot
 			break
-
 	var normal: Vector3 = chosen["normal"]
 	var surface_along: Vector3 = (along - normal * along.dot(normal)).normalized()
 	var surface_side: Vector3 = surface_along.cross(normal).normalized()
-	var lift: SnowLift = _lifts[_lift_index]
-	_lift_index = (_lift_index + 1) % _lifts.size()
-	## Off a lip the plume starts at the edge and runs downwind of it.
-	var lead: float = lift.streamer_length * 0.5 if bool(chosen["lip"]) else 0.0
-	lift.global_transform = Transform3D(
+	var plume: SnowSpindrift = _spindrifts[_spindrift_index]
+	_spindrift_index = (_spindrift_index + 1) % _spindrifts.size()
+	plume.global_transform = Transform3D(
 		Basis(surface_along, normal, surface_side).orthonormalized(),
-		(chosen["position"] as Vector3) + normal * 0.025 + surface_along * lead
+		(chosen["position"] as Vector3) + normal * 0.05
 	)
-	lift.lift(wind, weather.get_snow_cover())
+	plume.blow(wind, weather.get_snow_cover())
 
 
 ## Ground under `at` with its transport score, or empty where nothing could drift.

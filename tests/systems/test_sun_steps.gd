@@ -1,7 +1,7 @@
 extends SceneTree
 
-## The sun turns in steps so cascaded shadows hold still between them: no turn inside a step,
-## an eased turn at a step edge, a snap on a jump. Run: godot --headless --script tests/systems/test_sun_steps.gd
+## The sun turns in steps so cascaded shadows hold still between them (no turn inside a step,
+## an eased turn at a step edge, a snap on a jump) and dims in falling snow. Run: godot --headless --script tests/systems/test_sun_steps.gd
 
 var _failures: int = 0
 
@@ -39,6 +39,14 @@ func _run() -> void:
 	manager.total_game_time_hours = 12.0
 	manager._aim_sun(12.0, false)
 	_check(light.quaternion.angle_to(_sun(manager, 12.0)) < 2e-3, "a clock jump eased instead of snapping")
+	## Falling snow takes the direct beam (Koschmieder over the beam path): ~7 % left in a 45 m blizzard.
+	var weather := WeatherController.new()
+	manager._weather = weather
+	weather._visibility_m = 45.0
+	_check(absf(manager._snow_beam_target() - exp(-3.912 * 30.0 / 45.0)) < 1e-4, "blizzard beam wrong: %f" % manager._snow_beam_target())
+	weather._visibility_m = 0.0
+	_check(is_equal_approx(manager._snow_beam_target(), 1.0), "a clear sky dimmed the sun")
+	weather.free()
 	light.free()
 	settings.free()
 	manager.free()

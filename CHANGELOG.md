@@ -100,6 +100,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Ground drift passed through roofs: its particles had no collision mode (default off). They now collide
+  with the snowfall height field, which also stays up in wind without snowfall. Streamers no longer start
+  under a roof or a canopy.
 - Static shadows' torn outlines boiled on every camera tick. The three-tone cut used hard `step`s, so the TPS
   camera's sub-millimetre damping moves flipped whole contour pixels each frame; the cascades themselves are
   texel-snapped and hold (measured). The cuts are now one pixel wide (`fwidth`): contour pixels changed by a
@@ -195,20 +198,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
-- Falling snow keeps its six-armed stars in calm and light wind and dissolves them into lines as the wind
-  rises. The smear follows WeatherController's wind including gusts (stars under 6 m/s, full lines at 20 m/s)
-  and eases per flake, so a gust stretches flakes already in flight; a line dims as it lengthens like a
-  motion-blurred flake (up to ~28 cm; 8 lengths for the close-up layer, which now smears too). Far flakes keep
-  a 2.5 px floor and fade with it: at 5–20 m a 2 cm star fell under
-  a pixel, so the main 3072-flake layer did not read even in a blizzard. Before, the stars only stretched
-  1.9x on a particle speed capped at 7.2 m/s, so windy and blizzard looked alike.
-- Ground drift starts where wind lifts snow, not anywhere ahead of Henry: each streamer draws one of ten
-  spots by transport score. Fresh snow only (field softness). Drift crests (lee drop of 2–8 cm over 1.2 m),
-  ground the baked wind map scours, and lee roof eaves weigh most; plain cover keeps about a third of the
-  draws in open ground (measured on a 24 m grid at the Duval spawn: 93 crest spots, 2307 plain).
-  Off a crest or an eave the plume starts at the lip.
-  Drift grains are near-white (0.97) instead of grey (0.80): on video the grey streamers vanished against
-  lit snow of the same value.
+- Spindrift: a second drift effect beside the original ground streamers (left as they were). Plumes smoke off
+  drift crests (a lee drop of 2–8 cm over 1.2 m in the snow field) and lee roof eaves (a building footprint
+  whose roof is gone or 1.2 m lower 1.5 m downwind), only on fresh snow. They are lofted off the lip, with
+  two-tone puffs (white core, cool rim) and a soft decal shade on the snow under the plume, so they read on
+  white snow. Snowfall stays the six-armed stars (author call: the wind-line version read as rain).
+- In falling snow the sun dims with visibility (Koschmieder extinction 3.912 / visibility over a 30 m beam
+  path): ~7 % of the sun in a 45 m blizzard, ~59 % in 220 m snowfall, 75 % in 400 m windy weather. Diffuse
+  fill rises by up to 30 %. Before, a blizzard kept full sun and hard shadows (`test_sun_steps`).
 - Fort Zachary Taylor collision simplified in Blender: `tools/blender/landmark_collision.py` (Blender 5.2 `bpy`, Decimate Collapse 0.2) adds a `FortSurfaceCollision-colonly` copy of 8,238 faces (was 41,197) to the fort `.glb`; the visual mesh is byte-identical. Error from every source vertex and face centre: mean 0.8, p99 5.1, max 12.5 cm. The fort chunk's `Buildings` attach drops from 66–80 ms to 12 ms (`measure_attach_parts`, `kw_gen_-9_3`). A 1 m ray grid against the exact surface: p99 8 cm. `HeightMapShape3D` was measured and rejected (285 ms to build). New `test_landmark_collision`; method and table in `REALITY_HLOD.md`.
 - **Legacy Key West island removed** (owner approval, 2026-10-15). Gone: `key_west.tscn`, `key_west_first_exit.tscn`, the `key_west_test` profile, `KeyWestFirstExit`, the legacy city (`ChunkedCityMassing`, `KeyWestCityVisuals`, `KeyWestStreetProps`, `far_city/`, `snow_chunk/`), the NOAA preview crop, six legacy-only tools and three legacy-only tests. The legacy branches in `runtime_performance_policy`, `dev_diorama_map` and `snow_shell` went with them (none ran under Reality). The CI preview job keeps its Reality captures only. `capture_quick_access` now runs on Reality; `test_world_profiles`, `test_stylized_shadows` and `test_island_terrain` check Reality or Graciosa instead. Kept on purpose: `IslandTerrain`/`IslandHeightmap` (Graciosa, the hut template generator), the terrain shader, the Reality Library sources and the NOAA sources. Record: `docs/technical/LEGACY_ISLAND_REMOVAL.md`.
 - Owner tasks, 2026-10-15:
