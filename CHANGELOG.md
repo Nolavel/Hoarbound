@@ -192,10 +192,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
-- Falling snow reads as stylized dots that smear into lines with the wind. The smear follows
-  WeatherController's wind including gusts (dots under 6 m/s, full 6:1 lines at 20 m/s) and eases per flake,
-  so a gust stretches flakes already in flight; a smeared flake dims like a motion-blurred one. Before, the
-  six-armed flakes stretched only 1.9x on particle speed capped at 7.2 m/s, so windy and blizzard looked alike.
+- Falling snow keeps its six-armed stars in calm and light wind and dissolves them into lines as the wind
+  rises. The smear follows WeatherController's wind including gusts (stars under 6 m/s, full lines at 20 m/s)
+  and eases per flake, so a gust stretches flakes already in flight; a line dims as it lengthens like a
+  motion-blurred flake. Far flakes keep a 2.5 px floor and fade by as much: at 5–20 m a 2 cm star fell under
+  a pixel, so the main 3072-flake layer did not read even in a blizzard. Before, the stars only stretched
+  1.9x on a particle speed capped at 7.2 m/s, so windy and blizzard looked alike.
 - Ground drift starts where wind lifts snow, not anywhere ahead of Henry: each streamer draws one of ten
   spots by transport score. Fresh snow only (field softness). Drift crests (lee drop of 2–8 cm over 1.2 m),
   ground the baked wind map scours, and lee roof eaves weigh most, while plain cover keeps a small share.
