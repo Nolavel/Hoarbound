@@ -103,7 +103,7 @@ func _build_particles() -> void:
 	_process_material = _make_process_material(Vector3(24.0, 1.8, 18.0), 0.55, 1.00)
 	particles = _make_particle_layer(
 		"WorldSnow", WORLD_MAX_PARTICLES, 6.5, 0.012,
-		_build_wind_flake_mesh(),
+		_build_wind_flake_mesh(FLAKE_STAR_M, FLAKE_LINE_M),
 		_process_material
 	)
 	particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
@@ -114,11 +114,12 @@ func _build_particles() -> void:
 	_foreground_material = _make_process_material(Vector3(4.2, 2.0, 2.8), 0.66, 1.10)
 	foreground_particles = _make_particle_layer(
 		"ForegroundSnow", FOREGROUND_MAX_PARTICLES, 3.4, 0.026,
-		_build_foreground_star_mesh(),
+		_build_wind_flake_mesh(FLAKE_STAR_M * 2.2, FLAKE_LINE_M * 1.7, 0.85),
 		_foreground_material
 	)
+	foreground_particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
 	foreground_particles.randomness = 0.42
-	_foreground_material.set_shader_parameter("velocity_stretch_enabled", false)
+	_foreground_material.set_shader_parameter("velocity_stretch_enabled", true)
 	foreground_particles.visibility_aabb = AABB(Vector3(-10.0, -8.0, -10.0), Vector3(20.0, 16.0, 20.0))
 	add_child(foreground_particles)
 
@@ -158,14 +159,14 @@ func _make_particle_layer(
 
 ## A six-armed star plus a line quad (UV >= 0). The star dissolves into the line as the wind
 ## stretch (INSTANCE_CUSTOM.z, up to 20 calm lengths, ~28 cm) grows; the line dims as it lengthens.
-func _build_wind_flake_mesh() -> ArrayMesh:
+func _build_wind_flake_mesh(star_m: float, line_m: float, weight: float = 1.0) -> ArrayMesh:
 	var vertices := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
-	_append_star(vertices, indices, FLAKE_STAR_M * 0.5)
+	_append_star(vertices, indices, star_m * 0.5, weight)
 	uvs.resize(vertices.size())
 	uvs.fill(Vector2(-1.0, -1.0))
-	var half := Vector2(FLAKE_LINE_M * 0.5, FLAKE_LINE_M * FLAKE_LINE_ASPECT * 0.5)
+	var half := Vector2(line_m * 0.5, line_m * FLAKE_LINE_ASPECT * 0.5)
 	var base: int = vertices.size()
 	vertices.append_array(PackedVector3Array([Vector3(-half.x, -half.y, 0.0), Vector3(half.x, -half.y, 0.0),
 		Vector3(half.x, half.y, 0.0), Vector3(-half.x, half.y, 0.0)]))
@@ -222,31 +223,9 @@ void fragment() {
 }
 """
 	material.shader = draw_shader
-	material.set_shader_parameter("star_m", FLAKE_STAR_M)
+	material.set_shader_parameter("star_m", star_m)
 	material.set_shader_parameter("min_px", FLAKE_MIN_PX)
 	material.set_shader_parameter("line_aspect", FLAKE_LINE_ASPECT)
-	mesh.surface_set_material(0, material)
-	return mesh
-
-
-## The close-up layer's larger billboard stars; they never stretch.
-func _build_foreground_star_mesh() -> ArrayMesh:
-	var vertices := PackedVector3Array()
-	var indices := PackedInt32Array()
-	_append_star(vertices, indices, 0.022, 0.85)
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var material := StandardMaterial3D.new()
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	material.vertex_color_use_as_albedo = true
-	material.albedo_color = Color(0.94, 0.97, 1.0, 0.94)
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mesh.surface_set_material(0, material)
 	return mesh
 
@@ -323,8 +302,8 @@ func _apply_conditions(wind_speed_mps: float, snowfall_density: float) -> void:
 	var visual_speed: float = minf(speed * 0.26 + sqrt(speed) * 0.20, 7.2)
 	_last_direction = direction
 	_visual_wind_velocity = direction * visual_speed
-	_process_material.set_shader_parameter("wind_streak", smoothstep(STREAK_START_MPS, STREAK_FULL_MPS, speed))
 	for material: ShaderMaterial in [_process_material, _foreground_material]:
+		material.set_shader_parameter("wind_streak", smoothstep(STREAK_START_MPS, STREAK_FULL_MPS, speed))
 		material.set_shader_parameter("wind_velocity", _visual_wind_velocity)
 		material.set_shader_parameter("turbulence_strength", lerpf(0.10, 1.20, clampf(speed / 28.0, 0.0, 1.0)))
 
