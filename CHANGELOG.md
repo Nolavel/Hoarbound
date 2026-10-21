@@ -195,7 +195,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Falling snow keeps its six-armed stars in calm and light wind and dissolves them into lines as the wind
   rises. The smear follows WeatherController's wind including gusts (stars under 6 m/s, full lines at 20 m/s)
   and eases per flake, so a gust stretches flakes already in flight; a line dims as it lengthens like a
-  motion-blurred flake. Far flakes keep a 2.5 px floor and fade by as much: at 5–20 m a 2 cm star fell under
+  motion-blurred flake (up to ~28 cm; 8 lengths for the close-up layer, which now smears too). Far flakes keep
+  a 2.5 px floor and fade with it: at 5–20 m a 2 cm star fell under
   a pixel, so the main 3072-flake layer did not read even in a blizzard. Before, the stars only stretched
   1.9x on a particle speed capped at 7.2 m/s, so windy and blizzard looked alike.
 - Ground drift starts where wind lifts snow, not anywhere ahead of Henry: each streamer draws one of ten
