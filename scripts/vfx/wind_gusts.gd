@@ -19,6 +19,8 @@ const DRIFT_SLOW_INTERVAL: float = 1.45
 const DRIFT_FAST_INTERVAL: float = 0.28
 
 const BURST_COUNT: int = 5
+## Cover lower than this over a drift spot is a canopy or porch roof.
+const CANOPY_M: float = 5.0
 const BURST_SPACING: float = 0.3
 
 ## Spindrift: spots tried per plume, drawn by transport score among crest lips and lee eaves.
@@ -188,8 +190,12 @@ func _spawn_drift(wind: float) -> void:
 	var normal: Vector3 = hit["normal"]
 	if normal.dot(Vector3.UP) < 0.55:
 		return
-	## Never under a roof or a canopy: the grains would collide with it at once.
-	var up := PhysicsRayQueryParameters3D.create((hit["position"] as Vector3) + Vector3.UP * 0.3, (hit["position"] as Vector3) + Vector3.UP * 14.0)
+	## Never under a roof or a low canopy (the grains would hit it at once); palm crowns and wires stand higher.
+	var at: Vector3 = hit["position"]
+	var field: SnowField = SnowShell.active.field if is_instance_valid(SnowShell.active) else null
+	if field != null and field.is_building(Vector2(at.x, at.z)):
+		return
+	var up := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.3, at + Vector3.UP * CANOPY_M)
 	if not get_world_3d().direct_space_state.intersect_ray(up).is_empty():
 		return
 
