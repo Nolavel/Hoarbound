@@ -190,17 +190,18 @@ func _new_layer(
 	return particles
 
 
+## Blown grains forward-scatter and read brighter than the lit snow under them, not grey on it.
 func _make_ramp(peak_alpha: float, fade_from: float) -> GradientTexture1D:
 	var gradient := Gradient.new()
-	gradient.set_color(0, Color(0.8, 0.81, 0.83, 0.0))
-	gradient.add_point(0.08, Color(0.8, 0.81, 0.83, peak_alpha))
+	gradient.set_color(0, Color(0.97, 0.98, 1.0, 0.0))
+	gradient.add_point(0.08, Color(0.97, 0.98, 1.0, peak_alpha))
 	gradient.add_point(
 		fade_from,
-		Color(0.8, 0.81, 0.83, peak_alpha * 0.72)
+		Color(0.97, 0.98, 1.0, peak_alpha * 0.72)
 	)
 	gradient.set_color(
 		gradient.get_point_count() - 1,
-		Color(0.8, 0.81, 0.83, 0.0)
+		Color(0.97, 0.98, 1.0, 0.0)
 	)
 	var ramp := GradientTexture1D.new()
 	ramp.gradient = gradient
