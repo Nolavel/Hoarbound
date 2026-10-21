@@ -539,6 +539,7 @@ func recentre_to(centre: Vector2) -> void:
 	field.storm_share = _storm_share()
 	field.firmness = _firmness()
 	_field_ground_partial = false
+	_field_retries = FAR_RETRIES
 	field.rebuild(wanted, cover, wind)
 	_apply_window(old, wanted, cover, wind)
 
@@ -615,6 +616,7 @@ func _follow(henry: Vector2, lead: Vector2 = Vector2.ZERO) -> void:
 	field.storm_share = storm
 	field.firmness = _firmness()
 	_field_ground_partial = false
+	_field_retries = FAR_RETRIES
 	field.begin_rebuild(wanted, _move_cover, _move_wind)
 	if field.step_rebuild(budget):
 		_apply_window(_move_from, field.origin, _move_cover, _move_wind)
@@ -725,11 +727,10 @@ func _refresh_far_grid(window_origin: Vector2, retry: bool = false) -> void:
 ## decimetres off the drawn one): drop the cache and rebuild in place once they are live.
 func _retry_field_ground(live: bool) -> void:
 	if not _field_ground_partial or not live or field.is_rebuilding():
-		_field_retries = FAR_RETRIES if not _field_ground_partial else _field_retries
 		return
 	var streamed := _terrain as KeyWestRealityGround
 	if _lod_frame % 30 != 0 or _field_retries <= 0 or streamed == null \
-			or not streamed.has_ground_at(_field_unknown_at.x, _field_unknown_at.y):
+			or not streamed.has_surface_at(_field_unknown_at.x, _field_unknown_at.y):
 		return
 	_field_retries -= 1
 	var cover: float = _cover()
@@ -1185,7 +1186,7 @@ func _sample_ground(at: Vector2) -> Vector2:
 	if _terrain != null:
 		ground_y = _lattice_height(at) if field.use_baked_baseline else _terrain.get_height(at.x, at.y)
 		var streamed := _terrain as KeyWestRealityGround
-		if streamed != null and not streamed.has_ground_at(at.x, at.y):
+		if streamed != null and not streamed.has_surface_at(at.x, at.y):
 			_field_ground_partial = true
 			_field_unknown_at = at
 	if _terrain != null and _city != null and bool(_city.call(&"has_snow_obstacle_at", at)):
@@ -1221,8 +1222,11 @@ func _sample_ground(at: Vector2) -> Vector2:
 	return Vector2(hit_at.y, 0.0)
 
 
-## The terrain itself under `at`, at its own resolution (finer than the 2 m lattice).
+## The ground snow lies on under `at`: the terrain at its own resolution, or a road ribbon over it.
 func _sample_terrain(at: Vector2) -> float:
+	var streamed := _terrain as KeyWestRealityGround
+	if streamed != null:
+		return streamed.get_surface_height(at.x, at.y)
 	return _terrain.get_height(at.x, at.y) if _terrain != null else _base_y
 
 

@@ -108,6 +108,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   presses, is now measured down to the true terrain where its 1 m corridor tiles rise above the 2 m lattice
   (`test_snow_shell`). The crust lip (`rim_at`) is gated to crust: on loose snow its 8-tap rings drew echo
   contours around every print.
+- Boot prints on streets showed white holes in the forefoot and heel. Measured at the Duval spawn: snow top
+  1.011 m, road ribbon 0.876 m, terrain 0.802 m, so a full press (give 0.179 m) put the print floor 4 cm under
+  the asphalt and the road mesh drew through it. Road ribbons are exported as DEM + 5 cm sampled every 32 m, so
+  their lift over the terrain varies. `KeyWestRealityGround` now rasterises each chunk's road triangles into a
+  copy of its height tile (frame-budgeted, the chunk under Henry at once). The new `get_surface_height` is
+  the ground snow depth is measured to; decks over 0.3 m stay the physics ray's. The field rebuild retry
+  also never fired when the first build already saw unstreamed ground (its counter began at 0); every fresh
+  build now arms it (`test_key_west_reality_ground`).
 - CI: report uploads (`suites` log, capture previews) no longer fail the run when the repository's artifact
   storage quota is full; every suite had passed on `main` while the job showed red for the upload alone.
 - Outer snow cover no longer crawls or pops while Henry walks (owner report; Codex's `codex` attempts kept the moving square).

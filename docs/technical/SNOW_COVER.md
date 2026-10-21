@@ -362,6 +362,11 @@ cannot be triangulated is left uncut and warned about.
 The chunk shader discards its cover inside Henry's `snow_lod` square, where the
 clipmap below draws the same surface.
 
+Snow depth near Henry is measured to `KeyWestRealityGround.get_surface_height`: the terrain tile, raised to
+the chunk's road ribbons, which ride DEM + 5 cm sampled every 32 m and so float a varying few centimetres over
+it. Without that a full press sank the print floor under the asphalt and the road drew through. Paving runs
+frame-budgeted after a chunk turns ACTIVE; `has_surface_at` gates the field's ground retry until it is done.
+
 ### Drawn surface: clipmap rings
 
 The old shell was one graded square mesh that jumped 3.2 m with the window and
