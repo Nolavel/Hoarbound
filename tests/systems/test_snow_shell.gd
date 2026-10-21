@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_storm_share_rebuilds_in_place()
 	_test_a_boot_sinks_over_its_stance()
 	_test_wind_crust_is_harder_than_powder()
+	_test_depth_reaches_down_to_the_true_terrain()
 	if _failures > 0:
 		push_error("snow shell: %d check(s) failed" % _failures)
 		quit(1)
@@ -330,3 +331,19 @@ func _test_wind_crust_is_harder_than_powder() -> void:
 	var s: float = field.get_softness(10.0, 0.0)
 	_check(s >= 0.4 and s <= 1.0, "the field image lost its softness: %.2f" % s)
 
+
+
+## The drawn top stands on the 2 m lattice; where finer terrain rises above it, the depth a
+## boot can press is measured down to that terrain, not to the lattice.
+func _test_depth_reaches_down_to_the_true_terrain() -> void:
+	var lattice := SnowField.new()
+	lattice.ground_sampler = func(at: Vector2) -> Vector2: return Vector2(0.3, 0.0)
+	lattice.rebuild(Vector2(-12.8, -12.8), 0.8, Vector2(0, -1))
+	var bumped := SnowField.new()
+	bumped.ground_sampler = func(at: Vector2) -> Vector2: return Vector2(0.3, 0.0)
+	bumped.terrain_sampler = func(at: Vector2) -> float: return 0.36
+	bumped.rebuild(Vector2(-12.8, -12.8), 0.8, Vector2(0, -1))
+	_check(is_equal_approx(lattice.get_snow_top(0.0, 0.0), bumped.get_snow_top(0.0, 0.0)), "terrain bumps must not move the drawn top")
+	var lost: float = lattice.get_depth(0.0, 0.0) - bumped.get_depth(0.0, 0.0)
+	## Read back bilinearly from the field texels: allow a centimetre.
+	_check(lost > 0.05 and lost < 0.0605, "depth measured to the true terrain (lost %.3f, expected ~0.060)" % lost)

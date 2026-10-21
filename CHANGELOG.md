@@ -100,6 +100,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Snow under Henry's feet could stand 20 cm off the drawn snow. Measured at the Duval spawn: field top minus
+  lattice ground 0.41 m against a drawn 0.21 m. SnowField sampled ground before the chunk streamed in
+  (`KeyWestRealityGround.FALLBACK_Y` 1.0 m against 0.8 m real) and kept that cache across window moves. The
+  shell now notes cells sampled off live ground and rebuilds the field in place once that ground streams in
+  (same retry scheme as the chunk lattice); after the fix 0.211 against 0.209. Depth, and so how far a boot
+  presses, is now measured down to the true terrain where its 1 m corridor tiles rise above the 2 m lattice
+  (`test_snow_shell`). The crust lip (`rim_at`) is gated to crust: on loose snow its 8-tap rings drew echo
+  contours around every print.
 - CI: report uploads (`suites` log, capture previews) no longer fail the run when the repository's artifact
   storage quota is full; every suite had passed on `main` while the job showed red for the upload alone.
 - Outer snow cover no longer crawls or pops while Henry walks (owner report; Codex's `codex` attempts kept the moving square).
