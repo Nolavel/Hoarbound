@@ -10,6 +10,8 @@ signal phase_changed(phase: Phase)
 enum Phase { OUTSIDE, APPROACHING, OPENING_DOOR, ENTERING_CROUCH, WORKING, EXITING }
 
 const POINT_NAME: StringName = &"StoveInteractionPoint"
+## The feed sits in this group from the door opening to F: the cursor's edge prompt reads it.
+const SESSION_GROUP: StringName = &"active_work_session"
 ## Henry's spot in stove space (+X is the door side): kneeling reach from the 0.31 m half depth,
 ## and 0.3 m off the door axis to the latch side, so his right hand works the firebox in view.
 const POINT_OFFSET: Vector3 = Vector3(0.85, 0.0, 0.3)
@@ -266,6 +268,7 @@ func _begin_open() -> void:
 	_enter_working_mode()
 	feed.session_active = true
 	feed.set_door_open(true)
+	feed.add_to_group(SESSION_GROUP)
 	_frame_camera(true)
 	_phase_left = DOOR_SECONDS
 	_set_phase(Phase.OPENING_DOOR)
@@ -279,6 +282,7 @@ func _begin_exit() -> void:
 	feed.cancel_act(&"stove_exit")
 	feed.session_active = false
 	feed.set_door_open(false)
+	_leave_session_group()
 	_show_ring(false)
 	_frame_camera(false)
 	_phase_left = EXIT_SECONDS
@@ -304,6 +308,7 @@ func _abort(message: StringName) -> void:
 			feed.set_door_open(false)
 		if message != &"":
 			feed.show_message(tr(message))
+		_leave_session_group()
 	_show_ring(false)
 	_frame_camera(false)
 	if is_instance_valid(_player):
@@ -407,6 +412,11 @@ func _claim_interact(claim: bool) -> void:
 		return
 	_claimed = claim
 	input_systems.call(&"claim_interact" if claim else &"release_interact", self)
+
+
+func _leave_session_group() -> void:
+	if feed.is_in_group(SESSION_GROUP):
+		feed.remove_from_group(SESSION_GROUP)
 
 
 func _show_ring(shown: bool) -> void:

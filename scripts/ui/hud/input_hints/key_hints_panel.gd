@@ -129,8 +129,11 @@ func _refresh_context() -> void:
 	_rebuild()
 
 
+## PlayerState outlives the HUD: a world torn down (quit to title) still restores modes after
+## the panel has left the tree, and a detached panel has nothing to lay out.
 func _on_mode_changed(_old_mode: int, _new_mode: int) -> void:
-	_rebuild()
+	if is_inside_tree():
+		_rebuild()
 
 
 func _style_title() -> void:

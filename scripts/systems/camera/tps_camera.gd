@@ -211,8 +211,9 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 @export_group("Work framing")
 ## How fast the view eases onto a workspace Henry kneels at, and back off it.
 @export_range(0.5, 20.0, 0.5) var work_framing_rate: float = 3.0
-## How far the mouse may orbit the view round a workspace: yaw and pitch, degrees.
-@export var work_look_limit_deg: Vector2 = Vector2(25.0, 12.0)
+## How far the mouse may orbit the view round a workspace: yaw and pitch, degrees. Yaw is
+## locked: a sideways orbit brings the eye into Henry's head and fades his body out.
+@export var work_look_limit_deg: Vector2 = Vector2(0.0, 12.0)
 
 ## 0..1 unease that widens the breathing sway; free for survival state to drive.
 var tension: float = 0.0

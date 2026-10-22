@@ -127,6 +127,17 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Stove ritual edge prompt (owner request): F no longer makes the centre prompt vanish. Its brackets part to
+  the screen edges (72 px in), the yellow strip splits into its two halves, one by each bracket: `[F] BACK`
+  on the left, `STOVE` on the right. Any `InteractiveArea` can offer this through `get_session_prompt_data()`
+  while it sits in the `active_work_session` group; the stove feed does from the door opening to F.
+- Stove ritual (owner request): the ring no longer climbs to the top screen edge (it was lifted 70 px over a
+  point 1 m above the cooktop, then clamped); it now sits at the bottom centre, 200 px above the lower
+  edge (`bottom_offset_px`). The work view no longer turns sideways with the mouse (pitch only, 12 degrees): a
+  left turn brought the eye into Henry's head and faded his body out. `test_stove_ritual` checks the lock.
+- Quit to title from the stove ritual logged two errors: the ritual's teardown restores `PlayerState` to
+  ON_FOOT after the key hints panel has left the tree, and the panel rebuilt itself detached. The panel now
+  ignores mode changes outside the tree (`test_key_hints_teardown`).
 - Boot tread readable at play distance (owner: the print "sometimes seems invisible"). The snow shader switched
   the lug pattern off once a pixel on the snow passed 2–6 mm; at the shipped render scale (0.77, FSR) a fresh
   print 2.5 m from the TPS camera spans 4 × 8 mm pixels (measured), so the tread showed only in steep

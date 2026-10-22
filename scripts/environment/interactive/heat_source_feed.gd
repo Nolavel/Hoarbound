@@ -682,6 +682,13 @@ func get_interaction_prompt_data() -> Dictionary:
 	return data
 
 
+## In the ritual F (claimed) steps back and the right bracket names the stove; outside it, nothing.
+func get_session_prompt_data() -> Dictionary:
+	if not session_active:
+		return {}
+	return {"key": _interact_key_label(), "back": tr(&"WORK_SESSION_BACK"), "title": tr(&"STOVE_SESSION_TITLE")}
+
+
 func _is_lighting() -> bool:
 	return _stage in [Stage.PREPARING, Stage.READY, Stage.HOLDING]
 

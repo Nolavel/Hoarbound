@@ -30,10 +30,16 @@ OUTSIDE --F--> APPROACHING --> OPENING_DOOR --> ENTERING_CROUCH --> WORKING --F-
    Henry's right shoulder, the shoulder in the lower left, his head left, the firebox
    mouth mid-frame and the open door on the right. Henry kneels 0.3 m off the door
    axis, turned to the mouth, and the door folds back 160 degrees along the front, so
-   neither his back nor the door hides his right hand at work. The mouse orbits it up to 25
-   degrees in yaw and 12 in pitch; a wall between Henry and the eye shortens the
+   neither his back nor the door hides his right hand at work. The mouse tilts it up to 12
+   degrees in pitch; yaw is locked, since a sideways orbit brought the eye into
+   Henry's head and faded him out. A wall between Henry and the eye shortens the
    boom. F hands the view back to the follow rig at the same rate.
-5. The ring (`StoveInteractionRing`) appears beside the stove.
+5. The ring (`StoveInteractionRing`) appears at the bottom centre of the screen,
+   its centre 200 px above the lower edge. The centre prompt's brackets
+   part to the screen edges, each with half the yellow strip: `[F] BACK` by the
+   left one, `STOVE` by the right. The feed sits in `active_work_session` from
+   the door opening to F, and `MouseCursorUI` reads its
+   `get_session_prompt_data()`.
 6. F cancels any act that has not committed, closes the door, hides the ring,
    stands Henry up and returns `PlayerState` to ON_FOOT.
 

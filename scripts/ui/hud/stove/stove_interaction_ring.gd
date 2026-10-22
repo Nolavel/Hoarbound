@@ -1,8 +1,8 @@
 class_name StoveInteractionRing
 extends Control
 
-## Three separate arcs of one ring beside the stove: fuel on top (a tick per log of the firebox's
-## real capacity), tinder lower left, fire lower right. Display only: every frame it reads the
+## Three separate arcs of one ring at the bottom centre of the screen: fuel on top (a tick per log
+## of the firebox's real capacity), tinder lower left, fire lower right. Display only: every frame it reads the
 ## feed and its HeatSource; refusals arrive as feed_refused and flash the arc they concern.
 
 enum ArcState { INACTIVE, AVAILABLE, ACTIVE, DONE, SPENT }
@@ -22,12 +22,11 @@ const FADE_RATE: float = 6.0
 const FILL_RATE: float = 8.0
 const FONT_PX: int = 12
 const HINT_PX: int = 11
-## Ring centre: this point above the stove's cooktop, in stove space, lifted on screen.
-const ANCHOR_LOCAL: Vector3 = Vector3(0.0, 1.0, 0.0)
 
 @export var ring_radius_px: float = 50.0
 @export var arc_width_px: float = 5.0
-@export var lift_px: float = 70.0
+## Ring centre height above the screen's lower edge (owner: low, clear of the work view).
+@export var bottom_offset_px: float = 200.0
 
 var _feed: HeatSourceFeed
 var _shown: bool = false
@@ -223,19 +222,10 @@ func _text(at: Vector2, text: String, size: int, colour: Color, centred: bool) -
 	draw_string(_font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, colour)
 
 
-## Screen point above the stove's cooktop, kept on screen; it stays clear of the open door.
+## Bottom centre of the screen, bottom_offset_px above the lower edge.
 func _anchor() -> Vector2:
 	var size: Vector2 = get_viewport_rect().size
-	var fallback := Vector2(size.x * 0.68, size.y * 0.38)
-	var camera: Camera3D = get_viewport().get_camera_3d()
-	if camera == null or _feed == null or not is_instance_valid(_feed.heat_source):
-		return fallback
-	var world: Vector3 = _feed.heat_source.to_global(ANCHOR_LOCAL)
-	if camera.is_position_behind(world):
-		return fallback
-	var at: Vector2 = camera.unproject_position(world) - Vector2(0.0, lift_px)
-	var margin: float = ring_radius_px + 40.0
-	return Vector2(clampf(at.x, margin, size.x - margin), clampf(at.y, margin, size.y - margin - 40.0))
+	return Vector2(size.x * 0.5, size.y - bottom_offset_px)
 
 
 func _any_refusal() -> bool:
