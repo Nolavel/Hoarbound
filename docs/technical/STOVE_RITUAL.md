@@ -156,7 +156,7 @@ Forward+ run; this software Compatibility capture does not establish production 
 
 The current complete capture is in `key_west_727/stove_fire/current/`: 17 PNG stages,
 `full-cycle.mp4` (558 decoded frames, 55.8 s, 960×540, H.264/yuv420p, 10 fps),
-`capture.log` and `manifest.json` with frame continuity, source commit and hashes.
+`capture.txt` and `manifest.json` with frame continuity, source commit and hashes.
 The full graphical run exits successfully and preserves old-log progress on refuel.
 The existing room light still follows thermal intensity: it remains strong at the
 late-ember stage until fuel extinction, so that balance remains a visual-review limit.
