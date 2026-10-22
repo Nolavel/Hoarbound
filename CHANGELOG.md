@@ -258,8 +258,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   tapering spines with barbs at the ice's 60°, two sizes. New frost is thin and turns opaque as it
   ages. Thaw clears the warm centre first along a soft, wet front. The thick fronds and the cold bottom
   corners go last (FUTURE_INTENT §3, frost retreating to the edges). Measured on the pane mask: 50 % left
-  at thaw 0.60, 10 % at 0.80. `frosted_glass` (727) thaws as the stove warms the room; the generated
-  `frosted_window` uses the growth mask.
+  at thaw 0.55, 10 % at 0.80. The pattern is metric (pane size from screen derivatives), so the 727's
+  wide panes no longer stretch it. Fronds far from the frame point any way, which removed a rosette at
+  the centre. Barbs smaller than a pixel blend to their mean instead of aliasing. Random, never preset
+  (owner): the 727 draws its frost afresh each load (`growth_seed`) and a new thaw path each time the room
+  starts to warm (`melt_seed`, swapped while warmth is 0 so nothing jumps). `frosted_glass` (727) thaws
+  as the stove warms the room; the generated `frosted_window` uses the growth mask.
 - Ground drift travels as a wave (owner note: it appeared in place, straight). Each `SnowLift` streamer is now a
   sweep: the emitter runs downwind for 1.6–2.4 s at 0.45 of the 10 m wind along a shallow arc (bow 5–9 % of
   its length, side at random), snapped to the ground, shedding its four layers into a world-space trail that
