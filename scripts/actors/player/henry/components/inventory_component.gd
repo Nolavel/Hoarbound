@@ -69,6 +69,11 @@ func try_add(item: ItemResource) -> bool:
 func try_add_instance(item: ItemResource, instance_state: Dictionary = {}) -> bool:
 	if item == null:
 		return false
+	# A mutable state cannot be represented by one shared stack entry.
+	# Reject it explicitly rather than discarding the state silently.
+	if item.max_stack > 1 and not instance_state.is_empty():
+		add_rejected.emit(item, &"stateful_stack_unsupported")
+		return false
 	var refusal: StringName = get_add_refusal(item)
 	if refusal != &"":
 		add_rejected.emit(item, refusal)

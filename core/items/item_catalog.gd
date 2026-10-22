@@ -62,13 +62,37 @@ static func reset_shared() -> void:
 	_warned_missing = false
 
 
+## Pure authoring check: safe for tests and editor validation without printing errors.
+## A repeated definition id is not a second physical item instance.
+func validate_entries() -> PackedStringArray:
+	var errors := PackedStringArray()
+	var seen: Dictionary = {}
+	for item: ItemResource in items:
+		if item == null:
+			errors.append("ItemCatalog: null item resource")
+			continue
+		if item.id == &"":
+			errors.append("ItemCatalog: an item has no id")
+			continue
+		if seen.has(item.id):
+			errors.append("ItemCatalog: duplicate definition id '%s'" % item.id)
+		else:
+			seen[item.id] = true
+	return errors
+
+
 func _build_index() -> void:
 	_index.clear()
 	for item: ItemResource in items:
 		if item == null:
+			push_error("ItemCatalog: null item resource")
 			continue
 		if item.id == &"":
-			push_warning("ItemCatalog: an item has no id — it can never be resolved")
+			push_error("ItemCatalog: an item has no id — it can never be resolved")
+			continue
+		if _index.has(item.id):
+			# Never silently replace an existing definition because a save resolves by id.
+			push_error("ItemCatalog: duplicate definition id '%s' — keeping the first" % item.id)
 			continue
 		_index[item.id] = item
 	_index_built = true
