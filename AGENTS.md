@@ -2,6 +2,23 @@
 
 This file applies to the entire repository.
 
+## Codex — visual result delivery
+
+- When the author asks to see a visual result, the final chat response must
+  include the actual PNG images inline and the MP4 as a playable attachment or
+  an accessible file in this chat.
+- GitHub links may be supplied additionally; they do not replace showing the
+  requested images and video in the chat.
+- Before replying, open and visually inspect the resulting files, including
+  frames decoded from the MP4, and verify that the delivered files are real
+  captures from the requested runtime launch. Do not substitute script-rendered
+  images or inferred visuals for runtime captures.
+- If this Codex interface cannot deliver video or attachments, state that
+  limitation explicitly and display every PNG that the interface supports.
+- Never describe a local file path, a private-repository link, or an image
+  visible only to a tool as a successfully displayed attachment. If delivery
+  cannot be verified, state that uncertainty rather than claiming success.
+
 ## Branch ownership — strict rule
 
 One agent uses one permanent branch. Agents never share a working branch.
