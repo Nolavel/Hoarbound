@@ -7,8 +7,8 @@ extends Node3D
 
 ## Log slots built; the source's full load decides how many can show (6 h / 2 h = 3).
 const MAX_LOGS: int = 4
-## How far the door swings open during an act, degrees.
-const DOOR_OPEN_DEG: float = 105.0
+## How far the door swings open, degrees: folded back along the front, clear of the mouth.
+const DOOR_OPEN_DEG: float = 160.0
 const SIZE: Vector3 = Vector3(0.62, 0.0, 0.7)  # footprint depth (X) and width (Z)
 const LEG_H: float = 0.14
 const ASH_H: float = 0.12

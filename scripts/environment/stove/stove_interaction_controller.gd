@@ -10,9 +10,11 @@ signal phase_changed(phase: Phase)
 enum Phase { OUTSIDE, APPROACHING, OPENING_DOOR, ENTERING_CROUCH, WORKING, EXITING }
 
 const POINT_NAME: StringName = &"StoveInteractionPoint"
-## Henry's spot in front of the door, in stove space (+X is the door side): the 0.31 m half
-## depth, a crouched body's knees and the reach of the arms into the firebox.
-const POINT_OFFSET: Vector3 = Vector3(0.82, 0.0, 0.0)
+## Henry's spot in stove space (+X is the door side): kneeling reach from the 0.31 m half depth,
+## and 0.3 m off the door axis to the latch side, so his right hand works the firebox in view.
+const POINT_OFFSET: Vector3 = Vector3(0.85, 0.0, 0.3)
+## The firebox mouth he turns to, stove space.
+const DOOR_MOUTH: Vector3 = Vector3(0.28, 0.0, 0.0)
 ## Henry counts as on the spot within this flat distance and facing within this angle.
 const ARRIVAL_DISTANCE: float = 0.12
 const FACING_TOLERANCE_DEG: float = 10.0
@@ -80,8 +82,8 @@ func get_interaction_point() -> Marker3D:
 		_point = Marker3D.new()
 		_point.name = POINT_NAME
 		source.add_child(_point)
-		## Facing the door: the marker's -Z looks back into the firebox (-X of the stove).
-		_point.transform = Transform3D(Basis(Vector3.UP, PI * 0.5), POINT_OFFSET)
+		## Facing the door: the marker's -Z looks at the firebox mouth.
+		_point.transform = Transform3D(Basis.looking_at(DOOR_MOUTH - POINT_OFFSET, Vector3.UP), POINT_OFFSET)
 	return _point
 
 
