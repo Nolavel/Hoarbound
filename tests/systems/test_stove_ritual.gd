@@ -233,12 +233,13 @@ func _test_exit_and_return() -> void:
 	_check(not _player.is_crouching() and _state.call(&"is_on_foot"), "Henry did not stand up and get his legs back")
 	_check(not _control.get_ring().is_shown(), "the ring stayed up")
 	_check(_source.get_loaded_log_count() == 3 and _source.is_tinder_prepared(), "leaving lost the logs or the tinder")
-	var camera := root.get_camera_3d() as TpsCamera
-	for _i: int in range(300):
-		if camera == null or camera.get_work_framing_blend() <= 0.0:
+	_camera.set_process(true)
+	for _i: int in range(60):
+		if _camera.get_work_framing_blend() <= 0.0:
 			break
-		await process_frame
-	_check(camera != null and camera.get_work_framing_blend() <= 0.0, "the camera did not hand the view back after F")
+		await create_timer(0.05).timeout
+	_camera.set_process(false)
+	_check(_camera.get_work_framing_blend() <= 0.0, "the camera did not hand the view back after F")
 	_control.request_enter()
 	for _i: int in range(240):
 		await physics_frame
@@ -394,23 +395,33 @@ func _check_work_framing() -> void:
 	_check(camera != null, "the ritual runs without the TPS camera")
 	if camera == null:
 		return
-	for _i: int in range(300):
+	## The fixture holds the camera still for aiming; the framing check lets it run.
+	camera.set_process(true)
+	## The blend runs on real time; headless frames are short, so wait on the clock.
+	for _i: int in range(60):
 		if camera.get_work_framing_blend() >= 1.0:
 			break
-		await process_frame
+		await create_timer(0.05).timeout
 	await process_frame
-	_check(camera.get_work_framing_blend() >= 1.0, "the camera never settled on the stove framing")
+	_check(camera.get_work_framing_blend() >= 1.0, "the camera never settled on the stove framing (blend %.2f)" % camera.get_work_framing_blend())
 	var focus: Vector3 = _source.to_global(StoveInteractionController.VIEW_FOCUS)
 	var size: Vector2 = camera.get_viewport().get_visible_rect().size
 	var on_screen: Vector2 = camera.unproject_position(focus) / size
 	_check(not camera.is_position_behind(focus) and absf(on_screen.x - 0.5) < 0.25 and absf(on_screen.y - 0.5) < 0.3,
 		"the firebox is off the frame: %s" % on_screen)
-	var query := PhysicsRayQueryParameters3D.create(camera.global_position, focus)
-	query.hit_from_inside = true
-	var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(query)
-	_check(hit.is_empty() or hit["collider"] != _player, "Henry's body hides the firebox from the camera")
+	## Henry's collision capsule (0.5 m) is far wider than his body; his bones say what hides.
+	var skeleton: Skeleton3D = (_player.animation_component as HenryUALAnimation).skeleton
+	var nearest: float = INF
+	for bone: String in ["Head", "neck_01", "clavicle_r", "upperarm_r", "clavicle_l", "upperarm_l"]:
+		var index: int = skeleton.find_bone(bone)
+		if index < 0:
+			continue
+		var at: Vector3 = skeleton.to_global(skeleton.get_bone_global_pose(index).origin)
+		nearest = minf(nearest, at.distance_to(Geometry3D.get_closest_point_to_segment(at, camera.global_position, focus)))
+	_check(nearest > 0.15, "Henry's head or shoulders hide the firebox from the camera (%.2f m off the sight line)" % nearest)
 	var to_eye: float = camera.global_position.distance_to(_player.global_position)
-	_check(to_eye > 0.7 and to_eye < 2.6, "the stove framing is not a close work view: %.2f m from Henry" % to_eye)
+	_check(to_eye > 0.4 and to_eye < 2.6, "the stove framing is not a close work view: %.2f m from Henry" % to_eye)
+	camera.set_process(false)
 
 
 func _frames(count: int) -> void:

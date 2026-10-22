@@ -251,7 +251,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Stove ritual framing (owner: "we saw nothing inside the stove or what Henry does"). The TPS camera stayed high
   behind Henry, his back hid the door, and the iron stove was lost on the dark floor. The same TPS camera now
   eases onto a work framing while the door is open (`TpsCamera.set_work_framing`), the owner's composition:
-  high over Henry's left shoulder, head and shoulder low left, stove mid-frame, open door just right of centre.
+  close over Henry's right shoulder, shoulder lower left, head left, firebox mouth mid-frame, door on the right.
+  From behind, Henry kneeling square to the door hid it with his back, so he now kneels 0.3 m off the door axis,
+  turned to the mouth, and the door folds back 160 degrees (was 105, swinging toward the camera).
   The stove's "Use" prompt no longer shows during the ritual. The mouse orbits it a little, walls still
   shorten the boom, and F eases back to the follow rig. No separate mini-game camera.
 - 727 floor lighter and warmer (owner: stove and floor merge). The floor's real material is the external

@@ -26,9 +26,11 @@ OUTSIDE --F--> APPROACHING --> OPENING_DOOR --> ENTERING_CROUCH --> WORKING --F-
 4. `PlayerState` goes WORKING: no WASD, sprint, jump or pickups. The interact key
    is claimed through `InputSystems.claim_interact`, so F only ends the ritual.
    The camera stays the TPS camera; as the door opens it eases (about 0.7 s) onto
-   a work framing (`TpsCamera.set_work_framing`), the owner's composition: high over
-   Henry's left shoulder, his head and shoulder low left, the stove mid-frame and the
-   open door (hinged on -Z) just right of centre, looking down into the firebox. The mouse orbits it up to 25
+   a work framing (`TpsCamera.set_work_framing`), the owner's composition: close over
+   Henry's right shoulder, the shoulder in the lower left, his head left, the firebox
+   mouth mid-frame and the open door on the right. Henry kneels 0.3 m off the door
+   axis, turned to the mouth, and the door folds back 160 degrees along the front, so
+   neither his back nor the door hides his right hand at work. The mouse orbits it up to 25
    degrees in yaw and 12 in pitch; a wall between Henry and the eye shortens the
    boom. F hands the view back to the follow rig at the same rate.
 5. The ring (`StoveInteractionRing`) appears beside the stove.

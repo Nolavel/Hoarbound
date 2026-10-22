@@ -28,10 +28,10 @@ const CROUCH_SECONDS: float = 0.35
 const EXIT_SECONDS: float = 0.45
 ## Henry turns to the door at this rate while the door opens, radians per second.
 const TURN_RATE: float = 8.0
-## Work framing in stove space (owner's composition): high over Henry's left shoulder, his head
-## and shoulder low left, the stove mid-frame and the open door just right of centre.
-const VIEW_FOCUS: Vector3 = Vector3(0.12, 0.32, 0.0)
-const VIEW_EYE: Vector3 = Vector3(1.55, 1.85, 0.6)
+## Work framing in stove space (owner's composition): close over Henry's right shoulder, his
+## shoulder in the lower left, head left, the firebox mouth mid-frame, the folded door right.
+const VIEW_FOCUS: Vector3 = Vector3(0.3, 0.4, 0.0)
+const VIEW_EYE: Vector3 = Vector3(1.0, 1.2, -0.4)
 
 var feed: HeatSourceFeed
 
