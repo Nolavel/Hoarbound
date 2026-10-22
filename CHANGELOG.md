@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Stove fire uses irregular per-log geometry, local flame/char/embers and weak ignition smoke,
+  preserving HeatSource fuel authority, Claude’s ritual and the existing room lights. Real 727
+  TPS captures compare the original and integrated appearance under OpenGL Compatibility;
+  Forward+ color/performance verification remains outstanding.
+
 - Floor snow prints (owner request): indoors Henry's boots leave white prints, the inverse of the snow print:
   white where the tread's grooves packed with snow outside, broken into clumps (`BootSole.floor_print_image`,
   the same lug pattern the snow shader presses). A step outside on snow fills the tread; each indoor step

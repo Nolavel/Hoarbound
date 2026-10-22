@@ -6,6 +6,7 @@ extends Node3D
 ## glows, a cooktop and a flue. Front is +X, where the feed prompt stands.
 
 ## Log slots built; the source's full load decides how many can show (6 h / 2 h = 3).
+const LOG_VISUAL: GDScript = preload("res://scripts/environment/stove/stove_log_visual.gd")
 const MAX_LOGS: int = 4
 ## How far the door swings open, degrees: folded back along the front, clear of the mouth.
 const DOOR_OPEN_DEG: float = 160.0
@@ -51,6 +52,13 @@ var _flames: Array[MeshInstance3D] = []
 ## 0..1 while a lighting act catches: a weak flame that grows before the fire takes.
 var _kindle: float = 0.0
 var _acting: bool = false
+## Visual cohorts only. HeatSource remains the sole fuel/count authority.
+var _active_slots: Array[int] = []
+var _burned: Dictionary = {}
+var _catch_seconds: Dictionary = {}
+var _previous_hours: float = -1.0
+var _cooling_seconds: float = 0.0
+var _was_burning: bool = false
 var _door_tween: Tween
 
 
@@ -163,6 +171,7 @@ func _apply_fire_presentation(slow: float, fast: float) -> void:
 
 
 func _process(delta: float) -> void:
+	_update_log_stages(delta)
 	if _acting and _kindle > 0.0 and not _glow.visible:
 		_glow.visible = true
 		_embers.emission_enabled = true
@@ -186,9 +195,8 @@ func _refresh() -> void:
 	var burning: bool = _burning()
 	var units: int = 0
 	if source != null and source.hours_per_fuel_unit > 0.0:
-		units = ceili(source.get_remaining_hours() / source.hours_per_fuel_unit - 0.001)
-	for i: int in range(_logs.size()):
-		_logs[i].visible = i < clampi(units, 0, get_capacity_logs())
+		units = source.get_loaded_log_count()
+	_sync_log_slots(clampi(units, 0, get_capacity_logs()))
 	_glow.visible = burning or (_acting and _kindle > 0.0)
 	for flame: MeshInstance3D in _flames:
 		flame.visible = _glow.visible
@@ -201,6 +209,58 @@ func _refresh() -> void:
 		_shown_t = 0.0
 		_glow.light_energy = 0.0
 		_embers.emission_energy_multiplier = 0.0
+
+
+func _sync_log_slots(count: int) -> void:
+	var hours: float = source.get_remaining_hours() if source != null else 0.0
+	if _previous_hours >= 0.0 and hours < _previous_hours and (_burning() or _was_burning) and source.hours_per_fuel_unit > 0.0:
+		var spent: float = (_previous_hours - hours) / source.hours_per_fuel_unit
+		for slot: int in _active_slots:
+			var part: float = minf(spent, 1.0 - float(_burned.get(slot,0.0)))
+			_burned[slot] = float(_burned.get(slot,0.0)) + part
+			spent -= part
+	_previous_hours = hours
+	while _active_slots.size() > count:
+		var slot: int = _active_slots.pop_front()
+		_logs[slot].visible = false
+		_burned.erase(slot)
+		_catch_seconds.erase(slot)
+	while _active_slots.size() < count:
+		for slot: int in range(_logs.size()):
+			if not _active_slots.has(slot):
+				_active_slots.append(slot)
+				_burned[slot] = 0.0
+				_catch_seconds[slot] = 0.0
+				break
+	for slot: int in range(_logs.size()):
+		_logs[slot].visible = _active_slots.has(slot)
+	# Settle the surviving visual cohorts into the lowest available positions.
+	# Identity/char stage stays with the node; this never changes authoritative fuel.
+	for order: int in range(_active_slots.size()):
+		var side: float = 1.0 if order % 2 == 0 else -1.0
+		_logs[_active_slots[order]].position = Vector3(side*0.09-0.04,
+			LEG_H+ASH_H+WALL+0.06+float(order/2)*0.07,0.0)
+	if _was_burning and not _burning():
+		_cooling_seconds = 6.0
+	_was_burning = _burning()
+	_update_log_stages(0.0)
+
+
+func _update_log_stages(delta: float) -> void:
+	_cooling_seconds = maxf(0.0,_cooling_seconds-delta)
+	for slot: int in _active_slots:
+		var progress: float = 0.0
+		if _burning():
+			_catch_seconds[slot] = float(_catch_seconds.get(slot,0.0)) + delta
+			var growth: float = minf(float(_catch_seconds[slot])/maxf(source.warmup_seconds,1.0),1.0)
+			progress = maxf(lerpf(0.06,0.35,growth),0.35+float(_burned.get(slot,0.0))*0.63) if float(_burned.get(slot,0.0)) > 0.01 else lerpf(0.06,0.35,growth)
+		elif float(_catch_seconds.get(slot,0.0)) > 0.0:
+			progress = lerpf(1.0,0.87,_cooling_seconds/6.0)
+		_logs[slot].set_stage(progress)
+	# Residual coals are visual only; never extend the HeatSource or room heating.
+	if not _burning():
+		_embers.emission_enabled = _cooling_seconds > 0.0
+		_embers.emission_energy_multiplier = EMBER_EMISSION_ENERGY * _cooling_seconds/6.0 * 0.25
 
 
 func _build() -> void:
@@ -235,14 +295,20 @@ func _build() -> void:
 	_box(Vector3(SIZE.x + 0.06, 0.03, SIZE.z + 0.06), Vector3(0.0, top_y + 0.015, 0.0), _iron)
 	_cylinder(0.11, 0.012, Vector3(0.05, top_y + 0.036, -0.14), _material(Color(0.2, 0.2, 0.21), 0.6, 0.7))  # cooking ring
 	## Ember bed and logs inside: one log per fuel unit, stacked two by two.
-	_box(Vector3(SIZE.x - 0.12, 0.02, SIZE.z - 0.12), Vector3(0.0, floor_y + WALL + 0.01, 0.0), _embers)
-	var bark := _material(Color(0.3, 0.2, 0.12), 0.95, 0.0)
+	_box(Vector3(SIZE.x - 0.12, 0.012, SIZE.z - 0.12), Vector3(0.0, floor_y + WALL + 0.006, 0.0), _material(Color(0.055,0.047,0.04),1.0,0.0))
+	# Sparse coals instead of one uniformly emissive orange plate.
+	for i: int in range(12):
+		var x: float = (float(i / 4)-1.0)*0.12 + 0.013*sin(float(i)*3.1)
+		var z: float = (float(i % 4)-1.5)*0.13 + 0.01*cos(float(i)*2.7)
+		var coal := _cylinder(0.024,0.018,Vector3(x,floor_y+WALL+0.018,z),_embers)
+		coal.scale = Vector3(1.0+0.2*sin(float(i)),1.0,0.7+0.2*cos(float(i)))
 	for i: int in range(MAX_LOGS):
 		var layer: int = i / 2
-		var side: float = -1.0 if i % 2 == 0 else 1.0
-		var log_node := _cylinder(0.05, SIZE.z - 0.16,
-			Vector3(side * 0.09 - 0.04, floor_y + WALL + 0.06 + layer * 0.09, 0.0), bark)
-		log_node.rotation = Vector3(PI * 0.5, 0.0, 0.0)  # lying front-to-back across the width
+		var side: float = 1.0 if i % 2 == 0 else -1.0
+		var log_node: Node3D = LOG_VISUAL.new()
+		log_node.name = "FuelLog%d" % i
+		log_node.position = Vector3(side * 0.09 - 0.04, floor_y + WALL + 0.06 + layer * 0.07, 0.0)
+		add_child(log_node)
 		_logs.append(log_node)
 	_glow = OmniLight3D.new()
 	_glow.light_color = Color(1.0, 0.5, 0.2)
@@ -251,21 +317,6 @@ func _build() -> void:
 	add_child(_glow)
 	if source != null and source.flame_light != null:
 		_place_room_light(source.flame_light, Vector3(hx - 0.15, floor_y + 0.24, 0.0))
-	var flame_material := _material(Color(1.0, 0.48, 0.08), 1.0, 0.0)
-	flame_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	flame_material.emission_enabled = true
-	flame_material.emission = Color(1.0, 0.24, 0.025)
-	for z: float in [-0.12, 0.0, 0.12]:
-		var fire := MeshInstance3D.new()
-		var cone := CylinderMesh.new()
-		cone.top_radius = 0.006
-		cone.bottom_radius = 0.035
-		cone.height = 0.16
-		cone.material = flame_material
-		fire.mesh = cone
-		fire.position = Vector3(0.1, floor_y + 0.18, z)
-		add_child(fire)
-		_flames.append(fire)
 	_build_door(Vector3(hx + 0.01, floor_y + sill, -DOOR_W * 0.5))
 	## Flue: a collar on the cooktop at the back, a pipe to the roof.
 	_cylinder(0.08, 0.06, Vector3(-hx + 0.15, top_y + 0.06, 0.0), _iron)

@@ -93,4 +93,47 @@ state.
 - `tests/systems/test_shelter_workflow.gd` checks the shelter contract (F, three
   RMB logs, F out).
 - `tools/runtime/capture_stove.gd` drives the ritual in 727 through the TPS camera
-  and writes eight frames plus a frame run for a video.
+  and writes named stages plus a continuous frame run for a video.
+
+## Log fire presentation
+
+`HeatSource` still owns all fuel, capacity, ignition, warm-up and heating. `StoveVisual`
+reads `get_loaded_log_count()` and the existing fuel/burning/intensity signals. It keeps
+only visual slot identities, catch time and consumed fractions, so adding a log does
+not reset the appearance of an older one. Fuel decreases age the oldest visible slot;
+when the authoritative count decreases that slot disappears. No extra fuel or heat
+simulation is introduced. A short residual-coal fade has no thermal effect.
+
+`StoveLogVisual` fits the isolated study's irregular split-log method to the existing
+0.54 m length and 0.05 m radius. The source study's environment is not imported.
+Charcoal cracks and ignition smoke are local to each log. Flame and smoke use closed
+3D meshes, with depth testing against the firebox and door, rather than camera-facing
+cards. The original room SpotLight and firebox glow remain under `StoveVisual`.
+
+The runtime proof uses the real Key West Reality scene, Henry and `TpsCamera` work
+framing. `capture_stove.gd` extends the original ritual with steady burn, a burning
+refuel, a closed-door view, accelerated fuel exhaustion through the public
+`HeatSource.advance_fuel()` API, residual coals and cooling. This accelerates the
+render demonstration only; it does not change production fuel duration. Every saved
+frame is rendered by Godot's viewport using `RenderingServer.force_draw`; run the
+capture with `--disable-render-loop` to skip redundant draws between samples. Video
+sampling remains separate from the fixed 30 Hz game step.
+
+Visual limitation: per-log ages are presentation metadata, not saved gameplay
+identities. A loaded aggregate fuel state cannot reconstruct the exact insertion
+history of individual logs. No new save schema or per-log gameplay authority is
+introduced for this visual integration.
+
+Runtime evidence: [`key_west_727/stove_fire`](../runtime_previews/key_west_727/stove_fire/).
+The `baseline/` PNGs are the original main `5a4976c6` under the same 960×540,
+13:00 calm-weather production setup. `partial/` is the inspected first integration
+pass (547 frames, 54.7 s at 10 fps), ending after the closed-door view; it does **not**
+prove cooling or camera orbit. The original reentry targeted the cooking pot;
+the capture now reenters using the real stove controller, and drives the public
+TPS look API because unattended mouse motion did not move the workspace camera.
+
+Both baseline and candidate use Godot 4.8-dev6 Mono, graphical X11/Xvfb,
+OpenGL Compatibility / Mesa 25.0.7 llvmpipe (LLVM 19.1.7, 256 bits). Scene lighting
+and WorldEnvironment are retained. OpenGL reports unsupported scene fog;
+Forward+/Vulkan production color and performance remain unverified. The fallback
+is evidence of real integration, not renderer parity with the production target.

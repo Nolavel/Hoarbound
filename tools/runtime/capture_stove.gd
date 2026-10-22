@@ -1,16 +1,16 @@
 extends SceneTree
 
 ## The stove ritual in the 727 Fort St shelter (Key West Reality), driven by real input through the
-## production TPS camera: eight named frames and a continuous frame run for a video.
-## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_stove.gd -- <out dir>
+## production TPS camera: named stages and a continuous frame run for a video.
+## Run: xvfb-run godot --path . --rendering-driver vulkan --disable-render-loop --fixed-fps 30 --script res://tools/runtime/capture_stove.gd -- <out dir>
 ## Frames: 1 before F, 2 crouched with the empty ring, 3 one log, 4 three logs, 5 tinder laid,
 ## 6 holding the lighter, 7 the fire growing, 8 the door closed and Henry up. video/ holds every
-## other frame of the whole run.
+## third frame of the whole run. Additional named frames cover refuel, embers and cooling.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 ## Early afternoon: daylight through the windows shows the firebox and Henry before the fire.
 const HOUR: float = 13.0
-const VIDEO_EVERY: int = 2
+const VIDEO_EVERY: int = 3
 
 var _out: String = "user://shots/stove"
 var _world: Node3D
@@ -24,6 +24,9 @@ var _recording: bool = false
 
 
 func _initialize() -> void:
+	root.content_scale_size = Vector2i(960,540)
+	root.size = Vector2i(960,540)
+	print("[stove] automatic_render_loop=",RenderingServer.is_render_loop_enabled())
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if not args.is_empty():
 		_out = args[0]
@@ -38,6 +41,8 @@ func _run() -> void:
 	for _i: int in range(600):
 		await process_frame
 		ctx = _world.call(&"get_context")
+		if _i % 30 == 0:
+			print("[stove] bootstrap frame=",_i," context=",ctx != null)
 		if ctx != null:
 			break
 	_player = ctx.player as Player
@@ -51,6 +56,8 @@ func _run() -> void:
 		node.set_process(false)
 	for _i: int in range(90):
 		await process_frame
+		if HeatSource.get_all().any(func(s: HeatSource) -> bool: return s.find_child("Feed",true,false) != null):
+			break
 	var shelter: Node = _world.find_children("*", "", true, false).filter(func(n: Node) -> bool: return n is KeyWest727Shelter)[0]
 	_feed = shelter.find_child("Feed", true, false) as HeatSourceFeed
 	_source = _feed.heat_source
@@ -109,10 +116,59 @@ func _run() -> void:
 	_mouse(MOUSE_BUTTON_LEFT, false)
 	await _hold(5.0)
 	await _shot("7_fire_growing")
+	await _advance_fire(0.20,17.0)
+	await _shot("9_steady_open")
+	# Input mouse capture is unavailable in the unattended window. Drive the public
+	# look API; the production workspace rig still owns orbit and collision.
+	var camera := root.get_camera_3d() as TpsCamera
+	var yaw: float = camera.get_yaw()
+	var pitch: float = camera.get_view_pitch_deg()
+	camera.set_look(yaw - deg_to_rad(12.0),pitch)
+	await _hold(0.5)
+	await _shot("16_open_orbit_left")
+	camera.set_look(yaw + deg_to_rad(12.0),pitch)
+	await _hold(0.5)
+	await _shot("17_open_orbit_right")
+	camera.set_look(yaw,pitch)
+	await _hold(0.5)
+	# Exercise real fuel authority, accelerated only for the render proof.
+	await _advance_fire(2.1,2.0)
+	await _hold(0.4)
+	await _shot("10_two_burning_logs")
+	var visual: StoveVisual = _source.find_child("StoveVisual",true,false) as StoveVisual
+	var old_progress: Dictionary = {}
+	for slot: int in visual._active_slots:
+		old_progress[slot] = float(visual._logs[slot].burn_progress)
+	inventory.try_add(ItemCatalog.get_item(&"firewood"))
+	_mouse(MOUSE_BUTTON_RIGHT,true)
+	_mouse(MOUSE_BUTTON_RIGHT,false)
+	await _until(func() -> bool: return not _feed.is_acting(),5.0)
+	await _hold(0.4)
+	assert(_source.get_loaded_log_count() == 3,"Refuel did not restore three real fuel units")
+	for slot: int in old_progress:
+		assert(float(visual._logs[slot].burn_progress) >= float(old_progress[slot]),"Refuel reset an older log")
+	await _shot("11_refuel_preserves_old_logs")
 	_press_interact()
 	await _until(func() -> bool: return not _control.is_active(), 5.0)
 	await _hold(1.2)
 	await _shot("8_door_closed_up")
+	# TPS orbit under the same production follow rig, closed-door depth/occlusion proof.
+	_aim_camera(_feed.focus_anchor.global_position)
+	await _hold(0.5)
+	await _shot("12_closed_door_fire")
+	# The follow-camera centre now targets the pot on top (Warm up), not Feed.
+	# Reenter the actual stove controller explicitly; keep its full door/crouch flow.
+	_control.request_enter()
+	await _until(func() -> bool: return _control.is_working(),12.0)
+	await _hold(0.6)
+	await _advance_fire(maxf(0.0,_source.get_remaining_hours()-0.12),4.0)
+	await _hold(0.8)
+	await _shot("13_embers_open")
+	_source.advance_fuel(_source.get_remaining_hours())
+	await _hold(0.4)
+	await _shot("14_residual_coals_no_fuel")
+	await _hold(6.5)
+	await _shot("15_cold_empty")
 	_recording = false
 	print("[stove] logs=%d tinder=%s burning=%s intensity=%.2f video_frames=%d" % [_source.get_loaded_log_count(),
 		_source.is_tinder_prepared(), _source.is_burning(), _source.get_intensity(), _video])
@@ -121,7 +177,7 @@ func _run() -> void:
 
 func _process(_delta: float) -> bool:
 	## Debug HUD layers come and go; only the stove ring stays on the frames.
-	if _frame % 15 == 0 and _world != null:
+	if _recording and _frame % 15 == 0 and _world != null:
 		for node: Node in _world.find_children("*", "CanvasLayer", true, false):
 			if node.name != &"StoveRingLayer" and not _is_prompt(node):
 				node.set(&"visible", false)
@@ -140,10 +196,9 @@ func _process(_delta: float) -> bool:
 
 
 func _shot(name: String) -> void:
-	await RenderingServer.frame_post_draw
 	_save(ProjectSettings.globalize_path(_out).path_join(name + ".png"))
 	print("[stove] shot ", name, " phase=", _control.get_phase(), " logs=", _source.get_loaded_log_count(),
-		" tinder=", _source.is_tinder_prepared(), " stage=", _feed.get_stage(), " burning=", _source.is_burning())
+		" visual_logs=", (_source.find_child("StoveVisual",true,false) as StoveVisual).get_visible_log_count(), " tinder=", _source.is_tinder_prepared(), " stage=", _feed.get_stage(), " burning=", _source.is_burning())
 	var camera := root.get_camera_3d() as TpsCamera
 	if camera != null:
 		print("[stove] camera in stove space ", _source.to_local(camera.global_position), " henry ",
@@ -176,6 +231,7 @@ func _probe_views() -> void:
 
 
 func _save(path: String) -> void:
+	RenderingServer.force_draw(false, 1.0/30.0)
 	root.get_texture().get_image().save_png(path)
 
 
@@ -184,6 +240,16 @@ func _until(done: Callable, seconds: float) -> void:
 	for _i: int in range(frames):
 		if done.call():
 			return
+		await process_frame
+	push_error("capture_stove: timed out waiting for real ritual state")
+	quit(1)
+
+
+## Render-only time compression through the existing fuel owner, never a second simulation.
+func _advance_fire(hours: float, seconds: float) -> void:
+	var steps: int = maxi(1,int(seconds*30.0))
+	for _i: int in range(steps):
+		_source.advance_fuel(hours/float(steps))
 		await process_frame
 
 
