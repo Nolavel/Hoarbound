@@ -248,6 +248,25 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Stove ritual replaces the stove's F cycle (owner spec). Before: F opened the door, the next F loaded the whole
+  armful and readied the lighter, and RMB took cold logs back. Now `[F] Stove` walks Henry to a
+  `StoveInteractionPoint` in stove space (the player's own scripted walk, no teleport, refused when his capsule
+  does not fit). He turns to the door, it opens, and he crouches with or without a load: a new `CrouchCarry`
+  state keeps the carry arms over the crouch legs. `PlayerState` WORKING roots him, the interact key is claimed,
+  and the TPS camera stays. A three-arc ring (`StoveInteractionRing`, the pickup marker's language) shows fuel
+  (one tick per log of the real capacity), tinder and fire.
+  - RMB lays exactly one log per press. The inventory and `HeatSource.add_logs(1)` change together when the
+    act completes; a cancel moves nothing.
+  - LMB lays tinder, only with a log in. The press that laid it never reaches the lighter: release, then a new
+    press strikes the existing lighter, and a 3 s hold lights the stove.
+  - Logs can follow the tinder. A burning stove takes logs without relighting.
+  - F closes the door and stands him up.
+  - Tinder is new `HeatSource` state (`tinder_prepared`). It is saved and recorded by `ShelterState`, and kept
+    when Henry leaves.
+  - The work pose backs down instead of standing up through its clip while Henry stays crouched.
+  - New `StoveInteractionController`; `HeatSourceFeed` keeps only the acts. `test_stove_ritual` covers the 12
+    owner scenarios; `test_shelter_workflow` is updated. `capture_stove` now runs in 727 (it used archived
+    Graciosa). Doc: `docs/technical/STOVE_RITUAL.md`.
 - Window frost forms and thaws like real fern frost (owner: not natural). Before, one mask served both
   ways: the frost edge was a noisy band at a fixed distance from the frame, so growth and thaw were the
   same rectangle moving in and out (a square hole at 50 %). Now each texel has two dissolve thresholds.

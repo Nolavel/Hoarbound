@@ -1,0 +1,89 @@
+# Stove ritual
+
+Production path: the stove in the 727 Fort St shelter (Key West Reality,
+`scenes/world/key_west/key_west_reality.tscn`, built by `KeyWest727Shelter` from
+the shelter template). It replaced the F cycle of 2026-09/10, in which F opened the
+door, the next F loaded the whole armful and readied the lighter, and RMB took
+cold logs back. That cycle is gone; the internal log and lighter code is reused.
+
+## Sequence
+
+```text
+OUTSIDE --F--> APPROACHING --> OPENING_DOOR --> ENTERING_CROUCH --> WORKING --F--> EXITING --> OUTSIDE
+                                                                     |  RMB  one log
+                                                                     |  LMB  tinder (needs a log)
+                                                                     |  LMB  new press: lighter strike, hold 3 s
+```
+
+1. `[F] Stove` (firebox or door). `StoveInteractionController.request_enter()`
+   refuses when Henry's capsule does not fit on `StoveInteractionPoint`.
+2. Henry walks there with the player's own scripted walk (`Player.move_to_position`,
+   braking onto the spot; never a teleport). WASD gives the walk back; a stalled
+   walk ends with "unreachable". Already on the spot, the walk is skipped.
+3. He turns to the door (10 degree tolerance), the door swings open, and he
+   crouches (`Player.set_work_crouch`), logs in his arms or not: with a load the
+   base state is `CrouchCarry`, the carry arms frozen over the crouch legs.
+4. `PlayerState` goes WORKING: no WASD, sprint, jump or pickups. The interact key
+   is claimed through `InputSystems.claim_interact`, so F only ends the ritual.
+   The camera stays the TPS camera.
+5. The ring (`StoveInteractionRing`) appears beside the stove.
+6. F cancels any act that has not committed, closes the door, hides the ring,
+   stands Henry up and returns `PlayerState` to ON_FOOT.
+
+## Acts (`HeatSourceFeed`)
+
+| Input | Act | Needs | Commits |
+|---|---|---|---|
+| RMB press | `insert_fuel()`, 1.6 s, 0.5 game min | a carried fuel item, room in the firebox, hands free of other things | one item leaves the inventory and `HeatSource.add_logs(1)` in one step at the end; a cancel moves nothing |
+| LMB press | `insert_tinder()`, 1.1 s, 0.25 game min | a log in the firebox, a cold stove, no tinder laid, tinder owned | one tinder spent, `HeatSource.set_tinder_prepared(true)` |
+| LMB release | the lighter comes out (`prepare_lighter()`, the existing work pose) | tinder laid, the lighter owned | nothing |
+| new LMB press, hold | the existing lighter: `attempt_lighter_strike()`, 3 s hold | as above | `HeatSource.start_loaded_fire()`, which spends the tinder |
+
+- One press is one act: a held RMB sends no more presses, presses during an act
+  are refused (BUSY).
+- The press that lays the tinder never reaches the lighter. The controller waits
+  for its release, and only a new press strikes.
+- Logs can go in after the tinder; the tinder stays.
+- A burning stove takes logs through the same `add_logs()`, which never relights.
+  Neither the warm-up nor the heat simulation restarts.
+- Fuel ids are `fuel_item_id` plus `extra_fuel_item_ids`, real inventory items.
+  There is no abstract fuel resource.
+- Time goes through `TimeCostedActionSystem`: staged acts for logs and tinder, the
+  manual act for the lighter. It restores the WORKING mode the ritual set.
+
+## State and save
+
+- `HeatSource` is the only source of truth: logs (`get_loaded_log_count()`,
+  capacity from `burn_duration_h / hours_per_fuel_unit`, 3 in the shelter),
+  `is_tinder_prepared()` and the fire.
+- `get_fire_save_data()` carries `tinder_prepared`. `ShelterState` records it on
+  `tinder_changed` as it does fuel.
+- The ritual mode is not saved: a loaded game starts outside it.
+
+## Ring (`StoveInteractionRing`)
+
+Display only. It reads the feed and the source each frame and holds no gameplay
+state.
+
+- Layout: the pickup marker's three arcs (top, lower right, lower left) in its
+  cream colour.
+- Fuel (top) has one tick per log of the real capacity. Tinder is lower left, fire
+  lower right.
+- States: inactive (dotted), available (brighter track plus RMB/LMB hint), in
+  progress (the fill), done (solid plus check), spent (the tinder after the fire,
+  dimmed).
+- A refusal flashes red on the arc it concerns, with a cross and the reason.
+  An empty firebox flashes the fuel arc.
+
+## Tests and capture
+
+- `tests/systems/test_stove_ritual.gd` runs the real shelter with the real player
+  (physics on) and pushed input. It covers entry without auto-loading, carrying,
+  one log per press, tinder refused for an empty firebox, the long-press gate, the
+  lighter (early release, full hold), a log after the tinder, exit and return,
+  save data, a burning refuel, an unreachable spot, quick F, pause, lost tools or
+  fuel, and a vanished stove.
+- `tests/systems/test_shelter_workflow.gd` checks the shelter contract (F, three
+  RMB logs, F out).
+- `tools/runtime/capture_stove.gd` drives the ritual in 727 through the TPS camera
+  and writes eight frames plus a frame run for a video.
