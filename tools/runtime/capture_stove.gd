@@ -90,8 +90,13 @@ func _run() -> void:
 		await _until(func() -> bool: return not _feed.is_acting(), 5.0)
 	await _hold(0.3)
 	await _shot("4_three_logs")
+	_dump_bones("idle")
 	_mouse(MOUSE_BUTTON_LEFT, true)
+	await _hold(0.5)
+	_dump_bones("act")
 	await _until(func() -> bool: return _source.is_tinder_prepared(), 5.0)
+	if OS.get_cmdline_user_args().has("probe"):
+		await _probe_views()
 	await _hold(0.4)
 	_mouse(MOUSE_BUTTON_LEFT, false)
 	await _hold(0.2)
@@ -143,6 +148,31 @@ func _shot(name: String) -> void:
 	if camera != null:
 		print("[stove] camera in stove space ", _source.to_local(camera.global_position), " henry ",
 			_source.to_local(_player.global_position), " framing ", camera.get_work_framing_blend())
+
+
+## Probe: Henry's bones and the door in stove space, for composing the work framing.
+func _dump_bones(tag: String) -> void:
+	var skeleton: Skeleton3D = (_player.animation_component as HenryUALAnimation).skeleton
+	for i: int in range(skeleton.get_bone_count()):
+		var bone: String = skeleton.get_bone_name(i)
+		if bone.to_lower().contains("head") or bone.to_lower().contains("hand") or bone.to_lower().contains("upperarm") \
+				or bone.to_lower().contains("clavicle") or bone.to_lower().contains("shoulder") or bone.to_lower().contains("neck"):
+			print("[bone] %s %s %s" % [tag, bone, _source.to_local(skeleton.to_global(skeleton.get_bone_global_pose(i).origin))])
+	var hinge: Node3D = _source.find_child("DoorHinge", true, false) as Node3D
+	if hinge != null:
+		print("[bone] %s door_hinge %s door_tip %s" % [tag, _source.to_local(hinge.global_position),
+			_source.to_local(hinge.to_global(Vector3(0.0, 0.17, 0.44)))])
+
+
+func _probe_views() -> void:
+	var camera := root.get_camera_3d() as TpsCamera
+	var views: Array = OS.get_cmdline_user_args().slice(2)
+	for i: int in range(0, views.size() - 5, 6):
+		var eye := Vector3(float(views[i]), float(views[i + 1]), float(views[i + 2]))
+		var focus := Vector3(float(views[i + 3]), float(views[i + 4]), float(views[i + 5]))
+		camera.set_work_framing(_source.to_global(focus), _source.to_global(eye))
+		await _hold(0.2)
+		await _shot("probe_%d" % (i / 6))
 
 
 func _save(path: String) -> void:
