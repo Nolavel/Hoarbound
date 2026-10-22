@@ -2,57 +2,39 @@ class_name DeterministicSnowShell
 extends "res://scripts/systems/world/snow/snow_shell.gd"
 
 const GRAPHICS: GDScript = preload("res://scripts/settings/graphics_quality.gd")
-const INTERACTION_QUEUE: GDScript = preload("res://scripts/systems/world/snow/snow_interaction_queue.gd")
-const HEIGHT_CONTRACT: GDScript = preload("res://scripts/systems/world/snow/snow_height_contract.gd")
-const SURFACE_CLIPMAP: GDScript = preload("res://scripts/systems/world/snow/snow_surface_clipmap.gd")
 const CONTACT_WINDOW_M: float = 6.4
 const CONTACT_RES: int = 256
-## One accepted plant becomes three deterministic sole zones: heel, forefoot and
-## a short shallow toe shove. Five plants fit into the existing 16-stamp shader contract.
-const FOOT_STAMPS_PER_PLANT: int = 3
-const MAX_PLANTS_PER_PASS: int = 5
-const MAX_FOOT_PAD_STAMPS: int = 16
+const MAX_STAMPS_PER_PASS: int = 16
 const MIN_STAMP_DEPTH_M: float = 0.012
-const CHUNK_SHADER_PATH: String = "snow_chunk_cover.gdshader"
-const WORLD_TILES_SCRIPT: GDScript = preload("res://scripts/systems/world/snow/world_snow_tile_surface.gd")
+
+## Plants that broke through since the world loaded; captures read it.
+var plunge_count: int = 0
 
 var _plant_point: Array[Vector3] = [Vector3.INF, Vector3.INF]
 var _plant_normal: Array[Vector3] = [Vector3.UP, Vector3.UP]
 var _plant_forward: Array[Vector3] = [Vector3.FORWARD, Vector3.FORWARD]
-var _interactions: RefCounted = INTERACTION_QUEUE.new()
+var _foot_stamps: Array[Dictionary] = []
 var _contact_origin: Vector2 = Vector2(INF, INF)
 var _snow_pass_elapsed: float = 0.0
 var _snow_pass_interval: float = 0.25
-## Phase 3.1 retains one older high-detail window behind the live clipmap. The
-## retained shell is static and only renders where the live window no longer does.
-## It is refreshed only when the two windows are almost disjoint, moving the real
-## local->chunk ownership handoff tens of metres behind normal traversal.
-var _trail_mesh: MeshInstance3D
-var _trail_material: ShaderMaterial
-var _trail_origin: Vector2 = Vector2(INF, INF)
-var _trail_packed_tex: ImageTexture
-var _trail_shape_image: Image
-var _chunk_snow_material: ShaderMaterial
-var _world_tiles: WorldSnowTileSurface
-var _world_tiles_requested: bool = false
+## How each planted boot settles (SnowResistance), and whether it has broken through yet.
+var _plants: Array[SnowResistance.Plant] = [null, null]
+var _plunged: Array[bool] = [false, false]
 
 
 func _ready() -> void:
-	var quality: StringName = GRAPHICS.load_quality()
-	var profile: Dictionary = GRAPHICS.profile_for(quality)
+	var profile: Dictionary = GRAPHICS.profile_for(GRAPHICS.load_quality())
 	_apply_startup_profile(profile)
 	contact_res = CONTACT_RES
 	super()
 	add_to_group(&"graphics_quality_consumer")
 	if _surface == null:
 		return
-	_install_surface_geometry(quality)
 	contact_res = CONTACT_RES
 	_contact.size = Vector2i(CONTACT_RES, CONTACT_RES)
 	_contact_cam.size = CONTACT_WINDOW_M
-	_detach_walk_pads_from_contact_capture()
-	## Foot plants are persistent deterministic stamps. The live contact viewport
-	## is retained for pickups and for Henry's body only once deep-wade is active.
+	## Foot plants are persistent stamps now, so the contact viewport no longer
+	## needs to render every display frame. It wakes only for a snow simulation pass.
 	_contact.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	for mat: ShaderMaterial in _accum_mat:
 		mat.set_shader_parameter("field_window_m", window_m)
@@ -60,202 +42,9 @@ func _ready() -> void:
 		mat.set_shader_parameter("foot_stamp_count", 0)
 
 
-## Three world-anchored radial LOD zones. Old graded grid still exists in SnowShell and
-## can be restored with hfn/snow/clipmap_geometry=false for A/B or rollback.
-func _install_surface_geometry(quality: StringName) -> void:
-	if not bool(ProjectSettings.get_setting("hfn/snow/clipmap_geometry", true)):
-		_mesh.set_meta(&"snow_geometry", "legacy_graded_grid")
-		return
-	## Keep recenter aligned with SnowTrackStore's 3.2 m persistence tiles. Phase 3.1
-	## fixes the moving handoff with a retained trail shell rather than breaking that
-	## persistence contract by changing the recenter lattice.
-	recentre_step_m = SnowTrackStore.TILE_M
-	var core: float = SURFACE_CLIPMAP.DEFAULT_L0_HALF_M
-	var fine: float = SURFACE_CLIPMAP.DEFAULT_L0_SPACING_M
-	var coarse: float = SURFACE_CLIPMAP.DEFAULT_L1_SPACING_M
-	var outer: float = SURFACE_CLIPMAP.DEFAULT_L2_SPACING_M
-	var middle_radius: float = SURFACE_CLIPMAP.DEFAULT_L1_RADIUS_M
-	match quality:
-		GRAPHICS.LOW:
-			core = 2.56
-			fine = 0.16
-			coarse = 0.32
-			outer = 0.64
-			middle_radius = 6.4
-		GRAPHICS.MEDIUM:
-			core = 3.2
-			fine = 0.1
-			coarse = 0.2
-			outer = 0.4
-			middle_radius = 7.2
-	_mesh.mesh = SURFACE_CLIPMAP.build(window_m, core, fine, coarse, outer, middle_radius)
-	_mesh.set_meta(&"snow_geometry", "clipmap_l0_l1_l2")
-	_mesh.set_meta(&"snow_l0_half_m", core)
-	_mesh.set_meta(&"snow_l0_spacing_m", fine)
-	_mesh.set_meta(&"snow_l1_spacing_m", coarse)
-	_mesh.set_meta(&"snow_l2_spacing_m", outer)
-	_mesh.set_meta(&"snow_l1_radius_m", middle_radius)
-	_surface.set_shader_parameter("debug_l0_half_m", core)
-	_surface.set_shader_parameter("debug_l1_transition_m", middle_radius)
-	_surface.set_shader_parameter("lod_coarse_spacing_m", outer)
-
-
-## Keep the immediately traversed surface on the same high-detail representation
-## instead of exposing SnowChunkCover at every 3.2 m recenter. The live shell still
-## owns deformation around Henry; the retained shell is read-only history.
-func _apply_window(old: Vector2, wanted: Vector2, cover: float, wind: Vector2) -> void:
-	if _world_tiles != null:
-		# The simulator still owns contacts/packing/saves. Render geometry is
-		# permanently world-keyed and must not receive moving GPU snapshots.
-		super(old, wanted, cover, wind)
-		_mesh.visible = false
-		return
-	## Capture the EXACT rendered GPU state while it still uses the old window.
-	## SnowTrackStore is intentionally a quantized SAVE format, not suitable for
-	## replacing visible history on every 3.2m recenter.
-	var old_shape: Image = null
-	if old.x != INF and _shape.size() > 2:
-		old_shape = _shape[2].get_texture().get_image()
-	if old.x != INF and (_trail_origin.x == INF or _trail_refresh_due(wanted)):
-		_capture_trail_snapshot(old, old_shape)
-	if old_shape != null and not old_shape.is_empty():
-		_copy_departed_tiles(old, wanted, old_shape)
-	super(old, wanted, cover, wind)
-	_sync_trail_after_window(wanted)
-
-
-func _trail_refresh_due(wanted: Vector2) -> bool:
-	if _trail_origin.x == INF:
-		return true
-	var dx: float = absf(wanted.x - _trail_origin.x)
-	var dz: float = absf(wanted.y - _trail_origin.y)
-	## Leave at least one persistence tile of overlap before replacing history.
-	return maxf(dx, dz) >= window_m - recentre_step_m
-
-
-## Snapshot only the slowly-changing base/normal fields. Departed deformation is
-## reconstructed from SnowTrackStore after the base class files the outgoing tile.
-func _capture_trail_snapshot(old: Vector2, old_shape: Image) -> void:
-	if _mesh == null or _surface == null or _field_tex == null:
-		return
-	if old_shape == null or old_shape.is_empty():
-		return  # Never install a moving live GPU texture as retained history.
-	var field_image: Image = _field_tex.get_image()
-	if field_image == null or field_image.is_empty():
-		return
-	var material := _surface.duplicate(true) as ShaderMaterial
-	material.set_shader_parameter("field", ImageTexture.create_from_image(field_image))
-	if _settled_normal_tex != null:
-		var normal_image: Image = _settled_normal_tex.get_image()
-		if normal_image != null and not normal_image.is_empty():
-			material.set_shader_parameter("settled_normal_field", ImageTexture.create_from_image(normal_image))
-	if _far_grid_tex != null:
-		var far_image: Image = _far_grid_tex.get_image()
-		if far_image != null and not far_image.is_empty():
-			material.set_shader_parameter("far_grid", ImageTexture.create_from_image(far_image))
-	material.set_shader_parameter("origin", old)
-	if old_shape != null and not old_shape.is_empty():
-		_trail_shape_image = old_shape.duplicate()
-		_trail_packed_tex = ImageTexture.create_from_image(_trail_shape_image)
-		material.set_shader_parameter("packed_field", _trail_packed_tex)
-		material.set_shader_parameter("packed_texel_m", window_m / float(_trail_shape_image.get_width()))
-	material.set_shader_parameter("clip_outside_window", true)
-	material.set_shader_parameter("packed_rg_only", false)
-	material.set_shader_parameter("trail_window", Vector4.ZERO)
-	material.set_shader_parameter("debug_lod_ownership", false)
-
-	if _trail_mesh == null:
-		_trail_mesh = MeshInstance3D.new()
-		_trail_mesh.name = "SnowTrailMesh"
-		_trail_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_trail_mesh.extra_cull_margin = 400.0
-		add_child(_trail_mesh)
-	_trail_mesh.mesh = _mesh.mesh
-	_trail_mesh.material_override = material
-	_trail_material = material
-	_trail_origin = old
-	var half: float = window_m * 0.5
-	_trail_mesh.global_position = Vector3(old.x + half, 0.0, old.y + half)
-	_trail_mesh.visible = true
-
-
-
-## Copy only the tiles that just left the live window, at their ORIGINAL GPU
-## resolution, to the fixed-world history image. Existing trail tiles stay
-## bit-identical through later recenters. The compressed track store remains the
-## long-term save/streaming representation, not the rendered owner.
-func _copy_departed_tiles(old: Vector2, wanted: Vector2, old_shape: Image) -> void:
-	if _trail_shape_image == null or _trail_packed_tex == null or _trail_origin.x == INF:
-		return
-	var tiles: int = roundi(window_m / SnowTrackStore.TILE_M)
-	var pixels: int = old_shape.get_width() / tiles
-	if old_shape.get_width() != _trail_shape_image.get_width() or pixels <= 0:
-		return
-	var keep := Rect2(wanted, Vector2.ONE * window_m)
-	var history := Rect2(_trail_origin, Vector2.ONE * window_m)
-	var dirty: bool = false
-	for iz: int in range(tiles):
-		for ix: int in range(tiles):
-			var corner: Vector2 = old + Vector2(ix, iz) * SnowTrackStore.TILE_M
-			var rect := Rect2(corner, Vector2.ONE * SnowTrackStore.TILE_M)
-			if keep.encloses(rect) or not history.encloses(rect):
-				continue
-			var offset: Vector2 = (corner - _trail_origin) / SnowTrackStore.TILE_M
-			var to := Vector2i(roundi(offset.x) * pixels, roundi(offset.y) * pixels)
-			_trail_shape_image.blit_rect(old_shape, Rect2i(ix * pixels, iz * pixels, pixels, pixels), to)
-			dirty = true
-	if dirty:
-		_trail_packed_tex.update(_trail_shape_image)
-
-
-func _sync_trail_after_window(wanted: Vector2) -> void:
-	if _trail_mesh == null or _trail_material == null or _trail_origin.x == INF:
-		_set_chunk_trail_window(Vector4.ZERO)
-		_surface.set_shader_parameter("trail_window", Vector4.ZERO)
-		return
-	var live := Vector4(wanted.x, wanted.y, window_m, 1.0)
-	_trail_material.set_shader_parameter("clip_window", live)
-	## History uses the full-resolution, frozen GPU state composited tile by
-	## tile as each region departs; DO NOT overwrite it with a lossy 448px
-	## SnowTrackStore.restore() every recenter. That changed visible vertices.
-	var retained := Vector4(_trail_origin.x, _trail_origin.y, window_m, 1.0)
-	_surface.set_shader_parameter("trail_window", retained)
-	_set_chunk_trail_window(retained)
-
-
-## SnowChunkCover instances share one material. Finding any live instance gives us
-## that shared material, and newly streamed chunks inherit the retained-window hole.
-func _set_chunk_trail_window(value: Vector4) -> void:
-	if _chunk_snow_material == null and _world_root != null:
-		for node: Node in _world_root.find_children("*", "MeshInstance3D", true, false):
-			var mesh_instance := node as MeshInstance3D
-			if mesh_instance.mesh == null or mesh_instance.mesh.get_surface_count() == 0:
-				continue
-			var material := mesh_instance.get_active_material(0) as ShaderMaterial
-			if material != null and material.shader != null and material.shader.resource_path.ends_with(CHUNK_SHADER_PATH):
-				_chunk_snow_material = material
-				break
-	if _chunk_snow_material != null:
-		_chunk_snow_material.set_shader_parameter("trail_window", value)
-
-
-## Synthetic sole/drag meshes still drive IK timing and VFX, but no longer write
-## the live contact heightfield. Normal walking is therefore only discrete sole
-## stamps. The real player visual is tagged onto CONTACT_LAYER by the base SnowShell
-## only when depth > wade_depth_m, leaving body plough as a deep-wade path.
-func _detach_walk_pads_from_contact_capture() -> void:
-	for pad: MeshInstance3D in _heels:
-		pad.layers &= ~CONTACT_LAYER
-	for pad: MeshInstance3D in _balls:
-		pad.layers &= ~CONTACT_LAYER
-	for drag: MeshInstance3D in _drags:
-		drag.layers &= ~CONTACT_LAYER
-
-
 func _apply_startup_profile(profile: Dictionary) -> void:
 	packed_res = int(profile["snow_packed_res"])
 	near_half_m = float(profile["snow_near_half_m"])
-	far_spacing_m = float(profile["snow_far_spacing_m"])
 	_snow_pass_interval = 1.0 / maxf(float(profile["snow_sim_hz"]), 1.0)
 
 
@@ -274,72 +63,22 @@ func on_world_ready(context: WorldContext) -> void:
 	if _player != null:
 		var at: Vector3 = _player.global_position
 		_update_local_contact(Vector2(at.x, at.z))
-	# KeyWestRealityGround only knows DEM heights for LIVE streamed chunks.
-	# Installing at on_world_ready baked fallback y=1.0 into permanent tiles.
-	# Defer until the real chunk+border are indexed; keep legacy surface until then.
-	_world_tiles_requested = bool(ProjectSettings.get_setting("hfn/snow/world_tiles", true)) and _terrain != null and _player != null
-
-
-func _start_world_tiles_if_ready() -> void:
-	if not _world_tiles_requested or _world_tiles != null or _terrain == null or _player == null:
-		return
-	var player_at := Vector2(_player.global_position.x, _player.global_position.z)
-	if _terrain.has_method(&"has_ground_at"):
-		# The complete 13x13 streaming buffer must have valid terrain, not
-		# fallback height samples at construction time.
-		var reach: float = 6.0 * SnowTrackStore.TILE_M + SnowTrackStore.TILE_M
-		for offset: Vector2 in [Vector2(-reach, -reach), Vector2(reach, -reach),
-			Vector2(-reach, reach), Vector2(reach, reach), Vector2.ZERO]:
-			if not bool(_terrain.call(&"has_ground_at", player_at.x + offset.x, player_at.y + offset.y)):
-				return
-	# Match the same baked wind source used by streamed SnowChunkCover.
-	SnowChunkCover._ensure_shared()
-	_world_tiles = WORLD_TILES_SCRIPT.new() as WorldSnowTileSurface
-	_world_tiles.name = "WorldSnowTiles"
-	_world_tiles.track_store = tracks
-	_world_tiles.snow_field = SnowChunkCover._field if SnowChunkCover._field != null else field
-	_world_tiles.radius_tiles = 6
-	add_child(_world_tiles)
-	_world_tiles.configure(Callable(self, "_world_tile_ground"), player_at)
-	_mesh.visible = false
-	SnowChunkCover._ensure_shared()
-	_chunk_snow_material = SnowChunkCover._material
-	if _chunk_snow_material != null:
-		_chunk_snow_material.set_shader_parameter("world_tiles_active", true)
-
-
-func _world_tile_ground(x: float, z: float) -> float:
-	return float(_terrain.call(&"get_height", x, z)) if _terrain != null else 0.0
-
-
-func get_world_tiles() -> WorldSnowTileSurface:
-	return _world_tiles
-
-
-func _exit_tree() -> void:
-	if _chunk_snow_material != null:
-		_chunk_snow_material.set_shader_parameter("world_tiles_active", false)
 
 
 func _physics_process(delta: float) -> void:
-	_start_world_tiles_if_ready()
 	super(delta)
 	if _player != null and _contact_cam != null:
 		var at: Vector3 = _player.global_position
 		_update_local_contact(Vector2(at.x, at.z))
-		if _world_tiles != null:
-			# The radial tile/chunk owner must follow the real player every frame,
-			# not remain frozen at the spawn point while only tile residency moves.
-			RenderingServer.global_shader_parameter_set(&"snow_player_xz", Vector2(at.x, at.z))
-			_world_tiles.focus(Vector2(at.x, at.z))
 
 
 func _process(delta: float) -> void:
+	_follow_lod()
 	if _accum_mat.is_empty():
 		return
 	_snow_pass_elapsed += delta
 	var urgent: bool = (
-		not bool(_interactions.call(&"is_empty"))
+		not _foot_stamps.is_empty()
 		or _pending_shift != Vector2.ZERO
 		or _pending_collapse != Vector4.ZERO
 		or _warmup > 0
@@ -352,31 +91,34 @@ func _process(delta: float) -> void:
 	_contact.render_target_update_mode = SubViewport.UPDATE_ONCE
 	var consumed: int = _upload_pending_stamps(_accum_mat[_parity])
 	super(pass_delta)
-	_interactions.call(&"consume", consumed)
+	for _i: int in range(consumed):
+		_foot_stamps.pop_front()
 
 
 func _on_foot_planted(
 	side: int, position: Vector3, normal: Vector3, forward: Vector3, speed_mps: float
 ) -> void:
-	var stamp: Dictionary = _interactions.call(
-		&"push_foot_plant", side, position, normal, forward, speed_mps
-	)
-	if stamp.is_empty():
+	if side < 0 or side >= 2:
 		return
-	_plant_point[side] = stamp["position"]
-	_plant_normal[side] = stamp["normal"]
-	_plant_forward[side] = stamp["forward"]
-	if _world_tiles != null:
-		var xz := Vector2(position.x, position.z)
-		var heading := Vector2(forward.x, forward.z)
-		var snow_depth: float = field.get_depth(position.x, position.z)
-		var softness: float = field.get_softness(position.x, position.z)
-		var press: float = clampf(snow_depth * max_pack * softness * 0.65, MIN_STAMP_DEPTH_M, 0.24)
-		_world_tiles.stamp(xz, heading, -1, press)
+	var up: Vector3 = normal.normalized() if normal.length_squared() > 0.0001 else Vector3.UP
+	var toe: Vector3 = forward - up * forward.dot(up)
+	if toe.length_squared() < 0.0001:
+		toe = Vector3.FORWARD - up * Vector3.FORWARD.dot(up)
+	toe = toe.normalized()
+	_plant_point[side] = position
+	_plant_normal[side] = up
+	_plant_forward[side] = toe
+	_foot_stamps.append({
+		"side": side,
+		"position": position,
+		"normal": up,
+		"forward": toe,
+		"speed": speed_mps,
+	})
 
 
 func get_pending_foot_stamp_count() -> int:
-	return int(_interactions.call(&"size"))
+	return _foot_stamps.size()
 
 
 func _update_local_contact(centre: Vector2) -> void:
@@ -384,7 +126,10 @@ func _update_local_contact(centre: Vector2) -> void:
 		return
 	var half: float = CONTACT_WINDOW_M * 0.5
 	var texel_m: float = CONTACT_WINDOW_M / float(CONTACT_RES)
-	var wanted: Vector2 = HEIGHT_CONTRACT.snapped_window_origin(centre, CONTACT_WINDOW_M, texel_m)
+	var wanted := Vector2(
+		snappedf(centre.x - half, texel_m),
+		snappedf(centre.y - half, texel_m)
+	)
 	_contact_origin = wanted
 	_contact_cam.size = CONTACT_WINDOW_M
 	_contact_cam.global_transform = Transform3D(
@@ -420,9 +165,7 @@ static func stamp_uniforms(
 	else:
 		right = right.normalized()
 
-	var centre_uv: Vector2 = HEIGHT_CONTRACT.world_to_uv(
-		Vector2(position.x, position.z), field_origin, field_window_m
-	)
+	var centre_uv := (Vector2(position.x, position.z) - field_origin) / field_window_m
 	var f := Vector2(toe.x, toe.z) * (half_length_m / field_window_m)
 	var r := Vector2(right.x, right.z) * (half_width_m / field_window_m)
 	var det: float = f.x * r.y - r.x * f.y
@@ -442,78 +185,33 @@ static func stamp_uniforms(
 	]
 
 
-## Approximate a boot sole with three compact zones instead of one smooth capsule.
-## Heel stays narrow, the ball/forefoot carries the broad load, and a small shallow
-## stamp in front records the snow scraped/pushed by the toe at push-off. The shove
-## grows with walking speed but never becomes a continuous drag path.
-static func footprint_pad_uniforms(
-	position: Vector3,
-	normal: Vector3,
-	forward: Vector3,
-	half_length_m: float,
-	half_width_m: float,
-	field_origin: Vector2,
-	field_window_m: float,
-	depth_m: float,
-	speed_mps: float = 1.4
-) -> Array[Vector4]:
-	var up: Vector3 = normal.normalized() if normal.length_squared() > 0.0001 else Vector3.UP
-	var toe: Vector3 = forward - up * forward.dot(up)
-	if toe.length_squared() < 0.0001:
-		toe = Vector3.FORWARD - up * Vector3.FORWARD.dot(up)
-	toe = toe.normalized()
-	var heel_centre: Vector3 = position - toe * half_length_m * 0.56
-	var fore_centre: Vector3 = position + toe * half_length_m * 0.36
-	var shove_centre: Vector3 = position + toe * half_length_m * 0.92
-	var shove_strength: float = clampf((speed_mps - 0.5) / 2.5, 0.0, 1.0)
-	var heel: Array[Vector4] = stamp_uniforms(
-		heel_centre, up, toe,
-		maxf(half_length_m * 0.30, 0.035), maxf(half_width_m * 0.72, 0.024),
-		field_origin, field_window_m, depth_m
-	)
-	var fore: Array[Vector4] = stamp_uniforms(
-		fore_centre, up, toe,
-		maxf(half_length_m * 0.40, 0.045), maxf(half_width_m * 1.02, 0.03),
-		field_origin, field_window_m, depth_m * 0.9
-	)
-	var shove: Array[Vector4] = stamp_uniforms(
-		shove_centre, up, toe,
-		maxf(half_length_m * lerpf(0.22, 0.30, shove_strength), 0.03),
-		maxf(half_width_m * lerpf(0.48, 0.62, shove_strength), 0.022),
-		field_origin, field_window_m,
-		depth_m * lerpf(0.18, 0.36, shove_strength)
-	)
-	return [heel[0], heel[1], fore[0], fore[1], shove[0], shove[1]]
-
-
 func _upload_pending_stamps(mat: ShaderMaterial) -> int:
-	var batch: Array = _interactions.call(&"peek_batch", MAX_PLANTS_PER_PASS)
-	var consumed: int = batch.size()
+	var consumed: int = mini(_foot_stamps.size(), MAX_STAMPS_PER_PASS)
 	var a: Array[Vector4] = []
 	var b: Array[Vector4] = []
-	a.resize(MAX_FOOT_PAD_STAMPS)
-	b.resize(MAX_FOOT_PAD_STAMPS)
-	for i: int in range(MAX_FOOT_PAD_STAMPS):
+	a.resize(MAX_STAMPS_PER_PASS)
+	b.resize(MAX_STAMPS_PER_PASS)
+	for i: int in range(MAX_STAMPS_PER_PASS):
 		a[i] = Vector4.ZERO
 		b[i] = Vector4.ZERO
 
 	var active_count: int = 0
 	if field.origin.x != INF:
-		for stamp_variant: Variant in batch:
-			var stamp: Dictionary = stamp_variant
+		for i: int in range(consumed):
+			var stamp: Dictionary = _foot_stamps[i]
 			var position: Vector3 = stamp["position"]
 			var depth: float = field.get_depth(position.x, position.z)
-			var softness: float = field.get_softness(position.x, position.z)
-			var give: float = depth * max_pack * softness
+			var give: float = depth * max_pack
 			if give <= 0.0001:
 				continue
 			var speed_mps: float = float(stamp["speed"])
 			var impact: float = clampf(speed_mps / maxf(impact_speed_mps, 0.1), 0.0, 1.0)
-			var press: float = maxf(MIN_STAMP_DEPTH_M, give * lerpf(0.35, impact_share, impact))
-			press = minf(press, give)
-			var side: int = int(stamp["side"])
-			var half_length: float = maxf(_sole_len[side] * 0.5, 0.12)
-			var encoded: Array[Vector4] = footprint_pad_uniforms(
+			## The outsole's first imprint is where the boot rests; a plunge deepens it
+			## through the contact soles as the boot sinks.
+			var support: float = _resistance_at(Vector2(position.x, position.z), 1.0, impact).support
+			var press: float = minf(maxf(MIN_STAMP_DEPTH_M, support * lerpf(0.6, 1.0, impact)), give)
+			var half_length: float = boot_half_m().x
+			var encoded: Array[Vector4] = stamp_uniforms(
 				position,
 				stamp["normal"],
 				stamp["forward"],
@@ -521,20 +219,25 @@ func _upload_pending_stamps(mat: ShaderMaterial) -> int:
 				sole_width_m * 0.5,
 				field.origin,
 				window_m,
-				press,
-				speed_mps
+				press
 			)
-			for pad: int in range(FOOT_STAMPS_PER_PLANT):
-				if active_count >= MAX_FOOT_PAD_STAMPS:
-					break
-				a[active_count] = encoded[pad * 2]
-				b[active_count] = encoded[pad * 2 + 1]
-				active_count += 1
+			a[active_count] = encoded[0]
+			b[active_count] = encoded[1]
+			active_count += 1
 
 	mat.set_shader_parameter("foot_stamp_count", active_count)
 	mat.set_shader_parameter("foot_stamp_a", a)
 	mat.set_shader_parameter("foot_stamp_b", b)
 	return consumed
+
+
+## How the snow under `at` takes a boot carrying `load_share` of Henry's weight.
+func _resistance_at(at: Vector2, load_share: float, impact: float = -1.0) -> SnowResistance.Plant:
+	if impact < 0.0:
+		impact = clampf(_speed / maxf(impact_speed_mps, 0.1), 0.0, 1.0)
+	var depth: float = field.get_depth(at.x, at.y)
+	var drift: float = maxf(depth - field.settled_depth(_cover()), 0.0)
+	return SnowResistance.plant(at, depth, field.get_softness(at.x, at.y), drift, impact, max_pack, load_share, field.firmness)
 
 
 func _place_soles(delta: float) -> void:
@@ -572,9 +275,11 @@ func _place_soles(delta: float) -> void:
 				_sole_basis[side] = Basis.looking_at(along.normalized(), Vector3.UP)
 				_sole_fwd[side] = Vector2(along.x, along.z).normalized()
 				_sole_at[side] = Vector2((heel.x + toe_bone.x) * 0.5, (heel.z + toe_bone.z) * 0.5)
-			_sole_len[side] = heel.distance_to(toe_bone) + sole_margin_m * 2.0
+			_sole_len[side] = BootSole.LENGTH_M
 			_heel_rest[side] = heel.y - (foot["ball"] as Vector3).y
 			_stance[side] = 0.0
+			_plants[side] = _resistance_at(_sole_at[side], 0.6 if standing else 1.0)
+			_plunged[side] = false
 			if not standing:
 				_since_plant = 0.0
 				var here: float = field.get_depth(_sole_at[side].x, _sole_at[side].y)
@@ -587,25 +292,29 @@ func _place_soles(delta: float) -> void:
 		var top: float = field.get_snow_top(at.x, at.y)
 		var depth: float = field.get_depth(at.x, at.y)
 		var softness: float = field.get_softness(at.x, at.y)
-		var give: float = depth * max_pack * softness
 		var was: float = _sink[side]
 		var impact: float = clampf(_speed / maxf(impact_speed_mps, 0.1), 0.0, 1.0)
-		_sink[side] = sink_after(_stance[side], give, sink_time_s / (1.0 + impact), impact * impact_share)
+		var plant: SnowResistance.Plant = _plants[side]
+		_sink[side] = SnowResistance.sink_at(plant, _stance[side], sink_time_s / (1.0 + impact), impact * impact_share)
+		if plant.broke() and not _plunged[side] and _stance[side] > plant.break_s:
+			## The leg goes through: a stumble in the stride, like a deep-snow plant.
+			_plunged[side] = true
+			plunge_count += 1
+			_since_plant = 0.0
+			_plant_wade = maxf(_plant_wade, clampf(plant.plunge / deep_snow_m, 0.0, 1.0))
+			crust_broke.emit(side, Vector3(at.x, top, at.y), plant.plunge)
 		_foot_top[side] = top
 		_raise[side] = clampf(depth - _sink[side], 0.0, depth) if top > -INF else 0.0
 		if top > -INF:
 			_queue_rim(side, _sink[side] - was, softness)
-		var ground: float = top - depth if top > -INF else -1000.0
-		var bottom: float = HEIGHT_CONTRACT.visible_top(ground, depth, _sink[side], 0.0) if top > -INF else -1000.0
+		var bottom: float = top - _sink[side] if top > -INF else -1000.0
 		var dig: Vector2 = _roll_dig(side, foot, softness)
-		var fwd := Vector3(_sole_fwd[side].x, 0.0, _sole_fwd[side].y)
 		var centre := Vector3(at.x, 0.0, at.y)
-		var length: float = _sole_len[side]
+		## Heel block and forefoot of the same outsole, each digging on its own.
+		var sole_scale := Vector3(sole_width_m, 0.3, BootSole.LENGTH_M)
 		_heels[side].global_transform = Transform3D(
-			_sole_basis[side].scaled_local(Vector3(sole_width_m * 0.85, 0.3, length * 0.44)),
-			centre - fwd * length * 0.28 + Vector3.UP * (bottom - dig.x + 0.15)
+			_sole_basis[side].scaled_local(sole_scale), centre + Vector3.UP * (bottom - dig.x + 0.15)
 		)
 		_balls[side].global_transform = Transform3D(
-			_sole_basis[side].scaled_local(Vector3(sole_width_m, 0.3, length * 0.64)),
-			centre + fwd * length * 0.17 + Vector3.UP * (bottom - dig.y + 0.15)
+			_sole_basis[side].scaled_local(sole_scale), centre + Vector3.UP * (bottom - dig.y + 0.15)
 		)

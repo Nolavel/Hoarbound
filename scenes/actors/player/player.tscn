@@ -85,6 +85,7 @@ layout = ExtResource("93_layout")
 starter_garment_ids = Array[StringName]([&"worn_coat", &"knit_hat", &"work_trousers", &"worn_boots", &"backpack"])
 starter_slot_items = Dictionary[StringName, StringName]({
 &"back_fixture": &"kenny",
+&"pack/pack_lid": &"mug",
 &"torso_outer/coat_right": &"lighter",
 &"legs_outer/thigh_left": &"tinder"
 })
@@ -92,7 +93,7 @@ starter_slot_items = Dictionary[StringName, StringName]({
 [node name="InventoryComponent" type="Node" parent="." node_paths=PackedStringArray("equipment")]
 script = ExtResource("91_inv")
 equipment = NodePath("../EquipmentComponent")
-starter_item_ids = Array[StringName]([&"tinned_stew", &"mug"])
+starter_item_ids = Array[StringName]([&"tinned_stew"])
 
 [node name="PlayerHubComponent" type="Node" parent="." node_paths=PackedStringArray("inventory", "equipment")]
 script = ExtResource("99_hub")

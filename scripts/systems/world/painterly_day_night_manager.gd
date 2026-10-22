@@ -76,8 +76,8 @@ func get_cloud_readability() -> float:
 	return _readability
 
 
-func _update_environment_visuals(game_hour: float) -> void:
-	super._update_environment_visuals(game_hour)
+func _update_environment_visuals(game_hour: float, snap_sun: bool = false) -> void:
+	super._update_environment_visuals(game_hour, snap_sun)
 	if sky_material == null:
 		return
 	var daylight: float = _calculate_day_progress(game_hour)

@@ -94,7 +94,7 @@ func _build_particles() -> void:
 	_process_material = _make_process_material(Vector3(24.0, 1.8, 18.0), 0.55, 1.00)
 	particles = _make_particle_layer(
 		"WorldSnow", WORLD_MAX_PARTICLES, 6.5, 0.012,
-		_build_snowflake_mesh(0.010, 0.0016, 0.0042, 0.00115, false),
+		build_snowflake_mesh(0.010, 0.0016, 0.0042, 0.00115, false),
 		_process_material
 	)
 	particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
@@ -108,7 +108,7 @@ func _build_particles() -> void:
 	_foreground_material = _make_process_material(Vector3(4.2, 2.0, 2.8), 0.66, 1.10)
 	foreground_particles = _make_particle_layer(
 		"ForegroundSnow", FOREGROUND_MAX_PARTICLES, 3.4, 0.026,
-		_build_snowflake_mesh(0.022, 0.0030, 0.0085, 0.0022, true),
+		build_snowflake_mesh(0.022, 0.0030, 0.0085, 0.0022, true),
 		_foreground_material
 	)
 	foreground_particles.randomness = 0.42
@@ -150,7 +150,8 @@ func _make_particle_layer(
 	return layer
 
 
-func _build_snowflake_mesh(
+## Six-armed flake; a billboard material for loose emitters (also BlizzardFlow's flakes).
+static func build_snowflake_mesh(
 	arm_length: float,
 	arm_width: float,
 	branch_length: float,
@@ -205,7 +206,7 @@ void fragment() {
 	return mesh
 
 
-func _append_strip(
+static func _append_strip(
 	vertices: PackedVector3Array,
 	indices: PackedInt32Array,
 	from: Vector2,
@@ -271,7 +272,8 @@ func _apply_conditions(wind_speed_mps: float, snowfall_density: float) -> void:
 	particles.amount_ratio = density * _quality_density_scale
 	particles.emitting = particles.amount_ratio > 0.005
 	if heightfield_service != null:
-		heightfield_service.set_active(density > 0.005)
+		## Ground drift collides with the same field, so wind alone keeps it up too.
+		heightfield_service.set_active(density > 0.005 or speed >= WindGusts.MIN_WIND_MPS)
 
 	var foreground_ratio: float = clampf(density * FOREGROUND_DENSITY_SCALE * _quality_density_scale, 0.0, 1.0)
 	foreground_particles.amount_ratio = foreground_ratio

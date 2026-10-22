@@ -82,6 +82,11 @@ func get_item_id() -> StringName:
 	return _item_id if is_holding() else &""
 
 
+## The pocket the shown item belongs to, or "" for the pack.
+func get_source_zone() -> StringName:
+	return _source_zone if is_holding() else &""
+
+
 func get_held_prop() -> Node3D:
 	return _prop if is_holding() else null
 

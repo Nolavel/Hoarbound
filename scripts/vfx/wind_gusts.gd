@@ -21,13 +21,14 @@ const DRIFT_FAST_INTERVAL: float = 0.28
 const BURST_COUNT: int = 5
 const BURST_SPACING: float = 0.3
 
+## 10 m wind that starts blowing snow, fresh to crusted (Li & Pomeroy 1997: ~4–11 m/s, dry snow).
+const BLOWING_THRESHOLD_MPS: Vector2 = Vector2(5.0, 10.0)
 var weather: WeatherController
 var thermal: ThermalManager
 var player: Node3D
 
 var _pool: Array[WindStreak] = []
 var _lifts: Array[SnowLift] = []
-var _lift_index: int = 0
 var _next: float = 0.0
 var _drift_next: float = 0.0
 var _burst_left: int = 0
@@ -49,6 +50,17 @@ func _ready() -> void:
 		var lift := SnowLift.new()
 		add_child(lift)
 		_lifts.append(lift)
+
+
+## Streaks and ground streamers on screen now (debug readout).
+func get_active_counts() -> Vector2i:
+	var streaks: int = 0
+	for streak: WindStreak in _pool:
+		streaks += 1 if streak.visible else 0
+	var lifts: int = 0
+	for lift: SnowLift in _lifts:
+		lifts += 1 if lift.is_active() else 0
+	return Vector2i(streaks, lifts)
 
 
 ## Several streaks in quick succession: the moment the weather turns.
@@ -100,6 +112,7 @@ func _process(delta: float) -> void:
 		) * randf_range(0.72, 1.28)
 
 
+
 ## Places one decorative free streak in front of the camera.
 func _spawn_streak(wind: float) -> void:
 	var streak: WindStreak = null
@@ -132,49 +145,34 @@ func _spawn_streak(wind: float) -> void:
 	streak.play()
 
 
-## Starts one elongated streamer on the actual ground ahead of Henry.
+## Starts one ground streamer whose sweep crosses the screen ahead of Henry.
 func _spawn_drift(wind: float) -> void:
 	if weather.get_snow_cover() <= 0.04:
 		return
 	var camera: Camera3D = get_viewport().get_camera_3d()
-	if camera == null:
+	var lift: SnowLift = _free_lift()
+	if camera == null or lift == null:
 		return
-
 	var ahead: Vector3 = -camera.global_basis.z
 	ahead.y = 0.0
 	ahead = ahead.normalized()
 	var right: Vector3 = ahead.cross(Vector3.UP)
-	var above: Vector3 = player.global_position \
-		+ ahead * randf_range(3.5, 11.0) \
-		+ right * randf_range(-6.0, 6.0) \
-		+ Vector3.UP * 3.0
+	var spot: Vector3 = player.global_position + ahead * randf_range(5.0, 14.0) + right * randf_range(-6.0, 6.0)
+	lift.launch_through(spot, _horizontal_wind(), wind, weather.get_snow_cover(), camera)
 
-	var query := PhysicsRayQueryParameters3D.create(
-		above,
-		above + Vector3.DOWN * 9.0
-	)
-	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
-	if hit.is_empty():
-		return
 
-	var normal: Vector3 = hit["normal"]
-	if normal.dot(Vector3.UP) < 0.55:
-		return
+func _free_lift() -> SnowLift:
+	for lift: SnowLift in _lifts:
+		if not lift.is_active():
+			return lift
+	return null
 
-	var along: Vector3 = _horizontal_wind()
-	var surface_along: Vector3 = along - normal * along.dot(normal)
-	if surface_along.length_squared() < 0.0025:
-		return
-	surface_along = surface_along.normalized()
-	var surface_side: Vector3 = surface_along.cross(normal).normalized()
 
-	var lift: SnowLift = _lifts[_lift_index]
-	_lift_index = (_lift_index + 1) % _lifts.size()
-	lift.global_transform = Transform3D(
-		Basis(surface_along, normal, surface_side).orthonormalized(),
-		hit["position"] + normal * 0.025
-	)
-	lift.lift(wind, weather.get_snow_cover())
+## Wind that lifts snow: fresh snow goes first, a bonded crust holds to ~10 m/s (Li & Pomeroy 1997).
+static func blowing_snow_threshold() -> float:
+	var field: SnowField = SnowShell.active.field if is_instance_valid(SnowShell.active) else null
+	var firmness: float = field.firmness if field != null else 0.5
+	return lerpf(BLOWING_THRESHOLD_MPS.x, BLOWING_THRESHOLD_MPS.y, clampf(firmness, 0.0, 1.0))
 
 
 func _horizontal_wind() -> Vector3:

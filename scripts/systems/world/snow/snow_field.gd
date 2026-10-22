@@ -22,6 +22,8 @@ const STAGE_NORMAL: int = 8
 
 ## Ground height and obstacle flag at a world point, as Vector2(height, 0 or 1).
 var ground_sampler: Callable
+## True terrain height (finer than the 2 m lattice the baked surface stands on); optional.
+var terrain_sampler: Callable
 
 var window_m: float = 25.6
 var res: int = 128
@@ -55,6 +57,8 @@ var settled_wind: Vector2 = Vector2(0, -1)
 var use_baked_baseline: bool = false
 ## Share of fresh storm snow over the old prevailing base; set per rebuild.
 var storm_share: float = 0.4
+## 0 fresh loose snow .. 1 hard crust over a weak base (SnowPresentationSystem); set per rebuild.
+var firmness: float = 0.5
 
 static var _wind_cache: Dictionary = {}
 
@@ -67,6 +71,8 @@ var _col1: PackedFloat32Array = []
 var _row2: PackedFloat32Array = []
 var _bed: PackedFloat32Array = []
 var _wall: PackedFloat32Array = []
+## True terrain per cell: depth, and so how far a boot presses, is measured down to it.
+var _terrain_y: PackedFloat32Array = []
 ## Prevailing and storm wind factors per grid cell; mixed by storm_share at depth time.
 var _prevail: PackedFloat32Array = []
 var _storm: PackedFloat32Array = []
@@ -78,6 +84,7 @@ var _job_spans: Array[Vector3i] = []
 var _job_shift: Vector2i = Vector2i.ZERO
 var _job_origin: Vector2 = Vector2.ZERO
 var _job_storm: float = 0.4
+var _job_firmness: float = 0.5
 var _job_cover: float = 0.0
 var _job_wind: Vector2 = Vector2(0, -1)
 var _job_ahead: Vector2i = Vector2i.ZERO
@@ -128,12 +135,16 @@ func load_wind_field(png_path: String) -> bool:
 	return true
 
 
-## Wind ridge crest 0..1; mirrors snow_ridge() in snow_surface.gdshaderinc bit for bit.
+## Wind-cut drift ridge 0..1 (gentle rise into the wind, steep lee drop); mirrors
+## snow_ridge() in snow_surface.gdshaderinc.
 static func ridge_at(xz: Vector2, wind: Vector2) -> float:
 	var side := Vector2(-wind.y, wind.x)
-	var q := Vector2(xz.dot(wind) * 0.16, xz.dot(side) * 0.55)
-	var n: float = _vnoise(q) * 0.7 + _vnoise(q * 2.0 + Vector2(11.0, 5.0)) * 0.3
-	return smoothstep(0.45, 0.85, n)
+	var along: float = xz.dot(wind)
+	var across: float = xz.dot(side)
+	var warp: float = _vnoise(Vector2(along * 0.05, across * 0.2)) * 2.5
+	var s: float = fposmod(along * 0.16 + warp, 1.0)
+	var profile: float = smoothstep(0.0, 0.8, s) * (1.0 - smoothstep(0.8, 1.0, s))
+	return profile * smoothstep(0.35, 0.75, _vnoise(Vector2(along * 0.12, across * 0.45) + Vector2(11.0, 5.0)))
 
 
 static func _ihash(x: int, y: int) -> float:
@@ -234,6 +245,7 @@ func begin_rebuild(new_origin: Vector2, cover: float, wind: Vector2) -> void:
 	_job_origin = new_origin
 	_job_cover = clampf(cover, 0.0, 1.0)
 	_job_storm = clampf(storm_share, 0.0, 1.0)
+	_job_firmness = clampf(firmness, 0.0, 1.0)
 	_job_wind = wind.normalized() if wind.length_squared() > 0.0001 else Vector2(0, -1)
 	var grid_origin: Vector2 = new_origin - Vector2(APRON, APRON) * texel_m()
 	var n: int = res + 2 * APRON
@@ -315,11 +327,13 @@ func get_snow_top(x: float, z: float) -> float:
 
 
 ## Settled depth at a world point (bilinear), 0 outside the window.
-## How far a foot can press the snow here, 0.4 wind crust to 1.0 loose powder:
-## scoured ground is packed hard, lee drifts are soft, with patches between.
-func softness(at: Vector2, city: float) -> float:
+## How far a foot can press the snow here, 0.4 crust to 1.0 loose: fresh snow is loose
+## everywhere; as it hardens, scoured ground crusts first and lee drifts last.
+func softness(at: Vector2, city: float, hardness: float = 0.5) -> float:
 	var patch: float = _density_noise.get_noise_2d(at.x, at.y) * 0.25
-	return clampf(0.7 + (city - 1.0) * 0.35 + patch, 0.4, 1.0)
+	var hard: float = 0.45 + (city - 1.0) * 0.35 + patch
+	var loose: float = 0.95 + patch * 0.2
+	return clampf(lerpf(loose, hard, clampf(hardness, 0.0, 1.0)), 0.4, 1.0)
 
 
 ## Softness stored in the field image (0 outside the window or on cut cells).
@@ -364,7 +378,7 @@ func _start_grid(grid_origin: Vector2, shift: Vector2i) -> void:
 	var n: int = res + 2 * APRON
 	if _n != n:
 		_n = n
-		for layer: String in ["_height", "_row1", "_col1", "_row2", "_bed", "_wall", "_prevail", "_storm", "_grain"]:
+		for layer: String in ["_height", "_row1", "_col1", "_row2", "_bed", "_wall", "_prevail", "_storm", "_grain", "_terrain_y"]:
 			var arr := PackedFloat32Array()
 			arr.resize(n * n)
 			set(layer, arr)
@@ -381,6 +395,7 @@ func _start_grid(grid_origin: Vector2, shift: Vector2i) -> void:
 		_prevail = _shifted(_prevail, shift)
 		_storm = _shifted(_storm, shift)
 		_grain = _shifted(_grain, shift)
+		_terrain_y = _shifted(_terrain_y, shift)
 	_grid_origin = grid_origin
 	_job_shift = shift
 
@@ -431,6 +446,7 @@ func _grid_span(stage: int, span: Vector3i) -> void:
 				var g: Vector2 = ground_sampler.call(at)
 				_ground[k] = g
 				_height[k] = g.x
+				_terrain_y[k] = float(terrain_sampler.call(at)) if terrain_sampler.is_valid() else g.x
 				var both: Vector2 = wind_factors(at)
 				_prevail[k] = both.x
 				_storm[k] = both.y
@@ -554,7 +570,9 @@ func _assemble_row(lj: int) -> void:
 		var city: float = lerpf(_prevail[k], _storm[k], _job_storm)
 		if use_baked_baseline:
 			var shore: float = smoothstep(sea_level_m + 0.05, sea_level_m + 0.8, g.x)
-			_job_depth[lj * m + li] = settled * city * shore
+			var cs: float = city * shore
+			## The drawn base: the chunk cover's settled depth with the wind's ridges.
+			_job_depth[lj * m + li] = settled * cs + amp * ridge_at(at, settled_wind) * minf(cs, 1.5) * ridge_openness(cs)
 			_job_weight[lj * m + li] = 1.0
 			continue
 		var drift: float = amp * ridge_at(at, _job_wind) * minf(city, 1.5) * ridge_openness(city)
@@ -592,10 +610,11 @@ func _output_row(ty: int) -> void:
 		## Depth is measured from the real ground, so the shader's ground stays true.
 		var top: float = g.x + depth if use_baked_baseline else _bed[k] * shore + g.x * (1.0 - shore) + depth
 		_job_px[o] = top
-		_job_px[o + 1] = top - g.x
+		## Depth down to the true terrain: where it rises between lattice nodes, a print stops on it.
+		_job_px[o + 1] = maxf(top - maxf(g.x, _terrain_y[k]), 0.0)
 		## B: 1 where snow is cut away, else softness scaled below 0.5.
 		var city: float = lerpf(_prevail[k], _storm[k], _job_storm)
-		_job_px[o + 2] = 1.0 if g.x < sea_level_m + 0.02 else softness(_grid_world(APRON + tx, APRON + ty), city) * SOFTNESS_SCALE
+		_job_px[o + 2] = 1.0 if g.x < sea_level_m + 0.02 else softness(_grid_world(APRON + tx, APRON + ty), city, _job_firmness) * SOFTNESS_SCALE
 		_job_px[o + 3] = lerpf(_prevail[k], _storm[k], _job_storm)
 
 

@@ -85,11 +85,7 @@ void fragment() {
 void light() {
 	float ndotl = max(dot(NORMAL, LIGHT), 0.0);
 	float attenuation = hfn_stylized_shadow(ATTENUATION, LIGHT_IS_DIRECTIONAL);
-	vec3 diffuse_attenuation = vec3(attenuation);
-	if (stylized_shadow_mass_strength > 0.0 || stylized_shadow_edge_strength > 0.0) {
-		diffuse_attenuation = hfn_shadow_style_response(ATTENUATION, LIGHT_IS_DIRECTIONAL);
-	}
-	DIFFUSE_LIGHT += ndotl * diffuse_attenuation * LIGHT_COLOR / PI;
+	DIFFUSE_LIGHT += ndotl * attenuation * LIGHT_COLOR / PI;
 	if (rim_strength > 0.0) {
 		float fresnel = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), rim_power);
 		float lit_side = smoothstep(-0.2, 0.4, dot(NORMAL, LIGHT));

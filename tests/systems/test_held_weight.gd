@@ -40,10 +40,12 @@ func _run() -> void:
 	_hammer = _player.get_node(^"HammerComponent") as HammerComponent
 	_light = _player.get_node(^"HeldLightComponent") as HeldLightComponent
 	await _frames(20)
+	_hub.move_to_pack(&"pack/pack_lid")  # the starter mug; these checks need two free pockets
 	await _check_hammer_from_pocket()
 	await _check_hammer_from_pack()
 	await _check_hammer_lost_while_shown()
 	await _check_unlit_flare()
+	await _check_draw_swaps_hand()
 	print("test_held_weight: %s" % ("PASS" if _failures == 0 else "%d FAILED" % _failures))
 	quit(0 if _failures == 0 else 1)
 
@@ -111,6 +113,58 @@ func _check_unlit_flare() -> void:
 	await _frames(3)
 	_check(absf(_inventory.get_total_weight() - before) < EPS and _total(&"road_flare") == count,
 		"stowing the unlit flare changed weight or count")
+
+
+## Drawing pocket B while A's item is shown trades them: B keeps the old item, the hand
+## shows B's item from A, and no item is ever both in a pocket card and in hand.
+func _check_draw_swaps_hand() -> void:
+	var a: StringName = await _pocket(&"hammer")
+	var b: StringName = HeldOwnership.pocket_holding(_equipment, &"road_flare")
+	if b == &"" or not _fits(&"hammer", b):
+		if b != &"":
+			_hub.move_to_pack(b)
+		_inventory.try_add(ItemCatalog.get_item(&"road_flare"))
+		b = &""
+		for entry: Dictionary in _hub.get_quick_access_zones():
+			if entry["item_id"] == &"" and _fits(&"hammer", entry["path"]) 				and _hub.move_to_zone(&"road_flare", entry["path"]) == EquipmentComponent.Refusal.NONE:
+				b = entry["path"]
+				break
+	await _frames(2)
+	_check(b != &"" and b != a, "no second pocket that takes both the hammer and the flare")
+	if b == &"" or b == a:
+		return
+	var hammers: int = _total(&"hammer")
+	var flares: int = _total(&"road_flare")
+	var before: float = _inventory.get_total_weight()
+	_check(_quick.draw(_index(a)), "drawing the hammer pocket failed")
+	await _frames(3)
+	_check(_hammer.is_holding() and _quick.get_held_source_zone() == a, "the hammer was not shown from its pocket")
+	_check(_quick.draw(_index(b)), "drawing the flare pocket with the hammer in hand failed")
+	await _frames(3)
+	_check(not _hammer.is_holding() and _light.is_holding_unlit(), "the hand did not trade the hammer for the flare")
+	_check(HeldOwnership.zone_item(_equipment, b) == &"hammer", "the hammer did not take the drawn pocket's place")
+	_check(_quick.get_held_source_zone() == a and HeldOwnership.zone_item(_equipment, a) == &"road_flare",
+		"the shown flare is not owned by the pocket the hammer left")
+	_check(_total(&"hammer") == hammers and _total(&"road_flare") == flares, "the trade duplicated or lost an item")
+	_check(absf(_inventory.get_total_weight() - before) < EPS, "the trade changed the carried weight")
+	_light.put_away_unlit()
+	await _frames(3)
+
+
+func _fits(item_id: StringName, zone: StringName) -> bool:
+	var item: ItemResource = ItemCatalog.get_item(item_id)
+	for entry: Dictionary in _hub.get_quick_access_zones():
+		if entry["path"] == zone:
+			return item != null and item.size_class <= int(entry["max_size"])
+	return false
+
+
+func _index(zone: StringName) -> int:
+	var zones: Array[Dictionary] = _hub.get_quick_access_zones()
+	for i: int in range(zones.size()):
+		if zones[i]["path"] == zone:
+			return i
+	return -1
 
 
 ## Puts one item_id in a free Quick Access pocket and returns its zone path.

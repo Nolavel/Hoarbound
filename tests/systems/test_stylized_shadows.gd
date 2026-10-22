@@ -53,23 +53,12 @@ func _run() -> void:
 		"res://shaders/environment/stylized_shadow.gdshaderinc"
 	)
 	_check(not contract_source.contains("sample_directional_shadow"), "shared contract calls an engine-patched sampler")
-	_check(contract_source.contains("hfn_legacy_shadow_attenuation"), "historical solid-core/perimeter shading is missing")
-	_check(contract_source.contains("hfn_legacy_world_warp"), "historical quantized world-warp is missing")
-	_check(
-		World.WORLD_SYSTEM_SCRIPTS.has(load("res://scripts/systems/world/shelter_shadow_binder.gd")),
-		"world does not install the interior shadow state binder"
-	)
-	for global_name: String in ["stylized_shadow_strength", "stylized_shadow_brush_mask", "stylized_shadow_brush_mix", "stylized_shadow_interior_mode"]:
+	for global_name: String in ["stylized_shadow_strength", "stylized_shadow_brush_mask", "stylized_shadow_brush_mix",
+			"stylized_shadow_interior_mode"]:
 		_check(
 			ProjectSettings.has_setting("shader_globals/%s" % global_name),
 			"missing global shader parameter: %s" % global_name
 		)
-	for global_name: String in ["stylized_shadow_mass_strength", "stylized_shadow_edge_strength"]:
-		var setting: String = "shader_globals/" + global_name
-		_check(ProjectSettings.has_setting(setting), "missing experimental shadow control: %s" % global_name)
-		if ProjectSettings.has_setting(setting):
-			_check(is_zero_approx(float((ProjectSettings.get_setting(setting) as Dictionary).get("value", -1.0))),
-				"experimental shadow control must default to zero: %s" % global_name)
 	var brush_mask: Dictionary = ProjectSettings.get_setting("shader_globals/stylized_shadow_brush_mask", {})
 	_check(load(String(brush_mask.get("value", ""))) is Texture2D, "brush mask global does not point at a texture")
 

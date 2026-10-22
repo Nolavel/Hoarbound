@@ -13,6 +13,9 @@ extends Node
 @export var scan_height: float = 1.3
 ## Wall depth a raycast guess assumes, metres.
 @export var guessed_wall_thickness: float = 0.3
+## A guessed opening deeper than this is a corridor, not a door in a wall: the 727
+## corridor read as a 1.76 m deep door and held the mouse in its cone, metres.
+@export var max_guessed_depth: float = 1.2
 
 @export_group("Traversal")
 ## Walking at a passage engages it this far before its wall face, plus a lead at Henry's speed.
@@ -245,6 +248,9 @@ func _guess(feet: Vector3) -> PassageInfo:
 			and absf(_info.lateral_of(middle)) < 0.15 and absf(_info.along_of(middle)) <= _info.half_depth() + 0.1:
 		return _info
 	var depth: Array = _jamb_depth(middle, axis)
+	if float(depth[1]) > max_guessed_depth:
+		_saw_corridor = true
+		return null
 	var info := PassageInfo.new()
 	var plane: Vector3 = depth[0]
 	info.center = Vector3(plane.x, feet.y, plane.z)

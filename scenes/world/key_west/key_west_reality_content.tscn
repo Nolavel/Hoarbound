@@ -8,6 +8,9 @@
 [ext_resource type="Script" path="res://scripts/world/key_west_reality_far.gd" id="6_far"]
 [ext_resource type="Script" path="res://scripts/world/key_west_reality_hlod.gd" id="7_hlod"]
 [ext_resource type="Script" path="res://scripts/world/key_west_dev_waypoints.gd" id="8_waypoints"]
+[ext_resource type="Script" path="res://scripts/ui/debug/weather_debug.gd" id="9_weather_debug"]
+[ext_resource type="Script" path="res://scripts/vfx/floor_snow_prints.gd" id="10_floor_prints"]
+[ext_resource type="Script" path="res://scripts/vfx/blizzard_flow.gd" id="10_blizzard"]
 
 [node name="KeyWestRealityContent" type="Node3D"]
 
@@ -45,3 +48,15 @@ script = ExtResource("3_wind")
 [node name="DevWaypoints" type="Node3D" parent="."]
 script = ExtResource("8_waypoints")
 metadata/source = "Debug builds only: F5 cycles First Exit route goals and listed addresses (beacon + bearing), F6 teleports"
+
+[node name="BlizzardFlow" type="Node3D" parent="."]
+script = ExtResource("10_blizzard")
+metadata/source = "Blown snow as fog volumes on wide streets that run with the wind (FUTURE_INTENT §10)"
+
+[node name="WeatherDebug" type="Node" parent="."]
+script = ExtResource("9_weather_debug")
+metadata/source = "Debug builds only: key 0 shows the weather readout, then cycles calm, snowfall, windy, blizzard and back to the scheduler"
+
+[node name="FloorSnowPrints" type="Node3D" parent="."]
+script = ExtResource("10_floor_prints")
+metadata/source = "Indoors: white tread prints from the snow packed in the boots, melting with the room (owner request)"

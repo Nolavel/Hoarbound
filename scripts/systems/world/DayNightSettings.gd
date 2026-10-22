@@ -14,6 +14,9 @@ class_name DayNightSettings
 
 @export_group("Sun")
 @export var sun_max_altitude: float = 60.0
+## Cascaded shadows only hold still while the sun does: it turns once per step, eased over the blend.
+@export_range(1, 30, 1) var sun_step_minutes: int = 4
+@export_range(0.0, 10.0, 0.1) var sun_blend_seconds: float = 2.0
 @export var sun_color_sunrise: Color = Color(1.0, 0.6, 0.4)
 @export var sun_color_noon: Color = Color(1.0, 0.97, 0.92)
 @export var sun_color_sunset: Color = Color(1.0, 0.5, 0.3)

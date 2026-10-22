@@ -1,29 +1,45 @@
 class_name HeatSourceFeed
 extends InteractiveArea
 
-## Firebox interaction owns staged log transfers and a held lighter; HeatSource owns combustion.
-signal act_started(lighting: bool)
+## Firebox operations for the stove ritual: one log, the tinder, the existing held lighter.
+## HeatSource owns combustion; StoveInteractionController owns the mode, the walk and the input.
+signal act_started(kind: Act)
+signal act_finished(kind: Act, committed: bool)
 signal fuel_added(source: HeatSource, remaining_hours: float)
 signal feed_refused(reason: Refusal)
 signal lighter_struck(success: bool, strike_index: int)
+## Anything the ring shows changed: the act, the fuel, the tinder or the fire.
+signal state_changed
 
-enum Refusal { NONE, NO_SOURCE, ALREADY_FULL, NO_FUEL, NO_TINDER, NO_INVENTORY, NO_LIGHTER, BUSY, HANDS_OCCUPIED, CANNOT_TAKE, NO_DROP_SPACE }
+enum Refusal {
+	NONE, NO_SOURCE, ALREADY_FULL, NO_FUEL, NO_TINDER, NO_INVENTORY, NO_LIGHTER, BUSY, HANDS_OCCUPIED,
+	CANNOT_TAKE, NO_DROP_SPACE, EMPTY_FIREBOX, TINDER_READY, ALREADY_BURNING, NEED_TINDER, NOT_WORKING,
+}
 enum StrikeResult { IGNORED, SPARK, FLAME }
-enum Stage { IDLE, TRANSFERRING, PREPARING, READY, HOLDING }
+enum Stage { IDLE, TRANSFERRING, PREPARING, READY, HOLDING, TINDERING }
+enum Act { NONE, FUEL, TINDER, LIGHT }
 
 const LIGHT_SECONDS: float = 3.0
-const ADD_SECONDS: float = 2.0
+## One log reached in and laid down; the tinder tucked under the logs, seconds.
+const FUEL_SECONDS: float = 1.6
+const TINDER_SECONDS: float = 1.1
 const STRIKE_EVENT: SoundEvent = preload("res://resources/audio/lighter_strike.tres")
 
 @export var heat_source: HeatSource
 @export var fuel_item_id: StringName = &"firewood"
+## Further item ids that burn as one log each; the first one carried is used.
+@export var extra_fuel_item_ids: Array[StringName] = []
 @export var tinder_item_id: StringName = &"tinder"
 @export var units_per_item: float = 1.0
 @export_range(0.1, 60.0, 0.1) var light_time_cost_minutes: float = 2.0
 @export_range(0.1, 60.0, 0.1) var add_time_cost_minutes: float = 0.5
+@export_range(0.05, 60.0, 0.05) var tinder_time_cost_minutes: float = 0.25
 @export_range(0.1, 1.0, 0.05) var strike_interval_seconds: float = 0.25
 
 var door_control: StoveDoorControl
+var controller: StoveInteractionController
+## True while Henry works the stove (StoveInteractionController); every act needs it.
+var session_active: bool = false
 ## Legacy tool parameters retained for compatibility; stove strikes always succeed.
 var strike_success_chance: float = 1.0
 var guaranteed_success_strike: int = 1
@@ -34,13 +50,12 @@ var _animation: HenryUALAnimation
 var _equipment: EquipmentComponent
 var _held_item: HeldItemComponent
 var _actions_cache: TimeCostedActionSystem
+var _act: Act = Act.NONE
 var _act_left: float = 0.0
-var _act_lighting: bool = false
 var _door_open: bool = false
 var _action_managed: bool = false
 var _action_id: StringName = &""
-var _transfer_count: int = 0
-var _removing: bool = false
+var _transfer_item: StringName = &""
 var _stage: Stage = Stage.IDLE
 var _strike_count: int = 0
 var _last_strike_seconds: float = -1000.0
@@ -70,84 +85,162 @@ func _ready() -> void:
 	var state: Node = get_node_or_null(^"/root/PlayerState")
 	if state != null:
 		state.connect(&"mode_changed", _on_mode_changed)
+	if heat_source != null:
+		heat_source.fuel_changed.connect(func(_f: float) -> void: state_changed.emit())
+		heat_source.burning_changed.connect(func(_b: bool) -> void: state_changed.emit())
+		heat_source.tinder_changed.connect(func(_p: bool) -> void: state_changed.emit())
+	if controller == null:
+		controller = get_node_or_null(^"Interaction") as StoveInteractionController
+	if controller == null:
+		controller = StoveInteractionController.new()
+		controller.name = "Interaction"
+		add_child(controller)
+	controller.feed = self
 	set_item_name(tr("FEED_PROMPT"))
 
 
+## Offered only outside the ritual: inside it F is claimed and the ring speaks for the stove.
 func can_interact() -> bool:
-	return heat_source != null
+	return heat_source != null and not (controller != null and controller.is_active())
 
 
 func is_acting() -> bool:
 	return _stage != Stage.IDLE
 
 
+func get_stage() -> Stage:
+	return _stage
+
+
+func get_act() -> Act:
+	return _act
+
+
+## 0..1 through a log or tinder act; the lighter reports through get_light_progress().
+func get_act_progress() -> float:
+	if _act not in [Act.FUEL, Act.TINDER]:
+		return 0.0
+	return clampf(1.0 - _act_left / maxf(_act_duration_seconds(), 0.001), 0.0, 1.0)
+
+
+## 0..1 of the flame held to the tinder, the existing LIGHT_SECONDS hold.
+func get_light_progress() -> float:
+	return clampf(_hold_seconds / LIGHT_SECONDS, 0.0, 1.0) if _stage == Stage.HOLDING else 0.0
+
+
+func is_lighter_ready() -> bool:
+	return _stage in [Stage.READY, Stage.HOLDING]
+
+
 func is_door_open() -> bool:
 	return _door_open
 
 
-func toggle_door() -> void:
-	if is_acting():
+func set_door_open(open: bool) -> void:
+	if open == _door_open:
 		return
+	if not open and is_acting():
+		cancel_act(&"door_closed")
 	_feedback_until_ms = 0
-	_door_open = not _door_open
+	_door_open = open
 	if _visual() != null:
-		_visual().set_door_open(_door_open)
+		_visual().set_door_open(open)
+	state_changed.emit()
 
 
-func set_target_state(targeted: bool, in_prompt_range: bool) -> void:
-	var lost: bool = _targeted and not targeted
-	super(targeted, in_prompt_range)
-	if lost:
-		cancel_act(&"target_lost")
+func toggle_door() -> void:
+	set_door_open(not _door_open)
 
 
-## F loads the armful and prepares ignition; RMB explicitly retrieves cold wood.
-func begin_act() -> Refusal:
-	if heat_source == null:
-		return Refusal.NO_SOURCE
-	if is_acting():
-		cancel_act()
-		return Refusal.NONE
-	if not _door_open:
-		toggle_door()
-		return Refusal.NONE
+## The carried fuel the next log comes from, or &"" when Henry has none.
+func get_fuel_item() -> StringName:
 	var inventory: InventoryComponent = _get_inventory()
 	if inventory == null:
+		return &""
+	for id: StringName in [fuel_item_id] + extra_fuel_item_ids:
+		if id != &"" and inventory.has_item(id):
+			return id
+	return &""
+
+
+func get_fuel_refusal() -> Refusal:
+	if heat_source == null:
+		return Refusal.NO_SOURCE
+	if heat_source.get_log_room() <= 0:
+		return Refusal.ALREADY_FULL
+	if _get_inventory() == null:
 		return Refusal.NO_INVENTORY
-	if inventory.has_item(fuel_item_id) and heat_source.get_log_room() > 0:
-		return transfer_logs(inventory.get_count(fuel_item_id))
-	if not heat_source.is_burning() and heat_source.get_remaining_hours() > 0.0:
-		return _prepare_ignition()
-	return Refusal.ALREADY_FULL if heat_source.get_log_room() <= 0 else Refusal.NO_FUEL
+	if get_fuel_item() == &"":
+		return Refusal.NO_FUEL
+	if not _hands_free(true):
+		return Refusal.HANDS_OCCUPIED
+	return Refusal.NONE
 
 
-func _input(event: InputEvent) -> void:
-	if _player == null:
-		_get_inventory()
-	if _player == null or _ui_blocked():
-		return
-	if is_acting() and event.is_action_pressed(&"interact"):
-		if not event.is_echo():
-			cancel_act()
-		get_viewport().set_input_as_handled()
-		return
-	var mouse := event as InputEventMouseButton
-	if mouse == null or mouse.button_index not in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
-		return
-	if _is_lighting():
-		if mouse.button_index == MOUSE_BUTTON_LEFT:
-			if mouse.pressed:
-				attempt_lighter_strike()
-			else:
-				release_lighter()
-		elif mouse.pressed:
-			cancel_act()
-			_report(transfer_logs(2, true))
-		get_viewport().set_input_as_handled()
-	elif _targeted and prompt_shown and _door_open and _in_reach():
-		if mouse.pressed and mouse.button_index == MOUSE_BUTTON_RIGHT and not is_acting():
-			_report(transfer_logs(2, true))
-		get_viewport().set_input_as_handled()
+func get_tinder_refusal() -> Refusal:
+	if heat_source == null:
+		return Refusal.NO_SOURCE
+	if heat_source.is_burning():
+		return Refusal.ALREADY_BURNING
+	if heat_source.is_tinder_prepared():
+		return Refusal.TINDER_READY
+	if heat_source.get_loaded_log_count() <= 0:
+		return Refusal.EMPTY_FIREBOX
+	if tinder_item_id != &"" and not _has_owned_item(tinder_item_id):
+		return Refusal.NO_TINDER
+	if not _hands_free(true):
+		return Refusal.HANDS_OCCUPIED
+	return Refusal.NONE
+
+
+func get_lighter_refusal() -> Refusal:
+	if heat_source == null:
+		return Refusal.NO_SOURCE
+	if heat_source.is_burning():
+		return Refusal.ALREADY_BURNING
+	if heat_source.get_loaded_log_count() <= 0:
+		return Refusal.EMPTY_FIREBOX
+	if not heat_source.is_tinder_prepared():
+		return Refusal.NEED_TINDER
+	if not _has_lighter():
+		return Refusal.NO_LIGHTER
+	if not _hands_free(true):
+		return Refusal.HANDS_OCCUPIED
+	return Refusal.NONE
+
+
+## RMB: one log from Henry's hands into the firebox; it changes hands only when the act completes.
+func insert_fuel() -> Refusal:
+	if not session_active:
+		return Refusal.NOT_WORKING
+	if _stage in [Stage.PREPARING, Stage.READY]:
+		cancel_act(&"lighter_put_away")
+	if is_acting():
+		return Refusal.BUSY
+	var refusal: Refusal = get_fuel_refusal()
+	return _start_action(Act.FUEL) if refusal == Refusal.NONE else refusal
+
+
+## LMB: tinder under the loaded logs; it never lights anything by itself.
+func insert_tinder() -> Refusal:
+	if not session_active:
+		return Refusal.NOT_WORKING
+	if is_acting():
+		return Refusal.BUSY
+	var refusal: Refusal = get_tinder_refusal()
+	return _start_action(Act.TINDER) if refusal == Refusal.NONE else refusal
+
+
+## Takes out the existing lighter for the strike-and-hold; a no-op once it is out.
+func prepare_lighter() -> Refusal:
+	if not session_active:
+		return Refusal.NOT_WORKING
+	if _stage in [Stage.PREPARING, Stage.READY, Stage.HOLDING]:
+		return Refusal.NONE
+	if is_acting():
+		return Refusal.BUSY
+	var refusal: Refusal = get_lighter_refusal()
+	return _start_action(Act.LIGHT) if refusal == Refusal.NONE else refusal
 
 
 func _process(delta: float) -> void:
@@ -158,23 +251,24 @@ func _process(delta: float) -> void:
 		cancel_act(&"action_lost")
 		show_message(tr("STOVE_ACTION_INTERRUPTED"))
 		return
-	var stop_reason: StringName = _light_stop_reason() if _is_lighting() else _transfer_stop_reason()
+	var stop_reason: StringName = _light_stop_reason() if _act == Act.LIGHT else _transfer_stop_reason()
 	if stop_reason != &"":
 		cancel_act(stop_reason)
 		return
-	if _is_lighting():
+	if _act == Act.LIGHT:
 		if _stage == Stage.PREPARING and (_animation == null or _animation.is_work_pose_ready()):
 			_stage = Stage.READY
+			state_changed.emit()
 		advance_lighter_hold(delta)
 		return
 	if _action_managed:
 		actions.advance_presentation(delta)
-		if _stage == Stage.TRANSFERRING and actions.get_active_action_id() == _action_id:
+		if is_acting() and actions.get_active_action_id() == _action_id:
 			_act_left = _act_duration_seconds() * (1.0 - actions.get_progress())
 		return
 	_act_left -= delta
 	if _act_left <= 0.0:
-		_finish_transfer()
+		_finish_current()
 
 
 func _exit_tree() -> void:
@@ -182,39 +276,15 @@ func _exit_tree() -> void:
 	_clear_lighter()
 
 
-func transfer_logs(requested: int, removing: bool = false) -> Refusal:
-	if heat_source == null:
-		return Refusal.NO_SOURCE
-	if is_acting() or not _door_open:
-		return Refusal.BUSY
-	var inventory: InventoryComponent = _get_inventory()
-	if inventory == null:
-		return Refusal.NO_INVENTORY
-	if not _hands_free(true):
-		return Refusal.HANDS_OCCUPIED
-	var item: ItemResource = ItemCatalog.get_item(fuel_item_id)
-	var count: int = mini(maxi(requested, 1), heat_source.get_recoverable_log_count() if removing else heat_source.get_log_room())
-	if removing:
-		while count > 0 and inventory.get_add_refusal(item, count) != &"":
-			count -= 1
-		if count <= 0:
-			return Refusal.CANNOT_TAKE
-	else:
-		count = mini(count, inventory.get_count(fuel_item_id))
-		if count <= 0:
-			return Refusal.ALREADY_FULL if heat_source.get_log_room() <= 0 else Refusal.NO_FUEL
-	return _start_action(false, count, removing)
-
-
-func _start_action(lighting: bool, count: int, removing: bool) -> Refusal:
+func _start_action(act: Act) -> Refusal:
 	if is_instance_valid(_held_item) and _held_item.get_item_id() == &"lighter":
 		_held_item.put_away()
 	_feedback_until_ms = 0
-	_act_lighting = lighting
-	_transfer_count = count
-	_removing = removing
-	_act_left = LIGHT_SECONDS if lighting else ADD_SECONDS * count
-	_stage = Stage.PREPARING if lighting else Stage.TRANSFERRING
+	_act = act
+	_transfer_item = get_fuel_item() if act == Act.FUEL else &""
+	_act_left = _act_duration_seconds()
+	_stage = {Act.FUEL: Stage.TRANSFERRING, Act.TINDER: Stage.TINDERING, Act.LIGHT: Stage.PREPARING}[act]
+	var lighting: bool = act == Act.LIGHT
 	set_process(true)
 	if lighting:
 		_strike_count = 0
@@ -223,12 +293,15 @@ func _start_action(lighting: bool, count: int, removing: bool) -> Refusal:
 	var actions: TimeCostedActionSystem = _actions()
 	if actions != null:
 		var request := TimeActionRequest.new()
-		_action_id = StringName("stove:%d:%s" % [get_instance_id(), "light" if lighting else "transfer"])
+		var names: Dictionary = {Act.FUEL: "fuel", Act.TINDER: "tinder", Act.LIGHT: "light"}
+		_action_id = StringName("stove:%d:%s" % [get_instance_id(), names[act]])
 		request.action_id = _action_id
-		request.duration_hours = (light_time_cost_minutes if lighting else add_time_cost_minutes * count) / 60.0
+		var minutes: Dictionary = {Act.FUEL: add_time_cost_minutes, Act.TINDER: tinder_time_cost_minutes, Act.LIGHT: light_time_cost_minutes}
+		request.duration_hours = float(minutes[act]) / 60.0
 		request.presentation_seconds = 0.0 if lighting else _act_left
 		request.external_presentation = not lighting
-		request.reason = &"light_stove" if lighting else &"take_stove_logs" if removing else &"feed_stove"
+		var reasons: Dictionary = {Act.FUEL: &"feed_stove", Act.TINDER: &"lay_tinder", Act.LIGHT: &"light_stove"}
+		request.reason = reasons[act]
 		request.actor = _player
 		request.target = heat_source
 		request.player_mode = _resolve_player_mode(&"WORKING")
@@ -241,15 +314,15 @@ func _start_action(lighting: bool, count: int, removing: bool) -> Refusal:
 			return Refusal.BUSY
 	if _player != null and _player.has_method(&"face_work_target"):
 		_player.call(&"face_work_target", focus_anchor.global_position)
-	if lighting and _animation != null and not _animation.begin_work_pose():
+	## The kneeling work clip is the reach into the firebox; the lighter holds it.
+	if _animation != null and not _animation.begin_work_pose() and lighting:
 		cancel_act(&"animation_unavailable")
 		return Refusal.BUSY
 	var visual: StoveVisual = _visual()
 	if visual != null:
-		visual.begin_act(lighting, _act_left, count, removing)
-	if _player != null and _player.has_method(&"play_action_animation") and not lighting:
-		_player.call(&"play_action_animation", &"interact")
-	act_started.emit(lighting)
+		visual.begin_act(lighting, _act_left, 1, false)
+	act_started.emit(act)
+	state_changed.emit()
 	return Refusal.NONE
 
 
@@ -270,16 +343,20 @@ func attempt_lighter_strike(now_seconds: float = -1.0) -> int:
 	_flame_held = true
 	_hold_seconds = 0.0
 	lighter_struck.emit(true, _strike_count)
+	state_changed.emit()
 	return StrikeResult.FLAME
 
 
 func release_lighter() -> void:
+	var was_holding: bool = _stage == Stage.HOLDING
 	_flame_held = false
 	_hold_seconds = 0.0
-	if _stage == Stage.HOLDING:
+	if was_holding:
 		_stage = Stage.READY
 	if _lighter != null:
 		_lighter.set_flame(false)
+	if was_holding:
+		state_changed.emit()
 
 
 func advance_lighter_hold(seconds: float) -> void:
@@ -298,7 +375,9 @@ func advance_lighter_hold(seconds: float) -> void:
 		_finish_ignition()
 
 
+## Stops the current act; nothing changes hands unless the act had already committed.
 func cancel_act(reason: StringName = &"cancelled") -> void:
+	var kind: Act = _act
 	var actions: TimeCostedActionSystem = _actions()
 	if _action_managed and actions != null and actions.get_active_action_id() == _action_id:
 		actions.cancel(reason)
@@ -306,20 +385,32 @@ func cancel_act(reason: StringName = &"cancelled") -> void:
 		_clear_act()
 	if _visual() != null:
 		_visual().end_act(_door_open)
+	if kind != Act.NONE:
+		act_finished.emit(kind, false)
 
 
 func _action_completed(_hours: float) -> void:
 	_action_managed = false
-	if _act_lighting:
-		_finish_ignition()
-	else:
-		_finish_transfer()
+	_finish_current()
 
 
 func _action_cancelled(_hours: float, _reason: StringName) -> void:
+	var kind: Act = _act
 	_clear_act()
 	if _visual() != null:
 		_visual().end_act(_door_open)
+	if kind != Act.NONE:
+		act_finished.emit(kind, false)
+
+
+func _finish_current() -> void:
+	match _act:
+		Act.LIGHT:
+			_finish_ignition()
+		Act.FUEL:
+			_finish_fuel()
+		Act.TINDER:
+			_finish_tinder()
 
 
 func _finish_ignition() -> void:
@@ -327,9 +418,6 @@ func _finish_ignition() -> void:
 		_clear_act()
 		if _visual() != null:
 			_visual().end_act(_door_open)
-		return
-	if tinder_item_id != &"" and not _consume_owned_item(tinder_item_id):
-		_clear_act()
 		return
 	var manager := get_tree().root.find_child("DayNightManager", true, false) as DayNightManager
 	var rate: float = 1.0 / 3600.0
@@ -340,41 +428,45 @@ func _finish_ignition() -> void:
 	if _visual() != null:
 		_visual().end_act(true)
 	show_message(tr("STOVE_KINDLING"))
+	act_finished.emit(Act.LIGHT, true)
 
 
-func _finish_transfer() -> void:
+## One consistent change of hands: the log leaves the inventory only into a firebox that took it.
+func _finish_fuel() -> void:
 	if _stage != Stage.TRANSFERRING:
 		return
 	if _transfer_stop_reason() != &"":
 		_clear_act()
 		return
 	var inventory: InventoryComponent = _get_inventory()
-	var count: int = _transfer_count
-	var removing: bool = _removing
-	if removing:
-		if not heat_source.remove_cold_logs(count):
-			_clear_act()
-			return
-		for _i: int in range(count):
-			inventory.try_add(ItemCatalog.get_item(fuel_item_id))
-	else:
-		for _i: int in range(count):
-			inventory.try_remove(fuel_item_id)
-		heat_source.add_logs(count)
+	var item: StringName = _transfer_item
+	if not inventory.try_remove(item):
+		_clear_act()
+		return
+	if not heat_source.add_logs(1):
+		inventory.try_add(ItemCatalog.get_item(item))
+		_clear_act()
+		return
 	_clear_act()
 	if _visual() != null:
 		_visual().end_act(true)
 	fuel_added.emit(heat_source, heat_source.get_remaining_hours())
-	show_message(tr("STOVE_TAKEN" if removing else "STOVE_LOADED") % count)
-	if not removing:
-		var refusal: Refusal = Refusal.NONE
-		if not _put_down_overflow():
-			refusal = Refusal.NO_DROP_SPACE
-		elif not heat_source.is_burning():
-			refusal = _prepare_ignition()
-		if refusal != Refusal.NONE:
-			feed_refused.emit(refusal)
-			show_message(tr("STOVE_LOADED") % count + " · " + tr(describe_refusal(refusal)))
+	show_message(tr("STOVE_LOADED") % 1)
+	act_finished.emit(Act.FUEL, true)
+
+
+func _finish_tinder() -> void:
+	if _stage != Stage.TINDERING:
+		return
+	if _transfer_stop_reason() != &"" or (tinder_item_id != &"" and not _consume_owned_item(tinder_item_id)):
+		_clear_act()
+		return
+	heat_source.set_tinder_prepared(true)
+	_clear_act()
+	if _visual() != null:
+		_visual().end_act(true)
+	show_message(tr("STOVE_TINDER_LAID"))
+	act_finished.emit(Act.TINDER, true)
 
 
 func _light_stop_reason() -> StringName:
@@ -383,9 +475,9 @@ func _light_stop_reason() -> StringName:
 		return reason
 	if heat_source.is_burning() or heat_source.get_remaining_hours() <= 0.0:
 		return &"target_lost"
-	if not _has_lighter() or not _hands_free():
+	if not _has_lighter() or not _hands_free(true):
 		return &"tool_lost"
-	if tinder_item_id != &"" and not _has_owned_item(tinder_item_id):
+	if not heat_source.is_tinder_prepared():
 		return &"resource_lost"
 	return &""
 
@@ -397,27 +489,28 @@ func _transfer_stop_reason() -> StringName:
 	var inventory: InventoryComponent = _get_inventory()
 	if inventory == null or not _hands_free(true):
 		return &"resource_lost"
-	if _removing:
-		if _transfer_count > heat_source.get_recoverable_log_count():
-			return &"fuel_changed"
-		if inventory.get_add_refusal(ItemCatalog.get_item(fuel_item_id), _transfer_count) != &"":
-			return &"hands_full"
-	elif inventory.get_count(fuel_item_id) < _transfer_count or heat_source.get_log_room() < _transfer_count:
-		return &"resource_lost"
+	if _act == Act.FUEL:
+		if inventory.get_count(_transfer_item) < 1 or heat_source.get_log_room() < 1:
+			return &"resource_lost"
+	elif _act == Act.TINDER:
+		if heat_source.is_burning() or heat_source.is_tinder_prepared() or heat_source.get_loaded_log_count() <= 0 \
+			or (tinder_item_id != &"" and not _has_owned_item(tinder_item_id)):
+			return &"resource_lost"
 	return &""
 
 
 func _clear_act() -> void:
 	release_lighter()
 	_clear_lighter()
-	if _act_lighting and is_instance_valid(_animation):
-		_animation.end_work_pose()
+	if _act != Act.NONE and is_instance_valid(_animation):
+		_animation.end_work_pose(session_active)
 	_stage = Stage.IDLE
+	_act = Act.NONE
 	_act_left = 0.0
-	_act_lighting = false
 	_action_managed = false
 	_action_id = &""
-	_transfer_count = 0
+	_transfer_item = &""
+	state_changed.emit()
 
 
 func _build_lighter() -> void:
@@ -439,13 +532,16 @@ func _clear_lighter() -> void:
 	_lighter = null
 
 
+## Hands are free of anything but fuel (allow_logs) and the stove's own lighter.
 func _hands_free(allow_logs: bool = false) -> bool:
 	var inventory: InventoryComponent = _get_inventory()
 	if inventory == null:
 		return false
+	var fuels: Array[StringName] = [fuel_item_id]
+	fuels.append_array(extra_fuel_item_ids)
 	for entry: Dictionary in inventory.get_entries():
 		var item: ItemResource = ItemCatalog.get_item(entry["id"])
-		if item != null and item.carried_in_hands and (not allow_logs or item.id != fuel_item_id):
+		if item != null and item.carried_in_hands and (not allow_logs or not fuels.has(item.id)):
 			return false
 	var prop: Node3D = _animation.get_held_prop() if is_instance_valid(_animation) else null
 	if prop == null or prop == _lighter:
@@ -469,7 +565,7 @@ func _has_owned_item(item_id: StringName) -> bool:
 	return false
 
 
-## Consume from the owning storage only when the held flame has caught.
+## Consumes from the owning storage, the pack first, then the Quick Access pockets.
 func _consume_owned_item(item_id: StringName) -> bool:
 	var inventory: InventoryComponent = _get_inventory()
 	if inventory != null and inventory.try_remove(item_id):
@@ -484,11 +580,6 @@ func _consume_owned_item(item_id: StringName) -> bool:
 func _ui_blocked() -> bool:
 	var state: Node = get_node_or_null(^"/root/PlayerState")
 	return state != null and bool(state.call(&"is_paused"))
-
-
-func _in_reach() -> bool:
-	var interact: InteractComponent = _player.get_node_or_null(^"InteractComponent") as InteractComponent if _player != null else null
-	return interact != null and interact.get_world_target() == self and interact.is_world_target_in_reach()
 
 
 func _get_inventory() -> InventoryComponent:
@@ -519,7 +610,14 @@ func _visual() -> StoveVisual:
 
 
 func _act_duration_seconds() -> float:
-	return LIGHT_SECONDS if _act_lighting else ADD_SECONDS * _transfer_count
+	match _act:
+		Act.LIGHT:
+			return LIGHT_SECONDS
+		Act.FUEL:
+			return FUEL_SECONDS
+		Act.TINDER:
+			return TINDER_SECONDS
+	return 0.0
 
 
 func _resolve_player_mode(mode_name: StringName) -> int:
@@ -527,27 +625,29 @@ func _resolve_player_mode(mode_name: StringName) -> int:
 	return int(state.get_script().get_script_constant_map().get("Mode", {}).get(String(mode_name), -1)) if state != null else -1
 
 
+## F on the stove (or its door) starts the ritual: StoveInteractionController walks Henry over.
 func _on_interaction_performed() -> void:
-	_report(begin_act())
+	if controller != null:
+		controller.request_enter()
 
 
-func _report(refusal: Refusal) -> void:
+func report(refusal: Refusal) -> void:
 	if refusal != Refusal.NONE:
 		feed_refused.emit(refusal)
 		show_message(tr(describe_refusal(refusal)))
 
 
-## A running load or ignition holds focus so the door cannot steal it mid-action.
+## While Henry works the stove the firebox keeps focus so the door cannot steal it.
 func keeps_focus() -> bool:
-	return is_acting()
+	return session_active or is_acting()
 
 
 func resolve_focus(from: Vector3, direction: Vector3) -> InteractiveArea:
-	if is_acting():
+	if session_active or is_acting():
 		return self
 	if is_instance_valid(door_control) and door_control.is_aim_on_door(from, direction):
 		return door_control
-	return self if _door_open else door_control
+	return self
 
 
 func _on_mode_changed(_old_mode: int, _new_mode: int) -> void:
@@ -556,48 +656,28 @@ func _on_mode_changed(_old_mode: int, _new_mode: int) -> void:
 
 
 func _get_interaction_text() -> String:
-	if not _door_open:
+	if session_active:
 		set_description("")
-		return "[%s] %s" % [_interact_key_label(), tr("STOVE_OPEN")]
-	if _is_lighting():
-		set_description("[%s] %s" % [_interact_key_label(), tr("STOVE_CANCEL_LIGHTER")])
-		return tr("STOVE_PREPARING" if _stage == Stage.PREPARING else "STOVE_LIGHTER_HOLD")
-	if is_acting():
-		var progress: int = int(roundf(100.0 * (1.0 - _act_left / maxf(_act_duration_seconds(), 0.001))))
-		set_description("[%s] %s" % [_interact_key_label(), tr("STOVE_CANCEL_TRANSFER")])
-		return tr("STOVE_RETURN_PROGRESS" if _removing else "STOVE_TRANSFER_PROGRESS") % [_transfer_count, clampi(progress, 0, 100)]
-	var count: int = _available_logs(false)
-	var detail: String = tr("STOVE_MOUSE_TAKE") if _available_logs(true) > 0 else ""
-	if count > 0:
-		set_description(detail)
-		return "[%s] %s" % [_interact_key_label(), tr("STOVE_LOAD_COUNT") % count]
-	if not heat_source.is_burning() and heat_source.get_remaining_hours() > 0.0:
-		var refusal: Refusal = _ignition_refusal()
-		set_description(detail)
-		if refusal != Refusal.NONE:
-			return tr(describe_refusal(refusal))
-		return "[%s] %s" % [_interact_key_label(), tr("STOVE_IGNITE")]
+		return ""
+	set_description(get_status_text())
+	return "[%s] %s" % [_interact_key_label(), tr("FEED_PROMPT")]
+
+
+## Short factual state of the firebox for the prompt detail.
+func get_status_text() -> String:
+	if heat_source == null:
+		return ""
 	if heat_source.is_burning():
-		set_description(tr("FEED_REFUSED_ALREADY_FULL") if heat_source.get_log_room() <= 0 else detail)
 		return tr("STOVE_WARMING" if heat_source.get_intensity() < 1.0 else "STOVE_BURNING")
-	set_description(detail)
-	return tr("STOVE_EMPTY")
+	var text: String = tr("STOVE_FUEL_STATUS") % [heat_source.get_loaded_log_count(), heat_source.get_log_capacity()]
+	if heat_source.is_tinder_prepared():
+		text += " · " + tr("STOVE_TINDER_READY")
+	return text
 
 
 func get_interaction_prompt_data() -> Dictionary:
 	var data: Dictionary = super()
-	if _stage == Stage.TRANSFERRING:
-		data["key"] = ""
-	elif _stage == Stage.PREPARING:
-		data["key"] = ""
-	elif _is_lighting():
-		data["key"] = tr("STOVE_MOUSE_KEY")
-		data["action"] = tr("STOVE_LIGHTER_HOLD")
-		data["detail"] = "[%s] %s" % [_interact_key_label(), tr("STOVE_CANCEL_LIGHTER")]
-		if _available_logs(true) > 0:
-			data["detail"] += " · " + tr("STOVE_MOUSE_TAKE")
-	elif _door_open and not is_acting() and _available_logs(false) <= 0 \
-		and (heat_source.is_burning() or heat_source.get_remaining_hours() <= 0.0 or _ignition_refusal() != Refusal.NONE):
+	if session_active:
 		data["key"] = ""
 	return data
 
@@ -606,52 +686,12 @@ func _is_lighting() -> bool:
 	return _stage in [Stage.PREPARING, Stage.READY, Stage.HOLDING]
 
 
-func _prepare_ignition() -> Refusal:
-	if not _hands_free(true):
-		return Refusal.HANDS_OCCUPIED
-	if not _put_down_overflow():
-		return Refusal.NO_DROP_SPACE
-	var refusal: Refusal = _ignition_refusal()
-	return _start_action(true, 0, false) if refusal == Refusal.NONE else refusal
-
-
-func _ignition_refusal() -> Refusal:
-	if not _hands_free():
-		return Refusal.HANDS_OCCUPIED
-	if not _has_lighter():
-		return Refusal.NO_LIGHTER
-	if tinder_item_id != &"" and not _has_owned_item(tinder_item_id):
-		return Refusal.NO_TINDER
-	return Refusal.NONE
-
-
-func _put_down_overflow() -> bool:
-	var inventory: InventoryComponent = _get_inventory()
-	if inventory == null or not inventory.has_item(fuel_item_id):
-		return true
-	var work: WoodWorkComponent = _player.get_node_or_null(^"WoodWorkComponent") as WoodWorkComponent if _player != null else null
-	return work != null and work.drop_carried_nearby()
-
-
 func _activity_stop_reason() -> StringName:
 	if not is_instance_valid(heat_source) or heat_source.is_queued_for_deletion() or not _door_open:
 		return &"target_lost"
-	if _player != null and _player.get_node_or_null(^"InteractComponent") != null and not _in_reach():
+	if not session_active:
 		return &"target_lost"
 	return &""
-
-
-func _available_logs(removing: bool) -> int:
-	var inventory: InventoryComponent = _get_inventory()
-	if inventory == null or not _hands_free(true):
-		return 0
-	if not removing:
-		return mini(heat_source.get_log_room(), inventory.get_count(fuel_item_id))
-	var count: int = heat_source.get_recoverable_log_count()
-	var item: ItemResource = ItemCatalog.get_item(fuel_item_id)
-	while count > 0 and inventory.get_add_refusal(item, count) != &"":
-		count -= 1
-	return count
 
 
 static func describe_refusal(refusal: Refusal) -> String:
@@ -665,10 +705,14 @@ static func describe_refusal(refusal: Refusal) -> String:
 		Refusal.HANDS_OCCUPIED: return "STOVE_FREE_HANDS"
 		Refusal.CANNOT_TAKE: return "STOVE_CANNOT_TAKE"
 		Refusal.NO_DROP_SPACE: return "STOVE_OVERFLOW_BLOCKED"
+		Refusal.EMPTY_FIREBOX: return "STOVE_NEED_LOG_FIRST"
+		Refusal.TINDER_READY: return "STOVE_TINDER_ALREADY"
+		Refusal.ALREADY_BURNING: return "STOVE_BURNING"
+		Refusal.NEED_TINDER: return "STOVE_NEED_TINDER_FIRST"
 		_: return "ACTION_REFUSED_BUSY"
 
 
-## Compatibility for isolated tools; normal input always uses staged transfers.
+## Compatibility for isolated tools (no player, no ritual): feeds and lights in one call.
 func can_feed() -> Refusal:
 	if heat_source == null:
 		return Refusal.NO_SOURCE

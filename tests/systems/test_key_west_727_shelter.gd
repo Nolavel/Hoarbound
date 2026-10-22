@@ -27,6 +27,7 @@ func _process(_delta: float) -> bool:
 		return false  # let the physics server register the shell's collision
 	_check_nodes()
 	_check_openings()
+	_check_shell_materials()
 	if _failures > 0:
 		push_error("727 shelter: %d check(s) failed" % _failures)
 		quit(1)
@@ -34,6 +35,17 @@ func _process(_delta: float) -> bool:
 		print("727 shelter: all checks passed")
 		quit(0)
 	return true
+
+
+## The streamed shell must shade with the stylized shadow contract, like the hut inside it.
+func _check_shell_materials() -> void:
+	for node_name: String in ["Walls*", "Partitions*", "Floor*", "Ceiling*"]:
+		var mesh: MeshInstance3D = _shell.find_child(node_name, true, false) as MeshInstance3D
+		_check(mesh != null, "shell mesh %s missing" % node_name)
+		if mesh == null:
+			continue
+		var material: Material = mesh.get_active_material(0)
+		_check(material is ShaderMaterial, "shell %s bypasses stylized shadows: %s" % [node_name, material])
 
 
 func _check_nodes() -> void:

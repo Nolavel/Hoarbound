@@ -36,9 +36,10 @@ sitting, the stove ring, the table, or sleep = save.
 | 8:00–12:00 | Stove and recovery | Light the stove (3 s held catch, 20 s development), sit, wait, dry (steam, trend marks), warm food on the ring, eat from the table. Did it read as a ritual or as a chain of F prompts? | "What were you doing by the stove?" |
 | 11:00–15:00 | Sleep → save → reload | Sleep through the mattress/bedroll. Reload the slot: picked-up loot must not return (#79), shelter, fuel, weather, bedroll and inventory must hold. | — |
 
-Use F on the stove handle to open; aim inside and use LMB/RMB to load 1/up to 2
-logs. With free hands, F prepares the lighter; press LMB to strike and hold a
-successful flame for 3 seconds. The fire then develops over 20 seconds. Observe hand item visibility, water remaining, knife refusal and separate
+Use F on the stove: Henry walks to its door, opens it and crouches. RMB lays
+one log per press; LMB lays tinder once a log is in; release, then a new LMB
+press strikes the lighter and a 3-second hold lights it. F closes the stove. The
+fire then develops over 20 seconds. Observe hand item visibility, water remaining, knife refusal and separate
 pineapple opening/eating, G drop recovery and the protected seated meal ritual.
 Do not give these steps to the tester in advance. If they need help, record the
 timestamp, intended action, visible prompt and intervention as a failed link.

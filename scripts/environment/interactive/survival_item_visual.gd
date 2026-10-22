@@ -2,6 +2,10 @@
 class_name SurvivalItemVisual
 extends RefCounted
 
+## Authored Key West mug: real scale, base at y = 0, handle towards +X (13 x 8.7 x 10 cm).
+const MUG_SCENE: PackedScene = preload("res://assets/items/mug/Mug_game_ready.glb")
+const MUG_FILL_RADIUS := 0.043
+
 ## Shared readable props for world pickups and the meal table; no inventory state.
 static func make(item_id: StringName, item_override: ItemResource = null) -> Node3D:
 	var holder := Node3D.new()
@@ -69,14 +73,14 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 					fruit.size = Vector3(0.019, 0.01, 0.019)
 					_part(holder, fruit, Vector3(x, 0.112, 0), Color(0.98, 0.78, 0.22))
 	elif String(item_id).contains("mug") or item_id == &"warm_water":
-		var mug := CylinderMesh.new()
-		mug.top_radius = 0.046
-		mug.bottom_radius = 0.041
-		mug.height = 0.09
-		_part(holder, mug, Vector3(0, 0.05, 0), Color(0.60, 0.68, 0.68))
-		var handle := BoxMesh.new()
-		handle.size = Vector3(0.026, 0.05, 0.014)
-		_part(holder, handle, Vector3(0.056, 0.05, 0), Color(0.60, 0.68, 0.68))
+		holder.add_child(MUG_SCENE.instantiate())
+		if item_id != &"mug":
+			var fill := CylinderMesh.new()
+			fill.top_radius = MUG_FILL_RADIUS
+			fill.bottom_radius = MUG_FILL_RADIUS
+			fill.height = 0.004
+			var snow: bool = item_id == &"mug_snow"
+			_part(holder, fill, Vector3(0, 0.078 if snow else 0.066, 0), Color(0.92, 0.94, 0.96) if snow else Color(0.42, 0.50, 0.52))
 	else:
 		var parcel := BoxMesh.new()
 		parcel.size = Vector3(0.12, 0.065, 0.085) if item_id != &"lighter" else Vector3(0.03, 0.08, 0.02)

@@ -169,26 +169,40 @@ func _light_stove() -> void:
 	var stand: Vector3 = source.global_position + out * 1.2
 	stand = _floor_at(stand)
 	await _aim(stand, anchor)
-	if not feed.is_door_open():
-		feed.toggle_door()
 	await create_timer(0.4).timeout
 	await _aim(stand, anchor)
 	var ic: InteractComponent = _player.get_node(^"InteractComponent") as InteractComponent
 	var aimed: Dictionary = {"target": str(ic.get_world_target()), "in_reach": ic.is_world_target_in_reach(),
 		"henry_to_door_m": snappedf(_player.global_position.distance_to(feed.focus_anchor.global_position), 0.01)}
-	var load_refusal: int = feed.begin_act()
-	await _while_acting(feed, 20.0)
-	var loaded: int = source.get_recoverable_log_count()
-	## Loading cold logs moves straight on to lighting; F again would cancel it.
-	var light_refusal: int = HeatSourceFeed.Refusal.NONE if feed.is_acting() else feed.begin_act()
+	## The stove ritual: F walks over and crouches; RMB one log each; LMB tinder; a new LMB press lights.
+	var control: StoveInteractionController = feed.controller
+	control.request_enter()
+	var deadline: int = Time.get_ticks_msec() + 15000
+	while Time.get_ticks_msec() < deadline and not control.is_working():
+		await process_frame
+	var load_refusal: int = HeatSourceFeed.Refusal.NONE if control.is_working() else HeatSourceFeed.Refusal.BUSY
+	while control.is_working() and feed.get_fuel_refusal() == HeatSourceFeed.Refusal.NONE:
+		control.on_rmb_pressed()
+		await _while_acting(feed, 10.0)
+	var loaded: int = source.get_loaded_log_count()
+	control.on_lmb_pressed()
+	await _while_acting(feed, 10.0)
+	control.on_lmb_released()
+	var light_refusal: int = feed.get_lighter_refusal()
 	var strike: int = HeatSourceFeed.StrikeResult.IGNORED
 	## Wall clock, not frames: the work pose that readies the lighter animates in real time.
-	var deadline: int = Time.get_ticks_msec() + 15000
+	deadline = Time.get_ticks_msec() + 15000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
-		strike = feed.attempt_lighter_strike()
-		if strike == HeatSourceFeed.StrikeResult.FLAME:
+		if feed.get_stage() == HeatSourceFeed.Stage.READY:
+			control.on_lmb_pressed()
+			strike = HeatSourceFeed.StrikeResult.FLAME if feed.get_stage() == HeatSourceFeed.Stage.HOLDING else strike
 			break
+	deadline = Time.get_ticks_msec() + int(HeatSourceFeed.LIGHT_SECONDS * 1000.0) + 2000
+	while Time.get_ticks_msec() < deadline and not source.is_burning():
+		await process_frame
+	control.on_lmb_released()
+	control.request_exit()
 	await _while_acting(feed, 20.0)
 	await _settle()
 	_step("fire", {"aim": aimed, "tinder_carried": tinder, "load_refusal": load_refusal, "logs_loaded": loaded, "light_refusal": light_refusal,

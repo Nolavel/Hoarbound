@@ -1000,6 +1000,27 @@ dev_waypoint_teleport={
 "script": null
 )]
 }
+dev_weather_cycle={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,
+"resource_local_to_scene": false,
+"resource_name": "",
+"device": -1,
+"window_id": 0,
+"alt_pressed": false,
+"shift_pressed": false,
+"ctrl_pressed": false,
+"meta_pressed": false,
+"pressed": false,
+"keycode": 0,
+"physical_keycode": 48,
+"key_label": 0,
+"unicode": 0,
+"location": 0,
+"echo": false,
+"script": null
+)]
+}
 
 [internationalization]
 
@@ -1012,7 +1033,6 @@ locale/translations=PackedStringArray("res://localization/strings.en.translation
 3d_render/layer_18="screen_pass"
 3d_render/layer_19="snow_contact"
 3d_render/layer_20="dev_map_label"
-3d_render/layer_21="snow_tile_experiment"
 3d_physics/layer_1="ground"
 
 [physics]
@@ -1052,9 +1072,9 @@ snow_window={
 "type": "vec4",
 "value": Vector4(0, 0, 0, 0)
 }
-snow_player_xz={
-"type": "vec2",
-"value": Vector2(0, 0)
+snow_lod={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
 }
 snow_field={
 "type": "sampler2D",
@@ -1071,14 +1091,6 @@ snow_storm_share={
 stylized_shadow_strength={
 "type": "float",
 "value": 1.0
-}
-stylized_shadow_mass_strength={
-"type": "float",
-"value": 0.0
-}
-stylized_shadow_edge_strength={
-"type": "float",
-"value": 0.0
 }
 stylized_shadow_interior_mode={
 "type": "float",

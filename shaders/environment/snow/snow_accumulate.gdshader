@@ -1,19 +1,25 @@
 shader_type canvas_item;
 render_mode blend_disabled;
 
-// Persistent deformation-state v3, ping-ponged between two viewports.
-// R: compression below settled top (metres).
-// G: displaced snow piled above it (metres).
-// B: broken crust / disturbance (0..1).
-// A: compacted density / age reserve (0..1; currently density-biased).
+// Persistent packed-snow field, ping-ponged between two viewports.
+// R: metres packed below the settled top, negative where displaced snow piles up.
+// G, B: sole-local uv of the newest boot print around this texel, A: its freshness;
+// snow_ground draws the exact outsole and tread from them (affine, so filtering is exact).
+// Model after Sumner, O'Brien & Hodgins 1999: a boot compresses part of the snow,
+// displaces the rest onto a rim, and walls erode to their slope, conserving mass.
 uniform sampler2D previous : filter_nearest, repeat_disable;
-// Persistence v3 restores R/G/B/A, including the B/A weather-age decay.
+// Packing restored from stored tiles, already filled in for their age; read where
+// the window has just moved onto ground the previous frame did not cover.
 uniform sampler2D restore : filter_linear, repeat_disable;
 uniform sampler2D contact_tex : filter_nearest, repeat_disable;
-// Settled field: R snow top (world y), G depth, B cut away / softness below 0.5.
+// Settled field: R snow top (world y), G depth, B cut away.
 uniform sampler2D field : filter_linear, repeat_disable;
+#include "res://shaders/environment/snow/boot_sole.gdshaderinc"
+
 uniform float base_y = 0.0;
-// The deformation field and contact capture have independent world windows.
+// Outsole half length and half width, metres.
+uniform vec2 boot_half_m = vec2(0.1525, 0.055);
+// The packed field and contact capture have independent world windows.
 uniform vec2 field_origin = vec2(0.0);
 uniform float field_window_m = 25.6;
 uniform vec2 contact_origin = vec2(0.0);
@@ -26,13 +32,13 @@ uniform vec4 foot_stamp_a[16];
 uniform vec4 foot_stamp_b[16];
 // UV offset applied once when the window moves.
 uniform vec2 shift_uv = vec2(0.0);
-// Share of deformation that weather fills back in this frame.
+// Share of the packing that fills back in this frame.
 uniform float fill = 0.0;
 // Share of the settled depth a foot or body can pack down.
 uniform float max_pack = 0.85;
 // A print's walls shedding into it this frame: uv centre, uv radius, fill share.
 uniform vec4 collapse = vec4(0.0);
-// Highest rise a compression wall may keep per texel of run, metres.
+// Highest rise a wall may keep per texel of run, metres: loose powder and wind crust.
 uniform float talus_powder = 0.02;
 uniform float talus_crust = 0.12;
 // Share of the excess moved across one texel edge this frame (Sumner's liquidity).
@@ -48,7 +54,7 @@ uniform vec4 deposit_r_a = vec4(0.0);
 uniform vec4 deposit_r_b = vec4(0.0);
 // Distance outside the sole where the displaced rim peaks, in uv.
 uniform float rim_uv = 0.002;
-// Highest a displaced heap may stand above the settled top, metres.
+// Highest a displaced rim may stand above the settled top, metres.
 uniform float rim_max = 0.1;
 
 float lump_noise(vec2 p) {
@@ -64,7 +70,7 @@ float powder_at(float b) {
 	return smoothstep(0.45, 0.95, b / 0.49);
 }
 
-// Map a deformation-field UV through world XZ into the small contact capture.
+// Map a packed-field UV through world XZ into the small contact capture.
 // Outside the 6.4 m window there is deliberately no live contact.
 float contact_height(vec2 field_uv) {
 	vec2 world_xz = field_origin + field_uv * field_window_m;
@@ -75,10 +81,12 @@ float contact_height(vec2 field_uv) {
 	return texture(contact_tex, vec2(contact_uv.x, 1.0 - contact_uv.y)).r + base_y;
 }
 
-// A persistent plant event. Its inverse 2D basis was built from the foot's
-// tangent-plane forward/right vectors, so road slope and camber are preserved.
-float foot_stamp_depth(vec2 uv) {
-	float pressed = 0.0;
+// Persistent plant events, pressed in the army boot's outsole. Their inverse 2D basis
+// was built from the foot's tangent-plane forward/right vectors, so slope and camber
+// are preserved. Returns the press depth and, for the newest print whose box covers
+// this texel, its sole-local uv (z, w; 9 when none).
+vec4 foot_stamps(vec2 uv) {
+	vec4 result = vec4(0.0, 0.0, 9.0, 9.0);
 	for (int i = 0; i < 16; i++) {
 		if (i >= foot_stamp_count) {
 			break;
@@ -87,13 +95,18 @@ float foot_stamp_depth(vec2 uv) {
 		vec4 b = foot_stamp_b[i];
 		vec2 d = uv - a.xy;
 		vec2 local = vec2(dot(d, a.zw), dot(d, b.xy));
-		float r2 = dot(local, local);
-		if (r2 <= 1.0 && b.w > 0.5) {
-			float edge = 1.0 - smoothstep(0.82, 1.0, r2);
-			pressed = max(pressed, b.z * edge);
+		if (b.w < 0.5 || abs(local.x) > 1.3 || abs(local.y) > 1.7) {
+			continue;
+		}
+		float edge = boot_edge_m(local, boot_half_m);
+		float inside = 1.0 - smoothstep(-0.006, 0.0, edge);
+		result.x = max(result.x, b.z * boot_press(local.x) * inside);
+		// The outline's wall band needs the sole uv a texel and a half past its widest wall.
+		if (edge < 0.075) {
+			result.zw = local;
 		}
 	}
-	return pressed;
+	return result;
 }
 
 // True where something on the contact layer holds the snow down at this texel:
@@ -103,8 +116,7 @@ bool held(vec2 uv, vec3 settled) {
 	return contact < settled.r + 0.02 && contact > settled.r - settled.g - 0.3;
 }
 
-// Heap raised by one boot. The main ridge sits outside the sole, but the forward
-// lobe carries more mass and the ridge is quantized into centimetre-scale clumps.
+// Rim raised by one boot: peaks just outside the sole, heaped towards its travel.
 float deposit(vec2 uv, vec4 a, vec4 b) {
 	if (b.z <= 0.0) {
 		return 0.0;
@@ -118,12 +130,9 @@ float deposit(vec2 uv, vec4 a, vec4 b) {
 	}
 	float outside = (r - 1.0) * length(local) / r;
 	float x = outside / rim_uv;
-	float forward = clamp(local.x / max(b.x * 3.0, 1e-6), -1.0, 1.0);
-	float directional = 1.0 + b.w * mix(-0.55, 1.35, forward * 0.5 + 0.5);
-	vec2 clump_cell = floor((field_origin + uv * field_window_m) / (3.0 * field_window_m / float(textureSize(previous, 0).x)));
-	float clump = 0.48 + 0.92 * lump_noise(clump_cell + floor((field_origin + a.xy * field_window_m) * (97.0 / field_window_m)));
-	float ridge = x * exp(1.0 - x);
-	return b.z * ridge * directional * clump;
+	float bias = 1.0 + b.w * dot(normalize(local), vec2(1.0, 0.0));
+	float lumps = 0.6 + 0.8 * lump_noise(uv * 1024.0 / 2.0);
+	return b.z * x * exp(1.0 - x) * bias * lumps;
 }
 
 void fragment() {
@@ -134,24 +143,17 @@ void fragment() {
 	vec3 settled = texture(field, uv).rgb;
 	bool snow = settled.b < 0.5;
 	bool kept = from.x >= 0.0 && from.y >= 0.0 && from.x <= 1.0 && from.y <= 1.0;
-	vec4 restored = texture(restore, uv);
-	float compression = max(restored.r, 0.0);
-	float displaced = max(restored.g, 0.0);
-	float disturbance = clamp(restored.b, 0.0, 1.0);
-	float density = clamp(restored.a, 0.0, 1.0);
+	float packed = texture(restore, uv).r;
+	vec3 print_uv = vec3(0.0);
 	if (kept) {
-		vec4 previous_state = texture(previous, from);
-		compression = max(previous_state.r, 0.0);
-		displaced = max(previous_state.g, 0.0);
-		disturbance = clamp(previous_state.b, 0.0, 1.0);
-		density = clamp(previous_state.a, 0.0, 1.0);
-		// Compression walls steeper than the snow can hold shed into the pit.
+		packed = texture(previous, from).r;
+		print_uv = texture(previous, from).gba;
+		// Walls steeper than the snow can hold shed into the pit, mass for mass.
+		// Each edge flux is symmetric, so both texels agree on what moved.
 		if (snow && !held(uv, settled)) {
-			float here = compression;
+			float here = packed;
 			float soft_here = powder_at(settled.b);
-			// World position, never the sliding viewport pixel ID: a recenter must not
-			// reseed weather erosion at the same piece of snow.
-			vec2 pix = floor((field_origin + uv * field_window_m) / (field_window_m / size.x));
+			vec2 pix = floor(uv * size);
 			float moved = 0.0;
 			for (int k = 0; k < 8; k++) {
 				vec2 dir = vec2(float(k % 3) - 1.0, float(k / 3) - 1.0);
@@ -165,6 +167,7 @@ void fragment() {
 				}
 				float there = texture(previous, n_from).r;
 				float run = length(dir);
+				// No snow can move across this edge at any softness.
 				if (abs(there - here) <= min(talus_powder, talus_crust) * run) {
 					continue;
 				}
@@ -175,61 +178,43 @@ void fragment() {
 				float soft = 0.5 * (soft_here + powder_at(n_settled.b));
 				float talus = mix(talus_crust, talus_powder, soft) * run;
 				float k_edge = erode_rate / run * mix(1.0, 2.0 * edge_hash(pix * 2.0 + dir, frame_seed), roughness);
+				// Out: this texel stands higher (less packed) and sheds into there.
 				moved += k_edge * max(there - here - talus, 0.0);
+				// In: there stands higher and sheds onto this texel.
 				moved -= k_edge * max(here - there - talus, 0.0);
 			}
-			compression = max(here + moved, 0.0);
+			packed = here + moved;
 		}
 	}
-
-	// Snowfall/refill removes visible deformation first. Broken crust and density
-	// recover more slowly so an old track does not instantly become virgin snow.
-	compression *= 1.0 - fill;
-	displaced *= 1.0 - fill;
-	disturbance *= 1.0 - fill * 0.72;
-	density *= 1.0 - fill * 0.42;
-
+	packed *= 1.0 - fill;
 	// Fallen clumps raise the floor in lumps, most near the wall they broke from.
 	if (collapse.w > 0.0) {
 		float r = distance(uv, collapse.xy) / max(collapse.z, 1e-6);
-		if (r < 1.0 && compression > 0.0) {
-			float lumps = lump_noise((field_origin + uv * field_window_m) / (3.0 * field_window_m / size.x));
-			float fall_share = collapse.w * (0.4 + 0.6 * lumps) * smoothstep(0.0, 1.0, r + 0.3);
-			compression *= 1.0 - fall_share;
-			disturbance = max(disturbance, fall_share * 0.85);
+		if (r < 1.0 && packed > 0.0) {
+			float lumps = lump_noise(uv * 1024.0 / 3.0);
+			packed *= 1.0 - collapse.w * (0.4 + 0.6 * lumps) * smoothstep(0.0, 1.0, r + 0.3);
 		}
 	}
-
-	// Pushed powder has its own positive state instead of negative compression.
+	// Snow a boot pushed aside heaps on the rim it leaves.
 	if (snow) {
-		float deposited = deposit(uv, deposit_l_a, deposit_l_b) + deposit(uv, deposit_r_a, deposit_r_b);
-		displaced += deposited;
-		float heap_share = clamp(deposited / max(rim_max, 0.001), 0.0, 1.0);
-		disturbance = max(disturbance, heap_share * 0.42);
-		// Freshly pushed powder is loose even next to a dense print floor.
-		density = mix(density, min(density, 0.16), heap_share);
+		packed -= deposit(uv, deposit_l_a, deposit_l_b) + deposit(uv, deposit_r_a, deposit_r_b);
 	}
-
 	// B below 0.5 is softness (x0.49): wind crust holds a foot, powder lets it sink.
 	float give = settled.g * max_pack * clamp(settled.b / 0.49, 0.0, 1.0);
+	// Prints fade with the snow that fills them; a new plant takes over its box.
+	print_uv.z *= 1.0 - fill;
+	vec4 stamp = foot_stamps(uv);
+	if (stamp.z < 9.0) {
+		print_uv = vec3(stamp.zw, 1.0);
+	}
 	if (!snow) {
-		compression = 0.0;
-		displaced = 0.0;
-		disturbance = 0.0;
-		density = 0.0;
+		packed = 0.0;
 	} else {
 		// Guaranteed discrete plant path. This does not depend on a rendered contact
 		// frame existing at the exact instant the animated boot touched down.
-		float stamped = min(foot_stamp_depth(uv), give);
-		compression = max(compression, stamped);
-		float stamp_share = stamped / max(give, 0.001);
-		float crust_share = 1.0 - powder_at(settled.b);
-		float slab_hash = edge_hash(floor(uv * size / 3.0), 17.0);
-		float slab_break = mix(0.35, 1.0, smoothstep(0.2, 0.8, slab_hash));
-		disturbance = max(disturbance, stamp_share * mix(0.24, 1.0, crust_share) * slab_break);
-		density = max(density, stamp_share * mix(0.72, 0.96, crust_share));
-
-		// Continuous body/item contact remains for deep wade and irregular objects.
+		packed = max(packed, min(stamp.x, give));
+		// Continuous body/item/sole capture. The contact camera is local, so its
+		// sub-texel taps are converted back into packed-field UV distance.
 		float contact_texel_m = contact_window_m / float(textureSize(contact_tex, 0).x);
 		vec2 half_texel = vec2(0.35 * contact_texel_m / field_window_m);
 		float live_pressed = 0.0;
@@ -241,16 +226,16 @@ void fragment() {
 				live_pressed += min(into, give);
 			}
 		}
-		float body_press = live_pressed * 0.25;
-		compression = max(compression, body_press);
-		float body_share = body_press / max(give, 0.001);
-		disturbance = max(disturbance, body_share * mix(0.18, 0.72, crust_share));
-		density = max(density, body_share * 0.82);
-
-		compression = clamp(compression, 0.0, give);
-		displaced = clamp(displaced, 0.0, min(rim_max, settled.g + 0.05));
-		disturbance = clamp(disturbance, 0.0, 1.0);
-		density = clamp(density, 0.0, 1.0);
+		// Off this pass's stamps, contact pressing far below the floor (a wading body)
+		// erases the old print's outline; the boot's own sinking stays within the margin.
+		if (stamp.z >= 9.0 && live_pressed * 0.25 > packed + 0.05) {
+			print_uv.z = 0.0;
+		}
+		packed = max(packed, live_pressed * 0.25);
+		packed = clamp(packed, -min(rim_max, settled.g + 0.05), give);
 	}
-	COLOR = vec4(compression, displaced, disturbance, density);
+	if (!snow) {
+		print_uv = vec3(0.0);
+	}
+	COLOR = vec4(packed, print_uv.xy, print_uv.z);
 }

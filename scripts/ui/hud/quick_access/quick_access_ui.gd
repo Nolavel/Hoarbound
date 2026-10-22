@@ -7,6 +7,15 @@ extends Control
 const QUICK_NEXT: StringName = &"quick_next"
 const QUICK_PREV: StringName = &"quick_prev"
 const QUICK_USE: StringName = &"quick_use"
+const SELECTOR_TIMEOUT_SECONDS := 5.0
+const ORBIT_GAP_PX := 24.0
+## Fixed cross places of the pockets round HANDS in the tight layout (x right, y down).
+const CROSS_PLACES: Dictionary = {
+	PATH_COAT_LEFT: Vector2(-1.0, 0.0),
+	PATH_COAT_RIGHT: Vector2(1.0, 0.0),
+	PATH_PACK_LID: Vector2(0.0, -1.0),
+	PATH_THIGH_LEFT: Vector2(0.0, 1.0),
+}
 const DIRECT_ACTIONS: Array[StringName] = [
 	&"select item slot 1", &"select item slot 2", &"select item slot 3", &"select item slot 4"
 ]
@@ -38,10 +47,17 @@ const ICON_GENERIC := "res://assets/ui/hud/quick_access/icons/inventory_2.svg"
 @export var hands_anchor: Node3D
 
 @export_group("Follow")
-@export_range(1.0, 40.0, 0.5) var follow_speed := 18.0
+@export_range(1.0, 40.0, 0.5) var follow_speed := 24.0
 ## Extra screen-space separation for the four side cards. The sign is derived
 ## from their projected position, so orbiting Henry keeps the cards moving outwards.
 @export_range(0.0, 80.0, 1.0) var side_spread_px := 26.0
+@export_range(0.0, 96.0, 1.0) var viewport_margin_px := 32.0
+@export_range(0.0, 160.0, 1.0) var edge_blend_px := 72.0
+@export_group("Tight camera")
+@export_range(0.5, 3.0, 0.1) var tight_camera_near_distance := 1.25
+@export_range(1.0, 6.0, 0.1) var tight_camera_far_distance := 3.5
+@export_range(1.0, 20.0, 0.5) var orbit_transition_speed := 8.0
+@export_group("Anchor offsets")
 @export var coat_left_offset := Vector2.ZERO
 @export var coat_right_offset := Vector2.ZERO
 @export var thigh_left_offset := Vector2.ZERO
@@ -94,10 +110,14 @@ var _labels: Dictionary = {}
 var _focus_path: StringName = &""
 var _last_confirmed_path: StringName = &""
 var _opened := false
+var _selection_timeout_left := 0.0
+var _orbit_blend := 0.0
+var _cross_latched := false
 var _direct_busy := false
 var _refresh_left := 0.0
 var _reveal_tween: Tween
 var _focus_tween: Tween
+var _last_anchor_screen_positions: Dictionary = {}
 var _icon_hand: Texture2D
 var _icon_apparel: Texture2D
 var _icon_backpack: Texture2D
@@ -132,11 +152,12 @@ func show_quick_access() -> void:
 	if _opened or _direct_busy or not _can_open():
 		return
 	_opened = true
+	_cross_latched = false
+	_selection_timeout_left = SELECTOR_TIMEOUT_SECONDS
 	_sync_focus_on_open()
 	_refresh_content()
 	_set_visible_state(true)
 	_snap_all()
-	_hold_orbit(0.12)
 	_refresh_focus_visuals(false)
 	_animate_reveal_in()
 
@@ -145,16 +166,19 @@ func cancel() -> void:
 	if not _opened:
 		return
 	_opened = false
+	_selection_timeout_left = 0.0
 	_animate_reveal_out(false)
 
 
 func navigate_next() -> void:
 	if _opened:
+		_selection_timeout_left = SELECTOR_TIMEOUT_SECONDS
 		_move_focus(1)
 
 
 func navigate_previous() -> void:
 	if _opened:
+		_selection_timeout_left = SELECTOR_TIMEOUT_SECONDS
 		_move_focus(-1)
 
 
@@ -220,16 +244,17 @@ func _input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	if not _opened and not _direct_busy:
+	if _opened:
+		_selection_timeout_left -= delta
+		if _selection_timeout_left <= 0.0:
+			cancel()
+			return
+	elif not _direct_busy:
 		return
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return
-	_follow(coat_left, coat_left_anchor, coat_left_offset, camera, delta)
-	_follow(coat_right, coat_right_anchor, coat_right_offset, camera, delta)
-	_follow(thigh_left, thigh_left_anchor, thigh_left_offset, camera, delta)
-	_follow(pack_lid, pack_lid_anchor, pack_lid_offset, camera, delta)
-	_follow(hands, hands_anchor, hands_offset, camera, delta)
+	_update_card_positions(camera, delta, false)
 	_sync_fade_directions()
 	_refresh_left -= delta
 	if _refresh_left <= 0.0:
@@ -396,9 +421,8 @@ func _filled_paths() -> Array[StringName]:
 	var result: Array[StringName] = []
 	if quick_access_component == null or quick_access_component.hub == null:
 		return result
-	for zone: Dictionary in quick_access_component.hub.get_quick_access_zones():
-		var path := StringName(zone["path"])
-		if POCKET_ORDER.has(path) and StringName(zone["item_id"]) != &"":
+	for path: StringName in POCKET_ORDER:
+		if _zone_item(path) != &"":
 			result.append(path)
 	return result
 
@@ -412,7 +436,10 @@ func _zone(path: StringName) -> Dictionary:
 	return {}
 
 
+## What a pocket card shows: the pocket whose item is in hand reads empty, HANDS owns it.
 func _zone_item(path: StringName) -> StringName:
+	if quick_access_component != null and path == quick_access_component.get_held_source_zone():
+		return &""
 	return StringName(_zone(path).get("item_id", &""))
 
 
@@ -500,6 +527,7 @@ func _confirm_path(path: StringName) -> void:
 		_pulse_denied(path)
 		return
 	_opened = false
+	_selection_timeout_left = 0.0
 	_last_confirmed_path = path
 	_animate_confirm(path)
 
@@ -549,26 +577,20 @@ func _perform_draw(path: StringName) -> bool:
 	var index := _zone_index(path)
 	if index < 0:
 		return false
-	var player := _player()
-	if player != null:
-		for child: Node in player.get_children():
-			if child.has_method(&"put_away_unlit") and bool(child.call(&"put_away_unlit")):
-				break
-	quick_access_component.select(index)
-	return quick_access_component.use_selected()
+	return quick_access_component.draw(index)
 
 
 func _direct_draw_path(path: StringName) -> void:
 	if _zone_item(path) == &"":
 		return
 	_direct_busy = true
+	_cross_latched = false
 	_focus_path = path
 	_refresh_content()
 	_set_visible_state(false)
 	hands.visible = true
 	(_slots[path] as Control).visible = true
 	_snap_all()
-	_hold_orbit(0.10)
 	_set_shader_reveal(_materials[&"hands"] as ShaderMaterial, 0.0)
 	_set_shader_reveal(_materials[path] as ShaderMaterial, 0.0)
 	_set_shader_color(_materials[&"hands"] as ShaderMaterial, hands_color)
@@ -764,36 +786,231 @@ func _set_visible_state(value: bool) -> void:
 	hands.visible = value
 
 
-func _follow(slot: Control, anchor: Node3D, screen_offset: Vector2, camera: Camera3D, delta: float) -> void:
-	if anchor == null or camera.is_position_behind(anchor.global_position):
-		slot.visible = false
-		return
-	if _opened:
-		slot.visible = true
-	var target := camera.unproject_position(anchor.global_position) - slot.size * 0.5 + screen_offset
-	if slot != hands:
-		target += _outward_screen_offset(anchor, camera)
-	slot.position = slot.position.lerp(target, 1.0 - exp(-follow_speed * delta))
-
-
 func _snap_all() -> void:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return
-	_snap(coat_left, coat_left_anchor, coat_left_offset, camera)
-	_snap(coat_right, coat_right_anchor, coat_right_offset, camera)
-	_snap(thigh_left, thigh_left_anchor, thigh_left_offset, camera)
-	_snap(pack_lid, pack_lid_anchor, pack_lid_offset, camera)
-	_snap(hands, hands_anchor, hands_offset, camera)
+	_update_card_positions(camera, 0.0, true)
 	_sync_fade_directions()
 
 
-func _snap(slot: Control, anchor: Node3D, screen_offset: Vector2, camera: Camera3D) -> void:
-	if anchor != null and not camera.is_position_behind(anchor.global_position):
-		var target := camera.unproject_position(anchor.global_position) - slot.size * 0.5 + screen_offset
-		if slot != hands:
-			target += _outward_screen_offset(anchor, camera)
-		slot.position = target
+func _update_card_positions(camera: Camera3D, delta: float, snap: bool) -> void:
+	var viewport_size := get_viewport_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+	var margin := minf(viewport_margin_px, maxf(0.0, minf(viewport_size.x, viewport_size.y) * 0.08))
+	var specs := _card_specs()
+	var raw_targets: Dictionary = {}
+	var visible_specs: Array[Dictionary] = []
+
+	for spec: Dictionary in specs:
+		var path := StringName(spec["path"])
+		var slot := spec["slot"] as Control
+		var anchor := spec["anchor"] as Node3D
+		if slot == null or (not _opened and not slot.visible):
+			continue
+		if anchor == null:
+			slot.visible = false
+			continue
+
+		var projected_target: Vector2
+		if camera.is_position_behind(anchor.global_position):
+			if not _last_anchor_screen_positions.has(path):
+				slot.visible = false
+				continue
+			projected_target = _last_anchor_screen_positions[path]
+		else:
+			var screen_offset: Vector2 = spec["offset"]
+			projected_target = camera.unproject_position(anchor.global_position) - slot.size * 0.5 + screen_offset
+			if path != &"hands":
+				projected_target += _outward_screen_offset(anchor, camera)
+			_last_anchor_screen_positions[path] = projected_target
+
+		if _opened:
+			slot.visible = true
+		raw_targets[path] = projected_target
+		visible_specs.append(spec)
+
+	var target_orbit_blend := 0.0
+	if (_opened or _direct_busy) and raw_targets.has(&"hands"):
+		var bounded_targets: Dictionary = {}
+		for spec: Dictionary in visible_specs:
+			var path := StringName(spec["path"])
+			var slot := spec["slot"] as Control
+			var projected: Vector2 = raw_targets[path]
+			projected = _soft_bound_slot_position(slot, projected, viewport_size, margin, edge_blend_px)
+			bounded_targets[path] = _clamp_slot_position(slot, projected, viewport_size, margin)
+		_cross_latched = _wants_cross(camera, visible_specs, bounded_targets)
+		target_orbit_blend = 1.0 if _cross_latched else 0.0
+	if snap:
+		_orbit_blend = target_orbit_blend
+	else:
+		var orbit_follow := 1.0 - exp(-orbit_transition_speed * delta)
+		_orbit_blend = lerpf(_orbit_blend, target_orbit_blend, orbit_follow)
+
+	var orbit_targets: Dictionary = {}
+	if _orbit_blend > 0.001 and raw_targets.has(&"hands"):
+		orbit_targets = _build_orbit_targets(visible_specs, raw_targets, viewport_size, margin, camera)
+	var follow_blend := 1.0 if snap else 1.0 - exp(-follow_speed * delta)
+	for spec: Dictionary in visible_specs:
+		var path := StringName(spec["path"])
+		var slot := spec["slot"] as Control
+		var target: Vector2 = raw_targets[path]
+		target = _soft_bound_slot_position(slot, target, viewport_size, margin, edge_blend_px)
+		## The cross is already bounded as a whole; per-card edge pushes would close it up.
+		if orbit_targets.has(path):
+			var orbit_target: Vector2 = orbit_targets[path]
+			target = target.lerp(orbit_target, _orbit_blend)
+		var next_position := target if snap else slot.position.lerp(target, follow_blend)
+		slot.position = _clamp_slot_position(slot, next_position, viewport_size, margin)
+
+
+func _card_specs() -> Array[Dictionary]:
+	return [
+		{"path": PATH_COAT_LEFT, "slot": coat_left, "anchor": coat_left_anchor, "offset": coat_left_offset},
+		{"path": PATH_COAT_RIGHT, "slot": coat_right, "anchor": coat_right_anchor, "offset": coat_right_offset},
+		{"path": PATH_THIGH_LEFT, "slot": thigh_left, "anchor": thigh_left_anchor, "offset": thigh_left_offset},
+		{"path": PATH_PACK_LID, "slot": pack_lid, "anchor": pack_lid_anchor, "offset": pack_lid_offset},
+		{"path": &"hands", "slot": hands, "anchor": hands_anchor, "offset": hands_offset},
+	]
+
+
+## Spread or cross, never a mix: a partial blend of two layouts is what let cards overlap.
+## Leaving the cross needs twice the clearance and a lower framing share, so it cannot flicker.
+func _wants_cross(camera: Camera3D, specs: Array[Dictionary], positions: Dictionary) -> bool:
+	var tight := _screen_centre_share(camera) if camera is TpsCamera else _tight_camera_factor(camera)
+	var gap := ORBIT_GAP_PX * (2.0 if _cross_latched else 1.0)
+	return tight > (0.35 if _cross_latched else 0.5) or _cards_crowded(specs, positions, gap)
+
+
+func _cards_crowded(specs: Array[Dictionary], positions: Dictionary, gap: float) -> bool:
+	for i: int in range(specs.size()):
+		var path_a := StringName(specs[i]["path"])
+		if not positions.has(path_a):
+			continue
+		var rect_a := _slot_rect(specs[i]["slot"] as Control, positions[path_a]).grow(gap * 0.5)
+		for j: int in range(i + 1, specs.size()):
+			var path_b := StringName(specs[j]["path"])
+			if positions.has(path_b) and rect_a.intersects(_slot_rect(specs[j]["slot"] as Control, positions[path_b]).grow(gap * 0.5)):
+				return true
+	return false
+
+
+## Tight layout: a cross round HANDS with fixed places (coats left and right, pack lid
+## above, thigh below), spaced from the real card sizes so no two cards can touch.
+## Its centre glides from Henry's hands to the screen centre with the camera composition.
+func _build_orbit_targets(
+	specs: Array[Dictionary],
+	positions: Dictionary,
+	viewport_size: Vector2,
+	margin: float,
+	camera: Camera3D
+) -> Dictionary:
+	var result: Dictionary = {}
+	if not positions.has(&"hands"):
+		return result
+	var card_half := Vector2.ZERO
+	for spec: Dictionary in specs:
+		if StringName(spec["path"]) != &"hands":
+			var slot := spec["slot"] as Control
+			card_half = card_half.max(slot.size * slot.scale * 0.5)
+	var hands_half := hands.size * hands.scale * 0.5
+	var step_x := hands_half.x + card_half.x + ORBIT_GAP_PX
+	var step_y := maxf(hands_half.y, card_half.y) + card_half.y + ORBIT_GAP_PX
+	var extent := Vector2(step_x + card_half.x, step_y + card_half.y)
+	var orbit_center := _slot_center(hands, positions[&"hands"]).lerp(viewport_size * 0.5, _screen_centre_share(camera))
+	orbit_center.x = _clamp_center(orbit_center.x, margin + extent.x, viewport_size.x - margin - extent.x)
+	orbit_center.y = _clamp_center(orbit_center.y, margin + extent.y, viewport_size.y - margin - extent.y)
+	result[&"hands"] = _slot_position_for_center(hands, orbit_center)
+	for spec: Dictionary in specs:
+		var path := StringName(spec["path"])
+		if path == &"hands" or not positions.has(path):
+			continue
+		var place: Vector2 = CROSS_PLACES.get(path, Vector2.ZERO)
+		result[path] = _slot_position_for_center(spec["slot"] as Control, orbit_center + place * Vector2(step_x, step_y))
+	return result
+
+
+## 1 when the camera frames Henry in a tight space: the cards then gather at the screen centre.
+func _screen_centre_share(camera: Camera3D) -> float:
+	var tps := camera as TpsCamera
+	return tps.get_composition() if tps != null else 0.0
+
+
+func _slot_rect(slot: Control, position: Vector2) -> Rect2:
+	var scaled_offset := slot.pivot_offset - slot.pivot_offset * slot.scale
+	return Rect2(position + scaled_offset, slot.size * slot.scale)
+
+
+func _slot_center(slot: Control, position: Vector2) -> Vector2:
+	return _slot_rect(slot, position).get_center()
+
+
+func _slot_position_for_center(slot: Control, center: Vector2) -> Vector2:
+	var scaled_offset := slot.pivot_offset - slot.pivot_offset * slot.scale
+	return center - scaled_offset - slot.size * slot.scale * 0.5
+
+
+func _clamp_center(value: float, minimum: float, maximum: float) -> float:
+	if maximum < minimum:
+		return (minimum + maximum) * 0.5
+	return clampf(value, minimum, maximum)
+
+
+func _soft_bound_slot_position(
+	slot: Control,
+	position: Vector2,
+	viewport_size: Vector2,
+	margin: float,
+	blend_distance: float
+) -> Vector2:
+	var scaled_offset := slot.pivot_offset - slot.pivot_offset * slot.scale
+	var scaled_size := slot.size * slot.scale
+	var minimum := Vector2(margin, margin) - scaled_offset
+	var maximum := viewport_size - Vector2(margin, margin) - scaled_offset - scaled_size
+	return Vector2(
+		_soft_bound_axis(position.x, minimum.x, maximum.x, blend_distance),
+		_soft_bound_axis(position.y, minimum.y, maximum.y, blend_distance)
+	)
+
+
+func _soft_bound_axis(value: float, minimum: float, maximum: float, blend_distance: float) -> float:
+	if maximum <= minimum:
+		return (minimum + maximum) * 0.5
+	var blend := minf(blend_distance, (maximum - minimum) * 0.5)
+	if blend <= 0.0:
+		return clampf(value, minimum, maximum)
+	var inner_min := minimum + blend
+	var inner_max := maximum - blend
+	var target := clampf(value, inner_min, inner_max)
+	var weight := 0.0
+	if value < inner_min:
+		weight = 1.0 - smoothstep(minimum, inner_min, value)
+	elif value > inner_max:
+		weight = smoothstep(inner_max, maximum, value)
+	return lerpf(value, target, weight)
+
+
+func _tight_camera_factor(camera: Camera3D) -> float:
+	if hands_anchor == null:
+		return 0.0
+	var near_distance := maxf(0.0, tight_camera_near_distance)
+	var far_distance := maxf(tight_camera_far_distance, near_distance + 0.01)
+	var distance := camera.global_position.distance_to(hands_anchor.global_position)
+	return 1.0 - smoothstep(near_distance, far_distance, distance)
+
+
+func _clamp_slot_position(slot: Control, position: Vector2, viewport_size: Vector2, margin: float) -> Vector2:
+	var scaled_offset := slot.pivot_offset - slot.pivot_offset * slot.scale
+	var scaled_size := slot.size * slot.scale
+	var min_x := margin - scaled_offset.x
+	var min_y := margin - scaled_offset.y
+	var max_x := viewport_size.x - margin - scaled_offset.x - scaled_size.x
+	var max_y := viewport_size.y - margin - scaled_offset.y - scaled_size.y
+	return Vector2(
+		_clamp_center(position.x, min_x, max_x),
+		_clamp_center(position.y, min_y, max_y)
+	)
 
 
 func _outward_screen_offset(anchor: Node3D, camera: Camera3D) -> Vector2:
@@ -807,17 +1024,6 @@ func _outward_screen_offset(anchor: Node3D, camera: Camera3D) -> Vector2:
 	if is_zero_approx(side):
 		return Vector2.ZERO
 	return Vector2(side * side_spread_px, 0.0)
-
-
-func _hold_orbit(seconds: float) -> void:
-	if _anchors() != null and _anchors().has_method(&"hold_for"):
-		_anchors().call(&"hold_for", seconds)
-
-
-func _anchors() -> Node:
-	if coat_left_anchor != null:
-		return coat_left_anchor.get_parent()
-	return null
 
 
 func _make_mouse_transparent(node: Node) -> void:

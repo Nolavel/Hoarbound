@@ -112,6 +112,7 @@ func _test_supplies() -> void:
 	_press(&"interact")
 	_check(_inventory.has_item(&"knife"), "F did not pick up the knife")
 	var hub: PlayerHubComponent = _player.get_node(^"PlayerHubComponent") as PlayerHubComponent
+	hub.move_to_pack(&"pack/pack_lid")  # the starter mug; the flask below needs a free pocket
 	_check(hub.use_item(&"water_flask"), "Hub Use did not drink from a carried flask")
 	_check(is_equal_approx(bio.current_hydration, 32.0), "250 ml did not restore hydration")
 	_check(_inventory.get_count(&"water_flask_750") == 1 and not _inventory.has_item(&"water_flask"),
@@ -363,24 +364,33 @@ func _test_stove() -> void:
 	var feed: HeatSourceFeed = _house.get_node(^"ShelterZone/Stove/Feed") as HeatSourceFeed
 	var source: HeatSource = feed.heat_source
 	var stove_visual: StoveVisual = source.get_node(^"StoveVisual") as StoveVisual
-	if not feed.is_door_open():
-		feed.toggle_door()
-	await create_timer(0.4).timeout
-	await _aim(feed, source.to_global(Vector3(1.2, 0.9, 0)), feed.focus_anchor.global_position)
-	_check_target(feed, "stove with solid hull")
-	_check(not source.is_burning(), "opening the stove ignited it")
+	var control: StoveInteractionController = feed.controller
+	var spot: Vector3 = control.get_interaction_point().global_position
+	await _aim(feed, Vector3(spot.x, 0.0, spot.z), feed.focus_anchor.global_position)
+	## The firebox or its door: either one is the stove and starts the same ritual.
+	var aimed: InteractiveArea = _interact.get_world_target()
+	_check(aimed == feed or (aimed is StoveDoorControl and (aimed as StoveDoorControl).feed == feed),
+		"stove with solid hull selected %s" % aimed)
 
-	## Current grammar: F loads the carried armful. Mouse buttons are not the
-	## cold-feed command anymore.
+	## Current grammar (test_stove_ritual covers it in full): F on the stove opens it and crouches
+	## Henry on the spot; RMB lays one log per press; nothing lights a cold load by itself.
 	_press(&"interact")
-	_check(feed.is_acting(), "F did not start the current armful stove load")
-	if not feed.is_acting():
-		return
-	await _settle_interaction_fixture()
+	for _i: int in range(60):
+		await physics_frame
+		if control.is_working():
+			break
+	_check(control.is_working() and feed.is_door_open(), "F did not open the stove into the working pose")
+	_check(_inventory.get_count(&"firewood") == 3 and source.get_loaded_log_count() == 0, "F loaded fuel by itself")
+	for _log: int in range(3):
+		control.on_rmb_pressed()
+		await create_timer(HeatSourceFeed.FUEL_SECONDS + 0.2).timeout
 	_check(not source.is_burning(), "loading cold fuel ignited the stove")
-	_check(source.get_recoverable_log_count() == 3, "F did not load the three-log armful")
+	_check(source.get_recoverable_log_count() == 3, "three RMB presses did not load three logs")
 	_check(_inventory.get_count(&"firewood") == 0, "loaded logs remained in Henry's hands")
 	_check(stove_visual.get_visible_log_count() == 3, "loaded cold logs are not visible in the firebox")
+	control.request_exit()
+	await create_timer(StoveInteractionController.EXIT_SECONDS + 0.1).timeout
+	_check(not feed.is_door_open() and not control.is_active(), "F did not close the stove and end the ritual")
 
 
 func _test_table() -> void:

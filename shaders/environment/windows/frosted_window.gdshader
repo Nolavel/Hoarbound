@@ -13,8 +13,8 @@ uniform vec3 frame_color : source_color = vec3(0.30, 0.28, 0.26);
 uniform float frame_width : hint_range(0.0, 0.2) = 0.06;
 uniform float rail_width : hint_range(0.0, 0.1) = 0.025;
 
-void frosted_window_apply(inout vec3 albedo, inout float rough, vec2 uv, vec4 color) {
-	vec2 f = frost_pattern(uv, color.r, color.g);
+void frosted_window_apply(inout vec3 albedo, inout float rough, vec2 uv, vec4 color, vec3 vertex) {
+	vec3 f = frost_pattern(uv, frost_pane_m(uv, vertex), color.r, 0.0, color.g, 0.0);
 	albedo = frost_color(uv, f, glass_tint, frost_tint);
 	rough = mix(0.18, 0.96, f.x);
 	float edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
@@ -23,5 +23,5 @@ void frosted_window_apply(inout vec3 albedo, inout float rough, vec2 uv, vec4 co
 	rough = mix(rough, 0.8, frame);
 }
 
-#define HFN_FRAGMENT_EXTRA frosted_window_apply(ALBEDO, ROUGHNESS, UV, COLOR);
+#define HFN_FRAGMENT_EXTRA frosted_window_apply(ALBEDO, ROUGHNESS, UV, COLOR, VERTEX);
 #include "res://shaders/environment/materials/stylized_environment_body.gdshaderinc"

@@ -71,7 +71,10 @@ func _run() -> void:
 	_started_ms = Time.get_ticks_msec()
 	_recording = true
 	feed.strike_success_chance = 0.0
-	print("[live stove] prepare=", feed.begin_act(), " audio=", AudioServer.get_driver_name(), " interior=", sound.call(&"get_parameter", &"interior"))
+	## The ritual's state at the lighter: Henry working the stove, logs and tinder laid.
+	feed.session_active = true
+	stove.set_tinder_prepared(true)
+	print("[live stove] prepare=", feed.prepare_lighter(), " audio=", AudioServer.get_driver_name(), " interior=", sound.call(&"get_parameter", &"interior"))
 	feed.attempt_lighter_strike()
 	await _shot("01_sparks")
 	await create_timer(0.7).timeout

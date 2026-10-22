@@ -8,6 +8,110 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Floor snow prints (owner request): indoors Henry's boots leave white prints, the inverse of the snow print:
+  white where the tread's grooves packed with snow outside, broken into clumps (`BootSole.floor_print_image`,
+  the same lug pattern the snow shader presses). A step outside on snow fills the tread; each indoor step
+  leaves 20 % of what it holds, so about ten prints fade out step by step, and the tread melts empty in about
+  2 min in a 20 °C room. A print holds, then fades over its last half: 5 min in a 20 °C room, 25 min at
+  0 °C (`FloorSnowPrints`, `test_floor_snow_prints`). The decal is a cube one sole long with the sole's
+  shape in its texture: a thin, long decal box lost screen tiles of the print in Forward+ (seen on the 727
+  floor; godotengine/godot#73945). The two prints bake in ~34 ms at load.
+- Blizzard flow (`BlizzardFlow`, FUTURE_INTENT §10): blown snow as fog volumes on the wide streets
+  (pavement ≥ 7 m, Key West's top ~15 % of road length) that run with the wind (|cos| ≥ 0.6, street-canyon
+  channelling), up to six near Henry. Density is the blowing-snow extinction for the live 10 m wind, gusts
+  included: Tabler's visibility V = 1.126e8·U^-4.85 m (TRB SR185) through Koschmieder 3.912 / V, capped at
+  ~13 m visibility. It starts only past the snowpack's blowing threshold (5–10 m/s) with snow laid. Densest
+  at the street and thinning with a 3 m scale height (body height); ~12 m billows with gaps and a 5 m tear
+  octave advect downwind; volumes fade in and out over 2 s. Each billow core settles at the overcast it
+  scatters (the environment ambient: Godot scales fog EMISSION by density), so the flow reads lighter than
+  the air, not as dark bands as with a fixed 0.18 glow (measured at forced density). Flakes ride each
+  volume and the ground streamers run along the flow streets, on screen only. Street centrelines come from the road ribbons `KeyWestRealityGround` already paves
+  (`get_wide_streets`, `test_key_west_reality_ground`). The weather readout shows the flow.
+- Key West mug model (owner request): `SurvivalItemVisual` draws `assets/items/mug/Mug_game_ready.glb` for the
+  mug, mug of snow and warm water (held, world pickups, shelter cabinet) instead of the grey cylinder. The model is
+  real scale (13 x 8.7 x 10 cm, base at 0); snow and water are a disc inside the measured 4.4 cm inner wall.
+  Henry starts with the mug in the pack lid pocket instead of the pack, so one Quick Access pocket is free at start.
+- Weather debug (debug builds, Key West), one key, 0. The first press shows the profile, scheduler or pin,
+  blend, wind and drift gate, snowfall, visibility, cover, hour, sun beam, shelter state and the live streak,
+  ground-drift counts. Each next press pins calm, snowfall, windy, blizzard in turn; the one
+  after blizzard hands the weather back to the scheduler and hides the readout.
+- Rooms frame Henry low-left (owner note): any room uses the tight composition and the camera rises until his eyes
+  sit at mid-height (stove 29–30 % / 46–47 %, was 33 % / 37 %). Auto shoulder swap when the player's side is walled off
+  and the other is free, with delays, never in doorways or during mouse turns (Sifu, a Borderlands 4 camera mod;
+  Ghost Recon Breakpoint's complaints). Deoccluder-style hold measured worse and ships off. Open camera items are
+  listed in `docs/technical/TPS_CAMERA.md` → Open items.
+- Leeward wall drifts baked into the Key West wind map (owner request: the lee side of every house had
+  deeper drifts, the windward side less).
+  - `bake_key_west_snow_wind.py --reality`: ASCE 7-16 leeward drift per wall, height from the roof run along
+    the wind (0.3–1.1 m at full cover, capped at half the wall), tapering over 4 hd; windward banks halved.
+    `factor_max` 2.5 → 8.5. Chunk cover, clipmap rings and SnowField read the same map, so drifts are drawn
+    and waded alike.
+- Snow material and drift crests (testers: the snow read as jelly).
+  - Causes, from close-up frames on Duval Street: no detail under the 2 m lattice and the ~0.7 m ripple, a
+    near-uniform albedo (±3 %) and plastic specular, so shadowed snow was a flat blue fill; print floors drew
+    topographic rings (`sin(depth × 110)` strata over lumpy floors) and glints were view-independent
+    emission confetti. Deep trench walls showed agate rings; a debug render split albedo from normal and
+    put them in the albedo: the shared painterly pass seeds its pigment noise with the surface normal,
+    which on a curved trench wall sweeps through dozens of noise periods. Snow now passes the ground's up
+    vector to that pass in both layers.
+  - Now both layers share per-pixel grain on level snow (7 cm and 2.4 cm, each fading before a pixel spans
+    it), albedo patches and grain hollows, ice facets that flash toward the sun in `light()` (none in shadow,
+    none on packed floors), `SPECULAR` 0.3 and a cubic B-spline wind map for shading slopes. Print slopes use
+    a three-texel Sobel without the outline jag; deep pits darken with depth; a boot's outline and tread are
+    kept only on and around its sole, not where the wading body pressed deeper.
+  - Lee drifts keep a trough at the wall foot (the lee eddy) and crest 3 m out, with only a 1-2-1 pass so the
+    crest survives on the 2 m lattice; `factor_max` 8.5 so crests are not clipped.
+- Snowpack firmness (owner request: furrows belong to fresh wet snow; a dry cold pack is a crust that breaks
+  with difficulty, then the leg drops fast).
+  - `SnowPresentationSystem.firmness` (saved): snowfall buries the crust, dry cold and wind harden it over a
+    day, a thaw softens it. It sets the field's softness, crust strength and how deep and fast a broken crust
+    drops; only loose snow (firmness < 0.5) lets the wading body and dragging toe cut a trench.
+  - Tests in `test_snow_presentation`, `test_snow_resistance`, `test_snow_shell`; `snow-walk` CI runs both packs.
+    Duval Street walk: fresh pack 3 plunges (drift pockets only), crust pack 29 with clean-walled postholes.
+  - `snow-walk` reads the GPU print field under every standing boot (`SNOW_WALK_GHOSTS`) to chase the
+    "walks through drawn snow without a mark" report: 0 of 509 boots in over 5 cm of snow left no print on
+    this route, so the report is not reproduced here yet.
+- Snowpack and boot prints (owner request).
+  - `SnowResistance`: wind crust holds a boot until the step's load breaks it (strength varies in ~1.6 m patches,
+    running breaks more), drifts hide soft pockets where a leg plunges almost to the ground; a plunge dips the
+    stride and plays a crust snap. Collision stays on the ground. `test_snow_resistance`.
+  - Prints are Henry's army boot outsole (`BootSole`): heel block, arched shank, ball, round toe, in both the
+    persistent stamp and the contact soles. The packed field carries each print's sole uv, and `snow_ground` draws
+    the exact outline and the lug tread per pixel.
+  - `capture_snow_walk.gd` and the `snow-walk` job in `checks.yml`: TPS and leg-height videos of the walk.
+  - Independent review (Sonnet agent + `/code-review high`): prints shade per pixel in coarse rings, narrower morph
+    bands, no string `has_method`/`connect` seams, retry cap at the coast. It also caught that the wall lee ramps
+    never ran over the baked map; they are now out of the drawn base until the chunk bake carries them.
+- Henry is never see-through in play (owner rule). A body guard predicts where each mouse step would put the camera
+  and soft-stops turns that take it closer than 0.8–0.6 m to his eyes (turning out is free); walking into a wall
+  speeds up the shoulder lift; the framing offset follows the real camera distance; over the shoulder the view keeps
+  his eyes inside the frame. The fade remains only as an emergency at 0.45 m. 727 trace: faded frames 0 in every
+  phase (were up to 59). `docs/technical/TPS_CAMERA.md` → Body guard.
+- Shoulder lift in corners (owner request): with little room behind Henry the camera climbs over his shoulder (70° up
+  the orbit, view tilted 35°, pivot up to 0.3 m under the ceiling) instead of pressing into him. In the 727 corner his
+  head left the frame in 1 of 240 turn frames (was 51) and facing the corridor wall in none (was 25).
+  `docs/technical/TPS_CAMERA.md` → Shoulder lift.
+- Tight-space camera composition (owner reference): Henry at the frame's left (eyes at 27 %) in cramped rooms, after
+  Cinemachine Third Person Follow, Grossman's framing (NZGDC 2025) and Nesky (GDC 2014). Measured first with
+  `tools/runtime/trace_camera_tight.gd` in 727: the composition followed the view (0.50–0.80 at the stove during one
+  turn), a room search turned the camera 30° by itself, and the mouse stuck at −81° in the corridor. Now the
+  composition reads room all round Henry (0.58–0.59), the shoulder offset scales with the boom (no lens shift, aim and
+  walk share the centre), recompose eases with hysteresis, no automatic turns in tight spaces, and the doorway mouse
+  stop applies only while Henry passes a door. `docs/technical/TPS_CAMERA.md` → Tight-space composition.
+- Quick Access in tight spaces gathers in a cross at the screen centre (coats left/right, pack lid above, thigh below).
+  The old diagonal orbit took each pocket's side from its projected anchor, so two pockets could land in one corner
+  and overlap; places are now fixed and spaced from the real card sizes, and the cross is bounded as a whole.
+- Stove fire burns unevenly (owner request). It catches small and grows with the `HeatSource` warm-up
+  (0.08 -> 1 intensity, smoothstep): the firebox starts at 45%, the room light at 20%. At the nominal burn
+  two Perlin layers replace the old sine product: a slow swell (~0.35 Hz, a little brighter or dimmer, never
+  repeating) and fast flame jitter (~9 Hz); embers follow mostly the swell. Mean energies match the old ones.
+  `test_stove_visual` now checks a dim catch and a nominal warmed burn.
+- Interior shadow mode (owner request). Outdoors shadows keep the dry-brush edge. Under a shelter roof they
+  return to the earlier value-noise edge (4186533).
+  - `stylized_shadow_interior_mode` now feeds the shared shadow include and turns the brush mix down to 0.
+  - `ShelterGradeBinder` fades it with the LUT, on `sheltered_changed` over `shelter_blend_s`.
+  - 727 Fort St floor is dark old wood (`floor_old_wood_727.tres`), swapped for the glb `floor_vinyl` on import,
+    so the stove shadows read on it.
 - Colour grade crossfade (from Grok's `grok` branch).
   - Grok's rules are kept:
     - outdoor LUTs blend over ±0.5 h corridors at 05/07/17/21 h;
@@ -23,6 +127,98 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Boot tread readable at play distance (owner: the print "sometimes seems invisible"). The snow shader switched
+  the lug pattern off once a pixel on the snow passed 2–6 mm; at the shipped render scale (0.77, FSR) a fresh
+  print 2.5 m from the TPS camera spans 4 × 8 mm pixels (measured), so the tread showed only in steep
+  close views. Now the pattern blends to its mean shade (lugs cover 34 % of the sole) between 4 and 11 mm
+  pixels, measured as the pixel's area on the snow, the way a mip chain filters a texture; groove shade
+  0.1 → 0.28.
+- Spindrift removed (owner: the plume "bubbles" do not fit). `SnowSpindrift` and its spawning in `WindGusts`
+  are gone; the original ground streamers stay. The blowing-snow threshold (`WindGusts.blowing_snow_threshold`)
+  stays for the blizzard flow.
+- A square of snow around Henry at scene start, then a hitch and it vanished (owner report). Road paving
+  had been queued ahead of the chunk snow covers, so no cover was built (measured: 0 of 4 at frame 60)
+  while paving ran. Henry's rings drew a square of snow over bare terrain until the queue cleared and the
+  cover under him landed in one frame. Covers and paving now run side by side on their own budgets
+  (3 ms / 1.5 ms), the cover under Henry first. The field rebuild that follows paving is sliced like a
+  walking move instead of done at once.
+- Quick Access cards overlapping at some camera angles (owner note).
+  - Cause: the layout blended spread and cross by how much the cards overlapped, so a partial overlap gave a
+    partial blend that left them on top of each other (`test_quick_access_layout`: 71 overlaps on the old code).
+  - The layout is now spread or cross, never a mix; crowding or a tight framing latches the cross, and leaving
+    it needs twice the clearance, so it cannot flicker. Same test: 0 overlaps over 7 distances × 12 angles.
+- Quick Access drew an item into the hand while its pocket card still showed it. Drawing another pocket now
+  trades places: the drawn pocket keeps the held item, the hand shows the new one, and the pocket whose item
+  is in hand reads empty (`QuickAccessComponent.draw`, covered in `test_held_weight`).
+- Ground drift passed through roofs: its particles had no collision mode (default off). They now collide
+  with the snowfall height field, which also stays up in wind without snowfall. Streamers no longer start
+  under a roof or a canopy.
+- Static shadows' torn outlines boiled on every camera tick. The three-tone cut used hard `step`s, so the TPS
+  camera's sub-millimetre damping moves flipped whole contour pixels each frame; the cascades themselves are
+  texel-snapped and hold (measured). The cuts are now one pixel wide (`fwidth`): contour pixels changed by a
+  1 px move fell from 0.112 % to 0.025 % (0.023 % with no stylisation), the torn look unchanged.
+- Static shadows jumped every 2.5 s: the sun's direction was re-aimed every game minute (0.25° of azimuth, about
+  11 cm at the tip of a 25 m pole shadow), and stable cascades hold only while the light does not turn. The sun
+  now turns once per `sun_step_minutes` (4 game minutes, 10 s at the 60-minute day), eased over
+  `sun_blend_seconds` (2 s); loads, clock jumps and acceleration snap (`test_sun_steps`).
+- Snow under Henry's feet could stand 20 cm off the drawn snow. Measured at the Duval spawn: field top minus
+  lattice ground 0.41 m against a drawn 0.21 m. SnowField sampled ground before the chunk streamed in
+  (`KeyWestRealityGround.FALLBACK_Y` 1.0 m against 0.8 m real) and kept that cache across window moves. The
+  shell now notes cells sampled off live ground and rebuilds the field in place once that ground streams in
+  (same retry scheme as the chunk lattice); after the fix 0.211 against 0.209. Depth, and so how far a boot
+  presses, is now measured down to the true terrain where its 1 m corridor tiles rise above the 2 m lattice
+  (`test_snow_shell`). The crust lip (`rim_at`) is gated to crust: on loose snow its 8-tap rings drew echo
+  contours around every print.
+- Boot prints on streets showed white holes in the forefoot and heel. Measured at the Duval spawn: snow top
+  1.011 m, road ribbon 0.876 m, terrain 0.802 m, so a full press (give 0.179 m) put the print floor 4 cm under
+  the asphalt and the road mesh drew through it. Road ribbons are exported as DEM + 5 cm sampled every 32 m, so
+  their lift over the terrain varies. `KeyWestRealityGround` now rasterises each chunk's road triangles into a
+  copy of its height tile (frame-budgeted, the chunk under Henry at once). The new `get_surface_height` is
+  the ground snow depth is measured to; decks over 0.3 m stay the physics ray's. The field rebuild retry
+  also never fired when the first build already saw unstreamed ground (its counter began at 0); every fresh
+  build now arms it (`test_key_west_reality_ground`).
+- CI: report uploads (`suites` log, capture previews) no longer fail the run when the repository's artifact
+  storage quota is full; every suite had passed on `main` while the job showed red for the upload alone.
+- CI report artifacts (captures, videos, suite logs) are kept 3 days. The suite log and the Reality reports had
+  no `retention-days`, so they stayed the default 90 days on every push and filled the storage quota. The
+  GDExtension binaries keep their own retention: the local installer downloads them.
+- Outer snow cover no longer crawls or pops while Henry walks (owner report; Codex's `codex` attempts kept the moving square).
+  - Cause, measured with a fixed top-down height witness on Duval Street: the shell was one graded square mesh
+    that jumped 3.2 m with the field window and blended into the chunk cover over a window-relative 6 m band.
+    Each jump put every world point under different vertices and blend weights; the drawn height changed only
+    on window moves.
+  - Method (Batman: Arkham Origins, GDC 2014; God of War Ragnarök): one base snow surface everywhere, only
+    Henry's deformation is local. With the chunk lattice the rings draw exactly the chunk cover's surface (terrain
+    on its 2 m triangles + settled depth and wind ridges) and shading (`snow_far_shade`), plus prints that fade
+    4.5–6 m out. A first pass blended a field-based near surface into the chunk one by distance; it breathed in
+    a 4–8 m band (10.1M pixel-steps over 2 mm on the witness) and was replaced.
+  - `SnowClipmap` rings: spacing doubles from 3.1 cm, the mesh follows Henry snapped to its coarsest spacing and
+    morphs ring to ring by distance (geometry clipmaps, Losasso & Hoppe 2004; CDLOD, Strugar 2009). The chunk
+    cover yields inside 6.25 m through the `snow_lod` global. SnowField mirrors the base for Henry's feet.
+  - Wind relief: sastrugi with a steep lee face replace the blotchy ripple, the same in both layers and in chunk
+    geometry; slopes are analytic (one noise lookup with its gradient).
+  - Witness on Duval Street, 88 frames: largest step main 453 mm → first pass 43 mm → one base surface
+    0.06 mm; steps over 2 mm and coverage flips 0 in every distance band. GPU on lavapipe 1347 → 1754 ms
+    median (+30 %, software rasteriser).
+  - The blue, sunken square in captures was the capture hiding every Control, including the snow passes'
+    ColorRects: the shaped field stayed at the clear colour (7 cm packed everywhere). Captures hide only root UI.
+  - 53k vertices on high instead of 113k. A/B evidence: `checks.yml` `snow-surface` job (new vs `main`).
+  - `test_snow_clipmap` (CPU emulation of the vertex morph), `tools/runtime/capture_snow_surface.gd` +
+    `analyze_snow_surface.py`, `checks.yml` → `snow-surface` job; `docs/technical/SNOW_COVER.md` → Drawn surface.
+- The 727 corridor (1.8 m wide, doors on both sides) was guessed as a 1.76 m deep doorway, so the mouse soft-stopped
+  in its cone along the whole corridor. Guessed openings deeper than `max_guessed_depth` (1.2 m) are corridors.
+
+- 727 Fort St shell (walls, partitions, floor, ceiling) shades with the stylized shadow contract again. Reality chunks
+  instanced the glb with its plain `StandardMaterial3D`, so indoor stove shadows lost their torn edge after the shelter
+  moved from the First Exit hut into 727. A post-import script (`tools/import/stylized_landmark_import.gd`) converts
+  the surfaces; `test_key_west_727_shelter` checks them.
+
+- Editor docks no longer stretch the editor past the screen: ItemFitter (min 360×760) and Reality scroll inside their
+  tabs. Godot AI dock: its one-line labels and buttons clip with an
+  ellipsis. The 4.3.0 self-update had reverted its Inspector-group slot; restored. Customizations are listed in
+  `docs/technical/GODOT_AI_INTEGRATION.md`.
+
+- Godot AI and ItemFitter now default to the Inspector dock group instead of a separate lower-right group. Existing editor layouts retain their saved placement.
 - Sky weather character, finishing Codex's cloud pass (owner review: windy clouds and the night barely differed).
   - Causes:
     - clouds followed snowfall only, so windy (snow 0.15) looked calm;
@@ -52,6 +248,79 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Stove ritual framing (owner: "we saw nothing inside the stove or what Henry does"). The TPS camera stayed high
+  behind Henry, his back hid the door, and the iron stove was lost on the dark floor. The same TPS camera now
+  eases onto a work framing while the door is open (`TpsCamera.set_work_framing`), the owner's composition:
+  close over Henry's right shoulder, shoulder lower left, head left, firebox mouth mid-frame, door on the right.
+  From behind, Henry kneeling square to the door hid it with his back, so he now kneels 0.3 m off the door axis,
+  turned to the mouth, and the door folds back 160 degrees (was 105, swinging toward the camera).
+  The stove's "Use" prompt no longer shows during the ritual. The mouse orbits it a little, walls still
+  shorten the boom, and F eases back to the follow rig. No separate mini-game camera.
+- 727 floor lighter and warmer (owner: stove and floor merge). The floor's real material is the external
+  `floor_old_wood_727.tres` (the glb's `floor_vinyl` is remapped in the import), 0.23/0.16/0.10 to 0.40/0.29/0.18
+  against the 0.13 iron. The earlier glb tint (6e90bb3) changed the remapped-away colour and showed nothing;
+  reverted with its tool.
+- Stove ritual replaces the stove's F cycle (owner spec). Before: F opened the door, the next F loaded the whole
+  armful and readied the lighter, and RMB took cold logs back. Now `[F] Stove` walks Henry to a
+  `StoveInteractionPoint` in stove space (the player's own scripted walk, no teleport, refused when his capsule
+  does not fit). He turns to the door, it opens, and he crouches with or without a load: a new `CrouchCarry`
+  state keeps the carry arms over the crouch legs. `PlayerState` WORKING roots him, the interact key is claimed,
+  and the TPS camera stays. A three-arc ring (`StoveInteractionRing`, the pickup marker's language) shows fuel
+  (one tick per log of the real capacity), tinder and fire.
+  - RMB lays exactly one log per press. The inventory and `HeatSource.add_logs(1)` change together when the
+    act completes; a cancel moves nothing.
+  - LMB lays tinder, only with a log in. The press that laid it never reaches the lighter: release, then a new
+    press strikes the existing lighter, and a 3 s hold lights the stove.
+  - Logs can follow the tinder. A burning stove takes logs without relighting.
+  - F closes the door and stands him up.
+  - Tinder is new `HeatSource` state (`tinder_prepared`). It is saved and recorded by `ShelterState`, and kept
+    when Henry leaves.
+  - The work pose backs down instead of standing up through its clip while Henry stays crouched.
+  - New `StoveInteractionController`; `HeatSourceFeed` keeps only the acts. `test_stove_ritual` covers the 12
+    owner scenarios; `test_shelter_workflow` is updated. `capture_stove` now runs in 727 (it used archived
+    Graciosa). Doc: `docs/technical/STOVE_RITUAL.md`.
+- Window frost forms and thaws like real fern frost (owner: not natural). Before, one mask served both
+  ways: the frost edge was a noisy band at a fixed distance from the frame, so growth and thaw were the
+  same rectangle moving in and out (a square hole at 50 %). Now each texel has two dissolve thresholds.
+  Growth starts at the bottom edge (cold conducts along the glass edge and cold air slides down it), then
+  the sides, the top last, plus a few nucleation points (scratches, dust). The reach varies round the
+  rim (seamless noise in angle): frost tongues far in on one side and hugs the frame on another
+  (owner: not evenly from the edges). Fern fronds lead the front:
+  tapering spines with barbs at the ice's 60°, two sizes. New frost is thin and turns opaque as it
+  ages. Thaw clears the warm centre first along a soft, wet front. The thick fronds and the cold bottom
+  corners go last (FUTURE_INTENT §3, frost retreating to the edges). Measured on the pane mask: 50 % left
+  at thaw 0.55, 10 % at 0.80. The pattern is metric (pane size from screen derivatives), so the 727's
+  wide panes no longer stretch it. Fronds far from the frame point any way, which removed a rosette at
+  the centre. Barbs smaller than a pixel blend to their mean instead of aliasing. Random, never preset
+  (owner): the 727 draws its frost afresh each load (`growth_seed`) and a new thaw path each time the room
+  starts to warm (`melt_seed`, swapped while warmth is 0 so nothing jumps). `frosted_glass` (727) thaws
+  as the stove warms the room; the generated `frosted_window` uses the growth mask.
+- Ground drift travels as a wave (owner note: it appeared in place, straight). Each `SnowLift` streamer is now a
+  sweep: the emitter runs downwind for 1.6–2.4 s at 0.45 of the 10 m wind along a shallow arc (bow 5–9 % of
+  its length, side at random), snapped to the ground, shedding its four layers into a world-space trail that
+  swells in and dies out. A 12 m/s sweep is ~9 m (was a fixed 5 m patch); it ends at a kerb over 0.6 m or a
+  slope. A sweep starts only when its start, middle and end are on screen and it crosses open snow (no
+  footprint at either end, no canopy over the start). Both drift sources use it: the wind drift ahead of Henry
+  and the blizzard flow streets (`test_snow_lift_sweep`). The head now rides the drawn snow top
+  (`SnowField.get_snow_top`): it stood on the physics ground, 0.23–0.49 m under the snow at the Duval spawn
+  (measured), so the grains were buried and the drift barely showed on snow. On lit snow the grey grains
+  (0.8) still matched the surface, so the grains are lighter (0.95) and the sweep drags a soft cool shade
+  over the snow under its trail (owner's idea from the spindrift round). The technique is a moving emitter leaving a world-space
+  trail (Godot `local_coords = false`), as trail emitters do.
+- The world shows finished (owner note: a square of bare snow at start that went away a minute later). The
+  startup card now holds until boot work is done, through a new `BootLoadCapability` (`core/contracts/`):
+  `KeyWestRealityGround` reports the chunks live at boot until their paving and snow cover are built, and
+  builds them at full speed under the card; `SnowShell` reports a pending re-read of ground that streamed in
+  (weather rebuilds do not count: the old window stays drawn, and in a blizzard they run all the time).
+  The card waits at most 30 s and logs who was still pending. A field sample over ground that never streams
+  (open sea past the chunks) is not boot work: it held the first run at the 30 s cap.
+- In falling snow the sun dims with visibility (Koschmieder extinction 3.912 / visibility over a 30 m beam
+  path): ~7 % of the sun in a 45 m blizzard, ~59 % in 220 m snowfall, 75 % in 400 m windy weather. The lost
+  beam returns as ambient fill, 0.3 per unit of lost sun, in the sun's own colour (snow scatters it
+  unchanged) and never in shelters. 1.86 in grey washed out the LUT grade (ambient 3.1 against a 0.55 base);
+  the sky tint at 1.8 turned a blizzard blue; 1.2 in the sun's colour made a blizzard 132 % of clear day.
+  Measured on snow at the Duval spawn (linear): 81 % of clear day in windy weather, 74 % in snowfall, 53 % in
+  a blizzard, with the clear-day colour balance (blue minus red 35–38 against 33). Before, a blizzard kept full sun and hard shadows (`test_sun_steps`).
 - Fort Zachary Taylor collision simplified in Blender: `tools/blender/landmark_collision.py` (Blender 5.2 `bpy`, Decimate Collapse 0.2) adds a `FortSurfaceCollision-colonly` copy of 8,238 faces (was 41,197) to the fort `.glb`; the visual mesh is byte-identical. Error from every source vertex and face centre: mean 0.8, p99 5.1, max 12.5 cm. The fort chunk's `Buildings` attach drops from 66–80 ms to 12 ms (`measure_attach_parts`, `kw_gen_-9_3`). A 1 m ray grid against the exact surface: p99 8 cm. `HeightMapShape3D` was measured and rejected (285 ms to build). New `test_landmark_collision`; method and table in `REALITY_HLOD.md`.
 - **Legacy Key West island removed** (owner approval, 2026-10-15). Gone: `key_west.tscn`, `key_west_first_exit.tscn`, the `key_west_test` profile, `KeyWestFirstExit`, the legacy city (`ChunkedCityMassing`, `KeyWestCityVisuals`, `KeyWestStreetProps`, `far_city/`, `snow_chunk/`), the NOAA preview crop, six legacy-only tools and three legacy-only tests. The legacy branches in `runtime_performance_policy`, `dev_diorama_map` and `snow_shell` went with them (none ran under Reality). The CI preview job keeps its Reality captures only. `capture_quick_access` now runs on Reality; `test_world_profiles`, `test_stylized_shadows` and `test_island_terrain` check Reality or Graciosa instead. Kept on purpose: `IslandTerrain`/`IslandHeightmap` (Graciosa, the hut template generator), the terrain shader, the Reality Library sources and the NOAA sources. Record: `docs/technical/LEGACY_ISLAND_REMOVAL.md`.
 - Owner tasks, 2026-10-15:

@@ -48,6 +48,8 @@ var _walking_to_target: bool = false
 var _was_on_floor_for_cam: bool = false
 var _floor_sample_initialized: bool = false
 var _crouching: bool = false
+## A work spot that keeps Henry low (the stove door) holds the crouch whatever the key does.
+var _work_crouch: bool = false
 var _standing_collision_height: float = 0.0
 var _standing_collision_position: Vector3 = Vector3.ZERO
 
@@ -184,7 +186,7 @@ func _physics_process(delta: float) -> void:
 
 func _update_crouch() -> void:
 	var input_systems: Node = get_node_or_null(^"/root/InputSystems")
-	var wants_crouch: bool = (
+	var wants_crouch: bool = _work_crouch or (
 		input_systems != null
 		and input_systems.has_method(&"is_crouching")
 		and bool(input_systems.call(&"is_crouching"))
@@ -239,6 +241,16 @@ func _can_stand_up() -> bool:
 
 func is_crouching() -> bool:
 	return _crouching
+
+
+## Held by a work spot (StoveInteractionController); released, Henry stands once there is room.
+func set_work_crouch(crouch: bool) -> void:
+	_work_crouch = crouch
+	_update_crouch()
+
+
+func is_work_crouching() -> bool:
+	return _work_crouch
 
 
 func get_crouch_speed_ratio() -> float:

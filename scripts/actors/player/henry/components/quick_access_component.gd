@@ -45,8 +45,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	else:
 		for slot: int in range(DIRECT_ACTIONS.size()):
 			if _pressed(event, DIRECT_ACTIONS[slot]):
-				select(slot)
-				_equip_selected()
+				draw(slot)
 				break
 
 
@@ -108,6 +107,71 @@ func use_selected() -> bool:
 	else:
 		_show_readout(zone)
 	return used
+
+
+## Draws one pocket into the hand. An item already shown from another pocket trades
+## places with it, so the drawn pocket keeps the old item and nothing is shown twice.
+func draw(index: int) -> bool:
+	if hub == null:
+		return false
+	var zones: Array[Dictionary] = hub.get_quick_access_zones()
+	if zones.is_empty():
+		return false
+	var target: StringName = zones[posmod(index, zones.size())]["path"]
+	var source: StringName = get_held_source_zone()
+	if source == target:
+		return true
+	_put_away_unlit_held()
+	if _held_presenter() != null:
+		return false
+	var swapped: bool = source != &"" and _swap_pockets(source, target)
+	select(_zone_index(source if swapped else target))
+	if use_selected():
+		return true
+	if swapped:
+		_swap_pockets(source, target)
+	return false
+
+
+## The pocket whose item a hand shows right now, or "" (empty hands or a pack item).
+func get_held_source_zone() -> StringName:
+	var presenter: Node = _held_presenter()
+	return StringName(presenter.call(&"get_source_zone")) if presenter != null else &""
+
+
+func _held_presenter() -> Node:
+	for child: Node in get_parent().get_children():
+		if child.has_method(&"get_source_zone") and child.has_method(&"is_holding") and bool(child.call(&"is_holding")):
+			return child
+	return null
+
+
+## Trades the items of two pockets; changes nothing when either would not fit the other.
+func _swap_pockets(a: StringName, b: StringName) -> bool:
+	var equipment: EquipmentComponent = hub.equipment
+	var pa: PackedStringArray = String(a).split(EquipmentComponent.POCKET_SEPARATOR)
+	var pb: PackedStringArray = String(b).split(EquipmentComponent.POCKET_SEPARATOR)
+	if equipment == null or pa.size() != 2 or pb.size() != 2:
+		return false
+	var item_a: StringName = equipment.take_from_pocket(StringName(pa[0]), StringName(pa[1]))
+	var item_b: StringName = equipment.take_from_pocket(StringName(pb[0]), StringName(pb[1]))
+	var fits: bool = (item_a == &"" or equipment.can_stow(StringName(pb[0]), StringName(pb[1]), item_a) == EquipmentComponent.Refusal.NONE) \
+		and (item_b == &"" or equipment.can_stow(StringName(pa[0]), StringName(pa[1]), item_b) == EquipmentComponent.Refusal.NONE)
+	var into_a: StringName = item_b if fits else item_a
+	var into_b: StringName = item_a if fits else item_b
+	if into_a != &"":
+		equipment.stow(StringName(pa[0]), StringName(pa[1]), into_a)
+	if into_b != &"":
+		equipment.stow(StringName(pb[0]), StringName(pb[1]), into_b)
+	return fits
+
+
+func _zone_index(path: StringName) -> int:
+	var zones: Array[Dictionary] = hub.get_quick_access_zones()
+	for i: int in range(zones.size()):
+		if zones[i]["path"] == path:
+			return i
+	return _index
 
 
 func _equip_selected() -> bool:

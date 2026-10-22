@@ -31,6 +31,7 @@ func _run() -> void:
 	_test_storm_share_rebuilds_in_place()
 	_test_a_boot_sinks_over_its_stance()
 	_test_wind_crust_is_harder_than_powder()
+	_test_depth_reaches_down_to_the_true_terrain()
 	if _failures > 0:
 		push_error("snow shell: %d check(s) failed" % _failures)
 		quit(1)
@@ -317,7 +318,32 @@ func _test_wind_crust_is_harder_than_powder() -> void:
 		powder += field.softness(at, 1.8)
 		_check(field.softness(at, 1.0) >= 0.4 and field.softness(at, 1.0) <= 1.0, "softness left 0.4..1")
 	_check(crust < powder - 4.0, "wind crust gives as much as powder")
+	## Fresh snow is loose even on scoured ground; an old crust is hard there.
+	var fresh: float = 0.0
+	var old: float = 0.0
+	for i: int in range(40):
+		var at := Vector2(float(i) * 3.7, float(i) * -2.3)
+		fresh += field.softness(at, 0.3, 0.0)
+		old += field.softness(at, 0.3, 1.0)
+	_check(fresh / 40.0 > 0.85 and old / 40.0 < 0.5, "fresh %.2f / old %.2f softness on scoured ground" % [fresh / 40.0, old / 40.0])
 	field.ground_sampler = _synthetic_ground
 	field.rebuild(Vector2(-12.8, -12.8), 0.8, Vector2(0, -1))
 	var s: float = field.get_softness(10.0, 0.0)
 	_check(s >= 0.4 and s <= 1.0, "the field image lost its softness: %.2f" % s)
+
+
+
+## The drawn top stands on the 2 m lattice; where finer terrain rises above it, the depth a
+## boot can press is measured down to that terrain, not to the lattice.
+func _test_depth_reaches_down_to_the_true_terrain() -> void:
+	var lattice := SnowField.new()
+	lattice.ground_sampler = func(at: Vector2) -> Vector2: return Vector2(0.3, 0.0)
+	lattice.rebuild(Vector2(-12.8, -12.8), 0.8, Vector2(0, -1))
+	var bumped := SnowField.new()
+	bumped.ground_sampler = func(at: Vector2) -> Vector2: return Vector2(0.3, 0.0)
+	bumped.terrain_sampler = func(at: Vector2) -> float: return 0.36
+	bumped.rebuild(Vector2(-12.8, -12.8), 0.8, Vector2(0, -1))
+	_check(is_equal_approx(lattice.get_snow_top(0.0, 0.0), bumped.get_snow_top(0.0, 0.0)), "terrain bumps must not move the drawn top")
+	var lost: float = lattice.get_depth(0.0, 0.0) - bumped.get_depth(0.0, 0.0)
+	## Read back bilinearly from the field texels: allow a centimetre.
+	_check(lost > 0.05 and lost < 0.0605, "depth measured to the true terrain (lost %.3f, expected ~0.060)" % lost)

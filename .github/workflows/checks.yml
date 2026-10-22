@@ -16,9 +16,18 @@ on:
       - "docs/**"
       - "**/*.md"
   workflow_dispatch:
+    inputs:
+      preview:
+        description: "Empty re-checks Key West Reality; snow-surface or snow-walk runs only that capture"
+        default: ""
+      baseline_ref:
+        description: "snow-surface: ref whose snow code is the `old` variant"
+        default: "origin/main"
 
+## Each long capture has its own group, so a later push or dispatch of another kind
+## does not cancel it.
 concurrency:
-  group: checks-${{ github.ref }}
+  group: checks-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[snow-surface]') && 'snow-surface' || contains(github.event.head_commit.message, '[snow-walk]') && 'snow-walk' || github.event.inputs.preview || 'base' }}
   cancel-in-progress: true
 
 jobs:
@@ -48,7 +57,7 @@ jobs:
         run: tools/ci/check_filenames.sh
 
   key-west-reality:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
@@ -143,6 +152,8 @@ jobs:
       - name: Upload reality reports
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: hoarbound-key-west-reality
           path: |
@@ -150,11 +161,12 @@ jobs:
             docs/runtime_previews/key_west_reality_gate/*.json
             scenes/world/key_west/generated/generation_report.json
           if-no-files-found: warn
+          retention-days: 3
 
   key-west-reality-fresh:
     ## Zero-setup review path: the committed snapshot exactly as cloned; no unpack, export or
     ## generation (the rebuild/digest job above is the reproducibility check).
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -190,16 +202,18 @@ jobs:
       - name: Upload loop report
         if: always()
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
           name: hoarbound-key-west-727-loop
           path: docs/runtime_previews/key_west_727_loop/loop_report.json
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 3
 
   key-west-preview:
     ## Lavapipe/Forward+ captures on the Key West Reality scene, chosen by a commit tag.
-    ## Painterly, stylized-shadow and snow previews reuse this one render path.
-    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[interior-shadow-preview]') || contains(github.event.head_commit.message, '[shadow-style-preview]') || contains(github.event.head_commit.message, '[shadow-style-727-preview]'))
+    ## Painterly preview is diagnostic A/B: CONTROL and TEST run as independent Godot processes.
+    if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -216,7 +230,7 @@ jobs:
         run: tools/ci/setup_env.sh
 
       - name: Install video tools
-        if: contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[snow-clipmap-preview]') || contains(github.event.head_commit.message, '[snow-world-tiles-preview]') || contains(github.event.head_commit.message, '[shadow-style-preview]') || contains(github.event.head_commit.message, '[shadow-style-727-preview]')
+        if: contains(github.event.head_commit.message, '[painterly-wash-preview]')
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
@@ -224,140 +238,21 @@ jobs:
       - name: Import gate
         run: tools/ci/import_gate.sh
 
-      - name: Snow clipmap open-street proof
-        if: contains(github.event.head_commit.message, '[snow-clipmap-preview]')
+      - name: Capture Key West (non-painterly previews)
+        if: ${{ !contains(github.event.head_commit.message, '[painterly-wash-preview]') }}
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export XDG_RUNTIME_DIR=/tmp/xdg
           mkdir -p "$XDG_RUNTIME_DIR"
-          OUT="docs/runtime_previews/key_west/snow_clipmap"
-          rm -rf "$OUT"
-          mkdir -p "$OUT"
-          set -o pipefail
-          timeout 600 xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . \
-            --resolution 960x540 \
-            --rendering-driver vulkan \
-            --rendering-method forward_plus \
-            --audio-driver Dummy \
-            --script tools/runtime/capture_snow_clipmap_street.gd 2>&1 | tee "$OUT/capture.log"
-          if grep -q "SHADER ERROR" "$OUT/capture.log"; then
-            echo "Shader compilation error found in snow clipmap capture."
-            exit 1
+          if [[ "$COMMIT_MESSAGE" == *"[sky-weather-preview]"* ]]; then
+            SCRIPT="tools/runtime/capture_sky_weather.gd"
+          else
+            "$HOME/.local/bin/godot" --headless --path . --script tests/systems/test_stylized_shadows.gd
+            SCRIPT="tools/runtime/capture_stylized_shadows.gd"
           fi
-          count=$(find "$OUT/frames" -maxdepth 1 -type f -name 'frame_*.png' | wc -l)
-          test "$count" -eq 72
-          ffmpeg -y -framerate 12 -i "$OUT/frames/frame_%04d.png" \
-            -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
-            "$OUT/snow_clipmap_duval_6s.mp4" >/dev/null 2>&1
-          test -s "$OUT/snow_clipmap_duval_6s.mp4"
-          # Stationary camera: observe the *same* ground patch while clipmap ownership recedes.
-          # One fixed shot for every three TPS frames (24 @ 4fps = six seconds).
-          fixed_count=$(find "$OUT/fixed_frames" -maxdepth 1 -type f -name 'frame_*.png' | wc -l)
-          test "$fixed_count" -eq 24
-          ffmpeg -y -framerate 4 -i "$OUT/fixed_frames/frame_%04d.png" \
-            -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -movflags +faststart \
-            "$OUT/snow_fixed_handoff_6s.mp4" >/dev/null 2>&1
-          test -s "$OUT/snow_fixed_handoff_6s.mp4"
-          # Pixel difference is observational, not a geometry proof:
-          # moving Henry, shadows and volumetrics also register.
-          ffmpeg -y -framerate 4 -i "$OUT/fixed_frames/frame_%04d.png" \
-            -loop 1 -framerate 4 -i "$OUT/handoff_fixed_before.png" \
-            -filter_complex "[0:v][1:v]blend=all_mode=difference,eq=contrast=2.6:brightness=0.02,format=yuv420p[diff]" \
-            -map "[diff]" -frames:v 24 -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p \
-            -movflags +faststart "$OUT/snow_fixed_difference_6s.mp4" >/dev/null 2>&1
-          test -s "$OUT/snow_fixed_difference_6s.mp4"
-          ffmpeg -y -i "$OUT/snow_fixed_handoff_6s.mp4" -i "$OUT/snow_fixed_difference_6s.mp4" \
-            -filter_complex "[0:v][1:v]hstack=inputs=2[v]" -map "[v]" -an \
-            -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -movflags +faststart \
-            "$OUT/snow_fixed_vs_difference_6s.mp4" >/dev/null 2>&1
-          test -s "$OUT/snow_fixed_vs_difference_6s.mp4"
-          # One fixed-patch video through 16 actual SnowShell.recentre_to handoffs,
-          # enough to expose the outer trail -> streamed chunk transfer.
-          outer_count=$(find "$OUT/outer_frames" -maxdepth 1 -type f -name 'frame_*.png' | wc -l)
-          test "$outer_count" -eq 16
-          ffmpeg -y -framerate 4 -i "$OUT/outer_frames/frame_%04d.png" \
-            -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -movflags +faststart \
-            "$OUT/snow_retained_to_chunk_4s.mp4" >/dev/null 2>&1
-          test -s "$OUT/snow_retained_to_chunk_4s.mp4"
-          ffmpeg -y -i "$OUT/snow_fixed_difference_6s.mp4" -frames:v 1 "$OUT/snow_first_difference.png" >/dev/null 2>&1
-          # TRUE GPU vertex-height diagnostic at a fixed camera and frozen player:
-          # one baseline + 16 forced recenter frames. This is not a CPU heightfield plot.
-          gpu_count=$(find "$OUT/gpu_height_frames" -maxdepth 1 -type f -name 'frame_*.png' | wc -l)
-          test "$gpu_count" -eq 17
-          ffmpeg -y -framerate 4 -i "$OUT/gpu_height_frames/frame_%04d.png" \
-            -c:v libx264 -preset fast -crf 16 -pix_fmt yuv420p -movflags +faststart \
-            "$OUT/snow_gpu_vertex_height_17steps.mp4" >/dev/null 2>&1
-          test -s "$OUT/snow_gpu_vertex_height_17steps.mp4"
-          ffmpeg -y -framerate 4 -i "$OUT/gpu_height_frames/frame_%04d.png" \
-            -loop 1 -framerate 4 -i "$OUT/gpu_height_frames/frame_0000.png" \
-            -filter_complex "[0:v][1:v]blend=all_mode=difference,eq=contrast=3.2:brightness=0.02,format=yuv420p[v]" \
-            -map "[v]" -frames:v 17 -c:v libx264 -preset fast -crf 16 -pix_fmt yuv420p \
-            -movflags +faststart "$OUT/snow_gpu_vertex_difference_17steps.mp4" >/dev/null 2>&1
-          ffmpeg -y -i "$OUT/snow_gpu_vertex_height_17steps.mp4" \
-            -i "$OUT/snow_gpu_vertex_difference_17steps.mp4" \
-            -filter_complex "[0:v][1:v]hstack=inputs=2[v]" -map "[v]" -an \
-            -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -movflags +faststart \
-            "$OUT/snow_gpu_height_vs_difference_17steps.mp4" >/dev/null 2>&1
-          cat "$OUT/report.json"
-          # Gating AFTER video creation: failed GPU comparison still uploads frames,
-          # movies, logs, and honest numerical report for inspection.
-          python3 -c "import json,sys; w=json.load(open('$OUT/report.json'))['gpu_height_witness']; print('GPU_VERTEX_HEIGHT',w['pass'], 'max_red_delta',w['max_red_delta'], 'changed_fraction',w['max_changed_fraction'], 'coverage',w['min_covered_samples']); sys.exit(0 if w['pass'] else 1)"
-
-
-      - name: EXPERIMENT fixed-world snow tiles - Henry walk, return, GPU recenter
-        if: contains(github.event.head_commit.message, '[snow-world-tiles-preview]')
-        run: |
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR"
-          OUT="docs/runtime_previews/key_west/snow_world_tiles"
-          rm -rf "$OUT"
-          mkdir -p "$OUT"
-          set +e
-          timeout 650 xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . --resolution 960x540 --rendering-driver vulkan \
-            --rendering-method forward_plus --audio-driver Dummy \
-            --script tools/runtime/capture_snow_world_tiles.gd 2>&1 | tee "$OUT/capture.log"
-          runtime_rc=${PIPESTATUS[0]}
-          set -e
-          # Encode even on a FAIL: owner must be able to inspect the broken frames.
-          for group in "walk_frames:world_tiles_walk_return_8s:12" "fixed_frames:world_tiles_fixed_8s:6" "stress_frames:world_tiles_gpu_17steps:4" "natural_recenter_frames:world_tiles_natural_recenter_17steps:4" "foot_closeup_frames:world_tiles_real_foot_closeup_17steps:4"; do
-            IFS=: read -r folder name fps <<< "$group"
-            count=$(find "$OUT/$folder" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | wc -l)
-            echo "WORLD_TILES_CAPTURE $folder frames=$count"
-            if test "$count" -gt 1; then
-              ffmpeg -y -framerate "$fps" -i "$OUT/$folder/frame_%04d.png" \
-                -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -movflags +faststart \
-                "$OUT/$name.mp4" >/dev/null 2>&1 || true
-            fi
-          done
-          if test -f "$OUT/stress_frames/frame_0000.png"; then
-            ffmpeg -y -framerate 4 -i "$OUT/stress_frames/frame_%04d.png" \
-              -loop 1 -framerate 4 -i "$OUT/stress_frames/frame_0000.png" \
-              -filter_complex "[0:v][1:v]blend=all_mode=difference,eq=contrast=3.5:brightness=0.02,format=yuv420p[v]" \
-              -map "[v]" -frames:v 17 -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p \
-              "$OUT/world_tiles_gpu_difference_17steps.mp4" >/dev/null 2>&1 || true
-          fi
-          if test -f "$OUT/report.json"; then cat "$OUT/report.json"; fi
-          if grep -q "SHADER ERROR" "$OUT/capture.log"; then
-            echo "Shader compilation failure in experimental world snow."
-            exit 1
-          fi
-          test "$runtime_rc" -eq 0
-          test "$(find "$OUT/walk_frames" -maxdepth 1 -name 'frame_*.png' | wc -l)" -eq 96
-          test "$(find "$OUT/fixed_frames" -maxdepth 1 -name 'frame_*.png' | wc -l)" -eq 48
-          test "$(find "$OUT/stress_frames" -maxdepth 1 -name 'frame_*.png' | wc -l)" -eq 17
-          test -s "$OUT/world_tiles_walk_return_8s.mp4"
-          test -s "$OUT/world_tiles_gpu_17steps.mp4"
-          python3 -c "import json,sys; x=json.load(open('$OUT/report.json')); print('WORLD_TILES_EXP',x['passes']); sys.exit(0 if x['passes'] else 1)"
-
-      - name: Capture Key West sky/weather
-        if: contains(github.event.head_commit.message, '[sky-weather-preview]')
-        run: |
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR" docs/runtime_previews/key_west
+          mkdir -p docs/runtime_previews/key_west
           set -o pipefail
           xvfb-run -a "$HOME/.local/bin/godot" \
             --path . \
@@ -365,254 +260,11 @@ jobs:
             --rendering-driver vulkan \
             --rendering-method forward_plus \
             --audio-driver Dummy \
-            --script tools/runtime/capture_sky_weather.gd 2>&1 | tee docs/runtime_previews/key_west/capture.log
+            --script "$SCRIPT" 2>&1 | tee docs/runtime_previews/key_west/capture.log
           if grep -q "SHADER ERROR" docs/runtime_previews/key_west/capture.log; then
             echo "Shader compilation error found in capture log."
             exit 1
           fi
-
-      - name: 727 fixed-camera interior shadow A/B (existing capture harness)
-        if: contains(github.event.head_commit.message, '[interior-shadow-preview]')
-        run: |
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR"
-          OUT="docs/runtime_previews/key_west/727_shadow_interior_ab"
-          mkdir -p "$OUT"
-          set -o pipefail
-          timeout 680 xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . --resolution 1024x640 --rendering-driver vulkan \
-            --rendering-method forward_plus --audio-driver Dummy \
-            --script res://tools/runtime/capture_stylized_shadows.gd -- interior-ab \
-            2>&1 | tee "$OUT/capture.log"
-          if grep -q "SHADER ERROR" "$OUT/capture.log"; then
-            echo "Shader compilation failed in 727 interior shadow capture"
-            exit 1
-          fi
-          for id in 01_noon_close_current 02_noon_close_legacy 03_noon_room_current 04_noon_room_legacy 05_night_room_current 06_night_room_legacy 07_night_close_current 08_night_close_legacy; do
-            test -s "$OUT/$id.png"
-          done
-          test -s "$OUT/report.json"
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          out=Path('docs/runtime_previews/key_west/727_shadow_interior_ab')
-          r=json.loads((out/'report.json').read_text())
-          assert len(r['frames'])==8, r['frames']
-          states=r['interior_states']
-          assert [x['state'] for x in states]==[0.0,1.0]*4, states
-          for i in range(0,8,2):
-              assert states[i]['camera']==states[i+1]['camera'], (i,'camera changed')
-              assert states[i]['stove_energy']==states[i+1]['stove_energy'], (i,'stove flicker')
-          print('INTERIOR_SHADOW_AB eight frames, four matched-camera pairs:', r['frames'])
-          PY
-
-      - name: 727 production-material shadow style A/B/C
-        if: contains(github.event.head_commit.message, '[shadow-style-727-preview]')
-        run: |
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR"
-          OUT="docs/runtime_previews/key_west/727_shadow_style_abc"
-          mkdir -p "$OUT"
-          set -o pipefail
-          timeout 680 xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . --resolution 1024x640 --rendering-driver vulkan \
-            --rendering-method forward_plus --audio-driver Dummy \
-            --script res://tools/runtime/capture_stylized_shadows.gd -- style-abc \
-            2>&1 | tee "$OUT/capture.log"
-          if grep -q -E "SHADER ERROR|Shader compilation failed" "$OUT/capture.log"; then
-            exit 1
-          fi
-          for shot in 01_noon_room 02_noon_close 03_night_room 04_night_close; do
-            for arm in baseline mass mass_edge; do test -s "$OUT/${shot}_${arm}.png"; done
-          done
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          out = Path("docs/runtime_previews/key_west/727_shadow_style_abc")
-          data = json.loads((out / "report.json").read_text())
-          assert len(data["frames"]) == 12, data["frames"]
-          states = data["style_states"]
-          assert [x["arm"] for x in states] == ["baseline", "mass", "mass_edge"] * 4
-          assert [x["mass"] for x in states] == [0.0, 0.45, 0.45] * 4
-          assert states[0]["camera"] != states[3]["camera"], "detail camera repeated room shot"
-          for i in range(0, 12, 3):
-              assert len({x["camera"] for x in states[i:i+3]}) == 1
-              assert len({x["stove_energy"] for x in states[i:i+3]}) == 1
-          assert (out / "01_noon_room_baseline.png").read_bytes() != (out / "01_noon_room_mass.png").read_bytes(), "colour mass had no visible effect"
-          print("SHADOW_STYLE_727 12 matched frames and noon colour effect")
-          PY
-          : > "$OUT/clips.txt"
-          for shot in 01_noon_room 02_noon_close 03_night_room 04_night_close; do
-            ffmpeg -y -loop 1 -t 2 -i "$OUT/${shot}_baseline.png" \
-              -loop 1 -t 2 -i "$OUT/${shot}_mass.png" \
-              -loop 1 -t 2 -i "$OUT/${shot}_mass_edge.png" \
-              -filter_complex "[0:v]scale=512:320,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='A  CURRENT':fontcolor=white:fontsize=18:x=12:y=12:box=1:boxcolor=black@0.72:boxborderw=6[a];[1:v]scale=512:320,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='B  MASS':fontcolor=white:fontsize=18:x=12:y=12:box=1:boxcolor=black@0.72:boxborderw=6[b];[2:v]scale=512:320,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='C  MASS + EDGE':fontcolor=white:fontsize=18:x=12:y=12:box=1:boxcolor=black@0.72:boxborderw=6[c];[a][b][c]hstack=inputs=3[v]" \
-              -map "[v]" -t 2 -r 12 -an -c:v libx264 -preset fast -crf 18 \
-              -pix_fmt yuv420p "$OUT/${shot}.mp4" >/dev/null 2>&1
-            printf "file '%s.mp4'\n" "$shot" >> "$OUT/clips.txt"
-          done
-          ffmpeg -y -f concat -safe 0 -i "$OUT/clips.txt" -c copy \
-            "$OUT/727_shadow_style_abc_8s.mp4" >/dev/null 2>&1
-          test -s "$OUT/727_shadow_style_abc_8s.mp4"
-
-      - name: Recover 727 video from job log when artifact storage is full
-        if: always() && contains(github.event.head_commit.message, '[shadow-style-727-preview]')
-        run: |
-          python3 - <<'PY'
-          import base64
-          from pathlib import Path
-          root = Path("docs/runtime_previews/key_west/727_shadow_style_abc")
-          video = root / "727_shadow_style_abc_8s.mp4"
-          log = root / "capture.log"
-          if video.is_file() and log.is_file() and "Shader compilation failed" not in log.read_text(errors="replace"):
-              encoded = base64.b64encode(video.read_bytes()).decode("ascii")
-              print("SHADOW_STYLE_727_VIDEO_BEGIN", video.stat().st_size)
-              for i in range(0, len(encoded), 3000):
-                  print("SHADOW_STYLE_727_VIDEO_CHUNK", i // 3000, encoded[i:i + 3000])
-              print("SHADOW_STYLE_727_VIDEO_END", (len(encoded) + 2999) // 3000)
-          else:
-              print("SHADOW_STYLE_727_VIDEO_SKIPPED")
-          PY
-
-      - name: Stylized-shadow contract test
-        if: contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[shadow-style-727-preview]')
-        run: |
-          "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script tests/systems/test_stylized_shadows.gd
-
-      - name: Stylized shadows BASELINE (production three-tone, open Duval Street)
-        id: shadow_baseline
-        if: contains(github.event.head_commit.message, '[stylized-shadows]')
-        run: |
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR"
-          OUT="docs/runtime_previews/key_west/shadow_painted_ab/baseline"
-          mkdir -p "$OUT"
-          set +e
-          timeout 420 xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . \
-            --resolution 1600x1000 \
-            --rendering-driver vulkan \
-            --rendering-method forward_plus \
-            --audio-driver Dummy \
-            --script tools/runtime/capture_shadow_painted_edge_video.gd \
-            -- "res://$OUT" baseline >"$OUT/capture.log" 2>&1
-          rc=$?
-          if grep -q "SHADER ERROR" "$OUT/capture.log"; then rc=90; fi
-          count=$(find "$OUT/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | wc -l)
-          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
-          echo "frame_count=$count" >> "$GITHUB_OUTPUT"
-          echo "SHADOW_PAINTED_AB BASELINE exit=$rc frames=$count"
-          exit 0
-
-      - name: Stylized shadows PAINTED EDGE (continuous brush penumbra, open Duval Street)
-        id: shadow_painted
-        if: contains(github.event.head_commit.message, '[stylized-shadows]')
-        run: |
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR"
-          OUT="docs/runtime_previews/key_west/shadow_painted_ab/painted"
-          mkdir -p "$OUT"
-          set +e
-          timeout 420 xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . \
-            --resolution 1600x1000 \
-            --rendering-driver vulkan \
-            --rendering-method forward_plus \
-            --audio-driver Dummy \
-            --script tools/runtime/capture_shadow_painted_edge_video.gd \
-            -- "res://$OUT" painted >"$OUT/capture.log" 2>&1
-          rc=$?
-          if grep -q "SHADER ERROR" "$OUT/capture.log"; then rc=90; fi
-          count=$(find "$OUT/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | wc -l)
-          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
-          echo "frame_count=$count" >> "$GITHUB_OUTPUT"
-          echo "SHADOW_PAINTED_AB PAINTED exit=$rc frames=$count"
-          exit 0
-
-      - name: Encode stylized-shadow A/B evidence
-        if: always() && contains(github.event.head_commit.message, '[stylized-shadows]')
-        run: |
-          set +e
-          ROOT="docs/runtime_previews/key_west/shadow_painted_ab"
-          for arm in baseline painted; do
-            dir="$ROOT/$arm"
-            last=$(find "$dir/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | sort | tail -n 1)
-            if [[ -n "$last" ]]; then cp "$last" "$dir/last_partial.png"; fi
-            count=$(find "$dir/frames" -maxdepth 1 -type f -name 'frame_*.png' 2>/dev/null | wc -l)
-            if [[ "$count" -eq 72 ]]; then
-              ffmpeg -y -framerate 12 -i "$dir/frames/frame_%04d.png" \
-                -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
-                "$dir/${arm}_walk_6s.mp4" >/dev/null 2>&1
-            fi
-          done
-          if [[ -s "$ROOT/baseline/baseline_walk_6s.mp4" && -s "$ROOT/painted/painted_walk_6s.mp4" ]]; then
-            ffmpeg -y \
-              -i "$ROOT/baseline/baseline_walk_6s.mp4" \
-              -i "$ROOT/painted/painted_walk_6s.mp4" \
-              -filter_complex "[0:v]scale=iw/2:-2[left];[1:v]scale=iw/2:-2[right];[left][right]hstack=inputs=2,drawbox=x=iw/2-2:y=0:w=4:h=ih:color=white@0.9:t=fill,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='BASELINE  THREE-TONE':fontcolor=white:fontsize=28:x=24:y=24:box=1:boxcolor=black@0.68:boxborderw=12,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='PAINTED EDGE  CONTINUOUS':fontcolor=white:fontsize=28:x=w/2+24:y=24:box=1:boxcolor=black@0.68:boxborderw=12[split]" \
-              -map "[split]" -an -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart \
-              docs/runtime_previews/key_west/shadow_painted_ab_split_6s.mp4 >/dev/null 2>&1
-          fi
-          exit 0
-
-      - name: Classify stylized-shadow A/B
-        if: always() && contains(github.event.head_commit.message, '[stylized-shadows]')
-        env:
-          BASELINE_RC: ${{ steps.shadow_baseline.outputs.exit_code }}
-          PAINTED_RC: ${{ steps.shadow_painted.outputs.exit_code }}
-          BASELINE_FRAMES: ${{ steps.shadow_baseline.outputs.frame_count }}
-          PAINTED_FRAMES: ${{ steps.shadow_painted.outputs.frame_count }}
-        run: |
-          python3 - <<'PY'
-          import json, os, sys
-          from pathlib import Path
-
-          def integer(name, fallback=-1):
-              try:
-                  return int(os.environ.get(name, ""))
-              except ValueError:
-                  return fallback
-
-          br = integer("BASELINE_RC")
-          pr = integer("PAINTED_RC")
-          bf = integer("BASELINE_FRAMES", 0)
-          pf = integer("PAINTED_FRAMES", 0)
-          expected = 72
-          ok = br == 0 and pr == 0 and bf == expected and pf == expected
-          if ok:
-              classification = "BOTH_ARMS_PASS__AUTHOR_VISUAL_REVIEW_REQUIRED"
-          elif br == 0 and pr != 0:
-              classification = "PAINTED_EDGE_PATH_FAILURE"
-          elif br != 0 and pr == 0:
-              classification = "BASELINE_ONLY_FAILURE_OR_HARNESS_ASYMMETRY"
-          elif br != 0 and pr != 0:
-              classification = "COMMON_SCENE_RUNTIME_RENDERER_OR_INIT_FAILURE"
-          else:
-              classification = "CAPTURE_OUTPUT_FAILURE"
-
-          report = {
-              "diagnostic": "stylized shadow painted-edge independent-process A/B",
-              "renderer_contract": "Lavapipe Vulkan / Forward+",
-              "street": "Duval Street",
-              "weather": "calm",
-              "hour": 15.0,
-              "expected_frames_per_arm": expected,
-              "baseline": {"exit_code": br, "frame_count": bf, "shadow_mode": "production_three_tone"},
-              "painted": {"exit_code": pr, "frame_count": pf, "shadow_mode": "painted_edge_continuous"},
-              "classification": classification,
-              "passes_diagnostic": ok,
-          }
-          out = Path("docs/runtime_previews/key_west/shadow_painted_ab/source_report.json")
-          out.parent.mkdir(parents=True, exist_ok=True)
-          out.write_text(json.dumps(report, indent=2), encoding="utf-8")
-          print("SHADOW_PAINTED_AB_CLASSIFICATION", classification)
-          print(json.dumps(report, indent=2))
-          sys.exit(0 if ok else 1)
-          PY
 
       - name: Painterly A/B CONTROL (post OFF, surface OFF, full blizzard)
         id: painterly_control
@@ -750,119 +402,281 @@ jobs:
           sys.exit(0 if ok else 1)
           PY
 
-      - name: Shadow style three-arm camera witness (isolated lab)
-        if: contains(github.event.head_commit.message, '[shadow-style-preview]')
-        run: |
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR"
-          ROOT="docs/runtime_previews/key_west/shadow_style_abc"
-          status=0
-          for arm in baseline mass mass_edge; do
-            mkdir -p "$ROOT/$arm"
-            timeout 300 xvfb-run -a "$HOME/.local/bin/godot" \
-              --path . --resolution 960x600 --rendering-driver vulkan \
-              --rendering-method forward_plus --audio-driver Dummy \
-              --script res://tools/runtime/capture_shadow_style_ab.gd \
-              -- "$arm" "res://$ROOT/$arm" > "$ROOT/$arm/capture.log" 2>&1 || status=1
-            if grep -q "SHADER ERROR" "$ROOT/$arm/capture.log"; then status=1; fi
-            echo "SHADOW_STYLE arm=$arm capture tail:"
-            grep -B 3 -A 8 -E "SHADER ERROR|Shader compilation failed|^ERROR:" "$ROOT/$arm/capture.log" | head -n 100 || true
-            tail -n 12 "$ROOT/$arm/capture.log"
-            if grep -q -E "SHADER ERROR|Shader compilation failed" "$ROOT/$arm/capture.log"; then status=1; break; fi
-            count=$(find "$ROOT/$arm/frames" -maxdepth 1 -name 'frame_*.png' -type f 2>/dev/null | wc -l)
-            if [[ "$count" -ne 72 ]]; then status=1; fi
-            if [[ "$count" -eq 72 ]]; then
-              ffmpeg -y -framerate 12 -i "$ROOT/$arm/frames/frame_%04d.png" \
-                -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -movflags +faststart \
-                "$ROOT/$arm/$arm.mp4" >/dev/null 2>&1 || status=1
-            fi
-          done
-          if [[ -s "$ROOT/baseline/baseline.mp4" && -s "$ROOT/mass/mass.mp4" && -s "$ROOT/mass_edge/mass_edge.mp4" ]]; then
-            ffmpeg -y -i "$ROOT/baseline/baseline.mp4" -i "$ROOT/mass/mass.mp4" \
-              -i "$ROOT/mass_edge/mass_edge.mp4" \
-              -filter_complex "[0:v]scale=640:400,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='A  CURRENT SHADOW':fontcolor=white:fontsize=19:x=18:y=18:box=1:boxcolor=black@0.7:boxborderw=8[a];[1:v]scale=640:400,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='B  COLOUR MASS':fontcolor=white:fontsize=19:x=18:y=18:box=1:boxcolor=black@0.7:boxborderw=8[b];[2:v]scale=640:400,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='C  MASS + EDGE':fontcolor=white:fontsize=19:x=18:y=18:box=1:boxcolor=black@0.7:boxborderw=8[c];[a][b][c]hstack=inputs=3[v]" \
-              -map "[v]" -an -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p \
-              -movflags +faststart "$ROOT/shadow_style_abc_6s.mp4" >/dev/null 2>&1 || status=1
-          else
-            status=1
-          fi
-          python3 - <<'PY' || status=1
-          import json
-          from pathlib import Path
-          root = Path("docs/runtime_previews/key_west/shadow_style_abc")
-          reports = [json.loads((root / arm / "report.json").read_text()) for arm in ("baseline", "mass", "mass_edge")]
-          assert [r["mass_strength"] for r in reports] == [0, 1, 1]
-          assert [r["edge_strength"] for r in reports] == [0, 0, 1]
-          assert all(r["frames"] == 72 and r["shots"] == ["wide", "boundary", "warm_corner"] for r in reports)
-          assert reports[0]["camera_poses"] == reports[1]["camera_poses"] == reports[2]["camera_poses"], "camera/light changed across arms"
-          assert (root / "shadow_style_abc_6s.mp4").stat().st_size > 0
-          print("SHADOW_STYLE 3 arms / 3 matched shots / 72 frames each / split video")
-          PY
-          exit "$status"
-
-      - name: Recover shadow-style video from job log when artifact storage is full
-        if: always() && contains(github.event.head_commit.message, '[shadow-style-preview]')
-        run: |
-          python3 - <<'PY'
-          import base64
-          from pathlib import Path
-          root = Path("docs/runtime_previews/key_west/shadow_style_abc")
-          video = root / "shadow_style_abc_6s.mp4"
-          logs = [root / arm / "capture.log" for arm in ("baseline", "mass", "mass_edge")]
-          if video.is_file() and all(p.is_file() and "Shader compilation failed" not in p.read_text(errors="replace") for p in logs):
-              encoded = base64.b64encode(video.read_bytes()).decode("ascii")
-              print("SHADOW_STYLE_VIDEO_BEGIN", video.stat().st_size)
-              for i in range(0, len(encoded), 3000):
-                  print("SHADOW_STYLE_VIDEO_CHUNK", i // 3000, encoded[i:i + 3000])
-              print("SHADOW_STYLE_VIDEO_END", (len(encoded) + 2999) // 3000)
-          else:
-              print("SHADOW_STYLE_VIDEO_SKIPPED shader failed or video missing")
-          PY
-
       - name: Upload Key West previews
         if: always()
-        continue-on-error: true
         uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
         with:
-          name: ${{ contains(github.event.head_commit.message, '[snow-world-tiles-preview]') && 'hoarbound-snow-world-tiles' || (contains(github.event.head_commit.message, '[snow-clipmap-preview]') && 'hoarbound-snow-clipmap' || (contains(github.event.head_commit.message, '[painterly-wash-preview]') && 'hoarbound-painterly-wash' || (contains(github.event.head_commit.message, '[sky-weather-preview]') && 'hoarbound-sky-weather' || 'hoarbound-stylized-shadows'))) }}
+          name: ${{ contains(github.event.head_commit.message, '[painterly-wash-preview]') && 'hoarbound-painterly-wash' || (contains(github.event.head_commit.message, '[sky-weather-preview]') && 'hoarbound-sky-weather' || 'hoarbound-stylized-shadows') }}
           path: |
             docs/runtime_previews/key_west/*.png
             docs/runtime_previews/key_west/*.mp4
             docs/runtime_previews/key_west/capture.log
             docs/runtime_previews/key_west/source_report.json
-            docs/runtime_previews/key_west/snow_clipmap/*.png
-            docs/runtime_previews/key_west/snow_clipmap/*.mp4
-            docs/runtime_previews/key_west/snow_clipmap/*.json
-            docs/runtime_previews/key_west/snow_clipmap/*.log
-            docs/runtime_previews/key_west/snow_world_tiles/*.png
-            docs/runtime_previews/key_west/snow_world_tiles/*.mp4
-            docs/runtime_previews/key_west/snow_world_tiles/*.json
-            docs/runtime_previews/key_west/snow_world_tiles/*.log
             docs/runtime_previews/key_west/painterly_ab/*/*.png
             docs/runtime_previews/key_west/painterly_ab/*/*.mp4
             docs/runtime_previews/key_west/painterly_ab/*/*.log
             docs/runtime_previews/key_west/painterly_ab/*/*.json
-            docs/runtime_previews/key_west/shadow_painted_ab/*.json
-            docs/runtime_previews/key_west/shadow_painted_ab/*/*.png
-            docs/runtime_previews/key_west/shadow_painted_ab/*/*.mp4
-            docs/runtime_previews/key_west/shadow_painted_ab/*/*.log
-            docs/runtime_previews/key_west/shadow_painted_ab/*/*.json
             docs/runtime_previews/stylized_shadows/*.png
             docs/runtime_previews/stylized_shadows/report.json
-            docs/runtime_previews/key_west/727_shadow_interior_ab/*.png
-            docs/runtime_previews/key_west/727_shadow_interior_ab/*.json
-            docs/runtime_previews/key_west/727_shadow_interior_ab/*.log
-            docs/runtime_previews/key_west/shadow_style_abc/*.mp4
-            docs/runtime_previews/key_west/shadow_style_abc/*/*.png
-            docs/runtime_previews/key_west/shadow_style_abc/*/*.mp4
-            docs/runtime_previews/key_west/shadow_style_abc/*/*.json
-            docs/runtime_previews/key_west/shadow_style_abc/*/*.log
-            docs/runtime_previews/key_west/727_shadow_style_abc/*.png
-            docs/runtime_previews/key_west/727_shadow_style_abc/*.mp4
-            docs/runtime_previews/key_west/727_shadow_style_abc/*.json
-            docs/runtime_previews/key_west/727_shadow_style_abc/*.log
             docs/runtime_previews/sky_weather/*.png
             docs/runtime_previews/sky_weather/report.json
+          if-no-files-found: warn
+          retention-days: 3
+
+  snow-surface:
+    ## Snow surface stability A/B on Duval Street (tools/runtime/capture_snow_surface.gd):
+    ## `new` is this commit; a dispatch also runs `old`, the snow shell/shaders of `baseline_ref`.
+    ## Dispatch with preview=snow-surface, or push with [snow-surface] in the commit message.
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'snow-surface') ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[snow-surface]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["new","old"]' || '["new"]') }}
+    env:
+      OUT: docs/runtime_previews/snow_surface/${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Swap in the baseline snow code (old variant)
+        if: matrix.variant == 'old'
+        env:
+          BASELINE: ${{ github.event.inputs.baseline_ref || 'origin/main' }}
+        run: |
+          git checkout "$BASELINE" -- scripts/systems/world/snow shaders/environment/snow scripts/settings/graphics_quality.gd
+          rm -f scripts/systems/world/snow/snow_clipmap.gd* shaders/environment/snow/snow_far_cover.gdshaderinc* tests/systems/test_snow_clipmap.gd*
+          ## The baseline shaders predate the witness readout: add the same debug_height branch.
+          python3 - <<'PY'
+          from pathlib import Path
+          inc = Path("shaders/environment/snow/snow_surface.gdshaderinc")
+          text = inc.read_text()
+          if "snow_debug_height" not in text:
+              inc.write_text(text + "\nvec3 snow_debug_height(float y) {\n\tvec3 v = vec3(fract(y / 4.0), fract(y / 0.25), fract(y / 0.016));\n\treturn mix(v / 12.92, pow((v + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), v));\n}\n")
+          for name in ("snow_ground.gdshader", "snow_chunk_cover.gdshader"):
+              p = Path("shaders/environment/snow") / name
+              s = p.read_text()
+              if "debug_height" in s:
+                  continue
+              s = s.replace("varying vec3 v_world;", "uniform bool debug_height = false;\nvarying vec3 v_world;", 1)
+              end = s.rindex("}", 0, s.index("\n\nvoid light()"))
+              s = s[:end] + "\tif (debug_height) {\n\t\tALBEDO = vec3(0.0);\n\t\tROUGHNESS = 1.0;\n\t\tSPECULAR = 0.0;\n\t\tEMISSION = snow_debug_height(v_world.y);\n\t}\n" + s[end:]
+              p.write_text(s)
+          PY
+          git status --short
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Snow suites (new variant)
+        if: matrix.variant == 'new'
+        run: |
+          for suite in test_snow_clipmap test_snow_shell test_snow_contact_pipeline test_snow_tracks test_snow_presentation; do
+            log="$(mktemp)"
+            "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script "res://tests/systems/$suite.gd" 2>&1 | tee "$log"
+            if grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|FAIL" "$log"; then
+              echo "FAILED: $suite"; exit 1
+            fi
+          done
+
+      - name: Capture Duval Street walk
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR" "$OUT"
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$HOME/.local/bin/godot" \
+            --path . \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --fixed-fps 30 \
+            --script res://tools/runtime/capture_snow_surface.gd -- "$OUT" 10 > "$OUT/raw.log" 2>&1 || status=$?
+          grep '^\[PerfJSON\]' "$OUT/raw.log" | sed 's/^\[PerfJSON\] //' > "$OUT/perf.jsonl" || true
+          grep -v PerfJSON "$OUT/raw.log" > "$OUT/capture.log" || true
+          rm -f "$OUT/raw.log"
+          tail -n 40 "$OUT/capture.log"
+          [ "${status:-0}" -eq 0 ] || exit "$status"
+          if grep -qE "SHADER ERROR|SCRIPT ERROR|SNOW_SURFACE_CAPTURE FAIL" "$OUT/capture.log"; then
+            echo "Capture reported an error."
+            exit 1
+          fi
+
+      - name: Height witness analysis
+        run: |
+          python3 -m pip install --quiet numpy pillow
+          python3 tools/runtime/analyze_snow_surface.py "$OUT"
+          ## Artifacts are not reachable from every reviewer's sandbox: the sheet also goes to the log.
+          echo "REVIEW_SHEET_BEGIN"; base64 -w 0 "$OUT/review_sheet.jpg"; echo; echo "REVIEW_SHEET_END"
+
+      - name: Encode videos
+        if: always()
+        run: |
+          for view in oblique tps witness; do
+            if ls "$OUT/$view"/*.png >/dev/null 2>&1; then
+              ffmpeg -y -loglevel error -framerate 10 -i "$OUT/$view/%04d.png" -vf "scale=960:-2" -c:v libx264 -pix_fmt yuv420p -crf 22 "$OUT/$view.mp4"
+            fi
+          done
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
+        with:
+          name: hoarbound-snow-surface-${{ matrix.variant }}
+          path: |
+            ${{ env.OUT }}/*.json
+            ${{ env.OUT }}/*.png
+            ${{ env.OUT }}/*.mp4
+            ${{ env.OUT }}/capture.log
+            ${{ env.OUT }}/oblique/0000.png
+            ${{ env.OUT }}/tps/0000.png
+          if-no-files-found: warn
+          retention-days: 3
+
+  snow-walk:
+    ## Henry's walk through the snowpack on Duval Street (tools/runtime/capture_snow_walk.gd):
+    ## TPS and leg-height videos of crust holding and breaking, drift pockets and boot prints,
+    ## in fresh loose snow and in an old dry crust (snowpack firmness 0 and 1).
+    ## Dispatch with preview=snow-walk, or push with [snow-walk] in the commit message.
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'snow-walk') ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[snow-walk]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        snowpack: [fresh, crust]
+    env:
+      OUT: docs/runtime_previews/snow_walk/${{ matrix.snowpack }}
+      FIRMNESS: ${{ matrix.snowpack == 'fresh' && '0.0' || '1.0' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Snow suites
+        run: |
+          for suite in test_snow_resistance test_snow_presentation test_snow_contact_pipeline test_snow_shell test_snow_clipmap; do
+            log="$(mktemp)"
+            "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script "res://tests/systems/$suite.gd" 2>&1 | tee "$log"
+            if grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|FAIL" "$log"; then
+              echo "FAILED: $suite"; exit 1
+            fi
+          done
+
+      - name: Capture the walk
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR" "$OUT"
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$HOME/.local/bin/godot" \
+            --path . \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --fixed-fps 30 \
+            --script res://tools/runtime/capture_snow_walk.gd -- "$OUT" "$FIRMNESS" > "$OUT/raw.log" 2>&1 || status=$?
+          grep -v PerfJSON "$OUT/raw.log" > "$OUT/capture.log" || true
+          rm -f "$OUT/raw.log"
+          tail -n 40 "$OUT/capture.log"
+          [ "${status:-0}" -eq 0 ] || exit "$status"
+          if grep -qE "SHADER ERROR|SCRIPT ERROR|SNOW_WALK_CAPTURE FAIL" "$OUT/capture.log"; then
+            echo "Capture reported an error."
+            exit 1
+          fi
+
+      - name: Encode videos and review sheet
+        if: always()
+        run: |
+          for view in tps legs; do
+            if ls "$OUT/$view"/*.png >/dev/null 2>&1; then
+              ffmpeg -y -loglevel error -framerate 15 -i "$OUT/$view/%04d.png" -vf "scale=960:-2" -c:v libx264 -pix_fmt yuv420p -crf 22 "$OUT/$view.mp4"
+            fi
+          done
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          from PIL import Image
+          out = Path(os.environ["OUT"])
+          tiles = []
+          for view in ("legs", "tps"):
+              frames = sorted((out / view).glob("*.png"))
+              if frames:
+                  tiles += [frames[int(i * (len(frames) - 1) / 3)] for i in (0, 1, 2, 3)]
+          tiles += sorted(out.glob("prints_*.png"))
+          if tiles:
+              cols = 4
+              rows = (len(tiles) + cols - 1) // cols
+              sheet = Image.new("RGB", (480 * cols, 270 * rows))
+              for k, t in enumerate(tiles):
+                  sheet.paste(Image.open(t).convert("RGB").resize((480, 270)), ((k % cols) * 480, (k // cols) * 270))
+              sheet.save(out / "review_sheet.jpg", quality=72)
+          report = out / "report.json"
+          if report.exists():
+              data = json.loads(report.read_text())
+              frames = data["frames"]
+              deepest = max((max(f["sink"]) for f in frames), default=0.0)
+              feet = [b for f in frames for b in f.get("feet", []) if b["depth"] > 0.05]
+              ghosts = [b for b in feet if b["pressed"] < 0.01]
+              print("SNOW_WALK_GHOSTS", json.dumps({"standing_in_snow": len(feet), "no_print": len(ghosts), "examples": ghosts[:8]}))
+              print("SNOW_WALK_SUMMARY", json.dumps({"firmness": data.get("firmness"), "plunges": data["plunges"], "frames": len(frames), "deepest_sink_m": deepest,
+                  "max_depth_m": max((f["depth"] for f in frames), default=0.0)}))
+          PY
+          ## Artifacts are not reachable from every reviewer's sandbox: the sheet also goes to the log.
+          if [ -f "$OUT/review_sheet.jpg" ]; then echo "REVIEW_SHEET_BEGIN"; base64 -w 0 "$OUT/review_sheet.jpg"; echo; echo "REVIEW_SHEET_END"; fi
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        ## Reports only: a full artifact quota must not fail the checks.
+        continue-on-error: true
+        with:
+          name: hoarbound-snow-walk-${{ matrix.snowpack }}
+          path: |
+            ${{ env.OUT }}/*.mp4
+            ${{ env.OUT }}/*.png
+            ${{ env.OUT }}/*.jpg
+            ${{ env.OUT }}/report.json
+            ${{ env.OUT }}/capture.log
           if-no-files-found: warn
           retention-days: 3

@@ -28,6 +28,7 @@ const BOX_COLOURS: Dictionary = {"counter": Color(0.62, 0.56, 0.48), "bench": Co
 var interior: Dictionary = {}
 var _house: Node3D
 var _floor_y: float = 0.0
+var _glass_warmth: float = 0.0
 
 
 func _ready() -> void:
@@ -63,6 +64,8 @@ func build() -> void:
 	_place_door(zone)
 	_place_zone(zone, true)
 	zone.warmth_changed.connect(_on_heated_warmth.bind(zone))
+	## Frost is drawn afresh each load; never while a pane shows it.
+	FROSTED_GLASS.set_shader_parameter(&"growth_seed", randf() * 100.0)
 	_on_heated_warmth(0.0, zone)
 	var clinic: ThermalZone = _clinic_zone(zone)
 	_place_windows(zone, clinic, window_proto)
@@ -112,7 +115,12 @@ func _opening(opening_name: String) -> Dictionary:
 
 
 func _on_heated_warmth(_offset_c: float, zone: ThermalZone) -> void:
-	FROSTED_GLASS.set_shader_parameter(&"heated_warmth", frost_warmth(zone))
+	var warmth: float = frost_warmth(zone)
+	## A thaw starting from cold takes its own path; at zero warmth the melt mask shows nothing.
+	if warmth > 0.0 and _glass_warmth <= 0.0:
+		FROSTED_GLASS.set_shader_parameter(&"melt_seed", randf() * 100.0)
+	_glass_warmth = warmth
+	FROSTED_GLASS.set_shader_parameter(&"heated_warmth", warmth)
 
 
 func _place_door(zone: ThermalZone) -> void:
