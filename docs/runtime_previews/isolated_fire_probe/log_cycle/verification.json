@@ -1,0 +1,31 @@
+{
+  "engine": "4.8.dev6.mono.official.8898c2b3d",
+  "renderer": "gl_compatibility",
+  "driver": "opengl3",
+  "device": "Mesa llvmpipe (LLVM 19.1.7, 256 bits)",
+  "display": "X11 via Xvfb, non-headless",
+  "frames": 300,
+  "fps": 30,
+  "duration_seconds": 10,
+  "resolution": [
+    960,
+    540
+  ],
+  "stage_frames": {
+    "01-ignition.png": 45,
+    "02-burning.png": 150,
+    "03-embers.png": 270
+  },
+  "sha256": {
+    "01-ignition.png": "4ddf772ddd06523ac93c00147cff66d701cf9eb4eb5a7ab874c4979cf4bd5fe3",
+    "02-burning.png": "131bfd89fe684ad572238e0a1cd7a7fb3f4366cecf2840b8f71ad978f5392f83",
+    "03-embers.png": "596f7b3e4d8791a913aa3b24b6c167a67b5ccf40ba08d00c66e4e0283b7c69a6",
+    "full-cycle.mp4": "15b836236cbc5f62c765a152aec884a7b060d901739827bdd00532f80d771439"
+  },
+  "freeze_test": {
+    "progress": 0.5,
+    "frames": 4,
+    "all_png_hashes_identical": true,
+    "sha256": "d410812c9626e22684381e93d3c5e1bf8287eb226772ae767f1860435375d828"
+  }
+}
