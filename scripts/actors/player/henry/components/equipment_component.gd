@@ -8,8 +8,8 @@
 #
 # Slots are addressed by a body slot id, or "<body_slot>/<pocket>".
 #
-# STORES ITEM IDS ONLY, never ItemResource references: the save contract
-# carries dictionaries, arrays and primitives, and does not widen.
+# Stores item IDs (not ItemResource references) plus optional runtime pocket states.
+# Both remain dictionaries/primitives in the established save contract.
 #
 # Ported from ADT, minus draw/holster (no weapons here), plus the axis ADT
 # does not have: get_total_insulation_c(), which feeds ThermalManager.
@@ -35,6 +35,7 @@ enum Refusal {
 	WRONG_BODY_SLOT,
 	POCKETS_NOT_EMPTY,
 	HANDS_ONLY,
+	STATEFUL_STACK,
 }
 
 const POCKET_SEPARATOR: String = "/"
@@ -62,6 +63,8 @@ const LEGACY_SLOT_MIGRATION: Dictionary = {
 
 var _body: Dictionary = {}
 var _pockets: Dictionary = {}
+## Companion state keyed by physical pocket path; legacy id-only callers remain valid.
+var _pocket_states: Dictionary = {}
 var _garment_states: Dictionary = {}
 
 
@@ -110,6 +113,12 @@ func get_equipped(slot_id: StringName) -> StringName:
 ## Item in one pocket of one worn garment, or empty.
 func get_pocket_item(body_slot_id: StringName, pocket_id: StringName) -> StringName:
 	return _pockets.get(pocket_path(body_slot_id, pocket_id), &"")
+
+
+## A copy of the state owned by a physical pocket item (not the ItemResource).
+func get_pocket_instance_state(body_slot_id: StringName, pocket_id: StringName) -> Dictionary:
+	var path: StringName = pocket_path(body_slot_id, pocket_id)
+	return (_pocket_states.get(path, {}) as Dictionary).duplicate(true)
 
 
 ## Every pocket currently available, which means every pocket brought by
@@ -402,27 +411,48 @@ func equip_from_inventory(slot_id: StringName, item_id: StringName, inventory: I
 	return refusal
 
 
-## Puts an item into one pocket.
+## Legacy id-only path for ordinary stateless items.
 func stow(body_slot_id: StringName, pocket_id: StringName, item_id: StringName) -> Refusal:
+	return stow_instance(body_slot_id, pocket_id, item_id)
+
+
+## Accepts a physical instance and its mutable state without changing the slot model.
+func stow_instance(body_slot_id: StringName, pocket_id: StringName, item_id: StringName, instance_state: Dictionary = {}) -> Refusal:
 	var refusal: Refusal = can_stow(body_slot_id, pocket_id, item_id)
 	if refusal != Refusal.NONE:
 		_log("stow refused", pocket_path(body_slot_id, pocket_id), item_id, refusal)
 		return refusal
+	var item: ItemResource = ItemCatalog.get_item(item_id)
+	if item.max_stack > 1 and not instance_state.is_empty():
+		return Refusal.STATEFUL_STACK
 	var path: StringName = pocket_path(body_slot_id, pocket_id)
 	_pockets[path] = item_id
+	if not instance_state.is_empty():
+		_pocket_states[path] = instance_state.duplicate(true)
 	slot_changed.emit(path, item_id)
 	return Refusal.NONE
 
 
-## Takes whatever is in a pocket back out.
-func take_from_pocket(body_slot_id: StringName, pocket_id: StringName) -> StringName:
+## The state-aware counterpart to take_from_pocket(). Returns {} when empty.
+func take_pocket_instance(body_slot_id: StringName, pocket_id: StringName) -> Dictionary:
 	var path: StringName = pocket_path(body_slot_id, pocket_id)
 	var item_id: StringName = _pockets.get(path, &"")
 	if item_id == &"":
-		return &""
+		return {}
+	var state: Dictionary = get_pocket_instance_state(body_slot_id, pocket_id)
 	_pockets.erase(path)
+	_pocket_states.erase(path)
 	slot_changed.emit(path, &"")
-	return item_id
+	return {"id": item_id, "instance_state": state}
+
+
+## An id-only caller cannot safely remove a stateful item; refuse rather than
+## quietly erase its condition/fuel/etc. Such callers must use take_pocket_instance.
+func take_from_pocket(body_slot_id: StringName, pocket_id: StringName) -> StringName:
+	if not get_pocket_instance_state(body_slot_id, pocket_id).is_empty():
+		push_warning("Equipment: stateful pocket item requires take_pocket_instance()")
+		return &""
+	return StringName(take_pocket_instance(body_slot_id, pocket_id).get("id", ""))
 
 
 ## Finds somewhere for an item: worn if it is a garment, then any empty
@@ -474,9 +504,13 @@ func get_save_data() -> Dictionary:
 	var states: Dictionary = {}
 	for slot_id: StringName in _garment_states:
 		states[String(slot_id)] = (_garment_states[slot_id] as GarmentInstanceState).to_dict()
+	var pocket_states: Dictionary = {}
+	for path: StringName in _pocket_states:
+		pocket_states[String(path)] = (_pocket_states[path] as Dictionary).duplicate(true)
 	return {
 		"body": _to_string_keys(_body),
 		"pockets": _to_string_keys(_pockets),
+		"pocket_states": pocket_states,
 		"garment_states": states,
 	}
 
@@ -488,6 +522,7 @@ func get_save_data() -> Dictionary:
 func load_save_data(data: Dictionary) -> void:
 	_body.clear()
 	_pockets.clear()
+	_pocket_states.clear()
 	_garment_states.clear()
 
 	var saved_body: Dictionary = data.get("body", {})
@@ -518,6 +553,22 @@ func load_save_data(data: Dictionary) -> void:
 		if ItemCatalog.get_item(item_id) == null:
 			continue
 		_pockets[pocket_path(migrated_slot, StringName(parts[1]))] = item_id
+
+	# Old saves have no pocket_states key. Preserve that id-only layout unchanged.
+	var saved_pocket_states: Dictionary = data.get("pocket_states", {})
+	for path_key: Variant in saved_pocket_states:
+		var parts: PackedStringArray = String(path_key).split(POCKET_SEPARATOR)
+		if parts.size() != 2:
+			continue
+		var path: StringName = pocket_path(StringName(parts[0]), StringName(parts[1]))
+		if not _pockets.has(path):
+			continue
+		var state_data: Variant = saved_pocket_states[path_key]
+		var item: ItemResource = ItemCatalog.get_item(_pockets[path])
+		if item == null or item.max_stack != 1 or typeof(state_data) != TYPE_DICTIONARY:
+			continue
+		if not (state_data as Dictionary).is_empty():
+			_pocket_states[path] = (state_data as Dictionary).duplicate(true)
 
 	var saved_states: Dictionary = data.get("garment_states", {})
 	for slot_key: Variant in saved_states:

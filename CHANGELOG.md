@@ -127,6 +127,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Item integrity (Codex, e63bee8e; reviewed in #70): `ItemCatalog` no longer lets a repeated definition id silently
+  replace the first (`validate_entries()`, an error at index time). A stackable item refuses an `instance_state`
+  instead of dropping it. Pack ↔ pocket moves in the Hub and Quick Access swaps carry each item's state
+  (`stow_instance`, `take_pocket_instance`, optional `pocket_states` in the equipment save; old saves load).
+  id-only `take_from_pocket` refuses a stateful pocket item rather than erasing its state. `test_item_integrity`
+  covers it (fixture now runs on the first frame, so the coat's pockets exist).
+
 - Stove ritual edge prompt (owner request): F no longer makes the centre prompt vanish. Its brackets part to
   the screen edges (72 px in), the yellow strip splits into its two halves, one by each bracket: `[F] BACK`
   on the left, `STOVE` on the right. Any `InteractiveArea` can offer this through `get_session_prompt_data()`
