@@ -153,16 +153,22 @@ func _swap_pockets(a: StringName, b: StringName) -> bool:
 	var pb: PackedStringArray = String(b).split(EquipmentComponent.POCKET_SEPARATOR)
 	if equipment == null or pa.size() != 2 or pb.size() != 2:
 		return false
-	var item_a: StringName = equipment.take_from_pocket(StringName(pa[0]), StringName(pa[1]))
-	var item_b: StringName = equipment.take_from_pocket(StringName(pb[0]), StringName(pb[1]))
+	if a == b:
+		return true
+	var payload_a: Dictionary = equipment.take_pocket_instance(StringName(pa[0]), StringName(pa[1]))
+	var payload_b: Dictionary = equipment.take_pocket_instance(StringName(pb[0]), StringName(pb[1]))
+	var item_a: StringName = StringName(payload_a.get("id", ""))
+	var item_b: StringName = StringName(payload_b.get("id", ""))
 	var fits: bool = (item_a == &"" or equipment.can_stow(StringName(pb[0]), StringName(pb[1]), item_a) == EquipmentComponent.Refusal.NONE) \
 		and (item_b == &"" or equipment.can_stow(StringName(pa[0]), StringName(pa[1]), item_b) == EquipmentComponent.Refusal.NONE)
-	var into_a: StringName = item_b if fits else item_a
-	var into_b: StringName = item_a if fits else item_b
-	if into_a != &"":
-		equipment.stow(StringName(pa[0]), StringName(pa[1]), into_a)
-	if into_b != &"":
-		equipment.stow(StringName(pb[0]), StringName(pb[1]), into_b)
+	var into_a: Dictionary = payload_b if fits else payload_a
+	var into_b: Dictionary = payload_a if fits else payload_b
+	if not into_a.is_empty():
+		if equipment.stow_instance(StringName(pa[0]), StringName(pa[1]), into_a["id"], into_a.get("instance_state", {})) != EquipmentComponent.Refusal.NONE:
+			push_error("QuickAccess: failed to restore pocket A")
+	if not into_b.is_empty():
+		if equipment.stow_instance(StringName(pb[0]), StringName(pb[1]), into_b["id"], into_b.get("instance_state", {})) != EquipmentComponent.Refusal.NONE:
+			push_error("QuickAccess: failed to restore pocket B")
 	return fits
 
 

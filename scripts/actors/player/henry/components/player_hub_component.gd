@@ -208,8 +208,16 @@ func move_to_zone(item_id: StringName, zone_path: StringName) -> EquipmentCompon
 	if refusal != EquipmentComponent.Refusal.NONE:
 		return refusal
 	var parts: PackedStringArray = String(zone_path).split(EquipmentComponent.POCKET_SEPARATOR)
-	inventory.try_remove(item_id)
-	equipment.stow(StringName(parts[0]), StringName(parts[1]), item_id)
+	var payload: Dictionary = inventory.take_instance(item_id)
+	if payload.is_empty():
+		return EquipmentComponent.Refusal.UNKNOWN_ITEM
+	var state: Dictionary = payload.get("instance_state", {})
+	refusal = equipment.stow_instance(StringName(parts[0]), StringName(parts[1]), item_id, state)
+	if refusal != EquipmentComponent.Refusal.NONE:
+		# Even a re-entrant refusal must not delete the source instance.
+		if not inventory.try_add_instance(payload["item"] as ItemResource, state):
+			push_error("Hub: failed to restore item after rejected pocket placement")
+		return refusal
 	contents_changed.emit()
 	return EquipmentComponent.Refusal.NONE
 
@@ -221,12 +229,15 @@ func move_to_pack(zone_path: StringName) -> StringName:
 		return &"no_such_slot"
 	var body_slot := StringName(parts[0])
 	var pocket := StringName(parts[1])
-	var item_id: StringName = equipment.take_from_pocket(body_slot, pocket)
-	if item_id == &"":
+	var payload: Dictionary = equipment.take_pocket_instance(body_slot, pocket)
+	if payload.is_empty():
 		return &"empty"
-	## Taken out first, so its own weight is not counted twice by the pack.
-	if not inventory.try_add(ItemCatalog.get_item(item_id)):
-		equipment.stow(body_slot, pocket, item_id)
+	var item_id: StringName = payload["id"]
+	var state: Dictionary = payload.get("instance_state", {})
+	## Taken out first, so its weight is not counted twice before adding to the pack.
+	if not inventory.try_add_instance(ItemCatalog.get_item(item_id), state):
+		if equipment.stow_instance(body_slot, pocket, item_id, state) != EquipmentComponent.Refusal.NONE:
+			push_error("Hub: failed to restore pocket after rejected pack transfer")
 		return OVERWEIGHT
 	contents_changed.emit()
 	return &""
