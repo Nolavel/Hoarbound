@@ -248,6 +248,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 727 floor a warmer, lighter vinyl (owner: the stove and the floor ran together). `floor_vinyl` (0.52, 0.50,
+  0.45) → (0.66, 0.57, 0.44), so the black cast-iron stove stands off the floor in the dim interior. A new
+  `tools/world/reality/landmark_material_tint.py` changes only the material's base colour in the artist-modified
+  glb (buffers byte-identical). The spec and the authoring manifest record the tint and the sha256;
+  `landmarks.py` keeps the same palette entry.
 - Stove ritual replaces the stove's F cycle (owner spec). Before: F opened the door, the next F loaded the whole
   armful and readied the lighter, and RMB took cold logs back. Now `[F] Stove` walks Henry to a
   `StoveInteractionPoint` in stove space (the player's own scripted walk, no teleport, refused when his capsule
