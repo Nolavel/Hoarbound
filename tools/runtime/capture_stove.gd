@@ -63,7 +63,8 @@ func _run() -> void:
 	inventory.try_add(ItemCatalog.get_item(&"tinder"))
 	inventory.try_add(ItemCatalog.get_item(&"lighter"))
 	## Henry two metres before the door, inside the heated room, looking at the stove.
-	var stand: Vector3 = _floor_point(_source.to_global(Vector3(2.0, 0.0, 0.35)))
+	## Off the door's axis, so the camera over his shoulder sees the stove beside him.
+	var stand: Vector3 = _floor_point(_source.to_global(Vector3(1.9, 0.0, 0.95)))
 	_player.global_position = stand + Vector3.UP * 1.0
 	_player.velocity = Vector3.ZERO
 	_player.look_at(Vector3(_source.global_position.x, _player.global_position.y, _source.global_position.z), Vector3.UP)
@@ -117,7 +118,13 @@ func _process(_delta: float) -> bool:
 	## Debug HUD layers come and go; only the stove ring stays on the frames.
 	if _frame % 15 == 0 and _world != null:
 		for node: Node in _world.find_children("*", "CanvasLayer", true, false):
-			if node.name != &"StoveRingLayer":
+			if node.name != &"StoveRingLayer" and not _is_prompt(node):
+				node.set(&"visible", false)
+		for node: Node in root.get_children():
+			if node is Control:
+				node.set(&"visible", false)
+		for node: Node in _world.find_children("*", "Label", true, false):
+			if node.get_viewport() == root and not _is_prompt(node) and not _under_ring(node):
 				node.set(&"visible", false)
 	if _recording:
 		_frame += 1
@@ -164,6 +171,22 @@ func _mouse(button: MouseButton, pressed: bool) -> void:
 	event.button_index = button
 	event.pressed = pressed
 	root.push_input(event)
+
+
+func _is_prompt(node: Node) -> bool:
+	while node != null:
+		if node.is_in_group(&"interaction_cursor_prompt") or node.is_in_group(&"action_prompt_3d"):
+			return true
+		node = node.get_parent()
+	return false
+
+
+func _under_ring(node: Node) -> bool:
+	while node != null:
+		if node.name == &"StoveRingLayer":
+			return true
+		node = node.get_parent()
+	return false
 
 
 ## The production TPS camera turned so its aim passes through the point.
