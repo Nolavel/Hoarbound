@@ -122,6 +122,7 @@ func _test_entry_without_autoload() -> void:
 	_check(visual.is_carrying(), "crouching dropped the carried logs")
 	var playback := visual.animation_tree.get("parameters/base/playback") as AnimationNodeStateMachinePlayback
 	_check(playback.get_current_node() == &"CrouchCarry", "crouched with logs is not the carry crouch: %s" % playback.get_current_node())
+	await _check_work_framing()
 
 
 ## Test 4: an empty firebox takes no tinder; the fuel arc says why.
@@ -232,6 +233,12 @@ func _test_exit_and_return() -> void:
 	_check(not _player.is_crouching() and _state.call(&"is_on_foot"), "Henry did not stand up and get his legs back")
 	_check(not _control.get_ring().is_shown(), "the ring stayed up")
 	_check(_source.get_loaded_log_count() == 3 and _source.is_tinder_prepared(), "leaving lost the logs or the tinder")
+	var camera := root.get_camera_3d() as TpsCamera
+	for _i: int in range(300):
+		if camera == null or camera.get_work_framing_blend() <= 0.0:
+			break
+		await process_frame
+	_check(camera != null and camera.get_work_framing_blend() <= 0.0, "the camera did not hand the view back after F")
 	_control.request_enter()
 	for _i: int in range(240):
 		await physics_frame
@@ -378,6 +385,32 @@ func _tinder_count() -> int:
 			if pocket["item_id"] == &"tinder":
 				count += 1
 	return count
+
+
+## The TPS camera frames the open firebox: the fire's spot sits mid-screen and no part of
+## Henry stands between the lens and it (owner: the ritual must be seen).
+func _check_work_framing() -> void:
+	var camera := root.get_camera_3d() as TpsCamera
+	_check(camera != null, "the ritual runs without the TPS camera")
+	if camera == null:
+		return
+	for _i: int in range(300):
+		if camera.get_work_framing_blend() >= 1.0:
+			break
+		await process_frame
+	await process_frame
+	_check(camera.get_work_framing_blend() >= 1.0, "the camera never settled on the stove framing")
+	var focus: Vector3 = _source.to_global(StoveInteractionController.VIEW_FOCUS)
+	var size: Vector2 = camera.get_viewport().get_visible_rect().size
+	var on_screen: Vector2 = camera.unproject_position(focus) / size
+	_check(not camera.is_position_behind(focus) and absf(on_screen.x - 0.5) < 0.25 and absf(on_screen.y - 0.5) < 0.3,
+		"the firebox is off the frame: %s" % on_screen)
+	var query := PhysicsRayQueryParameters3D.create(camera.global_position, focus)
+	query.hit_from_inside = true
+	var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(query)
+	_check(hit.is_empty() or hit["collider"] != _player, "Henry's body hides the firebox from the camera")
+	var to_eye: float = camera.global_position.distance_to(_player.global_position)
+	_check(to_eye > 0.7 and to_eye < 2.6, "the stove framing is not a close work view: %.2f m from Henry" % to_eye)
 
 
 func _frames(count: int) -> void:

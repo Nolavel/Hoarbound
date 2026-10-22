@@ -1034,7 +1034,7 @@
  "pipeline_version": "1.0.0",
  "built_at": "2026-10-10T23:19:23+00:00",
  "asset": "assets/world/key_west/landmarks/kw_727_fort_st.glb",
- "asset_sha256": "dfad67e073b5acf0257511a4fffb150549b200b6f81e4ebff61feae43cf6f869",
+ "asset_sha256": "729e642207e45ef1ee79f36383bf5db9f93fcbe1f344766a74376577da573d48",
  "triangles": 1256,
  "window_frost": {
   "tool": "tools/world/reality/landmark_glass_frost.py",
@@ -1130,21 +1130,5 @@
    }
   },
   "built_at": "2026-10-15T08:57:16+00:00"
- },
- "material_tints": {
-  "floor_vinyl": {
-   "tool": "tools/world/reality/landmark_material_tint.py",
-   "from": [
-    0.52,
-    0.5,
-    0.45
-   ],
-   "to": [
-    0.66,
-    0.57,
-    0.44
-   ],
-   "built_at": "2026-10-22T01:47:42+00:00"
-  }
  }
 }

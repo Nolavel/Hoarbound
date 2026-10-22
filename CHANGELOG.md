@@ -248,11 +248,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
-- 727 floor a warmer, lighter vinyl (owner: the stove and the floor ran together). `floor_vinyl` (0.52, 0.50,
-  0.45) → (0.66, 0.57, 0.44), so the black cast-iron stove stands off the floor in the dim interior. A new
-  `tools/world/reality/landmark_material_tint.py` changes only the material's base colour in the artist-modified
-  glb (buffers byte-identical). The spec and the authoring manifest record the tint and the sha256;
-  `landmarks.py` keeps the same palette entry.
+- Stove ritual framing (owner: "we saw nothing inside the stove or what Henry does"). The TPS camera stayed high
+  behind Henry, his back hid the door, and the iron stove was lost on the dark floor. The same TPS camera now
+  eases onto a work framing while the door is open (`TpsCamera.set_work_framing`), the owner's composition:
+  high over Henry's left shoulder, head and shoulder low left, stove mid-frame, open door just right of centre.
+  The stove's "Use" prompt no longer shows during the ritual. The mouse orbits it a little, walls still
+  shorten the boom, and F eases back to the follow rig. No separate mini-game camera.
+- 727 floor lighter and warmer (owner: stove and floor merge). The floor's real material is the external
+  `floor_old_wood_727.tres` (the glb's `floor_vinyl` is remapped in the import), 0.23/0.16/0.10 to 0.40/0.29/0.18
+  against the 0.13 iron. The earlier glb tint (6e90bb3) changed the remapped-away colour and showed nothing;
+  reverted with its tool.
 - Stove ritual replaces the stove's F cycle (owner spec). Before: F opened the door, the next F loaded the whole
   armful and readied the lighter, and RMB took cold logs back. Now `[F] Stove` walks Henry to a
   `StoveInteractionPoint` in stove space (the player's own scripted walk, no teleport, refused when his capsule

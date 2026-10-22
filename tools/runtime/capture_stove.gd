@@ -8,8 +8,8 @@ extends SceneTree
 ## other frame of the whole run.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
-## Evening, so the stove's light on the room reads against the interior.
-const HOUR: float = 18.6
+## Early afternoon: daylight through the windows shows the firebox and Henry before the fire.
+const HOUR: float = 13.0
 const VIDEO_EVERY: int = 2
 
 var _out: String = "user://shots/stove"
@@ -139,6 +139,10 @@ func _shot(name: String) -> void:
 	_save(ProjectSettings.globalize_path(_out).path_join(name + ".png"))
 	print("[stove] shot ", name, " phase=", _control.get_phase(), " logs=", _source.get_loaded_log_count(),
 		" tinder=", _source.is_tinder_prepared(), " stage=", _feed.get_stage(), " burning=", _source.is_burning())
+	var camera := root.get_camera_3d() as TpsCamera
+	if camera != null:
+		print("[stove] camera in stove space ", _source.to_local(camera.global_position), " henry ",
+			_source.to_local(_player.global_position), " framing ", camera.get_work_framing_blend())
 
 
 func _save(path: String) -> void:

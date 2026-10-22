@@ -30,7 +30,7 @@ ROOF_BAND_M = (4.3, 5.2)  # 727: flat roof plane above ground, separates roof fr
 NOTCH_ROOF_MIN_M = 1.0  # roof run-out beyond an edge that counts as a roofed notch, not an eave
 MATERIALS = {"masonry_stucco": (0.86, 0.83, 0.76, 1.0), "roof_membrane": (0.55, 0.55, 0.53, 1.0),
              "fort_brick": (0.62, 0.45, 0.36, 1.0), "interior_plaster": (0.80, 0.79, 0.74, 1.0),
-             "floor_vinyl": (0.66, 0.57, 0.44, 1.0), "ceiling_tile": (0.88, 0.88, 0.85, 1.0),
+             "floor_vinyl": (0.52, 0.50, 0.45, 1.0), "ceiling_tile": (0.88, 0.88, 0.85, 1.0),
              "window_glass": (0.30, 0.40, 0.46, 0.35)}
 
 

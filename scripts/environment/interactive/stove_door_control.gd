@@ -6,7 +6,7 @@ var feed: HeatSourceFeed
 
 
 func can_interact() -> bool:
-	return is_instance_valid(feed)
+	return is_instance_valid(feed) and feed.can_interact()
 
 
 func _on_interaction_performed() -> void:

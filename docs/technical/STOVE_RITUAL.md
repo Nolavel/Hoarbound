@@ -25,7 +25,12 @@ OUTSIDE --F--> APPROACHING --> OPENING_DOOR --> ENTERING_CROUCH --> WORKING --F-
    base state is `CrouchCarry`, the carry arms frozen over the crouch legs.
 4. `PlayerState` goes WORKING: no WASD, sprint, jump or pickups. The interact key
    is claimed through `InputSystems.claim_interact`, so F only ends the ritual.
-   The camera stays the TPS camera.
+   The camera stays the TPS camera; as the door opens it eases (about 0.7 s) onto
+   a work framing (`TpsCamera.set_work_framing`), the owner's composition: high over
+   Henry's left shoulder, his head and shoulder low left, the stove mid-frame and the
+   open door (hinged on -Z) just right of centre, looking down into the firebox. The mouse orbits it up to 25
+   degrees in yaw and 12 in pitch; a wall between Henry and the eye shortens the
+   boom. F hands the view back to the follow rig at the same rate.
 5. The ring (`StoveInteractionRing`) appears beside the stove.
 6. F cancels any act that has not committed, closes the door, hides the ring,
    stands Henry up and returns `PlayerState` to ON_FOOT.

@@ -99,8 +99,9 @@ func _ready() -> void:
 	set_item_name(tr("FEED_PROMPT"))
 
 
+## Offered only outside the ritual: inside it F is claimed and the ring speaks for the stove.
 func can_interact() -> bool:
-	return heat_source != null
+	return heat_source != null and not (controller != null and controller.is_active())
 
 
 func is_acting() -> bool:

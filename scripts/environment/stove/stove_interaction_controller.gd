@@ -26,6 +26,10 @@ const CROUCH_SECONDS: float = 0.35
 const EXIT_SECONDS: float = 0.45
 ## Henry turns to the door at this rate while the door opens, radians per second.
 const TURN_RATE: float = 8.0
+## Work framing in stove space (owner's composition): high over Henry's left shoulder, his head
+## and shoulder low left, the stove mid-frame and the open door just right of centre.
+const VIEW_FOCUS: Vector3 = Vector3(0.12, 0.32, 0.0)
+const VIEW_EYE: Vector3 = Vector3(1.55, 1.85, 0.6)
 
 var feed: HeatSourceFeed
 
@@ -260,6 +264,7 @@ func _begin_open() -> void:
 	_enter_working_mode()
 	feed.session_active = true
 	feed.set_door_open(true)
+	_frame_camera(true)
 	_phase_left = DOOR_SECONDS
 	_set_phase(Phase.OPENING_DOOR)
 	set_physics_process(true)
@@ -273,6 +278,7 @@ func _begin_exit() -> void:
 	feed.session_active = false
 	feed.set_door_open(false)
 	_show_ring(false)
+	_frame_camera(false)
 	_phase_left = EXIT_SECONDS
 	_set_phase(Phase.EXITING)
 
@@ -297,6 +303,7 @@ func _abort(message: StringName) -> void:
 		if message != &"":
 			feed.show_message(tr(message))
 	_show_ring(false)
+	_frame_camera(false)
 	if is_instance_valid(_player):
 		_player.set_work_crouch(false)
 	_restore_mode()
@@ -411,6 +418,19 @@ func _show_ring(shown: bool) -> void:
 		layer.add_child(_ring)
 	if is_instance_valid(_ring):
 		_ring.set_shown(shown)
+
+
+## The production TPS camera eases onto the open firebox and Henry's hands; no second camera.
+func _frame_camera(framed: bool) -> void:
+	var viewport: Viewport = get_viewport()
+	var camera := viewport.get_camera_3d() as TpsCamera if viewport != null else null
+	if camera == null:
+		return
+	var source: HeatSource = feed.heat_source if feed != null else null
+	if framed and is_instance_valid(source):
+		camera.set_work_framing(source.to_global(VIEW_FOCUS), source.to_global(VIEW_EYE))
+	else:
+		camera.clear_work_framing()
 
 
 func _set_phase(phase: Phase) -> void:
