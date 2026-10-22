@@ -59,6 +59,8 @@ func adopt_fire(zone: ThermalZone, fire: HeatSource) -> void:
 		_remember_fire(key, fire)
 	if not fire.fuel_changed.is_connected(_on_fuel_changed):
 		fire.fuel_changed.connect(_on_fuel_changed.bind(key, fire))
+	if not fire.tinder_changed.is_connected(_on_tinder_changed):
+		fire.tinder_changed.connect(_on_tinder_changed.bind(key, fire))
 
 
 func get_save_key() -> StringName:
@@ -108,6 +110,10 @@ func _remember_breach(zone: ThermalZone, breach: ShelterBreach) -> void:
 
 
 func _on_fuel_changed(_fraction: float, key: String, fire: HeatSource) -> void:
+	_remember_fire(key, fire)
+
+
+func _on_tinder_changed(_prepared: bool, key: String, fire: HeatSource) -> void:
 	_remember_fire(key, fire)
 
 

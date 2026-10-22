@@ -12,6 +12,8 @@ signal fuel_changed(fraction: float)
 ## warming on it; also for sources that never run out.
 signal heat_elapsed(hours: float)
 signal intensity_changed(intensity: float)
+## Tinder laid under the logs of a cold stove, kept until a fire catches it.
+signal tinder_changed(prepared: bool)
 
 static var _registry: Array[HeatSource] = []
 
@@ -50,6 +52,7 @@ var _warmup_remaining_h: float = 0.0
 var _step_intensity: float = 1.0
 var _is_burning: bool = false
 var _remaining_h: float = 0.0
+var _tinder_prepared: bool = false
 
 
 func _ready() -> void:
@@ -138,6 +141,7 @@ func refuel(units: float = 1.0) -> void:
 		_recoverable_logs = 0
 		_warmup_remaining_h = 0.0
 		_step_intensity = 1.0
+		set_tinder_prepared(false)
 		burning_changed.emit(true)
 	_sync_warmup_step()
 	fuel_changed.emit(get_fuel_fraction())
@@ -177,6 +181,7 @@ func ignite() -> void:
 	_sync_warmup_step()
 	if not _is_burning:
 		_is_burning = true
+		set_tinder_prepared(false)
 		burning_changed.emit(true)
 	fuel_changed.emit(get_fuel_fraction())
 
@@ -245,6 +250,35 @@ func get_log_room() -> int:
 	return maxi(0, floori((burn_duration_h - _remaining_h + 0.0001) / hours_per_fuel_unit))
 
 
+## Whole logs a full firebox holds: burn_duration_h / hours_per_fuel_unit.
+func get_log_capacity() -> int:
+	if burn_duration_h <= 0.0 or hours_per_fuel_unit <= 0.0:
+		return 0
+	return floori(burn_duration_h / hours_per_fuel_unit + 0.0001)
+
+
+## Logs in the firebox now, a partly burned one counted whole (as the stove shows it).
+func get_loaded_log_count() -> int:
+	if hours_per_fuel_unit <= 0.0:
+		return 0
+	return clampi(ceili(_remaining_h / hours_per_fuel_unit - 0.001), 0, get_log_capacity())
+
+
+func is_tinder_prepared() -> bool:
+	return _tinder_prepared
+
+
+## Lays or clears tinder in a cold firebox; a burning stove needs none.
+func set_tinder_prepared(prepared: bool) -> bool:
+	if prepared and _is_burning:
+		return false
+	if prepared == _tinder_prepared:
+		return true
+	_tinder_prepared = prepared
+	tinder_changed.emit(prepared)
+	return true
+
+
 ## Whole-log transfers never ignite a cold load or manufacture a partly burned log.
 func add_logs(count: int) -> bool:
 	if count <= 0 or count > get_log_room():
@@ -276,6 +310,8 @@ func start_loaded_fire(game_hours_per_second: float = 1.0 / 3600.0) -> bool:
 	_warmup_remaining_h = _warmup_duration_h
 	_recoverable_logs = 0
 	_is_burning = true
+	## The tinder is what caught: it is spent.
+	set_tinder_prepared(false)
 	_step_intensity = get_intensity()
 	_sync_warmup_step()
 	burning_changed.emit(true)
@@ -287,7 +323,7 @@ func start_loaded_fire(game_hours_per_second: float = 1.0 / 3600.0) -> bool:
 func get_fire_save_data() -> Dictionary:
 	return {"remaining_h": _remaining_h, "burning": _is_burning,
 		"recoverable_logs": _recoverable_logs, "warmup_duration_h": _warmup_duration_h,
-		"warmup_remaining_h": _warmup_remaining_h}
+		"warmup_remaining_h": _warmup_remaining_h, "tinder_prepared": _tinder_prepared}
 
 
 func restore_fire_save_data(data: Dictionary) -> void:
@@ -296,6 +332,7 @@ func restore_fire_save_data(data: Dictionary) -> void:
 	_recoverable_logs = 0 if _is_burning else clampi(int(data.get("recoverable_logs", 0)), 0, legacy_logs)
 	_warmup_duration_h = maxf(0.0, float(data.get("warmup_duration_h", 0.0)))
 	_warmup_remaining_h = clampf(float(data.get("warmup_remaining_h", 0.0)), 0.0, _warmup_duration_h)
+	set_tinder_prepared(bool(data.get("tinder_prepared", false)) and not _is_burning)
 	_step_intensity = get_intensity()
 	_sync_warmup_step()
 	intensity_changed.emit(get_intensity())

@@ -1,7 +1,7 @@
 class_name StoveDoorControl
 extends InteractiveArea
 
-## A moving door target keeps F door control distinct from the firebox target.
+## The stove door as an aim target: F on it starts the same stove ritual as the firebox.
 var feed: HeatSourceFeed
 
 
@@ -11,23 +11,23 @@ func can_interact() -> bool:
 
 func _on_interaction_performed() -> void:
 	if feed != null:
-		if feed.is_acting():
-			feed.cancel_act()
-		else:
-			feed.toggle_door()
+		feed._on_interaction_performed()
 
 
 func _get_interaction_text() -> String:
-	return "[%s] %s" % [_interact_key_label(), tr("STOVE_CLOSE" if feed != null and feed.is_door_open() else "STOVE_OPEN")]
+	if feed == null:
+		return ""
+	set_description(feed.get_status_text())
+	return feed._get_interaction_text()
 
 
 func accepts_focus(from: Vector3, direction: Vector3) -> bool:
 	return is_aim_on_door(from, direction)
 
 
-## While the stove is acting the firebox keeps F, so the door hands focus back.
+## While Henry works the stove the firebox keeps F, so the door hands focus back.
 func resolve_focus(_from: Vector3, _direction: Vector3) -> InteractiveArea:
-	if is_instance_valid(feed) and feed.is_acting():
+	if is_instance_valid(feed) and (feed.session_active or feed.is_acting()):
 		return feed
 	return self
 
@@ -47,10 +47,3 @@ func get_aim_distance(from: Vector3, direction: Vector3) -> float:
 		return INF
 	return distance
 
-
-func _input(event: InputEvent) -> void:
-	if not _targeted or not prompt_shown or (feed != null and feed.is_acting()):
-		return
-	var mouse := event as InputEventMouseButton
-	if mouse != null and mouse.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
-		get_viewport().set_input_as_handled()
