@@ -153,3 +153,12 @@ flame silhouettes with asymmetric tapered geometry, and opacity height normalize
 to the current flame strength so shrinking tongues do not become opaque round caps.
 Visual acceptance remains subject to review of the game-camera footage and a
 Forward+ run; this software Compatibility capture does not establish production readiness.
+
+The current complete capture is in `key_west_727/stove_fire/current/`: 17 PNG stages,
+`full-cycle.mp4` (558 decoded frames, 55.8 s, 960×540, H.264/yuv420p, 10 fps),
+`capture.log` and `manifest.json` with frame continuity, source commit and hashes.
+The full graphical run exits successfully and preserves old-log progress on refuel.
+The existing room light still follows thermal intensity: it remains strong at the
+late-ember stage until fuel extinction, so that balance remains a visual-review limit.
+The scene also reports 320 ObjectDB instances remaining on teardown; no fire shader
+or capture-state errors occurred. Neither limitation is concealed by the media export.

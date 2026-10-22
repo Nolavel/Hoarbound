@@ -1,0 +1,88 @@
+{
+  "scene": "res://scenes/world/key_west/key_west_reality.tscn",
+  "camera": "production TpsCamera, 727 work framing and follow rig",
+  "source_commit": "8dc8845d",
+  "baseline_commit": "5a4976c6",
+  "engine": "4.8.dev6.mono.official.8898c2b3d",
+  "display": "X11 / Xvfb, graphical (no --headless)",
+  "renderer": "OpenGL 4.5 Compatibility / Mesa 25.0.7 llvmpipe (LLVM 19.1.7, 256 bits)",
+  "resolution": [
+    960,
+    540
+  ],
+  "simulation_hz": 30,
+  "recorded_frames": 558,
+  "contiguous_frames": true,
+  "video": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 960,
+        "height": 540,
+        "r_frame_rate": "10/1",
+        "nb_frames": "558",
+        "nb_read_frames": "558"
+      }
+    ],
+    "format": {
+      "duration": "55.800000",
+      "size": "4475500"
+    }
+  },
+  "stages_in_capture_order": [
+    "1_before_f",
+    "2_crouched_empty_ring",
+    "3_one_log",
+    "4_three_logs",
+    "5_tinder_laid",
+    "6_lighter_hold",
+    "7_fire_growing",
+    "9_steady_open",
+    "16_open_orbit_left",
+    "17_open_orbit_right",
+    "10_two_burning_logs",
+    "11_refuel_preserves_old_logs",
+    "8_door_closed_up",
+    "12_closed_door_fire",
+    "13_embers_open",
+    "14_residual_coals_no_fuel",
+    "15_cold_empty"
+  ],
+  "checks": [
+    "test_stove_visual: PASS",
+    "filenames: clean",
+    "refuel old progress assertions: PASS",
+    "full frame decode: 558/558",
+    "PNG stages and decoded MP4 contact sheet visually inspected"
+  ],
+  "limitations": [
+    "Forward+ production color and GPU performance unverified",
+    "OpenGL scene fog unsupported",
+    "320 ObjectDB instances reported at scene teardown",
+    "per-log age metadata is not persisted",
+    "existing room light follows thermal intensity and stays strong until fuel extinction; ember-stage balance needs review",
+    "visual result remains subject to author review, not production-ready certification"
+  ],
+  "sha256": {
+    "10_two_burning_logs.png": "5a3c413168354f0ce117d2a342686f298b24fe558a61eb496fb94408d90047b2",
+    "11_refuel_preserves_old_logs.png": "371027746c5e0adf65d83f7a1a36c339fdcd968ced10e19671620785c3ab918e",
+    "12_closed_door_fire.png": "fdf8ade68eb5d12264329c3953c1f7596ac378af02c237d794551ccad1b0f1a1",
+    "13_embers_open.png": "865df31845aac4411e9be06ebeee9efc5402c2c31b73ffb7ddac34ec3b981592",
+    "14_residual_coals_no_fuel.png": "b78cc6d0188e0cebb64f79488744d06264dd4a18677c1bab57a2863859ce503c",
+    "15_cold_empty.png": "f7d6e18db57d89ff76e80dbf9ddef6f57e7d78ab70fe98a85183b5cfb7b87737",
+    "16_open_orbit_left.png": "0e641e085a0240585a71c69d2e14ec93e99281e868b717afa40d2d39cf416b74",
+    "17_open_orbit_right.png": "a3d95106ba01e60938193cb496c90133179f150662d87718939806f3a0505eb8",
+    "1_before_f.png": "12b1bf52eb32cc091a8e04632002ae1d406f6a2fa4a1c0ec9737fa1a7532f926",
+    "2_crouched_empty_ring.png": "1f6cb71b36ffc061f90b83c94c79d46198d8954d278a88e570df0cd558e2ce18",
+    "3_one_log.png": "1a661199b1b362bbe904e747075682559dac54f5af0aea81ca0c34595f863619",
+    "4_three_logs.png": "c4645f7e726f13283e657ae53253f37bb63680be6aef9794def107a66fd2cced",
+    "5_tinder_laid.png": "a8bd7b9b3faea934e237439e2a5e968cdc3be865de900a2cd5f89675dc3025e2",
+    "6_lighter_hold.png": "4210178f4ae1c8e90fec3ecf58d81497b4bc78b288eec51f63746cef6e7baa34",
+    "7_fire_growing.png": "d2670b785f9ab3229d76090137397033a4a124f88bd61602e72d747eb092bd45",
+    "8_door_closed_up.png": "4c6ec25c5b4ac682d33ff1e70dff9314ca38b90dee4df66780c679a50839642c",
+    "9_steady_open.png": "68adc74a809d4429ae5777f86aa9a7057c06ab80222f7ae9f64a2afb4d764a5a",
+    "full-cycle.mp4": "1b2fbd5c9e4d32671fff3e1b6b444d334006d2f4269fbcc13b20fd93eca84659"
+  }
+}
