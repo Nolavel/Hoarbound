@@ -65,6 +65,14 @@ func _run() -> void:
 	_source.restore_fuel(0.0, false)
 	_source.set_tinder_prepared(false)
 	var inventory: InventoryComponent = InventoryComponent.find_in(_player)
+	var equipment := _player.get_node(^"EquipmentComponent") as EquipmentComponent
+	var held := _player.get_node(^"HeldItemComponent") as HeldItemComponent
+	if held.get_item_id() == &"tinder":
+		held.put_away()
+	for pocket: Dictionary in equipment.get_available_pockets():
+		if pocket["item_id"] == &"tinder":
+			var removed: StringName = equipment.take_from_pocket(pocket["body_slot"],pocket["pocket"])
+			_require(inventory.try_add(ItemCatalog.get_item(removed)),"Could not move starter tinder to backpack")
 	for _i: int in range(3):
 		inventory.try_add(ItemCatalog.get_item(&"firewood"))
 	inventory.try_add(ItemCatalog.get_item(&"tinder"))
@@ -88,6 +96,12 @@ func _run() -> void:
 	await _shot("2_crouched_empty_ring")
 	_mouse(MOUSE_BUTTON_RIGHT, true)
 	_mouse(MOUSE_BUTTON_RIGHT, false)
+	await _hold(0.65)
+	await _shot("03a_log_in_hand")
+	await _hold(0.55)
+	await _shot("03b_log_reach")
+	await _until(func() -> bool: return _source.get_loaded_log_count() == 1,5.0)
+	await _shot("03c_log_release")
 	await _until(func() -> bool: return not _feed.is_acting(), 5.0)
 	await _hold(0.3)
 	await _shot("3_one_log")
@@ -96,10 +110,32 @@ func _run() -> void:
 		_mouse(MOUSE_BUTTON_RIGHT, false)
 		await _until(func() -> bool: return not _feed.is_acting(), 5.0)
 	await _hold(0.3)
+	_validate_log_bounds()
 	await _shot("4_three_logs")
 	_dump_bones("idle")
+	_require(_source.get_loaded_log_count() == 3,"Contact did not place all three logs")
+	_mouse(MOUSE_BUTTON_LEFT,true)
+	_mouse(MOUSE_BUTTON_LEFT,false)
+	await _hold(0.3)
+	_require(not _feed.is_acting() and not _source.is_tinder_prepared(),"Backpack tinder was incorrectly usable")
+	await _shot("04a_backpack_tinder_inactive")
+	var pocketed: bool = false
+	for pocket: Dictionary in equipment.get_available_pockets():
+		if equipment.can_stow(pocket["body_slot"],pocket["pocket"],&"tinder") == EquipmentComponent.Refusal.NONE:
+			_require(inventory.try_remove(&"tinder"))
+			_require(equipment.stow(pocket["body_slot"],pocket["pocket"],&"tinder") == EquipmentComponent.Refusal.NONE)
+			pocketed = true
+			break
+	_require(pocketed,"No worn Quick Access pocket accepts tinder")
+	await _hold(0.3)
+	await _shot("04b_pocket_tinder_available")
+	# A closer composition through the same TPS work rig; no camera replacement/cut.
+	(root.get_camera_3d() as TpsCamera).set_work_framing(_source.to_global(Vector3(0.24,0.4,0.02)),_source.to_global(Vector3(0.86,0.96,-0.30)))
+	await _hold(0.6)
+
 	_mouse(MOUSE_BUTTON_LEFT, true)
-	await _hold(0.5)
+	await _hold(0.9)
+	await _shot("05a_tinder_reach")
 	_dump_bones("act")
 	await _until(func() -> bool: return _source.is_tinder_prepared(), 5.0)
 	if OS.get_cmdline_user_args().has("probe"):
@@ -108,13 +144,40 @@ func _run() -> void:
 	_mouse(MOUSE_BUTTON_LEFT, false)
 	await _hold(0.2)
 	await _shot("5_tinder_laid")
+	var state: ShelterState = ctx.get_system(preload("res://scripts/systems/survival/shelter_state.gd")) as ShelterState
+	_require(state != null,"No production ShelterState")
+	var visual_before := _source.find_child("StoveVisual",true,false) as StoveVisual
+	var placed_before: Dictionary = visual_before.get_presentation_save_data()
+	var saved: Dictionary = state.get_save_data()
+	state.load_save_data(saved)
+	await _until(func() -> bool: return not _control.is_active(),5.0)
+	_control.request_enter()
+	await _until(func() -> bool: return _control.is_working(),12.0)
+	(root.get_camera_3d() as TpsCamera).set_work_framing(_source.to_global(Vector3(0.24,0.4,0.02)),_source.to_global(Vector3(0.86,0.96,-0.30)))
+	await _hold(0.6)
+	var placed_after: Dictionary = visual_before.get_presentation_save_data()
+	print("[stove-save] before=",placed_before," after=",placed_after)
+	_require(_same_placement(placed_before,placed_after),"Save/load rearranged the cold firebox")
+	await _shot("05b_save_reload_tinder")
 	await _until(func() -> bool: return _feed.get_stage() == HeatSourceFeed.Stage.READY, 8.0)
+	_mouse(MOUSE_BUTTON_LEFT,true)
+	await _hold(1.1)
+	await _shot("06a_lighter_contact_early")
+	_mouse(MOUSE_BUTTON_LEFT,false)
+	await _hold(0.6)
+	_require(not _source.is_burning() and _source.is_tinder_prepared(),"Early release lost tinder or lit the stove")
+	await _shot("06b_early_release_unlit")
 	_mouse(MOUSE_BUTTON_LEFT, true)
 	await _hold(HeatSourceFeed.LIGHT_SECONDS * 0.55)
 	await _shot("6_lighter_hold")
 	await _until(func() -> bool: return _source.is_burning(), 5.0)
 	_mouse(MOUSE_BUTTON_LEFT, false)
-	await _hold(5.0)
+	await _shot("06c_tinder_catches_first")
+	await _hold(0.4)
+	for slot: int in visual_before._active_slots:
+		_require(float(visual_before._logs[slot].burn_progress) <= 0.001,"A log lit before the tinder-only stage")
+	await _shot("06d_tinder_alone")
+	await _hold(4.6)
 	await _shot("7_fire_growing")
 	await _advance_fire(0.20,17.0)
 	await _shot("9_steady_open")
@@ -142,16 +205,19 @@ func _run() -> void:
 	await _shot("10_two_burning_logs")
 	var visual: StoveVisual = _source.find_child("StoveVisual",true,false) as StoveVisual
 	var old_progress: Dictionary = {}
+	var old_poses: Dictionary = {}
 	for slot: int in visual._active_slots:
 		old_progress[slot] = float(visual._logs[slot].burn_progress)
+		old_poses[slot] = visual._logs[slot].transform
 	inventory.try_add(ItemCatalog.get_item(&"firewood"))
 	_mouse(MOUSE_BUTTON_RIGHT,true)
 	_mouse(MOUSE_BUTTON_RIGHT,false)
 	await _until(func() -> bool: return not _feed.is_acting(),5.0)
 	await _hold(0.4)
-	assert(_source.get_loaded_log_count() == 3,"Refuel did not restore three real fuel units")
+	_require(_source.get_loaded_log_count() == 3,"Refuel did not restore three real fuel units")
 	for slot: int in old_progress:
-		assert(float(visual._logs[slot].burn_progress) >= float(old_progress[slot]),"Refuel reset an older log")
+		_require(float(visual._logs[slot].burn_progress) >= float(old_progress[slot]),"Refuel reset an older log")
+		_require(visual._logs[slot].transform.is_equal_approx(old_poses[slot]),"Refuel moved an older log")
 	await _shot("11_refuel_preserves_old_logs")
 	_press_interact()
 	await _until(func() -> bool: return not _control.is_active(), 5.0)
@@ -206,6 +272,10 @@ func _shot(name: String) -> void:
 	_save(ProjectSettings.globalize_path(_out).path_join(name + ".png"))
 	print("[stove] shot ", name, " phase=", _control.get_phase(), " logs=", _source.get_loaded_log_count(),
 		" visual_logs=", (_source.find_child("StoveVisual",true,false) as StoveVisual).get_visible_log_count(), " tinder=", _source.is_tinder_prepared(), " stage=", _feed.get_stage(), " burning=", _source.is_burning())
+	if _feed.get_act() != HeatSourceFeed.Act.NONE:
+		if _feed._lighter != null:
+			print("[stove] nozzle-to-visible-tinder=",_feed._lighter.get_flame_tip().distance_to((_source.find_child("StoveVisual",true,false) as StoveVisual).to_global((_source.find_child("StoveVisual",true,false) as StoveVisual).get_tinder_contact())))
+		print("[stove] hand-target error=",_feed._actual_palm.distance_to(_feed._contact_palm)," target=",_source.to_local(_feed._contact_palm)," hand=",_source.to_local(_feed._actual_palm))
 	var camera := root.get_camera_3d() as TpsCamera
 	if camera != null:
 		print("[stove] camera in stove space ", _source.to_local(camera.global_position), " henry ",
@@ -309,3 +379,40 @@ func _floor_point(at: Vector3) -> Vector3:
 	var space: PhysicsDirectSpaceState3D = _world.get_world_3d().direct_space_state
 	var hit: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.6, at + Vector3.DOWN * 2.0))
 	return hit["position"] if not hit.is_empty() else at
+
+
+func _require(ok: bool, message: String = "capture invariant failed") -> void:
+	if not ok:
+		push_error(message)
+		quit(1)
+
+
+func _same_placement(a: Dictionary, b: Dictionary) -> bool:
+	if a["logs"].size() != b["logs"].size() or a["has_tinder"] != b["has_tinder"]:
+		return false
+	if not (str_to_var(a["tinder_position"]) as Vector3).is_equal_approx(str_to_var(b["tinder_position"])):
+		return false
+	for i: int in range(a["logs"].size()):
+		var p: Vector3 = str_to_var(a["logs"][i]["position"])
+		var q: Vector3 = str_to_var(b["logs"][i]["position"])
+		var r: Vector3 = str_to_var(a["logs"][i]["rotation"])
+		var s: Vector3 = str_to_var(b["logs"][i]["rotation"])
+		if not p.is_equal_approx(q) or not Basis.from_euler(r).is_equal_approx(Basis.from_euler(s)):
+			return false
+	return true
+
+
+func _validate_log_bounds() -> void:
+	var visual := _source.find_child("StoveVisual",true,false) as StoveVisual
+	for slot: int in visual._active_slots:
+		var body: Node3D = visual._logs[slot].get_child(0)
+		var mesh_node := body.get_child(0) as MeshInstance3D
+		var vertices: PackedVector3Array = mesh_node.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		var bottom: float = INF
+		for vertex: Vector3 in vertices:
+			var p: Vector3 = visual.to_local(mesh_node.to_global(vertex))
+			_require(absf(p.x) <= StoveVisual.SIZE.x*0.5-StoveVisual.WALL+0.002,"A log penetrates the back/closed door plane")
+			_require(absf(p.z) <= StoveVisual.SIZE.z*0.5-StoveVisual.WALL+0.002,"A log penetrates a firebox side")
+			bottom = minf(bottom,p.y)
+		_require(absf(bottom-(StoveVisual.LEG_H+StoveVisual.ASH_H+StoveVisual.WALL)) < 0.002,"A resting log floats or penetrates the floor")
+	print("[stove] wood mesh bounds/floor contacts verified")

@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Stove ritual: addressed hand pickup/insertion/release, Quick Access-only tinder,
+  a persistent physical tinder target and nozzle contact before ignition. Individual
+  log placement/char origins survive save/load and refuel without rearranging old
+  logs; HeatSource retains fuel/heat authority.
+
 - Stove fire uses irregular per-log geometry, local flame/char/embers and weak ignition smoke,
   preserving HeatSource fuel authority, Claude’s ritual and the existing room lights. Real 727
   TPS captures compare the original and integrated appearance under OpenGL Compatibility;

@@ -4,10 +4,11 @@ render_mode unshaded, shadows_disabled, depth_draw_never;
 uniform float burn_progress=0.0;
 uniform float animation_seconds=0.0;
 uniform float root_x=0.0;
+uniform float root_z=0.4;
 varying vec3 local_p;
 void vertex(){
  float t=burn_progress*10.0+animation_seconds;
- float strength=flame_at(vec3(root_x,0.68,0.18),burn_progress);
+ float strength=flame_at(vec3(root_x,0.69,root_z),burn_progress);
  float u=(VERTEX.y+0.64)/1.28;
  VERTEX.xz*=0.95*(1.0-0.5*u);
  VERTEX.y=(VERTEX.y+0.64)*strength*1.65;
@@ -17,7 +18,7 @@ void vertex(){
 }
 void fragment(){
  float t=burn_progress*10.0+animation_seconds;
- float strength=flame_at(vec3(root_x,0.68,0.18),burn_progress);
+ float strength=flame_at(vec3(root_x,0.69,root_z),burn_progress);
  float h=local_p.y/(2.112*max(strength,0.001));
  float fold=0.5+0.5*sin(local_p.x*9.0+local_p.z*8.0-h*3.0+t*4.0+root_x*3.7);
  float core=(1.0-h)*(0.45+0.55*fold);

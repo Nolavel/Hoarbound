@@ -1,8 +1,9 @@
-// Shared surface arrival field: local ignition on the front/top of one log.
+uniform vec3 ignition_source = vec3(-0.8,0.68,0.18);
+// Local arrival around the actual contact on this log.
 float arrival_at(vec3 w) {
- float theta=atan(w.z,w.y-0.45);
- float angular=atan(sin(theta-0.65),cos(theta-0.65));
- return 0.035+length(vec2(w.x+0.8,angular*0.70))*0.24;
+ float theta=atan(w.z,w.y-0.48);
+ float angular=atan(sin(theta-atan(ignition_source.z,ignition_source.y-0.48)),cos(theta-atan(ignition_source.z,ignition_source.y-0.48)));
+ return 0.035+length(vec2(w.x-ignition_source.x,angular*0.70))*0.24;
 }
 float char_at(vec3 w,float p) {return smoothstep(arrival_at(w),arrival_at(w)+0.035,min(p,0.53));}
 float flame_at(vec3 w,float p){

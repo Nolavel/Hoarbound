@@ -114,3 +114,7 @@ func _material(color: Color, glowing: bool) -> StandardMaterial3D:
 		material.emission = color
 		material.emission_energy_multiplier = 2.5
 	return material
+
+
+func get_flame_tip() -> Vector3:
+	return to_global(Vector3(0,0.061,0))

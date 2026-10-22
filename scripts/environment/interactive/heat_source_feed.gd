@@ -21,8 +21,10 @@ enum Act { NONE, FUEL, TINDER, LIGHT }
 
 const LIGHT_SECONDS: float = 3.0
 ## One log reached in and laid down; the tinder tucked under the logs, seconds.
-const FUEL_SECONDS: float = 1.6
-const TINDER_SECONDS: float = 1.1
+const FUEL_SECONDS: float = 2.2
+const TINDER_SECONDS: float = 1.8
+## One log diameter above its rest pose clears the existing floor load on insertion.
+const LOG_INSERT_CLEARANCE: float = 0.10
 const STRIKE_EVENT: SoundEvent = preload("res://resources/audio/lighter_strike.tres")
 
 @export var heat_source: HeatSource
@@ -61,6 +63,22 @@ var _strike_count: int = 0
 var _last_strike_seconds: float = -1000.0
 var _flame_held: bool = false
 var _hold_seconds: float = 0.0
+var _transfer_zone: StringName = &""
+var _transfer_committed: bool = false
+var _transfer_was_held: bool = false
+var _held_pickup_world: Transform3D
+var _held_left: bool = false
+var _transfer_prop: Node3D
+var _reach: StoveHandReach
+var _actual_palm: Vector3 = Vector3.ZERO
+var _pickup_palm: Vector3
+var _placement: Dictionary = {}
+var _prop_basis: Basis = Basis.IDENTITY
+var _pickup_prop_basis: Basis = Basis.IDENTITY
+var _contact_prop_basis: Basis = Basis.IDENTITY
+var _grip_offset: Vector3 = Vector3.ZERO
+var _contact_palm: Vector3
+var _light_reach: float = 0.0
 var _lighter: LighterStrikeVFX
 
 
@@ -89,6 +107,7 @@ func _ready() -> void:
 		heat_source.fuel_changed.connect(func(_f: float) -> void: state_changed.emit())
 		heat_source.burning_changed.connect(func(_b: bool) -> void: state_changed.emit())
 		heat_source.tinder_changed.connect(func(_p: bool) -> void: state_changed.emit())
+		heat_source.state_restoring.connect(_on_source_restoring)
 	if controller == null:
 		controller = get_node_or_null(^"Interaction") as StoveInteractionController
 	if controller == null:
@@ -186,7 +205,7 @@ func get_tinder_refusal() -> Refusal:
 		return Refusal.TINDER_READY
 	if heat_source.get_loaded_log_count() <= 0:
 		return Refusal.EMPTY_FIREBOX
-	if tinder_item_id != &"" and not _has_owned_item(tinder_item_id):
+	if tinder_item_id != &"" and not _has_accessible_tinder():
 		return Refusal.NO_TINDER
 	if not _hands_free(true):
 		return Refusal.HANDS_OCCUPIED
@@ -256,10 +275,16 @@ func _process(delta: float) -> void:
 		cancel_act(stop_reason)
 		return
 	if _act == Act.LIGHT:
-		if _stage == Stage.PREPARING and (_animation == null or _animation.is_work_pose_ready()):
+		if _stage == Stage.PREPARING and (_reach != null and _actual_palm.distance_to(_pickup_palm) < 0.045):
 			_stage = Stage.READY
 			state_changed.emit()
+		_update_hand_action(delta)
 		advance_lighter_hold(delta)
+		return
+	_update_hand_action(delta)
+	if get_act_progress() >= 0.64 and not _transfer_committed:
+		_commit_transfer()
+	if not is_acting():
 		return
 	if _action_managed:
 		actions.advance_presentation(delta)
@@ -281,7 +306,14 @@ func _start_action(act: Act) -> Refusal:
 		_held_item.put_away()
 	_feedback_until_ms = 0
 	_act = act
-	_transfer_item = get_fuel_item() if act == Act.FUEL else &""
+	_transfer_item = get_fuel_item() if act == Act.FUEL else (tinder_item_id if act == Act.TINDER else &"")
+	_transfer_committed = false
+	_transfer_was_held = _transfer_item != &"" and is_instance_valid(_held_item) and _held_item.is_holding() and _held_item.get_item_id() == _transfer_item
+	_transfer_zone = _held_item.get_source_zone() if _transfer_was_held else (HeldOwnership.pocket_holding(_equipment,tinder_item_id) if act == Act.TINDER else &"")
+	if _transfer_was_held:
+		_held_pickup_world = _held_item.get_held_prop().global_transform
+		_held_left = _animation != null and _animation.get_held_prop() == _held_item.get_held_prop()
+		_held_item.put_away()
 	_act_left = _act_duration_seconds()
 	_stage = {Act.FUEL: Stage.TRANSFERRING, Act.TINDER: Stage.TINDERING, Act.LIGHT: Stage.PREPARING}[act]
 	var lighting: bool = act == Act.LIGHT
@@ -314,8 +346,7 @@ func _start_action(act: Act) -> Refusal:
 			return Refusal.BUSY
 	if _player != null and _player.has_method(&"face_work_target"):
 		_player.call(&"face_work_target", focus_anchor.global_position)
-	## The kneeling work clip is the reach into the firebox; the lighter holds it.
-	if _animation != null and not _animation.begin_work_pose() and lighting:
+	if _animation == null or not _begin_hand_action():
 		cancel_act(&"animation_unavailable")
 		return Refusal.BUSY
 	var visual: StoveVisual = _visual()
@@ -365,6 +396,8 @@ func advance_lighter_hold(seconds: float) -> void:
 	if _light_stop_reason() != &"":
 		cancel_act(&"target_lost")
 		return
+	if _reach == null or _light_reach < 0.99 or _lighter == null or _lighter.get_flame_tip().distance_to(_visual().to_global(_visual().get_tinder_contact())) > 0.045:
+		return
 	_hold_seconds += maxf(0.0, seconds)
 	if _hold_seconds < LIGHT_SECONDS:
 		return
@@ -378,15 +411,16 @@ func advance_lighter_hold(seconds: float) -> void:
 ## Stops the current act; nothing changes hands unless the act had already committed.
 func cancel_act(reason: StringName = &"cancelled") -> void:
 	var kind: Act = _act
+	var committed: bool = _transfer_committed
 	var actions: TimeCostedActionSystem = _actions()
 	if _action_managed and actions != null and actions.get_active_action_id() == _action_id:
-		actions.cancel(reason)
-	else:
-		_clear_act()
+		if actions.cancel(reason):
+			return
+	_clear_act()
 	if _visual() != null:
 		_visual().end_act(_door_open)
 	if kind != Act.NONE:
-		act_finished.emit(kind, false)
+		act_finished.emit(kind, committed)
 
 
 func _action_completed(_hours: float) -> void:
@@ -396,11 +430,12 @@ func _action_completed(_hours: float) -> void:
 
 func _action_cancelled(_hours: float, _reason: StringName) -> void:
 	var kind: Act = _act
+	var committed: bool = _transfer_committed
 	_clear_act()
 	if _visual() != null:
 		_visual().end_act(_door_open)
 	if kind != Act.NONE:
-		act_finished.emit(kind, false)
+		act_finished.emit(kind, committed)
 
 
 func _finish_current() -> void:
@@ -431,42 +466,45 @@ func _finish_ignition() -> void:
 	act_finished.emit(Act.LIGHT, true)
 
 
-## One consistent change of hands: the log leaves the inventory only into a firebox that took it.
-func _finish_fuel() -> void:
-	if _stage != Stage.TRANSFERRING:
+## One contact transaction; the action then returns the empty hand before finishing.
+func _commit_transfer() -> void:
+	if _transfer_committed or _transfer_stop_reason() != &"":
 		return
-	if _transfer_stop_reason() != &"":
-		_clear_act()
+	if _reach == null or _actual_palm.distance_to(_contact_palm) > 0.045:
 		return
 	var inventory: InventoryComponent = _get_inventory()
-	var item: StringName = _transfer_item
-	if not inventory.try_remove(item):
-		_clear_act()
+	if not HeldOwnership.take(inventory,_equipment,_transfer_item,_transfer_zone):
+		cancel_act(&"resource_lost")
 		return
-	if not heat_source.add_logs(1):
-		inventory.try_add(ItemCatalog.get_item(item))
-		_clear_act()
-		return
-	_clear_act()
-	if _visual() != null:
-		_visual().end_act(true)
-	fuel_added.emit(heat_source, heat_source.get_remaining_hours())
-	show_message(tr("STOVE_LOADED") % 1)
-	act_finished.emit(Act.FUEL, true)
+	if _act == Act.FUEL:
+		_visual().set_log_release(_transfer_prop.global_transform)
+		if not heat_source.add_logs(1):
+			HeldOwnership.restore(inventory,_equipment,_transfer_item,_transfer_zone)
+			cancel_act(&"target_full")
+			return
+		fuel_added.emit(heat_source,heat_source.get_remaining_hours())
+	else:
+		_visual().prepare_tinder_position()
+		heat_source.set_tinder_prepared(true)
+	_transfer_committed = true
+	_transfer_prop.visible = false
+	_animation.reserve_stove_carry(false)
+	state_changed.emit()
 
+func _finish_fuel() -> void:
+	_finish_transfer(Act.FUEL)
 
 func _finish_tinder() -> void:
-	if _stage != Stage.TINDERING:
-		return
-	if _transfer_stop_reason() != &"" or (tinder_item_id != &"" and not _consume_owned_item(tinder_item_id)):
-		_clear_act()
-		return
-	heat_source.set_tinder_prepared(true)
+	_finish_transfer(Act.TINDER)
+
+func _finish_transfer(kind: Act) -> void:
+	var committed: bool = _transfer_committed
 	_clear_act()
 	if _visual() != null:
 		_visual().end_act(true)
-	show_message(tr("STOVE_TINDER_LAID"))
-	act_finished.emit(Act.TINDER, true)
+	if committed:
+		show_message(tr("STOVE_LOADED") % 1 if kind == Act.FUEL else tr("STOVE_TINDER_LAID"))
+	act_finished.emit(kind,committed)
 
 
 func _light_stop_reason() -> StringName:
@@ -486,6 +524,8 @@ func _transfer_stop_reason() -> StringName:
 	var reason: StringName = _activity_stop_reason()
 	if reason != &"":
 		return reason
+	if _transfer_committed:
+		return &""
 	var inventory: InventoryComponent = _get_inventory()
 	if inventory == null or not _hands_free(true):
 		return &"resource_lost"
@@ -494,14 +534,30 @@ func _transfer_stop_reason() -> StringName:
 			return &"resource_lost"
 	elif _act == Act.TINDER:
 		if heat_source.is_burning() or heat_source.is_tinder_prepared() or heat_source.get_loaded_log_count() <= 0 \
-			or (tinder_item_id != &"" and not _has_owned_item(tinder_item_id)):
+			or (tinder_item_id != &"" and not HeldOwnership.owns(inventory,_equipment,tinder_item_id,_transfer_zone)):
 			return &"resource_lost"
 	return &""
 
 
 func _clear_act() -> void:
+	var restore_hand: bool = _transfer_was_held and not _transfer_committed
+	var held_id: StringName = _transfer_item
 	release_lighter()
 	_clear_lighter()
+	if is_instance_valid(_transfer_prop):
+		_transfer_prop.visible = false
+		_transfer_prop.queue_free()
+	_transfer_prop = null
+	if is_instance_valid(_reach):
+		_reach.release()
+	if is_instance_valid(_animation):
+		_animation.reserve_stove_carry(false)
+	if _visual() != null:
+		_visual().cancel_log_placement()
+	_transfer_committed = false
+	_transfer_was_held = false
+	if restore_hand and is_instance_valid(_held_item):
+		_held_item.present_owned(held_id)
 	if _act != Act.NONE and is_instance_valid(_animation):
 		_animation.end_work_pose(session_active)
 	_stage = Stage.IDLE
@@ -515,11 +571,7 @@ func _clear_act() -> void:
 
 func _build_lighter() -> void:
 	_lighter = LighterStrikeVFX.new()
-	if _animation != null:
-		_animation.hold_in_hand(_lighter)
-	else:
-		add_child(_lighter)
-		_lighter.position = focus_anchor.position
+	add_child(_lighter)
 
 
 func _clear_lighter() -> void:
@@ -546,7 +598,7 @@ func _hands_free(allow_logs: bool = false) -> bool:
 	var prop: Node3D = _animation.get_held_prop() if is_instance_valid(_animation) else null
 	if prop == null or prop == _lighter:
 		return true
-	return is_instance_valid(_held_item) and _held_item.get_item_id() == &"lighter" \
+	return is_instance_valid(_held_item) and _held_item.get_item_id() in [&"lighter",tinder_item_id] \
 		and _held_item.get_held_prop() == prop
 
 
@@ -755,3 +807,111 @@ func _find_source() -> HeatSource:
 		if child is HeatSource:
 			return child as HeatSource
 	return null
+
+
+func _has_accessible_tinder() -> bool:
+	_get_inventory()
+	if is_instance_valid(_held_item) and _held_item.get_item_id() == tinder_item_id:
+		return true
+	return HeldOwnership.pocket_holding(_equipment,tinder_item_id) != &""
+
+func _begin_hand_action() -> bool:
+	var visual: StoveVisual = _visual()
+	if visual == null:
+		return false
+	_reach = _animation.get_stove_reach()
+	if _reach == null:
+		return false
+	_reach.use_left_hand(_transfer_was_held and _held_left)
+	if not _reach.hand_solved.is_connected(_on_hand_solved):
+		_reach.hand_solved.connect(_on_hand_solved)
+	var pickup: Dictionary = _animation.get_stove_pickup(_act == Act.FUEL)
+	_pickup_palm = pickup["point"]
+	_pickup_prop_basis = pickup["basis"]
+	_actual_palm = _pickup_palm
+	_light_reach = 0.0
+	if _act == Act.FUEL:
+		_placement = visual.reserve_log_placement()
+		if _placement.is_empty():
+			return false
+		_prop_basis = visual.global_basis*Basis.from_euler(_placement["rotation"])
+		_grip_offset = Vector3(-0.04,0.055,0.265)
+		_contact_palm = visual.to_global(_placement["position"]+Vector3.UP*LOG_INSERT_CLEARANCE)+_prop_basis*_grip_offset
+		_transfer_prop = StoveVisual.LOG_VISUAL.new()
+		add_child(_transfer_prop)
+		_animation.reserve_stove_carry(true)
+	elif _act == Act.TINDER:
+		visual.reserve_tinder_position()
+		_prop_basis = visual.global_basis
+		_grip_offset = Vector3(0.035,0.04,0)
+		_contact_palm = visual.to_global(visual.get_tinder_contact()-Vector3(0,0.022,0))+_prop_basis*_grip_offset
+		_transfer_prop = visual.create_tinder_prop()
+		add_child(_transfer_prop)
+	else:
+		var direction := Vector3(-1,-0.3,0).normalized()
+		var x := Vector3(0,0,-1)
+		_prop_basis = visual.global_basis*Basis(x,direction,x.cross(direction))
+		_grip_offset = Vector3(0,-0.008,0)
+		_contact_palm = visual.to_global(visual.get_tinder_contact())-_prop_basis.y*0.061+_prop_basis*_grip_offset
+	_contact_prop_basis = _prop_basis
+	if _act != Act.FUEL:
+		_pickup_prop_basis = _prop_basis
+	if _transfer_was_held:
+		_pickup_prop_basis = _held_pickup_world.basis
+		_pickup_palm = _held_pickup_world*_grip_offset
+		_on_hand_solved(_pickup_palm)
+	_update_hand_action(0.0)
+	return true
+
+func _update_hand_action(delta: float) -> void:
+	if _reach == null:
+		return
+	var amount: float
+	var goal: Vector3
+	var fingers: Vector3 = -heat_source.global_basis.x
+	if _act == Act.LIGHT:
+		_light_reach = move_toward(_light_reach,1.0 if _stage == Stage.HOLDING else 0.0,delta/0.65)
+		amount = smoothstep(0,1,_light_reach)
+		goal = _pickup_palm.lerp(_contact_palm,amount)
+		fingers = _prop_basis.y
+	else:
+		var p: float = get_act_progress()
+		var approach: Vector3 = heat_source.to_global(Vector3(0.67,0.50,heat_source.to_local(_contact_palm).z))
+		_prop_basis = _pickup_prop_basis.slerp(_contact_prop_basis,smoothstep(0.15,0.30,p))
+		var lowered: Vector3 = _pickup_palm
+		lowered.y = minf(lowered.y,heat_source.to_global(Vector3(0,0.55,0)).y)
+		if p < 0.15:
+			goal = _pickup_palm.lerp(lowered,smoothstep(0.0,0.15,p))
+			amount = 0.0
+		elif p < 0.35:
+			goal = lowered.lerp(approach,smoothstep(0.15,0.35,p))
+			amount = 0.0
+		elif p < 0.72:
+			amount = smoothstep(0.35,0.60,p)
+			goal = approach.lerp(_contact_palm,amount)
+		else:
+			amount = 1.0-smoothstep(0.72,1.0,p)
+			goal = _pickup_palm.lerp(_contact_palm,amount)
+		if _act == Act.FUEL:
+			fingers = -_prop_basis.z
+		if is_instance_valid(_transfer_prop):
+			_transfer_prop.visible = (p >= 0.12 or _transfer_was_held) and not _transfer_committed
+	_reach.grip_weight = 0.9 if _act == Act.LIGHT else (0.7 if get_act_progress() >= 0.12 and not _transfer_committed else 0.0)
+	_reach.lean_weight = amount
+	_reach.aim(goal,fingers,1.0)
+
+func _on_hand_solved(palm: Vector3) -> void:
+	_actual_palm = palm
+	var prop: Node3D = _lighter if _act == Act.LIGHT else _transfer_prop
+	if is_instance_valid(prop):
+		prop.global_transform = Transform3D(_prop_basis,palm-_prop_basis*_grip_offset)
+
+
+func did_commit_transfer() -> bool:
+	return _transfer_committed
+
+
+func _on_source_restoring() -> void:
+	cancel_act(&"save_restored")
+	if controller != null and controller.is_active():
+		controller.request_exit()

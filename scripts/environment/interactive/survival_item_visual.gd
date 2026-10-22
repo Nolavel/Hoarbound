@@ -36,6 +36,13 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 		back_mark.position.z = -mark.position.z
 		back_mark.rotation.y = PI
 		holder.add_child(back_mark)
+	elif item_id == &"tinder":
+		for i: int in range(7):
+			var shaving := BoxMesh.new()
+			shaving.size = Vector3(0.018,0.008,0.065)
+			_part(holder,shaving,Vector3(sin(float(i)*2.7)*0.012,float(i%3)*0.005,cos(float(i))*0.013),
+				Color(0.65+0.035*float(i%2),0.49,0.28))
+			(holder.get_child(holder.get_child_count()-1) as Node3D).rotation = Vector3(0.1*float(i%2),float(i)*0.91,0.15*sin(float(i)))
 	elif item_id == &"knife":
 		var handle := BoxMesh.new()
 		handle.size = Vector3(0.04, 0.03, 0.10)

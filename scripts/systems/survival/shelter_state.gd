@@ -54,9 +54,12 @@ func adopt_fire(zone: ThermalZone, fire: HeatSource) -> void:
 	var key: String = _fire_key(zone, fire)
 	if _fires.has(key):
 		var stored: Dictionary = _fires[key]
-		fire.restore_fire_save_data(stored)
+		_restore_fire(fire,stored)
 	else:
 		_remember_fire(key, fire)
+	var visual := fire.find_child("StoveVisual",true,false) as StoveVisual
+	if visual != null and not visual.presentation_changed.is_connected(_on_visual_changed):
+		visual.presentation_changed.connect(_on_visual_changed.bind(key,fire))
 	if not fire.fuel_changed.is_connected(_on_fuel_changed):
 		fire.fuel_changed.connect(_on_fuel_changed.bind(key, fire))
 	if not fire.tinder_changed.is_connected(_on_tinder_changed):
@@ -68,6 +71,9 @@ func get_save_key() -> StringName:
 
 
 func get_save_data() -> Dictionary:
+	for zone: ThermalZone in find_zones():
+		for fire: HeatSource in find_fires_in(zone):
+			_remember_fire(_fire_key(zone,fire),fire)
 	return {"boarded": _boarded.duplicate(true), "fires": _fires.duplicate(true)}
 
 
@@ -84,7 +90,7 @@ func load_save_data(data: Dictionary) -> void:
 			if not _fires.has(fire_key):
 				continue
 			var stored: Dictionary = _fires[fire_key]
-			fire.restore_fire_save_data(stored)
+			_restore_fire(fire,stored)
 
 
 func _apply_saved_breach(breach: ShelterBreach, saved: Variant) -> void:
@@ -119,6 +125,9 @@ func _on_tinder_changed(_prepared: bool, key: String, fire: HeatSource) -> void:
 
 func _remember_fire(key: String, fire: HeatSource) -> void:
 	_fires[key] = fire.get_fire_save_data()
+	var visual := fire.find_child("StoveVisual",true,false) as StoveVisual
+	if visual != null:
+		_fires[key]["presentation"] = visual.get_presentation_save_data()
 
 
 func _fire_key(zone: ThermalZone, fire: HeatSource) -> String:
@@ -147,3 +156,13 @@ static func _collect(node: Node, out: Array[ThermalZone]) -> void:
 		out.append(zone)
 	for child: Node in node.get_children():
 		_collect(child, out)
+
+
+func _on_visual_changed(key: String, fire: HeatSource) -> void:
+	_remember_fire(key,fire)
+
+func _restore_fire(fire: HeatSource, data: Dictionary) -> void:
+	fire.restore_fire_save_data(data)
+	var visual := fire.find_child("StoveVisual",true,false) as StoveVisual
+	if visual != null:
+		visual.restore_presentation(data.get("presentation",{}))

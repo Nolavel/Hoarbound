@@ -76,7 +76,7 @@ func describe(arc: Arc) -> Dictionary:
 			var partial: float = 0.0
 			if _feed.get_act() == HeatSourceFeed.Act.FUEL:
 				state = ArcState.ACTIVE
-				partial = _feed.get_act_progress()
+				partial = 0.0 if _feed.did_commit_transfer() else _feed.get_act_progress()
 			elif loaded >= capacity and capacity > 0:
 				state = ArcState.DONE
 			elif _feed.get_fuel_refusal() == HeatSourceFeed.Refusal.NONE:

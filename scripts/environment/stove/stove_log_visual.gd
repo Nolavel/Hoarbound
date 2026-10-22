@@ -8,10 +8,13 @@ const SMOKE := preload("res://shaders/environment/stove/log_smoke.gdshader")
 var burn_progress: float = 0.0
 var _materials: Array[ShaderMaterial] = []
 var _animation_seconds: float = 0.0
+var _body: Node3D
+var _flame_nodes: Array[MeshInstance3D] = []
 
 func _ready() -> void:
 	# Reference axis X becomes the production log's Z. Radius and length fit separately.
 	var body := Node3D.new()
+	_body = body
 	body.rotation.y = PI * 0.5
 	body.scale = Vector3(0.54/3.1,0.05/0.37,0.05/0.37)
 	add_child(body)
@@ -28,6 +31,7 @@ func _ready() -> void:
 		flame.material_override=mat
 		flame.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		body.add_child(flame)
+		_flame_nodes.append(flame)
 	var smoke := MeshInstance3D.new()
 	var plume := SphereMesh.new()
 	plume.radius=0.18
@@ -115,3 +119,28 @@ func _flame_geometry() -> ArrayMesh:
 		_triangle(st,Vector3(0.15*sin(4.8),0.64,0),rings[-1][j],rings[-1][side])
 	st.generate_normals()
 	return st.commit()
+
+
+func set_ignition_source(world_point: Vector3) -> void:
+	if _body == null:
+		return
+	var local: Vector3 = _body.to_local(world_point)+Vector3(0,0.48,0)
+	local.x = clampf(local.x,-1.45,1.45)
+	for material: ShaderMaterial in _materials:
+		material.set_shader_parameter("ignition_source",local)
+	for i: int in range(_flame_nodes.size()):
+		var root_x: float = lerpf(local.x,-signf(local.x)*1.3,float(i)*0.4)
+		_flame_nodes[i].position.x = root_x
+		_flame_nodes[i].position.z = 0.35*signf(local.z)
+		(_flame_nodes[i].material_override as ShaderMaterial).set_shader_parameter("root_z",_flame_nodes[i].position.z)
+		(_flame_nodes[i].material_override as ShaderMaterial).set_shader_parameter("root_x",root_x)
+
+
+func resting_height(rotation_value: Vector3, floor_y: float) -> float:
+	var mesh_node := _body.get_child(0) as MeshInstance3D
+	var vertices: PackedVector3Array = mesh_node.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var basis: Basis = Basis.from_euler(rotation_value)*_body.basis
+	var bottom: float = INF
+	for vertex: Vector3 in vertices:
+		bottom = minf(bottom,(basis*vertex).y)
+	return floor_y-bottom

@@ -41,10 +41,10 @@ OUTSIDE --F--> APPROACHING --> OPENING_DOOR --> ENTERING_CROUCH --> WORKING --F-
 
 | Input | Act | Needs | Commits |
 |---|---|---|---|
-| RMB press | `insert_fuel()`, 1.6 s, 0.5 game min | a carried fuel item, room in the firebox, hands free of other things | one item leaves the inventory and `HeatSource.add_logs(1)` in one step at the end; a cancel moves nothing |
-| LMB press | `insert_tinder()`, 1.1 s, 0.25 game min | a log in the firebox, a cold stove, no tinder laid, tinder owned | one tinder spent, `HeatSource.set_tinder_prepared(true)` |
-| LMB release | the lighter comes out (`prepare_lighter()`, the existing work pose) | tinder laid, the lighter owned | nothing |
-| new LMB press, hold | the existing lighter: `attempt_lighter_strike()`, 3 s hold | as above | `HeatSource.start_loaded_fire()`, which spends the tinder |
+| RMB press | `insert_fuel()`, 2.2 s, 0.5 game min | a carried fuel item, room in the firebox, hands free of other things | one item leaves the inventory and `HeatSource.add_logs(1)` in one step at hand contact (64%); return follows; pre-contact cancellation moves nothing |
+| LMB press | `insert_tinder()`, 1.8 s, 0.25 game min | a log in the firebox, a cold stove, no tinder laid, tinder in Quick Access or actually held | one tinder spent from its exact pocket/hand source at contact; visible bundle and saved ignition surface |
+| LMB release | the lighter comes out (`prepare_lighter()`, at Henry’s actual pocket/hand) | tinder laid, the lighter owned | nothing |
+| new LMB press, hold | the existing lighter: `attempt_lighter_strike()`, reach followed by 3 s at the tinder | as above | `HeatSource.start_loaded_fire()`, which spends the prepared tinder; tinder flame precedes log ignition |
 
 - One press is one act: a held RMB sends no more presses, presses during an act
   are refused (BUSY).
@@ -95,70 +95,66 @@ state.
 - `tools/runtime/capture_stove.gd` drives the ritual in 727 through the TPS camera
   and writes named stages plus a continuous frame run for a video.
 
-## Log fire presentation
+## Addressed hand action and placement
 
-`HeatSource` still owns all fuel, capacity, ignition, warm-up and heating. `StoveVisual`
-reads `get_loaded_log_count()` and the existing fuel/burning/intensity signals. It keeps
-only visual slot identities, catch time and consumed fractions, so adding a log does
-not reset the appearance of an older one. Fuel decreases age the oldest visible slot;
-when the authoritative count decreases that slot disappears. No extra fuel or heat
-simulation is introduced. A short residual-coal fade has no thermal effect.
+`HeatSourceFeed` owns the action/transaction; `StoveHandReach` poses Henry’s right arm
+and spine through the existing two-bone solve (`DoorHandIK`). The original crouch,
+working point and TPS ownership stay unchanged. This is an addressed pickup,
+orientation, insertion, release and return trajectory, not `Fixing_Kneeling` claimed
+as a placement clip. The visible prop follows the solved palm, not a separate proxy
+hand. A pending item remains in its owning storage until contact. Cancellation after
+contact never refunds it. Restoring fire state cancels transient actions and exits
+the ritual before applying saved fuel, preventing a delayed second transfer.
 
-`StoveLogVisual` fits the isolated study's irregular split-log method to the existing
-0.54 m length and 0.05 m radius. The source study's environment is not imported.
-Charcoal cracks and ignition smoke are local to each log. Flame uses closed, curved
-tapered tongues; smoke uses a closed soft plume. Both use depth-tested 3D meshes, with depth testing against the firebox and door, rather than camera-facing
-cards. Logs sit inside the front half of the existing firebox so their flames are not
-mostly hidden by the upper lip from the authored steep TPS view. The original room SpotLight and firebox glow remain under `StoveVisual`.
+Logs enter endwise and take bounded, reproducible poses in three floor-supported
+lanes. Their resting height comes from the actual wood mesh. A released log starts
+at the held prop transform and settles with gravity-timed acceleration from one log diameter above its rest pose. Existing logs never sort or move
+when another burns away or a new one is added. Each keeps its char age and ignition
+origin. Fuel/count/heat authority remains solely `HeatSource`.
 
-The runtime proof uses the real Key West Reality scene, Henry and `TpsCamera` work
-framing. `capture_stove.gd` extends the original ritual with steady burn, a burning
-refuel, a closed-door view, accelerated fuel exhaustion through the public
-`HeatSource.advance_fuel()` API, residual coals and cooling. This accelerates the
-render demonstration only; it does not change production fuel duration. Every saved
-frame is rendered by Godot's viewport using `RenderingServer.force_draw`; run the
-capture with `--disable-render-loop` to skip redundant draws between samples. Video
-sampling remains separate from the fixed 30 Hz game step.
+All geometry targets use the `StoveVisual` local frame and its world transform.
+The production visual root is 0.10 m below `HeatSource`; the fuel owner’s origin
+is not interchangeable with the geometry/contact frame.
 
-Visual limitation: per-log ages are presentation metadata, not saved gameplay
-identities. A loaded aggregate fuel state cannot reconstruct the exact insertion
-history of individual logs. No new save schema or per-log gameplay authority is
-introduced for this visual integration.
+The tinder arc and action share the same accessibility predicate: an actual held
+item or a worn Quick Access pocket, excluding pack-only ownership. Contact spends
+exactly that source via `HeldOwnership`; it never silently falls back to the pack.
+The shared `SurvivalItemVisual` bundle is used in hand and in the stove. Its point
+is chosen beside a laid log, stored in stove space and reserved clear of later logs.
 
-Runtime evidence: [`key_west_727/stove_fire`](../runtime_previews/key_west_727/stove_fire/).
-The `baseline/` PNGs are the original main `5a4976c6` under the same 960×540,
-13:00 calm-weather production setup. `partial/` is the inspected first integration
-pass (547 frames, 54.7 s at 10 fps), ending after the closed-door view; it does **not**
-prove cooling or camera orbit. It was rejected for weak flame readability and bright
-yellow coal dots; it is historical evidence, not the current visual result.
-The original reentry targeted the cooking pot;
-the capture now reenters using the real stove controller, and drives the public
-TPS look API because unattended mouse motion did not move the workspace camera.
+The lighter strikes at its own nozzle and moves to that saved point. Hold time
+advances only at contact; early release retracts the hand while keeping laid tinder
+and fuel. Successful ignition first shows the tinder flame, then spatially delayed
+log catches. Each log transforms the source into its mesh coordinates for the shared
+arrival field. Refuel catches from a nearby existing burning log without resetting
+older char. Tinder chars and disappears on total exhaustion; residual coals outlast
+flame. Existing room lights and WorldEnvironment are retained.
 
-Both baseline and candidate use Godot 4.8-dev6 Mono, graphical X11/Xvfb,
-OpenGL Compatibility / Mesa 25.0.7 llvmpipe (LLVM 19.1.7, 256 bits). Scene lighting
-and WorldEnvironment are retained. OpenGL reports unsupported scene fog;
-Forward+/Vulkan production color and performance remain unverified. The fallback
-is evidence of real integration, not renderer parity with the production target.
+## Persistent presentation
 
-`capture_stove.gd -- <out-dir> review` saves the initial stages through steady burn
-without recording video, for bounded material checks in the same real game scene.
-The full run additionally exercises ±12° through `TpsCamera.set_look()` (the actual
-workspace rig retains collision ownership), refuel, door closure, reentry and cooling.
-The capture exits the ritual normally before scene teardown.
+`ShelterState` adds optional `presentation` to each fire record: ordered visual
+cohorts, their resting poses, consumed/catch stages, individual ignition origins,
+placement sequence, tinder position and ignition age. It snapshots live presentation
+when saving, as well as on fuel/tinder events. Loading checks the authoritative log
+count, restores only valid poses and cancels old settling tweens. Legacy records
+without presentation receive safe deterministic placement and a reachable tinder
+point when prepared. This metadata never creates fuel or heat and the ritual mode
+is not saved.
 
-Readability corrections keep the existing production light color, energy, placement
-and WorldEnvironment: smaller/dimmer orange coals, lower crack emission, larger warm
-flame silhouettes with asymmetric tapered geometry, and opacity height normalized
-to the current flame strength so shrinking tongues do not become opaque round caps.
-Visual acceptance remains subject to review of the game-camera footage and a
-Forward+ run; this software Compatibility capture does not establish production readiness.
+## Runtime visual evidence
 
-The current complete capture is in `key_west_727/stove_fire/current/`: 17 PNG stages,
-`full-cycle.mp4` (558 decoded frames, 55.8 s, 960×540, H.264/yuv420p, 10 fps),
-`capture.txt` and `manifest.json` with frame continuity, source commit and hashes.
-The full graphical run exits successfully and preserves old-log progress on refuel.
-The existing room light still follows thermal intensity: it remains strong at the
-late-ember stage until fuel extinction, so that balance remains a visual-review limit.
-The scene also reports 320 ObjectDB instances remaining on teardown; no fire shader
-or capture-state errors occurred. Neither limitation is concealed by the media export.
+Earlier fire-only captures remain in [`stove_fire`](../runtime_previews/key_west_727/stove_fire/).
+They establish the original/new 727 fire comparison; they do not prove the addressed
+hand ritual. The extended `capture_stove.gd` drives the real Key West Reality scene
+and Henry through actual input, pocket availability, early release, save/load,
+ignition, refuel, exit/reentry and cooling. A closer view uses the same production
+`TpsCamera.set_work_framing()` pipeline with its normal collision and easing, never
+an independent capture camera. Video samples every third fixed 30 Hz step (10 fps).
+`review` after the output path saves stages without a video for bounded checks.
+Every image comes from Godot’s real viewport via `RenderingServer.force_draw()`.
+
+OpenGL Compatibility / llvmpipe under Xvfb is a fallback verification path. It does
+not prove Forward+ production color or performance. Unsupported scene fog, existing
+room-light balance at late embers and scene-teardown warnings must be reported with
+the capture, not concealed by postprocessing. Visual acceptance still requires
+review of actual game-camera footage.
