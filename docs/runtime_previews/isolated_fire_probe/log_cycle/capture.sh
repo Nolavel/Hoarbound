@@ -19,6 +19,7 @@ if rg -n 'SCRIPT ERROR|SHADER ERROR|ERROR:' "$capture_dir/godot.log"; then
 fi
 ffmpeg -y -hide_banner -loglevel error -framerate 30 -i "$capture_dir/frame%08d.png" \
  -frames:v 300 -c:v libx264 -crf 18 -pix_fmt yuv420p -movflags +faststart "$study_dir/full-cycle.mp4"
+cp "$capture_dir/frame00000000.png" "$study_dir/00-unlit.png"
 cp "$capture_dir/frame00000045.png" "$study_dir/01-ignition.png"
 cp "$capture_dir/frame00000150.png" "$study_dir/02-burning.png"
 cp "$capture_dir/frame00000270.png" "$study_dir/03-embers.png"

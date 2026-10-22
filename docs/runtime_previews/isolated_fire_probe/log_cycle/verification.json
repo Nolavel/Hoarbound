@@ -12,20 +12,37 @@
     540
   ],
   "stage_frames": {
+    "00-unlit.png": 0,
     "01-ignition.png": 45,
     "02-burning.png": 150,
     "03-embers.png": 270
   },
   "sha256": {
-    "01-ignition.png": "4ddf772ddd06523ac93c00147cff66d701cf9eb4eb5a7ab874c4979cf4bd5fe3",
-    "02-burning.png": "131bfd89fe684ad572238e0a1cd7a7fb3f4366cecf2840b8f71ad978f5392f83",
-    "03-embers.png": "596f7b3e4d8791a913aa3b24b6c167a67b5ccf40ba08d00c66e4e0283b7c69a6",
-    "full-cycle.mp4": "15b836236cbc5f62c765a152aec884a7b060d901739827bdd00532f80d771439"
+    "00-unlit.png": "ebcd50088d458cf0acb5531b94b823b7561f4c86240eb9146c5ba3d1ccefde79",
+    "01-ignition.png": "c86dd09c5e28d627637195e3b43705429cb6d213755422fbd5b064d1c6dcb9bc",
+    "02-burning.png": "0250e607c957ef1dc52bea9c31e2fc1d44b4475036d6e2e82f856f4174a1dc1f",
+    "03-embers.png": "ff404ab29194bb0832e267464accde77fa631251799dd5cd6c7991f085feb9f3",
+    "full-cycle.mp4": "0df67187cbdb6e79c62b0964ce77da1cde74919830be87e6ab908cbab59f9d19"
   },
-  "freeze_test": {
-    "progress": 0.5,
-    "frames": 4,
-    "all_png_hashes_identical": true,
-    "sha256": "d410812c9626e22684381e93d3c5e1bf8287eb226772ae767f1860435375d828"
-  }
+  "freeze_tests": [
+    {
+      "progress": 0.1,
+      "frames": 4,
+      "all_png_hashes_identical": true,
+      "sha256": "5121fb58d91adfa3507c3232b7babfc65c7b5c6f7a4b4534dbac1848c0981f64"
+    },
+    {
+      "progress": 0.5,
+      "frames": 4,
+      "all_png_hashes_identical": true,
+      "sha256": "71dc895747ca5b1d5a7d22cba00134d7a96aff38e11da569df7f97d39ebce20b"
+    },
+    {
+      "progress": 0.9,
+      "frames": 4,
+      "all_png_hashes_identical": true,
+      "sha256": "37d0e55134de939899038433fad8d4aff018c139a77be2ad4b06ad16e7601045"
+    }
+  ],
+  "mp4_decoded_for_visual_review": true
 }

@@ -6,8 +6,8 @@ OpenGL API 4.5 (Core Profile) Mesa 25.0.7-2+deb13u1 - Compatibility - Using Devi
 Movie Maker mode enabled, recording movie in 960×540 @ 30 FPS...
 --------------------------------------------------------------------------------
 Done recording movie at path: /workspace/work/log-cycle/frame.png
-300 frames at 30 FPS (movie length: 00:00:10:00), recorded in 00:00:20 (50% of real-time speed).
-CPU render time: 3.15 seconds (average: 10.51 ms/frame)
-GPU render time: 14.47 seconds (average: 48.25 ms/frame)
-Encoding time: 1.60 seconds (average: 5.33 ms/frame)
+300 frames at 30 FPS (movie length: 00:00:10:00), recorded in 00:00:07 (142% of real-time speed).
+CPU render time: 0.36 seconds (average: 1.20 ms/frame)
+GPU render time: 2.44 seconds (average: 8.14 ms/frame)
+Encoding time: 1.48 seconds (average: 4.93 ms/frame)
 --------------------------------------------------------------------------------
