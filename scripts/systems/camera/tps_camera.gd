@@ -208,6 +208,12 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## How see-through a thin occluder between camera and Henry becomes.
 @export_range(0.0, 1.0, 0.05) var occluder_transparency: float = 0.7
 
+@export_group("Work framing")
+## How fast the view eases onto a workspace Henry kneels at, and back off it.
+@export_range(0.5, 20.0, 0.5) var work_framing_rate: float = 3.0
+## How far the mouse may orbit the view round a workspace: yaw and pitch, degrees.
+@export var work_look_limit_deg: Vector2 = Vector2(25.0, 12.0)
+
 ## 0..1 unease that widens the breathing sway; free for survival state to drive.
 var tension: float = 0.0
 
@@ -282,6 +288,13 @@ var _last_pivot: Vector3 = Vector3.ZERO
 var _last_lift_pitch: float = 0.0
 ## Lateral shoulder offset asked for this frame, before walls (for traces).
 var _last_side: float = 0.0
+## Workspace framing (stove door): look target and preferred eye, world space; the control
+## look it started from bounds the mouse orbit. The blend runs 0 (follow) to 1 (framed).
+var _work_active: bool = false
+var _work_focus: Vector3 = Vector3.ZERO
+var _work_eye: Vector3 = Vector3.ZERO
+var _work_look0: Vector2 = Vector2.ZERO
+var _work_blend: float = 0.0
 
 
 func _ready() -> void:
@@ -385,6 +398,26 @@ func snap_to_target() -> void:
 	_last_eye_distance = INF
 	_cone = Vector4(PI, PI, 90.0, 90.0)
 	_clear_auto_look()
+
+
+## Frames a workspace Henry kneels at: the view eases to `eye` looking at `focus` (world),
+## the mouse orbits it a little, and walls between Henry and the eye shorten the boom.
+func set_work_framing(focus: Vector3, eye: Vector3) -> void:
+	if not _work_active:
+		_work_look0 = Vector2(_yaw, _pitch_deg)
+	_work_active = true
+	_work_focus = focus
+	_work_eye = eye
+
+
+## Hands the view back to the follow rig; it eases there at work_framing_rate.
+func clear_work_framing() -> void:
+	_work_active = false
+
+
+## 0 following Henry, 1 fully on the workspace framing.
+func get_work_framing_blend() -> float:
+	return _work_blend
 
 
 ## 0 away from doorways, 1 with the frame fully closed round Henry in one.
@@ -535,11 +568,34 @@ func _update_rig(delta: float) -> void:
 	_noise_time += delta
 	_sway_deg = _noise.get_noise_1d(_noise_time * 20.0) * breathing_amplitude_deg * (0.4 + tension)
 	h_offset = 0.0
-	global_position = camera
 	view_pitch = _keep_eyes_in_frame(view_pitch, camera, smoothstep(0.0, 0.2, maxf(lift, _pressed())))
-	global_rotation = Vector3(deg_to_rad(view_pitch + _sway_deg), view_yaw, 0.0)
+	var view := Basis.from_euler(Vector3(deg_to_rad(view_pitch + _sway_deg), view_yaw, 0.0))
+	_work_blend = move_toward(_work_blend, 1.0 if _work_active else 0.0, work_framing_rate * delta * 0.5)
+	if _work_blend > 0.001:
+		var work: Transform3D = _work_view(safe)
+		var weight: float = smoothstep(0.0, 1.0, _work_blend)
+		camera = camera.lerp(work.origin, weight)
+		view = view.get_rotation_quaternion().slerp(work.basis.get_rotation_quaternion(), weight)
+	global_position = camera
+	global_basis = view
 	_last_eye_distance = camera.distance_to(get_eye_position())
 	_update_fades(delta, camera)
+
+
+## The workspace view: the authored eye orbited by the mouse's offset from the starting
+## look, its boom swept from Henry's safe point so a wall beside the stove shortens it.
+func _work_view(safe: Vector3) -> Transform3D:
+	var offset: Vector3 = _work_eye - _work_focus
+	offset = offset.rotated(Vector3.UP, angle_difference(_work_look0.x, _yaw))
+	var right: Vector3 = (-offset).cross(Vector3.UP).normalized()
+	if right.length_squared() > 0.5:
+		offset = offset.rotated(right, deg_to_rad(_pitch_deg - _work_look0.y))
+	var eye: Vector3 = _work_focus + offset
+	var reach: Vector3 = eye - safe
+	var free: float = _probe.sweep(safe, reach) - collision_surface_margin
+	if free < reach.length():
+		eye = safe + reach.normalized() * maxf(free, collision_min_distance)
+	return Transform3D(Basis.looking_at(_work_focus - eye, Vector3.UP), eye)
 
 
 ## The cone the camera body may orbit in at this pass of the doorway: it closes at once
@@ -1004,6 +1060,10 @@ func _apply_look_input() -> Vector2:
 	else:
 		_pitch_deg += pitch_step
 	_pitch_deg = clampf(_pitch_deg, pitch_min_deg, pitch_max_deg)
+	if _work_active:
+		var off: float = clampf(angle_difference(_work_look0.x, _yaw), -deg_to_rad(work_look_limit_deg.x), deg_to_rad(work_look_limit_deg.x))
+		_yaw = wrapf(_work_look0.x + off, -PI, PI)
+		_pitch_deg = clampf(_pitch_deg, _work_look0.y - work_look_limit_deg.y, _work_look0.y + work_look_limit_deg.y)
 	return look
 
 

@@ -1,104 +1,238 @@
 extends SceneTree
 
-## Issue #42 frames of the shelter stove: cold and empty, lit with a full load,
-## and burnt down to one log. Frames go to user://shots/stove/.
-## Run: xvfb-run godot --path . --rendering-driver vulkan --script res://tools/runtime/capture_stove.gd
+## The stove ritual in the 727 Fort St shelter (Key West Reality), driven by real input through the
+## production TPS camera: eight named frames and a continuous frame run for a video.
+## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_stove.gd -- <out dir>
+## Frames: 1 before F, 2 crouched with the empty ring, 3 one log, 4 three logs, 5 tinder laid,
+## 6 holding the lighter, 7 the fire growing, 8 the door closed and Henry up. video/ holds every
+## other frame of the whole run.
 
-const SCENE: String = "res://archive/graciosa/scenes/Graciosa_Island_Terrain.tscn"
-const OUT_DIR: String = "user://shots/stove"
-const WARMUP: float = 3.0
+const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
+## Early afternoon: daylight through the windows shows the firebox and Henry before the fire.
+const HOUR: float = 13.0
+const VIDEO_EVERY: int = 2
 
-var _stove: HeatSource
-var _visual: StoveVisual
-var _time: float = 0.0
-var _step: int = 0
-var _wait: float = 0.0
+var _out: String = "user://shots/stove"
+var _world: Node3D
+var _player: Player
+var _feed: HeatSourceFeed
+var _source: HeatSource
+var _control: StoveInteractionController
+var _frame: int = 0
+var _video: int = 0
+var _recording: bool = false
 
 
 func _initialize() -> void:
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
-	var scene: Node = (load(SCENE) as PackedScene).instantiate()
-	root.add_child(scene)
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if not args.is_empty():
+		_out = args[0]
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out).path_join("video"))
+	_run()
 
 
-func _process(delta: float) -> bool:
-	_time += delta
-	if _time < WARMUP or _time < _wait:
-		return false
-	match _step:
-		0:
-			for node: Node in root.find_children("*", "", true, false):
-				if node is Label3D:
-					node.set(&"visible", false)
-			_stove = root.find_child("ShelterZone", true, false).find_child("Stove", true, false) as HeatSource
-			_visual = _stove.find_child("StoveVisual", true, false) as StoveVisual
-			var camera := Camera3D.new()
-			camera.name = "Camera3D"
-			camera.fov = 50.0
-			_stove.add_child(camera)
-			camera.position = Vector3(1.5, 0.95, 0.55)
-			camera.look_at(_stove.global_position + Vector3(0.0, 0.45, 0.0), Vector3.UP)
-			camera.make_current()
-			_stove.extinguish()
-			_stove.restore_fuel(0.0, false)
-			_next()
-		1:
-			_shot("01_cold_empty")
-			_stove.ignite()
-			_next()
-		2:
-			_shot("02_lit_full")
-			_stove.restore_fuel(1.5, true)
-			_next()
-		3:
-			_shot("03_burnt_down")
-			_stove.ignite()
-			var warmer := _stove.find_child("Warmer", true, false) as StoveWarmer
-			var bag := InventoryComponent.new()
-			root.add_child(bag)
-			bag.try_add(load("res://data/items/tinned_stew.tres") as ItemResource)
-			warmer.put(bag, &"tinned_stew")
-			_next()
-		4:
-			_shot("04_tin_warming")
-			_stove.advance_fuel(0.6)
-			_next()
-		5:
-			_shot("05_hot_stew_ready")
-			var warmer2 := _stove.find_child("Warmer", true, false) as StoveWarmer
-			warmer2.load_save_data({})
-			_stove.restore_fuel(0.0, false)
-			var player := root.find_child("Player", true, false) as Player
-			var bag: InventoryComponent = InventoryComponent.find_in(player)
-			for id: String in ["tinder", "lighter"]:
-				bag.try_add(load("res://data/items/%s.tres" % id) as ItemResource)
-			player.global_position = _stove.global_position + Vector3(1.05, 0.9, 0.0)
-			player.rotation.y = PI * 0.5  # face the stove door (-X)
-			var cam := _stove.get_node(^"Camera3D") as Camera3D
-			cam.position = Vector3(1.3, 1.2, 1.9)
-			cam.look_at(_stove.global_position + Vector3(0.5, 0.4, 0.0), Vector3.UP)
-			_stove.add_logs(1)
-			var feed := _stove.get_node(^"Feed") as HeatSourceFeed
-			feed.toggle_door()
-			feed.strike_success_chance = 1.0
-			print("[stove] act=", feed.begin_act())
-			feed.attempt_lighter_strike()
-			_next()
-		6:
-			_shot("06_lighting_kindling")
-			_wait = _time + 4.5
-			_step += 1
-		7:
-			_shot("07_lit_after_act")
-			quit()
+func _run() -> void:
+	_world = (load(SCENE) as PackedScene).instantiate() as Node3D
+	root.add_child(_world)
+	var ctx: Variant = null
+	for _i: int in range(600):
+		await process_frame
+		ctx = _world.call(&"get_context")
+		if ctx != null:
+			break
+	_player = ctx.player as Player
+	for node: Node in _world.find_children("*", "CanvasLayer", true, false):
+		node.set(&"visible", false)
+	var weather: Node = ctx.get_system(preload("res://scripts/systems/world/WeatherController.gd"))
+	weather.call(&"set_weather", &"calm", true, 9999.0)
+	for node: Node in _world.find_children("*", "DayNightManager", true, false):
+		node.set(&"total_game_time_hours", floorf(float(node.get(&"total_game_time_hours")) / 24.0) * 24.0 + HOUR)
+		node.call(&"force_update_lighting")
+		node.set_process(false)
+	for _i: int in range(90):
+		await process_frame
+	var shelter: Node = _world.find_children("*", "", true, false).filter(func(n: Node) -> bool: return n is KeyWest727Shelter)[0]
+	_feed = shelter.find_child("Feed", true, false) as HeatSourceFeed
+	_source = _feed.heat_source
+	_control = _feed.controller
+	_source.restore_fuel(0.0, false)
+	_source.set_tinder_prepared(false)
+	var inventory: InventoryComponent = InventoryComponent.find_in(_player)
+	for _i: int in range(3):
+		inventory.try_add(ItemCatalog.get_item(&"firewood"))
+	inventory.try_add(ItemCatalog.get_item(&"tinder"))
+	inventory.try_add(ItemCatalog.get_item(&"lighter"))
+	## Henry two metres before the door, inside the heated room, looking at the stove.
+	## Off the door's axis, so the camera over his shoulder sees the stove beside him.
+	var stand: Vector3 = _floor_point(_source.to_global(Vector3(1.9, 0.0, 0.95)))
+	_player.global_position = stand + Vector3.UP * 1.0
+	_player.velocity = Vector3.ZERO
+	_player.look_at(Vector3(_source.global_position.x, _player.global_position.y, _source.global_position.z), Vector3.UP)
+	## The player's mouse: the TPS aim on the firebox, so F names the stove.
+	for _i: int in range(3):
+		_aim_camera(_feed.focus_anchor.global_position)
+		for _f: int in range(15):
+			await process_frame
+	_recording = true
+	await _shot("1_before_f")
+	_press_interact()
+	await _until(func() -> bool: return _control.is_working(), 12.0)
+	await _hold(0.6)
+	await _shot("2_crouched_empty_ring")
+	_mouse(MOUSE_BUTTON_RIGHT, true)
+	_mouse(MOUSE_BUTTON_RIGHT, false)
+	await _until(func() -> bool: return not _feed.is_acting(), 5.0)
+	await _hold(0.3)
+	await _shot("3_one_log")
+	for _log: int in range(2):
+		_mouse(MOUSE_BUTTON_RIGHT, true)
+		_mouse(MOUSE_BUTTON_RIGHT, false)
+		await _until(func() -> bool: return not _feed.is_acting(), 5.0)
+	await _hold(0.3)
+	await _shot("4_three_logs")
+	_dump_bones("idle")
+	_mouse(MOUSE_BUTTON_LEFT, true)
+	await _hold(0.5)
+	_dump_bones("act")
+	await _until(func() -> bool: return _source.is_tinder_prepared(), 5.0)
+	if OS.get_cmdline_user_args().has("probe"):
+		await _probe_views()
+	await _hold(0.4)
+	_mouse(MOUSE_BUTTON_LEFT, false)
+	await _hold(0.2)
+	await _shot("5_tinder_laid")
+	await _until(func() -> bool: return _feed.get_stage() == HeatSourceFeed.Stage.READY, 8.0)
+	_mouse(MOUSE_BUTTON_LEFT, true)
+	await _hold(HeatSourceFeed.LIGHT_SECONDS * 0.55)
+	await _shot("6_lighter_hold")
+	await _until(func() -> bool: return _source.is_burning(), 5.0)
+	_mouse(MOUSE_BUTTON_LEFT, false)
+	await _hold(5.0)
+	await _shot("7_fire_growing")
+	_press_interact()
+	await _until(func() -> bool: return not _control.is_active(), 5.0)
+	await _hold(1.2)
+	await _shot("8_door_closed_up")
+	_recording = false
+	print("[stove] logs=%d tinder=%s burning=%s intensity=%.2f video_frames=%d" % [_source.get_loaded_log_count(),
+		_source.is_tinder_prepared(), _source.is_burning(), _source.get_intensity(), _video])
+	quit(0)
+
+
+func _process(_delta: float) -> bool:
+	## Debug HUD layers come and go; only the stove ring stays on the frames.
+	if _frame % 15 == 0 and _world != null:
+		for node: Node in _world.find_children("*", "CanvasLayer", true, false):
+			if node.name != &"StoveRingLayer" and not _is_prompt(node):
+				node.set(&"visible", false)
+		for node: Node in root.get_children():
+			if node is Control:
+				node.set(&"visible", false)
+		for node: Node in _world.find_children("*", "Label", true, false):
+			if node.get_viewport() == root and not _is_prompt(node) and not _under_ring(node):
+				node.set(&"visible", false)
+	if _recording:
+		_frame += 1
+		if _frame % VIDEO_EVERY == 0:
+			_video += 1
+			_save(ProjectSettings.globalize_path(_out).path_join("video/%05d.png" % _video))
 	return false
 
 
-func _next() -> void:
-	_step += 1
-	_wait = _time + 0.8
-
-
 func _shot(name: String) -> void:
-	root.get_texture().get_image().save_png("%s/%s.png" % [OUT_DIR, name])
-	print("[stove] %s logs=%d glowing=%s" % [name, _visual.get_visible_log_count(), _visual.is_glowing()])
+	await RenderingServer.frame_post_draw
+	_save(ProjectSettings.globalize_path(_out).path_join(name + ".png"))
+	print("[stove] shot ", name, " phase=", _control.get_phase(), " logs=", _source.get_loaded_log_count(),
+		" tinder=", _source.is_tinder_prepared(), " stage=", _feed.get_stage(), " burning=", _source.is_burning())
+	var camera := root.get_camera_3d() as TpsCamera
+	if camera != null:
+		print("[stove] camera in stove space ", _source.to_local(camera.global_position), " henry ",
+			_source.to_local(_player.global_position), " framing ", camera.get_work_framing_blend())
+
+
+## Probe: Henry's bones and the door in stove space, for composing the work framing.
+func _dump_bones(tag: String) -> void:
+	var skeleton: Skeleton3D = (_player.animation_component as HenryUALAnimation).skeleton
+	for i: int in range(skeleton.get_bone_count()):
+		var bone: String = skeleton.get_bone_name(i)
+		if bone.to_lower().contains("head") or bone.to_lower().contains("hand") or bone.to_lower().contains("upperarm") \
+				or bone.to_lower().contains("clavicle") or bone.to_lower().contains("shoulder") or bone.to_lower().contains("neck"):
+			print("[bone] %s %s %s" % [tag, bone, _source.to_local(skeleton.to_global(skeleton.get_bone_global_pose(i).origin))])
+	var hinge: Node3D = _source.find_child("DoorHinge", true, false) as Node3D
+	if hinge != null:
+		print("[bone] %s door_hinge %s door_tip %s" % [tag, _source.to_local(hinge.global_position),
+			_source.to_local(hinge.to_global(Vector3(0.0, 0.17, 0.44)))])
+
+
+func _probe_views() -> void:
+	var camera := root.get_camera_3d() as TpsCamera
+	var views: Array = OS.get_cmdline_user_args().slice(2)
+	for i: int in range(0, views.size() - 5, 6):
+		var eye := Vector3(float(views[i]), float(views[i + 1]), float(views[i + 2]))
+		var focus := Vector3(float(views[i + 3]), float(views[i + 4]), float(views[i + 5]))
+		camera.set_work_framing(_source.to_global(focus), _source.to_global(eye))
+		await _hold(0.2)
+		await _shot("probe_%d" % (i / 6))
+
+
+func _save(path: String) -> void:
+	root.get_texture().get_image().save_png(path)
+
+
+func _until(done: Callable, seconds: float) -> void:
+	var frames: int = int(seconds * 30.0)
+	for _i: int in range(frames):
+		if done.call():
+			return
+		await process_frame
+
+
+func _hold(seconds: float) -> void:
+	for _i: int in range(int(seconds * 30.0)):
+		await process_frame
+
+
+func _press_interact() -> void:
+	for pressed: bool in [true, false]:
+		var event := InputEventAction.new()
+		event.action = &"interact"
+		event.pressed = pressed
+		root.push_input(event)
+
+
+func _mouse(button: MouseButton, pressed: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = button
+	event.pressed = pressed
+	root.push_input(event)
+
+
+func _is_prompt(node: Node) -> bool:
+	while node != null:
+		if node.is_in_group(&"interaction_cursor_prompt") or node.is_in_group(&"action_prompt_3d"):
+			return true
+		node = node.get_parent()
+	return false
+
+
+func _under_ring(node: Node) -> bool:
+	while node != null:
+		if node.name == &"StoveRingLayer":
+			return true
+		node = node.get_parent()
+	return false
+
+
+## The production TPS camera turned so its aim passes through the point.
+func _aim_camera(point: Vector3) -> void:
+	var camera := root.get_camera_3d()
+	if camera == null or not camera.has_method(&"set_look"):
+		return
+	var dir: Vector3 = (point - camera.global_position).normalized()
+	camera.call(&"set_look", atan2(-dir.x, -dir.z), rad_to_deg(asin(clampf(dir.y, -1.0, 1.0))))
+
+
+func _floor_point(at: Vector3) -> Vector3:
+	var space: PhysicsDirectSpaceState3D = _world.get_world_3d().direct_space_state
+	var hit: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.6, at + Vector3.DOWN * 2.0))
+	return hit["position"] if not hit.is_empty() else at

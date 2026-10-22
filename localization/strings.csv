@@ -176,7 +176,7 @@ AFFLICTION_EXHAUSTION,Exhaustion,Истощение
 STOVE_MOUSE_LOAD,LMB: load 1 log | RMB: load up to 2,ЛКМ: положить 1 полено | ПКМ: до 2
 STOVE_MOUSE_TAKE,RMB: take up to 2 cold logs,ПКМ: забрать до 2 холодных поленьев
 STOVE_TAKEN,Taken: %d logs,Взято поленьев: %d
-STOVE_FREE_HANDS,G: put down wood first; put away other held tools,G: сначала положите дрова; уберите инструмент из рук
+STOVE_FREE_HANDS,Your hands are full: put down what you carry (G),Руки заняты: положите то, что несёте (G)
 STOVE_CANNOT_TAKE,Only intact cold logs can be taken with room in your hands,"Можно забрать только целые холодные поленья, если в руках есть место"
 STOVE_LIGHTER_HOLD,Hold for 3 seconds to ignite,Держать 3 секунды — разжечь
 STOVE_CANCEL_LIGHTER,Cancel ignition,Отменить розжиг
@@ -198,3 +198,15 @@ STOVE_TRANSFER_PROGRESS,Loading %d logs · %d%%,Загрузка %d полень
 STOVE_ACTION_INTERRUPTED,Action interrupted — press F to retry,Действие прервано — нажмите F ещё раз
 STOVE_RETURN_PROGRESS,Taking back %d logs · %d%%,Возврат %d поленьев · %d%%
 Bundle of tinder,Bundle of tinder,Связка растопки
+STOVE_FUEL_STATUS,Firebox: %d / %d logs,Топка: %d / %d поленьев
+STOVE_TINDER_READY,tinder laid,растопка положена
+STOVE_TINDER_LAID,Tinder laid under the logs,Растопка уложена под поленья
+STOVE_NEED_LOG_FIRST,Put a log in first,Сначала положите полено
+STOVE_TINDER_ALREADY,Tinder is already laid,Растопка уже положена
+STOVE_NEED_TINDER_FIRST,Lay tinder first,Сначала положите растопку
+STOVE_RING_FUEL,FUEL,ТОПЛИВО
+STOVE_RING_TINDER,TINDER,РАСТОПКА
+STOVE_RING_FIRE,FIRE,ОГОНЬ
+STOVE_RING_RMB,RMB,ПКМ
+STOVE_RING_LMB,LMB,ЛКМ
+STOVE_RING_HOLD,LMB · hold,ЛКМ · держать

@@ -248,6 +248,37 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Stove ritual framing (owner: "we saw nothing inside the stove or what Henry does"). The TPS camera stayed high
+  behind Henry, his back hid the door, and the iron stove was lost on the dark floor. The same TPS camera now
+  eases onto a work framing while the door is open (`TpsCamera.set_work_framing`), the owner's composition:
+  close over Henry's right shoulder, shoulder lower left, head left, firebox mouth mid-frame, door on the right.
+  From behind, Henry kneeling square to the door hid it with his back, so he now kneels 0.3 m off the door axis,
+  turned to the mouth, and the door folds back 160 degrees (was 105, swinging toward the camera).
+  The stove's "Use" prompt no longer shows during the ritual. The mouse orbits it a little, walls still
+  shorten the boom, and F eases back to the follow rig. No separate mini-game camera.
+- 727 floor lighter and warmer (owner: stove and floor merge). The floor's real material is the external
+  `floor_old_wood_727.tres` (the glb's `floor_vinyl` is remapped in the import), 0.23/0.16/0.10 to 0.40/0.29/0.18
+  against the 0.13 iron. The earlier glb tint (6e90bb3) changed the remapped-away colour and showed nothing;
+  reverted with its tool.
+- Stove ritual replaces the stove's F cycle (owner spec). Before: F opened the door, the next F loaded the whole
+  armful and readied the lighter, and RMB took cold logs back. Now `[F] Stove` walks Henry to a
+  `StoveInteractionPoint` in stove space (the player's own scripted walk, no teleport, refused when his capsule
+  does not fit). He turns to the door, it opens, and he crouches with or without a load: a new `CrouchCarry`
+  state keeps the carry arms over the crouch legs. `PlayerState` WORKING roots him, the interact key is claimed,
+  and the TPS camera stays. A three-arc ring (`StoveInteractionRing`, the pickup marker's language) shows fuel
+  (one tick per log of the real capacity), tinder and fire.
+  - RMB lays exactly one log per press. The inventory and `HeatSource.add_logs(1)` change together when the
+    act completes; a cancel moves nothing.
+  - LMB lays tinder, only with a log in. The press that laid it never reaches the lighter: release, then a new
+    press strikes the existing lighter, and a 3 s hold lights the stove.
+  - Logs can follow the tinder. A burning stove takes logs without relighting.
+  - F closes the door and stands him up.
+  - Tinder is new `HeatSource` state (`tinder_prepared`). It is saved and recorded by `ShelterState`, and kept
+    when Henry leaves.
+  - The work pose backs down instead of standing up through its clip while Henry stays crouched.
+  - New `StoveInteractionController`; `HeatSourceFeed` keeps only the acts. `test_stove_ritual` covers the 12
+    owner scenarios; `test_shelter_workflow` is updated. `capture_stove` now runs in 727 (it used archived
+    Graciosa). Doc: `docs/technical/STOVE_RITUAL.md`.
 - Window frost forms and thaws like real fern frost (owner: not natural). Before, one mask served both
   ways: the frost edge was a noisy band at a fixed distance from the frame, so growth and thaw were the
   same rectangle moving in and out (a square hole at 50 %). Now each texel has two dissolve thresholds.

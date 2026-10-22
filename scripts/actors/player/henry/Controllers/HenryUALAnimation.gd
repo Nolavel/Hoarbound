@@ -46,7 +46,7 @@ const LOCKING_ACTIONS: Array[StringName] = [
 const CARRY_WALK_SPEED: float = 1.5
 ## Base states that own the whole pose, air and landing included.
 const NON_LOCOMOTION_STATES: Array[StringName] = [&"JumpStart", &"AirLoop", &"Land", &"LandMoving", &"Crouch",
-	&"Carry", &"SitEnter", &"SitLoop", &"SitExit"]
+	&"Carry", &"CrouchCarry", &"SitEnter", &"SitLoop", &"SitExit"]
 ## Airtime before Henry reads as falling (Unity Starter Assets FallTimeout): steps
 ## and bumps keep the walk.
 const FALL_TIMEOUT_SECONDS: float = 0.15
@@ -301,6 +301,8 @@ func update_animation_blend(_delta: float) -> void:
 	if player.has_method("get_crouch_speed_ratio"):
 		crouch_blend = float(player.call("get_crouch_speed_ratio"))
 	animation_tree.set("parameters/base/Crouch/blend_position", crouch_blend)
+	if _has_carry_state():
+		animation_tree.set("parameters/base/CrouchCarry/idle/blend_position", crouch_blend)
 	var speed: float = Vector2(player.velocity.x, player.velocity.z).length()
 	animation_tree.set("parameters/base/Carry/arms_pace/scale", speed / CARRY_WALK_SPEED)
 	animation_tree.set("parameters/base/Carry/walk_pace/scale", speed / CARRY_WALK_SPEED)
@@ -344,7 +346,8 @@ func update_animation_state(jump_started: bool, landed: bool, impact_speed: floa
 		return
 	var crouching: bool = player.has_method("is_crouching") and bool(player.call("is_crouching"))
 	if crouching:
-		_state_playback.travel(&"Crouch")
+		## A load in the arms stays held while crouched: carry arms over the crouch legs.
+		_state_playback.travel(&"CrouchCarry" if _carried != null and _has_carry_state() else &"Crouch")
 	else:
 		_state_playback.travel(&"Carry" if _carried != null and _has_carry_state() else &"Grounded")
 
@@ -561,8 +564,10 @@ func is_work_pose_ready() -> bool:
 	return _work_pose == WorkPose.HOLDING
 
 
-func end_work_pose() -> void:
-	if _work_pose == WorkPose.ENTERING:
+## Leaves the work pose by the clip's own exit, or (back_down) back the way it came, so a
+## crouched worker (the stove) stays low instead of standing up through the clip.
+func end_work_pose(back_down: bool = false) -> void:
+	if _work_pose == WorkPose.ENTERING or (back_down and _work_pose == WorkPose.HOLDING):
 		_work_pose = WorkPose.RETURNING
 	elif _work_pose == WorkPose.HOLDING:
 		_work_pose = WorkPose.EXITING
@@ -1169,6 +1174,14 @@ func _setup_animation_tree() -> void:
 	if _has_carry_state():
 		_force_locomotion_loop(_resolved_carry_walk)
 		base.add_node(&"Carry", _build_carry_tree(), Vector2(0.0, -180.0))
+		var crouch_legs := AnimationNodeBlendSpace1D.new()
+		crouch_legs.sync = true
+		crouch_legs.add_blend_point(_clip(_resolved_crouch_idle), 0.0, -1, &"idle")
+		crouch_legs.add_blend_point(_clip(_resolved_crouch_fwd), 1.0, -1, &"forward")
+		base.add_node(&"CrouchCarry", _build_carry_tree(crouch_legs), Vector2(-260.0, -180.0))
+		for other: StringName in [&"Grounded", &"Crouch", &"Carry"]:
+			_add_state_transition(base, other, &"CrouchCarry", 0.15)
+			_add_state_transition(base, &"CrouchCarry", other, 0.15)
 		for other: StringName in [&"Grounded", &"Crouch"]:
 			_add_state_transition(base, other, &"Carry", 0.15)
 			_add_state_transition(base, &"Carry", other, 0.15)
@@ -1247,6 +1260,11 @@ func _setup_animation_tree() -> void:
 	animation_tree.set("parameters/base/Grounded/loco/blend_position", 0.0)
 	animation_tree.set("parameters/base/Crouch/blend_position", 0.0)
 	animation_tree.set("parameters/base/Carry/arms/blend_amount", 1.0)
+	if _has_carry_state():
+		## Crouched with a load the arms stay frozen around it; the legs walk the crouch cycle.
+		animation_tree.set("parameters/base/CrouchCarry/arms/blend_amount", 1.0)
+		animation_tree.set("parameters/base/CrouchCarry/arms_pace/scale", 0.0)
+		animation_tree.set("parameters/base/CrouchCarry/move/blend_amount", 0.0)
 	_state_playback = animation_tree.get("parameters/base/playback") as AnimationNodeStateMachinePlayback
 	if _state_playback != null:
 		_state_playback.start(&"Grounded")
@@ -1254,9 +1272,9 @@ func _setup_animation_tree() -> void:
 
 ## Carry locomotion: the carry cycle at real speed while moving; standing, the
 ## idle legs with the carry cycle's arms frozen around the load.
-func _build_carry_tree() -> AnimationNodeBlendTree:
+func _build_carry_tree(legs: AnimationRootNode = null) -> AnimationNodeBlendTree:
 	var tree := AnimationNodeBlendTree.new()
-	tree.add_node(&"idle", _clip(_resolved_idle), Vector2(-400.0, 0.0))
+	tree.add_node(&"idle", legs if legs != null else _clip(_resolved_idle), Vector2(-400.0, 0.0))
 	## Frozen arms for standing and the full cycle for walking; a node output
 	## feeds only one input, so each branch has its own clip and pace.
 	for branch: String in ["arms", "walk"]:
