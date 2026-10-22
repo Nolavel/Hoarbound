@@ -67,11 +67,11 @@ func _run() -> void:
 	_player.global_position = stand + Vector3.UP * 1.0
 	_player.velocity = Vector3.ZERO
 	_player.look_at(Vector3(_source.global_position.x, _player.global_position.y, _source.global_position.z), Vector3.UP)
-	var camera := get_root().get_camera_3d() as TpsCamera
-	if camera != null:
-		camera.call(&"set_look", _player.rotation.y, -18.0)
-	for _i: int in range(45):
-		await process_frame
+	## The player's mouse: the TPS aim on the firebox, so F names the stove.
+	for _i: int in range(3):
+		_aim_camera(_feed.focus_anchor.global_position)
+		for _f: int in range(15):
+			await process_frame
 	_recording = true
 	await _shot("1_before_f")
 	_press_interact()
@@ -114,6 +114,11 @@ func _run() -> void:
 
 
 func _process(_delta: float) -> bool:
+	## Debug HUD layers come and go; only the stove ring stays on the frames.
+	if _frame % 15 == 0 and _world != null:
+		for node: Node in _world.find_children("*", "CanvasLayer", true, false):
+			if node.name != &"StoveRingLayer":
+				node.set(&"visible", false)
 	if _recording:
 		_frame += 1
 		if _frame % VIDEO_EVERY == 0:
@@ -159,6 +164,15 @@ func _mouse(button: MouseButton, pressed: bool) -> void:
 	event.button_index = button
 	event.pressed = pressed
 	root.push_input(event)
+
+
+## The production TPS camera turned so its aim passes through the point.
+func _aim_camera(point: Vector3) -> void:
+	var camera := root.get_camera_3d()
+	if camera == null or not camera.has_method(&"set_look"):
+		return
+	var dir: Vector3 = (point - camera.global_position).normalized()
+	camera.call(&"set_look", atan2(-dir.x, -dir.z), rad_to_deg(asin(clampf(dir.y, -1.0, 1.0))))
 
 
 func _floor_point(at: Vector3) -> Vector3:
