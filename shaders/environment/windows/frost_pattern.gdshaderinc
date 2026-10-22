@@ -41,6 +41,17 @@ float frost_cold_rank(vec2 uv) {
 	return clamp(d, 0.0, 1.2);
 }
 
+// How far the frost reaches in from the frame here, 0 hugging it to 1 tongued towards the centre:
+// noise round the pane's rim (seamless in angle) with a little broad noise across it.
+float frost_reach(vec2 uv, float seed) {
+	vec2 r = uv - 0.5;
+	float a = atan(r.y, r.x);
+	float rim = frost_fbm(vec2(cos(a), sin(a)) * 1.3 + vec2(seed * 5.1, seed * 2.3));
+	float across = frost_fbm(uv * 2.2 + seed * 9.7);
+	return clamp((rim * 0.75 + across * 0.25 - 0.5) * 3.2 + 0.5, 0.0, 1.0);
+}
+
+
 // Distance to the nearest scratch that nucleates frost on this pane (few cells hold one).
 float frost_nucleus(vec2 uv, float seed) {
 	vec2 cell = uv * vec2(3.0, 4.0);
@@ -94,7 +105,8 @@ float frost_fronds(vec2 uv, vec2 cells, vec2 g, float seed) {
 // z = meltwater film behind a thaw front. `thaw` 0..1 clears from the centre outwards.
 vec3 frost_pattern(vec2 uv, float coverage, float thaw, float seed) {
 	vec2 p = uv + vec2(seed * 7.13, seed * 3.71);
-	float cold = frost_cold_rank(uv);
+	// Tongues of frost run far in where the rim is coldest, elsewhere it keeps to the frame.
+	float cold = frost_cold_rank(uv) * mix(2.1, 0.4, frost_reach(uv, seed));
 	float nucleus = frost_nucleus(uv, seed);
 	float e = 0.01;
 	vec2 grad = vec2(frost_cold_rank(uv + vec2(e, 0.0)) - frost_cold_rank(uv - vec2(e, 0.0)),
