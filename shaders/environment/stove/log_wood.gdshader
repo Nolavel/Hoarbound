@@ -36,7 +36,7 @@ void fragment(){
  heat*=0.7+0.3*sin(wp.x*3.8+a*2.3+burn_progress*8.0);
  vec3 coal=mix(vec3(0.07,0.063,0.058),vec3(0.15,0.13,0.105),broad)*(1.0-crack*0.4);
  ALBEDO=mix(wood,coal,burned);
- EMISSION=mix(vec3(0.65,0.045,0.003),vec3(1.0,0.30,0.025),heat)*crack*heat*(0.35+0.65*smoothstep(-0.6,0.7,sin(wp.x*2.1+a*1.7)))*1.8;
+ EMISSION=mix(vec3(0.65,0.045,0.003),vec3(1.0,0.30,0.025),heat)*crack*heat*(0.35+0.65*smoothstep(-0.6,0.7,sin(wp.x*2.1+a*1.7)))*0.65;
  // Sparse baked fill preserves the wood read in a cold firebox; no extra light source.
  EMISSION+=wood*0.04*(1.0-burned);
  ROUGHNESS=1.0;

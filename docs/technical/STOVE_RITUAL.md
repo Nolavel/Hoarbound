@@ -106,9 +106,10 @@ simulation is introduced. A short residual-coal fade has no thermal effect.
 
 `StoveLogVisual` fits the isolated study's irregular split-log method to the existing
 0.54 m length and 0.05 m radius. The source study's environment is not imported.
-Charcoal cracks and ignition smoke are local to each log. Flame and smoke use closed
-3D meshes, with depth testing against the firebox and door, rather than camera-facing
-cards. The original room SpotLight and firebox glow remain under `StoveVisual`.
+Charcoal cracks and ignition smoke are local to each log. Flame uses closed, curved
+tapered tongues; smoke uses a closed soft plume. Both use depth-tested 3D meshes, with depth testing against the firebox and door, rather than camera-facing
+cards. Logs sit inside the front half of the existing firebox so their flames are not
+mostly hidden by the upper lip from the authored steep TPS view. The original room SpotLight and firebox glow remain under `StoveVisual`.
 
 The runtime proof uses the real Key West Reality scene, Henry and `TpsCamera` work
 framing. `capture_stove.gd` extends the original ritual with steady burn, a burning
@@ -128,7 +129,9 @@ Runtime evidence: [`key_west_727/stove_fire`](../runtime_previews/key_west_727/s
 The `baseline/` PNGs are the original main `5a4976c6` under the same 960×540,
 13:00 calm-weather production setup. `partial/` is the inspected first integration
 pass (547 frames, 54.7 s at 10 fps), ending after the closed-door view; it does **not**
-prove cooling or camera orbit. The original reentry targeted the cooking pot;
+prove cooling or camera orbit. It was rejected for weak flame readability and bright
+yellow coal dots; it is historical evidence, not the current visual result.
+The original reentry targeted the cooking pot;
 the capture now reenters using the real stove controller, and drives the public
 TPS look API because unattended mouse motion did not move the workspace camera.
 
@@ -137,3 +140,16 @@ OpenGL Compatibility / Mesa 25.0.7 llvmpipe (LLVM 19.1.7, 256 bits). Scene light
 and WorldEnvironment are retained. OpenGL reports unsupported scene fog;
 Forward+/Vulkan production color and performance remain unverified. The fallback
 is evidence of real integration, not renderer parity with the production target.
+
+`capture_stove.gd -- <out-dir> review` saves the initial stages through steady burn
+without recording video, for bounded material checks in the same real game scene.
+The full run additionally exercises ±12° through `TpsCamera.set_look()` (the actual
+workspace rig retains collision ownership), refuel, door closure, reentry and cooling.
+The capture exits the ritual normally before scene teardown.
+
+Readability corrections keep the existing production light color, energy, placement
+and WorldEnvironment: smaller/dimmer orange coals, lower crack emission, larger warm
+flame silhouettes with asymmetric tapered geometry, and opacity height normalized
+to the current flame strength so shrinking tongues do not become opaque round caps.
+Visual acceptance remains subject to review of the game-camera footage and a
+Forward+ run; this software Compatibility capture does not establish production readiness.

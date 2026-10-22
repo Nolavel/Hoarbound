@@ -80,7 +80,7 @@ func _run() -> void:
 		_aim_camera(_feed.focus_anchor.global_position)
 		for _f: int in range(15):
 			await process_frame
-	_recording = true
+	_recording = not OS.get_cmdline_user_args().has("review")
 	await _shot("1_before_f")
 	_press_interact()
 	await _until(func() -> bool: return _control.is_working(), 12.0)
@@ -118,6 +118,11 @@ func _run() -> void:
 	await _shot("7_fire_growing")
 	await _advance_fire(0.20,17.0)
 	await _shot("9_steady_open")
+	if OS.get_cmdline_user_args().has("review"):
+		_control.request_exit()
+		await _until(func() -> bool: return not _control.is_active(),5.0)
+		quit(0)
+		return
 	# Input mouse capture is unavailable in the unattended window. Drive the public
 	# look API; the production workspace rig still owns orbit and collision.
 	var camera := root.get_camera_3d() as TpsCamera
@@ -172,12 +177,14 @@ func _run() -> void:
 	_recording = false
 	print("[stove] logs=%d tinder=%s burning=%s intensity=%.2f video_frames=%d" % [_source.get_loaded_log_count(),
 		_source.is_tinder_prepared(), _source.is_burning(), _source.get_intensity(), _video])
+	_control.request_exit()
+	await _until(func() -> bool: return not _control.is_active(),5.0)
 	quit(0)
 
 
 func _process(_delta: float) -> bool:
 	## Debug HUD layers come and go; only the stove ring stays on the frames.
-	if _recording and _frame % 15 == 0 and _world != null:
+	if Engine.get_process_frames() % 15 == 0 and _world != null:
 		for node: Node in _world.find_children("*", "CanvasLayer", true, false):
 			if node.name != &"StoveRingLayer" and not _is_prompt(node):
 				node.set(&"visible", false)

@@ -21,13 +21,8 @@ func _ready() -> void:
 	body.add_child(log_mesh)
 	for x: float in [-0.82,0.03,0.83]:
 		var flame := MeshInstance3D.new()
-		var sphere := SphereMesh.new()
-		sphere.radius=0.36
-		sphere.height=1.28
-		sphere.radial_segments=12
-		sphere.rings=8
-		flame.mesh=sphere
-		flame.position=Vector3(x,0.21,0.12)
+		flame.mesh=_flame_geometry()
+		flame.position=Vector3(x,0.21,0.40)
 		var mat := _material(FLAME)
 		mat.set_shader_parameter("root_x",x)
 		flame.material_override=mat
@@ -90,5 +85,33 @@ func _geometry() -> ArrayMesh:
 	for s: int in range(20):
 		_triangle(st,Vector3(-1.55,0,0),_point(0,s),_point(0,s+1))
 		_triangle(st,Vector3(1.55,0,0),_point(8,s+1),_point(8,s))
+	st.generate_normals()
+	return st.commit()
+
+## Closed asymmetric tongues: a broad lower body and a curved narrow tip,
+## rather than spherical lobes that read as beads from the steep TPS view.
+func _flame_geometry() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(0)
+	var widths: Array[float] = [0.08,0.28,0.36,0.32,0.23,0.14,0.07,0.004]
+	var rings: Array[PackedVector3Array] = []
+	for i: int in range(widths.size()):
+		var h: float = float(i)/float(widths.size()-1)
+		var ring := PackedVector3Array()
+		for side: int in range(12):
+			var a: float = TAU*float(side)/12.0
+			ring.append(Vector3(cos(a)*widths[i]+0.15*sin(h*4.8)*h,
+				-0.64+1.28*h,sin(a)*widths[i]*0.7))
+		rings.append(ring)
+	for i: int in range(rings.size()-1):
+		for side: int in range(12):
+			var j: int = (side+1)%12
+			_triangle(st,rings[i][side],rings[i+1][side],rings[i][j])
+			_triangle(st,rings[i][j],rings[i+1][side],rings[i+1][j])
+	for side: int in range(12):
+		var j: int = (side+1)%12
+		_triangle(st,Vector3(0,-0.64,0),rings[0][side],rings[0][j])
+		_triangle(st,Vector3(0.15*sin(4.8),0.64,0),rings[-1][j],rings[-1][side])
 	st.generate_normals()
 	return st.commit()

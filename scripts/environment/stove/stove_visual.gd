@@ -162,7 +162,7 @@ func _apply_fire_presentation(slow: float, fast: float) -> void:
 	var firebox: float = lerpf(FIREBOX_CATCH_STRENGTH, 1.0, _shown_t) if lit else 0.0
 	var room: float = lerpf(ROOM_CATCH_STRENGTH, 1.0, _shown_t) if lit else 0.0
 	_glow.light_energy = FIREBOX_LIGHT_ENERGY * (0.85 + 0.10 * slow + 0.05 * fast) * firebox
-	_embers.emission_energy_multiplier = EMBER_EMISSION_ENERGY * (0.85 + 0.12 * slow + 0.02 * fast) * firebox
+	_embers.emission_energy_multiplier = EMBER_EMISSION_ENERGY * 0.20 * (0.85 + 0.12 * slow + 0.02 * fast) * firebox
 	var flame_scale: float = maxf(firebox, 0.35)
 	for flame: MeshInstance3D in _flames:
 		flame.scale.y = (0.86 + 0.08 * slow + 0.06 * fast) * flame_scale
@@ -238,7 +238,7 @@ func _sync_log_slots(count: int) -> void:
 	# Identity/char stage stays with the node; this never changes authoritative fuel.
 	for order: int in range(_active_slots.size()):
 		var side: float = 1.0 if order % 2 == 0 else -1.0
-		_logs[_active_slots[order]].position = Vector3(side*0.09-0.04,
+		_logs[_active_slots[order]].position = Vector3(side*0.09+0.04,
 			LEG_H+ASH_H+WALL+0.06+float(order/2)*0.07,0.0)
 	if _was_burning and not _burning():
 		_cooling_seconds = 6.0
@@ -266,7 +266,7 @@ func _update_log_stages(delta: float) -> void:
 func _build() -> void:
 	_iron = _material(Color(0.13, 0.13, 0.14), 0.75, 0.6)
 	_embers = _material(Color(0.9, 0.35, 0.1), 0.9, 0.0)
-	_embers.emission = Color(1.0, 0.42, 0.12)
+	_embers.emission = Color(1.0, 0.16, 0.015)
 	var hx: float = SIZE.x * 0.5
 	var hz: float = SIZE.z * 0.5
 	for sx: float in [-1.0, 1.0]:
@@ -300,14 +300,14 @@ func _build() -> void:
 	for i: int in range(12):
 		var x: float = (float(i / 4)-1.0)*0.12 + 0.013*sin(float(i)*3.1)
 		var z: float = (float(i % 4)-1.5)*0.13 + 0.01*cos(float(i)*2.7)
-		var coal := _cylinder(0.024,0.018,Vector3(x,floor_y+WALL+0.018,z),_embers)
+		var coal := _cylinder(0.016,0.012,Vector3(x,floor_y+WALL+0.012,z),_embers)
 		coal.scale = Vector3(1.0+0.2*sin(float(i)),1.0,0.7+0.2*cos(float(i)))
 	for i: int in range(MAX_LOGS):
 		var layer: int = i / 2
 		var side: float = 1.0 if i % 2 == 0 else -1.0
 		var log_node: Node3D = LOG_VISUAL.new()
 		log_node.name = "FuelLog%d" % i
-		log_node.position = Vector3(side * 0.09 - 0.04, floor_y + WALL + 0.06 + layer * 0.07, 0.0)
+		log_node.position = Vector3(side * 0.09 + 0.04, floor_y + WALL + 0.06 + layer * 0.07, 0.0)
 		add_child(log_node)
 		_logs.append(log_node)
 	_glow = OmniLight3D.new()
