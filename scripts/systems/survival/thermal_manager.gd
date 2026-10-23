@@ -19,6 +19,8 @@ signal body_temperature_changed(celsius: float, normalised: float)
 signal felt_temperature_changed(celsius: float)
 ## Emitted when the player crosses into a new hypothermia stage.
 signal stage_changed(stage: Stage)
+## Emitted when a body part enters or leaves frostnip or frostbite (ExtremityCold.FrostStage).
+signal frost_stage_changed(part_id: StringName, stage: int)
 ## Emitted once when body temperature reaches the lethal floor.
 signal freezing_death_reached
 ## Emitted when clothing wetness changes, 0.0 dry to 1.0 soaked.
@@ -329,7 +331,7 @@ func apply_body_temperature_delta(degrees: float) -> void:
 func restore_body_temperature() -> void:
 	_is_dead = false
 	_body_temp_c = normal_body_temp_c
-	_extremities.reset()
+	_emit_frost_changes(_extremities.reset())
 	_emit_body_temperature()
 	_update_stage()
 
@@ -358,6 +360,7 @@ func load_save_data(data: Dictionary) -> void:
 	_is_dead = bool(data.get("is_dead", false))
 	_set_wetness(float(data.get("wetness", 0.0)))
 	_extremities.load_save_data(data.get("extremities", {}))
+	_emit_frost_changes(_extremities.get_library().get_ids())
 	_hours.reset()
 	if is_inside_tree():
 		refresh_felt_temperature()
@@ -388,7 +391,7 @@ func _advance_hours(hours: float, current_hour: float) -> void:
 	_felt_temp_c = _compute_felt_temperature(current_hour)
 	felt_temperature_changed.emit(_felt_temp_c)
 	_integrate_body_temperature(hours)
-	_extremities.advance(hours, _still_air_c, _wind_chill_raw_c, _region_protection())
+	_emit_frost_changes(_extremities.advance(hours, _still_air_c, _wind_chill_raw_c, _region_protection()))
 
 
 ## Sums ambient air, weather, wind chill, zones and nearby fires.
@@ -419,6 +422,16 @@ func _compute_felt_temperature(current_hour: float) -> float:
 	felt += exertion_bonus_c * _exertion
 	_still_air_c = felt
 	return felt - _wind_chill_raw_c * clothing_wind_factor
+
+
+## Frost stage of one body part (ExtremityCold.FrostStage): NONE, FROSTNIP or FROSTBITE.
+func get_frost_stage(part_id: StringName) -> int:
+	return _extremities.get_stage(part_id)
+
+
+func _emit_frost_changes(part_ids: Array[StringName]) -> void:
+	for part_id: StringName in part_ids:
+		frost_stage_changed.emit(part_id, _extremities.get_stage(part_id))
 
 
 ## Cover of each body part's garment region; without equipment every part counts as bare.

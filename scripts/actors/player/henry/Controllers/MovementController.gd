@@ -78,7 +78,6 @@ var _crouching: bool = false
 var _carry_inventory: InventoryComponent
 var _target_velocity: Vector3 = Vector3.ZERO
 var _velocity_rate: float = 0.0
-var _status_provider: Node
 var _fatigue: FatigueComponent
 var _requested_profile: LocomotionDynamicsProfile
 var _profile_requester: Object
@@ -186,8 +185,9 @@ func process_movement(
 				slope_modifier = lerp(1.0, slope_slowdown_multiplier, slope_factor)
 
 	# === 6) Плавный спринт с системой стамины ===
-	var sprint_multiplier: float = sprint_speed / max(walk_speed, 0.001)
-	var should_sprint: bool = sprint_is_pressed and has_input and _sprint_allowed and not _crouching
+	var status_sprint: float = get_status_sprint_multiplier()
+	var sprint_multiplier: float = 1.0 + (sprint_speed / max(walk_speed, 0.001) - 1.0) * minf(status_sprint, 1.0)
+	var should_sprint: bool = sprint_is_pressed and has_input and _sprint_allowed and not _crouching and status_sprint > 0.01
 
 	if should_sprint and stamina_manager:
 		if not stamina_manager.is_consuming_stamina:
@@ -304,13 +304,12 @@ func get_load_speed_multiplier() -> float:
 
 
 func get_status_speed_multiplier() -> float:
-	if _status_provider == null and get_parent() != null:
-		var candidate: Node = get_parent().get_node_or_null(^"AfflictionComponent")
-		if candidate != null and candidate.has_method(&"get_multiplier"):
-			_status_provider = candidate
-	if _status_provider == null:
-		return 1.0
-	return maxf(float(_status_provider.call(&"get_multiplier", &"movement_speed_multiplier")), 0.0)
+	return StatusModifierCapability.multiplier(get_parent(), &"movement_speed_multiplier")
+
+
+## Share of the sprint's extra speed status allows: frostbitten feet take it to 0, no sprint.
+func get_status_sprint_multiplier() -> float:
+	return StatusModifierCapability.multiplier(get_parent(), &"sprint_speed_multiplier")
 
 
 func get_load_accel_multiplier() -> float:

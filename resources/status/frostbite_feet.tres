@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="AfflictionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/status/affliction_definition.gd" id="1_pi2ko"]
+
+[resource]
+script = ExtResource("1_pi2ko")
+id = &"frostbite_feet"
+display_key = "AFFLICTION_FROSTBITE_FEET"
+modifiers = {
+"movement_speed_multiplier": 0.8,
+"sprint_speed_multiplier": 0.0
+}
+recovery_key = "AFFLICTION_FROSTBITE_RECOVERED"
+health_loss_per_hour = 4.0

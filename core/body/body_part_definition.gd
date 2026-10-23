@@ -18,6 +18,21 @@ extends Resource
 @export var safe_c: float = -5.0
 @export var severe_c: float = -35.0
 
+@export_group("Frostbite")
+## Load held at or above frostnip_load for frostnip_hours numbs the part; frostbite likewise.
+@export_range(0.0, 1.0, 0.05) var frostnip_load: float = 0.6
+@export var frostnip_hours: float = 0.33
+@export_range(0.0, 1.0, 0.05) var frostbite_load: float = 0.85
+## About half an hour at a -28 °C wind chill (Environment Canada wind chill tables).
+@export var frostbite_hours: float = 0.6
+## Load at or below which the part counts as warming, and how long frostnip and frostbite take to fade.
+@export_range(0.0, 1.0, 0.05) var thaw_load: float = 0.3
+@export var frostnip_heal_hours: float = 0.25
+@export var frostbite_heal_hours: float = 6.0
+## Afflictions this part raises; their modifiers carry the consequences (slow hands, no sprint).
+@export var frostnip_affliction: AfflictionDefinition
+@export var frostbite_affliction: AfflictionDefinition
+
 @export_group("Presentation")
 ## Mask aligned with the HUD silhouette base; frost fills it.
 @export var silhouette_mask: Texture2D

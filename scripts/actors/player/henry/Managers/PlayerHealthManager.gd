@@ -118,6 +118,19 @@ func take_damage(amount: float, source: String = "unknown") -> void:
 	if current_health <= 0.0:
 		die()
 
+## A slow loss such as frostbite: no armour, immunity window or damage feedback, but it
+## stops regeneration and can still kill.
+func drain(amount: float, source: String = "unknown") -> void:
+	if _is_dead or amount <= 0.0:
+		return
+	current_health = maxf(0.0, current_health - amount)
+	_regeneration_timer = 0.0
+	damage_taken.emit(amount, source)
+	health_changed.emit(current_health, max_health)
+	if current_health <= 0.0:
+		die()
+
+
 func heal(amount: float, _source: String = "unknown") -> void:
 	if _is_dead or amount <= 0.0:
 		return

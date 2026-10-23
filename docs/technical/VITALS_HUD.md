@@ -103,8 +103,51 @@ Body parts are data, not code (`core/body/`, `data/body/`).
   `ThermalManager` hands the cold model the still air and the raw wind chill separately.
 - **Adding a part** (ears, eyes) is a new definition plus a mask on the silhouette frame. The cold
   model, the save and the HUD pick it up without code.
-- **Next:** consequences per part (frostnip and frostbite timers, affliction modifiers) and gloves
-  (`body_region = &"hands"`) build on this library (#236).
+
+## Frostbite consequences
+
+- **Stages by duration, per part** (`ExtremityCold.FrostStage`):
+  - **Frostnip**: the load held at or above `frostnip_load` (0.6) for `frostnip_hours` (0.33 h).
+  - **Frostbite**: the load held at or above `frostbite_load` (0.85) for `frostbite_hours` (0.6 h),
+    about half an hour at a −28 °C wind chill (Environment Canada wind chill tables).
+  - Time above a threshold decays while below it, so a brief chill does nothing.
+  - **Recovery**: frostnip clears after `frostnip_heal_hours` (0.25 h) at or below `thaw_load`.
+    Frostbite steps back to frostnip only after `frostbite_heal_hours` (6 h) warm.
+    Warm sleep (`restore_body_temperature`) clears every stage.
+  - The stages and their timers are saved in the `thermal` save; the first layout (a bare load
+    per part) still loads.
+- **Afflictions**: `ThermalManager.frost_stage_changed` drives a frostnip / frostbite affliction per
+  part (`resources/status/frost*_*.tres`, referenced from the part definition). `AfflictionComponent`
+  registers them from the library.
+
+  | Affliction | Modifiers | Health per game hour |
+  |---|---|---|
+  | frostnip_hands | fine motor ×1.35, work ×1.15 | — |
+  | frostbite_hands | fine motor ×1.7, work ×1.35 | 4 |
+  | frostnip_feet | movement ×0.92, sprint ×0.5 | — |
+  | frostbite_feet | movement ×0.8, sprint ×0 (no sprint) | 4 |
+  | frostnip_head | fatigue ×1.05 | — |
+  | frostbite_head | fatigue ×1.1 | 5 |
+
+- **Health**: frostbite drains it through `PlayerHealthSystem.drain`. There is no damage shake or
+  immunity window, regeneration stops, and it can kill.
+- **Where the modifiers act**: `StatusModifierCapability` (`core/contracts/`). `AfflictionComponent`
+  publishes it on the player, and consumers read it without the string calls they used before:
+  - `MovementController`: speed and the share of the sprint left (0 = no sprint);
+  - `TimeCostedActionSystem`: work, i.e. laying a log or tinder;
+  - `FatigueComponent`;
+  - `HeatSourceFeed.get_light_seconds()`: the lighter hold, 3 s → about 5 s with frostbitten hands.
+
+## Gloves
+
+`work_gloves` (`data/items/work_gloves.tres`) is a garment in the new `hands_outer` slot: insulation
+4 °C, windproofing 0.6, waterproofing 0.3. The hands' cold load reads it through
+`get_region_protection`.
+
+**Not done yet:**
+- **Visual**: there is no glove mesh. Henry's outfit meshes come from `tools/blender/build_henry_outfit.py`,
+  which needs a Blender pass to add an `Outfit_Gloves` part (then `GARMENT_PARTS["Gloves"]`).
+- **Placement**: the gloves are not yet in the world; where to put them is the owner's call.
 
 ## Room warmth persistence
 

@@ -23,6 +23,13 @@ var _fatigue: FatigueComponent
 func _ready() -> void:
 	for definition: AfflictionDefinition in [HYPOTHERMIA, DEHYDRATION, EXHAUSTION]:
 		_definitions[definition.id] = definition
+	## Frostnip and frostbite come from the body part library, one pair per part.
+	for part: BodyPartDefinition in BodyPartLibrary.shared().parts:
+		for definition: AfflictionDefinition in [part.frostnip_affliction, part.frostbite_affliction]:
+			if definition != null:
+				_definitions[definition.id] = definition
+	if get_parent() != null:
+		StatusModifierCapability.publish(get_parent(), self, &"get_multiplier")
 	_bind_metabolic_sources()
 
 
@@ -55,10 +62,14 @@ func bind_thermal(thermal: ThermalManager) -> void:
 		return
 	if _thermal != null and _thermal.stage_changed.is_connected(_on_thermal_stage_changed):
 		_thermal.stage_changed.disconnect(_on_thermal_stage_changed)
+		_thermal.frost_stage_changed.disconnect(_on_frost_stage_changed)
 	_thermal = thermal
 	if _thermal != null:
 		_thermal.stage_changed.connect(_on_thermal_stage_changed)
+		_thermal.frost_stage_changed.connect(_on_frost_stage_changed)
 		_sync_thermal_stage(_thermal.get_stage())
+		for part_id: StringName in BodyPartLibrary.shared().get_ids():
+			_on_frost_stage_changed(part_id, _thermal.get_frost_stage(part_id))
 	else:
 		set_condition(&"hypothermia", false)
 
@@ -155,9 +166,17 @@ func get_simulation_priority() -> int:
 func advance_simulation(hours: float, _context: SimulationStepContext) -> void:
 	if hours <= 0.0:
 		return
+	var health_loss: float = 0.0
 	for id: StringName in get_active_ids():
 		var state := _states[id] as AfflictionState
 		state.elapsed_hours += hours
+		var definition := _definitions.get(id) as AfflictionDefinition
+		if definition != null and definition.health_loss_per_hour > 0.0:
+			health_loss += definition.health_loss_per_hour * hours * clampf(state.severity / maxf(definition.max_severity, 0.001), 0.0, 1.0)
+	if health_loss > 0.0:
+		var health := get_parent().get_node_or_null(^"PlayerHealthSystem") as PlayerHealthSystem if get_parent() != null else null
+		if health != null:
+			health.drain(health_loss, "frostbite")
 
 
 func get_save_key() -> StringName:
@@ -196,6 +215,17 @@ func _sync_thermal_stage(stage: ThermalManager.Stage) -> void:
 			set_condition(&"hypothermia", true, 2.0, &"thermal")
 		_:
 			set_condition(&"hypothermia", false)
+
+
+## Mirrors one part's frost stage onto its frostnip and frostbite afflictions.
+func _on_frost_stage_changed(part_id: StringName, stage: int) -> void:
+	var part: BodyPartDefinition = BodyPartLibrary.shared().find(part_id)
+	if part == null:
+		return
+	if part.frostnip_affliction != null:
+		set_condition(part.frostnip_affliction.id, stage == ExtremityCold.FrostStage.FROSTNIP, 1.0, &"frost")
+	if part.frostbite_affliction != null:
+		set_condition(part.frostbite_affliction.id, stage == ExtremityCold.FrostStage.FROSTBITE, 1.0, &"frost")
 
 
 func _on_dehydration_reached() -> void:
