@@ -76,6 +76,36 @@ Chevrons sit above the column when rising and below it when falling, in the colu
 - This is a warning layer, not an injury system. Consequences are stage 6 of #236 and need the
   owner's decision.
 
+## Body part library
+
+Body parts are data, not code (`core/body/`, `data/body/`).
+
+- **Library.** `BodyPartLibrary` (`data/body/body_parts.tres`, loaded by path like `ItemCatalog`) lists
+  the `BodyPartDefinition` resources.
+- **Definition fields:**
+  - `id`;
+  - the garment `body_region` that covers the part;
+  - `wind_exposure` (the share of wind chill that reaches it);
+  - `cold_sensitivity`;
+  - `safe_c` / `severe_c`;
+  - the HUD `silhouette_mask` and `frost_from_top`;
+  - the skeleton `bones`, kept for later visual effects.
+- **Current parts:**
+
+  | Part | Wind exposure | Sensitivity | Bones |
+  |---|---|---|---|
+  | head | 1.0 | 1.0 | `Head`, `neck_01` |
+  | hands | 0.8 | 1.15 | `hand_l`, `hand_r` |
+  | feet | 0.35 | 1.0 | `foot_l`, `foot_r` (name assumed from the same rig convention) |
+
+- **Effective temperature per part:** felt air without wind, minus the wind chill × the part's
+  exposure × (1 − its cover's windproofing), plus its cover's insulation, minus its wetness × 8 °C.
+  `ThermalManager` hands the cold model the still air and the raw wind chill separately.
+- **Adding a part** (ears, eyes) is a new definition plus a mask on the silhouette frame. The cold
+  model, the save and the HUD pick it up without code.
+- **Next:** consequences per part (frostnip and frostbite timers, affliction modifiers) and gloves
+  (`body_region = &"hands"`) build on this library (#236).
+
 ## Room warmth persistence
 
 `ShelterState` saves each zone's accumulated fire warmth (`heat`, by zone name). A streamed-in or
