@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AfflictionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/status/affliction_definition.gd" id="1_cqwua"]
+
+[resource]
+script = ExtResource("1_cqwua")
+id = &"frostbite_head"
+display_key = "AFFLICTION_FROSTBITE_HEAD"
+modifiers = {
+"fatigue_rate_multiplier": 1.1
+}
+recovery_key = "AFFLICTION_FROSTBITE_RECOVERED"
+health_loss_per_hour = 5.0

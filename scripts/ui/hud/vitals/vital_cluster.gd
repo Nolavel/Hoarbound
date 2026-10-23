@@ -12,13 +12,8 @@ const COLUMN_SHADER: Shader = preload("res://shaders/ui/vital_column.gdshader")
 const ICON_SHADER: Shader = preload("res://shaders/ui/vital_icon.gdshader")
 const FROST_SHADER: Shader = preload("res://shaders/ui/vital_frost.gdshader")
 const READOUT_FONT: Font = preload("res://assets/fonts/IM Fell English SC/IMFellEnglishSC-Regular.ttf")
-## Silhouette masks share one frame so they overlay exactly (MIT, see body_front/LICENSE.txt).
+## Silhouette base; part masks come from BodyPartLibrary on the same frame (MIT, body_front/LICENSE.txt).
 const BODY_BASE: Texture2D = preload("res://assets/textures/ui/game/biomonitor/body_front/base.png")
-const BODY_PARTS: Dictionary = {
-	&"head": preload("res://assets/textures/ui/game/biomonitor/body_front/head.png"),
-	&"hands": preload("res://assets/textures/ui/game/biomonitor/body_front/hands.png"),
-	&"feet": preload("res://assets/textures/ui/game/biomonitor/body_front/feet.png"),
-}
 
 const DISPLAY_ORDER: Array[StringName] = [&"thirst", &"hunger", &"sleep", &"warmth"]
 ## Optical correction after trimming transparent padding: the eye is denser than the others.
@@ -317,8 +312,10 @@ func _build_views() -> void:
 	_body_base.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_body_base.modulate = Color(1.0, 1.0, 1.0, silhouette_alpha)
 	add_child(_body_base)
-	for region: StringName in BODY_PARTS:
-		var texture: Texture2D = BODY_PARTS[region]
+	for part: BodyPartDefinition in BodyPartLibrary.shared().parts:
+		var texture: Texture2D = part.silhouette_mask
+		if texture == null:
+			continue
 		var image: Image = texture.get_image()
 		var used: Rect2i = image.get_used_rect() if image != null else Rect2i(0, 0, 1, 1)
 		var overlay := TextureRect.new()
@@ -330,10 +327,10 @@ func _build_views() -> void:
 		frost_material.set_shader_parameter(&"frost", frost_color)
 		frost_material.set_shader_parameter(&"y0", float(used.position.y) / float(texture.get_height()))
 		frost_material.set_shader_parameter(&"y1", float(used.end.y) / float(texture.get_height()))
-		frost_material.set_shader_parameter(&"tip_at_top", 1.0 if region == &"head" else 0.0)
+		frost_material.set_shader_parameter(&"tip_at_top", 1.0 if part.frost_from_top else 0.0)
 		overlay.material = frost_material
 		add_child(overlay)
-		_frost[region] = overlay
+		_frost[part.id] = overlay
 
 
 func _column_rect(tint: Color, fill: float, fade_start: float, fade_end: float, edge: float) -> ColorRect:

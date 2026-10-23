@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="ItemResource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://core/items/item_resource.gd" id="item"]
+[ext_resource type="Script" path="res://core/items/garment_data.gd" id="garment"]
+
+[sub_resource type="Resource" id="G_work_gloves"]
+script = ExtResource("garment")
+body_slot_id = &"hands_outer"
+body_region = &"hands"
+layer = 2
+pockets = []
+insulation_c = 4.0
+base_insulation_c = 4.0
+windproof = 0.6
+waterproof = 0.3
+drying_rate = 0.3
+max_condition = 1.0
+mesh_node_name = &"Gloves"
+
+[resource]
+script = ExtResource("item")
+id = &"work_gloves"
+display_name = "Work gloves"
+weight = 0.2
+max_stack = 1
+size_class = 0
+garment = SubResource("G_work_gloves")

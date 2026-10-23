@@ -10,6 +10,13 @@ display_name = "Head / outer"
 body_region = &"head"
 layer_id = &"outer"
 
+[sub_resource type="Resource" id="Slot_hands_outer"]
+script = ExtResource("slot")
+id = &"hands_outer"
+display_name = "Hands / outer"
+body_region = &"hands"
+layer_id = &"outer"
+
 [sub_resource type="Resource" id="Slot_torso_base"]
 script = ExtResource("slot")
 id = &"torso_base"
@@ -88,4 +95,4 @@ excluded_from_auto_stow = true
 
 [resource]
 script = ExtResource("layout")
-body_slots = Array[ExtResource("slot")]([SubResource("Slot_head_outer"), SubResource("Slot_torso_base"), SubResource("Slot_torso_mid"), SubResource("Slot_torso_outer"), SubResource("Slot_legs_base"), SubResource("Slot_legs_mid"), SubResource("Slot_legs_outer"), SubResource("Slot_feet_base"), SubResource("Slot_feet_outer"), SubResource("Slot_pack"), SubResource("Slot_fixture")])
+body_slots = Array[ExtResource("slot")]([SubResource("Slot_head_outer"), SubResource("Slot_hands_outer"), SubResource("Slot_torso_base"), SubResource("Slot_torso_mid"), SubResource("Slot_torso_outer"), SubResource("Slot_legs_base"), SubResource("Slot_legs_mid"), SubResource("Slot_legs_outer"), SubResource("Slot_feet_base"), SubResource("Slot_feet_outer"), SubResource("Slot_pack"), SubResource("Slot_fixture")])

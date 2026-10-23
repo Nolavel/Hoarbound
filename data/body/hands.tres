@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="BodyPartDefinition" format=3]
+
+[ext_resource type="Resource" path="res://resources/status/frostbite_hands.tres" id="1_2ixid"]
+[ext_resource type="Script" path="res://core/body/body_part_definition.gd" id="1_eyxut"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/game/biomonitor/body_front/hands.png" id="2_kc2l2"]
+[ext_resource type="Resource" path="res://resources/status/frostnip_hands.tres" id="2_wnipq"]
+
+[resource]
+script = ExtResource("1_eyxut")
+id = &"hands"
+garment_region = &"hands"
+wind_exposure = 0.8
+cold_sensitivity = 1.15
+frostnip_affliction = ExtResource("2_wnipq")
+frostbite_affliction = ExtResource("1_2ixid")
+silhouette_mask = ExtResource("2_kc2l2")
+bones = PackedStringArray("hand_l", "hand_r")

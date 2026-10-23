@@ -123,9 +123,14 @@ func get_act_progress() -> float:
 	return clampf(1.0 - _act_left / maxf(_act_duration_seconds(), 0.001), 0.0, 1.0)
 
 
-## 0..1 of the flame held to the tinder, the existing LIGHT_SECONDS hold.
+## Seconds the flame must be held: LIGHT_SECONDS, longer with numb or frostbitten hands.
+func get_light_seconds() -> float:
+	return LIGHT_SECONDS * StatusModifierCapability.multiplier(_player, &"fine_motor_duration_multiplier")
+
+
+## 0..1 of the flame held to the tinder, over get_light_seconds().
 func get_light_progress() -> float:
-	return clampf(_hold_seconds / LIGHT_SECONDS, 0.0, 1.0) if _stage == Stage.HOLDING else 0.0
+	return clampf(_hold_seconds / get_light_seconds(), 0.0, 1.0) if _stage == Stage.HOLDING else 0.0
 
 
 func is_lighter_ready() -> bool:
@@ -366,7 +371,7 @@ func advance_lighter_hold(seconds: float) -> void:
 		cancel_act(&"target_lost")
 		return
 	_hold_seconds += maxf(0.0, seconds)
-	if _hold_seconds < LIGHT_SECONDS:
+	if _hold_seconds < get_light_seconds():
 		return
 	var actions: TimeCostedActionSystem = _actions()
 	if _action_managed and actions != null and actions.get_active_action_id() == _action_id:
@@ -414,7 +419,7 @@ func _finish_current() -> void:
 
 
 func _finish_ignition() -> void:
-	if _stage != Stage.HOLDING or _hold_seconds < LIGHT_SECONDS or _light_stop_reason() != &"":
+	if _stage != Stage.HOLDING or _hold_seconds < get_light_seconds() or _light_stop_reason() != &"":
 		_clear_act()
 		if _visual() != null:
 			_visual().end_act(_door_open)
@@ -612,7 +617,7 @@ func _visual() -> StoveVisual:
 func _act_duration_seconds() -> float:
 	match _act:
 		Act.LIGHT:
-			return LIGHT_SECONDS
+			return get_light_seconds()
 		Act.FUEL:
 			return FUEL_SECONDS
 		Act.TINDER:

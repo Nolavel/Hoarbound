@@ -19,6 +19,8 @@ signal body_temperature_changed(celsius: float, normalised: float)
 signal felt_temperature_changed(celsius: float)
 ## Emitted when the player crosses into a new hypothermia stage.
 signal stage_changed(stage: Stage)
+## Emitted when a body part enters or leaves frostnip or frostbite (ExtremityCold.FrostStage).
+signal frost_stage_changed(part_id: StringName, stage: int)
 ## Emitted once when body temperature reaches the lethal floor.
 signal freezing_death_reached
 ## Emitted when clothing wetness changes, 0.0 dry to 1.0 soaked.
@@ -108,6 +110,9 @@ var _initialized: bool = false
 var _follow_target: Node3D
 var _outdoor_air_c: float = 0.0
 var _extremities: ExtremityCold = ExtremityCold.new()
+## Felt temperature without wind, and the chill a fully exposed bare body part takes.
+var _still_air_c: float = 0.0
+var _wind_chill_raw_c: float = 0.0
 
 
 ## Lifecycle hook world.gd calls once the player and camera exist. Everything
@@ -241,7 +246,7 @@ func get_stage_threshold_normalised(stage: Stage) -> float:
 	return clampf((celsius - lethal_body_temp_c) / maxf(0.001, normal_body_temp_c - lethal_body_temp_c), 0.0, 1.0)
 
 
-## Cold load 0..1 on one extremity (&"head", &"hands", &"feet"), for the HUD silhouette.
+## Cold load 0..1 on one BodyPartLibrary part (&"head", &"hands", &"feet"), for the HUD silhouette.
 func get_extremity_cold(region: StringName) -> float:
 	return _extremities.get_load(region)
 
@@ -326,7 +331,7 @@ func apply_body_temperature_delta(degrees: float) -> void:
 func restore_body_temperature() -> void:
 	_is_dead = false
 	_body_temp_c = normal_body_temp_c
-	_extremities.reset()
+	_emit_frost_changes(_extremities.reset())
 	_emit_body_temperature()
 	_update_stage()
 
@@ -355,6 +360,7 @@ func load_save_data(data: Dictionary) -> void:
 	_is_dead = bool(data.get("is_dead", false))
 	_set_wetness(float(data.get("wetness", 0.0)))
 	_extremities.load_save_data(data.get("extremities", {}))
+	_emit_frost_changes(_extremities.get_library().get_ids())
 	_hours.reset()
 	if is_inside_tree():
 		refresh_felt_temperature()
@@ -385,7 +391,7 @@ func _advance_hours(hours: float, current_hour: float) -> void:
 	_felt_temp_c = _compute_felt_temperature(current_hour)
 	felt_temperature_changed.emit(_felt_temp_c)
 	_integrate_body_temperature(hours)
-	_extremities.advance(hours, _felt_temp_c, _region_protection())
+	_emit_frost_changes(_extremities.advance(hours, _still_air_c, _wind_chill_raw_c, _region_protection()))
 
 
 ## Sums ambient air, weather, wind chill, zones and nearby fires.
@@ -410,22 +416,32 @@ func _compute_felt_temperature(current_hour: float) -> float:
 
 	var capped_wind: float = minf(wind, wind_chill_cap_mps)
 	var clothing_wind_factor: float = 1.0 - (equipment.get_wind_protection() if equipment != null else 0.0)
-	felt -= capped_wind * wind_chill_per_mps * exposure * clothing_wind_factor
-
+	_wind_chill_raw_c = capped_wind * wind_chill_per_mps * exposure
 	for source: HeatSource in HeatSource.get_all():
 		felt += source.get_offset_at(global_position)
-
 	felt += exertion_bonus_c * _exertion
-	return felt
+	_still_air_c = felt
+	return felt - _wind_chill_raw_c * clothing_wind_factor
 
 
-## Cover of each extremity; without equipment every region counts as bare.
+## Frost stage of one body part (ExtremityCold.FrostStage): NONE, FROSTNIP or FROSTBITE.
+func get_frost_stage(part_id: StringName) -> int:
+	return _extremities.get_stage(part_id)
+
+
+func _emit_frost_changes(part_ids: Array[StringName]) -> void:
+	for part_id: StringName in part_ids:
+		frost_stage_changed.emit(part_id, _extremities.get_stage(part_id))
+
+
+## Cover of each body part's garment region; without equipment every part counts as bare.
 func _region_protection() -> Dictionary:
 	var out: Dictionary = {}
 	if equipment == null:
 		return out
-	for region: StringName in ExtremityCold.REGIONS:
-		out[region] = equipment.get_region_protection(region)
+	for part: BodyPartDefinition in _extremities.get_library().parts:
+		if part.garment_region != &"" and not out.has(part.garment_region):
+			out[part.garment_region] = equipment.get_region_protection(part.garment_region)
 	return out
 
 

@@ -8,6 +8,25 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Frostbite consequences (#236 stage 6, owner direction). Each body part gets frostnip, then frostbite, after
+  its cold load is held long enough (0.6 for 20 min; 0.85 for about 36 min). The stage heals in warmth
+  (frostbite over 6 h) and is saved. Six afflictions carry the effects:
+  - numb hands slow fine work, so the lighter hold grows from 3 s to about 5 s and laying fuel takes longer;
+  - frostbitten feet slow walking and allow no sprint;
+  - frostbite drains health (4–5 per game hour, through the new `PlayerHealthSystem.drain`, without hit feedback).
+  The modifiers reach movement, actions, fatigue and the stove through the new `StatusModifierCapability`;
+  the three existing string-call readers moved onto it. `test_frostbite` covers stages, healing, afflictions,
+  health, sprint, the lighter and gloves.
+- Work gloves: a `hands_outer` slot and the `work_gloves` garment (insulation 4 °C, windproof 0.6). There is no
+  visual mesh yet (needs a Blender outfit pass) and they are not placed in the world.
+
+- Body part library (#236): `BodyPartDefinition` / `BodyPartLibrary` (`core/body/`, `data/body/`) describe the
+  head, hands and feet. Each has its garment region, wind exposure, cold sensitivity, cold thresholds, HUD mask
+  and bones. `ExtremityCold` and the HUD silhouette read the library instead of hard-coded regions.
+  Wind now reaches each part by its own exposure and its cover's windproofing: the face takes the whole wind,
+  booted feet about a third. A new part is data only. `test_cold_readouts` covers the library, the wind split
+  and a data-only part.
+
 - Daily air temperature (#236 stage 5): `ThermalManager` uses `data/climate/air_temperature_day.tres` when no
   curve is assigned (world.gd creates it in code, so it always ran flat at −18 °C). The air is coldest at
   05:30 (−28 °C) and warmest at 14:30 (−8 °C), with weather offsets on top. `test_cold_readouts` checks the

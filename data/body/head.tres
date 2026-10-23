@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BodyPartDefinition" format=3]
+
+[ext_resource type="Resource" path="res://resources/status/frostbite_head.tres" id="1_0retd"]
+[ext_resource type="Script" path="res://core/body/body_part_definition.gd" id="1_t7cnu"]
+[ext_resource type="Resource" path="res://resources/status/frostnip_head.tres" id="2_4hy02"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/game/biomonitor/body_front/head.png" id="2_jsyit"]
+
+[resource]
+script = ExtResource("1_t7cnu")
+id = &"head"
+garment_region = &"head"
+frostnip_affliction = ExtResource("2_4hy02")
+frostbite_affliction = ExtResource("1_0retd")
+silhouette_mask = ExtResource("2_jsyit")
+frost_from_top = true
+bones = PackedStringArray("Head", "neck_01")

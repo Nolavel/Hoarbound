@@ -175,6 +175,14 @@ ACTION_REFUSED_BUSY,Finish the current action first,Сначала законч�
 AFFLICTION_HYPOTHERMIA,Hypothermia,Переохлаждение
 AFFLICTION_DEHYDRATION,Dehydration,Обезвоживание
 AFFLICTION_EXHAUSTION,Exhaustion,Истощение
+AFFLICTION_FROSTNIP_HEAD,Frostnip: face,Подморожено лицо
+AFFLICTION_FROSTNIP_HANDS,Frostnip: hands,Подморожены руки
+AFFLICTION_FROSTNIP_FEET,Frostnip: feet,Подморожены ноги
+AFFLICTION_FROSTBITE_HEAD,Frostbite: face,Обморожение лица
+AFFLICTION_FROSTBITE_HANDS,Frostbite: hands,Обморожение рук
+AFFLICTION_FROSTBITE_FEET,Frostbite: feet,Обморожение ног
+AFFLICTION_FROSTNIP_RECOVERED,Feeling returns,Чувствительность возвращается
+AFFLICTION_FROSTBITE_RECOVERED,Frostbite eases,Обморожение отступает
 STOVE_MOUSE_LOAD,LMB: load 1 log | RMB: load up to 2,ЛКМ: положить 1 полено | ПКМ: до 2
 STOVE_MOUSE_TAKE,RMB: take up to 2 cold logs,ПКМ: забрать до 2 холодных поленьев
 STOVE_TAKEN,Taken: %d logs,Взято поленьев: %d

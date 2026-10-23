@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BodyPartDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/body/body_part_definition.gd" id="1_8mo7n"]
+[ext_resource type="Resource" path="res://resources/status/frostbite_feet.tres" id="1_515tk"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/game/biomonitor/body_front/feet.png" id="2_oq3um"]
+[ext_resource type="Resource" path="res://resources/status/frostnip_feet.tres" id="2_whjn8"]
+
+[resource]
+script = ExtResource("1_8mo7n")
+id = &"feet"
+garment_region = &"feet"
+wind_exposure = 0.35
+frostnip_affliction = ExtResource("2_whjn8")
+frostbite_affliction = ExtResource("1_515tk")
+silhouette_mask = ExtResource("2_oq3um")
+bones = PackedStringArray("foot_l", "foot_r")
