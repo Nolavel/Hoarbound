@@ -172,6 +172,22 @@ func get_effective_insulation_c() -> float:
 	return total
 
 
+## What covers one body region: effective insulation, best windproofing and the wettest layer.
+func get_region_protection(region: StringName) -> Dictionary:
+	var insulation: float = 0.0
+	var windproof: float = 0.0
+	var wetness: float = 0.0
+	for slot_id: StringName in _body:
+		var item: ItemResource = ItemCatalog.get_item(_body[slot_id])
+		if item == null or item.garment == null or item.garment.body_region != region:
+			continue
+		var state: GarmentInstanceState = _ensure_garment_state(slot_id)
+		insulation += item.garment.get_base_insulation_c() * state.condition * lerpf(1.0, soaked_insulation_retention, state.wetness)
+		windproof = maxf(windproof, item.garment.windproof * state.condition)
+		wetness = maxf(wetness, state.wetness)
+	return {"insulation_c": insulation, "windproof": windproof, "wetness": wetness}
+
+
 func get_wind_protection() -> float:
 	return _aggregate_region_protection(&"windproof")
 

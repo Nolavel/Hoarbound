@@ -88,6 +88,14 @@ func get_heated_offset_c() -> float:
 	return _heated_offset_c
 
 
+## Puts back warmth a save or a streamed-out chunk remembered; the ceiling still caps it.
+func restore_heated_offset(offset_c: float) -> void:
+	var previous: float = _heated_offset_c
+	_heated_offset_c = clampf(offset_c, 0.0, maxf(max_heated_offset_c, 0.0))
+	if not is_equal_approx(previous, _heated_offset_c):
+		warmth_changed.emit(get_total_offset_c())
+
+
 ## Total offset this zone contributes right now, base plus accumulated heating.
 func get_total_offset_c() -> float:
 	return temperature_offset_c + _heated_offset_c
