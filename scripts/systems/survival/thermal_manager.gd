@@ -105,6 +105,7 @@ var _was_sheltered: bool = false
 var _initialized: bool = false
 var _follow_target: Node3D
 var _outdoor_air_c: float = 0.0
+var _extremities: ExtremityCold = ExtremityCold.new()
 
 
 ## Lifecycle hook world.gd calls once the player and camera exist. Everything
@@ -121,6 +122,15 @@ func on_world_ready(context: WorldContext) -> void:
 		zone_probe = _build_probe()
 	_follow()
 	initialize()
+	refresh_felt_temperature()
+
+
+## Recomputes the felt temperature now instead of at the next clock step (a quarter hour
+## away), so a fresh start or load never shows 0 °C.
+func refresh_felt_temperature() -> void:
+	var hour: float = day_night_manager.get_current_hour_float() if day_night_manager != null else 12.0
+	_felt_temp_c = _compute_felt_temperature(hour)
+	felt_temperature_changed.emit(_felt_temp_c)
 
 
 ## The thermal model reads the world at Henry's feet, so it rides with him.
@@ -212,6 +222,26 @@ func get_stage() -> Stage:
 	return _stage
 
 
+## Body temperature of a stage boundary as 0..1 on the HUD scale (lethal 0, normal 1).
+func get_stage_threshold_normalised(stage: Stage) -> float:
+	var celsius: float = normal_body_temp_c
+	match stage:
+		Stage.CHILLED:
+			celsius = chilled_below_c
+		Stage.COLD:
+			celsius = cold_below_c
+		Stage.HYPOTHERMIC:
+			celsius = hypothermic_below_c
+		Stage.CRITICAL:
+			celsius = critical_below_c
+	return clampf((celsius - lethal_body_temp_c) / maxf(0.001, normal_body_temp_c - lethal_body_temp_c), 0.0, 1.0)
+
+
+## Cold load 0..1 on one extremity (&"head", &"hands", &"feet"), for the HUD silhouette.
+func get_extremity_cold(region: StringName) -> float:
+	return _extremities.get_load(region)
+
+
 func get_wetness() -> float:
 	if equipment != null:
 		return equipment.get_average_wetness()
@@ -292,6 +322,7 @@ func apply_body_temperature_delta(degrees: float) -> void:
 func restore_body_temperature() -> void:
 	_is_dead = false
 	_body_temp_c = normal_body_temp_c
+	_extremities.reset()
 	_emit_body_temperature()
 	_update_stage()
 
@@ -308,6 +339,7 @@ func get_save_data() -> Dictionary:
 		"body_temp_c": _body_temp_c,
 		"wetness": _wetness,
 		"is_dead": _is_dead,
+		"extremities": _extremities.get_save_data(),
 	}
 
 
@@ -318,7 +350,10 @@ func load_save_data(data: Dictionary) -> void:
 	)
 	_is_dead = bool(data.get("is_dead", false))
 	_set_wetness(float(data.get("wetness", 0.0)))
+	_extremities.load_save_data(data.get("extremities", {}))
 	_hours.reset()
+	if is_inside_tree():
+		refresh_felt_temperature()
 	_emit_body_temperature()
 	_update_stage()
 
@@ -346,6 +381,7 @@ func _advance_hours(hours: float, current_hour: float) -> void:
 	_felt_temp_c = _compute_felt_temperature(current_hour)
 	felt_temperature_changed.emit(_felt_temp_c)
 	_integrate_body_temperature(hours)
+	_extremities.advance(hours, _felt_temp_c, _region_protection())
 
 
 ## Sums ambient air, weather, wind chill, zones and nearby fires.
@@ -377,6 +413,16 @@ func _compute_felt_temperature(current_hour: float) -> float:
 
 	felt += exertion_bonus_c * _exertion
 	return felt
+
+
+## Cover of each extremity; without equipment every region counts as bare.
+func _region_protection() -> Dictionary:
+	var out: Dictionary = {}
+	if equipment == null:
+		return out
+	for region: StringName in ExtremityCold.REGIONS:
+		out[region] = equipment.get_region_protection(region)
+	return out
 
 
 ## Moves body temperature toward the felt temperature through insulation.

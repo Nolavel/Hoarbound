@@ -8,6 +8,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Vitals HUD rework (owner design, #236; spec in `docs/technical/VITALS_HUD.md`). The round progress rings
+  are replaced by gradient columns: a dark column fading upward and a state-tinted pigment over it that
+  empties from the top, with a thin edge line and rounded bottom. Green, yellow and red blend across each
+  threshold. The symbols stay half-tone until a vital nears critical. Trend chevrons sit above a rising
+  column and below a falling one, doubled for a fast change. Body temperature and `FEELS ±N°` sit beside
+  the warmth column. A faint front silhouette stands over it and frosts blue from the fingertips, toes and
+  crown with the new extremity cold load. The block moved toward the corner: smaller columns, a larger
+  health strip (260 × 16).
+- Extremity cold (`ExtremityCold`, `ThermalManager.get_extremity_cold`): a 0..1 load on the head, hands and
+  feet from felt cold, that region's garment insulation and its wetness (`EquipmentComponent.get_region_protection`).
+  It is saved, warm sleep clears it, and it is a warning layer only.
+
 - Floor snow prints (owner request): indoors Henry's boots leave white prints, the inverse of the snow print:
   white where the tread's grooves packed with snow outside, broken into clumps (`BootSole.floor_print_image`,
   the same lug pattern the snow shader presses). A step outside on snow fills the tread; each indoor step
@@ -126,6 +138,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Dev street spawn (owner request): `World` → Developer tools → **Dev Spawn Street** picks one of ten streets from different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
 
 ### Fixed
+
+- Warmth colour now follows the hypothermia stages (yellow from CHILLED 36 °C, red from HYPOTHERMIC 33 °C).
+  The generic 66 %/33 % ring thresholds left 31 °C (the CRITICAL stage) yellow.
+- Felt temperature is computed on world ready and on load. Before, it stayed 0 °C until the first
+  quarter-hour clock step (about 19 s after a start or load), so `FEELS` would have read +0°.
+- Room warmth survives streaming and saves: `ShelterState` stores each zone's accumulated fire heat and
+  restores it (`ThermalZone.restore_heated_offset`). Before, a warmed house came back cold.
 
 - Item integrity (Codex, e63bee8e; reviewed in #70): `ItemCatalog` no longer lets a repeated definition id silently
   replace the first (`validate_entries()`, an error at index time). A stackable item refuses an `instance_state`

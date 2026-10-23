@@ -58,9 +58,17 @@ func _process(delta: float) -> bool:
 			_check(VitalCell.severity_for_level(0.099) == VitalCell.Severity.CRITICAL, "below 10% must be critical")
 			_check(VitalCluster.TREND_IDS.size() == 4, "all four vitals must expose trend markers")
 			_check(VitalCluster.TREND_IDS.has(&"thirst") and VitalCluster.TREND_IDS.has(&"hunger") and VitalCluster.TREND_IDS.has(&"sleep") and VitalCluster.TREND_IDS.has(&"warmth"), "trend markers are not wired to every vital")
-			_check(_cluster._progress_color_for_level(1.0).is_equal_approx(_cluster.progress_normal_color), "100% progress must be grey")
-			_check(_cluster._progress_color_for_level(0.65).is_equal_approx(_cluster.warning_color), "below 66% progress must be yellow")
-			_check(_cluster._progress_color_for_level(0.32).is_equal_approx(_cluster.critical_color), "below 33% progress must be red")
+			_check(_cluster.state_color_for(&"hunger", 1.0).is_equal_approx(_cluster.normal_color), "a full column must be green")
+			_check(_cluster.state_color_for(&"hunger", 0.5).is_equal_approx(_cluster.warning_color), "a half column must be yellow")
+			_check(_cluster.state_color_for(&"hunger", 0.2).is_equal_approx(_cluster.critical_color), "below 33% must be red")
+			var mid: Color = _cluster.state_color_for(&"hunger", 0.66)
+			_check(not mid.is_equal_approx(_cluster.normal_color) and not mid.is_equal_approx(_cluster.warning_color), "colours must blend at a threshold, not switch")
+			_check(_cluster.vividness_for(&"thirst", 0.95) < 0.05 and _cluster.vividness_for(&"thirst", 0.2) > 0.95, "symbols must be half-tone when safe and vivid when critical")
+			## Without a ThermalManager warmth falls back to the stage thresholds (36 °C and 33 °C on 28..36.6).
+			var warm: Vector2 = _cluster.thresholds_for(&"warmth")
+			_check(absf(warm.x - 0.93) < 0.01 and absf(warm.y - 0.58) < 0.01, "warmth thresholds are not the hypothermia stages: %s" % warm)
+			_check(_cluster.state_color_for(&"warmth", 0.35).is_equal_approx(_cluster.critical_color), "31 °C (critical stage) still reads yellow")
+			_check(_cluster.get_trend_strength(&"hunger") == 0 or _cluster.get_trend(&"hunger") != 0, "a trend strength without a trend")
 			_check(is_equal_approx(_strip.ratio, 0.6) and _strip.trail > 0.61, "damage left no trail (ratio %.2f trail %.2f)" % [_strip.ratio, _strip.trail])
 	return false
 
