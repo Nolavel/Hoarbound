@@ -51,6 +51,10 @@ Chevrons sit above the column when rising and below it when falling, in the colu
   not in this number; it shows in the warmth trend and on the silhouette.
 - Strings `HUD_BODY_TEMPERATURE` and `HUD_FEELS_LIKE` (`localization/strings.csv`). By the owner's
   choice the Russian column also reads "FEELS".
+- Outdoor air follows `data/climate/air_temperature_day.tres` (ThermalManager's default curve between
+  `ambient_min_c` −28 °C and `ambient_max_c` −8 °C). It is coldest at 05:30 (−28), about −11 at noon,
+  warmest at 14:30 (−8), about −20 at 21:00 and −23 at midnight. Weather offsets add on top
+  (blizzard about −6).
 - The felt temperature is computed on world ready and on load
   (`ThermalManager.refresh_felt_temperature`), not only at the next quarter-hour clock step.
 

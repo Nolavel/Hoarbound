@@ -5,6 +5,8 @@ extends Node3D
 const WEATHER_CONTROLLER_SCRIPT: GDScript = preload("res://scripts/systems/world/WeatherController.gd")
 const DAY_NIGHT_SCRIPT: GDScript = preload("res://scripts/systems/world/DayNightManager.gd")
 const EQUIPMENT_SCRIPT: GDScript = preload("res://scripts/actors/player/henry/components/equipment_component.gd")
+## Diurnal air curve used when none is assigned: coldest before dawn (05:30), warmest at 14:30.
+const DEFAULT_AMBIENT_CURVE: Curve = preload("res://data/climate/air_temperature_day.tres")
 ## Radius of the probe built when the scene supplies none.
 const PROBE_RADIUS: float = 0.4
 
@@ -167,6 +169,8 @@ func _ready() -> void:
 ## Seeds body temperature and connects the clock and the zone probe.
 ## Public so headless tests can drive it without waiting for a frame.
 func initialize() -> void:
+	if ambient_curve == null:
+		ambient_curve = DEFAULT_AMBIENT_CURVE
 	if not _initialized:
 		_initialized = true
 		_body_temp_c = normal_body_temp_c

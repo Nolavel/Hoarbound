@@ -10,6 +10,7 @@ func _initialize() -> void:
 	_test_extremities()
 	_test_stage_thresholds()
 	_test_room_warmth_persists()
+	_test_air_day_curve()
 	if _failures > 0:
 		push_error("cold readouts: %d check(s) failed" % _failures)
 		quit(1)
@@ -85,6 +86,20 @@ func _test_room_warmth_persists() -> void:
 	_check(is_equal_approx(zone.get_heated_offset_c(), 20.0), "restored warmth beat the zone maximum")
 	state.free()
 	world.free()
+
+
+## The default curve makes the air coldest before dawn and warmest mid-afternoon, and wraps at midnight.
+func _test_air_day_curve() -> void:
+	var thermal := ThermalManager.new()
+	thermal.initialize()
+	_check(thermal.ambient_curve != null, "no default air curve assigned")
+	var dawn: float = thermal._sample_ambient_c(5.5)
+	var afternoon: float = thermal._sample_ambient_c(14.5)
+	_check(is_equal_approx(dawn, thermal.ambient_min_c), "05:30 is not the coldest hour: %.1f" % dawn)
+	_check(is_equal_approx(afternoon, thermal.ambient_max_c), "14:30 is not the warmest hour: %.1f" % afternoon)
+	_check(thermal._sample_ambient_c(21.0) < thermal._sample_ambient_c(17.0), "the evening does not cool")
+	_check(absf(thermal._sample_ambient_c(0.0) - thermal._sample_ambient_c(23.999)) < 0.2, "the curve jumps at midnight")
+	thermal.free()
 
 
 func _check(condition: bool, message: String) -> void:

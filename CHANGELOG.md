@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Daily air temperature (#236 stage 5): `ThermalManager` uses `data/climate/air_temperature_day.tres` when no
+  curve is assigned (world.gd creates it in code, so it always ran flat at −18 °C). The air is coldest at
+  05:30 (−28 °C) and warmest at 14:30 (−8 °C), with weather offsets on top. `test_cold_readouts` checks the
+  extremes and the midnight wrap.
+
 - Vitals HUD rework (owner design, #236; spec in `docs/technical/VITALS_HUD.md`). The round progress rings
   are replaced by gradient columns: a dark column fading upward and a state-tinted pigment over it that
   empties from the top, with a thin edge line and rounded bottom. Green, yellow and red blend across each
