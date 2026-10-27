@@ -36,6 +36,8 @@ func _setup() -> void:
 	thermal.refresh_felt_temperature()
 	_zone = ThermalZone.new()
 	_zone.name = "Room"
+	_zone.max_heated_offset_c = 20.0
+	_zone.minimum_heated_offset_c = 20.0
 	root.add_child(_zone)
 	_henry = Node3D.new()
 	_henry.add_to_group(&"player")
@@ -50,6 +52,15 @@ func _test_reading() -> void:
 	var outdoor: float = (root.find_children("*", "ThermalManager", true, false)[0] as ThermalManager).get_outdoor_air_c()
 	_check(is_equal_approx(_thermometer.get_air_c(), outdoor + _zone.get_total_offset_c()),
 		"reading %.1f is not outdoor %.1f plus the zone" % [_thermometer.get_air_c(), outdoor])
+	var before: float = _thermometer.get_air_c()
+	_zone.restore_heated_offset(10.0)
+	_check(_thermometer.get_air_c() > before + 5.0, "stove warmth in the room does not raise the reading (%.1f -> %.1f)" % [before, _thermometer.get_air_c()])
+	var thermal := root.find_children("*", "ThermalManager", true, false)[0] as ThermalManager
+	var warm: float = _zone.get_heated_offset_c()
+	thermal._advance_hours(2.0, 12.0)
+	_check(_zone.get_heated_offset_c() < warm - 1.0, "a room Henry is not in never cools (%.1f -> %.1f)" % [warm, _zone.get_heated_offset_c()])
+	_check(TemperatureText.signed(-9.4) == "\u20139" and TemperatureText.signed(8.6) == "+9" and TemperatureText.signed(0.2) == "0",
+		"signed degrees use a glyph IM Fell lacks")
 
 
 func _test_fade() -> void:

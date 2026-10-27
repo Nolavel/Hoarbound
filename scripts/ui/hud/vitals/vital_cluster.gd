@@ -421,7 +421,7 @@ func _update_readouts() -> void:
 	if not shown:
 		return
 	_body_label.text = tr("HUD_BODY_TEMPERATURE") % thermal_manager.get_body_temperature_c()
-	_feels_label.text = tr("HUD_FEELS_LIKE") % roundi(thermal_manager.get_felt_temperature_c())
+	_feels_label.text = tr("HUD_FEELS_LIKE") % TemperatureText.signed(thermal_manager.get_felt_temperature_c())
 
 
 ## Rising: chevrons above the column; falling: below it. Two chevrons for a fast change.

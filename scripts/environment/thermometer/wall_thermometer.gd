@@ -48,7 +48,7 @@ func _process(delta: float) -> void:
 	var rise: float = maxf(column_fraction(_shown_c) * TUBE_LENGTH, 0.001)
 	_column.scale.y = rise
 	_column.position = _scale_bottom + Vector3(0.0, rise * 0.5, 0.0)
-	_reading.text = tr(&"THERMOMETER_READING") % roundi(_shown_c)
+	_reading.text = tr(&"THERMOMETER_READING") % TemperatureText.signed(_shown_c)
 	var near: float = 1.0
 	if is_instance_valid(_player):
 		near = 1.0 - smoothstep(reading_near_m, reading_far_m, _player.global_position.distance_to(global_position))
@@ -92,7 +92,7 @@ func _build() -> void:
 	var iron := StylizedEnvironmentMaterial.make_static(Color(0.20, 0.19, 0.18), 0.5)
 	var board := StylizedEnvironmentMaterial.make_static(Color(0.90, 0.88, 0.80), 0.9)
 	var ink := StylizedEnvironmentMaterial.make_static(Color(0.10, 0.10, 0.10), 0.9)
-	var red := StylizedEnvironmentMaterial.make_static(Color(0.72, 0.08, 0.06), 0.6)
+	var red := StylizedEnvironmentMaterial.make_static(Color(0.92, 0.06, 0.04), 0.5)
 	var glass := StylizedEnvironmentMaterial.make_static(Color(0.97, 0.97, 0.95), 0.3)
 	## The nail: a shank in the wall and a flat head standing off it.
 	_rod(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.03), 0.0018, iron)
@@ -118,7 +118,7 @@ func _build() -> void:
 	bulb.mesh = sphere
 	bulb.position = Vector3(_scale_bottom.x, bulb_y, _scale_bottom.z)
 	add_child(bulb)
-	_column = _rod(Vector3.ZERO, Vector3.UP, TUBE_RADIUS * 0.6, red)
+	_column = _rod(Vector3.ZERO, Vector3.UP, TUBE_RADIUS * 0.85, red)
 	_column.position = Vector3.ZERO
 	var column_mesh := _column.mesh as CylinderMesh
 	column_mesh.height = 1.0
@@ -132,7 +132,7 @@ func _build() -> void:
 		tick.position = Vector3(_scale_bottom.x - TUBE_RADIUS - 0.003 - length * 0.5, y, front)
 		if major:
 			var label := Label3D.new()
-			label.text = "%d" % roundi(celsius)
+			label.text = TemperatureText.signed(celsius) if celsius != 0.0 else "0"
 			label.font = READING_FONT
 			label.font_size = 48
 			label.pixel_size = 0.00036
@@ -155,16 +155,16 @@ func _build() -> void:
 	_plate_material.albedo_texture = texture
 	_plate = MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.30, 0.08)
+	quad.size = Vector2(0.42, 0.12)
 	quad.material = _plate_material
 	_plate.mesh = quad
 	_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_plate.position = Vector3(0.0, top_y - BOARD_SIZE.y - 0.06, 0.004)
+	_plate.position = Vector3(0.0, top_y - BOARD_SIZE.y - 0.08, 0.004)
 	add_child(_plate)
 	_reading = Label3D.new()
 	_reading.font = READING_FONT
 	_reading.font_size = 64
-	_reading.pixel_size = 0.0009
+	_reading.pixel_size = 0.0016
 	_reading.modulate = Color(0.95, 0.93, 0.88)
 	_reading.outline_modulate = Color(0.1, 0.1, 0.1, 0.8)
 	_reading.outline_size = 8

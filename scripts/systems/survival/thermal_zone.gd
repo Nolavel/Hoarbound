@@ -33,6 +33,8 @@ signal protection_changed(sealed_fraction: float)
 ## Higher value wins when zones overlap. Named to avoid Area3D.priority.
 @export var zone_priority: int = 0
 
+static var _registry: Array[ThermalZone] = []
+
 var _heated_offset_c: float = 0.0
 var _active_heat_sources: int = 0
 var _breaches: Array[ShelterBreach] = []
@@ -40,7 +42,29 @@ var _heat_sources: Array[HeatSource] = []
 
 
 func _ready() -> void:
+	if not _registry.has(self):
+		_registry.append(self)
 	refresh_breaches()
+
+
+func _exit_tree() -> void:
+	_registry.erase(self)
+
+
+## Frees can bypass _exit_tree, so drop out of the registry here as well.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		_registry.erase(self)
+
+
+## Every live zone in the tree: rooms warm and cool whether Henry is in them or not.
+static func get_all() -> Array[ThermalZone]:
+	var live: Array[ThermalZone] = []
+	for zone: ThermalZone in _registry:
+		if is_instance_valid(zone) and zone.is_inside_tree():
+			live.append(zone)
+	_registry = live
+	return live
 
 
 ## Rebuilds the list of holes in this shelter. Called by a breach whenever it
