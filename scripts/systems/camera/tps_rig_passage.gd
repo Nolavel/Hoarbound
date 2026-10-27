@@ -6,6 +6,8 @@ extends TpsRigBehaviour
 
 ## Blend above which the current doorway keeps the frame against a neighbouring one.
 const HANDOVER_BLEND: float = 0.05
+## Furthest the doorway band may move the shoulder off where the behaviours put it, metres.
+const MAX_PULL: float = 0.5
 ## Blend above which the camera keeps its side of the door plane.
 const SIDE_LOCK_BLEND: float = 0.05
 
@@ -85,7 +87,10 @@ func orbit(frame: TpsRigFrame) -> void:
 		return
 	var blend: float = _passage_blend
 	frame.want = lerpf(frame.want, minf(frame.want, boom()), blend)
-	var side: float = lerpf(frame.side, _side(frame.pivot, frame.side), blend)
+	## The doorway may pull the shoulder toward its centre line by at most MAX_PULL: further off
+	## Henry, a boom aimed through the opening swings into the wall beside it.
+	var pulled: float = clampf(_side(frame.pivot, frame.side), frame.side - MAX_PULL, frame.side + MAX_PULL)
+	var side: float = lerpf(frame.side, pulled, blend)
 	## A new doorway re-centres the shoulder on its own line: the step is carried and eased out.
 	if _last_info != null and _framing.info != _last_info and not _framing.info.same_passage(_last_info):
 		_handover_side = _last_side - side

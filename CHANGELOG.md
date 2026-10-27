@@ -178,9 +178,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 ### Fixed
 
 - TPS camera steps in doorways (#240 stage 3 v2). The camera no longer flips to the other side of a door plane
-  while the doorway holds the frame, a neighbouring door waits until the current one lets go, and a hand-over's
-  shoulder step is eased out. On the 727 route, real jumps over 0.3 m fall from 3 to 2. The one left is a
-  corridor-wall snap after leaving a door sideways. The tight-space trace is unchanged.
+  while the doorway holds the frame. A neighbouring door waits until the current one lets go, a hand-over's
+  shoulder step is eased out, and a doorway may pull the shoulder at most 0.5 m off Henry. On the 727 route, real
+  jumps over 0.3 m fall from 3 to 0, and `test_doorway_camera` no longer pops on the yaw swing. The tight-space
+  trace is unchanged.
 - A room Henry is not in now keeps warming or cooling. `ThermalManager` advanced only the zones Henry's probe
   overlapped, so a room left with a dying fire stayed as warm as when he walked out. Every loaded `ThermalZone`
   now advances (`ThermalZone.get_all()`); the wall thermometer made the stale reading visible.

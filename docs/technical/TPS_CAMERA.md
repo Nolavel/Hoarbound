@@ -131,16 +131,20 @@ constraints only moved the step into the wall snap. Three changes remove the ste
 - **Hand-over offset.** When the frame does move to a new door, the shoulder step to its centre line is
   carried as an offset and eased out at `passage_release_rate`.
 
-| Route trace (727) | Stage 2 | Stage 3 v2 |
-|---|---|---|
-| Real jumps > 0.3 m | 3 (0.31, 0.71, 0.73 m) | 2 (0.33, 0.73 m: the corridor-wall snap below) |
-| Eyes in frame / faded | 100 % / 0 % | 100 % / 0 % |
+- **Pull cap.** The doorway band may move the shoulder at most `TpsRigPassage.MAX_PULL` (0.5 m) off
+  where the behaviours put it. Leaving a door sideways, the uncapped band pulled it up to 1.1 m off Henry
+  toward the door's centre line, and the boom then met the corridor wall and snapped.
 
-The tight-space trace is unchanged. **Still open:** leaving a doorway sideways, the blend stays near 1
-while the band pulls the shoulder up to 1.1 m off Henry toward the door's centre line. The boom then
-meets the corridor wall and the centre sweep snaps it in (0.81 → 0.25 of its length). Next: cap how
-far the doorway may pull the shoulder off Henry. Side feelers alongside the boom were tried and
-reverted: 0.73 → 0.67 m, plus a new snap elsewhere.
+| Measure | Stage 2 | Stage 3 v2 |
+|---|---|---|
+| 727 route: real jumps > 0.3 m | 3 (0.31, 0.71, 0.73 m) | **0** |
+| 727 route: eyes in frame / faded | 100 % / 0 % | 100 % / 0 % |
+| `test_doorway_camera` yaw swing | 1–2 pops, up to 0.69 m | **none** (two runs) |
+| `test_doorway_camera` stand sweep | Henry off screen ~792 frames | unchanged (stage 4) |
+
+The tight-space trace is unchanged (all 26 groups). A spring on the composed frame was tried first and
+reverted: smoothing before the hard constraints only moved the step into a wall snap. With the steps
+removed at their source, no spring was needed.
 
 ## Control and view
 
