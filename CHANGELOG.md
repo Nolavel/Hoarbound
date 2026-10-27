@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Stove fire per log, ported from the `codex` branch (Codex's work, finished here). Each log has its own
+  irregular geometry, char, flame and embers, plus weak ignition smoke. Henry's arm reaches in through
+  `StoveHandReach` to take, insert and release each item. Tinder comes only from a Quick Access pocket or
+  the hand, not the pack. Log poses and char origins survive save/load and refuel. `HeatSource` stays the
+  only authority on fuel and heat. Codex's 11 MB of capture media stayed on its branch.
 - Frostbite consequences (#236 stage 6, owner direction). Each body part gets frostnip, then frostbite, after
   its cold load is held long enough (0.6 for 20 min; 0.85 for about 36 min). The stage heals in warmth
   (frostbite over 6 h) and is saved. Six afflictions carry the effects:
@@ -163,6 +168,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Stove transfers and the lighter hold no longer depend on where the IK palm lands. In the first port a log
+  was laid only when the solved palm was within 4.5 cm of the target. In the 727 shelter workflow the arm
+  stopped 0.44 m short and the log was silently never laid. Contact is now a point on the act's timeline;
+  the arm only presents it.
 - Pocket takes keep an item's runtime state. The flare rollback (`HeldOwnership.take` / `restore`), stove
   fuel and eating now use `take_pocket_instance()`; the id-only `take_from_pocket()` refuses stateful items,
   so those paths would have silently failed once items carry state.

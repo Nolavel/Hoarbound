@@ -14,6 +14,8 @@ signal heat_elapsed(hours: float)
 signal intensity_changed(intensity: float)
 ## Tinder laid under the logs of a cold stove, kept until a fire catches it.
 signal tinder_changed(prepared: bool)
+## Transient actions must stop before authoritative save data replaces this fire.
+signal state_restoring
 
 static var _registry: Array[HeatSource] = []
 
@@ -327,6 +329,7 @@ func get_fire_save_data() -> Dictionary:
 
 
 func restore_fire_save_data(data: Dictionary) -> void:
+	state_restoring.emit()
 	restore_fuel(float(data.get("remaining_h", 0.0)), bool(data.get("burning", false)))
 	var legacy_logs: int = floori(_remaining_h / hours_per_fuel_unit + 0.0001) if hours_per_fuel_unit > 0.0 else 0
 	_recoverable_logs = 0 if _is_burning else clampi(int(data.get("recoverable_logs", 0)), 0, legacy_logs)

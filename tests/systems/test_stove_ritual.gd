@@ -56,9 +56,10 @@ func _run() -> void:
 	await _test_one_log_per_press()
 	await _test_tinder_and_long_press()
 	await _test_fuel_after_tinder()
+	await _test_held_tinder_cancel()
 	await _test_conflicts_while_working()
 	await _test_exit_and_return()
-	_test_save_round_trip()
+	await _test_save_round_trip()
 	await _test_lighter()
 	await _test_burning_refuel()
 	await _test_quick_f_and_target_loss()
@@ -129,6 +130,11 @@ func _test_entry_without_autoload() -> void:
 
 ## Test 4: an empty firebox takes no tinder; the fuel arc says why.
 func _test_tinder_needs_fuel() -> void:
+	var equipment := _player.get_node(^"EquipmentComponent") as EquipmentComponent
+	for pocket: Dictionary in equipment.get_available_pockets():
+		if pocket["item_id"] == &"tinder":
+			var item: StringName = equipment.take_from_pocket(pocket["body_slot"],pocket["pocket"])
+			_add(item,1)
 	_add(&"tinder", 2)
 	var tinder: int = _tinder_count()
 	_mouse(MOUSE_BUTTON_LEFT, true)
@@ -140,12 +146,40 @@ func _test_tinder_needs_fuel() -> void:
 
 ## Test 3: one RMB press, one log; a held RMB loads no more; presses during the act are ignored.
 func _test_one_log_per_press() -> void:
+	_mouse(MOUSE_BUTTON_RIGHT,true)
+	_mouse(MOUSE_BUTTON_RIGHT,false)
+	await _frames(10)
+	_feed.set_door_open(false)
+	await _frames(20)
+	_check(_inventory.get_count(&"firewood") == 3 and _source.get_loaded_log_count() == 0,"closing before contact lost/duplicated a log")
+	_feed.set_door_open(true)
+	await _frames(25)
+	var saved_fire: Dictionary = _source.get_fire_save_data()
+	var saved_inventory: Dictionary = _inventory.get_save_data()
+	_check(_feed.insert_fuel() == HeatSourceFeed.Refusal.NONE,"load test could not start transfer")
+	await _frames(10)
+	_source.restore_fire_save_data(saved_fire)
+	_inventory.load_save_data(saved_inventory)
+	await _frames(80)
+	_check(not _control.is_active() and _feed.get_act() == HeatSourceFeed.Act.NONE,"load left a pending stove action")
+	_check(_inventory.get_count(&"firewood") == 3 and _source.get_loaded_log_count() == 0,"load consumed or duplicated a pending log")
+	_control.request_enter()
+	for _i: int in range(240):
+		await physics_frame
+		if _control.is_working():
+			break
+	_check(_control.is_working(),"cannot reenter after loading")
 	_mouse(MOUSE_BUTTON_RIGHT, true)
 	await _frames(2)
 	_check(_feed.get_act() == HeatSourceFeed.Act.FUEL, "RMB did not start laying a log")
 	_mouse(MOUSE_BUTTON_RIGHT, true)
 	_check(_inventory.get_count(&"firewood") == 3, "a log left the hands before it was laid")
-	await _wait_act()
+	for _i: int in range(220):
+		await physics_frame
+		if _feed.did_commit_transfer():
+			break
+	_check(_feed.did_commit_transfer(),"the contact transaction never happened")
+	_feed.cancel_act(&"test_after_contact")
 	_check(_inventory.get_count(&"firewood") == 2 and _source.get_loaded_log_count() == 1,
 		"one press moved %d logs" % (3 - _inventory.get_count(&"firewood")))
 	_check(not _source.is_burning(), "a cold log lit the stove")
@@ -158,6 +192,19 @@ func _test_one_log_per_press() -> void:
 
 ## Test 5 and 6: LMB lays tinder, lights nothing, and a held LMB never reaches the lighter.
 func _test_tinder_and_long_press() -> void:
+	_check(_feed.get_tinder_refusal() == HeatSourceFeed.Refusal.NO_TINDER,"backpack tinder enables the act")
+	_check(_control.get_ring().describe(StoveInteractionRing.Arc.TINDER)["state"] == StoveInteractionRing.ArcState.INACTIVE,"backpack tinder lights its arc")
+	_mouse(MOUSE_BUTTON_LEFT,true)
+	_mouse(MOUSE_BUTTON_LEFT,false)
+	await _frames(3)
+	_check(not _feed.is_acting(),"backpack tinder started an action")
+	var equipment := _player.get_node(^"EquipmentComponent") as EquipmentComponent
+	for pocket: Dictionary in equipment.get_available_pockets():
+		if equipment.can_stow(pocket["body_slot"],pocket["pocket"],&"tinder") == EquipmentComponent.Refusal.NONE:
+			_check(_inventory.try_remove(&"tinder"),"no tinder to move to pocket")
+			_check(equipment.stow(pocket["body_slot"],pocket["pocket"],&"tinder") == EquipmentComponent.Refusal.NONE,"pocket refused tinder")
+			break
+	_check(_feed.get_tinder_refusal() == HeatSourceFeed.Refusal.NONE,"pocket tinder is unavailable")
 	var tinder: int = _tinder_count()
 	_mouse(MOUSE_BUTTON_LEFT, true)
 	await _wait_act()
@@ -270,7 +317,27 @@ func _test_save_round_trip() -> void:
 	shelter.adopt_fire(zone, _source)
 	_source.set_tinder_prepared(false)
 	_source.set_tinder_prepared(true)
-	var stored: Dictionary = (shelter.get_save_data()["fires"] as Dictionary).values()[0]
+	shelter._world = _house
+	var saved_shelter: Dictionary = shelter.get_save_data()
+	var stored: Dictionary = (saved_shelter["fires"] as Dictionary).values()[0]
+	var visual := _source.find_child("StoveVisual",true,false) as StoveVisual
+	var placements: Dictionary = visual.get_presentation_save_data()
+	_source.restore_fuel(0.0,false)
+	shelter.load_save_data(saved_shelter)
+	_check(_source.get_loaded_log_count() == 3 and _source.is_tinder_prepared(),"ShelterState failed to restore real fuel/tinder")
+	var restored: Dictionary = visual.get_presentation_save_data()
+	for i: int in range(placements["logs"].size()):
+		var a: Vector3 = str_to_var(placements["logs"][i]["position"])
+		var b: Vector3 = str_to_var(restored["logs"][i]["position"])
+		_check(a.is_equal_approx(b),"ShelterState moved a placed log")
+	_check(placements["tinder_position"] == restored["tinder_position"],"ShelterState moved tinder contact")
+	await _frames(80)
+	_check(not _control.is_active(),"loading kept the ritual mode")
+	_control.request_enter()
+	for _i: int in range(240):
+		await physics_frame
+		if _control.is_working():
+			break
 	_check(bool(stored.get("tinder_prepared", false)), "ShelterState does not record the tinder")
 	shelter.queue_free()
 
@@ -294,7 +361,7 @@ func _test_lighter() -> void:
 	_check(_source.get_loaded_log_count() == 3 and _source.is_tinder_prepared(), "a failed hold lost fuel or tinder")
 	await _frames(20)
 	_mouse(MOUSE_BUTTON_LEFT, true)
-	await _frames(int(HeatSourceFeed.LIGHT_SECONDS * 60.0) + 20)
+	await _frames(int((HeatSourceFeed.LIGHT_SECONDS+0.9) * 60.0) + 20)
 	_mouse(MOUSE_BUTTON_LEFT, false)
 	_check(_source.is_burning(), "a full hold did not light the stove")
 	_check(not _source.is_tinder_prepared(), "the tinder survived its own fire")
@@ -462,3 +529,22 @@ func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures += 1
 		push_error("stove ritual: " + message)
+
+
+func _test_held_tinder_cancel() -> void:
+	_feed.cancel_act(&"test_put_lighter_away")
+	_source.set_tinder_prepared(false)
+	var hand := _player.get_node(^"HeldItemComponent") as HeldItemComponent
+	var before_hand: int = _tinder_count()
+	_check(hand.present_owned(&"tinder"),"owned tinder cannot be held")
+	_check(_feed.get_tinder_refusal() == HeatSourceFeed.Refusal.NONE,"actual held tinder is refused")
+	_check(_feed.insert_tinder() == HeatSourceFeed.Refusal.NONE,"held tinder act did not start")
+	await _frames(10)
+	_feed.cancel_act(&"test_before_contact")
+	_check(_tinder_count() == before_hand and not _source.is_tinder_prepared(),"pre-contact cancel consumed tinder")
+	_check(hand.get_item_id() == &"tinder","pre-contact cancel did not restore the held tinder")
+	_check(_feed.insert_tinder() == HeatSourceFeed.Refusal.NONE,"held-source placement cannot restart after cancellation")
+	await _wait_act()
+	_check(_source.is_tinder_prepared() and _tinder_count() == before_hand-1,"held-source contact did not commit exactly one tinder")
+	hand.put_away()
+	_source.set_tinder_prepared(true)
