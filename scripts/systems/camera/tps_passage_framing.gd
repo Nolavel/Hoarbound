@@ -17,10 +17,12 @@ var back_axis: Vector3 = Vector3.BACK
 var _side: float = 0.0
 
 
-## Takes the passage Henry is engaged with; a new one picks its camera side afresh.
+## Takes the passage Henry is engaged with. A new one keeps the camera's side when it faces
+## the same way (doors along one corridor wall), else picks its side afresh.
 func set_passage(passage: PassageInfo) -> void:
 	if info == null or not passage.same_passage(info):
-		_side = 0.0
+		var along: float = back_axis.dot(passage.axis) if info != null else 0.0
+		_side = signf(along) if absf(along) > 0.7 else 0.0
 	info = passage
 
 
@@ -34,10 +36,10 @@ func clear() -> void:
 
 
 ## Puts the camera's side of the door plane where the view's boom points; it changes
-## only once the view clearly turns, so a sideways look never flips it.
-func update_side(view_back: Vector3) -> void:
+## only once the view clearly turns, and never while `locked` (Henry inside the doorway).
+func update_side(view_back: Vector3, locked: bool = false) -> void:
 	var along: float = view_back.dot(info.axis)
-	if _side == 0.0 or absf(along) > 0.2:
+	if _side == 0.0 or (absf(along) > 0.2 and not locked):
 		_side = 1.0 if along >= 0.0 else -1.0
 	back_axis = info.axis * _side
 

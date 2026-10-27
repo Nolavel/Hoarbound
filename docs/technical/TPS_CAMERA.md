@@ -94,6 +94,58 @@ cast. If testing shows it needs its own tuning, it gets its own profile.
 The camera node opts out of physics interpolation. Teleport sites call
 `reset_physics_interpolation()`: world spawn, sitting down and save load.
 
+### Behaviours (#240 stage 2)
+
+`_update_rig` is a short pipeline. Each behaviour owns its state and smoothing and works on
+one shared `TpsRigFrame` (pivot, view, orbit, boom, side, lift, shoulder point, camera). The
+tunables stay on `TpsCamera`, so the inspector is unchanged. In order:
+
+| # | Behaviour | Class | Writes |
+|---|---|---|---|
+| 1 | Follow and prediction: pivot lag, lead, sprint pullback | `TpsRigFollow` | `pivot` |
+| 2 | Automatic shoulder swap | `TpsRigAutoSwap` | shoulder multiplier |
+| 3 | Tight-space composition and lean (Grossman) | `TpsRigComposition.frame_side` | `framing`, `side` |
+| 4 | Doorway: blend, boom cap, shoulder band, soft view stops, orbit cone | `TpsRigPassage` | `want`, `side`, view, orbit |
+| 5 | Shoulder lift | `TpsRigShoulderLift` | `lift`, pitches, `pivot` |
+| 6 | Composition rise | `TpsRigComposition.rise` | `pivot` |
+| 7 | Recompose to the centre line | `TpsRigRecompose` | `side` |
+| 8 | Walls on the boom (Lyra) | `TpsRigCollision` | `shoulder`, `camera` |
+| 9 | Eyes kept in frame | `TpsRigShoulderLift.keep_eyes` | view pitch |
+| 10 | Workspace framing (stove) | `TpsRigWork` | `camera`, `view` |
+
+Stage 2 moved the code without changing it. `trace_camera_route.gd` (2,588 frames) and
+`trace_camera_tight.gd` (3,870 frames) come out byte for byte the same as before the move;
+both are deterministic at a fixed 30 fps. `test_doorway_camera` runs on real frame time and
+varies from run to run (791–793 off-screen frames, 1–2 pops) on either version.
+
+### Doorway steps removed (#240 stage 3 v2)
+
+The route trace showed the doorway goals themselves step, and a spring before the hard
+constraints only moved the step into the wall snap. Three changes remove the steps at their source:
+
+- **The door side holds while the doorway holds the frame.** `TpsPassageFraming.update_side` flips the
+  camera's side of the door plane (and with it the orbit cone's axis by 180°) only once the passage
+  blend is under `TpsRigPassage.SIDE_LOCK_BLEND` (0.05).
+- **A neighbouring doorway waits.** It takes the frame only once the current one is under
+  `HANDOVER_BLEND` (0.05), or Henry is in it. A new door facing the same way keeps the camera's side.
+- **Hand-over offset.** When the frame does move to a new door, the shoulder step to its centre line is
+  carried as an offset and eased out at `passage_release_rate`.
+
+- **Pull cap.** The doorway band may move the shoulder at most `TpsRigPassage.MAX_PULL` (0.5 m) off
+  where the behaviours put it. Leaving a door sideways, the uncapped band pulled it up to 1.1 m off Henry
+  toward the door's centre line, and the boom then met the corridor wall and snapped.
+
+| Measure | Stage 2 | Stage 3 v2 |
+|---|---|---|
+| 727 route: real jumps > 0.3 m | 3 (0.31, 0.71, 0.73 m) | **0** |
+| 727 route: eyes in frame / faded | 100 % / 0 % | 100 % / 0 % |
+| `test_doorway_camera` yaw swing | 1–2 pops, up to 0.69 m | **none** (two runs) |
+| `test_doorway_camera` stand sweep | Henry off screen ~792 frames | unchanged (stage 4) |
+
+The tight-space trace is unchanged (all 26 groups). A spring on the composed frame was tried first and
+reverted: smoothing before the hard constraints only moved the step into a wall snap. With the steps
+removed at their source, no spring was needed.
+
 ## Control and view
 
 Unreal's split: `ControlRotation` drives the pawn, and camera modifiers change
