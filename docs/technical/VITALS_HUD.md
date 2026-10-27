@@ -145,7 +145,9 @@ Body parts are data, not code (`core/body/`, `data/body/`).
 `get_region_protection`.
 
 **Visual**: `Outfit_Gloves` comes from `tools/blender/build_henry_outfit.py`. It is cut from the mannequin's hands and
-fingers from the wrist up, under the sleeve's cuff, in dark leather brown and decimated to about 6,000 vertices.
+fingers from the wrist up, under the sleeve's cuff, and decimated to about 6,000 vertices. Panels follow the owner's
+reference: olive back, tan knuckles and fingertips, dark palm. `Outfit_GloveCuff` is the insulated gauntlet over the
+sleeve, with a strap and a red pull tab.
 `HenryUALAnimation.GARMENT_PARTS["Gloves"]` shows it while worn and hides `Skin_Gloves`. Rebuild it with Blender 5.2
 as a Python module: `pip install bpy`, then `python tools/blender/build_henry_outfit.py [--render dir]`.
 
