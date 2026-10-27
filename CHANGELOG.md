@@ -335,6 +335,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Work gloves restyled after the owner's reference: an olive back, tan leather at the knuckles and fingertips,
+  a dark palm, and an insulated dark gauntlet over the sleeve (`Outfit_GloveCuff`) with a strap and a red pull tab.
+  Panels are flat colours painted per face and settled by a neighbour vote so decimation leaves no specks.
 - The top-right "Room air" HUD readout is gone; the 727 wall thermometer replaces it (owner, #236).
 - Stove look after the owner's review of the 727 capture:
   - flames are about 40 % taller and denser, and a caught log grows to full burn in 6 s instead of 10;

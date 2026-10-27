@@ -19,6 +19,13 @@ SOURCE = "assets/animation/ual/Unreal-Godot/UAL1_Standard.glb"
 OUT = "assets/characters/henry/henry_outfit.glb"
 
 JACKET_COLOUR = (0.30, 0.34, 0.20)
+## Insulated work glove after the owner's reference: olive back, tan knuckle and fingertip
+## leather, dark palm; a dark gauntlet with a strap, a red pull tab and a tan patch.
+GLOVE_OLIVE = (0.19, 0.19, 0.11)
+GLOVE_TAN = (0.60, 0.41, 0.21)
+GLOVE_PALM = (0.17, 0.12, 0.09)
+GLOVE_STRAP = (0.08, 0.07, 0.06)
+GLOVE_TAB = (0.58, 0.12, 0.08)
 ## name: (colour, push-out metres, shell thickness, smoothing passes)
 ## Smoothing irons out the mannequin's muscles so cloth reads as panels.
 GARMENTS = {
@@ -28,7 +35,8 @@ GARMENTS = {
 	"Sole": ((0.17, 0.12, 0.09), 0.022, 0.014, 2),
 	"Beanie": ((0.52, 0.20, 0.16), 0.008, 0.008, 6),
 	"BeanieCuff": ((0.46, 0.17, 0.14), 0.020, 0.012, 4),
-	"Gloves": ((0.16, 0.13, 0.10), 0.010, 0.006, 3),
+	"Gloves": (GLOVE_OLIVE, 0.014, 0.006, 3),
+	"GloveCuff": ((0.14, 0.11, 0.08), 0.044, 0.010, 8),
 }
 BODY_COLOUR = (0.55, 0.55, 0.56)
 TRIM_COLOUR = (0.19, 0.21, 0.13)  # placket and seams
@@ -40,7 +48,7 @@ SKIRT_FLARE = 0.045
 SKIRT_LEG_FOLLOW = 0.9  # thigh share at the hem; the top ring stays on the pelvis
 DECIMATE_RATIO = 0.35
 ## The mannequin's fingers are dense; gloves keep far fewer faces.
-DECIMATE_BY_GARMENT = {"Gloves": 0.1}
+DECIMATE_BY_GARMENT = {"Gloves": 0.1, "GloveCuff": 1.0}
 CUTS = {}
 ## Garments whose edge follows whole faces; the rest also keep faces straddling it.
 CLEAN_EDGE = set()
@@ -53,6 +61,8 @@ FEET = {"foot_l", "foot_r", "ball_l", "ball_r", "ball_leaf_l", "ball_leaf_r"}
 FINGERS = ("thumb_", "index_", "middle_", "ring_", "pinky_")
 ## Glove cuff starts this far along the hand bone, under the sleeve that ends at 0.3.
 GLOVE_CUFF_T = 0.0
+## The insulated gauntlet rides over the sleeve from this share of the forearm to the wrist.
+GAUNTLET_T = 0.80
 
 
 def dominant(mesh, obj):
@@ -103,6 +113,8 @@ def regions(body, arm):
 			layers.add("Sole")
 		if b.startswith("hand_") and GLOVE_CUFF_T <= bone_t(arm, b, p) < 0.3:
 			layers.add("Gloves")
+		if (b.startswith("lowerarm_") and bone_t(arm, b, p) > GAUNTLET_T) or (b.startswith("hand_") and bone_t(arm, b, p) < 0.12):
+			layers.add("GloveCuff")
 		extra.append(layers)
 		b = dom[i]
 		side = b[-1:] if b.endswith(("_l", "_r")) else ""
@@ -195,9 +207,73 @@ def build_garment(body, arm, name, region, spec):
 
 ## Garment piece to the equipment mesh name (GarmentData.mesh_node_name) it belongs to.
 ITEM_OF = {"Jacket": "Coat", "Hood": "Coat", "Skirt": "Coat", "Trim": "Coat", "Pants": "Trousers", "Boots": "Boots", "Sole": "Boots",
-	"Beanie": "Hat", "BeanieCuff": "Hat", "Gloves": "Gloves"}
+	"Beanie": "Hat", "BeanieCuff": "Hat", "Gloves": "Gloves", "GloveCuff": "Gloves"}
 ## Which garment owns skin under overlapping layers, outermost first.
 SKIN_PRIORITY = ("Jacket", "Gloves", "Boots", "Pants")
+
+
+def _segment_distance(p, a, b):
+	d = b - a
+	t = max(0.0, min(1.0, (p - a).dot(d) / d.length_squared))
+	return (p - (a + d * t)).length, t
+
+
+def style_gloves(gloves, cuff, arm):
+	"""Paints the reference's panels by face: which bone a face sits on and whether it faces
+	the back of the hand or the palm. Materials stay flat colours for the NPR look."""
+	bones = {b.name: (arm.matrix_world @ b.head_local, arm.matrix_world @ b.tail_local) for b in arm.data.bones}
+	backs = {}
+	for side in ("l", "r"):
+		h = bones["hand_" + side][0]
+		back = (bones["index_01_" + side][0] - h).cross(bones["pinky_01_" + side][0] - h).normalized()
+		backs[side] = back if side == "l" else -back
+	hand_bones = [n for n in bones if n.startswith(("hand_",) + FINGERS)]
+	for colour in (GLOVE_TAN, GLOVE_PALM):
+		gloves.data.materials.append(material("Gloves", colour))
+	for poly in gloves.data.polygons:
+		c = gloves.matrix_world @ poly.center
+		n = (gloves.matrix_world.to_3x3() @ poly.normal).normalized()
+		name, t = min(((bn, _segment_distance(c, *bones[bn])) for bn in hand_bones), key=lambda x: x[1][0])[0:2]
+		t = t[1]
+		facing = n.dot(backs[name[-1]])
+		if facing < -0.1:
+			poly.material_index = 2
+		elif name.endswith(("_03_l", "_03_r")) or (facing > 0.3 and name.startswith(FINGERS) and name[-4:-2] == "01" and t < 0.45):
+			poly.material_index = 1
+	_settle_panels(gloves, passes=2)
+	for colour in (GLOVE_STRAP, GLOVE_TAB, GLOVE_TAN):
+		cuff.data.materials.append(material("GloveCuff", colour))
+	for poly in cuff.data.polygons:
+		c = cuff.matrix_world @ poly.center
+		n = (cuff.matrix_world.to_3x3() @ poly.normal).normalized()
+		side = "l" if c.x > 0 else "r"
+		fore = bones["lowerarm_" + side]
+		_d, t = _segment_distance(c, *fore)
+		axis = (fore[1] - fore[0]).normalized()
+		back = backs[side]
+		lateral = axis.cross(back).normalized()
+		if 0.87 < t < 0.93:
+			poly.material_index = 2 if n.dot(lateral) > 0.93 else 1
+		elif 0.94 < t and n.dot(back) > 0.6:
+			poly.material_index = 3
+
+
+def _settle_panels(obj, passes):
+	"""Majority vote with edge neighbours, so decimated triangles form whole panels, not specks."""
+	mesh = obj.data
+	neighbours = [set() for _ in mesh.polygons]
+	by_edge = {}
+	for poly in mesh.polygons:
+		for key in poly.edge_keys:
+			by_edge.setdefault(key, []).append(poly.index)
+	for faces in by_edge.values():
+		for a in faces:
+			neighbours[a].update(f for f in faces if f != a)
+	for _ in range(passes):
+		current = [p.material_index for p in mesh.polygons]
+		for poly in mesh.polygons:
+			votes = [current[poly.index]] + [current[f] for f in neighbours[poly.index]]
+			poly.material_index = max(set(votes), key=votes.count)
 
 
 def split_body(body, region):
@@ -244,6 +320,7 @@ def build():
 	body = bpy.data.objects["Mannequin"]
 	region = regions(body, arm)
 	built = {name: build_garment(body, arm, name, region, spec) for name, spec in GARMENTS.items()}
+	style_gloves(built["Gloves"], built["GloveCuff"], arm)
 	split_body(body, region)
 	build_hood(arm, body)
 	skirt = build_skirt(arm, body)
