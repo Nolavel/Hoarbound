@@ -152,8 +152,9 @@ func _check_spawn() -> void:
 	_check(forward.dot(Vector3(at.x - door.x, 0.0, at.z - door.z).normalized()) > 0.9, "spawn does not face out of the bunker door")
 
 
+## The surface under a pickup, probed from just above it so a shelf inside a cabinet counts.
 func _floor_under(at: Vector3) -> float:
-	var hit: Dictionary = _ray(at + Vector3.UP * 1.0, at + Vector3.DOWN * 4.0)
+	var hit: Dictionary = _ray(at + Vector3.UP * 0.25, at + Vector3.DOWN * 4.0)
 	return float((hit["position"] as Vector3).y) if not hit.is_empty() else NAN
 
 

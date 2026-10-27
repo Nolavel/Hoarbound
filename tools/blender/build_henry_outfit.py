@@ -28,7 +28,7 @@ GARMENTS = {
 	"Sole": ((0.17, 0.12, 0.09), 0.022, 0.014, 2),
 	"Beanie": ((0.52, 0.20, 0.16), 0.008, 0.008, 6),
 	"BeanieCuff": ((0.46, 0.17, 0.14), 0.020, 0.012, 4),
-	"Gloves": ((0.40, 0.30, 0.19), 0.004, 0.004, 1),
+	"Gloves": ((0.16, 0.13, 0.10), 0.010, 0.006, 3),
 }
 BODY_COLOUR = (0.55, 0.55, 0.56)
 TRIM_COLOUR = (0.19, 0.21, 0.13)  # placket and seams
@@ -39,6 +39,8 @@ SKIRT_PUSH = 0.034
 SKIRT_FLARE = 0.045
 SKIRT_LEG_FOLLOW = 0.9  # thigh share at the hem; the top ring stays on the pelvis
 DECIMATE_RATIO = 0.35
+## The mannequin's fingers are dense; gloves keep far fewer faces.
+DECIMATE_BY_GARMENT = {"Gloves": 0.1}
 CUTS = {}
 ## Garments whose edge follows whole faces; the rest also keep faces straddling it.
 CLEAN_EDGE = set()
@@ -50,7 +52,7 @@ LEGS = {"thigh_l", "thigh_r", "calf_l", "calf_r"}
 FEET = {"foot_l", "foot_r", "ball_l", "ball_r", "ball_leaf_l", "ball_leaf_r"}
 FINGERS = ("thumb_", "index_", "middle_", "ring_", "pinky_")
 ## Glove cuff starts this far along the hand bone, under the sleeve that ends at 0.3.
-GLOVE_CUFF_T = 0.15
+GLOVE_CUFF_T = 0.0
 
 
 def dominant(mesh, obj):
@@ -178,7 +180,7 @@ def build_garment(body, arm, name, region, spec):
 	obj.data.materials.append(material(name, colour))
 	bpy.context.view_layer.objects.active = obj
 	dec = obj.modifiers.new("Decimate", "DECIMATE")
-	dec.ratio = DECIMATE_RATIO
+	dec.ratio = DECIMATE_BY_GARMENT.get(name, DECIMATE_RATIO)
 	sol = obj.modifiers.new("Solidify", "SOLIDIFY")
 	sol.thickness = thick
 	sol.offset = -1.0
