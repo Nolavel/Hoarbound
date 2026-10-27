@@ -61,6 +61,8 @@ func _initialize() -> void:
 	_world = (load(SCENE) as PackedScene).instantiate() as Node3D
 	_world.set(&"spawn_at_shelter", true)
 	root.add_child(_world)
+	## The numbers need physics and the camera, not pixels: 3D draws only for the saved shots.
+	root.disable_3d = true
 
 
 func _process(_delta: float) -> bool:
@@ -85,7 +87,9 @@ func _process(_delta: float) -> bool:
 		return true
 	if _phase != "":
 		_record()
-		if _phase_frame % 45 == 0:
+		if _phase_frame % 90 == 89:
+			root.disable_3d = false
+		elif _phase_frame % 90 == 0:
 			_shot("%02d_%s_%s_%04d" % [_leg, LEGS[_leg][0], _phase, _phase_frame])
 	return false
 
@@ -105,7 +109,7 @@ func _bind() -> bool:
 		if _house.is_ancestor_of(door) and not door.is_open():
 			door.interact()
 	_csv = FileAccess.open(_abs(_out).path_join("trace.csv"), FileAccess.WRITE)
-	_csv.store_line("leg,phase,frame,eye_sx,eye_sy,eye_in,body_fade,cam_step,wall_share,mouse_dev_deg,pitch,boom,side,lift,room")
+	_csv.store_line("leg,phase,frame,eye_sx,eye_sy,eye_in,body_fade,cam_step,wall_share,body_share,mouse_dev_deg,pitch,boom,side,lift,room")
 	return true
 
 
@@ -134,6 +138,7 @@ func _walk() -> void:
 			_stuck.append("%s#%d" % [LEGS[_leg][0], _point])
 			_player.global_position = Vector3(target.x, _player.global_position.y, target.z)
 			_player.velocity = Vector3.ZERO
+			_prev_cam = Vector3.INF  # the move is the trace's, not the camera's
 		_point += 1
 		_best_distance = INF
 		_since_progress = 0
@@ -175,11 +180,11 @@ func _record() -> void:
 	var dev: float = absf(rad_to_deg(wrapf(float(state.view_yaw) - float(state.yaw), -PI, PI)))
 	var row: Dictionary = {"leg": LEGS[_leg][0], "phase": _phase, "frame": _phase_frame, "eye_sx": eye.x, "eye_sy": eye.y,
 		"eye_in": eye_in, "body_fade": float(state.get("body_fade", _camera.get_body_fade())), "cam_step": step,
-		"wall_share": _wall_share(size), "mouse_dev_deg": dev, "pitch": float(state.pitch), "boom": float(state.boom),
-		"side": float(state.side), "lift": float(state.lift), "room": String(state.get("room", ""))}
+		"wall_share": _wall_share(size), "body_share": _body_share(size), "mouse_dev_deg": dev, "pitch": float(state.pitch), "boom": float(state.boom),
+		"side": float(state.side), "lift": float(state.lift), "room": str(state.get("room", ""))}
 	_rows.append(row)
-	_csv.store_line("%s,%s,%d,%.4f,%.4f,%d,%.3f,%.4f,%.3f,%.2f,%.2f,%.3f,%.3f,%.3f,%s" % [row.leg, row.phase, row.frame,
-		row.eye_sx, row.eye_sy, int(eye_in), row.body_fade, step, row.wall_share, dev, row.pitch, row.boom, row.side,
+	_csv.store_line("%s,%s,%d,%.4f,%.4f,%d,%.3f,%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.3f,%s" % [row.leg, row.phase, row.frame,
+		row.eye_sx, row.eye_sy, int(eye_in), row.body_fade, step, row.wall_share, row.body_share, dev, row.pitch, row.boom, row.side,
 		row.lift, row.room])
 
 
@@ -196,6 +201,21 @@ func _wall_share(size: Vector2) -> float:
 			if not _space.intersect_ray(query).is_empty():
 				near += 1
 	return float(near) / float(WALL_GRID.x * WALL_GRID.y)
+
+
+## Share of a finer screen grid whose first hit is Henry's own body (capsule and carried pack).
+func _body_share(size: Vector2) -> float:
+	var hits: int = 0
+	var grid := Vector2i(16, 9)
+	for gx: int in range(grid.x):
+		for gy: int in range(grid.y):
+			var pixel := Vector2((float(gx) + 0.5) / float(grid.x), (float(gy) + 0.5) / float(grid.y)) * size
+			var origin: Vector3 = _camera.project_ray_origin(pixel)
+			var query := PhysicsRayQueryParameters3D.create(origin, origin + _camera.project_ray_normal(pixel) * 6.0)
+			var hit: Dictionary = _space.intersect_ray(query)
+			if not hit.is_empty() and hit.collider == _player:
+				hits += 1
+	return float(hits) / float(grid.x * grid.y)
 
 
 func _finish() -> void:
@@ -229,7 +249,11 @@ func _summarise(rows: Array) -> Dictionary:
 	var wall_sum: float = 0.0
 	var dev_sum: float = 0.0
 	var dev_max: float = 0.0
+	var body_sum: float = 0.0
+	var body_max: float = 0.0
 	for row: Dictionary in rows:
+		body_sum += float(row.body_share)
+		body_max = maxf(body_max, float(row.body_share))
 		eyes += int(row.eye_in)
 		low += int(float(row.eye_sy) > 0.85)
 		faded += int(float(row.body_fade) > 0.01)
@@ -243,13 +267,15 @@ func _summarise(rows: Array) -> Dictionary:
 		"eyes_low_pct": snappedf(100.0 * low / n, 0.01), "faded_pct": snappedf(100.0 * faded / n, 0.01),
 		"jumps_over_0_3m": jumps, "max_step_m": snappedf(max_step, 0.001), "wall_half_frame_pct": snappedf(100.0 * walled / n, 0.01),
 		"wall_share_mean": snappedf(wall_sum / n, 0.001), "mouse_dev_mean_deg": snappedf(dev_sum / n, 0.01),
-		"mouse_dev_max_deg": snappedf(dev_max, 0.1)}
+		"mouse_dev_max_deg": snappedf(dev_max, 0.1), "body_share_mean": snappedf(body_sum / n, 0.001),
+		"body_share_max": snappedf(body_max, 0.001)}
 
 
 func _shot(shot_name: String) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	root.get_viewport().get_texture().get_image().save_png(_abs(_out).path_join(shot_name + ".png"))
+	root.disable_3d = true
 
 
 ## Plan point (u, v) on the shelter floor in world space.
