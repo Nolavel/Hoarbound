@@ -699,6 +699,18 @@
     "size": null
    },
    {
+    "node": "WallThermometer",
+    "kind": "wall_thermometer",
+    "room": "waiting",
+    "uv": [
+     2.6,
+     0.262
+    ],
+    "yaw_deg": 0,
+    "size": null,
+    "h": 1.7
+   },
+   {
     "node": "ToolBench",
     "kind": "hut_tool_bench",
     "room": "storage",

@@ -385,7 +385,8 @@ func _advance_hours(hours: float, current_hour: float) -> void:
 	if hours <= 0.0 or _is_dead:
 		return
 	HeatSource.advance_all_fuel(hours)
-	for zone: ThermalZone in _zones:
+	## Every loaded room, not only Henry's: a room he left keeps warming or cooling.
+	for zone: ThermalZone in ThermalZone.get_all():
 		zone.advance_heating(hours)
 	_update_wetness(hours, current_hour)
 	_felt_temp_c = _compute_felt_temperature(current_hour)

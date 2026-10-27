@@ -212,6 +212,9 @@ func _place_furniture() -> void:
 			var y: float = node.position.y if in_zone else _floor_y
 			node.transform = Transform3D(yaw * node.basis, plan_point(item["uv"], y))
 			continue
+		if kind == "wall_thermometer":
+			_place_thermometer(item, yaw)
+			continue
 		var size: Array = item["size"]
 		var extents: Vector3 = Vector3(float(size[0]), float(size[1]), float(size[2]))
 		var body: StaticBody3D = StaticBody3D.new()
@@ -230,6 +233,16 @@ func _place_furniture() -> void:
 		shape.shape = box
 		body.add_child(shape)
 		_house.add_child(body)
+
+
+## A wall thermometer reading the heated zone; "h" is its centre above the floor.
+func _place_thermometer(item: Dictionary, yaw: Basis) -> void:
+	var thermometer := WallThermometer.new()
+	thermometer.name = String(item["node"])
+	thermometer.zone = _house.get_node(^"ShelterZone") as ThermalZone
+	thermometer.transform = Transform3D(yaw, plan_point(item["uv"], _floor_y + float(item.get("h", 1.5))))
+	thermometer.set_meta("reconstruction_class", "game_invented")
+	_house.add_child(thermometer)
 
 
 func _add_stove_pipe(roof_top: float) -> void:

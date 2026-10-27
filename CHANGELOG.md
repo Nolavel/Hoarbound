@@ -8,6 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Wall thermometer in the 727 waiting room (#236), just inside the lobby arch (`WallThermometer`, nail at 1.7 m, placed
+  from the landmark spec's furniture list). It is an ordinary glass thermometer on a board, hung by a wire loop from a nail, with a red column from −40 to +40 °C; the figure
+  (`THERMOMETER_READING`, °C only) sits on a grey gradient plate below it and fades out between 2.5 and 3 m from Henry.
+  It reads outdoor air plus its zone's warmth; the column and figure follow it smoothly. No interaction.
 - Stove fire per log, ported from the `codex` branch (Codex's work, finished here). Each log has its own
   irregular geometry, char, flame and embers, plus weak ignition smoke. Henry's arm reaches in through
   `StoveHandReach` to take, insert and release each item. Tinder comes only from a Quick Access pocket or
@@ -168,6 +172,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- A room Henry is not in now keeps warming or cooling. `ThermalManager` advanced only the zones Henry's probe
+  overlapped, so a room left with a dying fire stayed as warm as when he walked out. Every loaded `ThermalZone`
+  now advances (`ThermalZone.get_all()`); the wall thermometer made the stale reading visible.
+- Negative temperatures in IM Fell English SC (FEELS, the thermometer) use an en dash: the font has no minus sign and
+  draws "-" like a tilde (`TemperatureText.signed`).
 - Stove transfers and the lighter hold no longer depend on where the IK palm lands. In the first port a log
   was laid only when the solved palm was within 4.5 cm of the target. In the 727 shelter workflow the arm
   stopped 0.44 m short and the log was silently never laid. Contact is now a point on the act's timeline;
@@ -321,6 +330,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- The top-right "Room air" HUD readout is gone; the 727 wall thermometer replaces it (owner, #236).
 - Stove look after the owner's review of the 727 capture:
   - flames are about 40 % taller and denser, and a caught log grows to full burn in 6 s instead of 10;
   - the shelter colour grade is 12 % brighter, so the room before ignition reads (frame mean 54 to 61 of 255);
