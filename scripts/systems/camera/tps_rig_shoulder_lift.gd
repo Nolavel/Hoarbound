@@ -13,10 +13,15 @@ func get_lift() -> float:
 	return _lift
 
 
-## Lifts the frame: tilts the view and the orbit down and raises the pivot, by the lift share
-## a doorway leaves. Sets frame.lift.
-func apply(frame: TpsRigFrame) -> void:
-	frame.lift = _update_lift(frame.delta, frame.safe, frame.view_yaw) * (1.0 - rig.get_passage_blend())
+## Eases and returns the lift the room alone asks for: how little level room is behind Henry.
+func room_lift(frame: TpsRigFrame) -> float:
+	return _update_lift(frame.delta, frame.safe, frame.view_yaw)
+
+
+## Lifts the frame by `share` of a full lift, less what a doorway takes: tilts the view and the
+## orbit down and raises the pivot. Sets frame.lift.
+func apply(frame: TpsRigFrame, share: float) -> void:
+	frame.lift = share * (1.0 - rig.get_passage_blend())
 	frame.view_pitch = clampf(frame.view_pitch - frame.lift * rig.shoulder_lift_view_deg, rig.pitch_min_deg, rig.pitch_max_deg)
 	frame.orbit_pitch = clampf(frame.orbit_pitch - frame.lift * rig.shoulder_lift_pitch_deg, -85.0, rig.pitch_max_deg)
 	frame.pivot += Vector3.UP * frame.lift * _lift_rise(frame.pivot)
@@ -64,6 +69,10 @@ func _keep_eyes_in_frame(view_pitch: float, camera: Vector3, lift: float) -> flo
 
 
 ## Pivot rise at full lift: shoulder_lift_rise, or what the ceiling leaves above the pivot.
+func rise_at(pivot: Vector3) -> float:
+	return _lift_rise(pivot)
+
+
 func _lift_rise(pivot: Vector3) -> float:
 	var clearance: float = rig.collision_radius + rig.collision_surface_margin
 	var room: float = rig.get_probe().ray(pivot, Vector3.UP * (rig.shoulder_lift_rise + clearance)) - clearance
