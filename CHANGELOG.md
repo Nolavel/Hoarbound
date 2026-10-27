@@ -172,6 +172,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- A room Henry is not in now keeps warming or cooling. `ThermalManager` advanced only the zones Henry's probe
+  overlapped, so a room left with a dying fire stayed as warm as when he walked out. Every loaded `ThermalZone`
+  now advances (`ThermalZone.get_all()`); the wall thermometer made the stale reading visible.
+- Negative temperatures in IM Fell English SC (FEELS, the thermometer) use an en dash: the font has no minus sign and
+  draws "-" like a tilde (`TemperatureText.signed`).
 - Stove transfers and the lighter hold no longer depend on where the IK palm lands. In the first port a log
   was laid only when the solved palm was within 4.5 cm of the target. In the 727 shelter workflow the arm
   stopped 0.44 m short and the log was silently never laid. Contact is now a point on the act's timeline;
