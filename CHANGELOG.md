@@ -335,6 +335,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- TPS camera rig split into behaviours (#240 stage 2). `_update_rig` now runs `TpsRigFollow`, `TpsRigAutoSwap`,
+  `TpsRigComposition`, `TpsRigPassage`, `TpsRigShoulderLift`, `TpsRigRecompose`, `TpsRigCollision` and `TpsRigWork`
+  on one `TpsRigFrame`, each owning its state and smoothing. Behaviour is unchanged: the 727 route trace and the
+  tight-space trace match their pre-refactor output byte for byte.
+- `tools/runtime/trace_camera_route.gd` (#240 stage 1) measures the camera on a 727 walk. It records eyes in frame,
+  fades, jumps over 0.3 m, wall share, the share of the frame Henry covers, and mouse deviation.
 - Work gloves restyled after the owner's reference: an olive back, tan leather at the knuckles and fingertips,
   a dark palm, and an insulated dark gauntlet over the sleeve (`Outfit_GloveCuff`) with a strap and a red pull tab.
   Panels are flat colours painted per face and settled by a neighbour vote so decimation leaves no specks.
