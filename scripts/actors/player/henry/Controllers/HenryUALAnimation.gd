@@ -230,6 +230,8 @@ var _work_pose_blend: float = 0.0
 var _work_clip: AnimationNodeAnimation
 var _carried: ItemResource = null
 var _carried_count: int = 0
+var _stove_reserved: bool = false
+var _stove_reach: StoveHandReach
 var _sitting: bool = false
 var _resolved_sit_enter: StringName = &""
 var _resolved_sit_loop: StringName = &""
@@ -377,7 +379,34 @@ func set_carried_item(item: ItemResource, count: int = 1) -> void:
 		for index: int in range(bundle.get_child_count()):
 			var unit := bundle.get_child(index) as Node3D
 			if unit != null:
-				unit.visible = active and index < _carried_count
+				unit.visible = active and index < _carried_count - int(_stove_reserved)
+
+
+func get_stove_reach() -> StoveHandReach:
+	if _stove_reach == null and skeleton != null:
+		_stove_reach = StoveHandReach.new()
+		_stove_reach.name = "StoveReach"
+		skeleton.add_child(_stove_reach)
+	return _stove_reach
+
+func get_stove_pickup(carried: bool) -> Dictionary:
+	if carried and _carried != null and _carry_props.has(_carried.attached_mesh_node_name):
+		var bundle := _carry_props[_carried.attached_mesh_node_name] as Node3D
+		if _carried_count > 0 and bundle.get_child_count() >= _carried_count:
+			var unit := bundle.get_child(_carried_count-1) as Node3D
+			var axis: Vector3 = unit.global_basis.y.normalized()
+			var hand: Vector3 = skeleton.to_global(skeleton.get_bone_global_pose(skeleton.find_bone(offhand_bone)).origin)
+			if (hand-unit.global_position).dot(axis) < 0:
+				axis = -axis
+			return {"point":unit.global_position+axis*0.23+Vector3.UP*0.055,"basis":Basis.looking_at(-axis,Vector3.UP)}
+	var hip: int = skeleton.find_bone(&"thigh_r")
+	var pocket: Vector3 = skeleton.to_global(skeleton.get_bone_global_pose(hip).origin)
+	return {"point":pocket+Vector3.UP*0.12+global_basis.z*0.08+global_basis.x*0.06,"basis":global_basis}
+
+
+func reserve_stove_carry(reserved: bool) -> void:
+	_stove_reserved = reserved
+	set_carried_item(_carried,_carried_count)
 
 
 ## The shared held-item socket on the right hand, made on first use.

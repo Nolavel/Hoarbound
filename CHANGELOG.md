@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Stove fire per log, ported from the `codex` branch (Codex's work, finished here). Each log has its own
+  irregular geometry, char, flame and embers, plus weak ignition smoke. Henry's arm reaches in through
+  `StoveHandReach` to take, insert and release each item. Tinder comes only from a Quick Access pocket or
+  the hand, not the pack. Log poses and char origins survive save/load and refuel. `HeatSource` stays the
+  only authority on fuel and heat. Codex's 11 MB of capture media stayed on its branch.
 - Frostbite consequences (#236 stage 6, owner direction). Each body part gets frostnip, then frostbite, after
   its cold load is held long enough (0.6 for 20 min; 0.85 for about 36 min). The stage heals in warmth
   (frostbite over 6 h) and is saved. Six afflictions carry the effects:
@@ -163,6 +168,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Stove transfers and the lighter hold no longer depend on where the IK palm lands. In the first port a log
+  was laid only when the solved palm was within 4.5 cm of the target. In the 727 shelter workflow the arm
+  stopped 0.44 m short and the log was silently never laid. Contact is now a point on the act's timeline;
+  the arm only presents it.
+- Pocket takes keep an item's runtime state. The flare rollback (`HeldOwnership.take` / `restore`), stove
+  fuel and eating now use `take_pocket_instance()`; the id-only `take_from_pocket()` refuses stateful items,
+  so those paths would have silently failed once items carry state.
 - Warmth colour now follows the hypothermia stages (yellow from CHILLED 36 °C, red from HYPOTHERMIC 33 °C).
   The generic 66 %/33 % ring thresholds left 31 °C (the CRITICAL stage) yellow.
 - Felt temperature is computed on world ready and on load. Before, it stayed 0 °C until the first
@@ -309,6 +321,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Stove look after the owner's review of the 727 capture:
+  - flames are about 40 % taller and denser, and a caught log grows to full burn in 6 s instead of 10;
+  - the shelter colour grade is 12 % brighter, so the room before ignition reads (frame mean 54 to 61 of 255);
+  - the stove ring sits at screen centre, 100 px down;
+  - the F BACK / STOVE prompt keeps its place but drops to 60 % opacity during the session.
 - Stove ritual framing (owner: "we saw nothing inside the stove or what Henry does"). The TPS camera stayed high
   behind Henry, his back hid the door, and the iron stove was lost on the dark floor. The same TPS camera now
   eases onto a work framing while the door is open (`TpsCamera.set_work_framing`), the owner's composition:

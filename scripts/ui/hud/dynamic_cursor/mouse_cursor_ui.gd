@@ -48,6 +48,8 @@ extends Control
 @export_range(0.5, 10.0, 0.1) var session_spread_rate: float = 2.5
 ## The title sits this far inside the right bracket, mirroring the key beside the left one.
 @export var session_title_inset: float = 114.0
+## Opacity of the whole parted prompt during a session, so it stays readable but recedes.
+@export_range(0.1, 1.0, 0.05) var session_prompt_alpha: float = 0.6
 
 @export_group("Movement and stamina")
 @export var movement_controller: MovementController
@@ -252,6 +254,11 @@ func _active_session() -> InteractiveArea:
 
 
 ## How far past their usual spot the brackets (and their halves) have travelled outward, px.
+## 1 outside a session, easing to session_prompt_alpha while one holds the prompt.
+func _session_dim() -> float:
+	return lerpf(1.0, session_prompt_alpha, _smoothstep01(_session_blend))
+
+
 func _session_shift() -> float:
 	var t := clampf(_interaction_morph_progress, 0.0, 1.0)
 	var room := get_viewport_rect().size.x * 0.5 - session_edge_margin - interaction_bracket_offset
@@ -388,6 +395,7 @@ func _update_prompt_visuals() -> void:
 		return
 	var center := get_viewport_rect().size * 0.5
 	_prompt_face.position = center - prompt_content_size * 0.5 - Vector2(_session_shift(), 0.0)
+	_prompt_face.modulate.a = _session_dim()
 	_prompt_face.size = prompt_content_size
 
 	var t := clampf(_interaction_morph_progress, 0.0, 1.0)
@@ -422,7 +430,7 @@ func _update_interaction_edge_fades(center: Vector2, t: float) -> void:
 		half.position = Vector2(center.x - size.x - shift if side == 0 else center.x + shift, center.y - size.y * 0.5)
 		half.size = size
 		half.texture = _whole_texture if _session_blend > 0.001 else _half_textures[side]
-		half.modulate.a = reveal
+		half.modulate.a = reveal * _session_dim()
 		half.visible = stretch > 0.001 and reveal > 0.001
 
 
@@ -498,7 +506,7 @@ func _draw_interaction_morph_shape(center: Vector2, t: float, color: Color) -> v
 
 	var alpha := _smoothstep01(t / 0.18)
 	var shape_color := color
-	shape_color.a *= alpha
+	shape_color.a *= alpha * _session_dim()
 	var juice := sin(shape_t * PI)
 	if juice > 0.001 and interaction_morph_glow > 0.0:
 		_draw_morph_paths(
@@ -590,7 +598,7 @@ static func _color_with_alpha(color: Color, alpha_scale: float) -> Color:
 func _draw_session_title(center: Vector2) -> void:
 	if _session_blend <= 0.001 or _session_title.is_empty() or _prompt_face == null:
 		return
-	var alpha := _prompt_face.get_text_reveal() * _smoothstep01(_session_blend)
+	var alpha := _prompt_face.get_text_reveal() * _smoothstep01(_session_blend) * session_prompt_alpha
 	if alpha <= 0.005:
 		return
 	if _title_font == null:

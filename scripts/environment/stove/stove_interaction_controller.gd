@@ -213,6 +213,12 @@ func on_lmb_pressed() -> void:
 		return
 	if _await_lmb_release:
 		return
+	if feed.get_act() == HeatSourceFeed.Act.LIGHT:
+		var refusal: HeatSourceFeed.Refusal = feed.get_lighter_refusal()
+		if refusal != HeatSourceFeed.Refusal.NONE:
+			feed.cancel_act(&"tool_lost")
+			feed.report(refusal)
+			return
 	match feed.get_stage():
 		HeatSourceFeed.Stage.READY:
 			feed.attempt_lighter_strike()

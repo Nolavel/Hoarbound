@@ -25,8 +25,8 @@ const HINT_PX: int = 11
 
 @export var ring_radius_px: float = 50.0
 @export var arc_width_px: float = 5.0
-## Ring centre height above the screen's lower edge (owner: low, clear of the work view).
-@export var bottom_offset_px: float = 200.0
+## Ring centre below the screen centre, px (owner: centre and 100 px down).
+@export var center_drop_px: float = 100.0
 
 var _feed: HeatSourceFeed
 var _shown: bool = false
@@ -75,7 +75,7 @@ func describe(arc: Arc) -> Dictionary:
 			var partial: float = 0.0
 			if _feed.get_act() == HeatSourceFeed.Act.FUEL:
 				state = ArcState.ACTIVE
-				partial = _feed.get_act_progress()
+				partial = 0.0 if _feed.did_commit_transfer() else _feed.get_act_progress()
 			elif loaded >= capacity and capacity > 0:
 				state = ArcState.DONE
 			elif _feed.get_fuel_refusal() == HeatSourceFeed.Refusal.NONE:
@@ -222,10 +222,10 @@ func _text(at: Vector2, text: String, size: int, colour: Color, centred: bool) -
 	draw_string(_font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, colour)
 
 
-## Bottom centre of the screen, bottom_offset_px above the lower edge.
+## Screen centre, center_drop_px lower.
 func _anchor() -> Vector2:
 	var size: Vector2 = get_viewport_rect().size
-	return Vector2(size.x * 0.5, size.y - bottom_offset_px)
+	return Vector2(size.x * 0.5, size.y * 0.5 + center_drop_px)
 
 
 func _any_refusal() -> bool:

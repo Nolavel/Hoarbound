@@ -156,10 +156,11 @@ func ignite_held() -> bool:
 	if not HeldOwnership.owns(inventory, equipment, flare_item_id, source):
 		put_away_unlit()
 		return false
-	if not HeldOwnership.take(inventory, equipment, flare_item_id, source):
+	var taken: Dictionary = HeldOwnership.take(inventory, equipment, flare_item_id, source)
+	if taken.is_empty():
 		return false
 	if not _flare.ignite():
-		HeldOwnership.restore(inventory, equipment, flare_item_id, source)
+		HeldOwnership.restore(inventory, equipment, taken, source)
 		return false
 	_source_zone = &""
 	_physical = true

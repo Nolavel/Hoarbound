@@ -29,20 +29,23 @@ static func owns(inventory: InventoryComponent, equipment: EquipmentComponent, i
 	return zone_item(equipment, zone) == item_id
 
 
-## Takes one item_id out of storage at zone; returns false and changes nothing if absent.
-static func take(inventory: InventoryComponent, equipment: EquipmentComponent, item_id: StringName, zone: StringName) -> bool:
+## Takes one item_id out of storage at zone with its runtime state; {} and no change if absent.
+static func take(inventory: InventoryComponent, equipment: EquipmentComponent, item_id: StringName, zone: StringName) -> Dictionary:
 	if not owns(inventory, equipment, item_id, zone):
-		return false
+		return {}
 	if zone == &"":
-		return inventory.try_remove(item_id)
+		var taken: Dictionary = inventory.take_instance(item_id)
+		return {} if taken.is_empty() else {"id": item_id, "instance_state": taken["instance_state"]}
 	var parts: PackedStringArray = String(zone).split(EquipmentComponent.POCKET_SEPARATOR)
-	return equipment.take_from_pocket(StringName(parts[0]), StringName(parts[1])) == item_id
+	return equipment.take_pocket_instance(StringName(parts[0]), StringName(parts[1]))
 
 
-## Puts item_id back where take() found it; the spot was just emptied, so it fits.
-static func restore(inventory: InventoryComponent, equipment: EquipmentComponent, item_id: StringName, zone: StringName) -> bool:
+## Puts a take() payload back where it was found, state included; the spot was just emptied.
+static func restore(inventory: InventoryComponent, equipment: EquipmentComponent, payload: Dictionary, zone: StringName) -> bool:
+	var item_id: StringName = payload.get("id", &"")
+	var state: Dictionary = payload.get("instance_state", {})
 	if zone != &"" and equipment != null:
 		var parts: PackedStringArray = String(zone).split(EquipmentComponent.POCKET_SEPARATOR)
-		if parts.size() == 2 and equipment.stow(StringName(parts[0]), StringName(parts[1]), item_id) == EquipmentComponent.Refusal.NONE:
+		if parts.size() == 2 and equipment.stow_instance(StringName(parts[0]), StringName(parts[1]), item_id, state) == EquipmentComponent.Refusal.NONE:
 			return true
-	return inventory != null and inventory.try_add(ItemCatalog.get_item(item_id))
+	return inventory != null and inventory.try_add_instance(ItemCatalog.get_item(item_id), state)
