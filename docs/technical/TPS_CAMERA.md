@@ -118,6 +118,30 @@ Stage 2 moved the code without changing it. `trace_camera_route.gd` (2,588 frame
 both are deterministic at a fixed 30 fps. `test_doorway_camera` runs on real frame time and
 varies from run to run (791–793 off-screen frames, 1–2 pops) on either version.
 
+### Doorway steps removed (#240 stage 3 v2)
+
+The route trace showed the doorway goals themselves step, and a spring before the hard
+constraints only moved the step into the wall snap. Three changes remove the steps at their source:
+
+- **The door side holds while the doorway holds the frame.** `TpsPassageFraming.update_side` flips the
+  camera's side of the door plane (and with it the orbit cone's axis by 180°) only once the passage
+  blend is under `TpsRigPassage.SIDE_LOCK_BLEND` (0.05).
+- **A neighbouring doorway waits.** It takes the frame only once the current one is under
+  `HANDOVER_BLEND` (0.05), or Henry is in it. A new door facing the same way keeps the camera's side.
+- **Hand-over offset.** When the frame does move to a new door, the shoulder step to its centre line is
+  carried as an offset and eased out at `passage_release_rate`.
+
+| Route trace (727) | Stage 2 | Stage 3 v2 |
+|---|---|---|
+| Real jumps > 0.3 m | 3 (0.31, 0.71, 0.73 m) | 2 (0.33, 0.73 m: the corridor-wall snap below) |
+| Eyes in frame / faded | 100 % / 0 % | 100 % / 0 % |
+
+The tight-space trace is unchanged. **Still open:** leaving a doorway sideways, the blend stays near 1
+while the band pulls the shoulder up to 1.1 m off Henry toward the door's centre line. The boom then
+meets the corridor wall and the centre sweep snaps it in (0.81 → 0.25 of its length). Next: cap how
+far the doorway may pull the shoulder off Henry. Side feelers alongside the boom were tried and
+reverted: 0.73 → 0.67 m, plus a new snap elsewhere.
+
 ## Control and view
 
 Unreal's split: `ControlRotation` drives the pawn, and camera modifiers change

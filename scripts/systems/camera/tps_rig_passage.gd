@@ -4,6 +4,11 @@ extends TpsRigBehaviour
 ## Doorways: the frame closes round Henry before he reaches one, the camera body orbits in a
 ## cone through it, and the view eases into soft stops while he traverses it.
 
+## Blend above which the current doorway keeps the frame against a neighbouring one.
+const HANDOVER_BLEND: float = 0.05
+## Blend above which the camera keeps its side of the door plane.
+const SIDE_LOCK_BLEND: float = 0.05
+
 ## Henry's doorway traversal, read for the frame; looked up once after his _ready.
 var _passage: PassageTraversalComponent
 var _passage_looked_up: bool = false
@@ -12,6 +17,10 @@ var _framing := TpsPassageFraming.new()
 ## Orbit cone of the camera body in a passage: left and right turn off the axis
 ## (radians), elevation and depression (degrees). Closes at once, opens softly.
 var _cone := Vector4(PI, PI, 90.0, 90.0)
+## Hand-over between doorways: the shoulder offset the old one left, eased out after the swap.
+var _handover_side: float = 0.0
+var _last_info: PassageInfo
+var _last_side: float = 0.0
 
 
 func reset() -> void:
@@ -34,13 +43,21 @@ func update(delta: float) -> void:
 		_passage_looked_up = true
 		_passage = rig.player.get_node_or_null(^"PassageTraversalComponent") as PassageTraversalComponent
 	var passage: PassageInfo = _passage.get_nearby_passage() if _passage != null else null
+	var engaged: bool = _passage != null and _passage.get_passage() != null
+	## A neighbouring doorway takes the frame over only once this one has let go, or Henry is in it:
+	## swapping doors mid-blend would step the shoulder band and the cone in one frame.
+	if passage != null and _framing.has_passage() and not passage.same_passage(_framing.info) \
+			and _passage_blend > HANDOVER_BLEND and not engaged:
+		passage = _framing.info
 	if passage != null:
 		_framing.set_passage(passage)
 	var goal: float = 0.0
 	if _framing.has_passage():
 		_framing.clearance = rig.collision_radius + rig.collision_surface_margin
 		_framing.body_radius = rig.get_capsule_radius()
-		_framing.update_side(TpsCamera.back_dir(rig.get_view_yaw(), 0.0))
+		## While the doorway holds the frame the camera keeps its side: a flip turns the cone half a
+		## circle at once, so it waits until the blend has let go and the step is small.
+		_framing.update_side(TpsCamera.back_dir(rig.get_view_yaw(), 0.0), _passage_blend > SIDE_LOCK_BLEND)
 	if passage != null:
 		var view_back: Vector3 = TpsCamera.back_dir(rig.get_view_yaw(), 0.0)
 		var off: float = minf(absf(angle_difference(_framing.axis_yaw(), rig.get_view_yaw())), PI / 3.0)
@@ -48,7 +65,7 @@ func update(delta: float) -> void:
 		var boom_h: float = boom() * cos(deg_to_rad(rig.get_view_pitch_deg())) * cos(off)
 		var speed: float = Vector2(rig.player.velocity.x, rig.player.velocity.z).length()
 		var approach: float = (rig.passage_approach + speed * rig.passage_lead_time) * (1.0 + rig.passage_angle_lead * (1.0 - cos(off)))
-		goal = _framing.goal(rig.get_feet_position(), view_back, boom_h, approach, _passage.get_passage() != null)
+		goal = _framing.goal(rig.get_feet_position(), view_back, boom_h, approach, engaged and _passage.get_passage().same_passage(_framing.info))
 	var rate: float = rig.passage_compress_rate if goal > _passage_blend else rig.passage_release_rate
 	_passage_blend = goal if not rig.is_placed() else lerpf(_passage_blend, goal, TpsCamera.damp(rate, delta))
 	if passage == null and _passage_blend <= 0.001:
@@ -63,10 +80,19 @@ func orbit(frame: TpsRigFrame) -> void:
 	frame.orbit_pitch = frame.view_pitch
 	if not (_framing.has_passage() and _passage_blend > 0.001):
 		_cone = Vector4(PI, PI, 90.0, 90.0)
+		_last_info = null
+		_handover_side = 0.0
 		return
 	var blend: float = _passage_blend
 	frame.want = lerpf(frame.want, minf(frame.want, boom()), blend)
-	frame.side = lerpf(frame.side, _side(frame.pivot, frame.side), blend)
+	var side: float = lerpf(frame.side, _side(frame.pivot, frame.side), blend)
+	## A new doorway re-centres the shoulder on its own line: the step is carried and eased out.
+	if _last_info != null and _framing.info != _last_info and not _framing.info.same_passage(_last_info):
+		_handover_side = _last_side - side
+	_handover_side = lerpf(_handover_side, 0.0, TpsCamera.damp(rig.passage_release_rate, frame.delta))
+	_last_info = _framing.info
+	frame.side = side + _handover_side
+	_last_side = frame.side
 	var axis_yaw: float = _framing.axis_yaw()
 	var limits: Vector2 = view_yaw_limits()
 	var off: float = angle_difference(axis_yaw, frame.view_yaw)
