@@ -534,6 +534,8 @@ func _update_rig(delta: float) -> void:
 	_rig_passage.orbit(frame)
 	var room_lift: float = _rig_lift.room_lift(frame)
 	_rig_lift.apply(frame, minf(room_lift, _rig_shot.update(frame, room_lift)))
+	## The chosen swing of the camera body round Henry; a doorway's cone owns the orbit instead.
+	frame.orbit_yaw = wrapf(frame.orbit_yaw + _rig_shot.get_yaw_offset() * (1.0 - _rig_passage.get_blend()), -PI, PI)
 	_rig_composition.rise(frame)
 	_last_pivot = frame.pivot
 	_last_lift_pitch = frame.lift * shoulder_lift_pitch_deg
@@ -574,22 +576,42 @@ func free_camera(safe: Vector3, shoulder: Vector3, back: Vector3, want: float) -
 	return start + back * clampf(room, collision_min_distance, want)
 
 
-## Stateless look at the frame a lift share would give, from this frame before the lift: the
-## camera's distance to Henry's eyes and where they sit on screen (0 top, 1 bottom).
-func predict_lift(frame: TpsRigFrame, lift: float) -> Dictionary:
+## Where the camera would settle on a boom from `shoulder`: the shoulder sweep, then the
+## centre sweep and the feelers, as TpsRigCollision eases to them.
+func _predict_camera(safe: Vector3, shoulder: Vector3, back: Vector3, want: float) -> Vector3:
+	var leg: Vector3 = shoulder - safe
+	var start: Vector3 = shoulder
+	if leg.length() > 0.001:
+		start = safe + leg * clampf((_probe.sweep(safe, leg, false) - 0.05) / leg.length(), 0.0, 1.0)
+	var shares: Vector3 = _rig_collision.target_shares(start, back, want)
+	return start + back * want * minf(shares.x, shares.y)
+
+
+## Stateless look at the frame a shot would give, from this frame before the lift: `lift` share
+## and the camera body swung `yaw_off` radians round Henry off the orbit (the view stays the
+## player's). Returns the camera's distance to Henry's eyes and where they sit on screen (0..1).
+func predict_shot(frame: TpsRigFrame, lift: float, yaw_off: float) -> Dictionary:
 	var view_pitch: float = clampf(frame.view_pitch - lift * shoulder_lift_view_deg, pitch_min_deg, pitch_max_deg)
 	var orbit_pitch: float = clampf(frame.orbit_pitch - lift * shoulder_lift_pitch_deg, -85.0, pitch_max_deg)
+	var orbit_yaw: float = frame.orbit_yaw + yaw_off
 	var pivot: Vector3 = frame.pivot + Vector3.UP * lift * _rig_lift.rise_at(frame.pivot)
-	var right := Vector3(cos(frame.orbit_yaw), 0.0, -sin(frame.orbit_yaw))
-	var camera: Vector3 = free_camera(frame.safe, pivot + right * frame.side, back_dir(frame.orbit_yaw, orbit_pitch), frame.want)
+	var right := Vector3(cos(orbit_yaw), 0.0, -sin(orbit_yaw))
+	## Recompose's share is read, not predicted: it follows the eye distance over many frames.
+	var side: float = frame.side * (1.0 - _rig_recompose.get_recompose())
+	var camera: Vector3 = _predict_camera(frame.safe, pivot + right * side, back_dir(orbit_yaw, orbit_pitch), frame.want)
 	var to_eye: Vector3 = get_eye_position() - camera
-	var below: float = rad_to_deg(asin(clampf(-to_eye.normalized().y, -1.0, 1.0))) if to_eye.length_squared() > 1e-6 else 0.0
-	var half: float = half_fov_deg(false)
-	var off: float = below + view_pitch
-	if lift > 0.0:
-		off = lerpf(off, minf(off, half - shoulder_lift_frame_margin_deg), smoothstep(0.0, 0.2, lift))
-	var eye_y: float = 0.5 + 0.5 * tan(deg_to_rad(clampf(off, -89.0, 89.0))) / tan(deg_to_rad(half))
-	return {"eye_distance": to_eye.length(), "eye_screen_y": eye_y}
+	if lift > 0.0 and to_eye.length_squared() > 1e-6:
+		## The tilt keep_eyes will add, pitch limits included.
+		var below_deg: float = rad_to_deg(asin(clampf(-to_eye.normalized().y, -1.0, 1.0)))
+		var limit: float = -(below_deg - (half_fov_deg(false) - shoulder_lift_frame_margin_deg))
+		view_pitch = clampf(lerpf(view_pitch, minf(view_pitch, limit), smoothstep(0.0, 0.2, lift)), pitch_min_deg, pitch_max_deg)
+	var local: Vector3 = Basis.from_euler(Vector3(deg_to_rad(view_pitch), frame.view_yaw, 0.0)).inverse() * to_eye
+	var depth: float = maxf(-local.z, 0.05)
+	var tangents: Vector2 = half_tangents()
+	var eye := Vector2(0.5 + 0.5 * local.x / depth / tangents.x, 0.5 - 0.5 * local.y / depth / tangents.y)
+	if local.z > -0.05:
+		eye = Vector2(-1.0, -1.0)  # behind the lens: off screen
+	return {"eye_distance": to_eye.length(), "eye_screen": eye}
 
 
 ## 0 in the open, 1 with Henry framed low at the side of a tight space.
@@ -604,7 +626,7 @@ func get_debug_state() -> Dictionary:
 		"openness": _openness, "room": _room, "boom": _boom, "side": _last_side, "shoulder_pct": _rig_collision.get_shoulder_share(),
 		"recompose": _rig_recompose.get_recompose(), "composition": _rig_composition.get_composition(), "lift": _rig_lift.get_lift(),
 		"body_fade": get_body_fade(), "swap": _rig_swap.get_swap(), "swap_own": _rig_swap.get_rooms().x, "swap_other": _rig_swap.get_rooms().y,
-		"eye_distance": _last_eye_distance, "lift_cap": _rig_shot.get_cap(), "passage_blend": _rig_passage.get_blend(), "boom_share": _rig_collision.get_boom_share(),
+		"eye_distance": _last_eye_distance, "lift_cap": _rig_shot.get_cap(), "shot_yaw_deg": rad_to_deg(_rig_shot.get_yaw_offset()), "shot_eye": _rig_shot.get_predicted_eye(), "passage_blend": _rig_passage.get_blend(), "boom_share": _rig_collision.get_boom_share(),
 		"passage_x": _rig_passage.get_framing().info.center.x if _rig_passage.get_framing().info != null else 0.0,
 		"passage_side": _rig_passage.get_framing().back_axis.dot(_rig_passage.get_framing().info.axis) if _rig_passage.get_framing().info != null else 0.0,
 		"traversal": _rig_passage.traversal() if is_instance_valid(player) else 0.0}
