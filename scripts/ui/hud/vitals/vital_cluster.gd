@@ -77,7 +77,6 @@ const TREND_IDS: Array[StringName] = [&"thirst", &"hunger", &"sleep", &"warmth"]
 @export var critical_color: Color = Color(0.80, 0.24, 0.16, 0.95)
 
 var cells: Dictionary = {}
-var _room_readout: Label
 ## Latest value per id (vital ids plus &"wetness"), its value at the window start and its trend.
 var _values: Dictionary = {}
 var _window_start: Dictionary = {}
@@ -104,22 +103,11 @@ func _ready() -> void:
 	_build_views()
 	_bind_bio_monitor()
 	_bind_thermal()
-	var layer := CanvasLayer.new()
-	layer.layer = 8
-	add_child(layer)
-	_room_readout = Label.new()
-	_room_readout.add_theme_font_size_override("font_size", 20)
-	_room_readout.add_theme_constant_override("outline_size", 5)
-	layer.add_child(_room_readout)
 	resized.connect(_layout)
 	_layout()
 
 
 func _process(delta: float) -> void:
-	_room_readout.visible = is_visible_in_tree() and thermal_manager != null and thermal_manager.is_sheltered()
-	if _room_readout.visible:
-		_room_readout.text = tr("SHELTER_ROOM_TEMPERATURE") % thermal_manager.get_room_temperature_c()
-		_room_readout.position = Vector2(get_viewport_rect().size.x - _room_readout.size.x - 24.0, 24.0)
 	_window_left -= delta
 	if _window_left <= 0.0:
 		_window_left = trend_window

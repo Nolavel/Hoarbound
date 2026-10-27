@@ -149,6 +149,18 @@ Body parts are data, not code (`core/body/`, `data/body/`).
   which needs a Blender pass to add an `Outfit_Gloves` part (then `GARMENT_PARTS["Gloves"]`).
 - **Placement**: the gloves are not yet in the world; where to put them is the owner's call.
 
+## Wall thermometer
+
+The room temperature is no longer on the HUD. `WallThermometer` (`scripts/environment/thermometer/`) hangs in the
+727 waiting room, just inside the lobby arch:
+- an analog dial from −40 to +40 °C over 270°, with a red needle;
+- below it, the figure in IM Fell English SC on a grey gradient plate, °C only (`THERMOMETER_READING`);
+- the figure fades out between 2.5 and 3 m from Henry; the dial stays;
+- the reading is outdoor air plus its `ThermalZone` offset, the same air `ThermalManager.get_room_temperature_c()` gives.
+
+Placement is data: a `wall_thermometer` entry in the landmark spec's `furniture` (`h` = centre above the floor).
+Capture: `tools/runtime/capture_thermometer.gd`. Test: `tests/systems/test_wall_thermometer.gd`.
+
 ## Room warmth persistence
 
 `ShelterState` saves each zone's accumulated fire warmth (`heat`, by zone name). A streamed-in or

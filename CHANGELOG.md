@@ -8,6 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Wall thermometer in the 727 waiting room (#236), just inside the lobby arch, 1.5 m up (`WallThermometer`, placed
+  from the landmark spec's furniture list). It is an analog dial from −40 to +40 °C with a red needle; the figure
+  (`THERMOMETER_READING`, °C only) sits on a grey gradient plate below it and fades out between 2.5 and 3 m from Henry.
+  It reads outdoor air plus its zone's warmth; the needle and figure follow it smoothly. No interaction.
 - Stove fire per log, ported from the `codex` branch (Codex's work, finished here). Each log has its own
   irregular geometry, char, flame and embers, plus weak ignition smoke. Henry's arm reaches in through
   `StoveHandReach` to take, insert and release each item. Tinder comes only from a Quick Access pocket or
@@ -321,6 +325,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- The top-right "Room air" HUD readout is gone; the 727 wall thermometer replaces it (owner, #236).
 - Stove look after the owner's review of the 727 capture:
   - flames are about 40 % taller and denser, and a caught log grows to full burn in 6 s instead of 10;
   - the shelter colour grade is 12 % brighter, so the room before ignition reads (frame mean 54 to 61 of 255);

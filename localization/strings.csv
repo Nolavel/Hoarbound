@@ -118,7 +118,7 @@ BREACH_RECOVER_ACTION,Take remaining boards,Забрать оставшиеся 
 BREACH_CARRIED_DETAIL,Carrying %d boards; F leaves them here,В руках %d доски · F сложить здесь
 REST_FREE_HANDS,Lay down boards or logs before sitting,Сначала положите доски или дрова
 REST_TABLE_DETAIL,Sit: pack beside seat; food on table; aim and F to eat,Сесть: рюкзак рядом · еда на столике · F на еде — есть
-SHELTER_ROOM_TEMPERATURE,Room air: %.1f °C,В комнате: %.1f °C
+THERMOMETER_READING,%+d °C,%+d °C
 HUD_BODY_TEMPERATURE,%.1f°,%.1f°
 HUD_FEELS_LIKE,FEELS %+d°,FEELS %+d°
 Lighter,Lighter,Зажигалка
