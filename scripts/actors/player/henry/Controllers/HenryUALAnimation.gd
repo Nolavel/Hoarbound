@@ -233,6 +233,7 @@ var _carried: ItemResource = null
 var _carried_count: int = 0
 var _stove_reserved: bool = false
 var _stove_reach: StoveHandReach
+var _present_reach: StoveHandReach
 var _sitting: bool = false
 var _resolved_sit_enter: StringName = &""
 var _resolved_sit_loop: StringName = &""
@@ -389,6 +390,15 @@ func get_stove_reach() -> StoveHandReach:
 		_stove_reach.name = "StoveReach"
 		skeleton.add_child(_stove_reach)
 	return _stove_reach
+
+## Second arm reach for presenting a held item before the chest; stove work keeps its own.
+func get_present_reach() -> StoveHandReach:
+	if _present_reach == null and skeleton != null:
+		_present_reach = StoveHandReach.new()
+		_present_reach.name = "PresentReach"
+		_present_reach.ease_out_rate = 2.5
+		skeleton.add_child(_present_reach)
+	return _present_reach
 
 func get_stove_pickup(carried: bool) -> Dictionary:
 	if carried and _carried != null and _carry_props.has(_carried.attached_mesh_node_name):

@@ -7,6 +7,10 @@ signal hand_solved(palm_world: Vector3)
 var grip_weight: float = 0.0
 var lean_weight: float = 0.0
 var fingers_world: Vector3 = Vector3.LEFT
+## Palm frame `into` for _flatten_palm: down onto the stove load, the arm's outward side when presenting.
+var palm_into_world: Vector3 = Vector3.DOWN
+## Weight per second while the arm eases back to the animation.
+var ease_out_rate: float = 6.0
 var palm_world: Vector3 = Vector3.ZERO
 
 func _init() -> void:
@@ -32,11 +36,19 @@ func aim(point: Vector3, fingers: Vector3, weight: float) -> void:
 	fingers_world = fingers.normalized()
 	_goal_weight = clampf(weight,0.0,1.0)
 
+## Eases the arm back to the animation from where it is; the last goal stays put.
+func release() -> void:
+	_goal_weight = 0.0
+
+## 0..1: how far the arm currently follows the reach rather than the animation.
+func get_weight() -> float:
+	return _weight
+
 func _process_modification() -> void:
 	var rig := get_skeleton()
 	if rig == null:
 		return
-	_weight = move_toward(_weight,_goal_weight,6.0*clampf(get_process_delta_time(),0.001,0.05))
+	_weight = move_toward(_weight,_goal_weight,(6.0 if _goal_weight > _weight else ease_out_rate)*clampf(get_process_delta_time(),0.001,0.05))
 	if _weight <= 0.001:
 		return
 	var u: int = _bone(rig,upper_bone)
@@ -56,14 +68,14 @@ func _process_modification() -> void:
 			rig.set_bone_global_pose(spine,pose)
 	var wrist: Vector3 = rig.get_bone_global_pose(h).origin.lerp(inverse*(_goal_point-fingers_world*0.08),smoothstep(0,1,_weight))
 	_solve(rig,u,l,h,wrist,_weight)
-	_flatten_palm(rig,h,inverse.basis*fingers_world,inverse.basis*Vector3.DOWN,_weight)
+	_flatten_palm(rig,h,inverse.basis*fingers_world,inverse.basis*palm_into_world,_weight)
 	_curl_fingers(rig,inverse.basis)
 	palm_world = rig.to_global(rig.get_bone_global_pose(h).origin)+fingers_world*0.08
 	hand_solved.emit(palm_world)
 
 
 func _curl_fingers(rig: Skeleton3D, inverse: Basis) -> void:
-	var axis: Vector3 = inverse*fingers_world.cross(Vector3.DOWN).normalized()
+	var axis: Vector3 = inverse*fingers_world.cross(palm_into_world).normalized()
 	if axis.length_squared() < 0.1:
 		return
 	for finger: String in ["index","middle","ring","pinky"]:
