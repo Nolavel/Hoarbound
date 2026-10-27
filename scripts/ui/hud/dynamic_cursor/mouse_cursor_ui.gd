@@ -48,9 +48,8 @@ extends Control
 @export_range(0.5, 10.0, 0.1) var session_spread_rate: float = 2.5
 ## The title sits this far inside the right bracket, mirroring the key beside the left one.
 @export var session_title_inset: float = 114.0
-## A session that names world anchors (the stove's door frame) hangs its prompt above and left of
-## the leftmost one on screen, this far off, px, instead of parting it to the screen edges.
-@export var session_anchor_offset: Vector2 = Vector2(-40.0, -46.0)
+## Opacity of the whole parted prompt during a session, so it stays readable but recedes.
+@export_range(0.1, 1.0, 0.05) var session_prompt_alpha: float = 0.6
 
 @export_group("Movement and stamina")
 @export var movement_controller: MovementController
@@ -102,8 +101,6 @@ var _half_textures: Array[Texture2D] = []
 var _whole_texture: Texture2D
 var _session_blend: float = 0.0
 var _session_title: String = ""
-## Screen point the session prompt is centred on, or NAN x when the session names no anchors.
-var _session_anchor: Vector2 = Vector2(NAN, NAN)
 var _title_font: Font
 var _prompt_face: ActionPromptFace
 var _confirm_tween: Tween
@@ -171,7 +168,7 @@ func _draw() -> void:
 		_draw_sprint_arcs(center)
 	if _jump_alpha > 0.01:
 		_draw_jump_arc(center)
-	_draw_session_title(_prompt_center())
+	_draw_session_title(center)
 
 
 func _update_movement(delta: float) -> void:
@@ -257,10 +254,13 @@ func _active_session() -> InteractiveArea:
 
 
 ## How far past their usual spot the brackets (and their halves) have travelled outward, px.
+## 1 outside a session, easing to session_prompt_alpha while one holds the prompt.
+func _session_dim() -> float:
+	return lerpf(1.0, session_prompt_alpha, _smoothstep01(_session_blend))
+
+
 func _session_shift() -> float:
 	var t := clampf(_interaction_morph_progress, 0.0, 1.0)
-	if not is_nan(_session_anchor.x):
-		return 0.0
 	var room := get_viewport_rect().size.x * 0.5 - session_edge_margin - interaction_bracket_offset
 	return maxf(room, 0.0) * _smoothstep01(_session_blend) * _smoothstep01((t - 0.50) / 0.50)
 
@@ -379,7 +379,6 @@ func _sync_prompt(target: InteractiveArea) -> void:
 	var session := target.get_session_prompt_data()
 	if not session.is_empty():
 		_session_title = String(session.get("title", ""))
-		_session_anchor = _anchor_center(session.get("anchors", PackedVector3Array()))
 		_prompt_face.set_prompt("", String(session.get("key", "F")), String(session.get("back", "")), "")
 		return
 	var data := target.get_interaction_prompt_data()
@@ -391,39 +390,12 @@ func _sync_prompt(target: InteractiveArea) -> void:
 	)
 
 
-## Where the prompt block is centred: the screen centre, eased toward the session anchor.
-func _prompt_center() -> Vector2:
-	var center := get_viewport_rect().size * 0.5
-	if is_nan(_session_anchor.x):
-		return center
-	return center.lerp(_session_anchor, _smoothstep01(_session_blend))
-
-
-## Centre for a block whose right bracket ends just left of and above the leftmost visible anchor.
-func _anchor_center(anchors: PackedVector3Array) -> Vector2:
-	var camera := get_viewport().get_camera_3d()
-	if camera == null or anchors.is_empty():
-		return Vector2(NAN, NAN)
-	var best := Vector2(INF, INF)
-	for point: Vector3 in anchors:
-		if camera.is_position_behind(point):
-			continue
-		var screen := camera.unproject_position(point)
-		if screen.x < best.x:
-			best = screen
-	if is_inf(best.x):
-		return Vector2(NAN, NAN)
-	var half := interaction_bracket_offset + interaction_bracket_radius
-	var corner := best + session_anchor_offset
-	var size := get_viewport_rect().size
-	return Vector2(clampf(corner.x - half, half, size.x - half), clampf(corner.y, interaction_gradient_height, size.y - interaction_gradient_height))
-
-
 func _update_prompt_visuals() -> void:
 	if _prompt_face == null:
 		return
-	var center := _prompt_center()
+	var center := get_viewport_rect().size * 0.5
 	_prompt_face.position = center - prompt_content_size * 0.5 - Vector2(_session_shift(), 0.0)
+	_prompt_face.modulate.a = _session_dim()
 	_prompt_face.size = prompt_content_size
 
 	var t := clampf(_interaction_morph_progress, 0.0, 1.0)
@@ -458,7 +430,7 @@ func _update_interaction_edge_fades(center: Vector2, t: float) -> void:
 		half.position = Vector2(center.x - size.x - shift if side == 0 else center.x + shift, center.y - size.y * 0.5)
 		half.size = size
 		half.texture = _whole_texture if _session_blend > 0.001 else _half_textures[side]
-		half.modulate.a = reveal
+		half.modulate.a = reveal * _session_dim()
 		half.visible = stretch > 0.001 and reveal > 0.001
 
 
@@ -504,7 +476,7 @@ func _draw_interaction_cursor(center: Vector2, color: Color) -> void:
 		_draw_cursor_enso(center, enso_color)
 	if t <= 0.001:
 		return
-	_draw_interaction_morph_shape(_prompt_center(), t, color)
+	_draw_interaction_morph_shape(center, t, color)
 
 
 ## Ported from ADT's DynamicCursor morph, adapted so the bracket geometry is
@@ -534,7 +506,7 @@ func _draw_interaction_morph_shape(center: Vector2, t: float, color: Color) -> v
 
 	var alpha := _smoothstep01(t / 0.18)
 	var shape_color := color
-	shape_color.a *= alpha
+	shape_color.a *= alpha * _session_dim()
 	var juice := sin(shape_t * PI)
 	if juice > 0.001 and interaction_morph_glow > 0.0:
 		_draw_morph_paths(
@@ -626,7 +598,7 @@ static func _color_with_alpha(color: Color, alpha_scale: float) -> Color:
 func _draw_session_title(center: Vector2) -> void:
 	if _session_blend <= 0.001 or _session_title.is_empty() or _prompt_face == null:
 		return
-	var alpha := _prompt_face.get_text_reveal() * _smoothstep01(_session_blend)
+	var alpha := _prompt_face.get_text_reveal() * _smoothstep01(_session_blend) * session_prompt_alpha
 	if alpha <= 0.005:
 		return
 	if _title_font == null:
@@ -641,7 +613,7 @@ func _draw_session_title(center: Vector2) -> void:
 
 ## Where the brackets stand now: screen x of the left and right one (tests read it).
 func get_bracket_xs() -> Vector2:
-	var center := _prompt_center().x
+	var center := get_viewport_rect().size.x * 0.5
 	var t := clampf(_interaction_morph_progress, 0.0, 1.0)
 	var spread := maxf(interaction_bracket_offset - interaction_bracket_radius, 0.0) * _smoothstep01((t - 0.50) / 0.50) + _session_shift()
 	return Vector2(center - spread, center + spread)

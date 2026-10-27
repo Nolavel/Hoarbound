@@ -746,10 +746,7 @@ func get_interaction_prompt_data() -> Dictionary:
 func get_session_prompt_data() -> Dictionary:
 	if not session_active:
 		return {}
-	var data: Dictionary = {"key": _interact_key_label(), "back": tr(&"WORK_SESSION_BACK"), "title": tr(&"STOVE_SESSION_TITLE")}
-	if _visual() != null:
-		data["anchors"] = _visual().get_prompt_corners()
-	return data
+	return {"key": _interact_key_label(), "back": tr(&"WORK_SESSION_BACK"), "title": tr(&"STOVE_SESSION_TITLE")}
 
 
 func _is_lighting() -> bool:

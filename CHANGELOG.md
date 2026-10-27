@@ -321,6 +321,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Stove look after the owner's review of the 727 capture:
+  - flames are about 40 % taller and denser, and a caught log grows to full burn in 6 s instead of 10;
+  - the shelter colour grade is 12 % brighter, so the room before ignition reads (frame mean 54 to 61 of 255);
+  - the stove ring sits at screen centre, 100 px down;
+  - the F BACK / STOVE prompt keeps its place but drops to 60 % opacity during the session.
 - Stove ritual framing (owner: "we saw nothing inside the stove or what Henry does"). The TPS camera stayed high
   behind Henry, his back hid the door, and the iron stove was lost on the dark floor. The same TPS camera now
   eases onto a work framing while the door is open (`TpsCamera.set_work_framing`), the owner's composition:

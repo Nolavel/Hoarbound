@@ -511,13 +511,6 @@ func reserve_tinder_position() -> void:
 func _log_contact(slot: int) -> Vector3:
 	return _logs[slot].transform*Vector3(0.0,0.015,0.235)
 
-## World corners of the top of the door frame; the HUD hangs the session prompt off the left one.
-func get_prompt_corners() -> PackedVector3Array:
-	var top: float = LEG_H + ASH_H + BOX_H
-	var x: float = SIZE.x * 0.5
-	return PackedVector3Array([to_global(Vector3(x, top, SIZE.z * 0.5)), to_global(Vector3(x, top, -SIZE.z * 0.5))])
-
-
 func get_tinder_contact() -> Vector3:
 	return _tinder_position+Vector3(0,0.022,0)
 
