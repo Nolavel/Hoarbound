@@ -355,6 +355,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- TPS camera picks how far to lift over Henry's shoulder in tight space (#240 stage 4, part 1). Four lift caps are
+  scored on a stateless prediction of the frame and eased with hysteresis. Along walls the camera now stays at the
+  shoulder instead of looking down from above. Tight-space trace: eyes off screen 57 → 11 frames, at the bottom
+  edge 543 → 81, faded 10 → 0. The exam corner and the restroom still lift; authored room hints are next.
 - TPS camera rig split into behaviours (#240 stage 2). `_update_rig` now runs `TpsRigFollow`, `TpsRigAutoSwap`,
   `TpsRigComposition`, `TpsRigPassage`, `TpsRigShoulderLift`, `TpsRigRecompose`, `TpsRigCollision` and `TpsRigWork`
   on one `TpsRigFrame`, each owning its state and smoothing. Behaviour is unchanged: the 727 route trace and the

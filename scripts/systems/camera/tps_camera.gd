@@ -268,6 +268,7 @@ var _rig_lift: TpsRigShoulderLift
 var _rig_recompose: TpsRigRecompose
 var _rig_collision: TpsRigCollision
 var _rig_work: TpsRigWork
+var _rig_shot: TpsRigShotChoice
 
 
 func _init() -> void:
@@ -279,6 +280,7 @@ func _init() -> void:
 	_rig_recompose = TpsRigRecompose.new(self)
 	_rig_collision = TpsRigCollision.new(self)
 	_rig_work = TpsRigWork.new(self)
+	_rig_shot = TpsRigShotChoice.new(self)
 
 
 func _ready() -> void:
@@ -377,6 +379,7 @@ func snap_to_target() -> void:
 	_rig_collision.reset()
 	_rig_follow.reset()
 	_rig_recompose.reset()
+	_rig_shot.reset()
 	_last_eye_distance = INF
 	_rig_passage.reset()
 	_clear_auto_look()
@@ -529,7 +532,8 @@ func _update_rig(delta: float) -> void:
 	frame.side = shoulder_now * lerpf(tight_shoulder_fraction, 1.0, roominess)
 	_rig_composition.frame_side(frame, shoulder_now)
 	_rig_passage.orbit(frame)
-	_rig_lift.apply(frame)
+	var room_lift: float = _rig_lift.room_lift(frame)
+	_rig_lift.apply(frame, minf(room_lift, _rig_shot.update(frame, room_lift)))
 	_rig_composition.rise(frame)
 	_last_pivot = frame.pivot
 	_last_lift_pitch = frame.lift * shoulder_lift_pitch_deg
@@ -556,12 +560,36 @@ func _update_rig(delta: float) -> void:
 ## Distance from the eyes a camera would get on a boom from `shoulder`, walls applied,
 ## without touching any smoothing state.
 func free_eye_distance(safe: Vector3, shoulder: Vector3, back: Vector3, want: float, eye: Vector3) -> float:
+	return free_camera(safe, shoulder, back, want).distance_to(eye)
+
+
+## Where a camera on a boom from `shoulder` would stand, walls applied, without touching any
+## smoothing state.
+func free_camera(safe: Vector3, shoulder: Vector3, back: Vector3, want: float) -> Vector3:
 	var leg: Vector3 = shoulder - safe
 	var start: Vector3 = shoulder
 	if leg.length() > 0.001:
 		start = safe + leg * clampf((_probe.sweep(safe, leg, false) - 0.05) / leg.length(), 0.0, 1.0)
 	var room: float = _probe.sweep(start, back * want) - collision_surface_margin
-	return (start + back * clampf(room, collision_min_distance, want)).distance_to(eye)
+	return start + back * clampf(room, collision_min_distance, want)
+
+
+## Stateless look at the frame a lift share would give, from this frame before the lift: the
+## camera's distance to Henry's eyes and where they sit on screen (0 top, 1 bottom).
+func predict_lift(frame: TpsRigFrame, lift: float) -> Dictionary:
+	var view_pitch: float = clampf(frame.view_pitch - lift * shoulder_lift_view_deg, pitch_min_deg, pitch_max_deg)
+	var orbit_pitch: float = clampf(frame.orbit_pitch - lift * shoulder_lift_pitch_deg, -85.0, pitch_max_deg)
+	var pivot: Vector3 = frame.pivot + Vector3.UP * lift * _rig_lift.rise_at(frame.pivot)
+	var right := Vector3(cos(frame.orbit_yaw), 0.0, -sin(frame.orbit_yaw))
+	var camera: Vector3 = free_camera(frame.safe, pivot + right * frame.side, back_dir(frame.orbit_yaw, orbit_pitch), frame.want)
+	var to_eye: Vector3 = get_eye_position() - camera
+	var below: float = rad_to_deg(asin(clampf(-to_eye.normalized().y, -1.0, 1.0))) if to_eye.length_squared() > 1e-6 else 0.0
+	var half: float = half_fov_deg(false)
+	var off: float = below + view_pitch
+	if lift > 0.0:
+		off = lerpf(off, minf(off, half - shoulder_lift_frame_margin_deg), smoothstep(0.0, 0.2, lift))
+	var eye_y: float = 0.5 + 0.5 * tan(deg_to_rad(clampf(off, -89.0, 89.0))) / tan(deg_to_rad(half))
+	return {"eye_distance": to_eye.length(), "eye_screen_y": eye_y}
 
 
 ## 0 in the open, 1 with Henry framed low at the side of a tight space.
@@ -576,7 +604,7 @@ func get_debug_state() -> Dictionary:
 		"openness": _openness, "room": _room, "boom": _boom, "side": _last_side, "shoulder_pct": _rig_collision.get_shoulder_share(),
 		"recompose": _rig_recompose.get_recompose(), "composition": _rig_composition.get_composition(), "lift": _rig_lift.get_lift(),
 		"body_fade": get_body_fade(), "swap": _rig_swap.get_swap(), "swap_own": _rig_swap.get_rooms().x, "swap_other": _rig_swap.get_rooms().y,
-		"eye_distance": _last_eye_distance, "passage_blend": _rig_passage.get_blend(), "boom_share": _rig_collision.get_boom_share(),
+		"eye_distance": _last_eye_distance, "lift_cap": _rig_shot.get_cap(), "passage_blend": _rig_passage.get_blend(), "boom_share": _rig_collision.get_boom_share(),
 		"passage_x": _rig_passage.get_framing().info.center.x if _rig_passage.get_framing().info != null else 0.0,
 		"passage_side": _rig_passage.get_framing().back_axis.dot(_rig_passage.get_framing().info.axis) if _rig_passage.get_framing().info != null else 0.0,
 		"traversal": _rig_passage.traversal() if is_instance_valid(player) else 0.0}
