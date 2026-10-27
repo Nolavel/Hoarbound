@@ -10,7 +10,7 @@ const LIGHTER_FLAME_MAX_SECONDS: float = 10.0
 ## Arm rise before the wheel is struck.
 const LIGHTER_RAISE_SECONDS: float = 0.3
 ## Lighter base under the solved palm, so the nozzle stands just above the fist.
-const LIGHTER_BASE_BELOW_PALM: float = 0.045
+const LIGHTER_BASE_BELOW_PALM: float = 0.035
 const LIGHTER_STRIKE_EVENT: SoundEvent = preload("res://resources/audio/lighter_strike.tres")
 
 @export var inventory: InventoryComponent
@@ -25,6 +25,9 @@ var _hint: Label
 var _message_left: float = 0.0
 var _presenting: bool = false
 var _present_seconds: float = 0.0
+## The upright lighter in the raised hand's frame, kept from the last full raise.
+var _present_local: Transform3D = Transform3D.IDENTITY
+var _has_present_local: bool = false
 
 
 func _ready() -> void:
@@ -191,6 +194,7 @@ func _draw() -> void:
 
 func _clear_prop() -> void:
 	_stop_present()
+	_restore_fit()
 	if not is_instance_valid(_prop):
 		return
 	var visual: HenryUALAnimation = _animation()
@@ -255,6 +259,8 @@ func _show_hint(message: String = "") -> void:
 func _process(delta: float) -> void:
 	if _presenting:
 		_advance_present(delta)
+	elif is_holding() and _prop.top_level:
+		_settle_present()
 	if not is_holding() or not is_instance_valid(_hint):
 		return
 	var view_size: Vector2 = get_viewport().get_visible_rect().size
@@ -287,7 +293,8 @@ func _advance_present(delta: float) -> void:
 			sound.call(&"play", LIGHTER_STRIKE_EVENT, flame.global_position)
 
 
-## Palm a forearm before the chest on the holding side, fingers forward, palm turned in.
+## Fist a forearm before the chest on the holding side, knuckles forward, thumb up.
+## The outward palm frame keeps the hanging wrist roll, so the hand never twists over.
 func _aim_present(visual: HenryUALAnimation) -> void:
 	var reach: StoveHandReach = visual.get_present_reach()
 	var rig: Skeleton3D = visual.skeleton
@@ -307,19 +314,61 @@ func _aim_present(visual: HenryUALAnimation) -> void:
 	if side.length_squared() < 1e-6 or forward.length_squared() < 1e-6:
 		return
 	forward = forward.normalized()
-	reach.palm_into_world = -side.normalized()
+	reach.palm_into_world = side.normalized()
 	reach.aim(chest + forward * 0.32 + side * 0.4 - Vector3.UP * 0.1, forward, 1.0)
 
 
 ## The held fit is authored for the hanging arm; raised, the lighter stands upright in the fist.
+## Both poses are blended in the hand's frame between fixed ends, so rising and lowering never flip.
 func _on_present_hand_solved(palm: Vector3) -> void:
-	if not _presenting or _lighter_flame() == null:
+	if _lighter_flame() == null or not (_presenting or _prop.top_level):
 		return
 	var reach: StoveHandReach = _animation().get_present_reach()
-	var forward: Vector3 = reach.fingers_world
+	var hand: Transform3D = _hand_transform()
+	var upright := Transform3D(Basis.looking_at(reach.fingers_world, Vector3.UP),
+		palm - reach.palm_into_world * 0.015 - Vector3.UP * LIGHTER_BASE_BELOW_PALM)
+	var weight: float = reach.get_weight()
+	if weight >= 0.99 or not _has_present_local:
+		_present_local = hand.affine_inverse() * upright
+		_has_present_local = true
 	_prop.top_level = true
-	_prop.global_transform = Transform3D(Basis.looking_at(forward, Vector3.UP),
-		palm + reach.palm_into_world * 0.015 - Vector3.UP * LIGHTER_BASE_BELOW_PALM)
+	if weight >= 0.99:
+		_prop.global_transform = upright
+		return
+	_prop.global_transform = hand * _fit_local().interpolate_with(_present_local, smoothstep(0.0, 1.0, weight))
+
+
+## The solved hand bone the prop's socket follows, in world space.
+func _hand_transform() -> Transform3D:
+	var socket := _prop.get_parent() as BoneAttachment3D
+	var rig: Skeleton3D = _animation().skeleton
+	var bone: int = rig.find_bone(socket.bone_name) if socket != null else -1
+	return rig.global_transform * rig.get_bone_global_pose(bone) if bone >= 0 else _prop.global_transform
+
+
+func _fit_local() -> Transform3D:
+	var item: ItemResource = ItemCatalog.get_item(_item_id)
+	if item == null or item.held_fit == null:
+		return Transform3D.IDENTITY
+	var fit: HeldFit = item.held_fit
+	return Transform3D(Basis.from_euler(fit.rotation_deg * (PI / 180.0)).scaled(fit.scale), fit.offset)
+
+
+## Once the lowering arm is back on the animation, the prop rejoins its socket fit.
+func _settle_present() -> void:
+	var visual: HenryUALAnimation = _animation()
+	if visual != null and visual.skeleton != null and visual.get_present_reach().get_weight() > 0.001:
+		return
+	_restore_fit()
+
+
+func _restore_fit() -> void:
+	if not is_holding() or not _prop.top_level:
+		return
+	_prop.top_level = false
+	var item: ItemResource = ItemCatalog.get_item(_item_id)
+	if item != null and item.held_fit != null:
+		item.held_fit.apply_to(_prop)
 
 
 func _stop_present() -> void:
@@ -328,14 +377,9 @@ func _stop_present() -> void:
 	var flame: LighterFlame = _lighter_flame()
 	if flame != null:
 		flame.set_lit(false)
-	if is_holding() and _prop.top_level:
-		_prop.top_level = false
-		var item: ItemResource = ItemCatalog.get_item(_item_id)
-		if item != null and item.held_fit != null:
-			item.held_fit.apply_to(_prop)
 	var visual: HenryUALAnimation = _animation()
 	if visual != null and visual.skeleton != null:
-		visual.get_present_reach().aim(Vector3.ZERO, Vector3.FORWARD, 0.0)
+		visual.get_present_reach().release()
 
 
 func _lighter_flame() -> LighterFlame:

@@ -396,6 +396,7 @@ func get_present_reach() -> StoveHandReach:
 	if _present_reach == null and skeleton != null:
 		_present_reach = StoveHandReach.new()
 		_present_reach.name = "PresentReach"
+		_present_reach.ease_out_rate = 2.5
 		skeleton.add_child(_present_reach)
 	return _present_reach
 
