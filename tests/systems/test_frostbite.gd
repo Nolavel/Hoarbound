@@ -111,6 +111,11 @@ func _test_gloves() -> void:
 	_check(equipment.equip(&"hands_outer", &"work_gloves") == EquipmentComponent.Refusal.NONE, "gloves cannot be worn")
 	_check(float(equipment.get_region_protection(&"hands").get("insulation_c", 0.0)) > 3.0, "worn gloves add no hand cover")
 	equipment.free()
+	var outfit: Node = (load("res://assets/characters/henry/henry_outfit.glb") as PackedScene).instantiate()
+	_check(outfit.find_child("Outfit_Gloves", true, false) is MeshInstance3D, "Henry's outfit has no glove mesh")
+	_check(outfit.find_child("Skin_Gloves", true, false) != null, "no skin split under the gloves")
+	_check(HenryUALAnimation.GARMENT_PARTS.has(gloves.garment.mesh_node_name), "the gloves' mesh name maps to no outfit part")
+	outfit.free()
 
 
 func _test_old_save_layout() -> void:

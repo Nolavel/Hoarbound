@@ -50,6 +50,27 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 		var blade := PrismMesh.new()
 		blade.size = Vector3(0.028, 0.012, 0.14)
 		_part(holder, blade, Vector3(0, 0.025, -0.06), Color(0.72, 0.76, 0.78))
+	elif item_id == &"work_gloves":
+		## A pair laid flat, cuffs out: palm, four fingers, thumb and a darker cuff each.
+		for side: float in [-1.0, 1.0]:
+			var glove := Node3D.new()
+			glove.position = Vector3(side * 0.055, 0.0, side * 0.01)
+			glove.rotation.y = side * 0.25
+			holder.add_child(glove)
+			var palm := BoxMesh.new()
+			palm.size = Vector3(0.085, 0.022, 0.095)
+			_part(glove, palm, Vector3(0, 0.011, 0), Color(0.16, 0.13, 0.10))
+			for f: int in range(4):
+				var finger := BoxMesh.new()
+				finger.size = Vector3(0.018, 0.018, 0.07 - absf(float(f) - 1.5) * 0.012)
+				_part(glove, finger, Vector3(-0.03 + float(f) * 0.02, 0.009, -0.08), Color(0.17, 0.14, 0.11))
+			var thumb := BoxMesh.new()
+			thumb.size = Vector3(0.02, 0.018, 0.05)
+			_part(glove, thumb, Vector3(side * 0.055, 0.009, -0.02), Color(0.17, 0.14, 0.11))
+			(glove.get_child(glove.get_child_count() - 1) as Node3D).rotation.y = side * 0.6
+			var cuff := BoxMesh.new()
+			cuff.size = Vector3(0.09, 0.026, 0.04)
+			_part(glove, cuff, Vector3(0, 0.013, 0.065), Color(0.11, 0.09, 0.07))
 	elif item_id == &"axe":
 		var handle := BoxMesh.new()
 		handle.size = Vector3(0.035, 0.36, 0.035)

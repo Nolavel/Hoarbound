@@ -138,6 +138,7 @@ const GARMENT_PARTS: Dictionary = {
 	&"Coat": [&"Outfit_Jacket", &"Outfit_Skirt", &"Outfit_Hood", &"Outfit_Trim"],
 	&"Trousers": [&"Outfit_Pants"],
 	&"Boots": [&"Outfit_Boots", &"Outfit_Sole"],
+	&"Gloves": [&"Outfit_Gloves"],
 }
 ## How much fully soaked clothing darkens.
 @export_range(0.0, 1.0, 0.05) var wet_darkening: float = 0.45

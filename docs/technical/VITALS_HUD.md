@@ -144,22 +144,13 @@ Body parts are data, not code (`core/body/`, `data/body/`).
 4 °C, windproofing 0.6, waterproofing 0.3. The hands' cold load reads it through
 `get_region_protection`.
 
-**Not done yet:**
-- **Visual**: there is no glove mesh. Henry's outfit meshes come from `tools/blender/build_henry_outfit.py`,
-  which needs a Blender pass to add an `Outfit_Gloves` part (then `GARMENT_PARTS["Gloves"]`).
-- **Placement**: the gloves are not yet in the world; where to put them is the owner's call.
+**Visual**: `Outfit_Gloves` comes from `tools/blender/build_henry_outfit.py`. It is cut from the mannequin's hands and
+fingers from the wrist up, under the sleeve's cuff, in dark leather brown and decimated to about 6,000 vertices.
+`HenryUALAnimation.GARMENT_PARTS["Gloves"]` shows it while worn and hides `Skin_Gloves`. Rebuild it with Blender 5.2
+as a Python module: `pip install bpy`, then `python tools/blender/build_henry_outfit.py [--render dir]`.
 
-## Wall thermometer
-
-The room temperature is no longer on the HUD. `WallThermometer` (`scripts/environment/thermometer/`) hangs in the
-727 waiting room, just inside the lobby arch:
-- an ordinary glass thermometer on a board, hung by a wire loop from a nail; a red column rises from the bulb, −40 to +40 °C;
-- below it, the figure in IM Fell English SC on a grey gradient plate, °C only (`THERMOMETER_READING`);
-- the figure fades out between 2.5 and 3 m from Henry; the dial stays;
-- the reading is outdoor air plus its `ThermalZone` offset, the same air `ThermalManager.get_room_temperature_c()` gives.
-
-Placement is data: a `wall_thermometer` entry in the landmark spec's `furniture` (`h` = centre above the floor).
-Capture: `tools/runtime/capture_thermometer.gd`. Test: `tests/systems/test_wall_thermometer.gd`.
+**Placement**: the top shelf of the 727 cabinet, beside the mug (`GlovesShelter` in
+`first_exit_gameplay.json`, owner's choice). Capture: `tools/runtime/capture_gloves.gd`.
 
 ## Room warmth persistence
 

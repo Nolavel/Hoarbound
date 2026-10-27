@@ -16486,6 +16486,17 @@ shape = SubResource("SphereShape3D_shelter_77e791ac")
 
 [node name="InfoLabel" type="Label3D" parent="LighterShelterTest" unique_id=1742236747]
 
+[node name="GlovesShelter" type="Area3D" parent="." unique_id=2106859784]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1132.7677, 7.106763, -654.1386)
+script = ExtResource("16_yryj5")
+item_id = &"work_gloves"
+world_id = &"work_gloves_shelter"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GlovesShelter" unique_id=858139928]
+shape = SubResource("SphereShape3D_shelter_77e791ac")
+
+[node name="InfoLabel" type="Label3D" parent="GlovesShelter" unique_id=1742236844]
+
 [node name="Sprite3D" type="Sprite3D" parent="LighterShelterTest" unique_id=1613788754]
 transform = Transform3D(0.75, 0, 0, 0, 0.75, 0, 0, 0, 0.75, 0, 0, 0)
 texture = ExtResource("2_14ntb")

@@ -333,7 +333,17 @@
    "yaw_deg": 0,
    "on": "ReceptionCounter"
   },
-  "BedrollShelterTest": {
+  "GlovesShelter": {
+  "room": "waiting",
+  "uv": [
+   2.92,
+   8.66
+  ],
+  "h": 0.375,
+  "yaw_deg": 90,
+  "on": "Cabinet"
+ },
+ "BedrollShelterTest": {
    "room": "office",
    "uv": [
     12.9,
