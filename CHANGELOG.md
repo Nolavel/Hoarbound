@@ -355,6 +355,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- TPS camera swings round Henry in tight space (#240 stage 4, part 2). Shot choice now scores lift caps × orbit
+  swings (0, ±20°, ±40°; the view stays the player's), adds a cost for Henry's eyes off the left or right edge, and
+  is off in doorways. The prediction now follows `keep_eyes`' pitch limit, the side recompose leaves and Lyra's
+  feelers (`TpsRigCollision.target_shares`). Without the recompose term it chased a wrong frame in a 20-frame cycle.
+  Tight-space trace vs part 1: eyes off screen 11 → 0, within 0.8 m of the eyes 1,440 → 141, faded 0, bottom edge
+  81 → 70. Along walls the camera stands off to the side and shows the corridor. 727 route: no real jumps.
+  Backing into the exam corner or the restroom still looks down from above.
 - TPS camera picks how far to lift over Henry's shoulder in tight space (#240 stage 4, part 1). Four lift caps are
   scored on a stateless prediction of the frame and eased with hysteresis. Along walls the camera now stays at the
   shoulder instead of looking down from above. Tight-space trace: eyes off screen 57 → 11 frames, at the bottom

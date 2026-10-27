@@ -46,19 +46,10 @@ func apply(frame: TpsRigFrame) -> void:
 ## Lyra's penetration blend: the centre sweep snaps the boom in, the feelers ease
 ## it in, and any release eases it back out. Returns the share of `want` kept.
 func _blend_boom(delta: float, shoulder: Vector3, back: Vector3, want: float) -> float:
-	var probe: TpsBoomProbe = rig.get_probe()
-	var min_pct: float = clampf(rig.collision_min_distance / maxf(want, 0.001), 0.0, 1.0)
-	_boom_room = probe.sweep(shoulder, back * want)
-	var hard_pct: float = clampf((_boom_room - rig.collision_surface_margin) / want, min_pct, 1.0)
-	var soft_pct: float = 1.0
-	var right: Vector3 = back.cross(Vector3.UP).normalized()
-	for feeler: Array in FEELERS:
-		var dir: Vector3 = back.rotated(Vector3.UP, deg_to_rad(feeler[0]))
-		if right.length_squared() > 0.0:
-			dir = dir.rotated(right, deg_to_rad(feeler[1]))
-		var hit: float = probe.ray(shoulder, dir * want) / want
-		soft_pct = minf(soft_pct, hit + (1.0 - hit) * (1.0 - float(feeler[2])))
-	soft_pct = maxf(soft_pct, min_pct)
+	var shares: Vector3 = target_shares(shoulder, back, want)
+	_boom_room = shares.z
+	var hard_pct: float = shares.x
+	var soft_pct: float = shares.y
 	var this_frame: float = minf(hard_pct, soft_pct)
 	if not rig.is_placed():
 		_dist_pct = this_frame
@@ -69,6 +60,24 @@ func _blend_boom(delta: float, shoulder: Vector3, back: Vector3, want: float) ->
 	elif _dist_pct > soft_pct:
 		_dist_pct = lerpf(_dist_pct, soft_pct, TpsCamera.damp(1.0 / rig.blend_in_time, delta))
 	return _dist_pct
+
+
+## Stateless: shares of `want` the centre sweep (x) and the feelers (y) leave, and the
+## centre sweep's free length (z).
+func target_shares(shoulder: Vector3, back: Vector3, want: float) -> Vector3:
+	var probe: TpsBoomProbe = rig.get_probe()
+	var min_pct: float = clampf(rig.collision_min_distance / maxf(want, 0.001), 0.0, 1.0)
+	var room: float = probe.sweep(shoulder, back * want)
+	var hard_pct: float = clampf((room - rig.collision_surface_margin) / want, min_pct, 1.0)
+	var soft_pct: float = 1.0
+	var right: Vector3 = back.cross(Vector3.UP).normalized()
+	for feeler: Array in FEELERS:
+		var dir: Vector3 = back.rotated(Vector3.UP, deg_to_rad(feeler[0]))
+		if right.length_squared() > 0.0:
+			dir = dir.rotated(right, deg_to_rad(feeler[1]))
+		var hit: float = probe.ray(shoulder, dir * want) / want
+		soft_pct = minf(soft_pct, hit + (1.0 - hit) * (1.0 - float(feeler[2])))
+	return Vector3(hard_pct, maxf(soft_pct, min_pct), room)
 
 
 ## First leg of the rig: from inside Henry to the shoulder point. Thin props do
