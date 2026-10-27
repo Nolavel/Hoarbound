@@ -192,6 +192,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- TPS camera steps in doorways (#240 stage 3 v2). The camera no longer flips to the other side of a door plane
+  while the doorway holds the frame. A neighbouring door waits until the current one lets go, a hand-over's
+  shoulder step is eased out, and a doorway may pull the shoulder at most 0.5 m off Henry. On the 727 route, real
+  jumps over 0.3 m fall from 3 to 0, and `test_doorway_camera` no longer pops on the yaw swing. The tight-space
+  trace is unchanged.
 - A room Henry is not in now keeps warming or cooling. `ThermalManager` advanced only the zones Henry's probe
   overlapped, so a room left with a dying fire stayed as warm as when he walked out. Every loaded `ThermalZone`
   now advances (`ThermalZone.get_all()`); the wall thermometer made the stale reading visible.
@@ -350,6 +355,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- TPS camera rig split into behaviours (#240 stage 2). `_update_rig` now runs `TpsRigFollow`, `TpsRigAutoSwap`,
+  `TpsRigComposition`, `TpsRigPassage`, `TpsRigShoulderLift`, `TpsRigRecompose`, `TpsRigCollision` and `TpsRigWork`
+  on one `TpsRigFrame`, each owning its state and smoothing. Behaviour is unchanged: the 727 route trace and the
+  tight-space trace match their pre-refactor output byte for byte.
+- `tools/runtime/trace_camera_route.gd` (#240 stage 1) measures the camera on a 727 walk. It records eyes in frame,
+  fades, jumps over 0.3 m, wall share, the share of the frame Henry covers, and mouse deviation.
 - Hammer held fit re-authored by the owner in the Item Fitter: right hand, offset (-0.025, 0.08, -0.005), rotation
   80° about X. `test_held_fit` now pins this fit.
 - Work gloves restyled after the owner's reference: an olive back, tan leather at the knuckles and fingertips,
