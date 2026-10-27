@@ -8,6 +8,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Authored lighter model (`assets/items/lighter/Lighter_game_ready.glb`, owner's asset) replaces the orange box
+  everywhere: world pickup, held prop and the stove lighting act. `LighterStrikeVFX` holds it with the grip at the
+  origin and the burner nozzle on its +Y axis; the flint wheel rolls on each strike. The flame is a tongue mesh with
+  the stove log-flame shading (blue root, yellow body, view-facing edge, faded tip, `lighter_flame.gdshader`). It
+  pivots on the nozzle and always burns world-up whatever the hand's tilt. At the stove the nozzle sits 12 mm under
+  the tinder so the flame's middle licks it. Close-up capture: `tools/runtime/capture_lighter.gd`.
 - Work gloves you can find and wear (#236, owner: the 727 cabinet). `tools/blender/build_henry_outfit.py` cuts
   `Outfit_Gloves` from the hands and fingers, from the wrist up under the sleeve, in dark leather brown. They are
   decimated to about 6,000 vertices and hide `Skin_Gloves` while worn. The pickup lies on the top shelf of the

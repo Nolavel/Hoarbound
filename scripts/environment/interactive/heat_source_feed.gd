@@ -25,6 +25,8 @@ const FUEL_SECONDS: float = 2.2
 const TINDER_SECONDS: float = 1.8
 ## One log diameter above its rest pose clears the existing floor load on insertion.
 const LOG_INSERT_CLEARANCE: float = 0.10
+## The nozzle sits this far under the tinder so the flame's hot middle licks it.
+const FLAME_LICK: float = 0.012
 ## Longest wait for the hand to settle before the lighter is ready; IK only presents it.
 const PREPARE_SECONDS: float = 0.4
 const STRIKE_EVENT: SoundEvent = preload("res://resources/audio/lighter_strike.tres")
@@ -868,7 +870,7 @@ func _begin_hand_action() -> bool:
 		var x := Vector3(0,0,-1)
 		_prop_basis = visual.global_basis*Basis(x,direction,x.cross(direction))
 		_grip_offset = Vector3(0,-0.008,0)
-		_contact_palm = visual.to_global(visual.get_tinder_contact())-_prop_basis.y*0.061+_prop_basis*_grip_offset
+		_contact_palm = visual.to_global(visual.get_tinder_contact())-Vector3.UP*FLAME_LICK-_prop_basis*LighterStrikeVFX.NOZZLE+_prop_basis*_grip_offset
 	_contact_prop_basis = _prop_basis
 	if _act != Act.FUEL:
 		_pickup_prop_basis = _prop_basis
