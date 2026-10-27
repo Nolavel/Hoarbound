@@ -576,7 +576,9 @@ func get_debug_state() -> Dictionary:
 		"openness": _openness, "room": _room, "boom": _boom, "side": _last_side, "shoulder_pct": _rig_collision.get_shoulder_share(),
 		"recompose": _rig_recompose.get_recompose(), "composition": _rig_composition.get_composition(), "lift": _rig_lift.get_lift(),
 		"body_fade": get_body_fade(), "swap": _rig_swap.get_swap(), "swap_own": _rig_swap.get_rooms().x, "swap_other": _rig_swap.get_rooms().y,
-		"eye_distance": _last_eye_distance, "passage_blend": _rig_passage.get_blend(),
+		"eye_distance": _last_eye_distance, "passage_blend": _rig_passage.get_blend(), "boom_share": _rig_collision.get_boom_share(),
+		"passage_x": _rig_passage.get_framing().info.center.x if _rig_passage.get_framing().info != null else 0.0,
+		"passage_side": _rig_passage.get_framing().back_axis.dot(_rig_passage.get_framing().info.axis) if _rig_passage.get_framing().info != null else 0.0,
 		"traversal": _rig_passage.traversal() if is_instance_valid(player) else 0.0}
 
 
