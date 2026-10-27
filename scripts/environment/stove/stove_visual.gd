@@ -8,6 +8,8 @@ extends Node3D
 ## Log slots built; the source's full load decides how many can show (6 h / 2 h = 3).
 const LOG_VISUAL: GDScript = preload("res://scripts/environment/stove/stove_log_visual.gd")
 const MAX_LOGS: int = 4
+## Seconds a caught log takes to grow from first flame to its full burn.
+const CATCH_SECONDS: float = 6.0
 ## How far the door swings open, degrees: folded back along the front, clear of the mouth.
 const DOOR_OPEN_DEG: float = 160.0
 const SIZE: Vector3 = Vector3(0.62, 0.0, 0.7)  # footprint depth (X) and width (Z)
@@ -20,14 +22,14 @@ const DOOR_H: float = 0.34
 const FLUE_H: float = 1.7
 ## Fire strength at the catch, before the warm-up grows it: the firebox shows a small
 ## flame at once, the room brightens with the burn (author request 2026-10-20).
-const FIREBOX_CATCH_STRENGTH: float = 0.45
+const FIREBOX_CATCH_STRENGTH: float = 0.6
 const ROOM_CATCH_STRENGTH: float = 0.2
 ## Shown strength follows the stepped simulation intensity at this rate, per second.
 const STRENGTH_FOLLOW_RATE: float = 3.0
 ## Noise flicker: a slow swell (a little brighter, a little dimmer) over fast flame jitter.
 const FLICKER_SLOW_HZ: float = 0.35
 const FLICKER_FAST_HZ: float = 9.0
-const FIREBOX_LIGHT_ENERGY: float = 1.9
+const FIREBOX_LIGHT_ENERGY: float = 2.4
 const FIREBOX_LIGHT_RANGE: float = 2.2
 const ROOM_LIGHT_ENERGY: float = 4.2
 ## Reaches the far wall (6.7 m) of the shelter; the flatter falloff keeps the light
@@ -304,8 +306,8 @@ func _update_log_stages(delta: float) -> void:
 		var progress: float = 0.0
 		if _burning():
 			_catch_seconds[slot] = float(_catch_seconds.get(slot,0.0)) + delta
-			var growth: float = clampf(float(_catch_seconds[slot])/10.0,0.0,1.0)
-			progress = maxf(lerpf(0.06,0.35,growth),0.35+float(_burned.get(slot,0.0))*0.63) if float(_burned.get(slot,0.0)) > 0.01 else lerpf(0.06,0.35,growth)
+			var growth: float = clampf(float(_catch_seconds[slot])/CATCH_SECONDS,0.0,1.0)
+			progress = maxf(lerpf(0.12,0.35,growth),0.35+float(_burned.get(slot,0.0))*0.63) if float(_burned.get(slot,0.0)) > 0.01 else lerpf(0.12,0.35,growth)
 			if float(_catch_seconds[slot]) < 0.0:
 				progress = 0.0
 		elif float(_catch_seconds.get(slot,0.0)) > 0.0:
@@ -508,6 +510,13 @@ func reserve_tinder_position() -> void:
 
 func _log_contact(slot: int) -> Vector3:
 	return _logs[slot].transform*Vector3(0.0,0.015,0.235)
+
+## World corners of the top of the door frame; the HUD hangs the session prompt off the left one.
+func get_prompt_corners() -> PackedVector3Array:
+	var top: float = LEG_H + ASH_H + BOX_H
+	var x: float = SIZE.x * 0.5
+	return PackedVector3Array([to_global(Vector3(x, top, SIZE.z * 0.5)), to_global(Vector3(x, top, -SIZE.z * 0.5))])
+
 
 func get_tinder_contact() -> Vector3:
 	return _tinder_position+Vector3(0,0.022,0)
