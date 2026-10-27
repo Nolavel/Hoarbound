@@ -1,6 +1,6 @@
 extends SceneTree
 
-## The 727 wall thermometer: needle scale, room air from its zone, the reading fading with
+## The 727 wall thermometer: column scale, room air from its zone, the reading fading with
 ## Henry's distance, and the shelter hanging one in the heated room.
 ## Run: godot --headless --script tests/systems/test_wall_thermometer.gd
 
@@ -26,9 +26,9 @@ func _process(_delta: float) -> bool:
 
 
 func _setup() -> void:
-	_check(is_equal_approx(WallThermometer.needle_angle_deg(0.0), 0.0), "0 °C does not point straight up")
-	_check(is_equal_approx(WallThermometer.needle_angle_deg(40.0), 135.0), "+40 °C is not the clockwise end")
-	_check(is_equal_approx(WallThermometer.needle_angle_deg(-60.0), -135.0), "below the scale does not pin at -40")
+	_check(is_equal_approx(WallThermometer.column_fraction(0.0), 0.5), "0 °C does not fill half the tube")
+	_check(is_equal_approx(WallThermometer.column_fraction(40.0), 1.0), "+40 °C does not fill the tube")
+	_check(is_equal_approx(WallThermometer.column_fraction(-60.0), 0.0), "below the scale does not empty to the bulb")
 	var thermal := ThermalManager.new()
 	thermal.ambient_min_c = -20.0
 	thermal.ambient_max_c = -20.0

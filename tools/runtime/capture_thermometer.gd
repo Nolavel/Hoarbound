@@ -54,7 +54,7 @@ func _shot(shot_name: String, distance: float, side: float) -> void:
 	_player.velocity = Vector3.ZERO
 	for _i: int in range(45):
 		var camera := root.get_camera_3d()
-		var dir: Vector3 = (_thermometer.global_position - camera.global_position).normalized()
+		var dir: Vector3 = (_thermometer.global_position + Vector3.DOWN * 0.3 - camera.global_position).normalized()
 		camera.call(&"set_look", atan2(-dir.x, -dir.z), rad_to_deg(asin(dir.y)))
 		await process_frame
 	await RenderingServer.frame_post_draw

@@ -1,14 +1,18 @@
 class_name WallThermometer
 extends Node3D
 
-## An analog room thermometer on a wall: a dial with a needle, and the reading in 3D type
-## on a grey plate that shows only when Henry is close. Presentation only; it reads its zone.
+## An ordinary glass thermometer on a board, hung by a wire loop from a nail: a red column
+## and, close up, the reading in 3D type on a grey plate. Presentation only; it reads its zone.
 
-## Scale ends, °C; the needle sweeps SWEEP_DEG between them.
+## Scale ends, °C; the column climbs from the bulb's top at SCALE_MIN_C to the tube's top.
 const SCALE_MIN_C: float = -40.0
 const SCALE_MAX_C: float = 40.0
-const SWEEP_DEG: float = 270.0
-const DIAL_RADIUS: float = 0.09
+## Board, m; the nail is the node origin and the board hangs BOARD_DROP below it.
+const BOARD_SIZE: Vector3 = Vector3(0.09, 0.46, 0.01)
+const BOARD_DROP: float = 0.08
+const TUBE_LENGTH: float = 0.35
+const TUBE_RADIUS: float = 0.006
+const BULB_RADIUS: float = 0.012
 const READING_FONT: Font = preload("res://assets/fonts/IM Fell English SC/IMFellEnglishSC-Regular.ttf")
 
 ## The room it hangs in; its air is outdoor air plus this zone's offset.
@@ -17,13 +21,14 @@ const READING_FONT: Font = preload("res://assets/fonts/IM Fell English SC/IMFell
 @export var reading_near_m: float = 2.5
 ## Beyond this the reading is gone, m.
 @export var reading_far_m: float = 3.0
-## How fast the needle and the figure follow the air, share of the gap per second.
+## How fast the column and the figure follow the air, share of the gap per second.
 @export var follow_rate: float = 1.5
 
 var _thermal: ThermalManager
 var _player: Node3D
 var _shown_c: float = NAN
-var _needle: Node3D
+var _column: MeshInstance3D
+var _scale_bottom: Vector3
 var _reading: Label3D
 var _plate: MeshInstance3D
 var _plate_material: StandardMaterial3D
@@ -40,7 +45,9 @@ func _process(delta: float) -> void:
 		return
 	var air: float = get_air_c()
 	_shown_c = air if is_nan(_shown_c) else lerpf(_shown_c, air, 1.0 - exp(-follow_rate * delta))
-	_needle.rotation.z = -deg_to_rad(needle_angle_deg(_shown_c))
+	var rise: float = maxf(column_fraction(_shown_c) * TUBE_LENGTH, 0.001)
+	_column.scale.y = rise
+	_column.position = _scale_bottom + Vector3(0.0, rise * 0.5, 0.0)
 	_reading.text = tr(&"THERMOMETER_READING") % roundi(_shown_c)
 	var near: float = 1.0
 	if is_instance_valid(_player):
@@ -59,10 +66,9 @@ func get_air_c() -> float:
 	return _thermal.get_outdoor_air_c() + (zone.get_total_offset_c() if is_instance_valid(zone) else 0.0)
 
 
-## Needle angle clockwise from straight up for a temperature, clamped to the scale.
-static func needle_angle_deg(celsius: float) -> float:
-	var t: float = inverse_lerp(SCALE_MIN_C, SCALE_MAX_C, clampf(celsius, SCALE_MIN_C, SCALE_MAX_C))
-	return lerpf(-SWEEP_DEG * 0.5, SWEEP_DEG * 0.5, t)
+## Share of the tube the column fills for a temperature, clamped to the scale.
+static func column_fraction(celsius: float) -> float:
+	return inverse_lerp(SCALE_MIN_C, SCALE_MAX_C, clampf(celsius, SCALE_MIN_C, SCALE_MAX_C))
 
 
 func get_reading_alpha() -> float:
@@ -83,37 +89,58 @@ func _bind() -> bool:
 
 
 func _build() -> void:
-	var iron := StylizedEnvironmentMaterial.make_static(Color(0.18, 0.18, 0.19), 0.6)
-	var face := StylizedEnvironmentMaterial.make_static(Color(0.86, 0.84, 0.78), 0.9)
-	var ink := StylizedEnvironmentMaterial.make_static(Color(0.08, 0.08, 0.08), 0.9)
-	var red := StylizedEnvironmentMaterial.make_static(Color(0.62, 0.10, 0.08), 0.7)
-	_disc(DIAL_RADIUS + 0.012, 0.03, 0.015, iron)
-	_disc(DIAL_RADIUS, 0.004, 0.032, face)
+	var iron := StylizedEnvironmentMaterial.make_static(Color(0.20, 0.19, 0.18), 0.5)
+	var board := StylizedEnvironmentMaterial.make_static(Color(0.90, 0.88, 0.80), 0.9)
+	var ink := StylizedEnvironmentMaterial.make_static(Color(0.10, 0.10, 0.10), 0.9)
+	var red := StylizedEnvironmentMaterial.make_static(Color(0.72, 0.08, 0.06), 0.6)
+	var glass := StylizedEnvironmentMaterial.make_static(Color(0.97, 0.97, 0.95), 0.3)
+	## The nail: a shank in the wall and a flat head standing off it.
+	_rod(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 0.03), 0.0018, iron)
+	_disc(0.0055, 0.002, 0.03, iron)
+	## The wire loop from the nail to the board's top corners.
+	var top_y: float = -BOARD_DROP
+	var hx: float = BOARD_SIZE.x * 0.5 - 0.008
+	for side: float in [-1.0, 1.0]:
+		_rod(Vector3(0.0, -0.002, 0.024), Vector3(side * hx, top_y - 0.006, 0.01), 0.0016, iron)
+	var plank := _box(BOARD_SIZE, board)
+	plank.position = Vector3(0.0, top_y - BOARD_SIZE.y * 0.5, BOARD_SIZE.z * 0.5)
+	var front: float = BOARD_SIZE.z + 0.001
+	var bulb_y: float = top_y - BOARD_SIZE.y + 0.035
+	_scale_bottom = Vector3(0.006, bulb_y + BULB_RADIUS * 0.6, front + TUBE_RADIUS)
+	## The tube reads as a pale capillary strip behind the column: an opaque glass rod would hide it.
+	var tube := _box(Vector3(TUBE_RADIUS * 2.0, TUBE_LENGTH + 0.012, 0.002), glass)
+	tube.position = _scale_bottom + Vector3(0.0, (TUBE_LENGTH + 0.012) * 0.5, -TUBE_RADIUS + 0.001)
+	var bulb := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = BULB_RADIUS
+	sphere.height = BULB_RADIUS * 2.0
+	sphere.material = red
+	bulb.mesh = sphere
+	bulb.position = Vector3(_scale_bottom.x, bulb_y, _scale_bottom.z)
+	add_child(bulb)
+	_column = _rod(Vector3.ZERO, Vector3.UP, TUBE_RADIUS * 0.6, red)
+	_column.position = Vector3.ZERO
+	var column_mesh := _column.mesh as CylinderMesh
+	column_mesh.height = 1.0
+	## Ticks to the left of the tube every 5 °C, figures every 10 °C.
 	for i: int in range(17):
-		var angle: float = deg_to_rad(lerpf(-SWEEP_DEG * 0.5, SWEEP_DEG * 0.5, float(i) / 16.0))
-		var major: bool = i % 4 == 0
-		var length: float = 0.018 if major else 0.01
-		var tick := _box(Vector3(0.003 if major else 0.002, length, 0.002), ink)
-		var radial := Vector3(sin(angle), cos(angle), 0.0)
-		tick.position = radial * (DIAL_RADIUS - 0.006 - length * 0.5) + Vector3(0.0, 0.0, 0.035)
-		tick.rotation.z = -angle
+		var celsius: float = lerpf(SCALE_MIN_C, SCALE_MAX_C, float(i) / 16.0)
+		var y: float = _scale_bottom.y + column_fraction(celsius) * TUBE_LENGTH
+		var major: bool = i % 2 == 0
+		var length: float = 0.014 if major else 0.008
+		var tick := _box(Vector3(length, 0.0016 if major else 0.0011, 0.0006), ink)
+		tick.position = Vector3(_scale_bottom.x - TUBE_RADIUS - 0.003 - length * 0.5, y, front)
 		if major:
 			var label := Label3D.new()
-			label.text = "%d" % roundi(lerpf(SCALE_MIN_C, SCALE_MAX_C, float(i) / 16.0))
+			label.text = "%d" % roundi(celsius)
 			label.font = READING_FONT
-			label.font_size = 32
-			label.pixel_size = 0.0004
-			label.modulate = Color(0.08, 0.08, 0.08)
+			label.font_size = 48
+			label.pixel_size = 0.00036
+			label.modulate = Color(0.10, 0.10, 0.10)
 			label.outline_size = 0
-			label.position = radial * (DIAL_RADIUS - 0.04) + Vector3(0.0, 0.0, 0.035)
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			label.position = Vector3(_scale_bottom.x - TUBE_RADIUS - 0.02, y, front + 0.0005)
 			add_child(label)
-	_needle = Node3D.new()
-	_needle.position = Vector3(0.0, 0.0, 0.037)
-	add_child(_needle)
-	var blade := _box(Vector3(0.004, DIAL_RADIUS * 0.85, 0.002), red, _needle)
-	blade.position = Vector3(0.0, DIAL_RADIUS * 0.85 * 0.5 - 0.01, 0.0)
-	var hub := _disc(0.008, 0.004, 0.002, iron, _needle)
-	hub.position.z = 0.002
 	var gradient := Gradient.new()
 	gradient.set_color(0, Color(0.34, 0.34, 0.34, 0.0))
 	gradient.set_color(1, Color(0.34, 0.34, 0.34, 0.0))
@@ -128,21 +155,40 @@ func _build() -> void:
 	_plate_material.albedo_texture = texture
 	_plate = MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.26, 0.07)
+	quad.size = Vector2(0.30, 0.08)
 	quad.material = _plate_material
 	_plate.mesh = quad
 	_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_plate.position = Vector3(0.0, -DIAL_RADIUS - 0.07, 0.006)
+	_plate.position = Vector3(0.0, top_y - BOARD_SIZE.y - 0.06, 0.004)
 	add_child(_plate)
 	_reading = Label3D.new()
 	_reading.font = READING_FONT
 	_reading.font_size = 64
-	_reading.pixel_size = 0.0007
+	_reading.pixel_size = 0.0009
 	_reading.modulate = Color(0.95, 0.93, 0.88)
 	_reading.outline_modulate = Color(0.1, 0.1, 0.1, 0.8)
 	_reading.outline_size = 8
 	_reading.position = _plate.position + Vector3(0.0, 0.0, 0.002)
 	add_child(_reading)
+
+
+## A thin cylinder from a to b.
+func _rod(a: Vector3, b: Vector3, radius: float, material: Material) -> MeshInstance3D:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = maxf(a.distance_to(b), 0.0001)
+	mesh.radial_segments = 10
+	mesh.rings = 1
+	mesh.material = material
+	var node := MeshInstance3D.new()
+	node.mesh = mesh
+	var axis: Vector3 = (b - a).normalized() if a.distance_to(b) > 0.0001 else Vector3.UP
+	var side: Vector3 = Vector3.FORWARD if absf(axis.dot(Vector3.FORWARD)) < 0.99 else Vector3.RIGHT
+	var x: Vector3 = axis.cross(side).normalized()
+	node.transform = Transform3D(Basis(x, axis, x.cross(axis)), (a + b) * 0.5)
+	add_child(node)
+	return node
 
 
 func _disc(radius: float, depth: float, z: float, material: Material, parent: Node3D = self) -> MeshInstance3D:

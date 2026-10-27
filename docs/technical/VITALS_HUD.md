@@ -153,7 +153,7 @@ Body parts are data, not code (`core/body/`, `data/body/`).
 
 The room temperature is no longer on the HUD. `WallThermometer` (`scripts/environment/thermometer/`) hangs in the
 727 waiting room, just inside the lobby arch:
-- an analog dial from −40 to +40 °C over 270°, with a red needle;
+- an ordinary glass thermometer on a board, hung by a wire loop from a nail; a red column rises from the bulb, −40 to +40 °C;
 - below it, the figure in IM Fell English SC on a grey gradient plate, °C only (`THERMOMETER_READING`);
 - the figure fades out between 2.5 and 3 m from Henry; the dial stays;
 - the reading is outdoor air plus its `ThermalZone` offset, the same air `ThermalManager.get_room_temperature_c()` gives.
