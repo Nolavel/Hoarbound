@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Work gloves you can find and wear (#236, owner: the 727 cabinet). `tools/blender/build_henry_outfit.py` cuts
+  `Outfit_Gloves` from the hands and fingers, from the wrist up under the sleeve, in dark leather brown. They are
+  decimated to about 6,000 vertices and hide `Skin_Gloves` while worn. The pickup lies on the top shelf of the
+  727 cabinet beside the mug (`GlovesShelter`), with a blocky pair as its world prop. The outfit now rebuilds with
+  Blender 5.2 (`pip install bpy`); the previous meshes come out vertex for vertex.
 - Wall thermometer in the 727 waiting room (#236), just inside the lobby arch (`WallThermometer`, nail at 1.7 m, placed
   from the landmark spec's furniture list). It is an ordinary glass thermometer on a board, hung by a wire loop from a nail, with a red column from −40 to +40 °C; the figure
   (`THERMOMETER_READING`, °C only) sits on a grey gradient plate below it and fades out between 2.5 and 3 m from Henry.
