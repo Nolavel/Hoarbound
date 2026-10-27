@@ -2,6 +2,17 @@ class_name HeldItemComponent
 extends Node
 
 ## Presents an owned pack/pocket item in the hand; storage remains its save authority.
+
+## Held RMB: raise the held lighter before the chest and keep its flame lit.
+const PRESENT_ACTION: StringName = &"present_held"
+## The thumb gives out after this long; a fresh press lights it again.
+const LIGHTER_FLAME_MAX_SECONDS: float = 10.0
+## Arm rise before the wheel is struck.
+const LIGHTER_RAISE_SECONDS: float = 0.3
+## Lighter base under the solved palm, so the nozzle stands just above the fist.
+const LIGHTER_BASE_BELOW_PALM: float = 0.045
+const LIGHTER_STRIKE_EVENT: SoundEvent = preload("res://resources/audio/lighter_strike.tres")
+
 @export var inventory: InventoryComponent
 @export var equipment: EquipmentComponent
 @export var consumption: ConsumptionController
@@ -12,6 +23,8 @@ var _source_zone: StringName = &""
 var _using: bool = false
 var _hint: Label
 var _message_left: float = 0.0
+var _presenting: bool = false
+var _present_seconds: float = 0.0
 
 
 func _ready() -> void:
@@ -121,6 +134,24 @@ func use_held() -> bool:
 	return true
 
 
+## True while the held lighter shows its flame.
+func is_flame_lit() -> bool:
+	var flame: LighterFlame = _lighter_flame()
+	return flame != null and flame.is_lit()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not InputMap.has_action(PRESENT_ACTION) or _lighter_flame() == null or event.is_echo():
+		return
+	if event.is_action_pressed(PRESENT_ACTION):
+		_presenting = true
+		_present_seconds = 0.0
+		get_viewport().set_input_as_handled()
+	elif event.is_action_released(PRESENT_ACTION):
+		_stop_present()
+		get_viewport().set_input_as_handled()
+
+
 func put_away_unlit() -> bool:
 	return put_away()
 
@@ -159,6 +190,7 @@ func _draw() -> void:
 
 
 func _clear_prop() -> void:
+	_stop_present()
 	if not is_instance_valid(_prop):
 		return
 	var visual: HenryUALAnimation = _animation()
@@ -211,6 +243,8 @@ func _show_hint(message: String = "") -> void:
 		action = tr("KNIFE_PURPOSE")
 	elif _item_id == &"empty_tin":
 		action = tr("EMPTY_TIN_HELD_HINT")
+	elif _item_id == &"lighter":
+		action = "RMB · " + tr("LIGHTER_FLAME_ACTION")
 	_hint.text = "%s\n%s" % [tr(item.display_name), message if message != "" else action]
 	if item.water_capacity_ml > 0:
 		_hint.text += "\n" + item.get_status_text()
@@ -219,6 +253,8 @@ func _show_hint(message: String = "") -> void:
 
 
 func _process(delta: float) -> void:
+	if _presenting:
+		_advance_present(delta)
 	if not is_holding() or not is_instance_valid(_hint):
 		return
 	var view_size: Vector2 = get_viewport().get_visible_rect().size
@@ -228,6 +264,84 @@ func _process(delta: float) -> void:
 		_message_left -= delta
 		if _message_left <= 0.0:
 			_show_hint()
+
+
+## Raises the lighter hand before the chest, strikes once it is up, and lets the flame
+## go after LIGHTER_FLAME_MAX_SECONDS even with RMB still held.
+func _advance_present(delta: float) -> void:
+	var flame: LighterFlame = _lighter_flame()
+	var visual: HenryUALAnimation = _animation()
+	if flame == null or visual == null or visual.skeleton == null or visual.is_action_locking():
+		_stop_present()
+		return
+	_present_seconds += delta
+	if _present_seconds >= LIGHTER_RAISE_SECONDS + LIGHTER_FLAME_MAX_SECONDS:
+		_stop_present()
+		return
+	_aim_present(visual)
+	if _present_seconds >= LIGHTER_RAISE_SECONDS and not flame.is_lit():
+		flame.strike()
+		flame.set_lit(true)
+		var sound: Node = get_node_or_null(^"/root/SoundSystem")
+		if sound != null:
+			sound.call(&"play", LIGHTER_STRIKE_EVENT, flame.global_position)
+
+
+## Palm a forearm before the chest on the holding side, fingers forward, palm turned in.
+func _aim_present(visual: HenryUALAnimation) -> void:
+	var reach: StoveHandReach = visual.get_present_reach()
+	var rig: Skeleton3D = visual.skeleton
+	var left: bool = visual.get_held_prop() == _prop
+	var chest_bone: int = rig.find_bone(&"spine_03")
+	var shoulder_bone: int = rig.find_bone(&"upperarm_l" if left else &"upperarm_r")
+	if reach == null or chest_bone < 0 or shoulder_bone < 0:
+		return
+	reach.use_left_hand(left)
+	if not reach.hand_solved.is_connected(_on_present_hand_solved):
+		reach.hand_solved.connect(_on_present_hand_solved)
+	var chest: Vector3 = rig.to_global(rig.get_bone_global_pose(chest_bone).origin)
+	var side: Vector3 = rig.to_global(rig.get_bone_global_pose(shoulder_bone).origin) - chest
+	side.y = 0.0
+	var forward: Vector3 = visual.global_basis.z
+	forward.y = 0.0
+	if side.length_squared() < 1e-6 or forward.length_squared() < 1e-6:
+		return
+	forward = forward.normalized()
+	reach.palm_into_world = -side.normalized()
+	reach.aim(chest + forward * 0.32 + side * 0.4 - Vector3.UP * 0.1, forward, 1.0)
+
+
+## The held fit is authored for the hanging arm; raised, the lighter stands upright in the fist.
+func _on_present_hand_solved(palm: Vector3) -> void:
+	if not _presenting or _lighter_flame() == null:
+		return
+	var reach: StoveHandReach = _animation().get_present_reach()
+	var forward: Vector3 = reach.fingers_world
+	_prop.top_level = true
+	_prop.global_transform = Transform3D(Basis.looking_at(forward, Vector3.UP),
+		palm + reach.palm_into_world * 0.015 - Vector3.UP * LIGHTER_BASE_BELOW_PALM)
+
+
+func _stop_present() -> void:
+	_presenting = false
+	_present_seconds = 0.0
+	var flame: LighterFlame = _lighter_flame()
+	if flame != null:
+		flame.set_lit(false)
+	if is_holding() and _prop.top_level:
+		_prop.top_level = false
+		var item: ItemResource = ItemCatalog.get_item(_item_id)
+		if item != null and item.held_fit != null:
+			item.held_fit.apply_to(_prop)
+	var visual: HenryUALAnimation = _animation()
+	if visual != null and visual.skeleton != null:
+		visual.get_present_reach().aim(Vector3.ZERO, Vector3.FORWARD, 0.0)
+
+
+func _lighter_flame() -> LighterFlame:
+	if not is_holding() or _item_id != &"lighter":
+		return null
+	return _prop.get_node_or_null(^"Flame") as LighterFlame
 
 
 func _animation() -> HenryUALAnimation:

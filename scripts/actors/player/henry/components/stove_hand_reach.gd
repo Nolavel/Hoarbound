@@ -7,6 +7,8 @@ signal hand_solved(palm_world: Vector3)
 var grip_weight: float = 0.0
 var lean_weight: float = 0.0
 var fingers_world: Vector3 = Vector3.LEFT
+## Direction the palm faces: down onto the stove load, inwards when presenting a held item.
+var palm_into_world: Vector3 = Vector3.DOWN
 var palm_world: Vector3 = Vector3.ZERO
 
 func _init() -> void:
@@ -56,14 +58,14 @@ func _process_modification() -> void:
 			rig.set_bone_global_pose(spine,pose)
 	var wrist: Vector3 = rig.get_bone_global_pose(h).origin.lerp(inverse*(_goal_point-fingers_world*0.08),smoothstep(0,1,_weight))
 	_solve(rig,u,l,h,wrist,_weight)
-	_flatten_palm(rig,h,inverse.basis*fingers_world,inverse.basis*Vector3.DOWN,_weight)
+	_flatten_palm(rig,h,inverse.basis*fingers_world,inverse.basis*palm_into_world,_weight)
 	_curl_fingers(rig,inverse.basis)
 	palm_world = rig.to_global(rig.get_bone_global_pose(h).origin)+fingers_world*0.08
 	hand_solved.emit(palm_world)
 
 
 func _curl_fingers(rig: Skeleton3D, inverse: Basis) -> void:
-	var axis: Vector3 = inverse*fingers_world.cross(Vector3.DOWN).normalized()
+	var axis: Vector3 = inverse*fingers_world.cross(palm_into_world).normalized()
 	if axis.length_squared() < 0.1:
 		return
 	for finger: String in ["index","middle","ring","pinky"]:

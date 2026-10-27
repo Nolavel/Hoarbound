@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Held lighter flame on RMB (`present_held`). While RMB is held, Henry raises the lighter before his chest
+  (a second `StoveHandReach`, `PresentReach`, palm turned in), and after 0.3 s the flint wheel rolls and the flame lights.
+  The lighter stands upright in the fist while raised; on release its authored HeldFit returns. The flame burns while RMB
+  is held but goes out after 10 s anyway; a fresh press lights it again. The flame is now one node, `LighterFlame`,
+  shared by the held lighter and the stove act. Capture: `tools/runtime/capture_held_lighter.gd`.
 - Authored lighter model (`assets/items/lighter/Lighter_game_ready.glb`, owner's asset) replaces the orange box
   everywhere: world pickup, held prop and the stove lighting act. `LighterStrikeVFX` holds it with the grip at the
   origin and the burner nozzle on its +Y axis; the flint wheel rolls on each strike. The flame is a tongue mesh with
