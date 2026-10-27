@@ -146,6 +146,31 @@ The tight-space trace is unchanged (all 26 groups). A spring on the composed fra
 reverted: smoothing before the hard constraints only moved the step into a wall snap. With the steps
 removed at their source, no spring was needed.
 
+### Shot choice (#240 stage 4, part 1)
+
+With little room behind Henry the shoulder lift used to take the camera high over him, looking
+down. Henry's eyes sat at the bottom edge (543 frames of the tight-space trace) and went off it
+(57 frames). `TpsRigShotChoice` now scores four caps on the lift (0, 0.35, 0.7, 1.0). It uses a
+stateless prediction (`TpsCamera.predict_lift`): camera position with walls, eye distance and eye
+screen height. The score weighs:
+
+- 4 × pressing closer than `guard_soft_distance` (where the fade starts);
+- 2 × eyes below 75 % of the screen height;
+- 0.5 × the lift itself, so a level shoulder wins when it frames as well.
+
+A better cap takes over only past a 0.25 margin, and the cap is eased at the lift rates. The view stays the player's.
+
+| Tight-space trace | Before | After |
+|---|---|---|
+| Eyes off screen | 57 frames | 11 |
+| Eyes at the bottom edge | 543 | 81 |
+| Henry faded | 10 | 0 |
+| Camera within 0.8 m of the eyes (close over-the-shoulder) | 387 | 1,440 |
+
+Along corridor walls the camera now stays at the shoulder with Henry whole in frame. In the exam
+corner and the restroom there is no room behind him at all, so the lift still wins there. Part 2,
+authored room hints, is for those rooms. The 727 route trace is unchanged: no real jumps, eyes 100 %.
+
 ## Control and view
 
 Unreal's split: `ControlRotation` drives the pawn, and camera modifiers change
