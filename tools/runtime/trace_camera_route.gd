@@ -49,6 +49,8 @@ var _best_distance: float = INF
 var _since_progress: int = 0
 var _stuck: Array[String] = []
 var _prev_cam: Vector3 = Vector3.INF
+## Samples whose camera step is the trace's teleport, not the camera's.
+var _teleport_frames: int = 0
 var _rows: Array[Dictionary] = []
 var _csv: FileAccess
 
@@ -138,7 +140,10 @@ func _walk() -> void:
 			_stuck.append("%s#%d" % [LEGS[_leg][0], _point])
 			_player.global_position = Vector3(target.x, _player.global_position.y, target.z)
 			_player.velocity = Vector3.ZERO
-			_prev_cam = Vector3.INF  # the move is the trace's, not the camera's
+			## A teleport, as the dev waypoints do it: the camera is placed, not chased.
+			_player.reset_physics_interpolation()
+			_camera.snap_to_target()
+			_teleport_frames = 4  # physics and the camera take a few frames to settle on the new spot
 		_point += 1
 		_best_distance = INF
 		_since_progress = 0
@@ -175,7 +180,8 @@ func _record() -> void:
 	var eye_in: bool = not _camera.is_position_behind(eye_world) and eye.x > EYE_MARGIN and eye.x < 1.0 - EYE_MARGIN \
 			and eye.y > EYE_MARGIN and eye.y < 1.0 - EYE_MARGIN
 	var cam: Vector3 = _camera.global_position
-	var step: float = 0.0 if _prev_cam == Vector3.INF else cam.distance_to(_prev_cam)
+	var step: float = 0.0 if _prev_cam == Vector3.INF or _teleport_frames > 0 else cam.distance_to(_prev_cam)
+	_teleport_frames = maxi(_teleport_frames - 1, 0)
 	_prev_cam = cam
 	var dev: float = absf(rad_to_deg(wrapf(float(state.view_yaw) - float(state.yaw), -PI, PI)))
 	var row: Dictionary = {"leg": LEGS[_leg][0], "phase": _phase, "frame": _phase_frame, "eye_sx": eye.x, "eye_sy": eye.y,

@@ -207,6 +207,66 @@ before. `test_doorway_camera` fails only on the stand sweep, as before (792 fram
 Backing into the exam corner or the restroom still lifts the camera high and looks down. There is no room
 behind Henry, and no swing has more.
 
+### Eyes in frame in the view's own plane (#240 stage 4, tail)
+
+Backing into the restroom wall, Henry's eyes sat at the very bottom edge (y 0.98) although
+`keep_eyes` meant to keep them 12° inside it. It measured how far below the horizon the eyes are as
+`asin(-y / |d|)`, over the full distance. Screen height depends only on depth along the view: an eye
+off to the side (the shoulder and the swing put it at x 0.26) is steeper in the view's vertical plane
+than its elevation alone. `TpsRigShoulderLift.eyes_pitch_limit()` now uses `atan2(-y, depth along the
+view)`, which is exact. `predict_shot` uses the same function. Tight-space trace: eyes at the bottom
+edge 70 → **0** frames. Backing into the exam corner or the restroom is still a high view looking
+down (no room behind Henry for any candidate), but he is now whole in the frame. A reverse shot from
+in front of him would flip camera-relative controls; that is a design call left to the owner.
+
+### Doorways: looking up and the soft stop (#240 stage 7)
+
+`test_doorway_camera` failed only on the stand sweep: Henry standing in the door plane, the mouse
+turning a full circle. At 30° up, Henry was off screen in every frame, and in 170 of 750 at 10°. The
+same sweep 5 m outside the door lost no frames. Measured cause: the doorway shortens the boom to
+about 1.2 m (2.8 m outdoors), so looking up dropped the camera 0.6 m instead of 1.4 m. The camera
+sat at waist height, close to Henry, and his middle left the bottom edge.
+
+- `TpsRigPassage` drops the orbit, looking up, as far as Henry's middle (the capsule centre, 0.6 of
+  feet→eyes) needs to stay `passage_look_margin_deg` inside the lower edge (`_drop_pitch`, a
+  bisection on the real boom). A first version put his chest on the line of sight instead; it jumped
+  about 20° as the view crossed level (a 0.24 m pop in `pitch_swing`). The edge form is zero until
+  he would leave the frame, so it is continuous.
+- The soft yaw stop (`view_yaw_limits`) let the view turn past the cone by `half_fov − margin`,
+  assuming Henry mid-frame. The shoulder offset already puts him off centre, by `atan(side / eye
+  distance)`, about 16° here, and his middle left the side edge. The stop now subtracts that angle.
+
+The suite passes in two runs and is off the known-failing list. The route trace now snaps the camera
+when it teleports a stuck Henry, as the dev waypoints do (`reset_physics_interpolation` plus
+`snap_to_target`). It skips the four frames that settle. Its last "jump" was that teleport.
+
+### Look-ahead v2 (#240 stage 5)
+
+The lead was velocity × speed ratio × `lead_distance`, eased at one rate. On a reversal it stayed
+ahead while Henry braked, then swung through zero to the other side. `TpsRigFollow` now leads along
+his **intent**: the world direction of the keys, published by `Player` as
+`LocomotionIntentCapability` (`core/contracts/`). The lead is scaled by agreement², the clamped dot
+of intent and motion, so it fades while they disagree and grows as they align. It shrinks 2.5× faster
+than it grows. With no intent (coasting, a doorway carrying Henry), motion alone leads as before.
+Reference: Cinemachine's lookahead with smoothing; Nesky, *50 Game Camera Mistakes* (lead by intent,
+not by noise).
+
+Corridor reversal at a sprint (new `reverse` phase of the tight trace):
+
+| | Before | After |
+|---|---|---|
+| Lead while Henry brakes | stays 0.44 m ahead | 0.04 m within 12 frames |
+| Lead against motion, worst | 0.15 m | 0.02 m |
+| Frames against motion > 0.1 m | 3 | 0 |
+
+At a walk the lead is only about 0.18 m, so the gain there is small (worst 0.07 → 0.04 m).
+
+### Context interests (#240 stage 6): blocked on data
+
+The stove already has its work framing. There is no hazard data in the live world yet: `IceField`
+(thin ice) exists but is not placed in any scene, and there are no edge or ledge markers. The issue
+gates this stage on that data, so nothing was built for it.
+
 ## Control and view
 
 Unreal's split: `ControlRotation` drives the pawn, and camera modifiers change
