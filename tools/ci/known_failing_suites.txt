@@ -1,3 +1,2 @@
 ## Suites known to fail, with the reason; tools/ci/run_tests.sh reports them without failing the run.
 ## Remove a line in the commit that fixes its suite (a listed suite that passes fails the run).
-test_doorway_camera.gd  # on the 727 door: Henry off screen in the full-turn stand sweeps (#240 stage 4); the yaw-swing pops are gone since stage 3 v2

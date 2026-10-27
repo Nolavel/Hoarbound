@@ -10,6 +10,8 @@ const HANDOVER_BLEND: float = 0.05
 const MAX_PULL: float = 0.5
 ## Blend above which the camera keeps its side of the door plane.
 const SIDE_LOCK_BLEND: float = 0.05
+## Height of Henry's middle (the capsule centre) between his feet and his eyes, share.
+const BODY_SHARE: float = 0.6
 
 ## Henry's doorway traversal, read for the frame; looked up once after his _ready.
 var _passage: PassageTraversalComponent
@@ -109,6 +111,14 @@ func orbit(frame: TpsRigFrame) -> void:
 	off = angle_difference(axis_yaw, frame.view_yaw)
 	frame.orbit_yaw = wrapf(axis_yaw + lerpf(off, clampf(off, -_cone.x, _cone.y), blend), -PI, PI)
 	frame.orbit_pitch = lerpf(frame.view_pitch, clampf(frame.view_pitch, -_cone.z, _cone.w), blend)
+	## Looking up on the doorway's short boom, the body drops as far as Henry's middle needs to
+	## stay inside the frame's lower edge; the free boom gets that drop from its length.
+	if frame.view_pitch > 0.0:
+		var feet_y: float = rig.get_feet_position().y
+		var middle: float = feet_y + (rig.get_eye_position().y - feet_y) * BODY_SHARE
+		var sight: float = frame.view_pitch - (rig.half_fov_deg(false) - rig.passage_look_margin_deg)
+		var drop: float = minf(_drop_pitch(frame.pivot.y, middle, frame.want, sight), _cone.w)
+		frame.orbit_pitch = lerpf(frame.orbit_pitch, maxf(frame.orbit_pitch, drop), blend)
 
 
 ## 1 while Henry is in a doorway or walking at it, 0 while he stands beside one: only a
@@ -145,7 +155,9 @@ func fov() -> float:
 ## Soft stops of the view off the passage axis, radians (left, right): past the orbit
 ## cone only as far as Henry stays inside the frame, or an authored limit if tighter.
 func view_yaw_limits() -> Vector2:
-	var past: float = deg_to_rad(maxf(rig.half_fov_deg(true) - rig.passage_look_margin_deg, 0.0))
+	## Less the angle the shoulder offset already puts Henry off the frame's centre.
+	var offset: float = atan2(absf(_last_side), maxf(rig.get_last_eye_distance(), 0.3))
+	var past: float = maxf(deg_to_rad(rig.half_fov_deg(true) - rig.passage_look_margin_deg) - offset, 0.0)
 	var limits := Vector2(_cone.x + past, _cone.y + past)
 	var info: PassageInfo = _framing.info
 	if info != null and info.yaw_limit_deg > 0.0:
@@ -187,3 +199,18 @@ func _side(pivot: Vector3, side: float) -> float:
 	var room: float = _framing.band() * rig.passage_shoulder_band_share
 	var lateral: float = _framing.lateral(pivot)
 	return clampf(lateral + wanted, -room, room) - lateral
+
+
+## Orbit pitch at which a camera `boom` metres from a pivot at `pivot_y` sees the height
+## `target_y` at `sight` degrees; bisection, as the sight line rises with the drop.
+static func _drop_pitch(pivot_y: float, target_y: float, boom: float, sight: float) -> float:
+	var low: float = 0.0
+	var high: float = 85.0
+	for i: int in range(14):
+		var mid: float = (low + high) * 0.5
+		var pitch: float = deg_to_rad(mid)
+		if rad_to_deg(atan2(target_y - (pivot_y - boom * sin(pitch)), boom * cos(pitch))) < sight:
+			low = mid
+		else:
+			high = mid
+	return (low + high) * 0.5

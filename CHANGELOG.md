@@ -355,6 +355,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- `test_doorway_camera` is green (#240 stage 7), two runs; it is off the known-failing list. Standing in the door and
+  looking up, the camera lost Henry in every frame of the 30° sweep (and 170 of 750 at 10°). On the doorway's short
+  boom the camera barely dropped, unlike outdoors (checked: 0 lost frames 5 m outside). Now it drops as far as
+  Henry's middle needs to stay inside the frame's lower edge (`TpsRigPassage._drop_pitch`). It also lost him sideways
+  at the soft stop, which assumed he sat mid-frame; the stop now subtracts the angle the shoulder offset puts him off
+  centre. The route trace snaps the camera on its own stuck-Henry teleports, as the dev waypoints do, and skips
+  those frames: the 727 route now meets all three #240 criteria (no step over 0.3 m; largest 0.28 m).
 - TPS camera swings round Henry in tight space (#240 stage 4, part 2). Shot choice now scores lift caps × orbit
   swings (0, ±20°, ±40°; the view stays the player's), adds a cost for Henry's eyes off the left or right edge, and
   is off in doorways. The prediction now follows `keep_eyes`' pitch limit, the side recompose leaves and Lyra's
