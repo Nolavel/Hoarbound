@@ -355,6 +355,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- TPS camera look-ahead v2 (#240 stage 5). The orbit centre leads along Henry's intent (the keys' world
+  direction, `LocomotionIntentCapability` published by `Player`) and fades while intent and motion disagree; it
+  shrinks 2.5x faster than it grows. Sprint reversal in the corridor: the lead no longer stays 0.44 m ahead while
+  Henry brakes; worst lead against motion 0.15 → 0.02 m. The tight trace gains a corridor `reverse` phase.
+- TPS camera keeps Henry's eyes inside the frame's lower edge when he is off to the side (#240 stage 4 tail).
+  `keep_eyes` measured the eye angle over the full distance instead of depth along the view, so off-centre eyes sat
+  at the bottom edge (restroom, backing in: y 0.98). Now exact (`TpsRigShoulderLift.eyes_pitch_limit`): tight trace
+  eyes at the bottom edge 70 → 0. Stage 6 (context interests) waits on hazard data: `IceField` is not placed in any
+  scene and there are no edge markers.
 - `test_doorway_camera` is green (#240 stage 7), two runs; it is off the known-failing list. Standing in the door and
   looking up, the camera lost Henry in every frame of the 30° sweep (and 170 of 750 at 10°). On the doorway's short
   boom the camera barely dropped, unlike outdoors (checked: 0 lost frames 5 m outside). Now it drops as far as

@@ -602,8 +602,7 @@ func predict_shot(frame: TpsRigFrame, lift: float, yaw_off: float) -> Dictionary
 	var to_eye: Vector3 = get_eye_position() - camera
 	if lift > 0.0 and to_eye.length_squared() > 1e-6:
 		## The tilt keep_eyes will add, pitch limits included.
-		var below_deg: float = rad_to_deg(asin(clampf(-to_eye.normalized().y, -1.0, 1.0)))
-		var limit: float = -(below_deg - (half_fov_deg(false) - shoulder_lift_frame_margin_deg))
+		var limit: float = TpsRigShoulderLift.eyes_pitch_limit(to_eye, frame.view_yaw, half_fov_deg(false) - shoulder_lift_frame_margin_deg)
 		view_pitch = clampf(lerpf(view_pitch, minf(view_pitch, limit), smoothstep(0.0, 0.2, lift)), pitch_min_deg, pitch_max_deg)
 	var local: Vector3 = Basis.from_euler(Vector3(deg_to_rad(view_pitch), frame.view_yaw, 0.0)).inverse() * to_eye
 	var depth: float = maxf(-local.z, 0.05)
@@ -626,7 +625,7 @@ func get_debug_state() -> Dictionary:
 		"openness": _openness, "room": _room, "boom": _boom, "side": _last_side, "shoulder_pct": _rig_collision.get_shoulder_share(),
 		"recompose": _rig_recompose.get_recompose(), "composition": _rig_composition.get_composition(), "lift": _rig_lift.get_lift(),
 		"body_fade": get_body_fade(), "swap": _rig_swap.get_swap(), "swap_own": _rig_swap.get_rooms().x, "swap_other": _rig_swap.get_rooms().y,
-		"eye_distance": _last_eye_distance, "lift_cap": _rig_shot.get_cap(), "shot_yaw_deg": rad_to_deg(_rig_shot.get_yaw_offset()), "shot_eye": _rig_shot.get_predicted_eye(), "passage_blend": _rig_passage.get_blend(), "boom_share": _rig_collision.get_boom_share(),
+		"eye_distance": _last_eye_distance, "lift_cap": _rig_shot.get_cap(), "shot_yaw_deg": rad_to_deg(_rig_shot.get_yaw_offset()), "shot_eye": _rig_shot.get_predicted_eye(), "lead": _rig_follow.get_lead(), "passage_blend": _rig_passage.get_blend(), "boom_share": _rig_collision.get_boom_share(),
 		"passage_x": _rig_passage.get_framing().info.center.x if _rig_passage.get_framing().info != null else 0.0,
 		"passage_side": _rig_passage.get_framing().back_axis.dot(_rig_passage.get_framing().info.axis) if _rig_passage.get_framing().info != null else 0.0,
 		"traversal": _rig_passage.traversal() if is_instance_valid(player) else 0.0}

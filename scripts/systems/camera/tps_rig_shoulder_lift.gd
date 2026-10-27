@@ -30,7 +30,7 @@ func apply(frame: TpsRigFrame, share: float) -> void:
 ## After the camera is placed: tilts the view down as far as Henry's eyes need to stay inside
 ## the frame, by how lifted or pressed the camera is.
 func keep_eyes(frame: TpsRigFrame) -> void:
-	frame.view_pitch = _keep_eyes_in_frame(frame.view_pitch, frame.camera, smoothstep(0.0, 0.2, maxf(frame.lift, pressed())))
+	frame.view_pitch = _keep_eyes_in_frame(frame.view_pitch, frame.view_yaw, frame.camera, smoothstep(0.0, 0.2, maxf(frame.lift, pressed())))
 
 
 ## 0 with the camera outside guard_soft_distance of Henry's eyes, 1 at guard_eye_distance.
@@ -57,15 +57,21 @@ func _update_lift(delta: float, safe: Vector3, view_yaw: float) -> float:
 
 ## Over the shoulder, tilts the view down as far as Henry's eyes need to stay
 ## shoulder_lift_frame_margin_deg inside the frame's lower edge, from where they really are.
-func _keep_eyes_in_frame(view_pitch: float, camera: Vector3, lift: float) -> float:
+func _keep_eyes_in_frame(view_pitch: float, view_yaw: float, camera: Vector3, lift: float) -> float:
 	if lift <= 0.001:
 		return view_pitch
-	var to_eye: Vector3 = rig.get_eye_position() - camera
-	if to_eye.length_squared() < 1e-6:
-		return view_pitch
-	var below_deg: float = rad_to_deg(asin(clampf(-to_eye.normalized().y, -1.0, 1.0)))
-	var limit: float = -(below_deg - (rig.half_fov_deg(false) - rig.shoulder_lift_frame_margin_deg))
+	var limit: float = eyes_pitch_limit(rig.get_eye_position() - camera, view_yaw, rig.half_fov_deg(false) - rig.shoulder_lift_frame_margin_deg)
 	return clampf(lerpf(view_pitch, minf(view_pitch, limit), lift), rig.pitch_min_deg, rig.pitch_max_deg)
+
+
+## Highest view pitch (degrees) that keeps a point at `to_eye` from the lens `inside_deg` above
+## the frame's lower edge. The angle is taken in the view's own vertical plane, so a point off
+## to the side counts as steeper than its elevation alone.
+static func eyes_pitch_limit(to_eye: Vector3, view_yaw: float, inside_deg: float) -> float:
+	var depth: float = to_eye.dot(Vector3(-sin(view_yaw), 0.0, -cos(view_yaw)))
+	if depth < 0.01:
+		return -90.0  # beside or behind the lens: as far down as the pitch limits allow
+	return -(rad_to_deg(atan2(-to_eye.y, depth)) - inside_deg)
 
 
 ## Pivot rise at full lift: shoulder_lift_rise, or what the ceiling leaves above the pivot.

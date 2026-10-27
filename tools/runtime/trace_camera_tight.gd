@@ -26,6 +26,9 @@ const SPOTS: Array = [
 ]
 ## Frames Henry walks forward (W) after the other phases: along a corridor wall at the hug spots.
 const WALK_FRAMES: int = 90
+## In the corridor Henry walks forward, then reverses with S: the camera lead must not drag behind.
+const REVERSE_W_FRAMES: int = 45
+const REVERSE_S_FRAMES: int = 60
 
 var _out: String = "user://shots/camera_tight_trace"
 ## Spots this run visits: all, or the comma-separated names in the second argument.
@@ -104,6 +107,20 @@ func _process(_delta: float) -> bool:
 					_next_spot_keep()
 					_begin(&"walk")
 					Input.action_press(&"move_forward")
+				elif String(_spots[_spot][0]) == "corridor":
+					_next_spot_keep()
+					_begin(&"reverse")
+					Input.action_press(&"move_forward")
+					Input.action_press(&"sprint")  # the full lead, the worst case for a reversal
+		"reverse":
+			_record()
+			if _phase_frame == REVERSE_W_FRAMES:
+				Input.action_release(&"move_forward")
+				Input.action_press(&"move_backward")
+			elif _phase_frame >= REVERSE_W_FRAMES + REVERSE_S_FRAMES:
+				Input.action_release(&"move_backward")
+				Input.action_release(&"sprint")
+				_phase = ""
 		"walk":
 			_record()
 			if _phase_frame >= WALK_FRAMES:
@@ -136,7 +153,7 @@ func _bind() -> bool:
 	_house = shelter.get_node(^"House") as Node3D
 	_floor_y = float(shelter.interior["floor_y"])
 	_csv = FileAccess.open(_abs(_out).path_join("trace.csv"), FileAccess.WRITE)
-	_csv.store_line("spot,phase,frame,yaw_deg,view_yaw_deg,pitch,auto_yaw_deg,auto_pitch_deg,openness,boom,side,shoulder_pct,recompose,composition,lift,eye_distance,passage_blend,traversal,eye_sx,eye_sy,cam_x,cam_y,cam_z,lift_cap,shot_yaw_deg,pred_sx,pred_sy")
+	_csv.store_line("spot,phase,frame,yaw_deg,view_yaw_deg,pitch,auto_yaw_deg,auto_pitch_deg,openness,boom,side,shoulder_pct,recompose,composition,lift,eye_distance,passage_blend,traversal,eye_sx,eye_sy,cam_x,cam_y,cam_z,lift_cap,shot_yaw_deg,pred_sx,pred_sy,lead_x,lead_z,vel_x,vel_z")
 	return true
 
 
@@ -189,11 +206,11 @@ func _record() -> void:
 	state.merge({"spot": _spots[_spot][0], "phase": _phase, "frame": _phase_frame, "eye_sx": eye.x, "eye_sy": eye.y,
 		"cam": cam, "body_fade": _camera.get_body_fade()}, true)
 	_rows.append(state)
-	_csv.store_line("%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.2f,%.4f,%.4f" % [
+	_csv.store_line("%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.2f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f" % [
 		state.spot, state.phase, state.frame, rad_to_deg(state.yaw), rad_to_deg(state.view_yaw), state.pitch,
 		state.auto_yaw_deg, state.auto_pitch_deg, state.openness, state.boom, state.side, state.shoulder_pct,
 		state.recompose, state.composition, state.lift, state.eye_distance, state.passage_blend, state.traversal, eye.x, eye.y,
-		cam.x, cam.y, cam.z, state.lift_cap, state.shot_yaw_deg, state.shot_eye.x, state.shot_eye.y])
+		cam.x, cam.y, cam.z, state.lift_cap, state.shot_yaw_deg, state.shot_eye.x, state.shot_eye.y, state.lead.x, state.lead.z, _player.velocity.x, _player.velocity.z])
 
 
 ## Per spot and phase: how far boom, side and Henry's screen position travel, their largest
