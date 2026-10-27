@@ -28,6 +28,7 @@ GARMENTS = {
 	"Sole": ((0.17, 0.12, 0.09), 0.022, 0.014, 2),
 	"Beanie": ((0.52, 0.20, 0.16), 0.008, 0.008, 6),
 	"BeanieCuff": ((0.46, 0.17, 0.14), 0.020, 0.012, 4),
+	"Gloves": ((0.40, 0.30, 0.19), 0.004, 0.004, 1),
 }
 BODY_COLOUR = (0.55, 0.55, 0.56)
 TRIM_COLOUR = (0.19, 0.21, 0.13)  # placket and seams
@@ -47,6 +48,9 @@ TORSO = {"pelvis", "spine_01", "spine_02", "spine_03", "clavicle_l", "clavicle_r
 ARMS = {"upperarm_l", "upperarm_r", "lowerarm_l", "lowerarm_r"}
 LEGS = {"thigh_l", "thigh_r", "calf_l", "calf_r"}
 FEET = {"foot_l", "foot_r", "ball_l", "ball_r", "ball_leaf_l", "ball_leaf_r"}
+FINGERS = ("thumb_", "index_", "middle_", "ring_", "pinky_")
+## Glove cuff starts this far along the hand bone, under the sleeve that ends at 0.3.
+GLOVE_CUFF_T = 0.15
 
 
 def dominant(mesh, obj):
@@ -95,6 +99,8 @@ def regions(body, arm):
 			layers.add("BeanieCuff")
 		if b in FEET and p.z < floor + 0.035:
 			layers.add("Sole")
+		if b.startswith("hand_") and GLOVE_CUFF_T <= bone_t(arm, b, p) < 0.3:
+			layers.add("Gloves")
 		extra.append(layers)
 		b = dom[i]
 		side = b[-1:] if b.endswith(("_l", "_r")) else ""
@@ -106,6 +112,8 @@ def regions(body, arm):
 			out.append("Jacket")
 		elif b in LEGS and p.z > hem and b.startswith("thigh"):
 			out.append("Jacket")
+		elif b.startswith(FINGERS) or b.startswith("hand_"):
+			out.append("Gloves")
 		elif (b in FEET or b in LEGS) and p.z < boot_top:
 			out.append("Boots")
 		elif b in LEGS or b in FEET:
@@ -185,9 +193,9 @@ def build_garment(body, arm, name, region, spec):
 
 ## Garment piece to the equipment mesh name (GarmentData.mesh_node_name) it belongs to.
 ITEM_OF = {"Jacket": "Coat", "Hood": "Coat", "Skirt": "Coat", "Trim": "Coat", "Pants": "Trousers", "Boots": "Boots", "Sole": "Boots",
-	"Beanie": "Hat", "BeanieCuff": "Hat"}
+	"Beanie": "Hat", "BeanieCuff": "Hat", "Gloves": "Gloves"}
 ## Which garment owns skin under overlapping layers, outermost first.
-SKIN_PRIORITY = ("Jacket", "Boots", "Pants")
+SKIN_PRIORITY = ("Jacket", "Gloves", "Boots", "Pants")
 
 
 def split_body(body, region):

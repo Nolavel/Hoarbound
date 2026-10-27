@@ -143,6 +143,7 @@ TABLE_BREAK_WARNING,4 seconds → %d logs; the table will be lost,4 секунд
 TABLE_CLEAR_FIRST,Pick up all supplies on the table first,Сначала заберите все предметы со стола
 Open pineapple tin,Open pineapple tin,Открытая банка ананасов
 Hatchet,Hatchet,Топор
+Work gloves,Work gloves,Рабочие перчатки
 PINEAPPLE_OPEN_ACTION,Open tin with knife,Открыть банку ножом
 PINEAPPLE_OPEN_HINT,The tin is open; Use eats the pineapple,Банка открыта · используйте чтобы съесть ананасы
 FLASK_HELD_MARK,%d ml,%d мл
