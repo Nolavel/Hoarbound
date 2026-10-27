@@ -16,7 +16,14 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 		if flare != null:
 			flare.auto_ignite = false
 		return flare
-	return SurvivalItemVisual.make(item_id, item_override)
+	var prop: Node3D = SurvivalItemVisual.make(item_id, item_override)
+	if item_id == &"lighter":
+		var flame := LighterFlame.new()
+		flame.name = "Flame"
+		flame.position = SurvivalItemVisual.LIGHTER_NOZZLE
+		flame.wheel = prop.find_child("Lighter_v2_Wheel", true, false) as Node3D
+		prop.add_child(flame)
+	return prop
 
 
 static func _make_hammer() -> Node3D:

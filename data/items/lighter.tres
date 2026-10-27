@@ -1,11 +1,17 @@
-[gd_resource type="Resource" script_class="ItemResource" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ItemResource" format=3 uid="uid://cva55eunuk3ub"]
 
-[ext_resource type="Script" path="res://core/items/item_resource.gd" id="item"]
+[ext_resource type="Script" uid="uid://cix8jgl8q6mss" path="res://core/items/held_fit.gd" id="1_qw11f"]
+[ext_resource type="Script" uid="uid://cg2frilcr5ygl" path="res://core/items/item_resource.gd" id="item"]
+
+[sub_resource type="Resource" id="Resource_m6ot2"]
+script = ExtResource("1_qw11f")
+hand = 1
+offset = Vector3(-0.02, 0.09, 0.02)
+rotation_deg = Vector3(0, -98.99999, -73.99999)
 
 [resource]
 script = ExtResource("item")
 id = &"lighter"
 display_name = "Lighter"
 weight = 0.04
-max_stack = 1
-size_class = 0
+held_fit = SubResource("Resource_m6ot2")
