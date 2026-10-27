@@ -34,9 +34,9 @@ OUTSIDE --F--> APPROACHING --> OPENING_DOOR --> ENTERING_CROUCH --> WORKING --F-
    degrees in pitch; yaw is locked, since a sideways orbit brought the eye into
    Henry's head and faded him out. A wall between Henry and the eye shortens the
    boom. F hands the view back to the follow rig at the same rate.
-5. The ring (`StoveInteractionRing`) appears at the bottom centre of the screen,
-   its centre 200 px above the lower edge. The centre prompt's brackets
-   part to the screen edges, each with half the yellow strip: `[F] BACK` by the
+5. The ring (`StoveInteractionRing`) appears at the screen centre, 100 px down
+   (`center_drop_px`). The centre prompt's brackets part to the screen edges at
+   60 % opacity (`session_prompt_alpha`), each with half the yellow strip: `[F] BACK` by the
    left one, `STOVE` by the right. The feed sits in `active_work_session` from
    the door opening to F, and `MouseCursorUI` reads its
    `get_session_prompt_data()`.
