@@ -151,7 +151,7 @@ removed at their source, no spring was needed.
 With little room behind Henry the shoulder lift used to take the camera high over him, looking
 down. Henry's eyes sat at the bottom edge (543 frames of the tight-space trace) and went off it
 (57 frames). `TpsRigShotChoice` now scores four caps on the lift (0, 0.35, 0.7, 1.0). It uses a
-stateless prediction (`TpsCamera.predict_lift`): camera position with walls, eye distance and eye
+stateless prediction (`TpsCamera.predict_shot`, part 2): camera position with walls, eye distance and eye
 screen height. The score weighs:
 
 - 4 × pressing closer than `guard_soft_distance` (where the fade starts);
@@ -170,6 +170,42 @@ A better cap takes over only past a 0.25 margin, and the cap is eased at the lif
 Along corridor walls the camera now stays at the shoulder with Henry whole in frame. In the exam
 corner and the restroom there is no room behind him at all, so the lift still wins there. Part 2,
 authored room hints, is for those rooms. The 727 route trace is unchanged: no real jumps, eyes 100 %.
+
+### Shot choice (#240 stage 4, part 2)
+
+Owner's call: automatic candidates rather than authored room hints. Each candidate is a lift cap paired
+with a swing of the camera body round Henry off the orbit (0, ±20°, ±40°). The view stays the player's:
+a swing only moves where the camera stands. The cost adds:
+
+- 2 × Henry's eyes outside 10 % of the left or right edge;
+- 0.25 per 20° of swing, so the plain shoulder wins when it frames as well.
+
+The swing is eased at the lift-in rate, and it is off when the room asks for no lift or a doorway holds
+the frame (its cone owns the orbit).
+
+`predict_shot` must match the frame the rig really builds, or the choice flees good shots. Three terms
+were missing in the first version, which measured worse than part 1 (eyes off screen 247, faded 195):
+
+- `keep_eyes` cannot tilt past `pitch_min_deg`, so the eyes may stay low;
+- recompose had already pulled the shoulder to the centre; the prediction used the uncomposed side,
+  put the eyes off screen and cycled every 20 frames with the camera 0.4 m from the face;
+- Lyra's feelers shorten the boom, which moves Henry sideways when the camera is swung.
+
+`TpsRigCollision.target_shares()` now gives the feeler and sweep shares statelessly for both. Recompose's
+current share is read, not predicted. Sideways prediction error in the trace: about 2 % of the screen.
+
+| Tight-space trace | Part 1 | Part 2 |
+|---|---|---|
+| Eyes off screen | 11 frames | **0** |
+| Eyes at the bottom edge | 81 | 70 |
+| Henry faded | 0 | 0 |
+| Camera within 0.8 m of the eyes | 1,440 | **141** |
+
+On the 727 route there are no real jumps. The one step over 0.3 m is the trace moving a stuck Henry, as
+before. `test_doorway_camera` fails only on the stand sweep, as before (792 frames).
+
+Backing into the exam corner or the restroom still lifts the camera high and looks down. There is no room
+behind Henry, and no swing has more.
 
 ## Control and view
 
