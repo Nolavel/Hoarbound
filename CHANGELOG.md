@@ -350,6 +350,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Hammer held fit re-authored by the owner in the Item Fitter: right hand, offset (-0.025, 0.08, -0.005), rotation
+  80° about X. `test_held_fit` now pins this fit.
 - Work gloves restyled after the owner's reference: an olive back, tan leather at the knuckles and fingertips,
   a dark palm, and an insulated dark gauntlet over the sleeve (`Outfit_GloveCuff`) with a strap and a red pull tab.
   Panels are flat colours painted per face and settled by a neighbour vote so decimation leaves no specks.
