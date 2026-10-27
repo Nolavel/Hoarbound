@@ -166,7 +166,7 @@ func _take(item_id: StringName, found: Dictionary) -> bool:
 		Source.POCKET:
 			if equipment.get_pocket_item(found["body_slot"], found["pocket"]) != item_id:
 				return false
-			return equipment.take_from_pocket(found["body_slot"], found["pocket"]) == item_id
+			return equipment.take_pocket_instance(found["body_slot"], found["pocket"]).get("id", &"") == item_id
 		_:
 			return false
 

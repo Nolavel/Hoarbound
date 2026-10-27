@@ -163,6 +163,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Pocket takes keep an item's runtime state. The flare rollback (`HeldOwnership.take` / `restore`), stove
+  fuel and eating now use `take_pocket_instance()`; the id-only `take_from_pocket()` refuses stateful items,
+  so those paths would have silently failed once items carry state.
 - Warmth colour now follows the hypothermia stages (yellow from CHILLED 36 °C, red from HYPOTHERMIC 33 °C).
   The generic 66 %/33 % ring thresholds left 31 °C (the CRITICAL stage) yellow.
 - Felt temperature is computed on world ready and on load. Before, it stayed 0 °C until the first

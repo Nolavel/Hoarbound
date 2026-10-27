@@ -578,7 +578,7 @@ func _consume_owned_item(item_id: StringName) -> bool:
 	if is_instance_valid(_equipment):
 		for pocket: Dictionary in _equipment.get_available_pockets():
 			if pocket["item_id"] == item_id:
-				return _equipment.take_from_pocket(pocket["body_slot"], pocket["pocket"]) == item_id
+				return _equipment.take_pocket_instance(pocket["body_slot"], pocket["pocket"]).get("id", &"") == item_id
 	return false
 
 
