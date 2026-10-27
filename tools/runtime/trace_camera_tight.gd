@@ -55,6 +55,8 @@ func _initialize() -> void:
 	_world = (load(SCENE) as PackedScene).instantiate() as Node3D
 	_world.set(&"spawn_at_shelter", true)
 	root.add_child(_world)
+	## The numbers need physics and the camera, not pixels: 3D draws only for the saved shots.
+	root.disable_3d = true
 
 
 func _process(_delta: float) -> bool:
@@ -76,7 +78,9 @@ func _process(_delta: float) -> bool:
 				_print_passage()
 			_feed_look(Vector2(TAU / float(TURN_FRAMES), 0.0))
 			_record()
-			if _phase_frame % SHOT_EVERY == 0:
+			if _phase_frame % SHOT_EVERY == SHOT_EVERY - 1:
+				root.disable_3d = false
+			elif _phase_frame % SHOT_EVERY == 0:
 				_shot("%s_turn_%03d" % [_spots[_spot][0], _phase_frame])
 			if _phase_frame >= TURN_FRAMES:
 				_begin(&"idle")
@@ -105,6 +109,12 @@ func _process(_delta: float) -> bool:
 			if _phase_frame >= WALK_FRAMES:
 				Input.action_release(&"move_forward")
 				_phase = ""
+	## One still mid-rest and one at the end of backing in, besides the turn's.
+	var still_at: int = IDLE_FRAMES / 2 if _phase == "idle" else (BACK_FRAMES - 2 if _phase == "back_in" else -10)
+	if _phase_frame == still_at - 1:
+		root.disable_3d = false
+	elif _phase_frame == still_at:
+		_shot("%s_%s_%03d" % [_spots[_spot][0], _phase, _phase_frame])
 	if _phase == "walk" and _phase_frame % 10 == 0:
 		var st: Dictionary = _camera.get_debug_state()
 		print("camera trace: walk %d own=%.2f other=%.2f swap=%.2f passage=%.2f side=%.2f" % [_phase_frame,
@@ -258,6 +268,7 @@ func _shot(shot_name: String) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	root.get_viewport().get_texture().get_image().save_png(_abs(_out).path_join(shot_name + ".png"))
+	root.disable_3d = true
 
 
 ## Plan point (u, v) on the shelter floor in world space.
