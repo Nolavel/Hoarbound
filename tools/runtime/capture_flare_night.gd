@@ -67,6 +67,11 @@ func _run() -> void:
 	for v: Array in VARIANTS:
 		_apply(flare, v)
 		await _shot("out_" + String(v[0]), henry + out * 4.5 + side * 1.5 + Vector3.UP * 2.0, henry + Vector3.UP * 0.6, flare)
+	## Close on the flare in Henry's hand, six frames apart, to see the jet and the spurts.
+	_apply(flare, VARIANTS[2])
+	var tip: Vector3 = (flare.get(&"_tip") as Node3D).global_position
+	for i: int in range(6):
+		await _shot("close_%d" % i, tip + out * 1.3 + side * 0.4 + Vector3.UP * 0.35, tip + Vector3.UP * 0.12, flare)
 	## Inside 727, stove cold: the flare is the only light; framed across the room as the shadow capture.
 	var stove := _world.find_children("*", "HeatSource", true, false)[0] as Node3D
 	_player.global_position = stove.to_global(Vector3(1.4, 1.0, 0.6))
@@ -99,7 +104,7 @@ func _shot(shot_name: String, from: Vector3, at: Vector3, flare: HeldFlare) -> v
 	root.add_child(camera)
 	camera.look_at_from_position(from, at)
 	camera.make_current()
-	await _frames(40)
+	await _frames(12 if shot_name.begins_with("close") else 40)
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join(shot_name + ".png"))
 	var light := flare.get(&"_light") as OmniLight3D

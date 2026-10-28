@@ -39,11 +39,11 @@ const WEATHER_CONTROLLER_SCRIPT: GDScript = preload(
 ## Shadows are deliberately off for the normal production tier.
 @export var enable_shadows: bool = false
 ## Falloff exponent (Godot omni_attenuation; 2 is about inverse square).
-@export_range(0.25, 4.0, 0.05) var light_attenuation: float = 1.0
+@export_range(0.25, 4.0, 0.05) var light_attenuation: float = 2.0
 ## How much the light tints the volumetric fog (Light3D.light_volumetric_fog_energy).
-@export_range(0.0, 2.0, 0.05) var fog_energy: float = 1.0
+@export_range(0.0, 2.0, 0.05) var fog_energy: float = 0.3
 ## How much the lit circle's radius breathes with the burn and its spurts, 0..1.
-@export_range(0.0, 1.0, 0.05) var range_breath: float = 1.0
+@export_range(0.0, 1.0, 0.05) var range_breath: float = 0.0
 
 @export_group("Wind")
 @export_range(0.05, 1.0, 0.05) var wind_sample_interval_s: float = 0.15
@@ -56,11 +56,13 @@ var _core: MeshInstance3D
 var _core_material: StandardMaterial3D
 var _light: OmniLight3D
 var _tip: Marker3D
+var _flame: GPUParticles3D
 var _sparks: GPUParticles3D
 var _fragments: GPUParticles3D
 var _smoke: GPUParticles3D
 var _smoke_process: ParticleProcessMaterial
 var _spark_process: ParticleProcessMaterial
+var _flame_process: ParticleProcessMaterial
 ## 0..1 gush level: rises in uneven spurts, decays between them, and drives the
 ## spark fountain and the light's reach together.
 var _gush: float = 0.0
@@ -246,6 +248,11 @@ func _apply_energy() -> void:
 	if _spark_process != null:
 		_spark_process.initial_velocity_min = lerpf(1.6, 3.2, _gush)
 		_spark_process.initial_velocity_max = lerpf(3.4, 7.2, _gush)
+	if _flame != null:
+		## The tip never stops burning: the jet only swells with the burn and each spurt.
+		_flame.amount_ratio = clampf(0.70 + (_current_energy - 0.9) * 0.6 + _gush * 0.3, 0.45, 1.0)
+	if _flame_process != null:
+		_flame_process.initial_velocity_max = lerpf(1.1, 1.9, _gush)
 	if _fragments != null:
 		_fragments.amount_ratio = clampf((_current_energy - 0.62) * 0.90, 0.06, 0.62)
 	if _smoke != null:
@@ -259,7 +266,7 @@ func _apply_burning_state() -> void:
 		_core.visible = _burning
 
 	if _runtime_visuals_enabled:
-		for layer: GPUParticles3D in [_sparks, _fragments, _smoke]:
+		for layer: GPUParticles3D in [_flame, _sparks, _fragments, _smoke]:
 			if layer != null:
 				layer.emitting = _burning
 
@@ -268,7 +275,7 @@ func _apply_burning_state() -> void:
 	else:
 		if _light != null:
 			_light.light_energy = 0.0
-		for layer: GPUParticles3D in [_sparks, _fragments, _smoke]:
+		for layer: GPUParticles3D in [_flame, _sparks, _fragments, _smoke]:
 			if layer != null:
 				layer.amount_ratio = 0.0
 
@@ -340,6 +347,10 @@ func _build_flare() -> void:
 	if not _runtime_visuals_enabled:
 		return
 
+	_flame = _make_flame_layer()
+	_flame.name = "FlameJet"
+	_tip.add_child(_flame)
+
 	_sparks = _make_spark_layer()
 	_sparks.name = "SparkJet"
 	_tip.add_child(_sparks)
@@ -385,34 +396,86 @@ func _make_spark_layer() -> GPUParticles3D:
 	process.color_ramp = spark_ramp_tex
 	particles.process_material = process
 	_spark_process = process
-	## Soft radial billboard: avoids the tiny square/diamond read seen under
-	## lavapipe while keeping the validated cone width.
-	particles.draw_pass_1 = _spark_mesh(0.011, Color(1.0, 0.6, 0.25, 1.0), 7.0)
+	## Short streaks along the velocity, so a spurt reads as arcs of burning slag, not dots.
+	particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
+	particles.draw_pass_1 = _spark_mesh(0.007, Color(1.0, 0.6, 0.25, 1.0), 7.0, 5.5)
 	return particles
 
 
 func _make_fragment_layer() -> GPUParticles3D:
 	var particles := GPUParticles3D.new()
 	particles.amount = 90
-	particles.lifetime = 1.2
+	particles.lifetime = 1.1
 	particles.randomness = 0.82
 	particles.local_coords = false
 	particles.fixed_fps = 30
 	particles.interpolate = true
 	particles.visibility_aabb = AABB(Vector3(-4.0, -4.0, -4.0), Vector3(8.0, 8.0, 8.0))
 
+	## Burning slag: drops off the tip, falls under full gravity and cools as it goes.
 	var process := ParticleProcessMaterial.new()
-	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_POINT
-	process.direction = Vector3.UP
-	process.spread = 43.0
-	process.initial_velocity_min = 0.9
-	process.initial_velocity_max = 3.0
-	process.gravity = Vector3(0.0, -4.6, 0.0)
-	process.scale_min = 0.7
-	process.scale_max = 1.7
-	process.color = Color(1.0, 0.075, 0.012, 1.0)
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	process.emission_sphere_radius = 0.012
+	process.direction = Vector3(0.0, 0.3, 0.0)
+	process.spread = 70.0
+	process.initial_velocity_min = 0.2
+	process.initial_velocity_max = 1.1
+	process.gravity = Vector3(0.0, -9.8, 0.0)
+	process.scale_min = 0.8
+	process.scale_max = 1.8
+	var cooling := Gradient.new()
+	cooling.set_color(0, Color(1.0, 0.78, 0.35, 1.0))
+	cooling.add_point(0.4, Color(1.0, 0.22, 0.04, 1.0))
+	cooling.set_color(cooling.get_point_count() - 1, Color(0.35, 0.03, 0.01, 0.0))
+	var cooling_tex := GradientTexture1D.new()
+	cooling_tex.gradient = cooling
+	process.color_ramp = cooling_tex
 	particles.process_material = process
-	particles.draw_pass_1 = _spark_mesh(0.0090, Color(1.0, 0.075, 0.012, 1.0), 8.5)
+	particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
+	particles.draw_pass_1 = _spark_mesh(0.010, Color(1.0, 0.3, 0.05, 1.0), 8.0, 2.2)
+	return particles
+
+
+## The burning tip itself: a dense, short-lived jet, white at the core cooling to red,
+## that never stops while the flare burns; spurts only push it further.
+func _make_flame_layer() -> GPUParticles3D:
+	var particles := GPUParticles3D.new()
+	particles.amount = 140
+	particles.lifetime = 0.22
+	particles.randomness = 0.5
+	particles.local_coords = false
+	particles.fixed_fps = 60
+	particles.interpolate = true
+	particles.visibility_aabb = AABB(Vector3(-1.0, -1.0, -1.0), Vector3(2.0, 2.0, 2.0))
+
+	_flame_process = ParticleProcessMaterial.new()
+	_flame_process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	_flame_process.emission_sphere_radius = 0.008
+	_flame_process.direction = Vector3.UP
+	_flame_process.spread = 14.0
+	_flame_process.initial_velocity_min = 0.6
+	_flame_process.initial_velocity_max = 1.1
+	_flame_process.gravity = Vector3(0.0, 1.5, 0.0)
+	_flame_process.damping_min = 1.0
+	_flame_process.damping_max = 3.0
+	var grow := Curve.new()
+	grow.add_point(Vector2(0.0, 0.6))
+	grow.add_point(Vector2(0.35, 1.0))
+	grow.add_point(Vector2(1.0, 0.25))
+	var grow_tex := CurveTexture.new()
+	grow_tex.curve = grow
+	_flame_process.scale_curve = grow_tex
+	var heat := Gradient.new()
+	heat.set_color(0, Color(1.0, 0.95, 0.8, 1.0))
+	heat.add_point(0.25, Color(1.0, 0.55, 0.15, 0.95))
+	heat.add_point(0.6, Color(1.0, 0.14, 0.03, 0.6))
+	heat.set_color(heat.get_point_count() - 1, Color(0.6, 0.04, 0.01, 0.0))
+	var heat_tex := GradientTexture1D.new()
+	heat_tex.gradient = heat
+	_flame_process.color_ramp = heat_tex
+	particles.process_material = _flame_process
+	particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
+	particles.draw_pass_1 = _spark_mesh(0.026, Color(1.0, 0.5, 0.18, 1.0), 9.0, 2.4)
 	return particles
 
 
@@ -433,16 +496,24 @@ func _make_smoke_layer() -> GPUParticles3D:
 	_smoke_process.initial_velocity_min = 0.24
 	_smoke_process.initial_velocity_max = 0.62
 	_smoke_process.gravity = Vector3(0.0, 0.12, 0.0)
-	_smoke_process.scale_min = 0.7
-	_smoke_process.scale_max = 1.55
+	_smoke_process.scale_min = 0.8
+	_smoke_process.scale_max = 1.3
+	## A puff is born small at the tip, swells and thins out as it drifts.
+	var swell := Curve.new()
+	swell.add_point(Vector2(0.0, 0.25))
+	swell.add_point(Vector2(0.4, 1.4))
+	swell.add_point(Vector2(1.0, 2.8))
+	var swell_tex := CurveTexture.new()
+	swell_tex.curve = swell
+	_smoke_process.scale_curve = swell_tex
 
 	var gradient := Gradient.new()
 	## Smoke needs enough warm midtone to separate from a black night sky, but
 	## it still fades back toward neutral grey as it leaves the hot tip.
 	gradient.set_color(0, Color(0.52, 0.24, 0.18, 0.0))
-	gradient.add_point(0.12, Color(0.48, 0.28, 0.24, 0.42))
-	gradient.add_point(0.52, Color(0.38, 0.33, 0.33, 0.24))
-	gradient.set_color(gradient.get_point_count() - 1, Color(0.31, 0.32, 0.35, 0.0))
+	gradient.add_point(0.08, Color(0.48, 0.28, 0.24, 0.45))
+	gradient.add_point(0.35, Color(0.36, 0.34, 0.35, 0.30))
+	gradient.set_color(gradient.get_point_count() - 1, Color(0.30, 0.32, 0.36, 0.0))
 	var ramp := GradientTexture1D.new()
 	ramp.gradient = gradient
 	_smoke_process.color_ramp = ramp
@@ -452,15 +523,17 @@ func _make_smoke_layer() -> GPUParticles3D:
 	return particles
 
 
-func _spark_mesh(size: float, tint: Color, emission_energy: float) -> QuadMesh:
+## A soft glowing quad; `stretch` > 1 makes it a streak along the particle's velocity.
+func _spark_mesh(size: float, tint: Color, emission_energy: float, stretch: float = 1.0) -> QuadMesh:
 	var mesh := QuadMesh.new()
-	mesh.size = Vector2(size, size)
+	mesh.size = Vector2(size, size * stretch)
 
 	var material := StandardMaterial3D.new()
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	## Streaks take their facing from the particle (aligned to velocity); dots face the camera.
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED if stretch > 1.0 else BaseMaterial3D.BILLBOARD_ENABLED
 	material.vertex_color_use_as_albedo = true
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.albedo_color = tint
@@ -474,7 +547,7 @@ func _spark_mesh(size: float, tint: Color, emission_energy: float) -> QuadMesh:
 
 func _smoke_quad() -> QuadMesh:
 	var mesh := QuadMesh.new()
-	mesh.size = Vector2(0.085, 0.085)
+	mesh.size = Vector2(0.11, 0.11)
 	var material := StandardMaterial3D.new()
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
