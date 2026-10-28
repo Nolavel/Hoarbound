@@ -40,7 +40,7 @@ const LOWER_BODY_BONES: Array[StringName] = [&"root", &"pelvis", &"spine_01", &"
 	&"foot_l", &"ball_l", &"thigh_r", &"calf_r", &"foot_r", &"ball_r", &"ball_leaf_l", &"ball_leaf_r"]
 ## Full-body actions during which Henry stands still.
 const LOCKING_ACTIONS: Array[StringName] = [
-	&"interact", &"pickup", &"pickup_right_shelf", &"pickup_right_low", &"fix", &"chest_open",
+	&"interact", &"pickup", &"pickup_right_shelf", &"pickup_right_low", &"fix", &"chest_open", &"throw",
 ]
 ## Walking speed of the authored carry cycle, m/s.
 const CARRY_WALK_SPEED: float = 1.5
@@ -64,6 +64,7 @@ const ACTION_ALIASES: Dictionary = {
 	## pose samples: AnimationTree owns the full enter/contact/return motion.
 	&"pickup_right_shelf": [&"UAL2/Farm_Watering", &"Farm_Watering"],
 	&"pickup_right_low": [&"UAL2/Farm_Harvest", &"Farm_Harvest"],
+	&"throw": [&"UAL2/OverhandThrow", &"OverhandThrow"],
 	&"fix": [&"Fixing_Kneeling"],
 	&"consume": [&"Consume", &"UAL2/Consume"],
 	&"chest_open": [&"Chest_Open", &"UAL2/Chest_Open"],

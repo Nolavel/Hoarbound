@@ -132,6 +132,20 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 			ball.radius = lump.w
 			ball.height = lump.w * 1.8
 			_part(holder, ball, Vector3(lump.x, lump.y, lump.z), SNOW_COLOUR)
+	elif item_id == &"stone":
+		## A fist-sized field stone: a flattened low-poly body with a smaller knob, weathered grey.
+		var body := SphereMesh.new()
+		body.radius = 0.042
+		body.height = 0.058
+		body.radial_segments = 7
+		body.rings = 4
+		_part(holder, body, Vector3(0, 0.029, 0), Color(0.42, 0.41, 0.39))
+		var knob := SphereMesh.new()
+		knob.radius = 0.024
+		knob.height = 0.036
+		knob.radial_segments = 6
+		knob.rings = 3
+		_part(holder, knob, Vector3(0.022, 0.034, -0.012), Color(0.38, 0.37, 0.35))
 	elif item_id == &"lighter":
 		holder.add_child(LIGHTER_SCENE.instantiate())
 	elif item_id in [&"spov_can", &"spov_can_open", &"spov_can_empty"]:

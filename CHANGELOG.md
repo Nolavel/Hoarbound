@@ -8,6 +8,19 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Throwing snow and stones (#257, stage 2).
+  - **Aim and throw:** with a throwable in hand (`ItemResource.throw_speed_mps`: handful 13 m/s, stone 15 m/s),
+    hold RMB to aim. A dotted arc and a landing ring show the flight, with a slow hand sway of about 1.2 degrees.
+    LMB while aiming throws on UAL2 `OverhandThrow`, released at 0.35 s (traced: the hand passes the shoulder
+    forward at 21 m/s), with 0.8 degrees of jitter. LMB without aiming still eats the handful.
+  - **Launch:** `ThrowComponent.launch_direction` solves the low arc to the camera's aim point, and lobs at
+    45 degrees when the point is out of reach.
+  - **In flight:** `ThrownItem` strikes its first contact through the new `ThrowImpactCapability` (`core/contracts`).
+    Snow bursts and is gone; a stone rolls to rest on ground damping and becomes a pickup again.
+  - **Wall stones:** `StoneScatter` lays stones at the foot of house walls near Henry, from the building outlines.
+    About 7 % of 4 m wall spots hold one, hashed by position so a wall's stones never move. A taken one stays
+    taken through the `PickupLedger`.
+  - New item: `stone` (0.35 kg). Tests: `test_throw`, `test_stone_scatter`.
 - Snow by hand (#257, stage 1).
   - **F on open snow** with nothing else in focus: Henry stoops (`pickup_right_low`). A held empty mug fills with snow
     in hand, and a free hand takes a handful of snow (`snow_handful`, now actually produced in play).

@@ -31,6 +31,7 @@
 [ext_resource type="Script" path="res://scripts/actors/player/henry/components/motion_matching_locomotion.gd" id="95_motion"]
 [ext_resource type="Resource" path="res://data/equipment/player_layout.tres" id="93_layout"]
 [ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="50_ual"]
+[ext_resource type="Script" path="res://scripts/actors/player/henry/components/throw_component.gd" id="99_throw"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_0w3ce"]
 radius = 0.5
@@ -166,3 +167,6 @@ mouse_filter = 2
 script = ExtResource("49_pickup_marker")
 
 [node name="VitalHUD" parent="." instance=ExtResource("51_vitals")]
+
+[node name="ThrowComponent" type="Node" parent="."]
+script = ExtResource("99_throw")

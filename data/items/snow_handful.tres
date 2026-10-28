@@ -19,4 +19,5 @@ weight = 0.2
 max_stack = 2
 size_class = 0
 warms_into = &"warm_water"
+throw_speed_mps = 13.0
 consumable = SubResource("C_snow_handful")

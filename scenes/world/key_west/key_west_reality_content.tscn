@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/ui/debug/weather_debug.gd" id="9_weather_debug"]
 [ext_resource type="Script" path="res://scripts/vfx/floor_snow_prints.gd" id="10_floor_prints"]
 [ext_resource type="Script" path="res://scripts/vfx/blizzard_flow.gd" id="10_blizzard"]
+[ext_resource type="Script" path="res://scripts/world/stone_scatter.gd" id="20_stones"]
 
 [node name="KeyWestRealityContent" type="Node3D"]
 
@@ -51,6 +52,9 @@ metadata/source = "Debug builds only: F5 cycles First Exit route goals and liste
 
 [node name="BlizzardFlow" type="Node3D" parent="."]
 script = ExtResource("10_blizzard")
+
+[node name="StoneScatter" type="Node3D" parent="."]
+script = ExtResource("20_stones")
 metadata/source = "Blown snow as fog volumes on wide streets that run with the wind (FUTURE_INTENT §10)"
 
 [node name="WeatherDebug" type="Node" parent="."]
