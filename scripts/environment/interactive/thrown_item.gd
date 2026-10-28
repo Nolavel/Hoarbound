@@ -87,7 +87,10 @@ func _strike(state: PhysicsDirectBodyState3D) -> void:
 	var collider: Object = state.get_contact_collider_object(0)
 	var impulse: float = mass * maxf(_recent_speeds[0], maxf(_recent_speeds[1], _recent_speeds[2]))
 	var target: Object = _impact_target(collider)
-	ThrowImpactCapability.hit(target, item_id, point, normal, impulse)
+	if not ThrowImpactCapability.hit(target, item_id, point, normal, impulse, collider) and is_inside_tree():
+		for sink: Node in get_tree().get_nodes_in_group(ThrowImpactCapability.WORLD_GROUP):
+			if ThrowImpactCapability.hit(sink, item_id, point, normal, impulse, collider):
+				break
 	impacted.emit(item_id, point, normal, collider, impulse)
 	linear_damp = GROUND_DAMP
 	if is_snow():

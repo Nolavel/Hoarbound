@@ -12,8 +12,13 @@ static func publish(owner: Object, provider: Object, hit_method: StringName) -> 
 	return CapabilityContract.publish(owner, ID, provider, {HIT: hit_method})
 
 
-## Delivers a hit: item_id, world point and normal, and the impulse in N*s. True if it was used.
-static func hit(target: Object, item_id: StringName, point: Vector3, normal: Vector3, impulse: float) -> bool:
+## World sinks take hits nothing nearer claimed (glass in a generated facade has no node of its own).
+const WORLD_GROUP: StringName = &"throw_impact_world"
+
+
+## Delivers a hit: item_id, world point and normal, impulse in N*s and the struck collider.
+## True if the target used it.
+static func hit(target: Object, item_id: StringName, point: Vector3, normal: Vector3, impulse: float, collider: Object = null) -> bool:
 	if target == null or not is_instance_valid(target) or not CapabilityContract.has(target, ID):
 		return false
-	return CapabilityContract.invoke(target, ID, HIT, [item_id, point, normal, impulse]) == true
+	return CapabilityContract.invoke(target, ID, HIT, [item_id, point, normal, impulse, collider]) == true

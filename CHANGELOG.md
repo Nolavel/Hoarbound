@@ -8,6 +8,19 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Breakable window glass (#257, stage 3).
+  - **Which panes:** `WindowBreakage` cracks and breaks the pane a throw lands on, on any house: the 727 window
+    breaches, and every pane quad of a generated facade's `windows` surface, found from the hit point.
+  - **Damage adds up:** a pane cracks at 2 N*s and breaks at 5 N*s. A snowball (0.2 kg at 13 m/s) cracks it and a
+    second breaks it; a stone (0.35 kg at 15 m/s) breaks it at once.
+  - **Look:** cracks radiate from the impact, a broken pane shows a jagged dark hole with shards round it, and
+    shards fall. There is no glass sound yet: the project has none.
+  - **Saved:** damage persists, panes included.
+  - **727 glass holds heat:** a closed pane leaks 12 % of its hole (`ShelterBreach.glazed`, `GLASS_LEAK`), so the
+    heated room's sealing goes from 0.085 to 0.877 and its heat ceiling from 3.4 to 16 C. A broken pane is a full
+    hole again (owner decision; boards to be reworked later). 727 window breaches now carry the spec's opening sizes.
+  - **Plumbing:** `ThrowImpactCapability` passes the struck collider; world sinks take hits nothing nearer claimed.
+    Test: `test_window_breakage`.
 - Throwing snow and stones (#257, stage 2).
   - **Aim and throw:** with a throwable in hand (`ItemResource.throw_speed_mps`: handful 13 m/s, stone 15 m/s),
     hold RMB to aim. A dotted arc and a landing ring show the flight, with a slow hand sway of about 1.2 degrees.

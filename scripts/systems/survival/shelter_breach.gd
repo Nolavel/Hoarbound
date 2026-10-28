@@ -9,6 +9,9 @@ signal boarded_changed(is_boarded: bool)
 signal coverage_changed(coverage: float)
 signal staged_boards_changed(count: int)
 
+## Share of the hole a closed pane still leaks round an old frame.
+const GLASS_LEAK: float = 0.12
+
 @export_group("Breach")
 @export_range(0.0, 1.0) var severity: float = 0.35:
 	set(value):
@@ -16,6 +19,8 @@ signal staged_boards_changed(count: int)
 		_announce()
 @export var starts_boarded: bool = false
 @export var boardable: bool = true
+## Intact glass in the opening (a window). It keeps the heat in until a throw breaks it.
+@export var glazed: bool = false
 var closure: HingedDoor
 
 @export_group("Repair")
@@ -61,9 +66,18 @@ func is_boarded() -> bool:
 
 
 func get_open_fraction() -> float:
+	var glass: float = GLASS_LEAK if glazed else 1.0
 	if not boardable:
-		return 1.0
-	return 0.0 if _forced_boarded else clampf(1.0 - get_coverage_fraction(), 0.0, 1.0)
+		return glass
+	return 0.0 if _forced_boarded else clampf(1.0 - get_coverage_fraction(), 0.0, 1.0) * glass
+
+
+## Breaks or restores the pane: a broken window is a full hole again.
+func set_glazed(value: bool) -> void:
+	if glazed == value:
+		return
+	glazed = value
+	_announce()
 
 
 func get_coverage_fraction() -> float:

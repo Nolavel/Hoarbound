@@ -59,7 +59,7 @@ func _run() -> void:
 	quit(1 if _failures > 0 else 0)
 
 
-func _on_wall_hit(item_id: StringName, point: Vector3, normal: Vector3, impulse: float) -> bool:
+func _on_wall_hit(item_id: StringName, point: Vector3, normal: Vector3, impulse: float, _collider: Object) -> bool:
 	_hits.append([item_id, point, normal, impulse])
 	return true
 
