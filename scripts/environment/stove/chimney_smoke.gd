@@ -88,6 +88,8 @@ func _puff_quad() -> QuadMesh:
 	var material := StandardMaterial3D.new()
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	## The shader grows each puff through its transform; billboards drop that scale otherwise.
+	material.billboard_keep_scale = true
 	material.vertex_color_use_as_albedo = true
 	material.albedo_texture = puff_texture(48)
 	material.roughness = 1.0

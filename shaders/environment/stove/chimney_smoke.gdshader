@@ -7,10 +7,10 @@ uniform float rise_mps = 0.7;
 uniform float drag = 1.1; // 1/s: how fast a puff takes up the air's speed
 uniform float exit_speed = 1.3;
 uniform float spread_m = 0.06;
-uniform float size_start = 0.3;
-uniform float size_end = 2.6;
+uniform float size_start = 0.4;
+uniform float size_end = 3.2;
 uniform float spin = 0.5;
-uniform float opacity = 0.55;
+uniform float opacity = 0.6;
 uniform vec3 tint = vec3(0.62, 0.62, 0.64);
 
 uint hash(uint x) {

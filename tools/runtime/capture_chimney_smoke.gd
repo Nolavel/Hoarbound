@@ -6,7 +6,7 @@ extends SceneTree
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const HOUR: float = 14.0
-const GUST_FRAMES: int = 1
+const GUST_FRAMES: int = 4
 ## Particle time runs this many times faster while the plume builds, so it fills in few frames.
 const WARM_SPEED: float = 8.0
 
@@ -44,7 +44,6 @@ func _run() -> void:
 	for node: Node in _world.find_children("*", "DayNightManager", true, false):
 		node.set(&"total_game_time_hours", floorf(float(node.get(&"total_game_time_hours")) / 24.0) * 24.0 + HOUR)
 		node.call(&"force_update_lighting")
-		node.set_process(false)
 	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
 		(layer as CanvasLayer).visible = false
 	for label: Node in _world.find_children("*", "Label3D", true, false):
