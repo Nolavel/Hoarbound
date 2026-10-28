@@ -6,15 +6,17 @@ extends SceneTree
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const EYE_HEIGHT: float = 1.6
-## [name, metres out from the 727 door, metres along the street (+ = door's right), hour]
+## [name, metres out from the 727 door, metres along the street (+ = door's right), hour,
+## aim: metres along the street, metres out]. The shells sit 20-37 m left of the door.
 const SHOTS: Array = [
-	["25m_noon", 25.0, 0.0, 13.0],
-	["25m_left_noon", 22.0, -12.0, 13.0],
-	["25m_right_noon", 22.0, 12.0, 13.0],
-	["25m_dusk", 25.0, 0.0, 18.5],
+	["25m_727", 25.0, 0.0, 13.0, 0.0, 0.0],
+	["25m_street", 25.0, -14.0, 13.0, -18.0, -4.0],
+	["25m_street_dusk", 25.0, -14.0, 18.5, -18.0, -4.0],
 ]
 
 var _out: String = "user://shots/shelter_read"
+## "plain" strips the building conditions after streaming: the same frames before #235.
+var _plain: bool = false
 var _world: Node3D
 var _player: Node3D
 
@@ -23,6 +25,7 @@ func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if not args.is_empty():
 		_out = args[0]
+	_plain = args.size() > 1 and args[1] == "plain"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out))
 	_run()
 
@@ -47,17 +50,31 @@ func _run() -> void:
 	out.y = 0.0
 	out = out.normalized()
 	var along: Vector3 = Vector3.UP.cross(out).normalized()
-	var aim: Vector3 = door.global_position + Vector3.UP * 1.2
 	print("[read] door ", door.global_position, " out ", out)
 	for shot: Array in SHOTS:
 		_set_hour(float(shot[3]))
+		var aim: Vector3 = door.global_position + along * float(shot[4]) + out * float(shot[5]) + Vector3.UP * 1.2
 		var from: Vector3 = door.global_position + out * float(shot[1]) + along * float(shot[2])
 		from.y = _ground_y(from) + EYE_HEIGHT
 		## Henry stands at the camera so streaming and the world around him load as in play.
 		_player.global_position = Vector3(from.x, from.y - EYE_HEIGHT + 0.1, from.z)
+		if _plain:
+			_strip_conditions()
 		await _shot(String(shot[0]), from, aim)
 	print("[read] done")
 	quit(0)
+
+
+func _strip_conditions() -> void:
+	for node: Node in _world.find_children("KW_BUILDING_*", "MeshInstance3D", true, false):
+		var building := node as MeshInstance3D
+		if not building.has_meta(BuildingCondition.APPLIED_META):
+			continue
+		for i: int in range(building.mesh.get_surface_count()):
+			building.set_surface_override_material(i, null)
+		for child: Node in building.get_children():
+			if child.name.begins_with("Condition_"):
+				child.queue_free()
 
 
 func _set_hour(hour: float) -> void:
@@ -83,7 +100,7 @@ func _shot(shot_name: String, from: Vector3, at: Vector3) -> void:
 	root.add_child(camera)
 	camera.look_at_from_position(from, at)
 	camera.make_current()
-	for _i: int in range(150):
+	for _i: int in range(60):
 		await process_frame
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join(shot_name + ".png"))
