@@ -15,6 +15,8 @@ const VARIANTS: Array = [
 ]
 
 var _out: String = "user://shots/flare_night"
+## Second arg "smoke": one wider close-up of the burning flare with its plume, nothing else.
+var _smoke_only: bool = false
 var _world: Node3D
 var _player: Player
 
@@ -23,6 +25,7 @@ func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if not args.is_empty():
 		_out = args[0]
+	_smoke_only = args.size() > 1 and args[1] == "smoke"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out))
 	_run()
 
@@ -64,6 +67,11 @@ func _run() -> void:
 	await _frames(90)
 	var henry: Vector3 = _player.global_position
 	var flare: HeldFlare = held.get(&"_flare") as HeldFlare
+	if _smoke_only:
+		var top: Vector3 = (flare.get(&"_tip") as Node3D).global_position
+		await _shot("smoke_close", top + out * 1.9 + side * 0.5 + Vector3.UP * 0.25, top + Vector3.UP * 0.45, flare)
+		quit(0)
+		return
 	for v: Array in VARIANTS:
 		_apply(flare, v)
 		await _shot("out_" + String(v[0]), henry + out * 4.5 + side * 1.5 + Vector3.UP * 2.0, henry + Vector3.UP * 0.6, flare)
