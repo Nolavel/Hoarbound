@@ -6,8 +6,7 @@ global uniform float stylized_shadow_strength;
 // the value noise, 1 uses the mask.
 global uniform sampler2D stylized_shadow_brush_mask : filter_linear_mipmap, repeat_enable;
 global uniform float stylized_shadow_brush_mix;
-// Shelter look (ShelterGradeBinder): 1 indoors cuts local light pools (the stove) into the torn
-// three tones with dry-brush edges (the owner's earlier build) and pushes the penumbra about.
+// Shelter look (ShelterGradeBinder): 1 indoors drops the brush back to the value-noise spray.
 global uniform float stylized_shadow_interior_mode;
 
 // Lookup offset: amplitude in metres and base frequency in cycles per metre.
@@ -24,12 +23,8 @@ const float HFN_SHADOW_BRUSH_CONTRAST = 1.4;
 const float HFN_SHADOW_CUT_LOW = 0.34;
 const float HFN_SHADOW_CUT_HIGH = 0.66;
 const float HFN_SHADOW_MID_TONE = 0.45;
-// Indoors: how far the edge field moves the penumbra.
-const float HFN_SHADOW_EDGE_COARSE = 0.15;
-const float HFN_SHADOW_EDGE_STROKE = 0.04;
 
 varying float hfn_shadow_spray;
-varying float hfn_shadow_edge;
 
 
 // PCG3D integer hash (Jarzynski & Olano 2020, "Hash Functions for GPU Rendering").
@@ -98,7 +93,8 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 	vec3 noise = hfn_shadow_fbm3(noise_pos, HFN_SHADOW_OFFSET_FREQ, pixel_m);
 	vec3 tangent = noise - n * dot(noise, n);
 	vec3 offset = (view * vec4(tangent * HFN_SHADOW_OFFSET_M * offset_scale * strength, 0.0)).xyz;
-	float brush_mix = clamp(stylized_shadow_brush_mix, 0.0, 1.0);
+	float brush_mix = clamp(stylized_shadow_brush_mix, 0.0, 1.0)
+		* (1.0 - clamp(stylized_shadow_interior_mode, 0.0, 1.0));
 	float spray = 0.0;
 	if (brush_mix < 1.0) {
 		spray = hfn_shadow_fbm3(noise_pos + vec3(41.3, -7.9, 23.1), HFN_SHADOW_SPRAY_FREQ, pixel_m).x;
@@ -111,16 +107,8 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 }
 
 
-#define HFN_SHADOW_FRAGMENT_SCALED(noise_pos, offset_scale) vec4 hfn_prep = hfn_shadow_prepare(noise_pos, NORMAL, INV_VIEW_MATRIX, VIEW_MATRIX, offset_scale); LIGHT_VERTEX = VERTEX + hfn_prep.xyz; hfn_shadow_spray = hfn_prep.w; hfn_shadow_edge = hfn_shadow_edge_field(noise_pos)
+#define HFN_SHADOW_FRAGMENT_SCALED(noise_pos, offset_scale) vec4 hfn_prep = hfn_shadow_prepare(noise_pos, NORMAL, INV_VIEW_MATRIX, VIEW_MATRIX, offset_scale); LIGHT_VERTEX = VERTEX + hfn_prep.xyz; hfn_shadow_spray = hfn_prep.w
 #define HFN_SHADOW_FRAGMENT(world_pos) HFN_SHADOW_FRAGMENT_SCALED(world_pos, 1.0)
-
-
-// Indoor edge field, fixed to the surface: broad lobes plus a finer stroke, -1..1 scale.
-float hfn_shadow_edge_field(vec3 p) {
-	float coarse = sin(p.x * 2.1 + p.z * 0.7) * sin(p.z * 2.7 - p.y * 0.6);
-	float stroke = sin(p.x * 5.1 - p.z * 1.9);
-	return coarse * HFN_SHADOW_EDGE_COARSE + stroke * HFN_SHADOW_EDGE_STROKE;
-}
 
 
 // Directional ATTENUATION is the shadow alone; local lights also carry distance
@@ -131,9 +119,6 @@ float hfn_stylized_shadow(float attenuation, bool directional) {
 	if (!directional || strength <= 0.0) {
 		return base;
 	}
-	// Indoors only the physical penumbra band is pushed about; full light and full shadow stay put.
-	float band = smoothstep(0.12, 0.32, base) * (1.0 - smoothstep(0.70, 0.92, base));
-	base = clamp(base + clamp(stylized_shadow_interior_mode, 0.0, 1.0) * band * hfn_shadow_edge, 0.0, 1.0);
 	float v = base + hfn_shadow_spray * 0.5 * HFN_SHADOW_SPRAY_JITTER;
 	// One-pixel cuts (fwidth): a hard step flips whole pixels on sub-pixel camera moves, so contours boiled.
 	float aa = max(fwidth(v), 1e-4) * 0.5;
@@ -141,22 +126,4 @@ float hfn_stylized_shadow(float attenuation, bool directional) {
 	float high = smoothstep(HFN_SHADOW_CUT_HIGH - aa, HFN_SHADOW_CUT_HIGH + aa, v);
 	float tone = mix(low * HFN_SHADOW_MID_TONE, 1.0, high);
 	return mix(base, tone, strength);
-}
-
-
-// Diffuse light term as a colour. Outdoors the stylized directional shadow as before; local
-// lights stay physical. Indoors a local light's pool (the stove) is cut into the three torn
-// tones with brush edges by how bright it reads (capped at 1), so the warm light ends in hard,
-// scratchy steps; brighter than 1, near the source, it stays physical.
-vec3 hfn_stylized_shadow_rgb(float attenuation, bool directional) {
-	if (directional) {
-		return vec3(hfn_stylized_shadow(attenuation, true));
-	}
-	float interior = clamp(stylized_shadow_interior_mode, 0.0, 1.0) * clamp(stylized_shadow_strength, 0.0, 1.0);
-	if (interior <= 0.0) {
-		return vec3(attenuation);
-	}
-	float pool = clamp(attenuation, 0.0, 1.0);
-	float tone = hfn_stylized_shadow(pool, true);
-	return vec3(mix(attenuation, tone * max(attenuation, 1.0), interior));
 }
