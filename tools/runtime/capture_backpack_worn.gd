@@ -88,7 +88,7 @@ func _record(seconds: float, caption: String, away: Vector3) -> void:
 		facing.y = 0.0
 		facing = facing.normalized()
 		var right: Vector3 = facing.cross(Vector3.UP)
-		_camera.look_at_from_position(henry - right * 2.4 - facing * 1.1 + Vector3.UP * 1.5, henry + Vector3.UP * 1.2 - facing * 0.2)
+		_camera.look_at_from_position(henry - right * 2.0 - facing * 1.0 + Vector3.UP * 0.8, henry + Vector3.UP * 0.35 - facing * 0.2)
 		await process_frame
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join("f_%03d.png" % _frame))

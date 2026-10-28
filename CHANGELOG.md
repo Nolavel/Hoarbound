@@ -20,6 +20,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - **Owner review:** there is a pocket on each side, open at the top and sized for a bottle that stands out of it.
     The canvas gives 2 cm at most (3 cm in a pocket) and no longer balloons round an item bigger than its pocket.
   - Capture: `tools/runtime/capture_backpack_lab.gd` (two views of one run).
+- Backpack on Henry, stage 2 (#260): `PackRig` now draws a `BackpackModel` (`use_canvas_model`) in place of the
+  old box and flaps. `PackRig` still owns the Hub, inspection and setting the pack down.
+  - **Openness:** closed, ajar 24°, top-only 42°, and fully open for the Hub.
+  - **Fill:** carried weight over 14 kg sets the fill, so a light pack slumps.
+  - **Sway:** the pack hangs from a pivot at its top back. Henry's acceleration drives a pitch and roll spring
+    (at most 9°); it swings slower when loaded.
+  - **Kenny:** he is off the starting loadout for now (owner's call). His item, fixture and set-down code stay.
+  - Capture: `tools/runtime/capture_backpack_worn.gd`.
 - Snow that sticks and melts (#257, stage 4).
   - **Splats:** a snowball bursts into a puff and leaves a `SnowSplat` decal on what it hits. In the cold the
     splat stays (the 32 newest are kept). Inside a heated interior zone it slides down 12 cm and melts in 45 s.
