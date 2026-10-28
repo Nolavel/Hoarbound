@@ -381,9 +381,13 @@ func _test_stove() -> void:
 			break
 	_check(control.is_working() and feed.is_door_open(), "F did not open the stove into the working pose")
 	_check(_inventory.get_count(&"firewood") == 3 and source.get_loaded_log_count() == 0, "F loaded fuel by itself")
+	## A log leaves the hands at palm contact, so wait for each act to finish, not a fixed time.
 	for _log: int in range(3):
 		control.on_rmb_pressed()
-		await create_timer(HeatSourceFeed.FUEL_SECONDS + 0.2).timeout
+		for _f: int in range(600):
+			await physics_frame
+			if feed.get_act() == HeatSourceFeed.Act.NONE:
+				break
 	_check(not source.is_burning(), "loading cold fuel ignited the stove")
 	_check(source.get_recoverable_log_count() == 3, "three RMB presses did not load three logs")
 	_check(_inventory.get_count(&"firewood") == 0, "loaded logs remained in Henry's hands")

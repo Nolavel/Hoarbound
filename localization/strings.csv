@@ -29,6 +29,7 @@ FEED_REFUSED_NO_TINDER,You need tinder to start it,Для розжига нуж�
 FEED_REFUSED_NO_INVENTORY,Cannot reach your pack,Нет доступа к рюкзаку
 BREACH_GENERIC,Board up the gap,Заколотить проём
 WEATHER_CALM,Calm,Штиль
+WEATHER_CLEAR,Clear,Ясно
 WEATHER_WINDY,Windy,Ветер
 WEATHER_SNOWFALL,Snowfall,Снегопад
 WEATHER_BLIZZARD,Blizzard,Буря
@@ -118,7 +119,9 @@ BREACH_RECOVER_ACTION,Take remaining boards,Забрать оставшиеся 
 BREACH_CARRIED_DETAIL,Carrying %d boards; F leaves them here,В руках %d доски · F сложить здесь
 REST_FREE_HANDS,Lay down boards or logs before sitting,Сначала положите доски или дрова
 REST_TABLE_DETAIL,Sit: pack beside seat; food on table; aim and F to eat,Сесть: рюкзак рядом · еда на столике · F на еде — есть
-SHELTER_ROOM_TEMPERATURE,Room air: %.1f °C,В комнате: %.1f °C
+THERMOMETER_READING,%s °C,%s °C
+HUD_BODY_TEMPERATURE,%.1f°,%.1f°
+HUD_FEELS_LIKE,FEELS %s°,FEELS %s°
 Lighter,Lighter,Зажигалка
 Hammer,Hammer,Молоток
 Nails,Nails,Гвозди
@@ -141,8 +144,12 @@ TABLE_BREAK_WARNING,4 seconds → %d logs; the table will be lost,4 секунд
 TABLE_CLEAR_FIRST,Pick up all supplies on the table first,Сначала заберите все предметы со стола
 Open pineapple tin,Open pineapple tin,Открытая банка ананасов
 Hatchet,Hatchet,Топор
+Work gloves,Work gloves,Рабочие перчатки
 PINEAPPLE_OPEN_ACTION,Open tin with knife,Открыть банку ножом
 PINEAPPLE_OPEN_HINT,The tin is open; Use eats the pineapple,Банка открыта · используйте чтобы съесть ананасы
+SPoV canned meat,SPoV canned meat,Мясные консервы SPoV
+Open SPoV can,Open SPoV can,Открытая банка SPoV
+CAN_RING_OPEN_ACTION,Pull the ring to open,Открыть за кольцо
 FLASK_HELD_MARK,%d ml,%d мл
 HAND_EAT_ACTION,Eat contents,Съесть содержимое
 HAND_TOOL_HINT,Use this tool through a world interaction,Используйте предмет при взаимодействии с объектом
@@ -173,6 +180,14 @@ ACTION_REFUSED_BUSY,Finish the current action first,Сначала законч�
 AFFLICTION_HYPOTHERMIA,Hypothermia,Переохлаждение
 AFFLICTION_DEHYDRATION,Dehydration,Обезвоживание
 AFFLICTION_EXHAUSTION,Exhaustion,Истощение
+AFFLICTION_FROSTNIP_HEAD,Frostnip: face,Подморожено лицо
+AFFLICTION_FROSTNIP_HANDS,Frostnip: hands,Подморожены руки
+AFFLICTION_FROSTNIP_FEET,Frostnip: feet,Подморожены ноги
+AFFLICTION_FROSTBITE_HEAD,Frostbite: face,Обморожение лица
+AFFLICTION_FROSTBITE_HANDS,Frostbite: hands,Обморожение рук
+AFFLICTION_FROSTBITE_FEET,Frostbite: feet,Обморожение ног
+AFFLICTION_FROSTNIP_RECOVERED,Feeling returns,Чувствительность возвращается
+AFFLICTION_FROSTBITE_RECOVERED,Frostbite eases,Обморожение отступает
 STOVE_MOUSE_LOAD,LMB: load 1 log | RMB: load up to 2,ЛКМ: положить 1 полено | ПКМ: до 2
 STOVE_MOUSE_TAKE,RMB: take up to 2 cold logs,ПКМ: забрать до 2 холодных поленьев
 STOVE_TAKEN,Taken: %d logs,Взято поленьев: %d
@@ -210,3 +225,10 @@ STOVE_RING_FIRE,FIRE,ОГОНЬ
 STOVE_RING_RMB,RMB,ПКМ
 STOVE_RING_LMB,LMB,ЛКМ
 STOVE_RING_HOLD,LMB · hold,ЛКМ · держать
+STOVE_SESSION_TITLE,STOVE,ПЕЧЬ
+WORK_SESSION_BACK,BACK,НАЗАД
+LIGHTER_FLAME_ACTION,Hold to light the flame,Удерживайте — зажечь пламя
+THROW_AIM_ACTION,Aim (LMB throws),Прицелиться (ЛКМ — бросок)
+Stone,Stone,Камень
+Handful of snow,Handful of snow,Пригоршня снега
+Mug of snow,Mug of snow,Кружка со снегом

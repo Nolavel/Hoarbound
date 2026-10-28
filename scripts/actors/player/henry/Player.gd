@@ -43,6 +43,8 @@ var _passage: PassageTraversalComponent
 ## Point a scripted walk heads for, e.g. InteractComponent's approach.
 var _walk_target: Vector3 = Vector3.ZERO
 var _walking_to_target: bool = false
+## Where Henry means to go this tick (world, input strength), published as LocomotionIntentCapability.
+var _move_intent: Vector3 = Vector3.ZERO
 
 # === Служебные переменные ===
 var _was_on_floor_for_cam: bool = false
@@ -56,6 +58,7 @@ var _standing_collision_position: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
+	LocomotionIntentCapability.publish(self, self, &"get_move_intent")
 	if main_collision != null and main_collision.shape is CapsuleShape3D:
 		main_collision.shape = main_collision.shape.duplicate()
 		_standing_collision_height = (main_collision.shape as CapsuleShape3D).height
@@ -144,6 +147,7 @@ func _physics_process(delta: float) -> void:
 	## Only the player's own keys may commit a doorway traversal that carries Henry on.
 	if _passage != null:
 		world_dir = _passage.steer(world_dir, not movement_locked and not _walking_to_target)
+	_move_intent = world_dir
 	_face_towards(world_dir, delta)
 	input_dir = global_transform.basis.orthonormalized().inverse() * world_dir
 
@@ -296,6 +300,9 @@ func on_world_ready(context: WorldContext) -> void:
 	var snow_scoop := get_node_or_null(^"SnowScoopComponent") as SnowScoopComponent
 	if snow_scoop != null:
 		snow_scoop.on_world_ready(context)
+	var hand_melt := get_node_or_null(^"HandSnowMelt") as HandSnowMelt
+	if hand_melt != null:
+		hand_melt.on_world_ready(context)
 	var steam := get_node_or_null(^"DryingSteamComponent") as DryingSteamComponent
 	if steam != null:
 		steam.set_thermal(context.get_system(THERMAL_SCRIPT) as ThermalManager)
@@ -380,6 +387,11 @@ func stop_moving() -> void:
 		return
 	_walking_to_target = false
 	movement_stopped.emit()
+
+
+## Where Henry means to go this tick: world direction scaled by input strength, zero when idle.
+func get_move_intent() -> Vector3:
+	return _move_intent
 
 
 func is_walking_to_target() -> bool:

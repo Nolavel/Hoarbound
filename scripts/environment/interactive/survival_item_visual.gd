@@ -5,6 +5,16 @@ extends RefCounted
 ## Authored Key West mug: real scale, base at y = 0, handle towards +X (13 x 8.7 x 10 cm).
 const MUG_SCENE: PackedScene = preload("res://assets/items/mug/Mug_game_ready.glb")
 const MUG_FILL_RADIUS := 0.043
+const SNOW_COLOUR := Color(0.92, 0.94, 0.97)
+## Authored worn lighter: real scale, base at y = 0, burner nozzle above LIGHTER_NOZZLE.
+const LIGHTER_SCENE: PackedScene = preload("res://assets/items/lighter/Lighter_game_ready.glb")
+const LIGHTER_NOZZLE := Vector3(-0.0066, 0.0778, 0.0)
+## Authored SPoV canned meat (tools/blender/build_spov_can.py): 10.4 x 6.1 x 7.1 cm, base at
+## y = 0, length along X, label front towards +Z, pull ring on the lid at the +X end.
+const SPOV_CAN_SCENE: PackedScene = preload("res://assets/items/spov_can/SPoV_Can.glb")
+## Recessed lid of the SPoV can: height above the base and inner size, metres.
+const SPOV_LID_Y := 0.068
+const SPOV_LID_SIZE := Vector2(0.092, 0.053)
 
 ## Shared readable props for world pickups and the meal table; no inventory state.
 static func make(item_id: StringName, item_override: ItemResource = null) -> Node3D:
@@ -50,6 +60,27 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 		var blade := PrismMesh.new()
 		blade.size = Vector3(0.028, 0.012, 0.14)
 		_part(holder, blade, Vector3(0, 0.025, -0.06), Color(0.72, 0.76, 0.78))
+	elif item_id == &"work_gloves":
+		## A pair laid flat, cuffs out: palm, four fingers, thumb and a darker cuff each.
+		for side: float in [-1.0, 1.0]:
+			var glove := Node3D.new()
+			glove.position = Vector3(side * 0.055, 0.0, side * 0.01)
+			glove.rotation.y = side * 0.25
+			holder.add_child(glove)
+			var palm := BoxMesh.new()
+			palm.size = Vector3(0.085, 0.022, 0.095)
+			_part(glove, palm, Vector3(0, 0.011, 0), Color(0.16, 0.13, 0.10))
+			for f: int in range(4):
+				var finger := BoxMesh.new()
+				finger.size = Vector3(0.018, 0.018, 0.07 - absf(float(f) - 1.5) * 0.012)
+				_part(glove, finger, Vector3(-0.03 + float(f) * 0.02, 0.009, -0.08), Color(0.17, 0.14, 0.11))
+			var thumb := BoxMesh.new()
+			thumb.size = Vector3(0.02, 0.018, 0.05)
+			_part(glove, thumb, Vector3(side * 0.055, 0.009, -0.02), Color(0.17, 0.14, 0.11))
+			(glove.get_child(glove.get_child_count() - 1) as Node3D).rotation.y = side * 0.6
+			var cuff := BoxMesh.new()
+			cuff.size = Vector3(0.09, 0.026, 0.04)
+			_part(glove, cuff, Vector3(0, 0.013, 0.065), Color(0.11, 0.09, 0.07))
 	elif item_id == &"axe":
 		var handle := BoxMesh.new()
 		handle.size = Vector3(0.035, 0.36, 0.035)
@@ -88,10 +119,51 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 			fill.height = 0.004
 			var snow: bool = item_id == &"mug_snow"
 			_part(holder, fill, Vector3(0, 0.078 if snow else 0.066, 0), Color(0.92, 0.94, 0.96) if snow else Color(0.42, 0.50, 0.52))
+			if snow:
+				## Scooped snow heaps above the rim.
+				var heap := SphereMesh.new()
+				heap.radius = MUG_FILL_RADIUS
+				heap.height = 0.05
+				_part(holder, heap, Vector3(0, 0.08, 0), SNOW_COLOUR)
+	elif item_id == &"snow_handful":
+		## A packed handful: a few overlapping lumps, not a perfect ball.
+		for lump: Vector4 in [Vector4(0, 0.035, 0, 0.034), Vector4(0.014, 0.044, 0.008, 0.024), Vector4(-0.012, 0.03, -0.01, 0.026)]:
+			var ball := SphereMesh.new()
+			ball.radius = lump.w
+			ball.height = lump.w * 1.8
+			_part(holder, ball, Vector3(lump.x, lump.y, lump.z), SNOW_COLOUR)
+	elif item_id == &"stone":
+		## A fist-sized field stone: a flattened low-poly body with a smaller knob, weathered grey.
+		var body := SphereMesh.new()
+		body.radius = 0.042
+		body.height = 0.058
+		body.radial_segments = 7
+		body.rings = 4
+		_part(holder, body, Vector3(0, 0.029, 0), Color(0.42, 0.41, 0.39))
+		var knob := SphereMesh.new()
+		knob.radius = 0.024
+		knob.height = 0.036
+		knob.radial_segments = 6
+		knob.rings = 3
+		_part(holder, knob, Vector3(0.022, 0.034, -0.012), Color(0.38, 0.37, 0.35))
+	elif item_id == &"lighter":
+		holder.add_child(LIGHTER_SCENE.instantiate())
+	elif item_id in [&"spov_can", &"spov_can_open", &"spov_can_empty"]:
+		var can: Node3D = SPOV_CAN_SCENE.instantiate()
+		holder.add_child(can)
+		if item_id != &"spov_can":
+			## Lid and ring peeled off: the meat block shows at the rim, or the dark empty inside.
+			var ring := can.find_child("SPoV_Can_Ring", true, false) as Node3D
+			if ring != null:
+				ring.visible = false
+			var inside := BoxMesh.new()
+			inside.size = Vector3(SPOV_LID_SIZE.x, 0.004, SPOV_LID_SIZE.y)
+			var colour: Color = Color(0.90, 0.46, 0.46) if item_id == &"spov_can_open" else Color(0.07, 0.06, 0.05)
+			_part(holder, inside, Vector3(0, SPOV_LID_Y + 0.002, 0), colour)
 	else:
 		var parcel := BoxMesh.new()
-		parcel.size = Vector3(0.12, 0.065, 0.085) if item_id != &"lighter" else Vector3(0.03, 0.08, 0.02)
-		_part(holder, parcel, Vector3(0, 0.04, 0), Color(0.80, 0.44, 0.08) if item_id == &"lighter" else Color(0.58, 0.44, 0.25))
+		parcel.size = Vector3(0.12, 0.065, 0.085)
+		_part(holder, parcel, Vector3(0, 0.04, 0), Color(0.58, 0.44, 0.25))
 	return holder
 
 

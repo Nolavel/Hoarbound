@@ -40,7 +40,7 @@ const LOWER_BODY_BONES: Array[StringName] = [&"root", &"pelvis", &"spine_01", &"
 	&"foot_l", &"ball_l", &"thigh_r", &"calf_r", &"foot_r", &"ball_r", &"ball_leaf_l", &"ball_leaf_r"]
 ## Full-body actions during which Henry stands still.
 const LOCKING_ACTIONS: Array[StringName] = [
-	&"interact", &"pickup", &"pickup_right_shelf", &"pickup_right_low", &"fix", &"chest_open",
+	&"interact", &"pickup", &"pickup_right_shelf", &"pickup_right_low", &"fix", &"chest_open", &"throw",
 ]
 ## Walking speed of the authored carry cycle, m/s.
 const CARRY_WALK_SPEED: float = 1.5
@@ -64,6 +64,7 @@ const ACTION_ALIASES: Dictionary = {
 	## pose samples: AnimationTree owns the full enter/contact/return motion.
 	&"pickup_right_shelf": [&"UAL2/Farm_Watering", &"Farm_Watering"],
 	&"pickup_right_low": [&"UAL2/Farm_Harvest", &"Farm_Harvest"],
+	&"throw": [&"UAL2/OverhandThrow", &"OverhandThrow"],
 	&"fix": [&"Fixing_Kneeling"],
 	&"consume": [&"Consume", &"UAL2/Consume"],
 	&"chest_open": [&"Chest_Open", &"UAL2/Chest_Open"],
@@ -138,6 +139,7 @@ const GARMENT_PARTS: Dictionary = {
 	&"Coat": [&"Outfit_Jacket", &"Outfit_Skirt", &"Outfit_Hood", &"Outfit_Trim"],
 	&"Trousers": [&"Outfit_Pants"],
 	&"Boots": [&"Outfit_Boots", &"Outfit_Sole"],
+	&"Gloves": [&"Outfit_Gloves", &"Outfit_GloveCuff"],
 }
 ## How much fully soaked clothing darkens.
 @export_range(0.0, 1.0, 0.05) var wet_darkening: float = 0.45
@@ -232,6 +234,7 @@ var _carried: ItemResource = null
 var _carried_count: int = 0
 var _stove_reserved: bool = false
 var _stove_reach: StoveHandReach
+var _present_reach: StoveHandReach
 var _sitting: bool = false
 var _resolved_sit_enter: StringName = &""
 var _resolved_sit_loop: StringName = &""
@@ -388,6 +391,15 @@ func get_stove_reach() -> StoveHandReach:
 		_stove_reach.name = "StoveReach"
 		skeleton.add_child(_stove_reach)
 	return _stove_reach
+
+## Second arm reach for presenting a held item before the chest; stove work keeps its own.
+func get_present_reach() -> StoveHandReach:
+	if _present_reach == null and skeleton != null:
+		_present_reach = StoveHandReach.new()
+		_present_reach.name = "PresentReach"
+		_present_reach.ease_out_rate = 2.5
+		skeleton.add_child(_present_reach)
+	return _present_reach
 
 func get_stove_pickup(carried: bool) -> Dictionary:
 	if carried and _carried != null and _carry_props.has(_carried.attached_mesh_node_name):
@@ -564,6 +576,20 @@ func get_action_length(action: StringName) -> float:
 		return 0.0
 	var clip: Animation = animation_player.get_animation(clip_name)
 	return clip.length if clip != null else 0.0
+
+
+## Pace of the playing action; 0 holds it on its current frame (a throw held at the wind-up).
+func set_action_pace(scale: float) -> void:
+	if animation_tree != null:
+		animation_tree.set("parameters/action_pace/scale", maxf(scale, 0.0))
+
+
+## Holds the playing action on the frame at seconds, whatever the frame rate (a throw's wind-up).
+func hold_action_at(seconds: float) -> void:
+	if animation_tree == null:
+		return
+	animation_tree.set("parameters/action_pace/scale", 0.0)
+	animation_tree.set("parameters/action_seek/seek_request", seconds)
 
 
 func abort_action() -> void:
@@ -1262,10 +1288,12 @@ func _setup_animation_tree() -> void:
 	tree_root.connect_node(&"hold_pose", 0, &"base")
 	tree_root.connect_node(&"hold_pose", 1, &"hold_clip")
 	tree_root.add_node(&"action_clip", _action_node, Vector2(-360.0, 220.0))
+	tree_root.add_node(&"action_seek", AnimationNodeTimeSeek.new(), Vector2(-290.0, 220.0))
 	tree_root.add_node(&"action_pace", AnimationNodeTimeScale.new(), Vector2(-220.0, 220.0))
 	tree_root.add_node(&"actions", actions, Vector2(-80.0, 0.0))
 	tree_root.connect_node(&"actions", 0, &"hold_pose")
-	tree_root.connect_node(&"action_pace", 0, &"action_clip")
+	tree_root.connect_node(&"action_seek", 0, &"action_clip")
+	tree_root.connect_node(&"action_pace", 0, &"action_seek")
 	tree_root.connect_node(&"actions", 1, &"action_pace")
 	_work_clip = _clip(_resolved_idle)
 	tree_root.add_node(&"work_clip", _work_clip, Vector2(-560.0, 440.0))

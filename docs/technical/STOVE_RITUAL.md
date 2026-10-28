@@ -30,10 +30,16 @@ OUTSIDE --F--> APPROACHING --> OPENING_DOOR --> ENTERING_CROUCH --> WORKING --F-
    Henry's right shoulder, the shoulder in the lower left, his head left, the firebox
    mouth mid-frame and the open door on the right. Henry kneels 0.3 m off the door
    axis, turned to the mouth, and the door folds back 160 degrees along the front, so
-   neither his back nor the door hides his right hand at work. The mouse orbits it up to 25
-   degrees in yaw and 12 in pitch; a wall between Henry and the eye shortens the
+   neither his back nor the door hides his right hand at work. The mouse tilts it up to 12
+   degrees in pitch; yaw is locked, since a sideways orbit brought the eye into
+   Henry's head and faded him out. A wall between Henry and the eye shortens the
    boom. F hands the view back to the follow rig at the same rate.
-5. The ring (`StoveInteractionRing`) appears beside the stove.
+5. The ring (`StoveInteractionRing`) appears at the screen centre, 100 px down
+   (`center_drop_px`). The centre prompt's brackets part to the screen edges at
+   60 % opacity (`session_prompt_alpha`), each with half the yellow strip: `[F] BACK` by the
+   left one, `STOVE` by the right. The feed sits in `active_work_session` from
+   the door opening to F, and `MouseCursorUI` reads its
+   `get_session_prompt_data()`.
 6. F cancels any act that has not committed, closes the door, hides the ring,
    stands Henry up and returns `PlayerState` to ON_FOOT.
 
@@ -106,6 +112,12 @@ hand. A pending item remains in its owning storage until contact. Cancellation a
 contact never refunds it. Restoring fire state cancels transient actions and exits
 the ritual before applying saved fuel, preventing a delayed second transfer.
 
+**Contact is a point on the act's timeline, not a measured palm distance.** The transfer
+commits at 64 % of the act and the hold counts once the reach has arrived. The solved
+palm only presents it. The first port gated both on the IK palm being within 4.5 cm of
+the target. In the 727 shelter workflow the arm stopped 0.44 m short, so a log was never
+laid and nothing was reported. Simulation state must not depend on a presentation result.
+
 Logs enter endwise and take bounded, reproducible poses in three floor-supported
 lanes. Their resting height comes from the actual wood mesh. A released log starts
 at the held prop transform and settles with gravity-timed acceleration from one log diameter above its rest pose. Existing logs never sort or move
@@ -123,7 +135,7 @@ The shared `SurvivalItemVisual` bundle is used in hand and in the stove. Its poi
 is chosen beside a laid log, stored in stove space and reserved clear of later logs.
 
 The lighter strikes at its own nozzle and moves to that saved point. Hold time
-advances only at contact; early release retracts the hand while keeping laid tinder
+advances once the reach has arrived (`_light_reach`); early release retracts the hand while keeping laid tinder
 and fuel. Successful ignition first shows the tinder flame, then spatially delayed
 log catches. Each log transforms the source into its mesh coordinates for the shared
 arrival field. Refuel catches from a nearby existing burning log without resetting
@@ -141,11 +153,17 @@ without presentation receive safe deterministic placement and a reachable tinder
 point when prepared. This metadata never creates fuel or heat and the ritual mode
 is not saved.
 
+Readability corrections keep the existing production light color, energy, placement
+and WorldEnvironment: smaller/dimmer orange coals, lower crack emission, larger warm
+flame silhouettes with asymmetric tapered geometry, and opacity height normalized
+to the current flame strength so shrinking tongues do not become opaque round caps.
+Visual acceptance remains subject to review of the game-camera footage and a
+Forward+ run; this software Compatibility capture does not establish production readiness.
+
 ## Runtime visual evidence
 
-Earlier fire-only captures remain in [`stove_fire`](../runtime_previews/key_west_727/stove_fire/).
-They establish the original/new 727 fire comparison; they do not prove the addressed
-hand ritual. The extended `capture_stove.gd` drives the real Key West Reality scene
+Codex's fire-only and partial captures stayed on the `codex` branch; they were not
+brought into `main` (about 11 MB). The extended `capture_stove.gd` drives the real Key West Reality scene
 and Henry through actual input, pocket availability, early release, save/load,
 ignition, refuel, exit/reentry and cooling. A closer view uses the same production
 `TpsCamera.set_work_framing()` pipeline with its normal collision and easing, never

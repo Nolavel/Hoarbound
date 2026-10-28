@@ -1,146 +1,124 @@
 class_name VitalCluster
 extends Control
 
-## The original biomonitor image indicators, restored as one horizontal row.
-## Behaviour still comes from VitalCell/BioMonitor/ThermalManager; only the
-## presentation goes back to the four production PNGs.
+## Survival vitals as gradient columns with trends, temperature readouts and a frosting
+## silhouette over the warmth column; layout and rules in docs/technical/VITALS_HUD.md.
 const THERMAL_SCRIPT: GDScript = preload("res://scripts/systems/survival/thermal_manager.gd")
 const THIRST_TEXTURE: Texture2D = preload("res://assets/textures/ui/game/biomonitor/thirst_icon.png")
 const HUNGER_TEXTURE: Texture2D = preload("res://assets/textures/ui/game/biomonitor/hunger_icon.png")
 const SLEEP_TEXTURE: Texture2D = preload("res://assets/textures/ui/game/biomonitor/sleep.png")
 const WARMTH_TEXTURE: Texture2D = preload("res://assets/textures/ui/game/biomonitor/temperature_icon.png")
-## Kept while the old pentagon helper methods remain below; they are no longer
-## called by _draw(), but retaining these constants keeps the script parse-safe.
-const ICON_ATLAS: Texture2D = preload("res://assets/textures/ui/game/biomonitor/hfn_vital_morphs.svg")
-const MORPH_FRAME_COUNT: int = 8
-const MORPH_CELL_PX: float = 96.0
+const COLUMN_SHADER: Shader = preload("res://shaders/ui/vital_column.gdshader")
+const ICON_SHADER: Shader = preload("res://shaders/ui/vital_icon.gdshader")
+const FROST_SHADER: Shader = preload("res://shaders/ui/vital_frost.gdshader")
+const READOUT_FONT: Font = preload("res://assets/fonts/IM Fell English SC/IMFellEnglishSC-Regular.ttf")
+## Silhouette base; part masks come from BodyPartLibrary on the same frame (MIT, body_front/LICENSE.txt).
+const BODY_BASE: Texture2D = preload("res://assets/textures/ui/game/biomonitor/body_front/base.png")
 
-const ROW_HUNGER: int = 0
-const ROW_THIRST: int = 1
-const ROW_SLEEP: int = 2
-const ROW_WARMTH: int = 3
 const DISPLAY_ORDER: Array[StringName] = [&"thirst", &"hunger", &"sleep", &"warmth"]
-## Optical correction after trimming transparent padding. The eye is naturally
-## much denser than the drop/stomach/thermometer, so it sits slightly smaller.
-const OPTICAL_SCALE: Dictionary = {
-	&"thirst": 1.00,
-	&"hunger": 1.00,
-	&"sleep": 0.88,
-	&"warmth": 1.00,
-}
-## Every survival vital exposes the same trend grammar: rising above in green,
-## falling below in red. The sampled trend logic already tracks all four.
+## Optical correction after trimming transparent padding: the eye is denser than the others.
+const OPTICAL_SCALE: Dictionary = {&"thirst": 1.00, &"hunger": 1.00, &"sleep": 0.88, &"warmth": 1.00}
+## Every survival vital shows a trend: chevrons above the column rising, below it falling.
 const TREND_IDS: Array[StringName] = [&"thirst", &"hunger", &"sleep", &"warmth"]
 
 @export var bio_monitor: BioMonitorManager
 @export var thermal_manager: ThermalManager
 
-@export_group("Shape")
-@export var cell_width: float = 58.0
-@export var cell_height: float = 64.0
-## Depth of the pointed end, from tip to where the sides start.
-@export var cell_tip: float = 29.0
-## Gap between each tip and the centre.
-@export var centre_gap: float = 22.0
-@export var outline_width: float = 2.0
-@export var icon_size: float = 42.0
-@export var icon_gap: float = 14.0
-@export var progress_radius: float = 24.0
-@export var progress_width: float = 2.25
+@export_group("Columns")
+@export var column_width: float = 36.0
+@export var column_height: float = 112.0
+@export var column_gap: float = 16.0
+@export var column_radius: float = 8.0
+## Room under the columns for the falling chevrons.
+@export var column_bottom: float = 18.0
+@export var icon_size: float = 28.0
+## Thirst, hunger and sleep thresholds; warmth uses the ThermalManager stages instead.
 @export_range(0.0, 1.0, 0.01) var warning_progress_threshold: float = 0.66
 @export_range(0.0, 1.0, 0.01) var critical_progress_threshold: float = 0.33
-## Legacy fields kept serialized for compatibility with older scene overrides.
-## The restored horizontal biomonitor does not draw the centre silhouette.
-## Height of the quiet figure standing between the top cells, above the health bar.
-@export var silhouette_height: float = 44.0
-## Distance from the centre down to the figure's feet, the health bar's top.
-@export var silhouette_floor: float = 15.0
+## Width of the band around a threshold over which colours blend instead of switching.
+@export_range(0.0, 0.2, 0.01) var colour_band: float = 0.06
+## How fast the drawn fill and colour follow the value, per second.
+@export var display_rate: float = 4.0
 
 @export_group("Motion")
 ## A change smaller than this is not a pulse, so steady drift stays quiet.
 @export_range(0.0, 0.2, 0.005) var pulse_threshold: float = 0.01
-## Morphs play once when 50% or 10% is crossed; they never idle-loop.
 @export_range(0.25, 0.4, 0.01) var morph_duration: float = 0.35
-## A drain draws the cell this far toward the centre.
+## A drain nudges the symbol down this far; a refill swells it.
 @export var drain_push_px: float = 6.0
 @export var drain_duration: float = 0.35
 @export var refill_scale: float = 0.15
 @export var refill_duration: float = 2.0
-## A critical cell rests this far inward without continuous animation.
-@export var critical_push_px: float = 3.0
-## Whole-cell opacity at rest, and while it drains, refills or is critical.
-@export_range(0.0, 1.0, 0.05) var idle_alpha: float = 0.45
-@export_range(0.0, 1.0, 0.05) var active_alpha: float = 1.0
 
 @export_group("Trend")
 ## Seconds over which a value must move to show a trend mark.
 @export var trend_window: float = 1.5
-## Smallest move within the window that counts as a trend.
+## Smallest move within the window that counts as a trend, and the move that counts as fast.
 @export var trend_epsilon: float = 0.002
+@export var fast_trend_epsilon: float = 0.01
 @export var trend_size: float = 6.0
-## Keep trend markers visually detached from the circular progress ring.
-## Compared with the previous pass this pushes the top marker 10 px up and
-## the bottom marker 10 px down.
-@export var trend_gap: float = 11.0
+@export var trend_gap: float = 6.0
+
+@export_group("Readouts")
+@export var body_font_size: int = 15
+@export var feels_font_size: int = 14
+@export var body_color: Color = Color(0.86, 0.86, 0.84, 0.75)
+@export var feels_color: Color = Color(0.90, 0.92, 0.94, 0.9)
+
+@export_group("Silhouette")
+@export var silhouette_height: float = 96.0
+@export_range(0.0, 1.0, 0.01) var silhouette_alpha: float = 0.11
+@export var frost_color: Color = Color(0.48, 0.74, 1.0, 0.95)
 
 @export_group("Colours")
-## Solid backing of every cell; the level shows through the glyph, not a fill.
-@export var base_color: Color = Color("#2A2E3399")
-@export var silhouette_color: Color = Color("#15181B8C")
-@export var normal_color: Color = Color("#F1F2EC")
-@export var progress_track_color: Color = Color("#7C82884D")
-@export var progress_normal_color: Color = Color("#92979CD9")
-@export var warning_color: Color = Color("#D2A943")
-@export var critical_color: Color = Color("#C34E42")
-@export var drain_flash: Color = Color("#A34A3A")
-@export var refill_flash: Color = Color("#A8C47A")
-## Water fill of the figure while clothes are wet.
-@export var wet_color: Color = Color("#5B8DB8B3")
+@export var back_color: Color = Color(0.03, 0.03, 0.035, 0.8)
+@export var normal_color: Color = Color(0.50, 0.66, 0.40, 0.92)
+@export var warning_color: Color = Color(0.88, 0.68, 0.26, 0.92)
+@export var critical_color: Color = Color(0.80, 0.24, 0.16, 0.95)
 
 var cells: Dictionary = {}
-var _room_readout: Label
-## Latest value per id (vital ids plus &"wetness"), its value at the window start and its trend -1/0/+1.
+## Latest value per id (vital ids plus &"wetness"), its value at the window start and its trend.
 var _values: Dictionary = {}
 var _window_start: Dictionary = {}
 var _trends: Dictionary = {}
+var _trend_strength: Dictionary = {}
 var _window_left: float = 0.0
 var _wetness: float = 0.0
-## Non-transparent source rectangle for each production PNG. This removes asset
-## canvas padding (especially the thermometer) without editing the source art.
-var _icon_regions: Dictionary = {}
+## Per vital: shown fill and colour (eased), and its back, pigment and symbol nodes.
+var _shown: Dictionary = {}
+var _views: Dictionary = {}
+var _overlay: Control
+var _body_label: Label
+var _feels_label: Label
+var _body_base: TextureRect
+var _frost: Dictionary = {}
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	cells[&"warmth"] = VitalCell.new(&"warmth", Vector2(-1.0, -1.0), ROW_WARMTH)
-	cells[&"thirst"] = VitalCell.new(&"thirst", Vector2(1.0, -1.0), ROW_THIRST)
-	cells[&"hunger"] = VitalCell.new(&"hunger", Vector2(1.0, 1.0), ROW_HUNGER)
-	cells[&"sleep"] = VitalCell.new(&"sleep", Vector2(-1.0, 1.0), ROW_SLEEP)
-	_cache_icon_regions()
+	cells[&"warmth"] = VitalCell.new(&"warmth", Vector2(-1.0, -1.0), 3)
+	cells[&"thirst"] = VitalCell.new(&"thirst", Vector2(1.0, -1.0), 1)
+	cells[&"hunger"] = VitalCell.new(&"hunger", Vector2(1.0, 1.0), 0)
+	cells[&"sleep"] = VitalCell.new(&"sleep", Vector2(-1.0, 1.0), 2)
+	_build_views()
 	_bind_bio_monitor()
 	_bind_thermal()
-	var layer := CanvasLayer.new()
-	layer.layer = 8
-	add_child(layer)
-	_room_readout = Label.new()
-	_room_readout.add_theme_font_size_override("font_size", 20)
-	_room_readout.add_theme_constant_override("outline_size", 5)
-	layer.add_child(_room_readout)
+	resized.connect(_layout)
+	_layout()
 
 
 func _process(delta: float) -> void:
-	_room_readout.visible = is_visible_in_tree() and thermal_manager != null and thermal_manager.is_sheltered()
-	if _room_readout.visible:
-		_room_readout.text = tr("SHELTER_ROOM_TEMPERATURE") % thermal_manager.get_room_temperature_c()
-		_room_readout.position = Vector2(get_viewport_rect().size.x - _room_readout.size.x - 24.0, 24.0)
 	_window_left -= delta
 	if _window_left <= 0.0:
 		_window_left = trend_window
 		for id: StringName in _values:
 			var moved: float = float(_values[id]) - float(_window_start.get(id, _values[id]))
 			_trends[id] = 0 if absf(moved) < trend_epsilon else int(signf(moved))
+			_trend_strength[id] = 2 if absf(moved) >= fast_trend_epsilon else 1
 			_window_start[id] = _values[id]
-	queue_redraw()
+	_update_views(delta)
+	_update_readouts()
+	_overlay.queue_redraw()
 
 
 ## Rising, falling or steady (+1, -1, 0) over the last window. Ids: the vitals and wetness.
@@ -148,10 +126,39 @@ func get_trend(id: StringName) -> int:
 	return int(_trends.get(id, 0))
 
 
-## Clothing wetness 0..1: fills the figure from the feet and gets its own trend mark.
+## 1 for a steady change, 2 for a fast one (two chevrons); 0 while still.
+func get_trend_strength(id: StringName) -> int:
+	return int(_trend_strength.get(id, 1)) if get_trend(id) != 0 else 0
+
+
+## Clothing wetness 0..1, tracked with its own trend for the HUD readouts.
 func set_wetness(value: float) -> void:
 	_wetness = clampf(value, 0.0, 1.0)
 	_track(&"wetness", _wetness)
+
+
+## Warning and critical levels for one vital: warmth follows the ThermalManager stages
+## (CHILLED and HYPOTHERMIC), the others the exported progress thresholds.
+func thresholds_for(id: StringName) -> Vector2:
+	if id == &"warmth":
+		if thermal_manager != null:
+			return Vector2(thermal_manager.get_stage_threshold_normalised(ThermalManager.Stage.CHILLED),
+				thermal_manager.get_stage_threshold_normalised(ThermalManager.Stage.HYPOTHERMIC))
+		return Vector2(0.93, 0.58)
+	return Vector2(warning_progress_threshold, critical_progress_threshold)
+
+
+## Pigment colour at a level: green, yellow and red blended across a band at each threshold.
+func state_color_for(id: StringName, level: float) -> Color:
+	var limits: Vector2 = thresholds_for(id)
+	var upper: Color = warning_color.lerp(normal_color, smoothstep(limits.x - colour_band, limits.x + colour_band * 0.7, level))
+	return critical_color.lerp(upper, smoothstep(limits.y - colour_band, limits.y + colour_band, level))
+
+
+## 0 shows the symbol in half-tone; 1 at and below the critical level.
+func vividness_for(id: StringName, level: float) -> float:
+	var limits: Vector2 = thresholds_for(id)
+	return 1.0 - smoothstep(limits.y - 0.05, lerpf(limits.y, limits.x, 0.6), level)
 
 
 func _track(id: StringName, value: float) -> void:
@@ -167,7 +174,7 @@ func on_world_ready(context: WorldContext) -> void:
 		_bind_thermal()
 
 
-## Feeds one vital 0..1; pulses on movement and morphs only across thresholds.
+## Feeds one vital 0..1; a drain nudges and a refill swells its symbol.
 func set_vital(id: StringName, value: float) -> void:
 	var cell: VitalCell = cells.get(id)
 	if cell == null:
@@ -216,13 +223,15 @@ func _on_body_temperature(_celsius: float, normalised: float) -> void:
 	set_vital(&"warmth", normalised)
 
 
-## Sets a level and matching baked frame without playing an initial animation.
+## Sets a level without playing an initial animation.
 func _seed(id: StringName, value: float) -> void:
 	var cell: VitalCell = cells.get(id)
 	_track(id, value)
 	if cell != null:
 		cell.set_level(value, INF)
 		cell.morph_frame = cell.target_morph_frame()
+		if _shown.has(id):
+			_shown[id]["level"] = cell.level
 
 
 func _play_drain(cell: VitalCell) -> void:
@@ -262,102 +271,191 @@ func _restart_motion(cell: VitalCell) -> void:
 	cell.tween = create_tween()
 
 
-func _draw() -> void:
-	var count: int = DISPLAY_ORDER.size()
-	var total_width: float = icon_size * float(count) + icon_gap * float(maxi(count - 1, 0))
-	var start_x: float = (size.x - total_width) * 0.5
-	var centre_y: float = size.y * 0.5
-	for index in range(count):
-		var id: StringName = DISPLAY_ORDER[index]
-		var cell: VitalCell = cells.get(id)
-		if cell == null:
-			continue
-		var centre := Vector2(start_x + icon_size * 0.5 + float(index) * (icon_size + icon_gap), centre_y)
-		_draw_biomonitor_icon(cell, centre)
-
-
-func _draw_biomonitor_icon(cell: VitalCell, centre: Vector2) -> void:
-	var texture: Texture2D = _texture_for(cell.id)
-	if texture == null:
-		return
-	_draw_progress_ring(cell, centre)
-	var source: Rect2 = _icon_regions.get(
-		cell.id,
-		Rect2(Vector2.ZERO, Vector2(float(texture.get_width()), float(texture.get_height())))
-	)
-	if source.size.x <= 0.0 or source.size.y <= 0.0:
-		return
-	var fit: float = icon_size / maxf(source.size.x, source.size.y)
-	var optical_scale: float = float(OPTICAL_SCALE.get(cell.id, 1.0))
-	var draw_size: Vector2 = source.size * fit * optical_scale * (1.0 + cell.grow)
-	var alpha: float = lerpf(0.25, 0.90, 1.0 - cell.level)
-	if cell.severity == VitalCell.Severity.WARNING:
-		alpha = maxf(alpha, 0.72)
-	elif cell.critical:
-		alpha = maxf(alpha, 0.95)
-	alpha = clampf(alpha + cell.flash * 0.10, 0.0, 1.0)
-	var tint := Color(1.0, 1.0, 1.0, alpha)
-	var rect := Rect2(centre - draw_size * 0.5 + Vector2(0.0, cell.push), draw_size)
-	draw_texture_rect_region(texture, rect, source, tint)
-	if TREND_IDS.has(cell.id):
-		_draw_vital_trend(get_trend(cell.id), centre)
-
-
-func _draw_progress_ring(cell: VitalCell, centre: Vector2) -> void:
-	var level: float = clampf(cell.level, 0.0, 1.0)
-	var start: float = -PI * 0.5
-	draw_arc(centre, progress_radius, start, start + TAU, 48, progress_track_color, progress_width, true)
-	if level <= 0.001:
-		return
-	draw_arc(
-		centre,
-		progress_radius,
-		start,
-		start + TAU * level,
-		48,
-		_progress_color_for_level(level),
-		progress_width,
-		true
-	)
-
-
-func _progress_color_for_level(level: float) -> Color:
-	if level < critical_progress_threshold:
-		return critical_color
-	if level < warning_progress_threshold:
-		return warning_color
-	return progress_normal_color
-
-
-func _draw_vital_trend(trend: int, centre: Vector2) -> void:
-	if trend == 0:
-		return
-	var rising: bool = trend > 0
-	var at_y: float = centre.y - progress_radius - trend_gap if rising else centre.y + progress_radius + trend_gap
-	var at := Vector2(centre.x, at_y)
-	var s: float = trend_size
-	var tip := at + Vector2(0.0, -s if rising else s)
-	var base_y: float = s * 0.45 if rising else -s * 0.45
-	var points := PackedVector2Array([
-		tip,
-		at + Vector2(-s * 0.75, base_y),
-		at + Vector2(s * 0.75, base_y),
-	])
-	draw_colored_polygon(points, refill_flash if rising else drain_flash)
-
-
-func _cache_icon_regions() -> void:
+## Back, pigment and symbol per vital, then the trend overlay, readouts and silhouette.
+func _build_views() -> void:
 	for id: StringName in DISPLAY_ORDER:
-		var texture: Texture2D = _texture_for(id)
+		var level: float = cells[id].level
+		var back := _column_rect(back_color, 1.0, 0.05, 1.0, 0.0)
+		var pigment := _column_rect(state_color_for(id, level), level, 0.0, 1.15, 1.0)
+		var icon := TextureRect.new()
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.texture = _trimmed(_texture_for(id))
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		var icon_material := ShaderMaterial.new()
+		icon_material.shader = ICON_SHADER
+		icon.material = icon_material
+		add_child(icon)
+		_views[id] = {"back": back, "pigment": pigment, "icon": icon}
+		_shown[id] = {"level": level, "color": state_color_for(id, level)}
+	_overlay = Control.new()
+	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overlay.draw.connect(_draw_trends)
+	add_child(_overlay)
+	_body_label = _readout(body_font_size, body_color)
+	_feels_label = _readout(feels_font_size, feels_color)
+	_body_base = TextureRect.new()
+	_body_base.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_body_base.texture = BODY_BASE
+	_body_base.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_body_base.modulate = Color(1.0, 1.0, 1.0, silhouette_alpha)
+	add_child(_body_base)
+	for part: BodyPartDefinition in BodyPartLibrary.shared().parts:
+		var texture: Texture2D = part.silhouette_mask
 		if texture == null:
 			continue
 		var image: Image = texture.get_image()
-		var region := Rect2i(Vector2i.ZERO, Vector2i(texture.get_width(), texture.get_height()))
-		if image != null and not image.is_empty():
-			var used: Rect2i = image.get_used_rect()
-			if used.size.x > 0 and used.size.y > 0:
-				region = used
-		_icon_regions[id] = Rect2(region)
+		var used: Rect2i = image.get_used_rect() if image != null else Rect2i(0, 0, 1, 1)
+		var overlay := TextureRect.new()
+		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		overlay.texture = texture
+		overlay.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		var frost_material := ShaderMaterial.new()
+		frost_material.shader = FROST_SHADER
+		frost_material.set_shader_parameter(&"frost", frost_color)
+		frost_material.set_shader_parameter(&"y0", float(used.position.y) / float(texture.get_height()))
+		frost_material.set_shader_parameter(&"y1", float(used.end.y) / float(texture.get_height()))
+		frost_material.set_shader_parameter(&"tip_at_top", 1.0 if part.frost_from_top else 0.0)
+		overlay.material = frost_material
+		add_child(overlay)
+		_frost[part.id] = overlay
+
+
+func _column_rect(tint: Color, fill: float, fade_start: float, fade_end: float, edge: float) -> ColorRect:
+	var rect := ColorRect.new()
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var column_material := ShaderMaterial.new()
+	column_material.shader = COLUMN_SHADER
+	column_material.set_shader_parameter(&"tint", tint)
+	column_material.set_shader_parameter(&"fill", fill)
+	column_material.set_shader_parameter(&"fade_start", fade_start)
+	column_material.set_shader_parameter(&"fade_end", fade_end)
+	column_material.set_shader_parameter(&"edge_line", edge)
+	rect.material = column_material
+	add_child(rect)
+	return rect
+
+
+func _readout(font_size: int, color: Color) -> Label:
+	var label := Label.new()
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_override("font", READOUT_FONT)
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_outline_color", Color(0.02, 0.02, 0.03, 0.85))
+	label.add_theme_constant_override("outline_size", 6)
+	add_child(label)
+	return label
+
+
+## Columns sit on the bottom edge (above the chevron room); the silhouette stands over warmth.
+func _layout() -> void:
+	if _overlay == null:
+		return
+	var bottom: float = size.y - column_bottom
+	for index: int in range(DISPLAY_ORDER.size()):
+		var view: Dictionary = _views[DISPLAY_ORDER[index]]
+		var x: float = float(index) * (column_width + column_gap)
+		_place_column(view["back"], Rect2(x, bottom - column_height, column_width, column_height), column_radius)
+		var inset: float = column_width * 0.17
+		_place_column(view["pigment"], Rect2(x + inset, bottom - column_height, column_width - inset * 2.0,
+			column_height - inset), column_radius * 0.6)
+	_overlay.position = Vector2.ZERO
+	_overlay.size = size
+	var warm_x: float = _column_x(DISPLAY_ORDER.find(&"warmth"))
+	var body_size := Vector2(silhouette_height * float(BODY_BASE.get_width()) / float(BODY_BASE.get_height()), silhouette_height)
+	var body_origin := Vector2(warm_x + column_width * 0.5 - body_size.x * 0.5,
+		bottom - column_height - trend_gap - trend_size * 3.0 - body_size.y)
+	_body_base.position = body_origin
+	_body_base.size = body_size
+	for region: StringName in _frost:
+		var overlay: TextureRect = _frost[region]
+		overlay.position = body_origin
+		overlay.size = body_size
+	_body_label.position = Vector2(warm_x + column_width + 6.0, bottom - column_height * 0.62)
+	_feels_label.position = Vector2(warm_x + column_width + 6.0, bottom - float(feels_font_size) - 8.0)
+
+
+func _place_column(rect: ColorRect, area: Rect2, radius: float) -> void:
+	rect.position = area.position
+	rect.size = area.size
+	var column_material := rect.material as ShaderMaterial
+	column_material.set_shader_parameter(&"size", area.size)
+	column_material.set_shader_parameter(&"radius", radius)
+
+
+func _column_x(index: int) -> float:
+	return float(index) * (column_width + column_gap)
+
+
+func _update_views(delta: float) -> void:
+	var follow: float = 1.0 - exp(-display_rate * delta)
+	var bottom: float = size.y - column_bottom
+	for index: int in range(DISPLAY_ORDER.size()):
+		var id: StringName = DISPLAY_ORDER[index]
+		var cell: VitalCell = cells[id]
+		var shown: Dictionary = _shown[id]
+		shown["level"] = lerpf(float(shown["level"]), cell.level, follow)
+		shown["color"] = (shown["color"] as Color).lerp(state_color_for(id, cell.level), follow)
+		var view: Dictionary = _views[id]
+		var pigment_material := (view["pigment"] as ColorRect).material as ShaderMaterial
+		pigment_material.set_shader_parameter(&"fill", shown["level"])
+		pigment_material.set_shader_parameter(&"tint", shown["color"])
+		var icon: TextureRect = view["icon"]
+		var icon_material := icon.material as ShaderMaterial
+		icon_material.set_shader_parameter(&"vivid", vividness_for(id, cell.level))
+		icon_material.set_shader_parameter(&"tint", shown["color"])
+		var side: float = icon_size * float(OPTICAL_SCALE.get(id, 1.0)) * (1.0 + cell.grow)
+		icon.size = Vector2(side, side)
+		icon.position = Vector2(_column_x(index) + (column_width - side) * 0.5,
+			bottom - column_width * 0.35 - side + cell.push * 0.5)
+	for region: StringName in _frost:
+		var cold: float = thermal_manager.get_extremity_cold(region) if thermal_manager != null else 0.0
+		((_frost[region] as TextureRect).material as ShaderMaterial).set_shader_parameter(&"amount", cold)
+
+
+func _update_readouts() -> void:
+	var shown: bool = thermal_manager != null
+	_body_label.visible = shown
+	_feels_label.visible = shown
+	if not shown:
+		return
+	_body_label.text = tr("HUD_BODY_TEMPERATURE") % thermal_manager.get_body_temperature_c()
+	_feels_label.text = tr("HUD_FEELS_LIKE") % TemperatureText.signed(thermal_manager.get_felt_temperature_c())
+
+
+## Rising: chevrons above the column; falling: below it. Two chevrons for a fast change.
+func _draw_trends() -> void:
+	var bottom: float = size.y - column_bottom
+	var top: float = bottom - column_height
+	for index: int in range(DISPLAY_ORDER.size()):
+		var id: StringName = DISPLAY_ORDER[index]
+		var trend: int = get_trend(id)
+		if trend == 0:
+			continue
+		var color: Color = _shown[id]["color"]
+		color.a = 0.75
+		var cx: float = _column_x(index) + column_width * 0.5
+		var s: float = trend_size
+		for k: int in range(get_trend_strength(id)):
+			var y: float = top - trend_gap - float(k) * (s + 1.0) if trend > 0 else bottom + trend_gap + float(k) * (s + 1.0)
+			var lift: float = s * 0.55 if trend > 0 else -s * 0.55
+			_overlay.draw_polyline(PackedVector2Array([Vector2(cx - s, y + lift), Vector2(cx, y - lift),
+				Vector2(cx + s, y + lift)]), color, 2.0, true)
+
+
+## The production PNG cut to its painted area, so asset padding does not shrink the symbol.
+func _trimmed(texture: Texture2D) -> Texture2D:
+	var image: Image = texture.get_image()
+	if image == null or image.is_empty():
+		return texture
+	var used: Rect2i = image.get_used_rect()
+	if used.size.x <= 0 or used.size.y <= 0:
+		return texture
+	var atlas := AtlasTexture.new()
+	atlas.atlas = texture
+	atlas.region = Rect2(used)
+	return atlas
 
 
 func _texture_for(id: StringName) -> Texture2D:
@@ -372,94 +470,3 @@ func _texture_for(id: StringName) -> Texture2D:
 			return WARMTH_TEXTURE
 		_:
 			return null
-
-
-func _draw_cell(cell: VitalCell, centre: Vector2, shape: PackedVector2Array) -> void:
-	var critical_inset: float = critical_push_px if cell.critical else 0.0
-	var active: float = maxf(cell.flash, cell.grow / maxf(refill_scale, 0.001))
-	if cell.severity == VitalCell.Severity.WARNING:
-		active = maxf(active, 0.65)
-	elif cell.critical:
-		active = maxf(active, 1.0)
-	var alpha: float = lerpf(idle_alpha, active_alpha, clampf(active, 0.0, 1.0))
-	var out: Vector2 = cell.direction
-	var angle: float = Vector2.UP.angle_to(out)
-	var anchor: Vector2 = centre + out * maxf(centre_gap - cell.push - critical_inset, 0.0)
-	var xform := Transform2D(angle, Vector2.ONE * (1.0 + cell.grow), 0.0, anchor)
-	var outline: PackedVector2Array = xform * shape
-	draw_colored_polygon(outline, base_color)
-	var edge: Color = _state_color(cell)
-	if cell.flash > 0.0:
-		var flash: Color = drain_flash if cell.pulse == VitalCell.Pulse.DRAIN else refill_flash
-		edge = edge.lerp(flash, cell.flash)
-	var closed := outline.duplicate()
-	closed.append(outline[0])
-	draw_polyline(closed, _faded(edge, alpha), outline_width * (1.0 + cell.flash * 0.6), true)
-	_draw_icon(cell, xform, alpha)
-	if TREND_IDS.has(cell.id):
-		var outer: Vector2 = xform * Vector2(0.0, -(cell_height + cell_tip) * 0.5) + out.normalized() * (cell_width * 0.5 + trend_size)
-		_draw_trend(get_trend(cell.id), outer, get_trend(cell.id) > 0)
-
-
-func _draw_icon(cell: VitalCell, xform: Transform2D, alpha: float) -> void:
-	var middle: Vector2 = xform * Vector2(0.0, -(cell_height + cell_tip) * 0.5)
-	var icon_px: float = icon_size * (1.0 + cell.grow)
-	var rect := Rect2(middle - Vector2.ONE * icon_px * 0.5, Vector2.ONE * icon_px)
-	var frame: int = clampi(roundi(cell.morph_frame), 0, MORPH_FRAME_COUNT - 1)
-	var source := Rect2(
-		Vector2(float(frame) * MORPH_CELL_PX, float(cell.icon_row) * MORPH_CELL_PX),
-		Vector2.ONE * MORPH_CELL_PX
-	)
-	var tint: Color = _state_color(cell)
-	tint.a = 0.96 * alpha
-	draw_texture_rect_region(ICON_ATLAS, rect, source, tint)
-
-
-## A plain standing figure, feet at `feet`, scaled to silhouette_height.
-func _draw_silhouette(feet: Vector2) -> void:
-	var k: float = silhouette_height / 52.0
-	var body := PackedVector2Array([
-		Vector2(-3, -41), Vector2(3, -41), Vector2(11, -38), Vector2(12, -20),
-		Vector2(8, -20), Vector2(7, -30), Vector2(7, -18), Vector2(6, 0),
-		Vector2(1.5, 0), Vector2(0, -16), Vector2(-1.5, 0), Vector2(-6, 0),
-		Vector2(-7, -18), Vector2(-7, -30), Vector2(-8, -20), Vector2(-12, -20),
-		Vector2(-11, -38),
-	])
-	var xform := Transform2D(0.0, Vector2(k * 0.85, k), 0.0, feet)
-	var figure: PackedVector2Array = xform * body
-	draw_colored_polygon(figure, silhouette_color)
-	draw_circle(xform * Vector2(0.0, -46.5), 5.0 * k, silhouette_color)
-	if _wetness > 0.01:
-		var line: float = feet.y - silhouette_height * _wetness
-		var water := PackedVector2Array([Vector2(feet.x - 40.0, line), Vector2(feet.x + 40.0, line),
-			Vector2(feet.x + 40.0, feet.y + 1.0), Vector2(feet.x - 40.0, feet.y + 1.0)])
-		for wet: PackedVector2Array in Geometry2D.intersect_polygons(figure, water):
-			draw_colored_polygon(wet, wet_color)
-		var drying: int = get_trend(&"wetness")
-		_draw_trend(drying, feet + Vector2(silhouette_height * 0.35, -silhouette_height * 0.5), drying < 0)
-
-
-## A small arrow: up for rising, down for falling; green when the change helps Henry.
-func _draw_trend(trend: int, at: Vector2, good: bool) -> void:
-	if trend == 0:
-		return
-	var up: bool = trend > 0
-	var s: float = trend_size
-	var tip: Vector2 = at + Vector2(0.0, -s if up else s)
-	var points := PackedVector2Array([tip, at + Vector2(-s * 0.8, s * 0.3 if up else -s * 0.3),
-		at + Vector2(s * 0.8, s * 0.3 if up else -s * 0.3)])
-	draw_colored_polygon(points, refill_flash if good else drain_flash)
-
-
-func _state_color(cell: VitalCell) -> Color:
-	match cell.severity:
-		VitalCell.Severity.WARNING:
-			return warning_color
-		VitalCell.Severity.CRITICAL:
-			return critical_color
-		_:
-			return normal_color
-
-
-static func _faded(colour: Color, alpha: float) -> Color:
-	return Color(colour.r, colour.g, colour.b, colour.a * alpha)

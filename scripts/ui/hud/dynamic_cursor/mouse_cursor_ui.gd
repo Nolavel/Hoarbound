@@ -41,6 +41,15 @@ extends Control
 @export var interaction_gradient_width: float = 420.0
 @export var interaction_gradient_height: float = 38.0
 @export var prompt_content_size: Vector2 = Vector2(360.0, 150.0)
+## A work session (the stove ritual) parts the brackets to the screen edges, this far in;
+## each takes half the yellow strip, F + back on the left, the session's title on the right.
+@export var session_edge_margin: float = 72.0
+## How fast the brackets travel out to the edges and back, share of the way per second.
+@export_range(0.5, 10.0, 0.1) var session_spread_rate: float = 2.5
+## The title sits this far inside the right bracket, mirroring the key beside the left one.
+@export var session_title_inset: float = 114.0
+## Opacity of the whole parted prompt during a session, so it stays readable but recedes.
+@export_range(0.1, 1.0, 0.05) var session_prompt_alpha: float = 0.6
 
 @export_group("Movement and stamina")
 @export var movement_controller: MovementController
@@ -61,6 +70,8 @@ const MORPH_CIRCLE_SEGMENTS: int = 32
 const MORPH_BRACKET_SEGMENTS: int = 10
 const MORPH_BRACKET_HALF_ANGLE: float = 0.62
 const MORPH_OPEN_PATH_THRESHOLD: float = 0.035
+const SESSION_GROUP: StringName = &"active_work_session"
+const SESSION_TITLE_PX: int = 20
 
 var is_over_target: bool = false
 var _color: Color = Color.WHITE
@@ -83,7 +94,14 @@ var _interaction_morph_progress: float = 0.0
 var _interaction_morph_from: float = 0.0
 var _interaction_morph_target: float = 0.0
 var _interaction_morph_elapsed: float = 0.0
-var _interaction_gradient: TextureRect
+## The yellow strip in two halves: side by side they are one strip, a session pulls them apart.
+var _gradient_halves: Array[TextureRect] = []
+## Each half's own cut of the strip, and the whole strip a parted half wears so its inner end fades.
+var _half_textures: Array[Texture2D] = []
+var _whole_texture: Texture2D
+var _session_blend: float = 0.0
+var _session_title: String = ""
+var _title_font: Font
 var _prompt_face: ActionPromptFace
 var _confirm_tween: Tween
 
@@ -120,7 +138,9 @@ func _process(delta: float) -> void:
 	visible = not _is_paused()
 	if not visible:
 		return
-	var focused := _focused_prompt_target()
+	var session := _active_session()
+	_session_blend = move_toward(_session_blend, 1.0 if session != null else 0.0, session_spread_rate * delta)
+	var focused := session if session != null else _focused_prompt_target()
 	is_over_target = focused != null
 	var wanted: Color = cursor_color_target if is_over_target else cursor_color_idle
 	_color = _color.lerp(wanted, clampf(cursor_color_speed * delta, 0.0, 1.0))
@@ -148,6 +168,7 @@ func _draw() -> void:
 		_draw_sprint_arcs(center)
 	if _jump_alpha > 0.01:
 		_draw_jump_arc(center)
+	_draw_session_title(center)
 
 
 func _update_movement(delta: float) -> void:
@@ -226,6 +247,24 @@ func _draw_jump_arc(center: Vector2) -> void:
 		draw_arc(center, radius, PI * 1.5 - half, PI * 1.5 + half, 24, color, 2.0, true)
 
 
+## The target whose work session holds the interact key now, if any.
+func _active_session() -> InteractiveArea:
+	var session := get_tree().get_first_node_in_group(SESSION_GROUP) as InteractiveArea
+	return session if is_instance_valid(session) and not session.get_session_prompt_data().is_empty() else null
+
+
+## How far past their usual spot the brackets (and their halves) have travelled outward, px.
+## 1 outside a session, easing to session_prompt_alpha while one holds the prompt.
+func _session_dim() -> float:
+	return lerpf(1.0, session_prompt_alpha, _smoothstep01(_session_blend))
+
+
+func _session_shift() -> float:
+	var t := clampf(_interaction_morph_progress, 0.0, 1.0)
+	var room := get_viewport_rect().size.x * 0.5 - session_edge_margin - interaction_bracket_offset
+	return maxf(room, 0.0) * _smoothstep01(_session_blend) * _smoothstep01((t - 0.50) / 0.50)
+
+
 func _focused_prompt_target() -> InteractiveArea:
 	var placement := get_tree().get_first_node_in_group(&"active_board_placement") as BreachBoardUp
 	if is_instance_valid(placement) and placement.is_placing_board():
@@ -264,7 +303,7 @@ func _update_interaction_morph(delta: float) -> void:
 
 
 func _build_interaction_prompt() -> void:
-	_interaction_gradient = _build_interaction_gradient()
+	_gradient_halves = _build_interaction_gradient()
 
 	_prompt_face = ActionPromptFace.new()
 	_prompt_face.name = "InteractionPrompt"
@@ -275,7 +314,7 @@ func _build_interaction_prompt() -> void:
 	add_child(_prompt_face)
 
 
-func _build_interaction_gradient() -> TextureRect:
+func _build_interaction_gradient() -> Array[TextureRect]:
 	var gradient := Gradient.new()
 	var transparent := interaction_gradient_color
 	transparent.a = 0.0
@@ -313,20 +352,34 @@ func _build_interaction_gradient() -> TextureRect:
 	texture.fill_from = Vector2(0.0, 0.5)
 	texture.fill_to = Vector2(1.0, 0.5)
 
-	var strip := TextureRect.new()
-	strip.name = "InteractionGradient"
-	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	strip.texture = texture
-	strip.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	strip.stretch_mode = TextureRect.STRETCH_SCALE
-	strip.show_behind_parent = true
-	strip.visible = false
-	add_child(strip)
-	return strip
+	_whole_texture = texture
+	_half_textures.clear()
+	var halves: Array[TextureRect] = []
+	for side: int in range(2):
+		var half := AtlasTexture.new()
+		half.atlas = texture
+		half.region = Rect2(texture.width * 0.5 * side, 0.0, texture.width * 0.5, texture.height)
+		_half_textures.append(half)
+		var strip := TextureRect.new()
+		strip.name = "InteractionGradientLeft" if side == 0 else "InteractionGradientRight"
+		strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		strip.texture = half
+		strip.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		strip.stretch_mode = TextureRect.STRETCH_SCALE
+		strip.show_behind_parent = true
+		strip.visible = false
+		add_child(strip)
+		halves.append(strip)
+	return halves
 
 
 func _sync_prompt(target: InteractiveArea) -> void:
 	if _prompt_face == null or not is_instance_valid(target):
+		return
+	var session := target.get_session_prompt_data()
+	if not session.is_empty():
+		_session_title = String(session.get("title", ""))
+		_prompt_face.set_prompt("", String(session.get("key", "F")), String(session.get("back", "")), "")
 		return
 	var data := target.get_interaction_prompt_data()
 	_prompt_face.set_prompt(
@@ -341,7 +394,8 @@ func _update_prompt_visuals() -> void:
 	if _prompt_face == null:
 		return
 	var center := get_viewport_rect().size * 0.5
-	_prompt_face.position = center - prompt_content_size * 0.5
+	_prompt_face.position = center - prompt_content_size * 0.5 - Vector2(_session_shift(), 0.0)
+	_prompt_face.modulate.a = _session_dim()
 	_prompt_face.size = prompt_content_size
 
 	var t := clampf(_interaction_morph_progress, 0.0, 1.0)
@@ -360,7 +414,7 @@ func _update_prompt_visuals() -> void:
 
 
 func _update_interaction_edge_fades(center: Vector2, t: float) -> void:
-	if _interaction_gradient == null:
+	if _gradient_halves.size() != 2:
 		return
 
 	# Stretch from the exact centre instead of popping in at final width.
@@ -369,11 +423,15 @@ func _update_interaction_edge_fades(center: Vector2, t: float) -> void:
 	var reveal := _smoothstep01((t - 0.30) / 0.24)
 	var width := maxf(8.0, interaction_gradient_width * stretch)
 	var height_scale := lerpf(0.72, 1.0, stretch)
-	var size := Vector2(width, interaction_gradient_height * height_scale)
-	_interaction_gradient.position = center - size * 0.5
-	_interaction_gradient.size = size
-	_interaction_gradient.modulate.a = reveal
-	_interaction_gradient.visible = stretch > 0.001 and reveal > 0.001
+	var size := Vector2(width * 0.5, interaction_gradient_height * height_scale)
+	var shift := _session_shift()
+	for side: int in range(2):
+		var half: TextureRect = _gradient_halves[side]
+		half.position = Vector2(center.x - size.x - shift if side == 0 else center.x + shift, center.y - size.y * 0.5)
+		half.size = size
+		half.texture = _whole_texture if _session_blend > 0.001 else _half_textures[side]
+		half.modulate.a = reveal * _session_dim()
+		half.visible = stretch > 0.001 and reveal > 0.001
 
 
 func _on_interaction_performed(target: InteractiveArea) -> void:
@@ -404,9 +462,9 @@ func _dismiss_interaction_prompt_immediately() -> void:
 		_prompt_face.set_confirm_amount(0.0)
 		_prompt_face.set_reveal_amounts(0.0, 0.0, 0.0)
 		_prompt_face.visible = false
-	if _interaction_gradient != null:
-		_interaction_gradient.modulate.a = 0.0
-		_interaction_gradient.visible = false
+	for half: TextureRect in _gradient_halves:
+		half.modulate.a = 0.0
+		half.visible = false
 	queue_redraw()
 
 
@@ -439,7 +497,7 @@ func _draw_interaction_morph_shape(center: Vector2, t: float, color: Color) -> v
 	var paths := _build_morph_paths(center, radius_x, radius_y, open, punch_scale)
 
 	var spread_t := _smoothstep01((t - 0.50) / 0.50)
-	var spread := maxf(interaction_bracket_offset - interaction_bracket_radius, 0.0) * spread_t
+	var spread := maxf(interaction_bracket_offset - interaction_bracket_radius, 0.0) * spread_t + _session_shift()
 	if paths.size() == 2:
 		for i: int in range(paths[0].size()):
 			paths[0][i].x += spread
@@ -448,7 +506,7 @@ func _draw_interaction_morph_shape(center: Vector2, t: float, color: Color) -> v
 
 	var alpha := _smoothstep01(t / 0.18)
 	var shape_color := color
-	shape_color.a *= alpha
+	shape_color.a *= alpha * _session_dim()
 	var juice := sin(shape_t * PI)
 	if juice > 0.001 and interaction_morph_glow > 0.0:
 		_draw_morph_paths(
@@ -534,6 +592,31 @@ static func _color_with_alpha(color: Color, alpha_scale: float) -> Color:
 	var result := color
 	result.a *= clampf(alpha_scale, 0.0, 1.0)
 	return result
+
+
+## The session's title, right-aligned inside the right bracket, appearing with the prompt's copy.
+func _draw_session_title(center: Vector2) -> void:
+	if _session_blend <= 0.001 or _session_title.is_empty() or _prompt_face == null:
+		return
+	var alpha := _prompt_face.get_text_reveal() * _smoothstep01(_session_blend) * session_prompt_alpha
+	if alpha <= 0.005:
+		return
+	if _title_font == null:
+		var font := SystemFont.new()
+		font.font_names = ["DejaVu Sans", "Arial", "Liberation Sans", "sans-serif"]
+		_title_font = font
+	var width := _title_font.get_string_size(_session_title, HORIZONTAL_ALIGNMENT_LEFT, -1, SESSION_TITLE_PX).x
+	var right := center.x + interaction_bracket_offset + _session_shift() - session_title_inset
+	draw_string(_title_font, Vector2(right - width, center.y - 3.0), _session_title,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, SESSION_TITLE_PX, Color(0.98, 0.96, 0.91, alpha))
+
+
+## Where the brackets stand now: screen x of the left and right one (tests read it).
+func get_bracket_xs() -> Vector2:
+	var center := get_viewport_rect().size.x * 0.5
+	var t := clampf(_interaction_morph_progress, 0.0, 1.0)
+	var spread := maxf(interaction_bracket_offset - interaction_bracket_radius, 0.0) * _smoothstep01((t - 0.50) / 0.50) + _session_shift()
+	return Vector2(center - spread, center + spread)
 
 
 func get_interaction_morph_progress() -> float:

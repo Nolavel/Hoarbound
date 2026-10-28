@@ -153,12 +153,12 @@ func _hand_visual_to_pack() -> void:
 
 ## A small crate until items have their own meshes.
 func _make_placeholder() -> MeshInstance3D:
-	if String(item_id).begins_with("water_flask") or String(item_id).begins_with("tinned_pineapple") or item_id in [&"knife", &"axe", &"tinned_stew"]:
+	if String(item_id).begins_with("water_flask") or String(item_id).begins_with("tinned_pineapple") or String(item_id).begins_with("spov_can") or item_id in [&"knife", &"axe", &"tinned_stew", &"work_gloves", &"lighter", &"stone"]:
 		var holder: Node3D = SurvivalItemVisual.make(item_id)
 		if item_id == &"axe":
 			holder.rotation.x = PI * 0.5
 		add_child(holder)
-		return holder.get_child(0) as MeshInstance3D
+		return holder.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 	if item_id == ROAD_FLARE_ID:
 		return _make_road_flare()
 	if item_id == HAMMER_ID:
@@ -167,8 +167,6 @@ func _make_placeholder() -> MeshInstance3D:
 		return _make_nails()
 	if item_id == &"boards" or item_id == &"firewood":
 		return _make_wood_stack()
-	if item_id == &"lighter":
-		return _box_prop("Lighter", Vector3(0.045, 0.085, 0.025), Vector3(0, 0.045, 0), Color(0.9, 0.5, 0.08))
 	var crate := MeshInstance3D.new()
 	crate.name = "Placeholder"
 	var box := BoxMesh.new()

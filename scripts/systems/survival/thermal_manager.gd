@@ -5,6 +5,8 @@ extends Node3D
 const WEATHER_CONTROLLER_SCRIPT: GDScript = preload("res://scripts/systems/world/WeatherController.gd")
 const DAY_NIGHT_SCRIPT: GDScript = preload("res://scripts/systems/world/DayNightManager.gd")
 const EQUIPMENT_SCRIPT: GDScript = preload("res://scripts/actors/player/henry/components/equipment_component.gd")
+## Diurnal air curve used when none is assigned: coldest before dawn (05:30), warmest at 14:30.
+const DEFAULT_AMBIENT_CURVE: Curve = preload("res://data/climate/air_temperature_day.tres")
 ## Radius of the probe built when the scene supplies none.
 const PROBE_RADIUS: float = 0.4
 
@@ -17,6 +19,8 @@ signal body_temperature_changed(celsius: float, normalised: float)
 signal felt_temperature_changed(celsius: float)
 ## Emitted when the player crosses into a new hypothermia stage.
 signal stage_changed(stage: Stage)
+## Emitted when a body part enters or leaves frostnip or frostbite (ExtremityCold.FrostStage).
+signal frost_stage_changed(part_id: StringName, stage: int)
 ## Emitted once when body temperature reaches the lethal floor.
 signal freezing_death_reached
 ## Emitted when clothing wetness changes, 0.0 dry to 1.0 soaked.
@@ -105,6 +109,10 @@ var _was_sheltered: bool = false
 var _initialized: bool = false
 var _follow_target: Node3D
 var _outdoor_air_c: float = 0.0
+var _extremities: ExtremityCold = ExtremityCold.new()
+## Felt temperature without wind, and the chill a fully exposed bare body part takes.
+var _still_air_c: float = 0.0
+var _wind_chill_raw_c: float = 0.0
 
 
 ## Lifecycle hook world.gd calls once the player and camera exist. Everything
@@ -121,6 +129,15 @@ func on_world_ready(context: WorldContext) -> void:
 		zone_probe = _build_probe()
 	_follow()
 	initialize()
+	refresh_felt_temperature()
+
+
+## Recomputes the felt temperature now instead of at the next clock step (a quarter hour
+## away), so a fresh start or load never shows 0 °C.
+func refresh_felt_temperature() -> void:
+	var hour: float = day_night_manager.get_current_hour_float() if day_night_manager != null else 12.0
+	_felt_temp_c = _compute_felt_temperature(hour)
+	felt_temperature_changed.emit(_felt_temp_c)
 
 
 ## The thermal model reads the world at Henry's feet, so it rides with him.
@@ -157,6 +174,8 @@ func _ready() -> void:
 ## Seeds body temperature and connects the clock and the zone probe.
 ## Public so headless tests can drive it without waiting for a frame.
 func initialize() -> void:
+	if ambient_curve == null:
+		ambient_curve = DEFAULT_AMBIENT_CURVE
 	if not _initialized:
 		_initialized = true
 		_body_temp_c = normal_body_temp_c
@@ -210,6 +229,26 @@ func get_room_temperature_c() -> float:
 
 func get_stage() -> Stage:
 	return _stage
+
+
+## Body temperature of a stage boundary as 0..1 on the HUD scale (lethal 0, normal 1).
+func get_stage_threshold_normalised(stage: Stage) -> float:
+	var celsius: float = normal_body_temp_c
+	match stage:
+		Stage.CHILLED:
+			celsius = chilled_below_c
+		Stage.COLD:
+			celsius = cold_below_c
+		Stage.HYPOTHERMIC:
+			celsius = hypothermic_below_c
+		Stage.CRITICAL:
+			celsius = critical_below_c
+	return clampf((celsius - lethal_body_temp_c) / maxf(0.001, normal_body_temp_c - lethal_body_temp_c), 0.0, 1.0)
+
+
+## Cold load 0..1 on one BodyPartLibrary part (&"head", &"hands", &"feet"), for the HUD silhouette.
+func get_extremity_cold(region: StringName) -> float:
+	return _extremities.get_load(region)
 
 
 func get_wetness() -> float:
@@ -292,6 +331,7 @@ func apply_body_temperature_delta(degrees: float) -> void:
 func restore_body_temperature() -> void:
 	_is_dead = false
 	_body_temp_c = normal_body_temp_c
+	_emit_frost_changes(_extremities.reset())
 	_emit_body_temperature()
 	_update_stage()
 
@@ -308,6 +348,7 @@ func get_save_data() -> Dictionary:
 		"body_temp_c": _body_temp_c,
 		"wetness": _wetness,
 		"is_dead": _is_dead,
+		"extremities": _extremities.get_save_data(),
 	}
 
 
@@ -318,7 +359,11 @@ func load_save_data(data: Dictionary) -> void:
 	)
 	_is_dead = bool(data.get("is_dead", false))
 	_set_wetness(float(data.get("wetness", 0.0)))
+	_extremities.load_save_data(data.get("extremities", {}))
+	_emit_frost_changes(_extremities.get_library().get_ids())
 	_hours.reset()
+	if is_inside_tree():
+		refresh_felt_temperature()
 	_emit_body_temperature()
 	_update_stage()
 
@@ -340,12 +385,14 @@ func _advance_hours(hours: float, current_hour: float) -> void:
 	if hours <= 0.0 or _is_dead:
 		return
 	HeatSource.advance_all_fuel(hours)
-	for zone: ThermalZone in _zones:
+	## Every loaded room, not only Henry's: a room he left keeps warming or cooling.
+	for zone: ThermalZone in ThermalZone.get_all():
 		zone.advance_heating(hours)
 	_update_wetness(hours, current_hour)
 	_felt_temp_c = _compute_felt_temperature(current_hour)
 	felt_temperature_changed.emit(_felt_temp_c)
 	_integrate_body_temperature(hours)
+	_emit_frost_changes(_extremities.advance(hours, _still_air_c, _wind_chill_raw_c, _region_protection()))
 
 
 ## Sums ambient air, weather, wind chill, zones and nearby fires.
@@ -370,13 +417,33 @@ func _compute_felt_temperature(current_hour: float) -> float:
 
 	var capped_wind: float = minf(wind, wind_chill_cap_mps)
 	var clothing_wind_factor: float = 1.0 - (equipment.get_wind_protection() if equipment != null else 0.0)
-	felt -= capped_wind * wind_chill_per_mps * exposure * clothing_wind_factor
-
+	_wind_chill_raw_c = capped_wind * wind_chill_per_mps * exposure
 	for source: HeatSource in HeatSource.get_all():
 		felt += source.get_offset_at(global_position)
-
 	felt += exertion_bonus_c * _exertion
-	return felt
+	_still_air_c = felt
+	return felt - _wind_chill_raw_c * clothing_wind_factor
+
+
+## Frost stage of one body part (ExtremityCold.FrostStage): NONE, FROSTNIP or FROSTBITE.
+func get_frost_stage(part_id: StringName) -> int:
+	return _extremities.get_stage(part_id)
+
+
+func _emit_frost_changes(part_ids: Array[StringName]) -> void:
+	for part_id: StringName in part_ids:
+		frost_stage_changed.emit(part_id, _extremities.get_stage(part_id))
+
+
+## Cover of each body part's garment region; without equipment every part counts as bare.
+func _region_protection() -> Dictionary:
+	var out: Dictionary = {}
+	if equipment == null:
+		return out
+	for part: BodyPartDefinition in _extremities.get_library().parts:
+		if part.garment_region != &"" and not out.has(part.garment_region):
+			out[part.garment_region] = equipment.get_region_protection(part.garment_region)
+	return out
 
 
 ## Moves body temperature toward the felt temperature through insulation.

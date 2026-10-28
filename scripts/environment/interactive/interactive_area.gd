@@ -557,6 +557,11 @@ func is_player_in_area() -> bool:
 func can_interact() -> bool:
 	return true
 
+## The edge prompt while a work session here holds the interact key: key, back, title.
+## Empty when this target runs no session.
+func get_session_prompt_data() -> Dictionary:
+	return {}
+
 func interact() -> void:
 	if can_interact():
 		_on_interaction_performed()

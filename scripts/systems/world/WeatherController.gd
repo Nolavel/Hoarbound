@@ -79,6 +79,8 @@ func initialize() -> void:
 		_gust_noise = FastNoiseLite.new()
 		_gust_noise.seed = gust_seed
 		_gust_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+		## Sampled at elapsed / gust_period_s, so one unit is one period; the default 0.01 made gusts 100x slower.
+		_gust_noise.frequency = 1.0
 	if _current != null or profiles.is_empty():
 		return
 	var initial: WeatherProfile = _find_profile(starting_profile_id)
@@ -318,17 +320,17 @@ func _find_profile(id: StringName) -> WeatherProfile:
 
 
 func _pick_weighted() -> WeatherProfile:
-	var total: float = 0.0
-	for profile: WeatherProfile in profiles:
-		if profile != null:
-			total += maxf(0.0, profile.weight)
-	if total <= 0.0:
+	var pool: Array[WeatherProfile] = profiles.filter(func(p: WeatherProfile) -> bool: return p != null and not p.manual_only)
+	if pool.is_empty():
 		return profiles[0]
+	var total: float = 0.0
+	for profile: WeatherProfile in pool:
+		total += maxf(0.0, profile.weight)
+	if total <= 0.0:
+		return pool[0]
 	var roll: float = randf() * total
-	for profile: WeatherProfile in profiles:
-		if profile == null:
-			continue
+	for profile: WeatherProfile in pool:
 		roll -= maxf(0.0, profile.weight)
 		if roll <= 0.0:
 			return profile
-	return profiles[profiles.size() - 1]
+	return pool[pool.size() - 1]

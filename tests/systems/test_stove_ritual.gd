@@ -118,6 +118,8 @@ func _test_entry_without_autoload() -> void:
 	_check(_source.get_loaded_log_count() == 0 and _inventory.get_count(&"firewood") == 3, "entering loaded fuel by itself")
 	_check(not _source.is_burning(), "entering lit the stove")
 	_check(_state.call(&"is_movement_blocked"), "WASD still moves Henry at the stove")
+	_check(_feed.is_in_group(StoveInteractionController.SESSION_GROUP) and not _feed.get_session_prompt_data().is_empty(),
+		"the ritual offers the cursor no edge prompt (F back, stove)")
 	var visual: HenryUALAnimation = _player.animation_component
 	await _frames(30)
 	_check(visual.is_carrying(), "crouching dropped the carried logs")
@@ -279,6 +281,8 @@ func _test_exit_and_return() -> void:
 	_check(_control.get_phase() == StoveInteractionController.Phase.OUTSIDE, "the exit did not finish")
 	_check(not _player.is_crouching() and _state.call(&"is_on_foot"), "Henry did not stand up and get his legs back")
 	_check(not _control.get_ring().is_shown(), "the ring stayed up")
+	_check(not _feed.is_in_group(StoveInteractionController.SESSION_GROUP) and _feed.get_session_prompt_data().is_empty(),
+		"the edge prompt (F back, stove) outlived the ritual")
 	_check(_source.get_loaded_log_count() == 3 and _source.is_tinder_prepared(), "leaving lost the logs or the tinder")
 	_camera.set_process(true)
 	for _i: int in range(60):
@@ -488,6 +492,16 @@ func _check_work_framing() -> void:
 	_check(nearest > 0.15, "Henry's head or shoulders hide the firebox from the camera (%.2f m off the sight line)" % nearest)
 	var to_eye: float = camera.global_position.distance_to(_player.global_position)
 	_check(to_eye > 0.4 and to_eye < 2.6, "the stove framing is not a close work view: %.2f m from Henry" % to_eye)
+	## Owner: the mouse never turns the work view sideways (a left turn faded Henry out).
+	var settled: Vector3 = camera.global_position
+	var input_systems: Node = root.get_node_or_null(^"/root/InputSystems")
+	for _i: int in range(10):
+		if input_systems != null:
+			input_systems.set(&"_look_accum", Vector2(-0.08, 0.0))
+		await process_frame
+	var drift: float = camera.global_position.distance_to(settled)
+	_check(drift < 0.02 and camera.get_body_fade() <= 0.01,
+		"a sideways mouse turned the work view (%.3f m) or faded Henry (%.2f)" % [drift, camera.get_body_fade()])
 	camera.set_process(false)
 
 

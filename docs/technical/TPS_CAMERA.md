@@ -94,6 +94,179 @@ cast. If testing shows it needs its own tuning, it gets its own profile.
 The camera node opts out of physics interpolation. Teleport sites call
 `reset_physics_interpolation()`: world spawn, sitting down and save load.
 
+### Behaviours (#240 stage 2)
+
+`_update_rig` is a short pipeline. Each behaviour owns its state and smoothing and works on
+one shared `TpsRigFrame` (pivot, view, orbit, boom, side, lift, shoulder point, camera). The
+tunables stay on `TpsCamera`, so the inspector is unchanged. In order:
+
+| # | Behaviour | Class | Writes |
+|---|---|---|---|
+| 1 | Follow and prediction: pivot lag, lead, sprint pullback | `TpsRigFollow` | `pivot` |
+| 2 | Automatic shoulder swap | `TpsRigAutoSwap` | shoulder multiplier |
+| 3 | Tight-space composition and lean (Grossman) | `TpsRigComposition.frame_side` | `framing`, `side` |
+| 4 | Doorway: blend, boom cap, shoulder band, soft view stops, orbit cone | `TpsRigPassage` | `want`, `side`, view, orbit |
+| 5 | Shoulder lift | `TpsRigShoulderLift` | `lift`, pitches, `pivot` |
+| 6 | Composition rise | `TpsRigComposition.rise` | `pivot` |
+| 7 | Recompose to the centre line | `TpsRigRecompose` | `side` |
+| 8 | Walls on the boom (Lyra) | `TpsRigCollision` | `shoulder`, `camera` |
+| 9 | Eyes kept in frame | `TpsRigShoulderLift.keep_eyes` | view pitch |
+| 10 | Workspace framing (stove) | `TpsRigWork` | `camera`, `view` |
+
+Stage 2 moved the code without changing it. `trace_camera_route.gd` (2,588 frames) and
+`trace_camera_tight.gd` (3,870 frames) come out byte for byte the same as before the move;
+both are deterministic at a fixed 30 fps. `test_doorway_camera` runs on real frame time and
+varies from run to run (791–793 off-screen frames, 1–2 pops) on either version.
+
+### Doorway steps removed (#240 stage 3 v2)
+
+The route trace showed the doorway goals themselves step, and a spring before the hard
+constraints only moved the step into the wall snap. Three changes remove the steps at their source:
+
+- **The door side holds while the doorway holds the frame.** `TpsPassageFraming.update_side` flips the
+  camera's side of the door plane (and with it the orbit cone's axis by 180°) only once the passage
+  blend is under `TpsRigPassage.SIDE_LOCK_BLEND` (0.05).
+- **A neighbouring doorway waits.** It takes the frame only once the current one is under
+  `HANDOVER_BLEND` (0.05), or Henry is in it. A new door facing the same way keeps the camera's side.
+- **Hand-over offset.** When the frame does move to a new door, the shoulder step to its centre line is
+  carried as an offset and eased out at `passage_release_rate`.
+
+- **Pull cap.** The doorway band may move the shoulder at most `TpsRigPassage.MAX_PULL` (0.5 m) off
+  where the behaviours put it. Leaving a door sideways, the uncapped band pulled it up to 1.1 m off Henry
+  toward the door's centre line, and the boom then met the corridor wall and snapped.
+
+| Measure | Stage 2 | Stage 3 v2 |
+|---|---|---|
+| 727 route: real jumps > 0.3 m | 3 (0.31, 0.71, 0.73 m) | **0** |
+| 727 route: eyes in frame / faded | 100 % / 0 % | 100 % / 0 % |
+| `test_doorway_camera` yaw swing | 1–2 pops, up to 0.69 m | **none** (two runs) |
+| `test_doorway_camera` stand sweep | Henry off screen ~792 frames | unchanged (stage 4) |
+
+The tight-space trace is unchanged (all 26 groups). A spring on the composed frame was tried first and
+reverted: smoothing before the hard constraints only moved the step into a wall snap. With the steps
+removed at their source, no spring was needed.
+
+### Shot choice (#240 stage 4, part 1)
+
+With little room behind Henry the shoulder lift used to take the camera high over him, looking
+down. Henry's eyes sat at the bottom edge (543 frames of the tight-space trace) and went off it
+(57 frames). `TpsRigShotChoice` now scores four caps on the lift (0, 0.35, 0.7, 1.0). It uses a
+stateless prediction (`TpsCamera.predict_shot`, part 2): camera position with walls, eye distance and eye
+screen height. The score weighs:
+
+- 4 × pressing closer than `guard_soft_distance` (where the fade starts);
+- 2 × eyes below 75 % of the screen height;
+- 0.5 × the lift itself, so a level shoulder wins when it frames as well.
+
+A better cap takes over only past a 0.25 margin, and the cap is eased at the lift rates. The view stays the player's.
+
+| Tight-space trace | Before | After |
+|---|---|---|
+| Eyes off screen | 57 frames | 11 |
+| Eyes at the bottom edge | 543 | 81 |
+| Henry faded | 10 | 0 |
+| Camera within 0.8 m of the eyes (close over-the-shoulder) | 387 | 1,440 |
+
+Along corridor walls the camera now stays at the shoulder with Henry whole in frame. In the exam
+corner and the restroom there is no room behind him at all, so the lift still wins there. Part 2,
+authored room hints, is for those rooms. The 727 route trace is unchanged: no real jumps, eyes 100 %.
+
+### Shot choice (#240 stage 4, part 2)
+
+Owner's call: automatic candidates rather than authored room hints. Each candidate is a lift cap paired
+with a swing of the camera body round Henry off the orbit (0, ±20°, ±40°). The view stays the player's:
+a swing only moves where the camera stands. The cost adds:
+
+- 2 × Henry's eyes outside 10 % of the left or right edge;
+- 0.25 per 20° of swing, so the plain shoulder wins when it frames as well.
+
+The swing is eased at the lift-in rate, and it is off when the room asks for no lift or a doorway holds
+the frame (its cone owns the orbit).
+
+`predict_shot` must match the frame the rig really builds, or the choice flees good shots. Three terms
+were missing in the first version, which measured worse than part 1 (eyes off screen 247, faded 195):
+
+- `keep_eyes` cannot tilt past `pitch_min_deg`, so the eyes may stay low;
+- recompose had already pulled the shoulder to the centre; the prediction used the uncomposed side,
+  put the eyes off screen and cycled every 20 frames with the camera 0.4 m from the face;
+- Lyra's feelers shorten the boom, which moves Henry sideways when the camera is swung.
+
+`TpsRigCollision.target_shares()` now gives the feeler and sweep shares statelessly for both. Recompose's
+current share is read, not predicted. Sideways prediction error in the trace: about 2 % of the screen.
+
+| Tight-space trace | Part 1 | Part 2 |
+|---|---|---|
+| Eyes off screen | 11 frames | **0** |
+| Eyes at the bottom edge | 81 | 70 |
+| Henry faded | 0 | 0 |
+| Camera within 0.8 m of the eyes | 1,440 | **141** |
+
+On the 727 route there are no real jumps. The one step over 0.3 m is the trace moving a stuck Henry, as
+before. `test_doorway_camera` fails only on the stand sweep, as before (792 frames).
+
+Backing into the exam corner or the restroom still lifts the camera high and looks down. There is no room
+behind Henry, and no swing has more.
+
+### Eyes in frame in the view's own plane (#240 stage 4, tail)
+
+Backing into the restroom wall, Henry's eyes sat at the very bottom edge (y 0.98) although
+`keep_eyes` meant to keep them 12° inside it. It measured how far below the horizon the eyes are as
+`asin(-y / |d|)`, over the full distance. Screen height depends only on depth along the view: an eye
+off to the side (the shoulder and the swing put it at x 0.26) is steeper in the view's vertical plane
+than its elevation alone. `TpsRigShoulderLift.eyes_pitch_limit()` now uses `atan2(-y, depth along the
+view)`, which is exact. `predict_shot` uses the same function. Tight-space trace: eyes at the bottom
+edge 70 → **0** frames. Backing into the exam corner or the restroom is still a high view looking
+down (no room behind Henry for any candidate), but he is now whole in the frame. A reverse shot from
+in front of him would flip camera-relative controls; that is a design call left to the owner.
+
+### Doorways: looking up and the soft stop (#240 stage 7)
+
+`test_doorway_camera` failed only on the stand sweep: Henry standing in the door plane, the mouse
+turning a full circle. At 30° up, Henry was off screen in every frame, and in 170 of 750 at 10°. The
+same sweep 5 m outside the door lost no frames. Measured cause: the doorway shortens the boom to
+about 1.2 m (2.8 m outdoors), so looking up dropped the camera 0.6 m instead of 1.4 m. The camera
+sat at waist height, close to Henry, and his middle left the bottom edge.
+
+- `TpsRigPassage` drops the orbit, looking up, as far as Henry's middle (the capsule centre, 0.6 of
+  feet→eyes) needs to stay `passage_look_margin_deg` inside the lower edge (`_drop_pitch`, a
+  bisection on the real boom). A first version put his chest on the line of sight instead; it jumped
+  about 20° as the view crossed level (a 0.24 m pop in `pitch_swing`). The edge form is zero until
+  he would leave the frame, so it is continuous.
+- The soft yaw stop (`view_yaw_limits`) let the view turn past the cone by `half_fov − margin`,
+  assuming Henry mid-frame. The shoulder offset already puts him off centre, by `atan(side / eye
+  distance)`, about 16° here, and his middle left the side edge. The stop now subtracts that angle.
+
+The suite passes in two runs and is off the known-failing list. The route trace now snaps the camera
+when it teleports a stuck Henry, as the dev waypoints do (`reset_physics_interpolation` plus
+`snap_to_target`). It skips the four frames that settle. Its last "jump" was that teleport.
+
+### Look-ahead v2 (#240 stage 5)
+
+The lead was velocity × speed ratio × `lead_distance`, eased at one rate. On a reversal it stayed
+ahead while Henry braked, then swung through zero to the other side. `TpsRigFollow` now leads along
+his **intent**: the world direction of the keys, published by `Player` as
+`LocomotionIntentCapability` (`core/contracts/`). The lead is scaled by agreement², the clamped dot
+of intent and motion, so it fades while they disagree and grows as they align. It shrinks 2.5× faster
+than it grows. With no intent (coasting, a doorway carrying Henry), motion alone leads as before.
+Reference: Cinemachine's lookahead with smoothing; Nesky, *50 Game Camera Mistakes* (lead by intent,
+not by noise).
+
+Corridor reversal at a sprint (new `reverse` phase of the tight trace):
+
+| | Before | After |
+|---|---|---|
+| Lead while Henry brakes | stays 0.44 m ahead | 0.04 m within 12 frames |
+| Lead against motion, worst | 0.15 m | 0.02 m |
+| Frames against motion > 0.1 m | 3 | 0 |
+
+At a walk the lead is only about 0.18 m, so the gain there is small (worst 0.07 → 0.04 m).
+
+### Context interests (#240 stage 6): blocked on data
+
+The stove already has its work framing. There is no hazard data in the live world yet: `IceField`
+(thin ice) exists but is not placed in any scene, and there are no edge or ledge markers. The issue
+gates this stage on that data, so nothing was built for it.
+
 ## Control and view
 
 Unreal's split: `ControlRotation` drives the pawn, and camera modifiers change

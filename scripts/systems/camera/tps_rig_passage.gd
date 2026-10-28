@@ -1,0 +1,216 @@
+class_name TpsRigPassage
+extends TpsRigBehaviour
+
+## Doorways: the frame closes round Henry before he reaches one, the camera body orbits in a
+## cone through it, and the view eases into soft stops while he traverses it.
+
+## Blend above which the current doorway keeps the frame against a neighbouring one.
+const HANDOVER_BLEND: float = 0.05
+## Furthest the doorway band may move the shoulder off where the behaviours put it, metres.
+const MAX_PULL: float = 0.5
+## Blend above which the camera keeps its side of the door plane.
+const SIDE_LOCK_BLEND: float = 0.05
+## Height of Henry's middle (the capsule centre) between his feet and his eyes, share.
+const BODY_SHARE: float = 0.6
+
+## Henry's doorway traversal, read for the frame; looked up once after his _ready.
+var _passage: PassageTraversalComponent
+var _passage_looked_up: bool = false
+var _passage_blend: float = 0.0
+var _framing := TpsPassageFraming.new()
+## Orbit cone of the camera body in a passage: left and right turn off the axis
+## (radians), elevation and depression (degrees). Closes at once, opens softly.
+var _cone := Vector4(PI, PI, 90.0, 90.0)
+## Hand-over between doorways: the shoulder offset the old one left, eased out after the swap.
+var _handover_side: float = 0.0
+var _last_info: PassageInfo
+var _last_side: float = 0.0
+
+
+func reset() -> void:
+	_cone = Vector4(PI, PI, 90.0, 90.0)
+
+
+## 0 away from doorways, 1 with the frame fully closed round Henry in one.
+func get_blend() -> float:
+	return _passage_blend
+
+
+func get_framing() -> TpsPassageFraming:
+	return _framing
+
+
+## Doorways recompose the frame round Henry before he reaches them: the blend rises
+## while he or the boom behind him nears the frame, and falls softly once both are clear.
+func update(delta: float) -> void:
+	if not _passage_looked_up:
+		_passage_looked_up = true
+		_passage = rig.player.get_node_or_null(^"PassageTraversalComponent") as PassageTraversalComponent
+	var passage: PassageInfo = _passage.get_nearby_passage() if _passage != null else null
+	var engaged: bool = _passage != null and _passage.get_passage() != null
+	## A neighbouring doorway takes the frame over only once this one has let go, or Henry is in it:
+	## swapping doors mid-blend would step the shoulder band and the cone in one frame.
+	if passage != null and _framing.has_passage() and not passage.same_passage(_framing.info) \
+			and _passage_blend > HANDOVER_BLEND and not engaged:
+		passage = _framing.info
+	if passage != null:
+		_framing.set_passage(passage)
+	var goal: float = 0.0
+	if _framing.has_passage():
+		_framing.clearance = rig.collision_radius + rig.collision_surface_margin
+		_framing.body_radius = rig.get_capsule_radius()
+		## While the doorway holds the frame the camera keeps its side: a flip turns the cone half a
+		## circle at once, so it waits until the blend has let go and the step is small.
+		_framing.update_side(TpsCamera.back_dir(rig.get_view_yaw(), 0.0), _passage_blend > SIDE_LOCK_BLEND)
+	if passage != null:
+		var view_back: Vector3 = TpsCamera.back_dir(rig.get_view_yaw(), 0.0)
+		var off: float = minf(absf(angle_difference(_framing.axis_yaw(), rig.get_view_yaw())), PI / 3.0)
+		## The boom the frame will have, not the one it has, so the blend never feeds itself.
+		var boom_h: float = boom() * cos(deg_to_rad(rig.get_view_pitch_deg())) * cos(off)
+		var speed: float = Vector2(rig.player.velocity.x, rig.player.velocity.z).length()
+		var approach: float = (rig.passage_approach + speed * rig.passage_lead_time) * (1.0 + rig.passage_angle_lead * (1.0 - cos(off)))
+		goal = _framing.goal(rig.get_feet_position(), view_back, boom_h, approach, engaged and _passage.get_passage().same_passage(_framing.info))
+	var rate: float = rig.passage_compress_rate if goal > _passage_blend else rig.passage_release_rate
+	_passage_blend = goal if not rig.is_placed() else lerpf(_passage_blend, goal, TpsCamera.damp(rate, delta))
+	if passage == null and _passage_blend <= 0.001:
+		_passage_blend = 0.0
+		_framing.clear()
+
+
+## In a doorway: shortens the boom, slides the shoulder into the opening, soft-stops the view
+## off the axis and keeps the camera body inside the orbit cone. Sets the orbit either way.
+func orbit(frame: TpsRigFrame) -> void:
+	frame.orbit_yaw = frame.view_yaw
+	frame.orbit_pitch = frame.view_pitch
+	if not (_framing.has_passage() and _passage_blend > 0.001):
+		_cone = Vector4(PI, PI, 90.0, 90.0)
+		_last_info = null
+		_handover_side = 0.0
+		return
+	var blend: float = _passage_blend
+	frame.want = lerpf(frame.want, minf(frame.want, boom()), blend)
+	## The doorway may pull the shoulder toward its centre line by at most MAX_PULL: further off
+	## Henry, a boom aimed through the opening swings into the wall beside it.
+	var pulled: float = clampf(_side(frame.pivot, frame.side), frame.side - MAX_PULL, frame.side + MAX_PULL)
+	var side: float = lerpf(frame.side, pulled, blend)
+	## A new doorway re-centres the shoulder on its own line: the step is carried and eased out.
+	if _last_info != null and _framing.info != _last_info and not _framing.info.same_passage(_last_info):
+		_handover_side = _last_side - side
+	_handover_side = lerpf(_handover_side, 0.0, TpsCamera.damp(rig.passage_release_rate, frame.delta))
+	_last_info = _framing.info
+	frame.side = side + _handover_side
+	_last_side = frame.side
+	var axis_yaw: float = _framing.axis_yaw()
+	var limits: Vector2 = view_yaw_limits()
+	var off: float = angle_difference(axis_yaw, frame.view_yaw)
+	var look_blend: float = blend * traversal()
+	frame.view_yaw = wrapf(axis_yaw + lerpf(off, clampf(off, -limits.x, limits.y), look_blend), -PI, PI)
+	var pitch_range: Vector2 = pitch_range()
+	frame.view_pitch = lerpf(frame.view_pitch, clampf(frame.view_pitch, pitch_range.x, pitch_range.y), look_blend)
+	_update_cone(frame.delta, frame.pivot + _framing.right() * frame.side, frame.want, frame.view_yaw, frame.view_pitch)
+	off = angle_difference(axis_yaw, frame.view_yaw)
+	frame.orbit_yaw = wrapf(axis_yaw + lerpf(off, clampf(off, -_cone.x, _cone.y), blend), -PI, PI)
+	frame.orbit_pitch = lerpf(frame.view_pitch, clampf(frame.view_pitch, -_cone.z, _cone.w), blend)
+	## Looking up on the doorway's short boom, the body drops as far as Henry's middle needs to
+	## stay inside the frame's lower edge; the free boom gets that drop from its length.
+	if frame.view_pitch > 0.0:
+		var feet_y: float = rig.get_feet_position().y
+		var middle: float = feet_y + (rig.get_eye_position().y - feet_y) * BODY_SHARE
+		var sight: float = frame.view_pitch - (rig.half_fov_deg(false) - rig.passage_look_margin_deg)
+		var drop: float = minf(_drop_pitch(frame.pivot.y, middle, frame.want, sight), _cone.w)
+		frame.orbit_pitch = lerpf(frame.orbit_pitch, maxf(frame.orbit_pitch, drop), blend)
+
+
+## 1 while Henry is in a doorway or walking at it, 0 while he stands beside one: only a
+## traversal may soft-stop the mouse (Nesky, GDC 2014: honour the player's intent).
+func traversal() -> float:
+	if _passage != null and _passage.get_passage() != null:
+		return 1.0
+	return smoothstep(0.2, 1.0, Vector2(rig.player.velocity.x, rig.player.velocity.z).length())
+
+
+## Boom through the doorway: authored, or passage_boom less any wall depth past the reference.
+func boom() -> float:
+	var info: PassageInfo = _framing.info
+	if info == null:
+		return rig.passage_boom
+	if info.camera_distance > 0.0:
+		return info.camera_distance
+	return maxf(rig.passage_boom - maxf(info.wall_thickness - rig.passage_reference_wall, 0.0), rig.passage_boom_min)
+
+
+## Pivot lift in a doorway: passage_rise, or half the room left under the lintel if less.
+func rise() -> float:
+	if not _framing.has_passage():
+		return 0.0
+	var room: float = _framing.top_y() - (rig.get_feet_position().y + rig.get_pivot_height())
+	return clampf(room * 0.5, 0.0, rig.passage_rise)
+
+
+func fov() -> float:
+	var info: PassageInfo = _framing.info
+	return info.fov_offset_deg if info != null and info.fov_offset_deg >= 0.0 else rig.passage_fov_deg
+
+
+## Soft stops of the view off the passage axis, radians (left, right): past the orbit
+## cone only as far as Henry stays inside the frame, or an authored limit if tighter.
+func view_yaw_limits() -> Vector2:
+	## Less the angle the shoulder offset already puts Henry off the frame's centre.
+	var offset: float = atan2(absf(_last_side), maxf(rig.get_last_eye_distance(), 0.3))
+	var past: float = maxf(deg_to_rad(rig.half_fov_deg(true) - rig.passage_look_margin_deg) - offset, 0.0)
+	var limits := Vector2(_cone.x + past, _cone.y + past)
+	var info: PassageInfo = _framing.info
+	if info != null and info.yaw_limit_deg > 0.0:
+		var authored: float = deg_to_rad(info.yaw_limit_deg)
+		limits = Vector2(minf(limits.x, authored), minf(limits.y, authored))
+	return limits
+
+
+## Soft range of the view pitch in a doorway, degrees: past the orbit cone only as far
+## as Henry stays inside the frame.
+func pitch_range() -> Vector2:
+	var past: float = maxf(rig.half_fov_deg(false) - rig.passage_look_margin_deg, 0.0)
+	return Vector2(-(_cone.z + past), _cone.w + past)
+
+
+## The cone the camera body may orbit in at this pass of the doorway: it closes at once
+## as Henry walks into it and opens at the release rate, so a cone never snaps open.
+func _update_cone(delta: float, shoulder: Vector3, want: float, view_yaw: float, view_pitch: float) -> void:
+	var yaw: Vector2 = _framing.yaw_limits(shoulder, want * cos(deg_to_rad(view_pitch)))
+	var off: float = clampf(angle_difference(_framing.axis_yaw(), view_yaw), -yaw.x, yaw.y)
+	var pitch: Vector2 = _framing.pitch_limits(shoulder, want, off)
+	var goal := Vector4(yaw.x, yaw.y, pitch.x, pitch.y)
+	var opening: float = TpsCamera.damp(rig.passage_release_rate, delta)
+	for i: int in range(4):
+		_cone[i] = goal[i] if goal[i] < _cone[i] or not rig.is_placed() else lerpf(_cone[i], goal[i], opening)
+
+
+## Shoulder in a doorway: the player's side, or the one the passage asks for, kept within
+## a share of the opening round its centre line, so it slides inward or across as Henry is off it.
+func _side(pivot: Vector3, side: float) -> float:
+	var wanted: float = side
+	var forced: int = _framing.info.shoulder
+	if forced == PassageInfo.Shoulder.LEFT:
+		wanted = -absf(side)
+	elif forced == PassageInfo.Shoulder.RIGHT:
+		wanted = absf(side)
+	elif forced == PassageInfo.Shoulder.CENTRE:
+		wanted = 0.0
+	var room: float = _framing.band() * rig.passage_shoulder_band_share
+	var lateral: float = _framing.lateral(pivot)
+	return clampf(lateral + wanted, -room, room) - lateral
+
+
+## Orbit pitch at which a camera `boom` metres from a pivot at `pivot_y` sees the height
+## `target_y` at `sight` degrees; bisection, as the sight line rises with the drop.
+static func _drop_pitch(pivot_y: float, target_y: float, boom: float, sight: float) -> float:
+	var low: float = 0.0
+	var high: float = 85.0
+	for i: int in range(14):
+		var mid: float = (low + high) * 0.5
+		var pitch: float = deg_to_rad(mid)
+		if rad_to_deg(atan2(target_y - (pivot_y - boom * sin(pitch)), boom * cos(pitch))) < sight:
+			low = mid
+		else:
+			high = mid
+	return (low + high) * 0.5

@@ -517,7 +517,7 @@ func _icon_for_item(item_id: StringName) -> Texture2D:
 		return _icon_water
 	if item_id in [&"lighter", &"tinder", &"road_flare"]:
 		return _icon_fire
-	if item_id in [&"tinned_stew", &"tinned_pineapple", &"opened_pineapple", &"empty_tin"]:
+	if item_id in [&"tinned_stew", &"tinned_pineapple", &"tinned_pineapple_open", &"spov_can", &"spov_can_open", &"empty_tin"]:
 		return _icon_food
 	return _icon_generic
 

@@ -7,3 +7,4 @@
 script = ExtResource("1_profile")
 profile_id = &"HFN_ColdAsh_Shelter"
 lut = ExtResource("2_lut")
+brightness = 1.12

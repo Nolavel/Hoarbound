@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BodyPartLibrary" format=3]
+
+[ext_resource type="Script" path="res://core/body/body_part_definition.gd" id="1_5u3xc"]
+[ext_resource type="Resource" path="res://data/body/head.tres" id="2_be0v1"]
+[ext_resource type="Resource" path="res://data/body/hands.tres" id="3_7vsuy"]
+[ext_resource type="Resource" path="res://data/body/feet.tres" id="4_c6txc"]
+[ext_resource type="Script" path="res://core/body/body_part_library.gd" id="5_gadcm"]
+
+[resource]
+script = ExtResource("5_gadcm")
+parts = Array[ExtResource("1_5u3xc")]([ExtResource("2_be0v1"), ExtResource("3_7vsuy"), ExtResource("4_c6txc")])

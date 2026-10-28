@@ -16,6 +16,8 @@ signal interaction_performed(target: InteractiveArea)
 signal pickup_gesture_finished(target: InteractiveArea, result: StringName)
 ## A pickup went into storage; destination is a pocket zone path or &"pack".
 signal pickup_stored(item_id: StringName, destination: StringName)
+## F was pressed with nothing in focus or reach; ground actions (snow scoop) take it.
+signal interact_unclaimed
 
 ## Seconds between special-awareness scans; they are rare and cheap.
 const AWARENESS_INTERVAL: float = 0.2
@@ -193,6 +195,8 @@ func try_interact() -> void:
 			_begin_approach(world)
 		return
 	if not is_pickup_actionable():
+		if pickup_target == null:
+			interact_unclaimed.emit()
 		return
 	var pickup: InteractiveArea = pickup_target
 	## Ordinary items wait for the release or the hold; armfuls act at once.

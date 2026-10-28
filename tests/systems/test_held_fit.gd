@@ -21,9 +21,9 @@ func _initialize() -> void:
 	_check(hammer != null and hammer.held_fit != null, "hammer has no authored HeldFit")
 	_check(road_flare != null and road_flare.held_fit != null, "road flare has no authored HeldFit")
 	if hammer != null and hammer.held_fit != null:
-		_check(hammer.held_fit.hand == HeldFit.Hand.LEFT, "hammer moved off the primary hand")
-		_check(hammer.held_fit.offset.is_equal_approx(Vector3(0, 0.12, 0.06)), "hammer fit lost the production socket offset")
-		_check(hammer.held_fit.rotation_deg.is_equal_approx(Vector3(-55, 0, 0)), "hammer fit lost the production rotation")
+		_check(hammer.held_fit.hand == HeldFit.Hand.RIGHT, "hammer moved off the owner's right-hand fit")
+		_check(hammer.held_fit.offset.is_equal_approx(Vector3(-0.025, 0.08, -0.005)), "hammer fit lost the production socket offset")
+		_check(hammer.held_fit.rotation_deg.is_equal_approx(Vector3(80, 0, 0)), "hammer fit lost the production rotation")
 	if road_flare != null and road_flare.held_fit != null:
 		_check(road_flare.held_fit.hand == HeldFit.Hand.LEFT, "flare moved off the torch hand")
 		_check(road_flare.held_fit.offset.is_equal_approx(Vector3(0.055, 0.1, 0.05)), "flare fit lost the production socket offset")

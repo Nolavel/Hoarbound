@@ -45,6 +45,8 @@ extends Resource
 @export var blend_time_s: float = 20.0
 ## Relative likelihood of this profile being picked by the weather scheduler.
 @export var weight: float = 1.0
+## Never picked by the scheduler; only set_weather() starts it (tests and captures).
+@export var manual_only: bool = false
 ## Minimum and maximum time this profile stays active, in in-game hours.
 @export var min_duration_h: float = 1.0
 @export var max_duration_h: float = 4.0

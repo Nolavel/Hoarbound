@@ -8,15 +8,151 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
-- Stove ritual: addressed hand pickup/insertion/release, Quick Access-only tinder,
-  a persistent physical tinder target and nozzle contact before ignition. Individual
-  log placement/char origins survive save/load and refuel without rearranging old
-  logs; HeatSource retains fuel/heat authority.
+- Snow that sticks and melts (#257, stage 4).
+  - **Splats:** a snowball bursts into a puff and leaves a `SnowSplat` decal on what it hits. In the cold the
+    splat stays (the 32 newest are kept). Inside a heated interior zone it slides down 12 cm and melts in 45 s.
+  - **Melting in the hand:** `HandSnowMelt` melts a handful held in the warm. It lasts 40 s in a barely warm room
+    and 20 s at 20 C, shrinks in the hand, leaves up to 0.3 wetness in the glove, and is gone. Below freezing it keeps.
+  - Tests: `test_hand_snow_melt`, plus the splat check in `test_throw`.
+- Breakable window glass (#257, stage 3).
+  - **Which panes:** `WindowBreakage` cracks and breaks the pane a throw lands on, on any house: the 727 window
+    breaches, and every pane quad of a generated facade's `windows` surface, found from the hit point.
+  - **Damage adds up:** a pane cracks at 2 N*s and breaks at 5 N*s. A snowball (0.2 kg at 13 m/s) cracks it and a
+    second breaks it; a stone (0.35 kg at 15 m/s) breaks it at once.
+  - **Look:** cracks radiate from the impact, a broken pane shows a jagged dark hole with shards round it, and
+    shards fall. There is no glass sound yet: the project has none.
+  - **Saved:** damage persists, panes included.
+  - **727 glass holds heat:** a closed pane leaks 12 % of its hole (`ShelterBreach.glazed`, `GLASS_LEAK`), so the
+    heated room's sealing goes from 0.085 to 0.877 and its heat ceiling from 3.4 to 16 C. A broken pane is a full
+    hole again (owner decision; boards to be reworked later). 727 window breaches now carry the spec's opening sizes.
+  - **Plumbing:** `ThrowImpactCapability` passes the struck collider; world sinks take hits nothing nearer claimed.
+    Test: `test_window_breakage`.
+- Throwing snow and stones (#257, stage 2).
+  - **Aim and throw:** with a throwable in hand (`ItemResource.throw_speed_mps`: handful 13 m/s, stone 15 m/s),
+    hold RMB to aim. A dotted arc and a landing ring show the flight, with a slow hand sway of about 1.2 degrees.
+    LMB while aiming throws on UAL2 `OverhandThrow`, released at 0.29 s (traced on Henry in game: the whip
+    forward starts at 0.28 s), with 0.8 degrees of jitter. LMB without aiming still eats the handful.
+    At the release the throw is solved again from the real hand position to where the arc landed.
+    Owner review: snow and stones sit in the right hand (`HeldFit.hand = RIGHT`), the hand that throws, so the arc
+    starts at the snowball. Holding RMB plays the throw to its wind-up (0.24 s, hand up and back) and holds it there
+    (`HenryUALAnimation.set_action_pace`); LMB lets the clip run on into the release, and letting go of RMB lowers
+    the arm. A scoop leaves a hand-sized hollow in the snow (a body on the snow contact layer presses the field).
+    Second review:
+    - **Wind-up height:** the wind-up is held on its exact frame through a `TimeSeek` in the action
+      subtree (`hold_action_at`). The real-time timer had stopped it early at lower frame rates, with the arm low.
+    - **Stance:** aiming turns Henry 60 degrees side-on, left shoulder leading, and the throw swings him back square
+      to the target.
+    - **Spring aim:** the aim point trails the camera's on a 3 Hz spring that overshoots a touch.
+    - **Camera push-in:** the camera closes in over the shoulder to 0.68 of its boom on a 2.4 Hz spring, read
+      through the new `AimIntentCapability`.
+- TPS camera no longer sinks into the snow. The snow is not collision, so the boom sweep stopped only at the
+  ground and the lens could end up under the snow top when looking up from deep snow. The lens now stays at least
+  `snow_clearance_m` (0.25 m) above `SnowField.get_snow_top` under it.
+  - **Launch:** `ThrowComponent.launch_direction` solves the low arc to the camera's aim point, and lobs at
+    45 degrees when the point is out of reach.
+  - **In flight:** `ThrownItem` strikes its first contact through the new `ThrowImpactCapability` (`core/contracts`).
+    Snow bursts and is gone; a stone rolls to rest on ground damping and becomes a pickup again.
+  - **Wall stones:** `StoneScatter` lays stones at the foot of house walls near Henry, from the building outlines.
+    About 7 % of 4 m wall spots hold one, hashed by position so a wall's stones never move. A taken one stays
+    taken through the `PickupLedger`.
+  - New item: `stone` (0.35 kg). Tests: `test_throw`, `test_stone_scatter`.
+- Snow by hand (#257, stage 1).
+  - **F on open snow** with nothing else in focus: Henry stoops (`pickup_right_low`). A held empty mug fills with snow
+    in hand, and a free hand takes a handful of snow (`snow_handful`, now actually produced in play).
+  - **Refused** indoors or where less than 3 cm of settled snow lies underfoot (`SnowField.get_depth`).
+  - **Signal:** `InteractComponent.interact_unclaimed` hands the unclaimed F to ground actions.
+  - **Visuals:** the mug shows a heap of snow above the rim, and the handful is a lumpy snow clump instead of the
+    placeholder parcel.
+  - Item Use on a packed mug still scoops as before. Test: `test_snow_scoop`. Capture: `tools/runtime/capture_snow_scoop.gd`.
+- 727 chimney and roof smoke (#252).
+  - **Root cause of the break:** the stove's flue had a fixed length (`FLUE_H` 1.7 m) and stopped at 3.08 m under the
+    3.66 m ceiling. The roof stack stood over the stove's centre, not over the flue, and was twice as thick.
+  - **One continuous flue:** `StoveVisual.flue_length` and `flue_base()` let the shelter run the flue into the ceiling
+    (`interior.ceiling_y`). The roof stack continues it on the same axis and radius up to roof + 0.8 m, with a cap.
+  - **`ChimneySmoke` on the cap:**
+    - it smokes only while the `HeatSource` burns, and its density follows the fire's intensity;
+    - `chimney_smoke.gdshader` pulls every puff toward the air's velocity: the weather's wind with its gust, plus the plume's rise;
+    - a gust therefore bends the whole plume at once. Godot's built-in damping cannot do this: it slows a particle
+      by a constant amount instead of pulling it toward the air.
+  - The road flare reuses the same noise-edged puff texture (`ChimneySmoke.puff_texture`).
+  - Test: chimney checks in `test_key_west_727_shelter`. Capture: `tools/runtime/capture_chimney_smoke.gd`.
+- Weather profile `clear` (no wind, no snowfall) for tests and captures. It is `manual_only`: it is set only by
+  `set_weather`, never drawn by the weather roll (`WeatherProfile.manual_only`, `_pick_weighted` skips it).
+- SPoV canned meat (owner's artist asset, `assets/source/spov_canned_meat/CanModel.rar`). `tools/blender/build_spov_can.py`
+  builds `assets/items/spov_can/SPoV_Can.glb`: 10.4 x 6.1 x 7.1 cm (a 340 g luncheon-meat tin, the artist's proportions
+  kept), 356 + 240 tris. The 40 lid-seam edges shared by three faces are split, and the pull ring is laid flat on the
+  recessed lid at one end. The painted label is matte paper: the source Metallic map marked the whole surface metal,
+  so the label is masked out of it. Items `spov_can` → `spov_can_open` follow the pineapple contract, with no tool
+  needed: the first Use pulls the ring, the next eats 1,070 kcal (340 g x 3.15 kcal/g). The open can hides the ring
+  and shows the meat. Owner: the emptied can is thrown on the floor. A new `ConsumableData.discard_leftover` tosses it
+  as a falling body (`ConsumptionController.leftover_discarded`) instead of keeping an inventory item. No ring-pull animation yet; opening plays the existing `fix` action. One can lies on the
+  bottom shelf of the 727 waiting-room cabinet, label to the door. The open-tin hint now names the ring or the knife
+  (`ConsumptionController.open_action_key`). Test: `tests/systems/test_spov_can.gd`. Capture:
+  `tools/runtime/capture_spov_can.gd`.
+- Held lighter flame on RMB (`present_held`). While RMB is held, Henry raises the lighter before his chest
+  (a second `StoveHandReach`, `PresentReach`, palm turned in), and after 0.3 s the flint wheel rolls and the flame lights.
+  The lighter stands upright in the fist while raised; on release its authored HeldFit returns. The flame burns while RMB
+  is held but goes out after 10 s anyway; a fresh press lights it again. The flame is now one node, `LighterFlame`,
+  shared by the held lighter and the stove act. Capture: `tools/runtime/capture_held_lighter.gd`.
+  Lowering fix (owner report: the hand jerked before letting go): the raised fist now keeps the hanging wrist
+  roll (thumb up), so the hand no longer turns over at half weight. The arm eases down over 0.4 s. The lighter
+  turns from upright back to its HeldFit in the hand's frame, so it no longer flips. Measured by a per-frame
+  trace of the hand bone's roll axis.
+- Authored lighter model (`assets/items/lighter/Lighter_game_ready.glb`, owner's asset) replaces the orange box
+  everywhere: world pickup, held prop and the stove lighting act. `LighterStrikeVFX` holds it with the grip at the
+  origin and the burner nozzle on its +Y axis; the flint wheel rolls on each strike. The flame is a tongue mesh with
+  the stove log-flame shading (blue root, yellow body, view-facing edge, faded tip, `lighter_flame.gdshader`). It
+  pivots on the nozzle and always burns world-up whatever the hand's tilt. At the stove the nozzle sits 12 mm under
+  the tinder so the flame's middle licks it. Close-up capture: `tools/runtime/capture_lighter.gd`.
+- Work gloves you can find and wear (#236, owner: the 727 cabinet). `tools/blender/build_henry_outfit.py` cuts
+  `Outfit_Gloves` from the hands and fingers, from the wrist up under the sleeve, in dark leather brown. They are
+  decimated to about 6,000 vertices and hide `Skin_Gloves` while worn. The pickup lies on the top shelf of the
+  727 cabinet beside the mug (`GlovesShelter`), with a blocky pair as its world prop. The outfit now rebuilds with
+  Blender 5.2 (`pip install bpy`); the previous meshes come out vertex for vertex.
+- Wall thermometer in the 727 waiting room (#236), just inside the lobby arch (`WallThermometer`, nail at 1.7 m, placed
+  from the landmark spec's furniture list). It is an ordinary glass thermometer on a board, hung by a wire loop from a nail, with a red column from −40 to +40 °C; the figure
+  (`THERMOMETER_READING`, °C only) sits on a grey gradient plate below it and fades out between 2.5 and 3 m from Henry.
+  It reads outdoor air plus its zone's warmth; the column and figure follow it smoothly. No interaction.
+- Stove fire per log, ported from the `codex` branch (Codex's work, finished here). Each log has its own
+  irregular geometry, char, flame and embers, plus weak ignition smoke. Henry's arm reaches in through
+  `StoveHandReach` to take, insert and release each item. Tinder comes only from a Quick Access pocket or
+  the hand, not the pack. Log poses and char origins survive save/load and refuel. `HeatSource` stays the
+  only authority on fuel and heat. Codex's 11 MB of capture media stayed on its branch.
+- Frostbite consequences (#236 stage 6, owner direction). Each body part gets frostnip, then frostbite, after
+  its cold load is held long enough (0.6 for 20 min; 0.85 for about 36 min). The stage heals in warmth
+  (frostbite over 6 h) and is saved. Six afflictions carry the effects:
+  - numb hands slow fine work, so the lighter hold grows from 3 s to about 5 s and laying fuel takes longer;
+  - frostbitten feet slow walking and allow no sprint;
+  - frostbite drains health (4–5 per game hour, through the new `PlayerHealthSystem.drain`, without hit feedback).
+  The modifiers reach movement, actions, fatigue and the stove through the new `StatusModifierCapability`;
+  the three existing string-call readers moved onto it. `test_frostbite` covers stages, healing, afflictions,
+  health, sprint, the lighter and gloves.
+- Work gloves: a `hands_outer` slot and the `work_gloves` garment (insulation 4 °C, windproof 0.6). There is no
+  visual mesh yet (needs a Blender outfit pass) and they are not placed in the world.
 
-- Stove fire uses irregular per-log geometry, local flame/char/embers and weak ignition smoke,
-  preserving HeatSource fuel authority, Claude’s ritual and the existing room lights. Real 727
-  TPS captures compare the original and integrated appearance under OpenGL Compatibility;
-  Forward+ color/performance verification remains outstanding.
+- Body part library (#236): `BodyPartDefinition` / `BodyPartLibrary` (`core/body/`, `data/body/`) describe the
+  head, hands and feet. Each has its garment region, wind exposure, cold sensitivity, cold thresholds, HUD mask
+  and bones. `ExtremityCold` and the HUD silhouette read the library instead of hard-coded regions.
+  Wind now reaches each part by its own exposure and its cover's windproofing: the face takes the whole wind,
+  booted feet about a third. A new part is data only. `test_cold_readouts` covers the library, the wind split
+  and a data-only part.
+
+- Daily air temperature (#236 stage 5): `ThermalManager` uses `data/climate/air_temperature_day.tres` when no
+  curve is assigned (world.gd creates it in code, so it always ran flat at −18 °C). The air is coldest at
+  05:30 (−28 °C) and warmest at 14:30 (−8 °C), with weather offsets on top. `test_cold_readouts` checks the
+  extremes and the midnight wrap.
+
+- Vitals HUD rework (owner design, #236; spec in `docs/technical/VITALS_HUD.md`). The round progress rings
+  are replaced by gradient columns: a dark column fading upward and a state-tinted pigment over it that
+  empties from the top, with a thin edge line and rounded bottom. Green, yellow and red blend across each
+  threshold. The symbols stay half-tone until a vital nears critical. Trend chevrons sit above a rising
+  column and below a falling one, doubled for a fast change. Body temperature and `FEELS ±N°` sit beside
+  the warmth column. A faint front silhouette stands over it and frosts blue from the fingertips, toes and
+  crown with the new extremity cold load. The block moved toward the corner: smaller columns, a larger
+  health strip (260 × 16).
+- Extremity cold (`ExtremityCold`, `ThermalManager.get_extremity_cold`): a 0..1 load on the head, hands and
+  feet from felt cold, that region's garment insulation and its wetness (`EquipmentComponent.get_region_protection`).
+  It is saved, warm sleep clears it, and it is a warning layer only.
 
 - Floor snow prints (owner request): indoors Henry's boots leave white prints, the inverse of the snow print:
   white where the tread's grooves packed with snow outside, broken into clumps (`BootSole.floor_print_image`,
@@ -137,6 +273,53 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Wind gusts ran about 100x slower than their profiles say. `WeatherController` samples its gust noise at
+  elapsed / `gust_period_s`, but the noise kept FastNoiseLite's default frequency of 0.01. A 5 s gust period
+  therefore took about 8 minutes, and in a minute of "windy" the wind moved only 11.00 to 11.19 m/s. The noise
+  frequency is now 1, so one unit is one period: the same minute sweeps 8.86 to 13.09 m/s. This affects
+  everything that reads wind: chimney smoke, blowing snow, breach drafts and wind chill. Test: `test_weather_gusts`.
+- TPS camera steps in doorways (#240 stage 3 v2). The camera no longer flips to the other side of a door plane
+  while the doorway holds the frame. A neighbouring door waits until the current one lets go, a hand-over's
+  shoulder step is eased out, and a doorway may pull the shoulder at most 0.5 m off Henry. On the 727 route, real
+  jumps over 0.3 m fall from 3 to 0, and `test_doorway_camera` no longer pops on the yaw swing. The tight-space
+  trace is unchanged.
+- A room Henry is not in now keeps warming or cooling. `ThermalManager` advanced only the zones Henry's probe
+  overlapped, so a room left with a dying fire stayed as warm as when he walked out. Every loaded `ThermalZone`
+  now advances (`ThermalZone.get_all()`); the wall thermometer made the stale reading visible.
+- Negative temperatures in IM Fell English SC (FEELS, the thermometer) use an en dash: the font has no minus sign and
+  draws "-" like a tilde (`TemperatureText.signed`).
+- Stove transfers and the lighter hold no longer depend on where the IK palm lands. In the first port a log
+  was laid only when the solved palm was within 4.5 cm of the target. In the 727 shelter workflow the arm
+  stopped 0.44 m short and the log was silently never laid. Contact is now a point on the act's timeline;
+  the arm only presents it.
+- Pocket takes keep an item's runtime state. The flare rollback (`HeldOwnership.take` / `restore`), stove
+  fuel and eating now use `take_pocket_instance()`; the id-only `take_from_pocket()` refuses stateful items,
+  so those paths would have silently failed once items carry state.
+- Warmth colour now follows the hypothermia stages (yellow from CHILLED 36 °C, red from HYPOTHERMIC 33 °C).
+  The generic 66 %/33 % ring thresholds left 31 °C (the CRITICAL stage) yellow.
+- Felt temperature is computed on world ready and on load. Before, it stayed 0 °C until the first
+  quarter-hour clock step (about 19 s after a start or load), so `FEELS` would have read +0°.
+- Room warmth survives streaming and saves: `ShelterState` stores each zone's accumulated fire heat and
+  restores it (`ThermalZone.restore_heated_offset`). Before, a warmed house came back cold.
+
+- Item integrity (Codex, e63bee8e; reviewed in #70): `ItemCatalog` no longer lets a repeated definition id silently
+  replace the first (`validate_entries()`, an error at index time). A stackable item refuses an `instance_state`
+  instead of dropping it. Pack ↔ pocket moves in the Hub and Quick Access swaps carry each item's state
+  (`stow_instance`, `take_pocket_instance`, optional `pocket_states` in the equipment save; old saves load).
+  id-only `take_from_pocket` refuses a stateful pocket item rather than erasing its state. `test_item_integrity`
+  covers it (fixture now runs on the first frame, so the coat's pockets exist).
+
+- Stove ritual edge prompt (owner request): F no longer makes the centre prompt vanish. Its brackets part to
+  the screen edges (72 px in), the yellow strip splits into its two halves, one by each bracket: `[F] BACK`
+  on the left, `STOVE` on the right. Any `InteractiveArea` can offer this through `get_session_prompt_data()`
+  while it sits in the `active_work_session` group; the stove feed does from the door opening to F.
+- Stove ritual (owner request): the ring no longer climbs to the top screen edge (it was lifted 70 px over a
+  point 1 m above the cooktop, then clamped); it now sits at the bottom centre, 200 px above the lower
+  edge (`bottom_offset_px`). The work view no longer turns sideways with the mouse (pitch only, 12 degrees): a
+  left turn brought the eye into Henry's head and faded his body out. `test_stove_ritual` checks the lock.
+- Quit to title from the stove ritual logged two errors: the ritual's teardown restores `PlayerState` to
+  ON_FOOT after the key hints panel has left the tree, and the panel rebuilt itself detached. The panel now
+  ignores mode changes outside the tree (`test_key_hints_teardown`).
 - Boot tread readable at play distance (owner: the print "sometimes seems invisible"). The snow shader switched
   the lug pattern off once a pixel on the snow passed 2–6 mm; at the shipped render scale (0.77, FSR) a fresh
   print 2.5 m from the TPS camera spans 4 × 8 mm pixels (measured), so the tread showed only in steep
@@ -258,6 +441,59 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Road flare at night (owner picked variant C). The light's volumetric-fog tint drops from 1.0 to 0.3: the
+  default tint filled the night fog with a red haze, which was the main cause of the "everything is red" read.
+  Falloff is now inverse square (`omni_attenuation` 2), and the radius no longer breathes with the burn. All three
+  are `HeldFlare` knobs (`fog_energy`, `light_attenuation`, `range_breath`). The particles are rebuilt:
+  - the tip burns as a steady short jet (white core to orange to red);
+  - sparks and spurts are streaks aligned to their velocity;
+  - the large bits are slag that falls and cools;
+  - smoke is a plume of 96 faint, spinning, noise-edged puffs. Before, it was 42 round quads that read as glowing balls.
+  Capture: `tools/runtime/capture_flare_night.gd` (A/B/C outside, close-up frames, inside 727).
+- TPS camera look-ahead v2 (#240 stage 5). The orbit centre leads along Henry's intent (the keys' world
+  direction, `LocomotionIntentCapability` published by `Player`) and fades while intent and motion disagree; it
+  shrinks 2.5x faster than it grows. Sprint reversal in the corridor: the lead no longer stays 0.44 m ahead while
+  Henry brakes; worst lead against motion 0.15 → 0.02 m. The tight trace gains a corridor `reverse` phase.
+- TPS camera keeps Henry's eyes inside the frame's lower edge when he is off to the side (#240 stage 4 tail).
+  `keep_eyes` measured the eye angle over the full distance instead of depth along the view, so off-centre eyes sat
+  at the bottom edge (restroom, backing in: y 0.98). Now exact (`TpsRigShoulderLift.eyes_pitch_limit`): tight trace
+  eyes at the bottom edge 70 → 0. Stage 6 (context interests) waits on hazard data: `IceField` is not placed in any
+  scene and there are no edge markers.
+- `test_doorway_camera` is green (#240 stage 7), two runs; it is off the known-failing list. Standing in the door and
+  looking up, the camera lost Henry in every frame of the 30° sweep (and 170 of 750 at 10°). On the doorway's short
+  boom the camera barely dropped, unlike outdoors (checked: 0 lost frames 5 m outside). Now it drops as far as
+  Henry's middle needs to stay inside the frame's lower edge (`TpsRigPassage._drop_pitch`). It also lost him sideways
+  at the soft stop, which assumed he sat mid-frame; the stop now subtracts the angle the shoulder offset puts him off
+  centre. The route trace snaps the camera on its own stuck-Henry teleports, as the dev waypoints do, and skips
+  those frames: the 727 route now meets all three #240 criteria (no step over 0.3 m; largest 0.28 m).
+- TPS camera swings round Henry in tight space (#240 stage 4, part 2). Shot choice now scores lift caps × orbit
+  swings (0, ±20°, ±40°; the view stays the player's), adds a cost for Henry's eyes off the left or right edge, and
+  is off in doorways. The prediction now follows `keep_eyes`' pitch limit, the side recompose leaves and Lyra's
+  feelers (`TpsRigCollision.target_shares`). Without the recompose term it chased a wrong frame in a 20-frame cycle.
+  Tight-space trace vs part 1: eyes off screen 11 → 0, within 0.8 m of the eyes 1,440 → 141, faded 0, bottom edge
+  81 → 70. Along walls the camera stands off to the side and shows the corridor. 727 route: no real jumps.
+  Backing into the exam corner or the restroom still looks down from above.
+- TPS camera picks how far to lift over Henry's shoulder in tight space (#240 stage 4, part 1). Four lift caps are
+  scored on a stateless prediction of the frame and eased with hysteresis. Along walls the camera now stays at the
+  shoulder instead of looking down from above. Tight-space trace: eyes off screen 57 → 11 frames, at the bottom
+  edge 543 → 81, faded 10 → 0. The exam corner and the restroom still lift; authored room hints are next.
+- TPS camera rig split into behaviours (#240 stage 2). `_update_rig` now runs `TpsRigFollow`, `TpsRigAutoSwap`,
+  `TpsRigComposition`, `TpsRigPassage`, `TpsRigShoulderLift`, `TpsRigRecompose`, `TpsRigCollision` and `TpsRigWork`
+  on one `TpsRigFrame`, each owning its state and smoothing. Behaviour is unchanged: the 727 route trace and the
+  tight-space trace match their pre-refactor output byte for byte.
+- `tools/runtime/trace_camera_route.gd` (#240 stage 1) measures the camera on a 727 walk. It records eyes in frame,
+  fades, jumps over 0.3 m, wall share, the share of the frame Henry covers, and mouse deviation.
+- Hammer held fit re-authored by the owner in the Item Fitter: right hand, offset (-0.025, 0.08, -0.005), rotation
+  80° about X. `test_held_fit` now pins this fit.
+- Work gloves restyled after the owner's reference: an olive back, tan leather at the knuckles and fingertips,
+  a dark palm, and an insulated dark gauntlet over the sleeve (`Outfit_GloveCuff`) with a strap and a red pull tab.
+  Panels are flat colours painted per face and settled by a neighbour vote so decimation leaves no specks.
+- The top-right "Room air" HUD readout is gone; the 727 wall thermometer replaces it (owner, #236).
+- Stove look after the owner's review of the 727 capture:
+  - flames are about 40 % taller and denser, and a caught log grows to full burn in 6 s instead of 10;
+  - the shelter colour grade is 12 % brighter, so the room before ignition reads (frame mean 54 to 61 of 255);
+  - the stove ring sits at screen centre, 100 px down;
+  - the F BACK / STOVE prompt keeps its place but drops to 60 % opacity during the session.
 - Stove ritual framing (owner: "we saw nothing inside the stove or what Henry does"). The TPS camera stayed high
   behind Henry, his back hid the door, and the iron stove was lost on the dark floor. The same TPS camera now
   eases onto a work framing while the door is open (`TpsCamera.set_work_framing`), the owner's composition:

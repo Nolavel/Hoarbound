@@ -25,6 +25,10 @@ const FUEL_SECONDS: float = 2.2
 const TINDER_SECONDS: float = 1.8
 ## One log diameter above its rest pose clears the existing floor load on insertion.
 const LOG_INSERT_CLEARANCE: float = 0.10
+## The nozzle sits this far under the tinder so the flame's hot middle licks it.
+const FLAME_LICK: float = 0.012
+## Longest wait for the hand to settle before the lighter is ready; IK only presents it.
+const PREPARE_SECONDS: float = 0.4
 const STRIKE_EVENT: SoundEvent = preload("res://resources/audio/lighter_strike.tres")
 
 @export var heat_source: HeatSource
@@ -79,6 +83,7 @@ var _contact_prop_basis: Basis = Basis.IDENTITY
 var _grip_offset: Vector3 = Vector3.ZERO
 var _contact_palm: Vector3
 var _light_reach: float = 0.0
+var _prepare_seconds: float = 0.0
 var _lighter: LighterStrikeVFX
 
 
@@ -142,9 +147,14 @@ func get_act_progress() -> float:
 	return clampf(1.0 - _act_left / maxf(_act_duration_seconds(), 0.001), 0.0, 1.0)
 
 
-## 0..1 of the flame held to the tinder, the existing LIGHT_SECONDS hold.
+## Seconds the flame must be held: LIGHT_SECONDS, longer with numb or frostbitten hands.
+func get_light_seconds() -> float:
+	return LIGHT_SECONDS * StatusModifierCapability.multiplier(_player, &"fine_motor_duration_multiplier")
+
+
+## 0..1 of the flame held to the tinder, over get_light_seconds().
 func get_light_progress() -> float:
-	return clampf(_hold_seconds / LIGHT_SECONDS, 0.0, 1.0) if _stage == Stage.HOLDING else 0.0
+	return clampf(_hold_seconds / get_light_seconds(), 0.0, 1.0) if _stage == Stage.HOLDING else 0.0
 
 
 func is_lighter_ready() -> bool:
@@ -275,7 +285,8 @@ func _process(delta: float) -> void:
 		cancel_act(stop_reason)
 		return
 	if _act == Act.LIGHT:
-		if _stage == Stage.PREPARING and (_reach != null and _actual_palm.distance_to(_pickup_palm) < 0.045):
+		_prepare_seconds += delta
+		if _stage == Stage.PREPARING and (_prepare_seconds >= PREPARE_SECONDS or _actual_palm.distance_to(_pickup_palm) < 0.045):
 			_stage = Stage.READY
 			state_changed.emit()
 		_update_hand_action(delta)
@@ -396,10 +407,10 @@ func advance_lighter_hold(seconds: float) -> void:
 	if _light_stop_reason() != &"":
 		cancel_act(&"target_lost")
 		return
-	if _reach == null or _light_reach < 0.99 or _lighter == null or _lighter.get_flame_tip().distance_to(_visual().to_global(_visual().get_tinder_contact())) > 0.045:
+	if _light_reach < 0.99:
 		return
 	_hold_seconds += maxf(0.0, seconds)
-	if _hold_seconds < LIGHT_SECONDS:
+	if _hold_seconds < get_light_seconds():
 		return
 	var actions: TimeCostedActionSystem = _actions()
 	if _action_managed and actions != null and actions.get_active_action_id() == _action_id:
@@ -449,7 +460,7 @@ func _finish_current() -> void:
 
 
 func _finish_ignition() -> void:
-	if _stage != Stage.HOLDING or _hold_seconds < LIGHT_SECONDS or _light_stop_reason() != &"":
+	if _stage != Stage.HOLDING or _hold_seconds < get_light_seconds() or _light_stop_reason() != &"":
 		_clear_act()
 		if _visual() != null:
 			_visual().end_act(_door_open)
@@ -470,16 +481,15 @@ func _finish_ignition() -> void:
 func _commit_transfer() -> void:
 	if _transfer_committed or _transfer_stop_reason() != &"":
 		return
-	if _reach == null or _actual_palm.distance_to(_contact_palm) > 0.045:
-		return
 	var inventory: InventoryComponent = _get_inventory()
-	if not HeldOwnership.take(inventory,_equipment,_transfer_item,_transfer_zone):
+	var taken: Dictionary = HeldOwnership.take(inventory, _equipment, _transfer_item, _transfer_zone)
+	if taken.is_empty():
 		cancel_act(&"resource_lost")
 		return
 	if _act == Act.FUEL:
 		_visual().set_log_release(_transfer_prop.global_transform)
 		if not heat_source.add_logs(1):
-			HeldOwnership.restore(inventory,_equipment,_transfer_item,_transfer_zone)
+			HeldOwnership.restore(inventory, _equipment, taken, _transfer_zone)
 			cancel_act(&"target_full")
 			return
 		fuel_added.emit(heat_source,heat_source.get_remaining_hours())
@@ -625,7 +635,7 @@ func _consume_owned_item(item_id: StringName) -> bool:
 	if is_instance_valid(_equipment):
 		for pocket: Dictionary in _equipment.get_available_pockets():
 			if pocket["item_id"] == item_id:
-				return _equipment.take_from_pocket(pocket["body_slot"], pocket["pocket"]) == item_id
+				return _equipment.take_pocket_instance(pocket["body_slot"], pocket["pocket"]).get("id", &"") == item_id
 	return false
 
 
@@ -664,7 +674,7 @@ func _visual() -> StoveVisual:
 func _act_duration_seconds() -> float:
 	match _act:
 		Act.LIGHT:
-			return LIGHT_SECONDS
+			return get_light_seconds()
 		Act.FUEL:
 			return FUEL_SECONDS
 		Act.TINDER:
@@ -732,6 +742,13 @@ func get_interaction_prompt_data() -> Dictionary:
 	if session_active:
 		data["key"] = ""
 	return data
+
+
+## In the ritual F (claimed) steps back and the right bracket names the stove; outside it, nothing.
+func get_session_prompt_data() -> Dictionary:
+	if not session_active:
+		return {}
+	return {"key": _interact_key_label(), "back": tr(&"WORK_SESSION_BACK"), "title": tr(&"STOVE_SESSION_TITLE")}
 
 
 func _is_lighting() -> bool:
@@ -830,6 +847,7 @@ func _begin_hand_action() -> bool:
 	_pickup_prop_basis = pickup["basis"]
 	_actual_palm = _pickup_palm
 	_light_reach = 0.0
+	_prepare_seconds = 0.0
 	if _act == Act.FUEL:
 		_placement = visual.reserve_log_placement()
 		if _placement.is_empty():
@@ -852,7 +870,7 @@ func _begin_hand_action() -> bool:
 		var x := Vector3(0,0,-1)
 		_prop_basis = visual.global_basis*Basis(x,direction,x.cross(direction))
 		_grip_offset = Vector3(0,-0.008,0)
-		_contact_palm = visual.to_global(visual.get_tinder_contact())-_prop_basis.y*0.061+_prop_basis*_grip_offset
+		_contact_palm = visual.to_global(visual.get_tinder_contact())-Vector3.UP*FLAME_LICK-_prop_basis*LighterStrikeVFX.NOZZLE+_prop_basis*_grip_offset
 	_contact_prop_basis = _prop_basis
 	if _act != Act.FUEL:
 		_pickup_prop_basis = _prop_basis

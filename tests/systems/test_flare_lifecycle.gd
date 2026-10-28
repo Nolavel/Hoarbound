@@ -121,8 +121,9 @@ func _check_ignite_transaction() -> void:
 	_inventory.try_add(ItemCatalog.get_item(&"road_flare"))
 	zone = await _pocket()
 	count = _total()
-	_check(HeldOwnership.take(_inventory, _equipment, &"road_flare", zone) and _total() == count - 1, "rollback fixture: take failed")
-	_check(HeldOwnership.restore(_inventory, _equipment, &"road_flare", zone), "rollback did not return the flare")
+	var taken: Dictionary = HeldOwnership.take(_inventory, _equipment, &"road_flare", zone)
+	_check(taken.get("id", &"") == &"road_flare" and _total() == count - 1, "rollback fixture: take failed")
+	_check(HeldOwnership.restore(_inventory, _equipment, taken, zone), "rollback did not return the flare")
 	_check(HeldOwnership.zone_item(_equipment, zone) == &"road_flare" and _total() == count, "rollback lost the flare or its pocket")
 
 

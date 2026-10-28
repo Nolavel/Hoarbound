@@ -9,7 +9,19 @@ const LAYOUT: String = "res://data/equipment/player_layout.tres"
 var _failures: int = 0
 
 
-func _initialize() -> void:
+var _frame: int = 0
+
+
+## Runs on the first frame, as test_quick_access does: nodes added in _initialize
+## are not ready yet, so the coat's pockets would not exist.
+func _process(_delta: float) -> bool:
+	_frame += 1
+	if _frame == 1:
+		_run()
+	return false
+
+
+func _run() -> void:
 	_test_catalog_identity()
 	_test_stateful_stacks_rejected()
 	_test_stateful_pocket_round_trip()

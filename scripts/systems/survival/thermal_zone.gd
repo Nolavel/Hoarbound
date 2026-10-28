@@ -33,6 +33,8 @@ signal protection_changed(sealed_fraction: float)
 ## Higher value wins when zones overlap. Named to avoid Area3D.priority.
 @export var zone_priority: int = 0
 
+static var _registry: Array[ThermalZone] = []
+
 var _heated_offset_c: float = 0.0
 var _active_heat_sources: int = 0
 var _breaches: Array[ShelterBreach] = []
@@ -40,7 +42,29 @@ var _heat_sources: Array[HeatSource] = []
 
 
 func _ready() -> void:
+	if not _registry.has(self):
+		_registry.append(self)
 	refresh_breaches()
+
+
+func _exit_tree() -> void:
+	_registry.erase(self)
+
+
+## Frees can bypass _exit_tree, so drop out of the registry here as well.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		_registry.erase(self)
+
+
+## Every live zone in the tree: rooms warm and cool whether Henry is in them or not.
+static func get_all() -> Array[ThermalZone]:
+	var live: Array[ThermalZone] = []
+	for zone: ThermalZone in _registry:
+		if is_instance_valid(zone) and zone.is_inside_tree():
+			live.append(zone)
+	_registry = live
+	return live
 
 
 ## Rebuilds the list of holes in this shelter. Called by a breach whenever it
@@ -86,6 +110,14 @@ func get_heat_ceiling_c() -> float:
 ## The warmth accumulated from fires alone, without the zone's base offset.
 func get_heated_offset_c() -> float:
 	return _heated_offset_c
+
+
+## Puts back warmth a save or a streamed-out chunk remembered; the ceiling still caps it.
+func restore_heated_offset(offset_c: float) -> void:
+	var previous: float = _heated_offset_c
+	_heated_offset_c = clampf(offset_c, 0.0, maxf(max_heated_offset_c, 0.0))
+	if not is_equal_approx(previous, _heated_offset_c):
+		warmth_changed.emit(get_total_offset_c())
 
 
 ## Total offset this zone contributes right now, base plus accumulated heating.

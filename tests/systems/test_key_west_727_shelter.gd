@@ -28,6 +28,7 @@ func _process(_delta: float) -> bool:
 	_check_nodes()
 	_check_openings()
 	_check_shell_materials()
+	_check_chimney()
 	if _failures > 0:
 		push_error("727 shelter: %d check(s) failed" % _failures)
 		quit(1)
@@ -35,6 +36,36 @@ func _process(_delta: float) -> bool:
 		print("727 shelter: all checks passed")
 		quit(0)
 	return true
+
+
+## One flue from the stove collar through the ceiling and roof; smoke on the cap only while it burns.
+func _check_chimney() -> void:
+	var house: Node3D = _shelter.get_node(^"House") as Node3D
+	var stove: HeatSource = house.get_node(^"ShelterZone/Stove") as HeatSource
+	var visual: StoveVisual = stove.get_node(^"StoveVisual") as StoveVisual
+	var outlet: Vector3 = house.to_local(visual.to_global(StoveVisual.flue_base()))
+	var ceiling: float = float(_shelter.interior["ceiling_y"])
+	var flue_top: float = outlet.y + visual.flue_length
+	_check(absf(flue_top - ceiling - KeyWest727Shelter.PIPE_INTO_CEILING_M) < 0.001,
+		"indoor flue ends at %.3f, ceiling is %.3f" % [flue_top, ceiling])
+	var pipe: MeshInstance3D = house.get_node(^"StovePipe") as MeshInstance3D
+	var cylinder: CylinderMesh = pipe.mesh as CylinderMesh
+	var bottom: float = pipe.position.y - cylinder.height * 0.5
+	_check(absf(bottom - ceiling) < 0.001, "roof stack starts at %.3f, not the ceiling %.3f" % [bottom, ceiling])
+	_check(Vector2(pipe.position.x, pipe.position.z).distance_to(Vector2(outlet.x, outlet.z)) < 0.001,
+		"roof stack is off the flue axis by %.3f m" % Vector2(pipe.position.x, pipe.position.z).distance_to(Vector2(outlet.x, outlet.z)))
+	_check(is_equal_approx(cylinder.top_radius, StoveVisual.FLUE_RADIUS), "roof stack is thicker than the flue")
+	var smoke: ChimneySmoke = house.get_node_or_null(^"ChimneySmoke") as ChimneySmoke
+	_check(smoke != null, "no smoke on the chimney")
+	if smoke == null:
+		return
+	_check(absf(smoke.position.y - (bottom + cylinder.height)) < 0.001, "smoke is not at the cap")
+	_check(not smoke.emitting, "a cold stove smokes")
+	stove.restore_fuel(1.5, true)
+	stove.ignite()
+	_check(smoke.emitting and smoke.amount_ratio >= ChimneySmoke.MIN_DENSITY, "a lit stove does not smoke")
+	stove.extinguish()
+	_check(not smoke.emitting, "an extinguished stove still smokes")
 
 
 ## The streamed shell must shade with the stylized shadow contract, like the hut inside it.

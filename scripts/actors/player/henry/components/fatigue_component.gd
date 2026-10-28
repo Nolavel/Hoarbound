@@ -11,7 +11,6 @@ var critical_threshold_percent: float = 10.0
 var energy_restored_per_hour: float = 12.5
 var carry_fatigue_factor: float = 0.6
 var carry_inventory: InventoryComponent
-var _status_provider: Node
 
 var current_energy: float = 100.0
 var previous_energy: float = 100.0
@@ -99,17 +98,10 @@ func get_drain_multiplier() -> float:
 
 
 func _status_multiplier(stat_id: StringName) -> float:
-	if _status_provider == null:
-		var root: Node = get_parent()
-		if root is BioMonitorManager:
-			root = root.get_parent()
-		if root != null:
-			var candidate: Node = root.get_node_or_null(^"AfflictionComponent")
-			if candidate != null and candidate.has_method(&"get_multiplier"):
-				_status_provider = candidate
-	if _status_provider == null:
-		return 1.0
-	return maxf(float(_status_provider.call(&"get_multiplier", stat_id)), 0.0)
+	var root: Node = get_parent()
+	if root is BioMonitorManager:
+		root = root.get_parent()
+	return StatusModifierCapability.multiplier(root, stat_id)
 
 
 func get_drain_reason() -> StringName:

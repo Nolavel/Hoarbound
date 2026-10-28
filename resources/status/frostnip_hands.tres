@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AfflictionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/status/affliction_definition.gd" id="1_x0til"]
+
+[resource]
+script = ExtResource("1_x0til")
+id = &"frostnip_hands"
+display_key = "AFFLICTION_FROSTNIP_HANDS"
+modifiers = {
+"fine_motor_duration_multiplier": 1.35,
+"work_duration_multiplier": 1.15
+}
+recovery_key = "AFFLICTION_FROSTNIP_RECOVERED"

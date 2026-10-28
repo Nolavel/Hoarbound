@@ -6,9 +6,6 @@ extends Camera3D
 
 ## Henry as measured from his loaded model by tools/runtime/measure_henry_metrics.gd.
 const DEFAULT_METRICS: HenryMetrics = preload("res://data/characters/henry_metrics.tres")
-## Lyra's soft feelers around the boom: yaw and pitch offsets (degrees), weight.
-const FEELERS: Array = [[16.0, 0.0, 0.75], [-16.0, 0.0, 0.75], [32.0, 0.0, 0.5], [-32.0, 0.0, 0.5],
-	[0.0, 20.0, 1.0], [0.0, -20.0, 0.5]]
 ## Daedalic's whiskers: booms swung this far either way judge where the room is.
 const WHISKERS_DEG: Array = [20.0, 40.0]
 ## Seconds between searches for an angle with room while the boom stays cramped.
@@ -185,6 +182,13 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## How far the camera body climbs the orbit at full lift, and how far the view tilts down
 ## with it: less, so Henry sits low in the frame and the room ahead stays in view.
 @export_range(0.0, 85.0, 1.0) var shoulder_lift_pitch_deg: float = 70.0
+## Drawn into an aim (AimIntentCapability), the boom shortens to this share, on a spring of this
+## frequency (Hz) and damping (under 1 overshoots a touch, so the push-in lands softly).
+@export_range(0.4, 1.0, 0.05) var aim_boom_scale: float = 0.68
+@export_range(0.5, 6.0, 0.1) var aim_spring_hz: float = 2.4
+@export_range(0.2, 1.0, 0.05) var aim_spring_damping: float = 0.55
+## The camera never sinks closer than this above the settled snow top under it, metres.
+@export_range(0.05, 1.0, 0.05) var snow_clearance_m: float = 0.25
 @export_range(0.0, 60.0, 1.0) var shoulder_lift_view_deg: float = 35.0
 ## Extra pivot height at full lift, capped by the ceiling, metres.
 @export var shoulder_lift_rise: float = 0.3
@@ -211,8 +215,9 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 @export_group("Work framing")
 ## How fast the view eases onto a workspace Henry kneels at, and back off it.
 @export_range(0.5, 20.0, 0.5) var work_framing_rate: float = 3.0
-## How far the mouse may orbit the view round a workspace: yaw and pitch, degrees.
-@export var work_look_limit_deg: Vector2 = Vector2(25.0, 12.0)
+## How far the mouse may orbit the view round a workspace: yaw and pitch, degrees. Yaw is
+## locked: a sideways orbit brings the eye into Henry's head and fades his body out.
+@export var work_look_limit_deg: Vector2 = Vector2(0.0, 12.0)
 
 ## 0..1 unease that widens the breathing sway; free for survival state to drive.
 var tension: float = 0.0
@@ -227,9 +232,6 @@ var _auto_pitch_deg: float = 0.0
 var _sway_deg: float = 0.0
 ## Henry's interpolated transform for this rendered frame.
 var _target := Transform3D.IDENTITY
-var _pivot_smooth: Vector3 = Vector3.ZERO
-var _lead: Vector3 = Vector3.ZERO
-var _pullback: float = 0.0
 var _openness: float = 1.0
 ## Room all round Henry, view-independent: drives the tight-space composition.
 var _room: float = 1.0
@@ -237,12 +239,8 @@ var _boom: float = 3.0
 ## Crouch share of the framing: 0 standing, 1 crouched.
 var _crouch: float = 0.0
 ## Shares of each boom leg left after walls, Lyra's DistBlockedPct.
-var _shoulder_pct: float = 1.0
-var _dist_pct: float = 1.0
 ## Seconds since the lift last climbed.
-var _lift_hold: float = 0.0
 ## Free length behind the shoulder this frame, before the margin.
-var _boom_room: float = INF
 ## View offset the room search glides to while Henry stands: yaw radians, pitch degrees.
 var _room_goal: Vector2 = Vector2.ZERO
 var _room_active: bool = false
@@ -259,42 +257,39 @@ var _capsule: CollisionShape3D
 var _input_systems: Node
 var _user_mouse_sensitivity_multiplier: float = 1.0
 var _user_invert_y: bool = false
-## Henry's doorway traversal, read for the frame; looked up once after his _ready.
-var _passage: PassageTraversalComponent
-var _passage_looked_up: bool = false
-var _passage_blend: float = 0.0
-var _framing := TpsPassageFraming.new()
-## Orbit cone of the camera body in a passage: left and right turn off the axis
-## (radians), elevation and depression (degrees). Closes at once, opens softly.
-var _cone := Vector4(PI, PI, 90.0, 90.0)
-## Share of the shoulder given up for the centre line while the boom is cramped.
-var _recompose: float = 0.0
 var _last_eye_distance: float = INF
 ## FOV this camera added for a doorway; others may set the base FOV meanwhile.
 var _fov_offset: float = 0.0
-## 0 in the open, 1 with the tight-space composition fully on.
-var _composition: float = 0.0
-## Recompose goal the shoulder is easing to; replaced only past recompose_hysteresis.
-var _recompose_goal: float = 0.0
-## 0 with room behind Henry, 1 with the camera fully over his shoulder.
-var _lift: float = 0.0
-## 0 on the player's shoulder, 1 crossed to the other one; the timer counts the condition.
-var _swap: float = 0.0
-var _swap_goal: float = 0.0
-var _swap_timer: float = 0.0
-var _swap_rooms: Vector2 = Vector2.ONE
 ## Last rig inputs, for the body guard's prediction: pivot, orbit pitch lift (degrees).
 var _last_pivot: Vector3 = Vector3.ZERO
 var _last_lift_pitch: float = 0.0
+var _aim: float = 0.0
+var _aim_speed: float = 0.0
 ## Lateral shoulder offset asked for this frame, before walls (for traces).
 var _last_side: float = 0.0
-## Workspace framing (stove door): look target and preferred eye, world space; the control
-## look it started from bounds the mouse orbit. The blend runs 0 (follow) to 1 (framed).
-var _work_active: bool = false
-var _work_focus: Vector3 = Vector3.ZERO
-var _work_eye: Vector3 = Vector3.ZERO
-var _work_look0: Vector2 = Vector2.ZERO
-var _work_blend: float = 0.0
+## The rig's behaviours, run in this order on one frame (#240 stage 2).
+var _frame := TpsRigFrame.new()
+var _rig_follow: TpsRigFollow
+var _rig_swap: TpsRigAutoSwap
+var _rig_composition: TpsRigComposition
+var _rig_passage: TpsRigPassage
+var _rig_lift: TpsRigShoulderLift
+var _rig_recompose: TpsRigRecompose
+var _rig_collision: TpsRigCollision
+var _rig_work: TpsRigWork
+var _rig_shot: TpsRigShotChoice
+
+
+func _init() -> void:
+	_rig_follow = TpsRigFollow.new(self)
+	_rig_swap = TpsRigAutoSwap.new(self)
+	_rig_composition = TpsRigComposition.new(self)
+	_rig_passage = TpsRigPassage.new(self)
+	_rig_lift = TpsRigShoulderLift.new(self)
+	_rig_recompose = TpsRigRecompose.new(self)
+	_rig_collision = TpsRigCollision.new(self)
+	_rig_work = TpsRigWork.new(self)
+	_rig_shot = TpsRigShotChoice.new(self)
 
 
 func _ready() -> void:
@@ -339,7 +334,7 @@ func _process(delta: float) -> void:
 		snap_to_target()
 	_target = target
 	_update_stance(delta)
-	_update_passage(delta)
+	_rig_passage.update(delta)
 	_auto.note_look(_apply_look_input(), delta)
 	_apply_lean_and_shoulder_input(delta)
 	_probe.begin(get_world_3d().direct_space_state, [player.get_rid()])
@@ -347,7 +342,7 @@ func _process(delta: float) -> void:
 	_room = measure_room()
 	var wanted: float = get_target_distance()
 	var rate: float = close_in_rate if wanted < _boom else open_out_rate
-	_boom = wanted if not _has_position else lerpf(_boom, wanted, _damp(rate, delta))
+	_boom = wanted if not _has_position else lerpf(_boom, wanted, damp(rate, delta))
 	_update_rig(delta)
 
 
@@ -390,44 +385,39 @@ func set_look(yaw: float, pitch_deg: float) -> void:
 ## Drops all follow and collision memory; the next frame starts on the goal.
 func snap_to_target() -> void:
 	_has_position = false
-	_shoulder_pct = 1.0
-	_dist_pct = 1.0
-	_lead = Vector3.ZERO
-	_pullback = 0.0
-	_recompose = 0.0
+	_rig_collision.reset()
+	_rig_follow.reset()
+	_rig_recompose.reset()
+	_rig_shot.reset()
 	_last_eye_distance = INF
-	_cone = Vector4(PI, PI, 90.0, 90.0)
+	_rig_passage.reset()
 	_clear_auto_look()
 
 
 ## Frames a workspace Henry kneels at: the view eases to `eye` looking at `focus` (world),
 ## the mouse orbits it a little, and walls between Henry and the eye shorten the boom.
 func set_work_framing(focus: Vector3, eye: Vector3) -> void:
-	if not _work_active:
-		_work_look0 = Vector2(_yaw, _pitch_deg)
-	_work_active = true
-	_work_focus = focus
-	_work_eye = eye
+	_rig_work.set_framing(focus, eye, Vector2(_yaw, _pitch_deg))
 
 
 ## Hands the view back to the follow rig; it eases there at work_framing_rate.
 func clear_work_framing() -> void:
-	_work_active = false
+	_rig_work.clear()
 
 
 ## 0 following Henry, 1 fully on the workspace framing.
 func get_work_framing_blend() -> float:
-	return _work_blend
+	return _rig_work.get_blend()
 
 
 ## 0 away from doorways, 1 with the frame fully closed round Henry in one.
 func get_passage_blend() -> float:
-	return _passage_blend
+	return _rig_passage.get_blend()
 
 
 ## Share of the shoulder given up for the centre line while the boom is cramped.
 func get_recompose() -> float:
-	return _recompose
+	return _rig_recompose.get_recompose()
 
 
 ## 0 in a tight doorway, 1 in the open; last value from the rods.
@@ -456,12 +446,47 @@ func is_body_hidden() -> bool:
 
 ## Henry's eyes as the camera frames them: measured height, eased between stances.
 func get_eye_position() -> Vector3:
-	return _feet_position() + Vector3.UP * _eye_height()
+	return get_feet_position() + Vector3.UP * _eye_height()
 
 
 ## Seconds since the mouse last moved; automatic turns wait for the cooldown.
 func get_look_idle_time() -> float:
 	return _auto.get_idle_time()
+
+
+## Control pitch in degrees, without the automatic offset.
+func get_control_pitch_deg() -> float:
+	return _pitch_deg
+
+
+## The cast helper the rig's behaviours share, set up for this frame.
+func get_probe() -> TpsBoomProbe:
+	return _probe
+
+
+## False until the rig has placed the camera once since the last snap.
+func is_placed() -> bool:
+	return _has_position
+
+
+## Camera-to-eyes distance the last frame ended at.
+func get_last_eye_distance() -> float:
+	return _last_eye_distance
+
+
+## 0..1 free room all round Henry, from this frame's rods.
+func get_room() -> float:
+	return _room
+
+
+## The player's lean, -1..1.
+func get_lean() -> float:
+	return _lean
+
+
+## Share of the wanted boom the walls left last frame.
+func get_boom_share() -> float:
+	return _rig_collision.get_boom_share()
 
 
 ## Casts the rods now and returns 0..1: free room across the camera's half of the
@@ -495,205 +520,126 @@ func measure_room() -> float:
 	return clampf(free_sum / (probe_length * float(count)) * (ceiling / ceiling_clearance), 0.0, 1.0)
 
 
+## One frame of the rig: the behaviours run in order on a shared TpsRigFrame, then the
+## camera takes its result (#240 stage 2: the same arithmetic, split by owner).
 func _update_rig(delta: float) -> void:
+	var frame: TpsRigFrame = _frame
+	frame.delta = delta
 	var speed_ratio: float = _player_speed_ratio()
-	_pullback = lerpf(_pullback, speed_ratio * sprint_pullback, _damp(pullback_smoothing, delta))
-	var planar := Vector3(player.velocity.x, 0.0, player.velocity.z)
-	var move_dir: Vector3 = planar.normalized() if planar.length() > 0.05 else Vector3.ZERO
-	_lead = _lead.lerp(move_dir * speed_ratio * lead_distance, _damp(lead_smoothing, delta))
-	## Framing heights ride on the followed feet, so each is smoothed once.
-	var pivot: Vector3 = _follow_pivot(delta, _feet_position() + _lead)
-	pivot += Vector3.UP * (_pivot_height() + _passage_rise() * _passage_blend)
-	var safe: Vector3 = _safe_origin()
-	_update_auto_look(delta, safe, speed_ratio)
+	_rig_follow.apply(frame, speed_ratio)
+	frame.pivot += Vector3.UP * (get_pivot_height() + _rig_passage.rise() * _rig_passage.get_blend())
+	frame.safe = _safe_origin()
+	_update_auto_look(delta, frame.safe, speed_ratio)
 
 	## The view is where the player looks; the orbit is where the camera body may stand.
-	var view_yaw: float = get_view_yaw()
-	var view_pitch: float = get_view_pitch_deg()
-	var want: float = (_boom + _pullback) * _look_up_scale(view_pitch)
+	frame.view_yaw = get_view_yaw()
+	frame.view_pitch = get_view_pitch_deg()
+	_update_aim(delta)
+	frame.want = (_boom + _rig_follow.get_pullback()) * _look_up_scale(frame.view_pitch) * lerpf(1.0, aim_boom_scale, _aim)
 	var roominess: float = clampf(inverse_lerp(near_distance, far_distance, _boom), 0.0, 1.0)
 	var shoulder_now: float = _shoulder.update(delta)
-	shoulder_now *= _update_auto_swap(delta, safe, view_yaw, shoulder_now)
-	var side: float = shoulder_now * lerpf(tight_shoulder_fraction, 1.0, roominess)
-	var goal_composition: float = 1.0 - smoothstep(0.0, composition_open_share, pow(_room, openness_exponent))
-	_composition = goal_composition if not _has_position else lerpf(_composition, goal_composition, _damp(composition_rate, delta))
-	var shoulder_sign: float = clampf(shoulder_now / maxf(shoulder_offset, 0.01), -1.0, 1.0)
-	## A doorway owns its framing: the composition gives way to it.
-	var framing: float = _composition * (1.0 - _passage_blend)
-	## Grossman's framing on the distance the camera really has (walls applied last frame), so a
-	## camera pressed in keeps Henry on his spot instead of pushing him out of the frame.
-	side = lerpf(side, shoulder_sign * _boom * _dist_pct * _composition_tan_x(), framing) + _lean * lean_camera_offset
-	var orbit_yaw: float = view_yaw
-	var orbit_pitch: float = view_pitch
-	if _framing.has_passage() and _passage_blend > 0.001:
-		var blend: float = _passage_blend
-		want = lerpf(want, minf(want, _passage_boom()), blend)
-		side = lerpf(side, _passage_side(pivot, side), blend)
-		var axis_yaw: float = _framing.axis_yaw()
-		var limits: Vector2 = _view_yaw_limits()
-		var off: float = angle_difference(axis_yaw, view_yaw)
-		var look_blend: float = blend * _passage_traversal()
-		view_yaw = wrapf(axis_yaw + lerpf(off, clampf(off, -limits.x, limits.y), look_blend), -PI, PI)
-		var pitch_range: Vector2 = _passage_pitch_range()
-		view_pitch = lerpf(view_pitch, clampf(view_pitch, pitch_range.x, pitch_range.y), look_blend)
-		_update_cone(delta, pivot + _framing.right() * side, want, view_yaw, view_pitch)
-		off = angle_difference(axis_yaw, view_yaw)
-		orbit_yaw = wrapf(axis_yaw + lerpf(off, clampf(off, -_cone.x, _cone.y), blend), -PI, PI)
-		orbit_pitch = lerpf(view_pitch, clampf(view_pitch, -_cone.z, _cone.w), blend)
-	else:
-		_cone = Vector4(PI, PI, 90.0, 90.0)
-	var lift: float = _update_lift(delta, safe, view_yaw) * (1.0 - _passage_blend)
-	view_pitch = clampf(view_pitch - lift * shoulder_lift_view_deg, pitch_min_deg, pitch_max_deg)
-	orbit_pitch = clampf(orbit_pitch - lift * shoulder_lift_pitch_deg, -85.0, pitch_max_deg)
-	pivot += Vector3.UP * lift * _lift_rise(pivot)
-	var cam_up: Vector3 = Basis.from_euler(Vector3(deg_to_rad(orbit_pitch), orbit_yaw, 0.0)).y
-	## Pitch-driven like Grossman's framing curves: looking up, Henry already drops in the frame.
-	var look_up: float = smoothstep(-10.0, 25.0, view_pitch)
-	pivot += cam_up * _composition_up(pivot, cam_up, want) * framing * (1.0 - lift) * (1.0 - look_up)
-	_last_pivot = pivot
-	_last_lift_pitch = lift * shoulder_lift_pitch_deg
-	var right := Vector3(cos(orbit_yaw), 0.0, -sin(orbit_yaw))
-	var back: Vector3 = _back(orbit_yaw, orbit_pitch)
-	side *= 1.0 - _update_recompose(delta, safe, pivot, right * side, back, want)
-	_last_side = side
-	_apply_fov_offset(_passage_fov() * _passage_blend + recompose_fov_deg * _recompose)
-	var shoulder: Vector3 = _sweep_shoulder(delta, safe, pivot + right * side)
-	var camera: Vector3 = shoulder + back * want * _blend_boom(delta, shoulder, back, want)
-	## Safety net for a camera left inside a blocking body; thin ones still pass.
-	if _probe.overlaps(camera):
-		var hard: float = _probe.sweep(shoulder, back * want) - collision_surface_margin
-		camera = shoulder + back * clampf(hard, collision_min_distance, want)
+	shoulder_now *= _rig_swap.update(frame, shoulder_now)
+	frame.side = shoulder_now * lerpf(tight_shoulder_fraction, 1.0, roominess)
+	_rig_composition.frame_side(frame, shoulder_now)
+	_rig_passage.orbit(frame)
+	var room_lift: float = _rig_lift.room_lift(frame)
+	_rig_lift.apply(frame, minf(room_lift, _rig_shot.update(frame, room_lift)))
+	## The chosen swing of the camera body round Henry; a doorway's cone owns the orbit instead.
+	frame.orbit_yaw = wrapf(frame.orbit_yaw + _rig_shot.get_yaw_offset() * (1.0 - _rig_passage.get_blend()), -PI, PI)
+	_rig_composition.rise(frame)
+	_last_pivot = frame.pivot
+	_last_lift_pitch = frame.lift * shoulder_lift_pitch_deg
+	frame.right = Vector3(cos(frame.orbit_yaw), 0.0, -sin(frame.orbit_yaw))
+	frame.back = back_dir(frame.orbit_yaw, frame.orbit_pitch)
+	_rig_recompose.apply(frame)
+	_last_side = frame.side
+	_apply_fov_offset(_rig_passage.fov() * _rig_passage.get_blend() + recompose_fov_deg * _rig_recompose.get_recompose())
+	_rig_collision.apply(frame)
 	_has_position = true
 
 	_noise_time += delta
 	_sway_deg = _noise.get_noise_1d(_noise_time * 20.0) * breathing_amplitude_deg * (0.4 + tension)
 	h_offset = 0.0
-	view_pitch = _keep_eyes_in_frame(view_pitch, camera, smoothstep(0.0, 0.2, maxf(lift, _pressed())))
-	var view := Basis.from_euler(Vector3(deg_to_rad(view_pitch + _sway_deg), view_yaw, 0.0))
-	_work_blend = move_toward(_work_blend, 1.0 if _work_active else 0.0, work_framing_rate * delta * 0.5)
-	if _work_blend > 0.001:
-		var work: Transform3D = _work_view(safe)
-		var weight: float = smoothstep(0.0, 1.0, _work_blend)
-		camera = camera.lerp(work.origin, weight)
-		view = view.get_rotation_quaternion().slerp(work.basis.get_rotation_quaternion(), weight)
-	global_position = camera
-	global_basis = view
-	_last_eye_distance = camera.distance_to(get_eye_position())
-	_update_fades(delta, camera)
-
-
-## The workspace view: the authored eye orbited by the mouse's offset from the starting
-## look, its boom swept from Henry's safe point so a wall beside the stove shortens it.
-func _work_view(safe: Vector3) -> Transform3D:
-	var offset: Vector3 = _work_eye - _work_focus
-	offset = offset.rotated(Vector3.UP, angle_difference(_work_look0.x, _yaw))
-	var right: Vector3 = (-offset).cross(Vector3.UP).normalized()
-	if right.length_squared() > 0.5:
-		offset = offset.rotated(right, deg_to_rad(_pitch_deg - _work_look0.y))
-	var eye: Vector3 = _work_focus + offset
-	var reach: Vector3 = eye - safe
-	var free: float = _probe.sweep(safe, reach) - collision_surface_margin
-	if free < reach.length():
-		eye = safe + reach.normalized() * maxf(free, collision_min_distance)
-	return Transform3D(Basis.looking_at(_work_focus - eye, Vector3.UP), eye)
-
-
-## The cone the camera body may orbit in at this pass of the doorway: it closes at once
-## as Henry walks into it and opens at the release rate, so a cone never snaps open.
-func _update_cone(delta: float, shoulder: Vector3, want: float, view_yaw: float, view_pitch: float) -> void:
-	var yaw: Vector2 = _framing.yaw_limits(shoulder, want * cos(deg_to_rad(view_pitch)))
-	var off: float = clampf(angle_difference(_framing.axis_yaw(), view_yaw), -yaw.x, yaw.y)
-	var pitch: Vector2 = _framing.pitch_limits(shoulder, want, off)
-	var goal := Vector4(yaw.x, yaw.y, pitch.x, pitch.y)
-	var opening: float = _damp(passage_release_rate, delta)
-	for i: int in range(4):
-		_cone[i] = goal[i] if goal[i] < _cone[i] or not _has_position else lerpf(_cone[i], goal[i], opening)
-
-
-## Cramped closer than recompose_distance to the eyes, the shoulder gives way to the
-## centre line if that gives the boom more room. Same-frame casts, one damp; returns the share.
-func _update_recompose(delta: float, safe: Vector3, pivot: Vector3, offset: Vector3, back: Vector3, want: float) -> float:
-	var goal: float = 0.0
-	var centre_worse: bool = false
-	if _last_eye_distance < recompose_distance + 0.3 and offset.length() > 0.05:
-		var eye: Vector3 = get_eye_position()
-		var near: float = _free_eye_distance(safe, pivot + offset, back, want, eye)
-		var centre: float = _free_eye_distance(safe, pivot, back, want, eye)
-		if near < recompose_distance and centre > near + 0.05:
-			goal = clampf(inverse_lerp(recompose_distance, recompose_full_distance, near), 0.0, 1.0)
-		centre_worse = centre < near - 0.02  # back to a wall: the centre line would bring the camera closer
-	if not _has_position or absf(goal - _recompose_goal) >= recompose_hysteresis or goal == 0.0 or goal == 1.0:
-		_recompose_goal = goal
-	var rate: float = recompose_in_rate if _recompose_goal > _recompose or centre_worse else recompose_out_rate
-	_recompose = _recompose_goal if not _has_position else lerpf(_recompose, _recompose_goal, _damp(rate, delta))
-	return _recompose
+	_rig_lift.keep_eyes(frame)
+	frame.view = Basis.from_euler(Vector3(deg_to_rad(frame.view_pitch + _sway_deg), frame.view_yaw, 0.0))
+	_rig_work.apply(frame)
+	frame.camera.y = maxf(frame.camera.y, snow_floor(frame.camera))
+	global_position = frame.camera
+	global_basis = frame.view
+	_last_eye_distance = frame.camera.distance_to(get_eye_position())
+	_update_fades(delta, frame.camera)
 
 
 ## Distance from the eyes a camera would get on a boom from `shoulder`, walls applied,
 ## without touching any smoothing state.
-func _free_eye_distance(safe: Vector3, shoulder: Vector3, back: Vector3, want: float, eye: Vector3) -> float:
+func free_eye_distance(safe: Vector3, shoulder: Vector3, back: Vector3, want: float, eye: Vector3) -> float:
+	return free_camera(safe, shoulder, back, want).distance_to(eye)
+
+
+## Where a camera on a boom from `shoulder` would stand, walls applied, without touching any
+## smoothing state.
+func free_camera(safe: Vector3, shoulder: Vector3, back: Vector3, want: float) -> Vector3:
 	var leg: Vector3 = shoulder - safe
 	var start: Vector3 = shoulder
 	if leg.length() > 0.001:
 		start = safe + leg * clampf((_probe.sweep(safe, leg, false) - 0.05) / leg.length(), 0.0, 1.0)
 	var room: float = _probe.sweep(start, back * want) - collision_surface_margin
-	return (start + back * clampf(room, collision_min_distance, want)).distance_to(eye)
+	return start + back * clampf(room, collision_min_distance, want)
+
+
+## Where the camera would settle on a boom from `shoulder`: the shoulder sweep, then the
+## centre sweep and the feelers, as TpsRigCollision eases to them.
+func _predict_camera(safe: Vector3, shoulder: Vector3, back: Vector3, want: float) -> Vector3:
+	var leg: Vector3 = shoulder - safe
+	var start: Vector3 = shoulder
+	if leg.length() > 0.001:
+		start = safe + leg * clampf((_probe.sweep(safe, leg, false) - 0.05) / leg.length(), 0.0, 1.0)
+	var shares: Vector3 = _rig_collision.target_shares(start, back, want)
+	return start + back * want * minf(shares.x, shares.y)
+
+
+## Stateless look at the frame a shot would give, from this frame before the lift: `lift` share
+## and the camera body swung `yaw_off` radians round Henry off the orbit (the view stays the
+## player's). Returns the camera's distance to Henry's eyes and where they sit on screen (0..1).
+func predict_shot(frame: TpsRigFrame, lift: float, yaw_off: float) -> Dictionary:
+	var view_pitch: float = clampf(frame.view_pitch - lift * shoulder_lift_view_deg, pitch_min_deg, pitch_max_deg)
+	var orbit_pitch: float = clampf(frame.orbit_pitch - lift * shoulder_lift_pitch_deg, -85.0, pitch_max_deg)
+	var orbit_yaw: float = frame.orbit_yaw + yaw_off
+	var pivot: Vector3 = frame.pivot + Vector3.UP * lift * _rig_lift.rise_at(frame.pivot)
+	var right := Vector3(cos(orbit_yaw), 0.0, -sin(orbit_yaw))
+	## Recompose's share is read, not predicted: it follows the eye distance over many frames.
+	var side: float = frame.side * (1.0 - _rig_recompose.get_recompose())
+	var camera: Vector3 = _predict_camera(frame.safe, pivot + right * side, back_dir(orbit_yaw, orbit_pitch), frame.want)
+	var to_eye: Vector3 = get_eye_position() - camera
+	if lift > 0.0 and to_eye.length_squared() > 1e-6:
+		## The tilt keep_eyes will add, pitch limits included.
+		var limit: float = TpsRigShoulderLift.eyes_pitch_limit(to_eye, frame.view_yaw, half_fov_deg(false) - shoulder_lift_frame_margin_deg)
+		view_pitch = clampf(lerpf(view_pitch, minf(view_pitch, limit), smoothstep(0.0, 0.2, lift)), pitch_min_deg, pitch_max_deg)
+	var local: Vector3 = Basis.from_euler(Vector3(deg_to_rad(view_pitch), frame.view_yaw, 0.0)).inverse() * to_eye
+	var depth: float = maxf(-local.z, 0.05)
+	var tangents: Vector2 = half_tangents()
+	var eye := Vector2(0.5 + 0.5 * local.x / depth / tangents.x, 0.5 - 0.5 * local.y / depth / tangents.y)
+	if local.z > -0.05:
+		eye = Vector2(-1.0, -1.0)  # behind the lens: off screen
+	return {"eye_distance": to_eye.length(), "eye_screen": eye}
 
 
 ## 0 in the open, 1 with Henry framed low at the side of a tight space.
 func get_composition() -> float:
-	return _composition
+	return _rig_composition.get_composition()
 
 
 ## Framing state of the last frame, for tools/runtime/trace_camera_tight.gd.
 func get_debug_state() -> Dictionary:
 	return {"yaw": _yaw, "view_yaw": get_view_yaw(), "pitch": get_view_pitch_deg(),
 		"auto_yaw_deg": rad_to_deg(_auto_yaw), "auto_pitch_deg": _auto_pitch_deg,
-		"openness": _openness, "room": _room, "boom": _boom, "side": _last_side, "shoulder_pct": _shoulder_pct,
-		"recompose": _recompose, "composition": _composition, "lift": _lift, "body_fade": get_body_fade(), "swap": _swap, "swap_own": _swap_rooms.x, "swap_other": _swap_rooms.y, "eye_distance": _last_eye_distance,
-		"passage_blend": _passage_blend, "traversal": _passage_traversal() if is_instance_valid(player) else 0.0}
-
-
-## Eases the shoulder lift to how little level room is behind Henry along the view. Cast from
-## inside him, so the lift never changes the room it reads (no feedback across frames).
-func _update_lift(delta: float, safe: Vector3, view_yaw: float) -> float:
-	var room: float = _probe.sweep(safe, _back(view_yaw, 0.0) * maxf(_boom, shoulder_lift_free_room))
-	var goal: float = 1.0 - smoothstep(shoulder_lift_full_room, shoulder_lift_free_room, room)
-	## Pressed towards Henry by walking (the mouse guard cannot help), the lift climbs up to 4x faster.
-	var rate: float = shoulder_lift_in_rate * (1.0 + 3.0 * _pressed()) if goal > _lift else shoulder_lift_out_rate
-	if goal > _lift:
-		_lift_hold = 0.0
-	else:
-		_lift_hold += delta
-		if _lift_hold < collision_hold_time:
-			rate = 0.0
-	_lift = goal if not _has_position else lerpf(_lift, goal, _damp(rate, delta))
-	return _lift
-
-
-## 0 with the camera outside guard_soft_distance of Henry's eyes, 1 at guard_eye_distance.
-func _pressed() -> float:
-	return clampf(inverse_lerp(guard_soft_distance, guard_eye_distance, _last_eye_distance), 0.0, 1.0)
-
-
-## Over the shoulder, tilts the view down as far as Henry's eyes need to stay
-## shoulder_lift_frame_margin_deg inside the frame's lower edge, from where they really are.
-func _keep_eyes_in_frame(view_pitch: float, camera: Vector3, lift: float) -> float:
-	if lift <= 0.001:
-		return view_pitch
-	var to_eye: Vector3 = get_eye_position() - camera
-	if to_eye.length_squared() < 1e-6:
-		return view_pitch
-	var below_deg: float = rad_to_deg(asin(clampf(-to_eye.normalized().y, -1.0, 1.0)))
-	var limit: float = -(below_deg - (_half_fov_deg(false) - shoulder_lift_frame_margin_deg))
-	return clampf(lerpf(view_pitch, minf(view_pitch, limit), lift), pitch_min_deg, pitch_max_deg)
-
-
-## Pivot rise at full lift: shoulder_lift_rise, or what the ceiling leaves above the pivot.
-func _lift_rise(pivot: Vector3) -> float:
-	var clearance: float = collision_radius + collision_surface_margin
-	var room: float = _probe.ray(pivot, Vector3.UP * (shoulder_lift_rise + clearance)) - clearance
-	return clampf(room, 0.0, shoulder_lift_rise)
+		"openness": _openness, "room": _room, "boom": _boom, "side": _last_side, "shoulder_pct": _rig_collision.get_shoulder_share(),
+		"recompose": _rig_recompose.get_recompose(), "composition": _rig_composition.get_composition(), "lift": _rig_lift.get_lift(),
+		"body_fade": get_body_fade(), "swap": _rig_swap.get_swap(), "swap_own": _rig_swap.get_rooms().x, "swap_other": _rig_swap.get_rooms().y,
+		"eye_distance": _last_eye_distance, "lift_cap": _rig_shot.get_cap(), "shot_yaw_deg": rad_to_deg(_rig_shot.get_yaw_offset()), "shot_eye": _rig_shot.get_predicted_eye(), "lead": _rig_follow.get_lead(), "passage_blend": _rig_passage.get_blend(), "boom_share": _rig_collision.get_boom_share(),
+		"passage_x": _rig_passage.get_framing().info.center.x if _rig_passage.get_framing().info != null else 0.0,
+		"passage_side": _rig_passage.get_framing().back_axis.dot(_rig_passage.get_framing().info.axis) if _rig_passage.get_framing().info != null else 0.0,
+		"traversal": _rig_passage.traversal() if is_instance_valid(player) else 0.0}
 
 
 ## Share of a mouse turn to let through: 1 unless it takes the camera closer to Henry's eyes
@@ -715,66 +661,36 @@ func _body_guard(yaw_step: float, pitch_step: float) -> float:
 ## frame's pivot, shoulder offset and lift; stateless (same casts as recompose).
 func _predicted_eye_distance(yaw: float, pitch_deg: float) -> float:
 	var right := Vector3(cos(yaw), 0.0, -sin(yaw))
-	var back: Vector3 = _back(yaw, clampf(pitch_deg - _last_lift_pitch, -85.0, pitch_max_deg))
-	var want: float = (_boom + _pullback) * _look_up_scale(pitch_deg)
-	return _free_eye_distance(_safe_origin(), _last_pivot + right * _last_side, back, want, get_eye_position())
-
-
-## 1 while Henry is in a doorway or walking at it, 0 while he stands beside one: only a
-## traversal may soft-stop the mouse (Nesky, GDC 2014: honour the player's intent).
-func _passage_traversal() -> float:
-	if _passage != null and _passage.get_passage() != null:
-		return 1.0
-	return smoothstep(0.2, 1.0, Vector2(player.velocity.x, player.velocity.z).length())
-
-
-## Rise along the camera's up axis that puts Henry's eyes at composition_eye_screen_y, on the
-## distance the camera really has; the shoulder sweep still owns the ceiling.
-func _composition_up(pivot: Vector3, cam_up: Vector3, want: float) -> float:
-	var eye_up: float = (get_eye_position() - pivot).dot(cam_up)
-	var target_ndc: float = 1.0 - 2.0 * composition_eye_screen_y
-	return clampf(eye_up - target_ndc * want * _dist_pct * _half_tangents().y, -0.1, 0.4)
-
-
-## Multiplier for the player's shoulder: 1 on it, -1 crossed, eased between. Crosses when that
-## side stays walled off and the other is free; comes back once it has been clear a while.
-func _update_auto_swap(delta: float, safe: Vector3, view_yaw: float, shoulder: float) -> float:
-	if not auto_shoulder_swap or _passage_blend > 0.05 or absf(shoulder) < 0.05:
-		_swap_goal = 0.0
-		_swap_timer = 0.0
-	else:
-		var right := Vector3(cos(view_yaw), 0.0, -sin(view_yaw))
-		var reach: float = maxf(absf(shoulder) * lerpf(tight_shoulder_fraction, 1.0, 0.5), 0.4)
-		var own: float = _probe.sweep(safe, right * signf(shoulder) * reach) / reach
-		var other: float = _probe.sweep(safe, -right * signf(shoulder) * reach) / reach
-		_swap_rooms = Vector2(own, other)
-		## Never while the mouse turns: the player owns the view then and the body guard holds walls.
-		var settled: bool = _auto.get_idle_time() > 0.3 or Vector2(player.velocity.x, player.velocity.z).length() > 0.5
-		var wants_cross: bool = settled and own < swap_blocked_share and other - own >= swap_margin
-		var wants_home: bool = own > swap_free_share
-		var leaving: bool = wants_cross if _swap_goal == 0.0 else wants_home
-		_swap_timer = _swap_timer + delta if leaving else 0.0
-		if leaving and _swap_timer >= (swap_after_s if _swap_goal == 0.0 else swap_back_after_s):
-			_swap_goal = 1.0 - _swap_goal
-			_swap_timer = 0.0
-	_swap = move_toward(_swap, _swap_goal, delta / maxf(swap_duration_s, 0.01)) if _has_position else _swap_goal
-	return 1.0 - 2.0 * smoothstep(0.0, 1.0, _swap)
-
-
-## Lateral offset per metre of boom that puts the eyes at composition_eye_screen_x:
-## it scales with the boom, so the framing holds at any distance (Grossman, NZGDC 2025).
-func _composition_tan_x() -> float:
-	return (1.0 - 2.0 * composition_eye_screen_x) * _half_tangents().x
+	var back: Vector3 = back_dir(yaw, clampf(pitch_deg - _last_lift_pitch, -85.0, pitch_max_deg))
+	var want: float = (_boom + _rig_follow.get_pullback()) * _look_up_scale(pitch_deg)
+	return free_eye_distance(_safe_origin(), _last_pivot + right * _last_side, back, want, get_eye_position())
 
 
 ## Tangents of the half view angles (x, y).
-func _half_tangents() -> Vector2:
+func half_tangents() -> Vector2:
 	var aspect: float = get_viewport().get_visible_rect().size.aspect() if is_inside_tree() else 16.0 / 9.0
 	var t: float = tan(deg_to_rad(fov) * 0.5)
 	return Vector2(t * aspect, t) if keep_aspect == KEEP_HEIGHT else Vector2(t, t / maxf(aspect, 0.01))
 
 
 ## Sets how much FOV this camera adds over the base, capped at max_fov_deg.
+## Lowest the camera may stand at point: the settled snow top plus clearance. The snow is not
+## collision, so the boom's own sweep cannot keep the lens out of it.
+func snow_floor(point: Vector3) -> float:
+	var shell: SnowShell = SnowShell.active
+	if not is_instance_valid(shell):
+		return -INF
+	return shell.field.get_snow_top(point.x, point.z) + snow_clearance_m
+
+
+## Springs the aim push-in toward the player's aim weight.
+func _update_aim(delta: float) -> void:
+	var omega: float = TAU * aim_spring_hz
+	var pull: float = AimIntentCapability.weight(player) - _aim
+	_aim_speed += (omega * omega * pull - 2.0 * aim_spring_damping * omega * _aim_speed) * delta
+	_aim += _aim_speed * delta
+
+
 func _apply_fov_offset(offset: float) -> void:
 	var base: float = fov - _fov_offset
 	offset = clampf(offset, 0.0, maxf(max_fov_deg - base, 0.0))
@@ -782,67 +698,24 @@ func _apply_fov_offset(offset: float) -> void:
 	_fov_offset = offset
 
 
-## Lyra's penetration blend: the centre sweep snaps the boom in, the feelers ease
-## it in, and any release eases it back out. Returns the share of `want` kept.
-func _blend_boom(delta: float, shoulder: Vector3, back: Vector3, want: float) -> float:
-	var min_pct: float = clampf(collision_min_distance / maxf(want, 0.001), 0.0, 1.0)
-	_boom_room = _probe.sweep(shoulder, back * want)
-	var hard_pct: float = clampf((_boom_room - collision_surface_margin) / want, min_pct, 1.0)
-	var soft_pct: float = 1.0
-	var right: Vector3 = back.cross(Vector3.UP).normalized()
-	for feeler: Array in FEELERS:
-		var dir: Vector3 = back.rotated(Vector3.UP, deg_to_rad(feeler[0]))
-		if right.length_squared() > 0.0:
-			dir = dir.rotated(right, deg_to_rad(feeler[1]))
-		var hit: float = _probe.ray(shoulder, dir * want) / want
-		soft_pct = minf(soft_pct, hit + (1.0 - hit) * (1.0 - float(feeler[2])))
-	soft_pct = maxf(soft_pct, min_pct)
-	var this_frame: float = minf(hard_pct, soft_pct)
-	if not _has_position:
-		_dist_pct = this_frame
-	elif _dist_pct < this_frame:
-		_dist_pct = lerpf(_dist_pct, this_frame, _damp(1.0 / blend_out_time, delta))
-	elif _dist_pct > hard_pct:
-		_dist_pct = hard_pct
-	elif _dist_pct > soft_pct:
-		_dist_pct = lerpf(_dist_pct, soft_pct, _damp(1.0 / blend_in_time, delta))
-	return _dist_pct
-
-
-## First leg of the rig: from inside Henry to the shoulder point. Thin props do
-## not pass here; the shoulder snaps in and eases back out.
-func _sweep_shoulder(delta: float, safe: Vector3, goal: Vector3) -> Vector3:
-	var leg: Vector3 = goal - safe
-	var length: float = leg.length()
-	if length < 0.001:
-		return goal
-	var free: float = _probe.sweep(safe, leg, false)
-	var pct: float = clampf((free - 0.05) / length, 0.0, 1.0)
-	if not _has_position or pct < _shoulder_pct:
-		_shoulder_pct = pct
-	else:
-		_shoulder_pct = lerpf(_shoulder_pct, pct, _damp(1.0 / blend_out_time, delta))
-	return safe + leg * _shoulder_pct
-
-
 ## Turns the player did not make, once the mouse rests: room search while Henry
 ## stands cramped, recentring and whiskers while he moves. They only offset the view.
 ## A doorway or a tight space owns the framing: any offset glides out and none starts
 ## (Nesky, GDC 2014: never push the camera against the player in closed spaces).
 func _update_auto_look(delta: float, safe: Vector3, speed_ratio: float) -> void:
-	if _passage_blend > 0.01 or _composition > tight_auto_look_cutoff:
+	if _rig_passage.get_blend() > 0.01 or _rig_composition.get_composition() > tight_auto_look_cutoff:
 		_room_active = false
 		_auto_yaw = move_toward(_auto_yaw, 0.0, deg_to_rad(_auto.room_rate_deg) * delta)
 		_auto_pitch_deg = move_toward(_auto_pitch_deg, 0.0, _auto.room_rate_deg * delta)
 		return
 	if not _auto.is_active():
 		return
-	var want: float = _boom + _pullback
+	var want: float = _boom + _rig_follow.get_pullback()
 	var goal := Vector2(_auto_yaw, _auto_pitch_deg)
 	var rate_deg: float = _auto.room_rate_deg
 	if speed_ratio < 0.05:
 		_room_search_timer -= delta
-		if not _room_active and _boom_room < minf(room_comfort_distance, want) and _room_search_timer <= 0.0:
+		if not _room_active and _rig_collision.get_boom_room() < minf(room_comfort_distance, want) and _room_search_timer <= 0.0:
 			_room_search_timer = ROOM_SEARCH_INTERVAL
 			var turn: Vector2 = _find_room(safe, want)
 			if turn != Vector2.ZERO:
@@ -864,95 +737,8 @@ func _update_auto_look(delta: float, safe: Vector3, speed_ratio: float) -> void:
 	_auto_pitch_deg = move_toward(_auto_pitch_deg, goal.y, rate_deg * delta)
 
 
-## Doorways recompose the frame round Henry before he reaches them: the blend rises
-## while he or the boom behind him nears the frame, and falls softly once both are clear.
-func _update_passage(delta: float) -> void:
-	if not _passage_looked_up:
-		_passage_looked_up = true
-		_passage = player.get_node_or_null(^"PassageTraversalComponent") as PassageTraversalComponent
-	var passage: PassageInfo = _passage.get_nearby_passage() if _passage != null else null
-	if passage != null:
-		_framing.set_passage(passage)
-	var goal: float = 0.0
-	if _framing.has_passage():
-		_framing.clearance = collision_radius + collision_surface_margin
-		_framing.body_radius = _capsule_radius()
-		_framing.update_side(_back(get_view_yaw(), 0.0))
-	if passage != null:
-		var view_back: Vector3 = _back(get_view_yaw(), 0.0)
-		var off: float = minf(absf(angle_difference(_framing.axis_yaw(), get_view_yaw())), PI / 3.0)
-		## The boom the frame will have, not the one it has, so the blend never feeds itself.
-		var boom_h: float = _passage_boom() * cos(deg_to_rad(get_view_pitch_deg())) * cos(off)
-		var speed: float = Vector2(player.velocity.x, player.velocity.z).length()
-		var approach: float = (passage_approach + speed * passage_lead_time) * (1.0 + passage_angle_lead * (1.0 - cos(off)))
-		goal = _framing.goal(_feet_position(), view_back, boom_h, approach, _passage.get_passage() != null)
-	var rate: float = passage_compress_rate if goal > _passage_blend else passage_release_rate
-	_passage_blend = goal if not _has_position else lerpf(_passage_blend, goal, _damp(rate, delta))
-	if passage == null and _passage_blend <= 0.001:
-		_passage_blend = 0.0
-		_framing.clear()
-
-
-## Shoulder in a doorway: the player's side, or the one the passage asks for, kept within
-## a share of the opening round its centre line, so it slides inward or across as Henry is off it.
-func _passage_side(pivot: Vector3, side: float) -> float:
-	var wanted: float = side
-	var forced: int = _framing.info.shoulder
-	if forced == PassageInfo.Shoulder.LEFT:
-		wanted = -absf(side)
-	elif forced == PassageInfo.Shoulder.RIGHT:
-		wanted = absf(side)
-	elif forced == PassageInfo.Shoulder.CENTRE:
-		wanted = 0.0
-	var room: float = _framing.band() * passage_shoulder_band_share
-	var lateral: float = _framing.lateral(pivot)
-	return clampf(lateral + wanted, -room, room) - lateral
-
-
-## Boom through the doorway: authored, or passage_boom less any wall depth past the reference.
-func _passage_boom() -> float:
-	var info: PassageInfo = _framing.info
-	if info == null:
-		return passage_boom
-	if info.camera_distance > 0.0:
-		return info.camera_distance
-	return maxf(passage_boom - maxf(info.wall_thickness - passage_reference_wall, 0.0), passage_boom_min)
-
-
-## Pivot lift in a doorway: passage_rise, or half the room left under the lintel if less.
-func _passage_rise() -> float:
-	if not _framing.has_passage():
-		return 0.0
-	var room: float = _framing.top_y() - (_feet_position().y + _pivot_height())
-	return clampf(room * 0.5, 0.0, passage_rise)
-
-
-func _passage_fov() -> float:
-	var info: PassageInfo = _framing.info
-	return info.fov_offset_deg if info != null and info.fov_offset_deg >= 0.0 else passage_fov_deg
-
-
-## Soft stops of the view off the passage axis, radians (left, right): past the orbit
-## cone only as far as Henry stays inside the frame, or an authored limit if tighter.
-func _view_yaw_limits() -> Vector2:
-	var past: float = deg_to_rad(maxf(_half_fov_deg(true) - passage_look_margin_deg, 0.0))
-	var limits := Vector2(_cone.x + past, _cone.y + past)
-	var info: PassageInfo = _framing.info
-	if info != null and info.yaw_limit_deg > 0.0:
-		var authored: float = deg_to_rad(info.yaw_limit_deg)
-		limits = Vector2(minf(limits.x, authored), minf(limits.y, authored))
-	return limits
-
-
-## Soft range of the view pitch in a doorway, degrees: past the orbit cone only as far
-## as Henry stays inside the frame.
-func _passage_pitch_range() -> Vector2:
-	var past: float = maxf(_half_fov_deg(false) - passage_look_margin_deg, 0.0)
-	return Vector2(-(_cone.z + past), _cone.w + past)
-
-
 ## Half the field of view across or up the screen, degrees.
-func _half_fov_deg(horizontal: bool) -> float:
+func half_fov_deg(horizontal: bool) -> float:
 	var size: Vector2 = get_viewport().get_visible_rect().size if is_inside_tree() else Vector2(16.0, 9.0)
 	var aspect: float = size.x / maxf(size.y, 1.0)
 	var half: float = deg_to_rad(fov * 0.5)
@@ -971,7 +757,7 @@ func _clear_auto_look() -> void:
 func _whisker_room(safe: Vector3, want: float, base_yaw: float, side: float) -> float:
 	var room: float = 0.0
 	for angle: float in WHISKERS_DEG:
-		var back: Vector3 = _back(base_yaw + deg_to_rad(angle) * side, get_view_pitch_deg())
+		var back: Vector3 = back_dir(base_yaw + deg_to_rad(angle) * side, get_view_pitch_deg())
 		room += _probe.ray(safe, back * want) / want
 	return room / float(WHISKERS_DEG.size())
 
@@ -982,7 +768,7 @@ func _find_room(safe: Vector3, want: float) -> Vector2:
 	var need: float = minf(room_comfort_distance, want)
 	var best_cost: float = INF
 	var pick := Vector2.ZERO
-	var current: float = _boom_room
+	var current: float = _rig_collision.get_boom_room()
 	for yaw_step: int in range(0, int(assist_max_yaw_deg) + 1, 15):
 		for side: float in [1.0, -1.0]:
 			if yaw_step == 0 and side < 0.0:
@@ -992,7 +778,7 @@ func _find_room(safe: Vector3, want: float) -> Vector2:
 					continue
 				var yaw: float = get_view_yaw() + deg_to_rad(float(yaw_step)) * side
 				var pitch: float = clampf(get_view_pitch_deg() - float(pitch_step), pitch_min_deg, pitch_max_deg)
-				var room: float = _probe.sweep(safe, _back(yaw, pitch) * want)
+				var room: float = _probe.sweep(safe, back_dir(yaw, pitch) * want)
 				var cost: float = float(yaw_step) + 0.8 * float(pitch_step)
 				if room >= need and room > current + 0.1 and cost < best_cost:
 					best_cost = cost
@@ -1040,11 +826,11 @@ func _apply_look_input() -> Vector2:
 	yaw_step *= _body_guard(yaw_step, 0.0)
 	pitch_step *= _body_guard(0.0, pitch_step)
 	## In a doorway the mouse eases into a soft stop instead of a wall; back in is always free.
-	var weight: float = _passage_blend * _passage_traversal() if _framing.has_passage() else 0.0
+	var weight: float = _rig_passage.get_blend() * _rig_passage.traversal() if _rig_passage.get_framing().has_passage() else 0.0
 	if weight > 0.001 and yaw_step != 0.0:
-		var axis_yaw: float = _framing.axis_yaw()
+		var axis_yaw: float = _rig_passage.get_framing().axis_yaw()
 		var turn: float = signf(yaw_step)
-		var limits: Vector2 = _view_yaw_limits()
+		var limits: Vector2 = _rig_passage.view_yaw_limits()
 		var off: float = angle_difference(axis_yaw, _yaw) * turn
 		var limit: float = limits.y if turn > 0.0 else limits.x
 		off = _soft_step(off, absf(yaw_step), limit, deg_to_rad(passage_look_knee_deg), weight)
@@ -1052,7 +838,7 @@ func _apply_look_input() -> Vector2:
 	else:
 		_yaw = wrapf(_yaw + yaw_step, -PI, PI)
 	if weight > 0.001 and pitch_step != 0.0:
-		var pitch_range: Vector2 = _passage_pitch_range()
+		var pitch_range: Vector2 = _rig_passage.pitch_range()
 		if pitch_step < 0.0:
 			_pitch_deg = -_soft_step(-_pitch_deg, -pitch_step, -pitch_range.x, passage_look_knee_deg, weight)
 		else:
@@ -1060,10 +846,10 @@ func _apply_look_input() -> Vector2:
 	else:
 		_pitch_deg += pitch_step
 	_pitch_deg = clampf(_pitch_deg, pitch_min_deg, pitch_max_deg)
-	if _work_active:
-		var off: float = clampf(angle_difference(_work_look0.x, _yaw), -deg_to_rad(work_look_limit_deg.x), deg_to_rad(work_look_limit_deg.x))
-		_yaw = wrapf(_work_look0.x + off, -PI, PI)
-		_pitch_deg = clampf(_pitch_deg, _work_look0.y - work_look_limit_deg.y, _work_look0.y + work_look_limit_deg.y)
+	if _rig_work.is_active():
+		var bounded: Vector2 = _rig_work.clamp_look(Vector2(_yaw, _pitch_deg))
+		_yaw = bounded.x
+		_pitch_deg = bounded.y
 	return look
 
 
@@ -1094,11 +880,11 @@ func _apply_lean_and_shoulder_input(delta: float) -> void:
 	if axis != 0.0:
 		_lean = clampf(_lean + axis * lean_rate * delta, -1.0, 1.0)
 	else:
-		_lean = lerpf(_lean, 0.0, _damp(lean_return_rate, delta))
+		_lean = lerpf(_lean, 0.0, damp(lean_return_rate, delta))
 
 
 ## Henry's feet from his capsule, so crouching keeps them on the ground.
-func _feet_position() -> Vector3:
+func get_feet_position() -> Vector3:
 	if _capsule == null:
 		return _target.origin - Vector3.UP * origin_above_feet
 	var capsule := _capsule.shape as CapsuleShape3D
@@ -1108,24 +894,13 @@ func _feet_position() -> Vector3:
 ## Lyra's safe point: on the capsule axis, below its top by the probe radius,
 ## so a cast from it never starts inside a wall or a low ceiling.
 func _safe_origin() -> Vector3:
-	var feet: Vector3 = _feet_position()
+	var feet: Vector3 = get_feet_position()
 	var top: float = lerpf(metrics.capsule_height, metrics.crouch_capsule_height, _crouch)
 	if _capsule != null:
 		top = (_capsule.shape as CapsuleShape3D).height
 	var low: float = collision_radius + 0.05
-	var height: float = clampf(_pivot_height(), low, maxf(low, top - collision_radius - 0.05))
+	var height: float = clampf(get_pivot_height(), low, maxf(low, top - collision_radius - 0.05))
 	return feet + Vector3.UP * height
-
-
-## The orbit centre trails Henry: lag across the ground, softer lag in height.
-func _follow_pivot(delta: float, pivot: Vector3) -> Vector3:
-	if not _has_position:
-		_pivot_smooth = pivot
-		return pivot
-	var flat: Vector2 = Vector2(_pivot_smooth.x, _pivot_smooth.z).lerp(Vector2(pivot.x, pivot.z), _damp(follow_speed, delta))
-	var height: float = lerpf(_pivot_smooth.y, pivot.y, _damp(follow_speed_vertical, delta))
-	_pivot_smooth = Vector3(flat.x, height, flat.y)
-	return _pivot_smooth
 
 
 ## Crouch share from the capsule's height between its measured standing and crouch heights.
@@ -1134,18 +909,18 @@ func _update_stance(delta: float) -> void:
 	var span: float = metrics.capsule_height - metrics.crouch_capsule_height
 	if _capsule != null and span > 0.0:
 		goal = clampf((metrics.capsule_height - (_capsule.shape as CapsuleShape3D).height) / span, 0.0, 1.0)
-	_crouch = goal if not _has_position else lerpf(_crouch, goal, _damp(stance_rate, delta))
+	_crouch = goal if not _has_position else lerpf(_crouch, goal, damp(stance_rate, delta))
 
 
 ## Height of the orbit pivot above the feet: by default Henry's shoulder joints, far enough
 ## under the eyes that a camera pressed to the shoulder stays out of the head.
-func _pivot_height() -> float:
+func get_pivot_height() -> float:
 	var standing: float = lerpf(metrics.standing_shoulder, metrics.standing_shoulder_top, framing_pivot_share)
 	var crouched: float = lerpf(metrics.crouch_shoulder, metrics.crouch_shoulder_top, framing_pivot_share)
 	return lerpf(standing, crouched, _crouch)
 
 
-func _capsule_radius() -> float:
+func get_capsule_radius() -> float:
 	if _capsule == null:
 		return metrics.capsule_radius
 	return (_capsule.shape as CapsuleShape3D).radius
@@ -1167,7 +942,7 @@ func _find_capsule() -> void:
 
 
 ## Unit vector from the shoulder to the camera for a view yaw and pitch.
-static func _back(yaw: float, pitch_deg: float) -> Vector3:
+static func back_dir(yaw: float, pitch_deg: float) -> Vector3:
 	var pitch: float = deg_to_rad(pitch_deg)
 	return Vector3(sin(yaw) * cos(pitch), -sin(pitch), cos(yaw) * cos(pitch))
 
@@ -1202,5 +977,5 @@ func _set_look_capture(active: bool) -> void:
 
 
 ## Frame-rate independent exponential damping, as ADT's Smoothing.damp_factor.
-static func _damp(rate: float, delta: float) -> float:
+static func damp(rate: float, delta: float) -> float:
 	return 1.0 - exp(-rate * delta)

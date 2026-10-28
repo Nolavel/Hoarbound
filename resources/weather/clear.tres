@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="WeatherProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/systems/survival/weather_profile.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"clear"
+name_key = "WEATHER_CLEAR"
+ambient_offset_c = 2.0
+wind_speed_mps = 0.0
+gust_speed_mps = 0.0
+wind_direction_deg = 210.0
+wind_direction_jitter_deg = 0.0
+gust_period_s = 12.0
+snowfall_density = 0.0
+visibility_m = 0.0
+wetness_rate_per_hour = 0.0
+snow_cover = 0.35
+blend_time_s = 1.0
+weight = 1.0
+manual_only = true
+min_duration_h = 24.0
+max_duration_h = 24.0
