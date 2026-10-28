@@ -8,6 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Isolated soft-container physics lab (#254): six draggable cubes/spheres, pinned rims,
+  upright/60-degree tilt and reproducible Jolt capture; experimental 4.6.3 evidence,
+  pending verification on the project engine baseline.
+
 - Snow that sticks and melts (#257, stage 4).
   - **Splats:** a snowball bursts into a puff and leaves a `SnowSplat` decal on what it hits. In the cold the
     splat stays (the 32 newest are kept). Inside a heated interior zone it slides down 12 cm and melts in 45 s.
