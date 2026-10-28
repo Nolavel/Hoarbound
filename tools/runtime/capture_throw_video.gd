@@ -9,7 +9,8 @@ const THROW_DISTANCE_M: float = 8.0
 
 var _out: String = "user://shots/throw_video"
 var _frame: int = 0
-var _camera: Camera3D
+var _tps: TpsCamera
+var _target: Vector3
 
 
 func _initialize() -> void:
@@ -69,12 +70,12 @@ func _run() -> void:
 	player.look_at(Vector3(target.x, stand.y, target.z), Vector3.UP)
 	await _frames(90)
 
-	_camera = Camera3D.new()
-	_camera.fov = 50.0
-	root.add_child(_camera)
-	var side: Vector3 = normal.cross(Vector3.UP).normalized()
-	_camera.look_at_from_position(stand + normal * 3.2 + side * 1.3 + Vector3.UP * 0.9, target + Vector3.DOWN * 0.3)
-	_camera.make_current()
+	## The game's own camera, looking at the pane past Henry: the aim push-in is its doing.
+	var tps := root.get_camera_3d() as TpsCamera
+	_tps = tps
+	_target = target
+	var look: Vector3 = (target - (stand + Vector3.UP * 0.6)).normalized()
+	tps.set_look(atan2(-look.x, -look.z), rad_to_deg(asin(look.y)) - 4.0)
 	var inventory := player.get_node(^"InventoryComponent") as InventoryComponent
 	var held := player.get_node(^"HeldItemComponent") as HeldItemComponent
 	var interact := player.get_node(^"InteractComponent") as InteractComponent
@@ -95,12 +96,22 @@ func _run() -> void:
 	await _aim_and_throw(40)
 	await _record(60)
 	print("[throwvid] after stone: ", breakage.get_pane_state(pane["key"]), " frames ", _frame)
+	## Looking up hard from deep snow: the lens must stay above the snow top.
+	tps.set_look(atan2(-look.x, -look.z), 55.0)
+	await _record(45)
+	var lens: Vector3 = tps.global_position
+	print("[throwvid] look-up: camera %.2f m above the snow top" % (lens.y - SnowShell.active.field.get_snow_top(lens.x, lens.z)))
 	quit(0)
 
 
 func _aim_and_throw(aim_frames: int) -> void:
 	_press(&"present_held", true)
-	await _record(aim_frames)
+	## Like a player, keep the screen centre on the pane while the camera closes in.
+	for _i: int in range(aim_frames):
+		var from: Vector3 = _tps.global_position
+		var look: Vector3 = (_target - from).normalized()
+		_tps.set_look(atan2(-look.x, -look.z), rad_to_deg(asin(look.y)))
+		await _record(1)
 	_press(&"fire", true)
 	_press(&"fire", false)
 	await _record(2)

@@ -21,6 +21,12 @@ const MAX_AIM_M: float = 40.0
 const SWAY_DEG: float = 1.2
 const SWAY_HZ: float = 0.5
 const RELEASE_JITTER_DEG: float = 0.8
+## Aiming turns Henry this far off the target, left shoulder leading; the throw swings him back.
+const SIDE_ON_DEG: float = 60.0
+const SWING_BACK_SECONDS: float = 0.2
+## The aim point trails the camera's on a spring: frequency (Hz) and damping (under 1 overshoots).
+const AIM_SPRING_HZ: float = 3.0
+const AIM_SPRING_DAMPING: float = 0.5
 const ARC_DOTS: int = 36
 const ARC_STEP_S: float = 0.035
 const ARC_DOT_M: float = 0.035
@@ -38,6 +44,8 @@ var _noise: FastNoiseLite
 var _velocity: Vector3 = Vector3.ZERO
 ## Where the drawn arc lands now; the throw is solved to it again from the hand at the release.
 var _aim_point: Vector3 = Vector3.ZERO
+var _spring_point: Vector3 = Vector3.ZERO
+var _spring_speed: Vector3 = Vector3.ZERO
 var _arc: MultiMeshInstance3D
 var _marker: MeshInstance3D
 
@@ -54,6 +62,12 @@ func _ready() -> void:
 	_noise.frequency = 1.0
 	_noise.seed = 4217
 	_build_arc()
+	AimIntentCapability.publish(body, self, &"aim_weight")
+
+
+## 1 while a throw is held back for aim, else 0 (the camera closes in by it).
+func aim_weight() -> float:
+	return 1.0 if _aiming else 0.0
 
 
 ## Launch speed of the item now in hand, 0 when it cannot be thrown.
@@ -91,13 +105,17 @@ func _process(delta: float) -> void:
 		return
 	_sway_s += delta
 	_windup_s += delta
-	if not _wound and _windup_s >= WINDUP_SECONDS:
+	if _windup_s >= WINDUP_SECONDS:
 		_wound = true
-		_set_pace(0.0)
+		var visual := _visual()
+		if visual != null:
+			visual.hold_action_at(WINDUP_SECONDS)
+	_spring_aim(delta)
 	_velocity = aim_velocity()
 	var body := get_parent() as Node3D
 	if body != null and body.has_method(&"face_work_target"):
-		body.call(&"face_work_target", body.global_position + Vector3(_velocity.x, 0.0, _velocity.z))
+		var toward := Vector3(_velocity.x, 0.0, _velocity.z)
+		body.call(&"face_work_target", body.global_position + toward.rotated(Vector3.UP, -deg_to_rad(SIDE_ON_DEG)))
 	_draw_arc(_release_point(), _velocity)
 
 
@@ -105,7 +123,8 @@ func _process(delta: float) -> void:
 func aim_velocity() -> Vector3:
 	var speed: float = held_throw_speed()
 	var from: Vector3 = _release_point()
-	var direction: Vector3 = launch_direction(from, _aim_target(from), speed, GRAVITY)
+	var target: Vector3 = _spring_point if _aiming else _aim_target(from)
+	var direction: Vector3 = launch_direction(from, target, speed, GRAVITY)
 	return _sway(direction, SWAY_DEG) * speed
 
 
@@ -119,8 +138,10 @@ func throw_now() -> bool:
 	var aim_point: Vector3 = _aim_point if _aiming else _release_point() + velocity
 	var wait_s: float = RELEASE_SECONDS
 	if _aiming:
-		## The arm is winding up or held up and back: the clip runs on from there into the whip.
+		## The arm is winding up or held up and back: the clip runs on from there into the whip,
+		## and the body swings back square to the throw.
 		_set_pace(1.0)
+		_swing_back(aim_point)
 		wait_s = maxf(RELEASE_SECONDS - minf(_windup_s, WINDUP_SECONDS), 0.0)
 	else:
 		_play_throw()
@@ -177,10 +198,33 @@ func _set_aiming(on: bool) -> void:
 	if on:
 		_windup_s = 0.0
 		_wound = false
+		_spring_point = _aim_target(_release_point())
+		_spring_speed = Vector3.ZERO
 		_play_throw()
 	_arc.visible = on
 	_marker.visible = on
 	aim_changed.emit(on)
+
+
+## Moves the aim point toward the camera's target on a light spring: it trails, then settles.
+func _spring_aim(delta: float) -> void:
+	var omega: float = TAU * AIM_SPRING_HZ
+	var pull: Vector3 = _aim_target(_release_point()) - _spring_point
+	_spring_speed += (pull * omega * omega - _spring_speed * 2.0 * AIM_SPRING_DAMPING * omega) * delta
+	_spring_point += _spring_speed * delta
+
+
+## Turns Henry from side-on back to face the throw over the whip and follow-through.
+func _swing_back(point: Vector3) -> void:
+	var body := get_parent() as Node3D
+	if body == null or not body.is_inside_tree():
+		return
+	var flat := Vector3(point.x - body.global_position.x, 0.0, point.z - body.global_position.z)
+	if flat.length_squared() < 0.01:
+		return
+	var yaw: float = atan2(-flat.x, -flat.z)
+	var tween: Tween = body.create_tween()
+	tween.tween_property(body, ^"rotation:y", body.rotation.y + wrapf(yaw - body.rotation.y, -PI, PI), SWING_BACK_SECONDS)
 
 
 func _play_throw() -> void:
