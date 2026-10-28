@@ -163,9 +163,9 @@ vec2 hfn_local_falloff(float distance, float inv_range, float decay) {
 
 
 // Diffuse light term as a colour. Outdoors the stylized directional shadow as before.
-// Indoors the shelter's key light (the stove) keeps its physical magnitude, but its pool -
-// shadow x cone x range window, 0..1 - is cut into the three torn tones with brush edges,
-// so the warm light ends in a hard, scratchy edge. light_world: LIGHT in world space.
+// Indoors the shelter's key light (the stove) is cut into the three torn tones with brush edges
+// by how bright it reads, so its warm pool ends in hard, scratchy steps (the owner's earlier
+// build). light_world: LIGHT in world space.
 vec3 hfn_stylized_shadow_rgb(float attenuation, bool directional, vec3 light_world) {
 	if (directional) {
 		return vec3(hfn_stylized_shadow(attenuation, true));
@@ -191,7 +191,10 @@ vec3 hfn_stylized_shadow_rgb(float attenuation, bool directional, vec3 light_wor
 	if (shape < 1e-3) {
 		return vec3(attenuation);  // past the cone and range, where the split is unstable
 	}
-	float pool = clamp(attenuation / (shape * falloff.y), 0.0, 1.0) * shape;
+	// The pool is the light as it reads (magnitude capped at 1 m), so its tone steps land in
+	// the room (~2.3 m and ~6 m for the stove) and flat bands replace the smooth fade.
+	float shadow = clamp(attenuation / (shape * falloff.y), 0.0, 1.0);
+	float pool = shadow * shape * min(falloff.y, 1.0);
 	float tone = hfn_stylized_shadow(pool, true);
-	return vec3(mix(attenuation, falloff.y * tone, interior));
+	return vec3(mix(attenuation, tone * max(falloff.y, 1.0), interior));
 }
