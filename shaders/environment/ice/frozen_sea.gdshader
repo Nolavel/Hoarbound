@@ -34,5 +34,5 @@ void fragment() {
 void light() {
 	float ndotl = max(dot(NORMAL, LIGHT), 0.0);
 	float attenuation = hfn_stylized_shadow(ATTENUATION, LIGHT_IS_DIRECTIONAL);
-	DIFFUSE_LIGHT += ndotl * attenuation * LIGHT_COLOR / PI;
+	DIFFUSE_LIGHT += ndotl * hfn_stylized_shadow_rgb(ATTENUATION, LIGHT_IS_DIRECTIONAL) * LIGHT_COLOR / PI;
 }
