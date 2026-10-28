@@ -318,17 +318,17 @@ func _find_profile(id: StringName) -> WeatherProfile:
 
 
 func _pick_weighted() -> WeatherProfile:
-	var total: float = 0.0
-	for profile: WeatherProfile in profiles:
-		if profile != null:
-			total += maxf(0.0, profile.weight)
-	if total <= 0.0:
+	var pool: Array[WeatherProfile] = profiles.filter(func(p: WeatherProfile) -> bool: return p != null and not p.manual_only)
+	if pool.is_empty():
 		return profiles[0]
+	var total: float = 0.0
+	for profile: WeatherProfile in pool:
+		total += maxf(0.0, profile.weight)
+	if total <= 0.0:
+		return pool[0]
 	var roll: float = randf() * total
-	for profile: WeatherProfile in profiles:
-		if profile == null:
-			continue
+	for profile: WeatherProfile in pool:
 		roll -= maxf(0.0, profile.weight)
 		if roll <= 0.0:
 			return profile
-	return profiles[profiles.size() - 1]
+	return pool[pool.size() - 1]

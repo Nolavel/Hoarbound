@@ -8,6 +8,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Weather profile `clear` (no wind, no snowfall) for tests and captures. It is `manual_only`: it is set only by
+  `set_weather`, never drawn by the weather roll (`WeatherProfile.manual_only`, `_pick_weighted` skips it).
 - SPoV canned meat (owner's artist asset, `assets/source/spov_canned_meat/CanModel.rar`). `tools/blender/build_spov_can.py`
   builds `assets/items/spov_can/SPoV_Can.glb`: 10.4 x 6.1 x 7.1 cm (a 340 g luncheon-meat tin, the artist's proportions
   kept), 356 + 240 tris. The 40 lid-seam edges shared by three faces are split, and the pull ring is laid flat on the
@@ -366,6 +368,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Road flare at night (owner picked variant C). The light's volumetric-fog tint drops from 1.0 to 0.3: the
+  default tint filled the night fog with a red haze, which was the main cause of the "everything is red" read.
+  Falloff is now inverse square (`omni_attenuation` 2), and the radius no longer breathes with the burn. All three
+  are `HeldFlare` knobs (`fog_energy`, `light_attenuation`, `range_breath`). The particles are rebuilt:
+  - the tip burns as a steady short jet (white core to orange to red);
+  - sparks and spurts are streaks aligned to their velocity;
+  - the large bits are slag that falls and cools;
+  - smoke is a plume of 96 faint, spinning, noise-edged puffs. Before, it was 42 round quads that read as glowing balls.
+  Capture: `tools/runtime/capture_flare_night.gd` (A/B/C outside, close-up frames, inside 727).
 - TPS camera look-ahead v2 (#240 stage 5). The orbit centre leads along Henry's intent (the keys' world
   direction, `LocomotionIntentCapability` published by `Player`) and fades while intent and motion disagree; it
   shrinks 2.5x faster than it grows. Sprint reversal in the corridor: the lead no longer stays 0.44 m ahead while
