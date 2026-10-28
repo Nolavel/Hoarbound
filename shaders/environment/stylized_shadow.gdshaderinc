@@ -6,8 +6,8 @@ global uniform float stylized_shadow_strength;
 // the value noise, 1 uses the mask.
 global uniform sampler2D stylized_shadow_brush_mask : filter_linear_mipmap, repeat_enable;
 global uniform float stylized_shadow_brush_mix;
-// Shelter look (ShelterGradeBinder): 1 indoors drops the brush back to the value-noise spray,
-// pushes the penumbra edge about and paints the shadow as a cool pigment mass (Codex lab #10).
+// Shelter look (ShelterGradeBinder): 1 indoors cuts the stove's light pool into the torn
+// three tones with dry-brush edges (the owner's earlier build) and pushes the penumbra about.
 global uniform float stylized_shadow_interior_mode;
 // The shelter's key local light (the stove, StoveVisual): position + range, spot direction +
 // cos(angle) (w < -1 for an omni), decay + cone exponent. Range 0 = none.
@@ -29,9 +29,7 @@ const float HFN_SHADOW_BRUSH_CONTRAST = 1.4;
 const float HFN_SHADOW_CUT_LOW = 0.34;
 const float HFN_SHADOW_CUT_HIGH = 0.66;
 const float HFN_SHADOW_MID_TONE = 0.45;
-// Indoors: the cool pigment the shaded tones take (Codex lab colour, brightest channel 1), and
-// how far the edge field moves the penumbra.
-const vec3 HFN_SHADOW_PIGMENT = vec3(0.53, 0.81, 1.0);
+// Indoors: how far the edge field moves the penumbra.
 const float HFN_SHADOW_EDGE_COARSE = 0.15;
 const float HFN_SHADOW_EDGE_STROKE = 0.04;
 
@@ -106,8 +104,7 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 	vec3 noise = hfn_shadow_fbm3(noise_pos, HFN_SHADOW_OFFSET_FREQ, pixel_m);
 	vec3 tangent = noise - n * dot(noise, n);
 	vec3 offset = (view * vec4(tangent * HFN_SHADOW_OFFSET_M * offset_scale * strength, 0.0)).xyz;
-	float brush_mix = clamp(stylized_shadow_brush_mix, 0.0, 1.0)
-		* (1.0 - clamp(stylized_shadow_interior_mode, 0.0, 1.0));
+	float brush_mix = clamp(stylized_shadow_brush_mix, 0.0, 1.0);
 	float spray = 0.0;
 	if (brush_mix < 1.0) {
 		spray = hfn_shadow_fbm3(noise_pos + vec3(41.3, -7.9, 23.1), HFN_SHADOW_SPRAY_FREQ, pixel_m).x;
@@ -153,35 +150,27 @@ float hfn_stylized_shadow(float attenuation, bool directional) {
 }
 
 
-// Godot's omni/spot distance falloff (scene_forward_clustered get_omni_attenuation), so a
-// local light's ATTENUATION can be split into falloff and shadow.
-float hfn_local_falloff(float distance, float inv_range, float decay) {
+// Godot's omni/spot falloff (scene_forward_clustered get_omni_attenuation) split in two: the
+// range window (1 near, 0 at the range) and the inverse-power magnitude.
+vec2 hfn_local_falloff(float distance, float inv_range, float decay) {
 	float nd = distance * inv_range;
 	nd *= nd;
 	nd *= nd;
 	nd = max(1.0 - nd, 0.0);
 	nd *= nd;
-	return nd * pow(max(distance, 0.0001), -decay);
+	return vec2(nd, pow(max(distance, 0.0001), -decay));
 }
 
 
-// The cool pigment mass: the shaded part of a tone cools towards the pigment. It only ever
-// removes light: lifting the core leaked the stove through walls and the sun through roofs.
-vec3 hfn_shadow_pigment(float tone) {
-	float shade = 1.0 - smoothstep(0.18, 0.82, tone);
-	return mix(vec3(tone), tone * HFN_SHADOW_PIGMENT, shade);
-}
-
-
-// Diffuse shadow as a colour: the tone itself outdoors; indoors the shaded part becomes the
-// cool pigment mass, for the sun and for the shelter's key light (the stove), whose
-// falloff is divided out first so only its shadow is painted. light_world: LIGHT in world space.
+// Diffuse light term as a colour. Outdoors the stylized directional shadow as before.
+// Indoors the shelter's key light (the stove) keeps its physical magnitude, but its pool -
+// shadow x cone x range window, 0..1 - is cut into the three torn tones with brush edges,
+// so the warm light ends in a hard, scratchy edge. light_world: LIGHT in world space.
 vec3 hfn_stylized_shadow_rgb(float attenuation, bool directional, vec3 light_world) {
-	float interior = clamp(stylized_shadow_interior_mode, 0.0, 1.0) * clamp(stylized_shadow_strength, 0.0, 1.0);
 	if (directional) {
-		float tone = hfn_stylized_shadow(attenuation, true);
-		return interior <= 0.0 ? vec3(tone) : mix(vec3(tone), hfn_shadow_pigment(tone), interior);
+		return vec3(hfn_stylized_shadow(attenuation, true));
 	}
+	float interior = clamp(stylized_shadow_interior_mode, 0.0, 1.0) * clamp(stylized_shadow_strength, 0.0, 1.0);
 	if (interior <= 0.0 || stylized_shadow_key_light.w <= 0.0) {
 		return vec3(attenuation);
 	}
@@ -190,17 +179,19 @@ vec3 hfn_stylized_shadow_rgb(float attenuation, bool directional, vec3 light_wor
 	if (distance < 1e-4 || dot(rel / distance, normalize(light_world)) < 0.995) {
 		return vec3(attenuation);  // another local light
 	}
-	float falloff = hfn_local_falloff(distance, 1.0 / stylized_shadow_key_light.w, stylized_shadow_key_falloff.x);
+	vec2 falloff = hfn_local_falloff(distance, 1.0 / stylized_shadow_key_light.w, stylized_shadow_key_falloff.x);
+	float cone = 1.0;
 	float cutoff = stylized_shadow_key_cone.w;
 	if (cutoff > -1.5) {
 		float scos = max(dot(-rel / distance, stylized_shadow_key_cone.xyz), cutoff);
 		float rim = max(0.0001, (1.0 - scos) / (1.0 - cutoff));
-		falloff *= 1.0 - pow(rim, stylized_shadow_key_falloff.y);
+		cone = 1.0 - pow(rim, stylized_shadow_key_falloff.y);
 	}
-	if (falloff < 1e-3) {
-		return vec3(attenuation);  // the cone and range edge, where the split is unstable
+	float shape = falloff.x * cone;
+	if (shape < 1e-3) {
+		return vec3(attenuation);  // past the cone and range, where the split is unstable
 	}
-	float shadow = clamp(attenuation / falloff, 0.0, 1.0);
-	float tone = hfn_stylized_shadow(shadow, true);
-	return falloff * mix(vec3(shadow), hfn_shadow_pigment(tone), interior);
+	float pool = clamp(attenuation / (shape * falloff.y), 0.0, 1.0) * shape;
+	float tone = hfn_stylized_shadow(pool, true);
+	return vec3(mix(attenuation, falloff.y * tone, interior));
 }
