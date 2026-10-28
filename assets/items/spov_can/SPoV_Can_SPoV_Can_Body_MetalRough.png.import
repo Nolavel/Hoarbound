@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://0ot12udkqfe"
-path="res://.godot/imported/SPoV_Can_SPoV_Can_Body_MetalRough.png-c83e832d539f3faf98fcf16b35a507ed.ctex"
+path.s3tc="res://.godot/imported/SPoV_Can_SPoV_Can_Body_MetalRough.png-c83e832d539f3faf98fcf16b35a507ed.s3tc.ctex"
+path.etc2="res://.godot/imported/SPoV_Can_SPoV_Can_Body_MetalRough.png-c83e832d539f3faf98fcf16b35a507ed.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "74827d8be64ac935da9ff1286c025885"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/items/spov_can/SPoV_Can_SPoV_Can_Body_MetalRough.png"
-dest_files=["res://.godot/imported/SPoV_Can_SPoV_Can_Body_MetalRough.png-c83e832d539f3faf98fcf16b35a507ed.ctex"]
+dest_files=["res://.godot/imported/SPoV_Can_SPoV_Can_Body_MetalRough.png-c83e832d539f3faf98fcf16b35a507ed.s3tc.ctex", "res://.godot/imported/SPoV_Can_SPoV_Can_Body_MetalRough.png-c83e832d539f3faf98fcf16b35a507ed.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/high_quality_mode=0
 compress/lossy_quality=0.7
@@ -43,4 +45,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
