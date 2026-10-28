@@ -67,13 +67,13 @@ func _run() -> void:
 	for v: Array in VARIANTS:
 		_apply(flare, v)
 		await _shot("out_" + String(v[0]), henry + out * 4.5 + side * 1.5 + Vector3.UP * 2.0, henry + Vector3.UP * 0.6, flare)
-	## Inside 727, stove cold: the flare is the only light.
-	_player.global_position = door.global_position - out * 3.0 + Vector3.UP
+	## Inside 727, stove cold: the flare is the only light; framed across the room as the shadow capture.
+	var stove := _world.find_children("*", "HeatSource", true, false)[0] as Node3D
+	_player.global_position = stove.to_global(Vector3(1.4, 1.0, 0.6))
 	await _frames(120)
-	henry = _player.global_position
 	for v: Array in [VARIANTS[0], VARIANTS[2]]:
 		_apply(flare, v)
-		await _shot("in_" + String(v[0]), henry - side * 3.0 + out * 1.2 + Vector3.UP * 1.9, henry + Vector3.UP * 0.5, flare)
+		await _shot("in_" + String(v[0]), stove.to_global(Vector3(3.2, 1.7, 2.6)), stove.to_global(Vector3(1.3, 0.4, 0.5)), flare)
 	print("[flare] done")
 	quit(0)
 
