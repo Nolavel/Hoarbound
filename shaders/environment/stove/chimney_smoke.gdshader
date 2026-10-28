@@ -10,8 +10,8 @@ uniform float spread_m = 0.06;
 uniform float size_start = 0.4;
 uniform float size_end = 3.2;
 uniform float spin = 0.5;
-uniform float opacity = 0.6;
-uniform vec3 tint = vec3(0.62, 0.62, 0.64);
+uniform float opacity = 0.65;
+uniform vec3 tint = vec3(0.40, 0.40, 0.42); // wood smoke reads darker than an overcast sky
 
 uint hash(uint x) {
 	x = ((x >> uint(16)) ^ x) * uint(73244475);

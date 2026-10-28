@@ -56,11 +56,17 @@ func _run() -> void:
 	out = out.normalized()
 	var side: Vector3 = Vector3.UP.cross(out).normalized()
 	var cap: Vector3 = smoke.global_position
-	var street: Vector3 = door.global_position + out * 24.0 - side * 7.0 + Vector3.UP * 2.0
-	var aim: Vector3 = cap + Vector3.UP * 1.2
+	## Of the open street views, the one most across the wind, so the plume's drift reads sideways.
+	var wind_dir: Vector3 = weather.get_wind_direction() if weather != null else side
+	var view: Vector3 = out
+	for candidate: Vector3 in [out, (out + side).normalized(), (out - side).normalized(), side, -side]:
+		if absf(candidate.cross(wind_dir).y) > absf(view.cross(wind_dir).y) + 0.05:
+			view = candidate
+	var street: Vector3 = Vector3(cap.x, door.global_position.y + 1.8, cap.z) + view * 24.0
+	var aim: Vector3 = cap + wind_dir * 3.0 + Vector3.UP * 1.0
 
 	## Henry stays out of the street frame, down the road behind the camera.
-	_player.global_position = street + out * 6.0 + Vector3.UP
+	_player.global_position = street + view * 6.0 + Vector3.UP
 	await _frames(120)
 	await _shot("1_cold", street, aim, weather, smoke)
 	stove.restore_fuel(1.5, true)
@@ -70,7 +76,10 @@ func _run() -> void:
 	smoke.speed_scale = 1.0
 	for i: int in range(GUST_FRAMES):
 		await _shot("2_lit_%d" % i, street, aim, weather, smoke)
+		## Game time runs 6x between frames so each is about 4 s of gusts apart.
+		Engine.time_scale = 6.0
 		await _frames(20)
+		Engine.time_scale = 1.0
 
 	## The room: the stove's flue runs unbroken into the ceiling.
 	var house := stove.get_parent().get_parent() as Node3D
@@ -96,7 +105,8 @@ func _shot(shot_name: String, from: Vector3, at: Vector3, weather: WeatherContro
 	root.add_child(camera)
 	camera.look_at_from_position(from, at)
 	camera.make_current()
-	await _frames(3)
+	## A fresh camera needs its temporal history (volumetric fog) rebuilt before the frame is kept.
+	await _frames(30)
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join(shot_name + ".png"))
 	var wind: Vector3 = weather.get_wind_direction() * weather.get_wind_speed_mps() if weather != null else Vector3.ZERO
