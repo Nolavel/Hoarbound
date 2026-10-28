@@ -6,7 +6,7 @@ extends SceneTree
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const HOUR: float = 14.0
-const GUST_FRAMES: int = 4
+const GUST_FRAMES: int = 1
 ## Particle time runs this many times faster while the plume builds, so it fills in few frames.
 const WARM_SPEED: float = 8.0
 
@@ -49,8 +49,8 @@ func _run() -> void:
 		(layer as CanvasLayer).visible = false
 	for label: Node in _world.find_children("*", "Label3D", true, false):
 		(label as Node3D).visible = false
-	var stove := _world.find_children("*", "HeatSource", true, false)[0] as HeatSource
 	var smoke := _world.find_children("ChimneySmoke", "", true, false)[0] as ChimneySmoke
+	var stove: HeatSource = smoke.source
 	var door := _world.find_children("HouseDoor", "", true, false)[0] as Node3D
 	var out: Vector3 = door.global_basis.z
 	out.y = 0.0
@@ -61,7 +61,7 @@ func _run() -> void:
 	var aim: Vector3 = cap + Vector3.UP * 1.2
 
 	## Henry stays out of the street frame, down the road behind the camera.
-	_player.global_position = street - out * 6.0 + Vector3.UP
+	_player.global_position = street + out * 6.0 + Vector3.UP
 	await _frames(120)
 	await _shot("1_cold", street, aim, weather, smoke)
 	stove.restore_fuel(1.5, true)
@@ -103,6 +103,15 @@ func _shot(shot_name: String, from: Vector3, at: Vector3, weather: WeatherContro
 	var wind: Vector3 = weather.get_wind_direction() * weather.get_wind_speed_mps() if weather != null else Vector3.ZERO
 	print("[chimney] %s emitting=%s ratio=%.2f wind=%.2f m/s (%.2f, %.2f)" % [shot_name, smoke.emitting,
 		smoke.amount_ratio, wind.length(), wind.x, wind.z])
+	var env: Environment = camera.get_world_3d().environment
+	if env == null:
+		for node: Node in root.find_children("*", "WorldEnvironment", true, false):
+			env = (node as WorldEnvironment).environment
+	if env != null:
+		print("[chimney] env fog=%s %s vol=%s %s adj=%s b%.2f c%.2f s%.2f lut=%s" % [env.fog_enabled, env.fog_light_color,
+			env.volumetric_fog_enabled, env.volumetric_fog_albedo, env.adjustment_enabled, env.adjustment_brightness,
+			env.adjustment_contrast, env.adjustment_saturation, env.adjustment_color_correction])
+	print("[chimney] cap at ", smoke.global_position, " camera ", from)
 	camera.queue_free()
 	if previous != null:
 		previous.make_current()
