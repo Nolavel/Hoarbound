@@ -481,7 +481,7 @@ func _make_flame_layer() -> GPUParticles3D:
 
 func _make_smoke_layer() -> GPUParticles3D:
 	var particles := GPUParticles3D.new()
-	particles.amount = 42
+	particles.amount = 96
 	particles.lifetime = 2.7
 	particles.randomness = 0.74
 	particles.local_coords = false
@@ -498,11 +498,16 @@ func _make_smoke_layer() -> GPUParticles3D:
 	_smoke_process.gravity = Vector3(0.0, 0.12, 0.0)
 	_smoke_process.scale_min = 0.8
 	_smoke_process.scale_max = 1.3
+	## Random spin breaks the round puff outline; overlap reads as one plume, not balls.
+	_smoke_process.angle_min = -180.0
+	_smoke_process.angle_max = 180.0
+	_smoke_process.angular_velocity_min = -25.0
+	_smoke_process.angular_velocity_max = 25.0
 	## A puff is born small at the tip, swells and thins out as it drifts.
 	var swell := Curve.new()
 	swell.add_point(Vector2(0.0, 0.25))
-	swell.add_point(Vector2(0.4, 1.4))
-	swell.add_point(Vector2(1.0, 2.8))
+	swell.add_point(Vector2(0.4, 1.8))
+	swell.add_point(Vector2(1.0, 3.6))
 	var swell_tex := CurveTexture.new()
 	swell_tex.curve = swell
 	_smoke_process.scale_curve = swell_tex
@@ -511,8 +516,8 @@ func _make_smoke_layer() -> GPUParticles3D:
 	## Smoke needs enough warm midtone to separate from a black night sky, but
 	## it still fades back toward neutral grey as it leaves the hot tip.
 	gradient.set_color(0, Color(0.52, 0.24, 0.18, 0.0))
-	gradient.add_point(0.08, Color(0.48, 0.28, 0.24, 0.45))
-	gradient.add_point(0.35, Color(0.36, 0.34, 0.35, 0.30))
+	gradient.add_point(0.08, Color(0.48, 0.28, 0.24, 0.22))
+	gradient.add_point(0.35, Color(0.36, 0.34, 0.35, 0.16))
 	gradient.set_color(gradient.get_point_count() - 1, Color(0.30, 0.32, 0.36, 0.0))
 	var ramp := GradientTexture1D.new()
 	ramp.gradient = gradient
@@ -547,12 +552,12 @@ func _spark_mesh(size: float, tint: Color, emission_energy: float, stretch: floa
 
 func _smoke_quad() -> QuadMesh:
 	var mesh := QuadMesh.new()
-	mesh.size = Vector2(0.11, 0.11)
+	mesh.size = Vector2(0.16, 0.16)
 	var material := StandardMaterial3D.new()
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	material.vertex_color_use_as_albedo = true
-	material.albedo_texture = _soft_particle_texture(32, 1.35)
+	material.albedo_texture = _smoke_texture(48)
 	material.albedo_color = Color(0.95, 0.78, 0.72, 0.72)
 	material.roughness = 1.0
 	material.emission_enabled = true
@@ -564,6 +569,23 @@ func _smoke_quad() -> QuadMesh:
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mesh.material = material
 	return mesh
+
+
+## A soft puff with a lumpy, noise-broken edge so overlapping quads never show discs.
+func _smoke_texture(size: int) -> ImageTexture:
+	var noise := FastNoiseLite.new()
+	noise.seed = 7
+	noise.frequency = 0.09
+	noise.fractal_octaves = 3
+	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var denom: float = maxf(float(size - 1), 1.0)
+	for y: int in range(size):
+		for x: int in range(size):
+			var uv := Vector2(float(x) / denom, float(y) / denom)
+			var radial: float = clampf(1.0 - (uv - Vector2(0.5, 0.5)).length() * 2.0, 0.0, 1.0)
+			var lump: float = 0.55 + 0.45 * noise.get_noise_2d(float(x), float(y))
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, clampf(pow(radial, 0.9) * lump * 1.4, 0.0, 1.0)))
+	return ImageTexture.create_from_image(image)
 
 
 func _soft_particle_texture(size: int, falloff_power: float) -> ImageTexture:
