@@ -8,6 +8,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Snow that sticks and melts (#257, stage 4).
+  - **Splats:** a snowball bursts into a puff and leaves a `SnowSplat` decal on what it hits. In the cold the
+    splat stays (the 32 newest are kept). Inside a heated interior zone it slides down 12 cm and melts in 45 s.
+  - **Melting in the hand:** `HandSnowMelt` melts a handful held in the warm. It lasts 40 s in a barely warm room
+    and 20 s at 20 C, shrinks in the hand, leaves up to 0.3 wetness in the glove, and is gone. Below freezing it keeps.
+  - Tests: `test_hand_snow_melt`, plus the splat check in `test_throw`.
 - Breakable window glass (#257, stage 3).
   - **Which panes:** `WindowBreakage` cracks and breaks the pane a throw lands on, on any house: the 727 window
     breaches, and every pane quad of a generated facade's `windows` surface, found from the hit point.

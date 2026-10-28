@@ -94,6 +94,8 @@ func _strike(state: PhysicsDirectBodyState3D) -> void:
 	impacted.emit(item_id, point, normal, collider, impulse)
 	linear_damp = GROUND_DAMP
 	if is_snow():
+		SnowSplat.burst(get_parent(), point, normal)
+		SnowSplat.stick(get_parent(), point, normal)
 		call_deferred(&"queue_free")
 
 

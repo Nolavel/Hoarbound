@@ -54,6 +54,8 @@ func _run() -> void:
 		_check(absf((_hits[0][1] as Vector3).z + 4.9) < 0.15, "the hit point is off the wall face: %s" % [_hits[0][1]])
 		_check(float(_hits[0][3]) > 1.0, "the snowball's impulse is implausibly small: %.2f" % float(_hits[0][3]))
 	_check(not is_instance_valid(snowball), "the snowball outlived its hit")
+	var splats: Array[Node] = root.find_children("*", "SnowSplat", true, false)
+	_check(splats.size() == 1, "the snowball left %d splats on the wall, not one" % splats.size())
 
 	print("test_throw: %s" % ("PASS" if _failures == 0 else "%d FAILED" % _failures))
 	quit(1 if _failures > 0 else 0)
