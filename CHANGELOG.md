@@ -17,6 +17,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - **Fit:** `backpack_canvas.gdshader` pushes the canvas out round each item's box proxy, plus a lining, so a
     flask bulges the side pocket. An emptier pack slumps: its top drops and its walls cave in.
   - **Straps:** the straps, handle and buckles are baked in pack space and move with the canvas.
+  - **Owner review:** there is a pocket on each side, open at the top and sized for a bottle that stands out of it.
+    The canvas gives 2 cm at most (3 cm in a pocket) and no longer balloons round an item bigger than its pocket.
   - Capture: `tools/runtime/capture_backpack_lab.gd` (two views of one run).
 - Snow that sticks and melts (#257, stage 4).
   - **Splats:** a snowball bursts into a puff and leaves a `SnowSplat` decal on what it hits. In the cold the

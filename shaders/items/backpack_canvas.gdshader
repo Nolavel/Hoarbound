@@ -17,6 +17,8 @@ uniform int item_count = 0;
 // Canvas and lining between an item and the outer face, metres; the bulge feathers over `soft_m`.
 uniform float lining_m = 0.012;
 uniform float soft_m = 0.03;
+// Canvas does not balloon: it gives this much at most, and whatever is bigger shows through the top.
+uniform float max_stretch_m = 0.02;
 // 0 empty .. 1 full; the empty slump's depth at the top and on the walls, metres.
 uniform float fill = 1.0;
 uniform float slump_top_m = 0.07;
@@ -47,6 +49,7 @@ void vertex() {
 		float d = box_distance(p, item_centre[i].xyz, item_half[i].xyz) - lining_m;
 		push = max(push, smoothstep(soft_m, -soft_m, d) * max(soft_m - d, 0.0));
 	}
+	push = min(push, max_stretch_m);
 	float empty = 1.0 - clamp(fill, 0.0, 1.0);
 	float high = smoothstep(pack_height_m * 0.45, pack_height_m, p.y);
 	vec3 slump = vec3(0.0, -slump_top_m * high, 0.0) - n * slump_wall_m * smoothstep(0.1, 0.4, p.y / pack_height_m);

@@ -10,7 +10,7 @@ const LOAD: Array = [
 	[&"water_flask", &"low_mid"],
 	[&"spov_can", &"low_right"],
 	[&"work_gloves", &"shelf"],
-	[&"water_flask", &"side"],
+	[&"water_flask", &"side_left"],
 ]
 
 var _out: String = "user://shots/backpack_lab"

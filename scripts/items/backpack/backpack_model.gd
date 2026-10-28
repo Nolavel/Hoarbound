@@ -2,7 +2,7 @@ class_name BackpackModel
 extends Node3D
 
 ## A front-loading backpack (#260): a canvas shell, a front panel that unzips and folds down on a
-## bottom hinge, slots for what it carries, a side pocket and a bedroll strapped under it. The
+## bottom hinge, slots for what it carries, a pocket either side and a bedroll strapped under it. The
 ## canvas takes its shape from the contents (backpack_canvas.gdshader); no soft-body physics.
 ## Pack space: origin at the bottom of the back face, +Y up, +Z out to the front, +X to the right.
 
@@ -33,12 +33,17 @@ const SLOTS: Dictionary = {
 	&"low_left": [Vector3(-0.09, 0.13, 0.11), Vector3(0.055, 0.11, 0.08)],
 	&"low_mid": [Vector3(0.0, 0.17, 0.11), Vector3(0.04, 0.15, 0.08)],
 	&"low_right": [Vector3(0.095, 0.17, 0.11), Vector3(0.05, 0.15, 0.08)],
-	&"side": [Vector3(-0.205, 0.15, 0.11), Vector3(0.04, 0.11, 0.045)],
+	&"side_left": [Vector3(-POCKET_X, 0.15, 0.11), Vector3(0.035, 0.11, 0.04)],
+	&"side_right": [Vector3(POCKET_X, 0.15, 0.11), Vector3(0.035, 0.11, 0.04)],
 }
 ## Which faces of a rounded box to build: every one, all but the front, or the front alone.
 const FACES_ALL: int = 0
 const FACES_SHELL: int = 1
 const FACES_FRONT: int = 2
+const FACES_OPEN_TOP: int = 3
+## Side pockets: open-topped pouches either side, sized for a bottle that stands out of them.
+const POCKET_X: float = 0.205
+const POCKET_HALF: Vector3 = Vector3(0.04, 0.07, 0.05)
 const CANVAS: Color = Color(0.37, 0.33, 0.21)
 const STRAP: Color = Color(0.28, 0.19, 0.12)
 const BEDROLL: Color = Color(0.24, 0.27, 0.30)
@@ -72,8 +77,9 @@ func build() -> void:
 	_panel_material = _canvas_material(Vector4(0.1, 0.15, 0.55, 0.85))
 	_pocket_material = _canvas_material(Vector4.ZERO)
 	## The pocket is a thin pouch round a hard bottle: more slack, so the corners never poke through.
-	_pocket_material.set_shader_parameter(&"lining_m", 0.022)
-	_pocket_material.set_shader_parameter(&"soft_m", 0.04)
+	_pocket_material.set_shader_parameter(&"lining_m", 0.008)
+	_pocket_material.set_shader_parameter(&"soft_m", 0.025)
+	_pocket_material.set_shader_parameter(&"max_stretch_m", 0.03)
 	_strap_material = _canvas_material(Vector4.ZERO)
 	_strap_material.set_shader_parameter(&"canvas_colour", STRAP)
 	_strap_material.set_shader_parameter(&"lining_colour", STRAP)
@@ -99,11 +105,12 @@ func build() -> void:
 	_panel.material_override = _panel_material
 	_hinge.add_child(_panel)
 	_panel_material.set_shader_parameter(&"panel_length_m", BODY.y)
-	var pocket := MeshInstance3D.new()
-	pocket.name = "SidePocket"
-	pocket.mesh = _rounded_box(Vector3(0.035, 0.1, 0.075), Vector3(-BODY.x * 0.5 - 0.03, 0.15, BODY.z * 0.5), 0.03, Vector3i(8, 16, 12), FACES_ALL)
-	pocket.material_override = _pocket_material
-	add_child(pocket)
+	for side: float in [-1.0, 1.0]:
+		var pocket := MeshInstance3D.new()
+		pocket.name = "SidePocketLeft" if side < 0.0 else "SidePocketRight"
+		pocket.mesh = _rounded_box(POCKET_HALF, Vector3(side * POCKET_X, POCKET_HALF.y + 0.03, BODY.z * 0.5), 0.03, Vector3i(8, 14, 12), FACES_OPEN_TOP)
+		pocket.material_override = _pocket_material
+		add_child(pocket)
 	_add_shelf()
 	_add_bedroll()
 	_add_straps()
@@ -225,7 +232,9 @@ static func _rounded_box(half: Vector3, centre: Vector3, radius: float, steps: V
 		var axis: int = face[0]
 		var sign: float = face[1]
 		var front: bool = axis == 2 and sign > 0.0
-		if (faces_built == FACES_SHELL and front) or (faces_built == FACES_FRONT and not front):
+		var top: bool = axis == 1 and sign > 0.0
+		if (faces_built == FACES_SHELL and front) or (faces_built == FACES_FRONT and not front) \
+				or (faces_built == FACES_OPEN_TOP and top):
 			continue
 		var u_axis: int = face[2]
 		var v_axis: int = face[3]
