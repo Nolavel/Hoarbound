@@ -16,6 +16,13 @@ const MIN_DEPTH_M: float = 0.03
 const STOOP_ACTION: StringName = &"pickup_right_low"
 ## The hand reaches the snow this long into the stoop.
 const CONTACT_SECONDS: float = 0.55
+## Where the right hand digs, from Henry's feet: ahead and to his right, metres.
+const SCOOP_AHEAD_M: float = 0.45
+const SCOOP_SIDE_M: float = 0.18
+## The hollow the hand leaves: its size, how deep below the snow top, and how long it presses.
+const MARK_SIZE_M: Vector3 = Vector3(0.2, 0.16, 0.26)
+const MARK_DEPTH_M: float = 0.09
+const MARK_PRESS_SECONDS: float = 0.4
 
 @export var inventory: InventoryComponent
 @export var equipment: EquipmentComponent
@@ -99,8 +106,37 @@ func finish_scoop(item_id: StringName) -> bool:
 	elif item_id == HANDFUL:
 		done = _take_handful()
 	if done:
+		press_mark()
 		scooped.emit(item_id)
 	return done
+
+
+## Leaves the hollow where the hand took the snow: a hand-sized body on the snow contact layer
+## presses the field for a moment (the main camera never draws that layer).
+func press_mark() -> void:
+	var shell: SnowShell = SnowShell.active
+	var body := get_parent() as Node3D
+	if not is_instance_valid(shell) or body == null or not is_inside_tree():
+		return
+	var ahead: Vector3 = -body.global_basis.z
+	ahead.y = 0.0
+	ahead = ahead.normalized()
+	var right: Vector3 = ahead.cross(Vector3.UP)
+	var at: Vector3 = body.global_position + ahead * SCOOP_AHEAD_M + right * SCOOP_SIDE_M
+	var top: float = shell.field.get_snow_top(at.x, at.z)
+	var hollow := MeshInstance3D.new()
+	hollow.name = "ScoopMark"
+	var shape := SphereMesh.new()
+	shape.radius = 0.5
+	shape.height = 1.0
+	hollow.mesh = shape
+	hollow.layers = SnowShell.CONTACT_LAYER
+	hollow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var world: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
+	world.add_child(hollow)
+	var basis: Basis = Basis.looking_at(ahead, Vector3.UP) * Basis.from_scale(MARK_SIZE_M)
+	hollow.global_transform = Transform3D(basis, Vector3(at.x, top - MARK_DEPTH_M + MARK_SIZE_M.y * 0.5, at.z))
+	get_tree().create_timer(MARK_PRESS_SECONDS).timeout.connect(hollow.queue_free)
 
 
 ## Settled snow depth under Henry, metres; 0 off the live snow window.

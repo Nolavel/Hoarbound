@@ -10,7 +10,9 @@ signal thrown(item_id: StringName, body: ThrownItem)
 const AIM_ACTION: StringName = &"present_held"
 const THROW_ACTION: StringName = &"fire"
 const THROW_CLIP: StringName = &"throw"
-## The hand lets go this far into the throw action (traced on Henry: the whip forward starts at 0.28 s).
+## Traced on Henry: the hand is up and back at 0.24 s (held there while RMB aims); the whip
+## forward starts at 0.28 s, where the hand lets go.
+const WINDUP_SECONDS: float = 0.24
 const RELEASE_SECONDS: float = 0.29
 const GRAVITY: float = 9.8
 ## The camera's aim ray reaches this far for a target point, metres.
@@ -30,6 +32,8 @@ const ARC_DOT_M: float = 0.035
 var _aiming: bool = false
 var _throwing: bool = false
 var _sway_s: float = 0.0
+var _windup_s: float = 0.0
+var _wound: bool = false
 var _noise: FastNoiseLite
 var _velocity: Vector3 = Vector3.ZERO
 ## Where the drawn arc lands now; the throw is solved to it again from the hand at the release.
@@ -72,6 +76,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_released(AIM_ACTION) and _aiming:
 		_set_aiming(false)
+		_lower_arm()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed(THROW_ACTION) and _aiming:
 		get_viewport().set_input_as_handled()
@@ -85,6 +90,10 @@ func _process(delta: float) -> void:
 		_set_aiming(false)
 		return
 	_sway_s += delta
+	_windup_s += delta
+	if not _wound and _windup_s >= WINDUP_SECONDS:
+		_wound = true
+		_set_pace(0.0)
 	_velocity = aim_velocity()
 	var body := get_parent() as Node3D
 	if body != null and body.has_method(&"face_work_target"):
@@ -108,12 +117,16 @@ func throw_now() -> bool:
 	_throwing = true
 	var velocity: Vector3 = aim_velocity()
 	var aim_point: Vector3 = _aim_point if _aiming else _release_point() + velocity
+	var wait_s: float = RELEASE_SECONDS
+	if _aiming:
+		## The arm is winding up or held up and back: the clip runs on from there into the whip.
+		_set_pace(1.0)
+		wait_s = maxf(RELEASE_SECONDS - minf(_windup_s, WINDUP_SECONDS), 0.0)
+	else:
+		_play_throw()
 	_set_aiming(false)
-	var body: Node = get_parent()
-	if body.has_method(&"play_action_animation"):
-		body.call(&"play_action_animation", THROW_CLIP)
 	if is_inside_tree():
-		await get_tree().create_timer(RELEASE_SECONDS).timeout
+		await get_tree().create_timer(wait_s).timeout
 	## The hand is elsewhere at the release than while aiming: solve again from it to the same point.
 	var from: Vector3 = _release_point()
 	velocity = launch_direction(from, aim_point, speed, GRAVITY) * speed
@@ -161,9 +174,37 @@ func _set_aiming(on: bool) -> void:
 	if _aiming == on:
 		return
 	_aiming = on
+	if on:
+		_windup_s = 0.0
+		_wound = false
+		_play_throw()
 	_arc.visible = on
 	_marker.visible = on
 	aim_changed.emit(on)
+
+
+func _play_throw() -> void:
+	var body: Node = get_parent()
+	if body.has_method(&"play_action_animation"):
+		body.call(&"play_action_animation", THROW_CLIP)
+
+
+## RMB let go without a throw: the held wind-up eases back down.
+func _lower_arm() -> void:
+	var visual := _visual()
+	if visual != null:
+		visual.set_action_pace(1.0)
+		visual.abort_action()
+
+
+func _set_pace(scale: float) -> void:
+	var visual := _visual()
+	if visual != null:
+		visual.set_action_pace(scale)
+
+
+func _visual() -> HenryUALAnimation:
+	return get_parent().get_node_or_null(^"HenryUALVisual") as HenryUALAnimation
 
 
 func _release_point() -> Vector3:

@@ -1,6 +1,12 @@
-[gd_resource type="Resource" script_class="ItemResource" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ItemResource" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://core/items/item_resource.gd" id="item"]
+[ext_resource type="Script" path="res://core/items/held_fit.gd" id="held_fit"]
+
+[sub_resource type="Resource" id="HeldFit_stone"]
+script = ExtResource("held_fit")
+hand = 1
+offset = Vector3(0, 0.03, 0.035)
 
 [resource]
 script = ExtResource("item")
@@ -10,3 +16,4 @@ weight = 0.35
 max_stack = 4
 size_class = 0
 throw_speed_mps = 15.0
+held_fit = SubResource("HeldFit_stone")

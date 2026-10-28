@@ -33,6 +33,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     LMB while aiming throws on UAL2 `OverhandThrow`, released at 0.29 s (traced on Henry in game: the whip
     forward starts at 0.28 s), with 0.8 degrees of jitter. LMB without aiming still eats the handful.
     At the release the throw is solved again from the real hand position to where the arc landed.
+    Owner review: snow and stones sit in the right hand (`HeldFit.hand = RIGHT`), the hand that throws, so the arc
+    starts at the snowball. Holding RMB plays the throw to its wind-up (0.24 s, hand up and back) and holds it there
+    (`HenryUALAnimation.set_action_pace`); LMB lets the clip run on into the release, and letting go of RMB lowers
+    the arm. A scoop leaves a hand-sized hollow in the snow (a body on the snow contact layer presses the field).
   - **Launch:** `ThrowComponent.launch_direction` solves the low arc to the camera's aim point, and lobs at
     45 degrees when the point is out of reach.
   - **In flight:** `ThrownItem` strikes its first contact through the new `ThrowImpactCapability` (`core/contracts`).

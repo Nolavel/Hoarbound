@@ -1,7 +1,13 @@
-[gd_resource type="Resource" script_class="ItemResource" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="ItemResource" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://core/items/item_resource.gd" id="item"]
 [ext_resource type="Script" path="res://core/items/consumable_data.gd" id="consumable"]
+[ext_resource type="Script" path="res://core/items/held_fit.gd" id="held_fit"]
+
+[sub_resource type="Resource" id="HeldFit_snow_handful"]
+script = ExtResource("held_fit")
+hand = 1
+offset = Vector3(0, 0.035, 0.035)
 
 [sub_resource type="Resource" id="C_snow_handful"]
 script = ExtResource("consumable")
@@ -21,3 +27,4 @@ size_class = 0
 warms_into = &"warm_water"
 throw_speed_mps = 13.0
 consumable = SubResource("C_snow_handful")
+held_fit = SubResource("HeldFit_snow_handful")

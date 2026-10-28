@@ -578,6 +578,12 @@ func get_action_length(action: StringName) -> float:
 	return clip.length if clip != null else 0.0
 
 
+## Pace of the playing action; 0 holds it on its current frame (a throw held at the wind-up).
+func set_action_pace(scale: float) -> void:
+	if animation_tree != null:
+		animation_tree.set("parameters/action_pace/scale", maxf(scale, 0.0))
+
+
 func abort_action() -> void:
 	if animation_tree != null:
 		animation_tree.set("parameters/actions/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FADE_OUT)
