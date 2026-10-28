@@ -29,8 +29,9 @@ const float HFN_SHADOW_BRUSH_CONTRAST = 1.4;
 const float HFN_SHADOW_CUT_LOW = 0.34;
 const float HFN_SHADOW_CUT_HIGH = 0.66;
 const float HFN_SHADOW_MID_TONE = 0.45;
-// Indoors: light left in the shadow core, as a pigment, and how far the edge field moves the penumbra.
-const vec3 HFN_SHADOW_PIGMENT = vec3(0.19, 0.29, 0.36);
+// Indoors: the cool pigment the shaded tones take (Codex lab colour, brightest channel 1), and
+// how far the edge field moves the penumbra.
+const vec3 HFN_SHADOW_PIGMENT = vec3(0.53, 0.81, 1.0);
 const float HFN_SHADOW_EDGE_COARSE = 0.15;
 const float HFN_SHADOW_EDGE_STROKE = 0.04;
 
@@ -164,10 +165,11 @@ float hfn_local_falloff(float distance, float inv_range, float decay) {
 }
 
 
-// The cool pigment mass: the shaded part of a tone turns into the pigment colour.
+// The cool pigment mass: the shaded part of a tone cools towards the pigment. It only ever
+// removes light: lifting the core leaked the stove through walls and the sun through roofs.
 vec3 hfn_shadow_pigment(float tone) {
 	float shade = 1.0 - smoothstep(0.18, 0.82, tone);
-	return mix(vec3(tone), HFN_SHADOW_PIGMENT, shade);
+	return mix(vec3(tone), tone * HFN_SHADOW_PIGMENT, shade);
 }
 
 
