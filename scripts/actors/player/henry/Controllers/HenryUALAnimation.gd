@@ -584,6 +584,14 @@ func set_action_pace(scale: float) -> void:
 		animation_tree.set("parameters/action_pace/scale", maxf(scale, 0.0))
 
 
+## Holds the playing action on the frame at seconds, whatever the frame rate (a throw's wind-up).
+func hold_action_at(seconds: float) -> void:
+	if animation_tree == null:
+		return
+	animation_tree.set("parameters/action_pace/scale", 0.0)
+	animation_tree.set("parameters/action_seek/seek_request", seconds)
+
+
 func abort_action() -> void:
 	if animation_tree != null:
 		animation_tree.set("parameters/actions/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FADE_OUT)
@@ -1280,10 +1288,12 @@ func _setup_animation_tree() -> void:
 	tree_root.connect_node(&"hold_pose", 0, &"base")
 	tree_root.connect_node(&"hold_pose", 1, &"hold_clip")
 	tree_root.add_node(&"action_clip", _action_node, Vector2(-360.0, 220.0))
+	tree_root.add_node(&"action_seek", AnimationNodeTimeSeek.new(), Vector2(-290.0, 220.0))
 	tree_root.add_node(&"action_pace", AnimationNodeTimeScale.new(), Vector2(-220.0, 220.0))
 	tree_root.add_node(&"actions", actions, Vector2(-80.0, 0.0))
 	tree_root.connect_node(&"actions", 0, &"hold_pose")
-	tree_root.connect_node(&"action_pace", 0, &"action_clip")
+	tree_root.connect_node(&"action_seek", 0, &"action_clip")
+	tree_root.connect_node(&"action_pace", 0, &"action_seek")
 	tree_root.connect_node(&"actions", 1, &"action_pace")
 	_work_clip = _clip(_resolved_idle)
 	tree_root.add_node(&"work_clip", _work_clip, Vector2(-560.0, 440.0))

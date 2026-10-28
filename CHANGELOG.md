@@ -37,6 +37,17 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     starts at the snowball. Holding RMB plays the throw to its wind-up (0.24 s, hand up and back) and holds it there
     (`HenryUALAnimation.set_action_pace`); LMB lets the clip run on into the release, and letting go of RMB lowers
     the arm. A scoop leaves a hand-sized hollow in the snow (a body on the snow contact layer presses the field).
+    Second review:
+    - **Wind-up height:** the wind-up is held on its exact frame through a `TimeSeek` in the action
+      subtree (`hold_action_at`). The real-time timer had stopped it early at lower frame rates, with the arm low.
+    - **Stance:** aiming turns Henry 60 degrees side-on, left shoulder leading, and the throw swings him back square
+      to the target.
+    - **Spring aim:** the aim point trails the camera's on a 3 Hz spring that overshoots a touch.
+    - **Camera push-in:** the camera closes in over the shoulder to 0.68 of its boom on a 2.4 Hz spring, read
+      through the new `AimIntentCapability`.
+- TPS camera no longer sinks into the snow. The snow is not collision, so the boom sweep stopped only at the
+  ground and the lens could end up under the snow top when looking up from deep snow. The lens now stays at least
+  `snow_clearance_m` (0.25 m) above `SnowField.get_snow_top` under it.
   - **Launch:** `ThrowComponent.launch_direction` solves the low arc to the camera's aim point, and lobs at
     45 degrees when the point is out of reach.
   - **In flight:** `ThrownItem` strikes its first contact through the new `ThrowImpactCapability` (`core/contracts`).

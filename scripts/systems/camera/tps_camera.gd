@@ -182,6 +182,13 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## How far the camera body climbs the orbit at full lift, and how far the view tilts down
 ## with it: less, so Henry sits low in the frame and the room ahead stays in view.
 @export_range(0.0, 85.0, 1.0) var shoulder_lift_pitch_deg: float = 70.0
+## Drawn into an aim (AimIntentCapability), the boom shortens to this share, on a spring of this
+## frequency (Hz) and damping (under 1 overshoots a touch, so the push-in lands softly).
+@export_range(0.4, 1.0, 0.05) var aim_boom_scale: float = 0.68
+@export_range(0.5, 6.0, 0.1) var aim_spring_hz: float = 2.4
+@export_range(0.2, 1.0, 0.05) var aim_spring_damping: float = 0.55
+## The camera never sinks closer than this above the settled snow top under it, metres.
+@export_range(0.05, 1.0, 0.05) var snow_clearance_m: float = 0.25
 @export_range(0.0, 60.0, 1.0) var shoulder_lift_view_deg: float = 35.0
 ## Extra pivot height at full lift, capped by the ceiling, metres.
 @export var shoulder_lift_rise: float = 0.3
@@ -256,6 +263,8 @@ var _fov_offset: float = 0.0
 ## Last rig inputs, for the body guard's prediction: pivot, orbit pitch lift (degrees).
 var _last_pivot: Vector3 = Vector3.ZERO
 var _last_lift_pitch: float = 0.0
+var _aim: float = 0.0
+var _aim_speed: float = 0.0
 ## Lateral shoulder offset asked for this frame, before walls (for traces).
 var _last_side: float = 0.0
 ## The rig's behaviours, run in this order on one frame (#240 stage 2).
@@ -525,7 +534,8 @@ func _update_rig(delta: float) -> void:
 	## The view is where the player looks; the orbit is where the camera body may stand.
 	frame.view_yaw = get_view_yaw()
 	frame.view_pitch = get_view_pitch_deg()
-	frame.want = (_boom + _rig_follow.get_pullback()) * _look_up_scale(frame.view_pitch)
+	_update_aim(delta)
+	frame.want = (_boom + _rig_follow.get_pullback()) * _look_up_scale(frame.view_pitch) * lerpf(1.0, aim_boom_scale, _aim)
 	var roominess: float = clampf(inverse_lerp(near_distance, far_distance, _boom), 0.0, 1.0)
 	var shoulder_now: float = _shoulder.update(delta)
 	shoulder_now *= _rig_swap.update(frame, shoulder_now)
@@ -553,6 +563,7 @@ func _update_rig(delta: float) -> void:
 	_rig_lift.keep_eyes(frame)
 	frame.view = Basis.from_euler(Vector3(deg_to_rad(frame.view_pitch + _sway_deg), frame.view_yaw, 0.0))
 	_rig_work.apply(frame)
+	frame.camera.y = maxf(frame.camera.y, snow_floor(frame.camera))
 	global_position = frame.camera
 	global_basis = frame.view
 	_last_eye_distance = frame.camera.distance_to(get_eye_position())
@@ -663,6 +674,23 @@ func half_tangents() -> Vector2:
 
 
 ## Sets how much FOV this camera adds over the base, capped at max_fov_deg.
+## Lowest the camera may stand at point: the settled snow top plus clearance. The snow is not
+## collision, so the boom's own sweep cannot keep the lens out of it.
+func snow_floor(point: Vector3) -> float:
+	var shell: SnowShell = SnowShell.active
+	if not is_instance_valid(shell):
+		return -INF
+	return shell.field.get_snow_top(point.x, point.z) + snow_clearance_m
+
+
+## Springs the aim push-in toward the player's aim weight.
+func _update_aim(delta: float) -> void:
+	var omega: float = TAU * aim_spring_hz
+	var pull: float = AimIntentCapability.weight(player) - _aim
+	_aim_speed += (omega * omega * pull - 2.0 * aim_spring_damping * omega * _aim_speed) * delta
+	_aim += _aim_speed * delta
+
+
 func _apply_fov_offset(offset: float) -> void:
 	var base: float = fov - _fov_offset
 	offset = clampf(offset, 0.0, maxf(max_fov_deg - base, 0.0))
