@@ -48,8 +48,6 @@ var _iron: StandardMaterial3D
 var _embers: StandardMaterial3D
 var _logs: Array[Node3D] = []
 var _glow: OmniLight3D
-## The stove whose room light is the published shadow key light (one at a time).
-static var _key_owner: StoveVisual
 var _flicker_t: float = 0.0
 var _flicker_noise: FastNoiseLite
 var _shown_t: float = 0.0
@@ -192,9 +190,6 @@ func _apply_fire_presentation(slow: float, fast: float) -> void:
 		flame.scale.y = (0.86 + 0.08 * slow + 0.06 * fast) * flame_scale
 	if source != null and source.flame_light != null and source.flame_light.visible:
 		source.flame_light.light_energy = ROOM_LIGHT_ENERGY * (0.97 + 0.07 * slow + 0.03 * fast) * room
-		_publish_key_light(source.flame_light if room > 0.0 else null)
-	else:
-		_publish_key_light(null)
 
 
 func _process(delta: float) -> void:
@@ -208,29 +203,6 @@ func _process(delta: float) -> void:
 	_flicker_t += delta
 	_shown_t = move_toward(_shown_t, _fire_growth(), STRENGTH_FOLLOW_RATE * delta)
 	_apply_fire_presentation(_flicker(FLICKER_SLOW_HZ, 0.0), _flicker(FLICKER_FAST_HZ, 5000.0))
-
-
-## The room light is the shelter's key light: the indoor shadow look paints its shadow,
-## not its falloff (stylized_shadow.gdshaderinc). Null clears it if this stove set it.
-func _publish_key_light(light: Light3D) -> void:
-	if light == null:
-		if _key_owner == self:
-			_key_owner = null
-			RenderingServer.global_shader_parameter_set(&"stylized_shadow_key_light", Vector4.ZERO)
-		return
-	_key_owner = self
-	var at: Vector3 = light.global_position
-	var dir: Vector3 = -light.global_basis.z.normalized()
-	if light is SpotLight3D:
-		var spot := light as SpotLight3D
-		RenderingServer.global_shader_parameter_set(&"stylized_shadow_key_light", Vector4(at.x, at.y, at.z, spot.spot_range))
-		RenderingServer.global_shader_parameter_set(&"stylized_shadow_key_cone", Vector4(dir.x, dir.y, dir.z, cos(deg_to_rad(spot.spot_angle))))
-		RenderingServer.global_shader_parameter_set(&"stylized_shadow_key_falloff", Vector4(spot.spot_attenuation, spot.spot_angle_attenuation, 0.0, 0.0))
-	elif light is OmniLight3D:
-		var omni := light as OmniLight3D
-		RenderingServer.global_shader_parameter_set(&"stylized_shadow_key_light", Vector4(at.x, at.y, at.z, omni.omni_range))
-		RenderingServer.global_shader_parameter_set(&"stylized_shadow_key_cone", Vector4(0.0, 0.0, -1.0, -2.0))
-		RenderingServer.global_shader_parameter_set(&"stylized_shadow_key_falloff", Vector4(omni.omni_attenuation, 1.0, 0.0, 0.0))
 
 
 ## Perlin layer in -1..1; the raw noise rarely leaves +-0.6, so it is rescaled.
@@ -260,7 +232,6 @@ func _refresh() -> void:
 		_shown_t = 0.0
 		_glow.light_energy = 0.0
 		_embers.emission_energy_multiplier = 0.0
-		_publish_key_light(null)
 
 
 func _sync_log_slots(count: int) -> void:

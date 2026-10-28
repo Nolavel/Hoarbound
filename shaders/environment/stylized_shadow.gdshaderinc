@@ -6,14 +6,9 @@ global uniform float stylized_shadow_strength;
 // the value noise, 1 uses the mask.
 global uniform sampler2D stylized_shadow_brush_mask : filter_linear_mipmap, repeat_enable;
 global uniform float stylized_shadow_brush_mix;
-// Shelter look (ShelterGradeBinder): 1 indoors cuts the stove's light pool into the torn
+// Shelter look (ShelterGradeBinder): 1 indoors cuts local light pools (the stove) into the torn
 // three tones with dry-brush edges (the owner's earlier build) and pushes the penumbra about.
 global uniform float stylized_shadow_interior_mode;
-// The shelter's key local light (the stove, StoveVisual): position + range, spot direction +
-// cos(angle) (w < -1 for an omni), decay + cone exponent. Range 0 = none.
-global uniform vec4 stylized_shadow_key_light;
-global uniform vec4 stylized_shadow_key_cone;
-global uniform vec4 stylized_shadow_key_falloff;
 
 // Lookup offset: amplitude in metres and base frequency in cycles per metre.
 const float HFN_SHADOW_OFFSET_M = 0.18;
@@ -35,7 +30,6 @@ const float HFN_SHADOW_EDGE_STROKE = 0.04;
 
 varying float hfn_shadow_spray;
 varying float hfn_shadow_edge;
-varying vec3 hfn_light_world;
 
 
 // PCG3D integer hash (Jarzynski & Olano 2020, "Hash Functions for GPU Rendering").
@@ -117,7 +111,7 @@ vec4 hfn_shadow_prepare(vec3 noise_pos, vec3 view_normal, mat4 inv_view, mat4 vi
 }
 
 
-#define HFN_SHADOW_FRAGMENT_SCALED(noise_pos, offset_scale) vec4 hfn_prep = hfn_shadow_prepare(noise_pos, NORMAL, INV_VIEW_MATRIX, VIEW_MATRIX, offset_scale); LIGHT_VERTEX = VERTEX + hfn_prep.xyz; hfn_shadow_spray = hfn_prep.w; hfn_shadow_edge = hfn_shadow_edge_field(noise_pos); hfn_light_world = (INV_VIEW_MATRIX * vec4(LIGHT_VERTEX, 1.0)).xyz
+#define HFN_SHADOW_FRAGMENT_SCALED(noise_pos, offset_scale) vec4 hfn_prep = hfn_shadow_prepare(noise_pos, NORMAL, INV_VIEW_MATRIX, VIEW_MATRIX, offset_scale); LIGHT_VERTEX = VERTEX + hfn_prep.xyz; hfn_shadow_spray = hfn_prep.w; hfn_shadow_edge = hfn_shadow_edge_field(noise_pos)
 #define HFN_SHADOW_FRAGMENT(world_pos) HFN_SHADOW_FRAGMENT_SCALED(world_pos, 1.0)
 
 
@@ -150,51 +144,19 @@ float hfn_stylized_shadow(float attenuation, bool directional) {
 }
 
 
-// Godot's omni/spot falloff (scene_forward_clustered get_omni_attenuation) split in two: the
-// range window (1 near, 0 at the range) and the inverse-power magnitude.
-vec2 hfn_local_falloff(float distance, float inv_range, float decay) {
-	float nd = distance * inv_range;
-	nd *= nd;
-	nd *= nd;
-	nd = max(1.0 - nd, 0.0);
-	nd *= nd;
-	return vec2(nd, pow(max(distance, 0.0001), -decay));
-}
-
-
-// Diffuse light term as a colour. Outdoors the stylized directional shadow as before.
-// Indoors the shelter's key light (the stove) is cut into the three torn tones with brush edges
-// by how bright it reads, so its warm pool ends in hard, scratchy steps (the owner's earlier
-// build). light_world: LIGHT in world space.
-vec3 hfn_stylized_shadow_rgb(float attenuation, bool directional, vec3 light_world) {
+// Diffuse light term as a colour. Outdoors the stylized directional shadow as before; local
+// lights stay physical. Indoors a local light's pool (the stove) is cut into the three torn
+// tones with brush edges by how bright it reads (capped at 1), so the warm light ends in hard,
+// scratchy steps; brighter than 1, near the source, it stays physical.
+vec3 hfn_stylized_shadow_rgb(float attenuation, bool directional) {
 	if (directional) {
 		return vec3(hfn_stylized_shadow(attenuation, true));
 	}
 	float interior = clamp(stylized_shadow_interior_mode, 0.0, 1.0) * clamp(stylized_shadow_strength, 0.0, 1.0);
-	if (interior <= 0.0 || stylized_shadow_key_light.w <= 0.0) {
+	if (interior <= 0.0) {
 		return vec3(attenuation);
 	}
-	vec3 rel = stylized_shadow_key_light.xyz - hfn_light_world;
-	float distance = length(rel);
-	if (distance < 1e-4 || dot(rel / distance, normalize(light_world)) < 0.995) {
-		return vec3(attenuation);  // another local light
-	}
-	vec2 falloff = hfn_local_falloff(distance, 1.0 / stylized_shadow_key_light.w, stylized_shadow_key_falloff.x);
-	float cone = 1.0;
-	float cutoff = stylized_shadow_key_cone.w;
-	if (cutoff > -1.5) {
-		float scos = max(dot(-rel / distance, stylized_shadow_key_cone.xyz), cutoff);
-		float rim = max(0.0001, (1.0 - scos) / (1.0 - cutoff));
-		cone = 1.0 - pow(rim, stylized_shadow_key_falloff.y);
-	}
-	float shape = falloff.x * cone;
-	if (shape < 1e-3) {
-		return vec3(attenuation);  // past the cone and range, where the split is unstable
-	}
-	// The pool is the light as it reads (magnitude capped at 1 m), so its tone steps land in
-	// the room (~2.3 m and ~6 m for the stove) and flat bands replace the smooth fade.
-	float shadow = clamp(attenuation / (shape * falloff.y), 0.0, 1.0);
-	float pool = shadow * shape * min(falloff.y, 1.0);
+	float pool = clamp(attenuation, 0.0, 1.0);
 	float tone = hfn_stylized_shadow(pool, true);
-	return vec3(mix(attenuation, tone * max(falloff.y, 1.0), interior));
+	return vec3(mix(attenuation, tone * max(attenuation, 1.0), interior));
 }
