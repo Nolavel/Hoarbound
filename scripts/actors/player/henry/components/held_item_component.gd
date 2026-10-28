@@ -238,7 +238,7 @@ func _show_hint(message: String = "") -> void:
 	if item.water_capacity_ml > 0:
 		action = tr("CONSUME_REFUSED_EMPTY_FLASK") if item.water_remaining_ml == 0 else "LMB · " + tr("FLASK_DRINK_ACTION")
 	elif item.opens_into != &"":
-		action = "LMB · " + tr("PINEAPPLE_OPEN_ACTION")
+		action = "LMB · " + tr(ConsumptionController.open_action_key(item))
 	elif item.consumable != null:
 		action = "LMB · " + tr("HAND_EAT_ACTION")
 	elif _item_id == &"axe":

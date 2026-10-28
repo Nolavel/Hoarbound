@@ -8,6 +8,12 @@ const MUG_FILL_RADIUS := 0.043
 ## Authored worn lighter: real scale, base at y = 0, burner nozzle above LIGHTER_NOZZLE.
 const LIGHTER_SCENE: PackedScene = preload("res://assets/items/lighter/Lighter_game_ready.glb")
 const LIGHTER_NOZZLE := Vector3(-0.0066, 0.0778, 0.0)
+## Authored SPoV canned meat (tools/blender/build_spov_can.py): 10.4 x 6.1 x 7.1 cm, base at
+## y = 0, length along X, label front towards +Z, pull ring on the lid at the +X end.
+const SPOV_CAN_SCENE: PackedScene = preload("res://assets/items/spov_can/SPoV_Can.glb")
+## Recessed lid of the SPoV can: height above the base and inner size, metres.
+const SPOV_LID_Y := 0.068
+const SPOV_LID_SIZE := Vector2(0.092, 0.053)
 
 ## Shared readable props for world pickups and the meal table; no inventory state.
 static func make(item_id: StringName, item_override: ItemResource = null) -> Node3D:
@@ -114,6 +120,17 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 			_part(holder, fill, Vector3(0, 0.078 if snow else 0.066, 0), Color(0.92, 0.94, 0.96) if snow else Color(0.42, 0.50, 0.52))
 	elif item_id == &"lighter":
 		holder.add_child(LIGHTER_SCENE.instantiate())
+	elif item_id in [&"spov_can", &"spov_can_open"]:
+		var can: Node3D = SPOV_CAN_SCENE.instantiate()
+		holder.add_child(can)
+		if item_id == &"spov_can_open":
+			## Lid and ring peeled off: the meat block shows at the rim.
+			var ring := can.find_child("SPoV_Can_Ring", true, false) as Node3D
+			if ring != null:
+				ring.visible = false
+			var meat := BoxMesh.new()
+			meat.size = Vector3(SPOV_LID_SIZE.x, 0.004, SPOV_LID_SIZE.y)
+			_part(holder, meat, Vector3(0, SPOV_LID_Y + 0.002, 0), Color(0.90, 0.46, 0.46))
 	else:
 		var parcel := BoxMesh.new()
 		parcel.size = Vector3(0.12, 0.065, 0.085)

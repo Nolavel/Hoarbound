@@ -46,5 +46,5 @@ func _get_interaction_text() -> String:
 		if item.water_capacity_ml > 0:
 			return "[%s] %s" % [_interact_key_label(), tr("FLASK_DRINK_ACTION")]
 		if item.opens_into != &"":
-			return "[%s] %s" % [_interact_key_label(), tr("PINEAPPLE_OPEN_ACTION")]
+			return "[%s] %s" % [_interact_key_label(), tr(ConsumptionController.open_action_key(item))]
 	return "[%s] %s" % [_interact_key_label(), item_name]

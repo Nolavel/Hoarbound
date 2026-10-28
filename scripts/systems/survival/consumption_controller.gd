@@ -112,6 +112,13 @@ func consume_from_world(item_id: StringName) -> Refusal:
 	return Refusal.NONE
 
 
+## Localisation key for opening a tin: with its tool when it needs one, else by its ring.
+static func open_action_key(item: ItemResource) -> String:
+	if item.consumable != null and item.consumable.required_tool_id != &"":
+		return "PINEAPPLE_OPEN_ACTION"
+	return "CAN_RING_OPEN_ACTION"
+
+
 ## Names a refusal as a localisation key, never as a hardcoded sentence.
 static func describe_refusal(refusal: Refusal) -> String:
 	match refusal:

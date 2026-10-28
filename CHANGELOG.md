@@ -8,6 +8,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- SPoV canned meat (owner's artist asset, `assets/source/spov_canned_meat/CanModel.rar`). `tools/blender/build_spov_can.py`
+  builds `assets/items/spov_can/SPoV_Can.glb`: 10.4 x 6.1 x 7.1 cm (a 340 g luncheon-meat tin, the artist's proportions
+  kept), 356 + 240 tris. The 40 lid-seam edges shared by three faces are split, and the pull ring is laid flat on the
+  recessed lid at one end. The painted label is matte paper: the source Metallic map marked the whole surface metal,
+  so the label is masked out of it. Items `spov_can` → `spov_can_open` → `empty_tin` follow the pineapple contract,
+  with no tool needed: the first Use pulls the ring, the next eats 1,070 kcal (340 g x 3.15 kcal/g). The open can hides
+  the ring and shows the meat. No ring-pull animation yet; opening plays the existing `fix` action. One can lies on the
+  bottom shelf of the 727 waiting-room cabinet, label to the door. The open-tin hint now names the ring or the knife
+  (`ConsumptionController.open_action_key`). Test: `tests/systems/test_spov_can.gd`. Capture:
+  `tools/runtime/capture_spov_can.gd`.
 - Held lighter flame on RMB (`present_held`). While RMB is held, Henry raises the lighter before his chest
   (a second `StoveHandReach`, `PresentReach`, palm turned in), and after 0.3 s the flint wheel rolls and the flame lights.
   The lighter stands upright in the fist while raised; on release its authored HeldFit returns. The flame burns while RMB

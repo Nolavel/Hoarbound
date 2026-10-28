@@ -16497,6 +16497,17 @@ shape = SubResource("SphereShape3D_shelter_77e791ac")
 
 [node name="InfoLabel" type="Label3D" parent="GlovesShelter" unique_id=1742236844]
 
+[node name="SPoVCanShelter" type="Area3D" parent="." unique_id=107803675]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1132.7677, 7.106763, -653.8386)
+script = ExtResource("16_yryj5")
+item_id = &"spov_can"
+world_id = &"spov_can_shelter"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SPoVCanShelter" unique_id=524593668]
+shape = SubResource("SphereShape3D_shelter_77e791ac")
+
+[node name="InfoLabel" type="Label3D" parent="SPoVCanShelter" unique_id=750803665]
+
 [node name="Sprite3D" type="Sprite3D" parent="LighterShelterTest" unique_id=1613788754]
 transform = Transform3D(0.75, 0, 0, 0, 0.75, 0, 0, 0, 0.75, 0, 0, 0)
 texture = ExtResource("2_14ntb")

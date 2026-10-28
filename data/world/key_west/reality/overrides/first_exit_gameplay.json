@@ -343,6 +343,16 @@
   "yaw_deg": 90,
   "on": "Cabinet"
  },
+ "SPoVCanShelter": {
+  "room": "waiting",
+  "uv": [
+   2.85,
+   8.78
+  ],
+  "h": 0.0,
+  "yaw_deg": -84,
+  "on": "Cabinet"
+ },
  "BedrollShelterTest": {
    "room": "office",
    "uv": [
