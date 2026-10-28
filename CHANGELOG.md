@@ -8,6 +8,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Snow by hand (#257, stage 1).
+  - **F on open snow** with nothing else in focus: Henry stoops (`pickup_right_low`). A held empty mug fills with snow
+    in hand, and a free hand takes a handful of snow (`snow_handful`, now actually produced in play).
+  - **Refused** indoors or where less than 3 cm of settled snow lies underfoot (`SnowField.get_depth`).
+  - **Signal:** `InteractComponent.interact_unclaimed` hands the unclaimed F to ground actions.
+  - **Visuals:** the mug shows a heap of snow above the rim, and the handful is a lumpy snow clump instead of the
+    placeholder parcel.
+  - Item Use on a packed mug still scoops as before. Test: `test_snow_scoop`. Capture: `tools/runtime/capture_snow_scoop.gd`.
 - 727 chimney and roof smoke (#252).
   - **Root cause of the break:** the stove's flue had a fixed length (`FLUE_H` 1.7 m) and stopped at 3.08 m under the
     3.66 m ceiling. The roof stack stood over the stove's centre, not over the flue, and was twice as thick.

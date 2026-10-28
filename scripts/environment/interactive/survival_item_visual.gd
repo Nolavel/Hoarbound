@@ -5,6 +5,7 @@ extends RefCounted
 ## Authored Key West mug: real scale, base at y = 0, handle towards +X (13 x 8.7 x 10 cm).
 const MUG_SCENE: PackedScene = preload("res://assets/items/mug/Mug_game_ready.glb")
 const MUG_FILL_RADIUS := 0.043
+const SNOW_COLOUR := Color(0.92, 0.94, 0.97)
 ## Authored worn lighter: real scale, base at y = 0, burner nozzle above LIGHTER_NOZZLE.
 const LIGHTER_SCENE: PackedScene = preload("res://assets/items/lighter/Lighter_game_ready.glb")
 const LIGHTER_NOZZLE := Vector3(-0.0066, 0.0778, 0.0)
@@ -118,6 +119,19 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 			fill.height = 0.004
 			var snow: bool = item_id == &"mug_snow"
 			_part(holder, fill, Vector3(0, 0.078 if snow else 0.066, 0), Color(0.92, 0.94, 0.96) if snow else Color(0.42, 0.50, 0.52))
+			if snow:
+				## Scooped snow heaps above the rim.
+				var heap := SphereMesh.new()
+				heap.radius = MUG_FILL_RADIUS
+				heap.height = 0.05
+				_part(holder, heap, Vector3(0, 0.08, 0), SNOW_COLOUR)
+	elif item_id == &"snow_handful":
+		## A packed handful: a few overlapping lumps, not a perfect ball.
+		for lump: Vector4 in [Vector4(0, 0.035, 0, 0.034), Vector4(0.014, 0.044, 0.008, 0.024), Vector4(-0.012, 0.03, -0.01, 0.026)]:
+			var ball := SphereMesh.new()
+			ball.radius = lump.w
+			ball.height = lump.w * 1.8
+			_part(holder, ball, Vector3(lump.x, lump.y, lump.z), SNOW_COLOUR)
 	elif item_id == &"lighter":
 		holder.add_child(LIGHTER_SCENE.instantiate())
 	elif item_id in [&"spov_can", &"spov_can_open", &"spov_can_empty"]:
