@@ -63,6 +63,9 @@ var _droop: float = 0.0
 var _droop_speed: float = 0.0
 var _fill: float = 0.0
 var _fill_speed: float = 0.0
+var _open_deg: float = 0.0
+## Fill from the carried weight (0..1) when the pack is worn; below 0 the slotted items decide.
+var load_fill: float = -1.0
 
 
 func _ready() -> void:
@@ -125,10 +128,16 @@ func is_open() -> bool:
 
 
 func set_open(open: bool) -> void:
-	if _open == open:
-		return
-	_open = open
-	opened_changed.emit(open)
+	set_open_degrees(OPEN_DEG if open else 0.0)
+
+
+## Opens the front panel to degrees (0 closed, OPEN_DEG folded down); it swings there on its spring.
+func set_open_degrees(degrees: float) -> void:
+	_open_deg = clampf(degrees, 0.0, OPEN_DEG)
+	var open: bool = _open_deg > 0.0
+	if open != _open:
+		_open = open
+		opened_changed.emit(open)
 
 
 ## Puts item_id in the named slot (see SLOTS); its proxy shapes the canvas. False if taken.
@@ -162,6 +171,8 @@ func clear_items() -> void:
 
 ## Share of the main body the contents fill, 0..1 (the target the canvas springs toward).
 func get_fill_target() -> float:
+	if load_fill >= 0.0:
+		return clampf(load_fill, 0.0, 1.0)
 	var litres: float = 0.0
 	for item: Dictionary in _items:
 		var size: Vector3 = (item["box"] as AABB).size
@@ -170,7 +181,7 @@ func get_fill_target() -> float:
 
 
 func _process(delta: float) -> void:
-	var swing_target: float = deg_to_rad(OPEN_DEG) if _open else 0.0
+	var swing_target: float = deg_to_rad(_open_deg)
 	var omega: float = TAU * SWING_HZ
 	_swing_speed += (omega * omega * (swing_target - _swing) - 2.0 * SWING_DAMPING * omega * _swing_speed) * delta
 	_swing += _swing_speed * delta

@@ -18,7 +18,11 @@ const BOTTOM_SHARE: float = 0.2
 const FLAP_THICKNESS: float = 0.02
 ## Set down by the stove: in use, not spilled — top and sides lifted a little.
 const AJAR_TOP_DEG: float = 40.0
+const MAX_SWAY_DEG: float = 9.0
 const AJAR_SIDE_DEG: float = 28.0
+## The canvas pack's front panel for the quick stow and for set down by the stove, degrees.
+const TOP_ONLY_PANEL_DEG: float = 42.0
+const AJAR_PANEL_DEG: float = 24.0
 
 @export var size: Vector3 = Vector3(0.34, 0.44, 0.2)
 @export var color: Color = Color(0.36, 0.33, 0.28)
@@ -26,6 +30,16 @@ const AJAR_SIDE_DEG: float = 28.0
 ## Seconds for the full book opening; the top-only opening takes half.
 @export var open_time: float = 0.6
 @export_flags_3d_render var render_layers: int = 1
+## Draw the canvas backpack (#260) instead of the four-flap tray; the flaps still keep the state.
+@export var use_canvas_model: bool = true
+## The worn pack sways from the top of its straps: spring frequency empty and full (Hz), damping,
+## and degrees of swing per m/s^2 of Henry's acceleration, at most MAX_SWAY_DEG.
+@export var sway_hz_empty: float = 3.2
+@export var sway_hz_full: float = 2.2
+@export_range(0.1, 1.0, 0.05) var sway_damping: float = 0.32
+@export var sway_deg_per_mps2: float = 1.6
+## Carried weight that fills the pack, kg.
+@export var full_load_kg: float = 14.0
 
 var _state: Openness = Openness.CLOSED
 var _top: Node3D
@@ -34,6 +48,14 @@ var _left: Node3D
 var _right: Node3D
 var _field: Node3D
 var _tween: Tween
+var _canvas: BackpackModel
+var _sway: Node3D
+var _sway_angle: Vector2 = Vector2.ZERO
+var _sway_speed: Vector2 = Vector2.ZERO
+var _last_position: Vector3 = Vector3.ZERO
+var _last_velocity: Vector3 = Vector3.ZERO
+var _has_last: bool = false
+var _inventory: InventoryComponent
 
 
 func _init() -> void:
@@ -68,6 +90,8 @@ func build() -> void:
 	_box("Panel", Vector3(half_w, mid_h, FLAP_THICKNESS), Vector3(half_w * 0.5, 0.0, 0.0), material, _left)
 	_right = _hinge("RightFlap", Vector3(half_w, mid_y, flap_z))
 	_box("Panel", Vector3(half_w, mid_h, FLAP_THICKNESS), Vector3(-half_w * 0.5, 0.0, 0.0), material, _right)
+	if use_canvas_model:
+		_build_canvas()
 
 
 func get_openness() -> Openness:
@@ -116,6 +140,9 @@ func set_openness(state: Openness, instant: bool = false) -> void:
 			## The top leads; sides and bottom follow so the pack reads as unfolding.
 			var delay: float = 0.0 if flap == _top else time * 0.25
 			_tween.tween_property(flap, ^"rotation", targets[flap], time * 0.75).set_delay(delay)
+	if _canvas != null:
+		var degrees: Dictionary = {Openness.CLOSED: 0.0, Openness.AJAR: AJAR_PANEL_DEG, Openness.TOP_ONLY: TOP_ONLY_PANEL_DEG, Openness.FULL: BackpackModel.OPEN_DEG}
+		_canvas.set_open_degrees(degrees[state])
 	openness_changed.emit(state)
 
 
@@ -132,6 +159,62 @@ func get_flap_open(flap_name: StringName) -> float:
 		&"right":
 			return -_right.rotation.y / deg_to_rad(SIDE_OPEN_DEG)
 	return 0.0
+
+
+## The canvas pack in place of the tray: hung from a sway pivot at the top of its back, scaled to
+## size, its front facing away from Henry. The tray, flaps and field stay as hidden state.
+func _build_canvas() -> void:
+	for child: Node in get_children():
+		if child is Node3D and child.name != "Inspect":
+			for mesh: Node in [child] + child.find_children("*", "MeshInstance3D", true, false):
+				if mesh is MeshInstance3D:
+					(mesh as MeshInstance3D).visible = false
+	_sway = Node3D.new()
+	_sway.name = "Sway"
+	_sway.position = Vector3(0.0, size.y * 0.5, size.z * 0.5)
+	add_child(_sway)
+	_canvas = BackpackModel.new()
+	_canvas.name = "Canvas"
+	var fit := Vector3(size.x / BackpackModel.BODY.x, size.y / BackpackModel.BODY.y, size.z / BackpackModel.BODY.z)
+	## Model space: origin at the bottom of the back face, +Z out; here -Z is away from Henry.
+	_canvas.transform = Transform3D(Basis(Vector3.UP, PI).scaled(fit), Vector3(0.0, -size.y, 0.0))
+	_sway.add_child(_canvas)
+	_canvas.build()
+	for mesh: Node in _canvas.find_children("*", "MeshInstance3D", true, false):
+		(mesh as MeshInstance3D).layers = render_layers
+
+
+## Henry's acceleration swings the pack from its straps: a spring on pitch and roll that a fuller
+## pack answers more slowly. Fill comes from what Henry carries.
+func _process(delta: float) -> void:
+	if _canvas == null or delta <= 0.0 or not is_inside_tree():
+		return
+	if _inventory == null:
+		var walk: Node = get_parent()
+		while walk != null and not (walk is CharacterBody3D):
+			walk = walk.get_parent()
+		_inventory = InventoryComponent.find_in(walk) if walk != null else null
+	if _inventory != null:
+		_canvas.load_fill = clampf(_inventory.get_total_weight() / full_load_kg, 0.0, 1.0)
+	var at: Vector3 = get_parent_node_3d().global_position if get_parent_node_3d() != null else global_position
+	if not _has_last:
+		_last_position = at
+		_has_last = true
+		return
+	var velocity: Vector3 = (at - _last_position) / delta
+	var accel: Vector3 = (velocity - _last_velocity) / delta
+	_last_position = at
+	_last_velocity = velocity
+	## Teleports and frame hitches are not accelerations.
+	if accel.length() > 60.0:
+		accel = Vector3.ZERO
+	var local: Vector3 = global_basis.orthonormalized().inverse() * accel
+	var target := Vector2(local.z, -local.x) * deg_to_rad(sway_deg_per_mps2)
+	target = target.limit_length(deg_to_rad(MAX_SWAY_DEG))
+	var omega: float = TAU * lerpf(sway_hz_empty, sway_hz_full, _canvas.get_fill_target())
+	_sway_speed += (target - _sway_angle) * omega * omega * delta - _sway_speed * 2.0 * sway_damping * omega * delta
+	_sway_angle += _sway_speed * delta
+	_sway.rotation = Vector3(_sway_angle.x, 0.0, _sway_angle.y)
 
 
 ## A lighter board behind the flaps with a grid of strap loops.
