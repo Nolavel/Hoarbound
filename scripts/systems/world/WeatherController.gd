@@ -79,6 +79,8 @@ func initialize() -> void:
 		_gust_noise = FastNoiseLite.new()
 		_gust_noise.seed = gust_seed
 		_gust_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+		## Sampled at elapsed / gust_period_s, so one unit is one period; the default 0.01 made gusts 100x slower.
+		_gust_noise.frequency = 1.0
 	if _current != null or profiles.is_empty():
 		return
 	var initial: WeatherProfile = _find_profile(starting_profile_id)

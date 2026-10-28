@@ -8,6 +8,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- 727 chimney and roof smoke (#252).
+  - **Root cause of the break:** the stove's flue had a fixed length (`FLUE_H` 1.7 m) and stopped at 3.08 m under the
+    3.66 m ceiling. The roof stack stood over the stove's centre, not over the flue, and was twice as thick.
+  - **One continuous flue:** `StoveVisual.flue_length` and `flue_base()` let the shelter run the flue into the ceiling
+    (`interior.ceiling_y`). The roof stack continues it on the same axis and radius up to roof + 0.8 m, with a cap.
+  - **`ChimneySmoke` on the cap:**
+    - it smokes only while the `HeatSource` burns, and its density follows the fire's intensity;
+    - `chimney_smoke.gdshader` pulls every puff toward the air's velocity: the weather's wind with its gust, plus the plume's rise;
+    - a gust therefore bends the whole plume at once. Godot's built-in damping cannot do this: it slows a particle
+      by a constant amount instead of pulling it toward the air.
+  - The road flare reuses the same noise-edged puff texture (`ChimneySmoke.puff_texture`).
+  - Test: chimney checks in `test_key_west_727_shelter`. Capture: `tools/runtime/capture_chimney_smoke.gd`.
 - Weather profile `clear` (no wind, no snowfall) for tests and captures. It is `manual_only`: it is set only by
   `set_weather`, never drawn by the weather roll (`WeatherProfile.manual_only`, `_pick_weighted` skips it).
 - SPoV canned meat (owner's artist asset, `assets/source/spov_canned_meat/CanModel.rar`). `tools/blender/build_spov_can.py`
@@ -205,6 +217,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Wind gusts ran about 100x slower than their profiles say. `WeatherController` samples its gust noise at
+  elapsed / `gust_period_s`, but the noise kept FastNoiseLite's default frequency of 0.01. A 5 s gust period
+  therefore took about 8 minutes, and in a minute of "windy" the wind moved only 11.00 to 11.19 m/s. The noise
+  frequency is now 1, so one unit is one period: the same minute sweeps 8.86 to 13.09 m/s. This affects
+  everything that reads wind: chimney smoke, blowing snow, breach drafts and wind chill. Test: `test_weather_gusts`.
 - TPS camera steps in doorways (#240 stage 3 v2). The camera no longer flips to the other side of a door plane
   while the doorway holds the frame. A neighbouring door waits until the current one lets go, a hand-over's
   shoulder step is eased out, and a doorway may pull the shoulder at most 0.5 m off Henry. On the 727 route, real

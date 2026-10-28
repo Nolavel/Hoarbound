@@ -20,6 +20,8 @@ const SPAWN_BEFORE_RAMP_M: float = 2.0
 ## The landmark glass (frosted_glass.gdshader): its heated-room panes clear as the stove warms that room.
 const FROSTED_GLASS: ShaderMaterial = preload("res://assets/world/key_west/landmarks/frosted_glass_727.tres")
 const PIPE_ABOVE_ROOF_M: float = 0.8
+## The indoor flue ends this far into the ceiling, where the roof stack begins: no seam shows.
+const PIPE_INTO_CEILING_M: float = 0.05
 const BOX_COLOURS: Dictionary = {"counter": Color(0.62, 0.56, 0.48), "bench": Color(0.36, 0.40, 0.46),
 	"exam_table": Color(0.70, 0.74, 0.72), "desk": Color(0.55, 0.47, 0.38), "dental_chair": Color(0.42, 0.56, 0.60),
 	"cart": Color(0.66, 0.66, 0.68), "shelf": Color(0.50, 0.46, 0.40), "toilet": Color(0.90, 0.90, 0.88),
@@ -246,21 +248,38 @@ func _place_thermometer(item: Dictionary, yaw: Basis) -> void:
 
 
 func _add_stove_pipe(roof_top: float) -> void:
-	var stove: Node3D = _house.get_node(^"ShelterZone/Stove") as Node3D
-	## The hut stove brings its own flue up to the ceiling; this one carries on through the roof.
-	var base: float = float(interior["ceiling_y"])
+	var stove: HeatSource = _house.get_node(^"ShelterZone/Stove") as HeatSource
+	var visual: StoveVisual = stove.get_node(^"StoveVisual") as StoveVisual
+	## The stove's own flue runs up to the ceiling; this stack carries it on through the roof.
+	var outlet: Vector3 = (_house.get_node(^"ShelterZone") as Node3D).transform * stove.transform * visual.transform * StoveVisual.flue_base()
+	var ceiling: float = float(interior["ceiling_y"])
+	visual.flue_length = ceiling + PIPE_INTO_CEILING_M - outlet.y
 	var top: float = roof_top + PIPE_ABOVE_ROOF_M
+	var iron: Material = StylizedEnvironmentMaterial.make_static(Color(0.18, 0.17, 0.16), 0.6)
 	var pipe: MeshInstance3D = MeshInstance3D.new()
 	pipe.name = "StovePipe"
 	var cylinder: CylinderMesh = CylinderMesh.new()
-	cylinder.top_radius = 0.12
-	cylinder.bottom_radius = 0.12
-	cylinder.height = top - base
-	cylinder.material = StylizedEnvironmentMaterial.make_static(Color(0.18, 0.17, 0.16), 0.6)
+	cylinder.top_radius = StoveVisual.FLUE_RADIUS
+	cylinder.bottom_radius = StoveVisual.FLUE_RADIUS
+	cylinder.height = top - ceiling
+	cylinder.material = iron
 	pipe.mesh = cylinder
-	var at: Vector3 = (_house.get_node(^"ShelterZone") as Node3D).transform * stove.position
-	pipe.position = Vector3(at.x, (base + top) * 0.5, at.z)
+	pipe.position = Vector3(outlet.x, (ceiling + top) * 0.5, outlet.z)
 	_house.add_child(pipe)
+	var cap: MeshInstance3D = MeshInstance3D.new()
+	cap.name = "StovePipeCap"
+	var collar: CylinderMesh = CylinderMesh.new()
+	collar.top_radius = StoveVisual.FLUE_RADIUS + 0.02
+	collar.bottom_radius = StoveVisual.FLUE_RADIUS + 0.02
+	collar.height = 0.06
+	collar.material = iron
+	cap.mesh = collar
+	cap.position = Vector3(outlet.x, top - 0.03, outlet.z)
+	_house.add_child(cap)
+	var smoke := ChimneySmoke.new()
+	smoke.source = stove
+	smoke.position = Vector3(outlet.x, top, outlet.z)
+	_house.add_child(smoke)
 
 
 ## ShelterSpawnPoint: in front of the entry ramp, facing the door (World.spawn_at_shelter).
