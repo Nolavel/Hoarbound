@@ -56,6 +56,24 @@ func _run() -> void:
 	open.global_transform = can.global_transform.translated(can.global_basis.x * 0.0 + out * 0.0 + Vector3.UP * 0.0)
 	open.global_position = can.global_position + can.global_basis.x * -0.14
 	await _close_up("4_open_beside", label + out * 0.45 + Vector3.UP * 0.25 + can.global_basis.x * -0.07, label + can.global_basis.x * -0.07)
+	## Henry eats an open can in the room: the empty one is tossed on the floor in front of him.
+	var floor_at: Vector3 = can.global_position + out * 1.3
+	_player.global_position = floor_at
+	_player.velocity = Vector3.ZERO
+	_player.look_at(floor_at - out, Vector3.UP)
+	for _i: int in range(10):
+		await physics_frame
+	var inventory := _player.get_node(^"InventoryComponent") as InventoryComponent
+	inventory.try_add(ItemCatalog.get_item(&"spov_can_open"))
+	var eater := _player.get_node(^"ConsumptionController") as ConsumptionController
+	print("[spov] eat refusal=", eater.consume(&"spov_can_open"))
+	for _i: int in range(90):
+		await physics_frame
+	var litter := _world.get_tree().root.find_children("Discarded_*", "RigidBody3D", true, false)
+	if not litter.is_empty():
+		var tin: Vector3 = (litter[0] as Node3D).global_position
+		print("[spov] tossed can at ", tin, " floor ", floor_at.y, " asleep ", (litter[0] as RigidBody3D).sleeping)
+		await _close_up("5_tossed_empty", tin + out * 0.9 + Vector3.UP * 0.8, tin, 45.0)
 	print("[spov] done")
 	quit(0)
 

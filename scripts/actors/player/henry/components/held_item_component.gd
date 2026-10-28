@@ -121,7 +121,8 @@ func use_held() -> bool:
 	var refusal: ConsumptionController.Refusal = consumption.consume_from_zone(_source_zone) \
 		if _source_zone != &"" else consumption.consume(_item_id)
 	if refusal == ConsumptionController.Refusal.NONE:
-		var next: StringName = item.opens_into if item.opens_into != &"" else item.consumable.leaves_behind_id
+		var next: StringName = item.opens_into if item.opens_into != &"" else \
+			(&"" if item.consumable.discard_leftover else item.consumable.leaves_behind_id)
 		if item.opens_into != &"":
 			get_parent().call(&"play_action_animation", &"fix")
 		if next != &"":

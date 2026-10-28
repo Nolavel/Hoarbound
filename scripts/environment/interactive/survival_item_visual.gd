@@ -120,17 +120,18 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 			_part(holder, fill, Vector3(0, 0.078 if snow else 0.066, 0), Color(0.92, 0.94, 0.96) if snow else Color(0.42, 0.50, 0.52))
 	elif item_id == &"lighter":
 		holder.add_child(LIGHTER_SCENE.instantiate())
-	elif item_id in [&"spov_can", &"spov_can_open"]:
+	elif item_id in [&"spov_can", &"spov_can_open", &"spov_can_empty"]:
 		var can: Node3D = SPOV_CAN_SCENE.instantiate()
 		holder.add_child(can)
-		if item_id == &"spov_can_open":
-			## Lid and ring peeled off: the meat block shows at the rim.
+		if item_id != &"spov_can":
+			## Lid and ring peeled off: the meat block shows at the rim, or the dark empty inside.
 			var ring := can.find_child("SPoV_Can_Ring", true, false) as Node3D
 			if ring != null:
 				ring.visible = false
-			var meat := BoxMesh.new()
-			meat.size = Vector3(SPOV_LID_SIZE.x, 0.004, SPOV_LID_SIZE.y)
-			_part(holder, meat, Vector3(0, SPOV_LID_Y + 0.002, 0), Color(0.90, 0.46, 0.46))
+			var inside := BoxMesh.new()
+			inside.size = Vector3(SPOV_LID_SIZE.x, 0.004, SPOV_LID_SIZE.y)
+			var colour: Color = Color(0.90, 0.46, 0.46) if item_id == &"spov_can_open" else Color(0.07, 0.06, 0.05)
+			_part(holder, inside, Vector3(0, SPOV_LID_Y + 0.002, 0), colour)
 	else:
 		var parcel := BoxMesh.new()
 		parcel.size = Vector3(0.12, 0.065, 0.085)

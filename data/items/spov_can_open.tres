@@ -7,7 +7,8 @@
 script = ExtResource("consumable")
 calories = 1070.0
 hydration = 2.0
-leaves_behind_id = &"empty_tin"
+leaves_behind_id = &"spov_can_empty"
+discard_leftover = true
 
 [resource]
 script = ExtResource("item")
