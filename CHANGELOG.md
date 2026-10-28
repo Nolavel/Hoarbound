@@ -8,6 +8,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Backpack lab, stage 1 (#260): a front-loading pack without soft-body physics, not yet on Henry.
+  - **`BackpackModel`:** a canvas shell plus a front panel. Both are one rounded box split at the front edge, so
+    the closed panel meets the shell with no seam.
+  - **Opening:** the panel unzips and folds down 104 degrees on a bottom hinge, on a spring. Its free edge droops
+    under gravity and wobbles when it stops. A mesh pocket is drawn on its inside.
+  - **Slots:** a shelf and three lower columns in the main body, and a side pocket.
+  - **Fit:** `backpack_canvas.gdshader` pushes the canvas out round each item's box proxy, plus a lining, so a
+    flask bulges the side pocket. An emptier pack slumps: its top drops and its walls cave in.
+  - **Straps:** the straps, handle and buckles are baked in pack space and move with the canvas.
+  - Capture: `tools/runtime/capture_backpack_lab.gd` (two views of one run).
 - Snow that sticks and melts (#257, stage 4).
   - **Splats:** a snowball bursts into a puff and leaves a `SnowSplat` decal on what it hits. In the cold the
     splat stays (the 32 newest are kept). Inside a heated interior zone it slides down 12 cm and melts in 45 s.
