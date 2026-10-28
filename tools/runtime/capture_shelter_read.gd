@@ -37,6 +37,11 @@ func _run() -> void:
 		if ctx != null:
 			break
 	_player = ctx.player as Node3D
+	## The frame is the street alone: Henry stands at the camera, dev labels and the HUD are hidden.
+	for node: Node in [_player] + _world.find_children("*", "Label3D", true, false):
+		(node as Node3D).visible = false
+	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
+		(layer as CanvasLayer).visible = false
 	var door := _world.find_children("HouseDoor", "", true, false)[0] as Node3D
 	var out: Vector3 = door.global_basis.z
 	out.y = 0.0
