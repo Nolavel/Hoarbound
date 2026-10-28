@@ -228,3 +228,7 @@ STOVE_RING_HOLD,LMB · hold,ЛКМ · держать
 STOVE_SESSION_TITLE,STOVE,ПЕЧЬ
 WORK_SESSION_BACK,BACK,НАЗАД
 LIGHTER_FLAME_ACTION,Hold to light the flame,Удерживайте — зажечь пламя
+THROW_AIM_ACTION,Aim (LMB throws),Прицелиться (ЛКМ — бросок)
+Stone,Stone,Камень
+Handful of snow,Handful of snow,Пригоршня снега
+Mug of snow,Mug of snow,Кружка со снегом
