@@ -8,9 +8,9 @@ uniform float drag = 1.1; // 1/s: how fast a puff takes up the air's speed
 uniform float exit_speed = 1.3;
 uniform float spread_m = 0.06;
 uniform float size_start = 0.4;
-uniform float size_end = 3.2;
+uniform float size_end = 4.0;
 uniform float spin = 0.5;
-uniform float opacity = 0.65;
+uniform float opacity = 0.8;
 uniform vec3 tint = vec3(0.40, 0.40, 0.42); // wood smoke reads darker than an overcast sky
 
 uint hash(uint x) {
@@ -49,6 +49,6 @@ void process() {
 	TRANSFORM[0].xyz = vec3(size, 0.0, 0.0);
 	TRANSFORM[1].xyz = vec3(0.0, size, 0.0);
 	TRANSFORM[2].xyz = vec3(0.0, 0.0, size);
-	float alpha = smoothstep(0.0, 0.06, age) * (1.0 - smoothstep(0.35, 1.0, age));
+	float alpha = smoothstep(0.0, 0.06, age) * (1.0 - smoothstep(0.5, 1.0, age));
 	COLOR = vec4(tint, alpha * opacity);
 }

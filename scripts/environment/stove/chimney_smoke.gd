@@ -18,7 +18,7 @@ var _search_s: float = 0.0
 
 func _init() -> void:
 	name = "ChimneySmoke"
-	amount = 56
+	amount = 72
 	lifetime = 7.0
 	preprocess = 4.0
 	local_coords = false

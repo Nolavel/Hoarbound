@@ -217,6 +217,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Wind gusts ran about 100x slower than their profiles say. `WeatherController` samples its gust noise at
+  elapsed / `gust_period_s`, but the noise kept FastNoiseLite's default frequency of 0.01. A 5 s gust period
+  therefore took about 8 minutes, and in a minute of "windy" the wind moved only 11.00 to 11.19 m/s. The noise
+  frequency is now 1, so one unit is one period: the same minute sweeps 8.86 to 13.09 m/s. This affects
+  everything that reads wind: chimney smoke, blowing snow, breach drafts and wind chill. Test: `test_weather_gusts`.
 - TPS camera steps in doorways (#240 stage 3 v2). The camera no longer flips to the other side of a door plane
   while the doorway holds the frame. A neighbouring door waits until the current one lets go, a hand-over's
   shoulder step is eased out, and a doorway may pull the shoulder at most 0.5 m off Henry. On the 727 route, real
