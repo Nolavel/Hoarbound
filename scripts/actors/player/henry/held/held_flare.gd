@@ -38,6 +38,12 @@ const WEATHER_CONTROLLER_SCRIPT: GDScript = preload(
 @export_range(2.0, 12.0, 0.1) var light_range_m: float = 4.5
 ## Shadows are deliberately off for the normal production tier.
 @export var enable_shadows: bool = false
+## Falloff exponent (Godot omni_attenuation; 2 is about inverse square).
+@export_range(0.25, 4.0, 0.05) var light_attenuation: float = 1.0
+## How much the light tints the volumetric fog (Light3D.light_volumetric_fog_energy).
+@export_range(0.0, 2.0, 0.05) var fog_energy: float = 1.0
+## How much the lit circle's radius breathes with the burn and its spurts, 0..1.
+@export_range(0.0, 1.0, 0.05) var range_breath: float = 1.0
 
 @export_group("Wind")
 @export_range(0.05, 1.0, 0.05) var wind_sample_interval_s: float = 0.15
@@ -221,7 +227,8 @@ func _apply_energy() -> void:
 		var light_t: float = clampf((_current_energy - 0.45) / 0.85, 0.0, 1.0)
 		_light.light_energy = lerpf(base_light_energy * 0.72, surge_light_energy, light_t)
 		## The lit circle on the ground breathes with the burn and each spurt.
-		_light.omni_range = light_range_m * lerpf(0.7, 1.15, light_t) * lerpf(1.0, 1.3, _gush)
+		var breath: float = lerpf(0.7, 1.15, light_t) * lerpf(1.0, 1.3, _gush)
+		_light.omni_range = light_range_m * lerpf(1.0, breath, range_breath)
 
 	if _core_material != null:
 		_core_material.emission_energy_multiplier = lerpf(
@@ -325,6 +332,8 @@ func _build_flare() -> void:
 	_light.light_color = light_color
 	_light.light_energy = base_light_energy
 	_light.omni_range = light_range_m
+	_light.omni_attenuation = light_attenuation
+	_light.light_volumetric_fog_energy = fog_energy
 	_light.shadow_enabled = enable_shadows
 	_tip.add_child(_light)
 
