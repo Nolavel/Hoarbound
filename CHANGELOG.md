@@ -8,6 +8,51 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Snow that sticks and melts (#257, stage 4).
+  - **Splats:** a snowball bursts into a puff and leaves a `SnowSplat` decal on what it hits. In the cold the
+    splat stays (the 32 newest are kept). Inside a heated interior zone it slides down 12 cm and melts in 45 s.
+  - **Melting in the hand:** `HandSnowMelt` melts a handful held in the warm. It lasts 40 s in a barely warm room
+    and 20 s at 20 C, shrinks in the hand, leaves up to 0.3 wetness in the glove, and is gone. Below freezing it keeps.
+  - Tests: `test_hand_snow_melt`, plus the splat check in `test_throw`.
+- Breakable window glass (#257, stage 3).
+  - **Which panes:** `WindowBreakage` cracks and breaks the pane a throw lands on, on any house: the 727 window
+    breaches, and every pane quad of a generated facade's `windows` surface, found from the hit point.
+  - **Damage adds up:** a pane cracks at 2 N*s and breaks at 5 N*s. A snowball (0.2 kg at 13 m/s) cracks it and a
+    second breaks it; a stone (0.35 kg at 15 m/s) breaks it at once.
+  - **Look:** cracks radiate from the impact, a broken pane shows a jagged dark hole with shards round it, and
+    shards fall. There is no glass sound yet: the project has none.
+  - **Saved:** damage persists, panes included.
+  - **727 glass holds heat:** a closed pane leaks 12 % of its hole (`ShelterBreach.glazed`, `GLASS_LEAK`), so the
+    heated room's sealing goes from 0.085 to 0.877 and its heat ceiling from 3.4 to 16 C. A broken pane is a full
+    hole again (owner decision; boards to be reworked later). 727 window breaches now carry the spec's opening sizes.
+  - **Plumbing:** `ThrowImpactCapability` passes the struck collider; world sinks take hits nothing nearer claimed.
+    Test: `test_window_breakage`.
+- Throwing snow and stones (#257, stage 2).
+  - **Aim and throw:** with a throwable in hand (`ItemResource.throw_speed_mps`: handful 13 m/s, stone 15 m/s),
+    hold RMB to aim. A dotted arc and a landing ring show the flight, with a slow hand sway of about 1.2 degrees.
+    LMB while aiming throws on UAL2 `OverhandThrow`, released at 0.29 s (traced on Henry in game: the whip
+    forward starts at 0.28 s), with 0.8 degrees of jitter. LMB without aiming still eats the handful.
+    At the release the throw is solved again from the real hand position to where the arc landed.
+    Owner review: snow and stones sit in the right hand (`HeldFit.hand = RIGHT`), the hand that throws, so the arc
+    starts at the snowball. Holding RMB plays the throw to its wind-up (0.24 s, hand up and back) and holds it there
+    (`HenryUALAnimation.set_action_pace`); LMB lets the clip run on into the release, and letting go of RMB lowers
+    the arm. A scoop leaves a hand-sized hollow in the snow (a body on the snow contact layer presses the field).
+  - **Launch:** `ThrowComponent.launch_direction` solves the low arc to the camera's aim point, and lobs at
+    45 degrees when the point is out of reach.
+  - **In flight:** `ThrownItem` strikes its first contact through the new `ThrowImpactCapability` (`core/contracts`).
+    Snow bursts and is gone; a stone rolls to rest on ground damping and becomes a pickup again.
+  - **Wall stones:** `StoneScatter` lays stones at the foot of house walls near Henry, from the building outlines.
+    About 7 % of 4 m wall spots hold one, hashed by position so a wall's stones never move. A taken one stays
+    taken through the `PickupLedger`.
+  - New item: `stone` (0.35 kg). Tests: `test_throw`, `test_stone_scatter`.
+- Snow by hand (#257, stage 1).
+  - **F on open snow** with nothing else in focus: Henry stoops (`pickup_right_low`). A held empty mug fills with snow
+    in hand, and a free hand takes a handful of snow (`snow_handful`, now actually produced in play).
+  - **Refused** indoors or where less than 3 cm of settled snow lies underfoot (`SnowField.get_depth`).
+  - **Signal:** `InteractComponent.interact_unclaimed` hands the unclaimed F to ground actions.
+  - **Visuals:** the mug shows a heap of snow above the rim, and the handful is a lumpy snow clump instead of the
+    placeholder parcel.
+  - Item Use on a packed mug still scoops as before. Test: `test_snow_scoop`. Capture: `tools/runtime/capture_snow_scoop.gd`.
 - 727 chimney and roof smoke (#252).
   - **Root cause of the break:** the stove's flue had a fixed length (`FLUE_H` 1.7 m) and stopped at 3.08 m under the
     3.66 m ceiling. The roof stack stood over the stove's centre, not over the flue, and was twice as thick.

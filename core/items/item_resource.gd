@@ -52,6 +52,8 @@ extends Resource
 @export var warms_into: StringName = &""
 ## Opening changes the catalog id without consuming food or the required tool.
 @export var opens_into: StringName = &""
+## Launch speed when thrown from the hand, m/s; 0 means it cannot be thrown.
+@export var throw_speed_mps: float = 0.0
 
 @export_group("Water")
 ## Authored fill states keep each physical container in the existing id-only save contract.

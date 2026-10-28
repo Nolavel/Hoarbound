@@ -194,6 +194,11 @@ func _place_windows(zone: ThermalZone, clinic: ThermalZone, proto: Node3D) -> vo
 			(window as ShelterBreach).severity = CLINIC_WINDOW_SEVERITY
 			clinic.add_child(window)
 		window.name = String(o["name"])
+		var pane := window as ShelterBreach
+		pane.glazed = true
+		pane.opening_width_m = float(o["width_m"])
+		pane.opening_height_m = float(o["y1"]) - float(o["y0"])
+		pane.add_to_group(WindowBreakage.BREACH_GROUP)
 		window.transform = Transform3D(_facing(o["outward_uv"]) * Basis(Vector3.UP, PI),
 			plan_point(o["centre_uv"], (float(o["y0"]) + float(o["y1"])) * 0.5 - _zone_y()))
 	for i: int in range(hut_index, HUT_WINDOWS.size()):
