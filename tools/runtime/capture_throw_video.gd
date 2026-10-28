@@ -9,6 +9,8 @@ const THROW_DISTANCE_M: float = 8.0
 
 var _out: String = "user://shots/throw_video"
 var _frame: int = 0
+var _tps: TpsCamera
+var _target: Vector3
 
 
 func _initialize() -> void:
@@ -70,6 +72,8 @@ func _run() -> void:
 
 	## The game's own camera, looking at the pane past Henry: the aim push-in is its doing.
 	var tps := root.get_camera_3d() as TpsCamera
+	_tps = tps
+	_target = target
 	var look: Vector3 = (target - (stand + Vector3.UP * 0.6)).normalized()
 	tps.set_look(atan2(-look.x, -look.z), rad_to_deg(asin(look.y)) - 4.0)
 	var inventory := player.get_node(^"InventoryComponent") as InventoryComponent
@@ -102,7 +106,12 @@ func _run() -> void:
 
 func _aim_and_throw(aim_frames: int) -> void:
 	_press(&"present_held", true)
-	await _record(aim_frames)
+	## Like a player, keep the screen centre on the pane while the camera closes in.
+	for _i: int in range(aim_frames):
+		var from: Vector3 = _tps.global_position
+		var look: Vector3 = (_target - from).normalized()
+		_tps.set_look(atan2(-look.x, -look.z), rad_to_deg(asin(look.y)))
+		await _record(1)
 	_press(&"fire", true)
 	_press(&"fire", false)
 	await _record(2)
