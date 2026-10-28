@@ -557,7 +557,7 @@ func _smoke_quad() -> QuadMesh:
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	material.vertex_color_use_as_albedo = true
-	material.albedo_texture = _smoke_texture(48)
+	material.albedo_texture = ChimneySmoke.puff_texture(48)
 	material.albedo_color = Color(0.95, 0.78, 0.72, 0.72)
 	material.roughness = 1.0
 	material.emission_enabled = true
@@ -569,23 +569,6 @@ func _smoke_quad() -> QuadMesh:
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mesh.material = material
 	return mesh
-
-
-## A soft puff with a lumpy, noise-broken edge so overlapping quads never show discs.
-func _smoke_texture(size: int) -> ImageTexture:
-	var noise := FastNoiseLite.new()
-	noise.seed = 7
-	noise.frequency = 0.09
-	noise.fractal_octaves = 3
-	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
-	var denom: float = maxf(float(size - 1), 1.0)
-	for y: int in range(size):
-		for x: int in range(size):
-			var uv := Vector2(float(x) / denom, float(y) / denom)
-			var radial: float = clampf(1.0 - (uv - Vector2(0.5, 0.5)).length() * 2.0, 0.0, 1.0)
-			var lump: float = 0.55 + 0.45 * noise.get_noise_2d(float(x), float(y))
-			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, clampf(pow(radial, 0.9) * lump * 1.4, 0.0, 1.0)))
-	return ImageTexture.create_from_image(image)
 
 
 func _soft_particle_texture(size: int, falloff_power: float) -> ImageTexture:

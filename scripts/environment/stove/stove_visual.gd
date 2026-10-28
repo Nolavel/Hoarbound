@@ -20,6 +20,7 @@ const WALL: float = 0.03
 const DOOR_W: float = 0.44
 const DOOR_H: float = 0.34
 const FLUE_H: float = 1.7
+const FLUE_RADIUS: float = 0.065
 ## Fire strength at the catch, before the warm-up grows it: the firebox shows a small
 ## flame at once, the room brightens with the burn (author request 2026-10-20).
 const FIREBOX_CATCH_STRENGTH: float = 0.6
@@ -43,6 +44,8 @@ const EMBER_EMISSION_ENERGY: float = 3.0
 signal presentation_changed
 
 @export var source: HeatSource
+## Pipe length above the collar; a building sets it before _ready so the flue meets its ceiling.
+var flue_length: float = FLUE_H
 
 var _iron: StandardMaterial3D
 var _embers: StandardMaterial3D
@@ -99,6 +102,11 @@ func _ready() -> void:
 	_build_tinder()
 	_build_door_control()
 	_refresh()
+
+
+## Where the flue pipe leaves the collar, in this node's space (it rises along +Y).
+static func flue_base() -> Vector3:
+	return Vector3(-SIZE.x * 0.5 + 0.15, LEG_H + ASH_H + BOX_H + 0.06, 0.0)
 
 
 ## Logs a full load shows: burn_duration_h / hours_per_fuel_unit, capped by the slots built.
@@ -375,8 +383,9 @@ func _build() -> void:
 		_place_room_light(source.flame_light, Vector3(hx - 0.15, floor_y + 0.24, 0.0))
 	_build_door(Vector3(hx + 0.01, floor_y + sill, -DOOR_W * 0.5))
 	## Flue: a collar on the cooktop at the back, a pipe to the roof.
-	_cylinder(0.08, 0.06, Vector3(-hx + 0.15, top_y + 0.06, 0.0), _iron)
-	_cylinder(0.065, FLUE_H, Vector3(-hx + 0.15, top_y + 0.06 + FLUE_H * 0.5, 0.0), _iron)
+	var flue: Vector3 = flue_base()
+	_cylinder(0.08, 0.06, flue, _iron)
+	_cylinder(FLUE_RADIUS, flue_length, flue + Vector3.UP * flue_length * 0.5, _iron)
 
 
 ## The room light sits in the fire and shines out through the door (+X). The

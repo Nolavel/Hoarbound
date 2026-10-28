@@ -8,6 +8,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- 727 chimney and roof smoke (#252).
+  - **Root cause of the break:** the stove's flue had a fixed length (`FLUE_H` 1.7 m) and stopped at 3.08 m under the
+    3.66 m ceiling. The roof stack stood over the stove's centre, not over the flue, and was twice as thick.
+  - **One continuous flue:** `StoveVisual.flue_length` and `flue_base()` let the shelter run the flue into the ceiling
+    (`interior.ceiling_y`). The roof stack continues it on the same axis and radius up to roof + 0.8 m, with a cap.
+  - **`ChimneySmoke` on the cap:**
+    - it smokes only while the `HeatSource` burns, and its density follows the fire's intensity;
+    - `chimney_smoke.gdshader` pulls every puff toward the air's velocity: the weather's wind with its gust, plus the plume's rise;
+    - a gust therefore bends the whole plume at once. Godot's built-in damping cannot do this: it slows a particle
+      by a constant amount instead of pulling it toward the air.
+  - The road flare reuses the same noise-edged puff texture (`ChimneySmoke.puff_texture`).
+  - Test: chimney checks in `test_key_west_727_shelter`. Capture: `tools/runtime/capture_chimney_smoke.gd`.
 - Weather profile `clear` (no wind, no snowfall) for tests and captures. It is `manual_only`: it is set only by
   `set_weather`, never drawn by the weather roll (`WeatherProfile.manual_only`, `_pick_weighted` skips it).
 - SPoV canned meat (owner's artist asset, `assets/source/spov_canned_meat/CanModel.rar`). `tools/blender/build_spov_can.py`
