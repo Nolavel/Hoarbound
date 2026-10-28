@@ -121,7 +121,8 @@ func use_held() -> bool:
 	var refusal: ConsumptionController.Refusal = consumption.consume_from_zone(_source_zone) \
 		if _source_zone != &"" else consumption.consume(_item_id)
 	if refusal == ConsumptionController.Refusal.NONE:
-		var next: StringName = item.opens_into if item.opens_into != &"" else item.consumable.leaves_behind_id
+		var next: StringName = item.opens_into if item.opens_into != &"" else \
+			(&"" if item.consumable.discard_leftover else item.consumable.leaves_behind_id)
 		if item.opens_into != &"":
 			get_parent().call(&"play_action_animation", &"fix")
 		if next != &"":
@@ -238,7 +239,7 @@ func _show_hint(message: String = "") -> void:
 	if item.water_capacity_ml > 0:
 		action = tr("CONSUME_REFUSED_EMPTY_FLASK") if item.water_remaining_ml == 0 else "LMB · " + tr("FLASK_DRINK_ACTION")
 	elif item.opens_into != &"":
-		action = "LMB · " + tr("PINEAPPLE_OPEN_ACTION")
+		action = "LMB · " + tr(ConsumptionController.open_action_key(item))
 	elif item.consumable != null:
 		action = "LMB · " + tr("HAND_EAT_ACTION")
 	elif _item_id == &"axe":

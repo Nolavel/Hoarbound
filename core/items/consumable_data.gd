@@ -24,5 +24,8 @@ extends Resource
 @export_group("Result")
 ## Item left behind after consuming, such as an empty tin. Empty leaves none.
 @export var leaves_behind_id: StringName = &""
+## Tossed on the ground instead of kept: the leftover is litter, and leaves_behind_id then
+## names only the prop it falls as (SurvivalItemVisual), not an inventory item.
+@export var discard_leftover: bool = false
 ## A reusable carried tool required to open this food; it is never consumed.
 @export var required_tool_id: StringName = &""

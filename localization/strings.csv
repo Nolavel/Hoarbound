@@ -146,6 +146,9 @@ Hatchet,Hatchet,Топор
 Work gloves,Work gloves,Рабочие перчатки
 PINEAPPLE_OPEN_ACTION,Open tin with knife,Открыть банку ножом
 PINEAPPLE_OPEN_HINT,The tin is open; Use eats the pineapple,Банка открыта · используйте чтобы съесть ананасы
+SPoV canned meat,SPoV canned meat,Мясные консервы SPoV
+Open SPoV can,Open SPoV can,Открытая банка SPoV
+CAN_RING_OPEN_ACTION,Pull the ring to open,Открыть за кольцо
 FLASK_HELD_MARK,%d ml,%d мл
 HAND_EAT_ACTION,Eat contents,Съесть содержимое
 HAND_TOOL_HINT,Use this tool through a world interaction,Используйте предмет при взаимодействии с объектом
