@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://g57yd74ci476"
-path="res://.godot/imported/SPoV_Can_DefaultMaterial_BaseColor.png-13200354f3273333f67d7dae54ee3b4e.ctex"
+path.s3tc="res://.godot/imported/SPoV_Can_DefaultMaterial_BaseColor.png-13200354f3273333f67d7dae54ee3b4e.s3tc.ctex"
+path.etc2="res://.godot/imported/SPoV_Can_DefaultMaterial_BaseColor.png-13200354f3273333f67d7dae54ee3b4e.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "90dabecb0832d0750631e52cee6e09d1"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/items/spov_can/SPoV_Can_DefaultMaterial_BaseColor.png"
-dest_files=["res://.godot/imported/SPoV_Can_DefaultMaterial_BaseColor.png-13200354f3273333f67d7dae54ee3b4e.ctex"]
+dest_files=["res://.godot/imported/SPoV_Can_DefaultMaterial_BaseColor.png-13200354f3273333f67d7dae54ee3b4e.s3tc.ctex", "res://.godot/imported/SPoV_Can_DefaultMaterial_BaseColor.png-13200354f3273333f67d7dae54ee3b4e.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/high_quality_mode=0
 compress/lossy_quality=0.7
@@ -43,4 +45,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
