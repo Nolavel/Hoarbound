@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Shadow look on the shelter edge (#156): Henry inside 727 and outside it, the stylized
 ## shadow mode switched by the real ShelterGradeBinder, plus the same inside frame forced to
-## the outdoor mode for comparison. Clear noon, stove lit.
+## the outdoor mode for comparison. Clear noon (test-only profile), stove lit.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_shadow_shelter.gd -- <out dir>
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
@@ -39,6 +39,8 @@ func _run() -> void:
 		node.set_process(false)
 	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
 		(layer as CanvasLayer).visible = false
+	for label: Node in _world.find_children("*", "Label3D", true, false):
+		(label as Node3D).visible = false
 	var stove := _world.find_children("*", "HeatSource", true, false)[0] as HeatSource
 	stove.restore_fuel(1.5, true)
 	stove.ignite()

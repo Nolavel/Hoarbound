@@ -14,6 +14,7 @@ func _initialize() -> void:
 	_check_ids_unique(profiles)
 	_check_ranges(profiles)
 	_check_scheduler_runs(profiles)
+	_check_manual_only(profiles)
 	if _failures > 0:
 		push_error("weather: %d check(s) failed" % _failures)
 		quit(1)
@@ -91,3 +92,17 @@ func _check(condition: bool, message: String) -> void:
 		return
 	_failures += 1
 	push_error("weather: %s" % message)
+
+
+## A manual-only profile (the test "clear") exists and the scheduler never picks it.
+func _check_manual_only(profiles: Array[WeatherProfile]) -> void:
+	var manual: Array = profiles.filter(func(p: WeatherProfile) -> bool: return p.manual_only)
+	_check(manual.any(func(p: WeatherProfile) -> bool: return p.id == &"clear"), "no manual-only clear profile for tests")
+	var controller := WeatherController.new()
+	controller.profiles = profiles
+	for _i: int in range(200):
+		var picked: WeatherProfile = controller._pick_weighted()
+		if picked.manual_only:
+			_check(false, "the scheduler picked manual-only %s" % picked.id)
+			break
+	controller.free()

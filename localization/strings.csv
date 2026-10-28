@@ -29,6 +29,7 @@ FEED_REFUSED_NO_TINDER,You need tinder to start it,Для розжига нуж�
 FEED_REFUSED_NO_INVENTORY,Cannot reach your pack,Нет доступа к рюкзаку
 BREACH_GENERIC,Board up the gap,Заколотить проём
 WEATHER_CALM,Calm,Штиль
+WEATHER_CLEAR,Clear,Ясно
 WEATHER_WINDY,Windy,Ветер
 WEATHER_SNOWFALL,Snowfall,Снегопад
 WEATHER_BLIZZARD,Blizzard,Буря
