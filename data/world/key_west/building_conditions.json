@@ -1,8 +1,0 @@
-{
- "note": "Shelter readability (#235). Generated building node name -> exterior condition the street can read: burnt, empty (broken windows, torn door), snowed (drift over the door). front: plan direction of the street side, [x, z]. Read by scripts/world/building_condition.gd when a building cluster streams in.",
- "buildings": {
-  "KW_BUILDING_osm_w585507158": {"condition": "empty", "front": [-0.84, 0.54]},
-  "KW_BUILDING_osm_w585507160": {"condition": "snowed", "front": [-0.84, 0.54]},
-  "KW_BUILDING_osm_w585507156": {"condition": "burnt", "front": [-0.84, 0.54]}
- }
-}

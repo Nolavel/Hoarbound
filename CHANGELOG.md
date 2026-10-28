@@ -8,6 +8,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Weather profile `clear` (no wind, no snowfall) for tests and captures. It is `manual_only`: it is set only by
+  `set_weather`, never drawn by the weather roll (`WeatherProfile.manual_only`, `_pick_weighted` skips it).
 - SPoV canned meat (owner's artist asset, `assets/source/spov_canned_meat/CanModel.rar`). `tools/blender/build_spov_can.py`
   builds `assets/items/spov_can/SPoV_Can.glb`: 10.4 x 6.1 x 7.1 cm (a 340 g luncheon-meat tin, the artist's proportions
   kept), 356 + 240 tris. The 40 lid-seam edges shared by three faces are split, and the pull ring is laid flat on the

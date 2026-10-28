@@ -153,7 +153,6 @@ func _on_cell(id: StringName, state: StreamingSystem.CellState) -> void:
 			return
 		if state == StreamingSystem.CellState.ACTIVE:
 			_detail_in[cluster_id] = true
-			BuildingCondition.decorate(_detail_node(cluster_id))
 		else:
 			_detail_in.erase(cluster_id)
 		_apply(cluster_id)
