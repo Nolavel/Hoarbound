@@ -10,8 +10,8 @@ signal thrown(item_id: StringName, body: ThrownItem)
 const AIM_ACTION: StringName = &"present_held"
 const THROW_ACTION: StringName = &"fire"
 const THROW_CLIP: StringName = &"throw"
-## The hand lets go this far into OverhandThrow (traced: over the shoulder, forward at 21 m/s).
-const RELEASE_SECONDS: float = 0.35
+## The hand lets go this far into the throw action (traced on Henry: the whip forward starts at 0.28 s).
+const RELEASE_SECONDS: float = 0.29
 const GRAVITY: float = 9.8
 ## The camera's aim ray reaches this far for a target point, metres.
 const MAX_AIM_M: float = 40.0
@@ -32,6 +32,8 @@ var _throwing: bool = false
 var _sway_s: float = 0.0
 var _noise: FastNoiseLite
 var _velocity: Vector3 = Vector3.ZERO
+## Where the drawn arc lands now; the throw is solved to it again from the hand at the release.
+var _aim_point: Vector3 = Vector3.ZERO
 var _arc: MultiMeshInstance3D
 var _marker: MeshInstance3D
 
@@ -105,12 +107,16 @@ func throw_now() -> bool:
 		return false
 	_throwing = true
 	var velocity: Vector3 = aim_velocity()
+	var aim_point: Vector3 = _aim_point if _aiming else _release_point() + velocity
 	_set_aiming(false)
 	var body: Node = get_parent()
 	if body.has_method(&"play_action_animation"):
 		body.call(&"play_action_animation", THROW_CLIP)
 	if is_inside_tree():
 		await get_tree().create_timer(RELEASE_SECONDS).timeout
+	## The hand is elsewhere at the release than while aiming: solve again from it to the same point.
+	var from: Vector3 = _release_point()
+	velocity = launch_direction(from, aim_point, speed, GRAVITY) * speed
 	var thrown_body: ThrownItem = release(velocity)
 	_throwing = false
 	return thrown_body != null
@@ -243,6 +249,7 @@ func _draw_arc(from: Vector3, velocity: Vector3) -> void:
 	var v: Vector3 = velocity
 	var shown: int = 0
 	var landed: bool = false
+	_aim_point = from + velocity * ARC_STEP_S * ARC_DOTS
 	for i: int in range(ARC_DOTS):
 		var next: Vector3 = position + v * ARC_STEP_S
 		v.y -= GRAVITY * ARC_STEP_S
@@ -256,6 +263,7 @@ func _draw_arc(from: Vector3, velocity: Vector3) -> void:
 			var x_axis: Vector3 = normal.cross(reference).normalized()
 			## The ring lies flat on whatever it lands on: its Y axis along the surface normal.
 			_marker.global_transform = Transform3D(Basis(x_axis, normal, x_axis.cross(normal)), hit["position"] + normal * 0.02)
+			_aim_point = hit["position"]
 			landed = true
 			break
 		position = next

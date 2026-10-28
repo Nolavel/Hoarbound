@@ -30,8 +30,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Throwing snow and stones (#257, stage 2).
   - **Aim and throw:** with a throwable in hand (`ItemResource.throw_speed_mps`: handful 13 m/s, stone 15 m/s),
     hold RMB to aim. A dotted arc and a landing ring show the flight, with a slow hand sway of about 1.2 degrees.
-    LMB while aiming throws on UAL2 `OverhandThrow`, released at 0.35 s (traced: the hand passes the shoulder
-    forward at 21 m/s), with 0.8 degrees of jitter. LMB without aiming still eats the handful.
+    LMB while aiming throws on UAL2 `OverhandThrow`, released at 0.29 s (traced on Henry in game: the whip
+    forward starts at 0.28 s), with 0.8 degrees of jitter. LMB without aiming still eats the handful.
+    At the release the throw is solved again from the real hand position to where the arc landed.
   - **Launch:** `ThrowComponent.launch_direction` solves the low arc to the camera's aim point, and lobs at
     45 degrees when the point is out of reach.
   - **In flight:** `ThrownItem` strikes its first contact through the new `ThrowImpactCapability` (`core/contracts`).
