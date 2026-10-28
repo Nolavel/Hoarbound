@@ -62,10 +62,9 @@ func _run() -> void:
 	var camera := Camera3D.new()
 	camera.fov = 50.0
 	root.add_child(camera)
-	## Ground-level view across the wind, the plume's drift running across the frame.
-	var from: Vector3 = cap + across * 17.0 - wind_dir * 3.0
-	from.y = cap.y - 3.4
-	camera.look_at_from_position(from, cap + wind_dir * 3.5 + Vector3.UP * 0.8)
+	## From above the roofline across the wind: the stack on the roof and the plume's drift both in frame.
+	var from: Vector3 = cap + across * 15.0 - wind_dir * 4.0 + Vector3.UP * 3.0
+	camera.look_at_from_position(from, cap + wind_dir * 4.0 + Vector3.UP * 0.3)
 	camera.make_current()
 	## Henry, hidden, on the roof between the camera and the chimney: the streaks spawn ahead of him.
 	player.global_position = cap + across * 6.0 + Vector3.UP * 0.2
