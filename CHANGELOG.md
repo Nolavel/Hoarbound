@@ -27,6 +27,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - **Sway:** the pack hangs from a pivot at its top back. Henry's acceleration drives a pitch and roll spring
     (at most 9°); it swings slower when loaded.
   - **Kenny:** he is off the starting loadout for now (owner's call). His item, fixture and set-down code stay.
+  - **Zip:** a black zip with lighter teeth runs along the panel's top and sides. Two sliders start together at the
+    top centre and run out to the corners and down the sides. The panel folds out only above the line they have
+    reached (a shader bend, not a hinge node). It closes in reverse: the panel folds back, then the sliders return.
+  - **Quick stow:** the sliders run 15 cm down the sides and the freed top folds out 55°. The walls by the open
+    seam give a little.
+  - **Carabiners:** a strap loop on each side near the top, each with a swinging screw-gate carabiner (`Carabiner`,
+    worn red paint, knurled sleeve). They swing like a pendulum. `Hang` is the clip point for later, e.g. the mug.
+  - **Shoulder straps:** `PackShoulderStraps` runs a band from the pack top over each shoulder, down the chest and
+    under the arm to the pack's bottom corner. It is rebuilt from the bones every frame.
+  - **Fit:** the pack's back face was 10 cm inside the coat (measured coat back 0.21 m behind spine_03), so the coat
+    showed inside the open pack. `backpack_offset` moved to (0, -0.03, -0.31). The inner shelf no longer pokes
+    through the panel.
   - Capture: `tools/runtime/capture_backpack_worn.gd`.
 - Snow that sticks and melts (#257, stage 4).
   - **Splats:** a snowball bursts into a puff and leaves a `SnowSplat` decal on what it hits. In the cold the

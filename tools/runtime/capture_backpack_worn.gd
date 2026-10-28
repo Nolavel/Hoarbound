@@ -1,8 +1,7 @@
 extends SceneTree
 
-## Backpack stage 2 (#260): the canvas pack on Henry in Key West Reality. He stands, sprints off
-## and stops (the pack swings from its straps), then the pack opens top-only and fully for the Hub.
-## A fixed side camera; 30 fps PNG frames for a video.
+## Backpack on Henry (#260) in Key West Reality: round him for the shoulder straps, a sprint and stop
+## (pack and carabiners swing), then the zip for a quick stow and for the Hub. 30 fps PNG frames.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_backpack_worn.gd -- <out dir>
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
@@ -62,33 +61,46 @@ func _run() -> void:
 	var pack: PackRig = _player.animation_component.get_pack_rig()
 	print("[packworn] pack visible ", pack.is_visible_in_tree(), " canvas ", pack.use_canvas_model)
 
-	await _record(1.2, "WORN, STANDING", -out)
+	await _record(3.0, "SHOULDER STRAPS: round Henry", &"orbit")
+	await _record(1.0, "WORN, STANDING", &"side")
 	Input.action_press(&"move_forward")
 	Input.action_press(&"sprint")
-	await _record(1.4, "SPRINT OFF: the pack lags and swings", -out)
+	await _record(1.4, "SPRINT OFF: the pack and its carabiners swing", &"side")
 	Input.action_release(&"sprint")
 	Input.action_release(&"move_forward")
-	await _record(1.6, "STOP: it swings on and settles", -out)
+	await _record(1.6, "STOP: they swing on and settle", &"side")
+	await _record(0.6, "ZIP CLOSED: two sliders meet at the top", &"behind")
 	pack.set_openness(PackRig.Openness.TOP_ONLY)
-	await _record(1.4, "TOP-ONLY (quick stow): the front panel opens a little", -out)
-	pack.set_openness(PackRig.Openness.FULL)
-	await _record(1.8, "FULL (Hub): the front panel folds down", -out)
+	await _record(1.8, "QUICK STOW: sliders part a little, the top folds out", &"behind")
 	pack.set_openness(PackRig.Openness.CLOSED)
-	await _record(1.2, "CLOSED", -out)
+	await _record(1.2, "CLOSED AGAIN", &"behind")
+	pack.set_openness(PackRig.Openness.FULL)
+	await _record(2.4, "HUB: sliders run down, the panel opens behind them", &"behind")
+	pack.set_openness(PackRig.Openness.CLOSED)
+	await _record(2.4, "CLOSING: the panel folds up, the sliders zip it shut", &"behind")
 	print("[packworn] frames ", _frame)
 	quit(0)
 
 
-## Records seconds of frames from beside and a little behind Henry, following him.
-func _record(seconds: float, caption: String, away: Vector3) -> void:
+## Records seconds of frames following Henry: from the side, round him, or close behind the pack.
+func _record(seconds: float, caption: String, view: StringName) -> void:
 	_caption.text = caption
-	for _i: int in range(roundi(seconds * FPS)):
+	var count: int = roundi(seconds * FPS)
+	for i: int in range(count):
 		var henry: Vector3 = _player.global_position
 		var facing: Vector3 = -_player.global_basis.z
 		facing.y = 0.0
 		facing = facing.normalized()
 		var right: Vector3 = facing.cross(Vector3.UP)
-		_camera.look_at_from_position(henry - right * 2.0 - facing * 1.0 + Vector3.UP * 0.8, henry + Vector3.UP * 0.35 - facing * 0.2)
+		match view:
+			&"orbit":
+				var turn: float = TAU * float(i) / count
+				var around: Vector3 = facing.rotated(Vector3.UP, turn + PI * 0.25)
+				_camera.look_at_from_position(henry + around * 1.5 + Vector3.UP * 0.75, henry + Vector3.UP * 0.55)
+			&"behind":
+				_camera.look_at_from_position(henry - facing * 1.05 + right * 0.35 + Vector3.UP * 0.85, henry + Vector3.UP * 0.6 - facing * 0.25)
+			_:
+				_camera.look_at_from_position(henry - right * 2.0 - facing * 1.0 + Vector3.UP * 0.8, henry + Vector3.UP * 0.35 - facing * 0.2)
 		await process_frame
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join("f_%03d.png" % _frame))

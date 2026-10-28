@@ -129,8 +129,9 @@ const ACTION_ALIASES: Dictionary = {
 @export_group("Backpack")
 @export var backpack_bone: StringName = &"spine_03"
 @export var backpack_size: Vector3 = Vector3(0.34, 0.44, 0.2)
-## Offset from the bone in model space; the mannequin faces +Z, so back is -Z.
-@export var backpack_offset: Vector3 = Vector3(0.0, 0.0, -0.2)
+## Offset from the bone in model space; the mannequin faces +Z, so back is -Z. The coat's back
+## reaches 0.21 m behind spine_03, so the pack's back face sits just outside it.
+@export var backpack_offset: Vector3 = Vector3(0.0, -0.03, -0.31)
 @export var backpack_color: Color = Color(0.36, 0.33, 0.28)
 ## Outfit meshes from tools/blender/build_henry_outfit.py per equipment mesh name.
 ## Skin_<name> is the body under that garment, hidden while it is worn.
@@ -891,6 +892,11 @@ func _attach_backpack() -> void:
 	_pack = pack
 	_garment_meshes[StringName(pack.name)] = pack
 	_attach_kenny(pack)
+	var straps := PackShoulderStraps.new()
+	straps.name = "PackShoulderStraps"
+	straps.layers = portrait_render_layers
+	skeleton.add_child(straps)
+	straps.setup(skeleton, pack)
 
 
 ## Takes the pack off and stands it on the floor at `pack_xf`; Kenny is unstrapped

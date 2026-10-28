@@ -1,9 +1,9 @@
 class_name BackpackModel
 extends Node3D
 
-## A front-loading backpack (#260): a canvas shell, a front panel that unzips and folds down on a
-## bottom hinge, slots for what it carries, a pocket either side and a bedroll strapped under it. The
-## canvas takes its shape from the contents (backpack_canvas.gdshader); no soft-body physics.
+## A front-loading backpack (#260): a canvas shell, a front panel on a two-slider zip that folds out
+## where the sliders have passed, slots for what it carries, a pocket and a carabiner either side and a
+## bedroll under it. The canvas takes its shape from the contents (backpack_canvas.gdshader).
 ## Pack space: origin at the bottom of the back face, +Y up, +Z out to the front, +X to the right.
 
 signal opened_changed(open: bool)
@@ -14,7 +14,7 @@ const MAX_ITEMS: int = 16
 const BODY: Vector3 = Vector3(0.34, 0.52, 0.22)
 const ROUND_M: float = 0.06
 ## Grid steps along each face; enough vertices for a can or a flask to show as a bulge.
-const STEPS: Vector3i = Vector3i(14, 20, 10)
+const STEPS: Vector3i = Vector3i(14, 26, 10)
 ## The open front panel hangs this far past flat, degrees.
 const OPEN_DEG: float = 104.0
 ## Panel swing and droop springs: frequency (Hz) and damping (under 1 overshoots a little).
@@ -46,6 +46,22 @@ const POCKET_X: float = 0.205
 const POCKET_HALF: Vector3 = Vector3(0.04, 0.07, 0.05)
 const CANVAS: Color = Color(0.37, 0.33, 0.21)
 const STRAP: Color = Color(0.28, 0.19, 0.12)
+## Zip: each slider runs from the top centre to a top corner and down its side to the bottom rounding
+## (ZIP_FULL_M = BODY.x / 2 + BODY.y - ROUND_M), at ZIP_SPEED m/s.
+const ZIP_FULL_M: float = 0.63
+const ZIP_SPEED: float = 0.9
+const SLIDER_HALF_M: float = 0.013
+## The panel's top lifts this far between sliders still on the top edge; the walls by the open
+## seam give this far once the panel folds out.
+const MOUTH_M: float = 0.022
+const SIDE_GIVE_M: float = 0.014
+## The empty slump in backpack_canvas.gdshader, for parts that ride on the canvas.
+const SLUMP_TOP_M: float = 0.07
+const SLUMP_WALL_M: float = 0.018
+## Strap loop on each side near the top, and where its carabiner hangs from (x is the +X side).
+const LOOP_AT: Vector3 = Vector3(0.182, 0.455, 0.1)
+const CARABINER_AT: Vector3 = Vector3(0.19, 0.44, 0.1)
+const ZIP_METAL: Color = Color(0.16, 0.16, 0.17)
 const BEDROLL: Color = Color(0.24, 0.27, 0.30)
 
 var _shell_material: ShaderMaterial
@@ -53,7 +69,13 @@ var _panel_material: ShaderMaterial
 var _pocket_material: ShaderMaterial
 var _strap_material: ShaderMaterial
 var _hinge: Node3D
+var _hinge_at: Vector3 = Vector3.ZERO
 var _panel: MeshInstance3D
+var _sliders: Array[Node3D] = []
+var _tabs: Array[Node3D] = []
+var _carabiners: Array[Carabiner] = []
+var _zip: float = 0.0
+var _zip_target: float = 0.0
 var _items: Array[Dictionary] = []
 var _contents: Node3D
 var _open: bool = false
@@ -77,7 +99,10 @@ func build() -> void:
 	if _hinge != null:
 		return
 	_shell_material = _canvas_material(Vector4.ZERO)
+	_shell_material.set_shader_parameter(&"zipper_on", true)
 	_panel_material = _canvas_material(Vector4(0.1, 0.15, 0.55, 0.85))
+	_panel_material.set_shader_parameter(&"zipper_on", true)
+	_panel_material.set_shader_parameter(&"is_panel", true)
 	_pocket_material = _canvas_material(Vector4.ZERO)
 	## The pocket is a thin pouch round a hard bottle: more slack, so the corners never poke through.
 	_pocket_material.set_shader_parameter(&"lining_m", 0.008)
@@ -92,22 +117,24 @@ func build() -> void:
 	var centre := Vector3(0.0, BODY.y * 0.5, BODY.z * 0.5)
 	var shell := MeshInstance3D.new()
 	shell.name = "Shell"
-	shell.mesh = _rounded_box(BODY * 0.5, centre, ROUND_M, STEPS, FACES_SHELL)
+	shell.mesh = _rounded_box(BODY * 0.5, centre, ROUND_M, STEPS, FACES_SHELL, true)
 	shell.material_override = _shell_material
 	add_child(shell)
-	var panel_mesh: ArrayMesh = _rounded_box(BODY * 0.5, centre, ROUND_M, STEPS, FACES_FRONT)
-	var hinge_at: Vector3 = _hinge_point(panel_mesh)
+	var panel_mesh: ArrayMesh = _rounded_box(BODY * 0.5, centre, ROUND_M, STEPS, FACES_FRONT, true)
+	_hinge_at = _hinge_point(panel_mesh)
+	## The panel folds in the shader round the line the sliders reached; the node stays put.
 	_hinge = Node3D.new()
 	_hinge.name = "PanelHinge"
-	_hinge.position = hinge_at
+	_hinge.position = _hinge_at
 	add_child(_hinge)
 	_panel = MeshInstance3D.new()
 	_panel.name = "FrontPanel"
 	_panel.mesh = panel_mesh
-	_panel.position = -hinge_at
+	_panel.position = -_hinge_at
 	_panel.material_override = _panel_material
 	_hinge.add_child(_panel)
-	_panel_material.set_shader_parameter(&"panel_length_m", BODY.y)
+	_panel_material.set_shader_parameter(&"bend_z", _hinge_at.z)
+	_panel_material.set_shader_parameter(&"top_y", BODY.y)
 	for side: float in [-1.0, 1.0]:
 		var pocket := MeshInstance3D.new()
 		pocket.name = "SidePocketLeft" if side < 0.0 else "SidePocketRight"
@@ -117,6 +144,8 @@ func build() -> void:
 	_add_shelf()
 	_add_bedroll()
 	_add_straps()
+	_add_sliders()
+	_add_carabiners()
 	_contents = Node3D.new()
 	_contents.name = "Contents"
 	add_child(_contents)
@@ -131,13 +160,36 @@ func set_open(open: bool) -> void:
 	set_open_degrees(OPEN_DEG if open else 0.0)
 
 
-## Opens the front panel to degrees (0 closed, OPEN_DEG folded down); it swings there on its spring.
+## Fully unzips and folds the panel to degrees (0 closes it); see set_opening().
 func set_open_degrees(degrees: float) -> void:
-	_open_deg = clampf(degrees, 0.0, OPEN_DEG)
-	var open: bool = _open_deg > 0.0
+	set_opening(ZIP_FULL_M if degrees > 0.0 else 0.0, degrees)
+
+
+## Each slider runs zip_m from the top centre (0 closed, ZIP_FULL_M at the bottom), and the panel
+## folds out by degrees round the line they reached. Closing folds it back before the sliders return.
+func set_opening(zip_m: float, degrees: float) -> void:
+	_zip_target = clampf(zip_m, 0.0, ZIP_FULL_M)
+	_open_deg = clampf(degrees, 0.0, OPEN_DEG) if _zip_target > 0.0 else 0.0
+	var open: bool = _zip_target > 0.0
 	if open != _open:
 		_open = open
 		opened_changed.emit(open)
+
+
+## How far each slider has run from the top centre, metres.
+func get_zip() -> float:
+	return _zip
+
+
+## The panel's current fold, degrees.
+func get_fold_degrees() -> float:
+	return rad_to_deg(_swing)
+
+
+## The carabiner on the left (0) or right (1) side, for things clipped on later.
+func get_carabiner(index: int) -> Carabiner:
+	build()
+	return _carabiners[index] if index >= 0 and index < _carabiners.size() else null
 
 
 ## Puts item_id in the named slot (see SLOTS); its proxy shapes the canvas. False if taken.
@@ -181,11 +233,31 @@ func get_fill_target() -> float:
 
 
 func _process(delta: float) -> void:
+	var half_w: float = BODY.x * 0.5
 	var swing_target: float = deg_to_rad(_open_deg)
+	if _zip_target >= _zip:
+		_zip = move_toward(_zip, _zip_target, ZIP_SPEED * delta)
+		## The panel folds out only as far as the sliders have freed its sides.
+		var side_run: float = _zip_target - half_w
+		swing_target *= clampf((_zip - half_w) / side_run, 0.0, 1.0) if side_run > 0.0 else 0.0
+	elif _swing <= swing_target + deg_to_rad(4.0):
+		_zip = move_toward(_zip, _zip_target, ZIP_SPEED * delta)
 	var omega: float = TAU * SWING_HZ
 	_swing_speed += (omega * omega * (swing_target - _swing) - 2.0 * SWING_DAMPING * omega * _swing_speed) * delta
 	_swing += _swing_speed * delta
-	_hinge.rotation.x = _swing
+	var seam: Array = _seam_point(maxf(_zip, half_w + 0.001), 1.0)
+	var bend_y: float = BODY.y + 1.0
+	if _zip > half_w:
+		bend_y = lerpf((seam[0] as Vector3).y, _hinge_at.y, smoothstep(ZIP_FULL_M - 0.1, ZIP_FULL_M, _zip))
+	_panel_material.set_shader_parameter(&"bend_y", bend_y)
+	_panel_material.set_shader_parameter(&"bend_angle", _swing)
+	_panel_material.set_shader_parameter(&"mouth_m", MOUTH_M * clampf(_zip / half_w, 0.0, 1.0))
+	var give: float = SIDE_GIVE_M * clampf(_swing / deg_to_rad(30.0), 0.0, 1.0)
+	_shell_material.set_shader_parameter(&"side_give_m", give)
+	for material: ShaderMaterial in [_shell_material, _panel_material]:
+		material.set_shader_parameter(&"zip_s", _zip)
+	_place_sliders(give)
+	_place_carabiners()
 	## The free edge sags most with the panel flat; the swing's speed flicks it the other way.
 	var droop_target: float = DROOP_FLAT_M * sin(clampf(_swing, 0.0, PI))
 	var droop_omega: float = TAU * DROOP_HZ
@@ -197,7 +269,7 @@ func _process(delta: float) -> void:
 	var panel_xf: Transform3D = global_transform.affine_inverse() * _panel.global_transform if is_inside_tree() else _hinge.transform
 	_panel_material.set_shader_parameter(&"to_pack", Projection(panel_xf))
 	_panel_material.set_shader_parameter(&"droop_m", _droop)
-	_panel_material.set_shader_parameter(&"droop_dir", (_panel.global_basis.inverse() * Vector3.DOWN).normalized() if is_inside_tree() else Vector3.DOWN)
+	_panel_material.set_shader_parameter(&"droop_dir", (global_basis.inverse() * Vector3.DOWN).normalized() if is_inside_tree() else Vector3.DOWN)
 	## Only the closed panel holds the contents in; an open one does not bulge.
 	_panel_material.set_shader_parameter(&"item_count", _items.size() if _swing < 0.2 else 0)
 	for material: ShaderMaterial in [_shell_material, _panel_material, _pocket_material, _strap_material]:
@@ -233,7 +305,7 @@ func _canvas_material(pocket: Vector4) -> ShaderMaterial:
 
 ## A box with rounded edges as a grid on each face (faces_built picks which). Every grid
 ## point is pulled onto the rounded surface: clamp to the inner box, then out by the radius.
-static func _rounded_box(half: Vector3, centre: Vector3, radius: float, steps: Vector3i, faces_built: int) -> ArrayMesh:
+static func _rounded_box(half: Vector3, centre: Vector3, radius: float, steps: Vector3i, faces_built: int, zipped: bool = false) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var inner: Vector3 = half - Vector3.ONE * radius
@@ -263,7 +335,8 @@ static func _rounded_box(half: Vector3, centre: Vector3, radius: float, steps: V
 				var core: Vector3 = raw.clamp(-inner, inner)
 				var out: Vector3 = raw - core
 				var normal: Vector3 = out.normalized() if out.length_squared() > 0.000001 else cube.normalized()
-				row.append([centre + core + normal * radius, normal, Vector2(float(i) / nu, float(j) / nv)])
+				var zip: Vector2 = _zip_coords(raw, half, axis, sign) if zipped else Vector2(1.0, 0.0)
+				row.append([centre + core + normal * radius, normal, Vector2(float(i) / nu, float(j) / nv), zip])
 			grid.append(row)
 		for j: int in range(nv):
 			for i: int in range(nu):
@@ -272,9 +345,50 @@ static func _rounded_box(half: Vector3, centre: Vector3, radius: float, steps: V
 					for k: int in _front_wound(quad[tri[0]][0], quad[tri[1]][0], quad[tri[2]][0], quad[tri[0]][1], tri):
 						st.set_normal(quad[k][1])
 						st.set_uv(quad[k][2])
+						st.set_uv2(quad[k][3])
 						st.add_vertex(quad[k][0])
 	st.index()
 	return st.commit()
+
+
+## (distance to the zip seam, run along it from the top centre) for a point raw on the box, metres.
+## The seam is the panel's top and side edges; past ZIP_FULL_M and off those faces there is none.
+static func _zip_coords(raw: Vector3, half: Vector3, axis: int, sign: float) -> Vector2:
+	var to_side: float = half.x - absf(raw.x)
+	var to_top: float = half.y - raw.y
+	var run: float = absf(raw.x) if axis == 1 or (axis == 2 and to_top < to_side) else half.x + to_top
+	var distance: float = 1.0
+	if axis == 2 and sign > 0.0:
+		distance = minf(to_side, to_top)
+	elif axis == 0 or (axis == 1 and sign > 0.0):
+		distance = half.z - raw.z
+	return Vector2(distance if run <= ZIP_FULL_M else 1.0, run)
+
+
+## A point on the zip seam `run` metres from the top centre on one side (-1 left, +1 right):
+## [position, outward normal, direction of travel], in pack space with the canvas at rest.
+static func _seam_point(run: float, side: float) -> Array:
+	var half: Vector3 = BODY * 0.5
+	var at: Vector3 = _seam_surface(run, side, half)
+	var ahead: Vector3 = _seam_surface(run + 0.004, side, half)
+	var behind: Vector3 = _seam_surface(run - 0.004, side, half)
+	var raw := Vector3(side * minf(run, half.x), half.y - maxf(run - half.x, 0.0), half.z)
+	var core: Vector3 = raw.clamp(-half + Vector3.ONE * ROUND_M, half - Vector3.ONE * ROUND_M)
+	return [at, (raw - core).normalized(), (ahead - behind).normalized()]
+
+
+static func _seam_surface(run: float, side: float, half: Vector3) -> Vector3:
+	var raw := Vector3(side * clampf(run, 0.0, half.x), half.y - clampf(run - half.x, 0.0, BODY.y - ROUND_M), half.z)
+	var core: Vector3 = raw.clamp(-half + Vector3.ONE * ROUND_M, half - Vector3.ONE * ROUND_M)
+	return Vector3(0.0, half.y, half.z) + core + (raw - core).normalized() * ROUND_M
+
+
+## Where the canvas moves a point at rest p (outward normal n): the empty slump plus `give` outward.
+func _on_canvas(p: Vector3, n: Vector3, give: float) -> Vector3:
+	var empty: float = 1.0 - clampf(_fill, 0.0, 1.0)
+	var high: float = smoothstep(BODY.y * 0.45, BODY.y, p.y)
+	var slump := Vector3(0.0, -SLUMP_TOP_M * high, 0.0) - n * SLUMP_WALL_M * smoothstep(0.1, 0.4, p.y / BODY.y)
+	return p + slump * empty + n * give
 
 
 ## Where the panel's bottom edge sits (its lowest vertex), in pack space: the hinge line.
@@ -295,10 +409,11 @@ func _add_shelf() -> void:
 	var shelf := MeshInstance3D.new()
 	shelf.name = "Shelf"
 	var board := BoxMesh.new()
-	board.size = Vector3(BODY.x - 0.05, 0.008, BODY.z - 0.04)
+	## Clear of the panel even when the empty walls cave in.
+	board.size = Vector3(BODY.x - 0.08, 0.008, BODY.z - 0.08)
 	shelf.mesh = board
 	shelf.material_override = _plain(Color(0.2, 0.2, 0.19))
-	shelf.position = Vector3(0.0, 0.355, BODY.z * 0.5)
+	shelf.position = Vector3(0.0, 0.355, BODY.z * 0.46)
 	add_child(shelf)
 
 
@@ -360,6 +475,77 @@ func _strap(size: Vector3, at: Vector3, tilt: Vector3) -> void:
 	strap.mesh = mesh
 	strap.material_override = _strap_material
 	add_child(strap)
+
+
+## Two zip sliders, each with a pull tab that hangs toward the ground.
+func _add_sliders() -> void:
+	var metal: StandardMaterial3D = _plain(ZIP_METAL)
+	metal.metallic = 0.7
+	metal.roughness = 0.4
+	for side: float in [-1.0, 1.0]:
+		var slider := Node3D.new()
+		slider.name = "SliderLeft" if side < 0.0 else "SliderRight"
+		add_child(slider)
+		var body := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(SLIDER_HALF_M * 2.0, 0.015, 0.009)
+		body.mesh = box
+		body.material_override = metal
+		body.position.z = 0.003
+		slider.add_child(body)
+		var pivot := Node3D.new()
+		pivot.position = Vector3(0.0, 0.0, 0.008)
+		slider.add_child(pivot)
+		var tab := MeshInstance3D.new()
+		var plate := BoxMesh.new()
+		plate.size = Vector3(0.011, 0.034, 0.003)
+		tab.mesh = plate
+		tab.material_override = metal
+		tab.position.y = -0.017
+		pivot.add_child(tab)
+		_sliders.append(slider)
+		_tabs.append(pivot)
+
+
+func _place_sliders(give: float) -> void:
+	for i: int in range(_sliders.size()):
+		var side: float = -1.0 if i == 0 else 1.0
+		## Closed, the two sliders sit nose to nose either side of the top centre.
+		var seam: Array = _seam_point(_zip + SLIDER_HALF_M, side)
+		var normal: Vector3 = seam[1]
+		var along: Vector3 = seam[2]
+		var slider: Node3D = _sliders[i]
+		slider.transform = Transform3D(Basis(along, normal.cross(along), normal).orthonormalized(), _on_canvas(seam[0], normal, give))
+		if slider.is_inside_tree():
+			## The tab hangs toward the ground, lying on the canvas.
+			var out: Vector3 = (slider.global_basis * Vector3.BACK).normalized()
+			var hang: Vector3 = Vector3.DOWN - out * Vector3.DOWN.dot(out)
+			hang = hang.normalized() if hang.length() > 0.2 else (slider.global_basis * Vector3.DOWN).normalized()
+			var scale_kept: Vector3 = _tabs[i].global_basis.get_scale()
+			_tabs[i].global_basis = Basis(hang.cross(out).normalized() * -1.0, -hang, out).orthonormalized().scaled(scale_kept)
+
+
+## A strap loop high on each side wall with a carabiner hanging from it.
+func _add_carabiners() -> void:
+	for side: float in [-1.0, 1.0]:
+		_strap(Vector3(0.012, 0.05, 0.024), Vector3(side * LOOP_AT.x, LOOP_AT.y, LOOP_AT.z), Vector3.ZERO)
+		var pivot := Node3D.new()
+		pivot.name = "CarabinerLoopLeft" if side < 0.0 else "CarabinerLoopRight"
+		add_child(pivot)
+		var carabiner := Carabiner.new()
+		carabiner.name = "Carabiner"
+		## The ring lies along the wall, its gate toward the front.
+		carabiner.face_yaw = -PI * 0.5
+		pivot.add_child(carabiner)
+		carabiner.build()
+		_carabiners.append(carabiner)
+
+
+func _place_carabiners() -> void:
+	for i: int in range(_carabiners.size()):
+		var side: float = -1.0 if i == 0 else 1.0
+		var rest := Vector3(side * CARABINER_AT.x, CARABINER_AT.y, CARABINER_AT.z)
+		_carabiners[i].get_parent_node_3d().position = _on_canvas(rest, Vector3(side, 0.0, 0.0), 0.0)
 
 
 func _plain(colour: Color) -> StandardMaterial3D:

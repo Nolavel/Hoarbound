@@ -27,11 +27,28 @@ uniform float pack_height_m = 0.52;
 // Free edge of the front panel droops this far toward gravity (model-space direction).
 uniform float droop_m = 0.0;
 uniform vec3 droop_dir = vec3(0.0, -1.0, 0.0);
-uniform float panel_length_m = 0.0;
 // Mesh pocket on the panel's inside: UV rect (x0, y0, x1, y1); zero area draws none.
 uniform vec4 mesh_pocket = vec4(0.0);
+// Zipper along the panel's top and sides. UV2 carries (distance to the seam, path from top centre), m.
+uniform bool zipper_on = false;
+uniform float zipper_half_m = 0.016;
+uniform float tooth_pitch_m = 0.006;
+uniform vec3 tape_colour : source_color = vec3(0.025, 0.025, 0.03);
+uniform vec3 tooth_colour : source_color = vec3(0.32, 0.32, 0.34);
+// How far each slider has run down its side; the canvas parts only behind it.
+uniform float zip_s = 0.0;
+// Panel only: the part above the bend line (pack-space y, z) turns out by bend_angle; a slider
+// still on the top edge just lifts the mouth between the two sliders by mouth_m.
+uniform bool is_panel = false;
+uniform float bend_y = 1.0;
+uniform float bend_z = 0.2;
+uniform float bend_angle = 0.0;
+uniform float mouth_m = 0.0;
+uniform float top_y = 0.52;
+// Shell only: the walls next to the open part of the seam give outward this far.
+uniform float side_give_m = 0.0;
 
-varying float v_lining;
+varying vec2 v_zip;
 
 float box_distance(vec3 p, vec3 c, vec3 h) {
 	vec3 q = abs(p - c) - h;
@@ -54,15 +71,40 @@ void vertex() {
 	float high = smoothstep(pack_height_m * 0.45, pack_height_m, p.y);
 	vec3 slump = vec3(0.0, -slump_top_m * high, 0.0) - n * slump_wall_m * smoothstep(0.1, 0.4, p.y / pack_height_m);
 	vec3 shaped = n * push + slump * empty;
+	v_zip = UV2;
+	if (zipper_on && !is_panel) {
+		float open_part = smoothstep(zip_s + 0.01, zip_s - 0.05, UV2.y);
+		shaped += n * side_give_m * open_part * (1.0 - smoothstep(0.0, 0.09, UV2.x));
+	}
 	VERTEX += mat3(inverse(to_pack)) * shaped;
-	if (panel_length_m > 0.0) {
-		float t = clamp(VERTEX.y / panel_length_m, 0.0, 1.0);
-		VERTEX += droop_dir * droop_m * t * t;
+	if (is_panel) {
+		float mouth = mouth_m * smoothstep(top_y - 0.1, top_y, VERTEX.y) * smoothstep(zip_s + 0.01, zip_s - 0.04, UV2.y);
+		VERTEX += vec3(0.0, -0.3, 1.0) * mouth;
+		// Fold out round the bend line; a short ramp makes the crease cloth, not a hinge.
+		float rel_y = VERTEX.y - bend_y;
+		if (rel_y > 0.0) {
+			float a = bend_angle * smoothstep(0.0, 0.035, rel_y);
+			float rel_z = VERTEX.z - bend_z;
+			VERTEX.y = bend_y + rel_y * cos(a) - rel_z * sin(a);
+			VERTEX.z = bend_z + rel_y * sin(a) + rel_z * cos(a);
+			NORMAL = vec3(NORMAL.x, NORMAL.y * cos(a) - NORMAL.z * sin(a), NORMAL.y * sin(a) + NORMAL.z * cos(a));
+			float t = clamp(rel_y / max(top_y - bend_y, 0.05), 0.0, 1.0);
+			VERTEX += droop_dir * droop_m * t * t;
+		}
 	}
 }
 
 void fragment() {
 	vec3 colour = FRONT_FACING ? canvas_colour : lining_colour;
+	float metal = 0.0;
+	if (zipper_on && v_zip.x < zipper_half_m) {
+		// Black tape; the teeth are a lighter interlocking row along the seam.
+		colour = tape_colour;
+		float row = step(v_zip.x, zipper_half_m * 0.5);
+		float tooth = step(0.5, fract(v_zip.y / tooth_pitch_m + (is_panel ? 0.5 : 0.0)));
+		colour = mix(colour, tooth_colour, row * tooth);
+		metal = row * tooth;
+	}
 	if (!FRONT_FACING && mesh_pocket.z > mesh_pocket.x) {
 		vec2 inside = step(mesh_pocket.xy, UV) * step(UV, mesh_pocket.zw);
 		if (inside.x * inside.y > 0.5) {
@@ -75,5 +117,6 @@ void fragment() {
 	vec2 weave = abs(fract(UV * vec2(160.0, 160.0)) - 0.5);
 	colour *= 0.94 + 0.06 * step(0.25, min(weave.x, weave.y));
 	ALBEDO = colour;
-	ROUGHNESS = roughness_value;
+	METALLIC = metal * 0.6;
+	ROUGHNESS = mix(roughness_value, 0.45, metal);
 }

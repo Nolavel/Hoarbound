@@ -20,8 +20,11 @@ const FLAP_THICKNESS: float = 0.02
 const AJAR_TOP_DEG: float = 40.0
 const MAX_SWAY_DEG: float = 9.0
 const AJAR_SIDE_DEG: float = 28.0
-## The canvas pack's front panel for the quick stow and for set down by the stove, degrees.
-const TOP_ONLY_PANEL_DEG: float = 42.0
+## The canvas pack's zip for the quick stow and for set down by the stove: how far each slider
+## runs down its side past the top corner (m), and how far the freed top folds out (degrees).
+const TOP_ONLY_ZIP_SIDE_M: float = 0.15
+const TOP_ONLY_PANEL_DEG: float = 55.0
+const AJAR_ZIP_SIDE_M: float = 0.22
 const AJAR_PANEL_DEG: float = 24.0
 
 @export var size: Vector3 = Vector3(0.34, 0.44, 0.2)
@@ -108,6 +111,12 @@ func get_bottom_flap() -> Node3D:
 	return _bottom
 
 
+## The canvas pack model, or null when the four-flap tray is drawn.
+func get_canvas() -> BackpackModel:
+	build()
+	return _canvas
+
+
 ## The inner attachment field, where slot visuals live.
 func get_field() -> Node3D:
 	build()
@@ -141,8 +150,14 @@ func set_openness(state: Openness, instant: bool = false) -> void:
 			var delay: float = 0.0 if flap == _top else time * 0.25
 			_tween.tween_property(flap, ^"rotation", targets[flap], time * 0.75).set_delay(delay)
 	if _canvas != null:
-		var degrees: Dictionary = {Openness.CLOSED: 0.0, Openness.AJAR: AJAR_PANEL_DEG, Openness.TOP_ONLY: TOP_ONLY_PANEL_DEG, Openness.FULL: BackpackModel.OPEN_DEG}
-		_canvas.set_open_degrees(degrees[state])
+		var corner: float = BackpackModel.BODY.x * 0.5
+		var opening: Dictionary = {
+			Openness.CLOSED: [0.0, 0.0],
+			Openness.AJAR: [corner + AJAR_ZIP_SIDE_M, AJAR_PANEL_DEG],
+			Openness.TOP_ONLY: [corner + TOP_ONLY_ZIP_SIDE_M, TOP_ONLY_PANEL_DEG],
+			Openness.FULL: [BackpackModel.ZIP_FULL_M, BackpackModel.OPEN_DEG],
+		}
+		_canvas.set_opening(opening[state][0], opening[state][1])
 	openness_changed.emit(state)
 
 
