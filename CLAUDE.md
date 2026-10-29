@@ -136,6 +136,8 @@ non-black frame of the affected scene, no new errors appear in the boot log, and
    across frames.
 5. **Derive from real data, not constants.** Heights, lifts, thresholds come
    from the state they describe (snow top, sink depth), not fixed angles.
-6. **Verify against the original evidence.** Re-run the same capture or trace
+6. **Backpack rig:** every point and rule lives in `docs/technical/BACKPACK_RIG.md`. Change the map and
+   the code together, run `tests/systems/test_backpack_rig.gd`, and render only when the owner asks.
+7. **Verify against the original evidence.** Re-run the same capture or trace
    and show the defect is gone before claiming it fixed. If it can't be
    verified here, say so plainly.

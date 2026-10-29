@@ -89,6 +89,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
       it only 85% of the way left the flask showing through. The inspector mirrors that wrap and reports any
       poke-through (now 0.0 cm).
     - The carabiner loops moved to the pocket rims, so the mug hangs level with the pack's bottom (0.2 cm).
+  - **Owner review 7 (stand and map):**
+    - Free strap runs are straight segments. The chain and torso capsule bowed them 2–2.6 cm and let them
+      swing forward as Henry moved.
+    - Pocket loops and carabiners follow each pocket's cloth as it is now (`pocket_outer_x`). An empty pocket
+      lies flat, but the loop had stayed 8 cm out in the air. On the flask side the loop had sat inside the
+      flask.
+    - Loops are 5 cm tall from the rim and carabiners pass through them, so the mug ends above the bottom.
+    - `docs/technical/BACKPACK_RIG.md` maps every space, authored point, measurement and rule.
+      `tests/systems/test_backpack_rig.gd` checks the rules on Henry standing and walking, before any
+      render (R1–R7, all pass).
   - **Hanging:** `PendulumHang` swings anything from a pivot. The carabiner swings in its loop and the mug
     swings on the carabiner's rod: a double pendulum driven by Henry's motion. The carabiners moved onto the
     side pockets.

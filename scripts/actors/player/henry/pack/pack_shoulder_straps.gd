@@ -12,19 +12,14 @@ const PAD_WIDTH_M: float = 0.058
 const THICK_M: float = 0.008
 ## Samples between two anchors along the body.
 const SAMPLES_PER_SPAN: int = 6
-## Free runs (pack to upper back, armpit to pack): chain points, and their length over the straight
-## line. Below 1 the strap is cinched: it pulls taut and only gives when the pack rocks towards Henry.
+## Free runs (pack to upper back, armpit to pack) are cinched straight: samples along each.
 const FREE_POINTS: int = 7
-const TOP_SLACK: float = -0.01
-const BOTTOM_SLACK: float = -0.01
 ## Off the back: chain points of the whole loop.
 const LIMP_POINTS: int = 26
 ## Verlet: constraint passes, share of velocity kept per step, gravity (m/s^2).
 const ITERATIONS: int = 10
 const DAMPING: float = 0.96
 const GRAVITY: float = 9.8
-## Worn, free runs stay outside a capsule round the spine (spine_01 to neck_01) this thick, metres.
-const TORSO_RADIUS_M: float = 0.15
 ## Where each strap is sewn to the pack's back, in BackpackModel space (x for the +X side; the
 ## back face is z = 0 and faces -Z): sewn a little below the top so the strap rises onto the shoulder,
 ## and the bottom corner.
@@ -35,16 +30,11 @@ const PACK_BOTTOM: Vector3 = Vector3(0.14, 0.05, -0.016)
 
 var _skeleton: Skeleton3D
 var _pack: PackRig
-var _spine_low: int = -1
-var _neck: int = -1
 var _immediate := ImmediateMesh.new()
 var _material := StandardMaterial3D.new()
 ## Per side ([+X, -X]): the anchor markers on the bones, in order along the strap.
 var _anchors: Array = [[], []]
-## Per side: verlet chains [points, previous points, segment length] for the top and bottom free
-## runs, and for the limp loop.
-var _top_runs: Array = [[], []]
-var _bottom_runs: Array = [[], []]
+## Per side: the limp loop's verlet chain [points, previous points, segment length].
 var _limp: Array = [[], []]
 var _worn_last: bool = false
 
@@ -65,8 +55,6 @@ func setup(skeleton: Skeleton3D, pack: PackRig) -> void:
 	_skeleton = skeleton
 	_pack = pack
 	_material.albedo_color = colour
-	_spine_low = skeleton.find_bone(&"spine_01")
-	_neck = skeleton.find_bone(&"neck_01")
 	var authored: Node = ANCHORS_SCENE.instantiate()
 	var attachments: Dictionary = {}
 	var mirror := Basis(Vector3(-1.0, 0.0, 0.0), Vector3.UP, Vector3.BACK)
@@ -107,7 +95,7 @@ func _process(delta: float) -> void:
 	_immediate.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _material)
 	for side: int in range(2):
 		if worn:
-			_draw_worn(side, step, changed)
+			_draw_worn(side)
 		else:
 			_draw_limp(side, step, changed)
 	_immediate.surface_end()
@@ -115,7 +103,7 @@ func _process(delta: float) -> void:
 
 ## Worn: free run from the pack onto the upper back, tight run along the anchors, free run from
 ## under the arm back to the pack's bottom corner.
-func _draw_worn(side: int, step: float, reset: bool) -> void:
+func _draw_worn(side: int) -> void:
 	var anchors: Array = _anchors[side]
 	if anchors.size() < 2:
 		return
@@ -128,8 +116,9 @@ func _draw_worn(side: int, step: float, reset: bool) -> void:
 	var top: Vector3 = _pack_end(PACK_TOP, points[0])
 	var bottom: Vector3 = _pack_end(PACK_BOTTOM, points[last])
 	var pack_out: Vector3 = (_pack.get_canvas().global_basis * Vector3.FORWARD).normalized()
-	var top_run: Array = _chain(_top_runs, side, top, points[0], FREE_POINTS, TOP_SLACK, step, reset, true)
-	var bottom_run: Array = _chain(_bottom_runs, side, points[last], bottom, FREE_POINTS, BOTTOM_SLACK, step, reset, true)
+	## Worn, the free runs are cinched straight between the pack and the body.
+	var top_run: Array = _straight(top, points[0])
+	var bottom_run: Array = _straight(points[last], bottom)
 	var path: Array[Vector3] = []
 	var normals: Array[Vector3] = []
 	var widths: Array[float] = []
@@ -165,7 +154,7 @@ func _draw_limp(side: int, step: float, reset: bool) -> void:
 		length += (anchors[i] as Node3D).global_position.distance_to((anchors[i + 1] as Node3D).global_position)
 	length = maxf(length * 1.35, 0.5)
 	var straight: float = maxf(top.distance_to(bottom), 0.01)
-	var run: Array = _chain(_limp, side, top, bottom, LIMP_POINTS, length / straight - 1.0, step, reset, false, pack_out * 0.12)
+	var run: Array = _chain(_limp, side, top, bottom, LIMP_POINTS, length / straight - 1.0, step, reset, pack_out * 0.12)
 	var floor_y: float = _pack.get_canvas().global_position.y + 0.005
 	var path: Array[Vector3] = []
 	var normals: Array[Vector3] = []
@@ -182,6 +171,13 @@ func _draw_limp(side: int, step: float, reset: bool) -> void:
 	_band(path, normals, widths)
 
 
+static func _straight(from: Vector3, to: Vector3) -> Array:
+	var run: Array = []
+	for k: int in range(FREE_POINTS):
+		run.append(from.lerp(to, float(k) / (FREE_POINTS - 1)))
+	return run
+
+
 ## The pack-side end of a strap: the authored point on the side of the pack nearer `toward`.
 func _pack_end(p: Vector3, toward: Vector3) -> Vector3:
 	var a: Vector3 = _pack.get_canvas_point(p, Vector3.FORWARD)
@@ -190,9 +186,8 @@ func _pack_end(p: Vector3, toward: Vector3) -> Vector3:
 
 
 ## Steps one side's verlet chain pinned between `from` and `to`, `slack` longer than straight.
-## `reset` lays it out afresh along the line (pushed by `bulge` at its middle); `on_body` keeps
-## it out of Henry's torso. Returns its points.
-func _chain(store: Array, side: int, from: Vector3, to: Vector3, count: int, slack: float, step: float, reset: bool, on_body: bool, bulge: Vector3 = Vector3.ZERO) -> Array:
+## `reset` lays it out afresh along the line (pushed by `bulge` at its middle). Returns its points.
+func _chain(store: Array, side: int, from: Vector3, to: Vector3, count: int, slack: float, step: float, reset: bool, bulge: Vector3 = Vector3.ZERO) -> Array:
 	var chain: Array = store[side]
 	if reset or chain.is_empty() or (chain[0] as Array).size() != count:
 		var fresh: Array = []
@@ -203,8 +198,7 @@ func _chain(store: Array, side: int, from: Vector3, to: Vector3, count: int, sla
 		store[side] = chain
 	var points: Array = chain[0]
 	var previous: Array = chain[1]
-	## A cinched strap is never longer than the straight line it spans now.
-	var segment: float = minf(chain[2], from.distance_to(to) * (1.0 + minf(slack, 0.0)) / (count - 1)) if slack <= 0.0 else chain[2]
+	var segment: float = chain[2]
 	for k: int in range(1, count - 1):
 		var p: Vector3 = points[k]
 		var carried: Vector3 = (p - (previous[k] as Vector3)) * DAMPING
@@ -212,11 +206,6 @@ func _chain(store: Array, side: int, from: Vector3, to: Vector3, count: int, sla
 		points[k] = p + carried + Vector3.DOWN * GRAVITY * step * step
 	points[0] = from
 	points[count - 1] = to
-	var low := Vector3.ZERO
-	var high := Vector3.ZERO
-	if on_body and _spine_low >= 0 and _neck >= 0:
-		low = _skeleton.global_transform * _skeleton.get_bone_global_pose(_spine_low).origin
-		high = _skeleton.global_transform * _skeleton.get_bone_global_pose(_neck).origin
 	for _pass: int in range(ITERATIONS):
 		for k: int in range(count - 1):
 			var a: Vector3 = points[k]
@@ -233,21 +222,7 @@ func _chain(store: Array, side: int, from: Vector3, to: Vector3, count: int, sla
 			else:
 				points[k] = a + fix * 0.5
 				points[k + 1] = b - fix * 0.5
-		if low != high:
-			for k: int in range(1, count - 1):
-				points[k] = _out_of_torso(points[k], low, high)
 	return points
-
-
-static func _out_of_torso(p: Vector3, low: Vector3, high: Vector3) -> Vector3:
-	var axis: Vector3 = high - low
-	var t: float = clampf((p - low).dot(axis) / maxf(axis.length_squared(), 0.0001), 0.0, 1.0)
-	var centre: Vector3 = low + axis * t
-	var off: Vector3 = p - centre
-	var distance: float = off.length()
-	if distance >= TORSO_RADIUS_M or distance < 0.0001:
-		return p
-	return centre + off / distance * TORSO_RADIUS_M
 
 
 static func _catmull(points: Array[Vector3], i: int, t: float) -> Vector3:

@@ -60,10 +60,16 @@ const SIDE_GIVE_M: float = 0.014
 ## The empty slump in backpack_canvas.gdshader, for parts that ride on the canvas.
 const SLUMP_TOP_M: float = 0.07
 const SLUMP_WALL_M: float = 0.018
-## Strap loop at the rim of each side pocket's outer face, and the carabiner's pivot just above it so
-## what hangs ends near the pack's bottom (x for the +X side; the face is at POCKET_X + POCKET_HALF.x).
-const LOOP_AT: Vector3 = Vector3(0.251, 0.182, 0.11)
-const CARABINER_AT: Vector3 = Vector3(0.262, 0.198, 0.11)
+## Strap loop sewn at the rim of each side pocket's outer face (height, depth), its carabiner's pivot
+## height; both sit on the pocket's cloth as it is now, see pocket_outer_x().
+const LOOP_Y: float = 0.19
+## The loop stands from the pocket's rim (0.17) up past it, so what hangs ends above the bottom.
+const LOOP_HEIGHT_M: float = 0.05
+const LOOP_Z: float = 0.11
+const CARABINER_Y: float = 0.21
+## The pocket's cloth (backpack_canvas.gdshader): its lining over an item, the empty fold's depth.
+const POCKET_LINING_M: float = 0.004
+const POCKET_FLAT_M: float = 0.006
 const ZIP_METAL: Color = Color(0.16, 0.16, 0.17)
 ## Loose contents: their floor inside the main body and the gap they keep from its walls.
 const LOOSE_FLOOR_M: float = 0.02
@@ -93,6 +99,7 @@ var _panel: MeshInstance3D
 var _sliders: Array[Node3D] = []
 var _tabs: Array[Node3D] = []
 var _carabiners: Array[Carabiner] = []
+var _loops: Array[MeshInstance3D] = []
 var _zip: float = 0.0
 var _zip_target: float = 0.0
 var _hung: Array[Node3D] = []
@@ -134,7 +141,8 @@ func build() -> void:
 		var pocket: ShaderMaterial = _canvas_material(Vector4.ZERO)
 		pocket.set_shader_parameter(&"is_pocket", true)
 		pocket.set_shader_parameter(&"pocket_wall_x", side * BODY.x * 0.5)
-		pocket.set_shader_parameter(&"lining_m", 0.004)
+		pocket.set_shader_parameter(&"lining_m", POCKET_LINING_M)
+		pocket.set_shader_parameter(&"pocket_flat_m", POCKET_FLAT_M)
 		_pocket_materials.append(pocket)
 	_strap_material = _canvas_material(Vector4.ZERO)
 	_strap_material.set_shader_parameter(&"canvas_colour", STRAP)
@@ -694,8 +702,16 @@ func _place_sliders(give: float) -> void:
 
 ## A strap loop on each side pocket with a carabiner hanging from it.
 func _add_carabiners() -> void:
+	var webbing: StandardMaterial3D = _plain(STRAP)
 	for side: float in [-1.0, 1.0]:
-		_strap(Vector3(0.012, 0.05, 0.024), Vector3(side * LOOP_AT.x, LOOP_AT.y, LOOP_AT.z), Vector3.ZERO)
+		var loop := MeshInstance3D.new()
+		loop.name = "PocketLoopLeft" if side < 0.0 else "PocketLoopRight"
+		var tab := BoxMesh.new()
+		tab.size = Vector3(0.006, LOOP_HEIGHT_M, 0.022)
+		loop.mesh = tab
+		loop.material_override = webbing
+		add_child(loop)
+		_loops.append(loop)
 		var pivot := Node3D.new()
 		pivot.name = "CarabinerLoopLeft" if side < 0.0 else "CarabinerLoopRight"
 		add_child(pivot)
@@ -711,8 +727,23 @@ func _add_carabiners() -> void:
 func _place_carabiners() -> void:
 	for i: int in range(_carabiners.size()):
 		var side: float = -1.0 if i == 0 else 1.0
-		var rest := Vector3(side * CARABINER_AT.x, CARABINER_AT.y, CARABINER_AT.z)
-		_carabiners[i].get_parent_node_3d().position = _on_canvas(rest, Vector3(side, 0.0, 0.0), 0.0)
+		var face: float = pocket_outer_x(i)
+		_loops[i].position = Vector3(face + side * 0.003, LOOP_Y, LOOP_Z)
+		_carabiners[i].get_parent_node_3d().position = Vector3(face + side * 0.011, CARABINER_Y, LOOP_Z)
+
+
+## Where pocket `index`'s outer cloth is now, as signed x (0 left, 1 right): over its item's face
+## plus the lining when it holds one, flat on the body wall when empty (as the shader lays it).
+func pocket_outer_x(index: int) -> float:
+	var side: float = -1.0 if index == 0 else 1.0
+	for item: Dictionary in _items:
+		if String(item["slot"]) == ("side_left" if index == 0 else "side_right"):
+			var box: AABB = item["box"]
+			var face: float = box.position.x if side < 0.0 else box.end.x
+			return face + side * (POCKET_LINING_M + 0.002)
+	var wall: float = BODY.x * 0.5
+	var spread: float = POCKET_X + POCKET_HALF.x - wall
+	return side * (wall + POCKET_FLAT_M + spread * 0.08)
 
 
 func _plain(colour: Color) -> StandardMaterial3D:
