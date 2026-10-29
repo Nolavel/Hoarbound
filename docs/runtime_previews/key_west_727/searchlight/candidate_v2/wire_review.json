@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "sheet": "/workspace/Hoarbound/docs/runtime_previews/key_west_727/searchlight/candidate_v2/qa_wire.png",
+  "views": [
+    "/workspace/Hoarbound/docs/runtime_previews/key_west_727/searchlight/candidate_v2/qa_wire_front.png",
+    "/workspace/Hoarbound/docs/runtime_previews/key_west_727/searchlight/candidate_v2/qa_wire_right.png",
+    "/workspace/Hoarbound/docs/runtime_previews/key_west_727/searchlight/candidate_v2/qa_wire_top.png",
+    "/workspace/Hoarbound/docs/runtime_previews/key_west_727/searchlight/candidate_v2/qa_wire_three_quarter.png"
+  ],
+  "layout": "2x2",
+  "order": [
+    "front",
+    "right",
+    "top",
+    "three_quarter"
+  ]
+}

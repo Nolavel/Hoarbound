@@ -1,0 +1,282 @@
+{
+  "ok": true,
+  "method": "smart",
+  "margin_fraction": 0.00781,
+  "objects": {
+    "MainHousing": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BatteryBlock": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BatteryRearPlate": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SidePanel": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BodyEdgeBumper": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BodyEdgeBumper.001": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "Latch": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "CoolingSlot": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "CoolingSlot.001": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "CoolingSlot.002": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "CoolingSlot.003": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "CoolingSlot.004": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "PanelScrew": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "PanelScrew.001": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "PanelScrew.002": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "PanelScrew.003": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SidePanel.001": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BodyEdgeBumper.002": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BodyEdgeBumper.003": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "Latch.001": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "CoolingSlot.005": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "CoolingSlot.006": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "CoolingSlot.007": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "CoolingSlot.008": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "CoolingSlot.009": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "PanelScrew.004": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "PanelScrew.005": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "PanelScrew.006": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "PanelScrew.007": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BatteryPortCover": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "ErgonomicHandle": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "GripRubber": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "GripFineRib": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "GripFineRib.001": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "GripFineRib.002": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "GripFineRib.003": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "GripFineRib.004": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "GripFineRib.005": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "GripFineRib.006": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SwitchSeat": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "PowerButton": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "OpticalHousing": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "MetalFrontBezel": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "GlassSeal": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SmallRimPad_0": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SmallRimPad_1": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SmallRimPad_2": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SmallRimPad_3": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SmallRimPad_4": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SmallRimPad_5": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "DeepParabolicReflector": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "LEDHeatSlug": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "LEDSubstrate": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "LEDEmitter": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "ClearRecessedLens": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    }
+  }
+}

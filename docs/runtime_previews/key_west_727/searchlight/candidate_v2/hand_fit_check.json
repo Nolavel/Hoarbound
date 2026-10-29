@@ -1,0 +1,15 @@
+{
+  "HenryRightHandBare": {
+    "position": [
+      0.125,
+      -0.02500000037252903,
+      0.2800000011920929
+    ],
+    "overlap_pairs": {
+      "GripRubber": 0,
+      "ErgonomicHandle": 0,
+      "MainHousing": 0,
+      "PowerButton": 0
+    }
+  }
+}
