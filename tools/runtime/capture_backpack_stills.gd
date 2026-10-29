@@ -47,7 +47,7 @@ func _run() -> void:
 	## Open snow out from 727, Henry facing along the street so the camera sees him side-on.
 	_player.global_position = door.global_position + out * 9.0 + Vector3.UP
 	_player.look_at(_player.global_position + side, Vector3.UP)
-	await _frames(120)
+	await _frames(40)
 	_camera = Camera3D.new()
 	_camera.fov = 45.0
 	root.add_child(_camera)
@@ -68,7 +68,7 @@ func _run() -> void:
 		facing = facing.normalized()
 		var around: Vector3 = facing.rotated(Vector3.UP, deg_to_rad(45.0 * k))
 		_camera.look_at_from_position(henry + around * 1.05 + Vector3.UP * 0.75, henry + Vector3.UP * 0.42)
-		await _frames(25)
+		await _frames(4)
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join("%d_%s.png" % [k, names[k]]))
 	print("[packstills] done")
