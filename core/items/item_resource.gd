@@ -44,6 +44,8 @@ extends Resource
 ## Per-item transform for the ordinary one-hand prop. Null preserves the
 ## legacy socket fit until this item is authored in the Item Fitter dock.
 @export var held_fit: HeldFit = null
+## Explicit one-hand presentation for large pack items; size still gates pockets.
+@export var one_hand_held: bool = false
 
 @export_group("Survival")
 ## Edible facet. Null means this item cannot be consumed.

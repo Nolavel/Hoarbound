@@ -46,7 +46,17 @@ func _ready() -> void:
 func supports_item(item_id: StringName) -> bool:
 	var item: ItemResource = ItemCatalog.get_item(item_id)
 	return item != null and item.garment == null and not item.carried_in_hands \
-		and item.size_class == ItemTraits.SizeClass.POCKET and item_id not in [&"hammer", &"road_flare"]
+		and (item.size_class == ItemTraits.SizeClass.POCKET or item.one_hand_held) and item_id not in [&"hammer", &"road_flare"]
+
+
+## Existing Hub Use route for authored large one-hand tools, not consumables.
+func can_use(item_id: StringName) -> bool:
+	var item: ItemResource = ItemCatalog.get_item(item_id)
+	return item != null and item.one_hand_held and supports_item(item_id) and not is_holding() and inventory != null and inventory.has_item(item_id)
+
+
+func use(item_id: StringName) -> bool:
+	return can_use(item_id) and present_owned(item_id)
 
 
 func equip_from_zone(item_id: StringName, zone_path: StringName) -> bool:
@@ -145,6 +155,12 @@ func is_flame_lit() -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	var searchlight := _prop as HeldSearchlight
+	var hub := get_parent().get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
+	if searchlight != null and (hub == null or not hub.is_open()) and not event.is_echo() and event.is_action_pressed(PRESENT_ACTION):
+		searchlight.toggle()
+		get_viewport().set_input_as_handled()
+		return
 	if not InputMap.has_action(PRESENT_ACTION) or _lighter_flame() == null or event.is_echo():
 		return
 	if event.is_action_pressed(PRESENT_ACTION):
@@ -190,6 +206,10 @@ func _draw() -> void:
 	else:
 		## Preserve the production pose until an item receives an authored fit.
 		HeldFit.apply_legacy_adjustment(_prop, _item_id)
+	if _prop is HeldSearchlight:
+		var searchlight := _prop as HeldSearchlight
+		searchlight.apply_enabled(bool(inventory.get_first_instance_state(_item_id).get("searchlight_on", false)))
+		searchlight.toggled.connect(_on_searchlight_toggled)
 	_show_hint()
 
 
@@ -204,6 +224,8 @@ func _clear_prop() -> void:
 			visual.release_hand()
 		elif visual.get_offhand_prop() == _prop:
 			visual.release_offhand()
+	if _prop is HeldSearchlight:
+		(_prop as HeldSearchlight).apply_enabled(false)
 	_prop.queue_free()
 	_prop = null
 
@@ -252,6 +274,8 @@ func _show_hint(message: String = "") -> void:
 		action = tr("KNIFE_PURPOSE")
 	elif _item_id == &"empty_tin":
 		action = tr("EMPTY_TIN_HELD_HINT")
+	elif _item_id == &"searchlight":
+		action = tr("SEARCHLIGHT_HELD_HINT")
 	elif _item_id == &"lighter":
 		action = "RMB · " + tr("LIGHTER_FLAME_ACTION")
 	_hint.text = "%s\n%s" % [tr(item.display_name), message if message != "" else action]
@@ -262,7 +286,9 @@ func _show_hint(message: String = "") -> void:
 
 
 func _process(delta: float) -> void:
-	if _presenting:
+	if _prop is HeldSearchlight:
+		_aim_searchlight(delta)
+	elif _presenting:
 		_advance_present(delta)
 	elif is_holding() and _prop.top_level:
 		_settle_present()
@@ -385,6 +411,7 @@ func _stop_present() -> void:
 	var visual: HenryUALAnimation = _animation()
 	if visual != null and visual.skeleton != null:
 		visual.get_present_reach().release()
+		visual.get_present_reach().grip_weight = 0.0
 
 
 func _lighter_flame() -> LighterFlame:
@@ -395,3 +422,48 @@ func _lighter_flame() -> LighterFlame:
 
 func _animation() -> HenryUALAnimation:
 	return get_parent().get_node_or_null(^"HenryUALVisual") as HenryUALAnimation
+
+
+func _on_searchlight_toggled(enabled: bool) -> void:
+	if inventory != null and _source_zone == &"":
+		inventory.update_first_instance_state(_item_id, {"searchlight_on": enabled})
+
+
+## The existing hand solver moves the wrist with the inertial grip, never the camera.
+func _aim_searchlight(delta: float) -> void:
+	var visual: HenryUALAnimation = _animation()
+	var searchlight := _prop as HeldSearchlight
+	if visual == null or visual.skeleton == null or searchlight == null:
+		return
+	var reach: StoveHandReach = visual.get_present_reach()
+	if visual.is_action_locking():
+		reach.release()
+		return
+	var rig: Skeleton3D = visual.skeleton
+	var left: bool = visual.get_held_prop() == searchlight
+	var chest_bone: int = rig.find_bone(&"spine_03")
+	var shoulder_bone: int = rig.find_bone(&"upperarm_l" if left else &"upperarm_r")
+	if chest_bone < 0 or shoulder_bone < 0:
+		return
+	reach.use_left_hand(left)
+	if not reach.hand_solved.is_connected(_on_searchlight_hand_solved):
+		reach.hand_solved.connect(_on_searchlight_hand_solved)
+	var chest: Vector3 = rig.to_global(rig.get_bone_global_pose(chest_bone).origin)
+	var side: Vector3 = rig.to_global(rig.get_bone_global_pose(shoulder_bone).origin) - chest
+	side.y = 0.0
+	var forward: Vector3 = visual.global_basis.z.normalized()
+	var camera: Camera3D = get_viewport().get_camera_3d()
+	var aim: Vector3 = TpsCamera.aim_direction(camera) if camera != null else forward
+	var player := get_parent() as CharacterBody3D
+	searchlight.advance_inertia(delta, aim, player.velocity if player != null else Vector3.ZERO)
+	reach.palm_into_world = Vector3.DOWN
+	reach.grip_weight = 1.0
+	reach.aim(chest + forward * 0.32 + side.normalized() * 0.25 - Vector3.UP * 0.1 + searchlight.inertia_offset, searchlight.direction, 1.0)
+
+
+func _on_searchlight_hand_solved(palm: Vector3) -> void:
+	var searchlight := _prop as HeldSearchlight
+	if searchlight == null:
+		return
+	searchlight.top_level = true
+	searchlight.global_transform = Transform3D(searchlight.grip_basis(), palm)

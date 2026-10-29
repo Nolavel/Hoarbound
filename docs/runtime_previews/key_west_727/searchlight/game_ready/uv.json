@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "method": "smart",
+  "margin_fraction": 0.00781,
+  "objects": {
+    "SearchlightAtlasSource": {
+      "seams_marked": 944,
+      "uv_maps": [
+        "UVMap"
+      ]
+    }
+  }
+}

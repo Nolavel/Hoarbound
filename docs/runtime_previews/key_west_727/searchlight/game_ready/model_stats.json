@@ -1,0 +1,98 @@
+{
+  "ok": true,
+  "objects": {
+    "Searchlight_Body": {
+      "tris": 8904,
+      "verts": 4568,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "Searchlight_Lens": {
+      "tris": 1024,
+      "verts": 514,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "Marking_Rear": {
+      "tris": 2,
+      "verts": 4,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "Marking_Side": {
+      "tris": 2,
+      "verts": 4,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    }
+  },
+  "total_tris": 9932,
+  "total_verts": 5090,
+  "draw_calls_est": 4,
+  "unique_materials": 4,
+  "textures": [
+    {
+      "name": "T_Searchlight_ORM",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "rear_marking.png",
+      "size": [
+        1024,
+        512
+      ],
+      "mb": 2.7
+    },
+    {
+      "name": "side_marking.png",
+      "size": [
+        1024,
+        512
+      ],
+      "mb": 2.7
+    },
+    {
+      "name": "T_Searchlight_BC",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "T_Searchlight_N",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    }
+  ],
+  "texture_vram_mb_uncompressed": 21.3,
+  "bones": 0,
+  "kind": "prop",
+  "budget": {
+    "name": "pc",
+    "limits": {
+      "char_tris": 150000,
+      "prop_tris": 50000,
+      "materials": 6,
+      "tex": 4096,
+      "bones": 300
+    },
+    "over": [],
+    "pass": true
+  }
+}
