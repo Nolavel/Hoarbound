@@ -258,9 +258,14 @@ static func _catmull(points: Array[Vector3], i: int, t: float) -> Vector3:
 ## A flat band along the path, lying on the given normals, `widths` wide.
 func _band(path: Array[Vector3], ups: Array[Vector3], widths: Array[float]) -> void:
 	var rails: Array = []
+	var last_out := Vector3.ZERO
 	for i: int in range(path.size()):
 		var along: Vector3 = (path[mini(i + 1, path.size() - 1)] - path[maxi(i - 1, 0)]).normalized()
 		var out: Vector3 = (ups[i] - along * ups[i].dot(along)).normalized()
+		## A band has two faces: keep each normal on the same side as the last, so it never flips.
+		if out.dot(last_out) < 0.0:
+			out = -out
+		last_out = out
 		var across: Vector3 = along.cross(out).normalized()
 		rails.append([path[i] + out * THICK_M * 0.5, out, across * widths[i] * 0.5])
 	for i: int in range(rails.size() - 1):
