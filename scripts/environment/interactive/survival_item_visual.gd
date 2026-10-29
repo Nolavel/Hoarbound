@@ -18,6 +18,8 @@ const SPOV_LID_SIZE := Vector2(0.092, 0.053)
 ## Authored steel thermos (tools/blender/build_thermos.py): 7.5 cm across, 24 cm tall, base at
 ## y = 0; the flip-top lid is Thermos_Lid, turning on its hinge about local +Z (latch towards +X).
 const THERMOS_SCENE: PackedScene = preload("res://assets/items/thermos/Thermos.glb")
+## Thermos body radius (build_thermos.py RADIUS): a pocket wraps it as a cylinder (meta round_radius).
+const THERMOS_RADIUS := 0.0375
 ## Worn olive-drab paint over steel (carabiner shader): GLB slot -> sRGB paint colour, paint left.
 const WORN_PAINT_SHADER: Shader = preload("res://shaders/items/carabiner.gdshader")
 const THERMOS_PAINT := {"Thermos_Paint": [Color(0.33, 0.33, 0.20), 0.78], "Thermos_LidPaint": [Color(0.26, 0.26, 0.16), 0.7], "Thermos_Steel": [Color(0.2, 0.2, 0.2), 0.0]}
@@ -27,6 +29,7 @@ static func make(item_id: StringName, _item_override: ItemResource = null) -> No
 	var holder := Node3D.new()
 	if String(item_id).begins_with("water_flask"):
 		holder.add_child(_thermos())
+		holder.set_meta(&"round_radius", THERMOS_RADIUS)
 	elif item_id == &"tinder":
 		for i: int in range(7):
 			var shaving := BoxMesh.new()

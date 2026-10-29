@@ -4,6 +4,7 @@ extends SceneTree
 ## eight sides, one settled PNG each (no video). Part of the backpack stand (BACKPACK_RIG.md).
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_backpack_stills.gd -- <out dir> [pocket]
 ## `pocket`: three close views of the left side pocket and what it holds, in place of the eight sides.
+## `insert`: the thermos taken out and pushed back in, every frame for 1 s from behind-left, then `pocket`.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const FPS: int = 30
@@ -60,7 +61,9 @@ func _run() -> void:
 	var to_player: Basis = _player.global_basis.inverse()
 	print("[packstills] canvas up in Henry's frame ", (to_player * canvas.global_basis.y).normalized(), " sway deg ", (pack.get(&"_sway") as Node3D).rotation_degrees)
 
-	if OS.get_cmdline_user_args().has("pocket"):
+	if OS.get_cmdline_user_args().has("insert"):
+		await _insert_frames(canvas)
+	if OS.get_cmdline_user_args().has("pocket") or OS.get_cmdline_user_args().has("insert"):
 		await _pocket_views(canvas)
 		print("[packstills] done")
 		quit(0)
@@ -79,6 +82,23 @@ func _run() -> void:
 		root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join("%d_%s.png" % [k, names[k]]))
 	print("[packstills] done")
 	quit(0)
+
+
+## The thermos out of the left pocket and pushed back in (as the Hub does), one PNG a frame.
+func _insert_frames(canvas: BackpackModel) -> void:
+	var equipment: EquipmentComponent = _player.animation_component.get_pack_rig().get(&"_equipment")
+	var id: StringName = equipment.take_from_pocket(&"pack", &"pack_side_left")
+	await _frames(10)
+	equipment.stow(&"pack", &"pack_side_left", id)
+	var pocket: Vector3 = canvas.global_transform * Vector3(-BackpackModel.POCKET_X, 0.13, 0.0)
+	var view: Vector3 = (canvas.global_basis.x * -1.0 + canvas.global_basis.z * 0.8).normalized()
+	_camera.look_at_from_position(pocket + view * 0.5 + Vector3.UP * 0.05, pocket)
+	for frame: int in range(30):
+		await process_frame
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join("insert_%02d.png" % frame))
+		var state: Dictionary = canvas.pocket_state(0)
+		print("[packstills] insert %02d rise %.1f cm hem open %.1f mm drag %.1f mm" % [frame, float(state["rise"]) * 100.0, float(state["hem_open"]) * 1000.0, float(state["hem_drag"]) * 1000.0])
 
 
 ## Close on the left side pocket: square on, from behind-left and from above-left, 45 cm out.

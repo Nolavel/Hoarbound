@@ -48,6 +48,28 @@ const POCKET_X: float = 0.205
 ## What stands in a pocket sits this far outboard of its middle, clear of the body's wall.
 const POCKET_SLOT_OUT_M: float = 0.01
 const POCKET_HALF: Vector3 = Vector3(0.04, 0.07, 0.065)
+## Pocket mesh centre height; its rim, and the floor what it holds stands on (inside the lining).
+const POCKET_CENTRE_Y: float = POCKET_HALF.y + 0.03
+const POCKET_RIM_Y: float = POCKET_CENTRE_Y + POCKET_HALF.y
+const POCKET_FLOOR_Y: float = POCKET_CENTRE_Y - POCKET_HALF.y + 0.004
+## Pushing something into a pocket: it starts with its bottom this far above the rim and goes in
+## fast in the air, slower while its foot stretches the hem, then eases onto the floor, m and m/s.
+const INSERT_START_M: float = 0.05
+const INSERT_SPEED_FREE: float = 0.6
+const INSERT_SPEED_HEM: float = 0.28
+const INSERT_SPEED_IN: float = 0.5
+const INSERT_HEM_ENTRY_M: float = 0.035
+const INSERT_EASE_M: float = 0.025
+## The hem (top band of the pocket): its height, how far the entering foot flares it open, how far
+## friction drags it down per m/s of push and over what depth, and its spring (Hz, damping).
+const HEM_BAND_M: float = 0.02
+const HEM_FLARE_M: float = 0.009
+const HEM_DRAG_PER_MPS: float = 0.03
+const HEM_DRAG_FALL_M: float = 0.08
+const HEM_HZ: float = 4.5
+const HEM_DAMPING: float = 0.28
+## Cloth under an item still going in stays the empty pouch, blending over this height.
+const POCKET_FUNNEL_M: float = 0.035
 const CANVAS: Color = Color(0.30, 0.32, 0.34)
 const STRAP: Color = Color(0.22, 0.23, 0.25)
 ## Zip: each slider runs from the top centre to a top corner and down its side to the bottom rounding
@@ -71,7 +93,7 @@ const LOOP_DROP_DEG: float = 60.0
 ## Where along the loop the carabiner's ring rests: just inside its lower end.
 const LOOP_HOLD_M: float = 0.028
 ## The pocket's cloth (backpack_canvas.gdshader): its lining over an item, the empty fold's depth.
-const POCKET_LINING_M: float = 0.004
+const POCKET_LINING_M: float = 0.004  # POCKET_FLOOR_Y sits this far above the mesh bottom
 const POCKET_FLAT_M: float = 0.006
 const ZIP_METAL: Color = Color(0.16, 0.16, 0.17)
 ## Loose contents: their floor inside the main body and the gap they keep from its walls.
@@ -109,6 +131,14 @@ var _zip: float = 0.0
 var _zip_target: float = 0.0
 var _hung: Array[Node3D] = []
 var _main_count: int = 0
+## Per side pocket (0 left, 1 right): what it holds is lifted this far above its seat while being
+## pushed in, at this speed; the hem's flare and drag and their rates (springs).
+var _pocket_rise: Array[float] = [0.0, 0.0]
+var _pocket_push: Array[float] = [0.0, 0.0]
+var _hem_open: Array[float] = [0.0, 0.0]
+var _hem_open_speed: Array[float] = [0.0, 0.0]
+var _hem_drag: Array[float] = [0.0, 0.0]
+var _hem_drag_speed: Array[float] = [0.0, 0.0]
 var _handle: Node3D
 var _bedroll: Node3D
 var _items: Array[Dictionary] = []
@@ -148,6 +178,10 @@ func build() -> void:
 		pocket.set_shader_parameter(&"pocket_wall_x", side * BODY.x * 0.5)
 		pocket.set_shader_parameter(&"lining_m", POCKET_LINING_M)
 		pocket.set_shader_parameter(&"pocket_flat_m", POCKET_FLAT_M)
+		pocket.set_shader_parameter(&"rim_y", POCKET_RIM_Y)
+		pocket.set_shader_parameter(&"hem_band_m", HEM_BAND_M)
+		pocket.set_shader_parameter(&"hem_drag_fall_m", HEM_DRAG_FALL_M)
+		pocket.set_shader_parameter(&"funnel_m", POCKET_FUNNEL_M)
 		_pocket_materials.append(pocket)
 	_strap_material = _canvas_material(Vector4.ZERO)
 	_strap_material.set_shader_parameter(&"canvas_colour", STRAP)
@@ -180,7 +214,7 @@ func build() -> void:
 	for side: float in [-1.0, 1.0]:
 		var pocket := MeshInstance3D.new()
 		pocket.name = "SidePocketLeft" if side < 0.0 else "SidePocketRight"
-		pocket.mesh = _rounded_box(POCKET_HALF, Vector3(side * POCKET_X, POCKET_HALF.y + 0.03, BODY.z * 0.5), 0.03, Vector3i(8, 14, 12), FACES_OPEN_TOP)
+		pocket.mesh = _rounded_box(POCKET_HALF, Vector3(side * POCKET_X, POCKET_CENTRE_Y, BODY.z * 0.5), 0.03, Vector3i(8, 14, 12), FACES_OPEN_TOP)
 		pocket.material_override = _pocket_materials[0 if side < 0.0 else 1]
 		add_child(pocket)
 	_add_shelf()
@@ -235,7 +269,8 @@ func get_carabiner(index: int) -> Carabiner:
 
 
 ## Puts item_id in the named slot (see SLOTS); its proxy shapes the canvas. False if taken.
-func add_item(item_id: StringName, slot: StringName, along: float = 0.0) -> bool:
+## insert: a side-pocket item is pushed in from above the rim instead of appearing seated.
+func add_item(item_id: StringName, slot: StringName, along: float = 0.0, insert: bool = false) -> bool:
 	if not SLOTS.has(slot) or _items.size() >= MAX_ITEMS:
 		return false
 	var visual: Node3D = SurvivalItemVisual.make(item_id)
@@ -251,10 +286,20 @@ func add_item(item_id: StringName, slot: StringName, along: float = 0.0) -> bool
 	if String(slot).begins_with("side_") and box.size.x > box.size.z:
 		basis = Basis(Vector3.UP, PI * 0.5)
 	var placed: AABB = Transform3D(basis, Vector3.ZERO) * box
-	var at := Vector3(centre.x + along, centre.y - half.y - placed.position.y, centre.z)
+	var floor_y: float = POCKET_FLOOR_Y if String(slot).begins_with("side_") else centre.y - half.y
+	var at := Vector3(centre.x + along, floor_y - placed.position.y, centre.z)
 	visual.transform = Transform3D(basis, at)
 	_contents.add_child(visual)
-	_items.append({"id": item_id, "slot": slot, "node": visual, "box": Transform3D(basis, at) * box})
+	_items.append({"id": item_id, "slot": slot, "node": visual, "box": Transform3D(basis, at) * box, "seat": at,
+		"round": float(visual.get_meta(&"round_radius", 0.0))})
+	var pocket: int = _pocket_index(slot)
+	if pocket >= 0:
+		_pocket_rise[pocket] = POCKET_RIM_Y + INSERT_START_M - floor_y if insert else 0.0
+		_hem_open[pocket] = 0.0
+		_hem_drag[pocket] = 0.0
+		_hem_open_speed[pocket] = 0.0
+		_hem_drag_speed[pocket] = 0.0
+		visual.position.y += _pocket_rise[pocket]
 	_refresh_proxies()
 	return true
 
@@ -384,6 +429,7 @@ func _process(delta: float) -> void:
 	for material: ShaderMaterial in [_shell_material, _panel_material]:
 		material.set_shader_parameter(&"zip_s", _zip)
 	_place_sliders(give)
+	_step_pockets(delta)
 	_place_carabiners()
 	## The handle sits where the canvas top is now, however far it has slumped.
 	_handle.position = _on_canvas(HANDLE_AT, Vector3.UP, 0.0)
@@ -436,6 +482,15 @@ func _refresh_proxies() -> void:
 		while centres.size() < MAX_ITEMS:
 			centres.append(Vector4(0.0, -10.0, 0.0, 0.0))
 			halves.append(Vector4.ZERO)
+		if entry[0].size() == 1 and entry[0][0] in _pocket_materials:
+			var held: Dictionary = _pocket_item(_pocket_materials.find(entry[0][0]))
+			var material: ShaderMaterial = entry[0][0]
+			material.set_shader_parameter(&"round_radius", held.get("round", 0.0))
+			if not held.is_empty():
+				var seat: Vector3 = held["seat"]
+				material.set_shader_parameter(&"round_axis", Vector2(seat.x, seat.z))
+				material.set_shader_parameter(&"seat_bottom", (held["box"] as AABB).position.y)
+				material.set_shader_parameter(&"item_bottom", (held["box"] as AABB).position.y)
 		for material: ShaderMaterial in entry[0]:
 			if material == null:
 				continue
@@ -753,18 +808,118 @@ func loop_hold_point(index: int) -> Vector3:
 	return loop.transform * Vector3(0.0, -LOOP_HOLD_M, 0.0)
 
 
-## Where pocket `index`'s outer cloth is now, as signed x (0 left, 1 right): over its item's face
-## plus the lining when it holds one, flat on the body wall when empty (as the shader lays it).
+## Where pocket `index`'s outer cloth is now at the loop's seam, as signed x (0 left, 1 right).
 func pocket_outer_x(index: int) -> float:
 	var side: float = -1.0 if index == 0 else 1.0
+	var seam := Vector3(side * (POCKET_X + POCKET_HALF.x), LOOP_SEW_Y, LOOP_Z)
+	return pocket_cloth_point(index, seam, Vector3(side, 0.0, 0.0)).x
+
+
+## Where pocket `index`'s cloth moves rest point p (outward normal n), pack space: the same rule as
+## backpack_canvas.gdshader (kept side by side with it), for loops, the inspector and the stand.
+func pocket_cloth_point(index: int, p: Vector3, n: Vector3) -> Vector3:
+	var side: float = -1.0 if index == 0 else 1.0
+	var wall: float = side * BODY.x * 0.5
+	var out_x: float = (p.x - wall) * side
+	var flat := Vector3(wall + side * (POCKET_FLAT_M + out_x * 0.08), p.y - 0.012 * smoothstep(0.1, 0.17, p.y), p.z)
+	var held: Dictionary = _pocket_item(index)
+	if held.is_empty():
+		return flat
+	var box: AABB = held["box"]
+	if float(held["round"]) > 0.0:
+		var radius: float = held["round"]
+		var seat: Vector3 = held["seat"]
+		var axis := Vector2(seat.x, seat.z)
+		var d := Vector2(p.x, p.z) - axis
+		var dl: float = d.length()
+		var dir: Vector2 = d / dl if dl > 0.0001 else Vector2(side, 0.0)
+		var hem: float = smoothstep(POCKET_RIM_Y - HEM_BAND_M, POCKET_RIM_Y, p.y)
+		var r: float = maxf(radius + POCKET_LINING_M + _hem_open[index] * hem, radius + 0.001)
+		var bottom: float = box.position.y + _pocket_rise[index]
+		var round_xz: Vector2 = axis + dir * (minf(dl, r) if p.y < bottom - POCKET_LINING_M * 0.5 else r)
+		var hug := Vector3(round_xz.x, p.y - _hem_drag[index] * smoothstep(POCKET_RIM_Y - HEM_DRAG_FALL_M, POCKET_RIM_Y, p.y), round_xz.y)
+		if n.x * side < -0.5:
+			hug.x = wall
+		var empty_w: float = smoothstep(0.0, POCKET_FUNNEL_M, bottom - p.y) * smoothstep(0.0, 0.01, _pocket_rise[index])
+		return hug.lerp(flat, empty_w)
+	var c: Vector3 = box.get_center()
+	var h: Vector3 = box.size * 0.5 + Vector3.ONE * POCKET_LINING_M
+	var q: Vector3 = p.clamp(c - h, c + h)
+	var inside: bool = (p - q).length() < 0.0001
+	var target: Vector3
+	if inside:
+		var safe := Vector3(n.x if absf(n.x) > 0.001 else 0.001, n.y if absf(n.y) > 0.001 else 0.001, n.z if absf(n.z) > 0.001 else 0.001)
+		var exits: Vector3 = (c + safe.sign() * h - p) / safe
+		target = p + n * (minf(exits.x, minf(exits.y, exits.z)) + 0.002)
+	else:
+		target = q + (p - q).normalized() * 0.002
+	if n.x * side < -0.5:
+		target.x = wall
+	return p + (target - p) * (1.0 if inside else 0.85)
+
+
+## Live state of pocket `index` for checks: rise (m above the seat), hem flare and drag (m),
+## the held item's radius (0 if not round) and its bottom now; empty when it holds nothing.
+func pocket_state(index: int) -> Dictionary:
+	var held: Dictionary = _pocket_item(index)
+	if held.is_empty():
+		return {}
+	return {"rise": _pocket_rise[index], "push": _pocket_push[index], "hem_open": _hem_open[index], "hem_drag": _hem_drag[index],
+		"radius": held["round"], "seat": held["seat"], "bottom": (held["box"] as AABB).position.y + _pocket_rise[index],
+		"seat_bottom": (held["box"] as AABB).position.y, "height": (held["box"] as AABB).size.y}
+
+
+## Pushes what each side pocket holds down to its seat and runs the hem springs: the entering foot
+## flares the hem, friction drags it down while the item moves, and both spring back once it sits.
+func _step_pockets(delta: float) -> void:
+	var omega: float = TAU * HEM_HZ
+	for index: int in range(2):
+		var held: Dictionary = _pocket_item(index)
+		var push: float = 0.0
+		var flare: float = 0.0
+		if not held.is_empty():
+			var bottom: float = (held["box"] as AABB).position.y + _pocket_rise[index]
+			if _pocket_rise[index] > 0.0:
+				if bottom > POCKET_RIM_Y:
+					push = INSERT_SPEED_FREE
+				elif bottom > POCKET_RIM_Y - INSERT_HEM_ENTRY_M:
+					push = INSERT_SPEED_HEM
+				else:
+					push = INSERT_SPEED_IN
+				push *= clampf(_pocket_rise[index] / INSERT_EASE_M, 0.25, 1.0)
+				_pocket_rise[index] = maxf(_pocket_rise[index] - push * delta, 0.0)
+				(held["node"] as Node3D).position.y = (held["seat"] as Vector3).y + _pocket_rise[index]
+			if bottom < POCKET_RIM_Y + 0.005 and bottom > POCKET_RIM_Y - INSERT_HEM_ENTRY_M and _pocket_rise[index] > 0.0:
+				flare = HEM_FLARE_M
+			if bottom >= POCKET_RIM_Y:
+				push = 0.0  # in the air: nothing to drag the hem yet
+		_pocket_push[index] = push
+		_hem_open_speed[index] += (omega * omega * (flare - _hem_open[index]) - 2.0 * HEM_DAMPING * omega * _hem_open_speed[index]) * delta
+		_hem_open[index] += _hem_open_speed[index] * delta
+		_hem_drag_speed[index] += (omega * omega * (push * HEM_DRAG_PER_MPS - _hem_drag[index]) - 2.0 * HEM_DAMPING * omega * _hem_drag_speed[index]) * delta
+		_hem_drag[index] += _hem_drag_speed[index] * delta
+		if not (is_finite(_hem_open[index]) and is_finite(_hem_drag[index])):
+			_hem_open[index] = 0.0
+			_hem_drag[index] = 0.0
+			_hem_open_speed[index] = 0.0
+			_hem_drag_speed[index] = 0.0
+		if index < _pocket_materials.size() and not held.is_empty():
+			var material: ShaderMaterial = _pocket_materials[index]
+			material.set_shader_parameter(&"item_bottom", (held["box"] as AABB).position.y + _pocket_rise[index])
+			material.set_shader_parameter(&"hem_open_m", _hem_open[index])
+			material.set_shader_parameter(&"hem_drag_m", _hem_drag[index])
+
+
+func _pocket_item(index: int) -> Dictionary:
+	var slot: StringName = &"side_left" if index == 0 else &"side_right"
 	for item: Dictionary in _items:
-		if String(item["slot"]) == ("side_left" if index == 0 else "side_right"):
-			var box: AABB = item["box"]
-			var face: float = box.position.x if side < 0.0 else box.end.x
-			return face + side * (POCKET_LINING_M + 0.002)
-	var wall: float = BODY.x * 0.5
-	var spread: float = POCKET_X + POCKET_HALF.x - wall
-	return side * (wall + POCKET_FLAT_M + spread * 0.08)
+		if item["slot"] == slot:
+			return item
+	return {}
+
+
+static func _pocket_index(slot: StringName) -> int:
+	return 0 if slot == &"side_left" else (1 if slot == &"side_right" else -1)
 
 
 func _plain(colour: Color) -> StandardMaterial3D:

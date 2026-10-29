@@ -141,36 +141,26 @@ func _check() -> void:
 	_report.append("fill %.2f  faults %d" % [_pack.get_fill_target(), faults])
 
 
-## Deepest a pocket's cloth stays inside the item it holds, after the shader's wrap (mirrored here).
+## Deepest a pocket's cloth stays inside the item it holds, using the pack's own cloth rule
+## (BackpackModel.pocket_cloth_point, the shader's twin); the wall seam is left out.
 func _pocket_poke(item_box: AABB, side: float) -> float:
 	var pocket: MeshInstance3D = _pack.find_child("SidePocketLeft" if side < 0.0 else "SidePocketRight", true, false)
 	var arrays: Array = pocket.mesh.surface_get_arrays(0)
-	var wall_x: float = side * BackpackModel.BODY.x * 0.5
-	var lining: float = 0.004
-	var c: Vector3 = item_box.get_center()
-	var h: Vector3 = item_box.size * 0.5 + Vector3.ONE * lining
+	var index: int = 0 if side < 0.0 else 1
+	var state: Dictionary = _pack.pocket_state(index)
 	var worst: float = 0.0
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	for i: int in range(vertices.size()):
-		var p: Vector3 = vertices[i]
-		var n: Vector3 = normals[i]
-		var q: Vector3 = p.clamp(c - h, c + h)
-		var inside: bool = (p - q).length() < 0.0001
-		var target: Vector3
-		if inside:
-			var safe := Vector3(n.x if absf(n.x) > 0.001 else 0.001, n.y if absf(n.y) > 0.001 else 0.001, n.z if absf(n.z) > 0.001 else 0.001)
-			var exits: Vector3 = (c + safe.sign() * h - p) / safe
-			target = p + n * (minf(exits.x, minf(exits.y, exits.z)) + 0.002)
-		else:
-			target = q + (p - q).normalized() * 0.002
-		if n.x * side < -0.5:
-			target.x = wall_x
-		var moved: Vector3 = p + (target - p) * (1.0 if inside else 0.85)
-		## Inside the item itself (not its lining) is a poke-through, unless it is the wall side.
-		var real: AABB = item_box
-		if real.has_point(moved) and n.x * side >= -0.5:
-			var to_face: Vector3 = (moved - real.position).min(real.end - moved)
+		if normals[i].x * side < -0.5:
+			continue
+		var moved: Vector3 = _pack.pocket_cloth_point(index, vertices[i], normals[i])
+		if float(state.get("radius", 0.0)) > 0.0:
+			var seat: Vector3 = state["seat"]
+			if moved.y > item_box.position.y and moved.y < item_box.end.y:
+				worst = maxf(worst, float(state["radius"]) - Vector2(moved.x, moved.z).distance_to(Vector2(seat.x, seat.z)))
+		elif item_box.has_point(moved):
+			var to_face: Vector3 = (moved - item_box.position).min(item_box.end - moved)
 			worst = maxf(worst, minf(to_face.x, minf(to_face.y, to_face.z)))
 	return worst
 

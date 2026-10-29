@@ -16,6 +16,11 @@ const HANDLE_GAP_M: float = 0.005
 const MIN_SWING_DEG: float = 6.0
 ## A hanger at rest 1.5 s after the last move hangs within this of world down, degrees.
 const SETTLED_DEG: float = 5.0
+## Pocket cloth over a round item: its radius off the cylinder plus lining, and the floor gap, m.
+const HUG_M: float = 0.0005
+const FLOOR_M: float = 0.001
+## While a thermos goes in, the hem opens at least this far past it before it is seated, m.
+const HEM_STRETCH_M: float = 0.005
 
 var _failures: int = 0
 var _player: CharacterBody3D
@@ -48,6 +53,8 @@ func _run() -> void:
 	_check_carabiners()
 	_check_pockets()
 	_check_top()
+	_check_pocket_hug("R10")
+	await _check_insert()
 	await _check_walking()
 	await _check_swing()
 	_check_hitch()
@@ -166,6 +173,101 @@ func _check_walking() -> void:
 		sway = maxf(sway, rad_to_deg(maxf(absf(pivot.rotation.x), absf(pivot.rotation.z))))
 	_report("R7 chest anchors ride the chest bone", "%.2f mm drift" % (drift * 1000.0), drift < ANCHOR_DRIFT_M)
 	_report("R7 pack rocks at most %.1f deg" % PackRig.MAX_SWAY_DEG, "%.2f deg" % sway, sway <= PackRig.MAX_SWAY_DEG + 0.01)
+
+
+## R10: a round item stands on its pocket's floor and the cloth shrink-wraps its cylinder (no box).
+func _check_pocket_hug(rule: String) -> void:
+	var state: Dictionary = _pack.pocket_state(0)
+	if state.is_empty():
+		_report(rule + " left pocket holds the thermos", "empty", false)
+		return
+	var pocket: MeshInstance3D = _pack.find_child("SidePocketLeft", true, false)
+	var floor_y: float = pocket.mesh.get_aabb().position.y + BackpackModel.POCKET_LINING_M
+	var gap: float = float(state["seat_bottom"]) + float(state["rise"]) - floor_y
+	_report(rule + " thermos on the pocket floor", "%.1f mm above it" % (gap * 1000.0), absf(gap) < FLOOR_M)
+	var radius: float = state["radius"]
+	var axis := Vector2((state["seat"] as Vector3).x, (state["seat"] as Vector3).z)
+	var worst: float = 0.0
+	var poke: float = 0.0
+	for v: Array in _pocket_vertices(pocket):
+		var p: Vector3 = v[0]
+		var n: Vector3 = v[1]
+		if n.x > 0.5:
+			continue  # the wall seam stays sewn to the pack
+		var moved: Vector3 = _pack.pocket_cloth_point(0, p, n)
+		var r: float = Vector2(moved.x, moved.z).distance_to(axis)
+		if moved.y > float(state["bottom"]):
+			poke = maxf(poke, radius - r)
+		if moved.y > float(state["bottom"]) and p.y < BackpackModel.POCKET_RIM_Y - BackpackModel.HEM_BAND_M:
+			worst = maxf(worst, absf(r - radius - BackpackModel.POCKET_LINING_M))
+	_report(rule + " cloth hugs the cylinder", "%.2f mm off radius + lining" % (worst * 1000.0), worst < HUG_M)
+	_report(rule + " cloth never inside the thermos", "%.2f mm" % (maxf(poke, 0.0) * 1000.0), poke <= 0.0)
+
+
+## R11: the thermos goes into the empty pocket bottom first: the hem stretches open past it while it
+## enters, the cloth below its bottom stays the empty pouch, nothing pokes through, then it hugs.
+func _check_insert() -> void:
+	var equipment: EquipmentComponent = _rig.get(&"_equipment")
+	var id: StringName = equipment.take_from_pocket(&"pack", &"pack_side_left")
+	await _frames(10)
+	var empty_x: float = _pack.pocket_outer_x(0)
+	equipment.stow(&"pack", &"pack_side_left", id)
+	await process_frame
+	var start: Dictionary = _pack.pocket_state(0)
+	_report("R11 pushed in from above the rim", "rise %.1f cm, seam x %.1f cm (empty %.1f)" % [float(start.get("rise", 0.0)) * 100.0,
+		_pack.pocket_outer_x(0) * 100.0, empty_x * 100.0], float(start.get("rise", 0.0)) > 0.1 and absf(_pack.pocket_outer_x(0) - empty_x) < 0.002)
+	var pocket: MeshInstance3D = _pack.find_child("SidePocketLeft", true, false)
+	var peak_open: float = 0.0
+	var open_at_seat: float = 0.0
+	var peak_drag: float = 0.0
+	var lowest_open: float = 0.0
+	var seated_frame: int = -1
+	var poke: float = 0.0
+	var funnel_off: float = 0.0
+	for frame: int in range(75):
+		await process_frame
+		var state: Dictionary = _pack.pocket_state(0)
+		if seated_frame < 0:
+			peak_open = maxf(peak_open, state["hem_open"])
+			if float(state["rise"]) <= 0.0:
+				seated_frame = frame
+				open_at_seat = peak_open
+		else:
+			lowest_open = minf(lowest_open, state["hem_open"])
+		peak_drag = maxf(peak_drag, state["hem_drag"])
+		var axis := Vector2((state["seat"] as Vector3).x, (state["seat"] as Vector3).z)
+		var bottom: float = state["bottom"]
+		for v: Array in _pocket_vertices(pocket):
+			var p: Vector3 = v[0]
+			var n: Vector3 = v[1]
+			if n.x > 0.5:
+				continue
+			var moved: Vector3 = _pack.pocket_cloth_point(0, p, n)
+			if moved.y > bottom and moved.y < bottom + float(state["height"]):
+				poke = maxf(poke, float(state["radius"]) - Vector2(moved.x, moved.z).distance_to(axis))
+			if float(state["rise"]) > 0.0 and p.y < bottom - BackpackModel.POCKET_FUNNEL_M:
+				var flat_x: float = -BackpackModel.BODY.x * 0.5 - (BackpackModel.POCKET_FLAT_M + (-BackpackModel.BODY.x * 0.5 - p.x) * 0.08)
+				funnel_off = maxf(funnel_off, absf(moved.x - flat_x))
+	_report("R11 hem stretches open before it is seated", "peak %.1f mm past the thermos, seated at frame %d" % [open_at_seat * 1000.0, seated_frame],
+		open_at_seat >= HEM_STRETCH_M and seated_frame > 0)
+	_report("R11 friction drags the hem down while it moves", "peak %.1f mm" % (peak_drag * 1000.0), peak_drag > 0.002)
+	_report("R11 cloth below the bottom is still the empty pouch", "%.2f mm off flat" % (funnel_off * 1000.0), funnel_off < 0.0005)
+	_report("R11 nothing pokes through while it goes in", "%.2f mm" % (maxf(poke, 0.0) * 1000.0), poke <= 0.0)
+	var end: Dictionary = _pack.pocket_state(0)
+	_report("R11 then the hem closes on it", "open %.2f mm, drag %.2f mm, snapped in to %.1f mm" % [float(end["hem_open"]) * 1000.0,
+		float(end["hem_drag"]) * 1000.0, lowest_open * 1000.0], absf(end["hem_open"]) < 0.0005 and absf(end["hem_drag"]) < 0.0005)
+	_check_pocket_hug("R11 after")
+
+
+## Rest vertices and normals of a pocket mesh, pack space (the pocket mesh sits in pack space).
+func _pocket_vertices(pocket: MeshInstance3D) -> Array:
+	var arrays: Array = pocket.mesh.surface_get_arrays(0)
+	var out: Array = []
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	for i: int in range(vertices.size()):
+		out.append([vertices[i], normals[i]])
+	return out
 
 
 ## R9: carabiners and the mug swing fore-aft and sideways on starts, stops, a sidestep and an eased

@@ -8,6 +8,21 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Side pocket and thermos (#260, owner review). Measured first:
+  - **Floor:** the thermos stood 6 mm off the pocket floor because a slot constant set its height.
+    It now stands on `POCKET_FLOOR_Y`, the pocket mesh bottom plus its lining.
+  - **Shape:** the cloth wrapped the item's box and kept the box's normals, so it read as a box.
+    A round item (meta `round_radius`) is now shrink-wrapped as a cylinder: nearest point plus
+    lining, as Blender's Shrinkwrap does. The normals turn with it.
+  - **Pushing in:** a thermos put into a side pocket is pushed in bottom first (~0.4 s). Its foot
+    flares the hem and friction drags the hem down; the cloth under its bottom stays the empty
+    pouch. Then both hem springs let go and the cloth closes on it. Everything derives from the
+    item's live bottom, not a timeline.
+  - **One rule:** `BackpackModel.pocket_cloth_point` is the shader's twin, used by the loops, the
+    inspector and the stand.
+  - **Stand:** R10 (seated, hugging) and R11 (insertion). R11 caught cloth inside the thermos at
+    the floor's rounded edge: the disc rule went by normal, not by the item's bottom. Fixed.
+  - **Capture:** `capture_backpack_stills.gd insert` records the push frame by frame.
 - `capture_backpack_worn.gd` takes `short`: a 4 s close clip of the thermos in its pocket and the
   mug swinging as Henry walks, stops and sidesteps.
 - Water flask is now a steel thermos (#260), built in Blender by `tools/blender/build_thermos.py`

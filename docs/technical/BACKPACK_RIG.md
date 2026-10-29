@@ -66,8 +66,13 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 |---|---|---|
 | Body `BODY` | 0.34 × 0.52 × 0.22, edges rounded 0.06 | — |
 | Main items | shape shell, panel and back strips only | never the pockets |
-| Side pockets | centre x ±0.205, half (0.04, 0.07, 0.065), rim at y 0.17 | each its own material |
-| Pocket holding an item | cloth wraps the item box plus 4 mm lining; cloth that starts inside the item goes all the way out | the item never shows through |
+| Side pockets | centre x ±0.205, half (0.04, 0.07, 0.065), mesh y 0.03–0.17 (`POCKET_CENTRE_Y` ± half); rim `POCKET_RIM_Y` 0.17 | each its own material |
+| Pocket floor | `POCKET_FLOOR_Y` = mesh bottom + 4 mm lining = 0.034; what a pocket holds stands on it | derived from the mesh, never a slot constant |
+| Pocket holding a boxy item | cloth wraps the item box plus 4 mm lining; cloth that starts inside the item goes all the way out | the item never shows through |
+| Pocket holding a round item | the item's visual carries meta `round_radius` (thermos 0.0375); the cloth shrink-wraps the upright cylinder through the item's origin: nearest point on radius + lining (Blender Shrinkwrap, nearest surface point + offset); under the item's bottom it is a disc; the wall seam stays on the wall; normals turn to the cylinder's | hugs to 0.5 mm, never inside |
+| Pushing an item in | a new side-pocket item starts with its bottom 5 cm above the rim and is pushed down: 0.6 m/s in the air, 0.28 m/s while its foot is in the hem (top 3.5 cm), 0.5 m/s inside, easing over the last 2.5 cm | ~0.4 s |
+| Hem while it goes in | the entering foot flares the hem (top 2 cm) 9 mm past the item; friction drags the cloth down 0.03 m per m/s over the top 8 cm; cloth more than 0 to 3.5 cm under the item's bottom is still the empty pouch (funnel); both springs (4.5 Hz, damping 0.28) let go once it sits | stretches first, then hugs |
+| Cloth rule | `BackpackModel.pocket_cloth_point` is the shader's twin, used by the loops, the inspector and the stand; change both together | — |
 | Empty pocket | outer cloth flat on the wall: 0.17 + 0.006 + 0.075 × 0.08 = 0.182 out | mouth closed, creased |
 | Pocket item slot | 1 cm outboard of the pocket middle | clear of the body wall |
 | Loops | sewn at the pocket's rim (y 0.168, z 0.11) on its cloth as it is now (`pocket_outer_x`); hang out and down 60° for 3.2 cm | follow full or empty pocket |
@@ -85,6 +90,7 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 Sway, panel swing and droop, fill, and the carabiner and clipped-item pendulums are stepped
 explicitly. A hitch's long frame (seconds while Reality loads) blew them to NaN, and the pack then
 drew lying on its side. Every spring step is capped at 0.05 s, and anything non-finite is reset.
+The pocket hem's flare and drag springs are stepped the same way.
 `PendulumHang` keeps its state in world space and clamps it in its parent's space: a hanger held in
 parent space turned rigidly with its parent, so the mug never swung on the carabiner.
 
@@ -100,6 +106,8 @@ parent space turned rigidly with its parent, so the mug never swung on the carab
 | R6 | handle on the top; bedroll resting on it | 5 mm / 0–15 mm in |
 | R7 | walking and stopping: chest anchors ride the chest bone; pack sway within its cap | 2 mm / 2.5° |
 | R8 | a 1 s hitch leaves every spring finite and the pack upright | finite / up.y > 0.95 |
+| R10 | the thermos stands on the pocket floor; the pocket cloth hugs its cylinder (radius + lining) and is never inside it | 1 mm / 0.5 mm / 0 |
+| R11 | taken out and stowed again: it starts above the rim with the pocket empty; the hem opens ≥ 5 mm past it before it seats; friction drags the hem; cloth under its bottom stays the empty pouch; nothing pokes through on any frame; then the hem closes and R10 holds | 2 mm / 5 mm / 2 mm / 0.5 mm / 0 / 0.5 mm |
 | R9 | starts, stops, a sidestep and an eased 90° turn: both carabiners and the clipped item swing fore-aft and sideways against their parents, never reach their stop, and hang within 5° of world down 1.5 s after the last move | ≥ 6° each way / stop − 1° / 5° |
 
 The inspector adds: item overlaps, main items poking past the canvas give, and pocket cloth

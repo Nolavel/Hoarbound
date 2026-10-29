@@ -62,6 +62,9 @@ var _last_velocity: Vector3 = Vector3.ZERO
 var _has_last: bool = false
 var _inventory: InventoryComponent
 var _equipment: EquipmentComponent
+## Side-pocket contents last shown (slot -> item id), and whether the first fill has happened.
+var _side_items: Dictionary = {}
+var _contents_shown: bool = false
 
 
 func _init() -> void:
@@ -282,19 +285,23 @@ func _refresh_contents() -> void:
 	if _canvas == null or _equipment == null:
 		return
 	_canvas.clear_items()
+	var shown: Dictionary = {}
 	for entry: Dictionary in _equipment.get_available_pockets():
 		var held: StringName = entry["item_id"]
 		if entry["body_slot"] != &"pack" or held == &"":
 			continue
 		match entry["pocket"]:
-			&"pack_side_left":
-				_canvas.add_item(held, &"side_left")
-			&"pack_side_right":
-				_canvas.add_item(held, &"side_right")
+			&"pack_side_left", &"pack_side_right":
+				## Something new in a side pocket is pushed in; what was already there stays seated.
+				var slot: StringName = &"side_left" if entry["pocket"] == &"pack_side_left" else &"side_right"
+				_canvas.add_item(held, slot, 0.0, _contents_shown and _side_items.get(slot, &"") != held)
+				shown[slot] = held
 			&"pack_carabiner":
 				_canvas.hang_item(held, 1)
 			_:
 				_canvas.add_loose(held)
+	_side_items = shown
+	_contents_shown = true
 	for mesh: Node in _canvas.find_children("*", "MeshInstance3D", true, false):
 		(mesh as MeshInstance3D).layers = render_layers
 
