@@ -1,0 +1,13 @@
+Godot Engine v4.8.dev6.mono.official.8898c2b3d - https://godotengine.org
+WARNING: Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver.
+     at: set_use_vsync (platform/linuxbsd/x11/gl_manager_x11.cpp:372)
+OpenGL API 4.5 (Core Profile) Mesa 25.0.7-2+deb13u1 - Compatibility - Using Device: Mesa - llvmpipe (LLVM 19.1.7, 256 bits)
+
+Movie Maker mode enabled, recording movie in 960×540 @ 30 FPS...
+--------------------------------------------------------------------------------
+Done recording movie at path: /workspace/work/log-cycle/frame.png
+300 frames at 30 FPS (movie length: 00:00:10:00), recorded in 00:00:07 (142% of real-time speed).
+CPU render time: 0.36 seconds (average: 1.20 ms/frame)
+GPU render time: 2.44 seconds (average: 8.14 ms/frame)
+Encoding time: 1.48 seconds (average: 4.93 ms/frame)
+--------------------------------------------------------------------------------
