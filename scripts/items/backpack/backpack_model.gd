@@ -700,9 +700,11 @@ static func _zip_coords(raw: Vector3, half: Vector3, axis: int, sign: float) -> 
 ## [position, outward normal, direction of travel], in pack space with the canvas at rest.
 static func _seam_point(run: float, side: float) -> Array:
 	var half: Vector3 = BODY * 0.5
+	## Past the seam's end (a slider at full zip) both samples would clamp to one point.
+	run = clampf(run, 0.0, half.x + BODY.y - ROUND_M)
 	var at: Vector3 = _seam_surface(run, side, half)
-	var ahead: Vector3 = _seam_surface(run + 0.004, side, half)
-	var behind: Vector3 = _seam_surface(run - 0.004, side, half)
+	var ahead: Vector3 = _seam_surface(minf(run + 0.004, half.x + BODY.y - ROUND_M), side, half)
+	var behind: Vector3 = _seam_surface(maxf(run - 0.004, 0.0), side, half)
 	var raw := Vector3(side * minf(run, half.x), half.y - maxf(run - half.x, 0.0), half.z)
 	var core: Vector3 = raw.clamp(-half + Vector3.ONE * ROUND_M, half - Vector3.ONE * ROUND_M)
 	return [at, (raw - core).normalized(), (ahead - behind).normalized()]
@@ -882,12 +884,12 @@ func _place_sliders(give: float) -> void:
 		var slider: Node3D = _sliders[i]
 		slider.transform = Transform3D(Basis(along, normal.cross(along), normal).orthonormalized(), _on_canvas(seam[0], normal, give))
 		if slider.is_inside_tree():
-			## The tab hangs toward the ground, lying on the canvas.
-			var out: Vector3 = (slider.global_basis * Vector3.BACK).normalized()
-			var hang: Vector3 = Vector3.DOWN - out * Vector3.DOWN.dot(out)
-			hang = hang.normalized() if hang.length() > 0.2 else (slider.global_basis * Vector3.DOWN).normalized()
-			var scale_kept: Vector3 = _tabs[i].global_basis.get_scale()
-			_tabs[i].global_basis = Basis(hang.cross(out).normalized() * -1.0, -hang, out).orthonormalized().scaled(scale_kept)
+			## The tab hangs toward the ground, lying on the canvas (the slider's local XY plane). With
+			## the canvas level, world down has no pull along it, and the tab keeps the slider's down.
+			var down: Vector3 = slider.global_basis.orthonormalized().transposed() * Vector3.DOWN
+			var hang := Vector3(down.x, down.y, 0.0)
+			hang = hang.normalized() if hang.length() > 0.2 else Vector3.DOWN
+			_tabs[i].basis = Basis(Vector3.BACK.cross(hang), -hang, Vector3.BACK)
 
 
 ## A strap loop on each side pocket with a carabiner hanging from it.

@@ -6,6 +6,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed
+
+- Backpack zipper spammed `det == 0` errors when fully open (owner review). A slider past the
+  seam's end sampled two clamped points, so its tangent was zero and the tab basis degenerate. The
+  seam run is now clamped to its length; 50 errors per 120 frames before, 0 after.
+
 ### Changed
 
 - Quick Access follows what Henry wears (#260, owner).
