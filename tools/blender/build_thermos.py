@@ -41,8 +41,8 @@ SEGMENTS = 40
 def main() -> None:
 	render_dir = sys.argv[sys.argv.index("--render") + 1] if "--render" in sys.argv else ""
 	bpy.ops.wm.read_factory_settings(use_empty=True)
-	paint = _material("Thermos_Paint", (0.20, 0.30, 0.22, 1.0), 0.0, 0.6)
-	lid_paint = _material("Thermos_LidPaint", (0.16, 0.24, 0.18, 1.0), 0.0, 0.6)
+	paint = _material("Thermos_Paint", (0.088, 0.088, 0.033, 1.0), 0.0, 0.6)  # olive drab, linear
+	lid_paint = _material("Thermos_LidPaint", (0.055, 0.055, 0.022, 1.0), 0.0, 0.6)
 	steel = _material("Thermos_Steel", (0.62, 0.62, 0.64, 1.0), 1.0, 0.35)
 	body = _body(paint, steel)
 	lid = _lid(lid_paint, steel)
@@ -130,7 +130,7 @@ def _hinge_block(body: bpy.types.Object, z: float) -> None:
 			matrix=Matrix.Translation((-HINGE_OUT, y, z + NECK_H)) @ Matrix.Rotation(math.pi * 0.5, 4, "X"))
 	bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((-HINGE_OUT + 0.004, 0.0, z + NECK_H - 0.006)) @ Matrix.Diagonal((0.008, 0.022, 0.012, 1.0)))
 	## Latch keeper at +X: a small ledge under the lid's catch.
-	bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((NECK_R + 0.006, 0.0, z + NECK_H - 0.008)) @ Matrix.Diagonal((0.006, 0.012, 0.004, 1.0)))
+	bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((NECK_R + 0.003, 0.0, z + NECK_H - 0.008)) @ Matrix.Diagonal((0.006, 0.012, 0.004, 1.0)))
 	for f in bm.faces:
 		f.smooth = False
 	_append_bmesh(body, bm, 1)

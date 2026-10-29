@@ -72,7 +72,7 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 | Loops | sewn at the pocket's rim (y 0.168, z 0.11) on its cloth as it is now (`pocket_outer_x`); hang out and down 60° for 3.2 cm | follow full or empty pocket |
 | Carabiners | pivot (inside top of the ring) 2.8 cm down the loop (`loop_hold_point`); ring plane along the wall | ring through the loop's lower end |
 | Clipped item | double pendulum: carabiner in loop, item on the rod; each hanger keeps its direction in world space, so it lags when its parent turns or swings | swings fore-aft and sideways |
-| Side-pocket flask | the thermos (`Thermos.glb`, 7.5 cm across, 24 cm tall) stands in the left pocket; its lid hinges on the -X side of the collar | — |
+| Side-pocket flask | the olive-drab thermos (`Thermos.glb`, 7.5 cm across, 24 cm tall, no printed mark) stands in the left pocket; its lid hinges on the -X side of the collar | — |
 | Mug on the rod | the handle's upper bend (2.2 cm below the rim, 1.2 cm inside its outer edge) sits on the rod at the ring's bottom; the handle's hole (mug Z) runs along the rod (ring body X); the mug stands upright and hangs out from the wall | hole along the rod |
 | Handle | node on the canvas top at (0, 0.514, 0.03), placed every frame | moves with the slumping top |
 | Bedroll | across the top at (0, 0.52, 0.14), radius 0.062, presses in 8 mm | flat bottom: the pack stands anywhere |

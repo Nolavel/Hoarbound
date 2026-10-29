@@ -11,7 +11,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Water flask is now a steel thermos (#260), built in Blender by `tools/blender/build_thermos.py`
   (`assets/items/thermos/Thermos.glb`). It has a threaded neck and a flip-top lid on a hinge that
   does not come off (`Thermos_Lid`, which turns about local +Z). The painted body and steel use the
-  carabiner's chipped worn-paint shader. Item ids, volumes and the volume mark are unchanged.
+  carabiner's chipped worn-paint shader in olive drab. Blender colours are linear, so the first sRGB-like
+  values exported a pale teal. Item ids and volumes are unchanged; the printed volume mark is gone
+  at the owner's request, and the latch keeper now sits on the neck instead of 3 mm off it.
 - Backpack carabiners and the clipped mug swing both ways (#260). `PendulumHang` keeps its state in
   world space, so a hanger lags when its parent turns. Before, it turned rigidly with the parent and
   the mug barely moved on its carabiner. New stand rule R9 measured 38°/20° (left carabiner),

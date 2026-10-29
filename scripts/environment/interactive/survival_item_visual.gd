@@ -18,31 +18,15 @@ const SPOV_LID_SIZE := Vector2(0.092, 0.053)
 ## Authored steel thermos (tools/blender/build_thermos.py): 7.5 cm across, 24 cm tall, base at
 ## y = 0; the flip-top lid is Thermos_Lid, turning on its hinge about local +Z (latch towards +X).
 const THERMOS_SCENE: PackedScene = preload("res://assets/items/thermos/Thermos.glb")
-const THERMOS_RADIUS := 0.0375
-## Worn paint over steel, shared with the carabiner: GLB slot name -> paint colour, paint left.
+## Worn olive-drab paint over steel (carabiner shader): GLB slot -> sRGB paint colour, paint left.
 const WORN_PAINT_SHADER: Shader = preload("res://shaders/items/carabiner.gdshader")
-const THERMOS_PAINT := {"Thermos_Paint": [Color(0.20, 0.30, 0.22), 0.78], "Thermos_LidPaint": [Color(0.16, 0.24, 0.18), 0.7], "Thermos_Steel": [Color(0.2, 0.2, 0.2), 0.0]}
+const THERMOS_PAINT := {"Thermos_Paint": [Color(0.33, 0.33, 0.20), 0.78], "Thermos_LidPaint": [Color(0.26, 0.26, 0.16), 0.7], "Thermos_Steel": [Color(0.2, 0.2, 0.2), 0.0]}
 
 ## Shared readable props for world pickups and the meal table; no inventory state.
-static func make(item_id: StringName, item_override: ItemResource = null) -> Node3D:
+static func make(item_id: StringName, _item_override: ItemResource = null) -> Node3D:
 	var holder := Node3D.new()
 	if String(item_id).begins_with("water_flask"):
 		holder.add_child(_thermos())
-		var item: ItemResource = item_override if item_override != null else ItemCatalog.get_item(item_id)
-		var mark := Label3D.new()
-		mark.name = "VolumeMark"
-		mark.text = TranslationServer.translate(&"FLASK_HELD_MARK") % item.water_remaining_ml
-		mark.font_size = 34
-		mark.pixel_size = 0.0006
-		mark.modulate = Color(0.06, 0.08, 0.08)
-		mark.outline_size = 0
-		mark.position = Vector3(0, 0.12, THERMOS_RADIUS + 0.001)
-		holder.add_child(mark)
-		var back_mark := mark.duplicate() as Label3D
-		back_mark.name = "VolumeMarkBack"
-		back_mark.position.z = -mark.position.z
-		back_mark.rotation.y = PI
-		holder.add_child(back_mark)
 	elif item_id == &"tinder":
 		for i: int in range(7):
 			var shaving := BoxMesh.new()
