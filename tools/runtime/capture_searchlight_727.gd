@@ -102,6 +102,7 @@ func _run() -> void:
 	await _frames(3 if OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] == "grip_orbit" else 20)
 	await _shot("on")
 	if OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] == "grip_orbit":
+		render_camera.fov = 36.0
 		render_camera.look_at_from_position(prop.global_position + prop.global_basis.z * 0.85 + prop.global_basis.x * 0.55 + Vector3.UP * 0.25, prop.global_position)
 		var fixed_view: Transform3D = render_camera.global_transform
 		var body_forward: Vector3 = (player.get_node(^"HenryUALVisual") as HenryUALAnimation).global_basis.z.normalized()
@@ -113,6 +114,8 @@ func _run() -> void:
 			await _frames(3)
 			var beam_yaw: float = rad_to_deg(atan2(prop.direction.dot(body_right), prop.direction.dot(body_forward)))
 			assert(absf(beam_yaw) <= 71.0)
+			var grip_reach: StoveHandReach = (player.get_node(^"HenryUALVisual") as HenryUALAnimation).get_present_reach()
+			assert(absf(grip_reach.fingers_world.dot(prop.direction)) < 0.02)
 			render_camera.global_transform = fixed_view
 			await RenderingServer.frame_post_draw
 			capture_viewport.get_texture().get_image().save_png(ProjectSettings.globalize_path(output).path_join("grip_%03d.png" % degrees))

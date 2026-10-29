@@ -23,7 +23,10 @@ dim emissive overlays; the lamp remains the only light source. Battery life is
   and daylight captures were also reviewed.
 - Eight daylight 727 Forward+/Vulkan `grip_orbit/` captures show a continuous,
   torso-relative beam sweep within ±65°; the palm frame follows the grip
-  without the arm turning through the character's back.
+  without the arm turning through the character's back. The first orbit review
+  exposed fingers aligned along the handle, which did not form a grip. The
+  corrected captures replace those frames: fingers now cross the lengthwise
+  handle and curl around it.
 - `lens_aura.png` and `lens_divine.png` are both bound to the lens shader and
   combined for optical glow. The scene beam uses the single `SpotLight3D`.
 

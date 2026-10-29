@@ -483,7 +483,10 @@ func _aim_searchlight(delta: float) -> void:
 	## stable palm frame while the flashlight pitches and sweeps across the body.
 	reach.palm_into_world = (Vector3.DOWN - searchlight.direction * Vector3.DOWN.dot(searchlight.direction)).normalized()
 	reach.grip_weight = 1.0
-	reach.aim(chest + forward * 0.32 + side.normalized() * 0.25 - Vector3.UP * 0.1 + searchlight.inertia_offset, searchlight.direction, 1.0)
+	## The carry bar runs along the beam. Fingers must cross the bar to wrap it,
+	## rather than point along it; the right hand closes towards the torso.
+	var grip_fingers: Vector3 = searchlight.direction.cross(Vector3.UP).normalized()
+	reach.aim(chest + forward * 0.32 + side.normalized() * 0.25 - Vector3.UP * 0.1 + searchlight.inertia_offset, grip_fingers, 1.0)
 
 
 func _on_searchlight_hand_solved(palm: Vector3) -> void:
