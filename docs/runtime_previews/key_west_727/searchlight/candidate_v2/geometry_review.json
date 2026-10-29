@@ -13,5 +13,7 @@
   "lens_diameter_mm": 189.6,
   "rim_pad_radial_projection_mm": 3.5,
   "hand_source": "henry_right_hand.blend",
-  "game_integration": "paused, geometry not approved"
+  "game_integration": "paused for material and grip review; core geometry approved",
+  "hand_rotation_z_degrees": 180,
+  "battery_gauge_lamps": 4
 }

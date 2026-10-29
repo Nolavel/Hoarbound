@@ -41,7 +41,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 7.6
+      "uv_coverage_pct": 7.0
     },
     "BatteryBlock": {
       "verts": 56,
@@ -68,7 +68,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 2.9
+      "uv_coverage_pct": 2.7
     },
     "BatteryRearPlate": {
       "verts": 56,
@@ -95,7 +95,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 1.3
+      "uv_coverage_pct": 1.4
     },
     "SidePanel": {
       "verts": 56,
@@ -122,7 +122,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 1.7
+      "uv_coverage_pct": 1.5
     },
     "BodyEdgeBumper": {
       "verts": 56,
@@ -149,7 +149,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.4
+      "uv_coverage_pct": 0.3
     },
     "BodyEdgeBumper.001": {
       "verts": 56,
@@ -176,7 +176,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.3
+      "uv_coverage_pct": 0.4
     },
     "Latch": {
       "verts": 56,
@@ -473,7 +473,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 1.8
+      "uv_coverage_pct": 1.6
     },
     "BodyEdgeBumper.002": {
       "verts": 56,
@@ -500,7 +500,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.4
+      "uv_coverage_pct": 0.3
     },
     "BodyEdgeBumper.003": {
       "verts": 56,
@@ -799,6 +799,168 @@
       "uv_overlap_pct": 0.0,
       "uv_coverage_pct": 0.0
     },
+    "BatteryGaugeFrame": {
+      "verts": 56,
+      "faces": 108,
+      "tris": 108,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.3
+    },
+    "BatteryGaugeInset": {
+      "verts": 56,
+      "faces": 108,
+      "tris": 108,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.2
+    },
+    "BatteryChargeLamp_1": {
+      "verts": 56,
+      "faces": 108,
+      "tris": 108,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.0
+    },
+    "BatteryChargeLamp_2": {
+      "verts": 56,
+      "faces": 108,
+      "tris": 108,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.0
+    },
+    "BatteryChargeLamp_3": {
+      "verts": 56,
+      "faces": 108,
+      "tris": 108,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.0
+    },
+    "BatteryChargeLamp_4": {
+      "verts": 56,
+      "faces": 108,
+      "tris": 108,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.0
+    },
     "BatteryPortCover": {
       "verts": 56,
       "faces": 108,
@@ -851,7 +1013,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.9
+      "uv_coverage_pct": 0.7
     },
     "GripRubber": {
       "verts": 56,
@@ -878,7 +1040,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.6
+      "uv_coverage_pct": 0.4
     },
     "GripFineRib": {
       "verts": 56,
@@ -1123,6 +1285,33 @@
       "uv_overlap_pct": 0.0,
       "uv_coverage_pct": 0.1
     },
+    "OpticalRearCover": {
+      "verts": 80,
+      "faces": 156,
+      "tris": 156,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 1.8
+    },
     "OpticalHousing": {
       "verts": 384,
       "faces": 768,
@@ -1148,7 +1337,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 5.3
+      "uv_coverage_pct": 5.0
     },
     "MetalFrontBezel": {
       "verts": 384,
@@ -1202,7 +1391,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.6
+      "uv_coverage_pct": 0.4
     },
     "SmallRimPad_0": {
       "verts": 20,
@@ -1256,7 +1445,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.1
+      "uv_coverage_pct": 0.0
     },
     "SmallRimPad_2": {
       "verts": 20,
@@ -1337,7 +1526,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.0
+      "uv_coverage_pct": 0.1
     },
     "SmallRimPad_5": {
       "verts": 20,
@@ -1364,7 +1553,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.0
+      "uv_coverage_pct": 0.1
     },
     "DeepParabolicReflector": {
       "verts": 864,
@@ -1391,7 +1580,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 3.4
+      "uv_coverage_pct": 3.0
     },
     "LEDHeatSlug": {
       "verts": 48,
@@ -1499,7 +1688,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 2.2
+      "uv_coverage_pct": 2.0
     }
   }
 }

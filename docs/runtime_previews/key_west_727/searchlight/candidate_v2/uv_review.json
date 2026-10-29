@@ -148,6 +148,36 @@
         "UVMap"
       ]
     },
+    "BatteryGaugeFrame": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BatteryGaugeInset": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BatteryChargeLamp_1": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BatteryChargeLamp_2": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BatteryChargeLamp_3": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "BatteryChargeLamp_4": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
     "BatteryPortCover": {
       "uv_maps": [
         "UVMap"
@@ -204,6 +234,11 @@
       ]
     },
     "PowerButton": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "OpticalRearCover": {
       "uv_maps": [
         "UVMap"
       ]

@@ -1,15 +1,17 @@
 # Northbeam — geometry review v2
 
-**Awaiting owner approval. Godot integration is paused.**
+**Core geometry approved by the owner. Revised materials, opposite flank and reversed grip are under review. Godot integration remains paused.**
 Real Blender 5.2.0 Cycles renders, light switched off; no emitted beam or animation.
 
 | Front | Side |
 | --- | --- |
 | ![Front](front.png) | ![Side](side.png) |
 
+![Opposite flank: four battery lamps](opposite_side.png)
+![Rear three-quarter](rear_perspective.png)
 ![Perspective](perspective.png)
 ![Recessed optical assembly](optics.png)
-![Henry's copied right hand](grip_bare.png)
+![Henry's copied right hand, thumb toward switch](grip_bare_reverse.png)
 
 The rejected model is preserved in
 `assets/items/searchlight/source/intermediate_v1/`, with its earlier renders in
@@ -23,13 +25,25 @@ it has not replaced the game GLB.
 - Recessed clear, closed protective glass: diameter 189.6 mm. Actual parabolic
   reflector: 81 mm deep, with separate central LED, ceramic substrate and heatsink.
 - Slim metal bezel and six small rubber pads, projecting 3.5 mm radially.
-- 9,192 triangles, excluding the hand reference. Geometry QA passes: no
+- 9,996 triangles, excluding the hand reference. Geometry QA passes: no
   degenerate faces, flipped islands, z-fighting or detached parts detected.
   The opposing glass/gasket contact faces are retained to keep the glass closed
   for refraction; that is the one explained QA warning.
 - Material/wireframe outputs were visually inspected. This is an editable
-  55-part, nine-material look-development source, not the final batched game asset.
+  62-part, ten-material look-development source, not the final batched game asset.
   UV atlas consolidation, baking and game export follow approval.
+
+## Materials
+
+The rejected mottled paint is replaced with a quiet ochre mass, broad low-contrast
+object-bound brush strokes, interrupted edge-chip masks and restrained roughness
+variation. Wear is clustered along panel corners and exposed handle edges; the
+central panels remain quiet. The rear of the optical housing is closed by a
+protective cover, so the reflector is not exposed behind the lens. Metal and reflector gloss are reduced to preserve
+the painterly read while keeping the optical assembly legible. Four amber charge
+windows sit in a protected dark panel on the opposite flank. These are Blender
+look-development materials; game baking and shared NPR-material integration are
+still pending, and a Blender render does not validate the final runtime look.
 
 ## Actual Henry hand reference
 
@@ -40,7 +54,8 @@ left hand, rig and every other object. The standalone file contains exactly one
 mesh, `HenryRightHandBare`, at the original scale. The original character asset
 is unchanged.
 
-The final static bare-hand placement has zero detected triangle intersections
+The copied hand is rotated 180° around the vertical grip axis, placing the thumb
+toward the front switch. The static bare-hand placement has zero detected triangle intersections
 with the grip, handle, case and switch (`hand_fit_check.json`). It is a size and
 clearance guide, not a final gameplay hand pose. Winter-glove finger contact and
 animated wrist behavior are not claimed validated at this review stage.

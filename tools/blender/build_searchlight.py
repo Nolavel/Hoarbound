@@ -1,8 +1,9 @@
-"""Blender-only geometry review of the Northbeam searchlight, Blender 5.2+.
+"""Blender-only material and grip review of the Northbeam searchlight, Blender 5.2+.
 
 Run with -- --skills <blender-skills repo>. The rejected v1 is archived under
 assets/items/searchlight/source/intermediate_v1. This stage writes candidate_v2
-only; final game baking, GLB replacement and Godot integration await approval.
+only; core geometry is approved. Final baking and Godot integration await
+material/grip review.
 """
 import argparse
 import importlib
@@ -36,20 +37,38 @@ def material(name, colour, roughness, metallic=0.0, painted=False):
     bsdf.inputs['Metallic'].default_value = metallic
     if painted:
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
-        tex = nodes.new('ShaderNodeTexNoise')
-        tex.inputs['Scale'].default_value = 38
-        tex.inputs['Detail'].default_value = 1
-        coord = nodes.new('ShaderNodeTexCoord')
-        links.new(coord.outputs['Position'], tex.inputs['Vector']) if 'Position' in coord.outputs else links.new(coord.outputs['Object'], tex.inputs['Vector'])
-        ramp = nodes.new('ShaderNodeValToRGB')
-        stops = [(0.23,(0.075,0.07,0.06,1)), (0.32,(0.18,0.10,0.026,1)), (0.40,(*colour,1)), (0.65,(0.38,0.23,0.045,1)), (0.78,(0.42,0.37,0.28,1))]
-        ramp.color_ramp.elements.remove(ramp.color_ramp.elements[1])
-        for i,(pos,col) in enumerate(stops):
-            el = ramp.color_ramp.elements[0] if i == 0 else ramp.color_ramp.elements.new(pos)
-            el.position,el.color = pos,col
-        ramp.color_ramp.interpolation = 'CONSTANT'
-        links.new(tex.outputs['Fac'], ramp.inputs[0])
-        links.new(ramp.outputs[0], bsdf.inputs['Base Color'])
+        def mathnode(op,a,b):
+            n=nodes.new('ShaderNodeMath');n.operation=op
+            for i,v in enumerate((a,b)):
+                if isinstance(v,(int,float)):n.inputs[i].default_value=v
+                else:links.new(v,n.inputs[i])
+            return n.outputs[0]
+        coord=nodes.new('ShaderNodeTexCoord')
+        # Object-bound broad brush strokes: small colour variation, no spot palette.
+        stretch=nodes.new('ShaderNodeVectorMath');stretch.operation='MULTIPLY'
+        links.new(coord.outputs['Generated'],stretch.inputs[0]);stretch.inputs[1].default_value=(2,.8,9)
+        brush=nodes.new('ShaderNodeTexNoise');brush.inputs['Scale'].default_value=2;brush.inputs['Detail'].default_value=1
+        links.new(stretch.outputs[0],brush.inputs['Vector'])
+        tones=nodes.new('ShaderNodeValToRGB');tones.color_ramp.interpolation='CONSTANT'
+        tones.color_ramp.elements[0].position=.36;tones.color_ramp.elements[0].color=(*(c*.88 for c in colour),1)
+        tones.color_ramp.elements[1].position=.64;tones.color_ramp.elements[1].color=(*(c*1.09 for c in colour),1)
+        mid=tones.color_ramp.elements.new(.47);mid.color=(*colour,1)
+        links.new(brush.outputs['Fac'],tones.inputs[0])
+        # Wear only where two bounding-box planes meet; interrupted by a chip mask.
+        sep=nodes.new('ShaderNodeSeparateXYZ');links.new(coord.outputs['Generated'],sep.inputs[0])
+        distances=[mathnode('ABSOLUTE',mathnode('SUBTRACT',sep.outputs[k],.5),0) for k in 'XYZ']
+        pairs=[mathnode('MINIMUM',distances[a],distances[b]) for a,b in [(0,1),(1,2),(0,2)]]
+        edge=mathnode('GREATER_THAN',mathnode('MAXIMUM',mathnode('MAXIMUM',pairs[0],pairs[1]),pairs[2]),.465)
+        noise=nodes.new('ShaderNodeTexNoise');noise.inputs['Scale'].default_value=42;noise.inputs['Detail'].default_value=2
+        links.new(coord.outputs['Generated'],noise.inputs[0])
+        clusters=nodes.new('ShaderNodeTexNoise');clusters.inputs['Scale'].default_value=4.5;clusters.inputs['Detail'].default_value=1
+        links.new(coord.outputs['Generated'],clusters.inputs[0])
+        chips=mathnode('MULTIPLY',mathnode('MULTIPLY',edge,mathnode('GREATER_THAN',clusters.outputs['Fac'],.55)),mathnode('GREATER_THAN',noise.outputs['Fac'],.50))
+        mix=nodes.new('ShaderNodeMixRGB');mix.blend_type='MIX';links.new(chips,mix.inputs[0]);links.new(tones.outputs[0],mix.inputs[1]);mix.inputs[2].default_value=(.075,.080,.078,1)
+        links.new(mix.outputs[0],bsdf.inputs['Base Color'])
+        links.new(mathnode('ADD',.64,mathnode('MULTIPLY',brush.outputs['Fac'],.15)),bsdf.inputs['Roughness'])
+        links.new(chips,bsdf.inputs['Metallic'])
+        bsdf.inputs['Specular IOR Level'].default_value=.25
     return mat
 
 
@@ -163,11 +182,12 @@ def bumper_segment(name,angle,mat):
 
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--skills',required=True);parser.add_argument('--grip-only',action='store_true');args=parser.parse_args(sys.argv[sys.argv.index('--')+1:])
+    parser=argparse.ArgumentParser();parser.add_argument('--skills',required=True);parser.add_argument('--grip-only',action='store_true');parser.add_argument('--views',default='');args=parser.parse_args(sys.argv[sys.argv.index('--')+1:])
     skills=Path(args.skills)/'skills'
     for name in ['blender-hardsurface-modeling','blender-retopology-uv','blender-asset-qa','blender-game-optimization']:
         sys.path.insert(0,str(skills/name/'scripts'))
-    global STACK
+    global STACK, REVIEW_VIEWS
+    REVIEW_VIEWS=set(args.views.split(',')) if args.views else None
     STACK=importlib.import_module('apply_stack')
     if args.grip_only:
         bpy.ops.wm.open_mainfile(filepath=str(ASSET/'searchlight_geometry_review.blend'))
@@ -179,8 +199,8 @@ def main():
     rubber=material('M_Rubber',(.012,.016,.019),.84)
     inset=material('M_Battery',(.035,.041,.045),.78)
     red=material('M_Switch',(.24,.027,.017),.66)
-    metal=material('M_Bezel',(.32,.35,.38),.35,1)
-    reflector=material('M_Reflector',(.83,.85,.87),.13,1)
+    metal=material('M_Bezel',(.24,.27,.30),.49,1)
+    reflector=material('M_Reflector',(.69,.73,.76),.23,1)
     chip=material('M_LED_Die',(.53,.40,.12),.38)
     ceramic=material('M_LED_Ceramic',(.72,.70,.60),.52)
     box('MainHousing',(0,-.054,.090),(.152,.282,.144),paint,bevel=.012)
@@ -193,6 +213,12 @@ def main():
         for z in [.063,.075,.087,.099,.111]:box('CoolingSlot',(x*1.07,-.120,z),(.003,.032,.004),rubber,bevel=.0006)
         for y in [-.130,.008]:
             for z in [.052,.132]:cylinder('PanelScrew',(x*1.085,y,z),.003,.003,metal,8,'X')
+    # Opposite flank: four distinct charge lamps, protected in a recessed dark panel.
+    box('BatteryGaugeFrame',(-.082,-.030,.101),(.010,.090,.035),rubber,bevel=.003)
+    box('BatteryGaugeInset',(-.088,-.030,.101),(.003,.077,.024),inset,bevel=.001)
+    gauge=material('M_BatteryGaugeAmber',(.75,.42,.075),.46)
+    for i in range(4):
+        box('BatteryChargeLamp_%d'%(i+1),(-.090,-.058+i*.018,.101),(.002,.007,.014),gauge,bevel=.0008)
     box('BatteryPortCover',(0,-.232,.087),(.045,.005,.040),rubber,'Battery',.003)
     handle_sweep(paint)
     box('GripRubber',(0,-.025,.238),(.026,.145,.020),rubber,bevel=.003)
@@ -200,6 +226,7 @@ def main():
     box('SwitchSeat',(0,.071,.244),(.035,.032,.009),rubber,bevel=.003)
     box('PowerButton',(0,.071,.251),(.024,.021,.007),red,'Button',.002)
     # A tapered optical housing, not a cylinder filled by the body cube.
+    cylinder('OpticalRearCover',(0,.079,.115),.088,.004,paint,40)
     lathe('OpticalHousing',[(.088,.080),(.096,.085),(.109,.153),(.110,.181),(.107,.185),(.101,.179),(.100,.155),(.087,.091)],paint)
     lathe('MetalFrontBezel',[(.108,.176),(.110,.181),(.110,.194),(.106,.200),(.098,.200),(.096,.196),(.096,.186),(.100,.180)],metal)
     lathe('GlassSeal',[(.0975,.188),(.099,.190),(.099,.197),(.095,.197),(.0948,.193),(.0948,.189)],rubber)
@@ -249,7 +276,7 @@ def main():
     (EVIDENCE/'geometry_qa.json').write_text(json.dumps(report,indent=2))
     stats=importlib.import_module('mesh_stats').run(objects=names,budget='pc')
     (EVIDENCE/'model_stats.json').write_text(json.dumps(stats,indent=2))
-    metrics={'ground_shift_m':shift,'handle_section_mm':[22,16],'rubber_grip_section_mm':[26,20],'clearance_above_case_mm':(.238-.010-.162)*1000,'reflector_depth_mm':81,'lens_diameter_mm':189.6,'rim_pad_radial_projection_mm':3.5,'hand_source':'henry_right_hand.blend','game_integration':'paused, geometry not approved'}
+    metrics={'ground_shift_m':shift,'handle_section_mm':[22,16],'rubber_grip_section_mm':[26,20],'clearance_above_case_mm':(.238-.010-.162)*1000,'reflector_depth_mm':81,'lens_diameter_mm':189.6,'rim_pad_radial_projection_mm':3.5,'hand_source':'henry_right_hand.blend','game_integration':'paused for material and grip review; core geometry approved','hand_rotation_z_degrees':180,'battery_gauge_lamps':4}
     (EVIDENCE/'geometry_review.json').write_text(json.dumps(metrics,indent=2))
     bpy.ops.wm.save_as_mainfile(filepath=str(ASSET/'searchlight_geometry_review.blend'))
     render_review(shift)
@@ -272,18 +299,20 @@ def render_review(shift,grip_only=False):
     light('GlassReflectionStrip',(.35,.6,.3),13,.06,(1,.96,.86),'RECTANGLE',.45)
     light('RearEdge',(-.3,-.55,.45),25,.35,(1,.76,.50))
     camera=bpy.data.objects.new('ReviewCamera',bpy.data.cameras.new('ReviewCamera'));bpy.context.collection.objects.link(camera);scene.camera=camera;camera.data.type='ORTHO'
-    views=[] if grip_only else [('front',(0,1,.139),(0,0,.127),.39),('side',(1,-.01,.145),(0,-.016,.127),.56),('perspective',(.58,.77,.42),(0,-.015,.128),.52),('optics',(.16,.8,.24),(0,.145,.115),.29)]
+    views=[] if grip_only else [('front',(0,1,.139),(0,0,.127),.39),('side',(1,-.01,.145),(0,-.016,.127),.56),('perspective',(.58,.77,.42),(0,-.015,.128),.52),('optics',(.16,.8,.24),(0,.145,.115),.29),('opposite_side',(-1,-.01,.145),(0,-.016,.127),.56),('rear_perspective',(-.58,-.77,.42),(0,-.03,.128),.52)]
     for name,at,look,scale in views:
+        if REVIEW_VIEWS and name not in REVIEW_VIEWS:continue
         camera.data.ortho_scale=scale;camera.location=at;camera.rotation_euler=(Vector(look)-camera.location).to_track_quat('-Z','Y').to_euler();scene.render.filepath=str(EVIDENCE/(name+'.png'));bpy.ops.render.render(write_still=True)
     hand_path=ASSET/'henry_right_hand.blend'
     with bpy.data.libraries.load(str(hand_path),link=False) as (available,chosen):chosen.objects=['HenryRightHandBare']
     hands=[]
     for ob in chosen.objects:
-        bpy.context.collection.objects.link(ob);ob.hide_set(False);ob.hide_render=True;ob.location=Vector((.125,-.025,.285+shift));hands.append(ob)
+        bpy.context.collection.objects.link(ob);ob.hide_set(False);ob.hide_render=True;ob.location=Vector((-.125,-.025,.285+shift));ob.rotation_euler.z=math.pi;hands.append(ob)
     bare=next(ob for ob in hands if 'Bare' in ob.name)
     bare.hide_render=False
     camera.data.ortho_scale=.31
     for name,eye in [('grip_bare',(-.48,.12,.43)),('grip_bare_reverse',(.48,-.12,.36))]:
+        if REVIEW_VIEWS and name not in REVIEW_VIEWS:continue
         camera.location=eye;target=Vector((0,-.035,.225));camera.rotation_euler=(target-camera.location).to_track_quat('-Z','Y').to_euler();scene.render.filepath=str(EVIDENCE/(name+'.png'));bpy.ops.render.render(write_still=True)
     for ob in hands:
         ob.hide_render='Glove' in ob.name

@@ -233,6 +233,54 @@
       "uv_maps": 1,
       "shape_keys": 0
     },
+    "BatteryGaugeFrame": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryGaugeInset": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryChargeLamp_1": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryChargeLamp_2": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryChargeLamp_3": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryChargeLamp_4": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
     "BatteryPortCover": {
       "tris": 108,
       "verts": 56,
@@ -324,6 +372,14 @@
     "PowerButton": {
       "tris": 108,
       "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "OpticalRearCover": {
+      "tris": 156,
+      "verts": 80,
       "materials": 1,
       "modifiers": [],
       "uv_maps": 1,
@@ -442,10 +498,10 @@
       "shape_keys": 0
     }
   },
-  "total_tris": 9192,
-  "total_verts": 4698,
-  "draw_calls_est": 55,
-  "unique_materials": 9,
+  "total_tris": 9996,
+  "total_verts": 5114,
+  "draw_calls_est": 62,
+  "unique_materials": 10,
   "textures": [],
   "texture_vram_mb_uncompressed": 0.0,
   "bones": 0,
@@ -460,7 +516,7 @@
       "bones": 300
     },
     "over": [
-      "materials 9 > 6 (merge/atlas)"
+      "materials 10 > 6 (merge/atlas)"
     ],
     "pass": false
   }
