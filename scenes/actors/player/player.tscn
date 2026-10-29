@@ -89,6 +89,8 @@ starter_slot_items = Dictionary[StringName, StringName]({
 &"pack/pack_main": &"spov_can",
 &"pack/pack_main_2": &"tinned_stew",
 &"pack/pack_side_left": &"water_flask",
+&"pack/pack_side_right_front": &"axe",
+&"pack/pack_side_right_back": &"hammer",
 &"pack/pack_carabiner": &"mug",
 &"torso_outer/coat_right": &"lighter",
 &"legs_outer/thigh_left": &"tinder"

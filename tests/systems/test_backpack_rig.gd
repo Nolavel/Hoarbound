@@ -15,8 +15,9 @@ const GROUND_CLEAR_M: float = 0.3
 const HANDLE_GAP_M: float = 0.005
 ## Least swing each hanger shows both ways (fore-aft and sideways) on starts, stops and turns, degrees.
 const MIN_SWING_DEG: float = 6.0
-## A hanger at rest 1.5 s after the last move hangs within this of world down, degrees.
-const SETTLED_DEG: float = 5.0
+## A hanger swings less than this in the last half second, degrees (it may rest against the pack
+## or a tool in more than one pose).
+const SETTLED_DEG: float = 3.0
 ## Pocket cloth over a round item: its radius off the cylinder plus lining, and the floor gap, m.
 const HUG_M: float = 0.0005
 const FLOOR_M: float = 0.001
@@ -54,7 +55,8 @@ func _run() -> void:
 	_check_carabiners()
 	_check_pockets()
 	_check_top()
-	_check_empty_pocket()
+	await _check_empty_pocket()
+	_check_sleeves()
 	_check_pocket_hug("R10")
 	await _check_insert()
 	await _check_walking()
@@ -65,11 +67,12 @@ func _run() -> void:
 	quit(1 if _failures > 0 else 0)
 
 
-## R1: the pack shows what its pockets hold: two loose cans, the flask in a side pocket, the mug clipped on.
+## R1: the pack shows what its pockets hold: two loose cans, the flask in a side pocket, the axe and
+## the hammer in the right pocket's sleeves, the mug clipped on.
 func _check_contents() -> void:
 	var items: Array = _pack.get(&"_items")
 	var ids: Array = items.map(func(item: Dictionary) -> StringName: return item["id"])
-	_report("R1 contents in the canvas", "%s" % [ids], ids.has(&"spov_can") and ids.has(&"tinned_stew") and ids.has(&"water_flask"))
+	_report("R1 contents in the canvas", "%s" % [ids], ids.has(&"spov_can") and ids.has(&"tinned_stew") and ids.has(&"water_flask") and ids.has(&"axe") and ids.has(&"hammer"))
 	_report("R1 something clipped on", "%d" % (_pack.get(&"_hung") as Array).size(), (_pack.get(&"_hung") as Array).size() == 1)
 
 
@@ -128,8 +131,8 @@ func _check_carabiners() -> void:
 			var off: float = Vector2(com.x - rod_at.x, com.z - rod_at.z).length()
 			var sink: float = _mug_sink(visual)
 			var outward: float = (to_pack.basis * (com - rod_at)).x
-			var plumb: bool = off < 0.003 or (sink > -0.001 and outward > 0.0)
-			_report("R3 mug's centre of mass under the rod (or leaning out off the pack)", "%.1f mm off plumb (%.1f out), %.1f cm below" % [off * 1000.0, outward * 1000.0, (rod_at.y - com.y) * 100.0], plumb and com.y < rod_at.y)
+			var plumb: bool = off < 0.003 or sink > -(PendulumHang.CONTACT_MARGIN + 0.001)
+			_report("R3 mug's centre of mass under the rod (or leaning on what it touches)", "%.1f mm off plumb (%.1f out), %.1f cm below" % [off * 1000.0, outward * 1000.0, (rod_at.y - com.y) * 100.0], plumb and com.y < rod_at.y)
 			_report("R3 mug rests on the pack, not in it", "%.1f mm %s" % [absf(sink) * 1000.0, "in" if sink > 0.0 else "clear"], sink <= 0.0005)
 	var ground: float = INF
 	for visual: Node3D in _pack.get(&"_hung"):
@@ -140,6 +143,9 @@ func _check_carabiners() -> void:
 
 ## Deepest any mug vertex is inside the pack (the same surface the pendulum leans on).
 func _mug_sink(visual: Node3D) -> float:
+	## The pack moves on its bone after the hangers solve; they move with it, so measure in one pose.
+	_pack.set(&"_to_pack", _pack.global_transform.affine_inverse())
+	_pack.set(&"_from_pack_basis", _pack.global_basis)
 	var sink: float = -INF
 	for mesh: Node in visual.find_children("*", "MeshInstance3D", true, false):
 		for v: Vector3 in (mesh as MeshInstance3D).mesh.get_faces():
@@ -149,14 +155,17 @@ func _mug_sink(visual: Node3D) -> float:
 
 ## R4: pocket items stay out of the main cavity; R5: empty pocket lies on the wall.
 func _check_pockets() -> void:
-	var cavity_x: float = BackpackModel.BODY.x * 0.5 - 0.012
+	var cavity := AABB(Vector3(-BackpackModel.BODY.x * 0.5 + 0.012, 0.012, 0.012), BackpackModel.BODY - Vector3.ONE * 0.024)
+	var to_pack: Transform3D = _pack.global_transform.affine_inverse()
 	for item: Dictionary in _pack.get(&"_items"):
 		if String(item["slot"]).begins_with("side_"):
-			var box: AABB = item["box"]
-			var into: float = maxf(cavity_x - absf(box.position.x), 0.0) if box.position.x > 0.0 else maxf(cavity_x - absf(box.end.x), 0.0)
+			var into: float = 0.0
+			for mesh: Node in (item["node"] as Node3D).find_children("*", "MeshInstance3D", true, false):
+				for f: Vector3 in (mesh as MeshInstance3D).mesh.get_faces():
+					var q: Vector3 = to_pack * (mesh as MeshInstance3D).global_transform * f
+					if cavity.has_point(q):
+						into = maxf(into, minf(q.x - cavity.position.x, cavity.end.x - q.x))
 			_report("R4 %s out of the cavity" % item["id"], "%.1f cm in" % (into * 100.0), into <= 0.0)
-	var empty_face: float = absf(_pack.pocket_outer_x(1))
-	_report("R5 empty pocket on the wall", "outer face %.1f cm from centre (wall %.1f)" % [empty_face * 100.0, BackpackModel.BODY.x * 50.0], empty_face < BackpackModel.BODY.x * 0.5 + 0.02)
 
 
 ## R6: the handle stands on the canvas top; the bedroll lies on it.
@@ -196,9 +205,15 @@ func _check_walking() -> void:
 	_report("R7 pack rocks at most %.1f deg" % PackRig.MAX_SWAY_DEG, "%.2f deg" % sway, sway <= PackRig.MAX_SWAY_DEG + 0.01)
 
 
-## R12: the empty pocket is sewn onto the body's rounded side: its inner layer on the body, and no
-## cloth further off it than the fold's thickness (no gap that reads as torn off).
+## R5, R12: with both tools taken out, the empty right pocket is sewn onto the body's rounded side:
+## its inner layer on the body, no cloth further off it than the fold's thickness. Then they go back.
 func _check_empty_pocket() -> void:
+	var equipment: EquipmentComponent = _rig.get(&"_equipment")
+	var front: StringName = equipment.take_from_pocket(&"pack", &"pack_side_right_front")
+	var back: StringName = equipment.take_from_pocket(&"pack", &"pack_side_right_back")
+	await _frames(10)
+	var empty_face: float = absf(_pack.pocket_outer_x(1))
+	_report("R5 empty pocket on the wall", "outer face %.1f cm from centre (wall %.1f)" % [empty_face * 100.0, BackpackModel.BODY.x * 50.0], empty_face < BackpackModel.BODY.x * 0.5 + 0.02)
 	var pocket: MeshInstance3D = _pack.find_child("SidePocketRight", true, false)
 	var seam: float = 0.0
 	var off: float = 0.0
@@ -211,6 +226,74 @@ func _check_empty_pocket() -> void:
 	var fold: float = BackpackModel.POCKET_FLAT_M + BackpackModel.POCKET_HALF.x * 2.0 * BackpackModel.POCKET_FOLD_SPREAD
 	_report("R12 empty pocket's seam on the body", "%.1f mm off" % (seam * 1000.0), seam < 0.001)
 	_report("R12 empty pocket lies on the body", "outer layer at most %.1f mm off (fold %.1f mm)" % [off * 1000.0, fold * 1000.0], off <= fold + 0.0005)
+	equipment.stow(&"pack", &"pack_side_right_front", front)
+	equipment.stow(&"pack", &"pack_side_right_back", back)
+	await _frames(60)
+
+
+## R13: the axe and hammer hang in the right pocket's sleeves by their heads: each head sits on the
+## rim, its sleeve hugs its handle (never inside it), the heads clear the pack and each other, and
+## the divider runs from the body to the outer cloth between them.
+func _check_sleeves() -> void:
+	var pocket: MeshInstance3D = _pack.find_child("SidePocketRight", true, false)
+	var boxes: Array[AABB] = []
+	for sleeve: int in [1, 2]:
+		var state: Dictionary = _pack.pocket_state(sleeve)
+		var name: String = "front" if sleeve == 1 else "back"
+		if state.is_empty() or not state["tool"]:
+			_report("R13 %s sleeve holds a tool" % name, "empty", false)
+			continue
+		var node: Node3D = state["node"]
+		var head_y: float = (node.transform * Vector3(0.0, float(node.get_meta(&"head_bottom")), 0.0)).y
+		_report("R13 %s tool's head on the rim" % name, "%.1f mm above it" % ((head_y - BackpackModel.POCKET_RIM_Y) * 1000.0),
+			absf(head_y - BackpackModel.POCKET_RIM_Y) < 0.003 and float(state["rise"]) <= 0.0)
+		var e: Vector2 = state["ellipse"]
+		var axis: Vector2 = state["axis"]
+		var worst: float = 0.0
+		var poke: float = 0.0
+		for v: Array in _pocket_vertices(pocket):
+			var p: Vector3 = v[0]
+			var n: Vector3 = v[1]
+			if n.x < -0.5 or BackpackModel.sleeve_at(1, p.z) != sleeve:
+				continue
+			var moved: Vector3 = _pack.pocket_cloth_point(1, p, n)
+			var d := Vector2(moved.x, moved.y * 0.0 + moved.z) - axis
+			var dir: Vector2 = d.normalized()
+			var reach: float = 1.0 / (dir / e).length()
+			poke = maxf(poke, reach - d.length())
+			if p.y < BackpackModel.POCKET_RIM_Y - BackpackModel.HEM_BAND_M and absf(p.z - BackpackModel.SLEEVE_SPLIT_Z) > 0.012:
+				var lined: float = 1.0 / (dir / (e + Vector2.ONE * BackpackModel.POCKET_LINING_M)).length()
+				worst = maxf(worst, absf(d.length() - lined))
+		_report("R13 %s sleeve hugs its handle" % name, "%.2f mm off section + lining" % (worst * 1000.0), worst < 0.0005)
+		_report("R13 %s sleeve never inside its handle" % name, "%.2f mm" % (maxf(poke, 0.0) * 1000.0), poke <= 0.0)
+		var into: float = 0.0
+		var to_pack: Transform3D = _pack.global_transform.affine_inverse()
+		for mesh: Node in node.find_children("*", "MeshInstance3D", true, false):
+			for f: Vector3 in (mesh as MeshInstance3D).mesh.get_faces():
+				var q: Vector3 = to_pack * (mesh as MeshInstance3D).global_transform * f
+				if q.y > BackpackModel.POCKET_RIM_Y and q.y < BackpackModel.BODY.y and q.z > 0.0 and q.z < BackpackModel.BODY.z:
+					into = maxf(into, _pack.body_side_x(q.y, q.z) - q.x)
+		_report("R13 %s tool clear of the pack" % name, "%.1f mm into it" % (maxf(into, 0.0) * 1000.0), into <= 0.0005)
+		boxes.append(state["node"].get_meta(&"_pack_box") if false else _pack_box(node))
+	if boxes.size() == 2:
+		var overlap: AABB = boxes[0].intersection(boxes[1])
+		_report("R13 axe and hammer clear of each other", "%.1f cm3 shared" % (overlap.get_volume() * 1e6), overlap.get_volume() < 1e-7)
+	var divider: MeshInstance3D = _pack.find_child("SleeveDivider", true, false)
+	var span: AABB = divider.mesh.get_aabb() if divider != null else AABB()
+	var outer: float = absf(_pack.pocket_outer_x(1))
+	_report("R13 divider from the body to the outer cloth", "x %.1f..%.1f cm (outer cloth %.1f)" % [span.position.x * 100.0, span.end.x * 100.0, outer * 100.0],
+		divider != null and span.position.x < BackpackModel.BODY.x * 0.5 + 0.002 and span.end.x > outer - 0.006)
+
+
+func _pack_box(node: Node3D) -> AABB:
+	var to_pack: Transform3D = _pack.global_transform.affine_inverse()
+	var box := AABB()
+	var first: bool = true
+	for mesh: Node in node.find_children("*", "MeshInstance3D", true, false):
+		var part: AABB = to_pack * (mesh as MeshInstance3D).global_transform * (mesh as MeshInstance3D).get_aabb()
+		box = part if first else box.merge(part)
+		first = false
+	return box
 
 
 ## R10: a round item stands on its pocket's floor and the cloth shrink-wraps its cylinder (no box).
@@ -317,6 +400,9 @@ func _check_swing() -> void:
 	var peak: Array[Vector2] = []
 	var rest: Array[float] = []
 	rest.resize(hangers.size())
+	var last: Array[Vector3] = []
+	for hanger: PendulumHang in hangers:
+		last.append(-hanger.global_basis.y.normalized())
 	var worst_sink: float = -INF
 	peak.resize(hangers.size())
 	peak.fill(Vector2.ZERO)
@@ -334,17 +420,26 @@ func _check_swing() -> void:
 			var down: Vector3 = -hangers[i].basis.y.normalized()
 			var lean := Vector2(rad_to_deg(atan2(absf(down.z), -down.y)), rad_to_deg(atan2(absf(down.x), -down.y)))
 			peak[i] = peak[i].max(lean)
-			rest[i] = rad_to_deg((-hangers[i].global_basis.y).angle_to(Vector3.DOWN))
+			var now: Vector3 = -hangers[i].global_basis.y.normalized()
+			if frame == 170 - 15:
+				last[i] = now
+				rest[i] = 0.0
+			elif frame > 170 - 15:
+				rest[i] = maxf(rest[i], rad_to_deg(now.angle_to(last[i])))
 		for visual: Node3D in _pack.get(&"_hung"):
 			worst_sink = maxf(worst_sink, _mug_sink(visual))
-	_report("R9 clipped item never sinks into the pack", "deepest %.1f mm" % (worst_sink * 1000.0), worst_sink <= 0.001)
+	_report("R9 clipped item never sinks into the pack or the tools", "deepest %.1f mm (contact margin %.0f mm: its points are a 1 cm sample)" % [worst_sink * 1000.0, PendulumHang.CONTACT_MARGIN * 1000.0],
+		worst_sink <= PendulumHang.CONTACT_MARGIN)
 	for i: int in range(hangers.size()):
 		var name: String = "carabiner %d" % i if i < 2 else "clipped item"
-		_report("R9 %s swings both ways" % name, "fore-aft %.1f deg, sideways %.1f deg" % [peak[i].x, peak[i].y],
-			minf(peak[i].x, peak[i].y) >= MIN_SWING_DEG)
+		if hangers[i].hinge_axis != Vector3.ZERO:
+			_report("R9 %s swings on its rod" % name, "%.1f deg (a hinge: one plane)" % maxf(peak[i].x, peak[i].y), maxf(peak[i].x, peak[i].y) >= MIN_SWING_DEG)
+		else:
+			_report("R9 %s swings both ways" % name, "fore-aft %.1f deg, sideways %.1f deg" % [peak[i].x, peak[i].y],
+				minf(peak[i].x, peak[i].y) >= MIN_SWING_DEG)
 		var cap: float = hangers[i].max_swing_deg
 		_report("R9 %s never slams its %.0f deg stop" % [name, cap], "peak %.1f deg" % maxf(peak[i].x, peak[i].y), maxf(peak[i].x, peak[i].y) < cap - 1.0)
-		_report("R9 %s settles at rest" % name, "%.1f deg off down" % rest[i], rest[i] < SETTLED_DEG)
+		_report("R9 %s comes to rest" % name, "%.1f deg of swing left in the last half second" % rest[i], rest[i] < SETTLED_DEG)
 
 
 ## R8: a hitch (one 1-second frame) leaves every spring finite and the pack upright on Henry.

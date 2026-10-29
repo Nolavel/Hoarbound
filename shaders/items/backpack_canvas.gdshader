@@ -77,17 +77,20 @@ uniform float pocket_fold_spread = 0.03;
 // body_round; the pocket is sewn onto that surface as it slumps, not onto a flat wall.
 uniform vec3 body_half = vec3(0.17, 0.26, 0.11);
 uniform float body_round = 0.06;
-// Round item (round_radius > 0): the cloth shrink-wraps an upright cylinder round round_axis (x, z),
-// not its box. While it is pushed in, cloth below item_bottom is still the empty pouch; the hem
-// (top hem_band_m under rim_y) opens hem_open_m past it and friction drags it down by hem_drag_m.
-uniform float round_radius = 0.0;
-uniform vec2 round_axis = vec2(0.0);
-uniform float item_bottom = 0.0;
-uniform float seat_bottom = 0.0;
+// Sleeves: a pocket holds up to two items, split by a divider at sleeve_split_z (0: one sleeve;
+// cloth with z under the split belongs to sleeve 1). Each item is an upright elliptic cylinder
+// (round_half: half size along x and z, 0 = none) round round_axis (x, z): the cloth shrink-wraps
+// it, not its box. While one is pushed in, cloth below its item_bottom is still the empty pouch;
+// the hem (top hem_band_m under rim_y) opens hem_open_m past it and friction drags it down.
+uniform float sleeve_split_z = 0.0;
+uniform vec2 round_half[2];
+uniform vec2 round_axis[2];
+uniform float item_bottom[2];
+uniform float seat_bottom[2];
+uniform float hem_open_m[2];
+uniform float hem_drag_m[2];
 uniform float rim_y = 0.17;
 uniform float hem_band_m = 0.02;
-uniform float hem_open_m = 0.0;
-uniform float hem_drag_m = 0.0;
 uniform float hem_drag_fall_m = 0.08;
 uniform float funnel_m = 0.035;
 // Creases where the cloth is slack: depth (m) and spacing (per metre).
@@ -170,30 +173,32 @@ void vertex() {
 	if (is_pocket) {
 		float side = sign(pocket_wall_x);
 		float out_x = (p.x - pocket_wall_x) * side;
-		if (item_count > 0 && round_radius > 0.0) {
-			// Shrink-wrap onto the cylinder (nearest surface point plus the lining); under its bottom, a disc.
-			vec2 d = p.xz - round_axis;
+		int k = sleeve_split_z > 0.0 && p.z < sleeve_split_z ? 1 : 0;
+		if (round_half[k].x > 0.0) {
+			// Shrink-wrap onto the ellipse (radial projection plus the lining); under its bottom, a disc.
+			vec2 d = p.xz - round_axis[k];
 			float dl = length(d);
 			vec2 dir = dl > 0.0001 ? d / dl : vec2(side, 0.0);
 			float hem = smoothstep(rim_y - hem_band_m, rim_y, p.y);
-			float r = max(round_radius + lining_m + hem_open_m * hem, round_radius + 0.001);
+			vec2 e = max(round_half[k] + vec2(lining_m + hem_open_m[k] * hem), round_half[k] + vec2(0.001));
+			float r = 1.0 / length(dir / e);
 			vec3 hug = p;
-			hug.xz = round_axis + dir * (p.y < item_bottom - lining_m * 0.5 ? min(dl, r) : r);
+			hug.xz = round_axis[k] + dir * (p.y < item_bottom[k] - lining_m * 0.5 ? min(dl, r) : r);
 			float dragged = smoothstep(rim_y - hem_drag_fall_m, rim_y, p.y);
-			hug.y -= hem_drag_m * dragged;
+			hug.y -= hem_drag_m[k] * dragged;
 			if (n.x * side < -0.5) {
 				hug.x = side * body_side_x(p.y, p.z);
 			}
-			float empty_w = smoothstep(0.0, funnel_m, item_bottom - p.y) * smoothstep(0.0, 0.01, item_bottom - seat_bottom);
+			float empty_w = smoothstep(0.0, funnel_m, item_bottom[k] - p.y) * smoothstep(0.0, 0.01, item_bottom[k] - seat_bottom[k]);
 			vec3 target = mix(hug, pocket_flat(p, n, side, out_x), empty_w);
 			v_stretch = clamp(length(target - p) / 0.03, 0.0, 1.0) * (1.0 - empty_w);
-			bool sewn = n.x * side < -0.5 || p.y < item_bottom - lining_m * 0.5;
-			out_n = normalize(mix(sewn ? n : vec3(dir.x, 0.0, dir.y), n, empty_w));
+			bool sewn = n.x * side < -0.5 || p.y < item_bottom[k] - lining_m * 0.5;
+			out_n = normalize(mix(sewn ? n : normalize(vec3(dir.x / (e.x * e.x), 0.0, dir.y / (e.y * e.y))), n, empty_w));
 			shaped = target - p;
 			// Taut over the item; the hem's drag bunches the cloth under it; the empty part hangs slack.
-			float bunch = clamp(hem_drag_m / 0.008, 0.0, 1.0) * dragged * (1.0 - hem);
+			float bunch = clamp(hem_drag_m[k] / 0.008, 0.0, 1.0) * dragged * (1.0 - hem);
 			slack = mix(0.08 + 0.9 * bunch, 1.0, empty_w);
-		} else if (item_count > 0) {
+		} else if (sleeve_split_z <= 0.0 && item_count > 0) {
 			// Wrapped round what it holds: pulled onto the item's box, the wall side kept on the wall.
 			vec3 c = item_centre[0].xyz;
 			vec3 h = item_half[0].xyz + vec3(lining_m);

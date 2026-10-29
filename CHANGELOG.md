@@ -8,6 +8,25 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Right side pocket split into two bottomless sleeves holding a Build-Rite hatchet and claw hammer
+  (#260, owner refs).
+  - **Tools:** built in Blender by `tools/blender/build_hand_tools.py` (`assets/items/axe/Axe.glb`,
+    `assets/items/hammer/Hammer.glb`), each with a wrap-round price tag drawn by the script ($24.99
+    and $9.49). They have rusty heads, a yellow and a red plastic handle, dark rubber grips and a
+    holed butt. The new `worn_tool.gdshader` paints the wear in blocky cells, like the refs.
+  - **Pocket:** a dark divider splits the right pocket into front and back sleeves. Each tool hangs
+    by its head on the rim, its handle through the open bottom. Each sleeve shrink-wraps its handle
+    as an ellipse and keeps the thermos's hem stretch on push-in. The tools are placed clear of a
+    full pack's wall and of each other.
+  - **Mug:** it now knocks against the handles. It turns only about the carabiner's rod (a hinge),
+    seeks the nearest clear angle, has contact friction and a 3 mm contact margin. A loaded
+    carabiner leans out from the pack.
+  - **Data:** the pockets are `pack_side_right_front` and `pack_side_right_back`. The starting
+    loadout gains the axe and the hammer.
+  - **Stand:** new rule R13 (sleeves). R4 now counts vertices. R9 covers the hinge, the swing left
+    at rest and the contact margin. R5 and R12 check the empty right pocket with the tools taken out.
+  - **Pending:** Quick Access for the slots outside a worn pack, and a knock sound
+    (`BACKPACK_RIG.md`).
 - The empty side pocket is sewn onto the body (#260, owner review: "looks torn off the pack").
   - **Measured:** its seam stood 11 mm off the body, and its edges 14-16 mm. It was laid on a
     flat wall at x = 0.17, while the body is a box rounded by 6 cm that curves in near the bottom,

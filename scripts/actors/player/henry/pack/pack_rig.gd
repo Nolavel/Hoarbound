@@ -291,9 +291,9 @@ func _refresh_contents() -> void:
 		if entry["body_slot"] != &"pack" or held == &"":
 			continue
 		match entry["pocket"]:
-			&"pack_side_left", &"pack_side_right":
+			&"pack_side_left", &"pack_side_right_front", &"pack_side_right_back":
 				## Something new in a side pocket is pushed in; what was already there stays seated.
-				var slot: StringName = &"side_left" if entry["pocket"] == &"pack_side_left" else &"side_right"
+				var slot: StringName = StringName(String(entry["pocket"]).trim_prefix("pack_"))
 				_canvas.add_item(held, slot, 0.0, _contents_shown and _side_items.get(slot, &"") != held)
 				shown[slot] = held
 			&"pack_carabiner":

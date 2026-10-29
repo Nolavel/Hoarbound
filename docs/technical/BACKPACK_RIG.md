@@ -66,7 +66,11 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 |---|---|---|
 | Body `BODY` | 0.34 × 0.52 × 0.22, edges rounded 0.06 | — |
 | Main items | shape shell, panel and back strips only | never the pockets |
-| Side pockets | centre x ±0.205, half (0.04, 0.07, 0.065), mesh y 0.03–0.17 (`POCKET_CENTRE_Y` ± half); rim `POCKET_RIM_Y` 0.17 | each its own material |
+| Side pockets | centre x ±0.205, half (0.04, 0.07, 0.065), mesh y 0.03–0.17 (`POCKET_CENTRE_Y` ± half); rim `POCKET_RIM_Y` 0.17; the right one is open at the bottom too | each its own material |
+| Sleeves | `SLEEVE_SLOTS`: the left pocket whole (`side_left`), the right pocket's front (`side_right_front`, z > 0.11) and back (`side_right_back`) halves; one item each; equipment pockets `pack_side_left`, `pack_side_right_front`, `pack_side_right_back` | one shader holds two items per pocket |
+| Divider | dark cloth (`SleeveDivider`) at z 0.11 from the body to the outer cloth, pocket bottom to rim, rebuilt each frame on the cloth as it is | splits the right pocket |
+| Tools in sleeves | axe front, hammer back; hung by the head: the head's underside (`head_bottom` meta: axe 0.30, hammer 0.291) 2 mm above the rim, handle through the open bottom, blade/face forward (tool X to pack +Z); x from the unslumped wall (a full pack's) plus lining plus the handle's half, then pushed out of the wall and of the other tool by any overlap; handles hang ~20 cm below the pack | heads clear the pack and each other |
+| Sleeve cloth | each sleeve shrink-wraps its item's section as an upright ellipse (`handle_half` meta, axe 1.5 × 1.05 cm, hammer 1.38 × 0.98 cm; thermos a circle) round its axis (with the handle's bow); same hem flare/drag and push-in as the thermos | hugs to 0.5 mm, never inside |
 | Pocket floor | `POCKET_FLOOR_Y` = mesh bottom + 4 mm lining = 0.034; what a pocket holds stands on it | derived from the mesh, never a slot constant |
 | Pocket holding a boxy item | cloth wraps the item box plus 4 mm lining; cloth that starts inside the item goes all the way out | the item never shows through |
 | Pocket holding a round item | the item's visual carries meta `round_radius` (thermos 0.0375); the cloth shrink-wraps the upright cylinder through the item's origin: nearest point on radius + lining (Blender Shrinkwrap, nearest surface point + offset); under the item's bottom it is a disc; the wall seam stays on the wall; normals turn to the cylinder's | hugs to 0.5 mm, never inside |
@@ -81,7 +85,9 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 | Clipped item | double pendulum: carabiner in loop (1.9 Hz, damping 0.18, stop 55°), item on the rod (1.8 Hz, damping 0.65, stop 60°; the pack is its real stop); each hanger keeps its direction in world space, so it lags when its parent turns or swings | swings fore-aft and sideways |
 | Side-pocket flask | the olive-drab thermos (`Thermos.glb`, 7.5 cm across, 24 cm tall, no printed mark) stands in the left pocket; its lid hinges on the -X side of the collar | — |
 | Mug on the rod | the handle's upper bend (2.2 cm below the rim, 1.2 cm inside its outer edge) sits on the rod at the ring's bottom; the hole (mug Z) runs along the rod; hung on a pin it turns about the hole until its centre of mass (area-weighted shell centroid of its mesh) is straight under the rod, so it hangs tilted, rim outward | centre of mass plumb under the rod |
-| Clipped item contact | `PendulumHang` leans the item off the pack instead of through it: signed distance to the body (box rounded 0.06) and each side pocket's cloth as placed this frame; contact points one per 1 cm cell of its surface; the least tilt that clears them (bisection), rate into the pack dropped | never inside the pack |
+| Clipped item contact | `PendulumHang` leans what hangs off the pack instead of through it: signed distance to the body (box rounded 0.06), each pocket's cloth as placed this frame, and the tool handles as vertical capsules from their bottom to the rim; contact points one per 1 cm cell; a 3 mm margin (the sampling gap); inelastic, with friction (half the swing's rate kept per touching frame) | never inside the pack or the tools |
+| Mug hinge | the mug only turns about the rod (`hinge_axis`): contact finds the nearest clear angle about it, backing out the way it came, within its 90° limit, else the least-deep angle | hole along the rod always |
+| Carabiner contact | it counts what hangs on it and leans out along the side's normal (`contact_out`) when that load touches; its own ring has no contact | steady, no chatter |
 | Handle | node on the canvas top at (0, 0.514, 0.03), placed every frame | moves with the slumping top |
 | Bedroll | across the top at (0, 0.52, 0.14), radius 0.062, presses in 8 mm | flat bottom: the pack stands anywhere |
 | Zip | two sliders from the top centre; the panel folds only above them; the unzipped edge stands 1.5 cm proud | — |
@@ -103,15 +109,24 @@ parent space turned rigidly with its parent, so the mug never swung on the carab
 | R1 | the canvas shows the pack's pockets: two loose cans, the flask in a side pocket, the mug clipped on | exact |
 | R2 | 8 anchors a side, straps on both shoulders, the strap mesh drawn, top ends on the pack | 5 mm |
 | R3 | each loop sewn on its pocket's live cloth and hanging down; each carabiner in its loop's lower end; the mug's handle on the rod with its hole along the rod; its centre of mass plumb under the rod (or leaning out off the pack); the mug never inside the pack; whatever hangs clear of the ground | 5 mm / 2 mm / 5 mm, 0.9 / 3 mm / 0.5 mm / 0.3 m |
-| R4 | pocket items out of the main cavity | 0 |
+| R4 | pocket items out of the main cavity (every vertex inside the rigid cavity box) | 0 |
 | R5 | the empty pocket's outer face on the wall | wall + 2 cm |
 | R6 | handle on the top; bedroll resting on it | 5 mm / 0–15 mm in |
 | R7 | walking and stopping: chest anchors ride the chest bone; pack sway within its cap | 2 mm / 2.5° |
 | R8 | a 1 s hitch leaves every spring finite and the pack upright | finite / up.y > 0.95 |
 | R12 | the empty pocket's seam on the body; its outer layer no further off the body than the fold | 1 mm / fold + 0.5 mm |
+| R13 | the axe and hammer: each head 0–3 mm above the rim and seated; each sleeve hugs its handle and is never inside it; both clear the pack (unslumped wall) and each other; the divider spans the body to the outer cloth | 3 mm / 0.5 mm / 0 / 0.5 mm / 0 / 6 mm |
 | R10 | the thermos stands on the pocket floor; the pocket cloth hugs its cylinder (radius + lining) and is never inside it | 1 mm / 0.5 mm / 0 |
 | R11 | taken out and stowed again: it starts above the rim with the pocket empty; the hem opens ≥ 5 mm past it before it seats; friction drags the hem; cloth under its bottom stays the empty pouch; nothing pokes through on any frame; then the hem closes and R10 holds | 2 mm / 5 mm / 2 mm / 0.5 mm / 0 / 0.5 mm |
-| R9 | starts, stops, a sidestep and an eased 90° turn: both carabiners and the clipped item swing fore-aft and sideways against their parents, never reach their stop, and hang within 5° of world down 1.5 s after the last move ; the clipped item never inside the pack on any frame | ≥ 6° each way / stop − 1° / 5° / 1 mm |
+| R9 | starts, stops, a sidestep and an eased 90° turn: both carabiners swing fore-aft and sideways, the mug swings on its rod; none reaches its stop; each swings under 3° in the last half second (it may rest against the pack or a tool); the mug is never deeper than the contact margin in the pack or the tools on any frame | ≥ 6° / stop − 1° / 3° / 3 mm |
 
 The inspector adds: item overlaps, main items poking past the canvas give, and pocket cloth
 left inside its item (mirroring the shader's wrap).
+
+## Pending (owner, 2026-10-29)
+
+- Quick Access: while the pack is worn, what sits outside it (both side pockets, the right
+  pocket's two sleeves, the carabiners) becomes quick-access slots alongside the coat's and
+  trousers' pockets. Quick Access must read what Henry is wearing and show slots accordingly; the
+  UI change is to come.
+- A dull knock sound when the mug strikes the tool handles.
