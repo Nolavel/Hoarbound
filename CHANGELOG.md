@@ -8,6 +8,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Water flask is now a steel thermos (#260), built in Blender by `tools/blender/build_thermos.py`
+  (`assets/items/thermos/Thermos.glb`). It has a threaded neck and a flip-top lid on a hinge that
+  does not come off (`Thermos_Lid`, which turns about local +Z). The painted body and steel use the
+  carabiner's chipped worn-paint shader. Item ids, volumes and the volume mark are unchanged.
+- Backpack carabiners and the clipped mug swing both ways (#260). `PendulumHang` keeps its state in
+  world space, so a hanger lags when its parent turns. Before, it turned rigidly with the parent and
+  the mug barely moved on its carabiner. New stand rule R9 measured 38°/20° (left carabiner),
+  38°/14° (right) and 40°/75° (mug) fore-aft/sideways; before the fix the mug managed 5.6°/5.9°.
 - Owner accepted the road flare shadows and restrained scattering on 2026-10-29.
 - Road flares cast dynamic shadows in hand and after a drop, with exposed contact-shadow bias.
   The emissive tip no longer casts shadows around its enclosed light. A weak, non-emissive

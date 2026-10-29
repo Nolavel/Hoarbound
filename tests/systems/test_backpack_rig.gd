@@ -11,6 +11,8 @@ const ANCHOR_DRIFT_M: float = 0.002
 const LOOP_ON_POCKET_M: float = 0.005
 const HANG_BELOW_BOTTOM_M: float = 0.02
 const HANDLE_GAP_M: float = 0.005
+## Least swing each hanger shows both ways (fore-aft and sideways) on starts, stops and turns, degrees.
+const MIN_SWING_DEG: float = 6.0
 
 var _failures: int = 0
 var _player: CharacterBody3D
@@ -44,6 +46,7 @@ func _run() -> void:
 	_check_pockets()
 	_check_top()
 	await _check_walking()
+	await _check_swing()
 	_check_hitch()
 
 	print("test_backpack_rig: %s" % ("PASS" if _failures == 0 else "%d FAILED" % _failures))
@@ -160,6 +163,36 @@ func _check_walking() -> void:
 		sway = maxf(sway, rad_to_deg(maxf(absf(pivot.rotation.x), absf(pivot.rotation.z))))
 	_report("R7 chest anchors ride the chest bone", "%.2f mm drift" % (drift * 1000.0), drift < ANCHOR_DRIFT_M)
 	_report("R7 pack rocks at most %.1f deg" % PackRig.MAX_SWAY_DEG, "%.2f deg" % sway, sway <= PackRig.MAX_SWAY_DEG + 0.01)
+
+
+## R9: both carabiners, and the mug on its carabiner, swing fore-aft and sideways when Henry
+## starts, stops, sidesteps and turns; each hanger is measured against its own parent.
+func _check_swing() -> void:
+	var hangers: Array[PendulumHang] = [_pack.get_carabiner(0), _pack.get_carabiner(1)]
+	for visual: Node3D in _pack.get(&"_hung"):
+		if visual.get_parent() is PendulumHang:
+			hangers.append(visual.get_parent() as PendulumHang)
+	var peak: Array[Vector2] = []
+	peak.resize(hangers.size())
+	peak.fill(Vector2.ZERO)
+	for frame: int in range(160):
+		var move: Vector3 = Vector3.ZERO
+		if frame < 25:
+			move = -_player.global_basis.z * 3.0
+		elif frame >= 50 and frame < 75:
+			move = _player.global_basis.x * 2.0
+		_player.global_position += move / 30.0
+		if frame >= 100 and frame < 115:
+			_player.rotate_y(deg_to_rad(6.0))
+		await process_frame
+		for i: int in range(hangers.size()):
+			var down: Vector3 = -hangers[i].basis.y.normalized()
+			var lean := Vector2(rad_to_deg(atan2(absf(down.z), -down.y)), rad_to_deg(atan2(absf(down.x), -down.y)))
+			peak[i] = peak[i].max(lean)
+	for i: int in range(hangers.size()):
+		var name: String = "carabiner %d" % i if i < 2 else "clipped item"
+		_report("R9 %s swings both ways" % name, "fore-aft %.1f deg, sideways %.1f deg" % [peak[i].x, peak[i].y],
+			minf(peak[i].x, peak[i].y) >= MIN_SWING_DEG)
 
 
 ## R8: a hitch (one 1-second frame) leaves every spring finite and the pack upright on Henry.

@@ -15,22 +15,19 @@ const SPOV_CAN_SCENE: PackedScene = preload("res://assets/items/spov_can/SPoV_Ca
 ## Recessed lid of the SPoV can: height above the base and inner size, metres.
 const SPOV_LID_Y := 0.068
 const SPOV_LID_SIZE := Vector2(0.092, 0.053)
+## Authored steel thermos (tools/blender/build_thermos.py): 7.5 cm across, 24 cm tall, base at
+## y = 0; the flip-top lid is Thermos_Lid, turning on its hinge about local +Z (latch towards +X).
+const THERMOS_SCENE: PackedScene = preload("res://assets/items/thermos/Thermos.glb")
+const THERMOS_RADIUS := 0.0375
+## Worn paint over steel, shared with the carabiner: GLB slot name -> paint colour, paint left.
+const WORN_PAINT_SHADER: Shader = preload("res://shaders/items/carabiner.gdshader")
+const THERMOS_PAINT := {"Thermos_Paint": [Color(0.20, 0.30, 0.22), 0.78], "Thermos_LidPaint": [Color(0.16, 0.24, 0.18), 0.7], "Thermos_Steel": [Color(0.2, 0.2, 0.2), 0.0]}
 
 ## Shared readable props for world pickups and the meal table; no inventory state.
 static func make(item_id: StringName, item_override: ItemResource = null) -> Node3D:
 	var holder := Node3D.new()
 	if String(item_id).begins_with("water_flask"):
-		var body := BoxMesh.new()
-		body.size = Vector3(0.12, 0.19, 0.07)
-		_part(holder, body, Vector3(0, 0.105, 0), Color(0.20, 0.42, 0.43))
-		var neck := CylinderMesh.new()
-		neck.top_radius = 0.025
-		neck.bottom_radius = 0.025
-		neck.height = 0.04
-		_part(holder, neck, Vector3(0, 0.215, 0), Color(0.18, 0.19, 0.20))
-		var stripe := BoxMesh.new()
-		stripe.size = Vector3(0.065, 0.035, 0.074)
-		_part(holder, stripe, Vector3(0, 0.14, 0), Color(0.84, 0.87, 0.78))
+		holder.add_child(_thermos())
 		var item: ItemResource = item_override if item_override != null else ItemCatalog.get_item(item_id)
 		var mark := Label3D.new()
 		mark.name = "VolumeMark"
@@ -39,7 +36,7 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 		mark.pixel_size = 0.0006
 		mark.modulate = Color(0.06, 0.08, 0.08)
 		mark.outline_size = 0
-		mark.position = Vector3(0, 0.14, 0.045)
+		mark.position = Vector3(0, 0.12, THERMOS_RADIUS + 0.001)
 		holder.add_child(mark)
 		var back_mark := mark.duplicate() as Label3D
 		back_mark.name = "VolumeMarkBack"
@@ -165,6 +162,30 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 		parcel.size = Vector3(0.12, 0.065, 0.085)
 		_part(holder, parcel, Vector3(0, 0.04, 0), Color(0.58, 0.44, 0.25))
 	return holder
+
+
+## Hinged lid of a thermos prop; rotate it about local +Z to flip it open (it never comes off).
+static func thermos_lid(holder: Node3D) -> Node3D:
+	return holder.find_child("Thermos_Lid", true, false) as Node3D
+
+
+## The thermos with its GLB slots swapped for the worn-paint shader; the lid starts shut.
+static func _thermos() -> Node3D:
+	var thermos: Node3D = THERMOS_SCENE.instantiate()
+	for mesh_node: Node in thermos.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (mesh_node as MeshInstance3D).mesh
+		for surface: int in range(mesh.get_surface_count()):
+			var source := mesh.surface_get_material(surface)
+			var slot: String = source.resource_name if source != null else ""
+			if not THERMOS_PAINT.has(slot):
+				continue
+			var worn := ShaderMaterial.new()
+			worn.shader = WORN_PAINT_SHADER
+			worn.set_shader_parameter(&"paint_colour", THERMOS_PAINT[slot][0])
+			worn.set_shader_parameter(&"paint_left", THERMOS_PAINT[slot][1])
+			worn.set_shader_parameter(&"chip_m", 0.008)
+			(mesh_node as MeshInstance3D).set_surface_override_material(surface, worn)
+	return thermos
 
 
 static func _part(holder: Node3D, mesh: PrimitiveMesh, at: Vector3, colour: Color) -> void:

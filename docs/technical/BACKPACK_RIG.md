@@ -71,7 +71,8 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 | Pocket item slot | 1 cm outboard of the pocket middle | clear of the body wall |
 | Loops | sewn at the pocket's rim (y 0.168, z 0.11) on its cloth as it is now (`pocket_outer_x`); hang out and down 60° for 3.2 cm | follow full or empty pocket |
 | Carabiners | pivot (inside top of the ring) 2.8 cm down the loop (`loop_hold_point`); ring plane along the wall | ring through the loop's lower end |
-| Clipped item | double pendulum: carabiner in loop, item on the rod | — |
+| Clipped item | double pendulum: carabiner in loop, item on the rod; each hanger keeps its direction in world space, so it lags when its parent turns or swings | swings fore-aft and sideways |
+| Side-pocket flask | the thermos (`Thermos.glb`, 7.5 cm across, 24 cm tall) stands in the left pocket; its lid hinges on the -X side of the collar | — |
 | Mug on the rod | the handle's upper bend (2.2 cm below the rim, 1.2 cm inside its outer edge) sits on the rod at the ring's bottom; the handle's hole (mug Z) runs along the rod (ring body X); the mug stands upright and hangs out from the wall | hole along the rod |
 | Handle | node on the canvas top at (0, 0.514, 0.03), placed every frame | moves with the slumping top |
 | Bedroll | across the top at (0, 0.52, 0.14), radius 0.062, presses in 8 mm | flat bottom: the pack stands anywhere |
@@ -83,6 +84,8 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 Sway, panel swing and droop, fill, and the carabiner and clipped-item pendulums are stepped
 explicitly. A hitch's long frame (seconds while Reality loads) blew them to NaN, and the pack then
 drew lying on its side. Every spring step is capped at 0.05 s, and anything non-finite is reset.
+`PendulumHang` keeps its state in world space and clamps it in its parent's space: a hanger held in
+parent space turned rigidly with its parent, so the mug never swung on the carabiner.
 
 ## Rules the stand checks (`test_backpack_rig.gd`)
 
@@ -96,6 +99,7 @@ drew lying on its side. Every spring step is capped at 0.05 s, and anything non-
 | R6 | handle on the top; bedroll resting on it | 5 mm / 0–15 mm in |
 | R7 | walking and stopping: chest anchors ride the chest bone; pack sway within its cap | 2 mm / 2.5° |
 | R8 | a 1 s hitch leaves every spring finite and the pack upright | finite / up.y > 0.95 |
+| R9 | starts, stops, a sidestep and a turn: both carabiners and the clipped item swing fore-aft and sideways against their parents | ≥ 6° each way |
 
 The inspector adds: item overlaps, main items poking past the canvas give, and pocket cloth
 left inside its item (mirroring the shader's wrap).
