@@ -42,6 +42,28 @@ Key West frames outside at noon, inside the shelter at noon and by stove light
 at night, and the stove frame under each outdoor LUT. It runs in the existing
 `checks.yml` Key West render job with the `[stylized-shadows]` commit marker.
 
+## Road flare lighting
+
+`HeldFlare` owns one shadow-casting `OmniLight3D` at the burning tip. Shadows
+stay enabled when `HeldLightComponent` drops that same flare into a rigid body.
+`HotCore` is emissive decoration and does not cast a shadow around its enclosed light.
+Bias and normal bias are exposed for close hand/clothing contact; defaults are 0.03/0.3.
+The existing local-light NPR attenuation contract is unchanged.
+
+A neutral `FogMaterial` on a small ellipsoid `FogVolume` adds local scattering to
+the existing WorldEnvironment volumetric fog (Forward+). Density defaults to 0.018,
+diameter to 1.6 m and edge fade to 1.0. Emission is zero: the existing flare light
+supplies the warm colour. `scattering_density = 0` disables this layer; both density
+and diameter can be tuned live. The volume follows the tip through a drop and
+becomes invisible when extinguished. Global fog, direct energy and colour are unchanged.
+
+`tools/runtime/capture_flare_night.gd -- <out> scattering` records matched night
+views in the real 727 scene, including the hand and dropped flare, plus a two-order
+software-Vulkan timing comparison. `shadows` records only stage 1; `legacy` retains
+the earlier A/B/C experiment and `smoke` the original smoke close-up. `benchmark`
+repeats only the moving-light timing pass, without saving PNGs. Auxiliary
+cameras exclude reserved snow/map render layers and the player-camera screen pass.
+
 ## Painterly Surface (experiment)
 
 `shaders/environment/materials/painterly_surface.gdshaderinc` binds broad pigment masses and directional brush
