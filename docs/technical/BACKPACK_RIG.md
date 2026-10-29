@@ -77,6 +77,12 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 | Zip | two sliders from the top centre; the panel folds only above them; the unzipped edge stands 1.5 cm proud | — |
 | Look | grey canvas, leather base below 8.5 cm with stitches, maker's patch, creases, painterly breakup, banded light | — |
 
+## Springs
+
+Sway, panel swing and droop, fill, and the carabiner and clipped-item pendulums are stepped
+explicitly. A hitch's long frame (seconds while Reality loads) blew them to NaN, and the pack then
+drew lying on its side. Every spring step is capped at 0.05 s, and anything non-finite is reset.
+
 ## Rules the stand checks (`test_backpack_rig.gd`)
 
 | Rule | Check | Limit |
@@ -88,6 +94,7 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 | R5 | the empty pocket's outer face on the wall | wall + 2 cm |
 | R6 | handle on the top; bedroll resting on it | 5 mm / 0–15 mm in |
 | R7 | walking and stopping: chest anchors ride the chest bone; pack sway within its cap | 2 mm / 2.5° |
+| R8 | a 1 s hitch leaves every spring finite and the pack upright | finite / up.y > 0.95 |
 
 The inspector adds: item overlaps, main items poking past the canvas give, and pocket cloth
 left inside its item (mirroring the shader's wrap).

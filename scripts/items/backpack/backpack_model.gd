@@ -27,6 +27,8 @@ const DROOP_FLAT_M: float = 0.07
 ## Litres the main body holds when full: fill is the share the contents take up.
 const CAPACITY_L: float = 24.0
 const FILL_HZ: float = 1.2
+## Longest step a spring takes in one frame, seconds (stable for every spring here).
+const MAX_SPRING_STEP_S: float = 0.05
 ## Slots: name -> [centre, half size] in pack space. Shelf on top, three columns below.
 const SLOTS: Dictionary = {
 	&"shelf": [Vector3(0.0, 0.42, 0.11), Vector3(0.145, 0.055, 0.08)],
@@ -351,6 +353,8 @@ func get_fill_target() -> float:
 
 
 func _process(delta: float) -> void:
+	## Springs are stepped explicitly: a hitch's long frame would blow them up, so cap the step.
+	delta = minf(delta, MAX_SPRING_STEP_S)
 	var half_w: float = BODY.x * 0.5
 	var swing_target: float = deg_to_rad(_open_deg)
 	if _zip_target >= _zip:

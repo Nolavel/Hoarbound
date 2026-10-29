@@ -54,6 +54,10 @@ func _run() -> void:
 	_camera.make_current()
 	var pack: PackRig = _player.animation_component.get_pack_rig()
 	print("[packstills] pack visible ", pack.is_visible_in_tree())
+	## Orientation check: the canvas must stand upright on Henry (its up close to his up).
+	var canvas: BackpackModel = pack.get_canvas()
+	var to_player: Basis = _player.global_basis.inverse()
+	print("[packstills] canvas up in Henry's frame ", (to_player * canvas.global_basis.y).normalized(), " sway deg ", (pack.get(&"_sway") as Node3D).rotation_degrees)
 
 	## Eight sides at chest height, a metre out: front, front-left, left, back-left, back, and round.
 	var names: PackedStringArray = ["front", "front_left", "left", "back_left", "back", "back_right", "right", "front_right"]

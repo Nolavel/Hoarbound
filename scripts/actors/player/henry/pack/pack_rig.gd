@@ -26,6 +26,8 @@ const TOP_ONLY_ZIP_SIDE_M: float = 0.15
 const TOP_ONLY_PANEL_DEG: float = 55.0
 const AJAR_ZIP_SIDE_M: float = 0.22
 const AJAR_PANEL_DEG: float = 24.0
+## Longest step the sway spring takes in one frame, seconds: a hitch's long frame would blow it up.
+const MAX_SPRING_STEP_S: float = 0.05
 
 @export var size: Vector3 = Vector3(0.34, 0.44, 0.2)
 @export var color: Color = Color(0.36, 0.33, 0.28)
@@ -246,14 +248,18 @@ func _process(delta: float) -> void:
 	_last_position = at
 	_last_velocity = velocity
 	## Teleports and frame hitches are not accelerations.
-	if accel.length() > 60.0:
+	if not accel.is_finite() or accel.length() > 60.0:
 		accel = Vector3.ZERO
 	var local: Vector3 = global_basis.orthonormalized().inverse() * accel
 	var target := Vector2(local.z, -local.x) * deg_to_rad(sway_deg_per_mps2)
 	target = target.limit_length(deg_to_rad(MAX_SWAY_DEG))
 	var omega: float = TAU * lerpf(sway_hz_empty, sway_hz_full, _canvas.get_fill_target())
-	_sway_speed += (target - _sway_angle) * omega * omega * delta - _sway_speed * 2.0 * sway_damping * omega * delta
-	_sway_angle += _sway_speed * delta
+	var step: float = minf(delta, MAX_SPRING_STEP_S)
+	_sway_speed += (target - _sway_angle) * omega * omega * step - _sway_speed * 2.0 * sway_damping * omega * step
+	_sway_angle += _sway_speed * step
+	if not _sway_angle.is_finite():
+		_sway_angle = Vector2.ZERO
+		_sway_speed = Vector2.ZERO
 	_sway.rotation = Vector3(_sway_angle.x, 0.0, _sway_angle.y)
 
 

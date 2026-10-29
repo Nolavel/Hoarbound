@@ -45,6 +45,7 @@ func _run() -> void:
 	_check_pockets()
 	_check_top()
 	await _check_walking()
+	_check_hitch()
 
 	print("test_backpack_rig: %s" % ("PASS" if _failures == 0 else "%d FAILED" % _failures))
 	quit(1 if _failures > 0 else 0)
@@ -150,6 +151,19 @@ func _check_walking() -> void:
 		sway = maxf(sway, rad_to_deg(maxf(absf(pivot.rotation.x), absf(pivot.rotation.z))))
 	_report("R7 chest anchors ride the chest bone", "%.2f mm drift" % (drift * 1000.0), drift < ANCHOR_DRIFT_M)
 	_report("R7 pack rocks at most %.1f deg" % PackRig.MAX_SWAY_DEG, "%.2f deg" % sway, sway <= PackRig.MAX_SWAY_DEG + 0.01)
+
+
+## R8: a hitch (one 1-second frame) leaves every spring finite and the pack upright on Henry.
+func _check_hitch() -> void:
+	_rig.call(&"_process", 1.0)
+	_pack.call(&"_process", 1.0)
+	for i: int in range(2):
+		_pack.get_carabiner(i).call(&"_process", 1.0)
+	var sway: Vector3 = (_rig.get(&"_sway") as Node3D).rotation
+	var up: Vector3 = (_player.global_basis.inverse() * _pack.global_basis.y).normalized()
+	var finite: bool = sway.is_finite() and _pack.global_transform.is_finite() and _pack.get_carabiner(1).basis.is_finite()
+	_report("R8 springs survive a 1 s hitch", "sway %s, finite %s" % [sway, finite], finite)
+	_report("R8 pack upright on Henry after it", "up %s" % up, up.y > 0.95)
 
 
 func _report(name: String, value: String, ok: bool) -> void:

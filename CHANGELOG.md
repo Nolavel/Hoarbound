@@ -109,6 +109,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     - `docs/technical/BACKPACK_RIG.md` maps every space, authored point, measurement and rule.
       `tests/systems/test_backpack_rig.gd` checks the rules on Henry standing and walking, before any
       render (R1–R7, all pass).
+  - **Hitch fix:** a long frame (seconds while Reality loads) blew the pack's explicit springs (sway, panel,
+    fill, pendulums) to NaN, and the pack drew lying on its side in stills captured without a fixed frame
+    rate. Each spring step is now capped at 0.05 s, and non-finite values reset. Stand rule R8 checks a
+    1-second hitch.
+  - `tools/runtime/capture_backpack_stills.gd` takes eight settled close-ups round Henry and logs the pack's
+    up vector.
   - **Hanging:** `PendulumHang` swings anything from a pivot. The carabiner swings in its loop and the mug
     swings on the carabiner's rod: a double pendulum driven by Henry's motion. The carabiners moved onto the
     side pockets.
