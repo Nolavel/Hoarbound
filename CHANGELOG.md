@@ -109,6 +109,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     - `docs/technical/BACKPACK_RIG.md` maps every space, authored point, measurement and rule.
       `tests/systems/test_backpack_rig.gd` checks the rules on Henry standing and walking, before any
       render (R1–R7, all pass).
+  - **Pivots:**
+    - Pocket loops are sewn at the rim and hang out and down, and each carabiner is threaded through its
+      loop's lower end. Before, they stood up as tabs.
+    - The mug's handle sits on the carabiner's rod with its hole along the rod, and the mug hangs upright
+      outboard of the wall. Before, the hole crossed the rod.
+    - The stand checks every pivot (R3).
   - **Hitch fix:** a long frame (seconds while Reality loads) blew the pack's explicit springs (sway, panel,
     fill, pendulums) to NaN, and the pack drew lying on its side in stills captured without a fixed frame
     rate. Each spring step is now capped at 0.05 s, and non-finite values reset. Stand rule R8 checks a

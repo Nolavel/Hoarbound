@@ -62,13 +62,14 @@ const SIDE_GIVE_M: float = 0.014
 ## The empty slump in backpack_canvas.gdshader, for parts that ride on the canvas.
 const SLUMP_TOP_M: float = 0.07
 const SLUMP_WALL_M: float = 0.018
-## Strap loop sewn at the rim of each side pocket's outer face (height, depth), its carabiner's pivot
-## height; both sit on the pocket's cloth as it is now, see pocket_outer_x().
-const LOOP_Y: float = 0.19
-## The loop stands from the pocket's rim (0.17) up past it, so what hangs ends above the bottom.
-const LOOP_HEIGHT_M: float = 0.05
+## Webbing loop sewn at the rim of each side pocket's outer cloth (height, depth): it hangs out and
+## down at LOOP_DROP_DEG for LOOP_LENGTH_M, and the carabiner is threaded through its lower end.
+const LOOP_SEW_Y: float = 0.168
 const LOOP_Z: float = 0.11
-const CARABINER_Y: float = 0.21
+const LOOP_LENGTH_M: float = 0.032
+const LOOP_DROP_DEG: float = 60.0
+## Where along the loop the carabiner's ring rests: just inside its lower end.
+const LOOP_HOLD_M: float = 0.028
 ## The pocket's cloth (backpack_canvas.gdshader): its lining over an item, the empty fold's depth.
 const POCKET_LINING_M: float = 0.004
 const POCKET_FLAT_M: float = 0.006
@@ -85,6 +86,8 @@ const BEDROLL_RADIUS_M: float = 0.062
 const PATCH_RECT: Vector4 = Vector4(0.55, 0.33, 0.67, 0.67)
 ## How far inside the mug handle's outer edge a carabiner rod rests, metres.
 const MUG_HANDLE_GRIP_M: float = 0.012
+## The rod rests this far below the top of the mug, in the handle's upper bend.
+const MUG_HANDLE_TOP_M: float = 0.022
 ## What is clipped on swings slower than the carabiner (longer, heavier) and wider, Hz/degrees.
 const CLIPPED_SWING_HZ: float = 1.3
 const CLIPPED_SWING_DAMPING: float = 0.12
@@ -101,7 +104,7 @@ var _panel: MeshInstance3D
 var _sliders: Array[Node3D] = []
 var _tabs: Array[Node3D] = []
 var _carabiners: Array[Carabiner] = []
-var _loops: Array[MeshInstance3D] = []
+var _loops: Array[Node3D] = []
 var _zip: float = 0.0
 var _zip_target: float = 0.0
 var _hung: Array[Node3D] = []
@@ -297,8 +300,7 @@ func add_loose(item_id: StringName) -> bool:
 
 
 ## Clips item_id onto a carabiner (0 left, 1 right). It swings on the carabiner's rod, which swings
-## in its loop: a double pendulum. A mug hangs by its handle (authored towards +X), anything else
-## by its top.
+## in its loop: a double pendulum. A mug hangs by its handle (authored at +X) threaded on the rod.
 func hang_item(item_id: StringName, carabiner_index: int) -> bool:
 	var carabiner: Carabiner = get_carabiner(carabiner_index)
 	if carabiner == null:
@@ -306,10 +308,13 @@ func hang_item(item_id: StringName, carabiner_index: int) -> bool:
 	var visual: Node3D = SurvivalItemVisual.make(item_id)
 	var box: AABB = _local_bounds(visual)
 	if String(item_id).contains("mug"):
-		## The rod runs through the handle's opening: just inside its outer edge, at mid height.
-		var handle := Vector3(box.end.x - MUG_HANDLE_GRIP_M, box.get_center().y, box.get_center().z)
-		var turn := Basis(Vector3.BACK, PI * 0.5)
-		visual.transform = Transform3D(turn, -(turn * handle))
+		## The rod (the ring's bottom, along the carabiner body's X) runs through the handle's hole
+		## (mug Z); the mug stands upright and hangs out from the wall, its handle towards the rod.
+		var grip := Vector3(box.end.x - MUG_HANDLE_GRIP_M, box.end.y - MUG_HANDLE_TOP_M, box.get_center().z)
+		var out_sign: float = 1.0 if carabiner_index == 0 else -1.0
+		var turn := Basis(Vector3(0.0, 0.0, -out_sign), Vector3.UP, Vector3(out_sign, 0.0, 0.0))
+		visual.transform = Transform3D(turn, -(turn * grip))
+		visual.set_meta(&"grip", grip)
 	else:
 		visual.position = Vector3(-box.get_center().x, -box.end.y, -box.get_center().z)
 	var swing := PendulumHang.new()
@@ -708,12 +713,18 @@ func _place_sliders(give: float) -> void:
 func _add_carabiners() -> void:
 	var webbing: StandardMaterial3D = _plain(STRAP)
 	for side: float in [-1.0, 1.0]:
-		var loop := MeshInstance3D.new()
+		var loop := Node3D.new()
 		loop.name = "PocketLoopLeft" if side < 0.0 else "PocketLoopRight"
 		var tab := BoxMesh.new()
-		tab.size = Vector3(0.006, LOOP_HEIGHT_M, 0.022)
-		loop.mesh = tab
-		loop.material_override = webbing
+		tab.size = Vector3(0.004, LOOP_LENGTH_M, 0.02)
+		var strip := MeshInstance3D.new()
+		strip.mesh = tab
+		strip.material_override = webbing
+		## The node is the sewn point; the webbing runs down its local -Y.
+		strip.position = Vector3(0.0, -LOOP_LENGTH_M * 0.5, 0.0)
+		loop.add_child(strip)
+		## Turned so its -Y runs out from the wall and down at LOOP_DROP_DEG.
+		loop.rotation.z = side * deg_to_rad(90.0 - LOOP_DROP_DEG)
 		add_child(loop)
 		_loops.append(loop)
 		var pivot := Node3D.new()
@@ -732,8 +743,14 @@ func _place_carabiners() -> void:
 	for i: int in range(_carabiners.size()):
 		var side: float = -1.0 if i == 0 else 1.0
 		var face: float = pocket_outer_x(i)
-		_loops[i].position = Vector3(face + side * 0.003, LOOP_Y, LOOP_Z)
-		_carabiners[i].get_parent_node_3d().position = Vector3(face + side * 0.011, CARABINER_Y, LOOP_Z)
+		_loops[i].position = Vector3(face, LOOP_SEW_Y, LOOP_Z)
+		_carabiners[i].get_parent_node_3d().position = loop_hold_point(i)
+
+
+## Where carabiner `index` rests in its loop, pack space: LOOP_HOLD_M down the hanging webbing.
+func loop_hold_point(index: int) -> Vector3:
+	var loop: Node3D = _loops[index]
+	return loop.transform * Vector3(0.0, -LOOP_HOLD_M, 0.0)
 
 
 ## Where pocket `index`'s outer cloth is now, as signed x (0 left, 1 right): over its item's face

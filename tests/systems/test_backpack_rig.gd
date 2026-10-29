@@ -9,8 +9,7 @@ const PLAYER: String = "res://scenes/actors/player/player.tscn"
 const END_TO_PACK_M: float = 0.005
 const ANCHOR_DRIFT_M: float = 0.002
 const LOOP_ON_POCKET_M: float = 0.005
-const PIVOT_ON_LOOP_M: float = 0.017
-const HANG_BELOW_BOTTOM_M: float = 0.0
+const HANG_BELOW_BOTTOM_M: float = 0.02
 const HANDLE_GAP_M: float = 0.005
 
 var _failures: int = 0
@@ -79,21 +78,21 @@ func _check_straps_standing() -> void:
 		_report("R2 side %d top end on the pack" % side, "%.1f mm" % (gap * 1000.0), gap < END_TO_PACK_M)
 
 
-## R3: each carabiner hangs from its loop, each loop sits on its pocket's cloth as it is now.
+## R3: pivots. Each loop is sewn to its pocket's cloth as it is now; each carabiner rests in its
+## loop's lower end; the mug's handle is threaded on the carabiner's rod, hole along the rod.
 func _check_carabiners() -> void:
 	var loops: Array = _pack.get(&"_loops")
 	_report("R3 loops and carabiners", "%d / %d" % [loops.size(), (_pack.get(&"_carabiners") as Array).size()], loops.size() == 2 and (_pack.get(&"_carabiners") as Array).size() == 2)
 	for i: int in range(mini(loops.size(), 2)):
 		var loop: Node3D = loops[i]
 		var face: float = _pack.pocket_outer_x(i)
-		var off: float = absf(loop.position.x - face) - 0.003
-		_report("R3 loop %d on its pocket" % i, "%.1f mm off (face x %.1f cm)" % [off * 1000.0, face * 100.0], absf(off) < LOOP_ON_POCKET_M)
-		## The ring passes through the loop: its pivot inside the loop's height, right beside the webbing.
+		var off: float = absf(loop.position.x - face)
+		_report("R3 loop %d sewn on its pocket" % i, "%.1f mm off (face x %.1f cm)" % [off * 1000.0, face * 100.0], off < LOOP_ON_POCKET_M)
+		var down: float = (loop.transform.basis * Vector3.DOWN).normalized().y
+		_report("R3 loop %d hangs down" % i, "its run points %.0f deg below level" % rad_to_deg(asin(-down)), down < -0.7)
 		var pivot: Vector3 = _pack.get_carabiner(i).get_parent_node_3d().position
-		var up: float = pivot.y - loop.position.y
-		var beside: float = Vector2(pivot.x - loop.position.x, pivot.z - loop.position.z).length()
-		var through: bool = absf(up) < BackpackModel.LOOP_HEIGHT_M * 0.5 and beside < PIVOT_ON_LOOP_M
-		_report("R3 carabiner %d through its loop" % i, "%.1f cm up the loop, %.1f cm beside it" % [up * 100.0, beside * 100.0], through)
+		var hold: float = pivot.distance_to(_pack.loop_hold_point(i))
+		_report("R3 carabiner %d in its loop's lower end" % i, "%.1f mm" % (hold * 1000.0), hold < 0.002)
 	var lowest: float = INF
 	var to_pack: Transform3D = _pack.global_transform.affine_inverse()
 	for visual: Node3D in _pack.get(&"_hung"):
@@ -101,7 +100,17 @@ func _check_carabiners() -> void:
 			if mesh is MeshInstance3D and (mesh as MeshInstance3D).mesh != null:
 				var box: AABB = to_pack * (mesh as MeshInstance3D).global_transform * (mesh as MeshInstance3D).get_aabb()
 				lowest = minf(lowest, box.position.y)
-	_report("R3 clipped item not below the bottom", "%.1f cm" % (lowest * 100.0), lowest > -HANG_BELOW_BOTTOM_M)
+		if visual.has_meta(&"grip"):
+			var carabiner: Carabiner = _pack.get_carabiner(1)
+			var rod_at: Vector3 = carabiner.get_hang_point().global_position
+			var grip: Vector3 = visual.global_transform * (visual.get_meta(&"grip") as Vector3)
+			_report("R3 mug handle on the rod", "%.1f mm" % (grip.distance_to(rod_at) * 1000.0), grip.distance_to(rod_at) < 0.005)
+			var rod: Vector3 = (carabiner.get(&"_body") as Node3D).global_basis.x.normalized()
+			var hole: Vector3 = visual.global_basis.z.normalized()
+			_report("R3 rod through the handle's hole", "alignment %.2f" % absf(rod.dot(hole)), absf(rod.dot(hole)) > 0.9)
+			var out: float = (to_pack * visual.global_transform * Vector3(0.0, 0.05, 0.0)).x - (to_pack * rod_at).x
+			_report("R3 mug hangs out from the wall", "body %.1f cm outboard of the rod" % (out * 100.0), out > 0.0)
+	_report("R3 clipped item at most %.0f cm below the bottom" % (HANG_BELOW_BOTTOM_M * 100.0), "%.1f cm" % (lowest * 100.0), lowest > -HANG_BELOW_BOTTOM_M)
 
 
 ## R4: pocket items stay out of the main cavity; R5: empty pocket lies on the wall.

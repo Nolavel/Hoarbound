@@ -69,9 +69,10 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 | Pocket holding an item | cloth wraps the item box plus 4 mm lining; cloth that starts inside the item goes all the way out | the item never shows through |
 | Empty pocket | outer cloth flat on the wall: 0.17 + 0.006 + 0.075 × 0.08 = 0.182 out | mouth closed, creased |
 | Pocket item slot | 1 cm outboard of the pocket middle | clear of the body wall |
-| Loops | on the pocket's outer cloth as it is now (`pocket_outer_x`), y 0.19, 5 cm tall from the rim | follow full or empty pocket |
-| Carabiners | pivot 1.1 cm out from the cloth, y 0.21, inside the loop | ring through the loop |
-| Clipped item | double pendulum (carabiner in loop, item on rod); a mug hangs by its +X handle | ends above the pack's bottom |
+| Loops | sewn at the pocket's rim (y 0.168, z 0.11) on its cloth as it is now (`pocket_outer_x`); hang out and down 60° for 3.2 cm | follow full or empty pocket |
+| Carabiners | pivot (inside top of the ring) 2.8 cm down the loop (`loop_hold_point`); ring plane along the wall | ring through the loop's lower end |
+| Clipped item | double pendulum: carabiner in loop, item on the rod | — |
+| Mug on the rod | the handle's upper bend (2.2 cm below the rim, 1.2 cm inside its outer edge) sits on the rod at the ring's bottom; the handle's hole (mug Z) runs along the rod (ring body X); the mug stands upright and hangs out from the wall | hole along the rod |
 | Handle | node on the canvas top at (0, 0.514, 0.03), placed every frame | moves with the slumping top |
 | Bedroll | across the top at (0, 0.52, 0.14), radius 0.062, presses in 8 mm | flat bottom: the pack stands anywhere |
 | Zip | two sliders from the top centre; the panel folds only above them; the unzipped edge stands 1.5 cm proud | — |
@@ -89,7 +90,7 @@ drew lying on its side. Every spring step is capped at 0.05 s, and anything non-
 |---|---|---|
 | R1 | the canvas shows the pack's pockets: two loose cans, the flask in a side pocket, the mug clipped on | exact |
 | R2 | 8 anchors a side, straps on both shoulders, the strap mesh drawn, top ends on the pack | 5 mm |
-| R3 | each loop on its pocket's live cloth; each carabiner through its loop; the clipped item not below the bottom | 5 mm / inside the loop / 0 |
+| R3 | each loop sewn on its pocket's live cloth and hanging down; each carabiner in its loop's lower end; the mug's handle on the rod with its hole along the rod, the mug outboard; the clipped item at most 2 cm below the bottom | 5 mm / 2 mm / 5 mm, 0.9 / 2 cm |
 | R4 | pocket items out of the main cavity | 0 |
 | R5 | the empty pocket's outer face on the wall | wall + 2 cm |
 | R6 | handle on the top; bedroll resting on it | 5 mm / 0–15 mm in |
