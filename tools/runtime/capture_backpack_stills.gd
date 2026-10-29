@@ -3,7 +3,8 @@ extends SceneTree
 ## Backpack stills (#260): Henry standing in Key West Reality, close up round him and his pack from
 ## eight sides, one settled PNG each (no video). Part of the backpack stand (BACKPACK_RIG.md).
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_backpack_stills.gd -- <out dir> [pocket]
-## `pocket`: three close views of the left side pocket and what it holds, in place of the eight sides.
+## `pocket`: three close views of the left side pocket and what it holds, in place of the eight sides
+## (`right` as well: of the right pocket instead).
 ## `back`: one view from straight behind, 1.4 m out, the whole pack and both sides in frame.
 ## `insert`: the thermos taken out and pushed back in, every frame for 1 s from behind-left, then `pocket`.
 
@@ -112,10 +113,11 @@ func _insert_frames(canvas: BackpackModel) -> void:
 		print("[packstills] insert %02d rise %.1f cm hem open %.1f mm drag %.1f mm" % [frame, float(state["rise"]) * 100.0, float(state["hem_open"]) * 1000.0, float(state["hem_drag"]) * 1000.0])
 
 
-## Close on the left side pocket: square on, from behind-left and from above-left, 45 cm out.
+## Close on a side pocket: square on, from behind and from above on its side, 45 cm out.
 func _pocket_views(canvas: BackpackModel) -> void:
-	var pocket: Vector3 = canvas.global_transform * Vector3(-BackpackModel.POCKET_X, 0.1, 0.0)
-	var outward: Vector3 = (canvas.global_basis.x * -1.0).normalized()
+	var side: float = 1.0 if OS.get_cmdline_user_args().has("right") else -1.0
+	var pocket: Vector3 = canvas.global_transform * Vector3(side * BackpackModel.POCKET_X, 0.1, 0.0)
+	var outward: Vector3 = (canvas.global_basis.x * side).normalized()
 	var back: Vector3 = canvas.global_basis.z.normalized()
 	var views: Dictionary = {"pocket_side": outward, "pocket_back": (outward + back * 0.8).normalized(), "pocket_above": (outward + Vector3.UP * 0.9).normalized()}
 	for view: String in views:

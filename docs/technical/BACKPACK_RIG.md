@@ -73,7 +73,8 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 | Pushing an item in | a new side-pocket item starts with its bottom 5 cm above the rim and is pushed down: 0.6 m/s in the air, 0.28 m/s while its foot is in the hem (top 3.5 cm), 0.5 m/s inside, easing over the last 2.5 cm | ~0.4 s |
 | Hem while it goes in | the entering foot flares the hem (top 2 cm) 9 mm past the item; friction drags the cloth down 0.03 m per m/s over the top 8 cm; cloth more than 0 to 3.5 cm under the item's bottom is still the empty pouch (funnel); both springs (4.5 Hz, damping 0.28) let go once it sits | stretches first, then hugs |
 | Cloth rule | `BackpackModel.pocket_cloth_point` is the shader's twin, used by the loops, the inspector and the stand; change both together | — |
-| Empty pocket | outer cloth flat on the wall: 0.17 + 0.006 + 0.075 × 0.08 = 0.182 out | mouth closed, creased |
+| Empty pocket | inner layer sewn on the body's rounded side (`body_side_x`: the box rounded 0.06, caved in as the shell slumps); outer layer 3 mm + 3% of its depth over it (≤ 5.4 mm); rim droops 12 mm | follows the body's curve, no gap |
+| Pocket seam | the wall side of any pocket (empty, round or boxy item) lies on `body_side_x`, not on a flat x = 0.17 | on the body |
 | Pocket item slot | 1 cm outboard of the pocket middle | clear of the body wall |
 | Loops | sewn at the middle of the pocket (y `POCKET_CENTRE_Y` 0.10, z 0.11) on its cloth as it is now (`pocket_outer_x`, clear of the hem); hang out and down 60° for 3.2 cm | follow full or empty pocket |
 | Carabiners | pivot (inside top of the ring) 2.8 cm down the loop (`loop_hold_point`); ring plane along the wall | ring through the loop's lower end |
@@ -107,6 +108,7 @@ parent space turned rigidly with its parent, so the mug never swung on the carab
 | R6 | handle on the top; bedroll resting on it | 5 mm / 0–15 mm in |
 | R7 | walking and stopping: chest anchors ride the chest bone; pack sway within its cap | 2 mm / 2.5° |
 | R8 | a 1 s hitch leaves every spring finite and the pack upright | finite / up.y > 0.95 |
+| R12 | the empty pocket's seam on the body; its outer layer no further off the body than the fold | 1 mm / fold + 0.5 mm |
 | R10 | the thermos stands on the pocket floor; the pocket cloth hugs its cylinder (radius + lining) and is never inside it | 1 mm / 0.5 mm / 0 |
 | R11 | taken out and stowed again: it starts above the rim with the pocket empty; the hem opens ≥ 5 mm past it before it seats; friction drags the hem; cloth under its bottom stays the empty pouch; nothing pokes through on any frame; then the hem closes and R10 holds | 2 mm / 5 mm / 2 mm / 0.5 mm / 0 / 0.5 mm |
 | R9 | starts, stops, a sidestep and an eased 90° turn: both carabiners and the clipped item swing fore-aft and sideways against their parents, never reach their stop, and hang within 5° of world down 1.5 s after the last move ; the clipped item never inside the pack on any frame | ≥ 6° each way / stop − 1° / 5° / 1 mm |

@@ -71,6 +71,12 @@ uniform bool is_pocket = false;
 uniform float pocket_wall_x = 0.17;
 uniform float pocket_wrap = 0.85;
 uniform float pocket_flat_m = 0.006;
+// Empty pocket: its outer layer spreads this share of its depth off the inner one (the fold).
+uniform float pocket_fold_spread = 0.03;
+// The body under the pockets: a box (half size, its centre at (0, half.y, half.z)) rounded by
+// body_round; the pocket is sewn onto that surface as it slumps, not onto a flat wall.
+uniform vec3 body_half = vec3(0.17, 0.26, 0.11);
+uniform float body_round = 0.06;
 // Round item (round_radius > 0): the cloth shrink-wraps an upright cylinder round round_axis (x, z),
 // not its box. While it is pushed in, cloth below item_bottom is still the empty pouch; the hem
 // (top hem_band_m under rim_y) opens hem_open_m past it and friction drags it down by hem_drag_m.
@@ -119,11 +125,20 @@ float box_distance(vec3 p, vec3 c, vec3 h) {
 	return length(max(q, vec3(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
 }
 
-// The empty pocket's outer layer: on the wall, the mouth closed, the rim drooping.
-vec3 pocket_flat(vec3 p, float side, float out_x) {
+// |x| of the body's side surface at (y, z): the rounded box, caved in as the shell slumps empty.
+float body_side_x(float y, float z) {
+	float dy = max(abs(y - body_half.y) - (body_half.y - body_round), 0.0);
+	float dz = max(abs(z - body_half.z) - (body_half.z - body_round), 0.0);
+	float x = body_half.x - body_round + sqrt(max(body_round * body_round - dy * dy - dz * dz, 0.0));
+	return x - slump_wall_m * (1.0 - clamp(fill, 0.0, 1.0)) * smoothstep(0.1, 0.4, y / pack_height_m);
+}
+
+// The empty pocket: its inner layer sewn on the body, the outer one on it, the mouth closed and
+// the rim drooping.
+vec3 pocket_flat(vec3 p, vec3 n, float side, float out_x) {
 	vec3 target = p;
-	target.x = pocket_wall_x + side * (pocket_flat_m + out_x * 0.08);
 	target.y -= 0.012 * smoothstep(0.1, 0.17, p.y);
+	target.x = side * (body_side_x(target.y, p.z) + (n.x * side < -0.5 ? 0.0 : pocket_flat_m + out_x * pocket_fold_spread));
 	return target;
 }
 
@@ -167,10 +182,10 @@ void vertex() {
 			float dragged = smoothstep(rim_y - hem_drag_fall_m, rim_y, p.y);
 			hug.y -= hem_drag_m * dragged;
 			if (n.x * side < -0.5) {
-				hug.x = pocket_wall_x;
+				hug.x = side * body_side_x(p.y, p.z);
 			}
 			float empty_w = smoothstep(0.0, funnel_m, item_bottom - p.y) * smoothstep(0.0, 0.01, item_bottom - seat_bottom);
-			vec3 target = mix(hug, pocket_flat(p, side, out_x), empty_w);
+			vec3 target = mix(hug, pocket_flat(p, n, side, out_x), empty_w);
 			v_stretch = clamp(length(target - p) / 0.03, 0.0, 1.0) * (1.0 - empty_w);
 			bool sewn = n.x * side < -0.5 || p.y < item_bottom - lining_m * 0.5;
 			out_n = normalize(mix(sewn ? n : vec3(dir.x, 0.0, dir.y), n, empty_w));
@@ -196,14 +211,14 @@ void vertex() {
 				target = q + normalize(d) * 0.002;
 			}
 			if (n.x * side < -0.5) {
-				target.x = pocket_wall_x;
+				target.x = side * body_side_x(p.y, p.z);
 			}
 			v_stretch = clamp(length(target - p) / 0.03, 0.0, 1.0);
 			shaped = (target - p) * (inside ? 1.0 : pocket_wrap);
 			slack = 1.0 - pocket_wrap;
 		} else {
 			// Empty: the outer layer falls onto the wall and closes the mouth; the rim droops.
-			shaped = pocket_flat(p, side, out_x) - p;
+			shaped = pocket_flat(p, n, side, out_x) - p;
 			slack = 1.0;
 		}
 	}

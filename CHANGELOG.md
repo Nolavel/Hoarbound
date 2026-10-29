@@ -8,6 +8,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- The empty side pocket is sewn onto the body (#260, owner review: "looks torn off the pack").
+  - **Measured:** its seam stood 11 mm off the body, and its edges 14-16 mm. It was laid on a
+    flat wall at x = 0.17, while the body is a box rounded by 6 cm that curves in near the bottom,
+    front and back. It also stood 12 mm thick.
+  - **Fix:** every pocket's wall side, and the empty pocket's inner layer, now lie on the rounded,
+    slumping body surface (`body_side_x`, the same in the shader and in GDScript). The empty
+    pocket's outer layer is a 3-5 mm fold. The seam is now 0.0 mm off and the cloth at most
+    5.3 mm off the body.
+  - **Stand:** new rule R12. `capture_backpack_stills.gd pocket right` frames the right pocket.
 - The clipped mug hangs by physics (#260, owner review: "the same mistake again").
   - **Cause:** it was stood upright with its handle on the rod and its body 7 cm to the side. No
     body hangs on a pin like that, and stand rule R3 ("mug hangs out from the wall") had locked the

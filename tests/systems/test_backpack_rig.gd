@@ -54,6 +54,7 @@ func _run() -> void:
 	_check_carabiners()
 	_check_pockets()
 	_check_top()
+	_check_empty_pocket()
 	_check_pocket_hug("R10")
 	await _check_insert()
 	await _check_walking()
@@ -195,6 +196,23 @@ func _check_walking() -> void:
 	_report("R7 pack rocks at most %.1f deg" % PackRig.MAX_SWAY_DEG, "%.2f deg" % sway, sway <= PackRig.MAX_SWAY_DEG + 0.01)
 
 
+## R12: the empty pocket is sewn onto the body's rounded side: its inner layer on the body, and no
+## cloth further off it than the fold's thickness (no gap that reads as torn off).
+func _check_empty_pocket() -> void:
+	var pocket: MeshInstance3D = _pack.find_child("SidePocketRight", true, false)
+	var seam: float = 0.0
+	var off: float = 0.0
+	for v: Array in _pocket_vertices(pocket):
+		var moved: Vector3 = _pack.pocket_cloth_point(1, v[0], v[1])
+		var gap: float = absf(moved.x) - _pack.body_side_x(moved.y, moved.z)
+		if (v[1] as Vector3).x < -0.5:
+			seam = maxf(seam, absf(gap))
+		off = maxf(off, gap)
+	var fold: float = BackpackModel.POCKET_FLAT_M + BackpackModel.POCKET_HALF.x * 2.0 * BackpackModel.POCKET_FOLD_SPREAD
+	_report("R12 empty pocket's seam on the body", "%.1f mm off" % (seam * 1000.0), seam < 0.001)
+	_report("R12 empty pocket lies on the body", "outer layer at most %.1f mm off (fold %.1f mm)" % [off * 1000.0, fold * 1000.0], off <= fold + 0.0005)
+
+
 ## R10: a round item stands on its pocket's floor and the cloth shrink-wraps its cylinder (no box).
 func _check_pocket_hug(rule: String) -> void:
 	var state: Dictionary = _pack.pocket_state(0)
@@ -266,8 +284,7 @@ func _check_insert() -> void:
 			if moved.y > bottom and moved.y < bottom + float(state["height"]):
 				poke = maxf(poke, float(state["radius"]) - Vector2(moved.x, moved.z).distance_to(axis))
 			if float(state["rise"]) > 0.0 and p.y < bottom - BackpackModel.POCKET_FUNNEL_M:
-				var flat_x: float = -BackpackModel.BODY.x * 0.5 - (BackpackModel.POCKET_FLAT_M + (-BackpackModel.BODY.x * 0.5 - p.x) * 0.08)
-				funnel_off = maxf(funnel_off, absf(moved.x - flat_x))
+				funnel_off = maxf(funnel_off, moved.distance_to(_pack.pocket_empty_point(0, p, n)))
 	_report("R11 hem stretches open before it is seated", "peak %.1f mm past the thermos, seated at frame %d" % [open_at_seat * 1000.0, seated_frame],
 		open_at_seat >= HEM_STRETCH_M and seated_frame > 0)
 	_report("R11 friction drags the hem down while it moves", "peak %.1f mm" % (peak_drag * 1000.0), peak_drag > 0.002)

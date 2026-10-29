@@ -96,7 +96,9 @@ const LOOP_DROP_DEG: float = 60.0
 const LOOP_HOLD_M: float = 0.028
 ## The pocket's cloth (backpack_canvas.gdshader): its lining over an item, the empty fold's depth.
 const POCKET_LINING_M: float = 0.004  # POCKET_FLOOR_Y sits this far above the mesh bottom
-const POCKET_FLAT_M: float = 0.006
+const POCKET_FLAT_M: float = 0.003
+## Empty pocket: its outer layer spreads this share of the pocket's depth off the inner one.
+const POCKET_FOLD_SPREAD: float = 0.03
 const ZIP_METAL: Color = Color(0.16, 0.16, 0.17)
 ## Loose contents: their floor inside the main body and the gap they keep from its walls.
 const LOOSE_FLOOR_M: float = 0.02
@@ -185,7 +187,11 @@ func build() -> void:
 		pocket.set_shader_parameter(&"pocket_wall_x", side * BODY.x * 0.5)
 		pocket.set_shader_parameter(&"lining_m", POCKET_LINING_M)
 		pocket.set_shader_parameter(&"pocket_flat_m", POCKET_FLAT_M)
+		pocket.set_shader_parameter(&"pocket_fold_spread", POCKET_FOLD_SPREAD)
 		pocket.set_shader_parameter(&"rim_y", POCKET_RIM_Y)
+		pocket.set_shader_parameter(&"body_half", BODY * 0.5)
+		pocket.set_shader_parameter(&"body_round", ROUND_M)
+		pocket.set_shader_parameter(&"slump_wall_m", SLUMP_WALL_M)
 		pocket.set_shader_parameter(&"hem_band_m", HEM_BAND_M)
 		pocket.set_shader_parameter(&"hem_drag_fall_m", HEM_DRAG_FALL_M)
 		pocket.set_shader_parameter(&"funnel_m", POCKET_FUNNEL_M)
@@ -835,9 +841,8 @@ func pocket_outer_x(index: int) -> float:
 ## backpack_canvas.gdshader (kept side by side with it), for loops, the inspector and the stand.
 func pocket_cloth_point(index: int, p: Vector3, n: Vector3) -> Vector3:
 	var side: float = -1.0 if index == 0 else 1.0
-	var wall: float = side * BODY.x * 0.5
-	var out_x: float = (p.x - wall) * side
-	var flat := Vector3(wall + side * (POCKET_FLAT_M + out_x * 0.08), p.y - 0.012 * smoothstep(0.1, 0.17, p.y), p.z)
+	var flat: Vector3 = pocket_empty_point(index, p, n)
+	var wall: float = side * body_side_x(p.y, p.z)
 	var held: Dictionary = _pocket_item(index)
 	if held.is_empty():
 		return flat
@@ -872,6 +877,26 @@ func pocket_cloth_point(index: int, p: Vector3, n: Vector3) -> Vector3:
 	if n.x * side < -0.5:
 		target.x = wall
 	return p + (target - p) * (1.0 if inside else 0.85)
+
+
+## Where an empty pocket `index` lays rest point p (normal n): its inner layer sewn on the body,
+## the outer one a fold's thickness over it, the rim drooping (the shader's pocket_flat).
+func pocket_empty_point(index: int, p: Vector3, n: Vector3) -> Vector3:
+	var side: float = -1.0 if index == 0 else 1.0
+	var out_x: float = (p.x - side * BODY.x * 0.5) * side
+	var flat_y: float = p.y - 0.012 * smoothstep(0.1, 0.17, p.y)
+	var layer: float = 0.0 if n.x * side < -0.5 else POCKET_FLAT_M + out_x * POCKET_FOLD_SPREAD
+	return Vector3(side * (body_side_x(flat_y, p.z) + layer), flat_y, p.z)
+
+
+## |x| of the body's side surface at (y, z), pack space: the box rounded by ROUND_M, caved in as
+## the shell slumps empty (as backpack_canvas.gdshader's body_side_x).
+func body_side_x(y: float, z: float) -> float:
+	var half: Vector3 = BODY * 0.5
+	var dy: float = maxf(absf(y - half.y) - (half.y - ROUND_M), 0.0)
+	var dz: float = maxf(absf(z - half.z) - (half.z - ROUND_M), 0.0)
+	var x: float = half.x - ROUND_M + sqrt(maxf(ROUND_M * ROUND_M - dy * dy - dz * dz, 0.0))
+	return x - SLUMP_WALL_M * (1.0 - clampf(_fill, 0.0, 1.0)) * smoothstep(0.1, 0.4, y / BODY.y)
 
 
 ## Live state of pocket `index` for checks: rise (m above the seat), hem flare and drag (m),
