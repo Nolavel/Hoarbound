@@ -466,6 +466,12 @@ func _enter_camera() -> void:
 	_camera.name = "HubCamera"
 	_camera.top_level = true
 	_camera.fov = 50.0
+	## It sees what the game camera sees: reserved layers (dev map labels, snow contact) stay out.
+	if _previous_camera != null:
+		_camera.cull_mask = _previous_camera.cull_mask
+		_camera.environment = _previous_camera.environment
+		_camera.attributes = _previous_camera.attributes
+		_camera.compositor = _previous_camera.compositor
 	body.add_child(_camera)
 	var target: Transform3D = get_camera_target()
 	_camera.global_transform = _previous_camera.global_transform if _previous_camera != null else target

@@ -500,6 +500,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- TAB (Hub) showed the dev map's labels (house numbers, street names) around Henry (owner review).
+  `PlayerHubComponent` made a fresh `HubCamera` with the default cull mask, which includes the
+  reserved layers (`DEV_MAP_LABEL`). It now takes the game camera's cull mask, environment,
+  attributes and compositor; `test_player_hub` checks the mask.
 - The owner's sound recordings were barely heard and synthetic layers still played (owner review).
   - **Levels:** the recordings are about 18 dB quieter than the synthetic banks the mix was set for
     (footsteps -35.7 against -17.9 LUFS, EBU R128; mug peaks -20 against -4 dBFS). Each bank's
