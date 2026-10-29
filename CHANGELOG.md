@@ -47,6 +47,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
       to the top of the back pad and to the bottom corners.
     - The grab handle is an arch sewn to the top.
     - The zip edge stays ajar 1.5 cm wherever the sliders have not yet closed it.
+  - **Owner review 3:**
+    - The strap points were up to 6 cm off the coat. They are now ray-measured on the jacket mesh, with an extra
+      mid-chest point so the curve cannot cut into the coat's bulge.
+    - The flask stands flat against the wall in a widened side pocket.
+    - The mug hangs from the carabiner by its handle.
   - **Contents:** the pack has new pockets: a second main compartment, two side pockets and a carabiner. Henry
     starts with a SPoV can and tinned stew lying loose inside, a flask in the left side pocket and the mug on the
     right carabiner. `PackRig` mirrors the pack's pockets into the canvas whenever they change.

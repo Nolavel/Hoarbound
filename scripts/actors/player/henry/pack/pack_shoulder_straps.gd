@@ -14,22 +14,23 @@ const SAMPLES_PER_SPAN: int = 6
 const PACK_TOP: Vector3 = Vector3(0.085, 0.44, -0.016)
 const PACK_BOTTOM: Vector3 = Vector3(0.14, 0.05, -0.016)
 
-## Points on the coat, measured on the jacket mesh round spine_03 in the model's rest space (x out
-## to the strap's side, y up, z forward), each with the coat's outward normal there: over the
-## shoulder, high and low on the chest, and under the arm.
-@export var over_shoulder: Vector3 = Vector3(0.12, 0.285, -0.01)
-@export var chest_high: Vector3 = Vector3(0.12, 0.2, 0.115)
-@export var chest_low: Vector3 = Vector3(0.15, 0.02, 0.175)
-@export var under_arm: Vector3 = Vector3(0.2, -0.04, 0.06)
+## Points on the coat, ray-measured on the jacket mesh round spine_03 in the model's rest space (x
+## out to the strap's side, y up, z forward): over the shoulder, down the chest, under the arm.
+@export var over_shoulder: Vector3 = Vector3(0.12, 0.253, -0.02)
+@export var chest_high: Vector3 = Vector3(0.12, 0.17, 0.085)
+@export var chest_mid: Vector3 = Vector3(0.13, 0.1, 0.112)
+@export var chest_low: Vector3 = Vector3(0.14, 0.03, 0.112)
+@export var under_arm: Vector3 = Vector3(0.172, -0.06, 0.04)
 @export var colour: Color = Color(0.28, 0.19, 0.12)
 
 ## Outward normals at those points, same space; the band lies flat on the coat along them.
 const NORMALS: Array[Vector3] = [
 	Vector3(0.0, 0.5, -1.0),
-	Vector3(0.15, 1.0, 0.0),
-	Vector3(0.1, 0.6, 1.0),
-	Vector3(0.2, 0.0, 1.0),
-	Vector3(1.0, -0.2, 0.4),
+	Vector3(0.15, 1.0, 0.1),
+	Vector3(0.1, 0.7, 1.0),
+	Vector3(0.2, 0.2, 1.0),
+	Vector3(0.3, -0.1, 1.0),
+	Vector3(1.0, -0.1, 0.3),
 	Vector3(0.6, -0.3, -1.0),
 ]
 
@@ -77,11 +78,11 @@ func _process(_delta: float) -> void:
 	for side: float in [-1.0, 1.0]:
 		var flip := Vector3(side, 1.0, 1.0)
 		var coat: Array[Vector3] = []
-		for offset: Vector3 in [over_shoulder, chest_high, chest_low, under_arm]:
+		for offset: Vector3 in [over_shoulder, chest_high, chest_mid, chest_low, under_arm]:
 			coat.append(carry * (_spine_rest.origin + offset * flip))
 		var top: Vector3 = _pack_point(PACK_TOP, coat[0], chest)
-		var bottom: Vector3 = _pack_point(PACK_BOTTOM, coat[3], chest)
-		var points: Array[Vector3] = [top, coat[0], coat[1], coat[2], coat[3], bottom]
+		var bottom: Vector3 = _pack_point(PACK_BOTTOM, coat[4], chest)
+		var points: Array[Vector3] = [top, coat[0], coat[1], coat[2], coat[3], coat[4], bottom]
 		var normals: Array[Vector3] = []
 		for i: int in range(NORMALS.size()):
 			normals.append((carry.basis * (NORMALS[i] * flip)).normalized())

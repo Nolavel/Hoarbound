@@ -33,8 +33,8 @@ const SLOTS: Dictionary = {
 	&"low_left": [Vector3(-0.09, 0.13, 0.11), Vector3(0.055, 0.11, 0.08)],
 	&"low_mid": [Vector3(0.0, 0.17, 0.11), Vector3(0.04, 0.15, 0.08)],
 	&"low_right": [Vector3(0.095, 0.17, 0.11), Vector3(0.05, 0.15, 0.08)],
-	&"side_left": [Vector3(-POCKET_X, 0.15, 0.11), Vector3(0.035, 0.11, 0.04)],
-	&"side_right": [Vector3(POCKET_X, 0.15, 0.11), Vector3(0.035, 0.11, 0.04)],
+	&"side_left": [Vector3(-POCKET_X, 0.15, 0.11), Vector3(0.035, 0.11, 0.06)],
+	&"side_right": [Vector3(POCKET_X, 0.15, 0.11), Vector3(0.035, 0.11, 0.06)],
 }
 ## Which faces of a rounded box to build: every one, all but the front, or the front alone.
 const FACES_ALL: int = 0
@@ -43,7 +43,7 @@ const FACES_FRONT: int = 2
 const FACES_OPEN_TOP: int = 3
 ## Side pockets: open-topped pouches either side, sized for a bottle that stands out of them.
 const POCKET_X: float = 0.205
-const POCKET_HALF: Vector3 = Vector3(0.04, 0.07, 0.05)
+const POCKET_HALF: Vector3 = Vector3(0.04, 0.07, 0.065)
 const CANVAS: Color = Color(0.37, 0.33, 0.21)
 const STRAP: Color = Color(0.28, 0.19, 0.12)
 ## Zip: each slider runs from the top centre to a top corner and down its side to the bottom rounding
@@ -65,6 +65,8 @@ const ZIP_METAL: Color = Color(0.16, 0.16, 0.17)
 ## Loose contents: their floor inside the main body and the gap they keep from its walls.
 const LOOSE_FLOOR_M: float = 0.02
 const LOOSE_MARGIN_M: float = 0.03
+## How far inside the mug handle's outer edge a carabiner rod rests, metres.
+const MUG_HANDLE_GRIP_M: float = 0.012
 const BEDROLL: Color = Color(0.24, 0.27, 0.30)
 
 var _shell_material: ShaderMaterial
@@ -209,8 +211,11 @@ func add_item(item_id: StringName, slot: StringName, along: float = 0.0) -> bool
 	var rest: Array = SLOTS[slot]
 	var centre: Vector3 = rest[0]
 	var half: Vector3 = rest[1]
-	## Stand it on the slot floor; on the shelf it lies along X.
+	## Stand it on the slot floor; on the shelf it lies along X; in a side pocket its flat side
+	## lies against the pack's wall.
 	var basis := Basis(Vector3.FORWARD, PI * 0.5) if slot == &"shelf" and box.size.y > box.size.x else Basis()
+	if String(slot).begins_with("side_") and box.size.x > box.size.z:
+		basis = Basis(Vector3.UP, PI * 0.5)
 	var placed: AABB = Transform3D(basis, Vector3.ZERO) * box
 	var at := Vector3(centre.x + along, centre.y - half.y - placed.position.y, centre.z)
 	visual.transform = Transform3D(basis, at)
@@ -260,14 +265,21 @@ func add_loose(item_id: StringName) -> bool:
 	return true
 
 
-## Clips item_id onto a carabiner (0 left, 1 right) by its top; it swings with the carabiner.
+## Clips item_id onto a carabiner (0 left, 1 right); it swings with the carabiner. A mug hangs
+## by its handle (authored towards +X), handle up; anything else by its top.
 func hang_item(item_id: StringName, carabiner_index: int) -> bool:
 	var carabiner: Carabiner = get_carabiner(carabiner_index)
 	if carabiner == null:
 		return false
 	var visual: Node3D = SurvivalItemVisual.make(item_id)
 	var box: AABB = _local_bounds(visual)
-	visual.position = Vector3(-box.get_center().x, -box.end.y, -box.get_center().z)
+	if String(item_id).contains("mug"):
+		## The rod runs through the handle's opening: just inside its outer edge, at mid height.
+		var handle := Vector3(box.end.x - MUG_HANDLE_GRIP_M, box.get_center().y, box.get_center().z)
+		var turn := Basis(Vector3.BACK, PI * 0.5)
+		visual.transform = Transform3D(turn, -(turn * handle))
+	else:
+		visual.position = Vector3(-box.get_center().x, -box.end.y, -box.get_center().z)
 	carabiner.get_hang_point().add_child(visual)
 	for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		if mesh is MeshInstance3D:
