@@ -240,26 +240,22 @@ snow_ground.gdshader: top − packed + rim          MovementController speed
   (`jag_crust_m` 2.5 cm, `jag_powder_m` 1 cm), tints cut walls blue, darkens
   deep pits and runs crack seams (cellular F2−F1) out from crust lips.
 - **Footsteps.** `WorldAudioBinder` reads depth and softness under each plant
-  and picks a bank by what the boot meets. The banks are synthesised by
-  `tools/audio/generate_snow_footsteps.py` (field recordings tried first did not
-  fit): crumpling transients with power-law energies (Fontana & Bresin 2003)
-  exciting resonances under a heel-roll-toe force envelope (Cook 2002, PhISEM),
-  plus a compression whump, ground knock, crust fractures, leg swish or
-  stick-slip squeak per surface. Re-run the tool to retune; it rewrites the WAVs
-  and the `.tres` banks.
+  and picks a bank by what the boot meets. Every bank is the owner's eight field
+  recordings (`assets/audio/sfx/player/snow_footsteps/`), one picked at random;
+  they play at their own pitch. The earlier synthesised banks and their generator
+  were removed on the owner's review (2026-10-29).
 
   | Boot | Bank |
   |---|---|
   | snow under 2 cm | ground (`footstep_event`, none yet) |
-  | sinks under 5 cm | `snow_thin` — short crunch on frozen ground |
-  | sinks 15 cm or more | `snow_deep` — leg swish, long dark whump |
-  | crust (softness < 0.6) | `snow_crust` — slab fractures, then powder |
-  | air above −1 °C | `snow_wet` — soft low grains, slush |
-  | otherwise | `snow_step` — dense dry crunch |
+  | sinks under 5 cm | `snow_thin` |
+  | sinks 15 cm or more | `snow_deep` |
+  | crust (softness < 0.6) | `snow_crust` |
+  | air above −1 °C | `snow_wet` |
+  | otherwise | `snow_step` |
 
-  On top: gain rises (−6 → +2 dB) and pitch falls (1.08 → 0.82) with the sink;
-  running is louder; dry snow below −8…−20 °C layers `snow_squeak`; a boot
-  pulled out of a print deeper than 8 cm plays `snow_pull` (`SnowShell.foot_lifted`).
+  On top: gain rises (−6 → +2 dB) with the sink, running is louder, wet snow is
+  2 dB softer. A boot breaking crust plays `snow_crust` then `snow_deep`.
 - **Deep snow gait.** Knee-deep (0.5 m) snow leaves 38 % of the speed and 45 %
   of the acceleration, and each boot planted in it dips the speed by up to 45 %
   for ~0.2 s: wading comes in surges. The swinging leg drives its knee up

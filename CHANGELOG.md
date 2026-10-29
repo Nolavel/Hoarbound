@@ -500,6 +500,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- The owner's sound recordings were barely heard and synthetic layers still played (owner review).
+  - **Levels:** the recordings are about 18 dB quieter than the synthetic banks the mix was set for
+    (footsteps -35.7 against -17.9 LUFS, EBU R128; mug peaks -20 against -4 dBFS). Each bank's
+    `volume_db` now adds that measured difference: footsteps -9 to +8.8 dB, mug -10 to +6 dB.
+  - **Pitch:** depth pitched the footsteps down to 0.82 (a fifth lower), so they no longer
+    sounded like the recordings. They now play at their own pitch; depth shades only the level.
+  - **Synthetic layers removed:** the `snow_squeak` and `snow_pull` banks, their WAVs and
+    `tools/audio/generate_snow_footsteps.py` are gone. A play trace on Reality now shows only the
+    owner's footstep and mug banks.
 - Pack pockets and the hand (owner review, #260).
   - **Shown twice:** a hammer drawn from its sleeve stayed drawn in the sleeve too. The pack now
     leaves out the pocket whose item a hand shows (`QuickAccessComponent.get_held_source_zone`).
