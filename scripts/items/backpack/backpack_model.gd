@@ -66,6 +66,8 @@ const ZIP_METAL: Color = Color(0.16, 0.16, 0.17)
 ## Loose contents: their floor inside the main body and the gap they keep from its walls.
 const LOOSE_FLOOR_M: float = 0.02
 const LOOSE_MARGIN_M: float = 0.03
+## The grab handle's foot on the top, behind its middle where the top is flat (pack space, at rest).
+const HANDLE_AT: Vector3 = Vector3(0.0, 0.52, 0.065)
 ## How far inside the mug handle's outer edge a carabiner rod rests, metres.
 const MUG_HANDLE_GRIP_M: float = 0.012
 ## What is clipped on swings slower than the carabiner (longer, heavier) and wider, Hz/degrees.
@@ -87,6 +89,7 @@ var _carabiners: Array[Carabiner] = []
 var _zip: float = 0.0
 var _zip_target: float = 0.0
 var _hung: Array[Node3D] = []
+var _handle: Node3D
 var _items: Array[Dictionary] = []
 var _contents: Node3D
 var _open: bool = false
@@ -352,6 +355,8 @@ func _process(delta: float) -> void:
 		material.set_shader_parameter(&"zip_s", _zip)
 	_place_sliders(give)
 	_place_carabiners()
+	## The handle sits where the canvas top is now, however far it has slumped.
+	_handle.position = _on_canvas(HANDLE_AT, Vector3.UP, 0.0)
 	## The free edge sags most with the panel flat; the swing's speed flicks it the other way.
 	var droop_target: float = DROOP_FLAT_M * sin(clampf(_swing, 0.0, PI))
 	var droop_omega: float = TAU * DROOP_HZ
@@ -542,10 +547,7 @@ func _add_straps() -> void:
 	## straps down the sides with a buckle each. They wear the canvas shader, so they move with it.
 	for x: float in [-0.11, 0.11]:
 		_strap(Vector3(0.055, BODY.y * 0.78, 0.014), Vector3(x, BODY.y * 0.5, -0.009), Vector3.ZERO)
-	## Grab handle: a webbing arch sewn to the top by both ends, so it moves with the canvas.
-	for x: float in [-0.045, 0.045]:
-		_strap(Vector3(0.006, 0.034, 0.02), Vector3(x, BODY.y + 0.012, 0.035), Vector3(0.0, 0.0, signf(x) * 0.5))
-	_strap(Vector3(0.08, 0.006, 0.02), Vector3(0.0, BODY.y + 0.027, 0.035), Vector3.ZERO)
+	_add_handle()
 	for x: float in [-1.0, 1.0]:
 		_strap(Vector3(0.008, BODY.y * 0.66, 0.026), Vector3(x * (BODY.x * 0.5 + 0.002), BODY.y * 0.52, BODY.z * 0.55), Vector3.ZERO)
 		_strap(Vector3(0.012, 0.03, 0.035), Vector3(x * (BODY.x * 0.5 + 0.006), BODY.y * 0.6, BODY.z * 0.55), Vector3.ZERO)
@@ -572,6 +574,38 @@ func _strap(size: Vector3, at: Vector3, tilt: Vector3) -> void:
 	strap.mesh = mesh
 	strap.material_override = _strap_material
 	add_child(strap)
+
+
+## The grab handle: a webbing arch whose two feet stand on the top; placed on the canvas each frame.
+func _add_handle() -> void:
+	_handle = Node3D.new()
+	_handle.name = "Handle"
+	add_child(_handle)
+	var webbing: StandardMaterial3D = _plain(STRAP)
+	for x: float in [-0.045, 0.045]:
+		var leg := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.006, 0.034, 0.022)
+		leg.mesh = box
+		leg.material_override = webbing
+		## Each foot is sewn flat to the top; the leg leans in towards the bar.
+		leg.transform = Transform3D(Basis(Vector3.BACK, signf(x) * 0.5), Vector3(x, 0.015, 0.0))
+		_handle.add_child(leg)
+	var bar := MeshInstance3D.new()
+	var grip := BoxMesh.new()
+	grip.size = Vector3(0.08, 0.007, 0.022)
+	bar.mesh = grip
+	bar.material_override = webbing
+	bar.position = Vector3(0.0, 0.031, 0.0)
+	_handle.add_child(bar)
+	for x: float in [-0.05, 0.05]:
+		var foot := MeshInstance3D.new()
+		var tab := BoxMesh.new()
+		tab.size = Vector3(0.03, 0.004, 0.024)
+		foot.mesh = tab
+		foot.material_override = webbing
+		foot.position = Vector3(x, 0.001, 0.0)
+		_handle.add_child(foot)
 
 
 ## Two zip sliders, each with a pull tab that hangs toward the ground.

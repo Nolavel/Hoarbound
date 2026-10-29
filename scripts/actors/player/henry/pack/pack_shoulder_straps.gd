@@ -141,9 +141,9 @@ func _draw_worn(side: int, step: float, reset: bool) -> void:
 			var t: float = float(k) / SAMPLES_PER_SPAN
 			path.append(_catmull(points, i, t))
 			normals.append(ups[i].slerp(ups[i + 1], t))
-			## Padded from the upper back over the shoulder to the chest.
+			## Padded from the upper back over the shoulder to the chest (anchors 0 to 4).
 			var u: float = float(i) + t
-			widths.append(lerpf(WIDTH_M, PAD_WIDTH_M, smoothstep(0.0, 0.6, u) * (1.0 - smoothstep(1.6, 2.4, u))))
+			widths.append(lerpf(WIDTH_M, PAD_WIDTH_M, smoothstep(0.0, 0.8, u) * (1.0 - smoothstep(3.6, 4.6, u))))
 	for k: int in range(bottom_run.size()):
 		path.append(bottom_run[k])
 		normals.append(ups[last].slerp(pack_out, float(k) / (bottom_run.size() - 1)))
