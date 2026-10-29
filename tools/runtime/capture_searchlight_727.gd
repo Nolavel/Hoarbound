@@ -43,6 +43,11 @@ func _run() -> void:
 		(layer as CanvasLayer).visible = false
 	var stove := world.find_children("*", "HeatSource", true, false)[0] as Node3D
 	var pickup := world.find_children("SearchlightShelter", "ItemPickup", true, false)[0] as ItemPickup
+	var counter := pickup.get_parent().get_node(^"ReceptionCounter") as StaticBody3D
+	var entrance := pickup.get_parent().get_node(^"HouseDoor") as Node3D
+	assert(pickup.global_position.distance_to(counter.global_position + Vector3.UP * 0.525) < 0.6)
+	assert(pickup.global_position.distance_to(entrance.global_position) < 3.0)
+	assert(pickup.world_id == &"searchlight_727_reception")
 	player.global_position = stove.to_global(Vector3(1.4, 1.0, 0.6))
 	await _frames(5)
 	report["renderer"] = RenderingServer.get_current_rendering_method()

@@ -16596,7 +16596,7 @@ transform = Transform3D(-0.8511709, 0, -0.5248887, 0, 1, 0, 0.5248887, 0, -0.851
 position = Vector3(1132.4, 7.106763, -654.1386)
 script = ExtResource("16_yryj5")
 item_id = &"searchlight"
-world_id = &"searchlight_727_toolbench"
+world_id = &"searchlight_727_reception"
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SearchlightShelter"]
 shape = SubResource("SphereShape3D_shelter_77e791ac")

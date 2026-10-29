@@ -17,11 +17,11 @@ func _test() -> void:
 	assert(bool(restored.get_first_instance_state(&"searchlight").get("searchlight_on", false)))
 	var ledger := PickupLedger.new()
 	root.add_child(ledger)
-	ledger.record(&"searchlight_727_toolbench")
+	ledger.record(&"searchlight_727_reception")
 	var ledger_restored := PickupLedger.new()
 	root.add_child(ledger_restored)
 	ledger_restored.load_save_data(ledger.get_save_data())
-	assert(ledger_restored.is_taken(&"searchlight_727_toolbench"))
+	assert(ledger_restored.is_taken(&"searchlight_727_reception"))
 	var prop := HeldSearchlight.new()
 	root.add_child(prop)
 	await process_frame

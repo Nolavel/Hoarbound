@@ -364,14 +364,14 @@
    "on": null
   },
   "SearchlightShelter": {
-   "room": "storage",
+   "room": "lobby",
    "uv": [
-    10.1,
-    -5.6
+    8.15,
+    2.15
    ],
-   "h": 0.8,
+   "h": 1.05,
    "yaw_deg": 0,
-   "on": "ToolBench"
+   "on": "ReceptionCounter"
   }
  }
 }

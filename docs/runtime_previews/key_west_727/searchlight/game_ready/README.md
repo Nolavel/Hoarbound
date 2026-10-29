@@ -8,10 +8,14 @@ four materials, retaining separate glass and NORTHBEAM markings. Mesh QA passes
 with two reported seam/contact warnings; the atlas budget check passes.
 
 The `searchlight` ItemResource is CARRIED and weighs 2.8 kg. The single authored
-727 pickup has world ID `searchlight_727_toolbench`. It uses the existing pickup
+727 pickup has world ID `searchlight_727_reception` and sits on the reception
+counter beside the entrance. It uses the existing pickup
 ledger, inventory and right-hand HeldFit. The Hub Use route draws it from the
 pack. RMB toggles the held SpotLight3D; per-instance inventory state retains the
 switch value across save/load, while stowing removes the live light.
+The 727 runtime capture asserts that the pickup is on the reception countertop
+within 3 m of the entrance, then picks it up through `ItemPickup` and presents
+the owned item. It has its own persistent world ID, so a taken copy stays gone.
 
 Light: warm SpotLight3D, energy 12, range 18 m, 27° cone, shadows enabled,
 shadow bias 0.03 and normal bias 0.3. Lens glow is a separate unshaded optical
