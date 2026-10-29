@@ -2,7 +2,8 @@ extends SceneTree
 
 ## Backpack on Henry (#260) in Key West Reality: round him for the shoulder straps, a sprint and stop
 ## (pack and carabiners swing), then the zip for a quick stow and for the Hub. 30 fps PNG frames.
-## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_backpack_worn.gd -- <out dir>
+## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_backpack_worn.gd -- <out dir> [short]
+## `short`: about 4 s close on the pack: the thermos in its pocket, then the mug swinging as Henry moves.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const FPS: int = 30
@@ -13,12 +14,14 @@ var _camera: Camera3D
 var _player: Player
 var _caption: Label
 var _pack_spot: Vector3 = Vector3.ZERO
+var _short: bool = false
 
 
 func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if not args.is_empty():
 		_out = args[0]
+	_short = args.has("short")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out))
 	_run()
 
@@ -62,6 +65,10 @@ func _run() -> void:
 	var pack: PackRig = _player.animation_component.get_pack_rig()
 	print("[packworn] pack visible ", pack.is_visible_in_tree(), " canvas ", pack.use_canvas_model)
 
+	if _short:
+		await _record_short()
+		quit(0)
+		return
 	await _record(3.0, "SHOULDER STRAPS: round Henry", &"orbit")
 	await _record(1.0, "WORN, STANDING", &"side")
 	Input.action_press(&"move_forward")
@@ -90,6 +97,20 @@ func _run() -> void:
 	quit(0)
 
 
+## The short clip: round the pack close up, then the mug's side while Henry starts, stops and sidesteps.
+func _record_short() -> void:
+	await _record(1.4, "THERMOS IN THE SIDE POCKET", &"pack_orbit")
+	Input.action_press(&"move_forward")
+	await _record(0.8, "WALK: the carabiners and the mug swing", &"mug")
+	Input.action_release(&"move_forward")
+	await _record(0.8, "STOP", &"mug")
+	Input.action_press(&"move_right")
+	await _record(0.5, "SIDESTEP", &"mug")
+	Input.action_release(&"move_right")
+	await _record(0.7, "SETTLE", &"mug")
+	print("[packworn] frames ", _frame)
+
+
 ## Records seconds of frames following Henry: from the side, round him, or close behind the pack.
 func _record(seconds: float, caption: String, view: StringName) -> void:
 	_caption.text = caption
@@ -108,6 +129,11 @@ func _record(seconds: float, caption: String, view: StringName) -> void:
 			&"pack":
 				var round_pack: Vector3 = facing.rotated(Vector3.UP, PI * 0.6 + TAU * 0.3 * float(i) / count)
 				_camera.look_at_from_position(_pack_spot + round_pack * 1.0 + Vector3.UP * 0.7, _pack_spot + Vector3.UP * 0.2)
+			&"pack_orbit":
+				var arc: Vector3 = facing.rotated(Vector3.UP, PI * 0.55 + PI * 0.9 * float(i) / count)
+				_camera.look_at_from_position(henry + arc * 0.85 + Vector3.UP * 0.75, henry + Vector3.UP * 0.6 - facing * 0.25)
+			&"mug":
+				_camera.look_at_from_position(henry + right * 0.9 - facing * 0.75 + Vector3.UP * 0.6, henry + Vector3.UP * 0.55 - facing * 0.2)
 			&"behind":
 				_camera.look_at_from_position(henry - facing * 1.05 + right * 0.35 + Vector3.UP * 0.85, henry + Vector3.UP * 0.6 - facing * 0.25)
 			_:

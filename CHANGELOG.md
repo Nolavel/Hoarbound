@@ -8,6 +8,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- `capture_backpack_worn.gd` takes `short`: a 4 s close clip of the thermos in its pocket and the
+  mug swinging as Henry walks, stops and sidesteps.
 - Water flask is now a steel thermos (#260), built in Blender by `tools/blender/build_thermos.py`
   (`assets/items/thermos/Thermos.glb`). It has a threaded neck and a flip-top lid on a hinge that
   does not come off (`Thermos_Lid`, which turns about local +Z). The painted body and steel use the
