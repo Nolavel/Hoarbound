@@ -1,0 +1,64 @@
+{
+  "pairs": {
+    "room": {
+      "identical_camera_pose_and_energy": true,
+      "mean_absolute_rgb_delta_255": [
+        0.3570582561728395,
+        0.07336612654320987,
+        0.01156057098765432
+      ]
+    },
+    "close": {
+      "identical_camera_pose_and_energy": true,
+      "mean_absolute_rgb_delta_255": [
+        1.0817226080246913,
+        0.30388503086419755,
+        0.0971682098765432
+      ]
+    },
+    "wall": {
+      "identical_camera_pose_and_energy": true,
+      "mean_absolute_rgb_delta_255": [
+        0.8521354166666667,
+        0.25253858024691356,
+        0.09312692901234568
+      ]
+    },
+    "drop": {
+      "identical_camera_pose_and_energy": true,
+      "mean_absolute_rgb_delta_255": [
+        0.2704764660493827,
+        0.03829861111111111,
+        0.004753086419753087
+      ]
+    }
+  },
+  "png_resolution": [
+    960,
+    540
+  ],
+  "visually_inspected_pngs": [
+    "stage1_room.png",
+    "stage2_room.png",
+    "stage1_close.png",
+    "stage2_close.png",
+    "stage1_wall.png",
+    "stage2_wall.png",
+    "stage1_drop.png",
+    "stage2_drop.png"
+  ],
+  "visible_character_meshes": 39,
+  "all_visible_character_meshes_cast_shadows": true,
+  "files_sha256": {
+    "stage1_room.png": "f93a9f38ac530e3e7abf4ef5e1b952200f9173db5de5b130485516ecc516d976",
+    "stage2_close.png": "95f347d3a0ae3304d42f104c3ed870988850fb3baaf6fc9677035c7234068338",
+    "stage1_drop.png": "358e9b9e26611983f375382a60895ec00e68e3383ae1b045e4dee59bf00c4879",
+    "stage2_room.png": "772ffc0b25ef31b3942567ee63abd62c7482f25bf9f94f46bbddf70b1714ddfe",
+    "stage1_close.png": "6f67938883621ea97f1d594bf7a63ab7ebff6fa21b017a3b3fb3938feb5f278e",
+    "stage2_wall.png": "48f8b07385fbd790e347eac5c82aebd55a7a384f50a4fc8ee180eeb3b40e9c26",
+    "stage1_wall.png": "4df84768f6f534074ad6730e00ccfc8a936ac4e19fb587a7cfccde59c284a194",
+    "stage2_drop.png": "ec47ffbeb94feddcfdb0f53cac190cf2d7ed86c266e5bf2e679223f7916f3685"
+  },
+  "lighting_source_sha256": "54614f719dceaee2d9bfa84654d7492b4685c7c5d7bb19e377a93e5818a1fea7",
+  "note": "Capture and timing are separate real-runtime launches; capture PNGs preceded the harness timing-array fix. Lighting code and captured cameras were unchanged."
+}

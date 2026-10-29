@@ -36,14 +36,31 @@ const WEATHER_CONTROLLER_SCRIPT: GDScript = preload(
 @export_range(0.5, 12.0, 0.1) var base_light_energy: float = 2.8
 @export_range(1.0, 16.0, 0.1) var surge_light_energy: float = 6.8
 @export_range(2.0, 12.0, 0.1) var light_range_m: float = 4.5
-## Shadows are deliberately off for the normal production tier.
-@export var enable_shadows: bool = false
+## The same shadow-casting light follows the flare from hand to ground.
+@export var enable_shadows: bool = true
+@export_range(0.0, 1.0, 0.01) var shadow_bias: float = 0.03
+@export_range(0.0, 2.0, 0.01) var shadow_normal_bias: float = 0.3
 ## Falloff exponent (Godot omni_attenuation; 2 is about inverse square).
 @export_range(0.25, 4.0, 0.05) var light_attenuation: float = 2.0
 ## How much the light tints the volumetric fog (Light3D.light_volumetric_fog_energy).
 @export_range(0.0, 2.0, 0.05) var fog_energy: float = 0.3
 ## How much the lit circle's radius breathes with the burn and its spurts, 0..1.
 @export_range(0.0, 1.0, 0.05) var range_breath: float = 0.0
+
+@export_group("Local scattering")
+## Neutral, non-emissive medium; the real flare light supplies its colour.
+@export_range(0.0, 0.1, 0.001) var scattering_density: float = 0.018:
+	set(value):
+		scattering_density = maxf(value, 0.0)
+		if _scattering_material != null:
+			_scattering_material.density = scattering_density
+		if _scattering != null:
+			_scattering.visible = _burning and scattering_density > 0.0
+@export_range(0.5, 3.0, 0.1) var scattering_diameter_m: float = 1.6:
+	set(value):
+		scattering_diameter_m = maxf(value, 0.5)
+		if _scattering != null:
+			_scattering.size = Vector3.ONE * scattering_diameter_m
 
 @export_group("Wind")
 @export_range(0.05, 1.0, 0.05) var wind_sample_interval_s: float = 0.15
@@ -55,6 +72,8 @@ var _body: MeshInstance3D
 var _core: MeshInstance3D
 var _core_material: StandardMaterial3D
 var _light: OmniLight3D
+var _scattering: FogVolume
+var _scattering_material: FogMaterial
 var _tip: Marker3D
 var _flame: GPUParticles3D
 var _sparks: GPUParticles3D
@@ -260,6 +279,8 @@ func _apply_energy() -> void:
 
 
 func _apply_burning_state() -> void:
+	if _scattering != null:
+		_scattering.visible = _burning and scattering_density > 0.0
 	if _light != null:
 		_light.visible = _burning
 	if _core != null:
@@ -321,6 +342,7 @@ func _build_flare() -> void:
 
 	_core = MeshInstance3D.new()
 	_core.name = "HotCore"
+	_core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var core_mesh := SphereMesh.new()
 	core_mesh.radius = 0.019
 	core_mesh.height = 0.038
@@ -342,10 +364,24 @@ func _build_flare() -> void:
 	_light.omni_attenuation = light_attenuation
 	_light.light_volumetric_fog_energy = fog_energy
 	_light.shadow_enabled = enable_shadows
+	_light.shadow_bias = shadow_bias
+	_light.shadow_normal_bias = shadow_normal_bias
 	_tip.add_child(_light)
 
 	if not _runtime_visuals_enabled:
 		return
+
+	_scattering_material = FogMaterial.new()
+	_scattering_material.density = scattering_density
+	_scattering_material.albedo = Color(0.85, 0.85, 0.85, 1.0)
+	_scattering_material.emission = Color.BLACK
+	_scattering_material.edge_fade = 1.0
+	_scattering = FogVolume.new()
+	_scattering.name = "LocalScattering"
+	_scattering.shape = RenderingServer.FOG_VOLUME_SHAPE_ELLIPSOID
+	_scattering.size = Vector3.ONE * scattering_diameter_m
+	_scattering.material = _scattering_material
+	_tip.add_child(_scattering)
 
 	_flame = _make_flame_layer()
 	_flame.name = "FlameJet"
