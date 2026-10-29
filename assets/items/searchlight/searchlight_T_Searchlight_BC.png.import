@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://1mi8qvbuyu1s"
-path="res://.godot/imported/searchlight_T_Searchlight_BC.png-b9f76ddf9ad7f5e611774d9a8a4332b4.ctex"
+path.s3tc="res://.godot/imported/searchlight_T_Searchlight_BC.png-b9f76ddf9ad7f5e611774d9a8a4332b4.s3tc.ctex"
+path.etc2="res://.godot/imported/searchlight_T_Searchlight_BC.png-b9f76ddf9ad7f5e611774d9a8a4332b4.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "26b5951ee9215a3c04bde5c4bb6bbcaa"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/items/searchlight/searchlight_T_Searchlight_BC.png"
-dest_files=["res://.godot/imported/searchlight_T_Searchlight_BC.png-b9f76ddf9ad7f5e611774d9a8a4332b4.ctex"]
+dest_files=["res://.godot/imported/searchlight_T_Searchlight_BC.png-b9f76ddf9ad7f5e611774d9a8a4332b4.s3tc.ctex", "res://.godot/imported/searchlight_T_Searchlight_BC.png-b9f76ddf9ad7f5e611774d9a8a4332b4.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/high_quality_mode=0
 compress/lossy_quality=0.7
@@ -43,4 +45,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
