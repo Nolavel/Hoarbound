@@ -500,6 +500,22 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Pack hitches after the backpack merge (owner FPS capture, #260). Measured on Reality with Henry
+  starting, stopping and turning (560 frames, headless):
+
+  | | mean | p99 | max |
+  |---|---|---|---|
+  | before the merge | 7.4-8.2 ms | 15.5-16.6 ms | 18 ms |
+  | merged | 14.2 ms | 31.7 ms | 40 ms |
+  | now | 8.4-9.3 ms | 17-19 ms | 21-26 ms |
+
+  - **Hanger contact:** peaks of 8-13 ms in one frame came from the hinge search (up to 66 angles,
+    each over every point). Newton steps now find a clear turn and bisection backs it off; points
+    over 6 cm from the obstacle are left out after the first pass. Peaks are about 4 ms.
+  - **Straps:** about 5,000 per-vertex `ImmediateMesh` calls a frame became one indexed upload
+    (8 vertices per point, cached indices): 1.1 ms to 0.4 ms.
+  - The GPU's ~110 ms on the HD 620 is the Reality world, as before the merge. The whole pack is
+    25k triangles.
 - Backpack zipper spammed `det == 0` errors when fully open (owner review). A slider past the
   seam's end sampled two clamped points, so its tangent was zero and the tab basis degenerate. The
   seam run is now clamped to its length; 50 errors per 120 frames before, 0 after.

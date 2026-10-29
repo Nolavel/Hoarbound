@@ -86,7 +86,7 @@ func _check_straps_standing() -> void:
 	var a_side: float = signf(((anchors[0][1] as Node3D).global_position - chest).dot(right))
 	var b_side: float = signf(((anchors[1][1] as Node3D).global_position - chest).dot(right))
 	_report("R2 straps on both shoulders", "%+.0f / %+.0f" % [a_side, b_side], a_side == -b_side and a_side != 0.0)
-	var mesh := _straps.mesh as ImmediateMesh
+	var mesh := _straps.mesh as Mesh
 	_report("R2 strap mesh drawn", "%d surface(s)" % mesh.get_surface_count(), mesh.get_surface_count() == 1)
 	for side: int in range(2):
 		var first: Vector3 = (anchors[side][0] as Node3D).global_position

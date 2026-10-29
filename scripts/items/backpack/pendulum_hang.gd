@@ -10,12 +10,17 @@ signal knocked(rate: float)
 
 ## Longest step the spring takes in one frame, seconds: a hitch's long frame would blow it up.
 const MAX_SPRING_STEP_S: float = 0.05
-## Contact: points closer than this to the obstacle join the search; free, the most it tilts in a
-## frame, rad (any depth left is worked off over the next frames, as position-based contact does).
-const CONTACT_NEAR_M: float = 0.08
+## Contact: the most it turns per Newton step, rad, and the steps per frame. Points farther than
+## CONTACT_NEAR_M from the obstacle cannot reach it in one frame's turn and are left out.
+const CONTACT_NEAR_M: float = 0.06
 const MAX_CONTACT_TILT: float = 0.35
-## On a hinge: the search step and how far either way it looks for a clear angle, rad.
-const CONTACT_STEP: float = 0.087
+const CONTACT_ITERATIONS: int = 4
+## A contact whose point barely moves along its normal as it turns cannot be cleared by turning, m/rad.
+const MIN_LEVER_M: float = 0.002
+## Each Newton step reaches this much past the linear estimate, so it lands clear and bisection
+## backs it off; and the bisection steps.
+const OVERSHOOT: float = 1.5
+const BISECTIONS: int = 6
 ## Contact keeps this gap (a collision margin): the points are a 2 cm sample of the surface, and the
 ## surface between them may bulge up to a few millimetres nearer the obstacle.
 const CONTACT_MARGIN: float = 0.004
@@ -28,7 +33,6 @@ const CONTACT_SLOP: float = 0.0015
 ## only one this many times harder counts again.
 const KNOCK_MIN_RATE: float = 0.6
 const KNOCK_RESTRIKE: float = 2.5
-const HINGE_REACH: float = 1.4
 
 ## Pendulum spring: frequency (Hz) and damping (under 1 overshoots), and the widest swing from
 ## the parent's down, degrees.
@@ -111,13 +115,10 @@ func _keep_on_hinge(to_parent: Basis) -> void:
 
 
 ## Leans the hanging thing off what it touches, dropping the swing's rate into the obstacle
-## (inelastic contact) and rubbing off half the rest (friction). On a hinge it is a one-angle problem: the nearest clear angle either way
-## about the pin (coarse steps, then bisection). Free, it tilts toward the deepest point's normal.
+## (inelastic contact) and rubbing off half the rest (friction). It turns about the pin (free: toward
+## the normal) by the least angle that clears every point; depth left is worked off next frame.
 func _resolve_contact(to_parent: Basis) -> void:
 	var pivot: Vector3 = global_position
-	var near := PackedVector3Array()
-	var start := Vector4(0.0, 0.0, 0.0, -1.0)
-	var pose := Basis(Quaternion(Vector3.DOWN, (to_parent * _dir).normalized()))
 	var from_parent: Basis = to_parent.inverse()
 	var points: PackedVector3Array = _all_points()
 	## Broad phase: its bounding sphere well clear of everything means no point can touch.
@@ -128,36 +129,38 @@ func _resolve_contact(to_parent: Basis) -> void:
 	var radius: float = 0.0
 	for point: Vector3 in points:
 		radius = maxf(radius, point.distance_to(centre))
+	var pose := Basis(Quaternion(Vector3.DOWN, (to_parent * _dir).normalized()))
 	if (contact_depth.call(pivot + from_parent * (pose * centre)) as Vector4).w + radius + CONTACT_MARGIN < 0.0:
 		_touching = false
 		return
-	for point: Vector3 in points:
-		var hit: Vector4 = contact_depth.call(pivot + from_parent * (pose * point))
-		hit.w += CONTACT_MARGIN
-		if hit.w > -CONTACT_NEAR_M:
-			near.append(point)
-		if hit.w > start.w:
-			start = hit
-	if start.w <= 0.0:
+	var hit: Array = _deepest_hit(points, to_parent, _dir, pivot, true)
+	var depth: float = (hit[0] as Vector4).w
+	if depth <= 0.0:
 		_touching = false
 		return
-	if _touching and start.w < CONTACT_SLOP:
+	points = hit[2]
+	if _touching and depth < CONTACT_SLOP:
 		_dir_speed *= CONTACT_FRICTION  # resting on it inside the margin: nothing to correct
 		return
+	var start: Vector4 = hit[0]
 	var axis: Vector3
-	var angle: float = 0.0
 	if hinge_axis != Vector3.ZERO:
 		axis = (from_parent * hinge_axis).normalized()
-		angle = _nearest_clear(near, to_parent, pivot, axis)
 	else:
 		axis = _dir.cross(contact_out if contact_out != Vector3.ZERO else Vector3(start.x, start.y, start.z))
 		if axis.length() < 0.000001:
 			return
 		axis = axis.normalized()
-		angle = _clear_along(near, to_parent, pivot, axis, 0.0, MAX_CONTACT_TILT)
+	var before: Vector3 = _dir
+	var angle: float
+	if hinge_axis != Vector3.ZERO:
+		angle = _clear_angle(points, to_parent, pivot, axis, hit, depth)
+	elif (_deepest_hit(points, to_parent, _dir.rotated(axis, MAX_CONTACT_TILT), pivot)[0] as Vector4).w > 0.0:
+		angle = MAX_CONTACT_TILT  # still in at the widest tilt: go that far and finish next frame
+	else:
+		angle = _bisect(points, to_parent, pivot, axis, 0.0, MAX_CONTACT_TILT)
 	if absf(angle) < 0.000001:
 		return
-	var before: Vector3 = _dir
 	_dir = _dir.rotated(axis, angle).normalized()
 	var out: Vector3 = (_dir - before).normalized()
 	var into: float = maxf(-_speed_before.dot(out), 0.0)
@@ -182,53 +185,62 @@ func _all_points() -> PackedVector3Array:
 	return points
 
 
-## Signed turn about `axis` that clears the points, backing out the way it came in (against its
-## swing) first: CONTACT_STEP steps up to HINGE_REACH, never past the swing limit, then bisection.
-## Zero if no clear angle is found.
-func _nearest_clear(points: PackedVector3Array, to_parent: Basis, pivot: Vector3, axis: Vector3) -> float:
-	var back: float = -signf(_dir_speed.dot(axis.cross(_dir))) if _dir_speed.length() > 0.0001 else 1.0
+## On a hinge: least turn about `axis` that clears the points. Newton steps on the deepest point's depth
+## (position-based contact, Müller et al. 2007) find a clear turn; bisection then backs it off to the
+## least one. Wedged, it is the least-deep turn tried.
+func _clear_angle(points: PackedVector3Array, to_parent: Basis, pivot: Vector3, axis: Vector3, hit: Array, depth: float) -> float:
 	var limit: float = deg_to_rad(max_swing_deg)
-	var steps: int = int(ceil(HINGE_REACH / CONTACT_STEP))
-	for sign: float in [back, -back]:
-		for k: int in range(1, steps + 1):
-			var angle: float = sign * k * CONTACT_STEP
-			var turned: Vector3 = _dir.rotated(axis, angle)
-			if (to_parent * turned).angle_to(Vector3.DOWN) > limit:
-				break
-			if _deepest(points, to_parent, turned, pivot) <= 0.0:
-				return _clear_along(points, to_parent, pivot, axis, sign * (k - 1) * CONTACT_STEP, angle)
-	## Wedged: take the least-deep angle within reach rather than stay in.
+	var blocked: float = 0.0
 	var best: float = 0.0
-	var best_depth: float = _deepest(points, to_parent, _dir, pivot)
-	for k: int in range(-steps, steps + 1):
-		var turned: Vector3 = _dir.rotated(axis, k * CONTACT_STEP)
-		if (to_parent * turned).angle_to(Vector3.DOWN) > limit:
-			continue
-		var depth: float = _deepest(points, to_parent, turned, pivot)
+	var best_depth: float = depth
+	for _i: int in range(CONTACT_ITERATIONS):
+		var normal := Vector3((hit[0] as Vector4).x, (hit[0] as Vector4).y, (hit[0] as Vector4).z)
+		## How far the deepest point moves along its normal per radian of turn about the axis.
+		var lever: float = axis.cross((hit[1] as Vector3) - pivot).dot(normal)
+		if absf(lever) < MIN_LEVER_M:
+			return best
+		var next: float = clampf(blocked + depth / lever * OVERSHOOT, blocked - MAX_CONTACT_TILT, blocked + MAX_CONTACT_TILT)
+		if (to_parent * _dir.rotated(axis, next)).angle_to(Vector3.DOWN) > limit:
+			return best
+		hit = _deepest_hit(points, to_parent, _dir.rotated(axis, next), pivot)
+		depth = (hit[0] as Vector4).w
+		if depth <= 0.0:
+			return _bisect(points, to_parent, pivot, axis, blocked, next)
 		if depth < best_depth:
+			best = next
 			best_depth = depth
-			best = k * CONTACT_STEP
+		blocked = next
 	return best
 
 
 ## Bisects between a blocked turn and a clear one about `axis`; returns the clear end.
-func _clear_along(points: PackedVector3Array, to_parent: Basis, pivot: Vector3, axis: Vector3, blocked: float, clear: float) -> float:
-	if _deepest(points, to_parent, _dir.rotated(axis, clear), pivot) > 0.0:
-		return clear  # still in at the widest tilt: go that far and finish next frame
-	for _i: int in range(6):
+func _bisect(points: PackedVector3Array, to_parent: Basis, pivot: Vector3, axis: Vector3, blocked: float, clear: float) -> float:
+	for _i: int in range(BISECTIONS):
 		var mid: float = (blocked + clear) * 0.5
-		if _deepest(points, to_parent, _dir.rotated(axis, mid), pivot) > 0.0:
+		if (_deepest_hit(points, to_parent, _dir.rotated(axis, mid), pivot)[0] as Vector4).w > 0.0:
 			blocked = mid
 		else:
 			clear = mid
 	return clear
 
 
-## Deepest of `points` inside the obstacle with the hanging thing posed along world direction dir.
-func _deepest(points: PackedVector3Array, to_parent: Basis, dir: Vector3, pivot: Vector3) -> float:
+## The deepest of `points` with the hanging thing posed along world direction dir:
+## [Vector4(outward normal, depth plus margin), its world position].
+## With `gather`, a third entry: the points within CONTACT_NEAR_M, the only ones that can touch
+## within one frame's turn.
+func _deepest_hit(points: PackedVector3Array, to_parent: Basis, dir: Vector3, pivot: Vector3, gather: bool = false) -> Array:
 	var pose := Basis(Quaternion(Vector3.DOWN, (to_parent * dir).normalized()))
 	var from_parent: Basis = to_parent.inverse()
-	var deepest: float = -1.0
+	var deepest := Vector4(0.0, 0.0, 0.0, -INF)
+	var at: Vector3 = pivot
+	var near := PackedVector3Array()
 	for point: Vector3 in points:
-		deepest = maxf(deepest, (contact_depth.call(pivot + from_parent * (pose * point)) as Vector4).w + CONTACT_MARGIN)
-	return deepest
+		var world: Vector3 = pivot + from_parent * (pose * point)
+		var hit: Vector4 = contact_depth.call(world)
+		if gather and hit.w + CONTACT_MARGIN > -CONTACT_NEAR_M:
+			near.append(point)
+		if hit.w > deepest.w:
+			deepest = hit
+			at = world
+	deepest.w += CONTACT_MARGIN
+	return [deepest, at, near]
