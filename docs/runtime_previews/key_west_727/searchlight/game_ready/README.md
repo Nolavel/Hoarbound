@@ -44,3 +44,14 @@ Daylight review (12:00, Forward+/Vulkan llvmpipe): `727_lit.png` shows Henry
 with the searchlight switched on in the actual 727 scene; `henry_grip.png`
 shows the right hand and handle at close range. These frames use the same
 runtime item, rig and light as the night capture, with normal 2.0 exposure.
+
+Battery indicator review: the original four side windows carry small, dim
+emissive overlays, with no additional light source. Switching on animates them
+right to left. Remaining charge changes the rightmost green count at 75%,
+50%, and 25%; the other windows are red. The item records cumulative on-time
+in `searchlight_runtime_hours` through `SimulationClock` and lasts 48 game
+hours. Output fades over the final 5%, intermittently fails below 1%, and
+fully extinguishes at zero. `indicator_full.png`, `indicator_half.png`,
+`indicator_low.png`, and `indicator_empty.png` are real Forward+/Vulkan captures
+of one runtime prop in the 727 scene at those states. The close-up prop was
+detached from the hand only inside the capture harness to inspect the side.

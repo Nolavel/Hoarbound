@@ -208,7 +208,9 @@ func _draw() -> void:
 		HeldFit.apply_legacy_adjustment(_prop, _item_id)
 	if _prop is HeldSearchlight:
 		var searchlight := _prop as HeldSearchlight
-		searchlight.apply_enabled(bool(inventory.get_first_instance_state(_item_id).get("searchlight_on", false)))
+		var state: Dictionary = inventory.get_first_instance_state(_item_id)
+		searchlight.set_runtime_hours(float(state.get("searchlight_runtime_hours", 0.0)))
+		searchlight.apply_enabled(bool(state.get("searchlight_on", false)))
 		searchlight.toggled.connect(_on_searchlight_toggled)
 	_show_hint()
 
@@ -427,6 +429,18 @@ func _animation() -> HenryUALAnimation:
 func _on_searchlight_toggled(enabled: bool) -> void:
 	if inventory != null and _source_zone == &"":
 		inventory.update_first_instance_state(_item_id, {"searchlight_on": enabled})
+
+
+func get_simulation_priority() -> int:
+	return 550
+
+
+func advance_simulation(hours: float, _context: SimulationStepContext) -> void:
+	var searchlight := _prop as HeldSearchlight
+	if searchlight == null or inventory == null or _source_zone != &"" or not searchlight.is_enabled():
+		return
+	searchlight.consume_game_hours(hours)
+	inventory.update_first_instance_state(_item_id, {"searchlight_runtime_hours": searchlight.runtime_hours})
 
 
 ## The existing hand solver moves the wrist with the inertial grip, never the camera.

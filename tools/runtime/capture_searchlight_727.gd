@@ -15,7 +15,7 @@ var review_mode: bool = false
 
 func _initialize() -> void:
 	output = OS.get_cmdline_user_args()[0] if not OS.get_cmdline_user_args().is_empty() else "user://searchlight_727"
-	review_mode = OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] == "review"
+	review_mode = OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] in ["review", "indicator"]
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output))
 	root.mode = Window.MODE_WINDOWED
 	root.size = Vector2i(640, 360)
@@ -89,6 +89,37 @@ func _run() -> void:
 	held._unhandled_input(click)
 	await _frames(20)
 	await _shot("on")
+	if OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] == "indicator":
+		held.set_process(false)
+		var reach: StoveHandReach = (player.get_node(^"HenryUALVisual") as HenryUALAnimation).get_present_reach()
+		if reach.hand_solved.is_connected(held._on_searchlight_hand_solved):
+			reach.hand_solved.disconnect(held._on_searchlight_hand_solved)
+		prop.reparent(root, true)
+		prop.top_level = true
+		prop.global_position = stove.to_global(Vector3(3.2, 1.7, 2.6))
+		prop.global_basis = Basis.IDENTITY
+		var body_center: Vector3 = prop.global_position + Vector3(0.0, -0.13, 0.03)
+		var side_view: Vector3 = body_center + Vector3(-0.72, 0.16, 0.0)
+		camera.fov = 40.0
+		render_camera.fov = camera.fov
+		await _frames(18)
+		camera.look_at_from_position(side_view, body_center)
+		await _shot("indicator_full")
+		prop.set_runtime_hours(24.0)
+		await _frames(3)
+		camera.look_at_from_position(side_view, body_center)
+		await _shot("indicator_half")
+		prop.set_runtime_hours(47.6)
+		await _frames(3)
+		camera.look_at_from_position(side_view, body_center)
+		await _shot("indicator_low")
+		prop.set_runtime_hours(48.0)
+		await _frames(3)
+		camera.look_at_from_position(side_view, body_center)
+		await _shot("indicator_empty")
+		print("SEARCHLIGHT_INDICATOR_OK renderer=", RenderingServer.get_current_rendering_method())
+		quit()
+		return
 	if review_mode:
 		await _shot("727_lit")
 		var lamp_pos: Vector3 = prop.lamp.global_position
@@ -175,6 +206,7 @@ func _frames(count: int) -> void:
 
 func _shot(name: String) -> void:
 	render_camera.global_transform = camera.global_transform
+	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	capture_viewport.get_texture().get_image().save_png(ProjectSettings.globalize_path(output).path_join(name + ".png"))
 
