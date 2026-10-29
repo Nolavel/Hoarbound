@@ -12,7 +12,7 @@ signal knocked(rate: float)
 const MAX_SPRING_STEP_S: float = 0.05
 ## Contact: points closer than this to the obstacle join the search; free, the most it tilts in a
 ## frame, rad (any depth left is worked off over the next frames, as position-based contact does).
-const CONTACT_NEAR_M: float = 0.06
+const CONTACT_NEAR_M: float = 0.08
 const MAX_CONTACT_TILT: float = 0.35
 ## On a hinge: the search step and how far either way it looks for a clear angle, rad.
 const CONTACT_STEP: float = 0.087
@@ -21,6 +21,9 @@ const CONTACT_STEP: float = 0.087
 const CONTACT_MARGIN: float = 0.003
 ## Friction while touching: share of the swing's rate kept each frame in contact.
 const CONTACT_FRICTION: float = 0.5
+## Resting contact this shallow (well inside the margin, so out of sight) is left as it is: a
+## physics engine's contact slop, so a hanger lying on something does not re-solve every frame.
+const CONTACT_SLOP: float = 0.0015
 ## A strike faster than this into what it touches is a knock, rad/s; while it rests on something,
 ## only one this many times harder counts again.
 const KNOCK_MIN_RATE: float = 0.6
@@ -114,6 +117,17 @@ func _resolve_contact(to_parent: Basis) -> void:
 	var pose := Basis(Quaternion(Vector3.DOWN, (to_parent * _dir).normalized()))
 	var from_parent: Basis = to_parent.inverse()
 	var points: PackedVector3Array = _all_points()
+	## Broad phase: its bounding sphere well clear of everything means no point can touch.
+	var centre := Vector3.ZERO
+	for point: Vector3 in points:
+		centre += point
+	centre /= maxf(points.size(), 1.0)
+	var radius: float = 0.0
+	for point: Vector3 in points:
+		radius = maxf(radius, point.distance_to(centre))
+	if (contact_depth.call(pivot + from_parent * (pose * centre)) as Vector4).w + radius + CONTACT_MARGIN < 0.0:
+		_touching = false
+		return
 	for point: Vector3 in points:
 		var hit: Vector4 = contact_depth.call(pivot + from_parent * (pose * point))
 		hit.w += CONTACT_MARGIN
@@ -124,11 +138,14 @@ func _resolve_contact(to_parent: Basis) -> void:
 	if start.w <= 0.0:
 		_touching = false
 		return
+	if _touching and start.w < CONTACT_SLOP:
+		_dir_speed *= CONTACT_FRICTION  # resting on it inside the margin: nothing to correct
+		return
 	var axis: Vector3
 	var angle: float = 0.0
 	if hinge_axis != Vector3.ZERO:
 		axis = (from_parent * hinge_axis).normalized()
-		angle = _nearest_clear(points, to_parent, pivot, axis)
+		angle = _nearest_clear(near, to_parent, pivot, axis)
 	else:
 		axis = _dir.cross(contact_out if contact_out != Vector3.ZERO else Vector3(start.x, start.y, start.z))
 		if axis.length() < 0.000001:
@@ -194,7 +211,7 @@ func _nearest_clear(points: PackedVector3Array, to_parent: Basis, pivot: Vector3
 func _clear_along(points: PackedVector3Array, to_parent: Basis, pivot: Vector3, axis: Vector3, blocked: float, clear: float) -> float:
 	if _deepest(points, to_parent, _dir.rotated(axis, clear), pivot) > 0.0:
 		return clear  # still in at the widest tilt: go that far and finish next frame
-	for _i: int in range(10):
+	for _i: int in range(6):
 		var mid: float = (blocked + clear) * 0.5
 		if _deepest(points, to_parent, _dir.rotated(axis, mid), pivot) > 0.0:
 			blocked = mid

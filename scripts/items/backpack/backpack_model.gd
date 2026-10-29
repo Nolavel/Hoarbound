@@ -160,6 +160,9 @@ var _hem_drag: Array[float] = [0.0, 0.0, 0.0]
 var _hem_drag_speed: Array[float] = [0.0, 0.0, 0.0]
 var _divider: MeshInstance3D
 var _quick_anchors: Dictionary = {}
+## The tool handles hanging below the sleeves this frame, for contact: Vector4(axis x, axis z, low y,
+## radius) in pack space.
+var _handle_capsules: Array[Vector4] = []
 ## What a clipped item rests against, set each frame: world to pack and back (basis), each side
 ## pocket's outer cloth |x|.
 var _to_pack: Transform3D = Transform3D.IDENTITY
@@ -1063,6 +1066,13 @@ func _step_pockets(delta: float) -> void:
 			_hem_drag[index] = 0.0
 			_hem_open_speed[index] = 0.0
 			_hem_drag_speed[index] = 0.0
+	_handle_capsules.clear()
+	for sleeve: int in range(SLEEVE_SLOTS.size()):
+		var tool: Dictionary = _sleeve_item(sleeve)
+		if not tool.is_empty() and tool["tool"]:
+			var axis: Vector2 = tool["axis"]
+			var e: Vector2 = tool["ellipse"]
+			_handle_capsules.append(Vector4(axis.x, axis.y, (tool["box"] as AABB).position.y + _pocket_rise[sleeve], maxf(e.x, e.y)))
 	if not _pocket_materials.is_empty():
 		_send_sleeves()
 
@@ -1123,21 +1133,12 @@ func _pack_contact(at: Vector3) -> Vector4:
 		if pocket.w < best.w:
 			best = pocket
 	## Tools hanging through the sleeves: their handles, as vertical capsules down from the rim.
-	for sleeve: int in range(SLEEVE_SLOTS.size()):
-		var held: Dictionary = _sleeve_item(sleeve)
-		if held.is_empty() or not held["tool"]:
-			continue
-		var axis: Vector2 = held["axis"]
-		var low: float = (held["box"] as AABB).position.y + _pocket_rise[sleeve]
-		var on_axis := Vector3(axis.x, clampf(q.y, low, POCKET_RIM_Y), axis.y)
-		var away: Vector3 = q - on_axis
-		var e: Vector2 = held["ellipse"]
-		var handle := Vector4(0.0, 1.0, 0.0, away.length() - maxf(e.x, e.y))
-		if away.length() > 0.000001:
-			var dir: Vector3 = away.normalized()
-			handle = Vector4(dir.x, dir.y, dir.z, away.length() - maxf(e.x, e.y))
-		if handle.w < best.w:
-			best = handle
+	for capsule: Vector4 in _handle_capsules:
+		var away: Vector3 = q - Vector3(capsule.x, clampf(q.y, capsule.z, POCKET_RIM_Y), capsule.y)
+		var reach: float = away.length()
+		if reach - capsule.w < best.w:
+			var dir: Vector3 = away / reach if reach > 0.000001 else Vector3.UP
+			best = Vector4(dir.x, dir.y, dir.z, reach - capsule.w)
 	var normal: Vector3 = (_from_pack_basis * Vector3(best.x, best.y, best.z)).normalized()
 	return Vector4(normal.x, normal.y, normal.z, -best.w)
 

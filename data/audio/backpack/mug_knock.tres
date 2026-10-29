@@ -1,15 +1,13 @@
-[gd_resource type="Resource" script_class="SoundEvent" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="SoundEvent" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://core/audio/sound_event.gd" id="1_event"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/backpack/mug_knock_01.wav" id="2_knock"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/backpack/mug_knock_02.wav" id="3_knock"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/backpack/mug_knock_03.wav" id="4_knock"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/backpack/mug_knock_04.wav" id="5_knock"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/backpack/mug_knock_05.wav" id="6_knock"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/mug/cup_tap_plastic.ogg" id="2_mug"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/mug/metal_cup_plastic_hit.ogg" id="3_mug"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/mug/metal_plastic_impact.ogg" id="4_mug"]
 
 [resource]
 script = ExtResource("1_event")
-streams = Array[AudioStream]([ExtResource("2_knock"), ExtResource("3_knock"), ExtResource("4_knock"), ExtResource("5_knock"), ExtResource("6_knock")])
+streams = Array[AudioStream]([ExtResource("2_mug"), ExtResource("3_mug"), ExtResource("4_mug")])
 pick = 0
 bus = &"SFX"
 volume_db = -10.0

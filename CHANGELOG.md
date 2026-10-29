@@ -17,11 +17,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - **Layout:** in the spread they stand as one column beside the body cards; in the cross they
     take the diagonals. The layout test now checks them for overlaps too, and `test_quick_access`
     checks the rule.
-- The mug clipped on the pack knocks, dully, on the tool handles (#260).
-  - **Sound:** freesound's CDN is unreachable from the build session, so it is synthesised:
-    `tools/audio/generate_mug_knock.py`, modal synthesis after van den Doel & Pai, five variants.
-  - **Playback:** `PendulumHang` emits `knocked` on a fresh strike. The pack plays it through
-    `SoundSystem`, louder for a faster strike. Stand rule R14.
+- The mug clipped on the pack knocks on the tool handles (#260).
+  - **Strikes:** `PendulumHang` emits `knocked` on a fresh strike, and the pack plays it through
+    `SoundSystem`, louder for a faster strike (stand rule R14).
+  - **Sound:** a random one of the owner's three recordings (`assets/audio/sfx/items/mug/`)
+    replaces the first synthesised attempt.
+  - **Contact cost:** it now has a broad phase (the item's bounding sphere), a 1.5 mm resting slop
+    inside the 3 mm margin, and a shorter bisection. A mug resting on a handle no longer re-solves
+    every frame. Frame cost dropped from ~6 ms per hanger to noise; the long frames made
+    `test_doorway_camera` pop.
+- Snow footsteps (thin, crust, step, wet, deep) play a random one of the owner's eight recordings
+  (`assets/audio/sfx/player/snow_footsteps/`). The synthesised squeak and pull-out layers stay on top.
+  `generate_snow_footsteps.py` no longer writes those five banks, and their old WAVs are removed.
 - Pack sway now never rocks past its 2.5° cap; before, a spring overshoot on a jolt (frame-time
   jitter) carried it to 4.3°.
 - `tools/ci/run_tests.sh` reads a suite's `## ci-args:` line. The backpack stand asks for

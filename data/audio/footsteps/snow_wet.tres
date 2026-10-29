@@ -1,20 +1,18 @@
-[gd_resource type="Resource" script_class="SoundEvent" load_steps=12 format=3]
+[gd_resource type="Resource" script_class="SoundEvent" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://core/audio/sound_event.gd" id="1_event"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/footsteps/snow/snow_wet_01.wav" id="2_snow_wet_01"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/footsteps/snow/snow_wet_02.wav" id="3_snow_wet_02"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/footsteps/snow/snow_wet_03.wav" id="4_snow_wet_03"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/footsteps/snow/snow_wet_04.wav" id="5_snow_wet_04"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/footsteps/snow/snow_wet_05.wav" id="6_snow_wet_05"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/footsteps/snow/snow_wet_06.wav" id="7_snow_wet_06"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/footsteps/snow/snow_wet_07.wav" id="8_snow_wet_07"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/footsteps/snow/snow_wet_08.wav" id="9_snow_wet_08"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/footsteps/snow/snow_wet_09.wav" id="10_snow_wet_09"]
-[ext_resource type="AudioStream" path="res://assets/audio/sfx/footsteps/snow/snow_wet_10.wav" id="11_snow_wet_10"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/player/snow_footsteps/footsteps-1.ogg" id="2_snow"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/player/snow_footsteps/footsteps-2.ogg" id="3_snow"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/player/snow_footsteps/footsteps-3.ogg" id="4_snow"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/player/snow_footsteps/footsteps-4.ogg" id="5_snow"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/player/snow_footsteps/footsteps-5.ogg" id="6_snow"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/player/snow_footsteps/footsteps-6.ogg" id="7_snow"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/player/snow_footsteps/footsteps-7.ogg" id="8_snow"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/player/snow_footsteps/footsteps-8.ogg" id="9_snow"]
 
 [resource]
 script = ExtResource("1_event")
-streams = Array[AudioStream]([ExtResource("2_snow_wet_01"), ExtResource("3_snow_wet_02"), ExtResource("4_snow_wet_03"), ExtResource("5_snow_wet_04"), ExtResource("6_snow_wet_05"), ExtResource("7_snow_wet_06"), ExtResource("8_snow_wet_07"), ExtResource("9_snow_wet_08"), ExtResource("10_snow_wet_09"), ExtResource("11_snow_wet_10")])
+streams = Array[AudioStream]([ExtResource("2_snow"), ExtResource("3_snow"), ExtResource("4_snow"), ExtResource("5_snow"), ExtResource("6_snow"), ExtResource("7_snow"), ExtResource("8_snow"), ExtResource("9_snow")])
 pick = 0
 bus = &"SFX"
 volume_db = -9.0
