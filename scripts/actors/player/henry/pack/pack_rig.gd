@@ -62,6 +62,9 @@ var _last_velocity: Vector3 = Vector3.ZERO
 var _has_last: bool = false
 var _inventory: InventoryComponent
 var _equipment: EquipmentComponent
+var _quick: QuickAccessComponent
+## The pocket whose item a hand shows now ("" for none): it is out of its pocket, so not drawn there.
+var _held_zone: StringName = &""
 ## Side-pocket contents last shown (slot -> item id), and whether the first fill has happened.
 var _side_items: Dictionary = {}
 var _contents_shown: bool = false
@@ -240,7 +243,12 @@ func _process(delta: float) -> void:
 		_equipment = walk_owner().get_node_or_null(^"EquipmentComponent") as EquipmentComponent
 		if _equipment != null:
 			_equipment.slot_changed.connect(_on_slot_changed)
+			_quick = walk_owner().get_node_or_null(^"QuickAccessComponent") as QuickAccessComponent
 			_refresh_contents()
+	var held_zone: StringName = _quick.get_held_source_zone() if _quick != null else &""
+	if held_zone != _held_zone:
+		_held_zone = held_zone
+		_refresh_contents()
 	var at: Vector3 = get_parent_node_3d().global_position if get_parent_node_3d() != null else global_position
 	if not _has_last:
 		_last_position = at
@@ -292,7 +300,8 @@ func _refresh_contents() -> void:
 	var shown: Dictionary = {}
 	for entry: Dictionary in _equipment.get_available_pockets():
 		var held: StringName = entry["item_id"]
-		if entry["body_slot"] != &"pack" or held == &"":
+		if entry["body_slot"] != &"pack" or held == &"" \
+			or _equipment.pocket_path(entry["body_slot"], entry["pocket"]) == _held_zone:
 			continue
 		match entry["pocket"]:
 			&"pack_side_left", &"pack_side_right_front", &"pack_side_right_back":

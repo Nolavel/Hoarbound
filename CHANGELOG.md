@@ -500,6 +500,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Pack pockets and the hand (owner review, #260).
+  - **Shown twice:** a hammer drawn from its sleeve stayed drawn in the sleeve too. The pack now
+    leaves out the pocket whose item a hand shows (`QuickAccessComponent.get_held_source_zone`).
+  - **Pockets traded contents:** `draw()` put the held item away and then still traded pockets with
+    the stale source, so the thermos moved into the hammer's sleeve. The pack's pockets are fixed
+    places and no longer trade; coat pockets still do. Stand rule R15; `test_held_weight` keeps its
+    trade on coat pockets now that the loadout puts the hammer on the pack.
 - Pack hitches after the backpack merge (owner FPS capture, #260). Measured on Reality with Henry
   starting, stopping and turning (560 frames, headless):
 

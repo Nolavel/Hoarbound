@@ -118,15 +118,16 @@ func _check_unlit_flare() -> void:
 ## Drawing pocket B while A's item is shown trades them: B keeps the old item, the hand
 ## shows B's item from A, and no item is ever both in a pocket card and in hand.
 func _check_draw_swaps_hand() -> void:
-	var a: StringName = await _pocket(&"hammer")
+	## Coat pockets trade; the pack's pockets are fixed places and never do (test_backpack_rig R15).
+	var a: StringName = await _coat_pocket(&"hammer")
 	var b: StringName = HeldOwnership.pocket_holding(_equipment, &"road_flare")
-	if b == &"" or not _fits(&"hammer", b):
+	if b == &"" or b.begins_with("pack/") or not _fits(&"hammer", b):
 		if b != &"":
 			_hub.move_to_pack(b)
 		_inventory.try_add(ItemCatalog.get_item(&"road_flare"))
 		b = &""
 		for entry: Dictionary in _hub.get_quick_access_zones():
-			if entry["item_id"] == &"" and _fits(&"hammer", entry["path"]) 				and _hub.move_to_zone(&"road_flare", entry["path"]) == EquipmentComponent.Refusal.NONE:
+			if entry["item_id"] == &"" and not String(entry["path"]).begins_with("pack/") and _fits(&"hammer", entry["path"]) 				and _hub.move_to_zone(&"road_flare", entry["path"]) == EquipmentComponent.Refusal.NONE:
 				b = entry["path"]
 				break
 	await _frames(2)
@@ -165,6 +166,30 @@ func _index(zone: StringName) -> int:
 		if zones[i]["path"] == zone:
 			return i
 	return -1
+
+
+## Like _pocket(), but a coat pocket: an item the loadout put on the pack is moved off it.
+func _coat_pocket(item_id: StringName) -> StringName:
+	var zone: StringName = HeldOwnership.pocket_holding(_equipment, item_id)
+	if zone != &"" and not String(zone).begins_with("pack/"):
+		return zone
+	if zone != &"":
+		_hub.move_to_pack(zone)
+	elif not _inventory.has_item(item_id):
+		_inventory.try_add(ItemCatalog.get_item(item_id))
+	for entry: Dictionary in _hub.get_quick_access_zones():
+		if entry["item_id"] == &"" and not String(entry["path"]).begins_with("pack/") \
+			and _hub.move_to_zone(item_id, entry["path"]) == EquipmentComponent.Refusal.NONE:
+			await _frames(2)
+			return entry["path"]
+	## Every coat pocket full: the last one that holds no flare makes room in the pack.
+	for entry: Dictionary in _hub.get_quick_access_zones().filter(func(e: Dictionary) -> bool: return not String(e["path"]).begins_with("pack/")):
+		if entry["item_id"] != &"road_flare" and _fits(item_id, entry["path"]) and _hub.move_to_pack(entry["path"]) == &"" \
+			and _hub.move_to_zone(item_id, entry["path"]) == EquipmentComponent.Refusal.NONE:
+			await _frames(2)
+			return entry["path"]
+	_check(false, "no free coat pocket for %s" % item_id)
+	return &""
 
 
 ## Puts one item_id in a free Quick Access pocket and returns its zone path.

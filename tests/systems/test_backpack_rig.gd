@@ -63,6 +63,7 @@ func _run() -> void:
 	await _check_walking()
 	await _check_swing()
 	_check_hitch()
+	await _check_held_pockets()
 
 	print("test_backpack_rig: %s" % ("PASS" if _failures == 0 else "%d FAILED" % _failures))
 	quit(1 if _failures > 0 else 0)
@@ -460,6 +461,39 @@ func _check_hitch() -> void:
 	var finite: bool = sway.is_finite() and _pack.global_transform.is_finite() and _pack.get_carabiner(1).basis.is_finite()
 	_report("R8 springs survive a 1 s hitch", "sway %s, finite %s" % [sway, finite], finite)
 	_report("R8 pack upright on Henry after it", "up %s" % up, up.y > 0.95)
+
+
+## R15: an item in hand is out of its pack pocket, so the pack does not draw it there; drawing
+## another pack pocket puts it back in its own place (the pack's pockets never trade contents).
+func _check_held_pockets() -> void:
+	var quick := _player.get_node(^"QuickAccessComponent") as QuickAccessComponent
+	var equipment := _player.get_node(^"EquipmentComponent") as EquipmentComponent
+	var sleeve: StringName = &"pack/pack_side_right_back"
+	var side: StringName = &"pack/pack_side_left"
+	var in_sleeve: StringName = HeldOwnership.zone_item(equipment, sleeve)
+	var in_side: StringName = HeldOwnership.zone_item(equipment, side)
+	var shown := func(id: StringName) -> bool:
+		return (_pack.get(&"_items") as Array).any(func(item: Dictionary) -> bool: return item["id"] == id)
+	quick.draw(_zone_index(quick, sleeve))
+	await _frames(3)
+	_report("R15 tool drawn from its sleeve", "held from %s" % quick.get_held_source_zone(), quick.get_held_source_zone() == sleeve)
+	_report("R15 the drawn tool is not also in its sleeve", "%s shown on the pack: %s" % [in_sleeve, shown.call(in_sleeve)], not shown.call(in_sleeve))
+	quick.draw(_zone_index(quick, side))
+	await _frames(3)
+	_report("R15 the pockets keep their own items", "sleeve %s, side pocket %s" % [HeldOwnership.zone_item(equipment, sleeve), HeldOwnership.zone_item(equipment, side)],
+		HeldOwnership.zone_item(equipment, sleeve) == in_sleeve and HeldOwnership.zone_item(equipment, side) == in_side)
+	_report("R15 the tool is back in its sleeve", "%s shown: %s" % [in_sleeve, shown.call(in_sleeve)], shown.call(in_sleeve))
+	var held_side: bool = quick.get_held_source_zone() == side
+	_report("R15 the side pocket's item shows only in the hand", "held from %s, %s on the pack: %s" % [quick.get_held_source_zone(), in_side, shown.call(in_side)],
+		shown.call(in_side) != held_side)
+
+
+static func _zone_index(quick: QuickAccessComponent, path: StringName) -> int:
+	var zones: Array[Dictionary] = quick.hub.get_quick_access_zones()
+	for i: int in range(zones.size()):
+		if zones[i]["path"] == path:
+			return i
+	return -1
 
 
 func _report(name: String, value: String, ok: bool) -> void:
