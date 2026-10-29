@@ -1,5 +1,9 @@
 # Road flare: shadows and restrained scattering
 
+Status: **accepted by the owner on 2026-10-29** for integration into `main`.
+The accepted scope is the flare lighting, capture tooling and evidence; this does
+not approve other changes or experiments accumulated in `codex`.
+
 Real 727 night captures, 2026-10-29. Godot 4.8-dev6 mono (`8898c2b3d`),
 Forward+/Vulkan, llvmpipe LLVM 19.1.7. All PNGs are 960×540.
 

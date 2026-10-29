@@ -44,6 +44,8 @@ at night, and the stove frame under each outdoor LUT. It runs in the existing
 
 ## Road flare lighting
 
+Shadows and local scattering accepted by the owner on 2026-10-29.
+
 `HeldFlare` owns one shadow-casting `OmniLight3D` at the burning tip. Shadows
 stay enabled when `HeldLightComponent` drops that same flare into a rigid body.
 `HotCore` is emissive decoration and does not cast a shadow around its enclosed light.
