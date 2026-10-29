@@ -60,10 +60,10 @@ const SIDE_GIVE_M: float = 0.014
 ## The empty slump in backpack_canvas.gdshader, for parts that ride on the canvas.
 const SLUMP_TOP_M: float = 0.07
 const SLUMP_WALL_M: float = 0.018
-## Strap loop on the outer face of each side pocket near its top, and where its carabiner hangs
-## from (x is the +X side; the pocket's outer face is at POCKET_X + POCKET_HALF.x).
-const LOOP_AT: Vector3 = Vector3(0.251, 0.14, 0.11)
-const CARABINER_AT: Vector3 = Vector3(0.262, 0.125, 0.11)
+## Strap loop at the rim of each side pocket's outer face, and the carabiner's pivot just above it so
+## what hangs ends near the pack's bottom (x for the +X side; the face is at POCKET_X + POCKET_HALF.x).
+const LOOP_AT: Vector3 = Vector3(0.251, 0.182, 0.11)
+const CARABINER_AT: Vector3 = Vector3(0.262, 0.198, 0.11)
 const ZIP_METAL: Color = Color(0.16, 0.16, 0.17)
 ## Loose contents: their floor inside the main body and the gap they keep from its walls.
 const LOOSE_FLOOR_M: float = 0.02

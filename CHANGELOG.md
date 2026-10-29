@@ -85,6 +85,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     - The side compression straps are gone.
     - The bedroll is strapped across the top in front of the handle, so the leather bottom is flat and the
       pack stands anywhere.
+    - Pocket cloth that starts inside the item it holds goes all the way out to the item's face. Wrapping
+      it only 85% of the way left the flask showing through. The inspector mirrors that wrap and reports any
+      poke-through (now 0.0 cm).
+    - The carabiner loops moved to the pocket rims, so the mug hangs level with the pack's bottom (0.2 cm).
   - **Hanging:** `PendulumHang` swings anything from a pivot. The carabiner swings in its loop and the mug
     swings on the carabiner's rod: a double pendulum driven by Henry's motion. The carabiners moved onto the
     side pockets.

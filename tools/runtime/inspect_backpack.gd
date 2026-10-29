@@ -116,6 +116,22 @@ func _check() -> void:
 			if box.intersects(other) and box.intersection(other).get_volume() > 0.000001:
 				faults += 1
 				_report.append("  FAULT overlaps %s by %s" % [items[j]["id"], _cm(box.intersection(other))])
+	## Pocket cloth over what it holds, deformed as backpack_canvas.gdshader does: none may stay inside.
+	for item: Dictionary in items:
+		var slot := String(item["slot"])
+		if not slot.begins_with("side_"):
+			continue
+		var depth: float = _pocket_poke(item["box"], -1.0 if slot == "side_left" else 1.0)
+		_report.append("%s pokes through its pocket by %.1f cm" % [item["id"], depth * 100.0])
+		if depth > 0.001:
+			faults += 1
+	var lowest: float = INF
+	for carabiner_index: int in range(2):
+		var carabiner: Carabiner = _pack.get_carabiner(carabiner_index)
+		for mesh: Node in carabiner.find_children("*", "MeshInstance3D", true, false):
+			var box: AABB = (mesh as MeshInstance3D).global_transform * (mesh as MeshInstance3D).get_aabb()
+			lowest = minf(lowest, box.position.y)
+	_report.append("lowest hanging point %.1f cm (pack bottom 0)" % (lowest * 100.0))
 	var handle: Node3D = _pack.get(&"_handle")
 	var top: Vector3 = _pack.canvas_point(BackpackModel.HANDLE_AT, Vector3.UP)
 	var gap: float = handle.position.distance_to(top)
@@ -123,6 +139,40 @@ func _check() -> void:
 	if gap > 0.005:
 		faults += 1
 	_report.append("fill %.2f  faults %d" % [_pack.get_fill_target(), faults])
+
+
+## Deepest a pocket's cloth stays inside the item it holds, after the shader's wrap (mirrored here).
+func _pocket_poke(item_box: AABB, side: float) -> float:
+	var pocket: MeshInstance3D = _pack.find_child("SidePocketLeft" if side < 0.0 else "SidePocketRight", true, false)
+	var arrays: Array = pocket.mesh.surface_get_arrays(0)
+	var wall_x: float = side * BackpackModel.BODY.x * 0.5
+	var lining: float = 0.004
+	var c: Vector3 = item_box.get_center()
+	var h: Vector3 = item_box.size * 0.5 + Vector3.ONE * lining
+	var worst: float = 0.0
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	for i: int in range(vertices.size()):
+		var p: Vector3 = vertices[i]
+		var n: Vector3 = normals[i]
+		var q: Vector3 = p.clamp(c - h, c + h)
+		var inside: bool = (p - q).length() < 0.0001
+		var target: Vector3
+		if inside:
+			var safe := Vector3(n.x if absf(n.x) > 0.001 else 0.001, n.y if absf(n.y) > 0.001 else 0.001, n.z if absf(n.z) > 0.001 else 0.001)
+			var exits: Vector3 = (c + safe.sign() * h - p) / safe
+			target = p + n * (minf(exits.x, minf(exits.y, exits.z)) + 0.002)
+		else:
+			target = q + (p - q).normalized() * 0.002
+		if n.x * side < -0.5:
+			target.x = wall_x
+		var moved: Vector3 = p + (target - p) * (1.0 if inside else 0.85)
+		## Inside the item itself (not its lining) is a poke-through, unless it is the wall side.
+		var real: AABB = item_box
+		if real.has_point(moved) and n.x * side >= -0.5:
+			var to_face: Vector3 = (moved - real.position).min(real.end - moved)
+			worst = maxf(worst, minf(to_face.x, minf(to_face.y, to_face.z)))
+	return worst
 
 
 func _cavity() -> AABB:

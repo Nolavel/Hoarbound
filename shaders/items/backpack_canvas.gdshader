@@ -138,12 +138,22 @@ void vertex() {
 			vec3 h = item_half[0].xyz + vec3(lining_m);
 			vec3 q = clamp(p, c - h, c + h);
 			vec3 d = p - q;
-			vec3 target = q + (length(d) > 0.0001 ? normalize(d) : n) * 0.002;
+			bool inside = length(d) < 0.0001;
+			vec3 target;
+			if (inside) {
+				// Cloth inside the item goes all the way out along its normal to the item's face:
+				// what a pocket holds never shows through it.
+				vec3 safe_n = vec3(abs(n.x) > 0.001 ? n.x : 0.001, abs(n.y) > 0.001 ? n.y : 0.001, abs(n.z) > 0.001 ? n.z : 0.001);
+				vec3 exits = (c + sign(safe_n) * h - p) / safe_n;
+				target = p + n * (min(exits.x, min(exits.y, exits.z)) + 0.002);
+			} else {
+				target = q + normalize(d) * 0.002;
+			}
 			if (n.x * side < -0.5) {
 				target.x = pocket_wall_x;
 			}
 			v_stretch = clamp(length(target - p) / 0.03, 0.0, 1.0);
-			shaped = (target - p) * pocket_wrap;
+			shaped = (target - p) * (inside ? 1.0 : pocket_wrap);
 			slack = 1.0 - pocket_wrap;
 		} else {
 			// Empty: the outer layer falls onto the wall and closes the mouth; the rim droops.
