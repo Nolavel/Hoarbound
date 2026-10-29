@@ -77,9 +77,10 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 | Pocket item slot | 1 cm outboard of the pocket middle | clear of the body wall |
 | Loops | sewn at the middle of the pocket (y `POCKET_CENTRE_Y` 0.10, z 0.11) on its cloth as it is now (`pocket_outer_x`, clear of the hem); hang out and down 60° for 3.2 cm | follow full or empty pocket |
 | Carabiners | pivot (inside top of the ring) 2.8 cm down the loop (`loop_hold_point`); ring plane along the wall | ring through the loop's lower end |
-| Clipped item | double pendulum: carabiner in loop (1.9 Hz, damping 0.18, stop 55°), item on the rod (1.8 Hz, damping 0.65, stop 35°); each hanger keeps its direction in world space, so it lags when its parent turns or swings | swings fore-aft and sideways |
+| Clipped item | double pendulum: carabiner in loop (1.9 Hz, damping 0.18, stop 55°), item on the rod (1.8 Hz, damping 0.65, stop 60°; the pack is its real stop); each hanger keeps its direction in world space, so it lags when its parent turns or swings | swings fore-aft and sideways |
 | Side-pocket flask | the olive-drab thermos (`Thermos.glb`, 7.5 cm across, 24 cm tall, no printed mark) stands in the left pocket; its lid hinges on the -X side of the collar | — |
-| Mug on the rod | the handle's upper bend (2.2 cm below the rim, 1.2 cm inside its outer edge) sits on the rod at the ring's bottom; the handle's hole (mug Z) runs along the rod (ring body X); the mug stands upright and hangs out from the wall | hole along the rod |
+| Mug on the rod | the handle's upper bend (2.2 cm below the rim, 1.2 cm inside its outer edge) sits on the rod at the ring's bottom; the hole (mug Z) runs along the rod; hung on a pin it turns about the hole until its centre of mass (area-weighted shell centroid of its mesh) is straight under the rod, so it hangs tilted, rim outward | centre of mass plumb under the rod |
+| Clipped item contact | `PendulumHang` leans the item off the pack instead of through it: signed distance to the body (box rounded 0.06) and each side pocket's cloth as placed this frame; contact points one per 1 cm cell of its surface; the least tilt that clears them (bisection), rate into the pack dropped | never inside the pack |
 | Handle | node on the canvas top at (0, 0.514, 0.03), placed every frame | moves with the slumping top |
 | Bedroll | across the top at (0, 0.52, 0.14), radius 0.062, presses in 8 mm | flat bottom: the pack stands anywhere |
 | Zip | two sliders from the top centre; the panel folds only above them; the unzipped edge stands 1.5 cm proud | — |
@@ -100,7 +101,7 @@ parent space turned rigidly with its parent, so the mug never swung on the carab
 |---|---|---|
 | R1 | the canvas shows the pack's pockets: two loose cans, the flask in a side pocket, the mug clipped on | exact |
 | R2 | 8 anchors a side, straps on both shoulders, the strap mesh drawn, top ends on the pack | 5 mm |
-| R3 | each loop sewn on its pocket's live cloth and hanging down; each carabiner in its loop's lower end; the mug's handle on the rod with its hole along the rod, the mug outboard; the clipped item at most 8 cm below the bottom (mug under a pocket-centre loop) | 5 mm / 2 mm / 5 mm, 0.9 / 8 cm |
+| R3 | each loop sewn on its pocket's live cloth and hanging down; each carabiner in its loop's lower end; the mug's handle on the rod with its hole along the rod; its centre of mass plumb under the rod (or leaning out off the pack); the mug never inside the pack; whatever hangs clear of the ground | 5 mm / 2 mm / 5 mm, 0.9 / 3 mm / 0.5 mm / 0.3 m |
 | R4 | pocket items out of the main cavity | 0 |
 | R5 | the empty pocket's outer face on the wall | wall + 2 cm |
 | R6 | handle on the top; bedroll resting on it | 5 mm / 0–15 mm in |
@@ -108,7 +109,7 @@ parent space turned rigidly with its parent, so the mug never swung on the carab
 | R8 | a 1 s hitch leaves every spring finite and the pack upright | finite / up.y > 0.95 |
 | R10 | the thermos stands on the pocket floor; the pocket cloth hugs its cylinder (radius + lining) and is never inside it | 1 mm / 0.5 mm / 0 |
 | R11 | taken out and stowed again: it starts above the rim with the pocket empty; the hem opens ≥ 5 mm past it before it seats; friction drags the hem; cloth under its bottom stays the empty pouch; nothing pokes through on any frame; then the hem closes and R10 holds | 2 mm / 5 mm / 2 mm / 0.5 mm / 0 / 0.5 mm |
-| R9 | starts, stops, a sidestep and an eased 90° turn: both carabiners and the clipped item swing fore-aft and sideways against their parents, never reach their stop, and hang within 5° of world down 1.5 s after the last move | ≥ 6° each way / stop − 1° / 5° |
+| R9 | starts, stops, a sidestep and an eased 90° turn: both carabiners and the clipped item swing fore-aft and sideways against their parents, never reach their stop, and hang within 5° of world down 1.5 s after the last move ; the clipped item never inside the pack on any frame | ≥ 6° each way / stop − 1° / 5° / 1 mm |
 
 The inspector adds: item overlaps, main items poking past the canvas give, and pocket cloth
 left inside its item (mirroring the shader's wrap).

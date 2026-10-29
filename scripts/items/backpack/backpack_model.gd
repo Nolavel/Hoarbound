@@ -29,6 +29,8 @@ const CAPACITY_L: float = 24.0
 const FILL_HZ: float = 1.2
 ## Longest step a spring takes in one frame, seconds (stable for every spring here).
 const MAX_SPRING_STEP_S: float = 0.05
+## Contact points on a clipped item: one per cell this size, metres.
+const CONTACT_CELL_M: float = 0.01
 ## Slots: name -> [centre, half size] in pack space. Shelf on top, three columns below.
 const SLOTS: Dictionary = {
 	&"shelf": [Vector3(0.0, 0.42, 0.11), Vector3(0.145, 0.055, 0.08)],
@@ -113,7 +115,7 @@ const MUG_HANDLE_TOP_M: float = 0.022
 ## What is clipped on swings slower than the carabiner (longer, heavier) and wider, Hz/degrees.
 const CLIPPED_SWING_HZ: float = 1.8
 const CLIPPED_SWING_DAMPING: float = 0.65
-const CLIPPED_MAX_SWING_DEG: float = 35.0
+const CLIPPED_MAX_SWING_DEG: float = 60.0
 const BEDROLL: Color = Color(0.33, 0.27, 0.18)
 
 var _shell_material: ShaderMaterial
@@ -139,6 +141,11 @@ var _hem_open: Array[float] = [0.0, 0.0]
 var _hem_open_speed: Array[float] = [0.0, 0.0]
 var _hem_drag: Array[float] = [0.0, 0.0]
 var _hem_drag_speed: Array[float] = [0.0, 0.0]
+## What a clipped item rests against, set each frame: world to pack and back (basis), each side
+## pocket's outer cloth |x|.
+var _to_pack: Transform3D = Transform3D.IDENTITY
+var _side_face: Array[float] = [0.0, 0.0]
+var _from_pack_basis: Basis = Basis.IDENTITY
 var _handle: Node3D
 var _bedroll: Node3D
 var _items: Array[Dictionary] = []
@@ -354,12 +361,15 @@ func hang_item(item_id: StringName, carabiner_index: int) -> bool:
 	var box: AABB = _local_bounds(visual)
 	if String(item_id).contains("mug"):
 		## The rod (the ring's bottom, along the carabiner body's X) runs through the handle's hole
-		## (mug Z); the mug stands upright and hangs out from the wall, its handle towards the rod.
+		## (mug Z). Hung on a pin, it turns about the hole until its centre of mass is under the rod.
 		var grip := Vector3(box.end.x - MUG_HANDLE_GRIP_M, box.end.y - MUG_HANDLE_TOP_M, box.get_center().z)
+		var below: Vector3 = _shell_centroid(visual) - grip
+		var tilt := Basis(Vector3.BACK, -PI * 0.5 - atan2(below.y, below.x))
 		var out_sign: float = 1.0 if carabiner_index == 0 else -1.0
-		var turn := Basis(Vector3(0.0, 0.0, -out_sign), Vector3.UP, Vector3(out_sign, 0.0, 0.0))
+		var turn := Basis(Vector3(0.0, 0.0, -out_sign), Vector3.UP, Vector3(out_sign, 0.0, 0.0)) * tilt
 		visual.transform = Transform3D(turn, -(turn * grip))
 		visual.set_meta(&"grip", grip)
+		visual.set_meta(&"centre_of_mass", grip + below)
 	else:
 		visual.position = Vector3(-box.get_center().x, -box.end.y, -box.get_center().z)
 	var swing := PendulumHang.new()
@@ -367,6 +377,9 @@ func hang_item(item_id: StringName, carabiner_index: int) -> bool:
 	swing.swing_hz = CLIPPED_SWING_HZ
 	swing.swing_damping = CLIPPED_SWING_DAMPING
 	swing.max_swing_deg = CLIPPED_MAX_SWING_DEG
+	## It rests against the pack's side instead of passing through it.
+	swing.contact_points = _contact_points(visual)
+	swing.contact_depth = _pack_contact
 	carabiner.get_hang_point().add_child(swing)
 	swing.add_child(visual)
 	for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
@@ -795,10 +808,13 @@ func _add_carabiners() -> void:
 
 
 func _place_carabiners() -> void:
+	_to_pack = global_transform.affine_inverse() if is_inside_tree() else Transform3D.IDENTITY
+	_from_pack_basis = global_basis if is_inside_tree() else Basis.IDENTITY
 	for i: int in range(_carabiners.size()):
 		var side: float = -1.0 if i == 0 else 1.0
 		var face: float = pocket_outer_x(i)
 		_loops[i].position = Vector3(face, LOOP_SEW_Y, LOOP_Z)
+		_side_face[i] = absf(face)
 		_carabiners[i].get_parent_node_3d().position = loop_hold_point(i)
 
 
@@ -927,6 +943,85 @@ func _plain(colour: Color) -> StandardMaterial3D:
 	material.albedo_color = colour
 	material.roughness = 0.85
 	return material
+
+
+## How deep world point `at` is inside the pack: the signed distance to its body (a box rounded
+## by ROUND_M) and each side pocket's cloth as placed this frame. Vector4(outward world normal, depth).
+func _pack_contact(at: Vector3) -> Vector4:
+	var q: Vector3 = _to_pack * at
+	var best: Vector4 = _round_box(q, Vector3(0.0, BODY.y * 0.5, BODY.z * 0.5), BODY * 0.5, ROUND_M)
+	for i: int in range(2):
+		var side: float = -1.0 if i == 0 else 1.0
+		var inner: float = BODY.x * 0.5 - 0.01
+		var half := Vector3((_side_face[i] - inner) * 0.5, POCKET_HALF.y, POCKET_HALF.z)
+		var pocket: Vector4 = _round_box(q, Vector3(side * (inner + half.x), POCKET_CENTRE_Y, BODY.z * 0.5), half, 0.008)
+		if pocket.w < best.w:
+			best = pocket
+	var normal: Vector3 = (_from_pack_basis * Vector3(best.x, best.y, best.z)).normalized()
+	return Vector4(normal.x, normal.y, normal.z, -best.w)
+
+
+## Signed distance from q to a box (centre c, half size h) with edges rounded by r, and its outward
+## normal: Vector4(normal, distance), negative inside (Inigo Quilez's rounded box).
+static func _round_box(q: Vector3, c: Vector3, h: Vector3, r: float) -> Vector4:
+	var d: Vector3 = q - c
+	var k: Vector3 = d.abs() - (h - Vector3.ONE * r)
+	var outside: Vector3 = k.max(Vector3.ZERO)
+	var dist: float = outside.length() + minf(maxf(k.x, maxf(k.y, k.z)), 0.0) - r
+	var n: Vector3
+	if outside.length() > 0.0:
+		n = (outside * d.sign()).normalized()
+	elif k.x >= k.y and k.x >= k.z:
+		n = Vector3(signf(d.x), 0.0, 0.0)
+	elif k.y >= k.z:
+		n = Vector3(0.0, signf(d.y), 0.0)
+	else:
+		n = Vector3(0.0, 0.0, signf(d.z))
+	return Vector4(n.x, n.y, n.z, dist)
+
+
+## A visual's surface points in its parent's space (where it hangs), one per CONTACT_CELL_M cell,
+## spread evenly over it, for contact.
+static func _contact_points(visual: Node3D) -> PackedVector3Array:
+	var cells: Dictionary = {}
+	for node: Node in visual.find_children("*", "MeshInstance3D", true, false):
+		var mesh_node := node as MeshInstance3D
+		var chain: Transform3D = Transform3D.IDENTITY
+		var walk: Node = mesh_node
+		while walk != visual and walk is Node3D:
+			chain = (walk as Node3D).transform * chain
+			walk = walk.get_parent()
+		for v: Vector3 in mesh_node.mesh.get_faces():
+			var p: Vector3 = visual.transform * chain * v
+			var key: Vector3i = Vector3i((p / CONTACT_CELL_M).floor())
+			if not cells.has(key):
+				cells[key] = p
+	return PackedVector3Array(cells.values())
+
+
+## Centre of mass of a thin-walled visual in its own space: its surface triangles' centroids
+## weighted by area (a steel mug's mass is in its walls).
+static func _shell_centroid(visual: Node3D) -> Vector3:
+	var sum := Vector3.ZERO
+	var area: float = 0.0
+	for node: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
+		var mesh_node := node as MeshInstance3D
+		if mesh_node == null or mesh_node.mesh == null:
+			continue
+		var xf: Transform3D = Transform3D.IDENTITY
+		var walk: Node = mesh_node
+		while walk != visual and walk is Node3D:
+			xf = (walk as Node3D).transform * xf
+			walk = walk.get_parent()
+		var faces: PackedVector3Array = mesh_node.mesh.get_faces()
+		for i: int in range(0, faces.size() - 2, 3):
+			var a: Vector3 = xf * faces[i]
+			var b: Vector3 = xf * faces[i + 1]
+			var c: Vector3 = xf * faces[i + 2]
+			var w: float = (b - a).cross(c - a).length() * 0.5
+			sum += (a + b + c) / 3.0 * w
+			area += w
+	return sum / area if area > 0.0 else _local_bounds(visual).get_center()
 
 
 ## Bounds of a freshly built visual in its own space.

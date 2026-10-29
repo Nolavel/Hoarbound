@@ -8,6 +8,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- The clipped mug hangs by physics (#260, owner review: "the same mistake again").
+  - **Cause:** it was stood upright with its handle on the rod and its body 7 cm to the side. No
+    body hangs on a pin like that, and stand rule R3 ("mug hangs out from the wall") had locked the
+    pose in.
+  - **Pose:** it now turns about the handle's hole until its centre of mass is under the rod, so it
+    hangs tilted, rim out. The centre of mass is the area-weighted shell centroid of its mesh.
+  - **Contact:** `PendulumHang` leans it off the pack instead of letting it swing through. It uses
+    the signed distance to the rounded body and the pocket cloth (Inigo Quilez's rounded box) and
+    bisects for the least tilt that clears; a flat side face gave false contact at the rounded bottom.
+  - **Stand:** R3 checks the centre of mass is under the rod, the mug never inside the pack and
+    ground clearance (it hangs 14 cm below the pack bottom, 1 m above the ground). R9 checks no
+    frame is inside the pack. The mug's stop is now 60°; the pack is its real limit.
 - Pocket loops and carabiners are sewn at the middle of each side pocket (#260, owner review).
   Before, the seam stood at the hem: above an empty pocket's drooping rim, and pulled about by the
   hem springs, so the loop seemed to hang in the air. The clipped mug now hangs 7 cm below the pack

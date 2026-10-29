@@ -10,8 +10,8 @@ const PLAYER: String = "res://scenes/actors/player/player.tscn"
 const END_TO_PACK_M: float = 0.005
 const ANCHOR_DRIFT_M: float = 0.002
 const LOOP_ON_POCKET_M: float = 0.005
-## The mug clipped under a pocket-centre loop hangs below the pack bottom by about its own height.
-const HANG_BELOW_BOTTOM_M: float = 0.08
+## Whatever hangs on the pack stays this far above the ground Henry stands on, metres.
+const GROUND_CLEAR_M: float = 0.3
 const HANDLE_GAP_M: float = 0.005
 ## Least swing each hanger shows both ways (fore-aft and sideways) on starts, stops and turns, degrees.
 const MIN_SWING_DEG: float = 6.0
@@ -122,9 +122,28 @@ func _check_carabiners() -> void:
 			var rod: Vector3 = (carabiner.get(&"_body") as Node3D).global_basis.x.normalized()
 			var hole: Vector3 = visual.global_basis.z.normalized()
 			_report("R3 rod through the handle's hole", "alignment %.2f" % absf(rod.dot(hole)), absf(rod.dot(hole)) > 0.9)
-			var out: float = (to_pack * visual.global_transform * Vector3(0.0, 0.05, 0.0)).x - (to_pack * rod_at).x
-			_report("R3 mug hangs out from the wall", "body %.1f cm outboard of the rod" % (out * 100.0), out > 0.0)
-	_report("R3 clipped item at most %.0f cm below the bottom" % (HANG_BELOW_BOTTOM_M * 100.0), "%.1f cm" % (lowest * 100.0), lowest > -HANG_BELOW_BOTTOM_M)
+			## At rest a body hung on a pin has its centre of mass straight under the pin.
+			var com: Vector3 = visual.global_transform * (visual.get_meta(&"centre_of_mass") as Vector3)
+			var off: float = Vector2(com.x - rod_at.x, com.z - rod_at.z).length()
+			var sink: float = _mug_sink(visual)
+			var outward: float = (to_pack.basis * (com - rod_at)).x
+			var plumb: bool = off < 0.003 or (sink > -0.001 and outward > 0.0)
+			_report("R3 mug's centre of mass under the rod (or leaning out off the pack)", "%.1f mm off plumb (%.1f out), %.1f cm below" % [off * 1000.0, outward * 1000.0, (rod_at.y - com.y) * 100.0], plumb and com.y < rod_at.y)
+			_report("R3 mug rests on the pack, not in it", "%.1f mm %s" % [absf(sink) * 1000.0, "in" if sink > 0.0 else "clear"], sink <= 0.0005)
+	var ground: float = INF
+	for visual: Node3D in _pack.get(&"_hung"):
+		for mesh: Node in visual.find_children("*", "MeshInstance3D", true, false):
+			ground = minf(ground, ((mesh as MeshInstance3D).global_transform * (mesh as MeshInstance3D).get_aabb()).position.y)
+	_report("R3 clipped item clear of the ground", "%.1f cm below the pack bottom, %.2f m above the ground" % [-lowest * 100.0, ground], ground > GROUND_CLEAR_M)
+
+
+## Deepest any mug vertex is inside the pack (the same surface the pendulum leans on).
+func _mug_sink(visual: Node3D) -> float:
+	var sink: float = -INF
+	for mesh: Node in visual.find_children("*", "MeshInstance3D", true, false):
+		for v: Vector3 in (mesh as MeshInstance3D).mesh.get_faces():
+			sink = maxf(sink, _pack.call(&"_pack_contact", (mesh as MeshInstance3D).global_transform * v).w)
+	return sink
 
 
 ## R4: pocket items stay out of the main cavity; R5: empty pocket lies on the wall.
@@ -281,6 +300,7 @@ func _check_swing() -> void:
 	var peak: Array[Vector2] = []
 	var rest: Array[float] = []
 	rest.resize(hangers.size())
+	var worst_sink: float = -INF
 	peak.resize(hangers.size())
 	peak.fill(Vector2.ZERO)
 	for frame: int in range(170):
@@ -298,6 +318,9 @@ func _check_swing() -> void:
 			var lean := Vector2(rad_to_deg(atan2(absf(down.z), -down.y)), rad_to_deg(atan2(absf(down.x), -down.y)))
 			peak[i] = peak[i].max(lean)
 			rest[i] = rad_to_deg((-hangers[i].global_basis.y).angle_to(Vector3.DOWN))
+		for visual: Node3D in _pack.get(&"_hung"):
+			worst_sink = maxf(worst_sink, _mug_sink(visual))
+	_report("R9 clipped item never sinks into the pack", "deepest %.1f mm" % (worst_sink * 1000.0), worst_sink <= 0.001)
 	for i: int in range(hangers.size()):
 		var name: String = "carabiner %d" % i if i < 2 else "clipped item"
 		_report("R9 %s swings both ways" % name, "fore-aft %.1f deg, sideways %.1f deg" % [peak[i].x, peak[i].y],
