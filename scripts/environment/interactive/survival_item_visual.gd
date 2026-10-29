@@ -15,37 +15,44 @@ const SPOV_CAN_SCENE: PackedScene = preload("res://assets/items/spov_can/SPoV_Ca
 ## Recessed lid of the SPoV can: height above the base and inner size, metres.
 const SPOV_LID_Y := 0.068
 const SPOV_LID_SIZE := Vector2(0.092, 0.053)
+## Authored steel thermos (tools/blender/build_thermos.py): 7.5 cm across, 24 cm tall, base at
+## y = 0; the flip-top lid is Thermos_Lid, turning on its hinge about local +Z (latch towards +X).
+const THERMOS_SCENE: PackedScene = preload("res://assets/items/thermos/Thermos.glb")
+## Thermos body radius (build_thermos.py RADIUS): a pocket wraps it as a cylinder (meta round_radius).
+const THERMOS_RADIUS := 0.0375
+## Worn olive-drab paint over steel (carabiner shader): GLB slot -> sRGB paint colour, paint left.
+const WORN_PAINT_SHADER: Shader = preload("res://shaders/items/carabiner.gdshader")
+const THERMOS_PAINT := {"Thermos_Paint": [Color(0.33, 0.33, 0.20), 0.78], "Thermos_LidPaint": [Color(0.26, 0.26, 0.16), 0.7], "Thermos_Steel": [Color(0.2, 0.2, 0.2), 0.0]}
+
+## Authored Build-Rite hatchet and claw hammer (tools/blender/build_hand_tools.py): handle along +Y
+## from the butt at y = 0, head on top, blade/face towards +X, label wrapped round the handle.
+const AXE_SCENE: PackedScene = preload("res://assets/items/axe/Axe.glb")
+const HAMMER_SCENE: PackedScene = preload("res://assets/items/hammer/Hammer.glb")
+const AXE_TAG: Texture2D = preload("res://assets/items/axe/axe_tag.png")
+const HAMMER_TAG: Texture2D = preload("res://assets/items/hammer/hammer_tag.png")
+const WORN_TOOL_SHADER: Shader = preload("res://shaders/items/worn_tool.gdshader")
+## Handle half-section where a pocket sleeve holds it (X, Z), and the head's underside at the eye.
+const AXE_HANDLE_HALF := Vector2(0.015, 0.0105)
+const AXE_HEAD_BOTTOM := 0.30
+const HAMMER_HANDLE_HALF := Vector2(0.0138, 0.0098)
+const HAMMER_HEAD_BOTTOM := 0.291
+## The handle's bow (toward -X) where a sleeve holds it, from the build script's curve.
+const AXE_HANDLE_BOW := -0.011
+const HAMMER_HANDLE_BOW := -0.004
+## Worn-tool shader settings per GLB slot: base, wear A, wear B, amounts, rub colour and share,
+## metallic base/wear. Handle colours differ per tool.
+const TOOL_METAL := [Color(0.36, 0.36, 0.38), Color(0.42, 0.25, 0.15), Color(0.21, 0.15, 0.12), 0.5, 0.35, Color(0.74, 0.72, 0.68), 0.5, 0.7, 0.1]
+const TOOL_EDGE := [Color(0.82, 0.8, 0.76), Color(0.55, 0.3, 0.15), Color(0.3, 0.2, 0.12), 0.15, 0.05, Color(0.92, 0.9, 0.86), 0.2, 0.9, 0.2]
+const TOOL_GRIP := [Color(0.1, 0.1, 0.1), Color(0.24, 0.2, 0.17), Color(0.16, 0.12, 0.09), 0.25, 0.15, Color(0.32, 0.3, 0.28), 0.4, 0.0, 0.0]
+const AXE_HANDLE := [Color(0.93, 0.66, 0.14), Color(0.27, 0.23, 0.18), Color(0.45, 0.33, 0.18), 0.28, 0.14, Color(1.0, 0.86, 0.5), 0.4, 0.0, 0.0]
+const HAMMER_HANDLE := [Color(0.78, 0.16, 0.1), Color(0.24, 0.16, 0.13), Color(0.4, 0.2, 0.14), 0.28, 0.14, Color(0.95, 0.5, 0.4), 0.4, 0.0, 0.0]
 
 ## Shared readable props for world pickups and the meal table; no inventory state.
-static func make(item_id: StringName, item_override: ItemResource = null) -> Node3D:
+static func make(item_id: StringName, _item_override: ItemResource = null) -> Node3D:
 	var holder := Node3D.new()
 	if String(item_id).begins_with("water_flask"):
-		var body := BoxMesh.new()
-		body.size = Vector3(0.12, 0.19, 0.07)
-		_part(holder, body, Vector3(0, 0.105, 0), Color(0.20, 0.42, 0.43))
-		var neck := CylinderMesh.new()
-		neck.top_radius = 0.025
-		neck.bottom_radius = 0.025
-		neck.height = 0.04
-		_part(holder, neck, Vector3(0, 0.215, 0), Color(0.18, 0.19, 0.20))
-		var stripe := BoxMesh.new()
-		stripe.size = Vector3(0.065, 0.035, 0.074)
-		_part(holder, stripe, Vector3(0, 0.14, 0), Color(0.84, 0.87, 0.78))
-		var item: ItemResource = item_override if item_override != null else ItemCatalog.get_item(item_id)
-		var mark := Label3D.new()
-		mark.name = "VolumeMark"
-		mark.text = TranslationServer.translate(&"FLASK_HELD_MARK") % item.water_remaining_ml
-		mark.font_size = 34
-		mark.pixel_size = 0.0006
-		mark.modulate = Color(0.06, 0.08, 0.08)
-		mark.outline_size = 0
-		mark.position = Vector3(0, 0.14, 0.045)
-		holder.add_child(mark)
-		var back_mark := mark.duplicate() as Label3D
-		back_mark.name = "VolumeMarkBack"
-		back_mark.position.z = -mark.position.z
-		back_mark.rotation.y = PI
-		holder.add_child(back_mark)
+		holder.add_child(_thermos())
+		holder.set_meta(&"round_radius", THERMOS_RADIUS)
 	elif item_id == &"tinder":
 		for i: int in range(7):
 			var shaving := BoxMesh.new()
@@ -82,12 +89,15 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 			cuff.size = Vector3(0.09, 0.026, 0.04)
 			_part(glove, cuff, Vector3(0, 0.013, 0.065), Color(0.11, 0.09, 0.07))
 	elif item_id == &"axe":
-		var handle := BoxMesh.new()
-		handle.size = Vector3(0.035, 0.36, 0.035)
-		_part(holder, handle, Vector3(0, 0.16, 0), Color(0.30, 0.18, 0.09))
-		var head := PrismMesh.new()
-		head.size = Vector3(0.20, 0.11, 0.035)
-		_part(holder, head, Vector3(0.055, 0.32, 0), Color(0.40, 0.43, 0.46))
+		holder.add_child(_hand_tool(AXE_SCENE, AXE_HANDLE, AXE_TAG))
+		holder.set_meta(&"handle_half", AXE_HANDLE_HALF)
+		holder.set_meta(&"head_bottom", AXE_HEAD_BOTTOM)
+		holder.set_meta(&"handle_bow", AXE_HANDLE_BOW)
+	elif item_id == &"hammer":
+		holder.add_child(_hand_tool(HAMMER_SCENE, HAMMER_HANDLE, HAMMER_TAG))
+		holder.set_meta(&"handle_half", HAMMER_HANDLE_HALF)
+		holder.set_meta(&"head_bottom", HAMMER_HEAD_BOTTOM)
+		holder.set_meta(&"handle_bow", HAMMER_HANDLE_BOW)
 	elif item_id in [&"tinned_pineapple", &"tinned_pineapple_open", &"tinned_stew", &"tinned_stew_hot", &"empty_tin"]:
 		var tin := CylinderMesh.new()
 		tin.top_radius = 0.055
@@ -165,6 +175,67 @@ static func make(item_id: StringName, item_override: ItemResource = null) -> Nod
 		parcel.size = Vector3(0.12, 0.065, 0.085)
 		_part(holder, parcel, Vector3(0, 0.04, 0), Color(0.58, 0.44, 0.25))
 	return holder
+
+
+## A Build-Rite tool with its GLB slots swapped for the worn-tool shader and the label texture.
+static func _hand_tool(scene: PackedScene, handle: Array, tag: Texture2D) -> Node3D:
+	var tool: Node3D = scene.instantiate()
+	var looks := {"Tool_Metal": TOOL_METAL, "Tool_Edge": TOOL_EDGE, "Tool_Handle": handle, "Tool_Grip": TOOL_GRIP}
+	for mesh_node: Node in tool.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (mesh_node as MeshInstance3D).mesh
+		for surface: int in range(mesh.get_surface_count()):
+			var source := mesh.surface_get_material(surface)
+			var slot: String = source.resource_name if source != null else ""
+			var material: Material
+			if slot == "Tool_Tag":
+				var label := StandardMaterial3D.new()
+				label.albedo_texture = tag
+				label.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+				label.alpha_scissor_threshold = 0.5
+				label.roughness = 0.9
+				label.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+				material = label
+			elif looks.has(slot):
+				var look: Array = looks[slot]
+				var worn := ShaderMaterial.new()
+				worn.shader = WORN_TOOL_SHADER
+				worn.set_shader_parameter(&"base_colour", look[0])
+				worn.set_shader_parameter(&"wear_a", look[1])
+				worn.set_shader_parameter(&"wear_b", look[2])
+				worn.set_shader_parameter(&"amount_a", look[3])
+				worn.set_shader_parameter(&"amount_b", look[4])
+				worn.set_shader_parameter(&"rub_colour", look[5])
+				worn.set_shader_parameter(&"rub", look[6])
+				worn.set_shader_parameter(&"metallic_base", look[7])
+				worn.set_shader_parameter(&"metallic_wear", look[8])
+				material = worn
+			if material != null:
+				(mesh_node as MeshInstance3D).set_surface_override_material(surface, material)
+	return tool
+
+
+## Hinged lid of a thermos prop; rotate it about local +Z to flip it open (it never comes off).
+static func thermos_lid(holder: Node3D) -> Node3D:
+	return holder.find_child("Thermos_Lid", true, false) as Node3D
+
+
+## The thermos with its GLB slots swapped for the worn-paint shader; the lid starts shut.
+static func _thermos() -> Node3D:
+	var thermos: Node3D = THERMOS_SCENE.instantiate()
+	for mesh_node: Node in thermos.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (mesh_node as MeshInstance3D).mesh
+		for surface: int in range(mesh.get_surface_count()):
+			var source := mesh.surface_get_material(surface)
+			var slot: String = source.resource_name if source != null else ""
+			if not THERMOS_PAINT.has(slot):
+				continue
+			var worn := ShaderMaterial.new()
+			worn.shader = WORN_PAINT_SHADER
+			worn.set_shader_parameter(&"paint_colour", THERMOS_PAINT[slot][0])
+			worn.set_shader_parameter(&"paint_left", THERMOS_PAINT[slot][1])
+			worn.set_shader_parameter(&"chip_m", 0.008)
+			(mesh_node as MeshInstance3D).set_surface_override_material(surface, worn)
+	return thermos
 
 
 static func _part(holder: Node3D, mesh: PrimitiveMesh, at: Vector3, colour: Color) -> void:

@@ -1,8 +1,9 @@
 class_name QuickAccessUI
 extends Control
 
-## Physical quick access around Henry. Four outer cards are real worn pockets.
-## HANDS is live held-state status and is deliberately never selectable.
+## Physical quick access around Henry. The outer cards are real worn pockets: four on his clothes
+## and pack lid, plus, while the pack is worn, what sits outside it (side pocket, the two tool
+## sleeves, the carabiner). HANDS is live held-state status and is deliberately never selectable.
 
 const QUICK_NEXT: StringName = &"quick_next"
 const QUICK_PREV: StringName = &"quick_prev"
@@ -15,6 +16,10 @@ const CROSS_PLACES: Dictionary = {
 	PATH_COAT_RIGHT: Vector2(1.0, 0.0),
 	PATH_PACK_LID: Vector2(0.0, -1.0),
 	PATH_THIGH_LEFT: Vector2(0.0, 1.0),
+	PATH_PACK_SIDE_LEFT: Vector2(-1.0, -1.0),
+	PATH_SLEEVE_FRONT: Vector2(1.0, -1.0),
+	PATH_SLEEVE_BACK: Vector2(1.0, 1.0),
+	PATH_CARABINER: Vector2(-1.0, 1.0),
 }
 const DIRECT_ACTIONS: Array[StringName] = [
 	&"select item slot 1", &"select item slot 2", &"select item slot 3", &"select item slot 4"
@@ -25,6 +30,13 @@ const PATH_COAT_RIGHT: StringName = &"torso_outer/coat_right"
 const PATH_THIGH_LEFT: StringName = &"legs_outer/thigh_left"
 const PATH_PACK_LID: StringName = &"pack/pack_lid"
 const POCKET_ORDER: Array[StringName] = [PATH_COAT_LEFT, PATH_COAT_RIGHT, PATH_PACK_LID, PATH_THIGH_LEFT]
+## Outside a worn pack: cards built at runtime from the coat card, pinned to the pack's own anchors
+## (BackpackModel.get_quick_anchor); reached with the wheel, keys 1-4 stay on POCKET_ORDER.
+const PATH_PACK_SIDE_LEFT: StringName = &"pack/pack_side_left"
+const PATH_SLEEVE_FRONT: StringName = &"pack/pack_side_right_front"
+const PATH_SLEEVE_BACK: StringName = &"pack/pack_side_right_back"
+const PATH_CARABINER: StringName = &"pack/pack_carabiner"
+const PACK_ORDER: Array[StringName] = [PATH_PACK_SIDE_LEFT, PATH_SLEEVE_FRONT, PATH_SLEEVE_BACK, PATH_CARABINER]
 
 const SHADER_REVEAL: StringName = &"reveal"
 const SHADER_BASE_COLOR: StringName = &"base_color"
@@ -131,6 +143,7 @@ func _ready() -> void:
 	_make_mouse_transparent(self)
 	_resolve_component()
 	_build_maps()
+	_build_pack_cards()
 	_prepare_materials()
 	_load_icons()
 	_configure_layout()
@@ -281,17 +294,24 @@ func _build_maps() -> void:
 	_labels = {PATH_COAT_LEFT: coat_left_label, PATH_COAT_RIGHT: coat_right_label, PATH_THIGH_LEFT: thigh_left_label, PATH_PACK_LID: pack_lid_label}
 
 
+## The cards for what sits outside the pack: copies of the coat card, one per PACK_ORDER path.
+func _build_pack_cards() -> void:
+	for path: StringName in PACK_ORDER:
+		var card := coat_left.duplicate() as Control
+		card.name = "Pack_%s" % String(path).get_file()
+		add_child(card)
+		_slots[path] = card
+		_icons[path] = card.get_node(^"Icon")
+		_labels[path] = card.get_node(^"Label")
+
+
 func _prepare_materials() -> void:
-	_materials = {
-		PATH_COAT_LEFT: _duplicate_material(coat_left_background),
-		PATH_COAT_RIGHT: _duplicate_material(coat_right_background),
-		PATH_THIGH_LEFT: _duplicate_material(thigh_left_background),
-		PATH_PACK_LID: _duplicate_material(pack_lid_background),
-		&"hands": _duplicate_material(hands_background),
-	}
+	_materials = {&"hands": _duplicate_material(hands_background)}
+	for path: StringName in _all_paths():
+		_materials[path] = _duplicate_material((_slots[path] as Control).get_node(^"Background") as TextureRect)
 	# Pockets are graphic bars, not pills. HANDS deliberately keeps its softer
 	# prompt-like silhouette and centred fade.
-	for path: StringName in POCKET_ORDER:
+	for path: StringName in _all_paths():
 		var material := _materials.get(path) as ShaderMaterial
 		if material != null:
 			material.set_shader_parameter(SHADER_CORNER_RADIUS, 0.0)
@@ -318,7 +338,7 @@ func _load_icons() -> void:
 
 
 func _configure_layout() -> void:
-	for path: StringName in POCKET_ORDER:
+	for path: StringName in _all_paths():
 		_configure_card(_slots[path] as Control, _icons[path] as TextureRect, _labels[path] as Label)
 	_configure_card(hands, hands_icon, hands_label)
 	hands.size = Vector2(196.0, 62.0)
@@ -395,7 +415,7 @@ func _sync_focus_on_open() -> void:
 			if filled.has(selected_path):
 				_focus_path = selected_path
 				return
-	for path: StringName in POCKET_ORDER:
+	for path: StringName in _all_paths():
 		if filled.has(path):
 			_focus_path = path
 			return
@@ -408,7 +428,7 @@ func _move_focus(direction: int) -> void:
 		_refresh_focus_visuals(true)
 		return
 	var ordered: Array[StringName] = []
-	for path: StringName in POCKET_ORDER:
+	for path: StringName in _all_paths():
 		if filled.has(path):
 			ordered.append(path)
 	var index := ordered.find(_focus_path)
@@ -421,10 +441,33 @@ func _filled_paths() -> Array[StringName]:
 	var result: Array[StringName] = []
 	if quick_access_component == null or quick_access_component.hub == null:
 		return result
-	for path: StringName in POCKET_ORDER:
-		if _zone_item(path) != &"":
+	for path: StringName in _all_paths():
+		if _is_shown(path) and _zone_item(path) != &"":
 			result.append(path)
 	return result
+
+
+## Every pocket card, the clothes' first then the pack's outside.
+func _all_paths() -> Array[StringName]:
+	var paths: Array[StringName] = POCKET_ORDER.duplicate()
+	paths.append_array(PACK_ORDER)
+	return paths
+
+
+## A card shows while its pocket exists: the outside-pack ones only while the pack is worn.
+func _is_shown(path: StringName) -> bool:
+	if quick_access_component == null or quick_access_component.hub == null:
+		return POCKET_ORDER.has(path)
+	return not _zone(path).is_empty()
+
+
+## The pack's own anchor for an outside-pack card (null if the pack is not worn).
+func _pack_anchor(path: StringName) -> Node3D:
+	var player := _player()
+	var visual := player.get_node_or_null(^"HenryUALVisual") as HenryUALAnimation if player != null else null
+	var rig: PackRig = visual.get_pack_rig() if visual != null else null
+	var canvas: BackpackModel = rig.get_canvas() if rig != null else null
+	return canvas.get_quick_anchor(StringName(String(path).get_file())) if canvas != null else null
 
 
 func _zone(path: StringName) -> Dictionary:
@@ -454,7 +497,7 @@ func _zone_index(path: StringName) -> int:
 
 
 func _refresh_content() -> void:
-	for path: StringName in POCKET_ORDER:
+	for path: StringName in _all_paths():
 		var item_id := _zone_item(path)
 		var label := _labels[path] as Label
 		var icon := _icons[path] as TextureRect
@@ -475,6 +518,10 @@ func _location_label(path: StringName) -> String:
 		PATH_COAT_RIGHT: return "COAT R"
 		PATH_THIGH_LEFT: return "THIGH"
 		PATH_PACK_LID: return "PACK LID"
+		PATH_PACK_SIDE_LEFT: return tr(&"QA_PACK_SIDE")
+		PATH_SLEEVE_FRONT: return tr(&"QA_SLEEVE_FRONT")
+		PATH_SLEEVE_BACK: return tr(&"QA_SLEEVE_BACK")
+		PATH_CARABINER: return tr(&"QA_CARABINER")
 	return "POCKET"
 
 
@@ -508,7 +555,7 @@ func _held_status() -> Dictionary:
 
 
 func _pocket_icon(path: StringName) -> Texture2D:
-	return _icon_backpack if path == PATH_PACK_LID else _icon_apparel
+	return _icon_backpack if path == PATH_PACK_LID or PACK_ORDER.has(path) else _icon_apparel
 
 
 func _icon_for_item(item_id: StringName) -> Texture2D:
@@ -656,6 +703,7 @@ func _pulse_hands() -> void:
 func _animate_reveal_in() -> void:
 	_kill_reveal_tween()
 	var order: Array[StringName] = [&"hands", PATH_COAT_LEFT, PATH_COAT_RIGHT, PATH_THIGH_LEFT, PATH_PACK_LID]
+	order.append_array(PACK_ORDER)
 	for key: StringName in order:
 		_set_shader_reveal(_materials.get(key) as ShaderMaterial, 0.0)
 	_reveal_tween = create_tween().set_parallel(true)
@@ -686,7 +734,7 @@ func _refresh_focus_visuals(animate: bool) -> void:
 	if _focus_tween != null and _focus_tween.is_valid():
 		_focus_tween.kill()
 	_focus_tween = create_tween().set_parallel(true) if animate else null
-	for path: StringName in POCKET_ORDER:
+	for path: StringName in _all_paths():
 		var material := _materials.get(path) as ShaderMaterial
 		var slot := _slots.get(path) as Control
 		var item_id := _zone_item(path)
@@ -707,7 +755,7 @@ func _refresh_focus_visuals(animate: bool) -> void:
 
 func _sync_fade_directions() -> void:
 	var hands_center := hands.global_position.x + hands.size.x * 0.5
-	for path: StringName in POCKET_ORDER:
+	for path: StringName in _all_paths():
 		var slot := _slots[path] as Control
 		var material := _materials[path] as ShaderMaterial
 		var icon := _icons[path] as TextureRect
@@ -779,10 +827,8 @@ func _kill_reveal_tween() -> void:
 
 
 func _set_visible_state(value: bool) -> void:
-	coat_left.visible = value
-	coat_right.visible = value
-	thigh_left.visible = value
-	pack_lid.visible = value
+	for path: StringName in _all_paths():
+		(_slots[path] as Control).visible = value and _is_shown(path)
 	hands.visible = value
 
 
@@ -831,6 +877,7 @@ func _update_card_positions(camera: Camera3D, delta: float, snap: bool) -> void:
 		raw_targets[path] = projected_target
 		visible_specs.append(spec)
 
+	_stack_pack_cards(raw_targets, viewport_size, margin)
 	var target_orbit_blend := 0.0
 	if (_opened or _direct_busy) and raw_targets.has(&"hands"):
 		var bounded_targets: Dictionary = {}
@@ -865,14 +912,69 @@ func _update_card_positions(camera: Camera3D, delta: float, snap: bool) -> void:
 		slot.position = _clamp_slot_position(slot, next_position, viewport_size, margin)
 
 
+## The outside-pack cards pin to anchors only centimetres apart, so in the spread they stand as one
+## column (in PACK_ORDER, which never swaps mid-glide, a card plus twice ORBIT_GAP_PX apart) beside the body
+## cards, on the side of the screen the pack's anchors are on, or the other side if it fits only there.
+func _stack_pack_cards(targets: Dictionary, viewport_size: Vector2, margin: float) -> void:
+	var stacked: Array[StringName] = []
+	for path: StringName in PACK_ORDER:
+		if targets.has(path):
+			stacked.append(path)
+	if stacked.is_empty() or not targets.has(&"hands"):
+		return
+	var card: Vector2 = (_slots[stacked[0]] as Control).size
+	var centre := Vector2.ZERO
+	for path: StringName in stacked:
+		centre += (targets[path] as Vector2) + card * 0.5
+	centre /= stacked.size()
+	var hands_centre: Vector2 = (targets[&"hands"] as Vector2) + hands.size * 0.5
+	var preferred: float = 1.0 if centre.x >= hands_centre.x else -1.0
+	var step: float = card.y + ORBIT_GAP_PX * 2.0 + 2.0
+	var top: float = centre.y - card.y * 0.5 - (stacked.size() - 1) * 0.5 * step
+	var column := Vector2(card.x, (stacked.size() - 1) * step + card.y)
+	var body: Array[Rect2] = [Rect2(targets[&"hands"] as Vector2, hands.size).grow(ORBIT_GAP_PX)]
+	var outer_edge := {1.0: hands_centre.x + hands.size.x * 0.5, -1.0: hands_centre.x - hands.size.x * 0.5}
+	for path: StringName in targets:
+		if PACK_ORDER.has(path) or path == &"hands":
+			continue
+		var rect := Rect2(targets[path] as Vector2, (_slots[path] as Control).size)
+		body.append(rect.grow(ORBIT_GAP_PX))
+		outer_edge[1.0] = maxf(outer_edge[1.0], rect.end.x)
+		outer_edge[-1.0] = minf(outer_edge[-1.0], rect.position.x)
+	## Outside the body cards (pack side first), else between HANDS and them; twice the gap, the
+	## clearance the cross needs before it lets go (_wants_cross).
+	var clear: float = ORBIT_GAP_PX * 2.0 + 2.0
+	var candidates: Array[float] = []
+	for side: float in [preferred, -preferred]:
+		candidates.append(outer_edge[side] + clear if side > 0.0 else outer_edge[side] - clear - card.x)
+	for side: float in [preferred, -preferred]:
+		candidates.append(hands_centre.x + hands.size.x * 0.5 + clear if side > 0.0 else hands_centre.x - hands.size.x * 0.5 - clear - card.x)
+	var column_x: float = NAN
+	for x: float in candidates:
+		var rect := Rect2(Vector2(x, top), column)
+		if x < margin or rect.end.x > viewport_size.x - margin:
+			continue
+		if body.all(func(other: Rect2) -> bool: return not rect.intersects(other)):
+			column_x = x
+			break
+	if is_nan(column_x):
+		return  # no room: they stay by their anchors, and crowding picks the cross
+	for i: int in range(stacked.size()):
+		targets[stacked[i]] = Vector2(column_x, top + i * step)
+
+
 func _card_specs() -> Array[Dictionary]:
-	return [
+	var specs: Array[Dictionary] = [
 		{"path": PATH_COAT_LEFT, "slot": coat_left, "anchor": coat_left_anchor, "offset": coat_left_offset},
 		{"path": PATH_COAT_RIGHT, "slot": coat_right, "anchor": coat_right_anchor, "offset": coat_right_offset},
 		{"path": PATH_THIGH_LEFT, "slot": thigh_left, "anchor": thigh_left_anchor, "offset": thigh_left_offset},
 		{"path": PATH_PACK_LID, "slot": pack_lid, "anchor": pack_lid_anchor, "offset": pack_lid_offset},
 		{"path": &"hands", "slot": hands, "anchor": hands_anchor, "offset": hands_offset},
 	]
+	for path: StringName in PACK_ORDER:
+		if _is_shown(path):
+			specs.append({"path": path, "slot": _slots[path], "anchor": _pack_anchor(path), "offset": Vector2.ZERO})
+	return specs
 
 
 ## Spread or cross, never a mix: a partial blend of two layouts is what let cards overlap.
