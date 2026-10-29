@@ -1,0 +1,8 @@
+ambientCG materials by Lennart Demes
+PaintedMetal001 and Metal027: CC0 1.0 Universal
+https://docs.ambientcg.com/license/
+https://creativecommons.org/publicdomain/zero/1.0/
+Source URLs and SHA-256 checksums: sources.json
+
+Used for a stylized ochre industrial paint and graphite powder-coat material.
+Original source JPEGs are retained unchanged.

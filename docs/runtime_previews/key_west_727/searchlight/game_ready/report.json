@@ -1,0 +1,13 @@
+{
+  "adapter": "llvmpipe (LLVM 19.1.7, 256 bits)",
+  "capture_ms": 335196,
+  "driver": "vulkan",
+  "frames": [],
+  "frames_count": 144,
+  "held": true,
+  "pickup_world_id": "searchlight_727_toolbench",
+  "renderer": "forward_plus",
+  "shadow_enabled": true,
+  "spot_energy": 12.0,
+  "spot_range": 18.0
+}

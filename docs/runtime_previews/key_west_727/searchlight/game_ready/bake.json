@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "device": "CPU",
+  "extrusion": 0.01091,
+  "res": 1024,
+  "maps": {
+    "basecolor": "//../../textures/T_Searchlight_BC.png",
+    "roughness": "//../../textures/T_Searchlight_R.png",
+    "metallic": "//../../textures/T_Searchlight_M.png",
+    "ao": "//../../textures/T_Searchlight_AO.png",
+    "normal": "//../../textures/T_Searchlight_N.png",
+    "orm": "//../../textures/T_Searchlight_ORM.png"
+  }
+}

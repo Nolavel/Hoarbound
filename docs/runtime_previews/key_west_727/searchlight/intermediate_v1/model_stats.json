@@ -1,0 +1,82 @@
+{
+  "ok": true,
+  "objects": {
+    "Searchlight_Body": {
+      "tris": 3576,
+      "verts": 1896,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "Searchlight_Battery": {
+      "tris": 176,
+      "verts": 96,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "Searchlight_Button": {
+      "tris": 44,
+      "verts": 24,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "Searchlight_Lens": {
+      "tris": 156,
+      "verts": 80,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    }
+  },
+  "total_tris": 3952,
+  "total_verts": 2096,
+  "draw_calls_est": 4,
+  "unique_materials": 2,
+  "textures": [
+    {
+      "name": "T_Searchlight_BC",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "T_Searchlight_N",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "T_Searchlight_ORM",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    }
+  ],
+  "texture_vram_mb_uncompressed": 16.0,
+  "bones": 0,
+  "kind": "prop",
+  "budget": {
+    "name": "web",
+    "limits": {
+      "char_tris": 30000,
+      "prop_tris": 10000,
+      "materials": 2,
+      "tex": 2048,
+      "bones": 100
+    },
+    "over": [],
+    "pass": true
+  }
+}

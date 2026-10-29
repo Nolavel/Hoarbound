@@ -1,0 +1,30 @@
+[
+  {
+    "id": "PaintedMetal001",
+    "url": "https://ambientcg.com/a/PaintedMetal001",
+    "download_url": "https://ambientcg.com/get?file=PaintedMetal001_1K-JPG.zip",
+    "license": "CC0-1.0",
+    "license_url": "https://docs.ambientcg.com/license/",
+    "archive_sha256": "3e766388832357cdb472102368ef4a237c7ce38a540eec7eb415869c7825d0db",
+    "files_sha256": {
+      "PaintedMetal001_1K-JPG_Color.jpg": "55e84662a1eca23d73ef851a5ad99857c388adde627f4264b861d9fe5e8cc84f",
+      "PaintedMetal001_1K-JPG_Roughness.jpg": "c0166ff9364ae9d83878066b2a788f66bc5bcc5748a78a47cc51c940a8491e41",
+      "PaintedMetal001_1K-JPG_Metalness.jpg": "c8e278ad680208abde1af0158a2657031c93e25274276076d57623214fecf2ab",
+      "PaintedMetal001_1K-JPG_NormalGL.jpg": "3bc4900f42e2716bd71d8ccbaea4224c24012abbe99aee806d13439aee9a398d"
+    }
+  },
+  {
+    "id": "Metal027",
+    "url": "https://ambientcg.com/a/Metal027",
+    "download_url": "https://ambientcg.com/get?file=Metal027_1K-JPG.zip",
+    "license": "CC0-1.0",
+    "license_url": "https://docs.ambientcg.com/license/",
+    "archive_sha256": "12b2d9996d532cf8a31820d24f2ea83e3217b89da060c4fb29c3c5177535ac72",
+    "files_sha256": {
+      "Metal027_1K-JPG_Color.jpg": "8e2e69e767b2692da211723ccb7def5f27b9c7712c6952bc45c526e2a5183ae0",
+      "Metal027_1K-JPG_Roughness.jpg": "8f01484981a8bf83199d4f4cb435a344294cd80cb4ee623cf8567a7726fb289e",
+      "Metal027_1K-JPG_Metalness.jpg": "843102638fa0a5bf897888868877efab8ccdc4cb84a48e57bdb52bfb30f5e714",
+      "Metal027_1K-JPG_NormalGL.jpg": "afbf8ca3df45111ac5543174582b6b98cb1bf154f7c7ee8f198720042b92d7c8"
+    }
+  }
+]

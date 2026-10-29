@@ -334,26 +334,26 @@
    "on": "ReceptionCounter"
   },
   "GlovesShelter": {
-  "room": "waiting",
-  "uv": [
-   2.92,
-   8.66
-  ],
-  "h": 0.375,
-  "yaw_deg": 90,
-  "on": "Cabinet"
- },
- "SPoVCanShelter": {
-  "room": "waiting",
-  "uv": [
-   2.85,
-   8.78
-  ],
-  "h": 0.0,
-  "yaw_deg": -84,
-  "on": "Cabinet"
- },
- "BedrollShelterTest": {
+   "room": "waiting",
+   "uv": [
+    2.92,
+    8.66
+   ],
+   "h": 0.375,
+   "yaw_deg": 90,
+   "on": "Cabinet"
+  },
+  "SPoVCanShelter": {
+   "room": "waiting",
+   "uv": [
+    2.85,
+    8.78
+   ],
+   "h": 0.0,
+   "yaw_deg": -84,
+   "on": "Cabinet"
+  },
+  "BedrollShelterTest": {
    "room": "office",
    "uv": [
     12.9,
@@ -362,6 +362,16 @@
    "h": 0.0,
    "yaw_deg": 0,
    "on": null
+  },
+  "SearchlightShelter": {
+   "room": "lobby",
+   "uv": [
+    8.15,
+    2.15
+   ],
+   "h": 1.05,
+   "yaw_deg": 0,
+   "on": "ReceptionCounter"
   }
  }
 }

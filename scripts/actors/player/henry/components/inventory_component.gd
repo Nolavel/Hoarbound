@@ -132,6 +132,25 @@ func take_instance(item_id: StringName) -> Dictionary:
 	return {}
 
 
+## Matches take_instance: the first physical non-stackable item with this id.
+func get_first_instance_state(item_id: StringName) -> Dictionary:
+	for entry: Dictionary in _entries:
+		if (entry["item"] as ItemResource).id == item_id:
+			return (entry.get("instance_state", {}) as Dictionary).duplicate(true)
+	return {}
+
+
+func update_first_instance_state(item_id: StringName, changes: Dictionary) -> bool:
+	for entry: Dictionary in _entries:
+		var item: ItemResource = entry["item"]
+		if item.id == item_id and item.max_stack == 1:
+			var state: Dictionary = (entry.get("instance_state", {}) as Dictionary).duplicate(true)
+			state.merge(changes, true)
+			entry["instance_state"] = state
+			return true
+	return false
+
+
 func get_count(item_id: StringName) -> int:
 	var count: int = 0
 	for entry: Dictionary in _entries:

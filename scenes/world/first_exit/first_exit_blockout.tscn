@@ -16591,3 +16591,12 @@ texture = ExtResource("2_14ntb")
 
 [node name="SpawnPoint" type="Marker3D" parent="." unique_id=1615005507]
 transform = Transform3D(-0.8511709, 0, -0.5248887, 0, 1, 0, 0.5248887, 0, -0.8511709, 1139.5799247, 5.898996, -663.1879678)
+
+[node name="SearchlightShelter" type="Area3D" parent="."]
+position = Vector3(1132.4, 7.106763, -654.1386)
+script = ExtResource("16_yryj5")
+item_id = &"searchlight"
+world_id = &"searchlight_727_reception"
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SearchlightShelter"]
+shape = SubResource("SphereShape3D_shelter_77e791ac")

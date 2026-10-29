@@ -1,0 +1,628 @@
+{
+  "ok": true,
+  "objects": {
+    "MainHousing": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryBlock": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryRearPlate": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SidePanel": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BodyEdgeBumper": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BodyEdgeBumper.001": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "CoolingSlot": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "CoolingSlot.001": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "CoolingSlot.002": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "CoolingSlot.003": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "CoolingSlot.004": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "PanelScrew": {
+      "tris": 28,
+      "verts": 16,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "PanelScrew.001": {
+      "tris": 28,
+      "verts": 16,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "PanelScrew.002": {
+      "tris": 28,
+      "verts": 16,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "PanelScrew.003": {
+      "tris": 28,
+      "verts": 16,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SidePanel.001": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BodyEdgeBumper.002": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BodyEdgeBumper.003": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "CoolingSlot.005": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "CoolingSlot.006": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "CoolingSlot.007": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "CoolingSlot.008": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "CoolingSlot.009": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "PanelScrew.004": {
+      "tris": 28,
+      "verts": 16,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "PanelScrew.005": {
+      "tris": 28,
+      "verts": 16,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "PanelScrew.006": {
+      "tris": 28,
+      "verts": 16,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "PanelScrew.007": {
+      "tris": 28,
+      "verts": 16,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryGaugeFrame": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryGaugeInset": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryChargeLamp_1": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryChargeLamp_2": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryChargeLamp_3": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "BatteryChargeLamp_4": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "Marking_Rear": {
+      "tris": 2,
+      "verts": 4,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "Marking_Side": {
+      "tris": 2,
+      "verts": 4,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "HandleRearMount": {
+      "tris": 44,
+      "verts": 24,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "HandleFrontMount": {
+      "tris": 44,
+      "verts": 24,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "ErgonomicHandle": {
+      "tris": 332,
+      "verts": 168,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "GripRubber": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "GripFineRib": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "GripFineRib.001": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "GripFineRib.002": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "GripFineRib.003": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "GripFineRib.004": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SwitchSeat": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "PowerButton": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SwitchGuard": {
+      "tris": 44,
+      "verts": 24,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SwitchGuard.001": {
+      "tris": 44,
+      "verts": 24,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SwitchEndGuard": {
+      "tris": 44,
+      "verts": 24,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SwitchEndGuard.001": {
+      "tris": 44,
+      "verts": 24,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "OpticalRearCover": {
+      "tris": 156,
+      "verts": 80,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "OpticalHousing": {
+      "tris": 768,
+      "verts": 384,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "MetalFrontBezel": {
+      "tris": 768,
+      "verts": 384,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "GlassSeal": {
+      "tris": 576,
+      "verts": 288,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SmallRimPad_0": {
+      "tris": 36,
+      "verts": 20,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SmallRimPad_1": {
+      "tris": 36,
+      "verts": 20,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SmallRimPad_2": {
+      "tris": 36,
+      "verts": 20,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SmallRimPad_3": {
+      "tris": 36,
+      "verts": 20,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SmallRimPad_4": {
+      "tris": 36,
+      "verts": 20,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SmallRimPad_5": {
+      "tris": 36,
+      "verts": 20,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "DeepParabolicReflector": {
+      "tris": 1728,
+      "verts": 864,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "LEDHeatSlug": {
+      "tris": 92,
+      "verts": 48,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "LEDSubstrate": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "LEDEmitter": {
+      "tris": 108,
+      "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "ClearRecessedLens": {
+      "tris": 1024,
+      "verts": 514,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    }
+  },
+  "total_tris": 9932,
+  "total_verts": 5090,
+  "draw_calls_est": 65,
+  "unique_materials": 12,
+  "textures": [
+    {
+      "name": "Metal027_1K-JPG_Color.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "Metal027_1K-JPG_Metalness.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "rear_marking.png",
+      "size": [
+        1024,
+        512
+      ],
+      "mb": 2.7
+    },
+    {
+      "name": "PaintedMetal001_1K-JPG_Color.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "PaintedMetal001_1K-JPG_Roughness.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "PaintedMetal001_1K-JPG_NormalGL.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "PaintedMetal001_1K-JPG_Metalness.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "Metal027_1K-JPG_Roughness.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "Metal027_1K-JPG_NormalGL.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "side_marking.png",
+      "size": [
+        1024,
+        512
+      ],
+      "mb": 2.7
+    }
+  ],
+  "texture_vram_mb_uncompressed": 48.0,
+  "bones": 0,
+  "kind": "prop",
+  "budget": {
+    "name": "pc",
+    "limits": {
+      "char_tris": 150000,
+      "prop_tris": 50000,
+      "materials": 6,
+      "tex": 4096,
+      "bones": 300
+    },
+    "over": [
+      "materials 12 > 6 (merge/atlas)"
+    ],
+    "pass": false
+  }
+}

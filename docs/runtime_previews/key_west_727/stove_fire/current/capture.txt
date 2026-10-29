@@ -1,0 +1,50 @@
+Godot Engine v4.8.dev6.mono.official.8898c2b3d - https://godotengine.org
+WARNING: Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver.
+OpenGL API 4.5 (Core Profile) Mesa 25.0.7-2+deb13u1 - Compatibility - Using Device: Mesa - llvmpipe (LLVM 19.1.7, 256 bits)
+WARNING: FSR1 3D scaling is only available when using the Forward+ renderer.
+WARNING: 2D MSAA is not yet supported for GLES3.
+WARNING: Screen-space AA is only available when using the Forward+ or Mobile renderer.
+[stove] automatic_render_loop=false
+WARNING: Volumetric fog is only available when using the Forward+ renderer.
+WARNING: Debug stamina label path is invalid — stamina display will not work.
+WARNING: Debug label path is invalid — speed display will not work.
+ERROR: shader type fog not supported in OpenGL renderer
+WARNING: Nodes with non-equal opposite anchors will have their size overridden after _ready(). 
+WARNING: `NaN` ("Not a Number") found in argument passed to JSON.stringify(). `NaN` cannot be represented in JSON, so the value has been replaced with `null`. This warning will not be printed for any later NaN occurrences.
+[stove] bootstrap frame=0 context=true
+[stove] shot 1_before_f phase=0 logs=0 visual_logs=0 tinder=false stage=0 burning=false
+[stove] camera in stove space (3.013794, 2.111022, 0.653076) henry (1.900024, 1.0, 0.949951) framing 0.0
+[stove] shot 2_crouched_empty_ring phase=4 logs=0 visual_logs=0 tinder=false stage=0 burning=false
+[stove] camera in stove space (0.994263, 1.159082, -0.308838) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 3_one_log phase=4 logs=1 visual_logs=1 tinder=false stage=0 burning=false
+[stove] camera in stove space (0.994263, 1.158648, -0.309082) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 4_three_logs phase=4 logs=3 visual_logs=3 tinder=false stage=0 burning=false
+[stove] camera in stove space (0.994263, 1.158648, -0.309082) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 5_tinder_laid phase=4 logs=3 visual_logs=3 tinder=true stage=2 burning=false
+[stove] camera in stove space (0.994263, 1.158648, -0.309082) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 6_lighter_hold phase=4 logs=3 visual_logs=3 tinder=true stage=4 burning=false
+[stove] camera in stove space (0.994263, 1.158648, -0.309082) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 7_fire_growing phase=4 logs=3 visual_logs=3 tinder=false stage=0 burning=true
+[stove] camera in stove space (0.994263, 1.158648, -0.309082) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 9_steady_open phase=4 logs=3 visual_logs=3 tinder=false stage=0 burning=true
+[stove] camera in stove space (0.994263, 1.158648, -0.309082) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 16_open_orbit_left phase=4 logs=3 visual_logs=3 tinder=false stage=0 burning=true
+[stove] camera in stove space (1.05127, 1.150904, -0.160156) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 17_open_orbit_right phase=4 logs=3 visual_logs=3 tinder=false stage=0 burning=true
+[stove] camera in stove space (0.906982, 1.164175, -0.443604) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 10_two_burning_logs phase=4 logs=2 visual_logs=2 tinder=false stage=0 burning=true
+[stove] camera in stove space (0.994263, 1.158648, -0.309082) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 11_refuel_preserves_old_logs phase=4 logs=3 visual_logs=3 tinder=false stage=0 burning=true
+[stove] camera in stove space (0.994263, 1.158648, -0.309082) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 8_door_closed_up phase=0 logs=3 visual_logs=3 tinder=false stage=0 burning=true
+[stove] camera in stove space (2.286987, 2.201792, 0.039307) henry (0.954712, 1.0, 0.345459) framing 0.0
+[stove] shot 12_closed_door_fire phase=0 logs=3 visual_logs=3 tinder=false stage=0 burning=true
+[stove] camera in stove space (1.952148, 2.42729, -0.268066) henry (0.954712, 1.0, 0.345459) framing 0.0
+[stove] shot 13_embers_open phase=4 logs=1 visual_logs=1 tinder=false stage=0 burning=true
+[stove] camera in stove space (0.994263, 1.158648, -0.309082) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 14_residual_coals_no_fuel phase=4 logs=0 visual_logs=0 tinder=false stage=0 burning=false
+[stove] camera in stove space (0.994263, 1.158648, -0.309082) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] shot 15_cold_empty phase=4 logs=0 visual_logs=0 tinder=false stage=0 burning=false
+[stove] camera in stove space (0.994263, 1.158648, -0.309082) henry (0.954712, 1.0, 0.345459) framing 1.0
+[stove] logs=0 tinder=false burning=false intensity=0.00 video_frames=558
+WARNING: 320 ObjectDB instances were leaked at exit (run with `--verbose` for details).

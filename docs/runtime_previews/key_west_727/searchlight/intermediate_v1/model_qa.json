@@ -1,0 +1,138 @@
+{
+  "ok": true,
+  "pass": true,
+  "errors": [],
+  "warnings": [
+    "hidden back-to-back faces: Searchlight_Body (140 pairs) - delete to save tris",
+    "hidden back-to-back faces: Searchlight_Body<->Searchlight_Lens (109 pairs) - delete to save tris",
+    "hidden back-to-back faces: Searchlight_Battery (4 pairs) - delete to save tris"
+  ],
+  "ground_z": 0.0,
+  "zfighting": [],
+  "floating": [],
+  "back_to_back": [
+    {
+      "where": "Searchlight_Body",
+      "tri_pairs": 140
+    },
+    {
+      "where": "Searchlight_Body<->Searchlight_Lens",
+      "tri_pairs": 109
+    },
+    {
+      "where": "Searchlight_Battery",
+      "tri_pairs": 4
+    }
+  ],
+  "enclosed": [],
+  "objects": {
+    "Searchlight_Body": {
+      "verts": 1896,
+      "faces": 3576,
+      "tris": 3576,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 58,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 29.7
+    },
+    "Searchlight_Battery": {
+      "verts": 96,
+      "faces": 176,
+      "tris": 176,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 4,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 4.7
+    },
+    "Searchlight_Button": {
+      "verts": 24,
+      "faces": 44,
+      "tris": 44,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.1
+    },
+    "Searchlight_Lens": {
+      "verts": 80,
+      "faces": 156,
+      "tris": 156,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 35.5
+    }
+  }
+}

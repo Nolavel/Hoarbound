@@ -9,6 +9,8 @@ const FLARE_SCENE: PackedScene = preload("res://scenes/actors/player/held/HeldFl
 ## gameplay call this same method, so a fitted preview cannot drift from the
 ## object Henry actually holds.
 static func make(item_id: StringName, item_override: ItemResource = null) -> Node3D:
+	if item_id == &"searchlight":
+		return HeldSearchlight.new()
 	if item_id == &"hammer":
 		return _make_hammer()
 	if item_id == &"road_flare":

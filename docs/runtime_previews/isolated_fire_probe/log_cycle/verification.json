@@ -1,0 +1,48 @@
+{
+  "engine": "4.8.dev6.mono.official.8898c2b3d",
+  "renderer": "gl_compatibility",
+  "driver": "opengl3",
+  "device": "Mesa llvmpipe (LLVM 19.1.7, 256 bits)",
+  "display": "X11 via Xvfb, non-headless",
+  "frames": 300,
+  "fps": 30,
+  "duration_seconds": 10,
+  "resolution": [
+    960,
+    540
+  ],
+  "stage_frames": {
+    "00-unlit.png": 0,
+    "01-ignition.png": 45,
+    "02-burning.png": 150,
+    "03-embers.png": 270
+  },
+  "sha256": {
+    "00-unlit.png": "ebcd50088d458cf0acb5531b94b823b7561f4c86240eb9146c5ba3d1ccefde79",
+    "01-ignition.png": "c86dd09c5e28d627637195e3b43705429cb6d213755422fbd5b064d1c6dcb9bc",
+    "02-burning.png": "0250e607c957ef1dc52bea9c31e2fc1d44b4475036d6e2e82f856f4174a1dc1f",
+    "03-embers.png": "ff404ab29194bb0832e267464accde77fa631251799dd5cd6c7991f085feb9f3",
+    "full-cycle.mp4": "0df67187cbdb6e79c62b0964ce77da1cde74919830be87e6ab908cbab59f9d19"
+  },
+  "freeze_tests": [
+    {
+      "progress": 0.1,
+      "frames": 4,
+      "all_png_hashes_identical": true,
+      "sha256": "5121fb58d91adfa3507c3232b7babfc65c7b5c6f7a4b4534dbac1848c0981f64"
+    },
+    {
+      "progress": 0.5,
+      "frames": 4,
+      "all_png_hashes_identical": true,
+      "sha256": "71dc895747ca5b1d5a7d22cba00134d7a96aff38e11da569df7f97d39ebce20b"
+    },
+    {
+      "progress": 0.9,
+      "frames": 4,
+      "all_png_hashes_identical": true,
+      "sha256": "37d0e55134de939899038433fad8d4aff018c139a77be2ad4b06ad16e7601045"
+    }
+  ],
+  "mp4_decoded_for_visual_review": true
+}

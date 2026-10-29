@@ -1,0 +1,29 @@
+{
+  "ground_shift_m": -0.004999999888241291,
+  "handle_section_mm": [
+    22,
+    16
+  ],
+  "rubber_grip_section_mm": [
+    26,
+    20
+  ],
+  "clearance_above_case_mm": 65.99999999999997,
+  "reflector_depth_mm": 81,
+  "lens_diameter_mm": 189.6,
+  "rim_pad_radial_projection_mm": 3.5,
+  "hand_source": "henry_right_hand.blend",
+  "game_integration": "paused for material and grip review; core geometry approved",
+  "hand_rotation_z_degrees": 180,
+  "battery_gauge_lamps": 4,
+  "handle_shoulders": "tangent-continuous cubic curves",
+  "switch": "guarded front landing, recessed rocker",
+  "industrial_materials": [
+    "ambientCG PaintedMetal001",
+    "ambientCG Metal027"
+  ],
+  "removed": [
+    "side red latches",
+    "rear black square"
+  ]
+}

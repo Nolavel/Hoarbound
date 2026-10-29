@@ -144,6 +144,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     starts with a SPoV can and tinned stew lying loose inside, a flask in the left side pocket and the mug on the
     right carabiner. `PackRig` mirrors the pack's pockets into the canvas whenever they change.
   - Capture: `tools/runtime/capture_backpack_worn.gd`.
+- Isolated soft-container physics lab (#254): six draggable cubes/spheres, pinned rims,
+  upright/60-degree tilt and reproducible Jolt capture; experimental 4.6.3 evidence,
+  pending verification on the project engine baseline.
+
 - Snow that sticks and melts (#257, stage 4).
   - **Splats:** a snowball bursts into a puff and leaves a `SnowSplat` decal on what it hits. In the cold the
     splat stays (the 32 newest are kept). Inside a heated interior zone it slides down 12 cm and melts in 45 s.

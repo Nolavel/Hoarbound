@@ -1,0 +1,50 @@
+{
+  "stage": "NORTHBEAM material, controls and physically seated handle review",
+  "blender": "5.2.0 LTS",
+  "blender_skills_commit": "71d031dab8bc6729504d11a78cbe91945401045f",
+  "original_character_git_blob": "04567488589c8fd6af385bc179931e7ec56d84fa",
+  "reference_objects": [
+    "HenryRightHandBare"
+  ],
+  "visually_inspected": [
+    "front.png",
+    "side.png",
+    "perspective.png",
+    "opposite_side.png",
+    "rear.png",
+    "switch_detail.png",
+    "rear_handle_joint.png",
+    "front_handle_joint.png",
+    "grip_bare_reverse.png"
+  ],
+  "sha256": {
+    "qa_wire_three_quarter.png": "3fe274ca6e8c0b81002162c253b582aad1c22cbdb9f97e0e4e334023e2cec482",
+    "grip_bare_reverse.png": "acad873432a9f4885b81e519cae3b2cc5ba3b65ddd19036dc9cdb439fb2b5c86",
+    "grip_bare.png": "04a196e6520353600f7f00fc02ef8754dca5391b242c86864029ddcf54911b71",
+    "optics.png": "83b6abf7252469f9a904d3022ec194f499b45b264cf4b27b08193dc4bc85a39b",
+    "rear.png": "3437567c837b2e5b6c009f9a36e0a352ef2a25cbee4fd5e049d00bfa3b512096",
+    "side.png": "0d74851a1a5b80e947087dc8635fb931974e52b151565992c78d866fdf9e006c",
+    "qa_wire_right.png": "33e7ceb4ebe164b9074c8e00be9276ec3ec4aaaf3bb20885cb12761d9e52b9e2",
+    "qa_wire_top.png": "a18ffb532ece489bcd32475fc3b039125a640db74e3080298a1707da8caac37c",
+    "switch_detail.png": "501aad6924266ddce8ac9b9e1ea2c0579094fe7ac5fa75628c1262903eeebca1",
+    "rear_perspective.png": "f5aab92ccbc366a45e41386e4f89ffe01e6ff9ac074fbed826d609048ed8d8e3",
+    "front.png": "543ba0934541bfd88e98fe07227638b1a3910b056c5b47a521a776622b9a41b6",
+    "qa_wire_front.png": "f417a3554c13c810200e67499a97b2551a4263227500ceecb0201538ca8e1500",
+    "opposite_side.png": "5658c8162f637ce0a78ff98710e74bc6bad5995477fb280b9171c6f4c4b8ea8a",
+    "perspective.png": "564bb164ac05a447c26b57658d54c18dc2763348846ac896296128fc99699d54",
+    "rear_handle_joint.png": "017bce3b2811e20c40fc532fc3135d56c86a0c0dbf0f36f70c9a8af60c81842c",
+    "front_handle_joint.png": "6101c7c64b45b74fe4d7188ded6c130ab1be8755016bce11aad2521cdf0fafda",
+    "qa_wire.png": "4ce97618eeca24931339a25c1a56acee1349ce0f3505b47f5a3d2963e3a30d48",
+    "searchlight_with_henry_hand.blend": "3f5c1bf6072dbc33fb7cca5812a60ef09ad2a0a299ad802a338f1a0200e1824b",
+    "searchlight_geometry_review.blend": "82032b5ae3374ab5a2d519dd4969a8197eda77897e9382bb22f17d45d2600ebe",
+    "henry_right_hand.blend": "fe1a479df48c7d777e8a0825fd4a00b7cc23ffb805bdab14d049f7ae14d03320"
+  },
+  "material_sources": [
+    "ambientCG PaintedMetal001 CC0",
+    "ambientCG Metal027 CC0"
+  ],
+  "handle_contacts": {
+    "rear_case_intersections": 16,
+    "front_case_intersections": 24
+  }
+}

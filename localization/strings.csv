@@ -232,3 +232,6 @@ THROW_AIM_ACTION,Aim (LMB throws),Прицелиться (ЛКМ — бросо�
 Stone,Stone,Камень
 Handful of snow,Handful of snow,Пригоршня снега
 Mug of snow,Mug of snow,Кружка со снегом
+
+SEARCHLIGHT_NAME,Northbeam searchlight,Поисковый фонарь Northbeam
+SEARCHLIGHT_HELD_HINT,RMB · Toggle light,ПКМ · Включить / выключить

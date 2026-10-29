@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "preset": "godot",
+  "format": "gltf",
+  "files": [
+    {
+      "file": "/workspace/Hoarbound/assets/items/searchlight/searchlight.glb",
+      "ok": true,
+      "kb": 1780.9,
+      "objects": [
+        "Searchlight_Body",
+        "Searchlight_Lens",
+        "Marking_Rear",
+        "Marking_Side",
+        "GripAnchor",
+        "OpticalCenter"
+      ],
+      "summary": {
+        "nodes": 6,
+        "meshes": 4,
+        "materials": 4,
+        "images": 5,
+        "animations": 0,
+        "skins": 0,
+        "tris": 9932,
+        "extensions": [
+          "KHR_materials_transmission",
+          "KHR_materials_ior"
+        ],
+        "animation_names": []
+      }
+    }
+  ],
+  "warnings": []
+}

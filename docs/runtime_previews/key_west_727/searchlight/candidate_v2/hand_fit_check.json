@@ -1,0 +1,21 @@
+{
+  "HenryRightHandBare": {
+    "position": [
+      -0.125,
+      -0.02500000037252903,
+      0.2800000011920929
+    ],
+    "rotation_z_degrees": 180,
+    "overlap_pairs": {
+      "GripRubber": 0,
+      "ErgonomicHandle": 0,
+      "MainHousing": 0,
+      "PowerButton": 0,
+      "SwitchSeat": 0,
+      "SwitchEndGuard": 0,
+      "SwitchEndGuard.001": 0,
+      "SwitchGuard": 0,
+      "SwitchGuard.001": 0
+    }
+  }
+}
