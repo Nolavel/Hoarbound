@@ -468,9 +468,20 @@ func _aim_searchlight(delta: float) -> void:
 	var forward: Vector3 = visual.global_basis.z.normalized()
 	var camera: Camera3D = get_viewport().get_camera_3d()
 	var aim: Vector3 = TpsCamera.aim_direction(camera) if camera != null else forward
+	## A shoulder-held tool cannot follow the camera through the character's back.
+	## Keep the beam and the IK fingers in the same reachable torso-relative cone.
+	var right: Vector3 = visual.global_basis.x.normalized()
+	## asin maps a full camera orbit continuously back through neutral behind the
+	## torso, instead of jumping from +65 to -65 degrees at the rear crossing.
+	var flat_aim: Vector3 = Vector3(aim.x, 0.0, aim.z).normalized()
+	var yaw: float = clampf(asin(clampf(flat_aim.dot(right), -1.0, 1.0)), deg_to_rad(-65.0), deg_to_rad(65.0))
+	var pitch: float = clampf(asin(clampf(aim.y, -1.0, 1.0)), deg_to_rad(-50.0), deg_to_rad(50.0))
+	aim = (forward * cos(yaw) + right * sin(yaw)) * cos(pitch) + Vector3.UP * sin(pitch)
 	var player := get_parent() as CharacterBody3D
 	searchlight.advance_inertia(delta, aim, player.velocity if player != null else Vector3.ZERO)
-	reach.palm_into_world = Vector3.DOWN
+	## Project down onto the plane perpendicular to the grip. This preserves a
+	## stable palm frame while the flashlight pitches and sweeps across the body.
+	reach.palm_into_world = (Vector3.DOWN - searchlight.direction * Vector3.DOWN.dot(searchlight.direction)).normalized()
 	reach.grip_weight = 1.0
 	reach.aim(chest + forward * 0.32 + side.normalized() * 0.25 - Vector3.UP * 0.1 + searchlight.inertia_offset, searchlight.direction, 1.0)
 

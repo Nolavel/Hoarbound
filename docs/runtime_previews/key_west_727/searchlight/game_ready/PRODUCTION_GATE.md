@@ -21,6 +21,11 @@ dim emissive overlays; the lamp remains the only light source. Battery life is
 - Forward+/Vulkan llvmpipe captures: four green, two green/two red, low charge,
   and no LED emission at empty were visually inspected. The original 727 night
   and daylight captures were also reviewed.
+- Eight daylight 727 Forward+/Vulkan `grip_orbit/` captures show a continuous,
+  torso-relative beam sweep within ±65°; the palm frame follows the grip
+  without the arm turning through the character's back.
+- `lens_aura.png` and `lens_divine.png` are both bound to the lens shader and
+  combined for optical glow. The scene beam uses the single `SpotLight3D`.
 
 ## Open before unconditional main acceptance
 

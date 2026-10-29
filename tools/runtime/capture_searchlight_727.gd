@@ -15,7 +15,7 @@ var review_mode: bool = false
 
 func _initialize() -> void:
 	output = OS.get_cmdline_user_args()[0] if not OS.get_cmdline_user_args().is_empty() else "user://searchlight_727"
-	review_mode = OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] in ["review", "indicator"]
+	review_mode = OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] in ["review", "indicator", "grip_orbit"]
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output))
 	root.mode = Window.MODE_WINDOWED
 	root.size = Vector2i(640, 360)
@@ -93,14 +93,33 @@ func _run() -> void:
 	camera.attributes = exposure
 	render_camera.attributes = exposure
 	_hide_ui()
-	await _frames(20)
+	await _frames(3 if OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] == "grip_orbit" else 20)
 	await _shot("off")
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_RIGHT
 	click.pressed = true
 	held._unhandled_input(click)
-	await _frames(20)
+	await _frames(3 if OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] == "grip_orbit" else 20)
 	await _shot("on")
+	if OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] == "grip_orbit":
+		render_camera.look_at_from_position(prop.global_position + prop.global_basis.z * 0.85 + prop.global_basis.x * 0.55 + Vector3.UP * 0.25, prop.global_position)
+		var fixed_view: Transform3D = render_camera.global_transform
+		var body_forward: Vector3 = (player.get_node(^"HenryUALVisual") as HenryUALAnimation).global_basis.z.normalized()
+		var body_right: Vector3 = (player.get_node(^"HenryUALVisual") as HenryUALAnimation).global_basis.x.normalized()
+		for degrees: int in [0, 45, 90, 135, 180, 225, 270, 315]:
+			var radians: float = deg_to_rad(float(degrees))
+			var target_direction: Vector3 = body_forward * cos(radians) + body_right * sin(radians)
+			camera.look_at_from_position(camera.global_position, camera.global_position + target_direction)
+			await _frames(3)
+			var beam_yaw: float = rad_to_deg(atan2(prop.direction.dot(body_right), prop.direction.dot(body_forward)))
+			assert(absf(beam_yaw) <= 71.0)
+			render_camera.global_transform = fixed_view
+			await RenderingServer.frame_post_draw
+			capture_viewport.get_texture().get_image().save_png(ProjectSettings.globalize_path(output).path_join("grip_%03d.png" % degrees))
+			print("SEARCHLIGHT_GRIP_ANGLE camera=", degrees, " beam=", beam_yaw)
+		print("SEARCHLIGHT_GRIP_ORBIT_OK")
+		quit()
+		return
 	if OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] == "indicator":
 		held.set_process(false)
 		var reach: StoveHandReach = (player.get_node(^"HenryUALVisual") as HenryUALAnimation).get_present_reach()
