@@ -12,11 +12,11 @@ const PAD_WIDTH_M: float = 0.058
 const THICK_M: float = 0.008
 ## Samples between two anchors along the body.
 const SAMPLES_PER_SPAN: int = 6
-## Free runs (pack to upper back, armpit to pack): chain points and slack over the straight length.
-## The top run hangs almost straight down onto the pack, so it gets less slack to bunch up.
+## Free runs (pack to upper back, armpit to pack): chain points, and their length over the straight
+## line. Below 1 the strap is cinched: it pulls taut and only gives when the pack rocks towards Henry.
 const FREE_POINTS: int = 7
-const TOP_SLACK: float = 0.02
-const BOTTOM_SLACK: float = 0.05
+const TOP_SLACK: float = -0.01
+const BOTTOM_SLACK: float = -0.01
 ## Off the back: chain points of the whole loop.
 const LIMP_POINTS: int = 26
 ## Verlet: constraint passes, share of velocity kept per step, gravity (m/s^2).
@@ -31,7 +31,7 @@ const TORSO_RADIUS_M: float = 0.15
 const PACK_TOP: Vector3 = Vector3(0.11, 0.36, -0.016)
 const PACK_BOTTOM: Vector3 = Vector3(0.14, 0.05, -0.016)
 
-@export var colour: Color = Color(0.28, 0.19, 0.12)
+@export var colour: Color = Color(0.22, 0.23, 0.25)
 
 var _skeleton: Skeleton3D
 var _pack: PackRig
@@ -203,7 +203,8 @@ func _chain(store: Array, side: int, from: Vector3, to: Vector3, count: int, sla
 		store[side] = chain
 	var points: Array = chain[0]
 	var previous: Array = chain[1]
-	var segment: float = chain[2]
+	## A cinched strap is never longer than the straight line it spans now.
+	var segment: float = minf(chain[2], from.distance_to(to) * (1.0 + minf(slack, 0.0)) / (count - 1)) if slack <= 0.0 else chain[2]
 	for k: int in range(1, count - 1):
 		var p: Vector3 = points[k]
 		var carried: Vector3 = (p - (previous[k] as Vector3)) * DAMPING

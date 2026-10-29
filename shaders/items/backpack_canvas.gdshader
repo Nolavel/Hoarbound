@@ -3,10 +3,24 @@ render_mode cull_disabled;
 // Backpack canvas (#260): the shell takes the shape of what is inside it. Each item is a box proxy
 // in pack space; a vertex inside one (plus the lining) is pushed out along its normal. An emptier
 // pack slumps: the top drops and the walls cave in a little. Back faces show the lining.
+// Look: worn grey canvas with a stitched leather base, paler on rubbed edges, grimier low down,
+// lit in soft bands (NPR) like the rest of the stylised world.
 
 const int MAX_ITEMS = 16;
 
-uniform vec3 canvas_colour : source_color = vec3(0.36, 0.33, 0.22);
+uniform vec3 canvas_colour : source_color = vec3(0.30, 0.32, 0.34);
+// Leather base: up to this height in pack space, its colour, and the stitch line along its top.
+uniform bool leather_on = true;
+uniform float leather_top_m = 0.085;
+uniform vec3 leather_colour : source_color = vec3(0.36, 0.23, 0.14);
+uniform vec3 stitch_colour : source_color = vec3(0.62, 0.56, 0.44);
+// Wear: rubbed edges go paler, the canvas is mottled, the low part grimier.
+uniform float edge_wear = 0.55;
+uniform float mottle = 0.09;
+uniform float grime = 0.18;
+// NPR light: the lit side breaks into this many soft bands.
+uniform float light_bands = 3.0;
+uniform float band_softness = 0.08;
 uniform vec3 lining_colour : source_color = vec3(0.16, 0.16, 0.15);
 uniform float roughness_value = 0.9;
 // Pack-space transform of this mesh (identity for the shell, the hinge pose for the front panel).
@@ -51,6 +65,22 @@ uniform float gap_m = 0.015;
 uniform float side_give_m = 0.0;
 
 varying vec2 v_zip;
+varying vec3 v_pack;
+varying float v_edge;
+
+float hash3(vec3 p) {
+	p = fract(p * 0.3183099 + 0.1);
+	p *= 17.0;
+	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+float noise3(vec3 p) {
+	vec3 i = floor(p);
+	vec3 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(hash3(i), hash3(i + vec3(1, 0, 0)), f.x), mix(hash3(i + vec3(0, 1, 0)), hash3(i + vec3(1, 1, 0)), f.x), f.y),
+		mix(mix(hash3(i + vec3(0, 0, 1)), hash3(i + vec3(1, 0, 1)), f.x), mix(hash3(i + vec3(0, 1, 1)), hash3(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
 
 float box_distance(vec3 p, vec3 c, vec3 h) {
 	vec3 q = abs(p - c) - h;
@@ -60,6 +90,10 @@ float box_distance(vec3 p, vec3 c, vec3 h) {
 void vertex() {
 	vec3 p = (to_pack * vec4(VERTEX, 1.0)).xyz;
 	vec3 n = normalize(mat3(to_pack) * NORMAL);
+	v_pack = p;
+	// On a rounded edge the normal leans between two axes: that is where canvas rubs pale.
+	vec3 an = abs(n);
+	v_edge = smoothstep(0.08, 0.26, 1.0 - max(an.x, max(an.y, an.z)));
 	float push = 0.0;
 	for (int i = 0; i < MAX_ITEMS; i++) {
 		if (i >= item_count) {
@@ -120,10 +154,36 @@ void fragment() {
 			colour = mix(vec3(0.07), lining_colour * 1.25, hole);
 		}
 	}
-	// Weathered canvas: a faint cross weave and darker grime toward the bottom.
+	// Weathered canvas: a faint cross weave, mottling, pale rubbed edges, grime low down.
 	vec2 weave = abs(fract(UV * vec2(160.0, 160.0)) - 0.5);
 	colour *= 0.94 + 0.06 * step(0.25, min(weave.x, weave.y));
+	if (FRONT_FACING) {
+		float blotch = noise3(v_pack * 18.0) * 0.65 + noise3(v_pack * 55.0) * 0.35;
+		colour *= 1.0 + (blotch - 0.5) * 2.0 * mottle;
+		if (leather_on && v_pack.y < leather_top_m) {
+			float hide = noise3(v_pack * 30.0);
+			colour = leather_colour * (0.85 + 0.3 * hide);
+			// A row of stitches just under the seam.
+			float row = 1.0 - smoothstep(0.0015, 0.003, abs(v_pack.y - (leather_top_m - 0.008)));
+			float dash = step(0.5, fract((v_pack.x + v_pack.z) * 120.0));
+			colour = mix(colour, stitch_colour, row * dash);
+		}
+		vec3 rubbed = mix(colour, vec3(dot(colour, vec3(0.333))), 0.35) * 1.35 + 0.03;
+		colour = mix(colour, rubbed, v_edge * edge_wear);
+		colour *= 1.0 - grime * (1.0 - smoothstep(0.03, 0.3, v_pack.y));
+	}
 	ALBEDO = colour;
 	METALLIC = metal * 0.6;
 	ROUGHNESS = mix(roughness_value, 0.45, metal);
+}
+
+void light() {
+	// Soft bands instead of a smooth ramp; shadow is folded in before banding.
+	float lit = clamp(dot(NORMAL, LIGHT), 0.0, 1.0) * ATTENUATION;
+	float stepped = 0.0;
+	for (float b = 1.0; b <= light_bands; b += 1.0) {
+		float edge = (b - 0.5) / light_bands;
+		stepped += smoothstep(edge - band_softness, edge + band_softness, lit) / light_bands;
+	}
+	DIFFUSE_LIGHT += LIGHT_COLOR * stepped / PI;
 }

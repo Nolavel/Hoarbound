@@ -70,6 +70,7 @@ func _run() -> void:
 	Input.action_release(&"sprint")
 	Input.action_release(&"move_forward")
 	await _record(1.6, "STOP: they swing on and settle", &"side")
+	_log_strap_sag()
 	await _record(0.6, "ZIP CLOSED: two sliders meet at the top", &"behind")
 	pack.set_openness(PackRig.Openness.TOP_ONLY)
 	await _record(1.8, "QUICK STOW: sliders part a little, the top folds out", &"behind")
@@ -88,6 +89,23 @@ func _run() -> void:
 	await _record(2.4, "PACK OFF: the straps lie limp", &"pack")
 	print("[packworn] frames ", _frame)
 	quit(0)
+
+
+## How far each free strap run sags off the straight line between its ends, centimetres.
+func _log_strap_sag() -> void:
+	var straps := _player.find_children("PackShoulderStraps", "", true, false)[0] as PackShoulderStraps
+	for run_name: StringName in [&"_top_runs", &"_bottom_runs"]:
+		for chain: Array in straps.get(run_name):
+			if chain.is_empty():
+				continue
+			var points: Array = chain[0]
+			var a: Vector3 = points[0]
+			var b: Vector3 = points[points.size() - 1]
+			var sag: float = 0.0
+			for p: Vector3 in points:
+				var t: float = clampf((p - a).dot(b - a) / maxf((b - a).length_squared(), 0.0001), 0.0, 1.0)
+				sag = maxf(sag, p.distance_to(a.lerp(b, t)))
+			print("[packworn] %s sag %.1f cm over %.1f cm" % [run_name, sag * 100.0, a.distance_to(b) * 100.0])
 
 
 ## Records seconds of frames following Henry: from the side, round him, or close behind the pack.

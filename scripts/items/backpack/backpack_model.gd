@@ -33,8 +33,8 @@ const SLOTS: Dictionary = {
 	&"low_left": [Vector3(-0.09, 0.13, 0.11), Vector3(0.055, 0.11, 0.08)],
 	&"low_mid": [Vector3(0.0, 0.17, 0.11), Vector3(0.04, 0.15, 0.08)],
 	&"low_right": [Vector3(0.095, 0.17, 0.11), Vector3(0.05, 0.15, 0.08)],
-	&"side_left": [Vector3(-POCKET_X, 0.15, 0.11), Vector3(0.035, 0.11, 0.06)],
-	&"side_right": [Vector3(POCKET_X, 0.15, 0.11), Vector3(0.035, 0.11, 0.06)],
+	&"side_left": [Vector3(-POCKET_X - POCKET_SLOT_OUT_M, 0.15, 0.11), Vector3(0.035, 0.11, 0.06)],
+	&"side_right": [Vector3(POCKET_X + POCKET_SLOT_OUT_M, 0.15, 0.11), Vector3(0.035, 0.11, 0.06)],
 }
 ## Which faces of a rounded box to build: every one, all but the front, or the front alone.
 const FACES_ALL: int = 0
@@ -43,9 +43,11 @@ const FACES_FRONT: int = 2
 const FACES_OPEN_TOP: int = 3
 ## Side pockets: open-topped pouches either side, sized for a bottle that stands out of them.
 const POCKET_X: float = 0.205
+## What stands in a pocket sits this far outboard of its middle, clear of the body's wall.
+const POCKET_SLOT_OUT_M: float = 0.01
 const POCKET_HALF: Vector3 = Vector3(0.04, 0.07, 0.065)
-const CANVAS: Color = Color(0.37, 0.33, 0.21)
-const STRAP: Color = Color(0.28, 0.19, 0.12)
+const CANVAS: Color = Color(0.30, 0.32, 0.34)
+const STRAP: Color = Color(0.22, 0.23, 0.25)
 ## Zip: each slider runs from the top centre to a top corner and down its side to the bottom rounding
 ## (ZIP_FULL_M = BODY.x / 2 + BODY.y - ROUND_M), at ZIP_SPEED m/s.
 const ZIP_FULL_M: float = 0.63
@@ -74,7 +76,7 @@ const MUG_HANDLE_GRIP_M: float = 0.012
 const CLIPPED_SWING_HZ: float = 1.3
 const CLIPPED_SWING_DAMPING: float = 0.12
 const CLIPPED_MAX_SWING_DEG: float = 75.0
-const BEDROLL: Color = Color(0.24, 0.27, 0.30)
+const BEDROLL: Color = Color(0.33, 0.27, 0.18)
 
 var _shell_material: ShaderMaterial
 var _panel_material: ShaderMaterial
@@ -89,6 +91,7 @@ var _carabiners: Array[Carabiner] = []
 var _zip: float = 0.0
 var _zip_target: float = 0.0
 var _hung: Array[Node3D] = []
+var _main_count: int = 0
 var _handle: Node3D
 var _items: Array[Dictionary] = []
 var _contents: Node3D
@@ -128,6 +131,7 @@ func build() -> void:
 	_strap_material.set_shader_parameter(&"canvas_colour", STRAP)
 	_strap_material.set_shader_parameter(&"lining_colour", STRAP)
 	_strap_material.set_shader_parameter(&"roughness_value", 0.7)
+	_strap_material.set_shader_parameter(&"leather_on", false)
 	## Shell and panel are one rounded box split at the front: each owns half of the front edge,
 	## so the closed panel meets the shell with no seam.
 	var centre := Vector3(0.0, BODY.y * 0.5, BODY.z * 0.5)
@@ -370,27 +374,39 @@ func _process(delta: float) -> void:
 	_panel_material.set_shader_parameter(&"droop_m", _droop)
 	_panel_material.set_shader_parameter(&"droop_dir", (global_basis.inverse() * Vector3.DOWN).normalized() if is_inside_tree() else Vector3.DOWN)
 	## Only the closed panel holds the contents in; an open one does not bulge.
-	_panel_material.set_shader_parameter(&"item_count", _items.size() if _swing < 0.2 else 0)
+	_panel_material.set_shader_parameter(&"item_count", _main_count if _swing < 0.2 else 0)
 	for material: ShaderMaterial in [_shell_material, _panel_material, _pocket_material, _strap_material]:
 		material.set_shader_parameter(&"fill", _fill)
 
 
+## Item boxes the canvas wraps: what is in the main body shapes the shell, panel and straps;
+## what is in a side pocket shapes only the pockets, never the wall between them.
 func _refresh_proxies() -> void:
-	var centres: Array = []
-	var halves: Array = []
+	var main: Array[AABB] = []
+	var side: Array[AABB] = []
 	for item: Dictionary in _items:
-		var box: AABB = item["box"]
-		centres.append(Vector4(box.get_center().x, box.get_center().y, box.get_center().z, 0.0))
-		halves.append(Vector4(box.size.x * 0.5, box.size.y * 0.5, box.size.z * 0.5, 0.0))
-	while centres.size() < MAX_ITEMS:
-		centres.append(Vector4(0.0, -10.0, 0.0, 0.0))
-		halves.append(Vector4.ZERO)
-	for material: ShaderMaterial in [_shell_material, _panel_material, _pocket_material, _strap_material]:
-		if material == null:
-			continue
-		material.set_shader_parameter(&"item_centre", centres)
-		material.set_shader_parameter(&"item_half", halves)
-		material.set_shader_parameter(&"item_count", _items.size())
+		if String(item["slot"]).begins_with("side_"):
+			side.append(item["box"])
+		else:
+			main.append(item["box"])
+	for entry: Array in [[[_shell_material, _panel_material, _strap_material], main], [[_pocket_material], side]]:
+		var centres: Array = []
+		var halves: Array = []
+		for box: AABB in entry[1]:
+			centres.append(Vector4(box.get_center().x, box.get_center().y, box.get_center().z, 0.0))
+			halves.append(Vector4(box.size.x * 0.5, box.size.y * 0.5, box.size.z * 0.5, 0.0))
+		var count: int = centres.size()
+		if entry[1] == main:
+			_main_count = count
+		while centres.size() < MAX_ITEMS:
+			centres.append(Vector4(0.0, -10.0, 0.0, 0.0))
+			halves.append(Vector4.ZERO)
+		for material: ShaderMaterial in entry[0]:
+			if material == null:
+				continue
+			material.set_shader_parameter(&"item_centre", centres)
+			material.set_shader_parameter(&"item_half", halves)
+			material.set_shader_parameter(&"item_count", count)
 
 
 func _canvas_material(pocket: Vector4) -> ShaderMaterial:

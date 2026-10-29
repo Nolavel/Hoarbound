@@ -62,6 +62,19 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     - Off his back each strap is a limp loop on the snow.
     - `.tscn` stores a basis by rows; anchors written by columns had their normals swapped, which twisted
       the band. Band normals also keep to one side now, so a band never flips.
+  - **Owner review 5:**
+    - The free strap runs on the back are cinched taut (length 1% under the straight line). They no longer
+      dangle.
+    - Side pocket contents no longer push the main wall: pocket items shape only the pockets, and the body
+      shell, panel and straps take only main items. Before, the wall bulged past the flask and left it inside
+      the cavity.
+    - Pocket items sit 1 cm outboard.
+    - Look from the owner's reference, in the NPR 2.5D style: worn grey canvas, a stitched leather base, pale
+      rubbed edges, mottling, grime low down, and banded light. Grey webbing straps.
+    - Tool: `tools/runtime/inspect_backpack.gd` loads the starting contents. It reports item boxes, pocket items
+      reaching into the cavity, main items poking past the canvas give, overlaps, and the handle's gap to the
+      top. It renders front, side and top orthographic views and a three-quarter view, see-through with wire
+      boxes and with the real canvas. The worn capture logs each free strap run's sag.
   - **Hanging:** `PendulumHang` swings anything from a pivot. The carabiner swings in its loop and the mug
     swings on the carabiner's rod: a double pendulum driven by Henry's motion. The carabiners moved onto the
     side pockets.
