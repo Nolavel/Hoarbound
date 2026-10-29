@@ -58,9 +58,10 @@ const SIDE_GIVE_M: float = 0.014
 ## The empty slump in backpack_canvas.gdshader, for parts that ride on the canvas.
 const SLUMP_TOP_M: float = 0.07
 const SLUMP_WALL_M: float = 0.018
-## Strap loop on each side near the top, and where its carabiner hangs from (x is the +X side).
-const LOOP_AT: Vector3 = Vector3(0.182, 0.455, 0.1)
-const CARABINER_AT: Vector3 = Vector3(0.19, 0.44, 0.1)
+## Strap loop on the outer face of each side pocket near its top, and where its carabiner hangs
+## from (x is the +X side; the pocket's outer face is at POCKET_X + POCKET_HALF.x).
+const LOOP_AT: Vector3 = Vector3(0.251, 0.14, 0.11)
+const CARABINER_AT: Vector3 = Vector3(0.262, 0.125, 0.11)
 const ZIP_METAL: Color = Color(0.16, 0.16, 0.17)
 ## Loose contents: their floor inside the main body and the gap they keep from its walls.
 const LOOSE_FLOOR_M: float = 0.02
@@ -528,7 +529,7 @@ func _add_bedroll() -> void:
 func _add_straps() -> void:
 	## Shoulder straps flat down the back, a grab handle at the top of the back, compression
 	## straps down the sides with a buckle each. They wear the canvas shader, so they move with it.
-	for x: float in [-0.085, 0.085]:
+	for x: float in [-0.11, 0.11]:
 		_strap(Vector3(0.055, BODY.y * 0.78, 0.014), Vector3(x, BODY.y * 0.5, -0.009), Vector3.ZERO)
 	## Grab handle: a webbing arch sewn to the top by both ends, so it moves with the canvas.
 	for x: float in [-0.045, 0.045]:
@@ -610,7 +611,7 @@ func _place_sliders(give: float) -> void:
 			_tabs[i].global_basis = Basis(hang.cross(out).normalized() * -1.0, -hang, out).orthonormalized().scaled(scale_kept)
 
 
-## A strap loop high on each side wall with a carabiner hanging from it.
+## A strap loop on each side pocket with a carabiner hanging from it.
 func _add_carabiners() -> void:
 	for side: float in [-1.0, 1.0]:
 		_strap(Vector3(0.012, 0.05, 0.024), Vector3(side * LOOP_AT.x, LOOP_AT.y, LOOP_AT.z), Vector3.ZERO)
