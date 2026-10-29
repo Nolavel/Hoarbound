@@ -6,12 +6,6 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
-### Fixed
-
-- Backpack zipper spammed `det == 0` errors when fully open (owner review). A slider past the
-  seam's end sampled two clamped points, so its tangent was zero and the tab basis degenerate. The
-  seam run is now clamped to its length; 50 errors per 120 frames before, 0 after.
-
 ### Changed
 
 - Quick Access follows what Henry wears (#260, owner).
@@ -505,6 +499,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Dev street spawn (owner request): `World` → Developer tools → **Dev Spawn Street** picks one of ten streets from different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
 
 ### Fixed
+
+- Backpack zipper spammed `det == 0` errors when fully open (owner review). A slider past the
+  seam's end sampled two clamped points, so its tangent was zero and the tab basis degenerate. The
+  seam run is now clamped to its length; 50 errors per 120 frames before, 0 after.
 
 - Wind gusts ran about 100x slower than their profiles say. `WeatherController` samples its gust noise at
   elapsed / `gust_period_s`, but the noise kept FastNoiseLite's default frequency of 0.01. A 5 s gust period
