@@ -62,6 +62,9 @@ const SLUMP_WALL_M: float = 0.018
 const LOOP_AT: Vector3 = Vector3(0.182, 0.455, 0.1)
 const CARABINER_AT: Vector3 = Vector3(0.19, 0.44, 0.1)
 const ZIP_METAL: Color = Color(0.16, 0.16, 0.17)
+## Loose contents: their floor inside the main body and the gap they keep from its walls.
+const LOOSE_FLOOR_M: float = 0.02
+const LOOSE_MARGIN_M: float = 0.03
 const BEDROLL: Color = Color(0.24, 0.27, 0.30)
 
 var _shell_material: ShaderMaterial
@@ -76,6 +79,7 @@ var _tabs: Array[Node3D] = []
 var _carabiners: Array[Carabiner] = []
 var _zip: float = 0.0
 var _zip_target: float = 0.0
+var _hung: Array[Node3D] = []
 var _items: Array[Dictionary] = []
 var _contents: Node3D
 var _open: bool = false
@@ -88,6 +92,8 @@ var _fill_speed: float = 0.0
 var _open_deg: float = 0.0
 ## Fill from the carried weight (0..1) when the pack is worn; below 0 the slotted items decide.
 var load_fill: float = -1.0
+## Render layers given to what is clipped on a carabiner (the worn pack draws in the portrait too).
+var layers_for_contents: int = 1
 
 
 func _ready() -> void:
@@ -214,11 +220,75 @@ func add_item(item_id: StringName, slot: StringName, along: float = 0.0) -> bool
 	return true
 
 
+## Drops item_id loose into the main body: a random spot and pose on the floor or on what is
+## already there, the same for the same items in the same order. False when it is full.
+func add_loose(item_id: StringName) -> bool:
+	if _items.size() >= MAX_ITEMS:
+		return false
+	var visual: Node3D = SurvivalItemVisual.make(item_id)
+	var box: AABB = _local_bounds(visual)
+	if box.size == Vector3.ZERO:
+		visual.free()
+		return false
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(str(item_id)) + _items.size() * 7919
+	## Standing, or lying on its side, at any heading.
+	var basis := Basis(Vector3.UP, rng.randf() * TAU)
+	if rng.randf() < 0.5:
+		basis = basis * Basis(Vector3.FORWARD, PI * 0.5)
+	var placed: AABB = Transform3D(basis, Vector3.ZERO) * box
+	var room := Vector2(BODY.x * 0.5 - LOOSE_MARGIN_M, BODY.z - LOOSE_MARGIN_M)
+	var best := Vector3.ZERO
+	var best_y: float = INF
+	for _try: int in range(12):
+		var x: float = rng.randf_range(-room.x - placed.position.x, room.x - placed.end.x)
+		var z: float = rng.randf_range(LOOSE_MARGIN_M - placed.position.z, room.y - placed.end.z)
+		## It settles on the floor or on top of whatever it lands over.
+		var floor_y: float = LOOSE_FLOOR_M
+		var footprint := AABB(Vector3(x, 0.0, z) + placed.position * Vector3(1, 0, 1), Vector3(placed.size.x, 10.0, placed.size.z))
+		for item: Dictionary in _items:
+			var other: AABB = item["box"]
+			if footprint.intersects(other):
+				floor_y = maxf(floor_y, other.end.y)
+		if floor_y < best_y:
+			best_y = floor_y
+			best = Vector3(x, floor_y - placed.position.y, z)
+	visual.transform = Transform3D(basis, best)
+	_contents.add_child(visual)
+	_items.append({"id": item_id, "slot": &"", "node": visual, "box": Transform3D(basis, best) * box})
+	_refresh_proxies()
+	return true
+
+
+## Clips item_id onto a carabiner (0 left, 1 right) by its top; it swings with the carabiner.
+func hang_item(item_id: StringName, carabiner_index: int) -> bool:
+	var carabiner: Carabiner = get_carabiner(carabiner_index)
+	if carabiner == null:
+		return false
+	var visual: Node3D = SurvivalItemVisual.make(item_id)
+	var box: AABB = _local_bounds(visual)
+	visual.position = Vector3(-box.get_center().x, -box.end.y, -box.get_center().z)
+	carabiner.get_hang_point().add_child(visual)
+	for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
+		if mesh is MeshInstance3D:
+			(mesh as MeshInstance3D).layers = layers_for_contents
+	_hung.append(visual)
+	return true
+
+
 func clear_items() -> void:
 	for item: Dictionary in _items:
 		(item["node"] as Node).queue_free()
 	_items.clear()
+	for visual: Node3D in _hung:
+		visual.queue_free()
+	_hung.clear()
 	_refresh_proxies()
+
+
+## Where the canvas moves a pack-space point p (outward normal n) as it slumps empty.
+func canvas_point(p: Vector3, n: Vector3) -> Vector3:
+	return _on_canvas(p, n, 0.0)
 
 
 ## Share of the main body the contents fill, 0..1 (the target the canvas springs toward).
@@ -448,7 +518,10 @@ func _add_straps() -> void:
 	## straps down the sides with a buckle each. They wear the canvas shader, so they move with it.
 	for x: float in [-0.085, 0.085]:
 		_strap(Vector3(0.055, BODY.y * 0.78, 0.014), Vector3(x, BODY.y * 0.5, -0.009), Vector3.ZERO)
-	_strap(Vector3(0.1, 0.016, 0.022), Vector3(0.0, BODY.y + 0.006, 0.05), Vector3.ZERO)
+	## Grab handle: a webbing arch sewn to the top by both ends, so it moves with the canvas.
+	for x: float in [-0.045, 0.045]:
+		_strap(Vector3(0.006, 0.034, 0.02), Vector3(x, BODY.y + 0.012, 0.035), Vector3(0.0, 0.0, signf(x) * 0.5))
+	_strap(Vector3(0.08, 0.006, 0.02), Vector3(0.0, BODY.y + 0.027, 0.035), Vector3.ZERO)
 	for x: float in [-1.0, 1.0]:
 		_strap(Vector3(0.008, BODY.y * 0.66, 0.026), Vector3(x * (BODY.x * 0.5 + 0.002), BODY.y * 0.52, BODY.z * 0.55), Vector3.ZERO)
 		_strap(Vector3(0.012, 0.03, 0.035), Vector3(x * (BODY.x * 0.5 + 0.006), BODY.y * 0.6, BODY.z * 0.55), Vector3.ZERO)

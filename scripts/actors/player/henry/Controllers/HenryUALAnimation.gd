@@ -130,8 +130,10 @@ const ACTION_ALIASES: Dictionary = {
 @export var backpack_bone: StringName = &"spine_03"
 @export var backpack_size: Vector3 = Vector3(0.34, 0.44, 0.2)
 ## Offset from the bone in model space; the mannequin faces +Z, so back is -Z. The coat's back
-## reaches 0.21 m behind spine_03, so the pack's back face sits just outside it.
-@export var backpack_offset: Vector3 = Vector3(0.0, -0.03, -0.31)
+## runs 0.21 m behind spine_03 at the shoulder blades and 0.135 m at the pack's bottom.
+@export var backpack_offset: Vector3 = Vector3(0.0, -0.03, -0.285)
+## The pack leans its bottom in by this much so its back face follows that line, degrees.
+@export var backpack_lean_deg: float = 12.5
 @export var backpack_color: Color = Color(0.36, 0.33, 0.28)
 ## Outfit meshes from tools/blender/build_henry_outfit.py per equipment mesh name.
 ## Skin_<name> is the body under that garment, hidden while it is worn.
@@ -885,7 +887,7 @@ func _attach_backpack() -> void:
 	pack.color = backpack_color
 	pack.render_layers = portrait_render_layers
 	var rest: Transform3D = skeleton.get_bone_global_rest(bone)
-	pack.transform = rest.affine_inverse() * Transform3D(Basis.IDENTITY, rest.origin + backpack_offset)
+	pack.transform = rest.affine_inverse() * Transform3D(Basis(Vector3.RIGHT, -deg_to_rad(backpack_lean_deg)), rest.origin + backpack_offset)
 	pack.visible = false
 	attachment.add_child(pack)
 	pack.build()

@@ -18,7 +18,7 @@ const BOTTOM_SHARE: float = 0.2
 const FLAP_THICKNESS: float = 0.02
 ## Set down by the stove: in use, not spilled — top and sides lifted a little.
 const AJAR_TOP_DEG: float = 40.0
-const MAX_SWAY_DEG: float = 9.0
+const MAX_SWAY_DEG: float = 2.5
 const AJAR_SIDE_DEG: float = 28.0
 ## The canvas pack's zip for the quick stow and for set down by the stove: how far each slider
 ## runs down its side past the top corner (m), and how far the freed top folds out (degrees).
@@ -35,12 +35,12 @@ const AJAR_PANEL_DEG: float = 24.0
 @export_flags_3d_render var render_layers: int = 1
 ## Draw the canvas backpack (#260) instead of the four-flap tray; the flaps still keep the state.
 @export var use_canvas_model: bool = true
-## The worn pack sways from the top of its straps: spring frequency empty and full (Hz), damping,
-## and degrees of swing per m/s^2 of Henry's acceleration, at most MAX_SWAY_DEG.
-@export var sway_hz_empty: float = 3.2
-@export var sway_hz_full: float = 2.2
-@export_range(0.1, 1.0, 0.05) var sway_damping: float = 0.32
-@export var sway_deg_per_mps2: float = 1.6
+## The worn pack is strapped against the back and only rocks a little as Henry starts and stops:
+## spring frequency empty and full (Hz), damping, and degrees per m/s^2, at most MAX_SWAY_DEG.
+@export var sway_hz_empty: float = 3.6
+@export var sway_hz_full: float = 2.8
+@export_range(0.1, 1.0, 0.05) var sway_damping: float = 0.45
+@export var sway_deg_per_mps2: float = 0.45
 ## Carried weight that fills the pack, kg.
 @export var full_load_kg: float = 14.0
 
@@ -59,6 +59,7 @@ var _last_position: Vector3 = Vector3.ZERO
 var _last_velocity: Vector3 = Vector3.ZERO
 var _has_last: bool = false
 var _inventory: InventoryComponent
+var _equipment: EquipmentComponent
 
 
 func _init() -> void:
@@ -115,6 +116,15 @@ func get_bottom_flap() -> Node3D:
 func get_canvas() -> BackpackModel:
 	build()
 	return _canvas
+
+
+## A point on the canvas (BackpackModel space, outward normal n) in world space, ignoring the
+## sway: where a strap sewn there meets the pack while the pack rocks on its own.
+func get_canvas_point_unswayed(p: Vector3, n: Vector3) -> Vector3:
+	build()
+	if _canvas == null:
+		return global_transform * p
+	return global_transform * Transform3D(Basis(), _sway.position) * _canvas.transform * _canvas.canvas_point(p, n)
 
 
 ## The inner attachment field, where slot visuals live.
@@ -186,13 +196,15 @@ func _build_canvas() -> void:
 					(mesh as MeshInstance3D).visible = false
 	_sway = Node3D.new()
 	_sway.name = "Sway"
-	_sway.position = Vector3(0.0, size.y * 0.5, size.z * 0.5)
+	## It rocks about the middle of its back face, so that face stays against Henry's back.
+	_sway.position = Vector3(0.0, 0.0, size.z * 0.5)
 	add_child(_sway)
 	_canvas = BackpackModel.new()
 	_canvas.name = "Canvas"
 	var fit := Vector3(size.x / BackpackModel.BODY.x, size.y / BackpackModel.BODY.y, size.z / BackpackModel.BODY.z)
 	## Model space: origin at the bottom of the back face, +Z out; here -Z is away from Henry.
-	_canvas.transform = Transform3D(Basis(Vector3.UP, PI).scaled(fit), Vector3(0.0, -size.y, 0.0))
+	_canvas.transform = Transform3D(Basis(Vector3.UP, PI).scaled(fit), Vector3(0.0, -size.y * 0.5, 0.0))
+	_canvas.layers_for_contents = render_layers
 	_sway.add_child(_canvas)
 	_canvas.build()
 	for mesh: Node in _canvas.find_children("*", "MeshInstance3D", true, false):
@@ -211,6 +223,11 @@ func _process(delta: float) -> void:
 		_inventory = InventoryComponent.find_in(walk) if walk != null else null
 	if _inventory != null:
 		_canvas.load_fill = clampf(_inventory.get_total_weight() / full_load_kg, 0.0, 1.0)
+	if _equipment == null and walk_owner() != null:
+		_equipment = walk_owner().get_node_or_null(^"EquipmentComponent") as EquipmentComponent
+		if _equipment != null:
+			_equipment.slot_changed.connect(_on_slot_changed)
+			_refresh_contents()
 	var at: Vector3 = get_parent_node_3d().global_position if get_parent_node_3d() != null else global_position
 	if not _has_last:
 		_last_position = at
@@ -230,6 +247,42 @@ func _process(delta: float) -> void:
 	_sway_speed += (target - _sway_angle) * omega * omega * delta - _sway_speed * 2.0 * sway_damping * omega * delta
 	_sway_angle += _sway_speed * delta
 	_sway.rotation = Vector3(_sway_angle.x, 0.0, _sway_angle.y)
+
+
+## The CharacterBody3D wearing this pack, or null.
+func walk_owner() -> Node:
+	var walk: Node = get_parent()
+	while walk != null and not (walk is CharacterBody3D):
+		walk = walk.get_parent()
+	return walk
+
+
+func _on_slot_changed(slot_path: StringName, _item_id: StringName) -> void:
+	if String(slot_path).begins_with("pack/"):
+		_refresh_contents()
+
+
+## Shows what the pack's pockets hold: side pockets in the side pouches, the carabiner's item
+## clipped on, everything else loose in the main body.
+func _refresh_contents() -> void:
+	if _canvas == null or _equipment == null:
+		return
+	_canvas.clear_items()
+	for entry: Dictionary in _equipment.get_available_pockets():
+		var held: StringName = entry["item_id"]
+		if entry["body_slot"] != &"pack" or held == &"":
+			continue
+		match entry["pocket"]:
+			&"pack_side_left":
+				_canvas.add_item(held, &"side_left")
+			&"pack_side_right":
+				_canvas.add_item(held, &"side_right")
+			&"pack_carabiner":
+				_canvas.hang_item(held, 1)
+			_:
+				_canvas.add_loose(held)
+	for mesh: Node in _canvas.find_children("*", "MeshInstance3D", true, false):
+		(mesh as MeshInstance3D).layers = render_layers
 
 
 ## A lighter board behind the flaps with a grid of strap loops.

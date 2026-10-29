@@ -39,6 +39,17 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - **Fit:** the pack's back face was 10 cm inside the coat (measured coat back 0.21 m behind spine_03), so the coat
     showed inside the open pack. `backpack_offset` moved to (0, -0.03, -0.31). The inner shelf no longer pokes
     through the panel.
+  - **Owner review 2:**
+    - The pack now leans 12.5° along the coat's measured back line and rocks at most 2.5°, about the middle
+      of its back. It only rocks as Henry starts and stops.
+    - The shoulder straps come from points measured on the jacket mesh and ride the chest bone, so they no
+      longer swing with the pack. Each lies flat on its coat normal, with no twist. Their pack ends are sewn
+      to the top of the back pad and to the bottom corners.
+    - The grab handle is an arch sewn to the top.
+    - The zip edge stays ajar 1.5 cm wherever the sliders have not yet closed it.
+  - **Contents:** the pack has new pockets: a second main compartment, two side pockets and a carabiner. Henry
+    starts with a SPoV can and tinned stew lying loose inside, a flask in the left side pocket and the mug on the
+    right carabiner. `PackRig` mirrors the pack's pockets into the canvas whenever they change.
   - Capture: `tools/runtime/capture_backpack_worn.gd`.
 - Snow that sticks and melts (#257, stage 4).
   - **Splats:** a snowball bursts into a puff and leaves a `SnowSplat` decal on what it hits. In the cold the

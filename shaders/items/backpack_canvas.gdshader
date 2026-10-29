@@ -45,6 +45,8 @@ uniform float bend_z = 0.2;
 uniform float bend_angle = 0.0;
 uniform float mouth_m = 0.0;
 uniform float top_y = 0.52;
+// Panel only: where the zip is still open its edge stands off the shell this far, closed folded or not.
+uniform float gap_m = 0.015;
 // Shell only: the walls next to the open part of the seam give outward this far.
 uniform float side_give_m = 0.0;
 
@@ -72,13 +74,18 @@ void vertex() {
 	vec3 slump = vec3(0.0, -slump_top_m * high, 0.0) - n * slump_wall_m * smoothstep(0.1, 0.4, p.y / pack_height_m);
 	vec3 shaped = n * push + slump * empty;
 	v_zip = UV2;
-	if (zipper_on && !is_panel) {
-		float open_part = smoothstep(zip_s + 0.01, zip_s - 0.05, UV2.y);
-		shaped += n * side_give_m * open_part * (1.0 - smoothstep(0.0, 0.09, UV2.x));
+	if (zipper_on) {
+		// Open behind the sliders only: the run from the top centre they have already passed.
+		float open_part = smoothstep(zip_s, zip_s - 0.04, UV2.y);
+		if (is_panel) {
+			shaped += n * gap_m * open_part * (1.0 - smoothstep(0.0, 0.06, UV2.x));
+		} else {
+			shaped += n * side_give_m * open_part * (1.0 - smoothstep(0.0, 0.09, UV2.x));
+		}
 	}
 	VERTEX += mat3(inverse(to_pack)) * shaped;
 	if (is_panel) {
-		float mouth = mouth_m * smoothstep(top_y - 0.1, top_y, VERTEX.y) * smoothstep(zip_s + 0.01, zip_s - 0.04, UV2.y);
+		float mouth = mouth_m * smoothstep(top_y - 0.1, top_y, VERTEX.y) * smoothstep(zip_s, zip_s - 0.04, UV2.y);
 		VERTEX += vec3(0.0, -0.3, 1.0) * mouth;
 		// Fold out round the bend line; a short ramp makes the crease cloth, not a hinge.
 		float rel_y = VERTEX.y - bend_y;

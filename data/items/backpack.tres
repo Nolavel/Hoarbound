@@ -20,12 +20,44 @@ max_size = 0
 accepts_non_garment = true
 excluded_from_auto_stow = false
 
+[sub_resource type="Resource" id="P_pack_main_2"]
+script = ExtResource("slot")
+id = &"pack_main_2"
+display_name = "Main compartment"
+max_size = 2
+accepts_non_garment = true
+excluded_from_auto_stow = false
+
+[sub_resource type="Resource" id="P_pack_side_left"]
+script = ExtResource("slot")
+id = &"pack_side_left"
+display_name = "Left side pocket"
+max_size = 0
+accepts_non_garment = true
+excluded_from_auto_stow = false
+
+[sub_resource type="Resource" id="P_pack_side_right"]
+script = ExtResource("slot")
+id = &"pack_side_right"
+display_name = "Right side pocket"
+max_size = 0
+accepts_non_garment = true
+excluded_from_auto_stow = false
+
+[sub_resource type="Resource" id="P_pack_carabiner"]
+script = ExtResource("slot")
+id = &"pack_carabiner"
+display_name = "Carabiner"
+max_size = 0
+accepts_non_garment = true
+excluded_from_auto_stow = true
+
 [sub_resource type="Resource" id="G_backpack"]
 script = ExtResource("garment")
 body_slot_id = &"pack"
 body_region = &""
 layer = 2
-pockets = [SubResource("P_pack_main"), SubResource("P_pack_lid")]
+pockets = [SubResource("P_pack_main"), SubResource("P_pack_main_2"), SubResource("P_pack_lid"), SubResource("P_pack_side_left"), SubResource("P_pack_side_right"), SubResource("P_pack_carabiner")]
 insulation_c = 0.3
 base_insulation_c = 0.0
 windproof = 0.0
