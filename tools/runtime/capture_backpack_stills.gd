@@ -6,6 +6,7 @@ extends SceneTree
 ## `pocket`: three close views of the left side pocket and what it holds, in place of the eight sides
 ## (`right` as well: of the right pocket instead).
 ## `back`: one view from straight behind, 1.4 m out, the whole pack and both sides in frame.
+## `quick`: Quick Access open over Henry with his pack on, from behind-right at 2.6 m and 1.3 m.
 ## `insert`: the thermos taken out and pushed back in, every frame for 1 s from behind-left, then `pocket`.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
@@ -63,6 +64,25 @@ func _run() -> void:
 	var to_player: Basis = _player.global_basis.inverse()
 	print("[packstills] canvas up in Henry's frame ", (to_player * canvas.global_basis.y).normalized(), " sway deg ", (pack.get(&"_sway") as Node3D).rotation_degrees)
 
+	if OS.get_cmdline_user_args().has("quick"):
+		for layer: Node in root.find_children("*", "CanvasLayer", true, false):
+			(layer as CanvasLayer).visible = true
+		var ui := _player.find_child("QuickAccess", true, false) as QuickAccessUI
+		var facing: Vector3 = -_player.global_basis.z
+		facing.y = 0.0
+		facing = facing.normalized()
+		for distance: float in [2.6, 1.3]:
+			var view: Vector3 = (-facing + facing.cross(Vector3.UP) * 0.7).normalized()
+			_camera.look_at_from_position(_player.global_position + view * distance + Vector3.UP * 0.6, _player.global_position + Vector3.UP * 0.4)
+			ui.cancel()
+			await _frames(8)
+			ui.show_quick_access()
+			await _frames(20)
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join("quick_%.1f.png" % distance))
+		print("[packstills] done")
+		quit(0)
+		return
 	if OS.get_cmdline_user_args().has("back"):
 		var behind: Vector3 = _player.global_basis.z
 		behind.y = 0.0

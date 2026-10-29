@@ -5,6 +5,9 @@ extends Node3D
 ## acceleration, on a damped spring kept in world space, so it lags when its parent turns or swings.
 ## Origin: the pivot; the hanging thing lies down -Y from it.
 
+## It struck what it touches: the swing's rate into it, rad/s (a fresh touch or a hard re-strike).
+signal knocked(rate: float)
+
 ## Longest step the spring takes in one frame, seconds: a hitch's long frame would blow it up.
 const MAX_SPRING_STEP_S: float = 0.05
 ## Contact: points closer than this to the obstacle join the search; free, the most it tilts in a
@@ -18,6 +21,10 @@ const CONTACT_STEP: float = 0.087
 const CONTACT_MARGIN: float = 0.003
 ## Friction while touching: share of the swing's rate kept each frame in contact.
 const CONTACT_FRICTION: float = 0.5
+## A strike faster than this into what it touches is a knock, rad/s; while it rests on something,
+## only one this many times harder counts again.
+const KNOCK_MIN_RATE: float = 0.6
+const KNOCK_RESTRIKE: float = 2.5
 const HINGE_REACH: float = 1.4
 
 ## Pendulum spring: frequency (Hz) and damping (under 1 overshoots), and the widest swing from
@@ -44,6 +51,7 @@ var _dir_speed: Vector3 = Vector3.ZERO
 var _last_position: Vector3 = Vector3.ZERO
 var _last_velocity: Vector3 = Vector3.ZERO
 var _has_last: bool = false
+var _touching: bool = false
 
 
 func _process(delta: float) -> void:
@@ -114,6 +122,7 @@ func _resolve_contact(to_parent: Basis) -> void:
 		if hit.w > start.w:
 			start = hit
 	if start.w <= 0.0:
+		_touching = false
 		return
 	var axis: Vector3
 	var angle: float = 0.0
@@ -131,6 +140,10 @@ func _resolve_contact(to_parent: Basis) -> void:
 	var before: Vector3 = _dir
 	_dir = _dir.rotated(axis, angle).normalized()
 	var out: Vector3 = (_dir - before).normalized()
+	var into: float = maxf(-_dir_speed.dot(out), 0.0)
+	if into > KNOCK_MIN_RATE * (KNOCK_RESTRIKE if _touching else 1.0):
+		knocked.emit(into)
+	_touching = true
 	if _dir_speed.dot(out) < 0.0:
 		_dir_speed -= out * _dir_speed.dot(out)
 	_dir_speed *= CONTACT_FRICTION

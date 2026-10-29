@@ -25,7 +25,6 @@ const STOW_DROP_TIME: float = 0.32
 ## Where inspection stands the pack and Kenny, in Henry's space (he faces -Z).
 const INSPECT_PACK_SPOT: Vector3 = Vector3(0.0, -0.9, -0.75)
 const INSPECT_KENNY_SPOT: Vector3 = Vector3(0.7, -0.9, -0.3)
-const EXCLUDED_ZONES: Array[StringName] = [&"pack/pack_main"]
 ## route_destination's answer when the item stays in the pack.
 const PACK_DESTINATION: StringName = &"pack"
 
@@ -184,9 +183,9 @@ func get_quick_access_zones() -> Array[Dictionary]:
 		return out
 	for pocket: Dictionary in equipment.get_available_pockets():
 		var path: StringName = equipment.pocket_path(pocket["body_slot"], pocket["pocket"])
-		if EXCLUDED_ZONES.has(path):
-			continue
 		var definition: EquipmentSlotDefinition = pocket["definition"]
+		if not definition.quick_access:
+			continue
 		out.append({"path": path, "name": definition.display_name,
 			"max_size": definition.max_size, "item_id": pocket["item_id"]})
 	return out
@@ -197,7 +196,7 @@ func can_place(item_id: StringName, zone_path: StringName) -> EquipmentComponent
 	if equipment == null or inventory == null or not inventory.has_item(item_id):
 		return EquipmentComponent.Refusal.UNKNOWN_ITEM
 	var parts: PackedStringArray = String(zone_path).split(EquipmentComponent.POCKET_SEPARATOR)
-	if parts.size() != 2 or EXCLUDED_ZONES.has(zone_path):
+	if parts.size() != 2 or not _is_quick_zone(zone_path):
 		return EquipmentComponent.Refusal.NO_SUCH_SLOT
 	return equipment.can_stow(StringName(parts[0]), StringName(parts[1]), item_id)
 
@@ -489,3 +488,11 @@ func _show_panel() -> void:
 	_panel = PlayerHubPanel.new()
 	_panel.hub = self
 	add_child(_panel)
+
+
+## Whether a worn pocket is reached without opening anything (see EquipmentSlotDefinition).
+func _is_quick_zone(zone_path: StringName) -> bool:
+	for zone: Dictionary in get_quick_access_zones():
+		if zone["path"] == zone_path:
+			return true
+	return false

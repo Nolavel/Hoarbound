@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="SoundEvent" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://core/audio/sound_event.gd" id="1_event"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/backpack/mug_knock_01.wav" id="2_knock"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/backpack/mug_knock_02.wav" id="3_knock"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/backpack/mug_knock_03.wav" id="4_knock"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/backpack/mug_knock_04.wav" id="5_knock"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/backpack/mug_knock_05.wav" id="6_knock"]
+
+[resource]
+script = ExtResource("1_event")
+streams = Array[AudioStream]([ExtResource("2_knock"), ExtResource("3_knock"), ExtResource("4_knock"), ExtResource("5_knock"), ExtResource("6_knock")])
+pick = 0
+bus = &"SFX"
+volume_db = -10.0
+volume_jitter_db = 2.0
+pitch = 1.0
+pitch_jitter = 0.06
+spatial = true
+unit_size = 2.0
+max_distance_m = 15.0
+max_instances = 3
+cooldown_s = 0.09

@@ -11,6 +11,7 @@ display_name = "Main compartment"
 max_size = 2
 accepts_non_garment = true
 excluded_from_auto_stow = false
+quick_access = false
 
 [sub_resource type="Resource" id="P_pack_lid"]
 script = ExtResource("slot")
@@ -27,6 +28,7 @@ display_name = "Main compartment"
 max_size = 2
 accepts_non_garment = true
 excluded_from_auto_stow = false
+quick_access = false
 
 [sub_resource type="Resource" id="P_pack_side_left"]
 script = ExtResource("slot")

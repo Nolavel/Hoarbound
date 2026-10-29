@@ -3,7 +3,8 @@
 The one place that says where every part of Henry's backpack is, why it is there, and which check
 keeps it there. **Change a value here and in code together, run the stand, and only then render.**
 
-Stand: `godot --headless --fixed-fps 30 --script tests/systems/test_backpack_rig.gd` (seconds, no render).
+Stand: `godot --headless --fixed-fps 30 --script tests/systems/test_backpack_rig.gd` (seconds, no render);
+its `## ci-args:` line makes `tools/ci/run_tests.sh` pass the same flag.
 Without `--fixed-fps 30` headless frames are not 1/30 s, and the swing rules read nonsense.
 Inspector: `tools/runtime/inspect_backpack.gd -- <dir>` (pictures plus a fault report, on demand).
 Worn video: `tools/runtime/capture_backpack_worn.gd -- <dir>` (slow, only when asked).
@@ -116,6 +117,7 @@ parent space turned rigidly with its parent, so the mug never swung on the carab
 | R8 | a 1 s hitch leaves every spring finite and the pack upright | finite / up.y > 0.95 |
 | R12 | the empty pocket's seam on the body; its outer layer no further off the body than the fold | 1 mm / fold + 0.5 mm |
 | R13 | the axe and hammer: each head 0–3 mm above the rim and seated; each sleeve hugs its handle and is never inside it; both clear the pack (unslumped wall) and each other; the divider spans the body to the outer cloth | 3 mm / 0.5 mm / 0 / 0.5 mm / 0 / 6 mm |
+| R14 | the mug knocks on the tools while Henry moves, and not once in the last half second at rest | > 0 / 0 |
 | R10 | the thermos stands on the pocket floor; the pocket cloth hugs its cylinder (radius + lining) and is never inside it | 1 mm / 0.5 mm / 0 |
 | R11 | taken out and stowed again: it starts above the rim with the pocket empty; the hem opens ≥ 5 mm past it before it seats; friction drags the hem; cloth under its bottom stays the empty pouch; nothing pokes through on any frame; then the hem closes and R10 holds | 2 mm / 5 mm / 2 mm / 0.5 mm / 0 / 0.5 mm |
 | R9 | starts, stops, a sidestep and an eased 90° turn: both carabiners swing fore-aft and sideways, the mug swings on its rod; none reaches its stop; each swings under 3° in the last half second (it may rest against the pack or a tool); the mug is never deeper than the contact margin in the pack or the tools on any frame | ≥ 6° / stop − 1° / 3° / 3 mm |
@@ -123,10 +125,19 @@ parent space turned rigidly with its parent, so the mug never swung on the carab
 The inspector adds: item overlaps, main items poking past the canvas give, and pocket cloth
 left inside its item (mirroring the shader's wrap).
 
-## Pending (owner, 2026-10-29)
+## Quick Access while the pack is worn (`PlayerHubComponent`, `QuickAccessUI`)
 
-- Quick Access: while the pack is worn, what sits outside it (both side pockets, the right
-  pocket's two sleeves, the carabiners) becomes quick-access slots alongside the coat's and
-  trousers' pockets. Quick Access must read what Henry is wearing and show slots accordingly; the
-  UI change is to come.
-- A dull knock sound when the mug strikes the tool handles.
+| Part | Value | Rule |
+|---|---|---|
+| Which pockets | every worn pocket whose `EquipmentSlotDefinition.quick_access` is true; the pack's compartments (`pack_main`, `pack_main_2`) are false, Hub only | outside the pack: side pocket, both sleeves, carabiner, lid |
+| Cards | the four body cards (coat L/R, lid, thigh; keys 1-4) plus one per outside-pack pocket (`PACK_ORDER`), built from the coat card; shown only while that pocket exists, so they go when the pack comes off | wheel reaches all |
+| Anchors | `BackpackModel.get_quick_anchor(pocket_id)`: markers on the side pocket and the sleeves' rim, the right carabiner itself | follow the pack |
+| Spread | the outside-pack cards stand in one column (PACK_ORDER, a card plus two gaps apart) outside the body cards on the pack's side, else the other side, else between HANDS and them | never overlap |
+| Cross | they take the diagonals round HANDS: side pocket upper left, front sleeve upper right, back sleeve lower right, carabiner lower left | never overlap |
+
+## Mug knock (`PendulumHang.knocked`, `data/audio/backpack/mug_knock.tres`)
+
+| Part | Value | Rule |
+|---|---|---|
+| When | contact starts with the swing's rate into the obstacle above 0.6 rad/s, or 2.5 times that while it already rests on it | not every touching frame |
+| Sound | five synthesised variants (`tools/audio/generate_mug_knock.py`, modal synthesis: soft 0.4-0.7 ms contact, damped handle/body/enamel modes; spectral centroid ~500-640 Hz, ~150 ms) through `SoundSystem` at the mug, -14 dB to 0 dB by strike rate up to 4 rad/s, cooldown 0.09 s | dull, not a clink |

@@ -54,6 +54,12 @@ const SLEEVE_SLOTS: Array[StringName] = [&"side_left", &"side_right_front", &"si
 const SLEEVE_POCKET: Array[int] = [0, 1, 1]
 const SLEEVE_SPLIT_Z: float = 0.11
 const DIVIDER_COLOUR: Color = Color(0.05, 0.05, 0.06)
+## The clipped mug's dull knock on the tool handles or the pack, and the strike rate (rad/s) that
+## plays it at full loudness; softer strikes are quieter, down to KNOCK_QUIET_DB.
+const KNOCK_EVENT: SoundEvent = preload("res://data/audio/backpack/mug_knock.tres")
+const KNOCK_FULL_RATE: float = 4.0
+const KNOCK_QUIET_DB: float = -14.0
+const SOUND_SYSTEM_SCRIPT: GDScript = preload("res://core/audio/sound_system.gd")
 ## Side pockets: open-topped pouches either side, sized for a bottle that stands out of them.
 const POCKET_X: float = 0.205
 ## What stands in a pocket sits this far outboard of its middle, clear of the body's wall.
@@ -153,6 +159,7 @@ var _hem_open_speed: Array[float] = [0.0, 0.0, 0.0]
 var _hem_drag: Array[float] = [0.0, 0.0, 0.0]
 var _hem_drag_speed: Array[float] = [0.0, 0.0, 0.0]
 var _divider: MeshInstance3D
+var _quick_anchors: Dictionary = {}
 ## What a clipped item rests against, set each frame: world to pack and back (basis), each side
 ## pocket's outer cloth |x|.
 var _to_pack: Transform3D = Transform3D.IDENTITY
@@ -172,6 +179,8 @@ var _fill_speed: float = 0.0
 var _open_deg: float = 0.0
 ## Fill from the carried weight (0..1) when the pack is worn; below 0 the slotted items decide.
 var load_fill: float = -1.0
+## Knocks the clipped item has made (the stand counts them).
+var knock_count: int = 0
 ## Render layers given to what is clipped on a carabiner (the worn pack draws in the portrait too).
 var layers_for_contents: int = 1
 
@@ -242,6 +251,16 @@ func build() -> void:
 		pocket.material_override = _pocket_materials[0 if side < 0.0 else 1]
 		add_child(pocket)
 	_pocket_materials[1].set_shader_parameter(&"sleeve_split_z", SLEEVE_SPLIT_Z)
+	## Where Quick Access pins the cards of what sits outside the pack (pack-space points).
+	var anchors: Dictionary = {&"pack_side_left": Vector3(-(POCKET_X + POCKET_HALF.x), POCKET_CENTRE_Y, BODY.z * 0.5),
+		&"pack_side_right_front": Vector3(POCKET_X + POCKET_HALF.x, POCKET_RIM_Y, 0.1425),
+		&"pack_side_right_back": Vector3(POCKET_X + POCKET_HALF.x, POCKET_RIM_Y, 0.0775)}
+	for pocket_id: StringName in anchors:
+		var marker := Marker3D.new()
+		marker.name = "QuickAnchor_%s" % pocket_id
+		marker.position = anchors[pocket_id]
+		add_child(marker)
+		_quick_anchors[pocket_id] = marker
 	_divider = MeshInstance3D.new()
 	_divider.name = "SleeveDivider"
 	_divider.mesh = ImmediateMesh.new()
@@ -296,6 +315,14 @@ func get_fold_degrees() -> float:
 
 
 ## The carabiner on the left (0) or right (1) side, for things clipped on later.
+## Where Quick Access pins the card of pack pocket `pocket_id` that sits outside the pack (the side
+## pockets and sleeves, and the right carabiner the mug clips on); null for the rest.
+func get_quick_anchor(pocket_id: StringName) -> Node3D:
+	if pocket_id == &"pack_carabiner":
+		return get_carabiner(1)
+	return _quick_anchors.get(pocket_id) as Node3D
+
+
 func get_carabiner(index: int) -> Carabiner:
 	build()
 	return _carabiners[index] if index >= 0 and index < _carabiners.size() else null
@@ -438,6 +465,7 @@ func hang_item(item_id: StringName, carabiner_index: int) -> bool:
 	swing.contact_points = _contact_points(visual)
 	swing.contact_depth = _pack_contact
 	if String(item_id).contains("mug"):
+		swing.knocked.connect(_on_clipped_knock.bind(swing))
 		swing.hinge_axis = Vector3.RIGHT  # the rod, along the carabiner body's X
 		swing.max_swing_deg = 90.0  # on the rod it turns until it meets the pack or the tools
 	carabiner.get_hang_point().add_child(swing)
@@ -1071,6 +1099,14 @@ func _plain(colour: Color) -> StandardMaterial3D:
 	material.albedo_color = colour
 	material.roughness = 0.85
 	return material
+
+
+## The clipped item struck something: a dull knock where it hangs, louder for a faster strike.
+func _on_clipped_knock(rate: float, swing: PendulumHang) -> void:
+	knock_count += 1
+	var sound := get_node_or_null(^"/root/SoundSystem") as SOUND_SYSTEM_SCRIPT
+	if sound != null and is_inside_tree():
+		sound.play(KNOCK_EVENT, swing.global_position, lerpf(KNOCK_QUIET_DB, 0.0, clampf(rate / KNOCK_FULL_RATE, 0.0, 1.0)))
 
 
 ## How deep world point `at` is inside the pack: the signed distance to its body (a box rounded

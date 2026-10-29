@@ -8,6 +8,24 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Quick Access follows what Henry wears (#260, owner).
+  - **Which pockets:** pockets now carry a `quick_access` flag. The pack's two compartments are
+    Hub-only, so it replaces the hard-coded `pack/pack_main` exclusion.
+  - **Outside the pack:** while the pack is worn, what sits outside it gets its own cards: the side
+    pocket, the two tool sleeves and the carabiner. They are pinned to the pack's own anchors
+    (`BackpackModel.get_quick_anchor`) and go when the pack comes off.
+  - **Layout:** in the spread they stand as one column beside the body cards; in the cross they
+    take the diagonals. The layout test now checks them for overlaps too, and `test_quick_access`
+    checks the rule.
+- The mug clipped on the pack knocks, dully, on the tool handles (#260).
+  - **Sound:** freesound's CDN is unreachable from the build session, so it is synthesised:
+    `tools/audio/generate_mug_knock.py`, modal synthesis after van den Doel & Pai, five variants.
+  - **Playback:** `PendulumHang` emits `knocked` on a fresh strike. The pack plays it through
+    `SoundSystem`, louder for a faster strike. Stand rule R14.
+- Pack sway now never rocks past its 2.5° cap; before, a spring overshoot on a jolt (frame-time
+  jitter) carried it to 4.3°.
+- `tools/ci/run_tests.sh` reads a suite's `## ci-args:` line. The backpack stand asks for
+  `--fixed-fps 30`, so CI runs it at game speed as it is run locally.
 - Right side pocket split into two bottomless sleeves holding a Build-Rite hatchet and claw hammer
   (#260, owner refs).
   - **Tools:** built in Blender by `tools/blender/build_hand_tools.py` (`assets/items/axe/Axe.glb`,

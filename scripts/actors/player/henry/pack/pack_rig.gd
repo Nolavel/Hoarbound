@@ -263,6 +263,10 @@ func _process(delta: float) -> void:
 	if not _sway_angle.is_finite():
 		_sway_angle = Vector2.ZERO
 		_sway_speed = Vector2.ZERO
+	## The spring overshoots its target on a jolt; the pack itself never rocks past the cap.
+	if _sway_angle.length() > deg_to_rad(MAX_SWAY_DEG):
+		_sway_angle = _sway_angle.limit_length(deg_to_rad(MAX_SWAY_DEG))
+		_sway_speed = Vector2.ZERO
 	_sway.rotation = Vector3(_sway_angle.x, 0.0, _sway_angle.y)
 
 

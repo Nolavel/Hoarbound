@@ -39,3 +39,7 @@ extends Resource
 ## Skipped by stow_anywhere(). Kenny's fixture carries this: what rides there
 ## is a decision Henry makes, never a place the game drops spare weight.
 @export var excluded_from_auto_stow: bool = false
+
+## A pocket Henry reaches without opening anything: shown in Quick Access while its garment is worn.
+## Inside a pack (its compartments) is reached through the Hub only.
+@export var quick_access: bool = true

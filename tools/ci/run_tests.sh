@@ -6,6 +6,8 @@
 ## tools/ci/known_failing_suites.txt lists suites that are known to fail, one per
 ## line with its reason after a '#'. They are reported, not counted; one that
 ## passes fails the run, so the list never goes stale.
+## A suite may ask for engine arguments on a line "## ci-args: <args>" (e.g. --fixed-fps 30 for one
+## whose springs and scripted moves assume game-speed frames).
 set -uo pipefail
 
 GODOT_BIN="${GODOT_BIN:-$HOME/.local/bin/godot}"
@@ -22,7 +24,8 @@ for suite in "$PROJECT_DIR"/tests/systems/test_*.gd; do
 	name="$(basename "$suite")"
 	echo "== $name"
 	log="$(mktemp)"
-	timeout "${SUITE_TIMEOUT:-180}" "$GODOT_BIN" --headless --path "$PROJECT_DIR" --audio-driver Dummy \
+	read -r -a extra <<< "$(sed -n 's/^## ci-args:[[:space:]]*//p' "$suite" | head -n 1)"
+	timeout "${SUITE_TIMEOUT:-180}" "$GODOT_BIN" --headless --path "$PROJECT_DIR" --audio-driver Dummy "${extra[@]}" \
 		--script "res://tests/systems/$name" 2>&1 | tee "$log"
 	code=${PIPESTATUS[0]}
 	failed=0

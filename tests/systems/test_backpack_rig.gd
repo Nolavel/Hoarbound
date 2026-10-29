@@ -1,9 +1,10 @@
+## ci-args: --fixed-fps 30
 extends SceneTree
 
 ## Backpack rig stand (#260): every rule in docs/technical/BACKPACK_RIG.md checked in numbers on
 ## Henry with his starting pack, standing and walking. Run before any backpack change is committed;
-## renders only after it passes. Run at the game's fixed step (springs and moves assume 30 fps):
-## godot --headless --fixed-fps 30 --script tests/systems/test_backpack_rig.gd
+## renders only after it passes. Run at the game's fixed step (springs and moves assume 30 fps; the
+## ci-args line makes tools/ci/run_tests.sh do the same): godot --headless --fixed-fps 30 --script <this>
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
 ## Limits, metres unless named.
@@ -404,6 +405,8 @@ func _check_swing() -> void:
 	for hanger: PendulumHang in hangers:
 		last.append(-hanger.global_basis.y.normalized())
 	var worst_sink: float = -INF
+	var knocks_before: int = _pack.knock_count
+	var knocks_at_rest: int = 0
 	peak.resize(hangers.size())
 	peak.fill(Vector2.ZERO)
 	for frame: int in range(170):
@@ -424,10 +427,14 @@ func _check_swing() -> void:
 			if frame == 170 - 15:
 				last[i] = now
 				rest[i] = 0.0
+				if i == 0:
+					knocks_at_rest = _pack.knock_count
 			elif frame > 170 - 15:
 				rest[i] = maxf(rest[i], rad_to_deg(now.angle_to(last[i])))
 		for visual: Node3D in _pack.get(&"_hung"):
 			worst_sink = maxf(worst_sink, _mug_sink(visual))
+	_report("R14 the mug knocks on the tools while Henry moves, not at rest", "%d knocks moving, %d in the last half second" % [knocks_at_rest - knocks_before, _pack.knock_count - knocks_at_rest],
+		knocks_at_rest - knocks_before > 0 and _pack.knock_count == knocks_at_rest)
 	_report("R9 clipped item never sinks into the pack or the tools", "deepest %.1f mm (contact margin %.0f mm: its points are a 1 cm sample)" % [worst_sink * 1000.0, PendulumHang.CONTACT_MARGIN * 1000.0],
 		worst_sink <= PendulumHang.CONTACT_MARGIN)
 	for i: int in range(hangers.size()):
