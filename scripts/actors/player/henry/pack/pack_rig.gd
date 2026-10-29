@@ -118,6 +118,14 @@ func get_canvas() -> BackpackModel:
 	return _canvas
 
 
+## A point on the canvas (BackpackModel space, outward normal n) in world space, as it sways.
+func get_canvas_point(p: Vector3, n: Vector3) -> Vector3:
+	build()
+	if _canvas == null:
+		return global_transform * p
+	return _canvas.global_transform * _canvas.canvas_point(p, n)
+
+
 ## A point on the canvas (BackpackModel space, outward normal n) in world space, ignoring the
 ## sway: where a strap sewn there meets the pack while the pack rocks on its own.
 func get_canvas_point_unswayed(p: Vector3, n: Vector3) -> Vector3:

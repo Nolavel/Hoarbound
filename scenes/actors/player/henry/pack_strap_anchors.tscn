@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[node name="PackStrapAnchors" type="Node3D"]
+
+[node name="UpperBack" type="Marker3D" parent="."]
+transform = Transform3D(0.00000, -0.92848, -0.37139, 0.09245, 0.36980, -0.92450, 0.99572, -0.03434, 0.08584, 0.15, 1.485, -0.175)
+metadata/bone = &"clavicle_l"
+
+[node name="Shoulder" type="Marker3D" parent="."]
+transform = Transform3D(0.94386, -0.33035, 0.00000, 0.33035, 0.94386, 0.00000, -0.00000, 0.00000, 1.00000, 0.185, 1.51, -0.025)
+metadata/bone = &"clavicle_l"
+
+[node name="ChestHigh" type="Marker3D" parent="."]
+transform = Transform3D(0.89443, -0.44721, 0.00000, 0.24914, 0.49827, 0.83045, -0.37139, -0.74278, 0.55709, 0.17, 1.435, 0.07)
+metadata/bone = &"spine_03"
+
+[node name="ChestLow" type="Marker3D" parent="."]
+transform = Transform3D(0.00000, 0.99504, -0.09950, 0.32889, 0.09397, 0.93968, 0.94437, -0.03273, -0.32726, 0.16, 1.335, 0.1)
+metadata/bone = &"spine_03"
+
+[node name="UnderArm" type="Marker3D" parent="."]
+transform = Transform3D(-0.09950, -0.99504, 0.00000, 0.97590, -0.09759, 0.19518, -0.19421, 0.01942, 0.98077, 0.185, 1.255, 0.02)
+metadata/bone = &"spine_03"

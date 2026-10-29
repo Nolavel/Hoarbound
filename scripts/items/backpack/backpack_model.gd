@@ -68,6 +68,10 @@ const LOOSE_FLOOR_M: float = 0.02
 const LOOSE_MARGIN_M: float = 0.03
 ## How far inside the mug handle's outer edge a carabiner rod rests, metres.
 const MUG_HANDLE_GRIP_M: float = 0.012
+## What is clipped on swings slower than the carabiner (longer, heavier) and wider, Hz/degrees.
+const CLIPPED_SWING_HZ: float = 1.3
+const CLIPPED_SWING_DAMPING: float = 0.12
+const CLIPPED_MAX_SWING_DEG: float = 75.0
 const BEDROLL: Color = Color(0.24, 0.27, 0.30)
 
 var _shell_material: ShaderMaterial
@@ -266,8 +270,9 @@ func add_loose(item_id: StringName) -> bool:
 	return true
 
 
-## Clips item_id onto a carabiner (0 left, 1 right); it swings with the carabiner. A mug hangs
-## by its handle (authored towards +X), handle up; anything else by its top.
+## Clips item_id onto a carabiner (0 left, 1 right). It swings on the carabiner's rod, which swings
+## in its loop: a double pendulum. A mug hangs by its handle (authored towards +X), anything else
+## by its top.
 func hang_item(item_id: StringName, carabiner_index: int) -> bool:
 	var carabiner: Carabiner = get_carabiner(carabiner_index)
 	if carabiner == null:
@@ -281,7 +286,13 @@ func hang_item(item_id: StringName, carabiner_index: int) -> bool:
 		visual.transform = Transform3D(turn, -(turn * handle))
 	else:
 		visual.position = Vector3(-box.get_center().x, -box.end.y, -box.get_center().z)
-	carabiner.get_hang_point().add_child(visual)
+	var swing := PendulumHang.new()
+	swing.name = "Clipped"
+	swing.swing_hz = CLIPPED_SWING_HZ
+	swing.swing_damping = CLIPPED_SWING_DAMPING
+	swing.max_swing_deg = CLIPPED_MAX_SWING_DEG
+	carabiner.get_hang_point().add_child(swing)
+	swing.add_child(visual)
 	for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		if mesh is MeshInstance3D:
 			(mesh as MeshInstance3D).layers = layers_for_contents
@@ -294,7 +305,7 @@ func clear_items() -> void:
 		(item["node"] as Node).queue_free()
 	_items.clear()
 	for visual: Node3D in _hung:
-		visual.queue_free()
+		visual.get_parent().queue_free()
 	_hung.clear()
 	_refresh_proxies()
 

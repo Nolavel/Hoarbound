@@ -1,5 +1,5 @@
 class_name Carabiner
-extends Node3D
+extends PendulumHang
 
 ## A screw-gate carabiner hung from a strap loop (#260). It swings from its top like a pendulum
 ## under gravity and the motion of what it hangs from. `Hang` is where a mug or a bag clips on.
@@ -16,22 +16,12 @@ const TUBE_SIDES: int = 8
 const SLEEVE_AT: float = 0.14
 const SLEEVE_LENGTH_M: float = 0.024
 const SLEEVE_RADIUS_M: float = 0.0078
-## Pendulum spring: frequency (Hz), damping, and the widest swing from straight down, degrees.
-const SWING_HZ: float = 1.9
-const SWING_DAMPING: float = 0.18
-const MAX_SWING_DEG: float = 55.0
-
 ## The plane the ring lies in, as a rotation about the hanging axis (radians).
 @export var face_yaw: float = 0.0
 @export_flags_3d_render var render_layers: int = 1
 
 var _body: Node3D
 var _hang: Node3D
-var _dir: Vector3 = Vector3.DOWN
-var _dir_speed: Vector3 = Vector3.ZERO
-var _last_position: Vector3 = Vector3.ZERO
-var _last_velocity: Vector3 = Vector3.ZERO
-var _has_last: bool = false
 
 
 func _ready() -> void:
@@ -78,32 +68,6 @@ func build() -> void:
 func get_hang_point() -> Node3D:
 	build()
 	return _hang
-
-
-func _process(delta: float) -> void:
-	if delta <= 0.0 or not is_inside_tree() or get_parent_node_3d() == null:
-		return
-	var at: Vector3 = global_position
-	if not _has_last:
-		_last_position = at
-		_has_last = true
-		return
-	var velocity: Vector3 = (at - _last_position) / delta
-	var accel: Vector3 = (velocity - _last_velocity) / delta
-	_last_position = at
-	_last_velocity = velocity
-	if accel.length() > 80.0:
-		accel = Vector3.ZERO  # a teleport, not a swing
-	## It hangs along gravity less the pivot's acceleration, in the parent's space.
-	var pull: Vector3 = get_parent_node_3d().global_basis.orthonormalized().inverse() * (Vector3.DOWN * 9.8 - accel)
-	var target: Vector3 = pull.normalized() if pull.length() > 0.5 else Vector3.DOWN
-	var omega: float = TAU * SWING_HZ
-	_dir_speed += ((target - _dir) * omega * omega - _dir_speed * 2.0 * SWING_DAMPING * omega) * delta
-	_dir = (_dir + _dir_speed * delta).normalized()
-	var limit: float = deg_to_rad(MAX_SWING_DEG)
-	if _dir.angle_to(Vector3.DOWN) > limit:
-		_dir = Vector3.DOWN.slerp(_dir, limit / _dir.angle_to(Vector3.DOWN)).normalized()
-	basis = Basis(Quaternion(Vector3.DOWN, _dir))
 
 
 ## The ring's centreline: a pear, narrow at the top where it sits in the loop, wider at the bottom.
