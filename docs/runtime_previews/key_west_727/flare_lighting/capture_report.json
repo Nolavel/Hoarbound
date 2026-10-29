@@ -1,0 +1,504 @@
+{
+	"adapter": "llvmpipe (LLVM 19.1.7, 256 bits)",
+	"captures": [
+		{
+			"camera_at": [
+				-3536.22778320312,
+				2.69000005722046,
+				1586.84936523438
+			],
+			"camera_from": [
+				-3536.9599609375,
+				3.59000015258789,
+				1589.58508300781
+			],
+			"energy": 4.80633687973022,
+			"file": "stage1_room.png",
+			"player_position": [
+				-3536.25732421875,
+				2.8899998664856,
+				1586.98767089844
+			],
+			"scattering": false,
+			"tip_position": [
+				-3535.90307617188,
+				3.38041400909424,
+				1586.50341796875
+			]
+		},
+		{
+			"camera_at": [
+				-3536.22778320312,
+				2.69000005722046,
+				1586.84936523438
+			],
+			"camera_from": [
+				-3536.9599609375,
+				3.59000015258789,
+				1589.58508300781
+			],
+			"energy": 4.80633687973022,
+			"file": "stage2_room.png",
+			"player_position": [
+				-3536.25732421875,
+				2.8899998664856,
+				1586.98767089844
+			],
+			"scattering": true,
+			"tip_position": [
+				-3535.90307617188,
+				3.38041400909424,
+				1586.50341796875
+			]
+		},
+		{
+			"camera_at": [
+				-3535.90307617188,
+				3.46041393280029,
+				1586.50341796875
+			],
+			"camera_from": [
+				-3534.90307617188,
+				3.73041391372681,
+				1587.30346679688
+			],
+			"energy": 4.80633687973022,
+			"file": "stage1_close.png",
+			"player_position": [
+				-3536.25732421875,
+				2.8899998664856,
+				1586.98767089844
+			],
+			"scattering": false,
+			"tip_position": [
+				-3535.90307617188,
+				3.38041400909424,
+				1586.50341796875
+			]
+		},
+		{
+			"camera_at": [
+				-3535.90307617188,
+				3.46041393280029,
+				1586.50341796875
+			],
+			"camera_from": [
+				-3534.90307617188,
+				3.73041391372681,
+				1587.30346679688
+			],
+			"energy": 4.80633687973022,
+			"file": "stage2_close.png",
+			"player_position": [
+				-3536.25732421875,
+				2.8899998664856,
+				1586.98767089844
+			],
+			"scattering": true,
+			"tip_position": [
+				-3535.90307617188,
+				3.38041400909424,
+				1586.50341796875
+			]
+		},
+		{
+			"camera_at": [
+				-3536.25732421875,
+				3.08999991416931,
+				1586.98767089844
+			],
+			"camera_from": [
+				-3535.01733398438,
+				3.8899998664856,
+				1585.29272460938
+			],
+			"energy": 4.80633687973022,
+			"file": "stage1_wall.png",
+			"player_position": [
+				-3536.25732421875,
+				2.8899998664856,
+				1586.98767089844
+			],
+			"scattering": false,
+			"tip_position": [
+				-3535.90307617188,
+				3.38041400909424,
+				1586.50341796875
+			]
+		},
+		{
+			"camera_at": [
+				-3536.25732421875,
+				3.08999991416931,
+				1586.98767089844
+			],
+			"camera_from": [
+				-3535.01733398438,
+				3.8899998664856,
+				1585.29272460938
+			],
+			"energy": 4.80633687973022,
+			"file": "stage2_wall.png",
+			"player_position": [
+				-3536.25732421875,
+				2.8899998664856,
+				1586.98767089844
+			],
+			"scattering": true,
+			"tip_position": [
+				-3535.90307617188,
+				3.38041400909424,
+				1586.50341796875
+			]
+		},
+		{
+			"camera_at": [
+				-3536.22778320312,
+				2.69000005722046,
+				1586.84936523438
+			],
+			"camera_from": [
+				-3536.9599609375,
+				3.59000015258789,
+				1589.58508300781
+			],
+			"energy": 4.57560586929321,
+			"file": "stage1_drop.png",
+			"player_position": [
+				-3536.25732421875,
+				2.8899998664856,
+				1586.98767089844
+			],
+			"scattering": false,
+			"tip_position": [
+				-3536.1103515625,
+				1.90527033805847,
+				1586.443359375
+			]
+		},
+		{
+			"camera_at": [
+				-3536.22778320312,
+				2.69000005722046,
+				1586.84936523438
+			],
+			"camera_from": [
+				-3536.9599609375,
+				3.59000015258789,
+				1589.58508300781
+			],
+			"energy": 4.57560586929321,
+			"file": "stage2_drop.png",
+			"player_position": [
+				-3536.25732421875,
+				2.8899998664856,
+				1586.98767089844
+			],
+			"scattering": true,
+			"tip_position": [
+				-3536.1103515625,
+				1.90527033805847,
+				1586.443359375
+			]
+		}
+	],
+	"casters": [
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Mannequin",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Skin_Boots",
+			"shadow_mode": 1,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Skin_Coat",
+			"shadow_mode": 1,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Skin_Gloves",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Skin_Trousers",
+			"shadow_mode": 1,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Tray",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/Board",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/Loop",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/@MeshInstance3D@3",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/@MeshInstance3D@4",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/@MeshInstance3D@5",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/@MeshInstance3D@6",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/@MeshInstance3D@7",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/@MeshInstance3D@8",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/@MeshInstance3D@9",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/@MeshInstance3D@10",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/@MeshInstance3D@11",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/@MeshInstance3D@12",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/Field/@MeshInstance3D@13",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/TopFlap/Panel",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/BottomFlap/Panel",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/BottomFlap/Kenny/@MeshInstance3D@14",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/BottomFlap/Kenny/@MeshInstance3D@15",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/BottomFlap/Kenny/@MeshInstance3D@16",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/BottomFlap/Kenny/@MeshInstance3D@17",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/BottomFlap/Kenny/@MeshInstance3D@18",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/BottomFlap/Kenny/@MeshInstance3D@19",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/BottomFlap/Kenny/@MeshInstance3D@20",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/BottomFlap/Kenny/@MeshInstance3D@21",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/BottomFlap/Kenny/@MeshInstance3D@22",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/BottomFlap/Kenny/@MeshInstance3D@23",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/LeftFlap/Panel",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/BackpackAttachment/Backpack/RightFlap/Panel",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Hat/Outfit_Beanie",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Hat/Outfit_BeanieCuff",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Coat/Outfit_Jacket",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Coat/Outfit_Skirt",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Coat/Outfit_Hood",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Coat/Outfit_Trim",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Trousers/Outfit_Pants",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Boots/Outfit_Boots",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Boots/Outfit_Sole",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Gloves/Outfit_Gloves",
+			"shadow_mode": 1,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/Gloves/Outfit_GloveCuff",
+			"shadow_mode": 1,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/CarryAttachment/CarryFirewood/@MeshInstance3D@24",
+			"shadow_mode": 1,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/CarryAttachment/CarryFirewood/@MeshInstance3D@25",
+			"shadow_mode": 1,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/CarryAttachment/CarryFirewood/@MeshInstance3D@26",
+			"shadow_mode": 1,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/CarryAttachment/CarryBoards/@MeshInstance3D@27",
+			"shadow_mode": 1,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/CarryAttachment/CarryBoards/@MeshInstance3D@28",
+			"shadow_mode": 1,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/CarryAttachment/CarryBoards/@MeshInstance3D@29",
+			"shadow_mode": 1,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/HandSocket/HeldFlare/Body",
+			"shadow_mode": 1,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/HenryUALVisual/Model/Armature/Skeleton3D/HandSocket/HeldFlare/Tip/HotCore",
+			"shadow_mode": 0,
+			"visible": true
+		},
+		{
+			"path": "/root/World/Player/ThrowComponent/ThrowLanding",
+			"shadow_mode": 0,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/BootSnowComponent/BootSnow0",
+			"shadow_mode": 0,
+			"visible": false
+		},
+		{
+			"path": "/root/World/Player/BootSnowComponent/BootSnow1",
+			"shadow_mode": 0,
+			"visible": false
+		}
+	],
+	"driver": "vulkan",
+	"drop": {
+		"same_flare": true,
+		"scattering_at_tip": true,
+		"shadows": true,
+		"tip_position": [
+			-3536.1103515625,
+			1.90527033805847,
+			1586.443359375
+		]
+	},
+	"engine": "4.8-dev6 (official)",
+	"extinguished": true,
+	"night_hour": 22.5,
+	"renderer": "forward_plus",
+	"resolution": [
+		1280,
+		1024
+	],
+	"shadow_bias": 0.0299999993294477,
+	"shadow_mode": 1,
+	"shadow_normal_bias": 0.300000011920929
+}
