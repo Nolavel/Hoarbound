@@ -2,7 +2,8 @@ extends SceneTree
 
 ## Backpack rig stand (#260): every rule in docs/technical/BACKPACK_RIG.md checked in numbers on
 ## Henry with his starting pack, standing and walking. Run before any backpack change is committed;
-## renders only after it passes. Run: godot --headless --script tests/systems/test_backpack_rig.gd
+## renders only after it passes. Run at the game's fixed step (springs and moves assume 30 fps):
+## godot --headless --fixed-fps 30 --script tests/systems/test_backpack_rig.gd
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
 ## Limits, metres unless named.
@@ -13,6 +14,8 @@ const HANG_BELOW_BOTTOM_M: float = 0.02
 const HANDLE_GAP_M: float = 0.005
 ## Least swing each hanger shows both ways (fore-aft and sideways) on starts, stops and turns, degrees.
 const MIN_SWING_DEG: float = 6.0
+## A hanger at rest 1.5 s after the last move hangs within this of world down, degrees.
+const SETTLED_DEG: float = 5.0
 
 var _failures: int = 0
 var _player: CharacterBody3D
@@ -165,34 +168,40 @@ func _check_walking() -> void:
 	_report("R7 pack rocks at most %.1f deg" % PackRig.MAX_SWAY_DEG, "%.2f deg" % sway, sway <= PackRig.MAX_SWAY_DEG + 0.01)
 
 
-## R9: both carabiners, and the mug on its carabiner, swing fore-aft and sideways when Henry
-## starts, stops, sidesteps and turns; each hanger is measured against its own parent.
+## R9: carabiners and the mug swing fore-aft and sideways on starts, stops, a sidestep and an eased
+## 90 deg turn, never slam their stop, and settle to world down at rest.
 func _check_swing() -> void:
 	var hangers: Array[PendulumHang] = [_pack.get_carabiner(0), _pack.get_carabiner(1)]
 	for visual: Node3D in _pack.get(&"_hung"):
 		if visual.get_parent() is PendulumHang:
 			hangers.append(visual.get_parent() as PendulumHang)
 	var peak: Array[Vector2] = []
+	var rest: Array[float] = []
+	rest.resize(hangers.size())
 	peak.resize(hangers.size())
 	peak.fill(Vector2.ZERO)
-	for frame: int in range(160):
+	for frame: int in range(170):
 		var move: Vector3 = Vector3.ZERO
 		if frame < 25:
 			move = -_player.global_basis.z * 3.0
 		elif frame >= 50 and frame < 75:
 			move = _player.global_basis.x * 2.0
 		_player.global_position += move / 30.0
-		if frame >= 100 and frame < 115:
-			_player.rotate_y(deg_to_rad(6.0))
+		if frame >= 95 and frame < 125:
+			_player.rotate_y(deg_to_rad(90.0) * (cos(PI * (frame - 95) / 30.0) - cos(PI * (frame - 94) / 30.0)) * -0.5)
 		await process_frame
 		for i: int in range(hangers.size()):
 			var down: Vector3 = -hangers[i].basis.y.normalized()
 			var lean := Vector2(rad_to_deg(atan2(absf(down.z), -down.y)), rad_to_deg(atan2(absf(down.x), -down.y)))
 			peak[i] = peak[i].max(lean)
+			rest[i] = rad_to_deg((-hangers[i].global_basis.y).angle_to(Vector3.DOWN))
 	for i: int in range(hangers.size()):
 		var name: String = "carabiner %d" % i if i < 2 else "clipped item"
 		_report("R9 %s swings both ways" % name, "fore-aft %.1f deg, sideways %.1f deg" % [peak[i].x, peak[i].y],
 			minf(peak[i].x, peak[i].y) >= MIN_SWING_DEG)
+		var cap: float = hangers[i].max_swing_deg
+		_report("R9 %s never slams its %.0f deg stop" % [name, cap], "peak %.1f deg" % maxf(peak[i].x, peak[i].y), maxf(peak[i].x, peak[i].y) < cap - 1.0)
+		_report("R9 %s settles at rest" % name, "%.1f deg off down" % rest[i], rest[i] < SETTLED_DEG)
 
 
 ## R8: a hitch (one 1-second frame) leaves every spring finite and the pack upright on Henry.

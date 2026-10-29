@@ -89,9 +89,9 @@ const MUG_HANDLE_GRIP_M: float = 0.012
 ## The rod rests this far below the top of the mug, in the handle's upper bend.
 const MUG_HANDLE_TOP_M: float = 0.022
 ## What is clipped on swings slower than the carabiner (longer, heavier) and wider, Hz/degrees.
-const CLIPPED_SWING_HZ: float = 1.3
-const CLIPPED_SWING_DAMPING: float = 0.12
-const CLIPPED_MAX_SWING_DEG: float = 75.0
+const CLIPPED_SWING_HZ: float = 1.8
+const CLIPPED_SWING_DAMPING: float = 0.5
+const CLIPPED_MAX_SWING_DEG: float = 35.0
 const BEDROLL: Color = Color(0.33, 0.27, 0.18)
 
 var _shell_material: ShaderMaterial

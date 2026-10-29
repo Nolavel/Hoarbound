@@ -18,8 +18,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   at the owner's request, and the latch keeper now sits on the neck instead of 3 mm off it.
 - Backpack carabiners and the clipped mug swing both ways (#260). `PendulumHang` keeps its state in
   world space, so a hanger lags when its parent turns. Before, it turned rigidly with the parent and
-  the mug barely moved on its carabiner. New stand rule R9 measured 38°/20° (left carabiner),
-  38°/14° (right) and 40°/75° (mug) fore-aft/sideways; before the fix the mug managed 5.6°/5.9°.
+  the mug barely moved on its carabiner. The mug is calmer and settles quickly (1.8 Hz, damping 0.5,
+  35° stop); in the clip its 75° stop let it fly out level on a sidestep. Stand rule R9 also checks
+  that no hanger reaches its stop and that each settles to world down at rest. The stand must run
+  with `--fixed-fps 30`: without it headless frame times are not 1/30 s, and the first R9 numbers
+  were wrong. At 30 fps the peaks are 20°/26° and 18°/26° (carabiners) and 29°/15° (mug),
+  fore-aft/sideways. `capture_backpack_stills.gd pocket` gives three close views of the side pocket.
 - Owner accepted the road flare shadows and restrained scattering on 2026-10-29.
 - Road flares cast dynamic shadows in hand and after a drop, with exposed contact-shadow bias.
   The emissive tip no longer casts shadows around its enclosed light. A weak, non-emissive

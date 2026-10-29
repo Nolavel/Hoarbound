@@ -2,7 +2,8 @@ extends SceneTree
 
 ## Backpack stills (#260): Henry standing in Key West Reality, close up round him and his pack from
 ## eight sides, one settled PNG each (no video). Part of the backpack stand (BACKPACK_RIG.md).
-## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_backpack_stills.gd -- <out dir>
+## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_backpack_stills.gd -- <out dir> [pocket]
+## `pocket`: three close views of the left side pocket and what it holds, in place of the eight sides.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const FPS: int = 30
@@ -59,6 +60,11 @@ func _run() -> void:
 	var to_player: Basis = _player.global_basis.inverse()
 	print("[packstills] canvas up in Henry's frame ", (to_player * canvas.global_basis.y).normalized(), " sway deg ", (pack.get(&"_sway") as Node3D).rotation_degrees)
 
+	if OS.get_cmdline_user_args().has("pocket"):
+		await _pocket_views(canvas)
+		print("[packstills] done")
+		quit(0)
+		return
 	## Eight sides at chest height, a metre out: front, front-left, left, back-left, back, and round.
 	var names: PackedStringArray = ["front", "front_left", "left", "back_left", "back", "back_right", "right", "front_right"]
 	for k: int in range(names.size()):
@@ -73,6 +79,19 @@ func _run() -> void:
 		root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join("%d_%s.png" % [k, names[k]]))
 	print("[packstills] done")
 	quit(0)
+
+
+## Close on the left side pocket: square on, from behind-left and from above-left, 45 cm out.
+func _pocket_views(canvas: BackpackModel) -> void:
+	var pocket: Vector3 = canvas.global_transform * Vector3(-BackpackModel.POCKET_X, 0.1, 0.0)
+	var outward: Vector3 = (canvas.global_basis.x * -1.0).normalized()
+	var back: Vector3 = canvas.global_basis.z.normalized()
+	var views: Dictionary = {"pocket_side": outward, "pocket_back": (outward + back * 0.8).normalized(), "pocket_above": (outward + Vector3.UP * 0.9).normalized()}
+	for view: String in views:
+		_camera.look_at_from_position(pocket + (views[view] as Vector3) * 0.45, pocket)
+		await _frames(4)
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join(view + ".png"))
 
 
 func _frames(count: int) -> void:
