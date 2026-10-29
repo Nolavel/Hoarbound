@@ -26,6 +26,9 @@ RATE = 44100
 WAV_DIR = "assets/audio/sfx/footsteps/snow"
 TRES_DIR = "data/audio/footsteps"
 VARIANTS = 10
+# Banks that now play the owner's recorded footsteps (assets/audio/sfx/player/snow_footsteps/,
+# random of 8); this script no longer renders or writes them, only the layers below.
+RECORDED = {"snow_thin", "snow_crust", "snow_step", "snow_wet", "snow_deep"}
 
 # Surface presets. Times in seconds, frequencies in Hz.
 #   heel/toe: force humps (start, width, weight); grains: crushing events;
@@ -269,6 +272,8 @@ def main():
         if os.path.exists(old + ".import"):
             os.remove(old + ".import")
     for index, (name, preset) in enumerate(PRESETS.items()):
+        if name in RECORDED:
+            continue
         files = []
         for v in range(VARIANTS):
             path = os.path.join(WAV_DIR, "%s_%02d.wav" % (name, v + 1))

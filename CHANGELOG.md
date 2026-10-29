@@ -8,6 +8,109 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Quick Access follows what Henry wears (#260, owner).
+  - **Which pockets:** pockets now carry a `quick_access` flag. The pack's two compartments are
+    Hub-only, so it replaces the hard-coded `pack/pack_main` exclusion.
+  - **Outside the pack:** while the pack is worn, what sits outside it gets its own cards: the side
+    pocket, the two tool sleeves and the carabiner. They are pinned to the pack's own anchors
+    (`BackpackModel.get_quick_anchor`) and go when the pack comes off.
+  - **Layout:** in the spread they stand as one column beside the body cards; in the cross they
+    take the diagonals. The layout test now checks them for overlaps too, and `test_quick_access`
+    checks the rule.
+- The mug clipped on the pack knocks on the tool handles (#260).
+  - **Strikes:** `PendulumHang` emits `knocked` on a fresh strike, and the pack plays it through
+    `SoundSystem`, louder for a faster strike (stand rule R14).
+  - **Sound:** a random one of the owner's three recordings (`assets/audio/sfx/items/mug/`)
+    replaces the first synthesised attempt.
+  - **Strike timing:** a strike is judged on the swing's rate before the frame's spring step, so a
+    mug lying on a handle no longer "knocks" every frame.
+  - **Contact cost:** the long frames made `test_doorway_camera` pop. Contact points are now one
+    per 2 cm (4 mm margin), and a carabiner counts every other point of its mug. The pack's
+    distance query skips pockets and handles away from the sides. A loaded carabiner fell from
+    ~6 ms per frame to ~1.5 ms and the mug to ~0.6 ms (headless CPU).
+- Snow footsteps (thin, crust, step, wet, deep) play a random one of the owner's eight recordings
+  (`assets/audio/sfx/player/snow_footsteps/`). The synthesised squeak and pull-out layers stay on top.
+  `generate_snow_footsteps.py` no longer writes those five banks, and their old WAVs are removed.
+- Pack sway now never rocks past its 2.5° cap; before, a spring overshoot on a jolt (frame-time
+  jitter) carried it to 4.3°.
+- `tools/ci/run_tests.sh` reads a suite's `## ci-args:` line. The backpack stand asks for
+  `--fixed-fps 30`, so CI runs it at game speed as it is run locally.
+- Right side pocket split into two bottomless sleeves holding a Build-Rite hatchet and claw hammer
+  (#260, owner refs).
+  - **Tools:** built in Blender by `tools/blender/build_hand_tools.py` (`assets/items/axe/Axe.glb`,
+    `assets/items/hammer/Hammer.glb`), each with a wrap-round price tag drawn by the script ($24.99
+    and $9.49). They have rusty heads, a yellow and a red plastic handle, dark rubber grips and a
+    holed butt. The new `worn_tool.gdshader` paints the wear in blocky cells, like the refs.
+  - **Pocket:** a dark divider splits the right pocket into front and back sleeves. Each tool hangs
+    by its head on the rim, its handle through the open bottom. Each sleeve shrink-wraps its handle
+    as an ellipse and keeps the thermos's hem stretch on push-in. The tools are placed clear of a
+    full pack's wall and of each other.
+  - **Mug:** it now knocks against the handles. It turns only about the carabiner's rod (a hinge),
+    seeks the nearest clear angle, has contact friction and a 3 mm contact margin. A loaded
+    carabiner leans out from the pack.
+  - **Data:** the pockets are `pack_side_right_front` and `pack_side_right_back`. The starting
+    loadout gains the axe and the hammer.
+  - **Stand:** new rule R13 (sleeves). R4 now counts vertices. R9 covers the hinge, the swing left
+    at rest and the contact margin. R5 and R12 check the empty right pocket with the tools taken out.
+  - **Pending:** Quick Access for the slots outside a worn pack, and a knock sound
+    (`BACKPACK_RIG.md`).
+- The empty side pocket is sewn onto the body (#260, owner review: "looks torn off the pack").
+  - **Measured:** its seam stood 11 mm off the body, and its edges 14-16 mm. It was laid on a
+    flat wall at x = 0.17, while the body is a box rounded by 6 cm that curves in near the bottom,
+    front and back. It also stood 12 mm thick.
+  - **Fix:** every pocket's wall side, and the empty pocket's inner layer, now lie on the rounded,
+    slumping body surface (`body_side_x`, the same in the shader and in GDScript). The empty
+    pocket's outer layer is a 3-5 mm fold. The seam is now 0.0 mm off and the cloth at most
+    5.3 mm off the body.
+  - **Stand:** new rule R12. `capture_backpack_stills.gd pocket right` frames the right pocket.
+- The clipped mug hangs by physics (#260, owner review: "the same mistake again").
+  - **Cause:** it was stood upright with its handle on the rod and its body 7 cm to the side. No
+    body hangs on a pin like that, and stand rule R3 ("mug hangs out from the wall") had locked the
+    pose in.
+  - **Pose:** it now turns about the handle's hole until its centre of mass is under the rod, so it
+    hangs tilted, rim out. The centre of mass is the area-weighted shell centroid of its mesh.
+  - **Contact:** `PendulumHang` leans it off the pack instead of letting it swing through. It uses
+    the signed distance to the rounded body and the pocket cloth (Inigo Quilez's rounded box) and
+    bisects for the least tilt that clears; a flat side face gave false contact at the rounded bottom.
+  - **Stand:** R3 checks the centre of mass is under the rod, the mug never inside the pack and
+    ground clearance (it hangs 14 cm below the pack bottom, 1 m above the ground). R9 checks no
+    frame is inside the pack. The mug's stop is now 60°; the pack is its real limit.
+- Pocket loops and carabiners are sewn at the middle of each side pocket (#260, owner review).
+  Before, the seam stood at the hem: above an empty pocket's drooping rim, and pulled about by the
+  hem springs, so the loop seemed to hang in the air. The clipped mug now hangs 7 cm below the pack
+  bottom (stand limit 8 cm). Its damping is now 0.65, so the lower pivot does not drive it into its
+  stop. `capture_backpack_stills.gd back` gives one view from straight behind.
+- Side pocket and thermos (#260, owner review). Measured first:
+  - **Floor:** the thermos stood 6 mm off the pocket floor because a slot constant set its height.
+    It now stands on `POCKET_FLOOR_Y`, the pocket mesh bottom plus its lining.
+  - **Shape:** the cloth wrapped the item's box and kept the box's normals, so it read as a box.
+    A round item (meta `round_radius`) is now shrink-wrapped as a cylinder: nearest point plus
+    lining, as Blender's Shrinkwrap does. The normals turn with it.
+  - **Pushing in:** a thermos put into a side pocket is pushed in bottom first (~0.4 s). Its foot
+    flares the hem and friction drags the hem down; the cloth under its bottom stays the empty
+    pouch. Then both hem springs let go and the cloth closes on it. Everything derives from the
+    item's live bottom, not a timeline.
+  - **One rule:** `BackpackModel.pocket_cloth_point` is the shader's twin, used by the loops, the
+    inspector and the stand.
+  - **Stand:** R10 (seated, hugging) and R11 (insertion). R11 caught cloth inside the thermos at
+    the floor's rounded edge: the disc rule went by normal, not by the item's bottom. Fixed.
+  - **Capture:** `capture_backpack_stills.gd insert` records the push frame by frame.
+- `capture_backpack_worn.gd` takes `short`: a 4 s close clip of the thermos in its pocket and the
+  mug swinging as Henry walks, stops and sidesteps.
+- Water flask is now a steel thermos (#260), built in Blender by `tools/blender/build_thermos.py`
+  (`assets/items/thermos/Thermos.glb`). It has a threaded neck and a flip-top lid on a hinge that
+  does not come off (`Thermos_Lid`, which turns about local +Z). The painted body and steel use the
+  carabiner's chipped worn-paint shader in olive drab. Blender colours are linear, so the first sRGB-like
+  values exported a pale teal. Item ids and volumes are unchanged; the printed volume mark is gone
+  at the owner's request, and the latch keeper now sits on the neck instead of 3 mm off it.
+- Backpack carabiners and the clipped mug swing both ways (#260). `PendulumHang` keeps its state in
+  world space, so a hanger lags when its parent turns. Before, it turned rigidly with the parent and
+  the mug barely moved on its carabiner. The mug is calmer and settles quickly (1.8 Hz, damping 0.5,
+  35° stop); in the clip its 75° stop let it fly out level on a sidestep. Stand rule R9 also checks
+  that no hanger reaches its stop and that each settles to world down at rest. The stand must run
+  with `--fixed-fps 30`: without it headless frame times are not 1/30 s, and the first R9 numbers
+  were wrong. At 30 fps the peaks are 20°/26° and 18°/26° (carabiners) and 29°/15° (mug),
+  fore-aft/sideways. `capture_backpack_stills.gd pocket` gives three close views of the side pocket.
 - Owner accepted the road flare shadows and restrained scattering on 2026-10-29.
 - Road flares cast dynamic shadows in hand and after a drop, with exposed contact-shadow bias.
   The emissive tip no longer casts shadows around its enclosed light. A weak, non-emissive
@@ -18,6 +121,116 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Backpack lab, stage 1 (#260): a front-loading pack without soft-body physics, not yet on Henry.
+  - **`BackpackModel`:** a canvas shell plus a front panel. Both are one rounded box split at the front edge, so
+    the closed panel meets the shell with no seam.
+  - **Opening:** the panel unzips and folds down 104 degrees on a bottom hinge, on a spring. Its free edge droops
+    under gravity and wobbles when it stops. A mesh pocket is drawn on its inside.
+  - **Slots:** a shelf and three lower columns in the main body, and a side pocket.
+  - **Fit:** `backpack_canvas.gdshader` pushes the canvas out round each item's box proxy, plus a lining, so a
+    flask bulges the side pocket. An emptier pack slumps: its top drops and its walls cave in.
+  - **Straps:** the straps, handle and buckles are baked in pack space and move with the canvas.
+  - **Owner review:** there is a pocket on each side, open at the top and sized for a bottle that stands out of it.
+    The canvas gives 2 cm at most (3 cm in a pocket) and no longer balloons round an item bigger than its pocket.
+  - Capture: `tools/runtime/capture_backpack_lab.gd` (two views of one run).
+- Backpack on Henry, stage 2 (#260): `PackRig` now draws a `BackpackModel` (`use_canvas_model`) in place of the
+  old box and flaps. `PackRig` still owns the Hub, inspection and setting the pack down.
+  - **Openness:** closed, ajar 24°, top-only 42°, and fully open for the Hub.
+  - **Fill:** carried weight over 14 kg sets the fill, so a light pack slumps.
+  - **Sway:** the pack hangs from a pivot at its top back. Henry's acceleration drives a pitch and roll spring
+    (at most 9°); it swings slower when loaded.
+  - **Kenny:** he is off the starting loadout for now (owner's call). His item, fixture and set-down code stay.
+  - **Zip:** a black zip with lighter teeth runs along the panel's top and sides. Two sliders start together at the
+    top centre and run out to the corners and down the sides. The panel folds out only above the line they have
+    reached (a shader bend, not a hinge node). It closes in reverse: the panel folds back, then the sliders return.
+  - **Quick stow:** the sliders run 15 cm down the sides and the freed top folds out 55°. The walls by the open
+    seam give a little.
+  - **Carabiners:** a strap loop on each side near the top, each with a swinging screw-gate carabiner (`Carabiner`,
+    worn red paint, knurled sleeve). They swing like a pendulum. `Hang` is the clip point for later, e.g. the mug.
+  - **Shoulder straps:** `PackShoulderStraps` runs a band from the pack top over each shoulder, down the chest and
+    under the arm to the pack's bottom corner. It is rebuilt from the bones every frame.
+  - **Fit:** the pack's back face was 10 cm inside the coat (measured coat back 0.21 m behind spine_03), so the coat
+    showed inside the open pack. `backpack_offset` moved to (0, -0.03, -0.31). The inner shelf no longer pokes
+    through the panel.
+  - **Owner review 2:**
+    - The pack now leans 12.5° along the coat's measured back line and rocks at most 2.5°, about the middle
+      of its back. It only rocks as Henry starts and stops.
+    - The shoulder straps come from points measured on the jacket mesh and ride the chest bone, so they no
+      longer swing with the pack. Each lies flat on its coat normal, with no twist. Their pack ends are sewn
+      to the top of the back pad and to the bottom corners.
+    - The grab handle is an arch sewn to the top.
+    - The zip edge stays ajar 1.5 cm wherever the sliders have not yet closed it.
+  - **Owner review 3:**
+    - The strap points were up to 6 cm off the coat. They are now ray-measured on the jacket mesh, with an extra
+      mid-chest point so the curve cannot cut into the coat's bulge.
+    - The flask stands flat against the wall in a widened side pocket.
+    - The mug hangs from the carabiner by its handle.
+  - **Owner review 4 (straps):**
+    - The straps were laid on the collar: about 11 cm out, where the collar and hood ring reaches 18 cm.
+      Rays cast at the coat mesh also missed its outer layers.
+    - They now follow authored anchors bound to the bones (`pack_strap_anchors.tscn`): upper back and
+      shoulder on the clavicle, chest and armpit on spine_03, mirrored to the other side.
+    - On the body the strap is tight. The pack-to-back and armpit-to-pack runs are verlet chains with
+      2–5% slack, kept outside the torso, so the pack rocks without dragging the straps.
+    - Off his back each strap is a limp loop on the snow.
+    - `.tscn` stores a basis by rows; anchors written by columns had their normals swapped, which twisted
+      the band. Band normals also keep to one side now, so a band never flips.
+  - **Owner review 5:**
+    - The free strap runs on the back are cinched taut (length 1% under the straight line). They no longer
+      dangle.
+    - Side pocket contents no longer push the main wall: pocket items shape only the pockets, and the body
+      shell, panel and straps take only main items. Before, the wall bulged past the flask and left it inside
+      the cavity.
+    - Pocket items sit 1 cm outboard.
+    - Look from the owner's reference, in the NPR 2.5D style: worn grey canvas, a stitched leather base, pale
+      rubbed edges, mottling, grime low down, and banded light. Grey webbing straps.
+    - Tool: `tools/runtime/inspect_backpack.gd` loads the starting contents. It reports item boxes, pocket items
+      reaching into the cavity, main items poking past the canvas give, overlaps, and the handle's gap to the
+      top. It renders front, side and top orthographic views and a three-quarter view, see-through with wire
+      boxes and with the real canvas. The worn capture logs each free strap run's sag.
+  - **Owner review 6:**
+    - Side pockets are cloth now, not scaled boxes. An empty pocket falls flat on the body wall and its mouth
+      closes. A pocket holding something wraps it, its wall side stays on the wall, and stretched cloth goes
+      paler.
+    - Slack cloth creases (shape and shade): empty pockets, and the top of a slumped pack.
+    - The canvas takes the world's painterly breakup at pack scale (`painterly_surface.gdshaderinc`). The front
+      panel carries a stitched leather maker's patch with a pressed mark.
+    - The side compression straps are gone.
+    - The bedroll is strapped across the top in front of the handle, so the leather bottom is flat and the
+      pack stands anywhere.
+    - Pocket cloth that starts inside the item it holds goes all the way out to the item's face. Wrapping
+      it only 85% of the way left the flask showing through. The inspector mirrors that wrap and reports any
+      poke-through (now 0.0 cm).
+    - The carabiner loops moved to the pocket rims, so the mug hangs level with the pack's bottom (0.2 cm).
+  - **Owner review 7 (stand and map):**
+    - Free strap runs are straight segments. The chain and torso capsule bowed them 2–2.6 cm and let them
+      swing forward as Henry moved.
+    - Pocket loops and carabiners follow each pocket's cloth as it is now (`pocket_outer_x`). An empty pocket
+      lies flat, but the loop had stayed 8 cm out in the air. On the flask side the loop had sat inside the
+      flask.
+    - Loops are 5 cm tall from the rim and carabiners pass through them, so the mug ends above the bottom.
+    - `docs/technical/BACKPACK_RIG.md` maps every space, authored point, measurement and rule.
+      `tests/systems/test_backpack_rig.gd` checks the rules on Henry standing and walking, before any
+      render (R1–R7, all pass).
+  - **Pivots:**
+    - Pocket loops are sewn at the rim and hang out and down, and each carabiner is threaded through its
+      loop's lower end. Before, they stood up as tabs.
+    - The mug's handle sits on the carabiner's rod with its hole along the rod, and the mug hangs upright
+      outboard of the wall. Before, the hole crossed the rod.
+    - The stand checks every pivot (R3).
+  - **Hitch fix:** a long frame (seconds while Reality loads) blew the pack's explicit springs (sway, panel,
+    fill, pendulums) to NaN, and the pack drew lying on its side in stills captured without a fixed frame
+    rate. Each spring step is now capped at 0.05 s, and non-finite values reset. Stand rule R8 checks a
+    1-second hitch.
+  - `tools/runtime/capture_backpack_stills.gd` takes eight settled close-ups round Henry and logs the pack's
+    up vector.
+  - **Hanging:** `PendulumHang` swings anything from a pivot. The carabiner swings in its loop and the mug
+    swings on the carabiner's rod: a double pendulum driven by Henry's motion. The carabiners moved onto the
+    side pockets.
+  - **Contents:** the pack has new pockets: a second main compartment, two side pockets and a carabiner. Henry
+    starts with a SPoV can and tinned stew lying loose inside, a flask in the left side pocket and the mug on the
+    right carabiner. `PackRig` mirrors the pack's pockets into the canvas whenever they change.
+  - Capture: `tools/runtime/capture_backpack_worn.gd`.
 - Isolated soft-container physics lab (#254): six draggable cubes/spheres, pinned rims,
   upright/60-degree tilt and reproducible Jolt capture; experimental 4.6.3 evidence,
   pending verification on the project engine baseline.

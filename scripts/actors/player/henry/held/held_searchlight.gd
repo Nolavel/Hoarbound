@@ -4,6 +4,10 @@ extends Node3D
 ## Storage owns the switch state; this prop owns optics and bounded presentation inertia.
 signal toggled(enabled: bool)
 
+const BATTERY_HOURS: float = 48.0
+const INDICATOR_GREEN: Color = Color(0.20, 0.68, 0.25)
+const INDICATOR_RED: Color = Color(0.76, 0.16, 0.09)
+
 const MODEL: PackedScene = preload("res://assets/items/searchlight/searchlight.glb")
 const LENS_SHADER: Shader = preload("res://shaders/props/searchlight_lens.gdshader")
 const AURA: Texture2D = preload("res://assets/items/searchlight/textures/lens_aura.png")
@@ -23,7 +27,12 @@ var medium: FogVolume
 var lens_material: ShaderMaterial
 var inertia_offset: Vector3 = Vector3.ZERO
 var direction: Vector3 = Vector3.FORWARD
+var runtime_hours: float = 0.0
 var _enabled: bool = false
+var _indicators: Array[MeshInstance3D] = []
+var _indicator_progress: Array[float] = [0.0, 0.0, 0.0, 0.0]
+var _indicator_tween: Tween
+var _flicker_time: float = 0.0
 var _initialized: bool = false
 var _rotation: Quaternion = Quaternion.IDENTITY
 var _angular_velocity: Vector3 = Vector3.ZERO
@@ -55,6 +64,7 @@ func _ready() -> void:
 	lens_material.shader = LENS_SHADER
 	lens_material.set_shader_parameter("aura_mask", AURA)
 	lens_material.set_shader_parameter("divine_mask", DIVINE)
+	_make_indicators(model)
 	## Keep the protective glass visible when switched off; glow is a separate thin card.
 	var glow := MeshInstance3D.new()
 	glow.name = "OpticGlow"
@@ -94,13 +104,19 @@ func _ready() -> void:
 
 
 func apply_enabled(enabled: bool) -> void:
-	_enabled = enabled
-	if lamp != null:
-		lamp.visible = enabled
-	if medium != null:
-		medium.visible = enabled and scattering_density > 0.0
-	if lens_material != null:
-		lens_material.set_shader_parameter("lit", 1.0 if enabled else 0.0)
+	_enabled = enabled and charge_fraction() > 0.0
+	if _indicator_tween != null:
+		_indicator_tween.kill()
+	if _enabled:
+		_indicator_tween = create_tween()
+		for i in range(_indicators.size()):
+			_indicator_progress[i] = 0.0
+			_indicator_tween.tween_method(_set_indicator_progress.bind(i), 0.0, 1.0, 0.12)
+			_indicator_tween.tween_interval(0.045)
+	else:
+		for i in range(_indicators.size()):
+			_indicator_progress[i] = 0.0
+	_update_output()
 
 
 func toggle() -> void:
@@ -110,6 +126,99 @@ func toggle() -> void:
 
 func is_enabled() -> bool:
 	return _enabled
+
+
+func charge_fraction() -> float:
+	return clampf(1.0 - runtime_hours / BATTERY_HOURS, 0.0, 1.0)
+
+
+func indicator_green_count() -> int:
+	var charge: float = charge_fraction()
+	if charge <= 0.0:
+		return 0
+	if charge > 0.75:
+		return 4
+	if charge > 0.50:
+		return 3
+	if charge > 0.25:
+		return 2
+	return 1
+
+
+func set_runtime_hours(hours: float) -> void:
+	runtime_hours = clampf(hours, 0.0, BATTERY_HOURS)
+	if charge_fraction() <= 0.0 and _enabled:
+		apply_enabled(false)
+		toggled.emit(false)
+	else:
+		_update_output()
+
+
+## The world SimulationClock supplies game hours, including accelerated time.
+func consume_game_hours(hours: float) -> void:
+	if _enabled and hours > 0.0:
+		set_runtime_hours(runtime_hours + hours)
+
+
+func _process(delta: float) -> void:
+	if _enabled and charge_fraction() < 0.01:
+		_flicker_time += delta
+		_update_output()
+
+
+## Thin emissive cards sit over the four existing amber windows; no extra light node.
+func _make_indicators(model: Node3D) -> void:
+	for i in range(4):
+		var led := MeshInstance3D.new()
+		led.name = "ChargeIndicator_%d" % (i + 1)
+		var face := QuadMesh.new()
+		face.size = Vector2(0.007, 0.014)
+		led.mesh = face
+		led.position = Vector3(-0.092, 0.101, 0.058 - float(i) * 0.018)
+		led.rotation.y = -PI * 0.5
+		led.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var material := StandardMaterial3D.new()
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.albedo_color = INDICATOR_GREEN
+		material.emission_enabled = true
+		material.emission = INDICATOR_GREEN
+		material.emission_energy_multiplier = 0.35
+		led.material_override = material
+		led.transparency = 1.0
+		model.add_child(led)
+		_indicators.append(led)
+
+
+func _set_indicator_progress(value: float, index: int) -> void:
+	_indicator_progress[index] = value
+	_update_output()
+
+
+func _update_output() -> void:
+	var charge: float = charge_fraction()
+	var strength: float = minf(charge / 0.05, 1.0) if _enabled else 0.0
+	if _enabled and charge < 0.01:
+		var pulse: float = sin(_flicker_time * 7.3) + sin(_flicker_time * 16.7) * 0.4 + sin(_flicker_time * 3.1) * 0.35
+		if pulse < -0.15:
+			strength = 0.0
+	if lamp != null:
+		lamp.visible = strength > 0.001
+		lamp.light_energy = light_energy * strength
+		lamp.light_volumetric_fog_energy = fog_energy * strength
+	if medium != null:
+		medium.visible = strength > 0.001 and scattering_density > 0.0
+	if lens_material != null:
+		lens_material.set_shader_parameter("lit", strength)
+	var green_count: int = indicator_green_count()
+	for i in range(_indicators.size()):
+		var color: Color = INDICATOR_GREEN if i < green_count else INDICATOR_RED
+		var led := _indicators[i]
+		var material := led.material_override as StandardMaterial3D
+		material.albedo_color = color
+		material.emission = color
+		led.visible = strength > 0.001 and _indicator_progress[i] > 0.001
+		led.transparency = 1.0 - 0.68 * _indicator_progress[i] * strength
 
 
 ## Exact critically damped SO(3) error step; the grip and light use the same result.

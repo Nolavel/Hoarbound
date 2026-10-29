@@ -208,7 +208,9 @@ func _draw() -> void:
 		HeldFit.apply_legacy_adjustment(_prop, _item_id)
 	if _prop is HeldSearchlight:
 		var searchlight := _prop as HeldSearchlight
-		searchlight.apply_enabled(bool(inventory.get_first_instance_state(_item_id).get("searchlight_on", false)))
+		var state: Dictionary = inventory.get_first_instance_state(_item_id)
+		searchlight.set_runtime_hours(float(state.get("searchlight_runtime_hours", 0.0)))
+		searchlight.apply_enabled(bool(state.get("searchlight_on", false)))
 		searchlight.toggled.connect(_on_searchlight_toggled)
 	_show_hint()
 
@@ -429,6 +431,18 @@ func _on_searchlight_toggled(enabled: bool) -> void:
 		inventory.update_first_instance_state(_item_id, {"searchlight_on": enabled})
 
 
+func get_simulation_priority() -> int:
+	return 550
+
+
+func advance_simulation(hours: float, _context: SimulationStepContext) -> void:
+	var searchlight := _prop as HeldSearchlight
+	if searchlight == null or inventory == null or _source_zone != &"" or not searchlight.is_enabled():
+		return
+	searchlight.consume_game_hours(hours)
+	inventory.update_first_instance_state(_item_id, {"searchlight_runtime_hours": searchlight.runtime_hours})
+
+
 ## The existing hand solver moves the wrist with the inertial grip, never the camera.
 func _aim_searchlight(delta: float) -> void:
 	var visual: HenryUALAnimation = _animation()
@@ -454,11 +468,25 @@ func _aim_searchlight(delta: float) -> void:
 	var forward: Vector3 = visual.global_basis.z.normalized()
 	var camera: Camera3D = get_viewport().get_camera_3d()
 	var aim: Vector3 = TpsCamera.aim_direction(camera) if camera != null else forward
+	## A shoulder-held tool cannot follow the camera through the character's back.
+	## Keep the beam and the IK fingers in the same reachable torso-relative cone.
+	var right: Vector3 = visual.global_basis.x.normalized()
+	## asin maps a full camera orbit continuously back through neutral behind the
+	## torso, instead of jumping from +65 to -65 degrees at the rear crossing.
+	var flat_aim: Vector3 = Vector3(aim.x, 0.0, aim.z).normalized()
+	var yaw: float = clampf(asin(clampf(flat_aim.dot(right), -1.0, 1.0)), deg_to_rad(-65.0), deg_to_rad(65.0))
+	var pitch: float = clampf(asin(clampf(aim.y, -1.0, 1.0)), deg_to_rad(-50.0), deg_to_rad(50.0))
+	aim = (forward * cos(yaw) + right * sin(yaw)) * cos(pitch) + Vector3.UP * sin(pitch)
 	var player := get_parent() as CharacterBody3D
 	searchlight.advance_inertia(delta, aim, player.velocity if player != null else Vector3.ZERO)
-	reach.palm_into_world = Vector3.DOWN
+	## Project down onto the plane perpendicular to the grip. This preserves a
+	## stable palm frame while the flashlight pitches and sweeps across the body.
+	reach.palm_into_world = (Vector3.DOWN - searchlight.direction * Vector3.DOWN.dot(searchlight.direction)).normalized()
 	reach.grip_weight = 1.0
-	reach.aim(chest + forward * 0.32 + side.normalized() * 0.25 - Vector3.UP * 0.1 + searchlight.inertia_offset, searchlight.direction, 1.0)
+	## The carry bar runs along the beam. Fingers must cross the bar to wrap it,
+	## rather than point along it; the right hand closes towards the torso.
+	var grip_fingers: Vector3 = searchlight.direction.cross(Vector3.UP).normalized()
+	reach.aim(chest + forward * 0.32 + side.normalized() * 0.25 - Vector3.UP * 0.1 + searchlight.inertia_offset, grip_fingers, 1.0)
 
 
 func _on_searchlight_hand_solved(palm: Vector3) -> void:

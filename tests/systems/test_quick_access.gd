@@ -132,8 +132,25 @@ func is_burning() -> bool:
 			&"use_ability_gizmo_2", &"orbit_left", &"orbit_right", &"DEBUG"]:
 		_check(not InputMap.has_action(dead), "the dead input action %s is back (#76)" % dead)
 	_check(not InputMap.has_action(&"toggle_flashlight"), "the temporary L action is still mapped")
+	_test_pack_outside(equipment, hub)
 	print("test_quick_access: %s" % ("PASS" if _failures == 0 else "%d FAILED" % _failures))
 	quit(1 if _failures > 0 else 0)
+
+
+## A worn pack adds what sits outside it to Quick Access (side pockets, tool sleeves, carabiner),
+## never its compartments; taking it off takes those away again.
+func _test_pack_outside(equipment: EquipmentComponent, hub: PlayerHubComponent) -> void:
+	var outside: Array[StringName] = [&"pack/pack_side_left", &"pack/pack_side_right_front", &"pack/pack_side_right_back", &"pack/pack_carabiner"]
+	_check(equipment.equip(&"pack", &"backpack") == EquipmentComponent.Refusal.NONE, "the backpack would not go on")
+	var paths: Array = hub.get_quick_access_zones().map(func(zone: Dictionary) -> StringName: return zone["path"])
+	for path: StringName in outside:
+		_check(paths.has(path), "worn pack: %s is not in Quick Access" % path)
+	for path: StringName in [&"pack/pack_main", &"pack/pack_main_2"]:
+		_check(not paths.has(path), "worn pack: its compartment %s is in Quick Access" % path)
+	equipment.unequip(&"pack")
+	paths = hub.get_quick_access_zones().map(func(zone: Dictionary) -> StringName: return zone["path"])
+	for path: StringName in outside:
+		_check(not paths.has(path), "pack off: %s is still in Quick Access" % path)
 
 
 ## The missing link: nothing called ConsumptionController, so Henry could not eat.

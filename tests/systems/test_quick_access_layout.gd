@@ -76,9 +76,12 @@ func _place_camera(distance: float, yaw_deg: float) -> void:
 func _check_no_overlap(label: String) -> void:
 	var rects: Array[Rect2] = []
 	var names: Array[String] = []
-	for name: String in ["CoatLeft", "CoatRight", "ThighLeft", "PackLid", "Hands"]:
-		var card := _ui.get_node(name) as Control
-		if card.visible:
+	var cards: Array[String] = ["CoatLeft", "CoatRight", "ThighLeft", "PackLid", "Hands"]
+	for path: StringName in QuickAccessUI.PACK_ORDER:
+		cards.append("Pack_%s" % String(path).get_file())  # the outside-pack cards, while the pack is worn
+	for name: String in cards:
+		var card := _ui.get_node_or_null(name) as Control
+		if card != null and card.visible:
 			rects.append(Rect2(card.global_position, card.size * card.scale).grow(-TOLERANCE_PX))
 			names.append(name)
 	for i: int in range(rects.size()):
