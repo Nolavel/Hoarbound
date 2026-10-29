@@ -46,7 +46,7 @@ def material(name, colour, roughness, metallic=0.0, painted=False):
         coord=nodes.new('ShaderNodeTexCoord')
         # Object-bound broad brush strokes: small colour variation, no spot palette.
         stretch=nodes.new('ShaderNodeVectorMath');stretch.operation='MULTIPLY'
-        links.new(coord.outputs['Generated'],stretch.inputs[0]);stretch.inputs[1].default_value=(2,.8,9)
+        links.new(coord.outputs['Generated'],stretch.inputs[0]);stretch.inputs[1].default_value=(1.4,1.1,2)
         brush=nodes.new('ShaderNodeTexNoise');brush.inputs['Scale'].default_value=2;brush.inputs['Detail'].default_value=1
         links.new(stretch.outputs[0],brush.inputs['Vector'])
         tones=nodes.new('ShaderNodeValToRGB');tones.color_ramp.interpolation='CONSTANT'
@@ -65,11 +65,49 @@ def material(name, colour, roughness, metallic=0.0, painted=False):
         links.new(coord.outputs['Generated'],clusters.inputs[0])
         chips=mathnode('MULTIPLY',mathnode('MULTIPLY',edge,mathnode('GREATER_THAN',clusters.outputs['Fac'],.55)),mathnode('GREATER_THAN',noise.outputs['Fac'],.50))
         mix=nodes.new('ShaderNodeMixRGB');mix.blend_type='MIX';links.new(chips,mix.inputs[0]);links.new(tones.outputs[0],mix.inputs[1]);mix.inputs[2].default_value=(.075,.080,.078,1)
-        links.new(mix.outputs[0],bsdf.inputs['Base Color'])
+        # Real CC0 industrial paint: retain the industrial scratches but subdue its raw yellow.
+        maps=industrial_maps(mat,'PaintedMetal001',coord.outputs['Generated'])
+        tint=nodes.new('ShaderNodeHueSaturation');tint.inputs['Saturation'].default_value=.90;tint.inputs['Value'].default_value=.40
+        links.new(maps['Color'],tint.inputs['Color'])
+        source_mix=nodes.new('ShaderNodeMixRGB');source_mix.inputs[0].default_value=.18
+        links.new(mix.outputs[0],source_mix.inputs[1]);links.new(tint.outputs[0],source_mix.inputs[2]);links.new(source_mix.outputs[0],bsdf.inputs['Base Color'])
         links.new(mathnode('ADD',.64,mathnode('MULTIPLY',brush.outputs['Fac'],.15)),bsdf.inputs['Roughness'])
-        links.new(chips,bsdf.inputs['Metallic'])
+        links.new(mathnode('MAXIMUM',chips,mathnode('MULTIPLY',mathnode('GREATER_THAN',maps['Metalness'],.85),mathnode('GREATER_THAN',clusters.outputs['Fac'],.63))),bsdf.inputs['Metallic'])
+        links.new(mathnode('ADD',.56,mathnode('MULTIPLY',maps['Roughness'],.23)),bsdf.inputs['Roughness'])
+        normal=nodes.new('ShaderNodeNormalMap');normal.inputs['Strength'].default_value=.10;links.new(maps['NormalGL'],normal.inputs['Color']);links.new(normal.outputs[0],bsdf.inputs['Normal'])
         bsdf.inputs['Specular IOR Level'].default_value=.25
+    if name=='M_Battery':
+        nodes,links=mat.node_tree.nodes,mat.node_tree.links
+        coord=nodes.new('ShaderNodeTexCoord');maps=industrial_maps(mat,'Metal027',coord.outputs['Generated'])
+        mix=nodes.new('ShaderNodeMixRGB');mix.inputs[0].default_value=.60;mix.inputs[1].default_value=(*colour,1);links.new(maps['Color'],mix.inputs[2]);links.new(mix.outputs[0],bsdf.inputs['Base Color'])
+        links.new(maps['Roughness'],bsdf.inputs['Roughness'])
+        normal=nodes.new('ShaderNodeNormalMap');normal.inputs['Strength'].default_value=.12;links.new(maps['NormalGL'],normal.inputs['Color']);links.new(normal.outputs[0],bsdf.inputs['Normal'])
     return mat
+
+
+def industrial_maps(mat,source,coord):
+    outputs={}
+    for channel in ['Color','Roughness','Metalness','NormalGL']:
+        path=ASSET/'materials'/source/(source+'_1K-JPG_'+channel+'.jpg')
+        image=bpy.data.images.load(str(path),check_existing=True)
+        image.colorspace_settings.name='sRGB' if channel=='Color' else 'Non-Color'
+        image.pack()
+        node=mat.node_tree.nodes.new('ShaderNodeTexImage');node.image=image;node.name=source+'_'+channel;node.projection='BOX';node.projection_blend=.18
+        mat.node_tree.links.new(coord,node.inputs['Vector']);outputs[channel]=node.outputs['Color']
+    return outputs
+
+
+def marking(name,path,centre,width,height,axis):
+    mat=bpy.data.materials.new(name);nodes,links=mat.node_tree.nodes,mat.node_tree.links
+    bsdf=next(n for n in nodes if n.type=='BSDF_PRINCIPLED');bsdf.inputs['Roughness'].default_value=.82
+    texture=nodes.new('ShaderNodeTexImage');texture.image=bpy.data.images.load(str(path),check_existing=True);texture.image.pack()
+    links.new(texture.outputs['Color'],bsdf.inputs['Base Color']);links.new(texture.outputs['Alpha'],bsdf.inputs['Alpha'])
+    mat.surface_render_method='DITHERED'
+    c=Vector(centre);u=Vector((0,1,0)) if axis=='X' else Vector((1,0,0));v=Vector((0,0,1))
+    verts=[c+u*x*width/2+v*y*height/2 for x,y in [(-1,-1),(1,-1),(1,1),(-1,1)]]
+    mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],[(0,1,2,3)]);mesh.update();layer=mesh.uv_layers.new(name='UVMap')
+    for loop,uv in zip(layer.data,[(0,0),(1,0),(1,1),(0,1)]):loop.uv=uv
+    ob=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(ob);return finish(ob,name,mat)
 
 
 def finish(ob, name, mat, role='Body', bevel=0.0):
@@ -77,7 +115,7 @@ def finish(ob, name, mat, role='Body', bevel=0.0):
     activate([ob])
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
     if bevel:
-        result = STACK.run(objects=[ob.name], preset='midpoly', width=min(bevel,min(ob.dimensions)*.2), segments=2, apply=True)
+        result = STACK.run(objects=[ob.name], preset='midpoly', width=min(bevel,min(ob.dimensions)*.2), segments=1 if name.startswith(('SwitchGuard','SwitchEndGuard','HandleRearMount','HandleFrontMount')) else 2, apply=True)
         if not result.get('ok', True):
             raise RuntimeError(result)
     ob.data.materials.clear()
@@ -147,7 +185,12 @@ def lathe(name, profile, mat, segments=48, centre_z=.115):
 
 
 def handle_sweep(mat):
-    path=[(-.161,.168),(-.154,.200),(-.133,.230),(-.116,.238),(.060,.238),(.079,.230),(.100,.202),(.107,.168)]
+    def bezier(a,b,c,d,steps=9):
+        return [tuple((1-t)**3*a[k]+3*(1-t)**2*t*b[k]+3*(1-t)*t*t*c[k]+t**3*d[k] for k in (0,1)) for t in [i/steps for i in range(steps+1)]]
+    # Continuous tangent at both shoulders; compact flat landing for the guarded switch.
+    path=bezier((-.161,.154),(-.153,.211),(-.145,.238),(-.108,.238))
+    path += [(.036,.238),(.072,.238)]
+    path += bezier((.072,.238),(.098,.238),(.077,.199),(.077,.154))[1:]
     # Chamfered 22 x 16 mm section; the winter glove has a 65 mm-high opening.
     cross=[(-.008,-.008),(.008,-.008),(.011,-.005),(.011,.005),(.008,.008),(-.008,.008),(-.011,.005),(-.011,-.005)]
     vertices=[]
@@ -162,6 +205,8 @@ def handle_sweep(mat):
     mesh=bpy.data.meshes.new('ErgonomicHandle');mesh.from_pydata(vertices,[],faces);mesh.update()
     ob=bpy.data.objects.new('ErgonomicHandle',mesh);bpy.context.collection.objects.link(ob)
     bm=bmesh.new();bm.from_mesh(mesh);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(mesh);bm.free()
+    for face in mesh.polygons:face.use_smooth=True
+    mesh.set_sharp_from_angle(angle=math.radians(35))
     return finish(ob,'ErgonomicHandle',mat)
 
 
@@ -209,7 +254,6 @@ def main():
     for x in [-.075,.075]:
         box('SidePanel',(x,-.059,.090),(.009,.186,.112),paint,bevel=.004)
         for y in [-.172,.061]:box('BodyEdgeBumper',(x,y,.088),(.014,.025,.142),rubber,bevel=.003)
-        box('Latch',(x*1.073,-.184,.105),(.012,.025,.036),red,'Battery',.002)
         for z in [.063,.075,.087,.099,.111]:box('CoolingSlot',(x*1.07,-.120,z),(.003,.032,.004),rubber,bevel=.0006)
         for y in [-.130,.008]:
             for z in [.052,.132]:cylinder('PanelScrew',(x*1.085,y,z),.003,.003,metal,8,'X')
@@ -219,12 +263,18 @@ def main():
     gauge=material('M_BatteryGaugeAmber',(.75,.42,.075),.46)
     for i in range(4):
         box('BatteryChargeLamp_%d'%(i+1),(-.090,-.058+i*.018,.101),(.002,.007,.014),gauge,bevel=.0008)
-    box('BatteryPortCover',(0,-.232,.087),(.045,.005,.040),rubber,'Battery',.003)
+    marking('Marking_Rear',ASSET/'materials/rear_marking.png',(0,-.2295,.092),.112,.064,'Y')
+    marking('Marking_Side',ASSET/'materials/side_marking.png',(.0800,-.026,.082),.102,.035,'X')
+    box('HandleRearMount',(0,-.158,.162),(.038,.035,.012),inset,bevel=.002)
+    box('HandleFrontMount',(0,.073,.162),(.038,.027,.012),inset,bevel=.002)
     handle_sweep(paint)
-    box('GripRubber',(0,-.025,.238),(.026,.145,.020),rubber,bevel=.003)
-    for y in [-.084,-.064,-.044,-.024,-.004,.016,.036]:box('GripFineRib',(0,y,.250),(.023,.002,.0015),inset,bevel=.0004)
-    box('SwitchSeat',(0,.071,.244),(.035,.032,.009),rubber,bevel=.003)
-    box('PowerButton',(0,.071,.251),(.024,.021,.007),red,'Button',.002)
+    box('GripRubber',(0,-.036,.238),(.026,.125,.020),rubber,bevel=.003)
+    for y in [-.080,-.056,-.032,-.008,.016]:box('GripFineRib',(0,y,.250),(.023,.002,.0015),inset,bevel=.0004)
+    # Flush rocker on the front landing, protected from accidental side contact.
+    box('SwitchSeat',(0,.055,.245),(.034,.037,.008),rubber,bevel=.003)
+    box('PowerButton',(0,.055,.249),(.020,.025,.004),red,'Button',.0015)
+    for x in [-.014,.014]:box('SwitchGuard',(x,.055,.250),(.005,.037,.007),rubber,bevel=.0015)
+    for y in [.039,.071]:box('SwitchEndGuard',(0,y,.250),(.024,.005,.007),rubber,bevel=.0015)
     # A tapered optical housing, not a cylinder filled by the body cube.
     cylinder('OpticalRearCover',(0,.079,.115),.088,.004,paint,40)
     lathe('OpticalHousing',[(.088,.080),(.096,.085),(.109,.153),(.110,.181),(.107,.185),(.101,.179),(.100,.155),(.087,.091)],paint)
@@ -269,14 +319,25 @@ def main():
         ob=bpy.data.objects.new(name,None);ob.location=at;bpy.context.collection.objects.link(ob)
     for ob in PARTS:
         bm=bmesh.new();bm.from_mesh(ob.data);bmesh.ops.triangulate(bm,faces=bm.faces);bm.to_mesh(ob.data);bm.free()
+    # Each foot must physically enter the main case, not merely overlap in projection.
+    from mathutils.bvhtree import BVHTree
+    bpy.context.view_layer.update()
+    def tree(ob):
+        bm=bmesh.new();bm.from_mesh(ob.data);bm.transform(ob.matrix_world);t=BVHTree.FromBMesh(bm);bm.free();return t
+    handle=bpy.data.objects['ErgonomicHandle'];case=bpy.data.objects['MainHousing']
+    pairs=tree(handle).overlap(tree(case))
+    rear=sum(1 for i,j in pairs if (handle.matrix_world @ handle.data.polygons[i].center).y < -.10)
+    front=sum(1 for i,j in pairs if (handle.matrix_world @ handle.data.polygons[i].center).y > .03)
+    (EVIDENCE/'handle_joint_check.json').write_text(json.dumps({'rear_case_intersections':rear,'front_case_intersections':front,'minimum_foot_z_before_ground_shift_m':.154,'case_top_z_before_ground_shift_m':.162,'nominal_embed_mm':8},indent=2))
+    if not rear or not front:raise RuntimeError('Handle foot disconnected from main case')
     names=[o.name for o in PARTS]
-    uv=importlib.import_module('uv_pack').run(objects=names,method='smart',res=1024,margin_px=8)
+    uv=importlib.import_module('uv_pack').run(objects=[n for n in names if not n.startswith('Marking_')],method='smart',res=1024,margin_px=8)
     (EVIDENCE/'uv_review.json').write_text(json.dumps(uv,indent=2))
     report=importlib.import_module('qa_check').run(objects=names,profile='game',eps=.00015,tol=.004)
     (EVIDENCE/'geometry_qa.json').write_text(json.dumps(report,indent=2))
     stats=importlib.import_module('mesh_stats').run(objects=names,budget='pc')
     (EVIDENCE/'model_stats.json').write_text(json.dumps(stats,indent=2))
-    metrics={'ground_shift_m':shift,'handle_section_mm':[22,16],'rubber_grip_section_mm':[26,20],'clearance_above_case_mm':(.238-.010-.162)*1000,'reflector_depth_mm':81,'lens_diameter_mm':189.6,'rim_pad_radial_projection_mm':3.5,'hand_source':'henry_right_hand.blend','game_integration':'paused for material and grip review; core geometry approved','hand_rotation_z_degrees':180,'battery_gauge_lamps':4}
+    metrics={'ground_shift_m':shift,'handle_section_mm':[22,16],'rubber_grip_section_mm':[26,20],'clearance_above_case_mm':(.238-.010-.162)*1000,'reflector_depth_mm':81,'lens_diameter_mm':189.6,'rim_pad_radial_projection_mm':3.5,'hand_source':'henry_right_hand.blend','game_integration':'paused for material and grip review; core geometry approved','hand_rotation_z_degrees':180,'battery_gauge_lamps':4,'handle_shoulders':'tangent-continuous cubic curves','switch':'guarded front landing, recessed rocker','industrial_materials':['ambientCG PaintedMetal001','ambientCG Metal027'],'removed':['side red latches','rear black square']}
     (EVIDENCE/'geometry_review.json').write_text(json.dumps(metrics,indent=2))
     bpy.ops.wm.save_as_mainfile(filepath=str(ASSET/'searchlight_geometry_review.blend'))
     render_review(shift)
@@ -299,7 +360,7 @@ def render_review(shift,grip_only=False):
     light('GlassReflectionStrip',(.35,.6,.3),13,.06,(1,.96,.86),'RECTANGLE',.45)
     light('RearEdge',(-.3,-.55,.45),25,.35,(1,.76,.50))
     camera=bpy.data.objects.new('ReviewCamera',bpy.data.cameras.new('ReviewCamera'));bpy.context.collection.objects.link(camera);scene.camera=camera;camera.data.type='ORTHO'
-    views=[] if grip_only else [('front',(0,1,.139),(0,0,.127),.39),('side',(1,-.01,.145),(0,-.016,.127),.56),('perspective',(.58,.77,.42),(0,-.015,.128),.52),('optics',(.16,.8,.24),(0,.145,.115),.29),('opposite_side',(-1,-.01,.145),(0,-.016,.127),.56),('rear_perspective',(-.58,-.77,.42),(0,-.03,.128),.52)]
+    views=[] if grip_only else [('front',(0,1,.139),(0,0,.127),.39),('side',(1,-.01,.145),(0,-.016,.127),.56),('perspective',(.58,.77,.42),(0,-.015,.128),.52),('optics',(.16,.8,.24),(0,.145,.115),.29),('opposite_side',(-1,-.01,.145),(0,-.016,.127),.56),('rear_perspective',(-.58,-.77,.42),(0,-.03,.128),.52),('rear',(0,-1,.14),(0,-.22,.105),.30),('switch_detail',(.36,.46,.48),(0,.035,.233),.24),('rear_handle_joint',(.36,-.27,.23),(0,-.157,.172),.13),('front_handle_joint',(.38,.30,.24),(0,.074,.176),.14)]
     for name,at,look,scale in views:
         if REVIEW_VIEWS and name not in REVIEW_VIEWS:continue
         camera.data.ortho_scale=scale;camera.location=at;camera.rotation_euler=(Vector(look)-camera.location).to_track_quat('-Z','Y').to_euler();scene.render.filepath=str(EVIDENCE/(name+'.png'));bpy.ops.render.render(write_still=True)

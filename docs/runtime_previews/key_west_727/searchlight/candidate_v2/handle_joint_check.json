@@ -1,0 +1,7 @@
+{
+  "rear_case_intersections": 16,
+  "front_case_intersections": 24,
+  "minimum_foot_z_before_ground_shift_m": 0.154,
+  "case_top_z_before_ground_shift_m": 0.162,
+  "nominal_embed_mm": 8
+}

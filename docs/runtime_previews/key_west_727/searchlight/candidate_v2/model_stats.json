@@ -49,14 +49,6 @@
       "uv_maps": 1,
       "shape_keys": 0
     },
-    "Latch": {
-      "tris": 108,
-      "verts": 56,
-      "materials": 1,
-      "modifiers": [],
-      "uv_maps": 1,
-      "shape_keys": 0
-    },
     "CoolingSlot": {
       "tris": 108,
       "verts": 56,
@@ -146,14 +138,6 @@
       "shape_keys": 0
     },
     "BodyEdgeBumper.003": {
-      "tris": 108,
-      "verts": 56,
-      "materials": 1,
-      "modifiers": [],
-      "uv_maps": 1,
-      "shape_keys": 0
-    },
-    "Latch.001": {
       "tris": 108,
       "verts": 56,
       "materials": 1,
@@ -281,17 +265,41 @@
       "uv_maps": 1,
       "shape_keys": 0
     },
-    "BatteryPortCover": {
-      "tris": 108,
-      "verts": 56,
+    "Marking_Rear": {
+      "tris": 2,
+      "verts": 4,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "Marking_Side": {
+      "tris": 2,
+      "verts": 4,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "HandleRearMount": {
+      "tris": 44,
+      "verts": 24,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "HandleFrontMount": {
+      "tris": 44,
+      "verts": 24,
       "materials": 1,
       "modifiers": [],
       "uv_maps": 1,
       "shape_keys": 0
     },
     "ErgonomicHandle": {
-      "tris": 124,
-      "verts": 64,
+      "tris": 332,
+      "verts": 168,
       "materials": 1,
       "modifiers": [],
       "uv_maps": 1,
@@ -345,22 +353,6 @@
       "uv_maps": 1,
       "shape_keys": 0
     },
-    "GripFineRib.005": {
-      "tris": 108,
-      "verts": 56,
-      "materials": 1,
-      "modifiers": [],
-      "uv_maps": 1,
-      "shape_keys": 0
-    },
-    "GripFineRib.006": {
-      "tris": 108,
-      "verts": 56,
-      "materials": 1,
-      "modifiers": [],
-      "uv_maps": 1,
-      "shape_keys": 0
-    },
     "SwitchSeat": {
       "tris": 108,
       "verts": 56,
@@ -372,6 +364,38 @@
     "PowerButton": {
       "tris": 108,
       "verts": 56,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SwitchGuard": {
+      "tris": 44,
+      "verts": 24,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SwitchGuard.001": {
+      "tris": 44,
+      "verts": 24,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SwitchEndGuard": {
+      "tris": 44,
+      "verts": 24,
+      "materials": 1,
+      "modifiers": [],
+      "uv_maps": 1,
+      "shape_keys": 0
+    },
+    "SwitchEndGuard.001": {
+      "tris": 44,
+      "verts": 24,
       "materials": 1,
       "modifiers": [],
       "uv_maps": 1,
@@ -498,12 +522,93 @@
       "shape_keys": 0
     }
   },
-  "total_tris": 9996,
-  "total_verts": 5114,
-  "draw_calls_est": 62,
-  "unique_materials": 10,
-  "textures": [],
-  "texture_vram_mb_uncompressed": 0.0,
+  "total_tris": 9932,
+  "total_verts": 5090,
+  "draw_calls_est": 65,
+  "unique_materials": 12,
+  "textures": [
+    {
+      "name": "Metal027_1K-JPG_Color.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "Metal027_1K-JPG_Metalness.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "rear_marking.png",
+      "size": [
+        1024,
+        512
+      ],
+      "mb": 2.7
+    },
+    {
+      "name": "PaintedMetal001_1K-JPG_Color.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "PaintedMetal001_1K-JPG_Roughness.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "PaintedMetal001_1K-JPG_NormalGL.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "PaintedMetal001_1K-JPG_Metalness.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "Metal027_1K-JPG_Roughness.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "Metal027_1K-JPG_NormalGL.jpg",
+      "size": [
+        1024,
+        1024
+      ],
+      "mb": 5.3
+    },
+    {
+      "name": "side_marking.png",
+      "size": [
+        1024,
+        512
+      ],
+      "mb": 2.7
+    }
+  ],
+  "texture_vram_mb_uncompressed": 48.0,
   "bones": 0,
   "kind": "prop",
   "budget": {
@@ -516,7 +621,7 @@
       "bones": 300
     },
     "over": [
-      "materials 10 > 6 (merge/atlas)"
+      "materials 12 > 6 (merge/atlas)"
     ],
     "pass": false
   }

@@ -33,11 +33,6 @@
         "UVMap"
       ]
     },
-    "Latch": {
-      "uv_maps": [
-        "UVMap"
-      ]
-    },
     "CoolingSlot": {
       "uv_maps": [
         "UVMap"
@@ -94,11 +89,6 @@
       ]
     },
     "BodyEdgeBumper.003": {
-      "uv_maps": [
-        "UVMap"
-      ]
-    },
-    "Latch.001": {
       "uv_maps": [
         "UVMap"
       ]
@@ -178,7 +168,12 @@
         "UVMap"
       ]
     },
-    "BatteryPortCover": {
+    "HandleRearMount": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "HandleFrontMount": {
       "uv_maps": [
         "UVMap"
       ]
@@ -218,22 +213,32 @@
         "UVMap"
       ]
     },
-    "GripFineRib.005": {
-      "uv_maps": [
-        "UVMap"
-      ]
-    },
-    "GripFineRib.006": {
-      "uv_maps": [
-        "UVMap"
-      ]
-    },
     "SwitchSeat": {
       "uv_maps": [
         "UVMap"
       ]
     },
     "PowerButton": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SwitchGuard": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SwitchGuard.001": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SwitchEndGuard": {
+      "uv_maps": [
+        "UVMap"
+      ]
+    },
+    "SwitchEndGuard.001": {
       "uv_maps": [
         "UVMap"
       ]

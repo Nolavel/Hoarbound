@@ -41,7 +41,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 7.0
+      "uv_coverage_pct": 6.7
     },
     "BatteryBlock": {
       "verts": 56,
@@ -68,7 +68,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 2.7
+      "uv_coverage_pct": 2.5
     },
     "BatteryRearPlate": {
       "verts": 56,
@@ -95,7 +95,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 1.4
+      "uv_coverage_pct": 1.2
     },
     "SidePanel": {
       "verts": 56,
@@ -149,7 +149,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.3
+      "uv_coverage_pct": 0.4
     },
     "BodyEdgeBumper.001": {
       "verts": 56,
@@ -177,33 +177,6 @@
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
       "uv_coverage_pct": 0.4
-    },
-    "Latch": {
-      "verts": 56,
-      "faces": 108,
-      "tris": 108,
-      "ngons": 0,
-      "boundary_edges": 0,
-      "nonmanifold_edges": 0,
-      "wire_edges": 0,
-      "loose_verts": 0,
-      "degenerate_faces": 0,
-      "zero_length_edges": 0,
-      "inconsistent_normals_edges": 0,
-      "duplicate_verts": 0,
-      "islands": 1,
-      "inside_out_islands": 0,
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "materials": 1,
-      "uv_maps": 1,
-      "uv_oob_pct": 0.0,
-      "uv_zero_area_faces": 0,
-      "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.1
     },
     "CoolingSlot": {
       "verts": 56,
@@ -473,7 +446,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 1.6
+      "uv_coverage_pct": 1.7
     },
     "BodyEdgeBumper.002": {
       "verts": 56,
@@ -527,34 +500,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.4
-    },
-    "Latch.001": {
-      "verts": 56,
-      "faces": 108,
-      "tris": 108,
-      "ngons": 0,
-      "boundary_edges": 0,
-      "nonmanifold_edges": 0,
-      "wire_edges": 0,
-      "loose_verts": 0,
-      "degenerate_faces": 0,
-      "zero_length_edges": 0,
-      "inconsistent_normals_edges": 0,
-      "duplicate_verts": 0,
-      "islands": 1,
-      "inside_out_islands": 0,
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "materials": 1,
-      "uv_maps": 1,
-      "uv_oob_pct": 0.0,
-      "uv_zero_area_faces": 0,
-      "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.1
+      "uv_coverage_pct": 0.3
     },
     "CoolingSlot.005": {
       "verts": 56,
@@ -851,7 +797,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.2
+      "uv_coverage_pct": 0.1
     },
     "BatteryChargeLamp_1": {
       "verts": 56,
@@ -961,10 +907,91 @@
       "uv_overlap_pct": 0.0,
       "uv_coverage_pct": 0.0
     },
-    "BatteryPortCover": {
-      "verts": 56,
-      "faces": 108,
-      "tris": 108,
+    "Marking_Rear": {
+      "verts": 4,
+      "faces": 2,
+      "tris": 2,
+      "ngons": 0,
+      "boundary_edges": 4,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.78,
+      "uv_coverage_pct": 100.0
+    },
+    "Marking_Side": {
+      "verts": 4,
+      "faces": 2,
+      "tris": 2,
+      "ngons": 0,
+      "boundary_edges": 4,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.78,
+      "uv_coverage_pct": 100.0
+    },
+    "HandleRearMount": {
+      "verts": 24,
+      "faces": 44,
+      "tris": 44,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.1
+    },
+    "HandleFrontMount": {
+      "verts": 24,
+      "faces": 44,
+      "tris": 44,
       "ngons": 0,
       "boundary_edges": 0,
       "nonmanifold_edges": 0,
@@ -989,9 +1016,9 @@
       "uv_coverage_pct": 0.1
     },
     "ErgonomicHandle": {
-      "verts": 64,
-      "faces": 124,
-      "tris": 124,
+      "verts": 168,
+      "faces": 332,
+      "tris": 332,
       "ngons": 0,
       "boundary_edges": 0,
       "nonmanifold_edges": 0,
@@ -1013,7 +1040,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.7
+      "uv_coverage_pct": 0.8
     },
     "GripRubber": {
       "verts": 56,
@@ -1177,60 +1204,6 @@
       "uv_overlap_pct": 0.0,
       "uv_coverage_pct": 0.0
     },
-    "GripFineRib.005": {
-      "verts": 56,
-      "faces": 108,
-      "tris": 108,
-      "ngons": 0,
-      "boundary_edges": 0,
-      "nonmanifold_edges": 0,
-      "wire_edges": 0,
-      "loose_verts": 0,
-      "degenerate_faces": 0,
-      "zero_length_edges": 0,
-      "inconsistent_normals_edges": 0,
-      "duplicate_verts": 0,
-      "islands": 1,
-      "inside_out_islands": 0,
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "materials": 1,
-      "uv_maps": 1,
-      "uv_oob_pct": 0.0,
-      "uv_zero_area_faces": 0,
-      "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.0
-    },
-    "GripFineRib.006": {
-      "verts": 56,
-      "faces": 108,
-      "tris": 108,
-      "ngons": 0,
-      "boundary_edges": 0,
-      "nonmanifold_edges": 0,
-      "wire_edges": 0,
-      "loose_verts": 0,
-      "degenerate_faces": 0,
-      "zero_length_edges": 0,
-      "inconsistent_normals_edges": 0,
-      "duplicate_verts": 0,
-      "islands": 1,
-      "inside_out_islands": 0,
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "materials": 1,
-      "uv_maps": 1,
-      "uv_oob_pct": 0.0,
-      "uv_zero_area_faces": 0,
-      "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.0
-    },
     "SwitchSeat": {
       "verts": 56,
       "faces": 108,
@@ -1283,7 +1256,115 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.0
+    },
+    "SwitchGuard": {
+      "verts": 24,
+      "faces": 44,
+      "tris": 44,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.0
+    },
+    "SwitchGuard.001": {
+      "verts": 24,
+      "faces": 44,
+      "tris": 44,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
       "uv_coverage_pct": 0.1
+    },
+    "SwitchEndGuard": {
+      "verts": 24,
+      "faces": 44,
+      "tris": 44,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.0
+    },
+    "SwitchEndGuard.001": {
+      "verts": 24,
+      "faces": 44,
+      "tris": 44,
+      "ngons": 0,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "wire_edges": 0,
+      "loose_verts": 0,
+      "degenerate_faces": 0,
+      "zero_length_edges": 0,
+      "inconsistent_normals_edges": 0,
+      "duplicate_verts": 0,
+      "islands": 1,
+      "inside_out_islands": 0,
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "materials": 1,
+      "uv_maps": 1,
+      "uv_oob_pct": 0.0,
+      "uv_zero_area_faces": 0,
+      "uv_overlap_pct": 0.0,
+      "uv_coverage_pct": 0.0
     },
     "OpticalRearCover": {
       "verts": 80,
@@ -1310,7 +1391,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 1.8
+      "uv_coverage_pct": 1.7
     },
     "OpticalHousing": {
       "verts": 384,
@@ -1337,7 +1418,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 5.0
+      "uv_coverage_pct": 4.7
     },
     "MetalFrontBezel": {
       "verts": 384,
@@ -1364,7 +1445,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 1.6
+      "uv_coverage_pct": 1.5
     },
     "GlassSeal": {
       "verts": 288,
@@ -1391,7 +1472,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.4
+      "uv_coverage_pct": 0.6
     },
     "SmallRimPad_0": {
       "verts": 20,
@@ -1445,7 +1526,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.0
+      "uv_coverage_pct": 0.1
     },
     "SmallRimPad_2": {
       "verts": 20,
@@ -1526,7 +1607,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.1
+      "uv_coverage_pct": 0.0
     },
     "SmallRimPad_5": {
       "verts": 20,
@@ -1553,7 +1634,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 0.1
+      "uv_coverage_pct": 0.0
     },
     "DeepParabolicReflector": {
       "verts": 864,
@@ -1580,7 +1661,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 3.0
+      "uv_coverage_pct": 2.9
     },
     "LEDHeatSlug": {
       "verts": 48,
@@ -1688,7 +1769,7 @@
       "uv_oob_pct": 0.0,
       "uv_zero_area_faces": 0,
       "uv_overlap_pct": 0.0,
-      "uv_coverage_pct": 2.0
+      "uv_coverage_pct": 2.1
     }
   }
 }

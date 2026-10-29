@@ -10,7 +10,12 @@
       "GripRubber": 0,
       "ErgonomicHandle": 0,
       "MainHousing": 0,
-      "PowerButton": 0
+      "PowerButton": 0,
+      "SwitchSeat": 0,
+      "SwitchEndGuard": 0,
+      "SwitchEndGuard.001": 0,
+      "SwitchGuard": 0,
+      "SwitchGuard.001": 0
     }
   }
 }
