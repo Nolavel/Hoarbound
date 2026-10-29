@@ -6,9 +6,12 @@ elbows and knees exactly like the body. Skin under each garment is split into
 Skin_<item> meshes the game hides while that item is worn.
 Run: python3 tools/blender/build_henry_outfit.py [--render out_dir]
 Writes assets/characters/henry/henry_outfit.glb (body + garments + armature + clips).
+Boots are the owner's model (assets/items/boots/boots.glb), skinned here from the body.
 """
+import json
 import math
 import os
+import struct
 import sys
 
 import bpy  # must load before bmesh
@@ -17,6 +20,10 @@ from mathutils import Vector
 
 SOURCE = "assets/animation/ual/Unreal-Godot/UAL1_Standard.glb"
 OUT = "assets/characters/henry/henry_outfit.glb"
+## The owner's boots, modelled in the mannequin's rest pose; they replace the generated boots.
+BOOTS_SOURCE = "assets/items/boots/boots.glb"
+## Imported piece name prefix -> outfit mesh (both feet joined into one).
+BOOT_PARTS = {"Boot_New_": "Outfit_Boots", "Boot_Lining_": "Outfit_BootLining", "Boot_Fur_": "Outfit_BootFur"}
 
 JACKET_COLOUR = (0.30, 0.34, 0.20)
 ## Insulated work glove after the owner's reference: olive back, tan knuckle and fingertip
@@ -93,7 +100,8 @@ def regions(body, arm):
 	floor = min(zs)
 	hem = floor + 0.475 * height  # jacket hem just below the hips
 	boot_top = floor + 0.17 * height
-	pants_low = boot_top - 0.05  # tucked into the boots
+	## The trousers end under the boots' fur cuff: tucked deeper they poke through the rigid shaft.
+	pants_low = boot_cuff_bottom() + 0.005
 	pants_high = hem + 0.08  # tucked under the jacket
 	neck_z = arm.matrix_world @ arm.data.bones["neck_01"].head_local
 	head = arm.matrix_world @ arm.data.bones["Head"].head_local
@@ -285,11 +293,18 @@ def split_body(body, region):
 	bm.verts.ensure_lookup_table()
 	border = {v.index for v in bm.verts if owner[v.index] and any(
 		owner[e.other_vert(v).index] != owner[v.index] for e in v.link_edges)}
+	## Skin one ring either side of the boots' edge: hidden under the rigid boot shaft and its cuff.
+	boot_edge = {v.index for v in bm.verts if owner[v.index] == "Boots" or any(
+		owner[e.other_vert(v).index] == "Boots" for e in v.link_edges)}
 	face_owner = {}
 	for f in bm.faces:
 		labels = {owner[v.index] for v in f.verts}
 		if len(labels) == 1 and "" not in labels and not any(v.index in border for v in f.verts):
 			face_owner[f.index] = ITEM_OF[labels.pop()]
+		elif labels <= {"Boots", "Pants"} and any(v.index in boot_edge for v in f.verts):
+			## The owner's boots are rigid shells, not pushed-out skin: the edge ring of big shin
+			## faces would show through them, and above the boot the trousers cover it.
+			face_owner[f.index] = ITEM_OF["Boots"]
 	bm.free()
 	skin = material("Skin", BODY_COLOUR)
 	for item in sorted(set(face_owner.values())) + [""]:
@@ -321,11 +336,81 @@ def build():
 	region = regions(body, arm)
 	built = {name: build_garment(body, arm, name, region, spec) for name, spec in GARMENTS.items()}
 	style_gloves(built["Gloves"], built["GloveCuff"], arm)
+	owner_boots(arm, body, [built.pop("Boots"), built.pop("Sole")])
 	split_body(body, region)
 	build_hood(arm, body)
 	skirt = build_skirt(arm, body)
 	build_trim(arm, [built["Jacket"], skirt])
 	return arm
+
+
+def boot_cuff_bottom():
+	"""Lowest point of the owner's boots' fur cuff, Blender Z (glTF Y), read from the GLB."""
+	with open(BOOTS_SOURCE, "rb") as f:
+		data = f.read()
+	length = struct.unpack("<I", data[12:16])[0]
+	gltf = json.loads(data[20:20 + length])
+	nodes = gltf["nodes"]
+	parent = {child: i for i, n in enumerate(nodes) for child in n.get("children", [])}
+	low = math.inf
+	for i, node in enumerate(nodes):
+		if not node.get("name", "").startswith("Boot_Fur_") or "mesh" not in node:
+			continue
+		y = 0.0
+		walk = i
+		while walk is not None:
+			y += nodes[walk].get("translation", [0.0, 0.0, 0.0])[1]
+			walk = parent.get(walk)
+		for prim in gltf["meshes"][node["mesh"]]["primitives"]:
+			low = min(low, y + gltf["accessors"][prim["attributes"]["POSITION"]]["min"][1])
+	return low
+
+
+def owner_boots(arm, body, generated):
+	"""Swaps the generated boots for the owner's: each piece keeps its textured material and
+	takes the body's skin weights from the nearest face (foot and leg bones only)."""
+	for obj in generated:
+		bpy.data.objects.remove(obj)
+	before = set(bpy.data.objects)
+	bpy.ops.import_scene.gltf(filepath=BOOTS_SOURCE)
+	imported = [o for o in bpy.data.objects if o not in before]
+	extras = [o.name for o in imported if o.type != "MESH"]
+	mesh_names = [o.name for o in imported if o.type == "MESH"]
+	bpy.context.view_layer.update()
+	for obj in imported:
+		obj.matrix_parent_inverse.identity()
+	for obj in imported:
+		world = obj.matrix_world.copy()
+		obj.parent = None
+		obj.matrix_world = world
+	keep = FEET | LEGS
+	for prefix, name in BOOT_PARTS.items():
+		parts = [bpy.data.objects[n] for n in mesh_names if n.startswith(prefix)]
+		bpy.ops.object.select_all(action="DESELECT")
+		for o in parts:
+			o.select_set(True)
+		bpy.context.view_layer.objects.active = parts[0]
+		bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+		if len(parts) > 1:
+			bpy.ops.object.join()
+		obj = bpy.context.view_layer.objects.active
+		obj.name = obj.data.name = name
+		for group in body.vertex_groups:
+			if group.name in keep:
+				obj.vertex_groups.new(name=group.name)
+		mod = obj.modifiers.new("Weights", "DATA_TRANSFER")
+		mod.object = body
+		mod.use_vert_data = True
+		mod.data_types_verts = {"VGROUP_WEIGHTS"}
+		mod.vert_mapping = "POLYINTERP_NEAREST"
+		mod.layers_vgroup_select_src = "ALL"
+		mod.layers_vgroup_select_dst = "NAME"
+		bpy.ops.object.modifier_apply(modifier="Weights")
+		bpy.ops.object.vertex_group_normalize_all(lock_active=False)
+		obj.parent = arm
+		obj.modifiers.new("Armature", "ARMATURE").object = arm
+	for extra in extras:
+		bpy.data.objects.remove(bpy.data.objects[extra])
 
 
 def finish(obj, arm, name, colour, thick):

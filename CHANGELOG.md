@@ -6,6 +6,19 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added
+
+- The owner's boots (`assets/items/boots/boots.glb`) on Henry, replacing the generated boots and soles.
+  - **Fit:** modelled in the mannequin's rest pose (same footprint as the old boots), so no move or
+    scale. `build_henry_outfit.py` imports them and gives each piece (shell, lining, fur cuff) the
+    body's skin weights from the nearest face, foot and leg bones only, so they bend at the ankle.
+  - **Materials:** the painted colour and normal maps are kept; double-sided pieces stay double-sided
+    and the alpha-cut fur fibres keep their own material (`HenryUALAnimation._attach_garments`).
+  - **No clipping:** the trousers now end just under the fur cuff (its height read from the GLB), and
+    the ring of big shin faces at the boot edge is hidden with the boots; before, the trousers and the
+    calf poked through the back of the rigid shaft. Checked with an object-ID render from behind.
+  - Stills: `docs/runtime_previews/boots/`, from `tools/runtime/capture_boots.gd`.
+
 ### Changed
 
 - Quick Access follows what Henry wears (#260, owner).
