@@ -4,6 +4,7 @@ extends SceneTree
 ## eight sides, one settled PNG each (no video). Part of the backpack stand (BACKPACK_RIG.md).
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_backpack_stills.gd -- <out dir> [pocket]
 ## `pocket`: three close views of the left side pocket and what it holds, in place of the eight sides.
+## `back`: one view from straight behind, 1.4 m out, the whole pack and both sides in frame.
 ## `insert`: the thermos taken out and pushed back in, every frame for 1 s from behind-left, then `pocket`.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
@@ -61,6 +62,16 @@ func _run() -> void:
 	var to_player: Basis = _player.global_basis.inverse()
 	print("[packstills] canvas up in Henry's frame ", (to_player * canvas.global_basis.y).normalized(), " sway deg ", (pack.get(&"_sway") as Node3D).rotation_degrees)
 
+	if OS.get_cmdline_user_args().has("back"):
+		var behind: Vector3 = _player.global_basis.z
+		behind.y = 0.0
+		_camera.look_at_from_position(_player.global_position + behind.normalized() * 1.4 + Vector3.UP * 0.55, _player.global_position + Vector3.UP * 0.3)
+		await _frames(4)
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join("back.png"))
+		print("[packstills] done")
+		quit(0)
+		return
 	if OS.get_cmdline_user_args().has("insert"):
 		await _insert_frames(canvas)
 	if OS.get_cmdline_user_args().has("pocket") or OS.get_cmdline_user_args().has("insert"):

@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Pocket loops and carabiners are sewn at the middle of each side pocket (#260, owner review).
+  Before, the seam stood at the hem: above an empty pocket's drooping rim, and pulled about by the
+  hem springs, so the loop seemed to hang in the air. The clipped mug now hangs 7 cm below the pack
+  bottom (stand limit 8 cm). Its damping is now 0.65, so the lower pivot does not drive it into its
+  stop. `capture_backpack_stills.gd back` gives one view from straight behind.
 - Side pocket and thermos (#260, owner review). Measured first:
   - **Floor:** the thermos stood 6 mm off the pocket floor because a slot constant set its height.
     It now stands on `POCKET_FLOOR_Y`, the pocket mesh bottom plus its lining.

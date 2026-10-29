@@ -84,10 +84,10 @@ const SIDE_GIVE_M: float = 0.014
 ## The empty slump in backpack_canvas.gdshader, for parts that ride on the canvas.
 const SLUMP_TOP_M: float = 0.07
 const SLUMP_WALL_M: float = 0.018
-## Webbing loop sewn at the rim of each side pocket's outer cloth (height, depth): it hangs out and
-## down at LOOP_DROP_DEG for LOOP_LENGTH_M, and the carabiner is threaded through its lower end.
-const LOOP_SEW_Y: float = 0.168
-const LOOP_Z: float = 0.11
+## Webbing loop sewn at the middle of each side pocket's outer cloth (height, depth), clear of the
+## hem: it hangs out and down at LOOP_DROP_DEG for LOOP_LENGTH_M, the carabiner in its lower end.
+const LOOP_SEW_Y: float = POCKET_CENTRE_Y
+const LOOP_Z: float = BODY.z * 0.5
 const LOOP_LENGTH_M: float = 0.032
 const LOOP_DROP_DEG: float = 60.0
 ## Where along the loop the carabiner's ring rests: just inside its lower end.
@@ -112,7 +112,7 @@ const MUG_HANDLE_GRIP_M: float = 0.012
 const MUG_HANDLE_TOP_M: float = 0.022
 ## What is clipped on swings slower than the carabiner (longer, heavier) and wider, Hz/degrees.
 const CLIPPED_SWING_HZ: float = 1.8
-const CLIPPED_SWING_DAMPING: float = 0.5
+const CLIPPED_SWING_DAMPING: float = 0.65
 const CLIPPED_MAX_SWING_DEG: float = 35.0
 const BEDROLL: Color = Color(0.33, 0.27, 0.18)
 

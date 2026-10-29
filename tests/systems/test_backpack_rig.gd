@@ -10,7 +10,8 @@ const PLAYER: String = "res://scenes/actors/player/player.tscn"
 const END_TO_PACK_M: float = 0.005
 const ANCHOR_DRIFT_M: float = 0.002
 const LOOP_ON_POCKET_M: float = 0.005
-const HANG_BELOW_BOTTOM_M: float = 0.02
+## The mug clipped under a pocket-centre loop hangs below the pack bottom by about its own height.
+const HANG_BELOW_BOTTOM_M: float = 0.08
 const HANDLE_GAP_M: float = 0.005
 ## Least swing each hanger shows both ways (fore-aft and sideways) on starts, stops and turns, degrees.
 const MIN_SWING_DEG: float = 6.0
