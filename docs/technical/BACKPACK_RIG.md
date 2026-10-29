@@ -86,7 +86,7 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 | Clipped item | double pendulum: carabiner in loop (1.9 Hz, damping 0.18, stop 55°), item on the rod (1.8 Hz, damping 0.65, stop 60°; the pack is its real stop); each hanger keeps its direction in world space, so it lags when its parent turns or swings | swings fore-aft and sideways |
 | Side-pocket flask | the olive-drab thermos (`Thermos.glb`, 7.5 cm across, 24 cm tall, no printed mark) stands in the left pocket; its lid hinges on the -X side of the collar | — |
 | Mug on the rod | the handle's upper bend (2.2 cm below the rim, 1.2 cm inside its outer edge) sits on the rod at the ring's bottom; the hole (mug Z) runs along the rod; hung on a pin it turns about the hole until its centre of mass (area-weighted shell centroid of its mesh) is straight under the rod, so it hangs tilted, rim outward | centre of mass plumb under the rod |
-| Clipped item contact | `PendulumHang` leans what hangs off the pack instead of through it: signed distance to the body (box rounded 0.06), each pocket's cloth as placed this frame, and the tool handles as vertical capsules from their bottom to the rim; contact points one per 1 cm cell; a 3 mm margin (the sampling gap); a broad phase on its bounding sphere; resting contact under a 1.5 mm slop is not re-solved; inelastic, with friction (half the swing's rate kept per touching frame) | never inside the pack or the tools |
+| Clipped item contact | `PendulumHang` leans what hangs off the pack instead of through it: signed distance to the body (box rounded 0.06), each pocket's cloth as placed this frame, and the tool handles as vertical capsules from their bottom to the rim; contact points one per 2 cm cell; a 4 mm margin (the sampling gap); a hanger counts every other point of what hangs from it; inelastic, with friction (half the swing's rate kept per touching frame) | never inside the pack or the tools |
 | Mug hinge | the mug only turns about the rod (`hinge_axis`): contact finds the nearest clear angle about it, backing out the way it came, within its 90° limit, else the least-deep angle | hole along the rod always |
 | Carabiner contact | it counts what hangs on it and leans out along the side's normal (`contact_out`) when that load touches; its own ring has no contact | steady, no chatter |
 | Handle | node on the canvas top at (0, 0.514, 0.03), placed every frame | moves with the slumping top |
@@ -120,7 +120,7 @@ parent space turned rigidly with its parent, so the mug never swung on the carab
 | R14 | the mug knocks on the tools while Henry moves, and not once in the last half second at rest | > 0 / 0 |
 | R10 | the thermos stands on the pocket floor; the pocket cloth hugs its cylinder (radius + lining) and is never inside it | 1 mm / 0.5 mm / 0 |
 | R11 | taken out and stowed again: it starts above the rim with the pocket empty; the hem opens ≥ 5 mm past it before it seats; friction drags the hem; cloth under its bottom stays the empty pouch; nothing pokes through on any frame; then the hem closes and R10 holds | 2 mm / 5 mm / 2 mm / 0.5 mm / 0 / 0.5 mm |
-| R9 | starts, stops, a sidestep and an eased 90° turn: both carabiners swing fore-aft and sideways, the mug swings on its rod; none reaches its stop; each swings under 3° in the last half second (it may rest against the pack or a tool); the mug is never deeper than the contact margin in the pack or the tools on any frame | ≥ 6° / stop − 1° / 3° / 3 mm |
+| R9 | starts, stops, a sidestep and an eased 90° turn: both carabiners swing fore-aft and sideways, the mug swings on its rod; none reaches its stop; each swings under 3° in the last half second (it may rest against the pack or a tool); the mug is never deeper than the contact margin in the pack or the tools on any frame | ≥ 6° / stop − 1° / 3° / 4 mm |
 
 The inspector adds: item overlaps, main items poking past the canvas give, and pocket cloth
 left inside its item (mirroring the shader's wrap).
@@ -139,5 +139,5 @@ left inside its item (mirroring the shader's wrap).
 
 | Part | Value | Rule |
 |---|---|---|
-| When | contact starts with the swing's rate into the obstacle above 0.6 rad/s, or 2.5 times that while it already rests on it | not every touching frame |
+| When | contact starts with the swing's rate into the obstacle (taken before the frame's spring step) above 0.6 rad/s, or 2.5 times that while it already rests on it | not every touching frame |
 | Sound | a random one of the owner's three recordings (`assets/audio/sfx/items/mug/`) through `SoundSystem` at the mug, -14 dB to 0 dB by strike rate up to 4 rad/s, cooldown 0.09 s | random, no repeat |

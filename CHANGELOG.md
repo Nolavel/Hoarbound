@@ -22,10 +22,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     `SoundSystem`, louder for a faster strike (stand rule R14).
   - **Sound:** a random one of the owner's three recordings (`assets/audio/sfx/items/mug/`)
     replaces the first synthesised attempt.
-  - **Contact cost:** it now has a broad phase (the item's bounding sphere), a 1.5 mm resting slop
-    inside the 3 mm margin, and a shorter bisection. A mug resting on a handle no longer re-solves
-    every frame. Frame cost dropped from ~6 ms per hanger to noise; the long frames made
-    `test_doorway_camera` pop.
+  - **Strike timing:** a strike is judged on the swing's rate before the frame's spring step, so a
+    mug lying on a handle no longer "knocks" every frame.
+  - **Contact cost:** the long frames made `test_doorway_camera` pop. Contact points are now one
+    per 2 cm (4 mm margin), and a carabiner counts every other point of its mug. The pack's
+    distance query skips pockets and handles away from the sides. A loaded carabiner fell from
+    ~6 ms per frame to ~1.5 ms and the mug to ~0.6 ms (headless CPU).
 - Snow footsteps (thin, crust, step, wet, deep) play a random one of the owner's eight recordings
   (`assets/audio/sfx/player/snow_footsteps/`). The synthesised squeak and pull-out layers stay on top.
   `generate_snow_footsteps.py` no longer writes those five banks, and their old WAVs are removed.

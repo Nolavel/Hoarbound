@@ -16,9 +16,9 @@ const CONTACT_NEAR_M: float = 0.08
 const MAX_CONTACT_TILT: float = 0.35
 ## On a hinge: the search step and how far either way it looks for a clear angle, rad.
 const CONTACT_STEP: float = 0.087
-## Contact keeps this gap (a collision margin): the points are a 1 cm sample of the surface, and the
-## surface between them may bulge up to ~3 mm nearer the obstacle.
-const CONTACT_MARGIN: float = 0.003
+## Contact keeps this gap (a collision margin): the points are a 2 cm sample of the surface, and the
+## surface between them may bulge up to a few millimetres nearer the obstacle.
+const CONTACT_MARGIN: float = 0.004
 ## Friction while touching: share of the swing's rate kept each frame in contact.
 const CONTACT_FRICTION: float = 0.5
 ## Resting contact this shallow (well inside the margin, so out of sight) is left as it is: a
@@ -55,6 +55,8 @@ var _last_position: Vector3 = Vector3.ZERO
 var _last_velocity: Vector3 = Vector3.ZERO
 var _has_last: bool = false
 var _touching: bool = false
+## The swing's rate as the frame began, before the spring's step: a strike is judged on it.
+var _speed_before: Vector3 = Vector3.ZERO
 
 
 func _process(delta: float) -> void:
@@ -77,6 +79,7 @@ func _process(delta: float) -> void:
 	var target: Vector3 = pull.normalized() if pull.length() > 0.5 else Vector3.DOWN
 	var omega: float = TAU * swing_hz
 	var step: float = minf(delta, MAX_SPRING_STEP_S)
+	_speed_before = _dir_speed
 	_dir_speed += ((target - _dir) * omega * omega - _dir_speed * 2.0 * swing_damping * omega) * step
 	_dir = (_dir + _dir_speed * step).normalized()
 	var to_parent: Basis = get_parent_node_3d().global_basis.orthonormalized().inverse()
@@ -157,7 +160,7 @@ func _resolve_contact(to_parent: Basis) -> void:
 	var before: Vector3 = _dir
 	_dir = _dir.rotated(axis, angle).normalized()
 	var out: Vector3 = (_dir - before).normalized()
-	var into: float = maxf(-_dir_speed.dot(out), 0.0)
+	var into: float = maxf(-_speed_before.dot(out), 0.0)
 	if into > KNOCK_MIN_RATE * (KNOCK_RESTRIKE if _touching else 1.0):
 		knocked.emit(into)
 	_touching = true
@@ -166,15 +169,16 @@ func _resolve_contact(to_parent: Basis) -> void:
 	_dir_speed *= CONTACT_FRICTION
 
 
-## Its own contact points and those of whatever hangs from it, as posed now, in its space.
+## Its own contact points and every other one of whatever hangs from it (that one's own contact
+## does the fine work), as posed now, in its space.
 func _all_points() -> PackedVector3Array:
 	var points: PackedVector3Array = contact_points.duplicate()
 	var to_local: Transform3D = global_transform.affine_inverse()
 	for node: Node in find_children("*", "PendulumHang", true, false):
 		var below := node as PendulumHang
 		var into_here: Transform3D = to_local * below.global_transform
-		for point: Vector3 in below.contact_points:
-			points.append(into_here * point)
+		for i: int in range(0, below.contact_points.size(), 2):
+			points.append(into_here * below.contact_points[i])
 	return points
 
 

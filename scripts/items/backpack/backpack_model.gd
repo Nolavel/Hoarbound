@@ -30,7 +30,7 @@ const FILL_HZ: float = 1.2
 ## Longest step a spring takes in one frame, seconds (stable for every spring here).
 const MAX_SPRING_STEP_S: float = 0.05
 ## Contact points on a clipped item: one per cell this size, metres.
-const CONTACT_CELL_M: float = 0.01
+const CONTACT_CELL_M: float = 0.02
 ## Slots: name -> [centre, half size] in pack space. Shelf on top, three columns below.
 const SLOTS: Dictionary = {
 	&"shelf": [Vector3(0.0, 0.42, 0.11), Vector3(0.145, 0.055, 0.08)],
@@ -1125,6 +1125,10 @@ func _on_clipped_knock(rate: float, swing: PendulumHang) -> void:
 func _pack_contact(at: Vector3) -> Vector4:
 	var q: Vector3 = _to_pack * at
 	var best: Vector4 = _round_box(q, Vector3(0.0, BODY.y * 0.5, BODY.z * 0.5), BODY * 0.5, ROUND_M)
+	## Pockets and handles only matter beside the body's sides, below the rims.
+	if absf(q.x) < BODY.x * 0.5 - 0.02 or q.y > POCKET_RIM_Y + 0.02:
+		var n: Vector3 = (_from_pack_basis * Vector3(best.x, best.y, best.z)).normalized()
+		return Vector4(n.x, n.y, n.z, -best.w)
 	for i: int in range(2):
 		var side: float = -1.0 if i == 0 else 1.0
 		var inner: float = BODY.x * 0.5 - 0.01

@@ -435,7 +435,7 @@ func _check_swing() -> void:
 			worst_sink = maxf(worst_sink, _mug_sink(visual))
 	_report("R14 the mug knocks on the tools while Henry moves, not at rest", "%d knocks moving, %d in the last half second" % [knocks_at_rest - knocks_before, _pack.knock_count - knocks_at_rest],
 		knocks_at_rest - knocks_before > 0 and _pack.knock_count == knocks_at_rest)
-	_report("R9 clipped item never sinks into the pack or the tools", "deepest %.1f mm (contact margin %.0f mm: its points are a 1 cm sample)" % [worst_sink * 1000.0, PendulumHang.CONTACT_MARGIN * 1000.0],
+	_report("R9 clipped item never sinks into the pack or the tools", "deepest %.1f mm (contact margin %.0f mm: its points are a 2 cm sample)" % [worst_sink * 1000.0, PendulumHang.CONTACT_MARGIN * 1000.0],
 		worst_sink <= PendulumHang.CONTACT_MARGIN)
 	for i: int in range(hangers.size()):
 		var name: String = "carabiner %d" % i if i < 2 else "clipped item"
