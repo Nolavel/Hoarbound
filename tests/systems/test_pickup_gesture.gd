@@ -54,6 +54,7 @@ func _run() -> void:
 	_ic.pickup_stored.connect(func(item_id: StringName, destination: StringName) -> void: _stored.append([item_id, destination]))
 	await _frames(20)
 	await _check_tap_pack_route()
+	await _check_searchlight_pack_and_hand_route()
 	await _check_tap_pocket_route()
 	await _check_hold_threshold_and_hands()
 	await _check_hold_cancel()
@@ -85,6 +86,21 @@ func _check_tap_pack_route() -> void:
 	_ic.try_interact()
 	_ic.release_interact(0.05)
 	_check(_inventory.get_count(&"tinned_stew") == before + 1, "a second tap took the gone tin again")
+	await _reset()
+
+
+## A 2.8 kg CARRIED tool can be picked up with F, stored, then drawn in one hand.
+func _check_searchlight_pack_and_hand_route() -> void:
+	var light: ItemPickup = await _spawn_ahead(&"searchlight")
+	var id: StringName = light.world_id
+	_check(_ic.can_hold_pickup(light), "searchlight does not offer its one-hand hold")
+	_ic.try_interact()
+	_ic.hold_interact(0.1)
+	_ic.release_interact(0.12)
+	_check(_inventory.get_count(&"searchlight") == 1, "searchlight F tap did not store its item")
+	_check(_ledger.is_taken(id), "searchlight pickup was not recorded in the ledger")
+	_check(_held.can_use(&"searchlight"), "stored searchlight cannot be drawn")
+	_check(_held.use(&"searchlight") and _held.get_item_id() == &"searchlight", "searchlight did not reach the hand")
 	await _reset()
 
 

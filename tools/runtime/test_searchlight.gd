@@ -45,6 +45,15 @@ func _test() -> void:
 	prop.set_runtime_hours(47.0)
 	prop.apply_enabled(true)
 	assert(prop.lamp.light_energy < prop.light_energy and prop.lamp.light_energy > 0.0)
+	prop.set_runtime_hours(47.6)
+	var saw_light: bool = false
+	var saw_failure: bool = false
+	for i in range(40):
+		prop._process(0.1)
+		saw_light = saw_light or prop.lamp.visible
+		saw_failure = saw_failure or not prop.lamp.visible
+	assert(saw_light and saw_failure)
+	prop.set_runtime_hours(47.0)
 	var held := HeldItemComponent.new()
 	held.inventory = inventory
 	root.add_child(held)

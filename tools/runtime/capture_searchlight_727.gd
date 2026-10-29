@@ -59,6 +59,18 @@ func _run() -> void:
 	assert(held.present_owned(&"searchlight"))
 	prop = held.get(&"_prop") as HeldSearchlight
 	assert(prop != null and prop.lamp.shadow_enabled)
+	if OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] == "clock_check":
+		var clock := world.find_children("*", "SimulationClock", true, false)[0] as SimulationClock
+		var stored := player.get_node(^"InventoryComponent") as InventoryComponent
+		prop.toggle()
+		clock.advance_hours(0.25, &"searchlight_validation")
+		assert(is_equal_approx(float(stored.get_first_instance_state(&"searchlight").get("searchlight_runtime_hours", -1.0)), 0.25))
+		assert(held.put_away())
+		clock.advance_hours(0.25, &"searchlight_validation")
+		assert(is_equal_approx(float(stored.get_first_instance_state(&"searchlight").get("searchlight_runtime_hours", -1.0)), 0.25))
+		print("SEARCHLIGHT_CLOCK_CHECK_OK")
+		quit()
+		return
 	camera = Camera3D.new()
 	camera.fov = 55.0
 	camera.cull_mask &= ~(RenderLayers.RESERVED | RenderLayers.SCREEN_PASS)
