@@ -75,6 +75,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
       reaching into the cavity, main items poking past the canvas give, overlaps, and the handle's gap to the
       top. It renders front, side and top orthographic views and a three-quarter view, see-through with wire
       boxes and with the real canvas. The worn capture logs each free strap run's sag.
+  - **Owner review 6:**
+    - Side pockets are cloth now, not scaled boxes. An empty pocket falls flat on the body wall and its mouth
+      closes. A pocket holding something wraps it, its wall side stays on the wall, and stretched cloth goes
+      paler.
+    - Slack cloth creases (shape and shade): empty pockets, and the top of a slumped pack.
+    - The canvas takes the world's painterly breakup at pack scale (`painterly_surface.gdshaderinc`). The front
+      panel carries a stitched leather maker's patch with a pressed mark.
+    - The side compression straps are gone.
+    - The bedroll is strapped across the top in front of the handle, so the leather bottom is flat and the
+      pack stands anywhere.
   - **Hanging:** `PendulumHang` swings anything from a pivot. The carabiner swings in its loop and the mug
     swings on the carabiner's rod: a double pendulum driven by Henry's motion. The carabiners moved onto the
     side pockets.

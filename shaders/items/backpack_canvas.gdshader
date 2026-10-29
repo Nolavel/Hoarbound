@@ -4,7 +4,9 @@ render_mode cull_disabled;
 // in pack space; a vertex inside one (plus the lining) is pushed out along its normal. An emptier
 // pack slumps: the top drops and the walls cave in a little. Back faces show the lining.
 // Look: worn grey canvas with a stitched leather base, paler on rubbed edges, grimier low down,
-// lit in soft bands (NPR) like the rest of the stylised world.
+// creased where slack and pale where stretched, painterly like the world, lit in soft bands (NPR).
+
+#include "res://shaders/environment/materials/painterly_surface.gdshaderinc"
 
 const int MAX_ITEMS = 16;
 
@@ -63,10 +65,27 @@ uniform float top_y = 0.52;
 uniform float gap_m = 0.015;
 // Shell only: the walls next to the open part of the seam give outward this far.
 uniform float side_give_m = 0.0;
+// Side pocket only: cloth over the body's wall at pocket_wall_x (signed: its side). Empty, it falls
+// flat against the wall; holding something (item 0), it wraps it this tightly (1 skin-tight).
+uniform bool is_pocket = false;
+uniform float pocket_wall_x = 0.17;
+uniform float pocket_wrap = 0.85;
+uniform float pocket_flat_m = 0.006;
+// Creases where the cloth is slack: depth (m) and spacing (per metre).
+uniform float fold_m = 0.004;
+uniform float fold_freq = 70.0;
+// Front panel only: a leather maker's patch, UV rect (u0, v0, u1, v1); zero area draws none.
+uniform vec4 patch_rect = vec4(0.0);
+uniform vec3 patch_colour : source_color = vec3(0.42, 0.28, 0.17);
+// The world's painterly breakup, scaled from metres down to the pack.
+uniform float painterly_scale = 22.0;
 
 varying vec2 v_zip;
 varying vec3 v_pack;
+varying vec3 v_pack_normal;
 varying float v_edge;
+varying float v_crease;
+varying float v_stretch;
 
 float hash3(vec3 p) {
 	p = fract(p * 0.3183099 + 0.1);
@@ -107,6 +126,38 @@ void vertex() {
 	float high = smoothstep(pack_height_m * 0.45, pack_height_m, p.y);
 	vec3 slump = vec3(0.0, -slump_top_m * high, 0.0) - n * slump_wall_m * smoothstep(0.1, 0.4, p.y / pack_height_m);
 	vec3 shaped = n * push + slump * empty;
+	v_pack_normal = n;
+	v_stretch = 0.0;
+	float slack = empty * high;
+	if (is_pocket) {
+		float side = sign(pocket_wall_x);
+		float out_x = (p.x - pocket_wall_x) * side;
+		if (item_count > 0) {
+			// Wrapped round what it holds: pulled onto the item's box, the wall side kept on the wall.
+			vec3 c = item_centre[0].xyz;
+			vec3 h = item_half[0].xyz + vec3(lining_m);
+			vec3 q = clamp(p, c - h, c + h);
+			vec3 d = p - q;
+			vec3 target = q + (length(d) > 0.0001 ? normalize(d) : n) * 0.002;
+			if (n.x * side < -0.5) {
+				target.x = pocket_wall_x;
+			}
+			v_stretch = clamp(length(target - p) / 0.03, 0.0, 1.0);
+			shaped = (target - p) * pocket_wrap;
+			slack = 1.0 - pocket_wrap;
+		} else {
+			// Empty: the outer layer falls onto the wall and closes the mouth; the rim droops.
+			vec3 target = p;
+			target.x = pocket_wall_x + side * (pocket_flat_m + out_x * 0.08);
+			target.y -= 0.012 * smoothstep(0.1, 0.17, p.y);
+			shaped = target - p;
+			slack = 1.0;
+		}
+	}
+	// Slack cloth creases: soft ridges and valleys across it, broken up so they never line up.
+	float crease = sin(dot(p, vec3(0.15, 1.0, 0.35)) * fold_freq + noise3(p * 25.0) * 5.0);
+	shaped += n * crease * fold_m * slack;
+	v_crease = crease * slack;
 	v_zip = UV2;
 	if (zipper_on) {
 		// Open behind the sliders only: the run from the top centre they have already passed.
@@ -133,6 +184,26 @@ void vertex() {
 			VERTEX += droop_dir * droop_m * t * t;
 		}
 	}
+}
+
+// The maker's patch: stitched leather with a pressed ring round a peak, in the panel's UV rect.
+vec3 _patch(vec3 colour, vec2 uv) {
+	vec2 size = patch_rect.zw - patch_rect.xy;
+	vec2 local = (uv - patch_rect.xy) / size;
+	if (local.x < 0.0 || local.x > 1.0 || local.y < 0.0 || local.y > 1.0) {
+		return colour;
+	}
+	vec3 leather = patch_colour * (0.85 + 0.3 * noise3(vec3(uv * 60.0, 1.0)));
+	// The panel's UV runs up its height (x) and across its width (y): measure in metres.
+	vec2 size_m = size * vec2(pack_height_m, 0.34);
+	float border = min(min(local.x, 1.0 - local.x) * size_m.x, min(local.y, 1.0 - local.y) * size_m.y);
+	float stitch = (1.0 - smoothstep(0.004, 0.007, abs(border - 0.012))) * step(0.5, fract((local.x + local.y) * 22.0));
+	leather = mix(leather, stitch_colour, stitch);
+	vec2 m = (local - 0.5) * vec2(size_m.x / size_m.y, 1.0) * 2.0;
+	float ring = 1.0 - smoothstep(0.03, 0.06, abs(length(m) - 0.55));
+	float peak = step(abs(m.y), 0.35 - m.x * 0.8) * step(-0.35, m.x) * step(m.x, 0.4);
+	leather *= 1.0 - 0.35 * max(ring, peak * 0.8);
+	return leather;
 }
 
 void fragment() {
@@ -168,9 +239,16 @@ void fragment() {
 			float dash = step(0.5, fract((v_pack.x + v_pack.z) * 120.0));
 			colour = mix(colour, stitch_colour, row * dash);
 		}
+		if (is_panel && patch_rect.z > patch_rect.x) {
+			colour = _patch(colour, UV);
+		}
 		vec3 rubbed = mix(colour, vec3(dot(colour, vec3(0.333))), 0.35) * 1.35 + 0.03;
 		colour = mix(colour, rubbed, v_edge * edge_wear);
 		colour *= 1.0 - grime * (1.0 - smoothstep(0.03, 0.3, v_pack.y));
+		// Creases darken in their valleys; stretched cloth goes paler and smoother.
+		colour *= 1.0 - 0.22 * smoothstep(0.15, 1.0, -v_crease) + 0.06 * smoothstep(0.3, 1.0, v_crease);
+		colour *= 1.0 + 0.12 * v_stretch;
+		colour = hfn_painterly_surface_color(colour, v_pack * painterly_scale, v_pack_normal, 1.0);
 	}
 	ALBEDO = colour;
 	METALLIC = metal * 0.6;

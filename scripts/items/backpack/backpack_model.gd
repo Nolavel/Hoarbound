@@ -69,7 +69,12 @@ const ZIP_METAL: Color = Color(0.16, 0.16, 0.17)
 const LOOSE_FLOOR_M: float = 0.02
 const LOOSE_MARGIN_M: float = 0.03
 ## The grab handle's foot on the top, behind its middle where the top is flat (pack space, at rest).
-const HANDLE_AT: Vector3 = Vector3(0.0, 0.52, 0.065)
+const HANDLE_AT: Vector3 = Vector3(0.0, 0.514, 0.03)
+## The bedroll lies across the top in front of the handle (pack space at rest: where it rests).
+const BEDROLL_AT: Vector3 = Vector3(0.0, 0.52, 0.14)
+const BEDROLL_RADIUS_M: float = 0.062
+## The maker's patch on the front panel, as the panel's UV rect (up its height, across its width).
+const PATCH_RECT: Vector4 = Vector4(0.55, 0.33, 0.67, 0.67)
 ## How far inside the mug handle's outer edge a carabiner rod rests, metres.
 const MUG_HANDLE_GRIP_M: float = 0.012
 ## What is clipped on swings slower than the carabiner (longer, heavier) and wider, Hz/degrees.
@@ -80,7 +85,7 @@ const BEDROLL: Color = Color(0.33, 0.27, 0.18)
 
 var _shell_material: ShaderMaterial
 var _panel_material: ShaderMaterial
-var _pocket_material: ShaderMaterial
+var _pocket_materials: Array[ShaderMaterial] = []
 var _strap_material: ShaderMaterial
 var _hinge: Node3D
 var _hinge_at: Vector3 = Vector3.ZERO
@@ -93,6 +98,7 @@ var _zip_target: float = 0.0
 var _hung: Array[Node3D] = []
 var _main_count: int = 0
 var _handle: Node3D
+var _bedroll: Node3D
 var _items: Array[Dictionary] = []
 var _contents: Node3D
 var _open: bool = false
@@ -122,11 +128,14 @@ func build() -> void:
 	_panel_material = _canvas_material(Vector4(0.1, 0.15, 0.55, 0.85))
 	_panel_material.set_shader_parameter(&"zipper_on", true)
 	_panel_material.set_shader_parameter(&"is_panel", true)
-	_pocket_material = _canvas_material(Vector4.ZERO)
-	## The pocket is a thin pouch round a hard bottle: more slack, so the corners never poke through.
-	_pocket_material.set_shader_parameter(&"lining_m", 0.008)
-	_pocket_material.set_shader_parameter(&"soft_m", 0.025)
-	_pocket_material.set_shader_parameter(&"max_stretch_m", 0.03)
+	_panel_material.set_shader_parameter(&"patch_rect", PATCH_RECT)
+	## Each side pocket is its own cloth: flat on the wall when empty, wrapped round what it holds.
+	for side: float in [-1.0, 1.0]:
+		var pocket: ShaderMaterial = _canvas_material(Vector4.ZERO)
+		pocket.set_shader_parameter(&"is_pocket", true)
+		pocket.set_shader_parameter(&"pocket_wall_x", side * BODY.x * 0.5)
+		pocket.set_shader_parameter(&"lining_m", 0.004)
+		_pocket_materials.append(pocket)
 	_strap_material = _canvas_material(Vector4.ZERO)
 	_strap_material.set_shader_parameter(&"canvas_colour", STRAP)
 	_strap_material.set_shader_parameter(&"lining_colour", STRAP)
@@ -159,7 +168,7 @@ func build() -> void:
 		var pocket := MeshInstance3D.new()
 		pocket.name = "SidePocketLeft" if side < 0.0 else "SidePocketRight"
 		pocket.mesh = _rounded_box(POCKET_HALF, Vector3(side * POCKET_X, POCKET_HALF.y + 0.03, BODY.z * 0.5), 0.03, Vector3i(8, 14, 12), FACES_OPEN_TOP)
-		pocket.material_override = _pocket_material
+		pocket.material_override = _pocket_materials[0 if side < 0.0 else 1]
 		add_child(pocket)
 	_add_shelf()
 	_add_bedroll()
@@ -361,6 +370,7 @@ func _process(delta: float) -> void:
 	_place_carabiners()
 	## The handle sits where the canvas top is now, however far it has slumped.
 	_handle.position = _on_canvas(HANDLE_AT, Vector3.UP, 0.0)
+	_bedroll.position = _on_canvas(BEDROLL_AT, Vector3.UP, 0.0) + Vector3(0.0, BEDROLL_RADIUS_M - 0.008, 0.0)
 	## The free edge sags most with the panel flat; the swing's speed flicks it the other way.
 	var droop_target: float = DROOP_FLAT_M * sin(clampf(_swing, 0.0, PI))
 	var droop_omega: float = TAU * DROOP_HZ
@@ -375,7 +385,7 @@ func _process(delta: float) -> void:
 	_panel_material.set_shader_parameter(&"droop_dir", (global_basis.inverse() * Vector3.DOWN).normalized() if is_inside_tree() else Vector3.DOWN)
 	## Only the closed panel holds the contents in; an open one does not bulge.
 	_panel_material.set_shader_parameter(&"item_count", _main_count if _swing < 0.2 else 0)
-	for material: ShaderMaterial in [_shell_material, _panel_material, _pocket_material, _strap_material]:
+	for material: ShaderMaterial in [_shell_material, _panel_material, _strap_material] + _pocket_materials:
 		material.set_shader_parameter(&"fill", _fill)
 
 
@@ -383,13 +393,21 @@ func _process(delta: float) -> void:
 ## what is in a side pocket shapes only the pockets, never the wall between them.
 func _refresh_proxies() -> void:
 	var main: Array[AABB] = []
-	var side: Array[AABB] = []
+	var left: Array[AABB] = []
+	var right: Array[AABB] = []
 	for item: Dictionary in _items:
-		if String(item["slot"]).begins_with("side_"):
-			side.append(item["box"])
-		else:
-			main.append(item["box"])
-	for entry: Array in [[[_shell_material, _panel_material, _strap_material], main], [[_pocket_material], side]]:
+		match String(item["slot"]):
+			"side_left":
+				left.append(item["box"])
+			"side_right":
+				right.append(item["box"])
+			_:
+				main.append(item["box"])
+	var groups: Array = [[[_shell_material, _panel_material, _strap_material], main]]
+	if _pocket_materials.size() == 2:
+		groups.append([[_pocket_materials[0]], left])
+		groups.append([[_pocket_materials[1]], right])
+	for entry: Array in groups:
 		var centres: Array = []
 		var halves: Array = []
 		for box: AABB in entry[1]:
@@ -532,41 +550,43 @@ func _add_shelf() -> void:
 	add_child(shelf)
 
 
+## The bedroll strapped across the top, in front of the handle; placed on the canvas each frame.
+## With it up there the bottom is flat leather, so the pack stands on it anywhere.
 func _add_bedroll() -> void:
+	_bedroll = Node3D.new()
+	_bedroll.name = "Bedroll"
+	add_child(_bedroll)
 	var roll := MeshInstance3D.new()
-	roll.name = "Bedroll"
+	roll.name = "Roll"
 	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = 0.075
-	cylinder.bottom_radius = 0.075
-	cylinder.height = BODY.x + 0.1
+	cylinder.top_radius = BEDROLL_RADIUS_M
+	cylinder.bottom_radius = BEDROLL_RADIUS_M
+	cylinder.height = BODY.x + 0.06
 	cylinder.radial_segments = 20
 	roll.mesh = cylinder
 	roll.material_override = _plain(BEDROLL)
 	roll.rotation.z = PI * 0.5
-	roll.position = Vector3(0.0, -0.06, BODY.z * 0.55)
-	add_child(roll)
+	_bedroll.add_child(roll)
+	## Two straps cinch it down onto the top.
 	for x: float in [-0.1, 0.1]:
 		var band := MeshInstance3D.new()
 		var ring := CylinderMesh.new()
-		ring.top_radius = 0.079
-		ring.bottom_radius = 0.079
+		ring.top_radius = BEDROLL_RADIUS_M + 0.004
+		ring.bottom_radius = BEDROLL_RADIUS_M + 0.004
 		ring.height = 0.025
 		band.mesh = ring
 		band.material_override = _plain(STRAP)
 		band.rotation.z = PI * 0.5
-		band.position = Vector3(x, -0.06, BODY.z * 0.55)
-		add_child(band)
+		band.position.x = x
+		_bedroll.add_child(band)
 
 
 func _add_straps() -> void:
-	## Shoulder straps flat down the back, a grab handle at the top of the back, compression
-	## straps down the sides with a buckle each. They wear the canvas shader, so they move with it.
+	## Padded strips down the back where the shoulder straps are sewn, and the grab handle. The
+	## strips wear the canvas shader, so they move with it.
 	for x: float in [-0.11, 0.11]:
 		_strap(Vector3(0.055, BODY.y * 0.78, 0.014), Vector3(x, BODY.y * 0.5, -0.009), Vector3.ZERO)
 	_add_handle()
-	for x: float in [-1.0, 1.0]:
-		_strap(Vector3(0.008, BODY.y * 0.66, 0.026), Vector3(x * (BODY.x * 0.5 + 0.002), BODY.y * 0.52, BODY.z * 0.55), Vector3.ZERO)
-		_strap(Vector3(0.012, 0.03, 0.035), Vector3(x * (BODY.x * 0.5 + 0.006), BODY.y * 0.6, BODY.z * 0.55), Vector3.ZERO)
 
 
 ## A strap or buckle box baked into pack space, so the canvas shader shapes it with the shell.
