@@ -26,8 +26,9 @@ const GRAVITY: float = 9.8
 ## Worn, free runs stay outside a capsule round the spine (spine_01 to neck_01) this thick, metres.
 const TORSO_RADIUS_M: float = 0.15
 ## Where each strap is sewn to the pack's back, in BackpackModel space (x for the +X side; the
-## back face is z = 0 and faces -Z): the top of the back pad, and the bottom corner.
-const PACK_TOP: Vector3 = Vector3(0.11, 0.44, -0.016)
+## back face is z = 0 and faces -Z): sewn a little below the top so the strap rises onto the shoulder,
+## and the bottom corner.
+const PACK_TOP: Vector3 = Vector3(0.11, 0.36, -0.016)
 const PACK_BOTTOM: Vector3 = Vector3(0.14, 0.05, -0.016)
 
 @export var colour: Color = Color(0.28, 0.19, 0.12)

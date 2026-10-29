@@ -3,7 +3,7 @@
 [node name="PackStrapAnchors" type="Node3D"]
 
 [node name="UpperBack" type="Marker3D" parent="."]
-transform = Transform3D(0.00000, 0.09245, 0.99572, -0.92848, 0.36980, -0.03434, -0.37139, -0.92450, 0.08584, 0.15, 1.485, -0.175)
+transform = Transform3D(0.00000, 0.09245, 0.99572, -0.92848, 0.36980, -0.03434, -0.37139, -0.92450, 0.08584, 0.15, 1.5, -0.16)
 metadata/bone = &"clavicle_l"
 
 [node name="ShoulderBack" type="Marker3D" parent="."]
