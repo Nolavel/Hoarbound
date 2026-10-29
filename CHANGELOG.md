@@ -52,6 +52,19 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
       mid-chest point so the curve cannot cut into the coat's bulge.
     - The flask stands flat against the wall in a widened side pocket.
     - The mug hangs from the carabiner by its handle.
+  - **Owner review 4 (straps):**
+    - The straps were laid on the collar: about 11 cm out, where the collar and hood ring reaches 18 cm.
+      Rays cast at the coat mesh also missed its outer layers.
+    - They now follow authored anchors bound to the bones (`pack_strap_anchors.tscn`): upper back and
+      shoulder on the clavicle, chest and armpit on spine_03, mirrored to the other side.
+    - On the body the strap is tight. The pack-to-back and armpit-to-pack runs are verlet chains with
+      2–5% slack, kept outside the torso, so the pack rocks without dragging the straps.
+    - Off his back each strap is a limp loop on the snow.
+    - `.tscn` stores a basis by rows; anchors written by columns had their normals swapped, which twisted
+      the band. Band normals also keep to one side now, so a band never flips.
+  - **Hanging:** `PendulumHang` swings anything from a pivot. The carabiner swings in its loop and the mug
+    swings on the carabiner's rod: a double pendulum driven by Henry's motion. The carabiners moved onto the
+    side pockets.
   - **Contents:** the pack has new pockets: a second main compartment, two side pockets and a carabiner. Henry
     starts with a SPoV can and tinned stew lying loose inside, a flask in the left side pocket and the mug on the
     right carabiner. `PackRig` mirrors the pack's pockets into the canvas whenever they change.

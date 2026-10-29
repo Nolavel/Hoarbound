@@ -12,6 +12,7 @@ var _frame: int = 0
 var _camera: Camera3D
 var _player: Player
 var _caption: Label
+var _pack_spot: Vector3 = Vector3.ZERO
 
 
 func _initialize() -> void:
@@ -78,6 +79,13 @@ func _run() -> void:
 	await _record(2.4, "HUB: sliders run down, the panel opens behind them", &"behind")
 	pack.set_openness(PackRig.Openness.CLOSED)
 	await _record(2.4, "CLOSING: the panel folds up, the sliders zip it shut", &"behind")
+	## Off his back the straps go limp on the snow by the pack.
+	var spot: Vector3 = _player.global_position - _player.global_basis.z * 0.8
+	spot.y = SnowShell.active.field.get_snow_top(spot.x, spot.z)
+	var floor := Transform3D(_player.global_basis, spot)
+	_player.animation_component.call(&"set_pack_down", floor, floor.translated(_player.global_basis.x * 0.6))
+	_pack_spot = spot
+	await _record(2.4, "PACK OFF: the straps lie limp", &"pack")
 	print("[packworn] frames ", _frame)
 	quit(0)
 
@@ -97,6 +105,9 @@ func _record(seconds: float, caption: String, view: StringName) -> void:
 				var turn: float = TAU * float(i) / count
 				var around: Vector3 = facing.rotated(Vector3.UP, turn + PI * 0.25)
 				_camera.look_at_from_position(henry + around * 1.5 + Vector3.UP * 0.75, henry + Vector3.UP * 0.55)
+			&"pack":
+				var round_pack: Vector3 = facing.rotated(Vector3.UP, PI * 0.6 + TAU * 0.3 * float(i) / count)
+				_camera.look_at_from_position(_pack_spot + round_pack * 1.0 + Vector3.UP * 0.7, _pack_spot + Vector3.UP * 0.2)
 			&"behind":
 				_camera.look_at_from_position(henry - facing * 1.05 + right * 0.35 + Vector3.UP * 0.85, henry + Vector3.UP * 0.6 - facing * 0.25)
 			_:

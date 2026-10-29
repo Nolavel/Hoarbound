@@ -13,8 +13,10 @@ const THICK_M: float = 0.008
 ## Samples between two anchors along the body.
 const SAMPLES_PER_SPAN: int = 6
 ## Free runs (pack to upper back, armpit to pack): chain points and slack over the straight length.
+## The top run hangs almost straight down onto the pack, so it gets less slack to bunch up.
 const FREE_POINTS: int = 7
-const FREE_SLACK: float = 0.05
+const TOP_SLACK: float = 0.02
+const BOTTOM_SLACK: float = 0.05
 ## Off the back: chain points of the whole loop.
 const LIMP_POINTS: int = 26
 ## Verlet: constraint passes, share of velocity kept per step, gravity (m/s^2).
@@ -125,8 +127,8 @@ func _draw_worn(side: int, step: float, reset: bool) -> void:
 	var top: Vector3 = _pack_end(PACK_TOP, points[0])
 	var bottom: Vector3 = _pack_end(PACK_BOTTOM, points[last])
 	var pack_out: Vector3 = (_pack.get_canvas().global_basis * Vector3.FORWARD).normalized()
-	var top_run: Array = _chain(_top_runs, side, top, points[0], FREE_POINTS, FREE_SLACK, step, reset, true)
-	var bottom_run: Array = _chain(_bottom_runs, side, points[last], bottom, FREE_POINTS, FREE_SLACK, step, reset, true)
+	var top_run: Array = _chain(_top_runs, side, top, points[0], FREE_POINTS, TOP_SLACK, step, reset, true)
+	var bottom_run: Array = _chain(_bottom_runs, side, points[last], bottom, FREE_POINTS, BOTTOM_SLACK, step, reset, true)
 	var path: Array[Vector3] = []
 	var normals: Array[Vector3] = []
 	var widths: Array[float] = []
