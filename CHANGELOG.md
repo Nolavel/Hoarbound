@@ -8,6 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Owner accepted the road flare shadows and restrained scattering on 2026-10-29.
 - Road flares cast dynamic shadows in hand and after a drop, with exposed contact-shadow bias.
   The emissive tip no longer casts shadows around its enclosed light. A weak, non-emissive
   local FogVolume adds adjustable scattering through the existing Forward+ fog. The flare
