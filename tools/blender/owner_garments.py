@@ -133,22 +133,24 @@ def _turn_down(rig, bone, angle):
 	bpy.context.view_layer.update()
 
 
-def fit_outside(obj, body, margin, below=None):
+def fit_outside(obj, body, margin, below=None, above=None):
 	"""Pushes any point of obj inside the body out to `margin` metres past its surface. With
 	`below`, only points lower than that height: over an open mesh (the jeans' waist), points
 	above its rim would otherwise read as inside and collapse onto it."""
 	mod = obj.modifiers.new("Fit", "SHRINKWRAP")
 	mod.target = body
 	mod.wrap_method = "NEAREST_SURFACEPOINT"
-	mod.wrap_mode = "OUTSIDE_SURFACE"
+	mod.wrap_mode = "OUTSIDE"  # only points inside move; OUTSIDE_SURFACE lays every point on the target
 	mod.offset = margin
-	if below is not None:
+	if below is not None or above is not None:
 		group = obj.vertex_groups.new(name="FitBelow")
-		group.add([v.index for v in obj.data.vertices if (obj.matrix_world @ v.co).z < below], 1.0, "REPLACE")
+		group.add([v.index for v in obj.data.vertices
+			if (below is None or (obj.matrix_world @ v.co).z < below)
+			and (above is None or (obj.matrix_world @ v.co).z > above)], 1.0, "REPLACE")
 		mod.vertex_group = group.name
 	bpy.context.view_layer.objects.active = obj
 	bpy.ops.object.modifier_apply(modifier="Fit")
-	if below is not None:
+	if below is not None or above is not None:
 		obj.vertex_groups.remove(obj.vertex_groups["FitBelow"])
 
 

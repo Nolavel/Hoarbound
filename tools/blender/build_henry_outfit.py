@@ -61,7 +61,10 @@ SHAFT_SNUG_FROM = 0.14
 SHAFT_SNUG_FULL = 0.22
 SHAFT_GAP = 0.010
 ## Boots scaled up by this about each sole's centre (x = +-BOOT_CENTRE_X, on the floor).
-BOOT_SCALE = 1.04
+BOOT_SCALE = 1.05
+## Above the tread (the foot's underside, this height) no skin may come within this of the shell, metres.
+BOOT_SOLE_TOP = 0.0
+BOOT_SKIN_MARGIN = 0.008
 ## The lining keeps this far inside the shell, metres.
 LINING_INSET = 0.002
 BOOT_CENTRE_X = 0.089
@@ -604,6 +607,8 @@ def snug_shafts(body):
 	bpy.context.view_layer.objects.active = shell
 	bpy.ops.object.modifier_apply(modifier="Snug")
 	shell.vertex_groups.remove(shell.vertex_groups["Shaft"])
+	## Wherever the leg or foot still comes through above the sole, only those points move out.
+	G.fit_outside(shell, body, BOOT_SKIN_MARGIN, above=BOOT_SOLE_TOP)
 	for rider in riders:
 		G.apply_ride(rider)
 	## The lining stopped under the rim, leaving a dark slot between shell and leg: its top band
