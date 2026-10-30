@@ -385,7 +385,7 @@ def drape(obj, colliders, fabric, frames, pin=None, shrink=None):
 	"""Settles obj on the body as cloth (Blender Cloth, gravity, collision with `colliders`) and
 	applies the final frame. fabric: dict of Cloth settings (mass, stiffness...). pin: vertex
 	indices held in place (a waistband, a collar). shrink: {vertex index: weight} pulled in by
-	fabric["shrink_min"] (cloth gathered into a boot)."""
+	fabric["shrink"] at weight 1 (cloth gathered into a boot)."""
 	scene = bpy.context.scene
 	for collider in colliders:
 		if not any(m.type == "COLLISION" for m in collider.modifiers):
@@ -410,8 +410,10 @@ def drape(obj, colliders, fabric, frames, pin=None, shrink=None):
 		group = obj.vertex_groups.new(name="Shrink")
 		for i, w in shrink.items():
 			group.add([i], w, "REPLACE")
+		## The group's weight blends shrink_min (weight 0) to shrink_max (weight 1).
 		s.vertex_group_shrink = "Shrink"
-		s.shrink_min = fabric.get("shrink_min", 0.0)
+		s.shrink_min = 0.0
+		s.shrink_max = fabric.get("shrink", 0.0)
 	c = cloth.collision_settings
 	c.distance_min = fabric.get("distance", 0.004)
 	c.use_self_collision = False
@@ -465,3 +467,25 @@ def follow(obj, other, top, bottom):
 	bpy.ops.object.modifier_apply(modifier="Follow")
 	obj.vertex_groups.remove(obj.vertex_groups["Follow"])
 	bpy.ops.object.vertex_group_normalize_all(lock_active=False)
+
+
+def widen(obj, arm, factor):
+	"""A looser cut by `factor` in girth only, never in length: the body about the spine (x and
+	depth), each sleeve about the arm's axis (depth and height), blended across the shoulder."""
+	shoulder = (arm.matrix_world @ arm.data.bones["upperarm_l"].head_local)
+	arm_y = shoulder.y
+	arm_z = shoulder.z
+	inv = obj.matrix_world.inverted()
+	points = [obj.matrix_world @ v.co for v in obj.data.vertices]
+	centre_y = sum(p.y for p in points) / len(points)
+	for v, p in zip(obj.data.vertices, points):
+		t = min(max((abs(p.x) - (shoulder.x - 0.05)) / 0.1, 0.0), 1.0)
+		t = t * t * (3.0 - 2.0 * t)
+		body = p.copy()
+		body.x *= factor
+		body.y = centre_y + (p.y - centre_y) * factor
+		sleeve = p.copy()
+		sleeve.y = arm_y + (p.y - arm_y) * factor
+		sleeve.z = arm_z + (p.z - arm_z) * factor
+		v.co = inv @ body.lerp(sleeve, t)
+	obj.data.update()

@@ -35,25 +35,36 @@ PANTS_MARGIN = 0.006
 DRAPE_FRAMES = 40
 PIN_BAND = 0.03
 DENIM = {"mass": 0.4, "stretch": 40.0, "bending": 10.0, "distance": 0.004}
-FLANNEL = {"mass": 0.3, "stretch": 20.0, "bending": 4.0, "distance": 0.005, "pin_stiffness": 2.0}
+FLANNEL = {"mass": 0.3, "stretch": 30.0, "bending": 10.0, "distance": 0.005, "pin_stiffness": 2.0}
 ## Jacket: frames settled, its collar band held fully and the front placket held softly.
-JACKET_FRAMES = 25
+JACKET_FRAMES = 30
 COLLAR_BAND = 0.08
 PLACKET_HALF = 0.07
 PLACKET_HOLD = 0.6
-JACKET_MARGIN = 0.02
-## Jacket ease (how much looser than as modelled) and its cuff's reach past the wrist, metres.
-JACKET_EASE = 0.02
-SLEEVE_PAST_WRIST = 0.01
+JACKET_MARGIN = 0.008
+## Jacket cloth mesh (faces), girth over the model (length kept) and cuff reach past the wrist (m).
+JACKET_FACES = 3000
+JACKET_WIDEN = 1.05
+SLEEVE_PAST_WRIST = 0.03
 ## Tucked jeans taper onto the leg from this far above the boots' cuff and end this far below it.
 TUCK_ABOVE_CUFF = 0.08
-TUCK_DEPTH = 0.06
-## How far the cloth may gather in below the cuff (Cloth shrink_min, share of its length).
-TUCK_SHRINK = 0.45
+TUCK_DEPTH = 0.04
+## The held band of each tucked leg sits this far under the boot shaft's rim, metres.
+TUCK_RING_BELOW_RIM = 0.01
 ## Inside the boot the jeans keep this far in from its outer shell (its wall and lining), metres.
 BOOT_WALL = 0.01
 ## Imported piece name prefix -> outfit mesh (both feet joined into one).
 BOOT_PARTS = {"Boot_New_": "Outfit_Boots", "Boot_Lining_": "Outfit_BootLining", "Boot_Fur_": "Outfit_BootFur"}
+## The shafts hug the shin: from this height (no change) to this one (full), the shell sits this
+## far off the skin (room for the tucked jeans, laid 4 mm off it), metres.
+SHAFT_SNUG_FROM = 0.14
+SHAFT_SNUG_FULL = 0.22
+SHAFT_GAP = 0.010
+## Boots scaled up by this about each sole's centre (x = +-BOOT_CENTRE_X, on the floor).
+BOOT_SCALE = 1.04
+## The lining keeps this far inside the shell, metres.
+LINING_INSET = 0.002
+BOOT_CENTRE_X = 0.089
 
 JACKET_COLOUR = (0.30, 0.34, 0.20)
 ## Insulated work glove after the owner's reference: olive back, tan knuckle and fingertip
@@ -414,22 +425,19 @@ def owner_pants(arm, body, generated):
 
 
 def tuck_pants(body, pants):
-	"""The boots go on after the cloth: a second drape gathers each leg below the boots' cuff onto
-	the shin (cloth shrink, held at the waist), so it bunches into the shaft with a little blousing
-	above; the part inside the shaft is kept in it and cut off by a plane, hidden in the boot."""
-	cuff = boot_cuff_bottom()
-	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
-	pin = [v.index for v in pants.data.vertices if (pants.matrix_world @ v.co).z > waist - PIN_BAND]
-	shrink = {}
-	for v in pants.data.vertices:
-		z = (pants.matrix_world @ v.co).z
-		if z < cuff + TUCK_ABOVE_CUFF:
-			t = min(max((cuff + TUCK_ABOVE_CUFF - z) / TUCK_ABOVE_CUFF, 0.0), 1.0)
-			shrink[v.index] = t * t * (3.0 - 2.0 * t)
-	G.drape(pants, [body], dict(DENIM, shrink_min=TUCK_SHRINK), DRAPE_FRAMES, pin=pin, shrink=shrink)
+	"""The boots go on after the cloth, and the jeans are tucked in: each leg's band just under
+	the shaft's rim is laid onto the shin and held, the cloth above settles under gravity into a
+	fold over the cuff, and what is below the band (inside the boot) is cut off by a plane. The
+	boot is no collider: cloth starting inside its thin wall would be thrown apart."""
 	boots = bpy.data.objects["Outfit_Boots"]
-	G.keep_inside(pants, boots, cuff + 0.03, cuff, BOOT_WALL)
-	G.cut_below(pants, cuff - TUCK_DEPTH)
+	shaft_top = max((boots.matrix_world @ v.co).z for v in boots.data.vertices)
+	ring = shaft_top - TUCK_RING_BELOW_RIM
+	G.tuck(pants, body, shaft_top + 0.04, ring, PANTS_MARGIN)
+	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
+	pin = [v.index for v in pants.data.vertices if (pants.matrix_world @ v.co).z > waist - PIN_BAND
+		or (pants.matrix_world @ v.co).z < ring]
+	G.drape(pants, [body], DENIM, DRAPE_FRAMES, pin=pin)
+	G.cut_below(pants, ring - TUCK_DEPTH)
 
 
 def finish_pants(arm, body, pants):
@@ -443,9 +451,9 @@ def finish_pants(arm, body, pants):
 
 
 def owner_jacket(arm, body, generated, pants):
-	"""The owner's plaid jacket: re-posed from its A-pose to the T-pose by its measured sleeve
-	droop, sleeves fitted to Henry's arms, then draped as cloth over the body and the jeans
-	(collar held), buttons riding on it; skinned with even weights."""
+	"""The owner's plaid jacket: a sparser cloth mesh, re-posed from its A-pose to the T-pose by
+	its measured sleeve droop, sleeves fitted to Henry's arms, 5% wider in girth, then draped as
+	cloth over the body and the jeans (collar and placket held), buttons riding on it; skinned."""
 	bpy.data.objects.remove(generated)
 	jacket = G.import_joined(JACKET_SOURCE, "Outfit_Jacket", lambda n: True)
 	G.weld(jacket)
@@ -453,11 +461,12 @@ def owner_jacket(arm, body, generated, pants):
 	shoulder = (arm.matrix_world @ arm.data.bones["upperarm_l"].head_local).x
 	droop = {side: G.sleeve_droop(jacket, side, shoulder) for side in (1, -1)}
 	print("owner_jacket: sleeve droop deg", {k: round(math.degrees(v), 1) for k, v in droop.items()})
+	G.decimate_to(jacket, JACKET_FACES)
 	if buttons is not None:
 		G.ride_on(buttons, jacket)
 	G.repose_arms(jacket, arm, droop)
 	G.fit_sleeves(jacket, arm, SLEEVE_PAST_WRIST)
-	G.inflate(jacket, JACKET_EASE)
+	G.widen(jacket, arm, JACKET_WIDEN)
 	G.fit_outside(jacket, body, JACKET_MARGIN)
 	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
 	G.fit_outside(jacket, pants, PANTS_MARGIN, below=waist - 0.02)
@@ -540,6 +549,10 @@ def owner_boots(arm, body, generated):
 			bpy.ops.object.join()
 		obj = bpy.context.view_layer.objects.active
 		obj.name = obj.data.name = name
+	snug_shafts(body)
+	for name in BOOT_PARTS.values():
+		obj = bpy.data.objects[name]
+		bpy.context.view_layer.objects.active = obj
 		for group in body.vertex_groups:
 			if group.name in keep:
 				obj.vertex_groups.new(name=group.name)
@@ -556,6 +569,57 @@ def owner_boots(arm, body, generated):
 		obj.modifiers.new("Armature", "ARMATURE").object = arm
 	for extra in extras:
 		bpy.data.objects.remove(bpy.data.objects[extra])
+
+
+def snug_shafts(body):
+	"""Wraps each boot's shaft round the shin: above the ankle the shell is laid on the leg with
+	room for the tucked jeans and the boot wall, growing in from the ankle to full at the calf, so
+	no leg shows past it; the lining and the fur cuff ride on the shell. Foot and sole unchanged."""
+	shell = bpy.data.objects["Outfit_Boots"]
+	lining = bpy.data.objects["Outfit_BootLining"]
+	riders = [lining, bpy.data.objects["Outfit_BootFur"]]
+	## A touch larger (owner), about each boot's sole centre so the soles stay on the floor.
+	floor = min((shell.matrix_world @ v.co).z for v in shell.data.vertices)
+	for obj in [shell] + riders:
+		inv = obj.matrix_world.inverted()
+		for v in obj.data.vertices:
+			p = obj.matrix_world @ v.co
+			centre = Vector((math.copysign(BOOT_CENTRE_X, p.x), 0.0, floor))
+			v.co = inv @ (centre + (p - centre) * BOOT_SCALE)
+		obj.data.update()
+	for rider in riders:
+		G.ride_on(rider, shell)
+	group = shell.vertex_groups.new(name="Shaft")
+	for v in shell.data.vertices:
+		z = (shell.matrix_world @ v.co).z
+		t = min(max((z - SHAFT_SNUG_FROM) / (SHAFT_SNUG_FULL - SHAFT_SNUG_FROM), 0.0), 1.0)
+		if t > 0.0:
+			group.add([v.index], t * t * (3.0 - 2.0 * t), "REPLACE")
+	mod = shell.modifiers.new("Snug", "SHRINKWRAP")
+	mod.target = body
+	mod.wrap_method = "NEAREST_SURFACEPOINT"
+	mod.wrap_mode = "ABOVE_SURFACE"
+	mod.offset = SHAFT_GAP
+	mod.vertex_group = "Shaft"
+	bpy.context.view_layer.objects.active = shell
+	bpy.ops.object.modifier_apply(modifier="Snug")
+	shell.vertex_groups.remove(shell.vertex_groups["Shaft"])
+	for rider in riders:
+		G.apply_ride(rider)
+	## The lining stopped under the rim, leaving a dark slot between shell and leg: its top band
+	## is drawn up to the rim, laid on the shin just inside the shell.
+	shell_top = max((shell.matrix_world @ v.co).z for v in shell.data.vertices)
+	lining_top = max((lining.matrix_world @ v.co).z for v in lining.data.vertices)
+	inv = lining.matrix_world.inverted()
+	for v in lining.data.vertices:
+		p = lining.matrix_world @ v.co
+		if p.z > lining_top - 0.03:
+			t = (p.z - (lining_top - 0.03)) / 0.03
+			p.z += t * (shell_top - lining_top)
+			v.co = inv @ p
+	lining.data.update()
+	## The lining never shows through: it is kept inside the shell everywhere.
+	G.keep_inside(lining, shell, 10.0, 9.0, LINING_INSET)
 
 
 def finish(obj, arm, name, colour, thick):
