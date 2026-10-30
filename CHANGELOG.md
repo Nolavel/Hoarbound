@@ -8,6 +8,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Outfit artefacts fixed (owner review: a flap on the jeans, collar and sleeves torn in poses).
+  - **Jeans:** the visible mesh rides on a sparse cloth proxy (Surface Deform), so the pocket bags
+    sewn inside stay inside.
+  - **Jacket mesh:** simulated on its own mesh. On a decimated mesh the plaid bent, and bound to a
+    proxy the hem and folded collar threw spikes past its edges. It settles on the body only;
+    resting on the jeans the hem crumpled. The hem is then lifted off the jeans.
+  - **Jacket weights:** the collar took the head's weights (nearest bone to the jaw) and tore in
+    poses; they go to the neck. Shoulders, collar, front placket and cuffs get local weight
+    smoothing. The worst edge stretch in a pose fell from 10x to 3x (armpit and hem, normal folds).
+  - **Sleeves:** centred on the arm by one fitted line along it, not slice by slice; slices
+    sheared the cuff 6.7x, now 1.08x. Collar and cuffs are held as cut during the drape.
+  - Checked without gloves (Henry starts without them).
 - Henry's outfit rebuilt with cloth: the plaid jacket and the jeans are draped on the body (Blender
   Cloth), then the refitted boots go on and the jeans are tucked in. Checked in Godot from all sides.
   - **Jacket:** sparser cloth mesh (3000 faces), re-posed A to T, sleeves fitted to the arm and

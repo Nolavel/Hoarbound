@@ -306,21 +306,27 @@ def keep_inside(obj, shell, top, bottom, margin):
 	obj.vertex_groups.remove(obj.vertex_groups["Inside"])
 
 
-def merge_weights(obj, sources, target):
+def merge_weights(obj, sources, target, where=None):
 	"""Adds the weight each vertex has in the `sources` groups to `target` and drops them, so
-	those vertices follow `target` alone (none is left unweighted)."""
+	those vertices follow `target` alone (none is left unweighted). With `where` (world point ->
+	bool), only for the vertices it accepts."""
 	if target not in obj.vertex_groups:
 		obj.vertex_groups.new(name=target)
 	dst = obj.vertex_groups[target]
-	indices = {obj.vertex_groups[n].index for n in sources if n in obj.vertex_groups}
+	groups = [obj.vertex_groups[n] for n in sources if n in obj.vertex_groups]
+	indices = {g.index for g in groups}
 	for v in obj.data.vertices:
+		if where is not None and not where(obj.matrix_world @ v.co):
+			continue
 		moved = sum(g.weight for g in v.groups if g.group in indices)
 		if moved > 0.0:
 			current = next((g.weight for g in v.groups if g.group == dst.index), 0.0)
 			dst.add([v.index], min(current + moved, 1.0), "REPLACE")
-	for n in sources:
-		if n in obj.vertex_groups:
-			obj.vertex_groups.remove(obj.vertex_groups[n])
+			for g in groups:
+				g.remove([v.index])
+	if where is None:
+		for g in groups:
+			obj.vertex_groups.remove(g)
 
 
 
@@ -502,9 +508,11 @@ def widen(obj, arm, factor):
 
 
 def centre_sleeves(obj, arm):
-	"""Centres each sleeve on the arm: slice by slice along it, the sleeve's centre is moved onto the
-	line from the shoulder joint to the wrist (blending in past the shoulder). Cut to hang, a
-	re-posed sleeve sits below the arm, whose top then pokes through it."""
+	"""Centres each sleeve on the arm with one smooth offset along it: per 2 cm slice the gap between
+	the sleeve's centre and the line from the shoulder joint to the wrist is measured, a straight
+	line (least squares, by points) is fitted to those gaps and applied, blending in past the
+	shoulder. Cut to hang, a re-posed sleeve sits below the arm, whose top then pokes through.
+	Per-slice offsets would shear the cuff, where band, placket and turn-up overlap."""
 	from mathutils import Vector
 	inv = obj.matrix_world.inverted()
 	points = [obj.matrix_world @ v.co for v in obj.data.vertices]
@@ -515,19 +523,57 @@ def centre_sleeves(obj, arm):
 		for i, p in enumerate(points):
 			if p.x * side > a.x * side + 0.02:
 				slices.setdefault(int(p.x * side / 0.02), []).append(i)
-		offsets = {}
+		samples = []
 		for key, idx in slices.items():
-			x = (key + 0.5) * 0.02 * side
-			t = (x - a.x) / (b.x - a.x)
+			x = (key + 0.5) * 0.02
+			t = (x * side - a.x) / (b.x - a.x)
 			axis = a.lerp(b, min(max(t, 0.0), 1.0))
 			centre = sum((points[i] for i in idx), Vector()) / len(idx)
-			offsets[key] = Vector((0.0, axis.y - centre.y, axis.z - centre.z))
-		for key, idx in slices.items():
-			near = [offsets[k] for k in (key - 1, key, key + 1) if k in offsets]
-			offset = sum(near, Vector()) / len(near)
-			for i in idx:
-				w = min(max((points[i].x * side - a.x * side - 0.02) / 0.08, 0.0), 1.0)
-				points[i] = points[i] + offset * (w * w * (3.0 - 2.0 * w))
+			samples.append((x, axis.y - centre.y, axis.z - centre.z, len(idx)))
+		n = sum(s_[3] for s_ in samples)
+		mx = sum(s_[0] * s_[3] for s_ in samples) / n
+		var = sum((s_[0] - mx) ** 2 * s_[3] for s_ in samples)
+		fit = []
+		for k in (1, 2):
+			m = sum(s_[k] * s_[3] for s_ in samples) / n
+			slope = sum((s_[0] - mx) * (s_[k] - m) * s_[3] for s_ in samples) / var if var > 0.0 else 0.0
+			fit.append((m, slope))
+		for i, p in enumerate(points):
+			x = p.x * side
+			if x <= a.x * side + 0.02:
+				continue
+			w = min(max((x - a.x * side - 0.02) / 0.08, 0.0), 1.0)
+			w = w * w * (3.0 - 2.0 * w)
+			dy = fit[0][0] + fit[0][1] * (x - mx)
+			dz = fit[1][0] + fit[1][1] * (x - mx)
+			points[i] = p + Vector((0.0, dy, dz)) * w
 	for v, p in zip(obj.data.vertices, points):
 		v.co = inv @ p
 	obj.data.update()
+
+def proxy_of(obj, faces, name):
+	"""A sparse copy of obj (about `faces` faces) to simulate; obj and its riders are bound to it."""
+	proxy = obj.copy()
+	proxy.data = obj.data.copy()
+	proxy.name = proxy.data.name = name
+	bpy.context.collection.objects.link(proxy)
+	for group in list(proxy.vertex_groups):
+		proxy.vertex_groups.remove(group)
+	decimate_to(proxy, faces)
+	return proxy
+
+
+def smooth_weights_where(obj, where, passes=6):
+	"""Smooths the skin weights of only the vertices `where` accepts (world point -> bool): a seam
+	where neighbouring points lean on different bones blends instead of tearing in a pose."""
+	bpy.ops.object.select_all(action="DESELECT")
+	bpy.context.view_layer.objects.active = obj
+	obj.select_set(True)
+	for v in obj.data.vertices:
+		v.select = where(obj.matrix_world @ v.co)
+	bpy.ops.object.mode_set(mode="WEIGHT_PAINT")
+	obj.data.use_paint_mask_vertex = True
+	bpy.ops.object.vertex_group_smooth(group_select_mode="ALL", factor=0.5, repeat=passes)
+	obj.data.use_paint_mask_vertex = False
+	bpy.ops.object.mode_set(mode="OBJECT")
+	bpy.ops.object.vertex_group_normalize_all(lock_active=False)

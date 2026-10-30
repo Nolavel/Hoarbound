@@ -29,7 +29,9 @@ BOOTS_SOURCE = "assets/items/boots/boots.glb"
 JACKET_SOURCE = "assets/characters/gear/plaid_jacket.glb"
 PANTS_SOURCE = "assets/characters/gear/reality_texture_man_pants.glb"
 ## Game budget for the jeans (faces) and how far each layer sits past what it covers, metres.
-PANTS_FACES = 9000
+PANTS_FACES = 20000
+## The cloth proxy the jeans ride on (faces).
+PANTS_PROXY_FACES = 9000
 PANTS_MARGIN = 0.006
 ## Cloth drape: frames settled, the held band at the waist / collar (m), and fabric settings.
 DRAPE_FRAMES = 40
@@ -39,14 +41,18 @@ FLANNEL = {"mass": 0.3, "stretch": 30.0, "bending": 10.0, "distance": 0.005, "pi
 ## Jacket: frames settled, its collar band held fully and the front placket held softly.
 JACKET_FRAMES = 30
 COLLAR_BAND = 0.08
+## The shoulder-and-collar zone whose weights are blended: above this height, this far either side.
+COLLAR_FROM = 1.45
+COLLAR_HALF = 0.32
+## The cuff zone (T-pose, beyond this distance from the centre) whose weights are blended, metres.
+CUFF_FROM = 0.64
 PLACKET_HALF = 0.07
 PLACKET_HOLD = 0.6
 ## Sleeves are held from this far past the shoulder joint outwards, this firmly.
 SLEEVE_HOLD_FROM = 0.05
 SLEEVE_HOLD = 0.8
 JACKET_MARGIN = 0.008
-## Jacket cloth mesh (faces), girth over the model (length kept) and cuff reach past the wrist (m).
-JACKET_FACES = 3000
+## Jacket girth over the model (length kept) and cuff reach past the wrist (m).
 JACKET_WIDEN = 1.05
 SLEEVE_PAST_WRIST = 0.03
 ## Tucked jeans taper onto the leg from this far above the boots' cuff and end this far below it.
@@ -407,21 +413,27 @@ def build():
 
 
 def owner_pants(arm, body, generated):
-	"""The owner's jeans, draped on the body as cloth: welded into one cloth, its small parts
-	(belt, loops) riding on it, decimated, held at the waist and settled by gravity onto the legs."""
+	"""The owner's jeans, draped on the body as cloth: welded into one cloth, decimated, then settled by gravity (held at the waist) on a sparse proxy they and their small
+	parts (belt, loops) ride on."""
 	bpy.data.objects.remove(generated)
 	pants = G.import_joined(PANTS_SOURCE, "Outfit_Pants", lambda n: True)
 	G.weld(pants)
 	parts = G.split_largest(pants, "Outfit_PantsParts")
 	G.decimate_to(pants, PANTS_FACES)
 	G.fit_outside(pants, body, PANTS_MARGIN)
+	## The cloth is simulated on a sparse proxy; the jeans (and their parts) ride on it.
+	proxy = G.proxy_of(pants, PANTS_PROXY_FACES, "PantsProxy")
+	G.ride_on(pants, proxy)
 	if parts is not None:
-		G.ride_on(parts, pants)
-	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
-	pin = [v.index for v in pants.data.vertices if (pants.matrix_world @ v.co).z > waist - PIN_BAND]
-	G.drape(pants, [body], DENIM, DRAPE_FRAMES, pin=pin)
+		G.ride_on(parts, proxy)
+	waist = max((proxy.matrix_world @ v.co).z for v in proxy.data.vertices)
+	pin = [v.index for v in proxy.data.vertices if (proxy.matrix_world @ v.co).z > waist - PIN_BAND]
+	G.drape(proxy, [body], DENIM, DRAPE_FRAMES, pin=pin)
+	G.apply_ride(pants)
 	if parts is not None:
 		G.apply_ride(parts)
+	bpy.data.objects.remove(proxy)
+	if parts is not None:
 		bpy.ops.object.select_all(action="DESELECT")
 		parts.select_set(True)
 		pants.select_set(True)
@@ -454,9 +466,9 @@ def finish_pants(arm, body, pants):
 
 
 def owner_jacket(arm, body, generated, pants):
-	"""The owner's plaid jacket: a sparser cloth mesh, re-posed from its A-pose to the T-pose by
-	its measured sleeve droop, sleeves fitted to Henry's arms, 5% wider in girth, then draped as
-	cloth over the body and the jeans (collar and placket held), buttons riding on it; skinned."""
+	"""The owner's plaid jacket on its own dense mesh: re-posed from its A-pose to the T-pose by its
+	measured sleeve droop, sleeves fitted to Henry's arms and centred on them, 5% wider in girth,
+	then draped over the body and the jeans (collar, placket and sleeves held); skinned."""
 	bpy.data.objects.remove(generated)
 	jacket = G.import_joined(JACKET_SOURCE, "Outfit_Jacket", lambda n: True)
 	G.weld(jacket)
@@ -464,7 +476,6 @@ def owner_jacket(arm, body, generated, pants):
 	shoulder = (arm.matrix_world @ arm.data.bones["upperarm_l"].head_local).x
 	droop = {side: G.sleeve_droop(jacket, side, shoulder) for side in (1, -1)}
 	print("owner_jacket: sleeve droop deg", {k: round(math.degrees(v), 1) for k, v in droop.items()})
-	G.decimate_to(jacket, JACKET_FACES)
 	if buttons is not None:
 		G.ride_on(buttons, jacket)
 	G.repose_arms(jacket, arm, droop)
@@ -474,13 +485,21 @@ def owner_jacket(arm, body, generated, pants):
 	G.fit_outside(jacket, body, JACKET_MARGIN)
 	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
 	G.fit_outside(jacket, pants, PANTS_MARGIN, below=waist - 0.02)
+	if buttons is not None:
+		G.apply_ride(buttons)
+	## Simulated on the jacket's own mesh: a sparser proxy bent the plaid (decimated UVs) or, bound
+	## to it, threw spikes where the hem and the folded collar run past its edges.
+	proxy = jacket
+	if buttons is not None:
+		G.ride_on(buttons, jacket)
 	## Held while it settles, as a jacket is buttoned before draping: the collar fully, the front
 	## placket (where the two fronts overlap) and the sleeves softly; the body drapes.
-	collar = max((jacket.matrix_world @ v.co).z for v in jacket.data.vertices)
+	collar = max((proxy.matrix_world @ v.co).z for v in proxy.data.vertices)
 	pin = {}
-	for v in jacket.data.vertices:
-		p = jacket.matrix_world @ v.co
-		if p.z > collar - COLLAR_BAND:
+	for v in proxy.data.vertices:
+		p = proxy.matrix_world @ v.co
+		if p.z > collar - COLLAR_BAND or abs(p.x) > CUFF_FROM:
+			## The collar and the cuffs are stiff bands: held as cut, never draped.
 			pin[v.index] = 1.0
 		elif abs(p.x) < PLACKET_HALF and p.y < 0.0 and p.z > waist - 0.1:
 			pin[v.index] = PLACKET_HOLD
@@ -488,9 +507,12 @@ def owner_jacket(arm, body, generated, pants):
 			## Sleeves held on the T-posed arms: on the sparse mesh the thin arm slips between the
 			## sleeve's points and gravity drags the sleeve off it; the pose gives the folds.
 			pin[v.index] = SLEEVE_HOLD
-	G.drape(jacket, [body, pants], FLANNEL, JACKET_FRAMES, pin=pin)
+	## On the body only: resting on the jeans the hem crumpled; afterwards it is lifted off them.
+	G.drape(proxy, [body], FLANNEL, JACKET_FRAMES, pin=pin)
+	G.fit_outside(jacket, pants, PANTS_MARGIN, below=waist - 0.02)
 	if buttons is not None:
 		G.apply_ride(buttons)
+	if buttons is not None:
 		bpy.ops.object.select_all(action="DESELECT")
 		buttons.select_set(True)
 		jacket.select_set(True)
@@ -501,6 +523,16 @@ def owner_jacket(arm, body, generated, pants):
 	for side in ("l", "r"):
 		hand = [g.name for g in jacket.vertex_groups if g.name.endswith("_" + side) and g.name.startswith(("hand_",) + FINGERS)]
 		G.merge_weights(jacket, hand, "lowerarm_" + side)
+	## The collar reaches the jaw, whose nearest bone is the head: it follows the neck instead, or a
+	## turn of the head would tear it.
+	G.merge_weights(jacket, ["Head"], "neck_01")
+	## Across the shoulders and collar neighbouring points took neck, collarbone and upper arm
+	## apart; the weights there are blended so the seam bends instead of tearing.
+	G.smooth_weights_where(jacket, lambda p: p.z > COLLAR_FROM and abs(p.x) < COLLAR_HALF)
+	## So across the front placket, where the two overlapping fronts took spine and collarbones apart.
+	G.smooth_weights_where(jacket, lambda p: abs(p.x) < PLACKET_HALF and p.y < 0.0)
+	## And at the cuffs, whose turn-up took forearm and (merged) hand weights apart and opened.
+	G.smooth_weights_where(jacket, lambda p: abs(p.x) > CUFF_FROM)
 	## No weight smoothing here: it smears the torso's weights onto the upper sleeves, which then
 	## stay at the body when the arms hang.
 	G.bind(jacket, arm)
