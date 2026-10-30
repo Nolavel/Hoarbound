@@ -599,3 +599,98 @@ def hug_above(obj, body, z_from, z_full, margin):
 	bpy.context.view_layer.objects.active = obj
 	bpy.ops.object.modifier_apply(modifier="Hug")
 	obj.vertex_groups.remove(obj.vertex_groups["Hug"])
+
+
+def add_chains(arm, obj, name, parent, count, z_top, z_bottom, axis_xy, angles=None, inset=0.01):
+	"""Adds `count` two-bone chains round obj (a hem or a collar) to the armature, hanging from z_top
+	to z_bottom (either way up) just inside obj's surface, each found by a ray from the vertical
+	axis at axis_xy, parented to `parent`; returns [(angle, [bone names])]. Spring bones in game.
+	An angle whose ray misses the cloth (an opening) gets no chain."""
+	import math
+	import bmesh
+	from mathutils import Vector
+	from mathutils.bvhtree import BVHTree
+	bm = bmesh.new()
+	bm.from_mesh(obj.data)
+	bm.transform(obj.matrix_world)
+	tree = BVHTree.FromBMesh(bm)
+	bm.free()
+	if angles is None:
+		angles = [2.0 * math.pi * k / count for k in range(count)]
+	bpy.ops.object.select_all(action="DESELECT")
+	bpy.context.view_layer.objects.active = arm
+	arm.select_set(True)
+	bpy.ops.object.mode_set(mode="EDIT")
+	inv = arm.matrix_world.inverted()
+	chains = []
+	for a in angles:
+		out = Vector((math.cos(a), math.sin(a), 0.0))
+		joints = []
+		for z in (z_top, (z_top + z_bottom) * 0.5, z_bottom):
+			## A ragged edge: step back toward the root until the ray meets cloth (up to 4 cm).
+			hit = None
+			for step in range(5):
+				zz = z + math.copysign(0.01 * step, z_top - z_bottom)
+				hit = tree.ray_cast(Vector((axis_xy[0], axis_xy[1], zz)), out, 0.6)[0]
+				if hit is not None:
+					break
+			if hit is None:
+				break
+			joints.append(inv @ (hit - out * inset))
+		if len(joints) < 3:
+			continue
+		names = []
+		prev = arm.data.edit_bones[parent]
+		for j in range(2):
+			bone = arm.data.edit_bones.new("%s_%d_%d" % (name, len(chains), j))
+			bone.head = joints[j]
+			bone.tail = joints[j + 1]
+			bone.parent = prev
+			bone.use_connect = j > 0
+			bone.use_deform = True
+			prev = bone
+			names.append(bone.name)
+		chains.append((a, names))
+	bpy.ops.object.mode_set(mode="OBJECT")
+	return chains
+
+
+def weight_to_chains(obj, chains, axis_xy, z_root, z_tip, where=None):
+	"""Hands obj's points between z_root (none) and z_tip (fully; either way up) over to the chains:
+	blended between the two chains nearest in angle round axis_xy and between each chain's two bones
+	by height; the points' own weights fade out as the chains take over. `where(p)` may return a
+	0..1 share instead of a bool, to fade a zone out at its edges."""
+	import math
+	world = obj.matrix_world
+	span = z_tip - z_root
+	groups = {}
+	for _, names in chains:
+		for n in names:
+			groups[n] = obj.vertex_groups.get(n) or obj.vertex_groups.new(name=n)
+	angles = [a for a, _ in chains]
+	for v in obj.data.vertices:
+		p = world @ v.co
+		share = 1.0 if where is None else float(where(p))
+		t = (p.z - z_root) / span
+		if t <= 0.0 or share <= 0.0:
+			continue
+		t = min(t, 1.0)
+		r = t * t * (3.0 - 2.0 * t) * share
+		a = math.atan2(p.y - axis_xy[1], p.x - axis_xy[0]) % (2.0 * math.pi)
+		dists = sorted((min(abs(a - c), 2.0 * math.pi - abs(a - c)), i) for i, c in enumerate(angles))
+		(d0, i0), (d1, i1) = dists[0], dists[1]
+		w0 = d1 / (d0 + d1) if d0 + d1 > 0.0 else 1.0
+		for g in v.groups:
+			g.weight *= (1.0 - r)
+		for i, w in ((i0, w0), (i1, 1.0 - w0)):
+			names = chains[i][1]
+			tip = max(0.0, (t - 0.5) * 2.0)
+			upper_w = r * w * (1.0 - tip)
+			lower_w = r * w * tip
+			if upper_w > 0.0:
+				groups[names[0]].add([v.index], upper_w, "ADD")
+			if lower_w > 0.0:
+				groups[names[1]].add([v.index], lower_w, "ADD")
+	bpy.context.view_layer.objects.active = obj
+	bpy.ops.object.vertex_group_limit_total(group_select_mode="ALL", limit=4)
+	bpy.ops.object.vertex_group_normalize_all(lock_active=False)
