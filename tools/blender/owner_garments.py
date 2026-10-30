@@ -694,3 +694,24 @@ def weight_to_chains(obj, chains, axis_xy, z_root, z_tip, where=None):
 	bpy.context.view_layer.objects.active = obj
 	bpy.ops.object.vertex_group_limit_total(group_select_mode="ALL", limit=4)
 	bpy.ops.object.vertex_group_normalize_all(lock_active=False)
+
+
+def shift_weights(obj, source, target, share):
+	"""Moves `share(world point)` (0..1) of each vertex's `source` weight to `target`."""
+	if source not in obj.vertex_groups:
+		return
+	src = obj.vertex_groups[source]
+	dst = obj.vertex_groups.get(target) or obj.vertex_groups.new(name=target)
+	for v in obj.data.vertices:
+		k = share(obj.matrix_world @ v.co)
+		if k <= 0.0:
+			continue
+		w = next((g.weight for g in v.groups if g.group == src.index), 0.0)
+		if w <= 0.0:
+			continue
+		have = next((g.weight for g in v.groups if g.group == dst.index), 0.0)
+		dst.add([v.index], min(have + w * k, 1.0), "REPLACE")
+		if w * (1.0 - k) > 0.0:
+			src.add([v.index], w * (1.0 - k), "REPLACE")
+		else:
+			src.remove([v.index])

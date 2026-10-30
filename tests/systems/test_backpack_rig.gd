@@ -78,20 +78,19 @@ func _check_contents() -> void:
 	_report("R1 something clipped on", "%d" % (_pack.get(&"_hung") as Array).size(), (_pack.get(&"_hung") as Array).size() == 1)
 
 
-## R2: both straps exist, mirror each other across the spine, and meet the pack at its sewn points.
+## R2: both straps lie on the jacket on both shoulders, are drawn, and their top ends sit on the pack.
 func _check_straps_standing() -> void:
-	var anchors: Array = _straps.get(&"_anchors")
-	_report("R2 anchors per side", "%d / %d" % [(anchors[0] as Array).size(), (anchors[1] as Array).size()], (anchors[0] as Array).size() == 8 and (anchors[1] as Array).size() == 8)
+	var rows: Array = _straps.get(&"_rows")
+	_report("R2 strap rows per side", "%d / %d" % [(rows[0] as Array).size(), (rows[1] as Array).size()], (rows[0] as Array).size() > 20 and (rows[1] as Array).size() > 20)
 	var right: Vector3 = _player.global_basis.x
 	var chest: Vector3 = _player.global_position
-	var a_side: float = signf(((anchors[0][1] as Node3D).global_position - chest).dot(right))
-	var b_side: float = signf(((anchors[1][1] as Node3D).global_position - chest).dot(right))
+	var a_side: float = signf(((_straps.worn_rows(0)[10][1] as Vector3) - chest).dot(right))
+	var b_side: float = signf(((_straps.worn_rows(1)[10][1] as Vector3) - chest).dot(right))
 	_report("R2 straps on both shoulders", "%+.0f / %+.0f" % [a_side, b_side], a_side == -b_side and a_side != 0.0)
 	var mesh := _straps.mesh as Mesh
 	_report("R2 strap mesh drawn", "%d surface(s)" % mesh.get_surface_count(), mesh.get_surface_count() == 1)
 	for side: int in range(2):
-		var first: Vector3 = (anchors[side][0] as Node3D).global_position
-		var top: Vector3 = _straps.call(&"_pack_end", PackShoulderStraps.PACK_TOP, first)
+		var top: Vector3 = (_straps.worn_band(side)["band"][0] as Array)[1]
 		var expected: Vector3 = _rig.get_canvas_point(PackShoulderStraps.PACK_TOP * Vector3(1.0 if side == 0 else -1.0, 1.0, 1.0), Vector3.FORWARD)
 		var other: Vector3 = _rig.get_canvas_point(PackShoulderStraps.PACK_TOP * Vector3(-1.0 if side == 0 else 1.0, 1.0, 1.0), Vector3.FORWARD)
 		var gap: float = minf(top.distance_to(expected), top.distance_to(other))
@@ -180,9 +179,9 @@ func _check_top() -> void:
 	_report("R6 bedroll on the top", "%.1f mm into it" % (-under * 1000.0), under < 0.0 and under > -0.015)
 
 
-## R7: walking and stopping, the body anchors ride the chest bone exactly, the pack rocks only a little.
+## R7: walking and stopping, the chest part of each strap rides the jacket's chest (spine_03) closely,
+## the pack rocks only a little.
 func _check_walking() -> void:
-	var anchors: Array = _straps.get(&"_anchors")
 	var skeleton: Skeleton3D = _straps.get(&"_skeleton")
 	var spine: int = skeleton.find_bone(&"spine_03")
 	var drift: float = 0.0
@@ -195,15 +194,16 @@ func _check_walking() -> void:
 		var bone: Transform3D = skeleton.global_transform * skeleton.get_bone_global_pose(spine)
 		var local: Array = []
 		for side: int in range(2):
-			for k: int in [4, 5]:
-				local.append(bone.affine_inverse() * (anchors[side][k] as Node3D).global_position)
+			var rows: Array = _straps.worn_rows(side)
+			for k: int in [30, 34]:
+				local.append(bone.affine_inverse() * (rows[k][1] as Vector3))
 		if start.is_empty():
 			start = local
 		for i: int in range(local.size()):
 			drift = maxf(drift, (local[i] as Vector3).distance_to(start[i]))
 		var pivot: Node3D = _rig.get(&"_sway")
 		sway = maxf(sway, rad_to_deg(maxf(absf(pivot.rotation.x), absf(pivot.rotation.z))))
-	_report("R7 chest anchors ride the chest bone", "%.2f mm drift" % (drift * 1000.0), drift < ANCHOR_DRIFT_M)
+	_report("R7 chest part rides the chest", "%.2f mm drift" % (drift * 1000.0), drift < ANCHOR_DRIFT_M)
 	_report("R7 pack rocks at most %.1f deg" % PackRig.MAX_SWAY_DEG, "%.2f deg" % sway, sway <= PackRig.MAX_SWAY_DEG + 0.01)
 
 

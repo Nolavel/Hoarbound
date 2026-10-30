@@ -38,6 +38,13 @@ const float HFN_BAYER4[16] = float[](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0,
 	3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
 #endif
 
+#ifndef HFN_STATIC_WORLD
+// Garments under a pack strap: the vertex colour holds how far a point is pressed in (R, of
+// garment_press_max metres) and whether its normal faces out (G); garment_press turns it on.
+uniform float garment_press : hint_range(0.0, 1.0) = 0.0;
+uniform float garment_press_max = 0.03;
+#endif
+
 varying vec3 stylized_noise_pos;
 varying vec3 stylized_world_normal;
 
@@ -45,6 +52,11 @@ void vertex() {
 	// HFN_VERTEX_EXTRA: optional per-family vertex step (e.g. snow_stems lifts stems with the snow).
 #ifdef HFN_VERTEX_EXTRA
 	HFN_VERTEX_EXTRA
+#endif
+#ifndef HFN_STATIC_WORLD
+	if (garment_press > 0.0) {
+		VERTEX -= NORMAL * (COLOR.g > 0.5 ? 1.0 : -1.0) * COLOR.r * garment_press_max * garment_press;
+	}
 #endif
 	stylized_noise_pos = shadow_noise_in_model_space ? VERTEX : (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	stylized_world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
