@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Finds where the shoulder straps lie on Henry's jacket: a ray outward per sample along the guide anchors
-## hits the outer cloth; each row is three hits across (triangle, barycentric, lift over folds) the outward guide normal and how padded it is (0 webbing, 1 shoulder pad), and its centre at rest.
+## hits the first cloth out from the body; each row is three hits across (triangle, barycentric, lift over folds) the outward guide normal and how padded it is (0 webbing, 1 shoulder pad), and its centre at rest.
 ## Run: godot --headless --path . --script res://tools/runtime/measure_strap_points.gd
 
 const OUTFIT: String = "res://assets/characters/henry/henry_outfit.glb"
@@ -11,7 +11,7 @@ const JACKET: String = "Outfit_Jacket"
 ## Sample spacing along the strap, metres, and its width (padded from UpperBack, guide 2, to ChestLow, guide 7).
 const STEP_M: float = 0.015
 const WIDTH_M: float = 0.042
-const PAD_WIDTH_M: float = 0.052
+const PAD_WIDTH_M: float = 0.045
 ## Rays start this far inside the guide and reach this far out.
 const RAY_BACK: float = 0.12
 const RAY_REACH: float = 0.3
@@ -83,7 +83,7 @@ func _initialize() -> void:
 			var width: float = lerpf(WIDTH_M, PAD_WIDTH_M, pad)
 			var row: Array = []
 			for a: float in [-0.5, 0.0, 0.5]:
-				var hit: Array = _outermost(p + across * width * a - n * RAY_BACK, n)
+				var hit: Array = _first_cloth(p + across * width * a - n * RAY_BACK, n)
 				if hit.is_empty():
 					misses += 1
 					continue
@@ -284,8 +284,8 @@ func _lift(hit: Array, n: Vector3) -> float:
 	return rise
 
 
-## The last cloth the ray crosses within reach: [surface, i0, i1, i2, b0, b1, b2].
-func _outermost(origin: Vector3, dir: Vector3) -> Array:
+## The first cloth the ray crosses going out from inside the body (the shoulder, not the collar over it): [surface, i0, i1, i2, b0, b1, b2].
+func _first_cloth(origin: Vector3, dir: Vector3) -> Array:
 	var best: float = -1.0
 	var found: Array = []
 	for tri: Array in _tris:
@@ -305,7 +305,7 @@ func _outermost(origin: Vector3, dir: Vector3) -> Array:
 		if v < 0.0 or u + v > 1.0:
 			continue
 		var t: float = e2.dot(qv) / det
-		if t > 0.0 and t < RAY_REACH and t > best:
+		if t > 0.0 and t < RAY_REACH and (best < 0.0 or t < best):
 			best = t
 			found = [tri[0], tri[1], tri[2], tri[3], 1.0 - u - v, u, v]
 	return found
