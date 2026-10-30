@@ -84,6 +84,11 @@ def sleeve_droop(obj, side, shoulder_x):
 def repose_arms(obj, arm, droop):
 	"""Brings a garment from an A-pose to the armature's T-pose. droop: {side: radians} per arm."""
 	bones = {1: "upperarm_l", -1: "upperarm_r"}
+	## The armature's action would overwrite these pose edits on any frame change (an earlier
+	## cloth drape plays frames), so it is lifted for the re-pose and put back after.
+	action = arm.animation_data.action if arm.animation_data else None
+	if action is not None:
+		arm.animation_data.action = None
 	saved = {pb.name: pb.matrix_basis.copy() for pb in arm.pose.bones}
 	for side, bone in bones.items():
 		_turn_down(arm, bone, side * droop[side])
@@ -120,6 +125,8 @@ def repose_arms(obj, arm, droop):
 	bpy.data.objects.remove(temp)
 	for pb in arm.pose.bones:
 		pb.matrix_basis = saved[pb.name]
+	if action is not None:
+		arm.animation_data.action = action
 	bpy.context.view_layer.update()
 
 
@@ -490,4 +497,37 @@ def widen(obj, arm, factor):
 		sleeve.y = arm_y + (p.y - arm_y) * factor
 		sleeve.z = arm_z + (p.z - arm_z) * factor
 		v.co = inv @ body.lerp(sleeve, t)
+	obj.data.update()
+
+
+
+def centre_sleeves(obj, arm):
+	"""Centres each sleeve on the arm: slice by slice along it, the sleeve's centre is moved onto the
+	line from the shoulder joint to the wrist (blending in past the shoulder). Cut to hang, a
+	re-posed sleeve sits below the arm, whose top then pokes through it."""
+	from mathutils import Vector
+	inv = obj.matrix_world.inverted()
+	points = [obj.matrix_world @ v.co for v in obj.data.vertices]
+	for side, (upper, hand) in {1: ("upperarm_l", "hand_l"), -1: ("upperarm_r", "hand_r")}.items():
+		a = arm.matrix_world @ arm.data.bones[upper].head_local
+		b = arm.matrix_world @ arm.data.bones[hand].head_local
+		slices = {}
+		for i, p in enumerate(points):
+			if p.x * side > a.x * side + 0.02:
+				slices.setdefault(int(p.x * side / 0.02), []).append(i)
+		offsets = {}
+		for key, idx in slices.items():
+			x = (key + 0.5) * 0.02 * side
+			t = (x - a.x) / (b.x - a.x)
+			axis = a.lerp(b, min(max(t, 0.0), 1.0))
+			centre = sum((points[i] for i in idx), Vector()) / len(idx)
+			offsets[key] = Vector((0.0, axis.y - centre.y, axis.z - centre.z))
+		for key, idx in slices.items():
+			near = [offsets[k] for k in (key - 1, key, key + 1) if k in offsets]
+			offset = sum(near, Vector()) / len(near)
+			for i in idx:
+				w = min(max((points[i].x * side - a.x * side - 0.02) / 0.08, 0.0), 1.0)
+				points[i] = points[i] + offset * (w * w * (3.0 - 2.0 * w))
+	for v, p in zip(obj.data.vertices, points):
+		v.co = inv @ p
 	obj.data.update()

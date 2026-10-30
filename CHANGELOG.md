@@ -8,6 +8,17 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Henry's outfit rebuilt with cloth: the plaid jacket and the jeans are draped on the body (Blender
+  Cloth), then the refitted boots go on and the jeans are tucked in. Checked in Godot from all sides.
+  - **Jacket:** sparser cloth mesh (3000 faces), re-posed A to T, sleeves fitted to the arm and
+    centred on it slice by slice, 5% wider in girth (not length). Draped held at the collar, the
+    front placket and the sleeves. Skinned from the body; hand weights merged into the forearm.
+  - **Jeans:** welded into one cloth (belt and loops ride on it), draped held at the waist,
+    tapered into the boot shafts, cut inside them; inside the boot they take the boot's weights.
+  - **Skin under the cloth:** hidden where a ray from it meets the garment (20 cm reach).
+  - **Fixes found on the way:** the re-pose lifted the armature's action (a frame change put the
+    pose back); sleeves were held during the drape (the thin arm slipped between the sparse
+    sleeve's points); a sleeve cut to hang sat 4 cm under the re-posed arm, which poked through.
 - The owner's boots, refitted (owner review: the shin showed past the shaft, gaps at the heel and
   inner side). Accepted by the owner; built into the outfit with the next jeans pass.
   - **Size:** 5.5% larger, about each sole's centre (soles stay on the floor).

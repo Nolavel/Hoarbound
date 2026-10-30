@@ -41,6 +41,9 @@ JACKET_FRAMES = 30
 COLLAR_BAND = 0.08
 PLACKET_HALF = 0.07
 PLACKET_HOLD = 0.6
+## Sleeves are held from this far past the shoulder joint outwards, this firmly.
+SLEEVE_HOLD_FROM = 0.05
+SLEEVE_HOLD = 0.8
 JACKET_MARGIN = 0.008
 ## Jacket cloth mesh (faces), girth over the model (length kept) and cuff reach past the wrist (m).
 JACKET_FACES = 3000
@@ -466,12 +469,13 @@ def owner_jacket(arm, body, generated, pants):
 		G.ride_on(buttons, jacket)
 	G.repose_arms(jacket, arm, droop)
 	G.fit_sleeves(jacket, arm, SLEEVE_PAST_WRIST)
+	G.centre_sleeves(jacket, arm)
 	G.widen(jacket, arm, JACKET_WIDEN)
 	G.fit_outside(jacket, body, JACKET_MARGIN)
 	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
 	G.fit_outside(jacket, pants, PANTS_MARGIN, below=waist - 0.02)
 	## Held while it settles, as a jacket is buttoned before draping: the collar fully, the front
-	## placket (where the two fronts overlap) softly; the rest drapes.
+	## placket (where the two fronts overlap) and the sleeves softly; the body drapes.
 	collar = max((jacket.matrix_world @ v.co).z for v in jacket.data.vertices)
 	pin = {}
 	for v in jacket.data.vertices:
@@ -480,6 +484,10 @@ def owner_jacket(arm, body, generated, pants):
 			pin[v.index] = 1.0
 		elif abs(p.x) < PLACKET_HALF and p.y < 0.0 and p.z > waist - 0.1:
 			pin[v.index] = PLACKET_HOLD
+		elif abs(p.x) > shoulder + SLEEVE_HOLD_FROM:
+			## Sleeves held on the T-posed arms: on the sparse mesh the thin arm slips between the
+			## sleeve's points and gravity drags the sleeve off it; the pose gives the folds.
+			pin[v.index] = SLEEVE_HOLD
 	G.drape(jacket, [body, pants], FLANNEL, JACKET_FRAMES, pin=pin)
 	if buttons is not None:
 		G.apply_ride(buttons)
@@ -493,7 +501,8 @@ def owner_jacket(arm, body, generated, pants):
 	for side in ("l", "r"):
 		hand = [g.name for g in jacket.vertex_groups if g.name.endswith("_" + side) and g.name.startswith(("hand_",) + FINGERS)]
 		G.merge_weights(jacket, hand, "lowerarm_" + side)
-	G.smooth_weights(jacket)
+	## No weight smoothing here: it smears the torso's weights onto the upper sleeves, which then
+	## stay at the body when the arms hang.
 	G.bind(jacket, arm)
 	return jacket
 
