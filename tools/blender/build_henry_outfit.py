@@ -61,7 +61,7 @@ SHAFT_SNUG_FROM = 0.14
 SHAFT_SNUG_FULL = 0.22
 SHAFT_GAP = 0.010
 ## Boots scaled up by this about each sole's centre (x = +-BOOT_CENTRE_X, on the floor).
-BOOT_SCALE = 1.05
+BOOT_SCALE = 1.055
 ## Above the tread (the foot's underside, this height) no skin may come within this of the shell, metres.
 BOOT_SOLE_TOP = 0.0
 BOOT_SKIN_MARGIN = 0.008
