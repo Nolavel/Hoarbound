@@ -47,12 +47,12 @@ JACKET_FACES = 3000
 JACKET_WIDEN = 1.05
 SLEEVE_PAST_WRIST = 0.03
 ## Tucked jeans taper onto the leg from this far above the boots' cuff and end this far below it.
-TUCK_ABOVE_CUFF = 0.08
 TUCK_DEPTH = 0.04
-## The held band of each tucked leg sits this far under the boot shaft's rim, metres.
-TUCK_RING_BELOW_RIM = 0.01
-## Inside the boot the jeans keep this far in from its outer shell (its wall and lining), metres.
-BOOT_WALL = 0.01
+## Tucked legs taper onto the shin over this height above the rim and lie this far off the skin.
+TUCK_TAPER = 0.06
+TUCK_OFF_SKIN = 0.004
+## Inside the boot the jeans keep this far in from its shell, metres.
+BOOT_WALL = 0.004
 ## Imported piece name prefix -> outfit mesh (both feet joined into one).
 BOOT_PARTS = {"Boot_New_": "Outfit_Boots", "Boot_Lining_": "Outfit_BootLining", "Boot_Fur_": "Outfit_BootFur"}
 ## The shafts hug the shin: from this height (no change) to this one (full), the shell sits this
@@ -428,19 +428,15 @@ def owner_pants(arm, body, generated):
 
 
 def tuck_pants(body, pants):
-	"""The boots go on after the cloth, and the jeans are tucked in: each leg's band just under
-	the shaft's rim is laid onto the shin and held, the cloth above settles under gravity into a
-	fold over the cuff, and what is below the band (inside the boot) is cut off by a plane. The
-	boot is no collider: cloth starting inside its thin wall would be thrown apart."""
+	"""The boots go on after the cloth, and the jeans are tucked in: from a little above the shaft's
+	rim each leg tapers onto the shin, lies 4 mm off it inside the 10 mm the shaft leaves, is kept
+	inside the shell and is cut off by a plane 4 cm down, hidden in the boot. Geometry, not cloth:
+	cloth starting inside the boot's thin wall is thrown apart by the collision."""
 	boots = bpy.data.objects["Outfit_Boots"]
 	shaft_top = max((boots.matrix_world @ v.co).z for v in boots.data.vertices)
-	ring = shaft_top - TUCK_RING_BELOW_RIM
-	G.tuck(pants, body, shaft_top + 0.04, ring, PANTS_MARGIN)
-	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
-	pin = [v.index for v in pants.data.vertices if (pants.matrix_world @ v.co).z > waist - PIN_BAND
-		or (pants.matrix_world @ v.co).z < ring]
-	G.drape(pants, [body], DENIM, DRAPE_FRAMES, pin=pin)
-	G.cut_below(pants, ring - TUCK_DEPTH)
+	G.tuck(pants, body, shaft_top + TUCK_TAPER, shaft_top - 0.005, TUCK_OFF_SKIN)
+	G.keep_inside(pants, boots, shaft_top, shaft_top - 0.02, BOOT_WALL)
+	G.cut_below(pants, shaft_top - TUCK_DEPTH)
 
 
 def finish_pants(arm, body, pants):
@@ -448,8 +444,9 @@ def finish_pants(arm, body, pants):
 	the boot it takes the boot's weights, so a bent knee carries both alike."""
 	G.skin_from(pants, body, LEGS | FEET | TORSO)
 	G.smooth_weights(pants)
-	cuff = boot_cuff_bottom()
-	G.follow(pants, bpy.data.objects["Outfit_Boots"], cuff + 0.03, cuff - 0.01)
+	boots = bpy.data.objects["Outfit_Boots"]
+	shaft_top = max((boots.matrix_world @ v.co).z for v in boots.data.vertices)
+	G.follow(pants, boots, shaft_top + 0.02, shaft_top - 0.01)
 	G.bind(pants, arm)
 
 
