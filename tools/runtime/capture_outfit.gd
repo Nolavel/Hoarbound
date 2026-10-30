@@ -55,6 +55,10 @@ func _run() -> void:
 	for view: Array in [["front", 0.0], ["side", 90.0], ["back", 180.0], ["three_quarter", 35.0]]:
 		await _shot("rest_" + view[0], view[1], 0.95, 3.4)
 	await _shot("torso_three_quarter", 35.0, 1.35, 1.6)
+	await _shot("hands_front", 10.0, 0.85, 1.2)
+	await _shot("hands_side", 80.0, 0.85, 1.0)
+	await _shot("boot_tops", 20.0, 0.35, 0.9)
+	await _shot("boot_top_close", 0.0, 0.35, 0.55)
 	Input.action_press(&"move_forward")
 	await _frames(40)
 	for k: int in range(3):

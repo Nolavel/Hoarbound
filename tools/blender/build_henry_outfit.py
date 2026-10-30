@@ -31,7 +31,15 @@ PANTS_SOURCE = "assets/characters/gear/reality_texture_man_pants.glb"
 ## Game budget for the jeans (faces) and how far each layer sits past what it covers, metres.
 PANTS_FACES = 16000
 PANTS_MARGIN = 0.006
-JACKET_MARGIN = 0.012
+JACKET_MARGIN = 0.02
+## Jacket ease (how much looser than as modelled) and its cuff's reach past the wrist, metres.
+JACKET_EASE = 0.02
+SLEEVE_PAST_WRIST = 0.01
+## Tucked jeans taper onto the leg from this far above the boots' cuff and end this far below it.
+TUCK_ABOVE_CUFF = 0.08
+TUCK_DEPTH = 0.06
+## Inside the boot the jeans keep this far in from its outer shell (its wall and lining), metres.
+BOOT_WALL = 0.01
 ## Imported piece name prefix -> outfit mesh (both feet joined into one).
 BOOT_PARTS = {"Boot_New_": "Outfit_Boots", "Boot_Lining_": "Outfit_BootLining", "Boot_Fur_": "Outfit_BootFur"}
 
@@ -366,13 +374,18 @@ def build():
 
 def owner_pants(arm, body, generated):
 	"""The owner's jeans: shell, its .001 patches (they fill the shell's open panels) and belt,
-	decimated with the sewn panels' edges kept, cut under the boots' cuff, kept outside the body
-	and skinned from it."""
+	decimated with the sewn panels' edges kept, kept outside the body, tucked into the boots and
+	skinned from it."""
 	bpy.data.objects.remove(generated)
 	pants = G.import_joined(PANTS_SOURCE, "Outfit_Pants", lambda n: True)
 	G.decimate_to(pants, PANTS_FACES, keep_edges=True)
-	G.cut_below(pants, boot_cuff_bottom() + 0.005)
+	cuff = boot_cuff_bottom()
 	G.fit_outside(pants, body, PANTS_MARGIN)
+	## Tucked in: tapering onto the leg from above the cuff, ending well down inside the shaft.
+	G.tuck(pants, body, cuff + TUCK_ABOVE_CUFF, cuff - 0.02, PANTS_MARGIN)
+	## The boot shaft is tighter than leg plus cloth: inside the boot the cloth stays inside it.
+	G.keep_inside(pants, bpy.data.objects["Outfit_Boots"], cuff + 0.03, cuff, BOOT_WALL)
+	G.cut_below(pants, cuff - TUCK_DEPTH)
 	G.skin_from(pants, body, LEGS | FEET | TORSO)
 	G.bind(pants, arm)
 	return pants
@@ -380,17 +393,23 @@ def owner_pants(arm, body, generated):
 
 def owner_jacket(arm, body, generated, pants):
 	"""The owner's plaid jacket: re-posed from its A-pose to the T-pose by its measured sleeve
-	droop, kept outside the body and the jeans, skinned from the body."""
+	droop, sleeves fitted to Henry's arms, eased out, kept outside the body and the jeans, skinned."""
 	bpy.data.objects.remove(generated)
 	jacket = G.import_joined(JACKET_SOURCE, "Outfit_Jacket", lambda n: True)
 	shoulder = (arm.matrix_world @ arm.data.bones["upperarm_l"].head_local).x
 	droop = {side: G.sleeve_droop(jacket, side, shoulder) for side in (1, -1)}
 	print("owner_jacket: sleeve droop deg", {k: round(math.degrees(v), 1) for k, v in droop.items()})
 	G.repose_arms(jacket, arm, droop)
+	G.fit_sleeves(jacket, arm, SLEEVE_PAST_WRIST)
+	G.inflate(jacket, JACKET_EASE)
 	G.fit_outside(jacket, body, JACKET_MARGIN)
 	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
 	G.fit_outside(jacket, pants, PANTS_MARGIN, below=waist - 0.02)
 	G.skin_from(jacket, body)
+	## Hand and finger weights go to the forearm: the cuff rides it instead of crumpling with the fist.
+	for side in ("l", "r"):
+		hand = [g.name for g in jacket.vertex_groups if g.name.endswith("_" + side) and g.name.startswith(("hand_",) + FINGERS)]
+		G.merge_weights(jacket, hand, "lowerarm_" + side)
 	G.bind(jacket, arm)
 	return jacket
 

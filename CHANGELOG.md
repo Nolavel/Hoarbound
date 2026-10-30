@@ -8,6 +8,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Outfit fit, second pass (owner review: short, crumpled sleeves; jacket too tight; jeans over
+  the boots). Work in progress: the next pass drapes both garments with a cloth simulation.
+  - **Sleeves:** after re-posing they reached x 0.81 m, past Henry's whole hand, and the cuff took
+    hand weights and crumpled. Each sleeve is now scaled along the arm to end 1 cm past the wrist,
+    and hand and finger weights are merged into the forearm.
+  - **Ease:** the jacket is moved 2 cm out along its normals, with a 2 cm margin off the body.
+  - **Jeans at the boots:** they taper onto the leg, stay inside the rigid shaft (Shrinkwrap
+    Inside) and are cut by an exact plane 6 cm below the cuff. With the knee bent they still come
+    out of the shaft; still open.
 - The owner's plaid jacket and jeans on Henry (Sketchfab, CC-BY-4.0; `assets/characters/gear/CREDITS.md`).
   They replace the generated jacket, skirt, trim, hood and trousers.
   - **Jacket re-posed A to T:** its sleeves hang 42.6 / 42.0 degrees, measured by a line through each

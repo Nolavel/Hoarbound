@@ -175,12 +175,13 @@ def bind(obj, arm):
 
 
 def cut_below(obj, z):
-	"""Deletes the faces of obj lying wholly below height z (hidden inside the boots)."""
+	"""Cuts obj along the plane at height z and drops what lies below (hidden inside the boots).
+	An exact bisection: decimated faces can span far past the line and would leave spikes."""
 	import bmesh
 	bm = bmesh.new()
 	bm.from_mesh(obj.data)
-	bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(v.co.z < z for v in f.verts)], context="FACES")
-	bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+	bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0.0, 0.0, z),
+		plane_no=(0.0, 0.0, 1.0), clear_inner=True)
 	bm.to_mesh(obj.data)
 	bm.free()
 
@@ -212,3 +213,103 @@ def coverage(body, garments, reach=0.08):
 				best, best_d = label, hit[3]
 		out.append(best)
 	return out
+
+
+def fit_sleeves(obj, arm, overlap):
+	"""Scales each sleeve along the arm (from the shoulder out) so its cuff ends `overlap` metres
+	past the wrist: a garment cut for longer arms otherwise swallows the hand and its cuff takes
+	the hand's weights and crumples."""
+	for side, (upper, hand) in {1: ("upperarm_l", "hand_l"), -1: ("upperarm_r", "hand_r")}.items():
+		shoulder = (arm.matrix_world @ arm.data.bones[upper].head_local).x * side
+		wrist = (arm.matrix_world @ arm.data.bones[hand].head_local).x * side
+		inv = obj.matrix_world.inverted()
+		points = [(obj.matrix_world @ v.co) for v in obj.data.vertices]
+		end = max(p.x * side for p in points)
+		scale = (wrist + overlap - shoulder) / (end - shoulder)
+		for v, p in zip(obj.data.vertices, points):
+			x = p.x * side
+			if x > shoulder:
+				p.x = (shoulder + (x - shoulder) * scale) * side
+				v.co = inv @ p
+	obj.data.update()
+
+
+def inflate(obj, depth):
+	"""Moves every point of obj out along its smooth normal by `depth` metres (a looser cut).
+	Coincident points (UV seams) move together, so seams do not open."""
+	import bmesh
+	from mathutils import Vector
+	bm = bmesh.new()
+	bm.from_mesh(obj.data)
+	bm.normal_update()
+	groups = {}
+	for v in bm.verts:
+		groups.setdefault(tuple(round(c, 5) for c in v.co), []).append(v)
+	for verts in groups.values():
+		n = Vector()
+		for v in verts:
+			n += v.normal
+		if n.length > 0.0:
+			n.normalize()
+		for v in verts:
+			v.co += n * depth
+	bm.to_mesh(obj.data)
+	bm.free()
+
+
+def tuck(obj, body, top, bottom, margin):
+	"""Trousers tucked into boots: between heights `top` and `bottom` each point is drawn in to
+	`margin` past the leg (fully at `bottom`), so the cloth tapers inside the boot shaft."""
+	group = obj.vertex_groups.new(name="Tuck")
+	for v in obj.data.vertices:
+		z = (obj.matrix_world @ v.co).z
+		if z < top:
+			t = min(max((top - z) / (top - bottom), 0.0), 1.0)
+			group.add([v.index], t * t * (3.0 - 2.0 * t), "REPLACE")
+	mod = obj.modifiers.new("Tuck", "SHRINKWRAP")
+	mod.target = body
+	mod.wrap_method = "NEAREST_SURFACEPOINT"
+	mod.wrap_mode = "ABOVE_SURFACE"
+	mod.offset = margin
+	mod.vertex_group = group.name
+	bpy.context.view_layer.objects.active = obj
+	bpy.ops.object.modifier_apply(modifier="Tuck")
+	obj.vertex_groups.remove(obj.vertex_groups["Tuck"])
+
+
+def keep_inside(obj, shell, top, bottom, margin):
+	"""Keeps points of obj below `top` inside the closed-normal `shell` by `margin` (fully from
+	`bottom` down): trousers tucked into a rigid boot shaft stay inside it instead of piercing it."""
+	group = obj.vertex_groups.new(name="Inside")
+	for v in obj.data.vertices:
+		z = (obj.matrix_world @ v.co).z
+		if z < top:
+			t = min(max((top - z) / (top - bottom), 0.0), 1.0)
+			group.add([v.index], t * t * (3.0 - 2.0 * t), "REPLACE")
+	mod = obj.modifiers.new("Inside", "SHRINKWRAP")
+	mod.target = shell
+	mod.wrap_method = "NEAREST_SURFACEPOINT"
+	mod.wrap_mode = "INSIDE"
+	mod.offset = margin
+	mod.vertex_group = "Inside"
+	bpy.context.view_layer.objects.active = obj
+	bpy.ops.object.modifier_apply(modifier="Inside")
+	obj.vertex_groups.remove(obj.vertex_groups["Inside"])
+
+
+def merge_weights(obj, sources, target):
+	"""Adds the weight each vertex has in the `sources` groups to `target` and drops them, so
+	those vertices follow `target` alone (none is left unweighted)."""
+	if target not in obj.vertex_groups:
+		obj.vertex_groups.new(name=target)
+	dst = obj.vertex_groups[target]
+	indices = {obj.vertex_groups[n].index for n in sources if n in obj.vertex_groups}
+	for v in obj.data.vertices:
+		moved = sum(g.weight for g in v.groups if g.group in indices)
+		if moved > 0.0:
+			current = next((g.weight for g in v.groups if g.group == dst.index), 0.0)
+			dst.add([v.index], min(current + moved, 1.0), "REPLACE")
+	for n in sources:
+		if n in obj.vertex_groups:
+			obj.vertex_groups.remove(obj.vertex_groups[n])
+
