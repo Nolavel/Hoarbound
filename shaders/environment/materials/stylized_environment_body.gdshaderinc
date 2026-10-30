@@ -12,6 +12,10 @@ uniform sampler2D albedo_texture : source_color, filter_linear_mipmap_anisotropi
 uniform bool use_normal_texture = false;
 uniform sampler2D normal_texture : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float normal_scale : hint_range(-16.0, 16.0) = 1.0;
+// glTF packed map: roughness in G and metallic in B scale the factors above; AO in R when it is packed in.
+uniform bool use_orm_texture = false;
+uniform bool use_orm_ao = false;
+uniform sampler2D orm_texture : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform vec2 uv_scale = vec2(1.0);
 uniform vec2 uv_offset = vec2(0.0);
 uniform vec3 emission_color : source_color = vec3(0.0);
@@ -71,6 +75,14 @@ void fragment() {
 #endif
 	ROUGHNESS = roughness;
 	METALLIC = metallic;
+	if (use_orm_texture) {
+		vec3 orm = texture(orm_texture, uv).rgb;
+		ROUGHNESS = roughness * orm.g;
+		METALLIC = metallic * orm.b;
+		if (use_orm_ao) {
+			AO = orm.r;
+		}
+	}
 	if (use_normal_texture) {
 		NORMAL_MAP = texture(normal_texture, uv).rgb;
 		NORMAL_MAP_DEPTH = normal_scale;
@@ -95,8 +107,8 @@ void light() {
 	// Cheap restrained specular keeps metal/glass-adjacent props readable
 	// without reintroducing the built-in PBR path that bypasses our light().
 	vec3 half_dir = normalize(LIGHT + VIEW);
-	float spec_power = mix(128.0, 4.0, roughness);
+	float spec_power = mix(128.0, 4.0, ROUGHNESS);
 	float spec = pow(max(dot(NORMAL, half_dir), 0.0), spec_power);
-	float spec_gain = mix(0.05, 0.24, metallic) * (1.0 - roughness);
+	float spec_gain = mix(0.05, 0.24, METALLIC) * (1.0 - ROUGHNESS);
 	SPECULAR_LIGHT += spec * spec_gain * attenuation * LIGHT_COLOR;
 }

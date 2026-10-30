@@ -18,10 +18,20 @@ import bpy  # must load before bmesh
 import bmesh
 from mathutils import Vector
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import owner_garments as G  # noqa: E402
+
 SOURCE = "assets/animation/ual/Unreal-Godot/UAL1_Standard.glb"
 OUT = "assets/characters/henry/henry_outfit.glb"
 ## The owner's boots, modelled in the mannequin's rest pose; they replace the generated boots.
 BOOTS_SOURCE = "assets/items/boots/boots.glb"
+## The owner's jacket and trousers (CC-BY, credits in assets/characters/gear/CREDITS.md).
+JACKET_SOURCE = "assets/characters/gear/plaid_jacket.glb"
+PANTS_SOURCE = "assets/characters/gear/reality_texture_man_pants.glb"
+## Game budget for the jeans (faces) and how far each layer sits past what it covers, metres.
+PANTS_FACES = 16000
+PANTS_MARGIN = 0.006
+JACKET_MARGIN = 0.012
 ## Imported piece name prefix -> outfit mesh (both feet joined into one).
 BOOT_PARTS = {"Boot_New_": "Outfit_Boots", "Boot_Lining_": "Outfit_BootLining", "Boot_Fur_": "Outfit_BootFur"}
 
@@ -284,10 +294,16 @@ def _settle_panels(obj, passes):
 			poly.material_index = max(set(votes), key=votes.count)
 
 
-def split_body(body, region):
+## The owner's model garments: the skin under them is found by what covers it, not by region.
+MODELLED = ("Boots", "Pants", "Jacket")
+
+
+def split_body(body, region, covered):
 	"""Moves skin fully inside a garment (one ring from its border) into Skin_<item>
-	meshes, which the game hides while that item is worn."""
+	meshes, which the game hides while that item is worn. `covered` (per vertex) adds skin that
+	one of the owner's modelled garments lies over, where its region did not reach."""
 	owner = [next((g for g in SKIN_PRIORITY if g in r), "") for r in region]
+	owner = [c if c else o for o, c in zip(owner, covered)]
 	bm = bmesh.new()
 	bm.from_mesh(body.data)
 	bm.verts.ensure_lookup_table()
@@ -299,7 +315,10 @@ def split_body(body, region):
 	face_owner = {}
 	for f in bm.faces:
 		labels = {owner[v.index] for v in f.verts}
-		if len(labels) == 1 and "" not in labels and not any(v.index in border for v in f.verts):
+		if labels and labels <= set(MODELLED):
+			## Under modelled layers: the innermost of them owns it (the boot, then the jeans).
+			face_owner[f.index] = ITEM_OF[next(g for g in MODELLED if g in labels)]
+		elif len(labels) == 1 and "" not in labels and not any(v.index in border for v in f.verts):
 			face_owner[f.index] = ITEM_OF[labels.pop()]
 		elif labels <= {"Boots", "Pants"} and any(v.index in boot_edge for v in f.verts):
 			## The owner's boots are rigid shells, not pushed-out skin: the edge ring of big shin
@@ -337,11 +356,43 @@ def build():
 	built = {name: build_garment(body, arm, name, region, spec) for name, spec in GARMENTS.items()}
 	style_gloves(built["Gloves"], built["GloveCuff"], arm)
 	owner_boots(arm, body, [built.pop("Boots"), built.pop("Sole")])
-	split_body(body, region)
-	build_hood(arm, body)
-	skirt = build_skirt(arm, body)
-	build_trim(arm, [built["Jacket"], skirt])
+	pants = owner_pants(arm, body, built.pop("Pants"))
+	jacket = owner_jacket(arm, body, built.pop("Jacket"), pants)
+	boots = bpy.data.objects["Outfit_Boots"]
+	split_body(body, region, G.coverage(body, [(boots, "Boots"), (pants, "Pants"), (jacket, "Jacket")]))
+	## The plaid jacket has its own collar and no hood; the old generated hood sat on it like a scarf.
 	return arm
+
+
+def owner_pants(arm, body, generated):
+	"""The owner's jeans: shell, its .001 patches (they fill the shell's open panels) and belt,
+	decimated with the sewn panels' edges kept, cut under the boots' cuff, kept outside the body
+	and skinned from it."""
+	bpy.data.objects.remove(generated)
+	pants = G.import_joined(PANTS_SOURCE, "Outfit_Pants", lambda n: True)
+	G.decimate_to(pants, PANTS_FACES, keep_edges=True)
+	G.cut_below(pants, boot_cuff_bottom() + 0.005)
+	G.fit_outside(pants, body, PANTS_MARGIN)
+	G.skin_from(pants, body, LEGS | FEET | TORSO)
+	G.bind(pants, arm)
+	return pants
+
+
+def owner_jacket(arm, body, generated, pants):
+	"""The owner's plaid jacket: re-posed from its A-pose to the T-pose by its measured sleeve
+	droop, kept outside the body and the jeans, skinned from the body."""
+	bpy.data.objects.remove(generated)
+	jacket = G.import_joined(JACKET_SOURCE, "Outfit_Jacket", lambda n: True)
+	shoulder = (arm.matrix_world @ arm.data.bones["upperarm_l"].head_local).x
+	droop = {side: G.sleeve_droop(jacket, side, shoulder) for side in (1, -1)}
+	print("owner_jacket: sleeve droop deg", {k: round(math.degrees(v), 1) for k, v in droop.items()})
+	G.repose_arms(jacket, arm, droop)
+	G.fit_outside(jacket, body, JACKET_MARGIN)
+	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
+	G.fit_outside(jacket, pants, PANTS_MARGIN, below=waist - 0.02)
+	G.skin_from(jacket, body)
+	G.bind(jacket, arm)
+	return jacket
 
 
 def boot_cuff_bottom():

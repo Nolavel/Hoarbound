@@ -8,6 +8,20 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- The owner's plaid jacket and jeans on Henry (Sketchfab, CC-BY-4.0; `assets/characters/gear/CREDITS.md`).
+  They replace the generated jacket, skirt, trim, hood and trousers.
+  - **Jacket re-posed A to T:** its sleeves hang 42.6 / 42.0 degrees, measured by a line through each
+    sleeve. It is bound to a copy of the armature posed to match, then posed back to the T-pose.
+  - **Fit and skin:** Shrinkwrap (Outside Surface) keeps each layer off the body (jeans 6 mm,
+    jacket 12 mm, and the jacket's hem over the jeans). Weights come from the body's nearest face.
+  - **Jeans:** shell, its patch layer (it fills the shell's open panels) and belt, decimated to
+    16k faces with the sewn panels' edges held, cut under the boots' fur cuff.
+  - **Body mask by coverage:** skin is hidden where a ray from it along its normal meets one of
+    these garments, as well as by region. Checked with object-ID renders, idle and walking.
+  - **Materials:** the character shader reads glTF metallic-roughness maps (G roughness,
+    B metallic, R occlusion when packed in); off by default, so the world is unchanged.
+  - The jacket has no hood; a hood up and down is still to come.
+  - Stills: `docs/runtime_previews/outfit/`, from `tools/runtime/capture_outfit.gd`.
 - The owner's boots (`assets/items/boots/boots.glb`) on Henry, replacing the generated boots and soles.
   - **Fit:** modelled in the mannequin's rest pose (same footprint as the old boots), so no move or
     scale. `build_henry_outfit.py` imports them and gives each piece (shell, lining, fur cuff) the

@@ -139,7 +139,7 @@ const ACTION_ALIASES: Dictionary = {
 ## Skin_<name> is the body under that garment, hidden while it is worn.
 const GARMENT_PARTS: Dictionary = {
 	&"Hat": [&"Outfit_Beanie", &"Outfit_BeanieCuff"],
-	&"Coat": [&"Outfit_Jacket", &"Outfit_Skirt", &"Outfit_Hood", &"Outfit_Trim"],
+	&"Coat": [&"Outfit_Jacket"],
 	&"Trousers": [&"Outfit_Pants"],
 	&"Boots": [&"Outfit_Boots", &"Outfit_BootLining", &"Outfit_BootFur"],
 	&"Gloves": [&"Outfit_Gloves", &"Outfit_GloveCuff"],
@@ -1037,6 +1037,13 @@ func _attach_garments() -> void:
 				if source != null and source.normal_enabled and source.normal_texture != null:
 					material.set_shader_parameter("use_normal_texture", true)
 					material.set_shader_parameter("normal_texture", source.normal_texture)
+				## glTF metallic-roughness map (G roughness, B metallic, R occlusion when packed in).
+				if source != null and source.roughness_texture != null:
+					material.set_shader_parameter("use_orm_texture", true)
+					material.set_shader_parameter("orm_texture", source.roughness_texture)
+					material.set_shader_parameter("roughness", source.roughness)
+					material.set_shader_parameter("metallic", source.metallic)
+					material.set_shader_parameter("use_orm_ao", source.ao_enabled and source.ao_texture == source.roughness_texture)
 				material.set_meta(&"dry_color", dry)
 				mesh_inst.set_surface_override_material(surface, material)
 				_garment_materials["%s:%d" % [part, surface]] = material
