@@ -2,34 +2,58 @@
 
 [node name="PackStrapAnchors" type="Node3D"]
 
+[node name="BladeBack" type="Marker3D" parent="."]
+transform = Transform3D(1.00000, 0.00000, -0.00000, 0.00000, 0.09950, 0.99504, 0.00000, -0.99504, 0.09950, 0.12, 1.41, -0.16)
+metadata/bone = &"spine_03"
+
+[node name="MidBlade" type="Marker3D" parent="."]
+transform = Transform3D(1.00000, 0.00000, -0.00000, 0.00000, 0.24254, 0.97014, 0.00000, -0.97014, 0.24254, 0.125, 1.445, -0.16)
+metadata/bone = &"spine_03"
+
 [node name="UpperBack" type="Marker3D" parent="."]
-transform = Transform3D(0.00000, 0.09245, 0.99572, -0.92848, 0.36980, -0.03434, -0.37139, -0.92450, 0.08584, 0.15, 1.5, -0.16)
+transform = Transform3D(1.00000, 0.00000, -0.00000, 0.00000, 0.37139, 0.92848, 0.00000, -0.92848, 0.37139, 0.14, 1.48, -0.15)
 metadata/bone = &"clavicle_l"
 
 [node name="ShoulderBack" type="Marker3D" parent="."]
-transform = Transform3D(0.97619, 0.19069, 0.10342, -0.21693, 0.85812, 0.46538, 0.00000, -0.47673, 0.87905, 0.17, 1.525, -0.1)
+transform = Transform3D(0.99882, 0.04851, 0.00000, -0.04240, 0.87313, 0.48564, 0.02356, -0.48507, 0.87416, 0.145, 1.52, -0.09)
 metadata/bone = &"clavicle_l"
 
 [node name="Shoulder" type="Marker3D" parent="."]
-transform = Transform3D(0.95783, 0.28735, -0.00000, -0.28735, 0.95783, 0.00000, 0.00000, 0.00000, 1.00000, 0.18, 1.53, -0.02)
+transform = Transform3D(0.99682, 0.07975, -0.00000, -0.07975, 0.99682, 0.00000, 0.00000, 0.00000, 1.00000, 0.15, 1.535, -0.02)
 metadata/bone = &"clavicle_l"
 
 [node name="ShoulderFront" type="Marker3D" parent="."]
-transform = Transform3D(0.95448, 0.24254, -0.17362, -0.29827, 0.77611, -0.55559, 0.00000, 0.58209, 0.81313, 0.172, 1.505, 0.045)
+transform = Transform3D(0.99875, 0.04994, 0.00000, -0.03995, 0.79900, -0.60000, -0.02996, 0.59925, 0.80000, 0.15, 1.51, 0.045)
 metadata/bone = &"clavicle_l"
 
 [node name="ChestHigh" type="Marker3D" parent="."]
-transform = Transform3D(0.94868, 0.16903, -0.26726, -0.31623, 0.50709, -0.80178, 0.00000, 0.84515, 0.53452, 0.15, 1.44, 0.085)
+transform = Transform3D(0.99634, 0.08544, -0.00000, -0.04396, 0.51261, -0.85749, -0.07326, 0.85436, 0.51450, 0.14, 1.44, 0.085)
 metadata/bone = &"spine_03"
 
 [node name="ChestLow" type="Marker3D" parent="."]
-transform = Transform3D(0.00000, 0.28735, 0.95783, 1.00000, 0.00000, 0.00000, 0.00000, 0.95783, -0.28735, 0.15, 1.33, 0.108)
+transform = Transform3D(0.95783, 0.28735, 0.00000, 0.00000, 0.00000, -1.00000, -0.28735, 0.95783, 0.00000, 0.15, 1.33, 0.108)
 metadata/bone = &"spine_03"
 
 [node name="Armpit" type="Marker3D" parent="."]
-transform = Transform3D(-0.14142, 0.70353, -0.69646, -0.98995, -0.10050, 0.09949, 0.00000, 0.70353, 0.71067, 0.168, 1.26, 0.06)
+transform = Transform3D(0.71067, 0.70353, -0.00000, 0.09949, -0.10050, -0.98995, -0.69646, 0.70353, -0.14142, 0.168, 1.26, 0.06)
 metadata/bone = &"spine_03"
 
 [node name="UnderArm" type="Marker3D" parent="."]
-transform = Transform3D(-0.09950, 0.99015, 0.09852, -0.99504, -0.09901, -0.00985, 0.00000, -0.09901, 0.99509, 0.163, 1.205, -0.03)
+transform = Transform3D(0.14003, 0.99015, 0.00000, 0.70014, -0.09901, 0.70711, 0.70014, -0.09901, -0.70711, 0.163, 1.205, -0.03)
+metadata/bone = &"spine_03"
+
+[node name="SideBack" type="Marker3D" parent="."]
+transform = Transform3D(0.60526, 0.79603, 0.00000, 0.13087, -0.09950, 0.98639, 0.78520, -0.59702, -0.16440, 0.16, 1.15, -0.09)
+metadata/bone = &"spine_03"
+
+[node name="LowSide" type="Marker3D" parent="."]
+transform = Transform3D(0.87542, 0.48337, -0.00000, 0.05338, -0.09667, 0.99388, 0.48041, -0.87006, -0.11043, 0.14, 1.1, -0.13)
+metadata/bone = &"spine_03"
+
+[node name="BackCorner" type="Marker3D" parent="."]
+transform = Transform3D(0.98058, 0.19612, -0.00000, 0.00000, 0.00000, 1.00000, 0.19612, -0.98058, 0.00000, 0.14, 1.09, -0.16)
+metadata/bone = &"spine_03"
+
+[node name="BackLow" type="Marker3D" parent="."]
+transform = Transform3D(0.99504, 0.09950, -0.00000, 0.00000, 0.00000, 1.00000, 0.09950, -0.99504, 0.00000, 0.13, 1.09, -0.19)
 metadata/bone = &"spine_03"

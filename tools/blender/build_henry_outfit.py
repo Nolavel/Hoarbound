@@ -49,6 +49,12 @@ CUFF_FROM = 0.64
 ## Above the jacket's hem the jeans are laid on the body: from this far up (none) to this (full),
 ## this far off the skin, metres.
 WAIST_HUG_FROM = 0.03
+## The pack straps' path on the jacket: its measured points, how far either side the cloth's weights are smoothed
+## (so the cloth under a strap moves as one and never pokes through it), metres, and smoothing passes.
+STRAP_POINTS = "scenes/actors/player/henry/strap_points.json"
+STRAP_CORRIDOR = 0.035
+STRAP_SEAM = 0.03
+STRAP_SMOOTH_PASSES = 12
 ## Spring chains: how many round the hem and the collar, and how far up each zone reaches, metres.
 HEM_CHAINS = 8
 HEM_ZONE = 0.16
@@ -422,7 +428,14 @@ def build():
 	G.hug_above(pants, body, hem + WAIST_HUG_FROM, hem + WAIST_HUG_FULL, WAIST_HUG_MARGIN)
 	tuck_pants(body, pants)
 	finish_pants(arm, body, pants, jacket, hem)
-	cloth_bones(arm, jacket, hem)
+	## Under the straps the cloth follows the shoulders, not the head (the head-look turns the neck):
+	## its weights are smoothed, then neck weight goes to the upper spine, all of it within the corridor
+	## and less and less across the seam beyond.
+	distance = strap_distance()
+	G.smooth_weights_where(jacket, lambda p: distance(p) < STRAP_CORRIDOR + STRAP_SEAM, passes=STRAP_SMOOTH_PASSES)
+	G.shift_weights(jacket, "neck_01", "spine_03",
+		lambda p: 1.0 - min(max((distance(p) - STRAP_CORRIDOR) / STRAP_SEAM, 0.0), 1.0))
+	cloth_bones(arm, jacket, hem, lambda p: distance(p) < STRAP_CORRIDOR)
 	boots = bpy.data.objects["Outfit_Boots"]
 	split_body(body, region, G.coverage(body, [(boots, "Boots"), (pants, "Pants"), (jacket, "Jacket")]))
 	## The plaid jacket has its own collar and no hood; the old generated hood sat on it like a scarf.
@@ -558,7 +571,26 @@ def owner_jacket(arm, body, generated, pants):
 	return jacket
 
 
-def cloth_bones(arm, jacket, hem):
+def strap_distance():
+	"""How far a point is from the pack straps' measured centre line on the jacket (STRAP_POINTS, rest
+	centres in Godot space, written by tools/runtime/measure_strap_points.gd)."""
+	sides = json.load(open(STRAP_POINTS))["sides"]
+	lines = []
+	for rows in sides:
+		pts = [Vector((r[5][0], -r[5][2], r[5][1])) for r in rows]
+		lines += list(zip(pts[:-1], pts[1:]))
+
+	def distance(p):
+		best = 1e9
+		for a, b in lines:
+			ab = b - a
+			t = min(max((p - a).dot(ab) / max(ab.length_squared, 1e-12), 0.0), 1.0)
+			best = min(best, (a + ab * t - p).length)
+		return best
+	return distance
+
+
+def cloth_bones(arm, jacket, hem, corridor):
 	"""Spring-bone chains for the jacket's hem and collar (driven in game by SpringBoneSimulator3D):
 	HEM_CHAINS round the hem from the pelvis, COLLAR_CHAINS round the collar from the upper spine,
 	the cloth there handed over to them, fading in from where each zone starts."""
@@ -577,7 +609,7 @@ def cloth_bones(arm, jacket, hem):
 	collar_chains = G.add_chains(arm, jacket, "collar", "spine_03", COLLAR_CHAINS, top - COLLAR_ZONE, top - 0.005,
 		(neck.x, neck.y), angles, inset=0.005)
 	G.weight_to_chains(jacket, collar_chains, (neck.x, neck.y), top - COLLAR_ZONE, top,
-		lambda p: abs(p.x - neck.x) < COLLAR_HALF and min(max((p.y - neck.y + COLLAR_FADE) / COLLAR_FADE, 0.0), 1.0))
+		lambda p: 0.0 if corridor(p) else abs(p.x - neck.x) < COLLAR_HALF and min(max((p.y - neck.y + COLLAR_FADE) / COLLAR_FADE, 0.0), 1.0))
 
 
 def boot_cuff_bottom():

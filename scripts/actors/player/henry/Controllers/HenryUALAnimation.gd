@@ -129,11 +129,11 @@ const ACTION_ALIASES: Dictionary = {
 @export_group("Backpack")
 @export var backpack_bone: StringName = &"spine_03"
 @export var backpack_size: Vector3 = Vector3(0.34, 0.44, 0.2)
-## Offset from the bone in model space; the mannequin faces +Z, so back is -Z. The coat's back
-## runs 0.21 m behind spine_03 at the shoulder blades and 0.135 m at the pack's bottom.
-@export var backpack_offset: Vector3 = Vector3(0.0, -0.03, -0.285)
-## The pack leans its bottom in by this much so its back face follows that line, degrees.
-@export var backpack_lean_deg: float = 12.5
+## Offset from the bone in model space; the mannequin faces +Z, so back is -Z. Measured on the plaid
+## jacket (tools/runtime/measure_straps.gd): the back face clears its back by 4 mm at the closest point.
+@export var backpack_offset: Vector3 = Vector3(0.0, -0.03, -0.265)
+## The pack leans its bottom in by this much so its back face follows the jacket's back, degrees.
+@export var backpack_lean_deg: float = 0.0
 @export var backpack_color: Color = Color(0.36, 0.33, 0.28)
 ## Outfit meshes from tools/blender/build_henry_outfit.py per equipment mesh name.
 ## Skin_<name> is the body under that garment, hidden while it is worn.
