@@ -8,6 +8,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- The owner's boots, refitted (owner review: the shin showed past the shaft, gaps at the heel and
+  inner side). Accepted by the owner; built into the outfit with the next jeans pass.
+  - **Size:** 5.5% larger, about each sole's centre (soles stay on the floor).
+  - **Shaft:** wrapped round the shin from the ankle up (10 mm left for the tucked jeans); the
+    lining is drawn up to the rim and kept inside the shell; the fur cuff rides on it.
+  - **No skin through it:** above the foot's underside the shell is pushed out only where the
+    leg or foot comes through, 8 mm. Rendered as the game draws it: 0 skin pixels standing,
+    walking, inner side and back.
+  - Fixed in the fit helper: Shrinkwrap `OUTSIDE_SURFACE` laid every point on the body (it made
+    the jeans and jacket cling); `OUTSIDE` moves only points inside it.
 - Outfit fit, second pass (owner review: short, crumpled sleeves; jacket too tight; jeans over
   the boots). Work in progress: the next pass drapes both garments with a cloth simulation.
   - **Sleeves:** after re-posing they reached x 0.81 m, past Henry's whole hand, and the cuff took
