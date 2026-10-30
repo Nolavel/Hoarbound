@@ -109,8 +109,8 @@ func use_selected() -> bool:
 	return used
 
 
-## Draws one pocket into the hand. An item already shown from another pocket trades
-## places with it, so the drawn pocket keeps the old item and nothing is shown twice.
+## Draws one pocket into the hand. An item shown from another coat pocket trades places with
+## it, so nothing is shown twice; a pack pocket's item just goes back to its own place.
 func draw(index: int) -> bool:
 	if hub == null:
 		return false
@@ -124,7 +124,8 @@ func draw(index: int) -> bool:
 	_put_away_unlit_held()
 	if _held_presenter() != null:
 		return false
-	var swapped: bool = source != &"" and _swap_pockets(source, target)
+	## The pack's pockets are fixed places on it: what came from one goes back to it, no trade.
+	var swapped: bool = source != &"" and not _on_pack(source) and not _on_pack(target) and _swap_pockets(source, target)
 	select(_zone_index(source if swapped else target))
 	if use_selected():
 		return true
@@ -144,6 +145,10 @@ func _held_presenter() -> Node:
 		if child.has_method(&"get_source_zone") and child.has_method(&"is_holding") and bool(child.call(&"is_holding")):
 			return child
 	return null
+
+
+func _on_pack(zone: StringName) -> bool:
+	return String(zone).begins_with("pack" + EquipmentComponent.POCKET_SEPARATOR)
 
 
 ## Trades the items of two pockets; changes nothing when either would not fit the other.

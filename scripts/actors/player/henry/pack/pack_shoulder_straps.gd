@@ -30,7 +30,14 @@ const PACK_BOTTOM: Vector3 = Vector3(0.14, 0.05, -0.016)
 
 var _skeleton: Skeleton3D
 var _pack: PackRig
-var _immediate := ImmediateMesh.new()
+## Rebuilt each frame from packed arrays in one upload (per-vertex ImmediateMesh calls cost ~1 ms).
+var _mesh := ArrayMesh.new()
+var _vertices := PackedVector3Array()
+var _normals := PackedVector3Array()
+var _count: int = 0
+## Points per strip this frame, and index lists already built for those counts.
+var _strips := PackedInt32Array()
+var _index_cache: Dictionary = {}
 var _material := StandardMaterial3D.new()
 ## Per side ([+X, -X]): the anchor markers on the bones, in order along the strap.
 var _anchors: Array = [[], []]
@@ -46,7 +53,7 @@ func _init() -> void:
 	_material.albedo_color = colour
 	_material.roughness = 0.85
 	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mesh = _immediate
+	mesh = _mesh
 
 
 ## Ties the straps to Henry's skeleton and the pack, and puts the anchors on his bones: the
@@ -85,20 +92,31 @@ func setup(skeleton: Skeleton3D, pack: PackRig) -> void:
 
 func _process(delta: float) -> void:
 	global_transform = Transform3D.IDENTITY
-	_immediate.clear_surfaces()
+	_mesh.clear_surfaces()
 	if _pack == null or _pack.get_canvas() == null or not _pack.is_visible_in_tree():
 		return
 	var worn: bool = _pack.get_parent() is BoneAttachment3D
 	var step: float = clampf(delta, 0.0, 0.05)
 	var changed: bool = worn != _worn_last
 	_worn_last = worn
-	_immediate.surface_begin(Mesh.PRIMITIVE_TRIANGLES, _material)
+	_count = 0
+	_strips.clear()
 	for side: int in range(2):
 		if worn:
 			_draw_worn(side)
 		else:
 			_draw_limp(side, step, changed)
-	_immediate.surface_end()
+	if _count == 0:
+		return
+	_vertices.resize(_count)
+	_normals.resize(_count)
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = _vertices
+	arrays[Mesh.ARRAY_NORMAL] = _normals
+	arrays[Mesh.ARRAY_INDEX] = _strip_indices()
+	_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_mesh.surface_set_material(0, _material)
 
 
 ## Worn: free run from the pack onto the upper back, tight run along the anchors, free run from
@@ -234,32 +252,64 @@ static func _catmull(points: Array[Vector3], i: int, t: float) -> Vector3:
 	return 0.5 * (2.0 * p1 + (p2 - p0) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t + (3.0 * p1 - p0 - 3.0 * p2 + p3) * t * t * t)
 
 
-## A flat band along the path, lying on the given normals, `widths` wide.
+## A flat band along the path, lying on the given normals, `widths` wide: eight vertices per point
+## (both faces and both edges, each with its own normal), joined by the cached index list.
 func _band(path: Array[Vector3], ups: Array[Vector3], widths: Array[float]) -> void:
-	var rails: Array = []
+	var count: int = path.size()
+	if count < 2:
+		return
+	if _vertices.size() < _count + count * 8:
+		_vertices.resize(_count + count * 8)
+		_normals.resize(_count + count * 8)
+	var half: float = THICK_M * 0.5
 	var last_out := Vector3.ZERO
-	for i: int in range(path.size()):
-		var along: Vector3 = (path[mini(i + 1, path.size() - 1)] - path[maxi(i - 1, 0)]).normalized()
+	var k: int = _count
+	for i: int in range(count):
+		var along: Vector3 = (path[mini(i + 1, count - 1)] - path[maxi(i - 1, 0)]).normalized()
 		var out: Vector3 = (ups[i] - along * ups[i].dot(along)).normalized()
 		## A band has two faces: keep each normal on the same side as the last, so it never flips.
 		if out.dot(last_out) < 0.0:
 			out = -out
 		last_out = out
-		var across: Vector3 = along.cross(out).normalized()
-		rails.append([path[i] + out * THICK_M * 0.5, out, across * widths[i] * 0.5])
-	for i: int in range(rails.size() - 1):
-		var a: Array = rails[i]
-		var b: Array = rails[i + 1]
-		for face: float in [1.0, -1.0]:
-			var lift: float = THICK_M * 0.5 * face
-			_quad(a[0] + a[1] * lift - a[2], a[0] + a[1] * lift + a[2], b[0] + b[1] * lift + b[2], b[0] + b[1] * lift - b[2], a[1] * face)
-		for edge: float in [1.0, -1.0]:
-			var ea: Vector3 = a[0] + a[2] * edge
-			var eb: Vector3 = b[0] + b[2] * edge
-			_quad(ea - a[1] * THICK_M * 0.5, ea + a[1] * THICK_M * 0.5, eb + b[1] * THICK_M * 0.5, eb - b[1] * THICK_M * 0.5, (a[2] as Vector3).normalized() * edge)
+		var side: Vector3 = along.cross(out).normalized()
+		var across: Vector3 = side * widths[i] * 0.5
+		var mid: Vector3 = path[i] + out * half
+		var top: Vector3 = mid + out * half
+		var bottom: Vector3 = mid - out * half
+		_vertices[k] = top - across
+		_vertices[k + 1] = top + across
+		_vertices[k + 2] = bottom - across
+		_vertices[k + 3] = bottom + across
+		_vertices[k + 4] = top + across
+		_vertices[k + 5] = bottom + across
+		_vertices[k + 6] = top - across
+		_vertices[k + 7] = bottom - across
+		_normals[k] = out
+		_normals[k + 1] = out
+		_normals[k + 2] = -out
+		_normals[k + 3] = -out
+		_normals[k + 4] = side
+		_normals[k + 5] = side
+		_normals[k + 6] = -side
+		_normals[k + 7] = -side
+		k += 8
+	_strips.append(count)
+	_count = k
 
 
-func _quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, normal: Vector3) -> void:
-	for v: Vector3 in [a, b, c, a, c, d]:
-		_immediate.surface_set_normal(normal)
-		_immediate.surface_add_vertex(v)
+## Triangles joining each strip's points: top, bottom and the two edges between neighbours.
+func _strip_indices() -> PackedInt32Array:
+	var key: String = str(_strips)
+	if _index_cache.has(key):
+		return _index_cache[key]
+	var indices := PackedInt32Array()
+	var base: int = 0
+	for count: int in _strips:
+		for i: int in range(count - 1):
+			var a: int = base + i * 8
+			var b: int = a + 8
+			for pair: Array in [[0, 1], [2, 3], [5, 4], [7, 6]]:
+				indices.append_array([a + pair[0], a + pair[1], b + pair[1], a + pair[0], b + pair[1], b + pair[0]])
+		base += count * 8
+	_index_cache[key] = indices
+	return indices

@@ -6,6 +6,85 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added
+
+- Outfit layers checked in motion (owner: no clothing through Henry or through each other in Godot).
+  Twelve clips (idle, walk, jog, sprint, crouch, jump, pick-up, interact, torch, sitting, roll),
+  eight frames each, with the same skinning Godot uses:
+  - **Jeans through the boot shafts:** 0 points in every clip.
+  - **Jeans through the jacket:** the waist and belt stuck out by up to 3 cm when bending. Under
+    the jacket the jeans are now laid flat on the body and take the jacket's weights, so the two
+    layers move as one. Idle, walk, interact and pick-up are at 0-7 points. Crouch, sitting and
+    roll still flag 1.7-5.6%, all on the back-pocket welts and belt pieces (inward normals fool
+    the ray test); renders of those poses show nothing through.
+  - Skin under clothing is hidden in game, so the body cannot show through the cloth.
+- Outfit artefacts fixed (owner review: a flap on the jeans, collar and sleeves torn in poses).
+  - **Jeans:** the visible mesh rides on a sparse cloth proxy (Surface Deform), so the pocket bags
+    sewn inside stay inside.
+  - **Jacket mesh:** simulated on its own mesh. On a decimated mesh the plaid bent, and bound to a
+    proxy the hem and folded collar threw spikes past its edges. It settles on the body only;
+    resting on the jeans the hem crumpled. The hem is then lifted off the jeans.
+  - **Jacket weights:** the collar took the head's weights (nearest bone to the jaw) and tore in
+    poses; they go to the neck. Shoulders, collar, front placket and cuffs get local weight
+    smoothing. The worst edge stretch in a pose fell from 10x to 3x (armpit and hem, normal folds).
+  - **Sleeves:** centred on the arm by one fitted line along it, not slice by slice; slices
+    sheared the cuff 6.7x, now 1.08x. Collar and cuffs are held as cut during the drape.
+  - Checked without gloves (Henry starts without them).
+- Henry's outfit rebuilt with cloth: the plaid jacket and the jeans are draped on the body (Blender
+  Cloth), then the refitted boots go on and the jeans are tucked in. Checked in Godot from all sides.
+  - **Jacket:** sparser cloth mesh (3000 faces), re-posed A to T, sleeves fitted to the arm and
+    centred on it slice by slice, 5% wider in girth (not length). Draped held at the collar, the
+    front placket and the sleeves. Skinned from the body; hand weights merged into the forearm.
+  - **Jeans:** welded into one cloth (belt and loops ride on it), draped held at the waist,
+    tapered into the boot shafts, cut inside them; inside the boot they take the boot's weights.
+  - **Skin under the cloth:** hidden where a ray from it meets the garment (20 cm reach).
+  - **Fixes found on the way:** the re-pose lifted the armature's action (a frame change put the
+    pose back); sleeves were held during the drape (the thin arm slipped between the sparse
+    sleeve's points); a sleeve cut to hang sat 4 cm under the re-posed arm, which poked through.
+- The owner's boots, refitted (owner review: the shin showed past the shaft, gaps at the heel and
+  inner side). Accepted by the owner; built into the outfit with the next jeans pass.
+  - **Size:** 5.5% larger, about each sole's centre (soles stay on the floor).
+  - **Shaft:** wrapped round the shin from the ankle up (10 mm left for the tucked jeans); the
+    lining is drawn up to the rim and kept inside the shell; the fur cuff rides on it.
+  - **No skin through it:** above the foot's underside the shell is pushed out only where the
+    leg or foot comes through, 8 mm. Rendered as the game draws it: 0 skin pixels standing,
+    walking, inner side and back.
+  - Fixed in the fit helper: Shrinkwrap `OUTSIDE_SURFACE` laid every point on the body (it made
+    the jeans and jacket cling); `OUTSIDE` moves only points inside it.
+- Outfit fit, second pass (owner review: short, crumpled sleeves; jacket too tight; jeans over
+  the boots). Work in progress: the next pass drapes both garments with a cloth simulation.
+  - **Sleeves:** after re-posing they reached x 0.81 m, past Henry's whole hand, and the cuff took
+    hand weights and crumpled. Each sleeve is now scaled along the arm to end 1 cm past the wrist,
+    and hand and finger weights are merged into the forearm.
+  - **Ease:** the jacket is moved 2 cm out along its normals, with a 2 cm margin off the body.
+  - **Jeans at the boots:** they taper onto the leg, stay inside the rigid shaft (Shrinkwrap
+    Inside) and are cut by an exact plane 6 cm below the cuff. With the knee bent they still come
+    out of the shaft; still open.
+- The owner's plaid jacket and jeans on Henry (Sketchfab, CC-BY-4.0; `assets/characters/gear/CREDITS.md`).
+  They replace the generated jacket, skirt, trim, hood and trousers.
+  - **Jacket re-posed A to T:** its sleeves hang 42.6 / 42.0 degrees, measured by a line through each
+    sleeve. It is bound to a copy of the armature posed to match, then posed back to the T-pose.
+  - **Fit and skin:** Shrinkwrap (Outside Surface) keeps each layer off the body (jeans 6 mm,
+    jacket 12 mm, and the jacket's hem over the jeans). Weights come from the body's nearest face.
+  - **Jeans:** shell, its patch layer (it fills the shell's open panels) and belt, decimated to
+    16k faces with the sewn panels' edges held, cut under the boots' fur cuff.
+  - **Body mask by coverage:** skin is hidden where a ray from it along its normal meets one of
+    these garments, as well as by region. Checked with object-ID renders, idle and walking.
+  - **Materials:** the character shader reads glTF metallic-roughness maps (G roughness,
+    B metallic, R occlusion when packed in); off by default, so the world is unchanged.
+  - The jacket has no hood; a hood up and down is still to come.
+  - Stills: `docs/runtime_previews/outfit/`, from `tools/runtime/capture_outfit.gd`.
+- The owner's boots (`assets/items/boots/boots.glb`) on Henry, replacing the generated boots and soles.
+  - **Fit:** modelled in the mannequin's rest pose (same footprint as the old boots), so no move or
+    scale. `build_henry_outfit.py` imports them and gives each piece (shell, lining, fur cuff) the
+    body's skin weights from the nearest face, foot and leg bones only, so they bend at the ankle.
+  - **Materials:** the painted colour and normal maps are kept; double-sided pieces stay double-sided
+    and the alpha-cut fur fibres keep their own material (`HenryUALAnimation._attach_garments`).
+  - **No clipping:** the trousers now end just under the fur cuff (its height read from the GLB), and
+    the ring of big shin faces at the boot edge is hidden with the boots; before, the trousers and the
+    calf poked through the back of the rigid shaft. Checked with an object-ID render from behind.
+  - Stills: `docs/runtime_previews/boots/`, from `tools/runtime/capture_boots.gd`.
+
 ### Changed
 
 - Quick Access follows what Henry wears (#260, owner).
@@ -499,6 +578,46 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Dev street spawn (owner request): `World` → Developer tools → **Dev Spawn Street** picks one of ten streets from different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
 
 ### Fixed
+
+- TAB (Hub) showed the dev map's labels (house numbers, street names) around Henry (owner review).
+  `PlayerHubComponent` made a fresh `HubCamera` with the default cull mask, which includes the
+  reserved layers (`DEV_MAP_LABEL`). It now takes the game camera's cull mask, environment,
+  attributes and compositor; `test_player_hub` checks the mask.
+- The owner's sound recordings were barely heard and synthetic layers still played (owner review).
+  - **Levels:** the recordings are about 18 dB quieter than the synthetic banks the mix was set for
+    (footsteps -35.7 against -17.9 LUFS, EBU R128; mug peaks -20 against -4 dBFS). Each bank's
+    `volume_db` now adds that measured difference: footsteps -9 to +8.8 dB, mug -10 to +6 dB.
+  - **Pitch:** depth pitched the footsteps down to 0.82 (a fifth lower), so they no longer
+    sounded like the recordings. They now play at their own pitch; depth shades only the level.
+  - **Synthetic layers removed:** the `snow_squeak` and `snow_pull` banks, their WAVs and
+    `tools/audio/generate_snow_footsteps.py` are gone. A play trace on Reality now shows only the
+    owner's footstep and mug banks.
+- Pack pockets and the hand (owner review, #260).
+  - **Shown twice:** a hammer drawn from its sleeve stayed drawn in the sleeve too. The pack now
+    leaves out the pocket whose item a hand shows (`QuickAccessComponent.get_held_source_zone`).
+  - **Pockets traded contents:** `draw()` put the held item away and then still traded pockets with
+    the stale source, so the thermos moved into the hammer's sleeve. The pack's pockets are fixed
+    places and no longer trade; coat pockets still do. Stand rule R15; `test_held_weight` keeps its
+    trade on coat pockets now that the loadout puts the hammer on the pack.
+- Pack hitches after the backpack merge (owner FPS capture, #260). Measured on Reality with Henry
+  starting, stopping and turning (560 frames, headless):
+
+  | | mean | p99 | max |
+  |---|---|---|---|
+  | before the merge | 7.4-8.2 ms | 15.5-16.6 ms | 18 ms |
+  | merged | 14.2 ms | 31.7 ms | 40 ms |
+  | now | 8.4-9.3 ms | 17-19 ms | 21-26 ms |
+
+  - **Hanger contact:** peaks of 8-13 ms in one frame came from the hinge search (up to 66 angles,
+    each over every point). Newton steps now find a clear turn and bisection backs it off; points
+    over 6 cm from the obstacle are left out after the first pass. Peaks are about 4 ms.
+  - **Straps:** about 5,000 per-vertex `ImmediateMesh` calls a frame became one indexed upload
+    (8 vertices per point, cached indices): 1.1 ms to 0.4 ms.
+  - The GPU's ~110 ms on the HD 620 is the Reality world, as before the merge. The whole pack is
+    25k triangles.
+- Backpack zipper spammed `det == 0` errors when fully open (owner review). A slider past the
+  seam's end sampled two clamped points, so its tangent was zero and the tab basis degenerate. The
+  seam run is now clamped to its length; 50 errors per 120 frames before, 0 after.
 
 - Wind gusts ran about 100x slower than their profiles say. `WeatherController` samples its gust noise at
   elapsed / `gust_period_s`, but the noise kept FastNoiseLite's default frequency of 0.01. A 5 s gust period

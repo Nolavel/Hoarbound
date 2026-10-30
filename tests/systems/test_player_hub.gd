@@ -114,8 +114,16 @@ func _test_hub_flow() -> void:
 	inventory.try_add(load("res://data/items/road_flare.tres") as ItemResource)
 	inventory.try_add(load("res://data/items/bedroll.tres") as ItemResource)
 
+	var game_camera := Camera3D.new()
+	game_camera.cull_mask = 0xFFFFF & ~RenderLayers.RESERVED
+	root.add_child(game_camera)
+	game_camera.make_current()
+
 	_check(hub.open(), "the Hub did not open")
 	_check(hub.is_open(), "the Hub does not report open")
+	var hub_camera: Camera3D = root.get_viewport().get_camera_3d()
+	_check(hub_camera != game_camera and hub_camera.cull_mask & RenderLayers.RESERVED == 0,
+		"the Hub camera sees reserved layers (dev map labels): mask %x" % hub_camera.cull_mask)
 	var ids: Array = hub.get_pack_items().map(func(item: Dictionary) -> StringName: return item["id"])
 	_check(ids.has(&"road_flare") and ids.has(&"bedroll"), "the Hub does not list the inventory: %s" % [ids])
 	var zones: Array[Dictionary] = hub.get_quick_access_zones()
@@ -140,6 +148,7 @@ func _test_hub_flow() -> void:
 	_check(hub.close(), "the Hub did not close")
 	_check(not hub.is_open(), "the Hub reports open after closing")
 	body.free()
+	game_camera.free()
 
 
 func _zone_item(hub: PlayerHubComponent, path: StringName) -> StringName:
