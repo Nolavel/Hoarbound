@@ -8,6 +8,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Henry's jacket hem and collar swing on springs (owner: "hem and collar on springs").
+  `tools/blender/build_henry_outfit.py` adds eight two-bone chains around the hem from the pelvis and five
+  around the back of the collar from `spine_03`. Each chain is found by rays to just inside the cloth,
+  stepping back past the ragged edge, and skips openings. The cloth there is handed to the chains,
+  blended by angle and height. In game, `JacketSprings` (a `SpringBoneSimulator3D`) runs them after
+  every other pose change, with thigh and neck capsules. Values come from a trace
+  (`tools/runtime/trace_jacket_springs.gd`): the hem swings about 18° walking (the thighs push it)
+  and about 30° sprinting, and settles about 0.3 s after a stop. The collar swings 3–7°.
 - Outfit layers checked in motion (owner: no clothing through Henry or through each other in Godot).
   Twelve clips (idle, walk, jog, sprint, crouch, jump, pick-up, interact, torch, sitting, roll),
   eight frames each, with the same skinning Godot uses:

@@ -695,6 +695,11 @@ func _setup_wade() -> void:
 	var door_hand := DoorHandIK.new()
 	door_hand.name = "DoorHand"
 	skeleton.add_child(door_hand)
+	## After every pose change, so the hem and collar swing from the final hips and spine.
+	if skeleton.find_bone(&"hem_0_0") >= 0:
+		var springs := JacketSprings.new()
+		springs.name = "JacketSprings"
+		skeleton.add_child(springs)
 
 
 func _setup_head_look() -> void:

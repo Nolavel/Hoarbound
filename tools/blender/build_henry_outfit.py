@@ -49,6 +49,13 @@ CUFF_FROM = 0.64
 ## Above the jacket's hem the jeans are laid on the body: from this far up (none) to this (full),
 ## this far off the skin, metres.
 WAIST_HUG_FROM = 0.03
+## Spring chains: how many round the hem and the collar, and how far up each zone reaches, metres.
+HEM_CHAINS = 8
+HEM_ZONE = 0.16
+COLLAR_CHAINS = 5
+COLLAR_ZONE = 0.09
+## How far toward the front (m, along -Y from the neck) the collar's chains fade out.
+COLLAR_FADE = 0.05
 WAIST_HUG_FULL = 0.08
 WAIST_HUG_MARGIN = 0.003
 PLACKET_HALF = 0.07
@@ -415,6 +422,7 @@ def build():
 	G.hug_above(pants, body, hem + WAIST_HUG_FROM, hem + WAIST_HUG_FULL, WAIST_HUG_MARGIN)
 	tuck_pants(body, pants)
 	finish_pants(arm, body, pants, jacket, hem)
+	cloth_bones(arm, jacket, hem)
 	boots = bpy.data.objects["Outfit_Boots"]
 	split_body(body, region, G.coverage(body, [(boots, "Boots"), (pants, "Pants"), (jacket, "Jacket")]))
 	## The plaid jacket has its own collar and no hood; the old generated hood sat on it like a scarf.
@@ -548,6 +556,28 @@ def owner_jacket(arm, body, generated, pants):
 	## stay at the body when the arms hang.
 	G.bind(jacket, arm)
 	return jacket
+
+
+def cloth_bones(arm, jacket, hem):
+	"""Spring-bone chains for the jacket's hem and collar (driven in game by SpringBoneSimulator3D):
+	HEM_CHAINS round the hem from the pelvis, COLLAR_CHAINS round the collar from the upper spine,
+	the cloth there handed over to them, fading in from where each zone starts."""
+	pts = [jacket.matrix_world @ v.co for v in jacket.data.vertices]
+	band = [p for p in pts if p.z < hem + HEM_ZONE]
+	torso = (sum(p.x for p in band) / len(band), sum(p.y for p in band) / len(band))
+	## Half a step off the front, so the two flaps of the open jacket each get their own chains.
+	step = 2.0 * math.pi / HEM_CHAINS
+	angles = [step * (k + 0.5) for k in range(HEM_CHAINS)]
+	hem_chains = G.add_chains(arm, jacket, "hem", "pelvis", HEM_CHAINS, hem + HEM_ZONE, hem + 0.005, torso, angles)
+	G.weight_to_chains(jacket, hem_chains, torso, hem + HEM_ZONE, hem)
+	neck = arm.matrix_world @ arm.data.bones["neck_01"].head_local
+	top = max(p.z for p in pts)
+	## The collar stands only round the back (+Y); in front it falls into the lapels, faded out.
+	angles = [math.pi * (k + 0.5) / COLLAR_CHAINS for k in range(COLLAR_CHAINS)]
+	collar_chains = G.add_chains(arm, jacket, "collar", "spine_03", COLLAR_CHAINS, top - COLLAR_ZONE, top - 0.005,
+		(neck.x, neck.y), angles, inset=0.005)
+	G.weight_to_chains(jacket, collar_chains, (neck.x, neck.y), top - COLLAR_ZONE, top,
+		lambda p: abs(p.x - neck.x) < COLLAR_HALF and min(max((p.y - neck.y + COLLAR_FADE) / COLLAR_FADE, 0.0), 1.0))
 
 
 def boot_cuff_bottom():
