@@ -8,6 +8,22 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Pack shoulder straps laid on the plaid jacket (WIP, owner review).
+  - **Strap points** are jacket triangles: `tools/runtime/measure_strap_points.gd` casts rays and writes
+    `scenes/actors/player/henry/strap_points.json`. `PackShoulderStraps` skins them each frame exactly
+    as the GPU skins the jacket, after every modifier, so the strap has no motion of its own.
+  - **Cloth under a strap** is pressed in by a depth measured over Henry's poses. The depth is stored
+    in the jacket's vertex colour, and the shader applies `garment_press` only while the pack is worn.
+  - **Corridor weights:** in the corridor along the straps, the jacket's weights are smoothed and its
+    neck weight is moved to `spine_03`.
+  - **Pack seating:** lean is now 0° and the offset is −0.265, so the back face clears the jacket by 4.8 mm.
+  - **Measurement** (`tools/runtime/measure_straps.gd`):
+    - strap to pack: 0 mm;
+    - cloth in the strap: 0 at rest, ≤ 6 mm crouching;
+    - the free run into the jacket crouching: ≤ 16 mm.
+  - **Known failures in `test_backpack_rig`:**
+    - R3/R9: the mug sinks 8–10 mm into the upright pack;
+    - R7: the chest drift is 3.3 mm, because the strap now rides the cloth, not the bone.
 - Henry's jacket hem and collar swing on springs (owner: "hem and collar on springs").
   `tools/blender/build_henry_outfit.py` adds eight two-bone chains around the hem from the pelvis and five
   around the back of the collar from `spine_03`. Each chain is found by rays to just inside the cloth,
