@@ -313,3 +313,130 @@ def merge_weights(obj, sources, target):
 		if n in obj.vertex_groups:
 			obj.vertex_groups.remove(obj.vertex_groups[n])
 
+
+
+def weld(obj, dist=0.0002):
+	"""Merges coincident points (glTF splits them on UV seams): one connected cloth, UVs kept."""
+	import bmesh
+	bm = bmesh.new()
+	bm.from_mesh(obj.data)
+	bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=dist)
+	bm.to_mesh(obj.data)
+	bm.free()
+
+
+def split_largest(obj, name):
+	"""Splits obj into its largest connected piece (kept as obj) and the rest (returned as a new
+	object `name`, or None): the cloth to simulate and the small parts riding on it."""
+	import bmesh
+	bm = bmesh.new()
+	bm.from_mesh(obj.data)
+	seen = set()
+	islands = []
+	for v in bm.verts:
+		if v in seen:
+			continue
+		stack = [v]
+		island = []
+		while stack:
+			x = stack.pop()
+			if x in seen:
+				continue
+			seen.add(x)
+			island.append(x.index)
+			stack.extend(e.other_vert(x) for e in x.link_edges if e.other_vert(x) not in seen)
+		islands.append(island)
+	bm.free()
+	islands.sort(key=len, reverse=True)
+	if len(islands) < 2:
+		return None
+	rest = {i for island in islands[1:] for i in island}
+	bpy.ops.object.select_all(action="DESELECT")
+	bpy.context.view_layer.objects.active = obj
+	obj.select_set(True)
+	bpy.ops.object.mode_set(mode="EDIT")
+	bpy.ops.mesh.select_all(action="DESELECT")
+	bpy.ops.object.mode_set(mode="OBJECT")
+	for v in obj.data.vertices:
+		v.select = v.index in rest
+	bpy.ops.object.mode_set(mode="EDIT")
+	bpy.ops.mesh.separate(type="SELECTED")
+	bpy.ops.object.mode_set(mode="OBJECT")
+	parts = [o for o in bpy.context.selected_objects if o != obj]
+	parts[0].name = parts[0].data.name = name
+	return parts[0]
+
+
+def ride_on(part, cloth):
+	"""Binds `part` (buttons, belt, loops) to `cloth` with Surface Deform at rest, so whatever the
+	cloth then does carries it along. Apply with apply_ride() after the cloth is applied."""
+	mod = part.modifiers.new("Ride", "SURFACE_DEFORM")
+	mod.target = cloth
+	bpy.context.view_layer.objects.active = part
+	bpy.ops.object.surfacedeform_bind(modifier="Ride")
+
+
+def apply_ride(part):
+	bpy.context.view_layer.objects.active = part
+	bpy.ops.object.modifier_apply(modifier="Ride")
+
+
+def drape(obj, colliders, fabric, frames, pin=None, shrink=None):
+	"""Settles obj on the body as cloth (Blender Cloth, gravity, collision with `colliders`) and
+	applies the final frame. fabric: dict of Cloth settings (mass, stiffness...). pin: vertex
+	indices held in place (a waistband, a collar). shrink: {vertex index: weight} pulled in by
+	fabric["shrink_min"] (cloth gathered into a boot)."""
+	scene = bpy.context.scene
+	for collider in colliders:
+		if not any(m.type == "COLLISION" for m in collider.modifiers):
+			collider.modifiers.new("Collision", "COLLISION")
+		collider.collision.thickness_outer = fabric.get("collider_thickness", 0.003)
+		collider.collision.cloth_friction = 5.0
+	cloth = obj.modifiers.new("Cloth", "CLOTH")
+	s = cloth.settings
+	s.quality = fabric.get("quality", 8)
+	s.mass = fabric["mass"]
+	s.tension_stiffness = s.compression_stiffness = fabric["stretch"]
+	s.shear_stiffness = fabric.get("shear", fabric["stretch"])
+	s.bending_stiffness = fabric["bending"]
+	s.air_damping = 1.0
+	if pin:
+		group = obj.vertex_groups.new(name="Pin")
+		for i, w in (pin.items() if isinstance(pin, dict) else ((i, 1.0) for i in pin)):
+			group.add([i], w, "REPLACE")
+		s.vertex_group_mass = "Pin"
+		s.pin_stiffness = fabric.get("pin_stiffness", 1.0)
+	if shrink:
+		group = obj.vertex_groups.new(name="Shrink")
+		for i, w in shrink.items():
+			group.add([i], w, "REPLACE")
+		s.vertex_group_shrink = "Shrink"
+		s.shrink_min = fabric.get("shrink_min", 0.0)
+	c = cloth.collision_settings
+	c.distance_min = fabric.get("distance", 0.004)
+	c.use_self_collision = False
+	cloth.point_cache.frame_start = 1
+	cloth.point_cache.frame_end = frames
+	scene.frame_start = 1
+	scene.frame_end = frames
+	for frame in range(1, frames + 1):
+		scene.frame_set(frame)
+	bpy.context.view_layer.objects.active = obj
+	bpy.ops.object.modifier_apply(modifier="Cloth")
+	scene.frame_set(1)
+	for name in ("Pin", "Shrink"):
+		if name in obj.vertex_groups:
+			obj.vertex_groups.remove(obj.vertex_groups[name])
+	for collider in colliders:
+		for m in [m for m in collider.modifiers if m.type == "COLLISION"]:
+			collider.modifiers.remove(m)
+
+
+def smooth_weights(obj, passes=2):
+	"""Evens out the skin weights so the cloth stretches and compresses smoothly in game."""
+	bpy.context.view_layer.objects.active = obj
+	obj.select_set(True)
+	bpy.ops.object.mode_set(mode="WEIGHT_PAINT")
+	bpy.ops.object.vertex_group_smooth(group_select_mode="ALL", factor=0.5, repeat=passes)
+	bpy.ops.object.mode_set(mode="OBJECT")
+	bpy.ops.object.vertex_group_normalize_all(lock_active=False)

@@ -29,8 +29,18 @@ BOOTS_SOURCE = "assets/items/boots/boots.glb"
 JACKET_SOURCE = "assets/characters/gear/plaid_jacket.glb"
 PANTS_SOURCE = "assets/characters/gear/reality_texture_man_pants.glb"
 ## Game budget for the jeans (faces) and how far each layer sits past what it covers, metres.
-PANTS_FACES = 16000
+PANTS_FACES = 9000
 PANTS_MARGIN = 0.006
+## Cloth drape: frames settled, the held band at the waist / collar (m), and fabric settings.
+DRAPE_FRAMES = 40
+PIN_BAND = 0.03
+DENIM = {"mass": 0.4, "stretch": 40.0, "bending": 10.0, "distance": 0.004}
+FLANNEL = {"mass": 0.3, "stretch": 20.0, "bending": 4.0, "distance": 0.005, "pin_stiffness": 2.0}
+## Jacket: frames settled, its collar band held fully and the front placket held softly.
+JACKET_FRAMES = 25
+COLLAR_BAND = 0.08
+PLACKET_HALF = 0.07
+PLACKET_HOLD = 0.6
 JACKET_MARGIN = 0.02
 ## Jacket ease (how much looser than as modelled) and its cuff's reach past the wrist, metres.
 JACKET_EASE = 0.02
@@ -364,8 +374,10 @@ def build():
 	built = {name: build_garment(body, arm, name, region, spec) for name, spec in GARMENTS.items()}
 	style_gloves(built["Gloves"], built["GloveCuff"], arm)
 	owner_boots(arm, body, [built.pop("Boots"), built.pop("Sole")])
+	## Cloth first, on the bare body: the jeans, then the jacket over them; the boots come after.
 	pants = owner_pants(arm, body, built.pop("Pants"))
 	jacket = owner_jacket(arm, body, built.pop("Jacket"), pants)
+	finish_pants(arm, body, pants)
 	boots = bpy.data.objects["Outfit_Boots"]
 	split_body(body, region, G.coverage(body, [(boots, "Boots"), (pants, "Pants"), (jacket, "Jacket")]))
 	## The plaid jacket has its own collar and no hood; the old generated hood sat on it like a scarf.
@@ -373,43 +385,79 @@ def build():
 
 
 def owner_pants(arm, body, generated):
-	"""The owner's jeans: shell, its .001 patches (they fill the shell's open panels) and belt,
-	decimated with the sewn panels' edges kept, kept outside the body, tucked into the boots and
-	skinned from it."""
+	"""The owner's jeans, draped on the body as cloth: welded into one cloth, its small parts
+	(belt, loops) riding on it, decimated, held at the waist and settled by gravity onto the legs."""
 	bpy.data.objects.remove(generated)
 	pants = G.import_joined(PANTS_SOURCE, "Outfit_Pants", lambda n: True)
-	G.decimate_to(pants, PANTS_FACES, keep_edges=True)
-	cuff = boot_cuff_bottom()
+	G.weld(pants)
+	parts = G.split_largest(pants, "Outfit_PantsParts")
+	G.decimate_to(pants, PANTS_FACES)
 	G.fit_outside(pants, body, PANTS_MARGIN)
-	## Tucked in: tapering onto the leg from above the cuff, ending well down inside the shaft.
-	G.tuck(pants, body, cuff + TUCK_ABOVE_CUFF, cuff - 0.02, PANTS_MARGIN)
-	## The boot shaft is tighter than leg plus cloth: inside the boot the cloth stays inside it.
-	G.keep_inside(pants, bpy.data.objects["Outfit_Boots"], cuff + 0.03, cuff, BOOT_WALL)
-	G.cut_below(pants, cuff - TUCK_DEPTH)
-	G.skin_from(pants, body, LEGS | FEET | TORSO)
-	G.bind(pants, arm)
+	if parts is not None:
+		G.ride_on(parts, pants)
+	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
+	pin = [v.index for v in pants.data.vertices if (pants.matrix_world @ v.co).z > waist - PIN_BAND]
+	G.drape(pants, [body], DENIM, DRAPE_FRAMES, pin=pin)
+	if parts is not None:
+		G.apply_ride(parts)
+		bpy.ops.object.select_all(action="DESELECT")
+		parts.select_set(True)
+		pants.select_set(True)
+		bpy.context.view_layer.objects.active = pants
+		bpy.ops.object.join()
 	return pants
+
+
+def finish_pants(arm, body, pants):
+	"""Skins the draped jeans from the body, weights evened so the cloth stretches smoothly."""
+	G.skin_from(pants, body, LEGS | FEET | TORSO)
+	G.smooth_weights(pants)
+	G.bind(pants, arm)
 
 
 def owner_jacket(arm, body, generated, pants):
 	"""The owner's plaid jacket: re-posed from its A-pose to the T-pose by its measured sleeve
-	droop, sleeves fitted to Henry's arms, eased out, kept outside the body and the jeans, skinned."""
+	droop, sleeves fitted to Henry's arms, then draped as cloth over the body and the jeans
+	(collar held), buttons riding on it; skinned with even weights."""
 	bpy.data.objects.remove(generated)
 	jacket = G.import_joined(JACKET_SOURCE, "Outfit_Jacket", lambda n: True)
+	G.weld(jacket)
+	buttons = G.split_largest(jacket, "Outfit_JacketButtons")
 	shoulder = (arm.matrix_world @ arm.data.bones["upperarm_l"].head_local).x
 	droop = {side: G.sleeve_droop(jacket, side, shoulder) for side in (1, -1)}
 	print("owner_jacket: sleeve droop deg", {k: round(math.degrees(v), 1) for k, v in droop.items()})
+	if buttons is not None:
+		G.ride_on(buttons, jacket)
 	G.repose_arms(jacket, arm, droop)
 	G.fit_sleeves(jacket, arm, SLEEVE_PAST_WRIST)
 	G.inflate(jacket, JACKET_EASE)
 	G.fit_outside(jacket, body, JACKET_MARGIN)
 	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
 	G.fit_outside(jacket, pants, PANTS_MARGIN, below=waist - 0.02)
+	## Held while it settles, as a jacket is buttoned before draping: the collar fully, the front
+	## placket (where the two fronts overlap) softly; the rest drapes.
+	collar = max((jacket.matrix_world @ v.co).z for v in jacket.data.vertices)
+	pin = {}
+	for v in jacket.data.vertices:
+		p = jacket.matrix_world @ v.co
+		if p.z > collar - COLLAR_BAND:
+			pin[v.index] = 1.0
+		elif abs(p.x) < PLACKET_HALF and p.y < 0.0 and p.z > waist - 0.1:
+			pin[v.index] = PLACKET_HOLD
+	G.drape(jacket, [body, pants], FLANNEL, JACKET_FRAMES, pin=pin)
+	if buttons is not None:
+		G.apply_ride(buttons)
+		bpy.ops.object.select_all(action="DESELECT")
+		buttons.select_set(True)
+		jacket.select_set(True)
+		bpy.context.view_layer.objects.active = jacket
+		bpy.ops.object.join()
 	G.skin_from(jacket, body)
 	## Hand and finger weights go to the forearm: the cuff rides it instead of crumpling with the fist.
 	for side in ("l", "r"):
 		hand = [g.name for g in jacket.vertex_groups if g.name.endswith("_" + side) and g.name.startswith(("hand_",) + FINGERS)]
 		G.merge_weights(jacket, hand, "lowerarm_" + side)
+	G.smooth_weights(jacket)
 	G.bind(jacket, arm)
 	return jacket
 
