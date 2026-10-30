@@ -8,6 +8,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Outfit layers checked in motion (owner: no clothing through Henry or through each other in Godot).
+  Twelve clips (idle, walk, jog, sprint, crouch, jump, pick-up, interact, torch, sitting, roll),
+  eight frames each, with the same skinning Godot uses:
+  - **Jeans through the boot shafts:** 0 points in every clip.
+  - **Jeans through the jacket:** the waist and belt stuck out by up to 3 cm when bending. Under
+    the jacket the jeans are now laid flat on the body and take the jacket's weights, so the two
+    layers move as one. Idle, walk, interact and pick-up are at 0-7 points. Crouch, sitting and
+    roll still flag 1.7-5.6%, all on the back-pocket welts and belt pieces (inward normals fool
+    the ray test); renders of those poses show nothing through.
+  - Skin under clothing is hidden in game, so the body cannot show through the cloth.
 - Outfit artefacts fixed (owner review: a flap on the jeans, collar and sleeves torn in poses).
   - **Jeans:** the visible mesh rides on a sparse cloth proxy (Surface Deform), so the pocket bags
     sewn inside stay inside.

@@ -46,6 +46,11 @@ COLLAR_FROM = 1.45
 COLLAR_HALF = 0.32
 ## The cuff zone (T-pose, beyond this distance from the centre) whose weights are blended, metres.
 CUFF_FROM = 0.64
+## Above the jacket's hem the jeans are laid on the body: from this far up (none) to this (full),
+## this far off the skin, metres.
+WAIST_HUG_FROM = 0.03
+WAIST_HUG_FULL = 0.08
+WAIST_HUG_MARGIN = 0.003
 PLACKET_HALF = 0.07
 PLACKET_HOLD = 0.6
 ## Sleeves are held from this far past the shoulder joint outwards, this firmly.
@@ -404,8 +409,12 @@ def build():
 	## Cloth first, on the bare body: the jeans, then the jacket over them; the boots come after.
 	pants = owner_pants(arm, body, built.pop("Pants"))
 	jacket = owner_jacket(arm, body, built.pop("Jacket"), pants)
+	## The jeans' waist and belt are always under the jacket: laid flat on the body there, so a
+	## bend never pushes them through it (they stuck out by up to 3 cm crouching or rolling).
+	hem = min((jacket.matrix_world @ v.co).z for v in jacket.data.vertices)
+	G.hug_above(pants, body, hem + WAIST_HUG_FROM, hem + WAIST_HUG_FULL, WAIST_HUG_MARGIN)
 	tuck_pants(body, pants)
-	finish_pants(arm, body, pants)
+	finish_pants(arm, body, pants, jacket, hem)
 	boots = bpy.data.objects["Outfit_Boots"]
 	split_body(body, region, G.coverage(body, [(boots, "Boots"), (pants, "Pants"), (jacket, "Jacket")]))
 	## The plaid jacket has its own collar and no hood; the old generated hood sat on it like a scarf.
@@ -454,14 +463,16 @@ def tuck_pants(body, pants):
 	G.cut_below(pants, shaft_top - TUCK_DEPTH)
 
 
-def finish_pants(arm, body, pants):
-	"""Skins the draped jeans from the body, weights evened so the cloth stretches smoothly; inside
-	the boot it takes the boot's weights, so a bent knee carries both alike."""
+def finish_pants(arm, body, pants, jacket, hem):
+	"""Skins the draped jeans from the body, weights evened so the cloth stretches smoothly. Where
+	another layer overlaps them they take its weights, so the layers move as one and never cross:
+	the boot's inside the shaft, the jacket's under it."""
 	G.skin_from(pants, body, LEGS | FEET | TORSO)
 	G.smooth_weights(pants)
 	boots = bpy.data.objects["Outfit_Boots"]
 	shaft_top = max((boots.matrix_world @ v.co).z for v in boots.data.vertices)
 	G.follow(pants, boots, shaft_top + 0.02, shaft_top - 0.01)
+	G.follow(pants, jacket, hem + WAIST_HUG_FROM, hem + WAIST_HUG_FULL)
 	G.bind(pants, arm)
 
 

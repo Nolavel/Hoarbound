@@ -459,14 +459,15 @@ def smooth_weights(obj, passes=2):
 	bpy.ops.object.vertex_group_normalize_all(lock_active=False)
 
 
-def follow(obj, other, top, bottom):
-	"""Below `top` (fully from `bottom` down) obj takes `other`'s skin weights from its nearest
-	face: cloth inside a boot moves exactly as the boot does instead of bulging out of it."""
+def follow(obj, other, top, bottom, above=False):
+	"""Past `top` towards `bottom` (fully beyond it; bottom may lie above top) obj takes `other`'s
+	skin weights from its nearest face: cloth inside a boot moves exactly as the boot does, and
+	trousers under a jacket as the jacket does, so the layers never cross in a pose."""
 	group = obj.vertex_groups.new(name="Follow")
 	for v in obj.data.vertices:
 		z = (obj.matrix_world @ v.co).z
-		if z < top:
-			t = min(max((top - z) / (top - bottom), 0.0), 1.0)
+		t = min(max((top - z) / (top - bottom), 0.0), 1.0)
+		if t > 0.0:
 			group.add([v.index], t * t * (3.0 - 2.0 * t), "REPLACE")
 	mod = obj.modifiers.new("Follow", "DATA_TRANSFER")
 	mod.object = other
@@ -577,3 +578,24 @@ def smooth_weights_where(obj, where, passes=6):
 	obj.data.use_paint_mask_vertex = False
 	bpy.ops.object.mode_set(mode="OBJECT")
 	bpy.ops.object.vertex_group_normalize_all(lock_active=False)
+
+
+def hug_above(obj, body, z_from, z_full, margin):
+	"""Lays obj onto the body above height z_from (fully from z_full up) at `margin`: a lower layer
+	that is always under an upper one (trousers' waist and belt under a jacket) stays flat enough
+	that bending never pushes it through."""
+	group = obj.vertex_groups.new(name="Hug")
+	for v in obj.data.vertices:
+		z = (obj.matrix_world @ v.co).z
+		if z > z_from:
+			t = min(max((z - z_from) / (z_full - z_from), 0.0), 1.0)
+			group.add([v.index], t * t * (3.0 - 2.0 * t), "REPLACE")
+	mod = obj.modifiers.new("Hug", "SHRINKWRAP")
+	mod.target = body
+	mod.wrap_method = "NEAREST_SURFACEPOINT"
+	mod.wrap_mode = "ABOVE_SURFACE"
+	mod.offset = margin
+	mod.vertex_group = "Hug"
+	bpy.context.view_layer.objects.active = obj
+	bpy.ops.object.modifier_apply(modifier="Hug")
+	obj.vertex_groups.remove(obj.vertex_groups["Hug"])
