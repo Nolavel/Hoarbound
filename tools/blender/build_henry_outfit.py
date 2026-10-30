@@ -48,6 +48,8 @@ SLEEVE_PAST_WRIST = 0.01
 ## Tucked jeans taper onto the leg from this far above the boots' cuff and end this far below it.
 TUCK_ABOVE_CUFF = 0.08
 TUCK_DEPTH = 0.06
+## How far the cloth may gather in below the cuff (Cloth shrink_min, share of its length).
+TUCK_SHRINK = 0.45
 ## Inside the boot the jeans keep this far in from its outer shell (its wall and lining), metres.
 BOOT_WALL = 0.01
 ## Imported piece name prefix -> outfit mesh (both feet joined into one).
@@ -312,16 +314,18 @@ def _settle_panels(obj, passes):
 			poly.material_index = max(set(votes), key=votes.count)
 
 
-## The owner's model garments: the skin under them is found by what covers it, not by region.
+## The owner's model garments: the skin under them is found by what covers it. The draped cloth
+## (jeans, jacket) by coverage alone; the rigid boots also keep their region.
 MODELLED = ("Boots", "Pants", "Jacket")
+DRAPED = ("Pants", "Jacket")
 
 
 def split_body(body, region, covered):
 	"""Moves skin fully inside a garment (one ring from its border) into Skin_<item>
-	meshes, which the game hides while that item is worn. `covered` (per vertex) adds skin that
-	one of the owner's modelled garments lies over, where its region did not reach."""
+	meshes, which the game hides while that item is worn. Under the owner's modelled garments
+	`covered` (per vertex, from rays) decides alone: a draped garment need not keep its old region."""
 	owner = [next((g for g in SKIN_PRIORITY if g in r), "") for r in region]
-	owner = [c if c else o for o, c in zip(owner, covered)]
+	owner = [c if c else (o if o not in DRAPED else "") for o, c in zip(owner, covered)]
 	bm = bmesh.new()
 	bm.from_mesh(body.data)
 	bm.verts.ensure_lookup_table()
@@ -377,6 +381,7 @@ def build():
 	## Cloth first, on the bare body: the jeans, then the jacket over them; the boots come after.
 	pants = owner_pants(arm, body, built.pop("Pants"))
 	jacket = owner_jacket(arm, body, built.pop("Jacket"), pants)
+	tuck_pants(body, pants)
 	finish_pants(arm, body, pants)
 	boots = bpy.data.objects["Outfit_Boots"]
 	split_body(body, region, G.coverage(body, [(boots, "Boots"), (pants, "Pants"), (jacket, "Jacket")]))
@@ -408,10 +413,32 @@ def owner_pants(arm, body, generated):
 	return pants
 
 
+def tuck_pants(body, pants):
+	"""The boots go on after the cloth: a second drape gathers each leg below the boots' cuff onto
+	the shin (cloth shrink, held at the waist), so it bunches into the shaft with a little blousing
+	above; the part inside the shaft is kept in it and cut off by a plane, hidden in the boot."""
+	cuff = boot_cuff_bottom()
+	waist = max((pants.matrix_world @ v.co).z for v in pants.data.vertices)
+	pin = [v.index for v in pants.data.vertices if (pants.matrix_world @ v.co).z > waist - PIN_BAND]
+	shrink = {}
+	for v in pants.data.vertices:
+		z = (pants.matrix_world @ v.co).z
+		if z < cuff + TUCK_ABOVE_CUFF:
+			t = min(max((cuff + TUCK_ABOVE_CUFF - z) / TUCK_ABOVE_CUFF, 0.0), 1.0)
+			shrink[v.index] = t * t * (3.0 - 2.0 * t)
+	G.drape(pants, [body], dict(DENIM, shrink_min=TUCK_SHRINK), DRAPE_FRAMES, pin=pin, shrink=shrink)
+	boots = bpy.data.objects["Outfit_Boots"]
+	G.keep_inside(pants, boots, cuff + 0.03, cuff, BOOT_WALL)
+	G.cut_below(pants, cuff - TUCK_DEPTH)
+
+
 def finish_pants(arm, body, pants):
-	"""Skins the draped jeans from the body, weights evened so the cloth stretches smoothly."""
+	"""Skins the draped jeans from the body, weights evened so the cloth stretches smoothly; inside
+	the boot it takes the boot's weights, so a bent knee carries both alike."""
 	G.skin_from(pants, body, LEGS | FEET | TORSO)
 	G.smooth_weights(pants)
+	cuff = boot_cuff_bottom()
+	G.follow(pants, bpy.data.objects["Outfit_Boots"], cuff + 0.03, cuff - 0.01)
 	G.bind(pants, arm)
 
 

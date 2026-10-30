@@ -186,7 +186,7 @@ def cut_below(obj, z):
 	bm.free()
 
 
-def coverage(body, garments, reach=0.08):
+def coverage(body, garments, reach=0.2):
 	"""Per body vertex, the label of the innermost garment over it (garments: [(object, label)],
 	inner first), or "": a ray from the skin out along its normal, as a body mask is made for
 	layered clothing. Rest pose, world space."""
@@ -439,4 +439,29 @@ def smooth_weights(obj, passes=2):
 	bpy.ops.object.mode_set(mode="WEIGHT_PAINT")
 	bpy.ops.object.vertex_group_smooth(group_select_mode="ALL", factor=0.5, repeat=passes)
 	bpy.ops.object.mode_set(mode="OBJECT")
+	bpy.ops.object.vertex_group_normalize_all(lock_active=False)
+
+
+def follow(obj, other, top, bottom):
+	"""Below `top` (fully from `bottom` down) obj takes `other`'s skin weights from its nearest
+	face: cloth inside a boot moves exactly as the boot does instead of bulging out of it."""
+	group = obj.vertex_groups.new(name="Follow")
+	for v in obj.data.vertices:
+		z = (obj.matrix_world @ v.co).z
+		if z < top:
+			t = min(max((top - z) / (top - bottom), 0.0), 1.0)
+			group.add([v.index], t * t * (3.0 - 2.0 * t), "REPLACE")
+	mod = obj.modifiers.new("Follow", "DATA_TRANSFER")
+	mod.object = other
+	mod.use_vert_data = True
+	mod.data_types_verts = {"VGROUP_WEIGHTS"}
+	mod.vert_mapping = "POLYINTERP_NEAREST"
+	mod.layers_vgroup_select_src = "ALL"
+	mod.layers_vgroup_select_dst = "NAME"
+	mod.mix_mode = "REPLACE"
+	mod.mix_factor = 1.0
+	mod.vertex_group = "Follow"
+	bpy.context.view_layer.objects.active = obj
+	bpy.ops.object.modifier_apply(modifier="Follow")
+	obj.vertex_groups.remove(obj.vertex_groups["Follow"])
 	bpy.ops.object.vertex_group_normalize_all(lock_active=False)
