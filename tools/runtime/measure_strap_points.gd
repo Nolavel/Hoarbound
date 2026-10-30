@@ -16,7 +16,8 @@ const PAD_WIDTH_M: float = 0.052
 const RAY_BACK: float = 0.12
 const RAY_REACH: float = 0.3
 ## Cloth within this distance of a hit (across the surface) lifts the strap over its folds.
-const LIFT_REACH: float = 0.02
+const LIFT_REACH: float = 0.012
+const LIFT_MAX_M: float = 0.004
 
 ## The strap's underside air (as PackShoulderStraps.GAP_M), the extra a pressed point goes under it, and
 ## the deepest press (the vertex colour holds depth / PRESS_MAX_M), metres; cloth points this near a row.
@@ -148,6 +149,11 @@ func _pose_fit(model: Node, jacket: MeshInstance3D, sides: Array) -> Array:
 						var h: float = d.dot(row[3])
 						if (d - (row[3] as Vector3) * h).length() < LIFT_REACH and h > float(hit[7]) and h < 0.03:
 							hit[7] = h
+	## A strap rides over small folds only; a tall one (a collar edge) is pressed down instead.
+	for rows: Array in sides:
+		for row: Array in rows:
+			for c: int in 3:
+				row[c][7] = minf(float(row[c][7]), LIFT_MAX_M)
 	var press: Dictionary = {}
 	for pose: Array in POSES:
 		for side: int in 2:
