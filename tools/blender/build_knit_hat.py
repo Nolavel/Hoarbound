@@ -72,6 +72,7 @@ def main():
     bpy.context.scene.render.engine = 'CYCLES'
     bpy.context.scene.cycles.samples = 8
     for obj, label, resolution in ((crown, 'crown', 1024), (cuff, 'cuff', 1024)):
+        align_bands_to_cuff(obj, label)
         bake_material(obj, label, resolution, output / 'textures')
     make_pom_material(pom)
     bpy.data.orphans_purge(do_recursive=True)
@@ -84,6 +85,36 @@ def main():
     glb = output / 'knit_hat.glb'
     bpy.ops.export_scene.gltf(filepath=str(glb), export_format='GLB', export_animations=False)
     print('HAT_EXPORT', glb, glb.stat().st_size, [(o.name, len(o.data.vertices), len(o.data.polygons)) for o in retained], flush=True)
+
+
+def align_bands_to_cuff(obj, label):
+    """Make the colored rings follow the approved cuff's front/back drop.
+
+    The fitted cuff's top falls about 35 mm from front to back. The original
+    Generated-Z ramps ignored that contour, so the rings diverged from the
+    cuff in side views. This adjusts only the color-ramp coordinate; stitch
+    images, normals, UVs, and all fitted vertices remain unchanged.
+    """
+    mat = obj.data.materials[0]
+    if mat is None or mat.node_tree is None:
+        return  # The checked-in clean source has already baked materials.
+    nodes = mat.node_tree.nodes
+    generated = nodes.get('Separate XYZ')
+    band_add = nodes.get('Math.001')
+    if generated is None or band_add is None or band_add.type != 'MATH':
+        return
+    shift = 0.25 if label == 'crown' else 0.35
+    links = mat.node_tree.links
+    slope = nodes.new('ShaderNodeMath')
+    slope.operation = 'MULTIPLY_ADD'
+    slope.inputs[1].default_value = shift
+    slope.inputs[2].default_value = -shift * 0.5
+    level = nodes.new('ShaderNodeMath')
+    level.operation = 'ADD'
+    links.new(generated.outputs['Y'], slope.inputs[0])
+    links.new(generated.outputs['Z'], level.inputs[0])
+    links.new(slope.outputs[0], level.inputs[1])
+    links.new(level.outputs[0], band_add.inputs[0])
 
 
 def bake_material(obj, label, resolution, texture_dir):
