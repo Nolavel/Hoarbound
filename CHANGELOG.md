@@ -8,6 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Henry now starts wearing the approved dark knit hat. Its cuff, crown, and pompom are separate game meshes on the Head bone; the existing `head_outer` equipment slot controls visibility. The old beanie is hidden. The source Blender file, baked knit maps, GLB, and four Forward+ review captures are included.
 - Pack shoulder straps laid on the plaid jacket (WIP, owner review).
   - **Strap points** are jacket triangles: `tools/runtime/measure_strap_points.gd` casts rays and writes
     `scenes/actors/player/henry/strap_points.json`. `PackShoulderStraps` skins them each frame exactly
