@@ -47,6 +47,12 @@ func _run() -> void:
 	_player = (load(PLAYER) as PackedScene).instantiate() as CharacterBody3D
 	root.add_child(_player)
 	_player.position = Vector3(0.0, 1.0, 0.0)
+	# Outfit views are a turntable of the fitted meshes.  Henry's idle HeadLook
+	# otherwise follows the temporary capture camera and turns the hat sideways
+	# before the first shot, making its stripes and silhouette look misaligned.
+	var visual := _player.find_child("HenryUALVisual", true, false) as HenryUALAnimation
+	if visual != null:
+		visual.head_look_idle_speed = 0.0
 	_camera = Camera3D.new()
 	_camera.fov = 35.0
 	root.add_child(_camera)

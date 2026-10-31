@@ -9,3 +9,5 @@ blender -b --python tools/blender/build_knit_hat.py -- assets/characters/henry/k
 ```
 
 The player visual attaches the GLB to the Head bone and applies Hoarbound's character NPR shader. Equipment's existing `knit_hat` item in `head_outer` controls whether it is shown.
+
+For fitting review, Henry's face points toward Blender −Y. The Godot outfit capture keeps HeadLook neutral so a camera turn does not masquerade as a tilted hat or texture.
