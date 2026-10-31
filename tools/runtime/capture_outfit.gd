@@ -8,12 +8,14 @@ const PLAYER: String = "res://scenes/actors/player/player.tscn"
 var _out: String = "user://shots/outfit"
 var _player: CharacterBody3D
 var _camera: Camera3D
+var _hat_only: bool = false
 
 
 func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if not args.is_empty():
 		_out = args[0]
+	_hat_only = args.has("hat_only")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out))
 	_run()
 
@@ -44,14 +46,25 @@ func _run() -> void:
 	root.add_child(env)
 	_player = (load(PLAYER) as PackedScene).instantiate() as CharacterBody3D
 	root.add_child(_player)
-	_player.global_position = Vector3(0.0, 1.0, 0.0)
+	_player.position = Vector3(0.0, 1.0, 0.0)
+	# Outfit views are a turntable of the fitted meshes.  Henry's idle HeadLook
+	# otherwise follows the temporary capture camera and turns the hat sideways
+	# before the first shot, making its stripes and silhouette look misaligned.
+	var visual := _player.find_child("HenryUALVisual", true, false) as HenryUALAnimation
+	if visual != null:
+		visual.head_look_idle_speed = 0.0
 	_camera = Camera3D.new()
 	_camera.fov = 35.0
 	root.add_child(_camera)
-	await _frames(60)
+	await _frames(30 if _hat_only else 60)
 	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
 		(layer as CanvasLayer).visible = false
 	_camera.make_current()
+	if _hat_only:
+		for view: Array in [["front", 180.0], ["side", 90.0], ["back", 0.0], ["three_quarter", 145.0]]:
+			await _hat_shot("hat_" + view[0], view[1])
+		quit(0)
+		return
 	for view: Array in [["front", 0.0], ["side", 90.0], ["back", 180.0], ["three_quarter", 35.0]]:
 		await _shot("rest_" + view[0], view[1], 0.95, 3.4)
 	await _shot("torso_three_quarter", 35.0, 1.35, 1.6)
@@ -59,6 +72,8 @@ func _run() -> void:
 	await _shot("hands_side", 80.0, 0.85, 1.0)
 	await _shot("boot_tops", 20.0, 0.35, 0.9)
 	await _shot("boot_top_close", 0.0, 0.35, 0.55)
+	for view: Array in [["front", 180.0], ["side", 90.0], ["back", 0.0], ["three_quarter", 145.0]]:
+		await _hat_shot("hat_" + view[0], view[1])
 	Input.action_press(&"move_forward")
 	await _frames(40)
 	for k: int in range(3):
@@ -81,6 +96,20 @@ func _shot(shot_name: String, yaw: float, at_y: float, dist: float, wait: int = 
 	await _frames(2)
 	root.get_viewport().get_texture().get_image().save_png("%s/%s.png" % [_out, shot_name])
 	print("[boots] ", shot_name)
+
+
+## Keep the hat centred on the animated Head bone, independent of Henry's
+## current floor height or the outfit camera's foot-based framing.
+func _hat_shot(shot_name: String, yaw: float) -> void:
+	var skeleton := _player.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+	var head: int = skeleton.find_bone("Head")
+	var target: Vector3 = skeleton.global_transform * skeleton.get_bone_global_pose(head).origin + Vector3.UP * 0.10
+	var dir: Vector3 = (_player.global_basis * Vector3(sin(deg_to_rad(yaw)), 0.0, cos(deg_to_rad(yaw)))).normalized()
+	_camera.global_position = target + dir * 1.15 + Vector3.UP * 0.03
+	_camera.look_at(target, Vector3.UP)
+	await _frames(3)
+	root.get_viewport().get_texture().get_image().save_png("%s/%s.png" % [_out, shot_name])
+	print("[hat] ", shot_name)
 
 
 func _frames(count: int) -> void:
