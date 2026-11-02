@@ -60,46 +60,50 @@ def painted_fabric(name,color_file,fade):
     wear=tex("bedroll_wear_mask.png",True)
     split=tex("bedroll_split_mask.png",True)
     strength=n.new("ShaderNodeMath");strength.operation="MULTIPLY"
-    strength.inputs[1].default_value=1.25
+    strength.inputs[1].default_value=1.0
     links.new(wear.outputs["Color"],strength.inputs[0])
     worn=n.new("ShaderNodeMixRGB");worn.blend_type="MIX"
     worn.inputs[2].default_value=(*fade,1)
     links.new(strength.outputs[0],worn.inputs[0]);links.new(base.outputs["Color"],worn.inputs[1])
     crack=n.new("ShaderNodeMixRGB");crack.blend_type="MIX"
-    crack.inputs[2].default_value=(.026,.034,.028,1)
+    crack.inputs[2].default_value=(.05,.034,.038,1)
     links.new(split.outputs["Color"],crack.inputs[0]);links.new(worn.outputs["Color"],crack.inputs[1])
     links.new(crack.outputs["Color"],bs.inputs["Base Color"])
-    fiber=n.new("ShaderNodeTexNoise");fiber.inputs["Scale"].default_value=72
-    fiber.inputs["Detail"].default_value=2
+    indent=tex("bedroll_indent_mask.png",True)
+    fiber=tex("bedroll_fiber_height.png",True)
     fiber_bump=n.new("ShaderNodeBump")
-    fiber_bump.inputs["Strength"].default_value=.08
-    fiber_bump.inputs["Distance"].default_value=.0008
-    links.new(fiber.outputs["Fac"],fiber_bump.inputs["Height"])
-    bump=n.new("ShaderNodeBump");bump.inputs["Strength"].default_value=.14
-    bump.inputs["Distance"].default_value=.0015
+    fiber_bump.inputs["Strength"].default_value=.20
+    fiber_bump.inputs["Distance"].default_value=.0015
+    links.new(fiber.outputs["Color"],fiber_bump.inputs["Height"])
+    bump=n.new("ShaderNodeBump");bump.inputs["Strength"].default_value=.20
+    bump.inputs["Distance"].default_value=.003
     links.new(fiber_bump.outputs["Normal"],bump.inputs["Normal"])
-    links.new(split.outputs["Color"],bump.inputs["Height"])
+    links.new(indent.outputs["Color"],bump.inputs["Height"])
     links.new(bump.outputs["Normal"],bs.inputs["Normal"])
     return m
 
 
-canvas=painted_fabric("Painted_olive_canvas","bedroll_top_color.png",(.25,.22,.14))
-underside=painted_fabric("Painted_dark_underside","bedroll_bottom_color.png",(.20,.20,.13))
-binding=mat("Bound_edge",(.035,.044,.032))
-webbing=mat("Black_woven_straps",(.023,.026,.024),(.062,.064,.054))
-metal=mat("Dull_buckle",(.23,.21,.15),rough=.78,metallic=.35)
+canvas=painted_fabric("Painted_oxblood_brown_canvas","bedroll_top_color.png",(.075,.076,.080))
+underside=painted_fabric("Painted_slate_brown_underside","bedroll_bottom_color.png",(.070,.071,.077))
+binding=mat("Bound_edge",(.058,.044,.050))
+webbing=mat("Charcoal_woven_straps",(.031,.029,.034),(.070,.066,.070))
+metal=mat("Dull_buckle",(.23,.23,.23),rough=.78,metallic=.25)
 floor_m=mat("Studio_floor",(.048,.057,.063))
 
 
 def height(x,y,top):
-    if not top:return BOTTOM+.0003*math.sin(5*y+2*x)
-    # Five padded sections like the opened reference, with shallow stitched channels.
     seams=(-L/2+k*L/5 for k in range(1,5))
+    if not top:
+        # Compression also reaches the backing, so channels survive on the roll.
+        return BOTTOM+.0025*sum(math.exp(-((y-seam)/.027)**2) for seam in seams)
+    # Five padded sections like the opened reference, with shallow stitched channels.
     transverse=-.006*sum(math.exp(-((y-seam)/.027)**2) for seam in seams)
     transverse+=.003*math.sin(math.pi*((y+L/2)%(L/5))/(L/5))
     worn=.0007*math.sin(13*y+2*x)*math.sin(7*x-4*y)
-    sag=-.0018*math.exp(-((x+.18)/.08)**2-((y+.35)/.15)**2)
-    sag-=.0016*math.exp(-((x-.23)/.07)**2-((y-.53)/.12)**2)
+    # Pressure hollows displace the original vertices, rather than only shading.
+    sag=-.008*math.exp(-2.7*((x+.1575)/.0975)**2-2.7*((y-.361)/.19)**2)
+    sag-=.006*math.exp(-2.7*((x-.18)/.083)**2-2.7*((y+.285)/.17)**2)
+    sag-=.005*math.exp(-2.7*((x-.0225)/.12)**2-2.7*((y-.019)/.133)**2)
     return TOP+transverse+worn+sag
 
 
@@ -192,6 +196,9 @@ def sheet_world(x,y,z,p,compression=0):
     # Broad fabric irregularity breaks the machined-cylinder silhouette.
     rr-=.003*math.exp(-((abs(x)-W/2)/.035)**2)
     rr+=.002*math.sin(14*x+2.2*theta)*math.sin(1.7*theta)
+    # Broad creases form where the outer wraps are pressed during rolling.
+    rr-=.0045*p*math.exp(-((s-1.57)/.10)**2-((x+.16)/.15)**2)
+    rr-=.0060*p*math.exp(-((s-1.77)/.12)**2-((x-.10)/.13)**2)
     cy=-L/2+l;cz=radius(l)+TOP
     return x,cy+rr*math.sin(theta),cz+rr*math.cos(theta)
 
