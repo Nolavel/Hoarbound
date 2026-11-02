@@ -1,109 +1,134 @@
-"""Deterministic, authored colour masses and wear masks for the bedroll.
+"""Painted, spatially conditioned textile maps for the one-sheet bedroll.
 
-The low-resolution painting canvas keeps marks broad at gameplay distance.
-Only the marked abrasion and split clusters use seeded variation.
+Marks follow wear causes (edges, seams, handling and pressure), rather than
+placing strokes uniformly over the UV sheet. Fixed seed makes rebuilds stable.
 """
 from pathlib import Path
-import random
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 OUT = Path(__file__).resolve().parents[1] / "textures"
 OUT.mkdir(parents=True, exist_ok=True)
-W, H = 512, 1024
-rng = random.Random(727)
+W, H = 768, 1536
+rng = np.random.default_rng(727)
+u, v = np.meshgrid((np.arange(W) + .5) / W, 1 - (np.arange(H) + .5) / H)
 
 
-def xy(u, v):
-    return round(u * W), round((1 - v) * H)
+def field(w, h):
+    image = Image.fromarray(rng.integers(0, 256, (h, w), dtype=np.uint8))
+    return np.asarray(image.resize((W, H), Image.Resampling.BICUBIC), dtype=np.float32) / 255 - .5
 
 
-def shape(draw, points, color):
-    draw.polygon([xy(u, v) for u, v in points], fill=color)
+def oval(x, y, rx, ry):
+    return np.exp(-2.7 * (((u - x) / rx) ** 2 + ((v - y) / ry) ** 2))
 
 
-top = Image.new("RGB", (W, H), (79, 88, 61))
-td = ImageDraw.Draw(top, "RGBA")
+def smooth(a, b, value):
+    t = np.clip((value - a) / (b - a), 0, 1)
+    return t * t * (3 - 2 * t)
 
-# Quiet painted masses, aligned with the long axis of the padded sheet.
-shape(td, [(0, .09), (.49, .10), (.47, .31), (.05, .37)], (125, 111, 72, 61))
-shape(td, [(.42, .44), (1, .47), (1, .67), (.56, .64)], (42, 55, 45, 59))
-shape(td, [(.07, .73), (.53, .70), (.51, .91), (.02, .94)], (128, 121, 82, 45))
-shape(td, [(.69, .14), (.96, .17), (.91, .38), (.74, .33)], (132, 113, 76, 57))
-shape(td, [(.16, .79), (.38, .80), (.40, .91), (.13, .90)], (49, 58, 49, 123))
-for v in (.2,.4,.6,.8):
-    td.line([xy(0,v),xy(.28,v+.002),xy(.65,v-.002),xy(1,v)],
-            fill=(36,48,39,64),width=3)
 
-# Field repairs have broken, stitched outlines instead of flat rectangles.
-for x0, y0, x1, y1, color in [
-    (.15, .79, .39, .91, (55, 65, 55, 210)),
-    (.70, .17, .91, .30, (137, 119, 77, 154)),
-]:
-    corners = [(x0, y0 + .009), (x0 + .022, y0), (x1 - .015, y0 + .002),
-               (x1, y0 + .014), (x1 - .008, y1 - .008),
-               (x1 - .035, y1), (x0 + .012, y1 - .004)]
-    shape(td, corners, color)
-    for j in range(8):
-        u = x0 + .017 + (j + .5) * (x1 - x0 - .034) / 8
-        a, b = xy(u, y0 - .006), xy(u + .003, y0 + .006)
-        td.line((a, b), fill=(180, 163, 107, 135), width=2)
+coarse = field(9, 13)
+medium = field(35, 56)
+fine = field(190, 340)
+edge_dist = np.minimum.reduce((u, 1 - u, v, 1 - v))
+edge_wear = (1 - smooth(.018, .075, edge_dist)) * (.55 + .45 * smooth(-.28, .25, medium))
+seam_near = np.zeros_like(u)
+for seam in (.2, .4, .6, .8):
+    seam_near = np.maximum(seam_near, np.exp(-((v - seam) / .014) ** 2))
 
-bottom = Image.new("RGB", (W, H), (59, 68, 56))
-bd = ImageDraw.Draw(bottom, "RGBA")
-shape(bd, [(0, .13), (.53, .18), (.57, .39), (.02, .38)], (99, 104, 73, 50))
-shape(bd, [(.37, .51), (1, .46), (1, .72), (.44, .68)], (31, 48, 43, 64))
-shape(bd, [(.03, .80), (.78, .76), (.93, .93), (.04, .95)], (113, 107, 71, 43))
-shape(bd, [(.04, .87), (.35, .84), (.58, .90), (.56, .98), (.07, .98)], (130, 113, 79, 46))
-shape(bd, [(.51, .84), (.92, .80), (.98, .91), (.78, .97)], (27, 42, 37, 65))
-for v in (.2,.4,.6,.8):
-    bd.line([xy(0,v),xy(.34,v-.002),xy(.7,v+.002),xy(1,v)],
-            fill=(26,38,34,63),width=3)
+# Major colour masses stay low contrast and follow handled/abraded regions.
+burgundy = .65 * oval(.29, .78, .49, .35) + .50 * oval(.82, .26, .40, .30)
+smoke = .72 * oval(.82, .73, .32, .24) + .61 * oval(.19, .17, .37, .25)
+shade = coarse * 8 + medium * 2.4
+top = np.empty((H, W, 3), dtype=np.float32)
+for channel, base in enumerate((60, 49, 44)):
+    top[:, :, channel] = base + shade
+top += burgundy[:, :, None] * np.array((21, -3, 12), dtype=np.float32)
+top += smoke[:, :, None] * np.array((7, 11, 13), dtype=np.float32)
+top -= seam_near[:, :, None] * np.array((8, 7, 6), dtype=np.float32)
 
-wear = Image.new("L", (W, H), 0)
-wd = ImageDraw.Draw(wear)
+# The underside is graphite brown; broad patches suggest older damp fabric.
+underside = np.empty_like(top)
+for channel, base in enumerate((58, 51, 48)):
+    underside[:, :, channel] = base + coarse * 7 + medium * 1.8
+underside += (.95 * oval(.26, .62, .48, .40))[:, :, None] * np.array((25, -3, 13))
+underside += (.95 * oval(.79, .79, .40, .28))[:, :, None] * np.array((8, 17, 21))
+# Two broad rubbed areas sit on the final outer wrap, beside the straps.
+outside_rub = .82 * oval(.25, .83, .14, .10) + .69 * oval(.75, .91, .12, .07)
+underside += outside_rub[:, :, None] * np.array((19, 18, 19))
+underside -= seam_near[:, :, None] * np.array((5, 5, 5))
 
-# Wear concentrates on handled edges and two ground-contact areas.
-for side in (0, 1):
-    for y in (.06, .16, .29, .42, .61, .78, .89):
-        span = rng.uniform(.035, .105)
-        yy = y + rng.uniform(-.018, .018)
-        edge_u = rng.uniform(.004, .020) if side == 0 else rng.uniform(.980, .996)
-        points = [(edge_u, yy-span/2), (edge_u+(.024 if side==0 else -.024), yy-span*.22),
-                  (edge_u+(.012 if side==0 else -.012), yy+span*.43), (edge_u, yy+span/2)]
-        shape(wd, points, rng.randint(75, 135))
+# Sparse hand-placed rubs break the otherwise smooth outer wrap. They have
+# directions and locations tied to handling rather than random screen noise.
+def scuffs(rgb, paths):
+    base = Image.fromarray(np.uint8(np.clip(rgb, 0, 255))).convert("RGBA")
+    overlay = Image.new("RGBA", (W, H))
+    brush = ImageDraw.Draw(overlay)
+    for points, width, alpha in paths:
+        brush.line([(round(x*W), round((1-y)*H)) for x,y in points],
+                   fill=(138, 126, 121, alpha), width=width, joint="curve")
+    return np.asarray(Image.alpha_composite(base, overlay).convert("RGB"), dtype=np.float32)
 
-for u, v, dx, dy, count in [(.16, .78, .22, .10, 11), (.79, .27, .19, .10, 12),
-                            (.51, .53, .11, .29, 11), (.22, .08, .20, .05, 7),
-                            (.36, .89, .30, .10, 13), (.77, .92, .19, .08, 10)]:
-    for _ in range(count):
-        uu=u+rng.uniform(-dx/2, dx/2)
-        vv=v+rng.uniform(-dy/2, dy/2)
-        length=rng.uniform(.023,.095)
-        p1=xy(uu,vv);p2=xy(uu+length, vv+rng.uniform(-.006,.006))
-        wd.line((p1,p2), fill=rng.randint(66, 155), width=rng.randint(2,8))
+top = scuffs(top, [
+    ([(.025,.81),(.060,.80),(.091,.786)],5,43),
+    ([(.096,.79),(.135,.777)],3,35),
+    ([(.89,.36),(.935,.34),(.965,.333)],4,33),
+    ([(.15,.22),(.19,.213),(.23,.208)],3,30),
+    ([(.75,.61),(.80,.604),(.85,.594)],3,26),
+])
+underside = scuffs(underside, [
+    ([(.16,.85),(.21,.846),(.27,.833)],5,64),
+    ([(.23,.863),(.30,.852),(.35,.842)],3,52),
+    ([(.32,.822),(.38,.818)],3,42),
+    ([(.66,.94),(.71,.936),(.77,.926)],5,58),
+    ([(.72,.901),(.79,.893),(.84,.884)],3,42),
+    ([(.85,.90),(.90,.889)],3,35),
+    ([(.08,.69),(.13,.682),(.17,.677)],4,37),
+    ([(.91,.72),(.95,.708)],3,32),
+])
 
-# In cloth these read as a few frayed splits, not a uniform crackle filter.
-cracks = Image.new("L", (W, H), 0)
-cd = ImageDraw.Draw(cracks)
-for route in [
-    [(.10,.76),(.13,.75),(.15,.73),(.18,.735),(.20,.72)],
-    [(.82,.31),(.80,.30),(.78,.285),(.76,.28),(.75,.255)],
-    [(.48,.56),(.50,.54),(.49,.52),(.51,.505)],
-    [(.91,.88),(.88,.87),(.85,.862)],
-]:
-    cd.line([xy(*p) for p in route], fill=182, width=3)
-    u,v=route[len(route)//2]
-    cd.line([xy(u,v),xy(u+rng.uniform(-.018,.018),v-.025)],fill=116,width=2)
+# Abrasion has causes: binding, stitch channels, two ground-contact zones.
+contact = .34 * oval(.23, .14, .21, .11) + .40 * oval(.74, .82, .20, .13)
+handling = .22 * oval(.16, .53, .17, .13) + .24 * oval(.84, .47, .14, .14)
+anchor = .66 * edge_wear + .13 * seam_near + contact + handling
+broken = smooth(.01, .30, medium + .06 * fine)
+wear = np.clip(anchor * broken * 105, 0, 115)
 
-# Soft low-resolution brush edges, then a little defined split contrast.
-wear=wear.filter(ImageFilter.GaussianBlur(.8))
-for name,img in [
-    ("bedroll_top_color.png",top),
-    ("bedroll_bottom_color.png",bottom),
-    ("bedroll_wear_mask.png",wear),
-    ("bedroll_split_mask.png",cracks),
-]:
-    dest=OUT/name
-    img.resize((1024,2048), Image.Resampling.BICUBIC).save(dest,optimize=True)
-    print(dest)
+# Broad dents in the cloth; their centre coordinates match the mesh.
+indent = (.68 * oval(.29, .69, .13, .10)
+          + .55 * oval(.74, .35, .11, .09)
+          + .47 * oval(.53, .51, .16, .07)
+          + .25 * seam_near)
+indent = np.clip(indent * (1 + .13 * medium), 0, 1)
+
+# Ordered coarse weave only affects the close normal; it is not a grunge mask.
+weave = np.sin(2 * np.pi * (175*u + .12*np.sin(7*v))) * np.sin(2 * np.pi * 315*v)
+fiber_height = 128 + 38 * weave
+
+# A few short, frayed splits only where the textile is also abraded.
+split = Image.new("L", (W, H), 0)
+draw = ImageDraw.Draw(split)
+def point(x, y):
+    return (round(x * W), round((1 - y) * H))
+for path in (
+    ((.080, .768), (.093, .754), (.109, .750), (.118, .735)),
+    ((.823, .303), (.811, .290), (.793, .285), (.781, .271)),
+    ((.462, .518), (.472, .511), (.467, .497)),
+):
+    draw.line([point(*p) for p in path], fill=130, width=3)
+split = split.filter(ImageFilter.GaussianBlur(.65))
+
+def save(name, data):
+    image = Image.fromarray(np.uint8(np.clip(data, 0, 255)))
+    image.save(OUT / name, optimize=True)
+    print(OUT / name)
+
+save("bedroll_top_color.png", top)
+save("bedroll_bottom_color.png", underside)
+save("bedroll_wear_mask.png", wear)
+save("bedroll_indent_mask.png", (1 - indent) * 255)
+save("bedroll_fiber_height.png", fiber_height)
+split.save(OUT / "bedroll_split_mask.png", optimize=True)
+print(OUT / "bedroll_split_mask.png")

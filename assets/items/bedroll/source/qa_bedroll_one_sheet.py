@@ -15,9 +15,16 @@ for e in mesh.edges:
     a,b=e.vertices[:];parent[find(a)]=find(b)
 components=len({find(i) for i in range(len(parent))})
 assert components==1,components
-out={'vertices':len(mesh.vertices),'faces':len(mesh.polygons),'connected_components':components,'one_mesh_at_all_frames':True,'frames':{}}
+out={'source_mesh':mesh.name,'vertices':len(mesh.vertices),'faces':len(mesh.polygons),'connected_components':components,'one_mesh_at_all_frames':True,'frames':{}}
+top_vertices=[v for v in mesh.vertices if v.co.z>.019]
+def top_at(x,y):
+    return min(top_vertices,key=lambda v:(v.co.x-x)**2+(v.co.y-y)**2).co.z
+dent_depth=top_at(-.30,.361)-top_at(-.1575,.361)
+assert .004<dent_depth<.014,dent_depth
+out['pressure_hollow_depth_mm']=round(dent_depth*1000,2)
 for frame in (1,20,26,36,42,54,58,61,64,70,76):
     scene.frame_set(frame)
+    assert sheet.data is mesh, f'mesh datablock replaced at frame {frame}'
     deps=bpy.context.evaluated_depsgraph_get()
     evaluated=sheet.evaluated_get(deps).to_mesh()
     xyz=[sheet.matrix_world@v.co for v in evaluated.vertices]
@@ -43,7 +50,7 @@ for frame in range(9,65):
     sheet.evaluated_get(deps).to_mesh_clear()
     assert height>=prev_height-.01,(frame,prev_height,height)
     prev_height=height
-for name in ('bedroll_top_color.png','bedroll_bottom_color.png','bedroll_wear_mask.png','bedroll_split_mask.png'):
+for name in ('bedroll_top_color.png','bedroll_bottom_color.png','bedroll_wear_mask.png','bedroll_indent_mask.png','bedroll_fiber_height.png','bedroll_split_mask.png'):
     image=bpy.data.images.get(name)
     assert image is not None and image.packed_file is not None,name
 bands=[bpy.data.objects[f'Removable_Strap_{label}'] for label in ('Left','Right')]
