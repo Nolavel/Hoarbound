@@ -3,13 +3,13 @@ extends Node3D
 
 ## World-owned diegetic carry-load readout. Its texture comes from a transparent
 ## SubViewport; the physical anchor remains on the backpack's deforming handle.
-const SHOW_SECONDS: float = 2.8
+const SHOW_SECONDS: float = 4.2
 const FOLLOW_SPEED: float = 9.0
 const APPEAR_SPEED: float = 9.0
 const LOAD_SPEED: float = 7.0
 const MIN_CAMERA_DISTANCE: float = 0.95
 const CLEARANCE_TOWARD_CAMERA: float = 0.30
-const HEIGHT_ABOVE_HANDLE: float = 0.20
+const HEIGHT_ABOVE_HANDLE: float = 0.07
 const SIDE_OFFSET: float = 0.25
 const NORMAL_COLOR: Color = Color(0.72, 0.71, 0.63, 0.94)
 const HEAVY_COLOR: Color = Color(0.87, 0.68, 0.38, 0.96)
