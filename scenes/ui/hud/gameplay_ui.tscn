@@ -5,6 +5,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/dynamic_cursor/mouse_cursor_ui.tscn" id="3_cursor"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/pickup_marker/pickup_marker_ui.tscn" id="4_marker"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/quick_access/quick_access.tscn" id="5_quick"]
+[ext_resource type="Script" path="res://scripts/ui/hud/player_feedback_ui.gd" id="6_feedback"]
+[ext_resource type="Script" path="res://scripts/ui/hud/player_hub_panel.gd" id="7_hub"]
 
 [node name="GameplayUI" type="Node" groups=["gameplay_ui"]]
 script = ExtResource("1_gameplay")
@@ -19,3 +21,12 @@ layer = 0
 [node name="PickupMarkerUI" parent="GameplayCanvas" instance=ExtResource("4_marker")]
 
 [node name="QuickAccess" parent="GameplayCanvas" instance=ExtResource("5_quick")]
+
+[node name="FeedbackUI" type="CanvasLayer" parent="."]
+layer = 15
+script = ExtResource("6_feedback")
+
+[node name="PlayerHubPanel" type="CanvasLayer" parent="."]
+layer = 20
+visible = false
+script = ExtResource("7_hub")

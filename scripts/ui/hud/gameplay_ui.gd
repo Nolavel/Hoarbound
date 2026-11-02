@@ -28,3 +28,24 @@ func bind_player(player: Player) -> void:
 	quick.thigh_left_anchor = anchors.get_node_or_null(^"ThighLeftAnchor") as Node3D
 	quick.pack_lid_anchor = anchors.get_node_or_null(^"PackLidAnchor") as Node3D
 	quick.hands_anchor = anchors.get_node_or_null(^"HandsAnchor") as Node3D
+	var feedback := get_node(^"FeedbackUI") as PlayerFeedbackUI
+	var held := player.get_node_or_null(^"HeldItemComponent") as HeldItemComponent
+	var wood := player.get_node_or_null(^"WoodWorkComponent") as WoodWorkComponent
+	var rest := player.get_node_or_null(^"RestComponent") as RestComponent
+	var consumption := player.get_node_or_null(^"ConsumptionController") as ConsumptionController
+	if quick.quick_access_component != null:
+		quick.quick_access_component.readout_changed.connect(feedback.show_quick)
+	if held != null:
+		held.hint_changed.connect(feedback.show_held)
+	if wood != null:
+		wood.hint_changed.connect(feedback.show_wood)
+	if rest != null:
+		rest.status_requested.connect(feedback.show_rest)
+	if consumption != null:
+		consumption.water_status_requested.connect(feedback.show_water)
+	var hub := player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
+	var panel := get_node(^"PlayerHubPanel") as PlayerHubPanel
+	if hub != null:
+		panel.hub = hub
+		panel.visible = false
+		hub.bind_panel(panel)
