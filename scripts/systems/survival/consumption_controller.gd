@@ -11,6 +11,7 @@ signal opened(item_id: StringName, replacement_id: StringName)
 signal leftover_discarded(leftover_id: StringName, litter: RigidBody3D)
 ## Emitted when an attempt was turned down, carrying why.
 signal consume_refused(item_id: StringName, reason: Refusal)
+signal water_status_requested(text: String)
 
 ## Why a consume attempt was turned down.
 enum Refusal { NONE, UNKNOWN_ITEM, NOT_CONSUMABLE, NOT_CARRIED, NO_BIO_MONITOR, NO_TOOL, EMPTY_FLASK }
@@ -29,9 +30,6 @@ const LITTER_MASS: float = 0.06
 @export var equipment: EquipmentComponent
 @export var bio_monitor: BioMonitorManager
 @export var thermal_manager: ThermalManager
-
-var _feedback: Label
-var _feedback_left: float = 0.0
 
 
 ## Whether the item could be consumed right now, without consuming it.
@@ -242,26 +240,5 @@ func _has_tool(tool_id: StringName) -> bool:
 
 
 func _show_water_status(flask: ItemResource) -> void:
-	if flask == null or not is_inside_tree():
-		return
-	if not is_instance_valid(_feedback):
-		var layer := CanvasLayer.new()
-		layer.layer = 15
-		add_child(layer)
-		_feedback = Label.new()
-		_feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_feedback.add_theme_font_size_override("font_size", 22)
-		_feedback.add_theme_constant_override("outline_size", 5)
-		layer.add_child(_feedback)
-	_feedback.text = flask.get_status_text()
-	_feedback.visible = true
-	_feedback_left = 4.0
-
-
-func _process(delta: float) -> void:
-	if not is_instance_valid(_feedback):
-		return
-	_feedback_left -= delta
-	_feedback.visible = _feedback_left > 0.0
-	_feedback.position = Vector2((get_viewport().get_visible_rect().size.x - _feedback.size.x) * 0.5,
-		get_viewport().get_visible_rect().size.y * 0.78)
+	if flask != null and is_inside_tree():
+		water_status_requested.emit(flask.get_status_text())

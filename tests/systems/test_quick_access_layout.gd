@@ -36,8 +36,11 @@ func _run() -> void:
 	_camera.fov = 46.0
 	root.add_child(_camera)
 	_camera.make_current()
-	_ui = _player.find_child("QuickAccess", true, false) as QuickAccessUI
-	_check(_ui != null, "player has no QuickAccess UI")
+	var gameplay_ui := (load("res://scenes/ui/hud/gameplay_ui.tscn") as PackedScene).instantiate() as GameplayUI
+	gameplay_ui.bind_player(_player)
+	root.add_child(gameplay_ui)
+	_ui = gameplay_ui.get_node(^"GameplayCanvas/QuickAccess") as QuickAccessUI
+	_check(_ui != null, "gameplay UI has no QuickAccess")
 	if _ui == null:
 		_finish()
 		return

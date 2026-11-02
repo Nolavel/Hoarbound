@@ -1,6 +1,8 @@
 class_name WoodWorkComponent
 extends Node
 
+signal hint_changed(text: String)
+
 ## Ground-checked armful drops and axe work preserve loose wood through the save contract.
 const DROP_ACTION: StringName = &"drop_carried"
 const CHOP_SECONDS: float = 4.0
@@ -20,8 +22,9 @@ var _chopping: ItemPickup
 var _work_left: float = 0.0
 var _action_managed: bool = false
 var _action_id: StringName = &""
-var _hint: Label
 var _message_left: float = 0.0
+var _message_text: String = ""
+var _last_hint_text: String = ""
 
 @onready var _body: CharacterBody3D = get_parent() as CharacterBody3D
 @onready var _carry: CarryComponent = get_parent().get_node(^"CarryComponent") as CarryComponent
@@ -275,23 +278,16 @@ func _restore_piles(piles: Array, generation: int) -> void:
 
 
 func _message(text: String) -> void:
-	_ensure_hint()
-	_hint.text = text
+	_message_text = text
 	_message_left = 3.0
-	_hint.visible = true
+	_publish_hint(text)
 
 
-func _ensure_hint() -> void:
-	if is_instance_valid(_hint):
+func _publish_hint(text: String) -> void:
+	if text == _last_hint_text:
 		return
-	var layer := CanvasLayer.new()
-	layer.layer = 15
-	add_child(layer)
-	_hint = Label.new()
-	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.add_theme_font_size_override("font_size", 20)
-	_hint.add_theme_constant_override("outline_size", 4)
-	layer.add_child(_hint)
+	_last_hint_text = text
+	hint_changed.emit(text)
 
 
 func _process(delta: float) -> void:
@@ -306,13 +302,8 @@ func _process(delta: float) -> void:
 			_work_left -= delta
 			if _work_left <= 0.0:
 				_finish_chop()
-	if _carry.is_carrying():
-		_ensure_hint()
-		if _message_left <= 0.0:
-			_hint.text = tr("WOOD_DROP_HINT") % [_carry.get_carried_count(), tr(_carry.get_carried_item().display_name)]
-		_hint.visible = true
-	if is_instance_valid(_hint):
-		_message_left -= delta
-		_hint.visible = _carry.is_carrying() or _message_left > 0.0
-		var view_size: Vector2 = get_viewport().get_visible_rect().size
-		_hint.position = Vector2((view_size.x - _hint.size.x) * 0.5, view_size.y * 0.73)
+	_message_left = maxf(0.0, _message_left - delta)
+	var text := _message_text if _message_left > 0.0 else ""
+	if text == "" and _carry.is_carrying():
+		text = tr("WOOD_DROP_HINT") % [_carry.get_carried_count(), tr(_carry.get_carried_item().display_name)]
+	_publish_hint(text)

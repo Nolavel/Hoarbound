@@ -1,0 +1,100 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/hud/backpack_load_banner.gd" id="1_script"]
+[ext_resource type="Shader" path="res://assets/materials/Shaders/BG_frame.gdshader" id="2_background"]
+[ext_resource type="Shader" path="res://shaders/ui/backpack_load_fill.gdshader" id="3_fill"]
+
+[sub_resource type="ShaderMaterial" id="BackgroundMaterial"]
+resource_local_to_scene = true
+shader = ExtResource("2_background")
+shader_parameter/base_color = Color(0.055, 0.065, 0.075, 0.88)
+shader_parameter/fade_start = 0.35
+shader_parameter/fade_end = 0.97
+shader_parameter/fade_direction = 4
+shader_parameter/fade_curve = 1.0
+shader_parameter/reveal = 0.0
+shader_parameter/reveal_softness = 0.16
+shader_parameter/corner_radius = 0.08
+
+[sub_resource type="ShaderMaterial" id="FillMaterial"]
+resource_local_to_scene = true
+shader = ExtResource("3_fill")
+shader_parameter/fill_fraction = 0.0
+shader_parameter/fill_color = Color(0.72, 0.71, 0.63, 0.94)
+
+[node name="BackpackLoadBanner" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="BannerViewport" type="SubViewport" parent="."]
+size = Vector2i(512, 112)
+transparent_bg = true
+disable_3d = true
+render_target_update_mode = 4
+
+[node name="Card" type="Control" parent="BannerViewport"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Background" type="ColorRect" parent="BannerViewport/Card"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+material = SubResource("BackgroundMaterial")
+color = Color(1, 1, 1, 1)
+
+[node name="Title" type="Label" parent="BannerViewport/Card"]
+layout_mode = 0
+offset_left = 29.0
+offset_top = 20.0
+offset_right = 221.0
+offset_bottom = 55.0
+theme_override_colors/font_color = Color(0.66, 0.68, 0.67, 0.96)
+theme_override_font_sizes/font_size = 21
+mouse_filter = 2
+
+[node name="Value" type="Label" parent="BannerViewport/Card"]
+layout_mode = 0
+offset_left = 212.0
+offset_top = 16.0
+offset_right = 480.0
+offset_bottom = 58.0
+theme_override_colors/font_color = Color(0.87, 0.87, 0.83, 1)
+theme_override_font_sizes/font_size = 26
+horizontal_alignment = 2
+mouse_filter = 2
+
+[node name="Track" type="ColorRect" parent="BannerViewport/Card"]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 74.0
+offset_right = 480.0
+offset_bottom = 81.0
+mouse_filter = 2
+color = Color(0.30, 0.33, 0.34, 0.37)
+
+[node name="Fill" type="ColorRect" parent="BannerViewport/Card"]
+layout_mode = 0
+offset_left = 30.0
+offset_top = 74.0
+offset_right = 480.0
+offset_bottom = 81.0
+mouse_filter = 2
+material = SubResource("FillMaterial")
+color = Color(1, 1, 1, 1)
+
+[node name="Billboard" type="Sprite3D" parent="."]
+visible = false
+billboard = 1
+pixel_size = 0.00135
+texture_filter = 1
+no_depth_test = false
+shaded = false

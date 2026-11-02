@@ -38,7 +38,10 @@ func _run() -> void:
 	_player.global_position = Vector3(0.0, 1.0, 0.0)
 	_ic = _player.get_node(^"InteractComponent") as InteractComponent
 	_inventory = _player.get_node(^"InventoryComponent") as InventoryComponent
-	_marker = _player.get_node(^"PickupMarkerUI") as PickupMarkerUI
+	var gameplay_ui := (load("res://scenes/ui/hud/gameplay_ui.tscn") as PackedScene).instantiate() as GameplayUI
+	gameplay_ui.bind_player(_player)
+	root.add_child(gameplay_ui)
+	_marker = gameplay_ui.get_node(^"GameplayCanvas/PickupMarkerUI") as PickupMarkerUI
 	_marker.set_process(false)
 	_camera = (load("res://scenes/game/systems/camera/tps_camera.tscn") as PackedScene).instantiate() as TpsCamera
 	_camera.player = _player
