@@ -86,7 +86,10 @@ func _build_world() -> void:
 	_player = (load(PLAYER) as PackedScene).instantiate() as Player
 	root.add_child(_player)
 	_interact = _player.get_node(^"InteractComponent") as InteractComponent
-	_marker = _player.get_node(^"PickupMarkerUI") as PickupMarkerUI
+	var gameplay_ui := (load("res://scenes/ui/hud/gameplay_ui.tscn") as PackedScene).instantiate() as GameplayUI
+	gameplay_ui.bind_player(_player)
+	root.add_child(gameplay_ui)
+	_marker = gameplay_ui.get_node(^"GameplayCanvas/PickupMarkerUI") as PickupMarkerUI
 	_held = _player.get_node(^"HeldItemComponent") as HeldItemComponent
 	_inventory = _player.get_node(^"InventoryComponent") as InventoryComponent
 	_hammer = _player.get_node(^"HammerComponent") as HammerComponent

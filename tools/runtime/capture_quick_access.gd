@@ -56,7 +56,7 @@ func _run() -> void:
 		quit(2)
 		return
 	_visual = _player.animation_component
-	_ui = _player.get_node(^"HenryUALVisual/QuickAccess") as QuickAccessUI
+	_ui = _scene.get_node_or_null(^"GameplayUI/GameplayCanvas/QuickAccess") as QuickAccessUI
 	_hub = _player.get_node(^"PlayerHubComponent") as PlayerHubComponent
 	_inventory = _player.get_node(^"InventoryComponent") as InventoryComponent
 	if _visual == null or _ui == null or _hub == null or _inventory == null:
@@ -224,8 +224,8 @@ func _release_movement_input() -> void:
 
 
 func _suppress_unrelated_hud() -> void:
-	for path: NodePath in [^"MouseCursorUI", ^"PickupMarkerUI", ^"VitalHUD"]:
-		_suppress_canvas_branch(_player.get_node_or_null(path))
+	for path: NodePath in [^"GameplayCanvas/MouseCursorUI", ^"GameplayCanvas/PickupMarkerUI", ^"VitalHUD"]:
+		_suppress_canvas_branch(_scene.get_node_or_null(^"GameplayUI").get_node_or_null(path))
 	var quick := _player.get_node_or_null(^"QuickAccessComponent")
 	if quick != null:
 		var readout: Variant = quick.get("_readout")

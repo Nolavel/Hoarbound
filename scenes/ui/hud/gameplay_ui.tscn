@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/hud/gameplay_ui.gd" id="1_gameplay"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud/vitals/vital_hud.tscn" id="2_vitals"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud/dynamic_cursor/mouse_cursor_ui.tscn" id="3_cursor"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud/pickup_marker/pickup_marker_ui.tscn" id="4_marker"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud/quick_access/quick_access.tscn" id="5_quick"]
+
+[node name="GameplayUI" type="Node" groups=["gameplay_ui"]]
+script = ExtResource("1_gameplay")
+
+[node name="VitalHUD" parent="." instance=ExtResource("2_vitals")]
+
+[node name="GameplayCanvas" type="CanvasLayer" parent="."]
+layer = 0
+
+[node name="MouseCursorUI" parent="GameplayCanvas" instance=ExtResource("3_cursor")]
+
+[node name="PickupMarkerUI" parent="GameplayCanvas" instance=ExtResource("4_marker")]
+
+[node name="QuickAccess" parent="GameplayCanvas" instance=ExtResource("5_quick")]
