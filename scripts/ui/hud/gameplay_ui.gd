@@ -49,3 +49,5 @@ func bind_player(player: Player) -> void:
 		panel.hub = hub
 		panel.visible = false
 		hub.bind_panel(panel)
+	var load_banner := get_node(^"BackpackLoadBanner") as BackpackLoadBanner
+	load_banner.bind_player(player, quick)
