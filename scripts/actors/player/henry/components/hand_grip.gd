@@ -156,12 +156,37 @@ func _close_fingers(rig: Skeleton3D, s: String, w: float) -> void:
 				var pose: Transform3D = rig.get_bone_global_pose(bones[k])
 				pose.basis = Basis(axis, CURL_STEP * [1.0, 1.2, 0.8][k] * w) * pose.basis
 				rig.set_bone_global_pose(bones[k], pose)
+	_close_thumb(rig, s, w, centre, along, across, palm)
 	var rig_to_world: Transform3D = rig.global_transform
 	handle_centre = rig_to_world * centre
 	handle_axis = (rig_to_world.basis * across).normalized()
 	palm_out = (rig_to_world.basis * palm).normalized()
 	hand_along = (rig_to_world.basis * along).normalized()
 	gripped.emit()
+
+
+## The thumb wraps the handle from the other side: it turns across the palm (about the wrist-to-knuckles line),
+## then bends at its joints, until its tip meets the handle.
+func _close_thumb(rig: Skeleton3D, s: String, w: float, centre: Vector3, along: Vector3, across: Vector3, palm: Vector3) -> void:
+	var bones: Array[int] = []
+	for joint: int in range(1, 4):
+		bones.append(rig.find_bone("thumb_0%d_%s" % [joint, s]))
+	if bones.has(-1):
+		return
+	var turn: Vector3 = along * (1.0 if left_hand else -1.0)
+	var bend: Vector3 = across.cross(palm).normalized() * (1.0 if left_hand else -1.0)
+	for _pass: int in CURL_PASSES:
+		var off: Vector3 = _tip(rig, bones[2]) - centre
+		off -= across * off.dot(across)
+		if off.length() <= handle_radius + FINGER_SKIN_M:
+			break
+		var root: Transform3D = rig.get_bone_global_pose(bones[0])
+		root.basis = Basis(turn, CURL_STEP * 0.6 * w) * root.basis
+		rig.set_bone_global_pose(bones[0], root)
+		for k: int in range(1, 3):
+			var pose: Transform3D = rig.get_bone_global_pose(bones[k])
+			pose.basis = Basis(bend, CURL_STEP * 0.5 * w) * pose.basis
+			rig.set_bone_global_pose(bones[k], pose)
 
 
 ## A finger's tip: its last bone's origin pushed on by that bone's length.

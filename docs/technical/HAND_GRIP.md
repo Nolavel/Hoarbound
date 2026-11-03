@@ -37,9 +37,32 @@ The bar runs along the beam. Held in front of the chest pointing forward, the ba
 
 Measured on the stand: wrist bend 45°, roll hand 12°, forearm -14°, upper arm -5°.
 
-## Next items
+## Lighter (present hold)
 
-Lighter (small object in the fist), axe and hammer (handle in the fist, swung) move onto `HandGrip` with their own anchor, axis and radius.
+RMB raises the lighter before the chest on `HandGrip`:
+- The wrist goal sits before the chest on the holding side.
+- Index to pinky runs down the lighter's body, so the thumb is up.
+- The hand continues the forearm from a relaxed elbow.
+- The thumb closes onto the lighter's front, the strike position.
+- The lighter stands in the fist's hollow, base 35 mm below its centre, nozzle above the thumb.
+- It blends from its hanging socket fit as the grip eases in.
+
+Measured on the stand (`capture_searchlight_grip.gd -- <dir> lighter`):
+- With `HandGrip`: wrist bend 8°; roll hand 0°, forearm -18°, upper arm 11°.
+- Old fist: wrist bend 28°, forearm -33°, upper arm 26°, and the lighter sank into a flat hand.
+
+## Thumb
+
+`HandGrip` closes the thumb as well:
+1. It turns across the palm (about the wrist-to-knuckles line).
+2. It bends at its two outer joints.
+3. It stops when its tip meets the handle.
+
+## Not on HandGrip
+
+- **Axe and hammer:** they hang from the animated hand by their socket fit, with no IK.
+- **Door push:** the palm is planted flat on the door (`DoorHandIK`). That is a contact, not a grip.
+- **Stove ritual (`HeatSourceFeed`):** still on `StoveHandReach`. It is measured in `capture_stove.gd`, which prints each hand's wrist bend and roll at every named frame.
 
 ## References
 

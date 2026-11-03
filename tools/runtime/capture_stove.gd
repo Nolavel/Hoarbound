@@ -15,6 +15,7 @@ const VIDEO_EVERY: int = 3
 var _out: String = "user://shots/stove"
 var _world: Node3D
 var _player: Player
+var _arm_angles: String = ""
 var _feed: HeatSourceFeed
 var _source: HeatSource
 var _control: StoveInteractionController
@@ -46,6 +47,7 @@ func _run() -> void:
 		if ctx != null:
 			break
 	_player = ctx.player as Player
+	(_player.get_node(^"HenryUALVisual") as HenryUALAnimation).skeleton.skeleton_updated.connect(_keep_arm_angles)
 	for node: Node in _world.find_children("*", "CanvasLayer", true, false):
 		node.set(&"visible", false)
 	var weather: Node = ctx.get_system(preload("res://scripts/systems/world/WeatherController.gd"))
@@ -268,6 +270,25 @@ func _process(_delta: float) -> bool:
 	return false
 
 
+## Per hand, in the final pose: wrist bend off the forearm and the hand's and forearm's roll against rest (degrees).
+func _keep_arm_angles() -> void:
+	var rig := (_player.get_node(^"HenryUALVisual") as HenryUALAnimation).skeleton
+	var line: String = ""
+	for s: String in ["l", "r"]:
+		var hand: int = rig.find_bone("hand_" + s)
+		var lower: int = rig.find_bone("lowerarm_" + s)
+		var wrist: Vector3 = rig.get_bone_global_pose(hand).origin
+		var fore: Vector3 = (wrist - rig.get_bone_global_pose(lower).origin).normalized()
+		var along: Vector3 = (rig.get_bone_global_pose(rig.find_bone("middle_01_" + s)).origin - wrist).normalized()
+		line += "%s bend %.0f roll hand %.0f forearm %.0f; " % [s, rad_to_deg(fore.angle_to(along)), rad_to_deg(_roll(rig, hand)), rad_to_deg(_roll(rig, lower))]
+	_arm_angles = line
+
+
+func _roll(rig: Skeleton3D, bone: int) -> float:
+	var delta: Quaternion = rig.get_bone_rest(bone).basis.orthonormalized().get_rotation_quaternion().inverse() * rig.get_bone_pose(bone).basis.orthonormalized().get_rotation_quaternion()
+	return wrapf(2.0 * atan2(delta.y, delta.w), -PI, PI)
+
+
 func _shot(name: String) -> void:
 	_save(ProjectSettings.globalize_path(_out).path_join(name + ".png"))
 	print("[stove] shot ", name, " phase=", _control.get_phase(), " logs=", _source.get_loaded_log_count(),
@@ -276,6 +297,7 @@ func _shot(name: String) -> void:
 		if _feed._lighter != null:
 			print("[stove] nozzle-to-visible-tinder=",_feed._lighter.get_flame_tip().distance_to((_source.find_child("StoveVisual",true,false) as StoveVisual).to_global((_source.find_child("StoveVisual",true,false) as StoveVisual).get_tinder_contact())))
 		print("[stove] hand-target error=",_feed._actual_palm.distance_to(_feed._contact_palm)," target=",_source.to_local(_feed._contact_palm)," hand=",_source.to_local(_feed._actual_palm))
+	print("[stove] arms ", _arm_angles)
 	var camera := root.get_camera_3d() as TpsCamera
 	if camera != null:
 		print("[stove] camera in stove space ", _source.to_local(camera.global_position), " henry ",

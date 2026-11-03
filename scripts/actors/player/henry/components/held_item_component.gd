@@ -11,8 +11,10 @@ const PRESENT_ACTION: StringName = &"present_held"
 const LIGHTER_FLAME_MAX_SECONDS: float = 10.0
 ## Arm rise before the wheel is struck.
 const LIGHTER_RAISE_SECONDS: float = 0.3
-## Lighter base under the solved palm, so the nozzle stands just above the fist.
+## Lighter base under the fist's hollow, so the nozzle stands just above the fist.
 const LIGHTER_BASE_BELOW_PALM: float = 0.035
+## The lighter body's half thickness: the fingers close onto it, metres.
+const LIGHTER_HANDLE_RADIUS: float = 0.011
 const LIGHTER_STRIKE_EVENT: SoundEvent = preload("res://resources/audio/lighter_strike.tres")
 ## The searchlight's carry bar radius (the fist closes on it), metres.
 const SEARCHLIGHT_HANDLE_RADIUS: float = 0.012
@@ -324,41 +326,46 @@ func _advance_present(delta: float) -> void:
 			sound.call(&"play", LIGHTER_STRIKE_EVENT, flame.global_position)
 
 
-## Fist a forearm before the chest on the holding side, knuckles forward, thumb up.
-## The outward palm frame keeps the hanging wrist roll, so the hand never twists over.
+## Fist a forearm before the chest on the holding side, thumb up: HandGrip holds the lighter's body upright in
+## the fist (index to pinky down its length), the wrist continuing the forearm.
 func _aim_present(visual: HenryUALAnimation) -> void:
-	var reach: StoveHandReach = visual.get_present_reach()
 	var rig: Skeleton3D = visual.skeleton
 	var left: bool = visual.get_held_prop() == _prop
+	var grip: HandGrip = visual.get_hand_grip(left)
 	var chest_bone: int = rig.find_bone(&"spine_03")
 	var shoulder_bone: int = rig.find_bone(&"upperarm_l" if left else &"upperarm_r")
-	if reach == null or chest_bone < 0 or shoulder_bone < 0:
+	if grip == null or chest_bone < 0 or shoulder_bone < 0:
 		return
-	reach.use_left_hand(left)
-	if not reach.hand_solved.is_connected(_on_present_hand_solved):
-		reach.hand_solved.connect(_on_present_hand_solved)
+	if not grip.gripped.is_connected(_on_present_gripped):
+		grip.gripped.connect(_on_present_gripped.bind(grip))
+	grip.handle_radius = LIGHTER_HANDLE_RADIUS
 	var chest: Vector3 = rig.to_global(rig.get_bone_global_pose(chest_bone).origin)
-	var side: Vector3 = rig.to_global(rig.get_bone_global_pose(shoulder_bone).origin) - chest
+	var shoulder: Vector3 = rig.to_global(rig.get_bone_global_pose(shoulder_bone).origin)
+	var side: Vector3 = shoulder - chest
 	side.y = 0.0
 	var forward: Vector3 = visual.global_basis.z
 	forward.y = 0.0
 	if side.length_squared() < 1e-6 or forward.length_squared() < 1e-6:
 		return
 	forward = forward.normalized()
-	reach.palm_into_world = side.normalized()
-	reach.aim(chest + forward * 0.32 + side * 0.4 - Vector3.UP * 0.1, forward, 1.0)
+	var out: Vector3 = side.normalized()
+	var wrist: Vector3 = chest + forward * 0.24 + side * 0.4 - Vector3.UP * 0.1
+	## The hand continues the forearm from a relaxed elbow (below and out from the shoulder), square to the lighter.
+	var line: Vector3 = wrist - (shoulder + Vector3.DOWN * 0.25 + out * 0.1)
+	var along: Vector3 = Vector3(line.x, 0.0, line.z).normalized()
+	grip.hold(wrist, along, Vector3.DOWN, shoulder + Vector3.DOWN * 0.3 + out * 0.3 - forward * 0.2, 1.0)
 
 
-## The held fit is authored for the hanging arm; raised, the lighter stands upright in the fist.
-## Both poses are blended in the hand's frame between fixed ends, so rising and lowering never flip.
-func _on_present_hand_solved(palm: Vector3) -> void:
+## The held fit is authored for the hanging arm; raised, the lighter stands upright in the fist's hollow (its
+## base below, nozzle above the thumb). Both are blended in the hand's frame as the grip eases in and out.
+func _on_present_gripped(grip: HandGrip) -> void:
 	if _lighter_flame() == null or not (_presenting or _prop.top_level):
 		return
-	var reach: StoveHandReach = _animation().get_present_reach()
 	var hand: Transform3D = _hand_transform()
-	var upright := Transform3D(Basis.looking_at(reach.fingers_world, Vector3.UP),
-		palm - reach.palm_into_world * 0.015 - Vector3.UP * LIGHTER_BASE_BELOW_PALM)
-	var weight: float = reach.get_weight()
+	var y: Vector3 = -grip.handle_axis
+	var z: Vector3 = (-grip.hand_along - y * (-grip.hand_along).dot(y)).normalized()
+	var upright := Transform3D(Basis(y.cross(z), y, z), grip.handle_centre - y * LIGHTER_BASE_BELOW_PALM)
+	var weight: float = grip.get_weight()
 	if weight >= 0.99 or not _has_present_local:
 		_present_local = hand.affine_inverse() * upright
 		_has_present_local = true
@@ -388,7 +395,7 @@ func _fit_local() -> Transform3D:
 ## Once the lowering arm is back on the animation, the prop rejoins its socket fit.
 func _settle_present() -> void:
 	var visual: HenryUALAnimation = _animation()
-	if visual != null and visual.skeleton != null and visual.get_present_reach().get_weight() > 0.001:
+	if visual != null and visual.skeleton != null and visual.get_hand_grip(visual.get_held_prop() == _prop).get_weight() > 0.001:
 		return
 	_restore_fit()
 
@@ -409,9 +416,9 @@ func _stop_present() -> void:
 	if flame != null:
 		flame.set_lit(false)
 	var visual: HenryUALAnimation = _animation()
-	if visual != null and visual.skeleton != null:
-		visual.get_present_reach().release()
-		visual.get_present_reach().grip_weight = 0.0
+	if visual != null and visual.skeleton != null and not _prop is HeldSearchlight:
+		for left: bool in [false, true]:
+			visual.get_hand_grip(left).release()
 
 
 func _lighter_flame() -> LighterFlame:
