@@ -52,6 +52,11 @@ var _previous_mouse_mode: int = Input.MOUSE_MODE_CAPTURED
 var _thermal_manager: ThermalManager
 
 
+## A UI composition root owns the presentation panel, not Henry.
+func bind_panel(panel: PlayerHubPanel) -> void:
+	_panel = panel
+
+
 func _ready() -> void:
 	var body: Node = get_parent()
 	if inventory == null:
@@ -155,8 +160,7 @@ func close() -> bool:
 		pack.set_openness(PackRig.Openness.AJAR if down else PackRig.Openness.CLOSED)
 	_exit_camera()
 	if is_instance_valid(_panel):
-		_panel.queue_free()
-	_panel = null
+		_panel.hide_hub()
 	Input.mouse_mode = _previous_mouse_mode
 	hub_closed.emit()
 	return true
@@ -491,9 +495,8 @@ func _exit_camera() -> void:
 func _show_panel() -> void:
 	if not is_inside_tree():
 		return
-	_panel = PlayerHubPanel.new()
-	_panel.hub = self
-	add_child(_panel)
+	if is_instance_valid(_panel):
+		_panel.show_hub()
 
 
 ## Whether a worn pocket is reached without opening anything (see EquipmentSlotDefinition).

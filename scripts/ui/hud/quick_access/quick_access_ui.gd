@@ -279,6 +279,8 @@ func _process(delta: float) -> void:
 
 
 func _resolve_component() -> void:
+	if quick_access_component != null:
+		return
 	var node: Node = get_parent()
 	while node != null:
 		var found := node.get_node_or_null(^"QuickAccessComponent") as QuickAccessComponent

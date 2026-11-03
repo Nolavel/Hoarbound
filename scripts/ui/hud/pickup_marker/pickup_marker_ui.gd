@@ -50,6 +50,8 @@ const CROSS_HALF_PX: float = 5.0
 ## Opacity of the faint dots.
 @export var hint_alpha: float = 0.35
 
+@export var interact_component: InteractComponent
+
 var _interact: InteractComponent
 var _target: InteractiveArea = null
 var _anchor: Vector3 = Vector3.ZERO
@@ -75,9 +77,11 @@ var _key_style: StyleBoxFlat
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var player: Node = get_parent()
-	if player != null:
-		_interact = player.get_node_or_null(^"InteractComponent") as InteractComponent
+	_interact = interact_component
+	if _interact == null:
+		var player: Node = get_parent()
+		if player != null:
+			_interact = player.get_node_or_null(^"InteractComponent") as InteractComponent
 	if _interact != null:
 		_interact.interaction_performed.connect(_on_interaction_performed)
 		_interact.pickup_gesture_finished.connect(_on_gesture_finished)

@@ -65,6 +65,30 @@ func _init() -> void:
 	mesh = _mesh
 
 
+## Reparenting and unloading a character must not leave a redraw callback on
+## a skeleton whose global transform can no longer be read.
+func _enter_tree() -> void:
+	_sync_skeleton_updates(true)
+
+
+func _exit_tree() -> void:
+	_sync_skeleton_updates(false)
+
+
+func _sync_skeleton_updates(connect_updates: bool) -> void:
+	if not is_instance_valid(_skeleton):
+		return
+	var subscribed: bool = _skeleton.skeleton_updated.is_connected(_redraw)
+	if connect_updates and not subscribed:
+		_skeleton.skeleton_updated.connect(_redraw)
+	elif not connect_updates and subscribed:
+		_skeleton.skeleton_updated.disconnect(_redraw)
+
+
+func _can_skin() -> bool:
+	return is_inside_tree() and is_instance_valid(_skeleton) and _skeleton.is_inside_tree()
+
+
 ## Ties the straps to Henry's skeleton, jacket and pack. Drawn when the skeleton's final pose is
 ## ready (after every modifier), the same pose the jacket is skinned with.
 func setup(skeleton: Skeleton3D, pack: PackRig) -> void:
@@ -113,7 +137,8 @@ func setup(skeleton: Skeleton3D, pack: PackRig) -> void:
 			out.append(float(row[4]))
 			(_rows[side] as Array).append(out)
 	_press_cloth(data["press"], surfaces)
-	skeleton.skeleton_updated.connect(_redraw)
+	if is_inside_tree():
+		_sync_skeleton_updates(true)
 
 
 ## Writes how far each cloth point under a strap is pressed in (measured over Henry's poses) into a copy
@@ -161,6 +186,10 @@ func _process(delta: float) -> void:
 
 
 func _redraw() -> void:
+	# Skeleton3D can still issue a queued skeleton_updated during scene teardown.
+	# Never query global transforms of detached/invalid nodes.
+	if not _can_skin():
+		return
 	global_transform = Transform3D.IDENTITY
 	_mesh.clear_surfaces()
 	var shown: bool = _pack != null and _pack.get_canvas() != null and _pack.is_visible_in_tree()
@@ -221,6 +250,8 @@ func _bind(index: int) -> Transform3D:
 
 ## Worn rows this frame: [left, centre, right, outward normal, thickness] in world space.
 func worn_rows(side: int) -> Array:
+	if not _can_skin():
+		return []
 	var rows: Array = []
 	var basis: Basis = _skeleton.global_basis
 	for row: Array in _rows[side]:

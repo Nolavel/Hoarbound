@@ -67,7 +67,8 @@ func _run() -> void:
 	if OS.get_cmdline_user_args().has("quick"):
 		for layer: Node in root.find_children("*", "CanvasLayer", true, false):
 			(layer as CanvasLayer).visible = true
-		var ui := _player.find_child("QuickAccess", true, false) as QuickAccessUI
+		var gameplay_ui := get_first_node_in_group(&"gameplay_ui")
+		var ui := gameplay_ui.get_node_or_null(^"GameplayCanvas/QuickAccess") as QuickAccessUI if gameplay_ui != null else null
 		var facing: Vector3 = -_player.global_basis.z
 		facing.y = 0.0
 		facing = facing.normalized()

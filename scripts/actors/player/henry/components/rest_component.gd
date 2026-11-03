@@ -7,6 +7,7 @@ extends Node
 
 signal sat_down(spot: Node3D)
 signal stood_up
+signal status_requested(text: String, duration: float)
 
 ## Seconds the reason a wait ended early stays up.
 const RESULT_SECONDS: float = 3.0
@@ -18,7 +19,6 @@ const PACK_SPOT: Vector3 = Vector3(-0.62, 0.0, 0.05)
 const KENNY_SPOT: Vector3 = Vector3(0.62, 0.0, 0.05)
 
 var _spot: Node3D
-var _status_label: Label
 var _table: MealTable
 
 
@@ -138,21 +138,5 @@ func _visual() -> HenryUALAnimation:
 ## A short result message is still allowed here; the persistent control grammar
 ## is owned by KeyHintsPanel so seated controls are not duplicated.
 func _show_status(key: String) -> void:
-	if not is_inside_tree():
-		return
-	if _status_label == null:
-		var layer := CanvasLayer.new()
-		layer.layer = 15
-		add_child(layer)
-		_status_label = Label.new()
-		_status_label.anchor_left = 0.5
-		_status_label.anchor_right = 0.5
-		_status_label.anchor_top = 0.88
-		_status_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		layer.add_child(_status_label)
-	_status_label.text = tr(key)
-	_status_label.visible = true
-	get_tree().create_timer(RESULT_SECONDS).timeout.connect(func() -> void:
-		if is_instance_valid(_status_label):
-			_status_label.visible = false)
+	if is_inside_tree():
+		status_requested.emit(tr(key), RESULT_SECONDS)

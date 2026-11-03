@@ -1,6 +1,8 @@
 class_name HeldItemComponent
 extends Node
 
+signal hint_changed(text: String)
+
 ## Presents an owned pack/pocket item in the hand; storage remains its save authority.
 
 ## Held RMB: raise the held lighter before the chest and keep its flame lit.
@@ -21,7 +23,6 @@ var _prop: Node3D
 var _item_id: StringName = &""
 var _source_zone: StringName = &""
 var _using: bool = false
-var _hint: Label
 var _message_left: float = 0.0
 var _presenting: bool = false
 var _present_seconds: float = 0.0
@@ -182,8 +183,7 @@ func put_away() -> bool:
 	_clear_prop()
 	_item_id = &""
 	_source_zone = &""
-	if is_instance_valid(_hint):
-		_hint.visible = false
+	hint_changed.emit("")
 	return true
 
 
@@ -248,16 +248,6 @@ func _sync_owned() -> void:
 
 
 func _show_hint(message: String = "") -> void:
-	if not is_instance_valid(_hint):
-		var layer := CanvasLayer.new()
-		layer.layer = 15
-		add_child(layer)
-		_hint = Label.new()
-		_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_hint.autowrap_mode = TextServer.AUTOWRAP_WORD
-		_hint.add_theme_font_size_override("font_size", 20)
-		_hint.add_theme_constant_override("outline_size", 4)
-		layer.add_child(_hint)
 	var item: ItemResource = ItemCatalog.get_item(_item_id)
 	var action: String = tr("HAND_TOOL_HINT")
 	if item.water_capacity_ml > 0:
@@ -280,11 +270,11 @@ func _show_hint(message: String = "") -> void:
 		action = tr("SEARCHLIGHT_HELD_HINT")
 	elif _item_id == &"lighter":
 		action = "RMB · " + tr("LIGHTER_FLAME_ACTION")
-	_hint.text = "%s\n%s" % [tr(item.display_name), message if message != "" else action]
+	var text := "%s\n%s" % [tr(item.display_name), message if message != "" else action]
 	if item.water_capacity_ml > 0:
-		_hint.text += "\n" + item.get_status_text()
+		text += "\n" + item.get_status_text()
 	_message_left = 3.0 if message != "" else 0.0
-	_hint.visible = true
+	hint_changed.emit(text)
 
 
 func _process(delta: float) -> void:
@@ -294,11 +284,8 @@ func _process(delta: float) -> void:
 		_advance_present(delta)
 	elif is_holding() and _prop.top_level:
 		_settle_present()
-	if not is_holding() or not is_instance_valid(_hint):
+	if not is_holding():
 		return
-	var view_size: Vector2 = get_viewport().get_visible_rect().size
-	_hint.size.x = minf(640.0, view_size.x - 32.0)
-	_hint.position = Vector2((view_size.x - _hint.size.x) * 0.5, view_size.y * 0.84)
 	if _message_left > 0.0:
 		_message_left -= delta
 		if _message_left <= 0.0:

@@ -29,6 +29,7 @@ const MANUAL_PACK: StringName = &"@pack"
 var _manual_source: StringName = &""
 var _manual_item: StringName = &""
 var _manual_ghost: Label
+var _placement_strip: VBoxContainer
 var _inspect_button: Button
 var _mode: Label
 
@@ -39,6 +40,27 @@ func _ready() -> void:
 	hub.contents_changed.connect(_refresh)
 	set_inspecting(hub.is_inspecting())
 	_refresh()
+
+
+## Persistent presentation owned by GameplayUI.
+func show_hub() -> void:
+	visible = true
+	set_inspecting(hub.is_inspecting())
+	_refresh()
+
+
+func hide_hub() -> void:
+	visible = false
+	_placing = &""
+	_dragging = false
+	if is_instance_valid(_placement_strip):
+		_placement_strip.queue_free()
+	_placement_strip = null
+	if is_instance_valid(_ghost):
+		_ghost.queue_free()
+	_ghost = null
+	_targets.clear()
+	_clear_manual_drag()
 
 
 func _build() -> void:
@@ -88,6 +110,7 @@ func begin_placement(item_id: StringName) -> void:
 	_placing = item_id
 	var item: ItemResource = ItemCatalog.get_item(item_id)
 	var strip := VBoxContainer.new()
+	_placement_strip = strip
 	strip.anchor_left = 0.03
 	strip.anchor_top = 0.2
 	strip.offset_right = 300.0
@@ -134,6 +157,8 @@ func drop_on(path: StringName) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if not visible:
+		return
 	if _placing != &"":
 		var button := event as InputEventMouseButton
 		if button != null and button.button_index == MOUSE_BUTTON_LEFT:

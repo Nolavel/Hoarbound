@@ -35,6 +35,7 @@ const WORLD_UI_SCENES: Array[PackedScene] = [
 	preload("res://scenes/ui/menu/pause_menu.tscn"),
 ]
 
+const GAMEPLAY_UI_SCENE: PackedScene = preload("res://scenes/ui/hud/gameplay_ui.tscn")
 const UI_CANVAS_LAYER_INDEX: int = 40
 const SPAWN_CLEARANCE: float = 1.0
 const DEV_STREET_SPAWNS_PATH: String = "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -235,6 +236,12 @@ func _build_3d_entities() -> void:
 
 
 func _build_ui() -> void:
+	# Screen-space gameplay UI belongs to the world, never to Henry or his visual rig.
+	if player is Player:
+		var gameplay_ui := GAMEPLAY_UI_SCENE.instantiate() as GameplayUI
+		gameplay_ui.bind_player(player as Player)
+		add_child(gameplay_ui)
+		_notify(gameplay_ui)
 	if WORLD_UI_SCENES.is_empty():
 		return
 	var canvas := CanvasLayer.new()
