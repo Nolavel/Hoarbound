@@ -706,26 +706,27 @@ jobs:
       - name: Import gate
         run: tools/ci/import_gate.sh
 
-      - name: Capture actual wall-run (960x540, 30 fps, 8 seconds)
+      - name: Capture first-person wall-run over real 11m gap (30fps)
         run: |
           set -euo pipefail
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export XDG_RUNTIME_DIR=/tmp/xdg
           mkdir -p "$XDG_RUNTIME_DIR" docs/runtime_previews/wallrun_demo
           timeout 900 xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . --resolution 960x540 --fixed-fps 30 \
+            --path . --resolution 1920x1080 --fixed-fps 30 \
             --rendering-driver vulkan --rendering-method forward_plus \
             --audio-driver Dummy \
             --script res://tools/runtime/capture_wallrun_demo.gd \
             -- res://docs/runtime_previews/wallrun_demo \
             2>&1 | tee docs/runtime_previews/wallrun_demo/capture.log
-          test "$(find docs/runtime_previews/wallrun_demo/frames -maxdepth 1 -name 'f_*.png' | wc -l)" -eq 240
+          test "$(find docs/runtime_previews/wallrun_demo/frames -maxdepth 1 -name 'f_*.png' | wc -l)" -eq 180
           ffmpeg -hide_banner -loglevel error -y -framerate 30 \
             -i docs/runtime_previews/wallrun_demo/frames/f_%03d.png \
             -c:v libx264 -preset veryfast -crf 21 -pix_fmt yuv420p \
             -movflags +faststart docs/runtime_previews/wallrun_demo/short_wallrun_demo.mp4
-          cp docs/runtime_previews/wallrun_demo/frames/f_040.png docs/runtime_previews/wallrun_demo/left_wall_run.png
-          cp docs/runtime_previews/wallrun_demo/frames/f_155.png docs/runtime_previews/wallrun_demo/right_wall_run.png
+          cp docs/runtime_previews/wallrun_demo/frames/f_045.png docs/runtime_previews/wallrun_demo/near_edge.png
+          cp docs/runtime_previews/wallrun_demo/frames/f_065.png docs/runtime_previews/wallrun_demo/over_gap.png
+          cp docs/runtime_previews/wallrun_demo/frames/f_095.png docs/runtime_previews/wallrun_demo/far_side.png
           test -s docs/runtime_previews/wallrun_demo/short_wallrun_demo.mp4
 
       - name: Upload short wall-run video, two stills, evidence
