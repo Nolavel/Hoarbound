@@ -658,6 +658,17 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- The sweater no longer shows through the jacket (owner: through the back and at the collar). There is
+  no cloth physics, so the hidden parts of the inner layer are not drawn at all. This is the same
+  layered-clothing technique that already hides the skin under the clothes.
+  - **Hidden by rays:** sweater and turtleneck faces whose points the jacket covers are removed
+    (`cull_covered`, 1007 + 383 faces). A point counts as covered when most of a fan of five rays along
+    its normal, either way, meets the jacket within 8 cm, so a narrow seam gap does not count.
+  - **Back half:** the sweater's back half goes too. The jacket has a real gap at the yoke seam, and the
+    sweater's body is only meant to show at the open front.
+  - **What stays:** the open front, the turtleneck above the jacket's collar and the edges tucked under
+    the jacket. Checked front, side, back and walking.
+
 - Henry's knee no longer snaps backwards for a frame when he walks in snow. `LegTwoBoneIK` now bends the
   knee in the leg's own hinge plane. Before, it bent towards whichever side of the new hip-to-target line
   the old knee lay. A big snow lift put the knee behind that line, so the solve folded it back. Traced on

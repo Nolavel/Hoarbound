@@ -882,3 +882,45 @@ def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_rad
 	for p in me.polygons:
 		p.use_smooth = True
 	return obj
+
+
+def cull_covered(obj, cover, reach):
+	"""Drops the faces of an inner layer that `cover` hides entirely: a vertex is covered when most of a
+	fan of rays along its normal, either way, meet `cover` within `reach` (so both faces of a thickened
+	layer count). A layer that is not there cannot poke through the one over it; what shows (an opening, a
+	collar above) stays, its edge tucked under the cover's."""
+	import bmesh
+	from mathutils.bvhtree import BVHTree
+	cm = bmesh.new()
+	cm.from_mesh(cover.data)
+	cm.transform(cover.matrix_world)
+	tree = BVHTree.FromBMesh(cm)
+	cm.free()
+	world = obj.matrix_world
+	normal_world = world.to_3x3().inverted().transposed()
+	## A fan of five rays each way (along the normal and tilted ~20 degrees round it): covered when most
+	## meet the cover, so a narrow seam gap in it does not count as showing the layer.
+	covered = set()
+	for v in obj.data.vertices:
+		p = world @ v.co
+		n = (normal_world @ v.normal).normalized()
+		t = n.orthogonal().normalized()
+		b = n.cross(t)
+		for sign in (1.0, -1.0):
+			hits = 0
+			for d in (n, n + t * 0.36, n - t * 0.36, n + b * 0.36, n - b * 0.36):
+				d = d.normalized() * sign
+				if tree.ray_cast(p + d * 0.001, d, reach)[0] is not None:
+					hits += 1
+			if hits >= 3:
+				covered.add(v.index)
+				break
+	bm = bmesh.new()
+	bm.from_mesh(obj.data)
+	bm.verts.ensure_lookup_table()
+	gone = [f for f in bm.faces if all(v.index in covered for v in f.verts)]
+	bmesh.ops.delete(bm, geom=gone, context="FACES")
+	bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+	bm.to_mesh(obj.data)
+	bm.free()
+	return len(gone)
