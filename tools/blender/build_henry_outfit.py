@@ -130,6 +130,10 @@ HAT_BELOW_HAIRLINE = 0.02
 ## Where the ears' zone starts out from the middle, and the room under the ear lobes kept for the head's
 ## tilt in play (it lowers them about 1.5 cm), metres.
 EAR_ZONE_X = 0.055
+## How far out a sweater point may lie under the jacket and still count as hidden by it, metres.
+SWEATER_COVER_REACH = 0.08
+## Behind this depth (Blender +Y is Henry's back) the sweater's body is never seen, metres.
+SWEATER_BACK_FROM = 0.0
 ## Half-length (front to back) of the stretch of collar turned down beside each ear, metres.
 EAR_ZONE_Y = 0.08
 EAR_TILT_ROOM = 0.017
@@ -714,6 +718,24 @@ def owner_head(arm, body):
 				v.co.z -= (p.z - limit) * side
 		jacket.data.update()
 	print("owner_head: ear lobes at %.3f, collars kept under %.3f" % (lobe, lobe - EAR_TILT_ROOM))
+	## Under the jacket the sweater and the turtleneck are not drawn at all, so they never poke through
+	## it; their open-front, collar and cuff edges stay, tucked under the jacket's.
+	if jacket is not None:
+		for name in ("Outfit_Sweater", "Outfit_Collar"):
+			layer = bpy.data.objects.get(name)
+			if layer is not None:
+				print("owner_head: %s faces hidden under the jacket %d" % (name, G.cull_covered(layer, jacket, SWEATER_COVER_REACH)))
+		## The sweater's body shows only at the jacket's open front: its back half goes too (the jacket
+		## has a gap at the yoke seam it would show through).
+		sweater = bpy.data.objects.get("Outfit_Sweater")
+		if sweater is not None:
+			bm = bmesh.new()
+			bm.from_mesh(sweater.data)
+			back = [f for f in bm.faces if all((sweater.matrix_world @ v.co).y > SWEATER_BACK_FROM for v in f.verts)]
+			bmesh.ops.delete(bm, geom=back, context="FACES")
+			bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+			bm.to_mesh(sweater.data)
+			bm.free()
 	## The mannequin's own head and neck go: the new head and the turtleneck cover them.
 	bm = bmesh.new()
 	bm.from_mesh(body.data)
