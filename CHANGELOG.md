@@ -17,6 +17,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     `neck_01` down the neck. The mannequin's head and neck are removed.
   - **Turtleneck** top now dips 11.5 cm towards the front, so it sits under the chin and still rises
     past the jacket collar at the back.
+  - **Knit hat fit, second pass** (owner: "too high", then "the cuff grips oddly"):
+    - The front cuff now sits 2 cm under the hairline, which the build finds on the face's front profile.
+    - The cuff is fitted round the head at its own height and keeps its knit band.
+    - Only the crown and pom come down onto the head (×0.84), with 1.5 cm of slack.
+    - Hair under the hat is pressed by rays from the middle of the head to the hat's inside, so no tuft
+      pokes through the crown.
+    - The jacket's collar and the turtleneck stand 4 mm clear of the head, so his ears no longer cut
+      through them.
   - **Knit hat fit:** the build measures the head (`fit_hat`) and writes the fit to
     `assets/characters/henry/knit_hat/hat_fit.json`, which the game applies. The hat is lifted 3 cm,
     centred on the head (it sat 2 cm too far back) and scaled ×1.048 round its axis, so its inside

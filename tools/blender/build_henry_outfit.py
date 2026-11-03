@@ -121,11 +121,17 @@ HEAD_FACES = 6000
 HEAD_CHIN_Z = -0.25
 HEAD_SKULL_Z = 0.40
 HEAD_CENTRE_Y = 0.01
-## The knit hat fitted onto the head: its source, the fit written for the game, its lift (metres),
-## the air kept inside it off the scalp, and how far above its brim hair is pressed under it.
+## The knit hat fitted onto the head: its source, the fit written for the game, how far its front cuff
+## sits under the hairline, the fringe's jut that marks the hairline, the crown's knit thickness and slack, the
+## air kept inside it off the scalp, and how far above its brim hair is pressed under it (metres).
 HAT_SOURCE = "assets/characters/henry/knit_hat/knit_hat.glb"
 HAT_FIT = "assets/characters/henry/knit_hat/hat_fit.json"
-KNIT_HAT_LIFT = 0.03
+HAT_BELOW_HAIRLINE = 0.02
+## Air the jacket's collar and the turtleneck keep off the head (his ears), metres.
+EAR_CLEARANCE = 0.004
+HAT_FRINGE_STEP = 0.012
+HAT_CROWN_THICK = 0.006
+HAT_CROWN_SLACK = 0.015
 HAT_GAP = 0.003
 HAT_BRIM_KEEP = 0.004
 ## The new head's neck ends this far above the neck bone, inside the turtleneck, metres.
@@ -686,6 +692,11 @@ def owner_head(arm, body):
 		poly.use_smooth = True
 	fit_hat(head)
 	G.bind(head, arm)
+	## The jacket's collar and the turtleneck stand clear of his big ears.
+	for name in ("Outfit_Jacket", "Outfit_Collar"):
+		layer = bpy.data.objects.get(name)
+		if layer is not None:
+			G.fit_outside(layer, head, EAR_CLEARANCE, above=chin_z + 0.03)
 	## The mannequin's own head and neck go: the new head and the turtleneck cover them.
 	bm = bmesh.new()
 	bm.from_mesh(body.data)
@@ -699,64 +710,96 @@ def owner_head(arm, body):
 
 
 def fit_hat(head):
-	"""Seats the knit hat (assets/characters/henry/knit_hat) snugly on Henry's head: centred on the
-	head across the hat's band, scaled round its axis so its inside rests HAT_GAP off the scalp (the
-	head's 70th-percentile radius per angle, so tufts do not count), lifted KNIT_HAT_LIFT; the fit is
-	written to HAT_FIT for the game. Hair still outside the fitted hat above its brim is pressed in."""
+	"""Seats the knit hat (assets/characters/henry/knit_hat) on Henry's head as a beanie is worn: its
+	front cuff HAT_BELOW_HAIRLINE under the hairline (found on the face's front profile, where the
+	fringe juts out), centred on the head, scaled round its axis so its inside rests HAT_GAP off the
+	scalp (70th-percentile radius per angle, so tufts do not count) and squashed down so its crown
+	rests HAT_GAP over the head's top. The fit is written to HAT_FIT for the game; hair still outside
+	the fitted hat above its brim is pressed in under it."""
 	import json as _json
 	import math
 	before = set(bpy.data.objects)
 	bpy.ops.import_scene.gltf(filepath=HAT_SOURCE)
 	parts = [o for o in set(bpy.data.objects) - before if o.type == "MESH" and o.name != "KnitHat_Pom"]
-	hat = [o.matrix_world @ v.co + Vector((0.0, 0.0, KNIT_HAT_LIFT)) for o in parts for v in o.data.vertices]
+	hat = [o.matrix_world @ v.co for o in parts for v in o.data.vertices]
+	cuff = [o.matrix_world @ v.co for o in parts if "Cuff" in o.name for v in o.data.vertices]
+	hat_tris = []
+	for o in parts:
+		mesh = o.data
+		mesh.calc_loop_triangles()
+		hat_tris += [([o.matrix_world @ mesh.vertices[i].co for i in t.vertices], "Cuff" in o.name) for t in mesh.loop_triangles]
 	for o in set(bpy.data.objects) - before:
 		bpy.data.objects.remove(o)
 	brim = min(p.z for p in hat)
 	top = max(p.z for p in hat)
 	hcx = sum(p.x for p in hat) / len(hat)
 	hcy = sum(p.y for p in hat) / len(hat)
+	front_brim = min(p.z for p in hat if p.y < hcy - 0.06)
 	verts = head.data.vertices
-	band = [v.co for v in verts if brim + 0.02 < v.co.z < top - 0.04]
+	## The hairline: going up the middle of the face, the first slice whose front juts forward by a
+	## fringe's thickness over the forehead below it.
+	pts = [v.co for v in verts]
+	profile = []
+	z = min(p.z for p in pts) + 0.12
+	while z < max(p.z for p in pts):
+		row = [p.y for p in pts if abs(p.z - z) < 0.005 and abs(p.x) < 0.03]
+		if row:
+			profile.append((z, min(row)))
+		z += 0.01
+	hairline = next((profile[i][0] for i in range(1, len(profile)) if profile[i][1] < profile[i - 1][1] - HAT_FRINGE_STEP
+		and profile[i][0] > profile[0][0] + 0.06), front_brim)
+	lift = hairline - HAT_BELOW_HAIRLINE - front_brim
+	brim += lift
+	cuff_top = max(p.z for p in cuff) + lift
+	band = [v.co for v in verts if brim + 0.01 < v.co.z < cuff_top]
 	cx = sum(p.x for p in band) / len(band)
 	cy = sum(p.y for p in band) / len(band)
-	## Per angle: the hat's inside radius and the scalp's, over the band; the ratio fits the hat.
 	ratios = []
 	for k in range(16):
 		a = 2.0 * math.pi * k / 16
 
-		def near(p, ox, oy):
+		def near(p, ox, oy, lo, hi):
 			d = (math.atan2(p.y - oy, p.x - ox) - a + math.pi) % (2.0 * math.pi) - math.pi
-			return abs(d) < math.pi / 16 and brim + 0.02 < p.z < top - 0.04
-		hr = [math.hypot(p.x - hcx, p.y - hcy) for p in hat if near(p, hcx, hcy)]
-		dr = sorted(math.hypot(p.x - cx, p.y - cy) for p in band if near(p, cx, cy))
+			return abs(d) < math.pi / 16 and lo < p.z < hi
+		hr = [math.hypot(p.x - hcx, p.y - hcy) for p in cuff if near(p, hcx, hcy, brim - lift + 0.01, cuff_top - lift)]
+		dr = sorted(math.hypot(p.x - cx, p.y - cy) for p in band if near(p, cx, cy, brim + 0.01, cuff_top))
 		if hr and dr:
 			ratios.append((dr[int(len(dr) * 0.7)] + HAT_GAP) / min(hr))
 	scale = sorted(ratios)[len(ratios) // 2]
-	offset = Vector((cx - hcx, cy - hcy, 0.0))
-	## Where the fitted hat's inside lies, to press the hair under it.
-	fitted = [Vector(((p.x - hcx) * scale + cx, (p.y - hcy) * scale + cy, p.z)) for p in hat]
+	## The crown comes down onto the head: its top over the scalp's (90th percentile near the axis).
+	crown = sorted(p.z for p in pts if math.hypot(p.x - cx, p.y - cy) < 0.04)
+	head_top = crown[int(len(crown) * 0.9)] if crown else top + lift
+	## Only the crown comes down (the cuff keeps its knit band): over the scalp's top with some slack.
+	vscale = min(1.0, (head_top + HAT_GAP + HAT_CROWN_THICK + HAT_CROWN_SLACK - brim) / (top - (brim - lift)))
+	def place(p, is_cuff):
+		z = p.z + lift if is_cuff else brim + (p.z - (brim - lift)) * vscale
+		return Vector(((p.x - hcx) * scale + cx, (p.y - hcy) * scale + cy, z))
+	from mathutils.bvhtree import BVHTree
+	tri_points = [place(q, is_cuff) for tri, is_cuff in hat_tris for q in tri]
+	tree = BVHTree.FromPolygons(tri_points, [(3 * i, 3 * i + 1, 3 * i + 2) for i in range(len(hat_tris))])
+	## Hair under the hat: a ray from the middle of the head to each point; where it meets the hat's
+	## inside first, the point is laid HAT_GAP under it.
+	centre = Vector((cx, cy, brim + 0.02))
 	pressed = 0
 	for v in verts:
 		p = v.co
-		if p.z < brim + HAT_BRIM_KEEP or p.z > top:
+		if p.z < brim + HAT_BRIM_KEEP:
 			continue
-		a = math.atan2(p.y - cy, p.x - cx)
-		ring = [math.hypot(q.x - cx, q.y - cy) for q in fitted if abs(q.z - p.z) < 0.01
-			and abs((math.atan2(q.y - cy, q.x - cx) - a + math.pi) % (2.0 * math.pi) - math.pi) < 0.25]
-		if not ring:
+		d = p - centre
+		length = d.length
+		if length < 1e-6:
 			continue
-		limit = min(ring) - HAT_GAP
-		r = math.hypot(p.x - cx, p.y - cy)
-		if r > limit:
-			k = limit / r
-			v.co = Vector((cx + (p.x - cx) * k, cy + (p.y - cy) * k, p.z))
+		hit = tree.ray_cast(centre, d / length, length + 0.05)
+		if hit[0] is not None and hit[3] - HAT_GAP - HAT_CROWN_THICK < length:
+			v.co = centre + d / length * max(hit[3] - HAT_GAP - HAT_CROWN_THICK, 0.0)
 			pressed += 1
 	head.data.update()
 	## Godot model space is Blender's with Y up: (x, z, -y).
-	fit = {"lift": KNIT_HAT_LIFT, "scale": scale, "axis": [hcx, 0.0, -hcy], "offset": [offset.x, 0.0, -offset.y]}
+	fit = {"lift": lift, "scale": scale, "vscale": vscale, "brim": brim - lift, "axis": [hcx, 0.0, -hcy],
+		"offset": [cx - hcx, 0.0, -(cy - hcy)]}
 	with open(HAT_FIT, "w") as f:
 		_json.dump(fit, f, indent=1)
-	print("fit_hat: scale %.3f offset (%.3f, %.3f) hair pressed %d" % (scale, offset.x, offset.y, pressed))
+	print("fit_hat: hairline %.3f lift %.3f scale %.3f vscale %.3f hair pressed %d" % (hairline, lift, scale, vscale, pressed))
 
 
 def owner_turtleneck(arm, body, jacket):

@@ -1113,6 +1113,8 @@ func _attach_knit_hat() -> void:
 	_set_mesh_layers_recursive(hat_model, portrait_render_layers)
 	for mesh_inst: MeshInstance3D in parts:
 		_style_garment_mesh(mesh_inst, StringName(mesh_inst.name), true)
+		if not String(mesh_inst.name).contains("Cuff"):
+			mesh_inst.transform = _hat_crown_squash() * mesh_inst.transform
 	for old_part: StringName in LEGACY_HAT_PARTS:
 		var old_mesh := model.find_child(String(old_part), true, false) as MeshInstance3D
 		if old_mesh != null:
@@ -1121,16 +1123,27 @@ func _attach_knit_hat() -> void:
 
 
 ## Model-space placement of the knit hat on Henry's head, measured by the outfit build (hat_fit.json):
-## lifted, centred on the head and scaled round its axis so it sits snug; identity without the file.
+## lifted, centred on the head, scaled round its axis and down onto its brim so it sits snug.
 func _hat_fit() -> Transform3D:
 	if not FileAccess.file_exists(HAT_FIT_FILE):
 		return Transform3D.IDENTITY
 	var fit: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(HAT_FIT_FILE))
 	var axis := Vector3(fit["axis"][0], fit["axis"][1], fit["axis"][2])
 	var offset := Vector3(fit["offset"][0], float(fit["lift"]), fit["offset"][2])
+	## Scaled round the hat's axis so its cuff fits the head.
 	var s: float = float(fit["scale"])
-	var around := Transform3D(Basis.from_scale(Vector3(s, 1.0, s)), axis - Basis.from_scale(Vector3(s, 1.0, s)) * axis)
-	return Transform3D(Basis(), offset) * around
+	var round_axis := Basis.from_scale(Vector3(s, 1.0, s))
+	return Transform3D(Basis(), offset) * Transform3D(round_axis, axis - round_axis * axis)
+
+
+## The crown and pom come down onto the head (squashed towards the brim); the cuff keeps its band.
+func _hat_crown_squash() -> Transform3D:
+	if not FileAccess.file_exists(HAT_FIT_FILE):
+		return Transform3D.IDENTITY
+	var fit: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(HAT_FIT_FILE))
+	var pivot := Vector3(0.0, float(fit.get("brim", 0.0)), 0.0)
+	var squash := Basis.from_scale(Vector3(1.0, float(fit.get("vscale", 1.0)), 1.0))
+	return Transform3D(squash, pivot - squash * pivot)
 
 
 ## Share the game's NPR material contract and wetness response with imported
