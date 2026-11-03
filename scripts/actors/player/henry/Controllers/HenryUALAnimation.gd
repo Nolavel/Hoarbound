@@ -145,6 +145,8 @@ const GARMENT_PARTS: Dictionary = {
 	&"Boots": [&"Outfit_Boots", &"Outfit_BootLining", &"Outfit_BootFur"],
 	&"Gloves": [&"Outfit_Gloves", &"Outfit_GloveCuff"],
 }
+## Always worn under everything: the knit sweater and its turtleneck (the skin under them is not in the model).
+const BASE_LAYERS: Array[StringName] = [&"Outfit_Sweater", &"Outfit_Collar"]
 const LEGACY_HAT_PARTS: Array[StringName] = [&"Outfit_Beanie", &"Outfit_BeanieCuff"]
 const KNIT_HAT_PARTS: Array[StringName] = [&"KnitHat_Crown", &"KnitHat_Cuff", &"KnitHat_Pom"]
 ## How much fully soaked clothing darkens.
@@ -1037,6 +1039,10 @@ func _attach_garments() -> void:
 		var skin := model.find_child("Skin_" + String(garment_name), true, false) as Node3D
 		if skin != null:
 			_skin_parts[garment_name] = skin
+	for part: StringName in BASE_LAYERS:
+		var base := model.find_child(String(part), true, false) as MeshInstance3D
+		if base != null:
+			_style_garment_mesh(base, part, true)
 
 
 ## The equipment slot still owns visibility.  Only the approved three meshes

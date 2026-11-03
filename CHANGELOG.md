@@ -8,6 +8,21 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Henry wears a chunky knit sweater with a high, thick turtleneck covering the whole neck (owner:
+  "вязанный бабушкин свитер с высоким толстым воротником").
+  - **Body and sleeves:** built in `tools/blender/build_henry_outfit.py` as a thin layer under the
+    jacket. It takes the jacket's weights where it lies under it, so the two never cross.
+  - **Turtleneck:** a knitted tube round the neck (`owner_garments.turtleneck`). It follows the skin by
+    rays from the neck axis and is capped at the shoulders. It is kept inside the jacket's collar, rises
+    past it at the back, and its top is turned down. It is skinned from the neck and head.
+  - **Knit textures** are procedural: `tools/blender/make_knit_textures.py` makes the body in burgundy
+    stockinette with a cream Fair Isle pattern (lice, dotted diamonds, a zigzag; colour per stitch from
+    a chart), and the turtleneck in plain burgundy 2x2 rib. Each comes with albedo, normal and ORM. The
+    texture hosts are blocked from this environment.
+- The owner's reference for Henry's look is saved in `docs/art/henry_reference/`.
+  - **UVs** are tube UVs at real stitch size.
+  - **Skin under the sweater** is removed from the model. The sweater is always worn: `BASE_LAYERS` in
+    `HenryUALAnimation`.
 - Henry now starts wearing the approved dark knit hat. Its cuff, crown, and pompom are separate game meshes on the Head bone; the existing `head_outer` equipment slot controls visibility. The old beanie is hidden. The source Blender file, baked knit maps, GLB, and four Forward+ review captures are included.
 - Pack shoulder straps laid on the plaid jacket (WIP, owner review).
   - **Strap points** are jacket triangles: `tools/runtime/measure_strap_points.gd` casts rays and writes
