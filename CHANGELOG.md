@@ -604,6 +604,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Jeans crotch (owner: "штанина косяк"): the drape left a web between the legs, reaching 11 cm below
+  the crotch, which stretched into a tab or bar on every step. The build now lays that web on the body
+  (`close_crotch`) and raises the inseam onto the crotch (`raise_seam`). Below the crotch each leg follows
+  only its own leg, and the seam follows the pelvis. Checked standing and walking, front and back.
+
 - TAB (Hub) showed the dev map's labels (house numbers, street names) around Henry (owner review).
   `PlayerHubComponent` made a fresh `HubCamera` with the default cull mask, which includes the
   reserved layers (`DEV_MAP_LABEL`). It now takes the game camera's cull mask, environment,
