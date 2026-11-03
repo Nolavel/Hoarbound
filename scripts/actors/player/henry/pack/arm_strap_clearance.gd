@@ -10,9 +10,10 @@ const NEAR_M: float = 0.2
 ## The upper arm's first share (the shoulder joint, under the pad) is not tested.
 const SHOULDER_SHARE: float = 0.3
 ## How fast the arm eases back in once the strap no longer pushes it, radians per second.
-const EASE_BACK: float = 1.5
+const EASE_BACK: float = 1.0
+const EASE_OUT: float = 3.0
 ## Never turned further than this, degrees.
-const MAX_TURN_DEG: float = 25.0
+const MAX_TURN_DEG: float = 8.0
 
 var straps: PackShoulderStraps
 ## Per arm [right, left]: sleeve radius round the bone, and the turn now applied (radians).
@@ -53,7 +54,8 @@ func measure_sleeves(jacket: MeshInstance3D) -> void:
 						distances.append(_segment_distance(p, a, b)[0])
 		if distances.size() > 10:
 			distances.sort()
-			_radius[side] = distances[distances.size() / 2]
+			## The inner sleeve (the side that meets the strap) is the thin side: its lower quartile.
+			_radius[side] = distances[distances.size() / 4]
 
 
 func _process_modification() -> void:
@@ -69,6 +71,11 @@ func _process_modification() -> void:
 		var upper: int = rig.find_bone("upperarm_" + s)
 		var lower: int = rig.find_bone("lowerarm_" + s)
 		if upper < 0 or lower < 0:
+			continue
+		## An arm holding something (HandGrip) is placed by its grip, not pushed here as well.
+		var grip := rig.get_node_or_null(NodePath("HandGrip_" + s)) as HandGrip
+		if grip != null and grip.get_weight() > 0.01:
+			_turn[side] = 0.0
 			continue
 		var pose: Transform3D = rig.get_bone_global_pose(upper)
 		var a: Vector3 = pose.origin
@@ -100,7 +107,8 @@ func _process_modification() -> void:
 				_axis[side] = axis.normalized()
 				want = minf(asin(clampf(deepest / lever, 0.0, 1.0)), deg_to_rad(MAX_TURN_DEG))
 		## In at once (never through the strap), back out slowly (no flicker as the arm swings).
-		_turn[side] = want if want > _turn[side] else move_toward(_turn[side], want, EASE_BACK * delta)
+		## Eased both ways (no snap that reads as a twitch); out faster than back in.
+		_turn[side] = move_toward(_turn[side], want, (EASE_OUT if want > _turn[side] else EASE_BACK) * delta)
 		if _turn[side] > 0.0001 and _axis[side] != Vector3.ZERO:
 			pose.basis = Basis(_axis[side], _turn[side]) * pose.basis
 			rig.set_bone_global_pose(upper, pose)

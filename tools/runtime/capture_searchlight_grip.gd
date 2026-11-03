@@ -79,6 +79,17 @@ func _run() -> void:
 		await _shot(held, "grip_" + view[0], view[1])
 	for view: Array in [["outer", 0], ["top", 1], ["inner", 2]]:
 		await _sleeve_shot("sleeve_" + view[0], view[1])
+	## The light follows the head, which follows the camera's pitch: a camera low (looking up) and high (looking down).
+	if _item == &"searchlight":
+		var light := held.get_held_prop() as HeldSearchlight
+		for view: Array in [["level", 0.0], ["up", -1.2], ["down", 1.6]]:
+			var forward: Vector3 = (_player.get_node(^"HenryUALVisual") as Node3D).global_basis.z
+			var head: Vector3 = _player.global_position + Vector3.UP * 0.7
+			_camera.global_position = head - forward * 2.5 + Vector3.UP * float(view[1])
+			_camera.look_at(head + forward * 3.0 + Vector3.UP * (-float(view[1]) * 0.6), Vector3.UP)
+			await _frames(40)
+			print("[grip] camera %s: aim pitch %.0f deg, beam pitch %.0f deg" % [view[0], rad_to_deg(asin(clampf(TpsCamera.aim_direction(_camera).y, -1.0, 1.0))), rad_to_deg(asin(clampf(light.direction.y, -1.0, 1.0)))])
+			root.get_viewport().get_texture().get_image().save_png("%s/pitch_%s.png" % [_out, view[0]])
 	_camera.fov = 40.0
 	await _body_shot("body_front_q", 30.0)
 	await _body_shot("body_side", 90.0)

@@ -133,6 +133,11 @@ const MUG_HANDLE_TOP_M: float = 0.022
 ## The frying pan's hanging eye in its own model (Codex's capture), and how far the eye's top sits below the rod.
 const PAN_EYE: Vector3 = Vector3(0.250, 0.045, 0.0)
 const PAN_EYE_SAG_M: float = 0.005
+## Clipping back on: the item starts this far above its seat on the rod, drops onto it in CLIP_ON_S, and the
+## knock sets it swinging (rad/s).
+const CLIP_ON_LIFT_M: float = 0.07
+const CLIP_ON_S: float = 0.28
+const CLIP_ON_KNOCK: float = 1.6
 const CLIPPED_SWING_HZ: float = 1.8
 const CLIPPED_SWING_DAMPING: float = 0.65
 const CLIPPED_MAX_SWING_DEG: float = 60.0
@@ -448,7 +453,9 @@ func add_loose(item_id: StringName) -> bool:
 
 ## Clips item_id onto a carabiner (0 left, 1 right). It swings on the carabiner's rod, which swings
 ## in its loop: a double pendulum. A mug hangs by its handle (authored at +X) threaded on the rod.
-func hang_item(item_id: StringName, carabiner_index: int) -> bool:
+## clip_on: just put back by Henry, it comes down onto the rod from above and swings off the knock (as an item
+## put back in a side pocket is pushed in from above the rim).
+func hang_item(item_id: StringName, carabiner_index: int, clip_on: bool = false) -> bool:
 	var carabiner: Carabiner = get_carabiner(carabiner_index)
 	if carabiner == null:
 		return false
@@ -485,6 +492,12 @@ func hang_item(item_id: StringName, carabiner_index: int) -> bool:
 		swing.max_swing_deg = 90.0  # on the rod it turns until it meets the pack or the tools
 	carabiner.get_hang_point().add_child(swing)
 	swing.add_child(visual)
+	if clip_on:
+		var seated: Vector3 = visual.position
+		visual.position = seated + Vector3.UP * CLIP_ON_LIFT_M
+		var tween := visual.create_tween()
+		tween.tween_property(visual, ^"position", seated, CLIP_ON_S).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.tween_callback(swing.nudge.bind(Vector3(0.0, 0.0, CLIP_ON_KNOCK)))
 	for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		if mesh is MeshInstance3D:
 			(mesh as MeshInstance3D).layers = layers_for_contents
