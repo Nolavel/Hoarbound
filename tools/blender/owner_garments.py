@@ -826,12 +826,16 @@ def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_rad
 		return z_from + (top - z_from) * k / (rings - 1)
 	## The cap opens up the tube: the shoulders only reach the lowest rings, the front of the neck all of them.
 	caps = [max_radius + (top_radius - max_radius) * min(k / (rings * 0.3), 1.0) for k in range(rings)]
-	radius = [[min(skin(z, 2.0 * math.pi * j / sides), caps[k], room(z, 2.0 * math.pi * j / sides))
-		for j in range(sides)] for k, z in enumerate(heights)]
+	## Measured where each point really is (the top dips to the front), against the skin and the jacket.
+	angles = [2.0 * math.pi * j / sides for j in range(sides)]
+	limit = [[room(ring_z(k, a), a) for a in angles] for k in range(rings)]
+	radius = [[min(skin(ring_z(k, a), a), caps[k], limit[k][j]) for j, a in enumerate(angles)] for k in range(rings)]
 	for _ in range(3):
 		radius = [[(row[j - 1] + 2.0 * row[j] + row[(j + 1) % sides]) * 0.25 for j in range(sides)] for row in radius]
 		radius = [[(radius[max(k - 1, 0)][j] + 2.0 * radius[k][j] + radius[min(k + 1, rings - 1)][j]) * 0.25
 			for j in range(sides)] for k in range(rings)]
+	## Smoothing must not carry the knit back out through the jacket.
+	radius = [[min(radius[k][j], limit[k][j]) for j in range(sides)] for k in range(rings)]
 	out = bmesh.new()
 	layers = []
 	## Inner wall, outer wall, then the turned-down fold outside the outer wall.
@@ -924,3 +928,27 @@ def cull_covered(obj, cover, reach):
 	bm.to_mesh(obj.data)
 	bm.free()
 	return len(gone)
+
+
+def cull_crossing(obj, cover):
+	"""Drops obj's faces that cut through `cover` (a lapel lying across a collar's roll): `cover` hides
+	where they meet, and nothing of obj is left to show through it."""
+	import bmesh
+	from mathutils.bvhtree import BVHTree
+	om = bmesh.new()
+	om.from_mesh(obj.data)
+	om.transform(obj.matrix_world)
+	cm = bmesh.new()
+	cm.from_mesh(cover.data)
+	cm.transform(cover.matrix_world)
+	crossing = {a for a, _ in BVHTree.FromBMesh(om).overlap(BVHTree.FromBMesh(cm))}
+	cm.free()
+	om.free()
+	bm = bmesh.new()
+	bm.from_mesh(obj.data)
+	bm.faces.ensure_lookup_table()
+	bmesh.ops.delete(bm, geom=[bm.faces[i] for i in crossing], context="FACES")
+	bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+	bm.to_mesh(obj.data)
+	bm.free()
+	return len(crossing)

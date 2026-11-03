@@ -725,6 +725,10 @@ def owner_head(arm, body):
 			layer = bpy.data.objects.get(name)
 			if layer is not None:
 				print("owner_head: %s faces hidden under the jacket %d" % (name, G.cull_covered(layer, jacket, SWEATER_COVER_REACH)))
+		## Where the jacket's lapels lie across the turtleneck's roll in front, the roll under them goes.
+		collar = bpy.data.objects.get("Outfit_Collar")
+		if collar is not None:
+			print("owner_head: turtleneck faces under the lapels %d" % G.cull_crossing(collar, jacket))
 		## The sweater's body shows only at the jacket's open front: its back half goes too (the jacket
 		## has a gap at the yoke seam it would show through).
 		sweater = bpy.data.objects.get("Outfit_Sweater")

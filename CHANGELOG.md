@@ -668,6 +668,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     sweater's body is only meant to show at the open front.
   - **What stays:** the open front, the turtleneck above the jacket's collar and the edges tucked under
     the jacket. Checked front, side, back and walking.
+  - **Turtleneck and lapels in front** (owner: the collars crossed in front). The turtleneck's limits by
+    the skin and the jacket are now measured where each point really is: its top dips to the front, but
+    it used to be measured at the ring's back height. They are re-applied after smoothing, so averaging
+    cannot carry the knit back out through the jacket. The few roll faces the lapels still lie across
+    are dropped (`cull_crossing`). Collar-to-jacket crossing face pairs in the rest pose: 257 (170 in
+    front) → 0.
 
 - Henry's knee no longer snaps backwards for a frame when he walks in snow. `LegTwoBoneIK` now bends the
   knee in the leg's own hinge plane. Before, it bent towards whichever side of the new hip-to-target line
