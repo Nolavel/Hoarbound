@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Real Godot runtime capture: CharacterBody3D + RayCast3D + ShortWallRun,
-## third-person camera roll and CanvasLayer progress. No animated fake positions.
+## FIRST-PERSON camera roll and CanvasLayer progress. No animated fake positions.
 ## xvfb-run godot --path . --resolution 960x540 --fixed-fps 30 \
 ##   --rendering-driver vulkan --script res://tools/runtime/capture_wallrun_demo.gd \
 ##   -- res://docs/runtime_previews/wallrun_demo
@@ -60,7 +60,7 @@ func _run() -> void:
         "max_speed_mps": _max_speed,
         "max_camera_roll_deg": _max_camera_roll,
         "capture": "actual Godot CharacterBody3D + RayCast3D + ShortWallRun with camera/UI",
-        "visual": "self-contained mechanics test, not Henry/production Key West scene",
+        "visual": "FIRST-PERSON camera at eye height, HUD over 3D scene; isolated physics demo (not Henry)",
     }
     var path := ProjectSettings.globalize_path(_out.path_join("report.json"))
     var f := FileAccess.open(path, FileAccess.WRITE)
@@ -127,11 +127,16 @@ func _build_stage() -> void:
     _actor = ACTOR.new()
     _actor.name = "RuntimeInputDriver"
     stage.add_child(_actor)
+    # First-person view: keep physical capsule and raycasts, but do not render the
+    # debug mannequin from inside its own body.
+    for child: Node in _actor.get_children():
+        if child is MeshInstance3D:
+            child.visible = false
     _actor.wall_run.wall_run_started.connect(_on_wall_run_started)
 
     _camera = Camera3D.new()
-    _camera.name = "IndependentThirdPersonCamera"
-    _camera.fov = 68.0
+    _camera.name = "FirstPersonCamera"
+    _camera.fov = 83.0
     _camera.current = true
     stage.add_child(_camera)
 
@@ -177,7 +182,7 @@ func _build_hud() -> void:
     hud.add_child(header)
 
     _title = _label(hud, Vector2(28, 14), 26, Color(0.95, 0.9, 0.72), "SHORT WALL RUN")
-    _caption = _label(hud, Vector2(29, 50), 17, Color(0.75, 0.87, 0.94), "PHYSICS-DRIVEN / CAMERA ROLL / LIVE HUD")
+    _caption = _label(hud, Vector2(29, 50), 17, Color(0.75, 0.87, 0.94), "FIRST-PERSON / REAL WALL CONTACT / CAMERA ROLL / LIVE HUD")
     _telemetry = _label(hud, Vector2(28, 432), 21, Color(1.0, 0.94, 0.81), "")
     _progress_text = _label(hud, Vector2(28, 466), 17, Color(0.72, 0.84, 0.91), "WALL RUN / TIME LEFT")
     _progress = ProgressBar.new()
@@ -205,16 +210,12 @@ func _label(parent: Control, pos: Vector2, font_size: int, tint: Color, value: S
     return label
 
 
-func _update_camera(first: bool) -> void:
-    var side := float(_actor.wall_side)
-    # Camera stays INSIDE the two walls, never looking through the opposite wall.
-    var desired: Vector3 = _actor.global_position + Vector3(-side * 1.00, 2.55, 5.3)
-    if first:
-        _camera.global_position = desired
-    else:
-        _camera.global_position = _camera.global_position.lerp(desired, 0.23)
-    var focus: Vector3 = _actor.global_position + Vector3(0.0, 0.50, -2.65)
-    _camera.look_at(focus, Vector3.UP)
+func _update_camera(_first: bool) -> void:
+    # A real first-person view from inside the CharacterBody3D capsule.
+    # Rotation follows the component's wall-run side and smoothly returns
+    # upright when contact ends. No external TPS follow-cam.
+    _camera.global_position = _actor.global_position + Vector3(0.0, 0.66, -0.08)
+    _camera.rotation = Vector3.ZERO
     _camera.rotate_object_local(Vector3.BACK, deg_to_rad(_actor.camera_roll))
 
 
