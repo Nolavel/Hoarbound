@@ -20,7 +20,10 @@ const LIGHTER_STRIKE_EVENT: SoundEvent = preload("res://resources/audio/lighter_
 const SEARCHLIGHT_HANDLE_RADIUS: float = 0.012
 ## How far a carrying arm turns the beam off the body's forward (forearm roll), and tilts it (wrist), degrees.
 const SEARCHLIGHT_YAW_DEG: float = 50.0
-const SEARCHLIGHT_PITCH_DEG: float = 25.0
+const SEARCHLIGHT_PITCH_DEG: float = 40.0
+## Where the carrying hand sits, as shares of the arm's reach below and ahead of the shoulder.
+const SEARCHLIGHT_ARM_DOWN: float = 0.72
+const SEARCHLIGHT_ARM_FORWARD: float = 0.45
 ## The carrying hand sits this far out from under the shoulder, so the lamp body clears the hip, metres.
 const SEARCHLIGHT_HIP_CLEAR_M: float = 0.05
 
@@ -489,7 +492,8 @@ func _aim_searchlight(delta: float) -> void:
 	var beam: Vector3 = searchlight.direction
 	## Arm length from the rig, so the hanging hand sits where this body's arm reaches.
 	var arm: float = rig.get_bone_rest(lower).origin.length() + rig.get_bone_rest(hand).origin.length()
-	var wrist: Vector3 = shoulder + Vector3.DOWN * arm * 0.82 + forward * arm * 0.22 + out * SEARCHLIGHT_HIP_CLEAR_M + searchlight.inertia_offset
+	## The arm a little forward (owner): the hand ahead of the thigh, not hanging beside it.
+	var wrist: Vector3 = shoulder + Vector3.DOWN * arm * SEARCHLIGHT_ARM_DOWN + forward * arm * SEARCHLIGHT_ARM_FORWARD + out * SEARCHLIGHT_HIP_CLEAR_M + searchlight.inertia_offset
 	## The hand continues the hanging arm's line (shoulder to wrist), square to the bar it holds.
 	var line: Vector3 = (wrist - shoulder).normalized()
 	var along: Vector3 = (line - beam * line.dot(beam)).normalized()

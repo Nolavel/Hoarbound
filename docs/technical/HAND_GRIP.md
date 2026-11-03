@@ -30,9 +30,9 @@ The old per-item solver (`StoveHandReach` reused for the searchlight) bent the w
 
 The bar runs along the beam. Held in front of the chest pointing forward, the bar would lie along the forearm, and a fist can only take it with the wrist bent 90°. So the searchlight is carried as a lantern:
 
-- The arm hangs (82% of its reach down, 22% forward, 5 cm out so the lamp clears the hip).
+- The arm is a little forward: 72% of its reach down, 45% forward, 5 cm out, so the lamp is ahead of the thigh.
 - Index to pinky runs back along the bar, so the palm faces the thigh.
-- The forearm turns the beam toward the head's facing (up to 50° off the body's forward); the wrist tilts it (up to 25°).
+- The forearm turns the beam toward the head's facing (up to 50° off the body's forward); the wrist tilts it (up to 40°, following the camera's pitch through the head).
 - The beam follows the head: `HenryUALAnimation.look_with_light` keeps the head look on (with pitch) while a light is held, and `get_head_facing()` gives its final facing.
 
 Measured on the stand: wrist bend 45°, roll hand 12°, forearm -14°, upper arm -5°.

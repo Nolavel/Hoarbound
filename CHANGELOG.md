@@ -45,6 +45,17 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Searchlight follows the head up and down, and is carried a little forward (owner).
+  - Cause of the flat beam: attention is kept level (`view.y = 0`), so the head never pitched and
+    the light following it stayed flat. With a light in hand, the head now takes the camera's pitch
+    (up to 40°).
+  - Stand: camera 19° up gives a 19° beam; 25° down gives -25°.
+  - The carrying hand sits 72% of the arm down and 45% forward (was 82% / 22%), ahead of the thigh.
+- Arms no longer spread wide off the straps, and the right arm no longer twitches.
+  - `ArmStrapClearance` now turns at most 8° (was 25°), measured on the inner sleeve (lower quartile
+    radius).
+  - The turn eases both ways. Its old instant push read as a twitch.
+  - An arm holding something through `HandGrip` is left to its grip.
 - Frying pan on the left carabiner.
   - The model is Codex's worn 24 cm pan, cherry-picked from `codex` (`assets/items/frying_pan`).
   - It is now an item (`frying_pan`, 1.1 kg) in the starting kit, kept in the pack's new

@@ -705,8 +705,11 @@ func update_head_look(delta: float) -> void:
 	if want:
 		direction = get_attention_direction()
 	if look_with_light and want:
+		## Attention is kept level; with a light the head also takes the camera's pitch (the light follows the head).
 		var flat: Vector3 = Vector3(direction.x, 0.0, direction.z).normalized()
-		var pitch: float = clampf(asin(clampf(direction.normalized().y, -1.0, 1.0)), -deg_to_rad(head_look_light_pitch_deg), deg_to_rad(head_look_light_pitch_deg))
+		var camera: Camera3D = get_viewport().get_camera_3d()
+		var aim_y: float = TpsCamera.aim_direction(camera).y if camera != null else 0.0
+		var pitch: float = clampf(asin(clampf(aim_y, -1.0, 1.0)), -deg_to_rad(head_look_light_pitch_deg), deg_to_rad(head_look_light_pitch_deg))
 		direction = flat * cos(pitch) + Vector3.UP * sin(pitch)
 	else:
 		direction.y = 0.0
