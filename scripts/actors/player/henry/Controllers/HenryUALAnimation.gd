@@ -21,6 +21,10 @@ const MOVEMENT_EPSILON: float = 0.05
 const MIN_WALK_PACE: float = 0.35
 const WORK_POSE_HOLD_SECONDS: float = 2.6
 
+## Share of each bone's idle swing kept (the rest is its mean pose): a breath in the chest, the arms
+## and legs nearly at rest.
+const IDLE_CALM: Dictionary = {"spine_01": 0.4, "spine_02": 0.4, "spine_03": 0.4, "neck_01": 0.3, "Head": 0.3}
+const IDLE_CALM_DEFAULT: float = 0.15
 const IDLE_ALIASES: Array[StringName] = [&"Idle_Loop", &"Idle"]
 const WALK_ALIASES: Array[StringName] = [&"Walk_Loop", &"Walk"]
 const JOG_ALIASES: Array[StringName] = [&"Jog_Fwd_Loop", &"Jog_Fwd"]
@@ -115,6 +119,9 @@ const ACTION_ALIASES: Dictionary = {
 @export var head_look_fade_speed: float = 4.0
 ## Distance the look point is held at, metres.
 @export var head_look_distance: float = 5.0
+## With a light in hand the head looks where the camera points while walking too, pitch included (up to
+## this), and the light follows the head (HeldItemComponent).
+@export var head_look_light_pitch_deg: float = 40.0
 ## Head forward axis in bone space; flip it if the head looks sideways or back.
 @export var head_forward_axis: SkeletonModifier3D.BoneAxis = SkeletonModifier3D.BONE_AXIS_PLUS_Z
 
@@ -145,8 +152,9 @@ const GARMENT_PARTS: Dictionary = {
 	&"Boots": [&"Outfit_Boots", &"Outfit_BootLining", &"Outfit_BootFur"],
 	&"Gloves": [&"Outfit_Gloves", &"Outfit_GloveCuff"],
 }
-## Always worn under everything: the knit sweater and its turtleneck (the skin under them is not in the model).
-const BASE_LAYERS: Array[StringName] = [&"Outfit_Sweater", &"Outfit_Collar"]
+## Always shown: Henry's own head, the knit sweater and its turtleneck (the skin under them is not in the model).
+const BASE_LAYERS: Array[StringName] = [&"Outfit_Sweater", &"Outfit_Collar", &"Henry_Head"]
+const HAT_FIT_FILE: String = "res://assets/characters/henry/knit_hat/hat_fit.json"
 const LEGACY_HAT_PARTS: Array[StringName] = [&"Outfit_Beanie", &"Outfit_BeanieCuff"]
 const KNIT_HAT_PARTS: Array[StringName] = [&"KnitHat_Crown", &"KnitHat_Cuff", &"KnitHat_Pom"]
 ## How much fully soaked clothing darkens.
@@ -198,6 +206,11 @@ var _garment_materials: Dictionary = {}
 var _wetness: float = 0.0
 var _equipment: EquipmentComponent
 var _head_lookat: LookAtModifier3D
+## Set while Henry holds a light: the head look stays on, and its last final facing is kept for the light.
+var look_with_light: bool = false
+## Per hand [right, left]: its HandGrip, built on first use.
+var _hand_grips: Array[HandGrip] = [null, null]
+var _head_facing: Vector3 = Vector3.ZERO
 var _head_target: Node3D
 var _head_influence: float = 0.0
 ## Henry's semantic attention: flat direction and head-height origin, smoothed.
@@ -409,6 +422,21 @@ func get_present_reach() -> StoveHandReach:
 		_present_reach.ease_out_rate = 2.5
 		skeleton.add_child(_present_reach)
 	return _present_reach
+
+## The hand-grip solver for one hand (built on first use), placed before the jacket springs so the sleeves swing from it.
+func get_hand_grip(left: bool) -> HandGrip:
+	var key: int = 1 if left else 0
+	if _hand_grips[key] == null and skeleton != null:
+		var grip := HandGrip.new()
+		grip.name = "HandGrip_" + ("l" if left else "r")
+		skeleton.add_child(grip)
+		var springs: Node = skeleton.get_node_or_null(^"JacketSprings")
+		if springs != null:
+			skeleton.move_child(grip, springs.get_index())
+		grip.setup(left)
+		_hand_grips[key] = grip
+	return _hand_grips[key]
+
 
 func get_stove_pickup(carried: bool) -> Dictionary:
 	if carried and _carried != null and _carry_props.has(_carried.attached_mesh_node_name):
@@ -671,12 +699,17 @@ func update_head_look(delta: float) -> void:
 	if _head_lookat == null or player == null:
 		return
 	var planar_speed: float = Vector2(player.velocity.x, player.velocity.z).length()
-	var want: bool = planar_speed < head_look_idle_speed and player.has_method(&"get_view_direction")
+	var want: bool = (planar_speed < head_look_idle_speed or look_with_light) and player.has_method(&"get_view_direction")
 	var eye: Vector3 = _head_bone_position()
 	var direction: Vector3 = -player.global_transform.basis.z
 	if want:
 		direction = get_attention_direction()
-	direction.y = 0.0
+	if look_with_light and want:
+		var flat: Vector3 = Vector3(direction.x, 0.0, direction.z).normalized()
+		var pitch: float = clampf(asin(clampf(direction.normalized().y, -1.0, 1.0)), -deg_to_rad(head_look_light_pitch_deg), deg_to_rad(head_look_light_pitch_deg))
+		direction = flat * cos(pitch) + Vector3.UP * sin(pitch)
+	else:
+		direction.y = 0.0
 	var target: Vector3 = eye + direction.normalized() * head_look_distance
 	if want and _head_influence <= 0.001:
 		_head_target.global_position = target
@@ -730,6 +763,22 @@ func _setup_head_look() -> void:
 	_head_lookat.target_node = _head_lookat.get_path_to(_head_target)
 	_head_lookat.influence = 0.0
 	_head_lookat.active = false
+	skeleton.skeleton_updated.connect(_keep_head_facing)
+
+
+## The head's facing in its final pose (after the look), read where modifier poses are final.
+func _keep_head_facing() -> void:
+	## A skeleton out of the tree (a copy being built or torn down) still reports updates; it has no world basis.
+	if not is_instance_valid(skeleton) or not skeleton.is_inside_tree():
+		return
+	var bone: int = skeleton.find_bone(head_bone)
+	var axis: Vector3 = [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.BACK, Vector3.FORWARD][int(head_forward_axis)]
+	_head_facing = (skeleton.global_basis * skeleton.get_bone_global_pose(bone).basis * axis).normalized()
+
+
+## Where Henry's head faces now (last final pose); the body's forward before the first pose.
+func get_head_facing() -> Vector3:
+	return _head_facing if _head_facing != Vector3.ZERO else global_basis.z.normalized()
 
 
 func _head_bone_position() -> Vector3:
@@ -857,6 +906,37 @@ func _make_animation_library_local() -> void:
 	var local_library := source_library.duplicate(true) as AnimationLibrary
 	animation_player.remove_animation_library(&"")
 	animation_player.add_animation_library(&"", local_library)
+
+
+## Standing still is still: each bone of an idle clip keeps only a share of its swing about its own
+## mean pose (IDLE_CALM), so the arms stop swaying and the chest keeps a slight breath.
+func _calm_clip(clip_name: StringName) -> void:
+	if clip_name == &"" or not animation_player.has_animation(clip_name):
+		return
+	var anim: Animation = animation_player.get_animation(clip_name)
+	if anim.has_meta(&"calmed"):
+		return
+	anim.set_meta(&"calmed", true)
+	for track: int in anim.get_track_count():
+		var bone: String = String(anim.track_get_path(track)).get_slice(":", 1)
+		var keep: float = IDLE_CALM.get(bone, IDLE_CALM_DEFAULT)
+		var keys: int = anim.track_get_key_count(track)
+		if keys < 2:
+			continue
+		match anim.track_get_type(track):
+			Animation.TYPE_ROTATION_3D:
+				var mean: Quaternion = anim.track_get_key_value(track, 0)
+				for k: int in range(1, keys):
+					mean = mean.slerp(anim.track_get_key_value(track, k), 1.0 / float(k + 1))
+				for k: int in keys:
+					anim.track_set_key_value(track, k, mean.slerp(anim.track_get_key_value(track, k), keep))
+			Animation.TYPE_POSITION_3D:
+				var centre := Vector3.ZERO
+				for k: int in keys:
+					centre += anim.track_get_key_value(track, k)
+				centre /= float(keys)
+				for k: int in keys:
+					anim.track_set_key_value(track, k, centre.lerp(anim.track_get_key_value(track, k), keep))
 
 
 func _add_secondary_library() -> void:
@@ -1068,20 +1148,46 @@ func _attach_knit_hat() -> void:
 			return
 		parts.append(mesh_inst)
 	var attachment := BoneAttachment3D.new()
-	attachment.name = "KnitHatAttachment"
+	attachment.name = "Hat"  # the garment group name, as Coat, Trousers and Boots
 	attachment.bone_name = head_bone
 	attachment.visible = false
 	skeleton.add_child(attachment)
-	hat_model.transform = skeleton.get_bone_global_rest(head).affine_inverse()
+	hat_model.transform = skeleton.get_bone_global_rest(head).affine_inverse() * _hat_fit()
 	attachment.add_child(hat_model)
 	_set_mesh_layers_recursive(hat_model, portrait_render_layers)
 	for mesh_inst: MeshInstance3D in parts:
 		_style_garment_mesh(mesh_inst, StringName(mesh_inst.name), true)
+		if not String(mesh_inst.name).contains("Cuff"):
+			mesh_inst.transform = _hat_crown_squash() * mesh_inst.transform
 	for old_part: StringName in LEGACY_HAT_PARTS:
 		var old_mesh := model.find_child(String(old_part), true, false) as MeshInstance3D
 		if old_mesh != null:
 			old_mesh.visible = false
 	_garment_meshes[&"Hat"] = attachment
+
+
+## Model-space placement of the knit hat on Henry's head, measured by the outfit build (hat_fit.json):
+## lifted, centred on the head, scaled round its axis and down onto its brim so it sits snug.
+func _hat_fit() -> Transform3D:
+	if not FileAccess.file_exists(HAT_FIT_FILE):
+		return Transform3D.IDENTITY
+	var fit: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(HAT_FIT_FILE))
+	var axis := Vector3(fit["axis"][0], fit["axis"][1], fit["axis"][2])
+	var offset := Vector3(fit["offset"][0], float(fit["lift"]), fit["offset"][2])
+	## Scaled round the hat's axis so its cuff fits the head.
+	var s: float = float(fit["scale"])
+	var round_axis := Basis.from_scale(Vector3(s, 1.0, s))
+	return Transform3D(Basis(), offset) * Transform3D(round_axis, axis - round_axis * axis)
+
+
+## The crown and pom come down onto the head (squashed towards the brim); the cuff keeps its band.
+func _hat_crown_squash() -> Transform3D:
+	if not FileAccess.file_exists(HAT_FIT_FILE):
+		return Transform3D.IDENTITY
+	var fit: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(HAT_FIT_FILE))
+	var pivot := Vector3(0.0, float(fit.get("brim", 0.0)), 0.0)
+	var squash := Basis.from_scale(Vector3(1.0, float(fit.get("vscale", 1.0)), 1.0))
+	return Transform3D(squash, pivot - squash * pivot)
 
 
 ## Share the game's NPR material contract and wetness response with imported
@@ -1259,6 +1365,8 @@ func _setup_animation_tree() -> void:
 		_force_locomotion_loop(clip_name)
 	_force_clip_once(_resolved_jump_start)
 	_force_clip_once(_resolved_jump_land)
+	_calm_clip(_resolved_idle)
+	_calm_clip(_resolved_crouch_idle)
 
 	var locomotion := AnimationNodeBlendSpace1D.new()
 	locomotion.min_space = 0.0

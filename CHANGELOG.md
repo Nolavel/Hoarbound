@@ -6,8 +6,132 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed
+
+- Work in progress: the shoulder straps are now the school backpack's own pad, webbing and buckle
+  (`tools/blender/build_pack_straps.py`). The mesh is straightened into strap space and bent on the GPU
+  along the strap path on the jacket (`shaders/items/pack_strap_bend.gdshader`, a spline mesh).
+  `measure_straps.gd` now measures the bent mesh itself and can learn a bow for the free runs.
+  - The pad now spreads to the path's width over the shoulder, as the old band did. The straps take
+    the pack's grey-blue canvas colour; the school pack's near-black texture adds only weave and wear.
+  - A first learned bow for the free runs is in `strap_points.json`.
+  - Still open: the strap mesh dips up to about 13 mm into the jacket under the arm at rest, which may
+    be the sleeve lying over the strap.
+- Hand grip system (`HandGrip`), first used for the searchlight. This replaces the per-item hand fitting.
+  - Cause of the twisted sleeve, measured: the old solver bent the wrist 106° and rolled the hand -93°
+    against the forearm. A real wrist allows about 70° of bend and no roll of its own. With linear
+    blend skinning and no forearm twist bones, the sleeve pinched like a candy wrapper.
+  - The item gives only its handle (anchor and radius). Godot's own `TwoBoneIK3D` reaches the arm, the
+    wrist turns within a 60° cone, and `BoneTwistDisperser3D` spreads the roll over the upper arm,
+    forearm and hand. The fingers close joint by joint until their tips meet the handle, the way Auto
+    Hand does it.
+  - The searchlight is carried as a lantern: arm down, bar in the fist along the beam. The forearm
+    turns the beam toward the head's facing (up to 50°) and the wrist tilts it (up to 25°).
+  - Measured on the stand: wrist bend 45° (was 106°); roll hand 12°, forearm -14°, upper arm -5°
+    (was hand -93°).
+- The lighter's present hold moved onto `HandGrip`.
+  - The lighter stands in a closed fist, thumb on its front. It used to sink into a flat hand.
+  - Wrist bend is 8° (was 28°); forearm roll -18° (was -33°).
+  - The thumb now closes onto the held item too.
+- Superseded by the hand grip system above: the earlier searchlight grip fixes.
+  - The palm now closes down on the carry bar. `DoorHandIK`'s `into` vector is the back of the hand,
+    and the searchlight passed "down", which turned the palm up.
+  - Fingers now curl toward the palm. `StoveHandReach` used to bend them back over the knuckles,
+    which also affects the lighter fist.
+  - The light now aims where Henry's head looks. With a light in hand, the head look stays on while
+    walking and keeps its pitch.
+  - Still open: the sleeve twists at the wrist, because the whole roll is put on the hand bone.
+- Outfit texture imports are committed with VRAM compression and mipmaps, normal maps flagged.
+
+### Fixed
+
+- Frying pan on the left carabiner.
+  - The model is Codex's worn 24 cm pan, cherry-picked from `codex` (`assets/items/frying_pan`).
+  - It is now an item (`frying_pan`, 1.1 kg) in the starting kit, kept in the pack's new
+    `pack_carabiner_left` pocket.
+  - It hangs by its oval eye on the rod, as the mug does on the right: a hinge on the rod inside the
+    carabiner's swing, and it knocks on the pack when Henry moves.
+  - `test_backpack_rig` R1 now expects both carabiners loaded. Measured: the pan never sinks into
+    the pack (4.1 mm at most, within the 6 mm contact margin), and it comes to rest.
+  - The pan's Blender sources are kept out of Godot's import with `source/.gdignore`.
+- Bedroll on C (owner request). Crouch moves to left Ctrl.
+  - Henry carries the bedroll again: it is in his starting kit, strapped on the pack.
+  - C shows the open bedroll on the floor ahead as a grey see-through ghost (reddish where it cannot
+    lie). The ghost has no colliders. F lays it out and it unrolls, ready to sleep on. C again puts the
+    ghost away.
+  - The stand-in roll that used to travel along with the unrolling mat is gone.
+  - The unused `toggle_active_gizmo` action is removed: it sat on Ctrl and had no consumer.
+- The old floor mattress is removed from 727 Fort St. Henry sleeps on the bedroll he lays.
+- Fixed `HenryUALAnimation._keep_head_facing` erroring "!is_inside_tree()" hundreds of times. A
+  skeleton outside the tree still reported updates; those calls are now skipped.
+- Static world shaders no longer require tangents. Static world materials never take a normal texture
+  (`make_static`), but `NORMAL_MAP` was still compiled into their shaders. Godot then demanded
+  tangents from every generated chunk mesh (the "requires tangents" warning). `NORMAL_MAP` is now
+  left out under `HFN_STATIC_WORLD`.
+- Under the arm, the strap is no longer swallowed by the sleeve.
+  - Measured with `measure_straps.gd`: the torso cloth there already cleared the strap (1–3 mm). The
+    sleeve lay over it by 11–19 mm, because the arm itself passed through the strap.
+  - Pressing the sleeve toward the arm hit the 30 mm press limit and opened a hole in the sleeve, so
+    that approach was dropped.
+  - Fix: `ArmStrapClearance` (a skeleton modifier, active only while the pack is worn) treats the
+    sleeve as a capsule round the upper arm, its radius measured from the jacket. Where the capsule
+    meets the strap, the arm turns at the shoulder just far enough to clear it, the way spring-bone
+    colliders push bones out. The shoulder joint under the pad is left alone. The turn applies at
+    once and eases back slowly, capped at 25°.
+  - Result: at rest, nothing under the arm (was 8–13 mm); walking 6–9 mm (was 18).
+- The stove ritual's hand breaks the wrist when measured: hand roll up to 94–141° and wrist bend up to
+  85° while laying fuel and lighting. It is next to move onto `HandGrip`.
+- Mug on the carabiner no longer sinks into the hammer/axe handles (`test_backpack_rig` R3/R9 were red on
+  `main`). Cause, measured: the 1.4 cm handle capsule slipped between the mug's contact points. Each 2 cm
+  cell took its first vertex, so the worst vertex sat 1.7 cm from any point; the mug went 8–10 mm into the
+  handle while every point stayed clear. Each cell now takes the vertex nearest its cell's mean (vertex
+  clustering, Rossignac & Borrel), which brings that down to 1.45 cm. The contact margin is now 6 mm (was
+  4) to cover how far the handle dips between points. A 1 cm grid also passed but tripled the contact cost
+  per frame.
+- The knit hat attachment is named `Hat` again, matching the other garment groups (`test_equipment`,
+  `test_knit_hat`).
+
 ### Added
 
+- Henry has his own head: the generated candidate made from the owner's reference. It is not final art;
+  it is used as the current head.
+  - **Placement** (`owner_head` in `tools/blender/build_henry_outfit.py`): decimated to 6000 faces with
+    smooth shading. It is scaled so the chin-to-skull height matches the mannequin's head (×0.375; the
+    skull width matches within 3 mm), and its chin sits on the mannequin's chin.
+  - **Rig:** the neck is cut inside the turtleneck, and the head is skinned to `Head`, blending to
+    `neck_01` down the neck. The mannequin's head and neck are removed.
+  - **Turtleneck** top now dips 11.5 cm towards the front, so it sits under the chin and still rises
+    past the jacket collar at the back.
+  - **Knit hat fit, second pass** (owner: "too high", then "the cuff grips oddly"):
+    - The front cuff now sits 2 cm under the hairline, which the build finds on the face's front profile.
+    - The cuff is fitted round the head at its own height and keeps its knit band.
+    - Only the crown and pom come down onto the head (×0.84), with 1.5 cm of slack.
+    - Hair under the hat is pressed by rays from the middle of the head to the hat's inside, so no tuft
+      pokes through the crown.
+    - His ears no longer cut through the collars (owner). The lobes hang to 1.637 m, and both collars
+      stood higher at the sides (1.676 and 1.683 m). The turtleneck's top now has a back, side and front
+      profile: high at the back, 7 cm lower at the sides, under the chin in front. The jacket's collar is
+      turned down beside each ear to 1.7 cm under the lobes, to leave room for the head's tilt.
+    - Measured in game, deepest ear point inside a collar: turtleneck 17 → 7 mm, with far fewer points.
+      The jacket's collar still reads up to 17 mm on that metric, which also counts ears hanging over the
+      collar's edge. Close-up captures show no crossing.
+  - **Knit hat fit:** the build measures the head (`fit_hat`) and writes the fit to
+    `assets/characters/henry/knit_hat/hat_fit.json`, which the game applies. The hat is lifted 3 cm,
+    centred on the head (it sat 2 cm too far back) and scaled ×1.048 round its axis, so its inside
+    rests 3 mm off the scalp. The scalp is taken as the head's 70th-percentile radius per angle, so
+    tufts do not count. Hair still outside the hat above its brim (543 points) is pressed under it,
+    and only short hair shows below the brim.
+  - **Turtleneck front:** the top dips evenly round to the front (a U, not a V), so the turned-down
+    roll reads as one band under the chin.
+  - **Texture names:** every image in the outfit glb is now named after its material. Godot extracts
+    textures by name, and "Image_0" collisions put the jacket's plaid on the head.
+- Bedroll art from the `codex` branch (cherry-picked): `bedroll_open` and `bedroll_packed` models and
+  textures, plus the pack mounting. The laid bedroll unrolls using that open mat.
+- The bedroll is laid only in a warm room: inside an interior thermal zone warmer than freezing. Out in
+  the cold the preview is red, with "Too cold here — lay it in a warm room". Laid, it unrolls over 1.2 s:
+  the bundle rolls from the head to the foot, the pad spreads behind it, and the pillow roll is left at
+  the head. A save restores it laid out, with no unrolling. The warmth check now lives in
+  `ThermalZone.is_warm_at`, which the snow splats also use.
 - Henry wears a chunky knit sweater with a high, thick turtleneck covering the whole neck (owner:
   "вязанный бабушкин свитер с высоким толстым воротником").
   - **Body and sleeves:** built in `tools/blender/build_henry_outfit.py` as a thin layer under the
@@ -618,6 +742,45 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Dev street spawn (owner request): `World` → Developer tools → **Dev Spawn Street** picks one of ten streets from different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
 
 ### Fixed
+
+- The sweater no longer shows through the jacket (owner: through the back and at the collar). There is
+  no cloth physics, so the hidden parts of the inner layer are not drawn at all. This is the same
+  layered-clothing technique that already hides the skin under the clothes.
+  - **Hidden by rays:** sweater and turtleneck faces whose points the jacket covers are removed
+    (`cull_covered`, 1007 + 383 faces). A point counts as covered when most of a fan of five rays along
+    its normal, either way, meets the jacket within 8 cm, so a narrow seam gap does not count.
+  - **Back half:** the sweater's back half goes too. The jacket has a real gap at the yoke seam, and the
+    sweater's body is only meant to show at the open front.
+  - **What stays:** the open front, the turtleneck above the jacket's collar and the edges tucked under
+    the jacket. Checked front, side, back and walking.
+  - **Turtleneck and lapels in front** (owner: the collars crossed in front). The turtleneck's limits by
+    the skin and the jacket are now measured where each point really is: its top dips to the front, but
+    it used to be measured at the ring's back height. They are re-applied after smoothing, so averaging
+    cannot carry the knit back out through the jacket. The few roll faces the lapels still lie across
+    are dropped (`cull_crossing`). Collar-to-jacket crossing face pairs in the rest pose: 257 (170 in
+    front) → 0.
+  - **Turtleneck and jacket collar at the back** (owner: the turtleneck cut through the jacket's
+    collar). The turtleneck followed the neck and head, while the jacket's collar hangs on its spring
+    bones, so the two parted whenever the head moved. Inside the jacket's collar, and 1 cm past its edge,
+    the turtleneck now takes the jacket's weights, easing back to the neck's over 3 cm above. Skull
+    weight goes to the neck. `follow` now creates every source bone's group first: before, the transfer
+    silently dropped bones the target lacked, such as the collar springs.
+    - Crossing face pairs in clip poses (idle, walk, sprint, crouch): 160–214 → 4–18. In-game captures
+      from behind, walking and sprinting with the springs live, show none.
+  - **Turtleneck closes on the neck under the chin** (owner). It is now built round Henry's own neck,
+    which is long and thin, instead of the mannequin's, which his head replaced. It is no longer culled
+    as "under the jacket", since it shows from above and in the open front; only the few faces that
+    cross the lapels go.
+
+- Henry's knee no longer snaps backwards for a frame when he walks in snow. `LegTwoBoneIK` now bends the
+  knee in the leg's own hinge plane. Before, it bent towards whichever side of the new hip-to-target line
+  the old knee lay. A big snow lift put the knee behind that line, so the solve folded it back. Traced on
+  Duval Street: before the fix the knee went from +253 mm ahead to −201 mm behind and back again. This
+  happened at peak swing (about 90° of knee bend), always after `SnowFeet`.
+- Henry stands still at idle (owner: arms swayed and the chest heaved all the time). The idle and crouch
+  idle clips keep only a share of each bone's swing about its mean pose: 40% in the chest, 30% in the
+  neck and head, 15% elsewhere. Measured live over 3 s: arms 3.2–3.9° → 0.6–1.0°, shin 5.5° → 1.3°,
+  chest 1.9° → 0.5°.
 
 - Jeans crotch (owner: "штанина косяк"): the drape left a web between the legs, reaching 11 cm below
   the crotch, which stretched into a tab or bar on every step. The build now lays that web on the body

@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://gg8ahhgib684"
-path="res://.godot/imported/henry_outfit_knit_rib_orm.png-38fdf750fcc1d2569e099ddf0ab9fd6d.ctex"
+path.s3tc="res://.godot/imported/henry_outfit_knit_rib_orm.png-38fdf750fcc1d2569e099ddf0ab9fd6d.s3tc.ctex"
+path.etc2="res://.godot/imported/henry_outfit_knit_rib_orm.png-38fdf750fcc1d2569e099ddf0ab9fd6d.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "cee66cfeb82dda716db9248ab968ea6b"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/characters/henry/henry_outfit_knit_rib_orm.png"
-dest_files=["res://.godot/imported/henry_outfit_knit_rib_orm.png-38fdf750fcc1d2569e099ddf0ab9fd6d.ctex"]
+dest_files=["res://.godot/imported/henry_outfit_knit_rib_orm.png-38fdf750fcc1d2569e099ddf0ab9fd6d.s3tc.ctex", "res://.godot/imported/henry_outfit_knit_rib_orm.png-38fdf750fcc1d2569e099ddf0ab9fd6d.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/high_quality_mode=0
 compress/lossy_quality=0.7
@@ -43,4 +45,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

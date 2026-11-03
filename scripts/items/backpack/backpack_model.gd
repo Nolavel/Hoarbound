@@ -130,6 +130,9 @@ const MUG_HANDLE_GRIP_M: float = 0.012
 ## The rod rests this far below the top of the mug, in the handle's upper bend.
 const MUG_HANDLE_TOP_M: float = 0.022
 ## What is clipped on swings slower than the carabiner (longer, heavier) and wider, Hz/degrees.
+## The frying pan's hanging eye in its own model (Codex's capture), and how far the eye's top sits below the rod.
+const PAN_EYE: Vector3 = Vector3(0.250, 0.045, 0.0)
+const PAN_EYE_SAG_M: float = 0.005
 const CLIPPED_SWING_HZ: float = 1.8
 const CLIPPED_SWING_DAMPING: float = 0.65
 const CLIPPED_MAX_SWING_DEG: float = 60.0
@@ -462,6 +465,10 @@ func hang_item(item_id: StringName, carabiner_index: int) -> bool:
 		visual.transform = Transform3D(turn, -(turn * grip))
 		visual.set_meta(&"grip", grip)
 		visual.set_meta(&"centre_of_mass", grip + below)
+	elif item_id == &"frying_pan":
+		## The pan hangs by its oval eye (handle up); the rod runs through the eye along the carabiner's X.
+		var eye_turn := Basis(Vector3.BACK, PI * 0.5)
+		visual.transform = Transform3D(eye_turn, -(eye_turn * PAN_EYE) + Vector3.DOWN * PAN_EYE_SAG_M)
 	else:
 		visual.position = Vector3(-box.get_center().x, -box.end.y, -box.get_center().z)
 	var swing := PendulumHang.new()
@@ -472,7 +479,7 @@ func hang_item(item_id: StringName, carabiner_index: int) -> bool:
 	## It rests against the pack's side instead of passing through it.
 	swing.contact_points = _contact_points(visual)
 	swing.contact_depth = _pack_contact
-	if String(item_id).contains("mug"):
+	if String(item_id).contains("mug") or item_id == &"frying_pan":
 		swing.knocked.connect(_on_clipped_knock.bind(swing))
 		swing.hinge_axis = Vector3.RIGHT  # the rod, along the carabiner body's X
 		swing.max_swing_deg = 90.0  # on the rod it turns until it meets the pack or the tools
@@ -1178,10 +1185,11 @@ static func _round_box(q: Vector3, c: Vector3, h: Vector3, r: float) -> Vector4:
 	return Vector4(n.x, n.y, n.z, dist)
 
 
-## A visual's surface points in its parent's space (where it hangs), one per CONTACT_CELL_M cell,
-## spread evenly over it, for contact.
+## A visual's surface points in its parent's space (where it hangs), one per CONTACT_CELL_M cell: the
+## vertex nearest its cell's mean (vertex clustering), so no corner pick leaves a gap a tool handle slips into.
 static func _contact_points(visual: Node3D) -> PackedVector3Array:
 	var cells: Dictionary = {}
+	var sums: Dictionary = {}
 	for node: Node in visual.find_children("*", "MeshInstance3D", true, false):
 		var mesh_node := node as MeshInstance3D
 		var chain: Transform3D = Transform3D.IDENTITY
@@ -1193,8 +1201,20 @@ static func _contact_points(visual: Node3D) -> PackedVector3Array:
 			var p: Vector3 = visual.transform * chain * v
 			var key: Vector3i = Vector3i((p / CONTACT_CELL_M).floor())
 			if not cells.has(key):
-				cells[key] = p
-	return PackedVector3Array(cells.values())
+				cells[key] = []  # an Array, shared by reference (a packed one would append to a copy)
+				sums[key] = Vector3.ZERO
+			(cells[key] as Array).append(p)
+			sums[key] += p
+	var points := PackedVector3Array()
+	for key: Vector3i in cells:
+		var members: Array = cells[key]
+		var mean: Vector3 = sums[key] / float(members.size())
+		var pick: Vector3 = members[0]
+		for p: Vector3 in members:
+			if p.distance_squared_to(mean) < pick.distance_squared_to(mean):
+				pick = p
+		points.append(pick)
+	return points
 
 
 ## Centre of mass of a thin-walled visual in its own space: its surface triangles' centroids

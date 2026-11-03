@@ -140,24 +140,27 @@ def _turn_down(rig, bone, angle):
 	bpy.context.view_layer.update()
 
 
-def fit_outside(obj, body, margin, below=None, above=None):
+def fit_outside(obj, body, margin, below=None, above=None, where=None):
 	"""Pushes any point of obj inside the body out to `margin` metres past its surface. With
 	`below`, only points lower than that height: over an open mesh (the jeans' waist), points
-	above its rim would otherwise read as inside and collapse onto it."""
+	above its rim would otherwise read as inside and collapse onto it. `where` (world point -> bool)
+	limits it further."""
 	mod = obj.modifiers.new("Fit", "SHRINKWRAP")
 	mod.target = body
 	mod.wrap_method = "NEAREST_SURFACEPOINT"
 	mod.wrap_mode = "OUTSIDE"  # only points inside move; OUTSIDE_SURFACE lays every point on the target
 	mod.offset = margin
-	if below is not None or above is not None:
+	limited = below is not None or above is not None or where is not None
+	if limited:
 		group = obj.vertex_groups.new(name="FitBelow")
 		group.add([v.index for v in obj.data.vertices
 			if (below is None or (obj.matrix_world @ v.co).z < below)
-			and (above is None or (obj.matrix_world @ v.co).z > above)], 1.0, "REPLACE")
+			and (above is None or (obj.matrix_world @ v.co).z > above)
+			and (where is None or where(obj.matrix_world @ v.co))], 1.0, "REPLACE")
 		mod.vertex_group = group.name
 	bpy.context.view_layer.objects.active = obj
 	bpy.ops.object.modifier_apply(modifier="Fit")
-	if below is not None or above is not None:
+	if limited:
 		obj.vertex_groups.remove(obj.vertex_groups["FitBelow"])
 
 
@@ -463,6 +466,11 @@ def follow(obj, other, top, bottom, above=False):
 	"""Past `top` towards `bottom` (fully beyond it; bottom may lie above top) obj takes `other`'s
 	skin weights from its nearest face: cloth inside a boot moves exactly as the boot does, and
 	trousers under a jacket as the jacket does, so the layers never cross in a pose."""
+	## The transfer only fills groups obj already has: every bone of `other` gets one (a jacket collar's
+	## spring bones were dropped otherwise, and a collar under it stayed on the neck).
+	for g in other.vertex_groups:
+		if g.name not in obj.vertex_groups:
+			obj.vertex_groups.new(name=g.name)
 	group = obj.vertex_groups.new(name="Follow")
 	for v in obj.data.vertices:
 		z = (obj.matrix_world @ v.co).z
@@ -767,7 +775,7 @@ def raise_seam(obj, body, below, half, margin):
 	obj.data.update()
 
 
-def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_radius, top_radius, outer=None, sides=32, rings=14, name="Outfit_Collar"):
+def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_radius, top_radius, outer=None, front_drop=0.0, side_drop=0.0, sides=32, rings=14, name="Outfit_Collar"):
 	"""A knitted turtleneck as a lathe round the neck: each ring follows the neck (a ray out from the axis
 	to the skin) at `gap`, the knit is `thick`, and the top `fold` metres are turned down over it
 	(a second, outer layer from the top down), all of it kept inside `outer` (the jacket) if given.
@@ -812,24 +820,38 @@ def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_rad
 	## Radius per ring and angle: the neck's own so it hugs it, capped at `max_radius` (low rings reach
 	## the shoulders, the top the jaw), then smoothed round each ring and up the tube.
 	heights = [z_from + (z_to - z_from) * k / (rings - 1) for k in range(rings)]
+	## The top is highest at the back, `side_drop` lower at the sides (under the ears) and `front_drop`
+	## lower in front (under the chin), easing between them so the roll reads as one band.
+	def ring_z(k, a):
+		b = math.sin(a)
+		if b >= 0.0:
+			top = z_to - side_drop * (1.0 - b * b)
+		else:
+			top = z_to - side_drop - (front_drop - side_drop) * b * b
+		return z_from + (top - z_from) * k / (rings - 1)
 	## The cap opens up the tube: the shoulders only reach the lowest rings, the front of the neck all of them.
 	caps = [max_radius + (top_radius - max_radius) * min(k / (rings * 0.3), 1.0) for k in range(rings)]
-	radius = [[min(skin(z, 2.0 * math.pi * j / sides), caps[k], room(z, 2.0 * math.pi * j / sides))
-		for j in range(sides)] for k, z in enumerate(heights)]
+	## Measured where each point really is (the top dips to the front), against the skin and the jacket.
+	angles = [2.0 * math.pi * j / sides for j in range(sides)]
+	limit = [[room(ring_z(k, a), a) for a in angles] for k in range(rings)]
+	radius = [[min(skin(ring_z(k, a), a), caps[k], limit[k][j]) for j, a in enumerate(angles)] for k in range(rings)]
 	for _ in range(3):
 		radius = [[(row[j - 1] + 2.0 * row[j] + row[(j + 1) % sides]) * 0.25 for j in range(sides)] for row in radius]
 		radius = [[(radius[max(k - 1, 0)][j] + 2.0 * radius[k][j] + radius[min(k + 1, rings - 1)][j]) * 0.25
 			for j in range(sides)] for k in range(rings)]
+	## Smoothing must not carry the knit back out through the jacket.
+	radius = [[min(radius[k][j], limit[k][j]) for j in range(sides)] for k in range(rings)]
 	out = bmesh.new()
 	layers = []
 	## Inner wall, outer wall, then the turned-down fold outside the outer wall.
 	for extra, zs in ((gap, heights), (gap + thick, heights)):
 		layer = []
 		for k, z in enumerate(zs):
-			c = centre(z)
 			ring = []
 			for j in range(sides):
 				a = 2.0 * math.pi * j / sides
+				zj = ring_z(k, a)
+				c = centre(zj)
 				r = radius[k][j] + extra
 				ring.append(out.verts.new(c + Vector((math.cos(a) * r, math.sin(a) * r, 0.0))))
 			layer.append(ring)
@@ -837,10 +859,11 @@ def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_rad
 	fold_rings = [k for k, z in enumerate(heights) if z >= z_to - fold]
 	fold_layer = []
 	for k in reversed(fold_rings):
-		c = centre(heights[k])
 		ring = []
 		for j in range(sides):
 			a = 2.0 * math.pi * j / sides
+			zj = ring_z(k, a)
+			c = centre(zj)
 			r = radius[k][j] + gap + thick * 2.0
 			ring.append(out.verts.new(c + Vector((math.cos(a) * r, math.sin(a) * r, 0.0))))
 		fold_layer.append(ring)
@@ -868,3 +891,69 @@ def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_rad
 	for p in me.polygons:
 		p.use_smooth = True
 	return obj
+
+
+def cull_covered(obj, cover, reach):
+	"""Drops the faces of an inner layer that `cover` hides entirely: a vertex is covered when most of a
+	fan of rays along its normal, either way, meet `cover` within `reach` (so both faces of a thickened
+	layer count). A layer that is not there cannot poke through the one over it; what shows (an opening, a
+	collar above) stays, its edge tucked under the cover's."""
+	import bmesh
+	from mathutils.bvhtree import BVHTree
+	cm = bmesh.new()
+	cm.from_mesh(cover.data)
+	cm.transform(cover.matrix_world)
+	tree = BVHTree.FromBMesh(cm)
+	cm.free()
+	world = obj.matrix_world
+	normal_world = world.to_3x3().inverted().transposed()
+	## A fan of five rays each way (along the normal and tilted ~20 degrees round it): covered when most
+	## meet the cover, so a narrow seam gap in it does not count as showing the layer.
+	covered = set()
+	for v in obj.data.vertices:
+		p = world @ v.co
+		n = (normal_world @ v.normal).normalized()
+		t = n.orthogonal().normalized()
+		b = n.cross(t)
+		for sign in (1.0, -1.0):
+			hits = 0
+			for d in (n, n + t * 0.36, n - t * 0.36, n + b * 0.36, n - b * 0.36):
+				d = d.normalized() * sign
+				if tree.ray_cast(p + d * 0.001, d, reach)[0] is not None:
+					hits += 1
+			if hits >= 3:
+				covered.add(v.index)
+				break
+	bm = bmesh.new()
+	bm.from_mesh(obj.data)
+	bm.verts.ensure_lookup_table()
+	gone = [f for f in bm.faces if all(v.index in covered for v in f.verts)]
+	bmesh.ops.delete(bm, geom=gone, context="FACES")
+	bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+	bm.to_mesh(obj.data)
+	bm.free()
+	return len(gone)
+
+
+def cull_crossing(obj, cover):
+	"""Drops obj's faces that cut through `cover` (a lapel lying across a collar's roll): `cover` hides
+	where they meet, and nothing of obj is left to show through it."""
+	import bmesh
+	from mathutils.bvhtree import BVHTree
+	om = bmesh.new()
+	om.from_mesh(obj.data)
+	om.transform(obj.matrix_world)
+	cm = bmesh.new()
+	cm.from_mesh(cover.data)
+	cm.transform(cover.matrix_world)
+	crossing = {a for a, _ in BVHTree.FromBMesh(om).overlap(BVHTree.FromBMesh(cm))}
+	cm.free()
+	om.free()
+	bm = bmesh.new()
+	bm.from_mesh(obj.data)
+	bm.faces.ensure_lookup_table()
+	bmesh.ops.delete(bm, geom=[bm.faces[i] for i in crossing], context="FACES")
+	bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+	bm.to_mesh(obj.data)
+	bm.free()
+	return len(crossing)

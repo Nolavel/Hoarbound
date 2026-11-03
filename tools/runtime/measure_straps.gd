@@ -24,6 +24,13 @@ var _state: String = ""
 var _frame: int = 0
 ## Per jacket vertex: how much deeper it must be pressed to stay out of the strap in the poses seen.
 var _need: Dictionary = {}
+## Jacket points this frame hashed by HASH_M cells, for the bent strap mesh's depth check.
+const HASH_M: float = 0.02
+var _hash: Dictionary = {}
+## Per side, per free run, per sample: the bow out it still needs to clear the cloth in the poses seen.
+var _free_need: Array = [[{}, {}], [{}, {}]]
+var _cloth_normals := PackedVector3Array()
+var _near_index: int = 0
 
 
 func _initialize() -> void:
@@ -103,16 +110,37 @@ func _run() -> void:
 				await _shot("strap_" + v[0], v[1], 1.35, 1.1)
 	for name: String in _stats:
 		var st: Dictionary = _stats[name]
-		print("[straps] %-12s jacket in strap %d pts (deepest %.1f mm), sleeve %d (%.1f mm) | underside off cloth %.1f..%.1f mm | free run in pack %.1f mm, in jacket %.1f mm | pack end gap %.1f mm" % [
-			name, st.inside, st.deep * 1000.0, st.sleeve, st.sleeve_deep * 1000.0, st.gap_min * 1000.0, st.gap_max * 1000.0, st.pack_in * 1000.0, st.free_in * 1000.0, st.end_gap * 1000.0])
+		var by_t: String = ""
+		var by_s: String = ""
+		for b: int in 11:
+			if st.has("t%d" % b):
+				by_t += " t%.1f:%.0f" % [b * 0.1, float(st["t%d" % b]) * 1000.0]
+			if st.has("s%d" % b):
+				by_s += " t%.1f:%.0f" % [b * 0.1, float(st["s%d" % b]) * 1000.0]
+		print("[straps-mesh] %-12s torso cloth, deepest by share along the strap (mm):%s | under the sleeve (%d pts):%s | arm turned off the strap up to %.1f deg (overlap %.0f mm)" % [name, by_t, int(st.get("sleeve_mesh", 0)), by_s, float(st.get("arm_turn", 0.0)), float(st.get("arm_overlap", 0.0)) * 1000.0])
+		print("[straps] %-12s jacket in strap %d pts (deepest %.1f mm), sleeve %d (%.1f mm) | underside off cloth %.1f..%.1f mm | free run in pack %.1f mm, in jacket %.1f mm | pack end gap %.1f mm | strap mesh in jacket %d/%d pts (deepest %.1f mm)" % [
+			name, st.inside, st.deep * 1000.0, st.sleeve, st.sleeve_deep * 1000.0, st.gap_min * 1000.0, st.gap_max * 1000.0, st.pack_in * 1000.0, st.free_in * 1000.0, st.end_gap * 1000.0, st.mesh_in, st.mesh_pts, st.mesh_deep * 1000.0])
 	if "--learn" in OS.get_cmdline_user_args():
 		_learn()
 	quit(0)
 
 
-## Adds what each cloth point still needed in this run to its press in the strap points file.
+## Adds what each cloth point still needed in this run to its press in the strap points file, and what each
+## free run sample still needed to its bow (never at the pack or the row it joins).
 func _learn() -> void:
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(POINTS_FILE))
+	var lifts: Array = data.get("free_lift", [[[], []], [[], []]])
+	for side: int in 2:
+		for run: int in 2:
+			var have: Array = lifts[side][run]
+			have.resize(PackShoulderStraps.FREE_POINTS)
+			for k: int in PackShoulderStraps.FREE_POINTS:
+				var ends: bool = k == 0 or k == PackShoulderStraps.FREE_POINTS - 1
+				var now: float = 0.0 if have[k] == null else float(have[k])
+				have[k] = 0.0 if ends else snappedf(minf(now + float(_free_need[side][run].get(k, 0.0)), 0.06), 0.0001)
+			lifts[side][run] = have
+	data["free_lift"] = lifts
+	print("[straps] free run bow: ", lifts)
 	var nv: int = (_surfaces[0][Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 	var by_key: Dictionary = {}
 	for p: Array in data["press"]:
@@ -149,9 +177,28 @@ func _measure() -> void:
 	_frame += 1
 	if _frame % 3 != 0:
 		return
-	var st: Dictionary = _stats.get(_state, {"inside": 0, "deep": 0.0, "sleeve": 0, "sleeve_deep": 0.0, "gap_min": 1.0, "gap_max": -1.0, "pack_in": -1.0, "free_in": 0.0, "end_gap": 0.0})
+	var st: Dictionary = _stats.get(_state, {"inside": 0, "deep": 0.0, "sleeve": 0, "sleeve_deep": 0.0, "gap_min": 1.0, "gap_max": -1.0, "pack_in": -1.0, "free_in": 0.0, "end_gap": 0.0, "mesh_in": 0, "mesh_deep": 0.0, "mesh_pts": 0})
 	_stats[_state] = st
 	var cloth: PackedVector3Array = _skin_jacket()
+	_hash_cloth(cloth)
+	var clearance := _skeleton.get_node_or_null(^"ArmStrapClearance") as ArmStrapClearance
+	if clearance != null:
+		st["arm_turn"] = maxf(float(st.get("arm_turn", 0.0)), rad_to_deg(maxf(clearance._turn[0], clearance._turn[1])))
+		st["arm_overlap"] = maxf(float(st.get("arm_overlap", 0.0)), maxf(clearance.overlap[0], clearance.overlap[1]))
+	## The bent strap mesh itself (the school pack's pad and webbing): its vertices inside the jacket.
+	for q: Vector4 in _straps.bent_vertices(3):
+		var depth: float = _depth_hashed(Vector3(q.x, q.y, q.z), cloth)
+		st.mesh_pts += 1
+		if depth > 0.0005:
+			## The arm lying on the strap (a sleeve point nearest) is reported apart from the torso cloth.
+			var key: String = "s" if _sleeve[_near_index] else "t"
+			if key == "s":
+				st["sleeve_mesh"] = int(st.get("sleeve_mesh", 0)) + 1
+			else:
+				st.mesh_in += 1
+				st.mesh_deep = maxf(st.mesh_deep, depth)
+			var bucket: int = int(q.w * 10.0)
+			st["%s%d" % [key, bucket]] = maxf(float(st.get("%s%d" % [key, bucket], 0.0)), depth)
 	var canvas: BackpackModel = (_straps.get(&"_pack") as PackRig).get_canvas()
 	var to_pack: Transform3D = canvas.global_transform.affine_inverse()
 	for side: int in 2:
@@ -195,6 +242,17 @@ func _measure() -> void:
 		var worn: Dictionary = _straps.worn_band(side)
 		var band: Array = worn["band"]
 		var free: Array = band.slice(0, PackShoulderStraps.FREE_POINTS) + band.slice(band.size() - PackShoulderStraps.FREE_POINTS)
+		for j: int in free.size():
+			var run: int = 0 if j < PackShoulderStraps.FREE_POINTS else 1
+			var k: int = j % PackShoulderStraps.FREE_POINTS
+			var n: Vector3 = free[j][3]
+			var need: float = 0.0
+			for c: int in 3:
+				var depth: float = _depth_hashed(free[j][c], cloth)
+				if depth > 0.0:
+					need = maxf(need, depth / maxf(n.dot(_cloth_normals[_near_index]), 0.3))
+			if need > 0.0:
+				_free_need[side][run][k] = maxf(float(_free_need[side][run].get(k, 0.0)), need + PRESS_MARGIN_M)
 		for row: Array in free:
 			for c: int in 3:
 				var p: Vector3 = row[c]
@@ -207,6 +265,36 @@ func _measure() -> void:
 		for end: Array in [band[0], band[band.size() - 1]]:
 			var local: Vector3 = to_pack * (end[1] as Vector3)
 			st.end_gap = maxf(st.end_gap, absf(local.z - canvas.canvas_point(Vector3(local.x, local.y, 0.0), Vector3.FORWARD).z))
+
+
+func _hash_cloth(cloth: PackedVector3Array) -> void:
+	_hash.clear()
+	for v: int in cloth.size():
+		var key: Vector3i = Vector3i((cloth[v] / HASH_M).floor())
+		if not _hash.has(key):
+			_hash[key] = PackedInt32Array()
+		var cell: PackedInt32Array = _hash[key]
+		cell.append(v)
+		_hash[key] = cell
+
+
+## As _depth_in_cloth, with the nearest cloth point found in the hash (within 2 cm).
+func _depth_hashed(p: Vector3, cloth: PackedVector3Array) -> float:
+	var best: float = 0.02 * 0.02
+	var near := Vector3.INF
+	var at: Vector3i = Vector3i((p / HASH_M).floor())
+	for dx: int in range(-1, 2):
+		for dy: int in range(-1, 2):
+			for dz: int in range(-1, 2):
+				for v: int in _hash.get(at + Vector3i(dx, dy, dz), PackedInt32Array()):
+					var d: float = cloth[v].distance_squared_to(p)
+					if d < best:
+						best = d
+						near = cloth[v]
+						_near_index = v
+	if near == Vector3.INF:
+		return 0.0
+	return maxf(0.0, (near - p).dot(_cloth_normals[_near_index]))
 
 
 ## How deep a point lies under the cloth: along the nearest cloth point's outward offset from the spine.
@@ -232,6 +320,7 @@ func _skin_jacket() -> PackedVector3Array:
 	for b: Array in binds:
 		mats.append(_skeleton.get_bone_global_pose(int(b[0])) * (b[1] as Transform3D))
 	var out := PackedVector3Array()
+	_cloth_normals.clear()
 	var xf: Transform3D = _skeleton.global_transform
 	for arrays: Array in _surfaces:
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -252,6 +341,7 @@ func _skin_jacket() -> PackedVector3Array:
 			if not colours.is_empty() and colours[v].r > 0.0:
 				p -= n.normalized() * (1.0 if colours[v].g > 0.5 else -1.0) * colours[v].r * PackShoulderStraps.PRESS_MAX_M
 			out.append(xf * p)
+			_cloth_normals.append((xf.basis * n).normalized())
 	return out
 
 

@@ -78,18 +78,7 @@ static func burst(parent: Node, point: Vector3, normal: Vector3) -> void:
 
 ## True inside an interior thermal zone that is warmer than freezing.
 static func is_warm_at(parent: Node, point: Vector3) -> bool:
-	var space: PhysicsDirectSpaceState3D = (parent as Node3D).get_world_3d().direct_space_state if parent is Node3D else null
-	if space == null:
-		return false
-	var query := PhysicsPointQueryParameters3D.new()
-	query.position = point
-	query.collide_with_areas = true
-	query.collide_with_bodies = false
-	for hit: Dictionary in space.intersect_point(query, 8):
-		var zone := hit["collider"] as ThermalZone
-		if zone != null and zone.is_interior and zone.get_total_offset_c() > 0.0:
-			return true
-	return false
+	return parent is Node3D and ThermalZone.is_warm_at((parent as Node3D).get_world_3d(), point)
 
 
 func _init() -> void:

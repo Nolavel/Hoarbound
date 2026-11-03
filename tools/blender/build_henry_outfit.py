@@ -114,6 +114,41 @@ GLOVE_TAB = (0.58, 0.12, 0.08)
 ## name: (colour, push-out metres, shell thickness, smoothing passes)
 ## Smoothing irons out the mannequin's muscles so cloth reads as panels.
 SWEATER_COLOUR = (0.40, 0.06, 0.09)
+## Henry's head (generated from the owner's reference, docs/art/henry_reference/), its game budget in
+## faces, and its own landmarks measured on the source: chin and skull top heights, skull centre depth.
+HEAD_SOURCE = "assets/characters/henry/head_candidate/generated_head_candidate.glb"
+HEAD_FACES = 6000
+HEAD_CHIN_Z = -0.25
+HEAD_SKULL_Z = 0.40
+HEAD_CENTRE_Y = 0.01
+## The knit hat fitted onto the head: its source, the fit written for the game, how far its front cuff
+## sits under the hairline, the fringe's jut that marks the hairline, the crown's knit thickness and slack, the
+## air kept inside it off the scalp, and how far above its brim hair is pressed under it (metres).
+HAT_SOURCE = "assets/characters/henry/knit_hat/knit_hat.glb"
+HAT_FIT = "assets/characters/henry/knit_hat/hat_fit.json"
+HAT_BELOW_HAIRLINE = 0.02
+## Where the ears' zone starts out from the middle, and the room under the ear lobes kept for the head's
+## tilt in play (it lowers them about 1.5 cm), metres.
+EAR_ZONE_X = 0.055
+## The turtleneck takes the jacket's weights fully up to the jacket collar's top, easing back to the
+## neck's over this much above it, metres ...
+COLLAR_FOLLOW_ABOVE = 0.03
+## ... and a little past the jacket collar's edge, where the two still touch, metres.
+COLLAR_FOLLOW_EDGE = 0.01
+## How far out a sweater point may lie under the jacket and still count as hidden by it, metres.
+SWEATER_COVER_REACH = 0.08
+## Behind this depth (Blender +Y is Henry's back) the sweater's body is never seen, metres.
+SWEATER_BACK_FROM = 0.0
+## Half-length (front to back) of the stretch of collar turned down beside each ear, metres.
+EAR_ZONE_Y = 0.08
+EAR_TILT_ROOM = 0.017
+HAT_FRINGE_STEP = 0.012
+HAT_CROWN_THICK = 0.006
+HAT_CROWN_SLACK = 0.015
+HAT_GAP = 0.003
+HAT_BRIM_KEEP = 0.004
+## The new head's neck ends this far above the neck bone, inside the turtleneck, metres.
+HEAD_CUT_ABOVE_NECK = 0.01
 ## Knit textures (tools/blender/make_knit_textures.py) and the size one tile covers on the body, metres.
 KNIT_BODY = "assets/characters/gear/knit_body_%s.png"
 KNIT_RIB = "assets/characters/gear/knit_rib_%s.png"
@@ -129,6 +164,11 @@ TURTLENECK_FOLD = 0.05
 TURTLENECK_MAX_R = 0.075
 ## Above the shoulders the tube follows the whole neck, its front included, up to this radius.
 TURTLENECK_TOP_R = 0.13
+## How much lower the top sits under the chin than at the back of the neck, metres.
+TURTLENECK_FRONT_DROP = 0.115
+## How much lower the top sits at the sides, under Henry's ear lobes (1.637 m; head tilt in play lowers
+## them about 1.5 cm), metres.
+TURTLENECK_SIDE_DROP = 0.07
 GARMENTS = {
 	"Jacket": (JACKET_COLOUR, 0.030, 0.010, 12),
 	"Pants": ((0.27, 0.30, 0.36), 0.019, 0.008, 8),
@@ -479,6 +519,7 @@ def build():
 		(pants, "Pants"), (jacket, "Jacket")]))
 	## The sweater is always worn: the skin under it is never shown.
 	bpy.data.objects.remove(bpy.data.objects["Skin_Sweater"])
+	owner_head(arm, body)
 	## The plaid jacket has its own collar and no hood; the old generated hood sat on it like a scarf.
 	return arm
 
@@ -629,15 +670,212 @@ def owner_jacket(arm, body, generated, pants):
 	return jacket
 
 
-def owner_turtleneck(arm, body, jacket):
+def owner_head(arm, body):
+	"""Henry's own head (the generated candidate from the owner's reference) on the mannequin: decimated
+	to a game budget, scaled so its chin-to-skull height matches the mannequin's head, its chin set on
+	the mannequin's chin, the neck cut inside the turtleneck, skinned to Head and neck_01; the mannequin's
+	head and neck skin are removed."""
+	names = {g.index: g.name for g in body.vertex_groups}
+	world = body.matrix_world
+
+	def owner_of(v):
+		best = max(v.groups, key=lambda g: g.weight, default=None)
+		return names[best.group] if best is not None else ""
+	skull = [world @ v.co for v in body.data.vertices if owner_of(v) == "Head"]
+	chin_z = min(p.z for p in skull)
+	top_z = max(p.z for p in skull)
+	centre_y = (min(p.y for p in skull) + max(p.y for p in skull)) * 0.5
+	head = G.import_joined(HEAD_SOURCE, "Henry_Head", lambda n: True)
+	G.decimate_to(head, HEAD_FACES)
+	scale = (top_z - chin_z) / (HEAD_SKULL_Z - HEAD_CHIN_Z)
+	for v in head.data.vertices:
+		p = v.co
+		v.co = Vector((p.x * scale, (p.y - HEAD_CENTRE_Y) * scale + centre_y, (p.z - HEAD_CHIN_Z) * scale + chin_z))
+	head.data.update()
+	neck = arm.matrix_world @ arm.data.bones["neck_01"].head_local
+	bone = arm.matrix_world @ arm.data.bones["Head"].head_local
+	G.cut_below(head, neck.z + HEAD_CUT_ABOVE_NECK)
+	## The skull follows the head; the neck blends to the neck bone below the head's pivot.
+	g_head = head.vertex_groups.new(name="Head")
+	g_neck = head.vertex_groups.new(name="neck_01")
+	for v in head.data.vertices:
+		z = (head.matrix_world @ v.co).z
+		t = min(max((z - neck.z) / max(bone.z + 0.02 - neck.z, 1e-3), 0.0), 1.0)
+		t = t * t * (3.0 - 2.0 * t)
+		g_head.add([v.index], t, "REPLACE")
+		g_neck.add([v.index], 1.0 - t, "REPLACE")
+	for poly in head.data.polygons:
+		poly.use_smooth = True
+	fit_hat(head)
+	G.bind(head, arm)
+	## The turtleneck is rebuilt round his own neck (long and thin), so it closes on it under the chin.
+	old = bpy.data.objects.get("Outfit_Collar")
+	if old is not None:
+		bpy.data.objects.remove(old)
+	collar = owner_turtleneck(arm, body, bpy.data.objects.get("Outfit_Jacket"), head)
+	## Inside the jacket's collar the turtleneck moves with the jacket (its weights), easing back to the
+	## neck's above the jacket's edge, so the two collars never cross when the head moves.
+	jacket_collar_top = max((p.z for p in (v.co for v in bpy.data.objects["Outfit_Jacket"].data.vertices)
+		if abs(p.x) < 0.12 and p.y > centre_y), default=chin_z)
+	G.follow(collar, bpy.data.objects["Outfit_Jacket"], jacket_collar_top + COLLAR_FOLLOW_EDGE + COLLAR_FOLLOW_ABOVE,
+		jacket_collar_top + COLLAR_FOLLOW_EDGE)
+	## His big ears hang lower than the jacket's collar stood: beside the head the collar is turned
+	## down to under the ear lobes (with room for the head's tilt in play), easing in from the back.
+	ear = [v.co for v in head.data.vertices if abs(v.co.x) > EAR_ZONE_X + 0.04 and v.co.z > chin_z + 0.02]
+	lobe = min(p.z for p in ear)
+	ear_y = sum(p.y for p in ear) / len(ear)
+	jacket = bpy.data.objects.get("Outfit_Jacket")
+	if jacket is not None:
+		limit = lobe - EAR_TILT_ROOM
+		for v in jacket.data.vertices:
+			p = jacket.matrix_world @ v.co
+			side = min(max((abs(p.x) - EAR_ZONE_X) / 0.04, 0.0), 1.0) * min(max((EAR_ZONE_Y - abs(p.y - ear_y)) / 0.04, 0.0), 1.0)
+			if side > 0.0 and p.z > limit:
+				v.co.z -= (p.z - limit) * side
+		jacket.data.update()
+	print("owner_head: ear lobes at %.3f, collars kept under %.3f" % (lobe, lobe - EAR_TILT_ROOM))
+	## Under the jacket the sweater is not drawn at all, so it never pokes through it; its open-front and
+	## cuff edges stay, tucked under the jacket's.
+	if jacket is not None:
+		## (The turtleneck shows from above and in the open front even inside the jacket's collar: only
+		## its faces that really cross the jacket go, below.)
+		layer = bpy.data.objects.get("Outfit_Sweater")
+		if layer is not None:
+			print("owner_head: sweater faces hidden under the jacket %d" % G.cull_covered(layer, jacket, SWEATER_COVER_REACH))
+		## Where the jacket's lapels lie across the turtleneck's roll in front, the roll under them goes.
+		collar = bpy.data.objects.get("Outfit_Collar")
+		if collar is not None:
+			print("owner_head: turtleneck faces under the lapels %d" % G.cull_crossing(collar, jacket))
+		## The sweater's body shows only at the jacket's open front: its back half goes too (the jacket
+		## has a gap at the yoke seam it would show through).
+		sweater = bpy.data.objects.get("Outfit_Sweater")
+		if sweater is not None:
+			bm = bmesh.new()
+			bm.from_mesh(sweater.data)
+			back = [f for f in bm.faces if all((sweater.matrix_world @ v.co).y > SWEATER_BACK_FROM for v in f.verts)]
+			bmesh.ops.delete(bm, geom=back, context="FACES")
+			bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+			bm.to_mesh(sweater.data)
+			bm.free()
+	## The mannequin's own head and neck go: the new head and the turtleneck cover them.
+	bm = bmesh.new()
+	bm.from_mesh(body.data)
+	bm.verts.ensure_lookup_table()
+	gone = {v.index for v in body.data.vertices if owner_of(v) in ("Head", "neck_01")}
+	bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(v.index in gone for v in f.verts)], context="FACES")
+	bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+	bm.to_mesh(body.data)
+	bm.free()
+	return head
+
+
+def fit_hat(head):
+	"""Seats the knit hat (assets/characters/henry/knit_hat) on Henry's head as a beanie is worn: its
+	front cuff HAT_BELOW_HAIRLINE under the hairline (found on the face's front profile, where the
+	fringe juts out), centred on the head, scaled round its axis so its inside rests HAT_GAP off the
+	scalp (70th-percentile radius per angle, so tufts do not count) and squashed down so its crown
+	rests HAT_GAP over the head's top. The fit is written to HAT_FIT for the game; hair still outside
+	the fitted hat above its brim is pressed in under it."""
+	import json as _json
+	import math
+	before = set(bpy.data.objects)
+	bpy.ops.import_scene.gltf(filepath=HAT_SOURCE)
+	parts = [o for o in set(bpy.data.objects) - before if o.type == "MESH" and o.name != "KnitHat_Pom"]
+	hat = [o.matrix_world @ v.co for o in parts for v in o.data.vertices]
+	cuff = [o.matrix_world @ v.co for o in parts if "Cuff" in o.name for v in o.data.vertices]
+	hat_tris = []
+	for o in parts:
+		mesh = o.data
+		mesh.calc_loop_triangles()
+		hat_tris += [([o.matrix_world @ mesh.vertices[i].co for i in t.vertices], "Cuff" in o.name) for t in mesh.loop_triangles]
+	for o in set(bpy.data.objects) - before:
+		bpy.data.objects.remove(o)
+	brim = min(p.z for p in hat)
+	top = max(p.z for p in hat)
+	hcx = sum(p.x for p in hat) / len(hat)
+	hcy = sum(p.y for p in hat) / len(hat)
+	front_brim = min(p.z for p in hat if p.y < hcy - 0.06)
+	verts = head.data.vertices
+	## The hairline: going up the middle of the face, the first slice whose front juts forward by a
+	## fringe's thickness over the forehead below it.
+	pts = [v.co for v in verts]
+	profile = []
+	z = min(p.z for p in pts) + 0.12
+	while z < max(p.z for p in pts):
+		row = [p.y for p in pts if abs(p.z - z) < 0.005 and abs(p.x) < 0.03]
+		if row:
+			profile.append((z, min(row)))
+		z += 0.01
+	hairline = next((profile[i][0] for i in range(1, len(profile)) if profile[i][1] < profile[i - 1][1] - HAT_FRINGE_STEP
+		and profile[i][0] > profile[0][0] + 0.06), front_brim)
+	lift = hairline - HAT_BELOW_HAIRLINE - front_brim
+	brim += lift
+	cuff_top = max(p.z for p in cuff) + lift
+	band = [v.co for v in verts if brim + 0.01 < v.co.z < cuff_top]
+	cx = sum(p.x for p in band) / len(band)
+	cy = sum(p.y for p in band) / len(band)
+	ratios = []
+	for k in range(16):
+		a = 2.0 * math.pi * k / 16
+
+		def near(p, ox, oy, lo, hi):
+			d = (math.atan2(p.y - oy, p.x - ox) - a + math.pi) % (2.0 * math.pi) - math.pi
+			return abs(d) < math.pi / 16 and lo < p.z < hi
+		hr = [math.hypot(p.x - hcx, p.y - hcy) for p in cuff if near(p, hcx, hcy, brim - lift + 0.01, cuff_top - lift)]
+		dr = sorted(math.hypot(p.x - cx, p.y - cy) for p in band if near(p, cx, cy, brim + 0.01, cuff_top))
+		if hr and dr:
+			ratios.append((dr[int(len(dr) * 0.7)] + HAT_GAP) / min(hr))
+	scale = sorted(ratios)[len(ratios) // 2]
+	## The crown comes down onto the head: its top over the scalp's (90th percentile near the axis).
+	crown = sorted(p.z for p in pts if math.hypot(p.x - cx, p.y - cy) < 0.04)
+	head_top = crown[int(len(crown) * 0.9)] if crown else top + lift
+	## Only the crown comes down (the cuff keeps its knit band): over the scalp's top with some slack.
+	vscale = min(1.0, (head_top + HAT_GAP + HAT_CROWN_THICK + HAT_CROWN_SLACK - brim) / (top - (brim - lift)))
+	def place(p, is_cuff):
+		z = p.z + lift if is_cuff else brim + (p.z - (brim - lift)) * vscale
+		return Vector(((p.x - hcx) * scale + cx, (p.y - hcy) * scale + cy, z))
+	from mathutils.bvhtree import BVHTree
+	tri_points = [place(q, is_cuff) for tri, is_cuff in hat_tris for q in tri]
+	tree = BVHTree.FromPolygons(tri_points, [(3 * i, 3 * i + 1, 3 * i + 2) for i in range(len(hat_tris))])
+	## Hair under the hat: a ray from the middle of the head to each point; where it meets the hat's
+	## inside first, the point is laid HAT_GAP under it.
+	centre = Vector((cx, cy, brim + 0.02))
+	pressed = 0
+	for v in verts:
+		p = v.co
+		if p.z < brim + HAT_BRIM_KEEP:
+			continue
+		d = p - centre
+		length = d.length
+		if length < 1e-6:
+			continue
+		hit = tree.ray_cast(centre, d / length, length + 0.05)
+		if hit[0] is not None and hit[3] - HAT_GAP - HAT_CROWN_THICK < length:
+			v.co = centre + d / length * max(hit[3] - HAT_GAP - HAT_CROWN_THICK, 0.0)
+			pressed += 1
+	head.data.update()
+	## Godot model space is Blender's with Y up: (x, z, -y).
+	fit = {"lift": lift, "scale": scale, "vscale": vscale, "brim": brim - lift, "axis": [hcx, 0.0, -hcy],
+		"offset": [cx - hcx, 0.0, -(cy - hcy)]}
+	with open(HAT_FIT, "w") as f:
+		_json.dump(fit, f, indent=1)
+	print("fit_hat: hairline %.3f lift %.3f scale %.3f vscale %.3f hair pressed %d" % (hairline, lift, scale, vscale, pressed))
+
+
+def owner_turtleneck(arm, body, jacket, neck_mesh=None):
 	"""The sweater's high, thick turtleneck: a knitted tube round the whole neck from the collarbones to
-	the jaw, its top turned down, inside the jacket's collar, skinned from the neck and head so it follows them."""
+	the jaw, its top turned down, inside the jacket's collar, skinned from the neck and head so it follows
+	them. It hugs `neck_mesh` (Henry's own head and neck) when given, else the body's neck."""
 	neck = arm.matrix_world @ arm.data.bones["neck_01"].head_local
 	head = arm.matrix_world @ arm.data.bones["Head"].head_local
-	collar = G.turtleneck(body, neck, head, neck.z - TURTLENECK_BELOW, head.z + TURTLENECK_ABOVE,
-		TURTLENECK_GAP, TURTLENECK_THICK, TURTLENECK_FOLD, TURTLENECK_MAX_R, TURTLENECK_TOP_R, jacket)
+	collar = G.turtleneck(neck_mesh or body, neck, head, neck.z - TURTLENECK_BELOW, head.z + TURTLENECK_ABOVE,
+		TURTLENECK_GAP, TURTLENECK_THICK, TURTLENECK_FOLD, TURTLENECK_MAX_R, TURTLENECK_TOP_R, jacket, TURTLENECK_FRONT_DROP,
+		TURTLENECK_SIDE_DROP)
 	knit(collar, arm, KNIT_RIB)
 	G.skin_from(collar, body)
+	## A turtleneck follows the neck, not the skull: tilting the head forward swung its back (behind
+	## the head's pivot) out through the jacket's collar.
+	G.merge_weights(collar, ["Head"], "neck_01")
 	G.bind(collar, arm)
 	return collar
 
@@ -1082,6 +1320,13 @@ def build_hood(arm, body):
 
 def export(arm):
 	os.makedirs(os.path.dirname(OUT), exist_ok=True)
+	## Every image gets its own name: Godot extracts them by name, and several sources call theirs
+	## "Image_0" (the head then wore the jacket's plaid).
+	for mat in bpy.data.materials:
+		if mat.use_nodes:
+			for node in mat.node_tree.nodes:
+				if node.type == "TEX_IMAGE" and node.image is not None and not node.image.name.startswith(mat.name):
+					node.image.name = "%s_%s" % (mat.name, node.label or node.name)
 	bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_animations=True,
 		export_animation_mode="ACTIONS", export_apply=False, export_yup=True)
 

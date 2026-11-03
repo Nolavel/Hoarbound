@@ -12,6 +12,8 @@ var palm_into_world: Vector3 = Vector3.DOWN
 ## Weight per second while the arm eases back to the animation.
 var ease_out_rate: float = 6.0
 var palm_world: Vector3 = Vector3.ZERO
+## Scales the finger curl: 1 is the lighter's loose fist, higher closes it round a thin bar.
+var curl_scale: float = 1.0
 
 func _init() -> void:
 	use_left_hand(false)
@@ -74,8 +76,10 @@ func _process_modification() -> void:
 	hand_solved.emit(palm_world)
 
 
+## Closes the fingers toward the palm, which faces away from `palm_into_world` (DoorHandIK's `into` is
+## the back of the hand): turning about into x fingers bends them palm-ward, never back over the knuckles.
 func _curl_fingers(rig: Skeleton3D, inverse: Basis) -> void:
-	var axis: Vector3 = inverse*fingers_world.cross(palm_into_world).normalized()
+	var axis: Vector3 = inverse*palm_into_world.cross(fingers_world).normalized()
 	if axis.length_squared() < 0.1:
 		return
 	for finger: String in ["index","middle","ring","pinky"]:
@@ -84,5 +88,5 @@ func _curl_fingers(rig: Skeleton3D, inverse: Basis) -> void:
 			if index < 0:
 				continue
 			var pose: Transform3D = rig.get_bone_global_pose(index)
-			pose.basis = Basis(axis.normalized(),(0.85 if joint == 2 else 0.45)*grip_weight*_weight)*pose.basis
+			pose.basis = Basis(axis.normalized(),(0.85 if joint == 2 else 0.45)*curl_scale*grip_weight*_weight)*pose.basis
 			rig.set_bone_global_pose(index,pose)

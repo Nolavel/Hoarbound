@@ -39,6 +39,15 @@ modes = Array[int]([0])
 contexts = Array[int]([0])
 sort_order = 40
 
+[sub_resource type="Resource" id="lay_bedroll"]
+script = ExtResource("1_entry")
+action_name = &"lay_bedroll"
+description = "Lay the bedroll"
+category = 0
+modes = Array[int]([0])
+contexts = Array[int]([0])
+sort_order = 45
+
 [sub_resource type="Resource" id="lean"]
 script = ExtResource("1_entry")
 action_names = Array[StringName]([&"lean_left", &"lean_right"])
@@ -139,4 +148,4 @@ sort_order = 30
 
 [resource]
 script = ExtResource("2_catalog")
-entries = Array[ExtResource("1_entry")]([SubResource("move"), SubResource("sprint"), SubResource("jump"), SubResource("crouch"), SubResource("lean"), SubResource("interact"), SubResource("hub"), SubResource("quick_cycle"), SubResource("quick_use"), SubResource("shoulder"), SubResource("hub_drag"), SubResource("hub_close"), SubResource("sit_move"), SubResource("sit_interact"), SubResource("sit_hub"), SubResource("sit_escape")])
+entries = Array[ExtResource("1_entry")]([SubResource("move"), SubResource("sprint"), SubResource("jump"), SubResource("crouch"), SubResource("lay_bedroll"), SubResource("lean"), SubResource("interact"), SubResource("hub"), SubResource("quick_cycle"), SubResource("quick_use"), SubResource("shoulder"), SubResource("hub_drag"), SubResource("hub_close"), SubResource("sit_move"), SubResource("sit_interact"), SubResource("sit_hub"), SubResource("sit_escape")])

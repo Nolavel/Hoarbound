@@ -66,11 +66,25 @@ func _run() -> void:
 	var component := player.get_node(^"BedrollComponent") as BedrollComponent
 	if not inventory.has_item(&"bedroll"):
 		inventory.try_add(ITEM)
+	## C: the grey ghost on the floor ahead (reddish here, the bare studio is not a warm room).
+	if component.begin_placement():
+		for _i: int in range(6):
+			await process_frame
+		var ghost: Node3D = root.find_child("BedrollPreview", true, false) as Node3D
+		if ghost != null:
+			_camera.look_at_from_position(ghost.global_position + Vector3(1.6, 2.1, 1.8), ghost.global_position)
+			await _save("00a_ghost.png")
+		component.cancel_placement()
 	if not component.lay_down():
 		push_error("Bedroll could not be laid")
 		quit(1)
 		return
 	for _i: int in range(12):
+		await process_frame
+	var spreading := component.get_laid_bedroll()
+	_camera.look_at_from_position(spreading.global_position + Vector3(1.5, 2.0, 1.7), spreading.global_position)
+	await _save("00b_unrolling.png")
+	for _i: int in range(30):
 		await process_frame
 	var laid := component.get_laid_bedroll()
 	_camera.look_at_from_position(laid.global_position + Vector3(1.5,2.0,1.7), laid.global_position + Vector3.UP*.03)

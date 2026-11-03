@@ -11,9 +11,18 @@ const PRESENT_ACTION: StringName = &"present_held"
 const LIGHTER_FLAME_MAX_SECONDS: float = 10.0
 ## Arm rise before the wheel is struck.
 const LIGHTER_RAISE_SECONDS: float = 0.3
-## Lighter base under the solved palm, so the nozzle stands just above the fist.
+## Lighter base under the fist's hollow, so the nozzle stands just above the fist.
 const LIGHTER_BASE_BELOW_PALM: float = 0.035
+## The lighter body's half thickness: the fingers close onto it, metres.
+const LIGHTER_HANDLE_RADIUS: float = 0.011
 const LIGHTER_STRIKE_EVENT: SoundEvent = preload("res://resources/audio/lighter_strike.tres")
+## The searchlight's carry bar radius (the fist closes on it), metres.
+const SEARCHLIGHT_HANDLE_RADIUS: float = 0.012
+## How far a carrying arm turns the beam off the body's forward (forearm roll), and tilts it (wrist), degrees.
+const SEARCHLIGHT_YAW_DEG: float = 50.0
+const SEARCHLIGHT_PITCH_DEG: float = 25.0
+## The carrying hand sits this far out from under the shoulder, so the lamp body clears the hip, metres.
+const SEARCHLIGHT_HIP_CLEAR_M: float = 0.05
 
 @export var inventory: InventoryComponent
 @export var equipment: EquipmentComponent
@@ -228,6 +237,10 @@ func _clear_prop() -> void:
 			visual.release_offhand()
 	if _prop is HeldSearchlight:
 		(_prop as HeldSearchlight).apply_enabled(false)
+		if visual != null:
+			visual.look_with_light = false
+			for left: bool in [false, true]:
+				visual.get_hand_grip(left).release()
 	_prop.queue_free()
 	_prop = null
 
@@ -313,41 +326,46 @@ func _advance_present(delta: float) -> void:
 			sound.call(&"play", LIGHTER_STRIKE_EVENT, flame.global_position)
 
 
-## Fist a forearm before the chest on the holding side, knuckles forward, thumb up.
-## The outward palm frame keeps the hanging wrist roll, so the hand never twists over.
+## Fist a forearm before the chest on the holding side, thumb up: HandGrip holds the lighter's body upright in
+## the fist (index to pinky down its length), the wrist continuing the forearm.
 func _aim_present(visual: HenryUALAnimation) -> void:
-	var reach: StoveHandReach = visual.get_present_reach()
 	var rig: Skeleton3D = visual.skeleton
 	var left: bool = visual.get_held_prop() == _prop
+	var grip: HandGrip = visual.get_hand_grip(left)
 	var chest_bone: int = rig.find_bone(&"spine_03")
 	var shoulder_bone: int = rig.find_bone(&"upperarm_l" if left else &"upperarm_r")
-	if reach == null or chest_bone < 0 or shoulder_bone < 0:
+	if grip == null or chest_bone < 0 or shoulder_bone < 0:
 		return
-	reach.use_left_hand(left)
-	if not reach.hand_solved.is_connected(_on_present_hand_solved):
-		reach.hand_solved.connect(_on_present_hand_solved)
+	if not grip.gripped.is_connected(_on_present_gripped):
+		grip.gripped.connect(_on_present_gripped.bind(grip))
+	grip.handle_radius = LIGHTER_HANDLE_RADIUS
 	var chest: Vector3 = rig.to_global(rig.get_bone_global_pose(chest_bone).origin)
-	var side: Vector3 = rig.to_global(rig.get_bone_global_pose(shoulder_bone).origin) - chest
+	var shoulder: Vector3 = rig.to_global(rig.get_bone_global_pose(shoulder_bone).origin)
+	var side: Vector3 = shoulder - chest
 	side.y = 0.0
 	var forward: Vector3 = visual.global_basis.z
 	forward.y = 0.0
 	if side.length_squared() < 1e-6 or forward.length_squared() < 1e-6:
 		return
 	forward = forward.normalized()
-	reach.palm_into_world = side.normalized()
-	reach.aim(chest + forward * 0.32 + side * 0.4 - Vector3.UP * 0.1, forward, 1.0)
+	var out: Vector3 = side.normalized()
+	var wrist: Vector3 = chest + forward * 0.24 + side * 0.4 - Vector3.UP * 0.1
+	## The hand continues the forearm from a relaxed elbow (below and out from the shoulder), square to the lighter.
+	var line: Vector3 = wrist - (shoulder + Vector3.DOWN * 0.25 + out * 0.1)
+	var along: Vector3 = Vector3(line.x, 0.0, line.z).normalized()
+	grip.hold(wrist, along, Vector3.DOWN, shoulder + Vector3.DOWN * 0.3 + out * 0.3 - forward * 0.2, 1.0)
 
 
-## The held fit is authored for the hanging arm; raised, the lighter stands upright in the fist.
-## Both poses are blended in the hand's frame between fixed ends, so rising and lowering never flip.
-func _on_present_hand_solved(palm: Vector3) -> void:
+## The held fit is authored for the hanging arm; raised, the lighter stands upright in the fist's hollow (its
+## base below, nozzle above the thumb). Both are blended in the hand's frame as the grip eases in and out.
+func _on_present_gripped(grip: HandGrip) -> void:
 	if _lighter_flame() == null or not (_presenting or _prop.top_level):
 		return
-	var reach: StoveHandReach = _animation().get_present_reach()
 	var hand: Transform3D = _hand_transform()
-	var upright := Transform3D(Basis.looking_at(reach.fingers_world, Vector3.UP),
-		palm - reach.palm_into_world * 0.015 - Vector3.UP * LIGHTER_BASE_BELOW_PALM)
-	var weight: float = reach.get_weight()
+	var y: Vector3 = -grip.handle_axis
+	var z: Vector3 = (-grip.hand_along - y * (-grip.hand_along).dot(y)).normalized()
+	var upright := Transform3D(Basis(y.cross(z), y, z), grip.handle_centre - y * LIGHTER_BASE_BELOW_PALM)
+	var weight: float = grip.get_weight()
 	if weight >= 0.99 or not _has_present_local:
 		_present_local = hand.affine_inverse() * upright
 		_has_present_local = true
@@ -377,7 +395,7 @@ func _fit_local() -> Transform3D:
 ## Once the lowering arm is back on the animation, the prop rejoins its socket fit.
 func _settle_present() -> void:
 	var visual: HenryUALAnimation = _animation()
-	if visual != null and visual.skeleton != null and visual.get_present_reach().get_weight() > 0.001:
+	if visual != null and visual.skeleton != null and visual.get_hand_grip(visual.get_held_prop() == _prop).get_weight() > 0.001:
 		return
 	_restore_fit()
 
@@ -398,9 +416,9 @@ func _stop_present() -> void:
 	if flame != null:
 		flame.set_lit(false)
 	var visual: HenryUALAnimation = _animation()
-	if visual != null and visual.skeleton != null:
-		visual.get_present_reach().release()
-		visual.get_present_reach().grip_weight = 0.0
+	if visual != null and visual.skeleton != null and not _prop is HeldSearchlight:
+		for left: bool in [false, true]:
+			visual.get_hand_grip(left).release()
 
 
 func _lighter_flame() -> LighterFlame:
@@ -430,55 +448,62 @@ func advance_simulation(hours: float, _context: SimulationStepContext) -> void:
 	inventory.update_first_instance_state(_item_id, {"searchlight_runtime_hours": searchlight.runtime_hours})
 
 
-## The existing hand solver moves the wrist with the inertial grip, never the camera.
+## The light points where Henry's head looks, carried as a lantern is: the arm hangs, the carry bar lies in the
+## fist along the beam, the forearm turns the beam (HandGrip spreads the roll), the wrist tilts it a little.
 func _aim_searchlight(delta: float) -> void:
 	var visual: HenryUALAnimation = _animation()
 	var searchlight := _prop as HeldSearchlight
 	if visual == null or visual.skeleton == null or searchlight == null:
 		return
-	var reach: StoveHandReach = visual.get_present_reach()
-	if visual.is_action_locking():
-		reach.release()
-		return
-	var rig: Skeleton3D = visual.skeleton
 	var left: bool = visual.get_held_prop() == searchlight
-	var chest_bone: int = rig.find_bone(&"spine_03")
-	var shoulder_bone: int = rig.find_bone(&"upperarm_l" if left else &"upperarm_r")
-	if chest_bone < 0 or shoulder_bone < 0:
+	var grip: HandGrip = visual.get_hand_grip(left)
+	if visual.is_action_locking():
+		grip.release()
 		return
-	reach.use_left_hand(left)
-	if not reach.hand_solved.is_connected(_on_searchlight_hand_solved):
-		reach.hand_solved.connect(_on_searchlight_hand_solved)
-	var chest: Vector3 = rig.to_global(rig.get_bone_global_pose(chest_bone).origin)
-	var side: Vector3 = rig.to_global(rig.get_bone_global_pose(shoulder_bone).origin) - chest
-	side.y = 0.0
+	visual.look_with_light = true
+	if not grip.gripped.is_connected(_on_searchlight_gripped):
+		grip.gripped.connect(_on_searchlight_gripped.bind(grip))
+	grip.handle_radius = SEARCHLIGHT_HANDLE_RADIUS
+	var rig: Skeleton3D = visual.skeleton
+	var s: String = "l" if left else "r"
+	var upper: int = rig.find_bone("upperarm_" + s)
+	var lower: int = rig.find_bone("lowerarm_" + s)
+	var hand: int = rig.find_bone("hand_" + s)
+	var chest_bone: int = rig.find_bone(&"spine_03")
+	if mini(mini(upper, lower), mini(hand, chest_bone)) < 0:
+		return
+	var shoulder: Vector3 = rig.to_global(rig.get_bone_global_pose(upper).origin)
+	var out: Vector3 = shoulder - rig.to_global(rig.get_bone_global_pose(chest_bone).origin)
+	out.y = 0.0
+	out = out.normalized()
 	var forward: Vector3 = visual.global_basis.z.normalized()
-	var camera: Camera3D = get_viewport().get_camera_3d()
-	var aim: Vector3 = TpsCamera.aim_direction(camera) if camera != null else forward
-	## A shoulder-held tool cannot follow the camera through the character's back.
-	## Keep the beam and the IK fingers in the same reachable torso-relative cone.
 	var right: Vector3 = visual.global_basis.x.normalized()
-	## asin maps a full camera orbit continuously back through neutral behind the
-	## torso, instead of jumping from +65 to -65 degrees at the rear crossing.
-	var flat_aim: Vector3 = Vector3(aim.x, 0.0, aim.z).normalized()
-	var yaw: float = clampf(asin(clampf(flat_aim.dot(right), -1.0, 1.0)), deg_to_rad(-65.0), deg_to_rad(65.0))
-	var pitch: float = clampf(asin(clampf(aim.y, -1.0, 1.0)), deg_to_rad(-50.0), deg_to_rad(50.0))
+	## The head's facing, kept inside what a carrying arm can turn to (forearm roll) and tilt (wrist).
+	var aim: Vector3 = visual.get_head_facing()
+	var flat: Vector3 = Vector3(aim.x, 0.0, aim.z).normalized()
+	var yaw: float = clampf(atan2(flat.dot(right), flat.dot(forward)), -deg_to_rad(SEARCHLIGHT_YAW_DEG), deg_to_rad(SEARCHLIGHT_YAW_DEG))
+	var pitch: float = clampf(asin(clampf(aim.y, -1.0, 1.0)), -deg_to_rad(SEARCHLIGHT_PITCH_DEG), deg_to_rad(SEARCHLIGHT_PITCH_DEG))
 	aim = (forward * cos(yaw) + right * sin(yaw)) * cos(pitch) + Vector3.UP * sin(pitch)
 	var player := get_parent() as CharacterBody3D
 	searchlight.advance_inertia(delta, aim, player.velocity if player != null else Vector3.ZERO)
-	## Project down onto the plane perpendicular to the grip. This preserves a
-	## stable palm frame while the flashlight pitches and sweeps across the body.
-	reach.palm_into_world = (Vector3.DOWN - searchlight.direction * Vector3.DOWN.dot(searchlight.direction)).normalized()
-	reach.grip_weight = 1.0
-	## The carry bar runs along the beam. Fingers must cross the bar to wrap it,
-	## rather than point along it; the right hand closes towards the torso.
-	var grip_fingers: Vector3 = searchlight.direction.cross(Vector3.UP).normalized()
-	reach.aim(chest + forward * 0.32 + side.normalized() * 0.25 - Vector3.UP * 0.1 + searchlight.inertia_offset, grip_fingers, 1.0)
+	var beam: Vector3 = searchlight.direction
+	## Arm length from the rig, so the hanging hand sits where this body's arm reaches.
+	var arm: float = rig.get_bone_rest(lower).origin.length() + rig.get_bone_rest(hand).origin.length()
+	var wrist: Vector3 = shoulder + Vector3.DOWN * arm * 0.82 + forward * arm * 0.22 + out * SEARCHLIGHT_HIP_CLEAR_M + searchlight.inertia_offset
+	## The hand continues the hanging arm's line (shoulder to wrist), square to the bar it holds.
+	var line: Vector3 = (wrist - shoulder).normalized()
+	var along: Vector3 = (line - beam * line.dot(beam)).normalized()
+	var pole: Vector3 = shoulder + Vector3.DOWN * arm * 0.5 + out * 0.25 - forward * 0.25
+	## Index to pinky runs back along the bar, so the palm faces the thigh on either hand.
+	grip.hold(wrist, along, -beam, pole, 1.0)
 
 
-func _on_searchlight_hand_solved(palm: Vector3) -> void:
+## The lamp hangs from the solved fist: its bar on the handle line, its beam along the bar, its top toward the wrist.
+func _on_searchlight_gripped(grip: HandGrip) -> void:
 	var searchlight := _prop as HeldSearchlight
 	if searchlight == null:
 		return
 	searchlight.top_level = true
-	searchlight.global_transform = Transform3D(searchlight.grip_basis(), palm)
+	var z: Vector3 = grip.handle_axis
+	var y: Vector3 = (-grip.hand_along - z * (-grip.hand_along).dot(z)).normalized()
+	searchlight.global_transform = Transform3D(Basis(y.cross(z), y, z), grip.handle_centre)

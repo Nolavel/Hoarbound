@@ -76,8 +76,9 @@ HUB_REFUSED_OVERWEIGHT,Too heavy for the pack,Слишком тяжело для
 HUB_PLACE_HINT,Drag with LMB into a lit pocket; release to close,Перетащите ЛКМ в подсвеченный карман; отпустите — закрыть
 HUB_USE,Use,Использовать
 HUB_CANNOT_USE,Cannot use this here,Здесь это не использовать
-BEDROLL_PLACE_HINT,F — lay here · Esc — cancel,F — разложить · Esc — отмена
-BEDROLL_PLACE_BLOCKED,Cannot lay the bedroll here · Esc — cancel,Здесь нельзя разложить спальник · Esc — отмена
+BEDROLL_PLACE_HINT,F — lay here · C — put away,F — разложить · C — убрать
+BEDROLL_PLACE_BLOCKED,Cannot lay the bedroll here · C — put away,Здесь нельзя разложить спальник · C — убрать
+BEDROLL_TOO_COLD,Too cold here — lay it in a warm room · C — put away,Здесь слишком холодно — разложи в тёплом помещении · C — убрать
 REST_PROMPT,Sit down,Сесть
 WAIT_TITLE,WAIT BY THE FIRE,ЖДАТЬ У ОГНЯ
 REST_SEATED_HINT,F — wait · move — stand up,F — ждать · движение — встать

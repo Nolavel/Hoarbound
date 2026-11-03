@@ -21,9 +21,9 @@ const MIN_LEVER_M: float = 0.002
 ## backs it off; and the bisection steps.
 const OVERSHOOT: float = 1.5
 const BISECTIONS: int = 6
-## Contact keeps this gap (a collision margin): the points are a 2 cm sample of the surface, and the
-## surface between them may bulge up to a few millimetres nearer the obstacle.
-const CONTACT_MARGIN: float = 0.004
+## Contact keeps this gap (a collision margin): the points sample the surface every ~1.5 cm, so a tool
+## handle (1.4 cm radius) dips up to ~5 mm between them (measured on the mug).
+const CONTACT_MARGIN: float = 0.006
 ## Friction while touching: share of the swing's rate kept each frame in contact.
 const CONTACT_FRICTION: float = 0.5
 ## Resting contact this shallow (well inside the margin, so out of sight) is left as it is: a
