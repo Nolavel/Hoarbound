@@ -12,7 +12,8 @@ fails the build when two actions share a key without an entry in
 | W A S D | `move_*` | Walk; any move input also stands Henry up from a seat |
 | Shift | `sprint` | Sprint |
 | Space | `jump` | Jump; also stands Henry up from a seat |
-| C | `crouch` | Crouch |
+| Ctrl | `crouch` | Crouch |
+| C | `lay_bedroll` | Bedroll: a grey see-through bedroll appears on the floor in front of Henry; F lays it out (it unrolls, ready to sleep on), C or Esc puts it away. Only in a warm room |
 | Q / E | `lean_left` / `lean_right` | Lean (reserved; Q/E never carry item actions) |
 | Z | `switch_shoulder` | Camera shoulder |
 | F | `interact` | Context action, see below |

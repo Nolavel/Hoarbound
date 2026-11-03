@@ -95,10 +95,14 @@ void fragment() {
 			AO = orm.r;
 		}
 	}
+	// Static world geometry never takes a normal texture (make_static); leaving NORMAL_MAP out keeps its
+	// meshes free of tangents (chunks are generated without them).
+#ifndef HFN_STATIC_WORLD
 	if (use_normal_texture) {
 		NORMAL_MAP = texture(normal_texture, uv).rgb;
 		NORMAL_MAP_DEPTH = normal_scale;
 	}
+#endif
 	EMISSION = emission_color * emission_energy;
 	// HFN_FRAGMENT_EXTRA: optional per-family surface step (e.g. tree_snow lays snow on branch tops).
 #ifdef HFN_FRAGMENT_EXTRA

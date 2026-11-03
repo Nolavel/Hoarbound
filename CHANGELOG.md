@@ -45,6 +45,20 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Bedroll on C (owner request). Crouch moves to left Ctrl.
+  - Henry carries the bedroll again: it is in his starting kit, strapped on the pack.
+  - C shows the open bedroll on the floor ahead as a grey see-through ghost (reddish where it cannot
+    lie). The ghost has no colliders. F lays it out and it unrolls, ready to sleep on. C again puts the
+    ghost away.
+  - The stand-in roll that used to travel along with the unrolling mat is gone.
+  - The unused `toggle_active_gizmo` action is removed: it sat on Ctrl and had no consumer.
+- The old floor mattress is removed from 727 Fort St. Henry sleeps on the bedroll he lays.
+- Fixed `HenryUALAnimation._keep_head_facing` erroring "!is_inside_tree()" hundreds of times. A
+  skeleton outside the tree still reported updates; those calls are now skipped.
+- Static world shaders no longer require tangents. Static world materials never take a normal texture
+  (`make_static`), but `NORMAL_MAP` was still compiled into their shaders. Godot then demanded
+  tangents from every generated chunk mesh (the "requires tangents" warning). `NORMAL_MAP` is now
+  left out under `HFN_STATIC_WORLD`.
 - Under the arm, the strap is no longer swallowed by the sleeve.
   - Measured with `measure_straps.gd`: the torso cloth there already cleared the strap (1–3 mm). The
     sleeve lay over it by 11–19 mm, because the arm itself passed through the strap.

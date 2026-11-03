@@ -212,6 +212,13 @@ func _place_furniture() -> void:
 	for item: Dictionary in interior["furniture"]:
 		var yaw: Basis = Basis(Vector3.UP, deg_to_rad(float(item["yaw_deg"])))
 		var kind: String = item["kind"]
+		## The old floor mattress is gone (owner, 2026-11-03): Henry sleeps on the bedroll he lays himself.
+		if kind == "hut_mattress":
+			var mattress: Node = _house.get_node_or_null(NodePath(HUT_KINDS[kind]))
+			if mattress != null:
+				mattress.get_parent().remove_child(mattress)
+				mattress.free()
+			continue
 		if HUT_KINDS.has(kind):
 			var node: Node3D = _house.get_node(NodePath(HUT_KINDS[kind])) as Node3D
 			var in_zone: bool = String(HUT_KINDS[kind]).begins_with("ShelterZone/")

@@ -96,7 +96,7 @@ starter_slot_items = Dictionary[StringName, StringName]({
 [node name="InventoryComponent" type="Node" parent="." node_paths=PackedStringArray("equipment")]
 script = ExtResource("91_inv")
 equipment = NodePath("../EquipmentComponent")
-starter_item_ids = Array[StringName]([&"tinned_stew"])
+starter_item_ids = Array[StringName]([&"tinned_stew", &"bedroll"])
 
 [node name="PlayerHubComponent" type="Node" parent="." node_paths=PackedStringArray("inventory", "equipment")]
 script = ExtResource("99_hub")
