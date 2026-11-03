@@ -242,3 +242,5 @@ QA_SLEEVE_BACK,SLEEVE B,ЧЕХОЛ ЗАД
 QA_CARABINER,CARABINER,КАРАБИН
 LOAD_BANNER_TITLE,LOAD,НАГРУЗКА
 LOAD_BANNER_VALUE,%.1f / %.0f kg,%.1f / %.0f кг
+INVENTORY_TOO_BIG,"Too big for the pack","Не влезет в рюкзак"
+INVENTORY_NO_ROOM,"No room left in the pack","В рюкзаке нет места"

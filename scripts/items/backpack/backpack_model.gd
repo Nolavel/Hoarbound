@@ -160,6 +160,7 @@ var _main_count: int = 0
 ## Per sleeve (SLEEVE_SLOTS): what it holds is lifted this far above its seat while being
 ## pushed in, at this speed; the hem's flare and drag and their rates (springs).
 var _pocket_rise: Array[float] = [0.0, 0.0, 0.0]
+var _interior_boxes: Array[AABB] = []
 var _pocket_push: Array[float] = [0.0, 0.0, 0.0]
 var _hem_open: Array[float] = [0.0, 0.0, 0.0]
 var _hem_open_speed: Array[float] = [0.0, 0.0, 0.0]
@@ -584,8 +585,14 @@ func _process(delta: float) -> void:
 
 ## Item boxes the canvas wraps: what is in the main body shapes the shell, panel and straps;
 ## what is in a side pocket shapes only the pockets, never the wall between them.
+## The slotless compartment's items (PackInterior), pack space: they shape the canvas like slotted ones.
+func set_interior_boxes(boxes: Array[AABB]) -> void:
+	_interior_boxes = boxes
+	_refresh_proxies()
+
+
 func _refresh_proxies() -> void:
-	var main: Array[AABB] = []
+	var main: Array[AABB] = _interior_boxes.duplicate()
 	var pockets: Array = [[], []]
 	for item: Dictionary in _items:
 		var sleeve: int = SLEEVE_SLOTS.find(item["slot"])
@@ -601,6 +608,8 @@ func _refresh_proxies() -> void:
 		var centres: Array = []
 		var halves: Array = []
 		for box: AABB in entry[1]:
+			if centres.size() >= MAX_ITEMS:
+				break
 			centres.append(Vector4(box.get_center().x, box.get_center().y, box.get_center().z, 0.0))
 			halves.append(Vector4(box.size.x * 0.5, box.size.y * 0.5, box.size.z * 0.5, 0.0))
 		var count: int = centres.size()

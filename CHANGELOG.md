@@ -8,6 +8,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory, stage 0: the main compartment's physics sandbox (`PackInterior`, see
+  `docs/technical/PACK_INTERIOR.md`). Items lie loose in it as rigid bodies, in a physics space of
+  the pack's own, so carrying the pack never flings them.
+  - Exact outlines are projected back inside the walls after each step, and a heap settles within about 2 s.
+  - Bulky items, and items that do not pass the mouth or the room left, are refused. Two new strings
+    give the reason: `INVENTORY_TOO_BIG` and `INVENTORY_NO_ROOM`.
+  - The canvas bulge follows the outlines.
+  - Stand: `tests/systems/test_pack_interior.gd`. Capture: `tools/runtime/capture_pack_interior.gd`.
 - Work in progress: the shoulder straps are now the school backpack's own pad, webbing and buckle
   (`tools/blender/build_pack_straps.py`). The mesh is straightened into strap space and bent on the GPU
   along the strap path on the jacket (`shaders/items/pack_strap_bend.gdshader`, a spline mesh).
