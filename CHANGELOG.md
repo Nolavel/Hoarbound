@@ -17,7 +17,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     `neck_01` down the neck. The mannequin's head and neck are removed.
   - **Turtleneck** top now dips 11.5 cm towards the front, so it sits under the chin and still rises
     past the jacket collar at the back.
-  - **Knit hat** is lifted 3 cm (`knit_hat_lift`) to clear the new brows.
+  - **Knit hat fit:** the build measures the head (`fit_hat`) and writes the fit to
+    `assets/characters/henry/knit_hat/hat_fit.json`, which the game applies. The hat is lifted 3 cm,
+    centred on the head (it sat 2 cm too far back) and scaled ×1.048 round its axis, so its inside
+    rests 3 mm off the scalp. The scalp is taken as the head's 70th-percentile radius per angle, so
+    tufts do not count. Hair still outside the hat above its brim (543 points) is pressed under it,
+    and only short hair shows below the brim.
+  - **Turtleneck front:** the top dips evenly round to the front (a U, not a V), so the turned-down
+    roll reads as one band under the chin.
   - **Texture names:** every image in the outfit glb is now named after its material. Godot extracts
     textures by name, and "Image_0" collisions put the jacket's plaid on the head.
 - Bedroll art from the `codex` branch (cherry-picked): `bedroll_open` and `bedroll_packed` models and

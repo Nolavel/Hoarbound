@@ -812,10 +812,11 @@ def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_rad
 	## Radius per ring and angle: the neck's own so it hugs it, capped at `max_radius` (low rings reach
 	## the shoulders, the top the jaw), then smoothed round each ring and up the tube.
 	heights = [z_from + (z_to - z_from) * k / (rings - 1) for k in range(rings)]
-	## The top dips towards the front (`front_drop` lower under the chin than at the back).
+	## The top dips smoothly round to the front (`front_drop` lower under the chin than at the back),
+	## so the turned-down roll reads as one even band, not a V.
 	def ring_z(k, a):
-		front = max(0.0, -math.sin(a))
-		top = z_to - front_drop * front * front
+		front = (1.0 - math.sin(a)) * 0.5
+		top = z_to - front_drop * front
 		return z_from + (top - z_from) * k / (rings - 1)
 	## The cap opens up the tube: the shoulders only reach the lowest rings, the front of the neck all of them.
 	caps = [max_radius + (top_radius - max_radius) * min(k / (rings * 0.3), 1.0) for k in range(rings)]
