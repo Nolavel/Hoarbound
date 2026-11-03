@@ -1104,7 +1104,7 @@ func _attach_knit_hat() -> void:
 			return
 		parts.append(mesh_inst)
 	var attachment := BoneAttachment3D.new()
-	attachment.name = "KnitHatAttachment"
+	attachment.name = "Hat"  # the garment group name, as Coat, Trousers and Boots
 	attachment.bone_name = head_bone
 	attachment.visible = false
 	skeleton.add_child(attachment)

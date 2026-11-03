@@ -130,6 +130,11 @@ HAT_BELOW_HAIRLINE = 0.02
 ## Where the ears' zone starts out from the middle, and the room under the ear lobes kept for the head's
 ## tilt in play (it lowers them about 1.5 cm), metres.
 EAR_ZONE_X = 0.055
+## The turtleneck takes the jacket's weights fully up to the jacket collar's top, easing back to the
+## neck's over this much above it, metres ...
+COLLAR_FOLLOW_ABOVE = 0.03
+## ... and a little past the jacket collar's edge, where the two still touch, metres.
+COLLAR_FOLLOW_EDGE = 0.01
 ## How far out a sweater point may lie under the jacket and still count as hidden by it, metres.
 SWEATER_COVER_REACH = 0.08
 ## Behind this depth (Blender +Y is Henry's back) the sweater's body is never seen, metres.
@@ -703,6 +708,17 @@ def owner_head(arm, body):
 		poly.use_smooth = True
 	fit_hat(head)
 	G.bind(head, arm)
+	## The turtleneck is rebuilt round his own neck (long and thin), so it closes on it under the chin.
+	old = bpy.data.objects.get("Outfit_Collar")
+	if old is not None:
+		bpy.data.objects.remove(old)
+	collar = owner_turtleneck(arm, body, bpy.data.objects.get("Outfit_Jacket"), head)
+	## Inside the jacket's collar the turtleneck moves with the jacket (its weights), easing back to the
+	## neck's above the jacket's edge, so the two collars never cross when the head moves.
+	jacket_collar_top = max((p.z for p in (v.co for v in bpy.data.objects["Outfit_Jacket"].data.vertices)
+		if abs(p.x) < 0.12 and p.y > centre_y), default=chin_z)
+	G.follow(collar, bpy.data.objects["Outfit_Jacket"], jacket_collar_top + COLLAR_FOLLOW_EDGE + COLLAR_FOLLOW_ABOVE,
+		jacket_collar_top + COLLAR_FOLLOW_EDGE)
 	## His big ears hang lower than the jacket's collar stood: beside the head the collar is turned
 	## down to under the ear lobes (with room for the head's tilt in play), easing in from the back.
 	ear = [v.co for v in head.data.vertices if abs(v.co.x) > EAR_ZONE_X + 0.04 and v.co.z > chin_z + 0.02]
@@ -718,13 +734,14 @@ def owner_head(arm, body):
 				v.co.z -= (p.z - limit) * side
 		jacket.data.update()
 	print("owner_head: ear lobes at %.3f, collars kept under %.3f" % (lobe, lobe - EAR_TILT_ROOM))
-	## Under the jacket the sweater and the turtleneck are not drawn at all, so they never poke through
-	## it; their open-front, collar and cuff edges stay, tucked under the jacket's.
+	## Under the jacket the sweater is not drawn at all, so it never pokes through it; its open-front and
+	## cuff edges stay, tucked under the jacket's.
 	if jacket is not None:
-		for name in ("Outfit_Sweater", "Outfit_Collar"):
-			layer = bpy.data.objects.get(name)
-			if layer is not None:
-				print("owner_head: %s faces hidden under the jacket %d" % (name, G.cull_covered(layer, jacket, SWEATER_COVER_REACH)))
+		## (The turtleneck shows from above and in the open front even inside the jacket's collar: only
+		## its faces that really cross the jacket go, below.)
+		layer = bpy.data.objects.get("Outfit_Sweater")
+		if layer is not None:
+			print("owner_head: sweater faces hidden under the jacket %d" % G.cull_covered(layer, jacket, SWEATER_COVER_REACH))
 		## Where the jacket's lapels lie across the turtleneck's roll in front, the roll under them goes.
 		collar = bpy.data.objects.get("Outfit_Collar")
 		if collar is not None:
@@ -845,16 +862,20 @@ def fit_hat(head):
 	print("fit_hat: hairline %.3f lift %.3f scale %.3f vscale %.3f hair pressed %d" % (hairline, lift, scale, vscale, pressed))
 
 
-def owner_turtleneck(arm, body, jacket):
+def owner_turtleneck(arm, body, jacket, neck_mesh=None):
 	"""The sweater's high, thick turtleneck: a knitted tube round the whole neck from the collarbones to
-	the jaw, its top turned down, inside the jacket's collar, skinned from the neck and head so it follows them."""
+	the jaw, its top turned down, inside the jacket's collar, skinned from the neck and head so it follows
+	them. It hugs `neck_mesh` (Henry's own head and neck) when given, else the body's neck."""
 	neck = arm.matrix_world @ arm.data.bones["neck_01"].head_local
 	head = arm.matrix_world @ arm.data.bones["Head"].head_local
-	collar = G.turtleneck(body, neck, head, neck.z - TURTLENECK_BELOW, head.z + TURTLENECK_ABOVE,
+	collar = G.turtleneck(neck_mesh or body, neck, head, neck.z - TURTLENECK_BELOW, head.z + TURTLENECK_ABOVE,
 		TURTLENECK_GAP, TURTLENECK_THICK, TURTLENECK_FOLD, TURTLENECK_MAX_R, TURTLENECK_TOP_R, jacket, TURTLENECK_FRONT_DROP,
 		TURTLENECK_SIDE_DROP)
 	knit(collar, arm, KNIT_RIB)
 	G.skin_from(collar, body)
+	## A turtleneck follows the neck, not the skull: tilting the head forward swung its back (behind
+	## the head's pivot) out through the jacket's collar.
+	G.merge_weights(collar, ["Head"], "neck_01")
 	G.bind(collar, arm)
 	return collar
 

@@ -6,6 +6,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed
+
+- Mug on the carabiner no longer sinks into the hammer/axe handles (`test_backpack_rig` R3/R9 were red on
+  `main`). Cause, measured: the 1.4 cm handle capsule slipped between the mug's contact points. Each 2 cm
+  cell took its first vertex, so the worst vertex sat 1.7 cm from any point; the mug went 8–10 mm into the
+  handle while every point stayed clear. Each cell now takes the vertex nearest its cell's mean (vertex
+  clustering, Rossignac & Borrel), which brings that down to 1.45 cm. The contact margin is now 6 mm (was
+  4) to cover how far the handle dips between points. A 1 cm grid also passed but tripled the contact cost
+  per frame.
+- The knit hat attachment is named `Hat` again, matching the other garment groups (`test_equipment`,
+  `test_knit_hat`).
+
 ### Added
 
 - Henry has his own head: the generated candidate made from the owner's reference. It is not final art;
@@ -674,6 +686,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     cannot carry the knit back out through the jacket. The few roll faces the lapels still lie across
     are dropped (`cull_crossing`). Collar-to-jacket crossing face pairs in the rest pose: 257 (170 in
     front) → 0.
+  - **Turtleneck and jacket collar at the back** (owner: the turtleneck cut through the jacket's
+    collar). The turtleneck followed the neck and head, while the jacket's collar hangs on its spring
+    bones, so the two parted whenever the head moved. Inside the jacket's collar, and 1 cm past its edge,
+    the turtleneck now takes the jacket's weights, easing back to the neck's over 3 cm above. Skull
+    weight goes to the neck. `follow` now creates every source bone's group first: before, the transfer
+    silently dropped bones the target lacked, such as the collar springs.
+    - Crossing face pairs in clip poses (idle, walk, sprint, crouch): 160–214 → 4–18. In-game captures
+      from behind, walking and sprinting with the springs live, show none.
+  - **Turtleneck closes on the neck under the chin** (owner). It is now built round Henry's own neck,
+    which is long and thin, instead of the mannequin's, which his head replaced. It is no longer culled
+    as "under the jacket", since it shows from above and in the open front; only the few faces that
+    cross the lapels go.
 
 - Henry's knee no longer snaps backwards for a frame when he walks in snow. `LegTwoBoneIK` now bends the
   knee in the leg's own hinge plane. Before, it bent towards whichever side of the new hip-to-target line
