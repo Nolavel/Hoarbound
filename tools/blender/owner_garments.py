@@ -466,6 +466,11 @@ def follow(obj, other, top, bottom, above=False):
 	"""Past `top` towards `bottom` (fully beyond it; bottom may lie above top) obj takes `other`'s
 	skin weights from its nearest face: cloth inside a boot moves exactly as the boot does, and
 	trousers under a jacket as the jacket does, so the layers never cross in a pose."""
+	## The transfer only fills groups obj already has: every bone of `other` gets one (a jacket collar's
+	## spring bones were dropped otherwise, and a collar under it stayed on the neck).
+	for g in other.vertex_groups:
+		if g.name not in obj.vertex_groups:
+			obj.vertex_groups.new(name=g.name)
 	group = obj.vertex_groups.new(name="Follow")
 	for v in obj.data.vertices:
 		z = (obj.matrix_world @ v.co).z

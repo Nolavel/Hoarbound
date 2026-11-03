@@ -674,6 +674,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     cannot carry the knit back out through the jacket. The few roll faces the lapels still lie across
     are dropped (`cull_crossing`). Collar-to-jacket crossing face pairs in the rest pose: 257 (170 in
     front) → 0.
+  - **Turtleneck and jacket collar at the back** (owner: the turtleneck cut through the jacket's
+    collar). The turtleneck followed the neck and head, while the jacket's collar hangs on its spring
+    bones, so the two parted whenever the head moved. Inside the jacket's collar, and 1 cm past its edge,
+    the turtleneck now takes the jacket's weights, easing back to the neck's over 3 cm above. Skull
+    weight goes to the neck. `follow` now creates every source bone's group first: before, the transfer
+    silently dropped bones the target lacked, such as the collar springs.
+    - Crossing face pairs in clip poses (idle, walk, sprint, crouch): 160–214 → 4–18. In-game captures
+      from behind, walking and sprinting with the springs live, show none.
   - **Turtleneck closes on the neck under the chin** (owner). It is now built round Henry's own neck,
     which is long and thin, instead of the mannequin's, which his head replaced. It is no longer culled
     as "under the jacket", since it shows from above and in the open front; only the few faces that

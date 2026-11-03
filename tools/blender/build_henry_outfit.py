@@ -130,6 +130,11 @@ HAT_BELOW_HAIRLINE = 0.02
 ## Where the ears' zone starts out from the middle, and the room under the ear lobes kept for the head's
 ## tilt in play (it lowers them about 1.5 cm), metres.
 EAR_ZONE_X = 0.055
+## The turtleneck takes the jacket's weights fully up to the jacket collar's top, easing back to the
+## neck's over this much above it, metres ...
+COLLAR_FOLLOW_ABOVE = 0.03
+## ... and a little past the jacket collar's edge, where the two still touch, metres.
+COLLAR_FOLLOW_EDGE = 0.01
 ## How far out a sweater point may lie under the jacket and still count as hidden by it, metres.
 SWEATER_COVER_REACH = 0.08
 ## Behind this depth (Blender +Y is Henry's back) the sweater's body is never seen, metres.
@@ -707,7 +712,13 @@ def owner_head(arm, body):
 	old = bpy.data.objects.get("Outfit_Collar")
 	if old is not None:
 		bpy.data.objects.remove(old)
-	owner_turtleneck(arm, body, bpy.data.objects.get("Outfit_Jacket"), head)
+	collar = owner_turtleneck(arm, body, bpy.data.objects.get("Outfit_Jacket"), head)
+	## Inside the jacket's collar the turtleneck moves with the jacket (its weights), easing back to the
+	## neck's above the jacket's edge, so the two collars never cross when the head moves.
+	jacket_collar_top = max((p.z for p in (v.co for v in bpy.data.objects["Outfit_Jacket"].data.vertices)
+		if abs(p.x) < 0.12 and p.y > centre_y), default=chin_z)
+	G.follow(collar, bpy.data.objects["Outfit_Jacket"], jacket_collar_top + COLLAR_FOLLOW_EDGE + COLLAR_FOLLOW_ABOVE,
+		jacket_collar_top + COLLAR_FOLLOW_EDGE)
 	## His big ears hang lower than the jacket's collar stood: beside the head the collar is turned
 	## down to under the ear lobes (with room for the head's tilt in play), easing in from the back.
 	ear = [v.co for v in head.data.vertices if abs(v.co.x) > EAR_ZONE_X + 0.04 and v.co.z > chin_z + 0.02]
@@ -862,6 +873,9 @@ def owner_turtleneck(arm, body, jacket, neck_mesh=None):
 		TURTLENECK_SIDE_DROP)
 	knit(collar, arm, KNIT_RIB)
 	G.skin_from(collar, body)
+	## A turtleneck follows the neck, not the skull: tilting the head forward swung its back (behind
+	## the head's pivot) out through the jacket's collar.
+	G.merge_weights(collar, ["Head"], "neck_01")
 	G.bind(collar, arm)
 	return collar
 
