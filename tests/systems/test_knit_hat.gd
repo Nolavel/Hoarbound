@@ -19,7 +19,7 @@ func _run() -> void:
 		await process_frame
 	var equipment := player.get_node("EquipmentComponent") as EquipmentComponent
 	var visual := player.find_child("HenryUALVisual", true, false) as HenryUALAnimation
-	var hat := visual.find_child("KnitHatAttachment", true, false) as BoneAttachment3D
+	var hat := visual.find_child("Hat", true, false) as BoneAttachment3D
 	_check(equipment.get_equipped(&"head_outer") == &"knit_hat", "hat is not equipped at spawn")
 	_check(hat != null and hat.visible, "new hat is not visible at spawn")
 	if hat != null:

@@ -6,6 +6,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed
+
+- Mug on the carabiner no longer sinks into the hammer/axe handles (`test_backpack_rig` R3/R9 were red on
+  `main`). Cause, measured: the 1.4 cm handle capsule slipped between the mug's contact points. Each 2 cm
+  cell took its first vertex, so the worst vertex sat 1.7 cm from any point; the mug went 8–10 mm into the
+  handle while every point stayed clear. Each cell now takes the vertex nearest its cell's mean (vertex
+  clustering, Rossignac & Borrel), which brings that down to 1.45 cm. The contact margin is now 6 mm (was
+  4) to cover how far the handle dips between points. A 1 cm grid also passed but tripled the contact cost
+  per frame.
+- The knit hat attachment is named `Hat` again, matching the other garment groups (`test_equipment`,
+  `test_knit_hat`).
+
 ### Added
 
 - Henry has his own head: the generated candidate made from the owner's reference. It is not final art;

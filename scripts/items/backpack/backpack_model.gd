@@ -1178,10 +1178,11 @@ static func _round_box(q: Vector3, c: Vector3, h: Vector3, r: float) -> Vector4:
 	return Vector4(n.x, n.y, n.z, dist)
 
 
-## A visual's surface points in its parent's space (where it hangs), one per CONTACT_CELL_M cell,
-## spread evenly over it, for contact.
+## A visual's surface points in its parent's space (where it hangs), one per CONTACT_CELL_M cell: the
+## vertex nearest its cell's mean (vertex clustering), so no corner pick leaves a gap a tool handle slips into.
 static func _contact_points(visual: Node3D) -> PackedVector3Array:
 	var cells: Dictionary = {}
+	var sums: Dictionary = {}
 	for node: Node in visual.find_children("*", "MeshInstance3D", true, false):
 		var mesh_node := node as MeshInstance3D
 		var chain: Transform3D = Transform3D.IDENTITY
@@ -1193,8 +1194,20 @@ static func _contact_points(visual: Node3D) -> PackedVector3Array:
 			var p: Vector3 = visual.transform * chain * v
 			var key: Vector3i = Vector3i((p / CONTACT_CELL_M).floor())
 			if not cells.has(key):
-				cells[key] = p
-	return PackedVector3Array(cells.values())
+				cells[key] = []  # an Array, shared by reference (a packed one would append to a copy)
+				sums[key] = Vector3.ZERO
+			(cells[key] as Array).append(p)
+			sums[key] += p
+	var points := PackedVector3Array()
+	for key: Vector3i in cells:
+		var members: Array = cells[key]
+		var mean: Vector3 = sums[key] / float(members.size())
+		var pick: Vector3 = members[0]
+		for p: Vector3 in members:
+			if p.distance_squared_to(mean) < pick.distance_squared_to(mean):
+				pick = p
+		points.append(pick)
+	return points
 
 
 ## Centre of mass of a thin-walled visual in its own space: its surface triangles' centroids
