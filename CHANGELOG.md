@@ -17,7 +17,19 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - A first learned bow for the free runs is in `strap_points.json`.
   - Still open: the strap mesh dips up to about 13 mm into the jacket under the arm at rest, which may
     be the sleeve lying over the strap.
-- Work in progress: searchlight grip.
+- Hand grip system (`HandGrip`), first used for the searchlight. This replaces the per-item hand fitting.
+  - Cause of the twisted sleeve, measured: the old solver bent the wrist 106° and rolled the hand -93°
+    against the forearm. A real wrist allows about 70° of bend and no roll of its own. With linear
+    blend skinning and no forearm twist bones, the sleeve pinched like a candy wrapper.
+  - The item gives only its handle (anchor and radius). Godot's own `TwoBoneIK3D` reaches the arm, the
+    wrist turns within a 60° cone, and `BoneTwistDisperser3D` spreads the roll over the upper arm,
+    forearm and hand. The fingers close joint by joint until their tips meet the handle, the way Auto
+    Hand does it.
+  - The searchlight is carried as a lantern: arm down, bar in the fist along the beam. The forearm
+    turns the beam toward the head's facing (up to 50°) and the wrist tilts it (up to 25°).
+  - Measured on the stand: wrist bend 45° (was 106°); roll hand 12°, forearm -14°, upper arm -5°
+    (was hand -93°).
+- Superseded by the hand grip system above: the earlier searchlight grip fixes.
   - The palm now closes down on the carry bar. `DoorHandIK`'s `into` vector is the back of the hand,
     and the searchlight passed "down", which turned the palm up.
   - Fingers now curl toward the palm. `StoveHandReach` used to bend them back over the knuckles,

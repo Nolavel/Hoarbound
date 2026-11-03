@@ -208,6 +208,8 @@ var _equipment: EquipmentComponent
 var _head_lookat: LookAtModifier3D
 ## Set while Henry holds a light: the head look stays on, and its last final facing is kept for the light.
 var look_with_light: bool = false
+## Per hand [right, left]: its HandGrip, built on first use.
+var _hand_grips: Array[HandGrip] = [null, null]
 var _head_facing: Vector3 = Vector3.ZERO
 var _head_target: Node3D
 var _head_influence: float = 0.0
@@ -420,6 +422,21 @@ func get_present_reach() -> StoveHandReach:
 		_present_reach.ease_out_rate = 2.5
 		skeleton.add_child(_present_reach)
 	return _present_reach
+
+## The hand-grip solver for one hand (built on first use), placed before the jacket springs so the sleeves swing from it.
+func get_hand_grip(left: bool) -> HandGrip:
+	var key: int = 1 if left else 0
+	if _hand_grips[key] == null and skeleton != null:
+		var grip := HandGrip.new()
+		grip.name = "HandGrip_" + ("l" if left else "r")
+		skeleton.add_child(grip)
+		var springs: Node = skeleton.get_node_or_null(^"JacketSprings")
+		if springs != null:
+			skeleton.move_child(grip, springs.get_index())
+		grip.setup(left)
+		_hand_grips[key] = grip
+	return _hand_grips[key]
+
 
 func get_stove_pickup(carried: bool) -> Dictionary:
 	if carried and _carried != null and _carry_props.has(_carried.attached_mesh_node_name):
