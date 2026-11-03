@@ -10,6 +10,9 @@ const ITEM: String = "res://data/items/searchlight.tres"
 var _out: String = "user://shots/searchlight_grip"
 var _player: CharacterBody3D
 var _camera: Camera3D
+## Elbow and wrist in the final pose, kept by _report (read while the skeleton reports its update).
+var _elbow: Vector3
+var _wrist: Vector3
 
 
 func _initialize() -> void:
@@ -68,6 +71,8 @@ func _run() -> void:
 	await _frames(2)
 	for view: Array in [["side", 90.0], ["front", 0.0], ["top", -1.0], ["back_q", 140.0], ["below", -2.0]]:
 		await _shot(held, "grip_" + view[0], view[1])
+	for view: Array in [["outer", 0], ["top", 1], ["inner", 2]]:
+		await _sleeve_shot("sleeve_" + view[0], view[1])
 	_camera.fov = 40.0
 	await _body_shot("body_front_q", 30.0)
 	await _body_shot("body_side", 90.0)
@@ -99,12 +104,30 @@ func _report(held: HeldItemComponent, label: String) -> void:
 		var tip: Vector3 = _bone(rig, "%s_03_%s" % [finger, s]) - grip
 		line += " %s (%.0f, %.0f, %.0f)" % [finger, tip.dot(along) * 1000.0, tip.dot(across) * 1000.0, tip.dot(palm_n) * 1000.0]
 	print(line)
+	## Wrist: bend of the hand off the forearm's line, and each bone's roll about its own axis against its rest.
+	var elbow: Vector3 = _bone(rig, "lowerarm_" + s)
+	_elbow = elbow
+	_wrist = wrist
+	var fore: Vector3 = (wrist - elbow).normalized()
+	var hand_b: int = rig.find_bone("hand_" + s)
+	var hand_basis: Basis = rig.global_basis * rig.get_bone_global_pose(hand_b).basis
+	print("[grip]   wrist bend %.0f deg (forearm to knuckles); hand +Y to knuckles %.0f deg; roll hand %.0f, forearm %.0f, upper arm %.0f deg" % [
+		rad_to_deg(fore.angle_to(along)), rad_to_deg((hand_basis * Vector3.UP).normalized().angle_to(along)),
+		rad_to_deg(_roll(rig, hand_b)), rad_to_deg(_roll(rig, rig.find_bone("lowerarm_" + s))), rad_to_deg(_roll(rig, rig.find_bone("upperarm_" + s)))])
 	var head: int = rig.find_bone(&"Head")
 	var head_basis: Basis = rig.global_basis * rig.get_bone_global_pose(head).basis
 	var facing: String = ""
 	for axis: Array in [["+x", Vector3.RIGHT], ["+y", Vector3.UP], ["+z", Vector3.BACK], ["-z", Vector3.FORWARD]]:
 		facing += " %s:%.0f" % [axis[0], rad_to_deg(prop.direction.angle_to((head_basis * (axis[1] as Vector3)).normalized()))]
 	print("[grip]   beam %s, to body +Z %.0f deg, to head axes%s" % [prop.direction, rad_to_deg(prop.direction.angle_to(visual.global_basis.z)), facing])
+
+
+## A bone's twist about its own +Y against its rest, relative to its parent.
+func _roll(rig: Skeleton3D, bone: int) -> float:
+	var local: Quaternion = rig.get_bone_pose(bone).basis.orthonormalized().get_rotation_quaternion()
+	var delta: Quaternion = rig.get_bone_rest(bone).basis.orthonormalized().get_rotation_quaternion().inverse() * local
+	var twist: float = 2.0 * atan2(delta.y, delta.w)
+	return wrapf(twist, -PI, PI)
 
 
 func _bone(rig: Skeleton3D, name: String) -> Vector3:
@@ -126,6 +149,23 @@ func _shot(held: HeldItemComponent, shot_name: String, yaw: float) -> void:
 		dir = forward.rotated(Vector3.UP, deg_to_rad(yaw))
 	_camera.global_position = target + dir.normalized() * 0.55
 	_camera.look_at(target, Vector3.UP if absf(dir.normalized().y) < 0.95 else forward)
+	await _frames(2)
+	root.get_viewport().get_texture().get_image().save_png("%s/%s.png" % [_out, shot_name])
+
+
+## The forearm's sleeve from its wrist to its elbow: from outside the arm, above, and from the chest's side.
+func _sleeve_shot(shot_name: String, view: int) -> void:
+	await _frames(3)
+	var elbow: Vector3 = _elbow
+	var wrist: Vector3 = _wrist
+	var target: Vector3 = elbow.lerp(wrist, 0.6)
+	var fore: Vector3 = (wrist - elbow).normalized()
+	var side: Vector3 = fore.cross(Vector3.UP).normalized()
+	if side.dot(target - (_player.global_position + Vector3.UP * 0.4)) < 0.0:
+		side = -side
+	var dir: Vector3 = [side + Vector3.UP * 0.2, Vector3.UP + side * 0.2, -side + Vector3.UP * 0.3][view]
+	_camera.global_position = target + dir.normalized() * 0.6
+	_camera.look_at(target, Vector3.UP if absf(dir.normalized().y) < 0.95 else fore)
 	await _frames(2)
 	root.get_viewport().get_texture().get_image().save_png("%s/%s.png" % [_out, shot_name])
 
