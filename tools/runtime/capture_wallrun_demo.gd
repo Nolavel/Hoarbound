@@ -1,26 +1,27 @@
 extends SceneTree
 
-## Real Godot runtime capture: CharacterBody3D + RayCast3D + ShortWallRun,
-## FIRST-PERSON camera roll and CanvasLayer progress. No animated fake positions.
-## xvfb-run godot --path . --resolution 960x540 --fixed-fps 30 \
-##   --rendering-driver vulkan --script res://tools/runtime/capture_wallrun_demo.gd \
-##   -- res://docs/runtime_previews/wallrun_demo
+## Actual Godot runtime proof of one SHORT WALL RUN over a real collision gap:
+## approach -> jump -> left-wall contact -> accelerated crossing -> far-side landing.
+## Camera stays in first person, and UI reads the live movement component.
+## PNG -> MP4 performed by the CI workflow (not a synthetic video).
 
 const ACTOR = preload("res://tests/demos/wallrun/demo_actor.gd")
 const FPS: int = 30
-const FRAME_COUNT: int = 240
+const FRAMES: int = 180
+const NEAR_EDGE_Z: float = 1.5
+const FAR_EDGE_Z: float = -9.5
 
 var _out: String = "res://docs/runtime_previews/wallrun_demo"
 var _actor
 var _camera: Camera3D
-var _title: Label
-var _caption: Label
-var _telemetry: Label
+var _state: Label
+var _velocity_text: Label
+var _status: Label
 var _progress: ProgressBar
-var _progress_text: Label
+var _progress_label: Label
 var _starts: int = 0
 var _max_speed: float = 0.0
-var _max_camera_roll: float = 0.0
+var _min_roll: float = 0.0
 
 
 func _initialize() -> void:
@@ -36,40 +37,51 @@ func _run() -> void:
     Engine.physics_ticks_per_second = FPS
     _build_stage()
     _build_hud()
-    _update_camera(true)
+    _update_camera()
 
-    for i: int in range(FRAME_COUNT):
+    for frame: int in range(FRAMES):
         await process_frame
-        _update_camera(false)
+        _update_camera()
         _update_hud()
         _max_speed = maxf(_max_speed, _actor.horizontal_speed())
-        _max_camera_roll = maxf(_max_camera_roll, absf(_actor.camera_roll))
+        _min_roll = minf(_min_roll, _actor.camera_roll)
         await RenderingServer.frame_post_draw
-        var img := root.get_texture().get_image()
-        var rc := img.save_png(frames_path.path_join("f_%03d.png" % i))
-        if rc != OK:
-            push_error("wallrun capture failed to save frame %d (err %d)" % [i, rc])
+        var error := root.get_texture().get_image().save_png(
+            frames_path.path_join("f_%03d.png" % frame)
+        )
+        if error != OK:
+            push_error("frame %d: PNG save failed (%d)" % [frame, error])
             quit(2)
             return
 
     var report := {
-        "frames": FRAME_COUNT,
+        "camera": "FIRST PERSON, left-wall roll from Arena_Stacktrace source sign",
+        "walls": 1,
+        "gap_m": NEAR_EDGE_Z - FAR_EDGE_Z,
+        "frames": FRAMES,
         "fps": FPS,
-        "duration_s": float(FRAME_COUNT) / FPS,
+        "duration_s": float(FRAMES) / FPS,
         "wall_runs_started": _starts,
+        "wall_run_side": _actor.last_wall_run_side,
+        "gap_entered": _actor.entered_gap,
+        "crossed_far_edge": _actor.crossed_gap,
+        "landed_on_far_platform": _actor.landed_far,
+        "crossed_at_seconds": _actor.crossed_at,
+        "landed_at_seconds": _actor.landed_at,
+        "min_body_y_while_over_gap": _actor.min_height_over_gap,
         "max_speed_mps": _max_speed,
-        "max_camera_roll_deg": _max_camera_roll,
-        "capture": "actual Godot CharacterBody3D + RayCast3D + ShortWallRun with camera/UI",
-        "visual": "FIRST-PERSON camera at eye height, HUD over 3D scene; isolated physics demo (not Henry)",
+        "min_camera_roll_deg": _min_roll,
+        "runtime": "CharacterBody3D, RayCast3D, ShortWallRun, move_and_slide, CanvasLayer",
     }
-    var path := ProjectSettings.globalize_path(_out.path_join("report.json"))
-    var f := FileAccess.open(path, FileAccess.WRITE)
-    if f != null:
-        f.store_string(JSON.stringify(report, "  "))
-        f.close()
-    print("WALLRUN_DEMO ", JSON.stringify(report))
-    if _starts != 2 or _max_camera_roll < 8.0 or _max_speed < 13.0:
-        push_error("Wall-run evidence incomplete: expected 2 starts, camera roll and real speed-up")
+    var file := FileAccess.open(ProjectSettings.globalize_path(_out.path_join("report.json")), FileAccess.WRITE)
+    if file != null:
+        file.store_string(JSON.stringify(report, "  "))
+        file.close()
+    print("WALLRUN_GAP_REPORT ", JSON.stringify(report))
+
+    # This is not a pass unless the real player crossed the gap and LANDED.
+    if _starts != 1 or _actor.last_wall_run_side != -1 or not _actor.entered_gap or not _actor.crossed_gap or not _actor.landed_far or _max_speed < 13.0 or _min_roll > -8.0:
+        push_error("wallrun over-gap proof failed; inspect the report / captured frames")
         quit(3)
         return
     quit(0)
@@ -77,159 +89,177 @@ func _run() -> void:
 
 func _build_stage() -> void:
     var stage := Node3D.new()
-    stage.name = "WallRun_DemoStage"
+    stage.name = "SingleWallGapCrossing"
     root.add_child(stage)
 
     var env := WorldEnvironment.new()
     env.environment = Environment.new()
     env.environment.background_mode = Environment.BG_COLOR
-    env.environment.background_color = Color(0.085, 0.13, 0.17)
+    env.environment.background_color = Color(0.085, 0.12, 0.16)
     env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-    env.environment.ambient_light_color = Color(0.61, 0.72, 0.82)
-    env.environment.ambient_light_energy = 0.75
+    env.environment.ambient_light_color = Color(0.62, 0.73, 0.85)
+    env.environment.ambient_light_energy = 0.92
     env.environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     stage.add_child(env)
 
     var sun := DirectionalLight3D.new()
-    sun.rotation_degrees = Vector3(-50.0, -25.0, -15.0)
-    sun.light_energy = 1.2
+    sun.rotation_degrees = Vector3(-45.0, -28.0, -5.0)
+    sun.light_energy = 1.3
     sun.shadow_enabled = true
     stage.add_child(sun)
 
-    _solid_box(stage, "WalkingSurface", Vector3(12.0, 0.4, 60.0), Vector3(0.0, -0.20, -7.0), Color(0.28, 0.39, 0.46))
-    for side: int in [-1, 1]:
-        var x := float(side) * 1.65
-        var body := _solid_box(stage, "Wall_%d" % side, Vector3(0.6, 3.8, 38.0), Vector3(x, 1.9, -9.0), Color(0.31, 0.45, 0.52))
-        body.collision_layer = 1
-        for idx: int in range(18):
-            var mark := MeshInstance3D.new()
-            var mark_mesh := BoxMesh.new()
-            mark_mesh.size = Vector3(0.035, 1.28 + 0.25 * float(idx % 3), 0.16)
-            mark.mesh = mark_mesh
-            mark.position = Vector3(x - float(side) * 0.316, 1.45, 7.5 - float(idx) * 2.0)
-            var stripe_mat := StandardMaterial3D.new()
-            stripe_mat.albedo_color = Color(0.58, 0.76, 0.76) if idx % 3 == 0 else Color(0.38, 0.59, 0.63)
-            stripe_mat.roughness = 1.0
-            mark.material_override = stripe_mat
-            stage.add_child(mark)
+    # TWO separate platforms. There is no collision floor between z=1.5
+    # and z=-9.5. The only traversable surface over the drop is the LEFT wall.
+    _solid(stage, "Approach", Vector3(12.0, 0.4, 18.5), Vector3(4.65, -0.20, 10.75), Color(0.35, 0.43, 0.50), true)
+    _solid(stage, "Destination", Vector3(12.0, 0.4, 28.5), Vector3(4.65, -0.20, -23.75), Color(0.32, 0.49, 0.47), true)
 
-    for i: int in range(23):
-        var stripe := MeshInstance3D.new()
-        var stripe_mesh := BoxMesh.new()
-        stripe_mesh.size = Vector3(0.09, 0.02, 0.62)
-        stripe.mesh = stripe_mesh
-        stripe.position = Vector3(0.0, 0.012, 9.0 - 2.0 * float(i))
-        var stripe_mat := StandardMaterial3D.new()
-        stripe_mat.albedo_color = Color(0.79, 0.81, 0.71)
-        stripe.material_override = stripe_mat
-        stage.add_child(stripe)
+    # A deep visible pit floor is 10 m below the path. It is NOT a bridge.
+    _solid(stage, "PitBottom_10mDown", Vector3(12.0, 0.2, 11.0), Vector3(4.65, -10.0, -4.0), Color(0.12, 0.15, 0.19), true)
+    for i: int in range(7):
+        _solid(stage, "DepthMark_%d" % i, Vector3(0.24, 0.06, 0.12),
+            Vector3(4.0, -9.82, 0.5 - 1.5 * float(i)), Color(0.34, 0.45, 0.53), false)
+
+    # One wall only. Face lies at x=-1.35, left of the running capsule.
+    _solid(stage, "SingleLEFTwall", Vector3(0.60, 8.0, 58.0),
+        Vector3(-1.65, 4.0, -9.0), Color(0.29, 0.44, 0.52), true)
+
+    for index: int in range(27):
+        var z := 18.0 - 1.8 * float(index)
+        _solid(stage, "WallStripe_%02d" % index, Vector3(0.025, 1.40, 0.10),
+            Vector3(-1.33, 1.6, z), Color(0.57, 0.73, 0.74), false)
+
+    # Caution stripes marking the actual physical edges of the opening.
+    for edge: float in [NEAR_EDGE_Z, FAR_EDGE_Z]:
+        for strip: int in range(9):
+            var x := -1.1 + float(strip) * 1.32
+            _solid(stage, "GapRim", Vector3(1.05, 0.018, 0.14),
+                Vector3(x, 0.020, edge + (0.12 if edge == NEAR_EDGE_Z else -0.12)),
+                Color(0.96, 0.70, 0.30), false)
+
+    # A green landing guide only exists on the far platform.
+    for i: int in range(3):
+        _solid(stage, "LandingGuide", Vector3(10.6, 0.014, 0.15),
+            Vector3(4.5, 0.021, -11.0 - 0.32 * float(i)),
+            Color(0.33, 0.82, 0.62), false)
 
     _actor = ACTOR.new()
-    _actor.name = "RuntimeInputDriver"
+    _actor.name = "PhysicalFpsRunner"
     stage.add_child(_actor)
-    # First-person view: keep physical capsule and raycasts, but do not render the
-    # debug mannequin from inside its own body.
-    for child: Node in _actor.get_children():
-        if child is MeshInstance3D:
-            child.visible = false
-    _actor.wall_run.wall_run_started.connect(_on_wall_run_started)
+    _actor.wall_run.wall_run_started.connect(_on_start)
 
     _camera = Camera3D.new()
-    _camera.name = "FirstPersonCamera"
-    _camera.fov = 83.0
+    _camera.name = "EyesFirstPerson"
     _camera.current = true
+    _camera.fov = 80.0
     stage.add_child(_camera)
 
 
-func _solid_box(stage: Node3D, label: String, dimensions: Vector3, origin: Vector3, tint: Color) -> StaticBody3D:
-    var body := StaticBody3D.new()
-    body.name = label
-    body.collision_layer = 1
-    body.collision_mask = 0
-    body.position = origin
-    var shape_node := CollisionShape3D.new()
-    var box_shape := BoxShape3D.new()
-    box_shape.size = dimensions
-    shape_node.shape = box_shape
-    body.add_child(shape_node)
-    var mesh_node := MeshInstance3D.new()
-    var box_mesh := BoxMesh.new()
-    box_mesh.size = dimensions
-    mesh_node.mesh = box_mesh
-    var material := StandardMaterial3D.new()
-    material.albedo_color = tint
-    material.roughness = 1.0
-    mesh_node.material_override = material
-    body.add_child(mesh_node)
-    stage.add_child(body)
-    return body
+func _solid(stage: Node3D, label: String, size: Vector3, pos: Vector3, color: Color, collision: bool) -> void:
+    var mesh := MeshInstance3D.new()
+    mesh.name = label
+    var geometry := BoxMesh.new()
+    geometry.size = size
+    mesh.mesh = geometry
+    var mat := StandardMaterial3D.new()
+    mat.albedo_color = color
+    mat.roughness = 1.0
+    mesh.material_override = mat
+    if collision:
+        var body := StaticBody3D.new()
+        body.name = label
+        body.collision_layer = 1
+        body.collision_mask = 0
+        body.position = pos
+        var shape := CollisionShape3D.new()
+        var box := BoxShape3D.new()
+        box.size = size
+        shape.shape = box
+        body.add_child(shape)
+        body.add_child(mesh)
+        stage.add_child(body)
+    else:
+        mesh.position = pos
+        stage.add_child(mesh)
 
 
 func _build_hud() -> void:
-    var layer := CanvasLayer.new()
-    layer.name = "IndependentWallRunUI"
-    root.add_child(layer)
+    var canvas := CanvasLayer.new()
+    canvas.name = "LiveWallRunHUD"
+    root.add_child(canvas)
 
-    var hud := Control.new()
-    hud.size = Vector2(960, 540)
-    hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    layer.add_child(hud)
+    var ui := Control.new()
+    ui.size = root.get_visible_rect().size
+    ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    canvas.add_child(ui)
+    var w := ui.size.x
+    var h := ui.size.y
 
-    var header := ColorRect.new()
-    header.position = Vector2(0, 0)
-    header.size = Vector2(960, 84)
-    header.color = Color(0.035, 0.07, 0.1, 0.83)
-    hud.add_child(header)
+    var band := ColorRect.new()
+    band.color = Color(0.035, 0.075, 0.11, 0.83)
+    band.position = Vector2.ZERO
+    band.size = Vector2(w, 134)
+    ui.add_child(band)
 
-    _title = _label(hud, Vector2(28, 14), 26, Color(0.95, 0.9, 0.72), "SHORT WALL RUN")
-    _caption = _label(hud, Vector2(29, 50), 17, Color(0.75, 0.87, 0.94), "FIRST-PERSON / REAL WALL CONTACT / CAMERA ROLL / LIVE HUD")
-    _telemetry = _label(hud, Vector2(28, 432), 21, Color(1.0, 0.94, 0.81), "")
-    _progress_text = _label(hud, Vector2(28, 466), 17, Color(0.72, 0.84, 0.91), "WALL RUN / TIME LEFT")
+    _label(ui, Vector2(36, 16), 46, Color(0.99, 0.93, 0.74), "SINGLE WALL / 11 m GAP")
+    _label(ui, Vector2(37, 80), 26, Color(0.72, 0.87, 0.94), "FIRST PERSON   ·   REAL PHYSICS   ·   LEFT WALL ONLY")
+
+    _progress_label = _label(ui, Vector2(w - 625, 23), 25, Color(0.95, 0.85, 0.66), "WALL CONTACT / TIME LEFT")
     _progress = ProgressBar.new()
-    _progress.position = Vector2(28, 493)
-    _progress.size = Vector2(475, 19)
+    _progress.position = Vector2(w - 625, 68)
+    _progress.size = Vector2(550, 28)
     _progress.min_value = 0.0
     _progress.max_value = 100.0
     _progress.show_percentage = false
-    var back := StyleBoxFlat.new()
-    back.bg_color = Color(0.10, 0.14, 0.18, 0.95)
+    var empty := StyleBoxFlat.new()
+    empty.bg_color = Color(0.17, 0.25, 0.29)
     var fill := StyleBoxFlat.new()
-    fill.bg_color = Color(0.91, 0.70, 0.39)
-    _progress.add_theme_stylebox_override("background", back)
+    fill.bg_color = Color(0.95, 0.67, 0.27)
+    _progress.add_theme_stylebox_override("background", empty)
     _progress.add_theme_stylebox_override("fill", fill)
-    hud.add_child(_progress)
+    ui.add_child(_progress)
+
+    _state = _label(ui, Vector2(40, h - 148), 37, Color(0.99, 0.91, 0.72), "APPROACH / SPRINT")
+    _velocity_text = _label(ui, Vector2(42, h - 94), 26, Color(0.81, 0.94, 0.94), "")
+    _status = _label(ui, Vector2(w - 530, h - 94), 26, Color(0.87, 0.94, 0.76), "")
 
 
-func _label(parent: Control, pos: Vector2, font_size: int, tint: Color, value: String) -> Label:
-    var label := Label.new()
-    label.position = pos
-    label.text = value
-    label.add_theme_color_override("font_color", tint)
-    label.add_theme_font_size_override("font_size", font_size)
-    parent.add_child(label)
-    return label
+func _label(ui: Control, pos: Vector2, size: int, color: Color, value: String) -> Label:
+    var txt := Label.new()
+    txt.position = pos
+    txt.text = value
+    txt.add_theme_font_size_override("font_size", size)
+    txt.add_theme_color_override("font_color", color)
+    ui.add_child(txt)
+    return txt
 
 
-func _update_camera(_first: bool) -> void:
-    # A real first-person view from inside the CharacterBody3D capsule.
-    # Rotation follows the component's wall-run side and smoothly returns
-    # upright when contact ends. No external TPS follow-cam.
-    _camera.global_position = _actor.global_position + Vector3(0.0, 0.66, -0.08)
-    _camera.rotation = Vector3.ZERO
+func _update_camera() -> void:
+    # Correct sign from Arena_Stacktrace: with the wall on the LEFT, normal +X,
+    # right.dot(normal)>0, so the intended camera roll is NEGATIVE.
+    # The camera is at the runner's EYES, not trailing behind as in the old TPS clip.
+    _camera.global_position = _actor.global_position + Vector3(0.0, 0.65, -0.08)
+    _camera.rotation_degrees = Vector3(-14.0, 0.0, 0.0)
     _camera.rotate_object_local(Vector3.BACK, deg_to_rad(_actor.camera_roll))
 
 
 func _update_hud() -> void:
-    var side_name := "LEFT" if _actor.wall_side == -1 else "RIGHT"
-    _title.text = "%s WALL  /  SHORT WALL RUN" % side_name
-    _telemetry.text = "%s    |    SPEED %04.1f m/s    |    CAMERA ROLL %+04.1f deg" % [
-        _actor.phase_caption, _actor.horizontal_speed(), _actor.camera_roll
+    _state.text = _actor.phase_caption
+    _velocity_text.text = "SPEED   %04.1f m/s     |     CAMERA ROLL   %+04.1f deg" % [
+        _actor.horizontal_speed(), _actor.camera_roll
     ]
     _progress.value = _actor.remaining_ratio * 100.0
     _progress.visible = _actor.wall_run.is_running
-    _progress_text.visible = _actor.wall_run.is_running
+    _progress_label.visible = _actor.wall_run.is_running
+    if _actor.landed_far:
+        _status.text = "GAP CLEARED / LANDED"
+    elif _actor.crossed_gap:
+        _status.text = "FAR EDGE REACHED"
+    elif _actor.entered_gap:
+        _status.text = "OVER THE DROP"
+    else:
+        _status.text = "11 METRES AHEAD"
 
 
-func _on_wall_run_started(side: int) -> void:
+func _on_start(side: int) -> void:
     _starts += 1
-    print("WALLRUN_START side=%d t=%.2f" % [side, _actor.segment_time])
+    print("WALLRUN_START side=%d at %.3fs z=%.3f" % [side, _actor.elapsed, _actor.global_position.z])
