@@ -158,3 +158,18 @@ func advance_heating(delta_hours: float) -> void:
 	_heated_offset_c = minf(_heated_offset_c, ceiling)
 	if not is_equal_approx(previous, _heated_offset_c):
 		warmth_changed.emit(get_total_offset_c())
+
+
+## True inside an interior thermal zone warmer than freezing at `point` (world).
+static func is_warm_at(world: World3D, point: Vector3) -> bool:
+	if world == null:
+		return false
+	var query := PhysicsPointQueryParameters3D.new()
+	query.position = point
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	for hit: Dictionary in world.direct_space_state.intersect_point(query, 8):
+		var zone := hit["collider"] as ThermalZone
+		if zone != null and zone.is_interior and zone.get_total_offset_c() > 0.0:
+			return true
+	return false

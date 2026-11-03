@@ -24,7 +24,15 @@ static func reach(skeleton: Skeleton3D, thigh: int, calf: int, foot: int, offset
 	var limit: float = maxf(upper + lower - length_buffer, hip.distance_to(ankle))
 	var d: float = clampf(span.length(), 0.01, limit)
 	var dir: Vector3 = span.normalized()
-	var bend: Vector3 = (knee - hip) - dir * (knee - hip).dot(dir)
+	## The knee bends in the leg's own plane (its hinge axis from hip, knee and ankle as posed), not by
+	## which side of the new hip-to-target line the old knee lies: a big lift put the knee behind that
+	## line and the solve folded it backwards for a frame.
+	var hinge: Vector3 = (ankle - hip).cross(knee - hip)
+	var bend: Vector3
+	if hinge.length_squared() > 1e-10:
+		bend = hinge.cross(dir)
+	else:
+		bend = (knee - hip) - dir * (knee - hip).dot(dir)
 	if bend.length_squared() < 1e-8:
 		return Vector3.ZERO
 	bend = bend.normalized()

@@ -2,7 +2,8 @@ class_name BedrollComponent
 extends Node
 
 ## Use in the Hub starts a world-space placement preview. The camera-centre ray
-## chooses the ground; green means the whole bedroll fits, red means it does not.
+## chooses the ground; green means the whole bedroll fits in a warm room, red means it does not.
+## Laid, it unrolls from its head to its foot.
 
 signal bedroll_laid(bedroll: Node3D)
 signal bedroll_packed
@@ -11,6 +12,10 @@ const CONFIRM_ACTION: StringName = &"interact"
 const CANCEL_ACTION: StringName = &"pause"
 const PLACE_HINT_KEY: String = "BEDROLL_PLACE_HINT"
 const BLOCKED_HINT_KEY: String = "BEDROLL_PLACE_BLOCKED"
+const COLD_HINT_KEY: String = "BEDROLL_TOO_COLD"
+## Seconds the roll takes to unroll, and the rolled bundle's radius at the start.
+const UNROLL_S: float = 1.2
+const ROLL_RADIUS: float = 0.17
 const PLACE_DISTANCE: float = 1.3
 const MAX_PLACE_DISTANCE: float = 3.0
 const RAY_LENGTH: float = 6.0
@@ -31,6 +36,7 @@ var _preview: Node3D
 var _preview_material: StandardMaterial3D
 var _preview_hint: Label3D
 var _preview_valid: bool = false
+var _preview_cold: bool = false
 
 
 func _ready() -> void:
@@ -132,10 +138,11 @@ func _update_preview() -> void:
 	var candidate: Dictionary = _raycast_placement()
 	_preview.global_transform = candidate["transform"]
 	_preview_valid = bool(candidate["valid"])
+	_preview_cold = bool(candidate.get("cold", false))
 	if _preview_material != null:
 		_preview_material.albedo_color = VALID_COLOR if _preview_valid else INVALID_COLOR
 	if is_instance_valid(_preview_hint):
-		_preview_hint.text = tr(PLACE_HINT_KEY if _preview_valid else BLOCKED_HINT_KEY)
+		_preview_hint.text = tr(PLACE_HINT_KEY if _preview_valid else (COLD_HINT_KEY if _preview_cold else BLOCKED_HINT_KEY))
 
 
 ## Camera-centre ray to the floor. In headless tests with no camera, the old
@@ -178,7 +185,9 @@ func _raycast_placement() -> Dictionary:
 		excluded.append(collider.get_rid())
 	shape_query.exclude = excluded
 	var clear: bool = space.intersect_shape(shape_query, 8).is_empty()
-	return {"transform": xf, "valid": slope_ok and distance_ok and height_ok and clear}
+	## A bedroll is for sleeping where it is warm: indoors, in a heated room.
+	var warm: bool = ThermalZone.is_warm_at(body.get_world_3d(), point + Vector3.UP * 0.3)
+	return {"transform": xf, "valid": slope_ok and distance_ok and height_ok and clear and warm, "cold": not warm}
 
 
 func _front_transform() -> Transform3D:
@@ -242,7 +251,7 @@ func _lay_at(xf: Transform3D) -> bool:
 	return true
 
 
-func _spawn(xf: Transform3D) -> void:
+func _spawn(xf: Transform3D, unroll: bool = true) -> void:
 	var roll := Node3D.new()
 	roll.name = "LaidBedroll"
 	var world: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
@@ -267,6 +276,8 @@ func _spawn(xf: Transform3D) -> void:
 	head.mesh = bundle
 	head.transform = Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.0, 0.1, -0.85))
 	roll.add_child(head)
+	if unroll:
+		_unroll(pad, head)
 	_prompt(roll, "Sleep", SLEEP_SPOT_SCRIPT, Vector3(0.6, 0.0, 0.2), Vector3(1.0, 1.4, 1.4), pad, {})
 	var pack: Node3D = _prompt(roll, "Pack", PICKUP_SCRIPT, Vector3(0.0, 0.0, -1.2), Vector3(0.9, 1.2, 0.7), head,
 		{&"item_id": ITEM_ID})
@@ -274,6 +285,37 @@ func _spawn(xf: Transform3D) -> void:
 	_laid = roll
 	(pack as InteractiveArea).set_item_name(tr(PACK_KEY))
 	bedroll_laid.emit(roll)
+
+
+## The bedroll unrolls: the bundle rolls from the head end to the foot, thinning as the pad
+## spreads out behind it from the head; it ends as the pad and the pillow roll at the head.
+func _unroll(pad: MeshInstance3D, pillow: MeshInstance3D) -> void:
+	var length: float = BEDROLL_SIZE.z
+	var head_z: float = -length * 0.5
+	var bundle := MeshInstance3D.new()
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = ROLL_RADIUS
+	cylinder.bottom_radius = ROLL_RADIUS
+	cylinder.height = BEDROLL_SIZE.x
+	cylinder.material = (pad.mesh as BoxMesh).material
+	bundle.mesh = cylinder
+	pad.get_parent().add_child(bundle)
+	pillow.visible = false
+	var spread := func(t: float) -> void:
+		## Pad from the head to the bundle; the bundle holds what is still rolled up.
+		var done: float = maxf(t, 0.001)
+		pad.scale = Vector3(1.0, 1.0, done)
+		pad.position = Vector3(0.0, BEDROLL_SIZE.y * 0.5, head_z + length * done * 0.5)
+		var r: float = lerpf(ROLL_RADIUS, BEDROLL_SIZE.y * 0.5, t)
+		bundle.scale = Vector3(r / ROLL_RADIUS, 1.0, r / ROLL_RADIUS)
+		bundle.transform = Transform3D(Basis(Vector3.BACK, PI * 0.5).scaled(Vector3(r / ROLL_RADIUS, 1.0, r / ROLL_RADIUS)),
+			Vector3(0.0, r, head_z + length * t))
+	spread.call(0.0)
+	var tween := pad.create_tween()
+	tween.tween_method(spread, 0.0, 1.0, UNROLL_S).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(func() -> void:
+		bundle.queue_free()
+		pillow.visible = true)
 
 
 func _prompt(parent: Node3D, node_name: String, script_path: String, pos: Vector3, size: Vector3,
@@ -320,4 +362,4 @@ func load_save_data(data: Dictionary) -> void:
 		_laid = null
 	if data.has("x"):
 		var origin := Vector3(float(data["x"]), float(data["y"]), float(data["z"]))
-		_spawn(Transform3D(Basis(Vector3.UP, float(data.get("yaw", 0.0))), origin))
+		_spawn(Transform3D(Basis(Vector3.UP, float(data.get("yaw", 0.0))), origin), false)

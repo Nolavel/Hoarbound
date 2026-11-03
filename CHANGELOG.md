@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- The bedroll is laid only in a warm room: inside an interior thermal zone warmer than freezing. Out in
+  the cold the preview is red, with "Too cold here — lay it in a warm room". Laid, it unrolls over 1.2 s:
+  the bundle rolls from the head to the foot, the pad spreads behind it, and the pillow roll is left at
+  the head. A save restores it laid out, with no unrolling. The warmth check now lives in
+  `ThermalZone.is_warm_at`, which the snow splats also use.
 - Henry wears a chunky knit sweater with a high, thick turtleneck covering the whole neck (owner:
   "вязанный бабушкин свитер с высоким толстым воротником").
   - **Body and sleeves:** built in `tools/blender/build_henry_outfit.py` as a thin layer under the
@@ -618,6 +623,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Dev street spawn (owner request): `World` → Developer tools → **Dev Spawn Street** picks one of ten streets from different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
 
 ### Fixed
+
+- Henry's knee no longer snaps backwards for a frame when he walks in snow. `LegTwoBoneIK` now bends the
+  knee in the leg's own hinge plane. Before, it bent towards whichever side of the new hip-to-target line
+  the old knee lay. A big snow lift put the knee behind that line, so the solve folded it back. Traced on
+  Duval Street: before the fix the knee went from +253 mm ahead to −201 mm behind and back again. This
+  happened at peak swing (about 90° of knee bend), always after `SnowFeet`.
+- Henry stands still at idle (owner: arms swayed and the chest heaved all the time). The idle and crouch
+  idle clips keep only a share of each bone's swing about its mean pose: 40% in the chest, 30% in the
+  neck and head, 15% elsewhere. Measured live over 3 s: arms 3.2–3.9° → 0.6–1.0°, shin 5.5° → 1.3°,
+  chest 1.9° → 0.5°.
 
 - Jeans crotch (owner: "штанина косяк"): the drape left a web between the legs, reaching 11 cm below
   the crotch, which stretched into a tab or bar on every step. The build now lays that web on the body

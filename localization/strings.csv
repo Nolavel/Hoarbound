@@ -78,6 +78,7 @@ HUB_USE,Use,Использовать
 HUB_CANNOT_USE,Cannot use this here,Здесь это не использовать
 BEDROLL_PLACE_HINT,F — lay here · Esc — cancel,F — разложить · Esc — отмена
 BEDROLL_PLACE_BLOCKED,Cannot lay the bedroll here · Esc — cancel,Здесь нельзя разложить спальник · Esc — отмена
+BEDROLL_TOO_COLD,Too cold here — lay it in a warm room · Esc — cancel,Здесь слишком холодно — разложи в тёплом помещении · Esc — отмена
 REST_PROMPT,Sit down,Сесть
 WAIT_TITLE,WAIT BY THE FIRE,ЖДАТЬ У ОГНЯ
 REST_SEATED_HINT,F — wait · move — stand up,F — ждать · движение — встать
