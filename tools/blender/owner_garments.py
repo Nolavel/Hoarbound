@@ -767,7 +767,7 @@ def raise_seam(obj, body, below, half, margin):
 	obj.data.update()
 
 
-def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_radius, top_radius, outer=None, sides=32, rings=14, name="Outfit_Collar"):
+def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_radius, top_radius, outer=None, front_drop=0.0, sides=32, rings=14, name="Outfit_Collar"):
 	"""A knitted turtleneck as a lathe round the neck: each ring follows the neck (a ray out from the axis
 	to the skin) at `gap`, the knit is `thick`, and the top `fold` metres are turned down over it
 	(a second, outer layer from the top down), all of it kept inside `outer` (the jacket) if given.
@@ -812,6 +812,11 @@ def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_rad
 	## Radius per ring and angle: the neck's own so it hugs it, capped at `max_radius` (low rings reach
 	## the shoulders, the top the jaw), then smoothed round each ring and up the tube.
 	heights = [z_from + (z_to - z_from) * k / (rings - 1) for k in range(rings)]
+	## The top dips towards the front (`front_drop` lower under the chin than at the back).
+	def ring_z(k, a):
+		front = max(0.0, -math.sin(a))
+		top = z_to - front_drop * front * front
+		return z_from + (top - z_from) * k / (rings - 1)
 	## The cap opens up the tube: the shoulders only reach the lowest rings, the front of the neck all of them.
 	caps = [max_radius + (top_radius - max_radius) * min(k / (rings * 0.3), 1.0) for k in range(rings)]
 	radius = [[min(skin(z, 2.0 * math.pi * j / sides), caps[k], room(z, 2.0 * math.pi * j / sides))
@@ -826,10 +831,11 @@ def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_rad
 	for extra, zs in ((gap, heights), (gap + thick, heights)):
 		layer = []
 		for k, z in enumerate(zs):
-			c = centre(z)
 			ring = []
 			for j in range(sides):
 				a = 2.0 * math.pi * j / sides
+				zj = ring_z(k, a)
+				c = centre(zj)
 				r = radius[k][j] + extra
 				ring.append(out.verts.new(c + Vector((math.cos(a) * r, math.sin(a) * r, 0.0))))
 			layer.append(ring)
@@ -837,10 +843,11 @@ def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_rad
 	fold_rings = [k for k, z in enumerate(heights) if z >= z_to - fold]
 	fold_layer = []
 	for k in reversed(fold_rings):
-		c = centre(heights[k])
 		ring = []
 		for j in range(sides):
 			a = 2.0 * math.pi * j / sides
+			zj = ring_z(k, a)
+			c = centre(zj)
 			r = radius[k][j] + gap + thick * 2.0
 			ring.append(out.verts.new(c + Vector((math.cos(a) * r, math.sin(a) * r, 0.0))))
 		fold_layer.append(ring)

@@ -114,6 +114,15 @@ GLOVE_TAB = (0.58, 0.12, 0.08)
 ## name: (colour, push-out metres, shell thickness, smoothing passes)
 ## Smoothing irons out the mannequin's muscles so cloth reads as panels.
 SWEATER_COLOUR = (0.40, 0.06, 0.09)
+## Henry's head (generated from the owner's reference, docs/art/henry_reference/), its game budget in
+## faces, and its own landmarks measured on the source: chin and skull top heights, skull centre depth.
+HEAD_SOURCE = "assets/characters/henry/head_candidate/generated_head_candidate.glb"
+HEAD_FACES = 6000
+HEAD_CHIN_Z = -0.25
+HEAD_SKULL_Z = 0.40
+HEAD_CENTRE_Y = 0.01
+## The new head's neck ends this far above the neck bone, inside the turtleneck, metres.
+HEAD_CUT_ABOVE_NECK = 0.01
 ## Knit textures (tools/blender/make_knit_textures.py) and the size one tile covers on the body, metres.
 KNIT_BODY = "assets/characters/gear/knit_body_%s.png"
 KNIT_RIB = "assets/characters/gear/knit_rib_%s.png"
@@ -129,6 +138,8 @@ TURTLENECK_FOLD = 0.05
 TURTLENECK_MAX_R = 0.075
 ## Above the shoulders the tube follows the whole neck, its front included, up to this radius.
 TURTLENECK_TOP_R = 0.13
+## How much lower the top sits under the chin than at the back of the neck, metres.
+TURTLENECK_FRONT_DROP = 0.115
 GARMENTS = {
 	"Jacket": (JACKET_COLOUR, 0.030, 0.010, 12),
 	"Pants": ((0.27, 0.30, 0.36), 0.019, 0.008, 8),
@@ -479,6 +490,7 @@ def build():
 		(pants, "Pants"), (jacket, "Jacket")]))
 	## The sweater is always worn: the skin under it is never shown.
 	bpy.data.objects.remove(bpy.data.objects["Skin_Sweater"])
+	owner_head(arm, body)
 	## The plaid jacket has its own collar and no hood; the old generated hood sat on it like a scarf.
 	return arm
 
@@ -629,13 +641,62 @@ def owner_jacket(arm, body, generated, pants):
 	return jacket
 
 
+def owner_head(arm, body):
+	"""Henry's own head (the generated candidate from the owner's reference) on the mannequin: decimated
+	to a game budget, scaled so its chin-to-skull height matches the mannequin's head, its chin set on
+	the mannequin's chin, the neck cut inside the turtleneck, skinned to Head and neck_01; the mannequin's
+	head and neck skin are removed."""
+	names = {g.index: g.name for g in body.vertex_groups}
+	world = body.matrix_world
+
+	def owner_of(v):
+		best = max(v.groups, key=lambda g: g.weight, default=None)
+		return names[best.group] if best is not None else ""
+	skull = [world @ v.co for v in body.data.vertices if owner_of(v) == "Head"]
+	chin_z = min(p.z for p in skull)
+	top_z = max(p.z for p in skull)
+	centre_y = (min(p.y for p in skull) + max(p.y for p in skull)) * 0.5
+	head = G.import_joined(HEAD_SOURCE, "Henry_Head", lambda n: True)
+	G.decimate_to(head, HEAD_FACES)
+	scale = (top_z - chin_z) / (HEAD_SKULL_Z - HEAD_CHIN_Z)
+	for v in head.data.vertices:
+		p = v.co
+		v.co = Vector((p.x * scale, (p.y - HEAD_CENTRE_Y) * scale + centre_y, (p.z - HEAD_CHIN_Z) * scale + chin_z))
+	head.data.update()
+	neck = arm.matrix_world @ arm.data.bones["neck_01"].head_local
+	bone = arm.matrix_world @ arm.data.bones["Head"].head_local
+	G.cut_below(head, neck.z + HEAD_CUT_ABOVE_NECK)
+	## The skull follows the head; the neck blends to the neck bone below the head's pivot.
+	g_head = head.vertex_groups.new(name="Head")
+	g_neck = head.vertex_groups.new(name="neck_01")
+	for v in head.data.vertices:
+		z = (head.matrix_world @ v.co).z
+		t = min(max((z - neck.z) / max(bone.z + 0.02 - neck.z, 1e-3), 0.0), 1.0)
+		t = t * t * (3.0 - 2.0 * t)
+		g_head.add([v.index], t, "REPLACE")
+		g_neck.add([v.index], 1.0 - t, "REPLACE")
+	for poly in head.data.polygons:
+		poly.use_smooth = True
+	G.bind(head, arm)
+	## The mannequin's own head and neck go: the new head and the turtleneck cover them.
+	bm = bmesh.new()
+	bm.from_mesh(body.data)
+	bm.verts.ensure_lookup_table()
+	gone = {v.index for v in body.data.vertices if owner_of(v) in ("Head", "neck_01")}
+	bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(v.index in gone for v in f.verts)], context="FACES")
+	bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+	bm.to_mesh(body.data)
+	bm.free()
+	return head
+
+
 def owner_turtleneck(arm, body, jacket):
 	"""The sweater's high, thick turtleneck: a knitted tube round the whole neck from the collarbones to
 	the jaw, its top turned down, inside the jacket's collar, skinned from the neck and head so it follows them."""
 	neck = arm.matrix_world @ arm.data.bones["neck_01"].head_local
 	head = arm.matrix_world @ arm.data.bones["Head"].head_local
 	collar = G.turtleneck(body, neck, head, neck.z - TURTLENECK_BELOW, head.z + TURTLENECK_ABOVE,
-		TURTLENECK_GAP, TURTLENECK_THICK, TURTLENECK_FOLD, TURTLENECK_MAX_R, TURTLENECK_TOP_R, jacket)
+		TURTLENECK_GAP, TURTLENECK_THICK, TURTLENECK_FOLD, TURTLENECK_MAX_R, TURTLENECK_TOP_R, jacket, TURTLENECK_FRONT_DROP)
 	knit(collar, arm, KNIT_RIB)
 	G.skin_from(collar, body)
 	G.bind(collar, arm)
@@ -1082,6 +1143,13 @@ def build_hood(arm, body):
 
 def export(arm):
 	os.makedirs(os.path.dirname(OUT), exist_ok=True)
+	## Every image gets its own name: Godot extracts them by name, and several sources call theirs
+	## "Image_0" (the head then wore the jacket's plaid).
+	for mat in bpy.data.materials:
+		if mat.use_nodes:
+			for node in mat.node_tree.nodes:
+				if node.type == "TEX_IMAGE" and node.image is not None and not node.image.name.startswith(mat.name):
+					node.image.name = "%s_%s" % (mat.name, node.label or node.name)
 	bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_animations=True,
 		export_animation_mode="ACTIONS", export_apply=False, export_yup=True)
 

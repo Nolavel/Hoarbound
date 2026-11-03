@@ -8,6 +8,20 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Henry has his own head: the generated candidate made from the owner's reference. It is not final art;
+  it is used as the current head.
+  - **Placement** (`owner_head` in `tools/blender/build_henry_outfit.py`): decimated to 6000 faces with
+    smooth shading. It is scaled so the chin-to-skull height matches the mannequin's head (×0.375; the
+    skull width matches within 3 mm), and its chin sits on the mannequin's chin.
+  - **Rig:** the neck is cut inside the turtleneck, and the head is skinned to `Head`, blending to
+    `neck_01` down the neck. The mannequin's head and neck are removed.
+  - **Turtleneck** top now dips 11.5 cm towards the front, so it sits under the chin and still rises
+    past the jacket collar at the back.
+  - **Knit hat** is lifted 3 cm (`knit_hat_lift`) to clear the new brows.
+  - **Texture names:** every image in the outfit glb is now named after its material. Godot extracts
+    textures by name, and "Image_0" collisions put the jacket's plaid on the head.
+- Bedroll art from the `codex` branch (cherry-picked): `bedroll_open` and `bedroll_packed` models and
+  textures, plus the pack mounting. The laid bedroll unrolls using that open mat.
 - The bedroll is laid only in a warm room: inside an interior thermal zone warmer than freezing. Out in
   the cold the preview is red, with "Too cold here — lay it in a warm room". Laid, it unrolls over 1.2 s:
   the bundle rolls from the head to the foot, the pad spreads behind it, and the pillow roll is left at
