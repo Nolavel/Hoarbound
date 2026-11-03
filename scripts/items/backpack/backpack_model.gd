@@ -9,6 +9,7 @@ extends Node3D
 signal opened_changed(open: bool)
 
 const CANVAS_SHADER: Shader = preload("res://shaders/items/backpack_canvas.gdshader")
+const BEDROLL_PACKED: PackedScene = preload("res://assets/items/bedroll/bedroll_packed.scn")
 const MAX_ITEMS: int = 16
 ## Outer size of the main body (width, height, depth) and the rounding of its edges, metres.
 const BODY: Vector3 = Vector3(0.34, 0.52, 0.22)
@@ -120,9 +121,8 @@ const LOOSE_FLOOR_M: float = 0.02
 const LOOSE_MARGIN_M: float = 0.03
 ## The grab handle's foot on the top, behind its middle where the top is flat (pack space, at rest).
 const HANDLE_AT: Vector3 = Vector3(0.0, 0.514, 0.03)
-## The bedroll lies across the top in front of the handle (pack space at rest: where it rests).
+## The lengthwise-folded mat rests across the canvas top, in front of the handle.
 const BEDROLL_AT: Vector3 = Vector3(0.0, 0.52, 0.14)
-const BEDROLL_RADIUS_M: float = 0.062
 ## The maker's patch on the front panel, as the panel's UV rect (up its height, across its width).
 const PATCH_RECT: Vector4 = Vector4(0.55, 0.33, 0.67, 0.67)
 ## How far inside the mug handle's outer edge a carabiner rod rests, metres.
@@ -133,7 +133,6 @@ const MUG_HANDLE_TOP_M: float = 0.022
 const CLIPPED_SWING_HZ: float = 1.8
 const CLIPPED_SWING_DAMPING: float = 0.65
 const CLIPPED_MAX_SWING_DEG: float = 60.0
-const BEDROLL: Color = Color(0.33, 0.27, 0.18)
 
 var _shell_material: ShaderMaterial
 var _panel_material: ShaderMaterial
@@ -544,7 +543,7 @@ func _process(delta: float) -> void:
 	_place_divider()
 	## The handle sits where the canvas top is now, however far it has slumped.
 	_handle.position = _on_canvas(HANDLE_AT, Vector3.UP, 0.0)
-	_bedroll.position = _on_canvas(BEDROLL_AT, Vector3.UP, 0.0) + Vector3(0.0, BEDROLL_RADIUS_M - 0.008, 0.0)
+	_bedroll.position = _on_canvas(BEDROLL_AT, Vector3.UP, 0.0) - Vector3.UP * 0.008
 	## The free edge sags most with the panel flat; the swing's speed flicks it the other way.
 	var droop_target: float = DROOP_FLAT_M * sin(clampf(_swing, 0.0, PI))
 	var droop_omega: float = TAU * DROOP_HZ
@@ -756,35 +755,40 @@ func _add_shelf() -> void:
 	add_child(shelf)
 
 
-## The bedroll strapped across the top, in front of the handle; placed on the canvas each frame.
-## With it up there the bottom is flat leather, so the pack stands on it anywhere.
+## The actual packed mat and its two post-roll cinch straps, mounted across the pack top.
 func _add_bedroll() -> void:
 	_bedroll = Node3D.new()
 	_bedroll.name = "Bedroll"
+	_bedroll.visible = false
 	add_child(_bedroll)
-	var roll := MeshInstance3D.new()
-	roll.name = "Roll"
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = BEDROLL_RADIUS_M
-	cylinder.bottom_radius = BEDROLL_RADIUS_M
-	cylinder.height = BODY.x + 0.06
-	cylinder.radial_segments = 20
-	roll.mesh = cylinder
-	roll.material_override = _plain(BEDROLL)
-	roll.rotation.z = PI * 0.5
+	_bedroll.position = _on_canvas(BEDROLL_AT, Vector3.UP, 0.0) - Vector3.UP * 0.008
+	var roll := BEDROLL_PACKED.instantiate() as Node3D
+	roll.name = "PackedMat"
 	_bedroll.add_child(roll)
-	## Two straps cinch it down onto the top.
-	for x: float in [-0.1, 0.1]:
-		var band := MeshInstance3D.new()
-		var ring := CylinderMesh.new()
-		ring.top_radius = BEDROLL_RADIUS_M + 0.004
-		ring.bottom_radius = BEDROLL_RADIUS_M + 0.004
-		ring.height = 0.025
-		band.mesh = ring
-		band.material_override = _plain(STRAP)
-		band.rotation.z = PI * 0.5
-		band.position.x = x
-		_bedroll.add_child(band)
+	StylizedEnvironmentMaterial.apply_to_tree(roll)
+	## PackRig fits the canvas non-uniformly; keep the packed 39.9 cm width intact.
+	roll.scale = Vector3.ONE / transform.basis.get_scale()
+	## The removable loops around the roll are held by two short webbing tabs sewn
+	## into the pack's top seams. No extra buckle or second roll mesh.
+	var tether_material := StylizedEnvironmentMaterial.make_character(STRAP, 0.92)
+	for side: float in [-1.0, 1.0]:
+		var from_pack := Vector3(side * 0.11, 0.50, 0.15) - _bedroll.position
+		var to_loop := Vector3(side * 0.11, 0.615, 0.12) - _bedroll.position
+		var along := (to_loop - from_pack).normalized()
+		var across := (Vector3.RIGHT - along * Vector3.RIGHT.dot(along)).normalized()
+		var tether := MeshInstance3D.new()
+		tether.name = "BedrollTetherLeft" if side < 0.0 else "BedrollTetherRight"
+		var strap_mesh := BoxMesh.new()
+		strap_mesh.size = Vector3(0.025, from_pack.distance_to(to_loop), 0.003)
+		tether.mesh = strap_mesh
+		tether.material_override = tether_material
+		tether.transform = Transform3D(Basis(across, along, across.cross(along)), (from_pack + to_loop) * 0.5)
+		_bedroll.add_child(tether)
+
+
+func set_bedroll_visible(carried: bool) -> void:
+	if _bedroll != null:
+		_bedroll.visible = carried
 
 
 func _add_straps() -> void:

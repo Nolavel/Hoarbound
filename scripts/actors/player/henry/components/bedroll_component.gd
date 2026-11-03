@@ -15,7 +15,7 @@ const PLACE_DISTANCE: float = 1.3
 const MAX_PLACE_DISTANCE: float = 3.0
 const RAY_LENGTH: float = 6.0
 const MAX_SLOPE_DEG: float = 14.0
-const BEDROLL_SIZE: Vector3 = Vector3(0.75, 0.06, 1.9)
+const BEDROLL_SIZE: Vector3 = Vector3(0.75, 0.005, 1.9)
 const VALID_COLOR: Color = Color(0.45, 0.9, 0.55, 0.35)
 const INVALID_COLOR: Color = Color(0.95, 0.28, 0.22, 0.35)
 const ITEM_ID: StringName = &"bedroll"
@@ -23,6 +23,7 @@ const INTERACTIVE_SCENE: String = "res://scenes/environment/interactive/Interact
 const SLEEP_SPOT_SCRIPT: String = "res://scripts/environment/interactive/sleep_spot.gd"
 const PICKUP_SCRIPT: String = "res://scripts/environment/interactive/item_pickup.gd"
 const PACK_KEY: String = "BEDROLL_PACK"
+const BEDROLL_OPEN: PackedScene = preload("res://assets/items/bedroll/bedroll_open.scn")
 
 @export var inventory: InventoryComponent
 
@@ -248,27 +249,17 @@ func _spawn(xf: Transform3D) -> void:
 	var world: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
 	world.add_child(roll)
 	roll.global_transform = xf
-	var cloth := StandardMaterial3D.new()
-	cloth.albedo_color = Color(0.2, 0.26, 0.2)
-	cloth.roughness = 1.0
-	var pad := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = BEDROLL_SIZE
-	box.material = cloth
-	pad.mesh = box
-	pad.position = Vector3(0.0, BEDROLL_SIZE.y * 0.5, 0.0)
-	roll.add_child(pad)
-	var head := MeshInstance3D.new()
-	var bundle := CylinderMesh.new()
-	bundle.top_radius = 0.1
-	bundle.bottom_radius = 0.1
-	bundle.height = 0.75
-	bundle.material = cloth
-	head.mesh = bundle
-	head.transform = Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.0, 0.1, -0.85))
-	roll.add_child(head)
+	var visual := BEDROLL_OPEN.instantiate() as Node3D
+	visual.name = "OpenMat"
+	roll.add_child(visual)
+	StylizedEnvironmentMaterial.apply_to_tree(visual)
+	var pad := visual.find_child("Bedroll_Continuous_Sheet_Static", true, false) as MeshInstance3D
+	if pad == null:
+		push_error("Bedroll open scene has no continuous sheet mesh")
+		roll.queue_free()
+		return
 	_prompt(roll, "Sleep", SLEEP_SPOT_SCRIPT, Vector3(0.6, 0.0, 0.2), Vector3(1.0, 1.4, 1.4), pad, {})
-	var pack: Node3D = _prompt(roll, "Pack", PICKUP_SCRIPT, Vector3(0.0, 0.0, -1.2), Vector3(0.9, 1.2, 0.7), head,
+	var pack: Node3D = _prompt(roll, "Pack", PICKUP_SCRIPT, Vector3(0.0, 0.0, -1.2), Vector3(0.9, 1.2, 0.7), pad,
 		{&"item_id": ITEM_ID})
 	pack.connect(&"picked_up", _on_packed)
 	_laid = roll
