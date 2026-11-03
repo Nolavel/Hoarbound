@@ -680,3 +680,64 @@ jobs:
             ${{ env.OUT }}/capture.log
           if-no-files-found: warn
           retention-days: 3
+
+  wallrun-demo:
+    ## Standalone mechanics capture. Real CharacterBody3D physics; no production locomotion change.
+    if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[wallrun-demo]')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'wallrun-demo')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot
+        run: SKIP_APT=1 tools/ci/setup_env.sh
+
+      - name: Install CPU Vulkan, Xvfb and video encoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mesa-vulkan-drivers xvfb ffmpeg
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Capture first-person wall-run over real 11m gap (30fps)
+        run: |
+          set -euo pipefail
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR" docs/runtime_previews/wallrun_demo
+          timeout 900 xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . --resolution 1920x1080 --fixed-fps 30 \
+            --rendering-driver vulkan --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script res://tools/runtime/capture_wallrun_demo.gd \
+            -- res://docs/runtime_previews/wallrun_demo \
+            2>&1 | tee docs/runtime_previews/wallrun_demo/capture.log
+          test "$(find docs/runtime_previews/wallrun_demo/frames -maxdepth 1 -name 'f_*.png' | wc -l)" -eq 180
+          ffmpeg -hide_banner -loglevel error -y -framerate 30 \
+            -i docs/runtime_previews/wallrun_demo/frames/f_%03d.png \
+            -c:v libx264 -preset veryfast -crf 21 -pix_fmt yuv420p \
+            -movflags +faststart docs/runtime_previews/wallrun_demo/short_wallrun_demo.mp4
+          cp docs/runtime_previews/wallrun_demo/frames/f_045.png docs/runtime_previews/wallrun_demo/near_edge.png
+          cp docs/runtime_previews/wallrun_demo/frames/f_065.png docs/runtime_previews/wallrun_demo/over_gap.png
+          cp docs/runtime_previews/wallrun_demo/frames/f_095.png docs/runtime_previews/wallrun_demo/far_side.png
+          test -s docs/runtime_previews/wallrun_demo/short_wallrun_demo.mp4
+
+      - name: Upload short wall-run video, two stills, evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: short-wallrun-physics-demo
+          path: |
+            docs/runtime_previews/wallrun_demo/*.mp4
+            docs/runtime_previews/wallrun_demo/*.png
+            docs/runtime_previews/wallrun_demo/*.json
+            docs/runtime_previews/wallrun_demo/*.log
+          retention-days: 7
+          if-no-files-found: warn
