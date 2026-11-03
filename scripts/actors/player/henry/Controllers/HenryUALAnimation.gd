@@ -149,11 +149,9 @@ const GARMENT_PARTS: Dictionary = {
 	&"Boots": [&"Outfit_Boots", &"Outfit_BootLining", &"Outfit_BootFur"],
 	&"Gloves": [&"Outfit_Gloves", &"Outfit_GloveCuff"],
 }
-## The knit hat sits this much higher than it was fitted (on the mannequin's skull), so it clears
-## the brows of Henry's own head, metres.
-@export var knit_hat_lift: float = 0.03
 ## Always shown: Henry's own head, the knit sweater and its turtleneck (the skin under them is not in the model).
 const BASE_LAYERS: Array[StringName] = [&"Outfit_Sweater", &"Outfit_Collar", &"Henry_Head"]
+const HAT_FIT_FILE: String = "res://assets/characters/henry/knit_hat/hat_fit.json"
 const LEGACY_HAT_PARTS: Array[StringName] = [&"Outfit_Beanie", &"Outfit_BeanieCuff"]
 const KNIT_HAT_PARTS: Array[StringName] = [&"KnitHat_Crown", &"KnitHat_Cuff", &"KnitHat_Pom"]
 ## How much fully soaked clothing darkens.
@@ -1110,7 +1108,7 @@ func _attach_knit_hat() -> void:
 	attachment.bone_name = head_bone
 	attachment.visible = false
 	skeleton.add_child(attachment)
-	hat_model.transform = skeleton.get_bone_global_rest(head).affine_inverse() * Transform3D(Basis(), Vector3(0.0, knit_hat_lift, 0.0))
+	hat_model.transform = skeleton.get_bone_global_rest(head).affine_inverse() * _hat_fit()
 	attachment.add_child(hat_model)
 	_set_mesh_layers_recursive(hat_model, portrait_render_layers)
 	for mesh_inst: MeshInstance3D in parts:
@@ -1120,6 +1118,19 @@ func _attach_knit_hat() -> void:
 		if old_mesh != null:
 			old_mesh.visible = false
 	_garment_meshes[&"Hat"] = attachment
+
+
+## Model-space placement of the knit hat on Henry's head, measured by the outfit build (hat_fit.json):
+## lifted, centred on the head and scaled round its axis so it sits snug; identity without the file.
+func _hat_fit() -> Transform3D:
+	if not FileAccess.file_exists(HAT_FIT_FILE):
+		return Transform3D.IDENTITY
+	var fit: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(HAT_FIT_FILE))
+	var axis := Vector3(fit["axis"][0], fit["axis"][1], fit["axis"][2])
+	var offset := Vector3(fit["offset"][0], float(fit["lift"]), fit["offset"][2])
+	var s: float = float(fit["scale"])
+	var around := Transform3D(Basis.from_scale(Vector3(s, 1.0, s)), axis - Basis.from_scale(Vector3(s, 1.0, s)) * axis)
+	return Transform3D(Basis(), offset) * around
 
 
 ## Share the game's NPR material contract and wetness response with imported

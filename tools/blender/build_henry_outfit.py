@@ -121,6 +121,13 @@ HEAD_FACES = 6000
 HEAD_CHIN_Z = -0.25
 HEAD_SKULL_Z = 0.40
 HEAD_CENTRE_Y = 0.01
+## The knit hat fitted onto the head: its source, the fit written for the game, its lift (metres),
+## the air kept inside it off the scalp, and how far above its brim hair is pressed under it.
+HAT_SOURCE = "assets/characters/henry/knit_hat/knit_hat.glb"
+HAT_FIT = "assets/characters/henry/knit_hat/hat_fit.json"
+KNIT_HAT_LIFT = 0.03
+HAT_GAP = 0.003
+HAT_BRIM_KEEP = 0.004
 ## The new head's neck ends this far above the neck bone, inside the turtleneck, metres.
 HEAD_CUT_ABOVE_NECK = 0.01
 ## Knit textures (tools/blender/make_knit_textures.py) and the size one tile covers on the body, metres.
@@ -677,6 +684,7 @@ def owner_head(arm, body):
 		g_neck.add([v.index], 1.0 - t, "REPLACE")
 	for poly in head.data.polygons:
 		poly.use_smooth = True
+	fit_hat(head)
 	G.bind(head, arm)
 	## The mannequin's own head and neck go: the new head and the turtleneck cover them.
 	bm = bmesh.new()
@@ -688,6 +696,67 @@ def owner_head(arm, body):
 	bm.to_mesh(body.data)
 	bm.free()
 	return head
+
+
+def fit_hat(head):
+	"""Seats the knit hat (assets/characters/henry/knit_hat) snugly on Henry's head: centred on the
+	head across the hat's band, scaled round its axis so its inside rests HAT_GAP off the scalp (the
+	head's 70th-percentile radius per angle, so tufts do not count), lifted KNIT_HAT_LIFT; the fit is
+	written to HAT_FIT for the game. Hair still outside the fitted hat above its brim is pressed in."""
+	import json as _json
+	import math
+	before = set(bpy.data.objects)
+	bpy.ops.import_scene.gltf(filepath=HAT_SOURCE)
+	parts = [o for o in set(bpy.data.objects) - before if o.type == "MESH" and o.name != "KnitHat_Pom"]
+	hat = [o.matrix_world @ v.co + Vector((0.0, 0.0, KNIT_HAT_LIFT)) for o in parts for v in o.data.vertices]
+	for o in set(bpy.data.objects) - before:
+		bpy.data.objects.remove(o)
+	brim = min(p.z for p in hat)
+	top = max(p.z for p in hat)
+	hcx = sum(p.x for p in hat) / len(hat)
+	hcy = sum(p.y for p in hat) / len(hat)
+	verts = head.data.vertices
+	band = [v.co for v in verts if brim + 0.02 < v.co.z < top - 0.04]
+	cx = sum(p.x for p in band) / len(band)
+	cy = sum(p.y for p in band) / len(band)
+	## Per angle: the hat's inside radius and the scalp's, over the band; the ratio fits the hat.
+	ratios = []
+	for k in range(16):
+		a = 2.0 * math.pi * k / 16
+
+		def near(p, ox, oy):
+			d = (math.atan2(p.y - oy, p.x - ox) - a + math.pi) % (2.0 * math.pi) - math.pi
+			return abs(d) < math.pi / 16 and brim + 0.02 < p.z < top - 0.04
+		hr = [math.hypot(p.x - hcx, p.y - hcy) for p in hat if near(p, hcx, hcy)]
+		dr = sorted(math.hypot(p.x - cx, p.y - cy) for p in band if near(p, cx, cy))
+		if hr and dr:
+			ratios.append((dr[int(len(dr) * 0.7)] + HAT_GAP) / min(hr))
+	scale = sorted(ratios)[len(ratios) // 2]
+	offset = Vector((cx - hcx, cy - hcy, 0.0))
+	## Where the fitted hat's inside lies, to press the hair under it.
+	fitted = [Vector(((p.x - hcx) * scale + cx, (p.y - hcy) * scale + cy, p.z)) for p in hat]
+	pressed = 0
+	for v in verts:
+		p = v.co
+		if p.z < brim + HAT_BRIM_KEEP or p.z > top:
+			continue
+		a = math.atan2(p.y - cy, p.x - cx)
+		ring = [math.hypot(q.x - cx, q.y - cy) for q in fitted if abs(q.z - p.z) < 0.01
+			and abs((math.atan2(q.y - cy, q.x - cx) - a + math.pi) % (2.0 * math.pi) - math.pi) < 0.25]
+		if not ring:
+			continue
+		limit = min(ring) - HAT_GAP
+		r = math.hypot(p.x - cx, p.y - cy)
+		if r > limit:
+			k = limit / r
+			v.co = Vector((cx + (p.x - cx) * k, cy + (p.y - cy) * k, p.z))
+			pressed += 1
+	head.data.update()
+	## Godot model space is Blender's with Y up: (x, z, -y).
+	fit = {"lift": KNIT_HAT_LIFT, "scale": scale, "axis": [hcx, 0.0, -hcy], "offset": [offset.x, 0.0, -offset.y]}
+	with open(HAT_FIT, "w") as f:
+		_json.dump(fit, f, indent=1)
+	print("fit_hat: scale %.3f offset (%.3f, %.3f) hair pressed %d" % (scale, offset.x, offset.y, pressed))
 
 
 def owner_turtleneck(arm, body, jacket):
