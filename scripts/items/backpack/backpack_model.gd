@@ -320,6 +320,12 @@ func get_fold_degrees() -> float:
 ## The carabiner on the left (0) or right (1) side, for things clipped on later.
 ## Where Quick Access pins the card of pack pocket `pocket_id` that sits outside the pack (the side
 ## pockets and sleeves, and the right carabiner the mug clips on); null for the rest.
+## Follows the deformed cloth top; UI reads its position but lives in GameplayUI.
+func get_load_anchor() -> Node3D:
+	build()
+	return _handle
+
+
 func get_quick_anchor(pocket_id: StringName) -> Node3D:
 	if pocket_id == &"pack_carabiner":
 		return get_carabiner(1)

@@ -10,6 +10,7 @@ var _failures: int = 0
 var _frame: int = 0
 var _time: float = 0.0
 var _stow_hub: PlayerHubComponent
+var _stow_panel: PlayerHubPanel
 var _stow_pickup: ItemPickup
 var _stow_visual: Node3D
 var _stow_inventory: InventoryComponent
@@ -54,6 +55,7 @@ func _start_quick_stow() -> void:
 	_stow_hub.name = "PlayerHubComponent"
 	body.add_child(_stow_hub)
 	root.add_child(body)
+	_stow_panel = _attach_panel(_stow_hub)
 	var pack := PackRig.new()
 	pack.position = Vector3(0.0, 1.2, 0.2)
 	body.add_child(pack)
@@ -111,6 +113,7 @@ func _test_hub_flow() -> void:
 	var hub := PlayerHubComponent.new()
 	body.add_child(hub)
 	root.add_child(body)
+	var panel := _attach_panel(hub)
 	inventory.try_add(load("res://data/items/road_flare.tres") as ItemResource)
 	inventory.try_add(load("res://data/items/bedroll.tres") as ItemResource)
 
@@ -148,7 +151,17 @@ func _test_hub_flow() -> void:
 	_check(hub.close(), "the Hub did not close")
 	_check(not hub.is_open(), "the Hub reports open after closing")
 	body.free()
+	panel.free()
 	game_camera.free()
+
+
+func _attach_panel(hub: PlayerHubComponent) -> PlayerHubPanel:
+	var panel := PlayerHubPanel.new()
+	panel.hub = hub
+	panel.visible = false
+	hub.bind_panel(panel)
+	root.add_child(panel)
+	return panel
 
 
 func _zone_item(hub: PlayerHubComponent, path: StringName) -> StringName:
@@ -194,10 +207,7 @@ func _check_hold() -> void:
 	_check(_zone_item(_stow_hub, _expected_route) == &"road_flare", "the second flare did not take the canonical route")
 	_stow_hub.move_to_pack(_expected_route)
 	_check(_stow_hub.open_placement(&"road_flare"), "manual placement did not open for a pack flare")
-	var panel: PlayerHubPanel = null
-	for child: Node in _stow_hub.get_children():
-		if child is PlayerHubPanel:
-			panel = child
+	var panel: PlayerHubPanel = _stow_panel
 	_check(panel != null and panel.is_placing(), "the Hub opened without placing the picked item")
 	if panel == null:
 		return

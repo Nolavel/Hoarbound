@@ -142,3 +142,16 @@ left inside its item (mirroring the shader's wrap).
 |---|---|---|
 | When | contact starts with the swing's rate into the obstacle (taken before the frame's spring step) above 0.6 rad/s, or 2.5 times that while it already rests on it | not every touching frame |
 | Sound | a random one of the owner's three recordings (`assets/audio/sfx/items/mug/`) through `SoundSystem` at the mug, -14 dB to 0 dB by strike rate up to 4 rad/s, cooldown 0.09 s | random, no repeat |
+
+## Backpack load banner (`BackpackLoadBanner`)
+
+The world-owned `GameplayUI/BackpackLoadBanner` renders the existing
+`BG_frame.gdshader` in a transparent 2D SubViewport on a camera-facing Sprite3D.
+Its 3D anchor is the deformed canvas handle (`BackpackModel.get_load_anchor()`),
+not a Control node under Henry. The bar displays `InventoryComponent.get_total_weight()`
+relative to `max_carry_weight`; this is *carried load* (pack, pockets, Kenny and hands),
+not the pack's geometric volume fill. `weight_changed` and equipment slot changes
+trigger a 4.2-second reveal; continuous presentation follows the
+moving handle with damping. The banner yields to Quick Access, the Hub and
+very tight TPS camera compositions. The 2D fill shader receives a separate
+fraction parameter so the gradient background's `reveal` remains an entrance effect.

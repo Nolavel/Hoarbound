@@ -96,6 +96,8 @@ const ACTION_ALIASES: Dictionary = {
 ## Second UAL clip set, added to the player under its own library name.
 @export var secondary_library_scene: PackedScene
 @export var secondary_library_name: StringName = &"UAL2"
+## Approved three-piece hat, attached to Head instead of the old outfit beanie.
+@export var knit_hat_scene: PackedScene
 
 @export_group("Head look")
 ## Bone the procedural look turns; ADT's head look, on the UAL rig.
@@ -138,12 +140,13 @@ const ACTION_ALIASES: Dictionary = {
 ## Outfit meshes from tools/blender/build_henry_outfit.py per equipment mesh name.
 ## Skin_<name> is the body under that garment, hidden while it is worn.
 const GARMENT_PARTS: Dictionary = {
-	&"Hat": [&"Outfit_Beanie", &"Outfit_BeanieCuff"],
 	&"Coat": [&"Outfit_Jacket"],
 	&"Trousers": [&"Outfit_Pants"],
 	&"Boots": [&"Outfit_Boots", &"Outfit_BootLining", &"Outfit_BootFur"],
 	&"Gloves": [&"Outfit_Gloves", &"Outfit_GloveCuff"],
 }
+const LEGACY_HAT_PARTS: Array[StringName] = [&"Outfit_Beanie", &"Outfit_BeanieCuff"]
+const KNIT_HAT_PARTS: Array[StringName] = [&"KnitHat_Crown", &"KnitHat_Cuff", &"KnitHat_Pom"]
 ## How much fully soaked clothing darkens.
 @export_range(0.0, 1.0, 0.05) var wet_darkening: float = 0.45
 ## Kenny's faded plush, lighter than the pack so the silhouette separates.
@@ -267,6 +270,7 @@ func _ready() -> void:
 	_paint_body()
 	_attach_backpack()
 	_attach_garments()
+	_attach_knit_hat()
 	_attach_carry_props()
 	_bind_equipment()
 	_setup_head_look()
@@ -1026,38 +1030,87 @@ func _attach_garments() -> void:
 			if mesh_inst == null:
 				push_warning("HenryUALAnimation: outfit mesh %s is missing." % part)
 				continue
-			mesh_inst.material_override = null  # drop the body paint
-			for surface: int in mesh_inst.mesh.get_surface_count():
-				var source := mesh_inst.mesh.surface_get_material(surface) as BaseMaterial3D
-				var dry: Color = source.albedo_color if source != null else body_color
-				## Alpha-cut cards (the boots' fur fibres) keep their own material; wetness skips them.
-				if source != null and source.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
-					continue
-				var double_sided: bool = source != null and source.cull_mode == BaseMaterial3D.CULL_DISABLED
-				var material := StylizedEnvironmentMaterial.make_character(dry, 1.0, double_sided)
-				## Textured pieces (the owner's boots) keep their painted colour and normal maps.
-				if source != null and source.albedo_texture != null:
-					material.set_shader_parameter("use_albedo_texture", true)
-					material.set_shader_parameter("albedo_texture", source.albedo_texture)
-				if source != null and source.normal_enabled and source.normal_texture != null:
-					material.set_shader_parameter("use_normal_texture", true)
-					material.set_shader_parameter("normal_texture", source.normal_texture)
-				## glTF metallic-roughness map (G roughness, B metallic, R occlusion when packed in).
-				if source != null and source.roughness_texture != null:
-					material.set_shader_parameter("use_orm_texture", true)
-					material.set_shader_parameter("orm_texture", source.roughness_texture)
-					material.set_shader_parameter("roughness", source.roughness)
-					material.set_shader_parameter("metallic", source.metallic)
-					material.set_shader_parameter("use_orm_ao", source.ao_enabled and source.ao_texture == source.roughness_texture)
-				material.set_meta(&"dry_color", dry)
-				mesh_inst.set_surface_override_material(surface, material)
-				_garment_materials["%s:%d" % [part, surface]] = material
+			_style_garment_mesh(mesh_inst, part)
 			mesh_inst.reparent(group)
 			mesh_inst.skeleton = mesh_inst.get_path_to(skeleton)
 		_garment_meshes[garment_name] = group
 		var skin := model.find_child("Skin_" + String(garment_name), true, false) as Node3D
 		if skin != null:
 			_skin_parts[garment_name] = skin
+
+
+## The equipment slot still owns visibility.  Only the approved three meshes
+## replace the imported outfit's old two-piece beanie; they follow the Head bone.
+func _attach_knit_hat() -> void:
+	if skeleton == null or knit_hat_scene == null:
+		push_error("HenryUALAnimation: three-piece knit_hat scene is missing.")
+		return
+	var head: int = skeleton.find_bone(head_bone)
+	if head < 0:
+		push_error("HenryUALAnimation: no Head bone for knit_hat.")
+		return
+	var hat_model := knit_hat_scene.instantiate() as Node3D
+	if hat_model == null:
+		push_error("HenryUALAnimation: knit_hat did not instantiate.")
+		return
+	var parts: Array[MeshInstance3D] = []
+	for part: StringName in KNIT_HAT_PARTS:
+		var mesh_inst := hat_model.find_child(String(part), true, false) as MeshInstance3D
+		if mesh_inst == null or mesh_inst.mesh == null:
+			push_error("HenryUALAnimation: knit_hat mesh %s is missing." % part)
+			hat_model.free()
+			return
+		parts.append(mesh_inst)
+	var attachment := BoneAttachment3D.new()
+	attachment.name = "KnitHatAttachment"
+	attachment.bone_name = head_bone
+	attachment.visible = false
+	skeleton.add_child(attachment)
+	hat_model.transform = skeleton.get_bone_global_rest(head).affine_inverse()
+	attachment.add_child(hat_model)
+	_set_mesh_layers_recursive(hat_model, portrait_render_layers)
+	for mesh_inst: MeshInstance3D in parts:
+		_style_garment_mesh(mesh_inst, StringName(mesh_inst.name), true)
+	for old_part: StringName in LEGACY_HAT_PARTS:
+		var old_mesh := model.find_child(String(old_part), true, false) as MeshInstance3D
+		if old_mesh != null:
+			old_mesh.visible = false
+	_garment_meshes[&"Hat"] = attachment
+
+
+## Share the game's NPR material contract and wetness response with imported
+## clothing and the fitted hat.  Its baked albedo/normal stay on the surface.
+func _style_garment_mesh(mesh_inst: MeshInstance3D, part: StringName, use_source_roughness: bool = false) -> void:
+	mesh_inst.material_override = null  # drop the mannequin's body paint
+	for surface: int in mesh_inst.mesh.get_surface_count():
+		var source := mesh_inst.mesh.surface_get_material(surface) as BaseMaterial3D
+		var dry: Color = source.albedo_color if source != null else body_color
+		## Alpha-cut cards (the boots' fur fibres) keep their own material; wetness skips them.
+		if source != null and source.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			continue
+		var double_sided: bool = source != null and source.cull_mode == BaseMaterial3D.CULL_DISABLED
+		var material := StylizedEnvironmentMaterial.make_character(dry, 1.0, double_sided)
+		if source != null:
+			if use_source_roughness:
+				material.set_shader_parameter("roughness", source.roughness)
+			if source.albedo_texture != null:
+				material.set_shader_parameter("use_albedo_texture", true)
+				material.set_shader_parameter("albedo_texture", source.albedo_texture)
+			if source.normal_enabled and source.normal_texture != null:
+				material.set_shader_parameter("use_normal_texture", true)
+				material.set_shader_parameter("normal_texture", source.normal_texture)
+				if use_source_roughness:
+					material.set_shader_parameter("normal_scale", source.normal_scale)
+			## glTF metallic-roughness map (G roughness, B metallic, R occlusion when packed in).
+			if source.roughness_texture != null:
+				material.set_shader_parameter("use_orm_texture", true)
+				material.set_shader_parameter("orm_texture", source.roughness_texture)
+				material.set_shader_parameter("roughness", source.roughness)
+				material.set_shader_parameter("metallic", source.metallic)
+				material.set_shader_parameter("use_orm_ao", source.ao_enabled and source.ao_texture == source.roughness_texture)
+		material.set_meta(&"dry_color", dry)
+		mesh_inst.set_surface_override_material(surface, material)
+		_garment_materials["%s:%d" % [part, surface]] = material
 
 
 ## Three visible slots for two-hand resources: logs and salvaged boards.

@@ -1,6 +1,8 @@
 class_name QuickAccessComponent
 extends Node
 
+signal readout_changed(text: String)
+
 ## The wheel selects a pocket; wheel-click or 1–4 draws its item into the hand.
 ## LMB or another wheel-click uses the physically held item.
 
@@ -21,7 +23,6 @@ const READOUT_TIME: float = 2.0
 @export var hub: PlayerHubComponent
 
 var _index: int = 0
-var _readout: Label
 var _readout_left: float = 0.0
 
 
@@ -52,8 +53,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if _readout_left > 0.0:
 		_readout_left -= delta
-		if _readout_left <= 0.0 and is_instance_valid(_readout):
-			_readout.visible = false
+		if _readout_left <= 0.0:
+			readout_changed.emit("")
 
 
 func get_selected_index() -> int:
@@ -245,52 +246,28 @@ func _pressed(event: InputEvent, action: StringName) -> bool:
 func _show_readout(zone: Dictionary) -> void:
 	if not is_inside_tree():
 		return
-	if not is_instance_valid(_readout):
-		var layer := CanvasLayer.new()
-		layer.layer = 15
-		add_child(layer)
-		_readout = Label.new()
-		_readout.anchor_left = 0.5
-		_readout.anchor_right = 0.5
-		_readout.anchor_top = 0.82
-		_readout.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		_readout.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		layer.add_child(_readout)
 	var held: ItemResource = ItemCatalog.get_item(zone["item_id"]) if zone["item_id"] != &"" else null
-	_readout.text = "%s: %s" % [tr(zone["name"]), tr(held.display_name) if held != null else tr("HUB_EMPTY")]
+	var message := "%s: %s" % [tr(zone["name"]), tr(held.display_name) if held != null else tr("HUB_EMPTY")]
 	if zone["item_id"] == ROAD_FLARE_ID and not _flare_is_burning():
-		_readout.text += "\n%s  Use selected item — light flare" % _action_label(USE_ACTION)
-	_readout.visible = true
+		message += "\n%s  Use selected item — light flare" % _action_label(USE_ACTION)
 	_readout_left = READOUT_TIME
+	readout_changed.emit(message)
 
 
 func _show_held_flare_readout(burning: bool) -> void:
 	if not is_inside_tree():
 		return
-	if not is_instance_valid(_readout):
-		var layer := CanvasLayer.new()
-		layer.layer = 15
-		add_child(layer)
-		_readout = Label.new()
-		_readout.anchor_left = 0.5
-		_readout.anchor_right = 0.5
-		_readout.anchor_top = 0.82
-		_readout.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		_readout.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		layer.add_child(_readout)
 	var state := "burning" if burning else "unlit"
 	var verb := "drop flare" if burning else "light flare"
-	_readout.text = "Road flare — %s\n%s  Use held item — %s" % [
-		state, _action_label(HELD_USE_ACTION), verb
-	]
-	_readout.visible = true
 	_readout_left = READOUT_TIME
+	readout_changed.emit("Road flare — %s\n%s  Use held item — %s" % [
+		state, _action_label(HELD_USE_ACTION), verb
+	])
 
 
 func _hide_readout() -> void:
 	_readout_left = 0.0
-	if is_instance_valid(_readout):
-		_readout.visible = false
+	readout_changed.emit("")
 
 
 func _hide_readout_if_generic() -> void:

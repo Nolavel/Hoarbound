@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dfff3tlrkxp5x"
-path="res://.godot/imported/boots_T_Boot_Cuff_Fleece_BaseColor.png-a01381a2428359c3b00cf61d066f5be3.ctex"
+path.s3tc="res://.godot/imported/boots_T_Boot_Cuff_Fleece_BaseColor.png-a01381a2428359c3b00cf61d066f5be3.s3tc.ctex"
+path.etc2="res://.godot/imported/boots_T_Boot_Cuff_Fleece_BaseColor.png-a01381a2428359c3b00cf61d066f5be3.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "4f8c9f2c9382531f0ff1fdce12a59960"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/items/boots/boots_T_Boot_Cuff_Fleece_BaseColor.png"
-dest_files=["res://.godot/imported/boots_T_Boot_Cuff_Fleece_BaseColor.png-a01381a2428359c3b00cf61d066f5be3.ctex"]
+dest_files=["res://.godot/imported/boots_T_Boot_Cuff_Fleece_BaseColor.png-a01381a2428359c3b00cf61d066f5be3.s3tc.ctex", "res://.godot/imported/boots_T_Boot_Cuff_Fleece_BaseColor.png-a01381a2428359c3b00cf61d066f5be3.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/high_quality_mode=0
 compress/lossy_quality=0.7
@@ -43,4 +45,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

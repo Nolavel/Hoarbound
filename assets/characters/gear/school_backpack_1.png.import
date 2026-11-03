@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cj4taufii0lel"
-path="res://.godot/imported/school_backpack_1.png-1c2c8709c1e30f7bcb36e2d6325440ce.ctex"
+path.s3tc="res://.godot/imported/school_backpack_1.png-1c2c8709c1e30f7bcb36e2d6325440ce.s3tc.ctex"
+path.etc2="res://.godot/imported/school_backpack_1.png-1c2c8709c1e30f7bcb36e2d6325440ce.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "6471c22f9d67d5ef560e045585f056f3"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/characters/gear/school_backpack_1.png"
-dest_files=["res://.godot/imported/school_backpack_1.png-1c2c8709c1e30f7bcb36e2d6325440ce.ctex"]
+dest_files=["res://.godot/imported/school_backpack_1.png-1c2c8709c1e30f7bcb36e2d6325440ce.s3tc.ctex", "res://.godot/imported/school_backpack_1.png-1c2c8709c1e30f7bcb36e2d6325440ce.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/high_quality_mode=0
 compress/lossy_quality=0.7
@@ -43,4 +45,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
