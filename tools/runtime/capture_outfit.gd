@@ -95,6 +95,8 @@ func _strap_shots() -> void:
 		await _shot("strap_" + view[0], view[1], 1.3, 1.5)
 	await _shot("strap_shoulder", 60.0, 1.5, 0.8)
 	await _shot("strap_chest", 165.0, 1.35, 0.8)
+	for view: Array in [["armpit_side", 90.0], ["armpit_side_l", 270.0], ["armpit_front", 125.0], ["armpit_back", 55.0]]:
+		await _shot("strap_" + view[0], view[1], 1.12, 0.75)
 	Input.action_press(&"move_forward")
 	await _frames(30)
 	await _shot("strap_walk_back_q", 35.0, 1.3, 1.6, 4)

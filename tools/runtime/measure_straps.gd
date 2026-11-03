@@ -27,8 +27,6 @@ var _need: Dictionary = {}
 ## Jacket points this frame hashed by HASH_M cells, for the bent strap mesh's depth check.
 const HASH_M: float = 0.02
 var _hash: Dictionary = {}
-## Per sleeve vertex: how far it must sink toward the arm so the strap under the arm stays outside it.
-var _sleeve_need: Dictionary = {}
 ## Per side, per free run, per sample: the bow out it still needs to clear the cloth in the poses seen.
 var _free_need: Array = [[{}, {}], [{}, {}]]
 var _cloth_normals := PackedVector3Array()
@@ -119,7 +117,7 @@ func _run() -> void:
 				by_t += " t%.1f:%.0f" % [b * 0.1, float(st["t%d" % b]) * 1000.0]
 			if st.has("s%d" % b):
 				by_s += " t%.1f:%.0f" % [b * 0.1, float(st["s%d" % b]) * 1000.0]
-		print("[straps-mesh] %-12s torso cloth, deepest by share along the strap (mm):%s | under the sleeve (%d pts):%s" % [name, by_t, int(st.get("sleeve_mesh", 0)), by_s])
+		print("[straps-mesh] %-12s torso cloth, deepest by share along the strap (mm):%s | under the sleeve (%d pts):%s | arm turned off the strap up to %.1f deg (overlap %.0f mm)" % [name, by_t, int(st.get("sleeve_mesh", 0)), by_s, float(st.get("arm_turn", 0.0)), float(st.get("arm_overlap", 0.0)) * 1000.0])
 		print("[straps] %-12s jacket in strap %d pts (deepest %.1f mm), sleeve %d (%.1f mm) | underside off cloth %.1f..%.1f mm | free run in pack %.1f mm, in jacket %.1f mm | pack end gap %.1f mm | strap mesh in jacket %d/%d pts (deepest %.1f mm)" % [
 			name, st.inside, st.deep * 1000.0, st.sleeve, st.sleeve_deep * 1000.0, st.gap_min * 1000.0, st.gap_max * 1000.0, st.pack_in * 1000.0, st.free_in * 1000.0, st.end_gap * 1000.0, st.mesh_in, st.mesh_pts, st.mesh_deep * 1000.0])
 	if "--learn" in OS.get_cmdline_user_args():
@@ -159,20 +157,6 @@ func _learn() -> void:
 		else:
 			var facing: bool = _faces_out(s, li)
 			data["press"].append([s, li, snappedf(depth, 0.0001), facing])
-	## Sleeve points sink toward the arm (pressed in along their own normal), only while the pack is worn.
-	for v: int in _sleeve_need:
-		var s: int = 0 if v < nv else 1
-		var li: int = v if v < nv else v - nv
-		var colour: Color = (_surfaces[s][Mesh.ARRAY_COLOR] as PackedColorArray)[li]
-		var key: String = "%d:%d" % [s, li]
-		var have: float = colour.r * PackShoulderStraps.PRESS_MAX_M if colour.g > 0.5 else 0.0
-		var depth: float = minf(have + float(_sleeve_need[v]), PackShoulderStraps.PRESS_MAX_M)
-		if by_key.has(key):
-			by_key[key][2] = snappedf(depth, 0.0001)
-			by_key[key][3] = true
-		else:
-			data["press"].append([s, li, snappedf(depth, 0.0001), true])
-	print("[straps] learned sleeve press for %d points" % _sleeve_need.size())
 	var file := FileAccess.open(POINTS_FILE, FileAccess.WRITE)
 	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
@@ -197,6 +181,10 @@ func _measure() -> void:
 	_stats[_state] = st
 	var cloth: PackedVector3Array = _skin_jacket()
 	_hash_cloth(cloth)
+	var clearance := _skeleton.get_node_or_null(^"ArmStrapClearance") as ArmStrapClearance
+	if clearance != null:
+		st["arm_turn"] = maxf(float(st.get("arm_turn", 0.0)), rad_to_deg(maxf(clearance._turn[0], clearance._turn[1])))
+		st["arm_overlap"] = maxf(float(st.get("arm_overlap", 0.0)), maxf(clearance.overlap[0], clearance.overlap[1]))
 	## The bent strap mesh itself (the school pack's pad and webbing): its vertices inside the jacket.
 	for q: Vector4 in _straps.bent_vertices(3):
 		var depth: float = _depth_hashed(Vector3(q.x, q.y, q.z), cloth)
@@ -206,7 +194,6 @@ func _measure() -> void:
 			var key: String = "s" if _sleeve[_near_index] else "t"
 			if key == "s":
 				st["sleeve_mesh"] = int(st.get("sleeve_mesh", 0)) + 1
-				_sleeve_over(Vector3(q.x, q.y, q.z), cloth)
 			else:
 				st.mesh_in += 1
 				st.mesh_deep = maxf(st.mesh_deep, depth)
@@ -278,23 +265,6 @@ func _measure() -> void:
 		for end: Array in [band[0], band[band.size() - 1]]:
 			var local: Vector3 = to_pack * (end[1] as Vector3)
 			st.end_gap = maxf(st.end_gap, absf(local.z - canvas.canvas_point(Vector3(local.x, local.y, 0.0), Vector3.FORWARD).z))
-
-
-## Every sleeve point within 2 cm whose own surface lies over strap point p: it must sink past p (its tangent
-## plane behind the strap), so the arm's cloth rests on the strap instead of swallowing it.
-func _sleeve_over(p: Vector3, cloth: PackedVector3Array) -> void:
-	var at: Vector3i = Vector3i((p / HASH_M).floor())
-	for dx: int in range(-1, 2):
-		for dy: int in range(-1, 2):
-			for dz: int in range(-1, 2):
-				for v: int in _hash.get(at + Vector3i(dx, dy, dz), PackedInt32Array()):
-					if not _sleeve[v]:
-						continue
-					var off: Vector3 = p - cloth[v]
-					var n: Vector3 = _cloth_normals[v]
-					var behind: float = -off.dot(n)
-					if behind > 0.0 and (off + n * behind).length() < 0.02:
-						_sleeve_need[v] = maxf(float(_sleeve_need.get(v, 0.0)), behind + PRESS_MARGIN_M)
 
 
 func _hash_cloth(cloth: PackedVector3Array) -> void:

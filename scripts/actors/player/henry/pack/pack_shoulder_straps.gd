@@ -158,12 +158,43 @@ func setup(skeleton: Skeleton3D, pack: PackRig) -> void:
 			out.append(float(row[4]))
 			(_rows[side] as Array).append(out)
 	_press_cloth(data["press"], surfaces)
+	_add_arm_clearance(skeleton)
 	if data.has("free_lift"):
 		for side: int in 2:
 			for run: int in 2:
 				_free_lift[side][run] = PackedFloat32Array(data["free_lift"][side][run])
 	if is_inside_tree():
 		_sync_skeleton_updates(true)
+
+
+## The upper arms are turned off the straps under them (ArmStrapClearance), before the jacket springs swing.
+func _add_arm_clearance(skeleton: Skeleton3D) -> void:
+	var clearance := ArmStrapClearance.new()
+	clearance.name = "ArmStrapClearance"
+	skeleton.add_child(clearance)
+	var springs: Node = skeleton.get_node_or_null(^"JacketSprings")
+	if springs != null:
+		skeleton.move_child(clearance, springs.get_index())
+	clearance.straps = self
+	clearance.measure_sleeves(_jacket)
+
+
+## Whether the pack is on Henry's back (the straps lie on the jacket).
+func is_worn() -> bool:
+	return _pressed
+
+
+## The strap's surface points from the last drawn frames, world space: each frame's centre and edges on top.
+func strap_points() -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for slot: int in 2:
+		for i: int in _frame_counts[slot]:
+			var k: int = slot * MAX_FRAMES + i
+			var c := Vector3(_centres[k].x, _centres[k].y, _centres[k].z)
+			var x := Vector3(_across[k].x, _across[k].y, _across[k].z) * _across[k].w
+			var n := Vector3(_outs[k].x, _outs[k].y, _outs[k].z) * THICK_M
+			out.append_array([c + n, c - x + n, c + x + n])
+	return out
 
 
 ## Writes how far each cloth point under a strap is pressed in (measured over Henry's poses) into a copy

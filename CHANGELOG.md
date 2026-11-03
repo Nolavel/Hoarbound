@@ -45,6 +45,19 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Under the arm, the strap is no longer swallowed by the sleeve.
+  - Measured with `measure_straps.gd`: the torso cloth there already cleared the strap (1–3 mm). The
+    sleeve lay over it by 11–19 mm, because the arm itself passed through the strap.
+  - Pressing the sleeve toward the arm hit the 30 mm press limit and opened a hole in the sleeve, so
+    that approach was dropped.
+  - Fix: `ArmStrapClearance` (a skeleton modifier, active only while the pack is worn) treats the
+    sleeve as a capsule round the upper arm, its radius measured from the jacket. Where the capsule
+    meets the strap, the arm turns at the shoulder just far enough to clear it, the way spring-bone
+    colliders push bones out. The shoulder joint under the pad is left alone. The turn applies at
+    once and eases back slowly, capped at 25°.
+  - Result: at rest, nothing under the arm (was 8–13 mm); walking 6–9 mm (was 18).
+- The stove ritual's hand breaks the wrist when measured: hand roll up to 94–141° and wrist bend up to
+  85° while laying fuel and lighting. It is next to move onto `HandGrip`.
 - Mug on the carabiner no longer sinks into the hammer/axe handles (`test_backpack_rig` R3/R9 were red on
   `main`). Cause, measured: the 1.4 cm handle capsule slipped between the mug's contact points. Each 2 cm
   cell took its first vertex, so the worst vertex sat 1.7 cm from any point; the mug went 8–10 mm into the
