@@ -1,4 +1,4 @@
-"""Hoarbound padded mat: one sheet rolled by shape keys, then strapped.
+"""Hoarbound padded mat: one sheet folded lengthwise, rolled, then strapped.
 
 Construction follows the owner's opened/rolled padded-mat references.
 The connected sheet is never replaced or hidden during the animation.
@@ -10,11 +10,16 @@ OUT=os.environ.get("BEDROLL_OUT",os.path.dirname(os.path.abspath(__file__)))
 os.makedirs(OUT,exist_ok=True)
 FAST=os.environ.get("BEDROLL_FAST")=="1"
 W,L=.75,1.90
-NX,NY=24,160
-BOTTOM,TOP=.003,.035
-R0,PITCH,DENT=.027,.032,.010
-ROLL_START,ROLL_END,STRAP_SLIDE_END,END=8,64,70,76
-ROLL_FRAMES=tuple(range(ROLL_START+1,ROLL_END+1))
+NX,NY=48,160
+BOTTOM,TOP=.0025,.006
+# The first turn is tucked into an almost solid core; the old 27 mm start
+# radius made the end read as a hollow cardboard tube.
+R0,PITCH,DENT=.003,.006,.010
+FOLD_HINGE=.0065
+ROLL_COMPRESSION=.70
+FOLD_START,FOLD_END,ROLL_START,ROLL_END,STRAP_SLIDE_END,END=4,22,24,80,86,92
+FOLD_FRAMES=tuple(range(FOLD_START+1,FOLD_END+1))
+ROLL_FRAMES=tuple(range(ROLL_START,ROLL_END+1))
 TEXTURE_DIR=os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),"..","textures"))
 
 bpy.ops.object.select_all(action="SELECT")
@@ -87,7 +92,7 @@ canvas=painted_fabric("Painted_oxblood_brown_canvas","bedroll_top_color.png",(.0
 underside=painted_fabric("Painted_slate_brown_underside","bedroll_bottom_color.png",(.070,.071,.077))
 binding=mat("Bound_edge",(.058,.044,.050))
 webbing=mat("Charcoal_woven_straps",(.031,.029,.034),(.070,.066,.070))
-metal=mat("Dull_buckle",(.23,.23,.23),rough=.78,metallic=.25)
+buckle_polymer=mat("ITW_style_acetal_ladderlock",(.045,.046,.052),rough=.84)
 floor_m=mat("Studio_floor",(.048,.057,.063))
 
 
@@ -95,15 +100,15 @@ def height(x,y,top):
     seams=(-L/2+k*L/5 for k in range(1,5))
     if not top:
         # Compression also reaches the backing, so channels survive on the roll.
-        return BOTTOM+.0025*sum(math.exp(-((y-seam)/.027)**2) for seam in seams)
+        return BOTTOM+.0004*sum(math.exp(-((y-seam)/.027)**2) for seam in seams)
     # Five padded sections like the opened reference, with shallow stitched channels.
-    transverse=-.006*sum(math.exp(-((y-seam)/.027)**2) for seam in seams)
-    transverse+=.003*math.sin(math.pi*((y+L/2)%(L/5))/(L/5))
-    worn=.0007*math.sin(13*y+2*x)*math.sin(7*x-4*y)
+    transverse=-.0010*sum(math.exp(-((y-seam)/.027)**2) for seam in seams)
+    transverse+=.0006*math.sin(math.pi*((y+L/2)%(L/5))/(L/5))
+    worn=.00015*math.sin(13*y+2*x)*math.sin(7*x-4*y)
     # Pressure hollows displace the original vertices, rather than only shading.
-    sag=-.008*math.exp(-2.7*((x+.1575)/.0975)**2-2.7*((y-.361)/.19)**2)
-    sag-=.006*math.exp(-2.7*((x-.18)/.083)**2-2.7*((y+.285)/.17)**2)
-    sag-=.005*math.exp(-2.7*((x-.0225)/.12)**2-2.7*((y-.019)/.133)**2)
+    sag=-.0015*math.exp(-2.7*((x+.1575)/.0975)**2-2.7*((y-.361)/.19)**2)
+    sag-=.0012*math.exp(-2.7*((x-.18)/.083)**2-2.7*((y+.285)/.17)**2)
+    sag-=.0010*math.exp(-2.7*((x-.0225)/.12)**2-2.7*((y-.019)/.133)**2)
     return TOP+transverse+worn+sag
 
 
@@ -151,6 +156,31 @@ for j in range(NY):
     for layer in (0,1):
         a,b,c,d=li(NX,j,layer),ri(0,j,layer),ri(0,j+1,layer),li(NX,j+1,layer)
         faces.append((a,b,c,d) if layer==0 else (d,c,b,a));materials.append(0 if layer==0 else 1)
+# A soft sewn leading hem is part of the connected sheet. Its two exposed end
+# folds wind tightly into the roll centre; there is no separate cap or plug.
+source_vertex_count=len(vertices)
+core_final={}
+for sign,anchor,hem_x,end_x in ((-1,li(0,0,0),-W/2+.007,-W/2-.012),
+                                (1,ri(0,0,0),.010,.012)):
+    rows=[]
+    for k in range(55):
+        t=k/54
+        theta=.35+2*math.pi*1.65*t
+        middle=.022*(1-t)+.0006*t
+        half_width=.006*(1-t)+.0003*t
+        row=[]
+        for offset in (-half_width,half_width):
+            radial=max(.0003,middle+offset)
+            idx=len(vertices)
+            vertices.append((hem_x,-L/2+.012+.025*t, .008))
+            wears.append(.22)
+            core_z=math.sqrt(R0*R0+PITCH*L/math.pi)+ROLL_COMPRESSION*(2*FOLD_HINGE-BOTTOM)
+            core_final[idx]=(end_x,L/2+radial*math.sin(theta),core_z+radial*math.cos(theta))
+            row.append(idx)
+        rows.append(row)
+    faces.append((anchor,rows[0][0],rows[0][1]));materials.append(0)
+    for a,b in zip(rows,rows[1:]):
+        faces.append((a[0],b[0],b[1],a[1]) if sign>0 else (a[1],b[1],b[0],a[0]));materials.append(0)
 mesh=bpy.data.meshes.new("Bedroll_Continuous_Sheet_Mesh")
 mesh.from_pydata(vertices,[],faces);mesh.update()
 sheet=bpy.data.objects.new("Bedroll_Continuous_Sheet",mesh)
@@ -165,10 +195,11 @@ for poly in mesh.polygons:
         x,y,_=vertices[mesh.loops[loop].vertex_index]
         uv.data[loop].uv=((x+W/2)/W,(y+L/2)/L)
 soft_edge=sheet.modifiers.new("Soft_padded_perimeter","BEVEL")
-soft_edge.width=.006
+soft_edge.width=.0015
 soft_edge.segments=3
 weight=mesh.attributes.new(name="bevel_weight_edge",type="FLOAT",domain="EDGE")
 for i,edge in enumerate(mesh.edges):
+    if any(j>=source_vertex_count for j in edge.vertices):continue
     a,b=(vertices[j] for j in edge.vertices)
     along_side=abs(a[0])>W/2-.012 and abs(b[0])>W/2-.012
     across_end=abs(a[1])>L/2-.001 and abs(b[1])>L/2-.001
@@ -178,12 +209,27 @@ soft_edge.limit_method="WEIGHT"
 
 def radius(s):return math.sqrt(R0*R0+PITCH*s/math.pi)
 def arc(s):return 2*math.pi*(radius(s)-R0)/PITCH
+def smoothstep(a,b,x):
+    t=min(1,max(0,(x-a)/(b-a)))
+    return t*t*(3-2*t)
 def groove(x,compression):
-    return DENT*compression*(math.exp(-((x+.22)/.023)**2)+math.exp(-((x-.22)/.023)**2))
+    distance=min(abs(x+.11),abs(x-.11))
+    # The full 25 mm webbing width presses evenly; the soft lip rises beside it.
+    bed=math.exp(-(max(0.0,distance-.0125)/.037)**2)
+    lip=math.exp(-((distance-.065)/.018)**2)
+    return compression*(DENT*bed-.0018*lip)
+
+
+def folded_pose(x,y,z,t):
+    """Turn the right half over the centre seam; the left half stays rigid."""
+    if x<0:return x,y,z
+    angle=math.pi*t
+    delta=z-FOLD_HINGE
+    return x*math.cos(angle)-delta*math.sin(angle),y,FOLD_HINGE+x*math.sin(angle)+delta*math.cos(angle)
 
 
 def sheet_world(x,y,z,p,compression=0):
-    """Position of the same padded sheet as the roll grows from one end."""
+    """Position of the already folded double sheet as the roll grows."""
     zflat=z
     s=y+L/2;l=L*p
     if s>l or p<=0:return x,y,zflat
@@ -192,40 +238,45 @@ def sheet_world(x,y,z,p,compression=0):
         stage=min(1,(p-.90)/.10)
         tip=min(1,max(0,(s-(l-.08))/.08))
         theta-=.20*stage*tip*tip*(3-2*tip)
-    rr=radius(s)+(TOP-zflat)-groove(x,compression)
+    rr=radius(s)+ROLL_COMPRESSION*(2*FOLD_HINGE-BOTTOM-zflat)-groove(x+W/4,compression)*smoothstep(.76,1.08,s)
     # Broad fabric irregularity breaks the machined-cylinder silhouette.
-    rr-=.003*math.exp(-((abs(x)-W/2)/.035)**2)
-    rr+=.002*math.sin(14*x+2.2*theta)*math.sin(1.7*theta)
+    rr-=.001*math.exp(-((abs(x+W/4)-W/4)/.035)**2)
+    rr+=.0008*math.sin(14*x+2.2*theta)*math.sin(1.7*theta)
     # Broad creases form where the outer wraps are pressed during rolling.
-    rr-=.0045*p*math.exp(-((s-1.57)/.10)**2-((x+.16)/.15)**2)
-    rr-=.0060*p*math.exp(-((s-1.77)/.12)**2-((x-.10)/.13)**2)
-    cy=-L/2+l;cz=radius(l)+TOP
+    rr-=.0017*p*math.exp(-((s-1.57)/.10)**2-((x+.16)/.15)**2)
+    rr-=.0022*p*math.exp(-((s-1.77)/.12)**2-((x-.10)/.13)**2)
+    cy=-L/2+l;cz=radius(l)+ROLL_COMPRESSION*(2*FOLD_HINGE-BOTTOM)
     return x,cy+rr*math.sin(theta),cz+rr*math.cos(theta)
 
 
 def sheet_pose(x,y,z,p,compression=0):
-    _,yy,zz=sheet_world(x,y,z,p,compression)
-    return (x,yy,zz)
+    folded=folded_pose(x,y,z,1)
+    return sheet_world(*folded,p,compression)
 
 
 def add_roll_keys(obj,rest,deform):
     if not obj.data.shape_keys:obj.shape_key_add(name="Basis")
-    keys=[]
+    keyed=[]
+    for f in FOLD_FRAMES:
+        t=smoothstep(FOLD_START,FOLD_END,f)
+        key=obj.shape_key_add(name=f"Fold_{f:02}")
+        for i,pos in enumerate(rest):key.data[i].co=folded_pose(*pos,t)
+        keyed.append((f,key))
     for f in ROLL_FRAMES:
         p=(f-ROLL_START)/(ROLL_END-ROLL_START)
         key=obj.shape_key_add(name=f"Roll_{f:02}")
-        for i,pos in enumerate(rest):key.data[i].co=deform(*pos,p)
-        keys.append(key)
+        for i,pos in enumerate(rest):
+            if i in core_final:
+                t=smoothstep(.65,1,p)
+                key.data[i].co=Vector(folded_pose(*pos,1)).lerp(Vector(core_final[i]),t)
+            else:
+                key.data[i].co=deform(*pos,p)
+        keyed.append((f,key))
     for frame in range(1,END+1):
-        weights=[0.0]*len(keys)
-        if ROLL_START<frame<=ROLL_FRAMES[0]:weights[0]=(frame-ROLL_START)/(ROLL_FRAMES[0]-ROLL_START)
-        elif frame>=ROLL_END:weights[-1]=1
-        elif frame>ROLL_FRAMES[0]:
-            hi=next((i for i,f in enumerate(ROLL_FRAMES) if f>=frame),len(keys)-1)
-            lo=max(0,hi-1)
-            t=(frame-ROLL_FRAMES[lo])/(ROLL_FRAMES[hi]-ROLL_FRAMES[lo]) if hi!=lo else 1
-            weights[lo]=1-t;weights[hi]=t
-        for key,w in zip(keys,weights):key.value=w;key.keyframe_insert(data_path="value",frame=frame)
+        active=FOLD_END if FOLD_END<frame<ROLL_START else min(frame,ROLL_END)
+        for f,key in keyed:
+            key.value=float(f==active)
+            key.keyframe_insert(data_path="value",frame=frame)
 
 
 add_roll_keys(sheet,vertices,sheet_pose)
@@ -244,7 +295,8 @@ bpy.context.collection.objects.link(root)
 sheet.parent=root
 for frame in range(1,END+1):
     p=max(0,min(1,(frame-ROLL_START)/(ROLL_END-ROLL_START)))
-    root.location=(0,-L/2*p,0)
+    fold=smoothstep(FOLD_START,FOLD_END,frame)
+    root.location=(W/4*fold,-L/2*p,0)
     root.keyframe_insert(data_path="location",frame=frame)
 
 
@@ -261,18 +313,20 @@ def box(name,loc,dims,material,collection=None):
     return ob
 
 
-def smoothstep(t):
-    t=max(0,min(1,t))
-    return t*t*(3-2*t)
+def ease(t):
+    return smoothstep(0,1,t)
 
 
-# Removable webbing loops begin outside the packed mat. They slide on after
-# frame 64, then pull tight while the sheet's compression key makes two dents.
-for label,final_x,start_x in (("Left",-.22,-.65),("Right",.22,.65)):
-    n=96;v=[];f=[]
+# The 25 mm webbing and two-slot ladderlock follow ITW Nexus Jet LL 25's
+# published dimensions (25.9 mm webbing, 33.6 x 30.5 x 11.5 mm body).
+# The loops enter after the clean roll. Their final shape touches the broad,
+# flat-bottomed deformation, instead of floating above a Gaussian groove.
+for label,final_x,start_x in (("Left",-W/4-.11,-W/4-.40),
+                              ("Right",-W/4+.11,-W/4+.40)):
+    n=128;v=[];f=[]
     for j in range(n+1):
         theta=2*math.pi*j/n
-        for dx in (-.017,.017):v.append((dx,math.sin(theta),math.cos(theta)))
+        for dx in (-.0125,.0125):v.append((dx,.09*math.sin(theta),.09*math.cos(theta)))
     for j in range(n):
         a=2*j;f.append((a,a+1,a+3,a+2))
     m=bpy.data.meshes.new(f"Removable_Strap_{label}_Mesh")
@@ -280,28 +334,51 @@ for label,final_x,start_x in (("Left",-.22,-.65),("Right",.22,.65)):
     band=bpy.data.objects.new(f"Removable_Strap_{label}",m)
     bpy.context.collection.objects.link(band);band.parent=root
     solid=band.modifiers.new("Fabric_thickness","SOLIDIFY");solid.thickness=.002
+    band.shape_key_add(name="Loose")
+    tight=band.shape_key_add(name="Conformed_Tight")
+    for j in range(n+1):
+        theta=2*math.pi*j/n
+        contour=.056+.0006*math.sin(theta*3+.6)+.0003*math.cos(theta*5)
+        for side in range(2):
+            tight.data[2*j+side].co=(v[2*j+side][0],contour*math.sin(theta),contour*math.cos(theta))
 
     holder=bpy.data.objects.new(f"Buckle_{label}_Root",None)
     bpy.context.collection.objects.link(holder);holder.parent=root
-    bars=[]
-    for j,(dx,dy,sx,sy) in enumerate(((-.022,0,.006,.048),(.022,0,.006,.048),(0,-.022,.05,.006),(0,.022,.05,.006))):
-        bar=box(f"Buckle_{label}_{j}",(0,0,0),(sx,sy,.005),metal)
-        bar.parent=holder;bar.location=(dx,dy,0);bars.append(bar)
+    parts=[]
+    bars=((-.0145,0,0,.0025,.0336,.005),(.0145,0,0,.0025,.0336,.005),
+          (0,-.0155,0,.0315,.0027,.005),(0,.0155,0,.0315,.0027,.005),
+          (0,0,.002,.028,.0045,.007),
+          (0,.011,.003,.026,.002,.003))
+    for j,(dx,dy,dz,sx,sy,sz) in enumerate(bars):
+        bar=box(f"Ladderlock_{label}_{j}",(0,0,0),(sx,sy,sz),buckle_polymer)
+        bar.parent=holder;bar.location=(dx,dy,dz);parts.append(bar)
+    # The free end goes under the centre bar, back over its grip, then out.
+    path=[(-.015,-.003),(-.004,-.003),(.005,.007),(.018,.008),(.045,.001)]
+    tv=[];tf=[]
+    for yy,zz in path:
+        tv.extend(((-.0125,yy,zz),(.0125,yy,zz)))
+    for j in range(len(path)-1):
+        a=2*j;tf.append((a,a+1,a+3,a+2))
+    tail_mesh=bpy.data.meshes.new(f"Threaded_Tail_{label}_Mesh")
+    tail_mesh.from_pydata(tv,[],tf);tail_mesh.update();tail_mesh.materials.append(webbing)
+    tail=bpy.data.objects.new(f"Threaded_Tail_{label}",tail_mesh)
+    bpy.context.collection.objects.link(tail);tail.parent=holder
+    tail_solid=tail.modifiers.new("Webbing_thickness","SOLIDIFY");tail_solid.thickness=.0015
+    parts.append(tail)
 
-    cy=L/2;cz=radius(L)+TOP
+    cy=L/2;cz=radius(L)+ROLL_COMPRESSION*(2*FOLD_HINGE-BOTTOM)
     for frame in (1,ROLL_END,*range(ROLL_END+1,END+1)):
-        slide=smoothstep((frame-ROLL_END)/(STRAP_SLIDE_END-ROLL_END))
-        tighten=smoothstep((frame-STRAP_SLIDE_END)/(END-STRAP_SLIDE_END))
+        slide=ease((frame-ROLL_END)/(STRAP_SLIDE_END-ROLL_END))
+        tighten=ease((frame-STRAP_SLIDE_END)/(END-STRAP_SLIDE_END))
         x=start_x+(final_x-start_x)*slide
-        ring_radius=.215+(.165-.215)*tighten
+        ring_radius=.09+(.056-.09)*tighten
         band.location=(x,cy,cz)
-        band.scale=(1,ring_radius,ring_radius)
         band.keyframe_insert(data_path="location",frame=frame)
-        band.keyframe_insert(data_path="scale",frame=frame)
+        tight.value=tighten;tight.keyframe_insert(data_path="value",frame=frame)
         holder.location=(x,cy,cz+ring_radius+.005)
         holder.keyframe_insert(data_path="location",frame=frame)
         hidden=frame<=ROLL_END
-        for part in (band,*bars):
+        for part in (band,*parts):
             part.hide_render=hidden;part.hide_viewport=hidden
             part.keyframe_insert(data_path="hide_render",frame=frame)
             part.keyframe_insert(data_path="hide_viewport",frame=frame)
@@ -341,7 +418,8 @@ def render(name,frame,eye,target,scale):
 if os.environ.get("BEDROLL_NO_RENDER")!="1":
     render("01_open",1,(1.35,-2.25,2.2),(0,0,0),2.30)
     render("02_side",1,(1.15,-1.85,.9),(0,0,.02),2.20)
-    render("03_half_roll",36,(1,-1.5,1.2),(0,0,.05),1.65)
+    render("03_folded",FOLD_END,(1,-1.5,1.2),(0,0,.05),1.65)
+    render("03_half_roll",52,(1,-1.5,1.2),(0,0,.05),1.65)
     render("04_rolled_clean",ROLL_END,(1.1,-1.5,.85),(0,0,.17),1.30)
     render("05_strapped",END,(1.1,-1.5,.85),(0,0,.17),1.30)
     if not FAST:
@@ -352,7 +430,7 @@ cam.rotation_euler=(Vector((0,0,0))-cam.location).to_track_quat("-Z","Y").to_eul
 cam_data.ortho_scale=2.30
 scene.render.filepath="//01_open.png"
 scene["prototype"]="Owner's padded mat and rolled blanket image references; 190 x 75 cm adaptation"
-scene["states"]="1 open; 8 roll starts; 64 clean roll; 65-76 removable straps compress; one continuous mat mesh"
+scene["states"]="1 open; 4-22 fold lengthwise; 24-80 roll; 81-92 removable straps compress; one continuous mat mesh"
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT,"bedroll_one_sheet.blend"),compress=True)
 print("SAVED",os.path.join(OUT,"bedroll_one_sheet.blend"),flush=True)
 os._exit(0)

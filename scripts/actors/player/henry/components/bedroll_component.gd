@@ -20,7 +20,7 @@ const PLACE_DISTANCE: float = 1.3
 const MAX_PLACE_DISTANCE: float = 3.0
 const RAY_LENGTH: float = 6.0
 const MAX_SLOPE_DEG: float = 14.0
-const BEDROLL_SIZE: Vector3 = Vector3(0.75, 0.06, 1.9)
+const BEDROLL_SIZE: Vector3 = Vector3(0.75, 0.005, 1.9)
 const VALID_COLOR: Color = Color(0.45, 0.9, 0.55, 0.35)
 const INVALID_COLOR: Color = Color(0.95, 0.28, 0.22, 0.35)
 const ITEM_ID: StringName = &"bedroll"
@@ -28,6 +28,7 @@ const INTERACTIVE_SCENE: String = "res://scenes/environment/interactive/Interact
 const SLEEP_SPOT_SCRIPT: String = "res://scripts/environment/interactive/sleep_spot.gd"
 const PICKUP_SCRIPT: String = "res://scripts/environment/interactive/item_pickup.gd"
 const PACK_KEY: String = "BEDROLL_PACK"
+const BEDROLL_OPEN: PackedScene = preload("res://assets/items/bedroll/bedroll_open.scn")
 
 @export var inventory: InventoryComponent
 
@@ -257,29 +258,19 @@ func _spawn(xf: Transform3D, unroll: bool = true) -> void:
 	var world: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
 	world.add_child(roll)
 	roll.global_transform = xf
-	var cloth := StandardMaterial3D.new()
-	cloth.albedo_color = Color(0.2, 0.26, 0.2)
-	cloth.roughness = 1.0
-	var pad := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = BEDROLL_SIZE
-	box.material = cloth
-	pad.mesh = box
-	pad.position = Vector3(0.0, BEDROLL_SIZE.y * 0.5, 0.0)
-	roll.add_child(pad)
-	var head := MeshInstance3D.new()
-	var bundle := CylinderMesh.new()
-	bundle.top_radius = 0.1
-	bundle.bottom_radius = 0.1
-	bundle.height = 0.75
-	bundle.material = cloth
-	head.mesh = bundle
-	head.transform = Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.0, 0.1, -0.85))
-	roll.add_child(head)
+	var visual := BEDROLL_OPEN.instantiate() as Node3D
+	visual.name = "OpenMat"
+	roll.add_child(visual)
+	StylizedEnvironmentMaterial.apply_to_tree(visual)
+	var pad := visual.find_child("Bedroll_Continuous_Sheet_Static", true, false) as MeshInstance3D
+	if pad == null:
+		push_error("Bedroll open scene has no continuous sheet mesh")
+		roll.queue_free()
+		return
 	if unroll:
-		_unroll(pad, head)
+		_unroll(roll, visual, pad)
 	_prompt(roll, "Sleep", SLEEP_SPOT_SCRIPT, Vector3(0.6, 0.0, 0.2), Vector3(1.0, 1.4, 1.4), pad, {})
-	var pack: Node3D = _prompt(roll, "Pack", PICKUP_SCRIPT, Vector3(0.0, 0.0, -1.2), Vector3(0.9, 1.2, 0.7), head,
+	var pack: Node3D = _prompt(roll, "Pack", PICKUP_SCRIPT, Vector3(0.0, 0.0, -1.2), Vector3(0.9, 1.2, 0.7), pad,
 		{&"item_id": ITEM_ID})
 	pack.connect(&"picked_up", _on_packed)
 	_laid = roll
@@ -287,35 +278,37 @@ func _spawn(xf: Transform3D, unroll: bool = true) -> void:
 	bedroll_laid.emit(roll)
 
 
-## The bedroll unrolls: the bundle rolls from the head end to the foot, thinning as the pad
-## spreads out behind it from the head; it ends as the pad and the pillow roll at the head.
-func _unroll(pad: MeshInstance3D, pillow: MeshInstance3D) -> void:
-	var length: float = BEDROLL_SIZE.z
-	var head_z: float = -length * 0.5
+## The bedroll unrolls: the mat spreads from its head end to its foot while a roll of the same cloth,
+## thinning as it goes, travels ahead of it; at the end only the open mat is left.
+func _unroll(roll: Node3D, visual: Node3D, pad: MeshInstance3D) -> void:
+	var box: AABB = pad.get_aabb()
+	var to_roll: Transform3D = roll.global_transform.affine_inverse() * pad.global_transform
+	var head_z: float = (to_roll * box.position).z
+	var foot_z: float = (to_roll * (box.position + box.size)).z
+	## The mat grows from its head end: a pivot there scales it along its length.
+	var pivot := Node3D.new()
+	pivot.name = "Unroll"
+	roll.add_child(pivot)
+	pivot.position = Vector3(0.0, 0.0, head_z)
+	visual.reparent(pivot, false)
+	visual.position.z -= head_z
 	var bundle := MeshInstance3D.new()
 	var cylinder := CylinderMesh.new()
 	cylinder.top_radius = ROLL_RADIUS
 	cylinder.bottom_radius = ROLL_RADIUS
 	cylinder.height = BEDROLL_SIZE.x
-	cylinder.material = (pad.mesh as BoxMesh).material
+	cylinder.material = pad.get_active_material(0)
 	bundle.mesh = cylinder
-	pad.get_parent().add_child(bundle)
-	pillow.visible = false
+	roll.add_child(bundle)
 	var spread := func(t: float) -> void:
-		## Pad from the head to the bundle; the bundle holds what is still rolled up.
-		var done: float = maxf(t, 0.001)
-		pad.scale = Vector3(1.0, 1.0, done)
-		pad.position = Vector3(0.0, BEDROLL_SIZE.y * 0.5, head_z + length * done * 0.5)
-		var r: float = lerpf(ROLL_RADIUS, BEDROLL_SIZE.y * 0.5, t)
-		bundle.scale = Vector3(r / ROLL_RADIUS, 1.0, r / ROLL_RADIUS)
+		pivot.scale = Vector3(1.0, 1.0, maxf(t, 0.001))
+		var r: float = lerpf(ROLL_RADIUS, 0.02, t)
 		bundle.transform = Transform3D(Basis(Vector3.BACK, PI * 0.5).scaled(Vector3(r / ROLL_RADIUS, 1.0, r / ROLL_RADIUS)),
-			Vector3(0.0, r, head_z + length * t))
+			Vector3(0.0, r, lerpf(head_z, foot_z, t)))
 	spread.call(0.0)
-	var tween := pad.create_tween()
+	var tween := roll.create_tween()
 	tween.tween_method(spread, 0.0, 1.0, UNROLL_S).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tween.tween_callback(func() -> void:
-		bundle.queue_free()
-		pillow.visible = true)
+	tween.tween_callback(bundle.queue_free)
 
 
 func _prompt(parent: Node3D, node_name: String, script_path: String, pos: Vector3, size: Vector3,

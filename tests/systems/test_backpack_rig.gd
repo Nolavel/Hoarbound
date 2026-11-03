@@ -169,14 +169,17 @@ func _check_pockets() -> void:
 			_report("R4 %s out of the cavity" % item["id"], "%.1f cm in" % (into * 100.0), into <= 0.0)
 
 
-## R6: the handle stands on the canvas top; the bedroll lies on it.
+## R6: the handle stays on top; the lengthwise-folded mat sits ahead of it.
 func _check_top() -> void:
 	var handle: Node3D = _pack.get(&"_handle")
 	var top: Vector3 = _pack.canvas_point(BackpackModel.HANDLE_AT, Vector3.UP)
 	_report("R6 handle on the top", "%.1f mm" % (handle.position.distance_to(top) * 1000.0), handle.position.distance_to(top) < HANDLE_GAP_M)
 	var roll: Node3D = _pack.get(&"_bedroll")
-	var under: float = roll.position.y - BackpackModel.BEDROLL_RADIUS_M - _pack.canvas_point(BackpackModel.BEDROLL_AT, Vector3.UP).y
-	_report("R6 bedroll on the top", "%.1f mm into it" % (-under * 1000.0), under < 0.0 and under > -0.015)
+	var fitted: Node3D = roll.get_node_or_null(^"PackedMat")
+	var meshes: Array[Node] = fitted.find_children("*", "MeshInstance3D", true, false) if fitted != null else []
+	var expected: Vector3 = _pack.canvas_point(BackpackModel.BEDROLL_AT, Vector3.UP) - Vector3.UP * 0.008
+	_report("R6 folded mat on pack top", "%d meshes, %.1f mm off" % [meshes.size(), roll.position.distance_to(expected) * 1000.0],
+		fitted != null and meshes.size() >= 17 and roll.position.distance_to(expected) < 0.005)
 
 
 ## R7: walking and stopping, the chest part of each strap rides the jacket's chest (spine_03) closely,

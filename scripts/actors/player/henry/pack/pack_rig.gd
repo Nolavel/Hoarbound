@@ -239,6 +239,7 @@ func _process(delta: float) -> void:
 		_inventory = InventoryComponent.find_in(walk) if walk != null else null
 	if _inventory != null:
 		_canvas.load_fill = clampf(_inventory.get_total_weight() / full_load_kg, 0.0, 1.0)
+		_canvas.set_bedroll_visible(_inventory.has_item(&"bedroll"))
 	if _equipment == null and walk_owner() != null:
 		_equipment = walk_owner().get_node_or_null(^"EquipmentComponent") as EquipmentComponent
 		if _equipment != null:
