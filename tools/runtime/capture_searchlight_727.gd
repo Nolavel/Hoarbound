@@ -114,8 +114,8 @@ func _run() -> void:
 			await _frames(3)
 			var beam_yaw: float = rad_to_deg(atan2(prop.direction.dot(body_right), prop.direction.dot(body_forward)))
 			assert(absf(beam_yaw) <= 71.0)
-			var grip_reach: StoveHandReach = (player.get_node(^"HenryUALVisual") as HenryUALAnimation).get_present_reach()
-			assert(absf(grip_reach.fingers_world.dot(prop.direction)) < 0.02)
+			var hand_grip: HandGrip = (player.get_node(^"HenryUALVisual") as HenryUALAnimation).get_hand_grip(false)
+			assert(absf(absf(hand_grip.handle_axis.dot(prop.direction)) - 1.0) < 0.02)
 			render_camera.global_transform = fixed_view
 			await RenderingServer.frame_post_draw
 			capture_viewport.get_texture().get_image().save_png(ProjectSettings.globalize_path(output).path_join("grip_%03d.png" % degrees))

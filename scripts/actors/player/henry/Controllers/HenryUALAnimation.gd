@@ -119,6 +119,9 @@ const ACTION_ALIASES: Dictionary = {
 @export var head_look_fade_speed: float = 4.0
 ## Distance the look point is held at, metres.
 @export var head_look_distance: float = 5.0
+## With a light in hand the head looks where the camera points while walking too, pitch included (up to
+## this), and the light follows the head (HeldItemComponent).
+@export var head_look_light_pitch_deg: float = 40.0
 ## Head forward axis in bone space; flip it if the head looks sideways or back.
 @export var head_forward_axis: SkeletonModifier3D.BoneAxis = SkeletonModifier3D.BONE_AXIS_PLUS_Z
 
@@ -203,6 +206,11 @@ var _garment_materials: Dictionary = {}
 var _wetness: float = 0.0
 var _equipment: EquipmentComponent
 var _head_lookat: LookAtModifier3D
+## Set while Henry holds a light: the head look stays on, and its last final facing is kept for the light.
+var look_with_light: bool = false
+## Per hand [right, left]: its HandGrip, built on first use.
+var _hand_grips: Array[HandGrip] = [null, null]
+var _head_facing: Vector3 = Vector3.ZERO
 var _head_target: Node3D
 var _head_influence: float = 0.0
 ## Henry's semantic attention: flat direction and head-height origin, smoothed.
@@ -414,6 +422,21 @@ func get_present_reach() -> StoveHandReach:
 		_present_reach.ease_out_rate = 2.5
 		skeleton.add_child(_present_reach)
 	return _present_reach
+
+## The hand-grip solver for one hand (built on first use), placed before the jacket springs so the sleeves swing from it.
+func get_hand_grip(left: bool) -> HandGrip:
+	var key: int = 1 if left else 0
+	if _hand_grips[key] == null and skeleton != null:
+		var grip := HandGrip.new()
+		grip.name = "HandGrip_" + ("l" if left else "r")
+		skeleton.add_child(grip)
+		var springs: Node = skeleton.get_node_or_null(^"JacketSprings")
+		if springs != null:
+			skeleton.move_child(grip, springs.get_index())
+		grip.setup(left)
+		_hand_grips[key] = grip
+	return _hand_grips[key]
+
 
 func get_stove_pickup(carried: bool) -> Dictionary:
 	if carried and _carried != null and _carry_props.has(_carried.attached_mesh_node_name):
@@ -676,12 +699,17 @@ func update_head_look(delta: float) -> void:
 	if _head_lookat == null or player == null:
 		return
 	var planar_speed: float = Vector2(player.velocity.x, player.velocity.z).length()
-	var want: bool = planar_speed < head_look_idle_speed and player.has_method(&"get_view_direction")
+	var want: bool = (planar_speed < head_look_idle_speed or look_with_light) and player.has_method(&"get_view_direction")
 	var eye: Vector3 = _head_bone_position()
 	var direction: Vector3 = -player.global_transform.basis.z
 	if want:
 		direction = get_attention_direction()
-	direction.y = 0.0
+	if look_with_light and want:
+		var flat: Vector3 = Vector3(direction.x, 0.0, direction.z).normalized()
+		var pitch: float = clampf(asin(clampf(direction.normalized().y, -1.0, 1.0)), -deg_to_rad(head_look_light_pitch_deg), deg_to_rad(head_look_light_pitch_deg))
+		direction = flat * cos(pitch) + Vector3.UP * sin(pitch)
+	else:
+		direction.y = 0.0
 	var target: Vector3 = eye + direction.normalized() * head_look_distance
 	if want and _head_influence <= 0.001:
 		_head_target.global_position = target
@@ -735,6 +763,19 @@ func _setup_head_look() -> void:
 	_head_lookat.target_node = _head_lookat.get_path_to(_head_target)
 	_head_lookat.influence = 0.0
 	_head_lookat.active = false
+	skeleton.skeleton_updated.connect(_keep_head_facing)
+
+
+## The head's facing in its final pose (after the look), read where modifier poses are final.
+func _keep_head_facing() -> void:
+	var bone: int = skeleton.find_bone(head_bone)
+	var axis: Vector3 = [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.BACK, Vector3.FORWARD][int(head_forward_axis)]
+	_head_facing = (skeleton.global_basis * skeleton.get_bone_global_pose(bone).basis * axis).normalized()
+
+
+## Where Henry's head faces now (last final pose); the body's forward before the first pose.
+func get_head_facing() -> Vector3:
+	return _head_facing if _head_facing != Vector3.ZERO else global_basis.z.normalized()
 
 
 func _head_bone_position() -> Vector3:
