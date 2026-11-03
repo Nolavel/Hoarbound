@@ -674,6 +674,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     cannot carry the knit back out through the jacket. The few roll faces the lapels still lie across
     are dropped (`cull_crossing`). Collar-to-jacket crossing face pairs in the rest pose: 257 (170 in
     front) → 0.
+  - **Turtleneck closes on the neck under the chin** (owner). It is now built round Henry's own neck,
+    which is long and thin, instead of the mannequin's, which his head replaced. It is no longer culled
+    as "under the jacket", since it shows from above and in the open front; only the few faces that
+    cross the lapels go.
 
 - Henry's knee no longer snaps backwards for a frame when he walks in snow. `LegTwoBoneIK` now bends the
   knee in the leg's own hinge plane. Before, it bent towards whichever side of the new hip-to-target line
