@@ -45,6 +45,48 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Frying pan strikes reworked after the owner's review.
+  - No lunge: strikes now play on the upper body only, through a new filtered `upper_actions` one-shot
+    in Henry's tree (spine_02 up and the arms). Legs and hips keep their stance, or the walk.
+  - Slower: the quick swing plays at 0.7 pace, the rise to the wind-up at 0.8, the chop at 1.0.
+  - Hit windows were re-traced from the pan's path with the upper body only. Quick: head height,
+    0.6 m reach. Heavy: comes down to waist height 0.8 m ahead.
+  - Sounds: a light clank for the quick strike and a heavy bong for the held one. They are
+    synthesised by modal synthesis (`tools/audio/make_pan_hits.py`) as stand-ins, because Freesound
+    is not reachable from this environment.
+- Items clip back onto the carabiners as side-pocket items go back in. Put back, the pan (and the mug)
+  starts 7 cm above the rod, drops onto it in 0.28 s, and the knock sets it swinging
+  (`PendulumHang.nudge`).
+- Frying pan strikes (`StrikeComponent`, any item with `strike_impulse`; the pan's is 9 N·s).
+  - LMB is a quick diagonal (`Sword_Regular_A`).
+  - RMB raises the pan overhead and holds the wind-up (`Sword_Attack` held at 0.30 s). Releasing it
+    brings the chop down faster: 70–100% of the full impulse, by how long it was held, up to 1 s.
+    The quick strike carries 45%.
+  - The hit is traced along the pan's actual path between frames (spheres along the segment, only
+    out ahead of Henry), so a fast swing cannot pass through something.
+  - Rigid bodies take the impulse; anything that publishes ThrowImpactCapability takes the hit.
+  - The pan rides the animated fist: `HandGrip.fit()` closes the fingers on the handle without
+    moving the arm.
+  - `test_strike`: a crate is knocked away, and the held strike is harder than the quick one. The
+    clip times come from tracing the pan's path. The hit sound is the mug knock for now.
+- G puts whatever is in Henry's hand down on the ground ahead as a pickup.
+  - Armfuls and a burning flare keep their own G.
+  - The item leaves the pocket it was shown from.
+  - Pickups now carry the item's runtime state, so a dropped searchlight keeps its charge
+    (`test_drop_held`).
+- Holding LMB raises the searchlight forward before the chest to aim; releasing lowers it again.
+  The beam still follows the head.
+- Searchlight follows the head up and down, and is carried a little forward (owner).
+  - Cause of the flat beam: attention is kept level (`view.y = 0`), so the head never pitched and
+    the light following it stayed flat. With a light in hand, the head now takes the camera's pitch
+    (up to 40°).
+  - Stand: camera 19° up gives a 19° beam; 25° down gives -25°.
+  - The carrying hand sits 72% of the arm down and 45% forward (was 82% / 22%), ahead of the thigh.
+- Arms no longer spread wide off the straps, and the right arm no longer twitches.
+  - `ArmStrapClearance` now turns at most 8° (was 25°), measured on the inner sleeve (lower quartile
+    radius).
+  - The turn eases both ways. Its old instant push read as a twitch.
+  - An arm holding something through `HandGrip` is left to its grip.
 - Frying pan on the left carabiner.
   - The model is Codex's worn 24 cm pan, cherry-picked from `codex` (`assets/items/frying_pan`).
   - It is now an item (`frying_pan`, 1.1 kg) in the starting kit, kept in the pack's new

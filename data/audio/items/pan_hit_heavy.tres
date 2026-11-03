@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="SoundEvent" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://core/audio/sound_event.gd" id="1_event"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/frying_pan/pan_hit_heavy_1.wav" id="2_hit"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/frying_pan/pan_hit_heavy_2.wav" id="3_hit"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/frying_pan/pan_hit_heavy_3.wav" id="4_hit"]
+
+[resource]
+script = ExtResource("1_event")
+streams = Array[AudioStream]([ExtResource("2_hit"), ExtResource("3_hit"), ExtResource("4_hit")])
+pick = 0
+bus = &"SFX"
+volume_db = 6.0
+volume_jitter_db = 1.5
+pitch = 1.0
+pitch_jitter = 0.05
+spatial = true
+unit_size = 3.0
+max_distance_m = 25.0
+max_instances = 3
+cooldown_s = 0.1

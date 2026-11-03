@@ -1,6 +1,11 @@
-[gd_resource type="Resource" script_class="ItemResource" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ItemResource" format=3]
 
+[ext_resource type="Script" path="res://core/items/held_fit.gd" id="fit_script"]
 [ext_resource type="Script" path="res://core/items/item_resource.gd" id="item"]
+
+[sub_resource type="Resource" id="HeldFit_frying_pan"]
+script = ExtResource("fit_script")
+hand = 1
 
 [resource]
 script = ExtResource("item")
@@ -9,3 +14,6 @@ display_name = "Frying pan"
 weight = 1.1
 max_stack = 1
 size_class = 0
+held_fit = SubResource("HeldFit_frying_pan")
+one_hand_held = true
+strike_impulse = 9.0

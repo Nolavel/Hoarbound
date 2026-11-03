@@ -21,9 +21,10 @@ fails the build when two actions share a key without an entry in
 | Wheel | `quick_next` / `quick_prev` | Pick a pocket (quick access) |
 | Wheel click | `quick_use` | Draw the selected pocket item; use it on the next click once held |
 | 1–4 | `select item slot 1–4` | Draw from a physical pocket: flare, hammer, knife, flask, tin or other small supplies |
-| G | `drop_carried` | Put the whole log/board armful on clear ground in front of Henry; blocked placement keeps it in his arms. With a burning flare in hand, drop that flare |
+| G | `drop_carried` | Put the whole log/board armful on clear ground in front of Henry; blocked placement keeps it in his arms. With a burning flare in hand, drop that flare. Otherwise put whatever is in Henry's hand down on the ground ahead (it leaves its pocket; picked up again it keeps its state, e.g. a searchlight's charge) |
 | Esc | `pause` | Context back-out, see below |
-| LMB | `fire` | In gameplay: Use the item already in Henry's hand; in the Hub: drag/drop |
+| LMB | `fire` | In gameplay: Use the item already in Henry's hand; with the searchlight, hold to raise it forward and aim; with the frying pan, a quick strike; in the Hub: drag/drop |
+| RMB (frying pan) | `present_held` | Hold: raise the pan overhead and keep the wind-up; release: the heavy chop (harder the longer it was held, up to 1 s) |
 | M | `toggle_dev_map` | Debug builds only: show/hide the diorama map when `World.enable_runtime_dev_map` is true; otherwise no effect |
 
 ### Lighting the road flare

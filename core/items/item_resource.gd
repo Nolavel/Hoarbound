@@ -56,6 +56,8 @@ extends Resource
 @export var opens_into: StringName = &""
 ## Launch speed when thrown from the hand, m/s; 0 means it cannot be thrown.
 @export var throw_speed_mps: float = 0.0
+## Impulse of a full-strength strike with it in hand (N*s); 0 when it is not swung (StrikeComponent).
+@export var strike_impulse: float = 0.0
 
 @export_group("Water")
 ## Authored fill states keep each physical container in the existing id-only save contract.

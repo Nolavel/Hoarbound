@@ -125,9 +125,9 @@ func _run() -> void:
 		return
 	if OS.get_cmdline_user_args().size() > 1 and OS.get_cmdline_user_args()[1] == "indicator":
 		held.set_process(false)
-		var reach: StoveHandReach = (player.get_node(^"HenryUALVisual") as HenryUALAnimation).get_present_reach()
-		if reach.hand_solved.is_connected(held._on_searchlight_hand_solved):
-			reach.hand_solved.disconnect(held._on_searchlight_hand_solved)
+		var grip: HandGrip = (player.get_node(^"HenryUALVisual") as HenryUALAnimation).get_hand_grip(false)
+		for connection: Dictionary in grip.gripped.get_connections():
+			grip.gripped.disconnect(connection["callable"])
 		prop.reparent(root, true)
 		prop.top_level = true
 		prop.global_position = stove.to_global(Vector3(3.2, 1.7, 2.6))

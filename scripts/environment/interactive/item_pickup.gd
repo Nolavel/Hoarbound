@@ -26,6 +26,8 @@ const WORLD_GROUP: StringName = &"world_pickup"
 ## Stable id of an authored pickup (from the world layout); a taken one is saved
 ## in the PickupLedger and does not come back on reload. Empty for dropped items.
 @export var world_id: StringName = &""
+## Runtime state an item had when Henry put it down (a searchlight's charge); empty for a fresh item.
+@export var instance_state: Dictionary = {}
 
 var _inventory: InventoryComponent
 
@@ -87,8 +89,11 @@ func pick_up(to_hands: bool = false) -> bool:
 		pickup_refused.emit(item_id)
 		show_message(tr(_refusal_key(refusal)))
 		return false
-	for i: int in range(count):
-		inventory.try_add(item)
+	if count == 1 and not instance_state.is_empty():
+		inventory.try_add_instance(item, instance_state)
+	else:
+		for i: int in range(count):
+			inventory.try_add(item)
 	var ledger: PickupLedger = PickupLedger.find(get_tree()) if is_inside_tree() else null
 	if ledger != null:
 		ledger.record(world_id)

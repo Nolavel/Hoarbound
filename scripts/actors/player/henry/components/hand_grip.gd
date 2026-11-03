@@ -27,6 +27,8 @@ var handle_axis: Vector3 = Vector3.FORWARD
 var palm_out: Vector3 = Vector3.ZERO
 var hand_along: Vector3 = Vector3.DOWN
 var left_hand: bool = false
+## Fit only: the animation keeps the arm and hand (a swing); only the fingers close on the handle.
+var fit_only: bool = false
 var _weight: float = 0.0
 var _goal_weight: float = 0.0
 var _ik: TwoBoneIK3D
@@ -70,6 +72,7 @@ func setup(left: bool) -> void:
 
 ## Holds the goal this frame; weight eases in (1) or out (0).
 func hold(wrist: Vector3, along: Vector3, across: Vector3, pole: Vector3, weight: float) -> void:
+	fit_only = false
 	goal_wrist = wrist
 	goal_along = along.normalized()
 	goal_across = (across - goal_along * across.dot(goal_along)).normalized()
@@ -81,6 +84,13 @@ func hold(wrist: Vector3, along: Vector3, across: Vector3, pole: Vector3, weight
 
 func release() -> void:
 	_goal_weight = 0.0
+	fit_only = false
+
+
+## Holds an item in the hand as the animation poses it: no reach, the fingers close on its handle.
+func fit(weight: float) -> void:
+	fit_only = true
+	_goal_weight = clampf(weight, 0.0, 1.0)
 
 
 func get_weight() -> float:
@@ -93,9 +103,12 @@ func _process_modification() -> void:
 		return
 	_weight = move_toward(_weight, _goal_weight, 5.0 * clampf(get_process_delta_time(), 0.001, 0.05))
 	var w: float = smoothstep(0.0, 1.0, _weight)
-	_ik.influence = w
-	_twist.influence = w
+	_ik.influence = 0.0 if fit_only else w
+	_twist.influence = 0.0 if fit_only else w
 	if w <= 0.001:
+		return
+	if fit_only:
+		_close_fingers(rig, "l" if left_hand else "r", w)
 		return
 	var s: String = "l" if left_hand else "r"
 	var h: int = rig.find_bone("hand_" + s)
