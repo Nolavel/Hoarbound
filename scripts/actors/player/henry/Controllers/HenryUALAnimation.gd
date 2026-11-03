@@ -21,6 +21,10 @@ const MOVEMENT_EPSILON: float = 0.05
 const MIN_WALK_PACE: float = 0.35
 const WORK_POSE_HOLD_SECONDS: float = 2.6
 
+## Share of each bone's idle swing kept (the rest is its mean pose): a breath in the chest, the arms
+## and legs nearly at rest.
+const IDLE_CALM: Dictionary = {"spine_01": 0.4, "spine_02": 0.4, "spine_03": 0.4, "neck_01": 0.3, "Head": 0.3}
+const IDLE_CALM_DEFAULT: float = 0.15
 const IDLE_ALIASES: Array[StringName] = [&"Idle_Loop", &"Idle"]
 const WALK_ALIASES: Array[StringName] = [&"Walk_Loop", &"Walk"]
 const JOG_ALIASES: Array[StringName] = [&"Jog_Fwd_Loop", &"Jog_Fwd"]
@@ -859,6 +863,37 @@ func _make_animation_library_local() -> void:
 	animation_player.add_animation_library(&"", local_library)
 
 
+## Standing still is still: each bone of an idle clip keeps only a share of its swing about its own
+## mean pose (IDLE_CALM), so the arms stop swaying and the chest keeps a slight breath.
+func _calm_clip(clip_name: StringName) -> void:
+	if clip_name == &"" or not animation_player.has_animation(clip_name):
+		return
+	var anim: Animation = animation_player.get_animation(clip_name)
+	if anim.has_meta(&"calmed"):
+		return
+	anim.set_meta(&"calmed", true)
+	for track: int in anim.get_track_count():
+		var bone: String = String(anim.track_get_path(track)).get_slice(":", 1)
+		var keep: float = IDLE_CALM.get(bone, IDLE_CALM_DEFAULT)
+		var keys: int = anim.track_get_key_count(track)
+		if keys < 2:
+			continue
+		match anim.track_get_type(track):
+			Animation.TYPE_ROTATION_3D:
+				var mean: Quaternion = anim.track_get_key_value(track, 0)
+				for k: int in range(1, keys):
+					mean = mean.slerp(anim.track_get_key_value(track, k), 1.0 / float(k + 1))
+				for k: int in keys:
+					anim.track_set_key_value(track, k, mean.slerp(anim.track_get_key_value(track, k), keep))
+			Animation.TYPE_POSITION_3D:
+				var centre := Vector3.ZERO
+				for k: int in keys:
+					centre += anim.track_get_key_value(track, k)
+				centre /= float(keys)
+				for k: int in keys:
+					anim.track_set_key_value(track, k, centre.lerp(anim.track_get_key_value(track, k), keep))
+
+
 func _add_secondary_library() -> void:
 	if secondary_library_scene == null or animation_player.has_animation_library(secondary_library_name):
 		return
@@ -1259,6 +1294,8 @@ func _setup_animation_tree() -> void:
 		_force_locomotion_loop(clip_name)
 	_force_clip_once(_resolved_jump_start)
 	_force_clip_once(_resolved_jump_land)
+	_calm_clip(_resolved_idle)
+	_calm_clip(_resolved_crouch_idle)
 
 	var locomotion := AnimationNodeBlendSpace1D.new()
 	locomotion.min_space = 0.0
