@@ -7,6 +7,10 @@ signal hint_changed(text: String)
 
 ## Held RMB: raise the held lighter before the chest and keep its flame lit.
 const PRESENT_ACTION: StringName = &"present_held"
+## G puts whatever is in Henry's hand down on the ground ahead (armfuls and a burning flare have their own G).
+const DROP_ACTION: StringName = &"drop_carried"
+## Held LMB raises the searchlight forward to aim it.
+const AIM_ACTION: StringName = &"fire"
 ## The thumb gives out after this long; a fresh press lights it again.
 const LIGHTER_FLAME_MAX_SECONDS: float = 10.0
 ## Arm rise before the wheel is struck.
@@ -26,6 +30,13 @@ const SEARCHLIGHT_ARM_DOWN: float = 0.72
 const SEARCHLIGHT_ARM_FORWARD: float = 0.45
 ## The carrying hand sits this far out from under the shoulder, so the lamp body clears the hip, metres.
 const SEARCHLIGHT_HIP_CLEAR_M: float = 0.05
+## Raised to aim (held LMB): the hand before the chest, as shares of the arm below and ahead of the shoulder.
+const SEARCHLIGHT_AIM_DOWN: float = 0.3
+const SEARCHLIGHT_AIM_FORWARD: float = 0.8
+## How fast the arm rises to aim and lowers again, share of the way per second.
+const SEARCHLIGHT_RAISE_RATE: float = 4.0
+## A dropped item lands this far ahead of Henry, metres.
+const DROP_AHEAD_M: float = 0.7
 
 @export var inventory: InventoryComponent
 @export var equipment: EquipmentComponent
@@ -41,6 +52,8 @@ var _present_seconds: float = 0.0
 ## The upright lighter in the raised hand's frame, kept from the last full raise.
 var _present_local: Transform3D = Transform3D.IDENTITY
 var _has_present_local: bool = false
+## 0 carried low, 1 raised to aim (eased).
+var _raise: float = 0.0
 
 
 func _ready() -> void:
@@ -170,6 +183,11 @@ func is_flame_lit() -> bool:
 func _unhandled_input(event: InputEvent) -> void:
 	var searchlight := _prop as HeldSearchlight
 	var hub := get_parent().get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
+	if is_holding() and (hub == null or not hub.is_open()) and not event.is_echo() and event.is_action_pressed(DROP_ACTION):
+		var carry := get_parent().get_node_or_null(^"CarryComponent") as CarryComponent
+		if (carry == null or not carry.is_carrying()) and drop_held():
+			get_viewport().set_input_as_handled()
+			return
 	if searchlight != null and (hub == null or not hub.is_open()) and not event.is_echo() and event.is_action_pressed(PRESENT_ACTION):
 		searchlight.toggle()
 		get_viewport().set_input_as_handled()
@@ -183,6 +201,44 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_released(PRESENT_ACTION):
 		_stop_present()
 		get_viewport().set_input_as_handled()
+
+
+## Puts the item in hand down on the ground ahead as a pickup, its runtime state kept (a searchlight's
+## charge); it leaves the pocket or pack it was shown from. False if there is no ground there.
+func drop_held() -> bool:
+	if not is_holding():
+		return false
+	var body := get_parent() as Node3D
+	var forward: Vector3 = -body.global_basis.z
+	forward.y = 0.0
+	forward = forward.normalized()
+	var at: Vector3 = body.global_position + forward * DROP_AHEAD_M
+	var ray := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.8, at + Vector3.DOWN * 3.0)
+	if body is CollisionObject3D:
+		ray.exclude = [(body as CollisionObject3D).get_rid()]
+	var hit: Dictionary = body.get_world_3d().direct_space_state.intersect_ray(ray)
+	if hit.is_empty():
+		return false
+	var item_id: StringName = _item_id
+	var payload: Dictionary = HeldOwnership.take(inventory, equipment, item_id, _source_zone)
+	if payload.is_empty():
+		return false
+	put_away()
+	var pickup := ItemPickup.new()
+	pickup.item_id = item_id
+	pickup.count = 1
+	pickup.instance_state = payload.get("instance_state", {})
+	pickup.world_id = StringName("dropped:%s:%d:%d" % [item_id, Time.get_ticks_msec(), get_instance_id()])
+	var collision := CollisionShape3D.new()
+	var shape := SphereShape3D.new()
+	shape.radius = 0.3
+	collision.shape = shape
+	pickup.add_child(collision)
+	var world: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
+	world.add_child(pickup)
+	pickup.global_position = hit["position"]
+	pickup.rotation.y = randf() * TAU
+	return true
 
 
 func put_away_unlit() -> bool:
@@ -492,8 +548,14 @@ func _aim_searchlight(delta: float) -> void:
 	var beam: Vector3 = searchlight.direction
 	## Arm length from the rig, so the hanging hand sits where this body's arm reaches.
 	var arm: float = rig.get_bone_rest(lower).origin.length() + rig.get_bone_rest(hand).origin.length()
-	## The arm a little forward (owner): the hand ahead of the thigh, not hanging beside it.
-	var wrist: Vector3 = shoulder + Vector3.DOWN * arm * SEARCHLIGHT_ARM_DOWN + forward * arm * SEARCHLIGHT_ARM_FORWARD + out * SEARCHLIGHT_HIP_CLEAR_M + searchlight.inertia_offset
+	## The arm a little forward (owner): the hand ahead of the thigh; held LMB raises it before the chest to aim.
+	var hub := get_parent().get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
+	var aiming: bool = InputMap.has_action(AIM_ACTION) and Input.is_action_pressed(AIM_ACTION) and (hub == null or not hub.is_open())
+	_raise = move_toward(_raise, 1.0 if aiming else 0.0, SEARCHLIGHT_RAISE_RATE * delta)
+	var lift: float = smoothstep(0.0, 1.0, _raise)
+	var down: float = lerpf(SEARCHLIGHT_ARM_DOWN, SEARCHLIGHT_AIM_DOWN, lift)
+	var ahead: float = lerpf(SEARCHLIGHT_ARM_FORWARD, SEARCHLIGHT_AIM_FORWARD, lift)
+	var wrist: Vector3 = shoulder + Vector3.DOWN * arm * down + forward * arm * ahead + out * SEARCHLIGHT_HIP_CLEAR_M * (1.0 - lift) + searchlight.inertia_offset
 	## The hand continues the hanging arm's line (shoulder to wrist), square to the bar it holds.
 	var line: Vector3 = (wrist - shoulder).normalized()
 	var along: Vector3 = (line - beam * line.dot(beam)).normalized()

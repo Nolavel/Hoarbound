@@ -45,6 +45,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- G puts whatever is in Henry's hand down on the ground ahead as a pickup.
+  - Armfuls and a burning flare keep their own G.
+  - The item leaves the pocket it was shown from.
+  - Pickups now carry the item's runtime state, so a dropped searchlight keeps its charge
+    (`test_drop_held`).
+- Holding LMB raises the searchlight forward before the chest to aim; releasing lowers it again.
+  The beam still follows the head.
 - Searchlight follows the head up and down, and is carried a little forward (owner).
   - Cause of the flat beam: attention is kept level (`view.y = 0`), so the head never pitched and
     the light following it stayed flat. With a light in hand, the head now takes the camera's pitch
