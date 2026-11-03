@@ -63,6 +63,10 @@ folder_colors={
 "res://tests/": "pink"
 }
 
+[filesystem]
+
+import/blender/enabled=false
+
 [global_group]
 
 interactables=""
