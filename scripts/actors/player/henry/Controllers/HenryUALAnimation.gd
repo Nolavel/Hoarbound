@@ -69,6 +69,9 @@ const ACTION_ALIASES: Dictionary = {
 	&"pickup_right_shelf": [&"UAL2/Farm_Watering", &"Farm_Watering"],
 	&"pickup_right_low": [&"UAL2/Farm_Harvest", &"Farm_Harvest"],
 	&"throw": [&"UAL2/OverhandThrow", &"OverhandThrow"],
+	## One-handed strikes (the frying pan): a quick diagonal, and an overhead chop that can be held at its wind-up.
+	&"strike": [&"UAL2/Sword_Regular_A", &"Sword_Regular_A"],
+	&"strike_heavy": [&"Sword_Attack"],
 	&"fix": [&"Fixing_Kneeling"],
 	&"consume": [&"Consume", &"UAL2/Consume"],
 	&"chest_open": [&"Chest_Open", &"UAL2/Chest_Open"],

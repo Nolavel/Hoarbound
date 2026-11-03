@@ -46,10 +46,9 @@ func _run() -> void:
 	var out: Vector3 = door.global_basis.z
 	out.y = 0.0
 	out = out.normalized()
-	_player.global_position = door.global_position + out * 6.0 + Vector3.UP
+	_player.global_position = door.global_position + out * 14.0 + Vector3.UP
 	_player.look_at(_player.global_position + out, Vector3.UP)
-	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
-		(layer as CanvasLayer).visible = false
+	_hide_ui()
 	_camera = Camera3D.new()
 	_camera.fov = 60.0
 	root.add_child(_camera)
@@ -86,9 +85,23 @@ func _sweep(keys: Array, aiming: bool) -> void:
 		_camera.global_position = eye
 		_camera.look_at(eye + look * 10.0, Vector3.UP)
 		await process_frame
+		_hide_ui()
 		await RenderingServer.frame_post_draw
 		root.get_viewport().get_texture().get_image().save_png("%s/f_%04d.png" % [_out, _frame])
 		_frame += 1
+
+
+## Gameplay overlays (HUD layers, world labels, the pack load banner) are not part of the shot.
+func _hide_ui() -> void:
+	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
+		(layer as CanvasLayer).visible = false
+	for control: Node in root.find_children("*", "Control", true, false):
+		(control as Control).visible = false
+	for label: Node in root.find_children("*", "Label3D", true, false):
+		(label as Label3D).visible = false
+	for banner: Node in root.find_children("*BackpackLoadBanner*", "", true, false):
+		if banner is Node3D:
+			(banner as Node3D).visible = false
 
 
 func _frames(count: int) -> void:

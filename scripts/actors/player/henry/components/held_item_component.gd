@@ -35,6 +35,9 @@ const SEARCHLIGHT_AIM_DOWN: float = 0.3
 const SEARCHLIGHT_AIM_FORWARD: float = 0.8
 ## How fast the arm rises to aim and lowers again, share of the way per second.
 const SEARCHLIGHT_RAISE_RATE: float = 4.0
+## The pan's handle: radius, and the point the fist closes on (between the bowl and the hanging eye), pan space.
+const PAN_HANDLE_RADIUS: float = 0.011
+const PAN_GRIP_POINT: Vector3 = Vector3(0.17, 0.045, 0.0)
 ## A dropped item lands this far ahead of Henry, metres.
 const DROP_AHEAD_M: float = 0.7
 
@@ -294,6 +297,9 @@ func _clear_prop() -> void:
 			visual.release_hand()
 		elif visual.get_offhand_prop() == _prop:
 			visual.release_offhand()
+	if _swung_item() and visual != null:
+		for left: bool in [false, true]:
+			visual.get_hand_grip(left).release()
 	if _prop is HeldSearchlight:
 		(_prop as HeldSearchlight).apply_enabled(false)
 		if visual != null:
@@ -352,6 +358,8 @@ func _show_hint(message: String = "") -> void:
 func _process(delta: float) -> void:
 	if _prop is HeldSearchlight:
 		_aim_searchlight(delta)
+	elif _swung_item():
+		_fit_swung()
 	elif _presenting:
 		_advance_present(delta)
 	elif is_holding() and _prop.top_level:
@@ -505,6 +513,37 @@ func advance_simulation(hours: float, _context: SimulationStepContext) -> void:
 		return
 	searchlight.consume_game_hours(hours)
 	inventory.update_first_instance_state(_item_id, {"searchlight_runtime_hours": searchlight.runtime_hours})
+
+
+## True while the item in hand is one Henry swings (it has a strike impulse): the frying pan.
+func _swung_item() -> bool:
+	if not is_holding():
+		return false
+	var item: ItemResource = ItemCatalog.get_item(_item_id)
+	return item != null and item.strike_impulse > 0.0
+
+
+## A swung item rides the animated hand: HandGrip only closes the fist on its handle, the item follows the fist.
+func _fit_swung() -> void:
+	var visual: HenryUALAnimation = _animation()
+	if visual == null or visual.skeleton == null:
+		return
+	var grip: HandGrip = visual.get_hand_grip(visual.get_held_prop() == _prop)
+	if not grip.gripped.is_connected(_on_swung_gripped):
+		grip.gripped.connect(_on_swung_gripped.bind(grip))
+	grip.handle_radius = PAN_HANDLE_RADIUS
+	grip.fit(1.0)
+
+
+## The pan's handle in the fist: its pommel eye out past the little finger, its cooking face toward the palm.
+func _on_swung_gripped(grip: HandGrip) -> void:
+	if not _swung_item() or not grip.fit_only:
+		return
+	var x: Vector3 = grip.handle_axis
+	var y: Vector3 = (grip.palm_out - x * grip.palm_out.dot(x)).normalized()
+	var pan := Basis(x, y, x.cross(y))
+	_prop.top_level = true
+	_prop.global_transform = Transform3D(pan, grip.handle_centre - pan * PAN_GRIP_POINT)
 
 
 ## The light points where Henry's head looks, carried as a lantern is: the arm hangs, the carry bar lies in the

@@ -51,6 +51,13 @@ Measured on the stand (`capture_searchlight_grip.gd -- <dir> lighter`):
 - With `HandGrip`: wrist bend 8°; roll hand 0°, forearm -18°, upper arm 11°.
 - Old fist: wrist bend 28°, forearm -33°, upper arm 26°, and the lighter sank into a flat hand.
 
+## Fit only (swung tools)
+
+`HandGrip.fit()` leaves the arm and the hand to the animation: no reach, no wrist turn, no twist spread.
+Only the fingers and the thumb close on the handle. The item then follows the fist. The frying pan uses
+it while it swings (`StrikeComponent`): the handle lies along index to pinky with the eye past the little
+finger, the cooking face toward the palm, and the fist closes 0.17 m out along the handle.
+
 ## Thumb
 
 `HandGrip` closes the thumb as well:

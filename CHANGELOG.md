@@ -45,6 +45,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Frying pan strikes (`StrikeComponent`, any item with `strike_impulse`; the pan's is 9 N·s).
+  - LMB is a quick diagonal (`Sword_Regular_A`).
+  - RMB raises the pan overhead and holds the wind-up (`Sword_Attack` held at 0.30 s). Releasing it
+    brings the chop down faster: 70–100% of the full impulse, by how long it was held, up to 1 s.
+    The quick strike carries 45%.
+  - The hit is traced along the pan's actual path between frames (spheres along the segment, only
+    out ahead of Henry), so a fast swing cannot pass through something.
+  - Rigid bodies take the impulse; anything that publishes ThrowImpactCapability takes the hit.
+  - The pan rides the animated fist: `HandGrip.fit()` closes the fingers on the handle without
+    moving the arm.
+  - `test_strike`: a crate is knocked away, and the held strike is harder than the quick one. The
+    clip times come from tracing the pan's path. The hit sound is the mug knock for now.
 - G puts whatever is in Henry's hand down on the ground ahead as a pickup.
   - Armfuls and a burning flare keep their own G.
   - The item leaves the pocket it was shown from.

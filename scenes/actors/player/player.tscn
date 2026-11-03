@@ -29,6 +29,7 @@
 [ext_resource type="Resource" path="res://data/equipment/player_layout.tres" id="93_layout"]
 [ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="50_ual"]
 [ext_resource type="Script" path="res://scripts/actors/player/henry/components/throw_component.gd" id="99_throw"]
+[ext_resource type="Script" path="res://scripts/actors/player/henry/components/strike_component.gd" id="99_strike"]
 [ext_resource type="Script" path="res://scripts/actors/player/henry/components/hand_snow_melt.gd" id="99_melt"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_0w3ce"]
@@ -159,6 +160,9 @@ script = ExtResource("95_motion")
 
 [node name="ThrowComponent" type="Node" parent="."]
 script = ExtResource("99_throw")
+
+[node name="StrikeComponent" type="Node" parent="."]
+script = ExtResource("99_strike")
 
 [node name="HandSnowMelt" type="Node" parent="."]
 script = ExtResource("99_melt")
