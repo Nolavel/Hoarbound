@@ -45,6 +45,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Frying pan on the left carabiner.
+  - The model is Codex's worn 24 cm pan, cherry-picked from `codex` (`assets/items/frying_pan`).
+  - It is now an item (`frying_pan`, 1.1 kg) in the starting kit, kept in the pack's new
+    `pack_carabiner_left` pocket.
+  - It hangs by its oval eye on the rod, as the mug does on the right: a hinge on the rod inside the
+    carabiner's swing, and it knocks on the pack when Henry moves.
+  - `test_backpack_rig` R1 now expects both carabiners loaded. Measured: the pan never sinks into
+    the pack (4.1 mm at most, within the 6 mm contact margin), and it comes to rest.
+  - The pan's Blender sources are kept out of Godot's import with `source/.gdignore`.
 - Bedroll on C (owner request). Crouch moves to left Ctrl.
   - Henry carries the bedroll again: it is in his starting kit, strapped on the pack.
   - C shows the open bedroll on the floor ahead as a grey see-through ghost (reddish where it cannot

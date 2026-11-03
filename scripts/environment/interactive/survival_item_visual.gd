@@ -28,6 +28,8 @@ const THERMOS_PAINT := {"Thermos_Paint": [Color(0.33, 0.33, 0.20), 0.78], "Therm
 ## from the butt at y = 0, head on top, blade/face towards +X, label wrapped round the handle.
 const AXE_SCENE: PackedScene = preload("res://assets/items/axe/Axe.glb")
 const HAMMER_SCENE: PackedScene = preload("res://assets/items/hammer/Hammer.glb")
+## Codex's worn 24 cm frying pan (assets/items/frying_pan/README.md): forged handle with an oval hanging eye.
+const FRYING_PAN_SCENE: PackedScene = preload("res://assets/items/frying_pan/frying_pan.glb")
 const AXE_TAG: Texture2D = preload("res://assets/items/axe/axe_tag.png")
 const HAMMER_TAG: Texture2D = preload("res://assets/items/hammer/hammer_tag.png")
 const WORN_TOOL_SHADER: Shader = preload("res://shaders/items/worn_tool.gdshader")
@@ -120,6 +122,10 @@ static func make(item_id: StringName, _item_override: ItemResource = null) -> No
 					var fruit := BoxMesh.new()
 					fruit.size = Vector3(0.019, 0.01, 0.019)
 					_part(holder, fruit, Vector3(x, 0.112, 0), Color(0.98, 0.78, 0.22))
+	elif item_id == &"frying_pan":
+		var pan: Node3D = FRYING_PAN_SCENE.instantiate()
+		StylizedEnvironmentMaterial.apply_to_tree(pan)
+		holder.add_child(pan)
 	elif String(item_id).contains("mug") or item_id == &"warm_water":
 		holder.add_child(MUG_SCENE.instantiate())
 		if item_id != &"mug":
