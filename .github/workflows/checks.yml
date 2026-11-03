@@ -695,14 +695,16 @@ jobs:
           path: ~/.local/opt/godot-mono
           key: godot-4.8-dev6-v2
 
-      - name: Provision Godot and offscreen Vulkan
-        run: tools/ci/setup_env.sh
+      - name: Provision Godot
+        run: SKIP_APT=1 tools/ci/setup_env.sh
+
+      - name: Install CPU Vulkan, Xvfb and video encoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mesa-vulkan-drivers xvfb ffmpeg
 
       - name: Import gate
         run: tools/ci/import_gate.sh
-
-      - name: Install video encoder
-        run: sudo apt-get install -y -qq ffmpeg
 
       - name: Capture actual wall-run (960x540, 30 fps, 8 seconds)
         run: |
