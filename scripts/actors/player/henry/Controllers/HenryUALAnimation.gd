@@ -195,6 +195,7 @@ var skeleton: Skeleton3D
 var animation_tree: AnimationTree
 var _state_playback: AnimationNodeStateMachinePlayback
 var _action_node: AnimationNodeAnimation
+var _upper_node: AnimationNodeAnimation
 
 ## Meshes a garment names in GarmentData.mesh_node_name.
 var _garment_meshes: Dictionary = {}
@@ -597,6 +598,41 @@ func play_action(action: StringName, speed: float = 1.0) -> bool:
 	animation_tree.set("parameters/action_pace/scale", maxf(0.05, speed))
 	animation_tree.set("parameters/actions/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 	return true
+
+
+## Plays an action on the upper body only (spine_02 up and the arms), legs and hips left to locomotion.
+func play_upper_action(action: StringName, speed: float = 1.0) -> bool:
+	if animation_tree == null or _upper_node == null:
+		return false
+	var clip_name: StringName = _resolve_action_clip(action)
+	if clip_name == &"":
+		return false
+	var animation: Animation = animation_player.get_animation(clip_name)
+	if animation != null:
+		animation.loop_mode = Animation.LOOP_NONE
+	_upper_node.animation = clip_name
+	animation_tree.set("parameters/upper_pace/scale", maxf(0.05, speed))
+	animation_tree.set("parameters/upper_seek/seek_request", 0.0)
+	animation_tree.set("parameters/upper_actions/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+	return true
+
+
+## Pace of the upper-body action; 0 holds it on its current frame (a wind-up held).
+func set_upper_action_pace(scale: float) -> void:
+	if animation_tree != null:
+		animation_tree.set("parameters/upper_pace/scale", maxf(scale, 0.0))
+
+
+func hold_upper_action_at(seconds: float) -> void:
+	if animation_tree == null:
+		return
+	animation_tree.set("parameters/upper_pace/scale", 0.0)
+	animation_tree.set("parameters/upper_seek/seek_request", seconds)
+
+
+func is_upper_action_active() -> bool:
+	return animation_tree != null and (bool(animation_tree.get("parameters/upper_actions/active")) \
+		or int(animation_tree.get("parameters/upper_actions/request")) == AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 
 
 func is_action_active() -> bool:
@@ -1506,7 +1542,26 @@ func _setup_animation_tree() -> void:
 	tree_root.add_node(&"work_pose", AnimationNodeBlend2.new(), Vector2(120.0, 0.0))
 	tree_root.connect_node(&"work_seek", 0, &"work_clip")
 	tree_root.connect_node(&"work_pace", 0, &"work_seek")
-	tree_root.connect_node(&"work_pose", 0, &"actions")
+	## Upper-body actions (a strike): the clip drives spine_02 up and the arms over whatever the legs and hips do,
+	## so a swing never steps Henry forward and works while he walks.
+	_upper_node = _clip(_resolved_idle)
+	var upper := AnimationNodeOneShot.new()
+	upper.fadein_time = 0.1
+	upper.fadeout_time = 0.18
+	upper.filter_enabled = true
+	for track: int in torch_anim.get_track_count():
+		var path: NodePath = torch_anim.track_get_path(track)
+		if not LOWER_BODY_BONES.has(StringName(path.get_concatenated_subnames())):
+			upper.set_filter_path(path, true)
+	tree_root.add_node(&"upper_clip", _upper_node, Vector2(-360.0, 660.0))
+	tree_root.add_node(&"upper_seek", AnimationNodeTimeSeek.new(), Vector2(-290.0, 660.0))
+	tree_root.add_node(&"upper_pace", AnimationNodeTimeScale.new(), Vector2(-220.0, 660.0))
+	tree_root.add_node(&"upper_actions", upper, Vector2(0.0, 220.0))
+	tree_root.connect_node(&"upper_seek", 0, &"upper_clip")
+	tree_root.connect_node(&"upper_pace", 0, &"upper_seek")
+	tree_root.connect_node(&"upper_actions", 0, &"actions")
+	tree_root.connect_node(&"upper_actions", 1, &"upper_pace")
+	tree_root.connect_node(&"work_pose", 0, &"upper_actions")
 	tree_root.connect_node(&"work_pose", 1, &"work_pace")
 	tree_root.connect_node(&"output", 0, &"work_pose")
 
@@ -1517,6 +1572,7 @@ func _setup_animation_tree() -> void:
 	animation_tree.anim_player = animation_tree.get_path_to(animation_player)
 	animation_tree.active = true
 	animation_tree.set("parameters/action_pace/scale", 1.0)
+	animation_tree.set("parameters/upper_pace/scale", 1.0)
 	animation_tree.set("parameters/work_pace/scale", 0.0)
 	animation_tree.set("parameters/base/Grounded/loco/blend_position", 0.0)
 	animation_tree.set("parameters/base/Crouch/blend_position", 0.0)

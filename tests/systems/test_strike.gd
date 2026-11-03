@@ -40,13 +40,13 @@ func _run() -> void:
 	_press(strike, &"fire", true)
 	_press(strike, &"fire", false)
 	_check(strike.is_striking(), "LMB did not start a strike")
-	for _i: int in range(30):
+	for _i: int in range(40):
 		await physics_frame
 	_check(_impulses.size() == 1 and _impulses[0] > 0.0, "the quick strike did not land on the crate")
 	_check(crate.linear_velocity.dot(-player.global_basis.z) > 0.1, "the crate was not knocked away from Henry")
 	for _i: int in range(30):
 		await physics_frame
-	crate.queue_free()
+	crate.free()
 	var crate2 := _crate(player)
 	_press(strike, &"present_held", true)
 	for _i: int in range(45):
@@ -71,8 +71,9 @@ func _crate(player: Node3D) -> RigidBody3D:
 	shape.shape = box
 	crate.add_child(shape)
 	crate.mass = 2.0
+	## Placed before it enters the world: added at the origin first it would shove Henry aside for a step.
+	crate.position = Vector3(player.global_position.x, 0.9, player.global_position.z) + (-player.global_basis.z) * 0.95
 	root.add_child(crate)
-	crate.global_position = Vector3(player.global_position.x, 0.9, player.global_position.z) + (-player.global_basis.z) * 0.85
 	return crate
 
 

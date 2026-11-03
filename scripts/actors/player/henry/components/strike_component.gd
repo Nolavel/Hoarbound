@@ -12,15 +12,17 @@ const QUICK_ACTION: StringName = &"fire"
 const HEAVY_ACTION: StringName = &"present_held"
 const QUICK_CLIP: StringName = &"strike"
 const HEAVY_CLIP: StringName = &"strike_heavy"
-## Traced on Henry (the pan's path, blend-in included): the quick diagonal brings the bowl out ahead between
-## 0.17 and 0.40 s; Sword_Attack has the hand up and back overhead at 0.30 s (held while RMB is down) and the
-## chop lands by 0.60 s.
-const QUICK_FROM_S: float = 0.12
-const QUICK_TO_S: float = 0.42
+## Traced on Henry, upper body only (clip time): the quick diagonal swings the bowl out ahead at head height from
+## 0.26 s (reach 0.6 m); Sword_Attack has it up and back overhead at 0.30 s (held while RMB is down) and the
+## chop comes down to waist height 0.8 m ahead by 0.50 s.
+const QUICK_FROM_S: float = 0.24
+const QUICK_TO_S: float = 0.42  # the clip ends at 0.43 s
 const HEAVY_WINDUP_S: float = 0.30
-const HEAVY_TO_S: float = 0.65
-## The chop comes down faster than the clip once released.
-const HEAVY_RELEASE_PACE: float = 1.4
+const HEAVY_TO_S: float = 0.68
+## Paces of the clips (owner: not so fast): the quick swing, the rise to the wind-up, the chop once released.
+const QUICK_PACE: float = 0.7
+const HEAVY_WINDUP_PACE: float = 0.8
+const HEAVY_RELEASE_PACE: float = 1.0
 ## A quick swing carries this share of the tool's full impulse; a held wind-up rises from HEAVY_MIN to 1 over CHARGE_S.
 const QUICK_SHARE: float = 0.45
 const HEAVY_MIN: float = 0.7
@@ -29,7 +31,9 @@ const CHARGE_S: float = 1.0
 const HIT_RADIUS_M: float = 0.16
 ## Only where the bowl is this far out ahead of Henry's centre does it strike (not his own side), metres.
 const AHEAD_M: float = 0.25
-const HIT_EVENT: SoundEvent = preload("res://data/audio/backpack/mug_knock.tres")
+## A quick strike clanks, a held one bongs (synthesised stand-ins, tools/audio/make_pan_hits.py).
+const QUICK_HIT_EVENT: SoundEvent = preload("res://data/audio/items/pan_hit_quick.tres")
+const HEAVY_HIT_EVENT: SoundEvent = preload("res://data/audio/items/pan_hit_heavy.tres")
 
 enum State { IDLE, QUICK, WINDING, HELD, RELEASING }
 
@@ -41,6 +45,7 @@ var _charge_s: float = 0.0
 var _hit_done: bool = false
 var _release_wanted: bool = false
 var _share: float = 1.0
+var _pace: float = 1.0
 var _hits: int = 0
 var _struck_ids: Dictionary = {}
 var _last_bowl: Vector3 = Vector3.ZERO
@@ -81,21 +86,21 @@ func _input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	match _state:
 		State.QUICK:
-			_clip_s += delta
+			_clip_s += delta * _pace
 			_sweep(QUICK_FROM_S, QUICK_TO_S, QUICK_SHARE)
 			if _clip_s >= _visual_length(QUICK_CLIP):
 				_state = State.IDLE
 		State.WINDING:
-			_clip_s += delta
+			_clip_s += delta * _pace
 			if _clip_s >= HEAVY_WINDUP_S:
-				_visual().hold_action_at(HEAVY_WINDUP_S)
+				_visual().hold_upper_action_at(HEAVY_WINDUP_S)
 				_clip_s = HEAVY_WINDUP_S
 				_charge_s = 0.0
 				_state = State.HELD
 		State.HELD:
 			_charge_s = minf(_charge_s + delta, CHARGE_S)
 			if _release_wanted:
-				_visual().set_action_pace(HEAVY_RELEASE_PACE)
+				_visual().set_upper_action_pace(HEAVY_RELEASE_PACE)
 				_state = State.RELEASING
 		State.RELEASING:
 			_clip_s += delta * HEAVY_RELEASE_PACE
@@ -107,9 +112,11 @@ func _process(delta: float) -> void:
 
 
 func _start(clip: StringName, state: State) -> void:
-	var body := get_parent()
-	if not body.has_method(&"play_action_animation") or not body.call(&"play_action_animation", clip):
+	var visual: HenryUALAnimation = _visual()
+	var pace: float = QUICK_PACE if state == State.QUICK else HEAVY_WINDUP_PACE
+	if visual == null or not visual.play_upper_action(clip, pace):
 		return
+	_pace = pace
 	_state = state
 	_clip_s = 0.0
 	_hit_done = false
@@ -139,7 +146,7 @@ func _sweep(from_s: float, to_s: float, share: float) -> void:
 		_hit_done = true
 		var sound: Node = get_node_or_null(^"/root/SoundSystem")
 		if sound != null and _hits > 0:
-			sound.call(&"play", HIT_EVENT, bowl)
+			sound.call(&"play", QUICK_HIT_EVENT if _state == State.QUICK else HEAVY_HIT_EVENT, bowl)
 		struck.emit(held_strike_impulse() * share, _hits)
 
 
@@ -166,7 +173,8 @@ func _strike_at(centre: Vector3, share: float) -> int:
 	if body is CollisionObject3D:
 		query.exclude = [(body as CollisionObject3D).get_rid()]
 	var hits: int = 0
-	for result: Dictionary in body.get_world_3d().direct_space_state.intersect_shape(query, 16):
+	var found: Array[Dictionary] = body.get_world_3d().direct_space_state.intersect_shape(query, 16)
+	for result: Dictionary in found:
 		var collider: Object = result.get("collider")
 		if collider == null or _struck_ids.has(collider) or (collider is Node and body.is_ancestor_of(collider as Node)):
 			continue

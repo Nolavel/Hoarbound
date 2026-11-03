@@ -103,6 +103,11 @@ func _process(delta: float) -> void:
 	basis = Basis(Quaternion(Vector3.DOWN, local))
 
 
+## Adds to the swing's rate (rad/s, world space): a knock, such as being clipped back on.
+func nudge(speed: Vector3) -> void:
+	_dir_speed += speed
+
+
 ## Holds the hanging direction and its rate square to the hinge, if there is one.
 func _keep_on_hinge(to_parent: Basis) -> void:
 	if hinge_axis == Vector3.ZERO:

@@ -45,6 +45,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Frying pan strikes reworked after the owner's review.
+  - No lunge: strikes now play on the upper body only, through a new filtered `upper_actions` one-shot
+    in Henry's tree (spine_02 up and the arms). Legs and hips keep their stance, or the walk.
+  - Slower: the quick swing plays at 0.7 pace, the rise to the wind-up at 0.8, the chop at 1.0.
+  - Hit windows were re-traced from the pan's path with the upper body only. Quick: head height,
+    0.6 m reach. Heavy: comes down to waist height 0.8 m ahead.
+  - Sounds: a light clank for the quick strike and a heavy bong for the held one. They are
+    synthesised by modal synthesis (`tools/audio/make_pan_hits.py`) as stand-ins, because Freesound
+    is not reachable from this environment.
+- Items clip back onto the carabiners as side-pocket items go back in. Put back, the pan (and the mug)
+  starts 7 cm above the rod, drops onto it in 0.28 s, and the knock sets it swinging
+  (`PendulumHang.nudge`).
 - Frying pan strikes (`StrikeComponent`, any item with `strike_impulse`; the pan's is 9 N·s).
   - LMB is a quick diagonal (`Sword_Regular_A`).
   - RMB raises the pan overhead and holds the wind-up (`Sword_Attack` held at 0.30 s). Releasing it

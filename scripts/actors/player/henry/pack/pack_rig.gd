@@ -310,10 +310,11 @@ func _refresh_contents() -> void:
 				var slot: StringName = StringName(String(entry["pocket"]).trim_prefix("pack_"))
 				_canvas.add_item(held, slot, 0.0, _contents_shown and _side_items.get(slot, &"") != held)
 				shown[slot] = held
-			&"pack_carabiner":
-				_canvas.hang_item(held, 1)
-			&"pack_carabiner_left":
-				_canvas.hang_item(held, 0)
+			&"pack_carabiner", &"pack_carabiner_left":
+				## Something just put back on a carabiner comes down onto its rod; what hung there stays.
+				var pocket: StringName = entry["pocket"]
+				_canvas.hang_item(held, 1 if pocket == &"pack_carabiner" else 0, _contents_shown and _side_items.get(pocket, &"") != held)
+				shown[pocket] = held
 			_:
 				_canvas.add_loose(held)
 	_side_items = shown

@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## The frying pan swung on a bare stage, seen from the front-right: the pan in hand, a quick LMB strike, RMB held
-## at the overhead wind-up, the release. PNG frames at 30 fps.
+## at the overhead wind-up, the release; then it is put back and clips onto the left carabiner. PNG frames at 30 fps.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --resolution 960x540 --script res://tools/runtime/capture_pan_strike.gd -- <out dir>
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
@@ -67,7 +67,12 @@ func _run() -> void:
 	_press(strike, &"present_held", true)
 	await _shoot(35)
 	_press(strike, &"present_held", false)
-	await _shoot(35)
+	await _shoot(40)
+	## Put back: the pan comes down onto the left carabiner's rod, seen from behind on the left.
+	held.put_away()
+	var back: Vector3 = player.global_basis.z
+	_camera.look_at_from_position(player.global_position + back * 1.6 - right * 1.0 + Vector3.UP * 0.2, player.global_position + Vector3.UP * -0.1 - right * 0.2)
+	await _shoot(40)
 	print("PAN_STRIKE frames=", _frame)
 	quit()
 
