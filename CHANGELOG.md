@@ -12,8 +12,20 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   (`tools/blender/build_pack_straps.py`). The mesh is straightened into strap space and bent on the GPU
   along the strap path on the jacket (`shaders/items/pack_strap_bend.gdshader`, a spline mesh).
   `measure_straps.gd` now measures the bent mesh itself and can learn a bow for the free runs.
-  - Still open: the pad should widen on the shoulder as the old band did; the jacket press needs
-    relearning for the new footprint; the free run under the arm cuts the jacket by up to 15 mm.
+  - The pad now spreads to the path's width over the shoulder, as the old band did. The straps take
+    the pack's grey-blue canvas colour; the school pack's near-black texture adds only weave and wear.
+  - A first learned bow for the free runs is in `strap_points.json`.
+  - Still open: the strap mesh dips up to about 13 mm into the jacket under the arm at rest, which may
+    be the sleeve lying over the strap.
+- Work in progress: searchlight grip.
+  - The palm now closes down on the carry bar. `DoorHandIK`'s `into` vector is the back of the hand,
+    and the searchlight passed "down", which turned the palm up.
+  - Fingers now curl toward the palm. `StoveHandReach` used to bend them back over the knuckles,
+    which also affects the lighter fist.
+  - The light now aims where Henry's head looks. With a light in hand, the head look stays on while
+    walking and keeps its pitch.
+  - Still open: the sleeve twists at the wrist, because the whole roll is put on the hand bone.
+- Outfit texture imports are committed with VRAM compression and mipmaps, normal maps flagged.
 
 ### Fixed
 

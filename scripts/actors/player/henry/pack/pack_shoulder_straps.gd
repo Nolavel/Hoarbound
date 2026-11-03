@@ -12,6 +12,9 @@ const STRAP_INFO: String = "res://assets/characters/gear/pack_strap.json"
 const STRAP_TAGS: Array[String] = ["pos", "neg"]
 const BEND_SHADER: Shader = preload("res://shaders/items/pack_strap_bend.gdshader")
 const TEXTURES: Array[String] = ["res://assets/characters/gear/school_backpack_0.jpg", "res://assets/characters/gear/school_backpack_1.png", "res://assets/characters/gear/school_backpack_2.png"]
+## The school pad's half width as built (build_pack_straps.py PAD_WIDTH_M / 2): over the pad the strap
+## spreads from it to the path's row width.
+const PAD_HALF_M: float = 0.0225
 ## Path frames per strap the shader holds (its MAX_FRAMES).
 const MAX_FRAMES: int = 96
 const JACKET: String = "Outfit_Jacket"
@@ -36,8 +39,8 @@ const GRAVITY: float = 9.8
 const PACK_TOP: Vector3 = Vector3(0.11, 0.36, 0.0)
 const PACK_BOTTOM: Vector3 = Vector3(0.14, 0.05, 0.0)
 
-## Tints the school backpack's strap colours toward the pack's.
-@export var colour: Color = Color(1.0, 1.0, 1.0)
+## The straps' colour: the pack's grey-blue canvas (the school pack's texture adds only weave and wear).
+@export var colour: Color = BackpackModel.CANVAS
 
 var _skeleton: Skeleton3D
 var _pack: PackRig
@@ -72,7 +75,7 @@ func _init() -> void:
 	top_level = true
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_material.shader = BEND_SHADER
-	_material.set_shader_parameter(&"tint", colour)
+	_material.set_shader_parameter(&"strap_colour", colour)
 	for k: int in TEXTURES.size():
 		_material.set_shader_parameter([&"albedo_texture", &"metal_rough_texture", &"normal_texture"][k], load(TEXTURES[k]))
 	_material.set_shader_parameter(&"gap", GAP_M)
@@ -112,7 +115,7 @@ func _can_skin() -> bool:
 func setup(skeleton: Skeleton3D, pack: PackRig) -> void:
 	_skeleton = skeleton
 	_pack = pack
-	_material.set_shader_parameter(&"tint", colour)
+	_material.set_shader_parameter(&"strap_colour", colour)
 	_jacket = skeleton.find_child(JACKET, true, false) as MeshInstance3D
 	if _jacket == null or _jacket.skin == null:
 		push_warning("PackShoulderStraps: no skinned %s to lay the straps on." % JACKET)
@@ -470,9 +473,11 @@ func bent_vertices(stride: int = 1) -> PackedVector4Array:
 		var out_dir: Vector3 = Vector3(o.x, o.y, o.z)
 		out_dir = (out_dir - along * out_dir.dot(along)).normalized()
 		var across: Vector3 = along.cross(out_dir)
-		var r: float = verts[v].x / maxf(a.w, 0.005)
+		var padness: float = 1.0 - smoothstep(_pad_end[slot] - 0.05, _pad_end[slot], t)
+		var x: float = verts[v].x * lerpf(1.0, a.w / PAD_HALF_M, padness)
+		var r: float = x / maxf(a.w, 0.005)
 		var centre: Vector3 = Vector3(c0.x, c0.y, c0.z).lerp(Vector3(c1.x, c1.y, c1.z), f)
-		var p: Vector3 = centre + across * verts[v].x + out_dir * (verts[v].y + GAP_M - o.w * minf(r * r, 1.5))
+		var p: Vector3 = centre + across * x + out_dir * (verts[v].y + GAP_M - o.w * minf(r * r, 1.5))
 		out.append(Vector4(p.x, p.y, p.z, t))
 	return out
 
@@ -509,6 +514,9 @@ func _build_mesh() -> void:
 			merged[pair[0]] = into
 	_material.set_shader_parameter(&"strap_length_0", _length[0])
 	_material.set_shader_parameter(&"strap_length_1", _length[1])
+	_material.set_shader_parameter(&"pad_end_0", _pad_end[0])
+	_material.set_shader_parameter(&"pad_end_1", _pad_end[1])
+	_material.set_shader_parameter(&"pad_half", PAD_HALF_M)
 	_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, merged)
 	_mesh.surface_set_material(0, _material)
 	## Its vertices are placed by the shader along paths anywhere in the world.

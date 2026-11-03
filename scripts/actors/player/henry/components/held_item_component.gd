@@ -14,6 +14,10 @@ const LIGHTER_RAISE_SECONDS: float = 0.3
 ## Lighter base under the solved palm, so the nozzle stands just above the fist.
 const LIGHTER_BASE_BELOW_PALM: float = 0.035
 const LIGHTER_STRIKE_EVENT: SoundEvent = preload("res://resources/audio/lighter_strike.tres")
+## The searchlight's carry bar sits this far below the palm (bar radius and palm flesh), metres.
+const SEARCHLIGHT_BAR_BELOW_PALM: float = 0.022
+## How tightly the fist closes round the searchlight's bar (StoveHandReach curl, 1 = the lighter's loose fist).
+const SEARCHLIGHT_CURL: float = 1.3
 
 @export var inventory: InventoryComponent
 @export var equipment: EquipmentComponent
@@ -228,6 +232,9 @@ func _clear_prop() -> void:
 			visual.release_offhand()
 	if _prop is HeldSearchlight:
 		(_prop as HeldSearchlight).apply_enabled(false)
+		if visual != null:
+			visual.look_with_light = false
+			visual.get_present_reach().curl_scale = 1.0
 	_prop.queue_free()
 	_prop = null
 
@@ -430,7 +437,8 @@ func advance_simulation(hours: float, _context: SimulationStepContext) -> void:
 	inventory.update_first_instance_state(_item_id, {"searchlight_runtime_hours": searchlight.runtime_hours})
 
 
-## The existing hand solver moves the wrist with the inertial grip, never the camera.
+## The light points where Henry's head looks (the head follows the camera within its neck limits); the hand
+## solver closes the fist on the carry bar, palm down, and the wrist follows the inertial grip.
 func _aim_searchlight(delta: float) -> void:
 	var visual: HenryUALAnimation = _animation()
 	var searchlight := _prop as HeldSearchlight
@@ -453,8 +461,8 @@ func _aim_searchlight(delta: float) -> void:
 	var side: Vector3 = rig.to_global(rig.get_bone_global_pose(shoulder_bone).origin) - chest
 	side.y = 0.0
 	var forward: Vector3 = visual.global_basis.z.normalized()
-	var camera: Camera3D = get_viewport().get_camera_3d()
-	var aim: Vector3 = TpsCamera.aim_direction(camera) if camera != null else forward
+	visual.look_with_light = true
+	var aim: Vector3 = visual.get_head_facing()
 	## A shoulder-held tool cannot follow the camera through the character's back.
 	## Keep the beam and the IK fingers in the same reachable torso-relative cone.
 	var right: Vector3 = visual.global_basis.x.normalized()
@@ -466,10 +474,10 @@ func _aim_searchlight(delta: float) -> void:
 	aim = (forward * cos(yaw) + right * sin(yaw)) * cos(pitch) + Vector3.UP * sin(pitch)
 	var player := get_parent() as CharacterBody3D
 	searchlight.advance_inertia(delta, aim, player.velocity if player != null else Vector3.ZERO)
-	## Project down onto the plane perpendicular to the grip. This preserves a
-	## stable palm frame while the flashlight pitches and sweeps across the body.
-	reach.palm_into_world = (Vector3.DOWN - searchlight.direction * Vector3.DOWN.dot(searchlight.direction)).normalized()
+	## DoorHandIK's `into` is the back of the hand: up, square to the beam, so the palm closes down on the bar.
+	reach.palm_into_world = (Vector3.UP - searchlight.direction * Vector3.UP.dot(searchlight.direction)).normalized()
 	reach.grip_weight = 1.0
+	reach.curl_scale = SEARCHLIGHT_CURL
 	## The carry bar runs along the beam. Fingers must cross the bar to wrap it,
 	## rather than point along it; the right hand closes towards the torso.
 	var grip_fingers: Vector3 = searchlight.direction.cross(Vector3.UP).normalized()
@@ -481,4 +489,5 @@ func _on_searchlight_hand_solved(palm: Vector3) -> void:
 	if searchlight == null:
 		return
 	searchlight.top_level = true
-	searchlight.global_transform = Transform3D(searchlight.grip_basis(), palm)
+	var reach: StoveHandReach = _animation().get_present_reach()
+	searchlight.global_transform = Transform3D(searchlight.grip_basis(), palm - reach.palm_into_world * SEARCHLIGHT_BAR_BELOW_PALM)

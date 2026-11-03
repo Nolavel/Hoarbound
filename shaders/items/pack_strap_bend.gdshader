@@ -15,7 +15,14 @@ uniform int frame_count_1 = 0;
 uniform float strap_length_0 = 1.0;
 uniform float strap_length_1 = 1.0;
 uniform float gap = 0.001;
-uniform vec4 tint : source_color = vec4(1.0);
+// Where each strap's pad ends (share of its length) and the pad's own half width: over the pad the strap
+// spreads to the path's width, so it widens on the shoulder as the path's rows do.
+uniform float pad_end_0 = 0.45;
+uniform float pad_end_1 = 0.45;
+uniform float pad_half = 0.0225;
+// The strap's colour; the source texture (near black) gives only its weave and wear, relative to its mean.
+uniform vec3 strap_colour : source_color = vec3(0.30, 0.32, 0.34);
+uniform float texture_mean = 0.0055;
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D metal_rough_texture : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D normal_texture : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -40,13 +47,16 @@ void vertex() {
 	vec3 along = normalize(c1.xyz - c0.xyz);
 	vec3 out_dir = normalize(o.xyz - along * dot(o.xyz, along));
 	vec3 across = cross(along, out_dir);
-	float r = VERTEX.x / max(a.w, 0.005);
+	float pad_end = side == 0 ? pad_end_0 : pad_end_1;
+	float padness = 1.0 - smoothstep(pad_end - 0.05, pad_end, t);
+	float x = VERTEX.x * mix(1.0, a.w / pad_half, padness);
+	float r = x / max(a.w, 0.005);
 	float drop = o.w * min(r * r, 1.5);
 	vec3 centre = mix(c0.xyz, c1.xyz, f);
 	vec3 n = NORMAL;
 	vec3 tg = TANGENT;
 	vec3 bn = BINORMAL;
-	VERTEX = centre + across * VERTEX.x + out_dir * (VERTEX.y + gap - drop);
+	VERTEX = centre + across * x + out_dir * (VERTEX.y + gap - drop);
 	NORMAL = normalize(across * n.x + out_dir * n.y + along * n.z);
 	TANGENT = normalize(across * tg.x + out_dir * tg.y + along * tg.z);
 	BINORMAL = normalize(across * bn.x + out_dir * bn.y + along * bn.z);
@@ -57,7 +67,8 @@ void vertex() {
 
 void fragment() {
 	vec4 mr = texture(metal_rough_texture, UV);
-	ALBEDO = texture(albedo_texture, UV).rgb * tint.rgb;
+	vec3 detail = texture(albedo_texture, UV).rgb / texture_mean;
+	ALBEDO = clamp(strap_colour * mix(vec3(1.0), detail, 0.6), 0.0, 1.0);
 	ROUGHNESS = mr.g;
 	METALLIC = mr.b;
 	NORMAL_MAP = texture(normal_texture, UV).rgb;
