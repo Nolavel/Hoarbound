@@ -1,12 +1,19 @@
 class_name PackShoulderStraps
 extends MeshInstance3D
 
-## The pack's two shoulder straps (#260). Worn, each lies on Henry's jacket: its points are triangles of
-## the jacket (strap_points.json, measured by tools/runtime/measure_strap_points.gd), skinned each frame
-## exactly as the GPU skins the jacket, so the strap never sinks in or lifts off; straight runs join the
-## pack's back face. Off his back, each is a limp loop on the pack.
+## The pack's two shoulder straps (#260): the school backpack's own pad, webbing and buckle (tools/blender/
+## build_pack_straps.py) bent along a path on the GPU. Worn, the path's points are jacket triangles
+## (strap_points.json), skinned as the GPU skins the jacket, with straight runs to the pack; off his back, a limp loop.
 
 const POINTS_FILE: String = "res://scenes/actors/player/henry/strap_points.json"
+## The straightened straps (strap space: x across, y off the body, z along, metres) and their lengths.
+const STRAP_MESHES: Array[String] = ["res://assets/characters/gear/pack_strap_pos.glb", "res://assets/characters/gear/pack_strap_neg.glb"]
+const STRAP_INFO: String = "res://assets/characters/gear/pack_strap.json"
+const STRAP_TAGS: Array[String] = ["pos", "neg"]
+const BEND_SHADER: Shader = preload("res://shaders/items/pack_strap_bend.gdshader")
+const TEXTURES: Array[String] = ["res://assets/characters/gear/school_backpack_0.jpg", "res://assets/characters/gear/school_backpack_1.png", "res://assets/characters/gear/school_backpack_2.png"]
+## Path frames per strap the shader holds (its MAX_FRAMES).
+const MAX_FRAMES: int = 96
 const JACKET: String = "Outfit_Jacket"
 ## Thickness of the shoulder pad and of the webbing it narrows to under the arm, and the air kept
 ## between the strap's underside and the cloth, metres.
@@ -29,20 +36,22 @@ const GRAVITY: float = 9.8
 const PACK_TOP: Vector3 = Vector3(0.11, 0.36, 0.0)
 const PACK_BOTTOM: Vector3 = Vector3(0.14, 0.05, 0.0)
 
-@export var colour: Color = Color(0.22, 0.23, 0.25)
+## Tints the school backpack's strap colours toward the pack's.
+@export var colour: Color = Color(1.0, 1.0, 1.0)
 
 var _skeleton: Skeleton3D
 var _pack: PackRig
 var _jacket: MeshInstance3D
-## Rebuilt each frame from packed arrays in one upload (per-vertex ImmediateMesh calls cost ~1 ms).
+## Both straps in one surface, built once; each frame only the path frames (shader uniforms) change.
 var _mesh := ArrayMesh.new()
-var _vertices := PackedVector3Array()
-var _normals := PackedVector3Array()
-var _count: int = 0
-## Points per strip this frame, and index lists already built for those counts.
-var _strips := PackedInt32Array()
-var _index_cache: Dictionary = {}
-var _material := StandardMaterial3D.new()
+var _material := ShaderMaterial.new()
+## Per strap mesh: its length (m) and where its pad ends (share of its length).
+var _length: Array[float] = [1.0, 1.0]
+var _pad_end: Array[float] = [0.45, 0.45]
+var _centres := PackedVector4Array()
+var _across := PackedVector4Array()
+var _outs := PackedVector4Array()
+var _frame_counts: Array[int] = [0, 0]
 ## Per side ([+X, -X]): rows across the strap, each [left, centre, right, rest outward normal]; a point is
 ## [rest positions of its triangle's 3 vertices, their skeleton bones (4 each), weights (4 each), barycentric].
 var _rows: Array = [[], []]
@@ -52,6 +61,9 @@ var _bind_xf: Dictionary = {}
 ## Per side: the limp loop's verlet chain [points, previous points, segment length].
 var _limp: Array = [[], []]
 var _worn_last: bool = false
+## Per side, per free run (to the back, back to the pack): how far each sample is bowed out over the cloth
+## (learned by measure_straps.gd --learn), metres.
+var _free_lift: Array = [[PackedFloat32Array(), PackedFloat32Array()], [PackedFloat32Array(), PackedFloat32Array()]]
 var _pressed: bool = false
 var _delta: float = 0.0
 
@@ -59,9 +71,15 @@ var _delta: float = 0.0
 func _init() -> void:
 	top_level = true
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	_material.albedo_color = colour
-	_material.roughness = 0.85
-	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_material.shader = BEND_SHADER
+	_material.set_shader_parameter(&"tint", colour)
+	for k: int in TEXTURES.size():
+		_material.set_shader_parameter([&"albedo_texture", &"metal_rough_texture", &"normal_texture"][k], load(TEXTURES[k]))
+	_material.set_shader_parameter(&"gap", GAP_M)
+	_centres.resize(MAX_FRAMES * 2)
+	_across.resize(MAX_FRAMES * 2)
+	_outs.resize(MAX_FRAMES * 2)
+	_build_mesh()
 	mesh = _mesh
 
 
@@ -94,7 +112,7 @@ func _can_skin() -> bool:
 func setup(skeleton: Skeleton3D, pack: PackRig) -> void:
 	_skeleton = skeleton
 	_pack = pack
-	_material.albedo_color = colour
+	_material.set_shader_parameter(&"tint", colour)
 	_jacket = skeleton.find_child(JACKET, true, false) as MeshInstance3D
 	if _jacket == null or _jacket.skin == null:
 		push_warning("PackShoulderStraps: no skinned %s to lay the straps on." % JACKET)
@@ -137,6 +155,10 @@ func setup(skeleton: Skeleton3D, pack: PackRig) -> void:
 			out.append(float(row[4]))
 			(_rows[side] as Array).append(out)
 	_press_cloth(data["press"], surfaces)
+	if data.has("free_lift"):
+		for side: int in 2:
+			for run: int in 2:
+				_free_lift[side][run] = PackedFloat32Array(data["free_lift"][side][run])
 	if is_inside_tree():
 		_sync_skeleton_updates(true)
 
@@ -191,35 +213,26 @@ func _redraw() -> void:
 	if not _can_skin():
 		return
 	global_transform = Transform3D.IDENTITY
-	_mesh.clear_surfaces()
+	_frame_counts = [0, 0]
 	var shown: bool = _pack != null and _pack.get_canvas() != null and _pack.is_visible_in_tree()
 	var worn: bool = shown and _pack.get_parent() is BoneAttachment3D
 	if worn != _pressed:
 		_set_press(worn)
-	if not shown:
-		return
-	var step: float = clampf(_delta, 0.0, 0.05)
-	var changed: bool = worn != _worn_last
-	_worn_last = worn
-	_count = 0
-	_strips.clear()
-	_bind_xf.clear()
-	for side: int in range(2):
-		if worn:
-			_draw_worn(side)
-		else:
-			_draw_limp(side, step, changed)
-	if _count == 0:
-		return
-	_vertices.resize(_count)
-	_normals.resize(_count)
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = _vertices
-	arrays[Mesh.ARRAY_NORMAL] = _normals
-	arrays[Mesh.ARRAY_INDEX] = _strip_indices()
-	_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	_mesh.surface_set_material(0, _material)
+	if shown:
+		var step: float = clampf(_delta, 0.0, 0.05)
+		var changed: bool = worn != _worn_last
+		_worn_last = worn
+		_bind_xf.clear()
+		for side: int in range(2):
+			if worn:
+				_draw_worn(side)
+			else:
+				_draw_limp(side, step, changed)
+	_material.set_shader_parameter(&"frame_centre", _centres)
+	_material.set_shader_parameter(&"frame_across", _across)
+	_material.set_shader_parameter(&"frame_out", _outs)
+	_material.set_shader_parameter(&"frame_count_0", _frame_counts[0])
+	_material.set_shader_parameter(&"frame_count_1", _frame_counts[1])
 
 
 ## A jacket point this frame, skinned like the GPU: each triangle vertex blended over its bones, then barycentric.
@@ -284,21 +297,21 @@ func worn_band(side: int) -> Dictionary:
 		return {}
 	var pack_out: Vector3 = (_pack.get_canvas().global_basis * Vector3.FORWARD).normalized()
 	var band: Array = []
-	_free_run(band, _pack_end(PACK_TOP, rows[0][1]), pack_out, rows[0], true)
+	_free_run(band, _pack_end(PACK_TOP, rows[0][1]), pack_out, rows[0], true, _free_lift[side][0])
 	band.append_array(rows.slice(1, rows.size() - 1))
-	_free_run(band, _pack_end(PACK_BOTTOM, rows[rows.size() - 1][1]), pack_out, rows[rows.size() - 1], false)
+	_free_run(band, _pack_end(PACK_BOTTOM, rows[rows.size() - 1][1]), pack_out, rows[rows.size() - 1], false, _free_lift[side][1])
 	return {"band": band, "rows": rows}
 
 
 func _draw_worn(side: int) -> void:
 	var worn: Dictionary = worn_band(side)
 	if not worn.is_empty():
-		_band(worn["band"])
+		_bend(worn["band"], true)
 
 
-## A straight run between the pack (`at`, its face normal `face_out`) and a row on the jacket, as wide
-## as that row; `into` runs pack to body, else body to pack.
-func _free_run(band: Array, at: Vector3, face_out: Vector3, row: Array, into: bool) -> void:
+## A cinched run between the pack (`at`, its face normal `face_out`) and a row on the jacket, as wide as that
+## row, each sample bowed out by `lift` over the cloth it would cut; `into` runs pack to body, else body to pack.
+func _free_run(band: Array, at: Vector3, face_out: Vector3, row: Array, into: bool, lift: PackedFloat32Array) -> void:
 	var half: Vector3 = ((row[2] as Vector3) - (row[0] as Vector3)) * 0.5
 	## At the pack the strap's width lies flat in its face, so neither edge sinks into the canvas.
 	var flat: Vector3 = (half - face_out * half.dot(face_out)).normalized() * half.length()
@@ -309,6 +322,8 @@ func _free_run(band: Array, at: Vector3, face_out: Vector3, row: Array, into: bo
 		var centre: Vector3 = at.lerp(row[1], t)
 		var n: Vector3 = face_out.slerp(row[3], t).normalized()
 		var across: Vector3 = flat.lerp(half, t)
+		if k < lift.size():
+			centre += n * lift[k]
 		band.append(row if t >= 1.0 else [centre - across, centre, centre + across, n, row[4]])
 
 
@@ -340,7 +355,7 @@ func _draw_limp(side: int, step: float, reset: bool) -> void:
 		var along: Vector3 = (path[mini(k + 1, path.size() - 1)] - path[maxi(k - 1, 0)]).normalized()
 		var across: Vector3 = along.cross(pack_out).normalized() * WIDTH_M * 0.5
 		band.append([path[k] - across, path[k], path[k] + across, pack_out, WEBBING_M])
-	_band(band)
+	_bend(band, false)
 
 
 ## The pack-side end of a strap: the authored point on the side of the pack nearer `toward`.
@@ -390,52 +405,111 @@ func _chain(store: Array, side: int, from: Vector3, to: Vector3, count: int, sla
 	return points
 
 
-## A band along `rows` ([left, centre, right, outward normal, thickness]): its underside GAP_M off them; ten vertices per row (top and underside left/centre/right, both edges), joined by the cached index list.
-func _band(rows: Array) -> void:
-	var count: int = rows.size()
+## Hands one path (rows [left, centre, right, outward normal, thickness]) to the strap mesh on its side of the
+## pack: frames with t along the strap; worn, the pad's end lands on the path's last padded row.
+func _bend(rows: Array, worn: bool) -> void:
+	var count: int = mini(rows.size(), MAX_FRAMES)
 	if count < 2:
 		return
-	if _vertices.size() < _count + count * 10:
-		_vertices.resize(_count + count * 10)
-		_normals.resize(_count + count * 10)
-	var k: int = _count
+	var mid: Vector3 = (rows[count / 2] as Array)[1]
+	## The school pack's +X strap is worn on the pack's -X side (its back faces -Y, ours -Z).
+	var slot: int = 0 if (_pack.get_canvas().global_transform.affine_inverse() * mid).x < 0.0 else 1
+	var arc := PackedFloat32Array([0.0])
+	for i: int in range(1, count):
+		arc.append(arc[i - 1] + ((rows[i][1] as Vector3) - (rows[i - 1][1] as Vector3)).length())
+	var total: float = maxf(arc[count - 1], 0.0001)
+	var pad_last: int = -1
+	if worn:
+		for i: int in count:
+			if float(rows[i][4]) > (WEBBING_M + THICK_M) * 0.5:
+				pad_last = i
+	var pad_at: float = arc[pad_last] if pad_last > 0 else 0.0
+	var pad_end: float = _pad_end[slot]
 	for i: int in count:
 		var row: Array = rows[i]
+		var t: float = arc[i] / total
+		if pad_last > 0 and pad_last < count - 1:
+			t = arc[i] / pad_at * pad_end if arc[i] <= pad_at else pad_end + (arc[i] - pad_at) / (total - pad_at) * (1.0 - pad_end)
+		var centre: Vector3 = row[1]
 		var out: Vector3 = row[3]
-		var side: Vector3 = ((row[2] as Vector3) - (row[0] as Vector3)).normalized()
-		var low: Vector3 = out * GAP_M
-		var high: Vector3 = out * (GAP_M + float(row[4]))
-		for c: int in 3:
-			_vertices[k + c] = (row[c] as Vector3) + high
-			_vertices[k + 3 + c] = (row[c] as Vector3) + low
-			_normals[k + c] = out
-			_normals[k + 3 + c] = -out
-		_vertices[k + 6] = (row[0] as Vector3) + high
-		_vertices[k + 7] = (row[0] as Vector3) + low
-		_vertices[k + 8] = (row[2] as Vector3) + high
-		_vertices[k + 9] = (row[2] as Vector3) + low
-		_normals[k + 6] = -side
-		_normals[k + 7] = -side
-		_normals[k + 8] = side
-		_normals[k + 9] = side
-		k += 10
-	_strips.append(count)
-	_count = k
+		var along: Vector3 = (rows[mini(i + 1, count - 1)][1] as Vector3) - (rows[maxi(i - 1, 0)][1] as Vector3)
+		var across: Vector3 = along.cross(out).normalized()
+		var chord: Vector3 = ((row[0] as Vector3) + (row[2] as Vector3)) * 0.5
+		var k: int = slot * MAX_FRAMES + i
+		_centres[k] = Vector4(centre.x, centre.y, centre.z, t)
+		_across[k] = Vector4(across.x, across.y, across.z, (row[2] as Vector3).distance_to(row[0]) * 0.5)
+		_outs[k] = Vector4(out.x, out.y, out.z, (centre - chord).dot(out))
+	_frame_counts[slot] = count
 
 
-## Triangles joining each strip's rows: top and underside (two quads each) and both edges.
-func _strip_indices() -> PackedInt32Array:
-	var key: String = str(_strips)
-	if _index_cache.has(key):
-		return _index_cache[key]
-	var indices := PackedInt32Array()
-	var base: int = 0
-	for count: int in _strips:
-		for i: int in range(count - 1):
-			var a: int = base + i * 10
-			var b: int = a + 10
-			for pair: Array in [[0, 1], [1, 2], [4, 3], [5, 4], [7, 6], [8, 9]]:
-				indices.append_array([a + pair[0], a + pair[1], b + pair[1], a + pair[0], b + pair[1], b + pair[0]])
-		base += count * 10
-	_index_cache[key] = indices
-	return indices
+## The bent strap's vertices this frame (every `stride`-th): world position and, in w, the share along the
+## strap (0 at the pack's top). The shader's bend on the CPU, for measuring.
+func bent_vertices(stride: int = 1) -> PackedVector4Array:
+	var out := PackedVector4Array()
+	var arrays: Array = _mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var tags: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	for v: int in range(0, verts.size(), stride):
+		var slot: int = 1 if tags[v].x > 0.5 else 0
+		var count: int = _frame_counts[slot]
+		if count < 2:
+			continue
+		var base: int = slot * MAX_FRAMES
+		var t: float = clampf(verts[v].z / _length[slot], 0.0, 1.0)
+		var i: int = 0
+		for k: int in range(1, count - 1):
+			if _centres[base + k].w > t:
+				break
+			i = k
+		var c0: Vector4 = _centres[base + i]
+		var c1: Vector4 = _centres[base + i + 1]
+		var f: float = clampf((t - c0.w) / maxf(c1.w - c0.w, 0.000001), 0.0, 1.0)
+		var a: Vector4 = _across[base + i].lerp(_across[base + i + 1], f)
+		var o: Vector4 = _outs[base + i].lerp(_outs[base + i + 1], f)
+		var along: Vector3 = Vector3(c1.x - c0.x, c1.y - c0.y, c1.z - c0.z).normalized()
+		var out_dir: Vector3 = Vector3(o.x, o.y, o.z)
+		out_dir = (out_dir - along * out_dir.dot(along)).normalized()
+		var across: Vector3 = along.cross(out_dir)
+		var r: float = verts[v].x / maxf(a.w, 0.005)
+		var centre: Vector3 = Vector3(c0.x, c0.y, c0.z).lerp(Vector3(c1.x, c1.y, c1.z), f)
+		var p: Vector3 = centre + across * verts[v].x + out_dir * (verts[v].y + GAP_M - o.w * minf(r * r, 1.5))
+		out.append(Vector4(p.x, p.y, p.z, t))
+	return out
+
+
+## Both straightened straps in one surface; UV2.x tells the shader which strap (path slot) a vertex is on.
+func _build_mesh() -> void:
+	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(STRAP_INFO))
+	var merged: Array = []
+	merged.resize(Mesh.ARRAY_MAX)
+	var keys: Array[int] = [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TANGENT, Mesh.ARRAY_TEX_UV, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_INDEX]
+	var empty: Array = [PackedVector3Array(), PackedVector3Array(), PackedFloat32Array(), PackedVector2Array(), PackedVector2Array(), PackedInt32Array()]
+	for j: int in keys.size():
+		merged[keys[j]] = empty[j]
+	for slot: int in 2:
+		_length[slot] = float(info[STRAP_TAGS[slot]]["length_m"])
+		_pad_end[slot] = float(info[STRAP_TAGS[slot]]["pad_end"])
+		var scene: Node = (load(STRAP_MESHES[slot]) as PackedScene).instantiate()
+		var source := scene.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+		var arrays: Array = source.mesh.surface_get_arrays(0)
+		scene.free()
+		var base: int = (merged[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var tag := PackedVector2Array()
+		tag.resize(verts.size())
+		tag.fill(Vector2(float(slot), 0.0))
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		for i: int in indices.size():
+			indices[i] += base
+		## Packed arrays are values: append into the merged copy and store it back.
+		for pair: Array in [[Mesh.ARRAY_VERTEX, verts], [Mesh.ARRAY_NORMAL, arrays[Mesh.ARRAY_NORMAL]], [Mesh.ARRAY_TANGENT, arrays[Mesh.ARRAY_TANGENT]],
+				[Mesh.ARRAY_TEX_UV, arrays[Mesh.ARRAY_TEX_UV]], [Mesh.ARRAY_TEX_UV2, tag], [Mesh.ARRAY_INDEX, indices]]:
+			var into: Variant = merged[pair[0]]
+			into.append_array(pair[1])
+			merged[pair[0]] = into
+	_material.set_shader_parameter(&"strap_length_0", _length[0])
+	_material.set_shader_parameter(&"strap_length_1", _length[1])
+	_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, merged)
+	_mesh.surface_set_material(0, _material)
+	## Its vertices are placed by the shader along paths anywhere in the world.
+	_mesh.custom_aabb = AABB(Vector3.ONE * -10000.0, Vector3.ONE * 20000.0)

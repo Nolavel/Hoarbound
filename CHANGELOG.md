@@ -6,6 +6,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed
+
+- Work in progress: the shoulder straps are now the school backpack's own pad, webbing and buckle
+  (`tools/blender/build_pack_straps.py`). The mesh is straightened into strap space and bent on the GPU
+  along the strap path on the jacket (`shaders/items/pack_strap_bend.gdshader`, a spline mesh).
+  `measure_straps.gd` now measures the bent mesh itself and can learn a bow for the free runs.
+  - Still open: the pad should widen on the shoulder as the old band did; the jacket press needs
+    relearning for the new footprint; the free run under the arm cuts the jacket by up to 15 mm.
+
 ### Fixed
 
 - Mug on the carabiner no longer sinks into the hammer/axe handles (`test_backpack_rig` R3/R9 were red on

@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## Henry's outfit (the owner's jacket, jeans and boots): full body front, side, back and three-quarter, then mid-stride.
-## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_outfit.gd -- <out dir>
+## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_outfit.gd -- <out dir> [hat_only|straps]
+## `straps`: the pack's shoulder straps close up round the torso, standing, walking and crouched.
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
 
@@ -9,6 +10,7 @@ var _out: String = "user://shots/outfit"
 var _player: CharacterBody3D
 var _camera: Camera3D
 var _hat_only: bool = false
+var _straps: bool = false
 
 
 func _initialize() -> void:
@@ -16,6 +18,7 @@ func _initialize() -> void:
 	if not args.is_empty():
 		_out = args[0]
 	_hat_only = args.has("hat_only")
+	_straps = args.has("straps")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out))
 	_run()
 
@@ -60,6 +63,10 @@ func _run() -> void:
 	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
 		(layer as CanvasLayer).visible = false
 	_camera.make_current()
+	if _straps:
+		await _strap_shots()
+		quit(0)
+		return
 	if _hat_only:
 		for view: Array in [["front", 180.0], ["side", 90.0], ["back", 0.0], ["three_quarter", 145.0]]:
 			await _hat_shot("hat_" + view[0], view[1])
@@ -80,6 +87,24 @@ func _run() -> void:
 		await _shot("walk_side_%d" % k, 90.0, 0.95, 3.4, 7)
 	Input.action_release(&"move_forward")
 	quit(0)
+
+
+func _strap_shots() -> void:
+	_camera.fov = 30.0
+	for view: Array in [["back", 0.0], ["back_q", 35.0], ["side", 90.0], ["front_q", 145.0], ["front", 180.0]]:
+		await _shot("strap_" + view[0], view[1], 1.3, 1.5)
+	await _shot("strap_shoulder", 60.0, 1.5, 0.8)
+	await _shot("strap_chest", 165.0, 1.35, 0.8)
+	Input.action_press(&"move_forward")
+	await _frames(30)
+	await _shot("strap_walk_back_q", 35.0, 1.3, 1.6, 4)
+	await _shot("strap_walk_front_q", 145.0, 1.3, 1.6, 4)
+	Input.action_release(&"move_forward")
+	Input.action_press(&"crouch")
+	await _frames(40)
+	await _shot("strap_crouch_back_q", 35.0, 1.0, 1.6, 4)
+	await _shot("strap_crouch_side", 90.0, 1.0, 1.6, 4)
+	Input.action_release(&"crouch")
 
 
 ## Looks between Henry's feet (`at_y` above the soles) from `yaw` degrees round him at `dist` metres.
