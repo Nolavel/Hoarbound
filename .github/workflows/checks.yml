@@ -683,7 +683,7 @@ jobs:
 
   wallrun-demo:
     ## Standalone mechanics capture. Real CharacterBody3D physics; no production locomotion change.
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[wallrun-demo]')
+    if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[wallrun-demo]')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'wallrun-demo')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
