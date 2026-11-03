@@ -140,24 +140,27 @@ def _turn_down(rig, bone, angle):
 	bpy.context.view_layer.update()
 
 
-def fit_outside(obj, body, margin, below=None, above=None):
+def fit_outside(obj, body, margin, below=None, above=None, where=None):
 	"""Pushes any point of obj inside the body out to `margin` metres past its surface. With
 	`below`, only points lower than that height: over an open mesh (the jeans' waist), points
-	above its rim would otherwise read as inside and collapse onto it."""
+	above its rim would otherwise read as inside and collapse onto it. `where` (world point -> bool)
+	limits it further."""
 	mod = obj.modifiers.new("Fit", "SHRINKWRAP")
 	mod.target = body
 	mod.wrap_method = "NEAREST_SURFACEPOINT"
 	mod.wrap_mode = "OUTSIDE"  # only points inside move; OUTSIDE_SURFACE lays every point on the target
 	mod.offset = margin
-	if below is not None or above is not None:
+	limited = below is not None or above is not None or where is not None
+	if limited:
 		group = obj.vertex_groups.new(name="FitBelow")
 		group.add([v.index for v in obj.data.vertices
 			if (below is None or (obj.matrix_world @ v.co).z < below)
-			and (above is None or (obj.matrix_world @ v.co).z > above)], 1.0, "REPLACE")
+			and (above is None or (obj.matrix_world @ v.co).z > above)
+			and (where is None or where(obj.matrix_world @ v.co))], 1.0, "REPLACE")
 		mod.vertex_group = group.name
 	bpy.context.view_layer.objects.active = obj
 	bpy.ops.object.modifier_apply(modifier="Fit")
-	if below is not None or above is not None:
+	if limited:
 		obj.vertex_groups.remove(obj.vertex_groups["FitBelow"])
 
 
@@ -767,7 +770,7 @@ def raise_seam(obj, body, below, half, margin):
 	obj.data.update()
 
 
-def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_radius, top_radius, outer=None, front_drop=0.0, sides=32, rings=14, name="Outfit_Collar"):
+def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_radius, top_radius, outer=None, front_drop=0.0, side_drop=0.0, sides=32, rings=14, name="Outfit_Collar"):
 	"""A knitted turtleneck as a lathe round the neck: each ring follows the neck (a ray out from the axis
 	to the skin) at `gap`, the knit is `thick`, and the top `fold` metres are turned down over it
 	(a second, outer layer from the top down), all of it kept inside `outer` (the jacket) if given.
@@ -812,11 +815,14 @@ def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_rad
 	## Radius per ring and angle: the neck's own so it hugs it, capped at `max_radius` (low rings reach
 	## the shoulders, the top the jaw), then smoothed round each ring and up the tube.
 	heights = [z_from + (z_to - z_from) * k / (rings - 1) for k in range(rings)]
-	## The top dips smoothly round to the front (`front_drop` lower under the chin than at the back),
-	## so the turned-down roll reads as one even band, not a V.
+	## The top is highest at the back, `side_drop` lower at the sides (under the ears) and `front_drop`
+	## lower in front (under the chin), easing between them so the roll reads as one band.
 	def ring_z(k, a):
-		front = (1.0 - math.sin(a)) * 0.5
-		top = z_to - front_drop * front
+		b = math.sin(a)
+		if b >= 0.0:
+			top = z_to - side_drop * (1.0 - b * b)
+		else:
+			top = z_to - side_drop - (front_drop - side_drop) * b * b
 		return z_from + (top - z_from) * k / (rings - 1)
 	## The cap opens up the tube: the shoulders only reach the lowest rings, the front of the neck all of them.
 	caps = [max_radius + (top_radius - max_radius) * min(k / (rings * 0.3), 1.0) for k in range(rings)]
