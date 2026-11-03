@@ -11,7 +11,7 @@ const FPS: int = 30
 const FRAME_COUNT: int = 240
 
 var _out: String = "res://docs/runtime_previews/wallrun_demo"
-var _actor: CharacterBody3D
+var _actor
 var _camera: Camera3D
 var _title: Label
 var _caption: Label
@@ -124,7 +124,7 @@ func _build_stage() -> void:
         stripe.material_override = stripe_mat
         stage.add_child(stripe)
 
-    _actor = ACTOR.new() as CharacterBody3D
+    _actor = ACTOR.new()
     _actor.name = "RuntimeInputDriver"
     stage.add_child(_actor)
     _actor.wall_run.wall_run_started.connect(_on_wall_run_started)
