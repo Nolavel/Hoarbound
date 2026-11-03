@@ -765,3 +765,106 @@ def raise_seam(obj, body, below, half, margin):
 		if hit is not None:
 			v.co = inv @ (hit - up * margin)
 	obj.data.update()
+
+
+def turtleneck(body, axis_from, axis_to, z_from, z_to, gap, thick, fold, max_radius, top_radius, outer=None, sides=32, rings=14, name="Outfit_Collar"):
+	"""A knitted turtleneck as a lathe round the neck: each ring follows the neck (a ray out from the axis
+	to the skin) at `gap`, the knit is `thick`, and the top `fold` metres are turned down over it
+	(a second, outer layer from the top down), all of it kept inside `outer` (the jacket) if given.
+	Axis from axis_from to axis_to, heights z_from..z_to."""
+	import math
+	import bmesh
+	from mathutils import Vector
+	from mathutils.bvhtree import BVHTree
+	bm = bmesh.new()
+	bm.from_mesh(body.data)
+	bm.transform(body.matrix_world)
+	tree = BVHTree.FromBMesh(bm)
+	bm.free()
+	axis = (axis_to - axis_from).normalized()
+
+	def centre(z):
+		t = (z - axis_from.z) / max(axis.z, 1e-6)
+		return axis_from + axis * t
+
+	outer_tree = None
+	if outer is not None:
+		om = bmesh.new()
+		om.from_mesh(outer.data)
+		om.transform(outer.matrix_world)
+		outer_tree = BVHTree.FromBMesh(om)
+		om.free()
+
+	def room(z, a):
+		## How far out the knit may reach before the garment over it (the jacket's collar).
+		if outer_tree is None:
+			return 1e9
+		c = centre(z)
+		hit = outer_tree.ray_cast(c, Vector((math.cos(a), math.sin(a), 0.0)), 0.3)[0]
+		return (hit - c).length - gap - thick * 2.0 - 0.004 if hit is not None else 1e9
+
+	def skin(z, a):
+		c = centre(z)
+		out = Vector((math.cos(a), math.sin(a), 0.0))
+		hit = tree.ray_cast(c, out, 0.3)[0]
+		return (hit - c).length if hit is not None else 0.06
+
+	## Radius per ring and angle: the neck's own so it hugs it, capped at `max_radius` (low rings reach
+	## the shoulders, the top the jaw), then smoothed round each ring and up the tube.
+	heights = [z_from + (z_to - z_from) * k / (rings - 1) for k in range(rings)]
+	## The cap opens up the tube: the shoulders only reach the lowest rings, the front of the neck all of them.
+	caps = [max_radius + (top_radius - max_radius) * min(k / (rings * 0.3), 1.0) for k in range(rings)]
+	radius = [[min(skin(z, 2.0 * math.pi * j / sides), caps[k], room(z, 2.0 * math.pi * j / sides))
+		for j in range(sides)] for k, z in enumerate(heights)]
+	for _ in range(3):
+		radius = [[(row[j - 1] + 2.0 * row[j] + row[(j + 1) % sides]) * 0.25 for j in range(sides)] for row in radius]
+		radius = [[(radius[max(k - 1, 0)][j] + 2.0 * radius[k][j] + radius[min(k + 1, rings - 1)][j]) * 0.25
+			for j in range(sides)] for k in range(rings)]
+	out = bmesh.new()
+	layers = []
+	## Inner wall, outer wall, then the turned-down fold outside the outer wall.
+	for extra, zs in ((gap, heights), (gap + thick, heights)):
+		layer = []
+		for k, z in enumerate(zs):
+			c = centre(z)
+			ring = []
+			for j in range(sides):
+				a = 2.0 * math.pi * j / sides
+				r = radius[k][j] + extra
+				ring.append(out.verts.new(c + Vector((math.cos(a) * r, math.sin(a) * r, 0.0))))
+			layer.append(ring)
+		layers.append(layer)
+	fold_rings = [k for k, z in enumerate(heights) if z >= z_to - fold]
+	fold_layer = []
+	for k in reversed(fold_rings):
+		c = centre(heights[k])
+		ring = []
+		for j in range(sides):
+			a = 2.0 * math.pi * j / sides
+			r = radius[k][j] + gap + thick * 2.0
+			ring.append(out.verts.new(c + Vector((math.cos(a) * r, math.sin(a) * r, 0.0))))
+		fold_layer.append(ring)
+
+	def bridge(a, b, flip=False):
+		for j in range(sides):
+			q = [a[j], a[(j + 1) % sides], b[(j + 1) % sides], b[j]]
+			out.faces.new(list(reversed(q)) if flip else q)
+	inner, outer = layers
+	for k in range(rings - 1):
+		bridge(inner[k], inner[k + 1], True)
+		bridge(outer[k], outer[k + 1])
+	bridge(inner[0], outer[0])
+	## The top lip turns over from the outer wall onto the fold, which runs back down.
+	bridge(outer[-1], fold_layer[0], True)
+	bridge(inner[-1], outer[-1], True)
+	for k in range(len(fold_layer) - 1):
+		bridge(fold_layer[k], fold_layer[k + 1])
+	bmesh.ops.recalc_face_normals(out, faces=out.faces)
+	me = bpy.data.meshes.new(name)
+	out.to_mesh(me)
+	out.free()
+	obj = bpy.data.objects.new(name, me)
+	bpy.context.collection.objects.link(obj)
+	for p in me.polygons:
+		p.use_smooth = True
+	return obj

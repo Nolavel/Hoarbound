@@ -113,6 +113,22 @@ GLOVE_STRAP = (0.08, 0.07, 0.06)
 GLOVE_TAB = (0.58, 0.12, 0.08)
 ## name: (colour, push-out metres, shell thickness, smoothing passes)
 ## Smoothing irons out the mannequin's muscles so cloth reads as panels.
+SWEATER_COLOUR = (0.80, 0.72, 0.58)
+## Knit textures (tools/blender/make_knit_textures.py) and the size one tile covers on the body, metres.
+KNIT_BODY = "assets/characters/gear/knit_body_%s.png"
+KNIT_RIB = "assets/characters/gear/knit_rib_%s.png"
+KNIT_TILE = 0.096
+## Turtleneck: from this far under the neck bone to this far over the head bone (the jaw), its air off
+## the skin, knit thickness and the turned-down fold, metres.
+TURTLENECK_BELOW = 0.0
+TURTLENECK_ABOVE = 0.12
+TURTLENECK_GAP = 0.004
+TURTLENECK_THICK = 0.014
+TURTLENECK_FOLD = 0.05
+## The widest the tube's lowest rings follow the skin (any wider would reach the shoulders), metres.
+TURTLENECK_MAX_R = 0.075
+## Above the shoulders the tube follows the whole neck, its front included, up to this radius.
+TURTLENECK_TOP_R = 0.13
 GARMENTS = {
 	"Jacket": (JACKET_COLOUR, 0.030, 0.010, 12),
 	"Pants": ((0.27, 0.30, 0.36), 0.019, 0.008, 8),
@@ -122,6 +138,10 @@ GARMENTS = {
 	"BeanieCuff": ((0.46, 0.17, 0.14), 0.020, 0.012, 4),
 	"Gloves": (GLOVE_OLIVE, 0.014, 0.006, 3),
 	"GloveCuff": ((0.14, 0.11, 0.08), 0.044, 0.010, 8),
+	## The knit sweater under the jacket (thin, it is hidden but at the open front and cuffs) and its
+	## thick turtleneck rolled up the whole neck.
+	"Sweater": (SWEATER_COLOUR, 0.002, 0.002, 10),
+	"Collar": (SWEATER_COLOUR, 0.018, 0.012, 8),
 }
 BODY_COLOUR = (0.55, 0.55, 0.56)
 TRIM_COLOUR = (0.19, 0.21, 0.13)  # placket and seams
@@ -201,6 +221,10 @@ def regions(body, arm):
 			layers.add("Gloves")
 		if (b.startswith("lowerarm_") and bone_t(arm, b, p) > GAUNTLET_T) or (b.startswith("hand_") and bone_t(arm, b, p) < 0.12):
 			layers.add("GloveCuff")
+		if (b in TORSO and p.z > hem + 0.02) or b in ARMS or b == "neck_01":
+			layers.add("Sweater")
+		if b == "neck_01" or (b in ("spine_03", "clavicle_l", "clavicle_r") and p.z > neck_z.z - 0.03 and abs(p.x) < 0.09):
+			layers.add("Collar")
 		extra.append(layers)
 		b = dom[i]
 		side = b[-1:] if b.endswith(("_l", "_r")) else ""
@@ -292,7 +316,7 @@ def build_garment(body, arm, name, region, spec):
 
 
 ## Garment piece to the equipment mesh name (GarmentData.mesh_node_name) it belongs to.
-ITEM_OF = {"Jacket": "Coat", "Hood": "Coat", "Skirt": "Coat", "Trim": "Coat", "Pants": "Trousers", "Boots": "Boots", "Sole": "Boots",
+ITEM_OF = {"Sweater": "Sweater", "Collar": "Sweater", "Jacket": "Coat", "Hood": "Coat", "Skirt": "Coat", "Trim": "Coat", "Pants": "Trousers", "Boots": "Boots", "Sole": "Boots",
 	"Beanie": "Hat", "BeanieCuff": "Hat", "Gloves": "Gloves", "GloveCuff": "Gloves"}
 ## Which garment owns skin under overlapping layers, outermost first.
 SKIN_PRIORITY = ("Jacket", "Gloves", "Boots", "Pants")
@@ -426,9 +450,16 @@ def build():
 	built = {name: build_garment(body, arm, name, region, spec) for name, spec in GARMENTS.items()}
 	style_gloves(built["Gloves"], built["GloveCuff"], arm)
 	owner_boots(arm, body, [built.pop("Boots"), built.pop("Sole")])
+	sweater = built.pop("Sweater")
+	bpy.data.objects.remove(built.pop("Collar"))
+	knit(sweater, arm, KNIT_BODY)
 	## Cloth first, on the bare body: the jeans, then the jacket over them; the boots come after.
 	pants = owner_pants(arm, body, built.pop("Pants"))
 	jacket = owner_jacket(arm, body, built.pop("Jacket"), pants)
+	collar = owner_turtleneck(arm, body, jacket)
+	## The sweater moves with the jacket where it lies under it, so the two never cross.
+	collar_base = min((collar.matrix_world @ v.co).z for v in collar.data.vertices)
+	G.follow(sweater, jacket, collar_base, collar_base - 0.05)
 	## The jeans' waist and belt are always under the jacket: laid flat on the body there, so a
 	## bend never pushes them through it (they stuck out by up to 3 cm crouching or rolling).
 	hem = min((jacket.matrix_world @ v.co).z for v in jacket.data.vertices)
@@ -444,7 +475,10 @@ def build():
 		lambda p: 1.0 - min(max((distance(p) - STRAP_CORRIDOR) / STRAP_SEAM, 0.0), 1.0))
 	cloth_bones(arm, jacket, hem, lambda p: distance(p) < STRAP_CORRIDOR)
 	boots = bpy.data.objects["Outfit_Boots"]
-	split_body(body, region, G.coverage(body, [(boots, "Boots"), (pants, "Pants"), (jacket, "Jacket")]))
+	split_body(body, region, G.coverage(body, [(collar, "Collar"), (sweater, "Sweater"), (boots, "Boots"),
+		(pants, "Pants"), (jacket, "Jacket")]))
+	## The sweater is always worn: the skin under it is never shown.
+	bpy.data.objects.remove(bpy.data.objects["Skin_Sweater"])
 	## The plaid jacket has its own collar and no hood; the old generated hood sat on it like a scarf.
 	return arm
 
@@ -593,6 +627,73 @@ def owner_jacket(arm, body, generated, pants):
 	## stay at the body when the arms hang.
 	G.bind(jacket, arm)
 	return jacket
+
+
+def owner_turtleneck(arm, body, jacket):
+	"""The sweater's high, thick turtleneck: a knitted tube round the whole neck from the collarbones to
+	the jaw, its top turned down, inside the jacket's collar, skinned from the neck and head so it follows them."""
+	neck = arm.matrix_world @ arm.data.bones["neck_01"].head_local
+	head = arm.matrix_world @ arm.data.bones["Head"].head_local
+	collar = G.turtleneck(body, neck, head, neck.z - TURTLENECK_BELOW, head.z + TURTLENECK_ABOVE,
+		TURTLENECK_GAP, TURTLENECK_THICK, TURTLENECK_FOLD, TURTLENECK_MAX_R, TURTLENECK_TOP_R, jacket)
+	knit(collar, arm, KNIT_RIB)
+	G.skin_from(collar, body)
+	G.bind(collar, arm)
+	return collar
+
+
+def knit(obj, arm, textures):
+	"""Knit wool on a sweater piece: tube UVs (round each arm along it, round the body up it) so the
+	stitches run straight at a real size, and the albedo, normal and ORM textures."""
+	import math
+	me = obj.data
+	uv = me.uv_layers.get("UVMap") or me.uv_layers.new(name="UVMap")
+	names = {g.index: g.name for g in obj.vertex_groups}
+	world = obj.matrix_world
+	for poly in me.polygons:
+		coords = []
+		for li in poly.loop_indices:
+			v = me.vertices[me.loops[li].vertex_index]
+			p = world @ v.co
+			arm_w = sum(g.weight for g in v.groups if names[g.group].startswith(("upperarm", "lowerarm", "hand")))
+			if arm_w > 0.5:
+				## Arms lie along X in the rest T-pose: round the arm, then along it.
+				side = 1.0 if p.x > 0.0 else -1.0
+				coords.append((math.atan2(p.z - 1.42, -p.y) * 0.055, p.x * side))
+			else:
+				coords.append((math.atan2(p.x, -p.y) * 0.16, p.z))
+		## Keep each face on one side of the tube's back seam.
+		us = [c[0] for c in coords]
+		if max(us) - min(us) > 0.2:
+			period = 2.0 * math.pi * (0.055 if abs(max(us)) < 0.2 else 0.16)
+			coords = [(c[0] + period if c[0] < 0.0 else c[0], c[1]) for c in coords]
+		for li, (u, w) in zip(poly.loop_indices, coords):
+			uv.data[li].uv = (u / KNIT_TILE, w / KNIT_TILE)
+	mat = bpy.data.materials.new("Knit_" + obj.name)
+	mat.use_nodes = True
+	nodes = mat.node_tree.nodes
+	links = mat.node_tree.links
+	bsdf = nodes["Principled BSDF"]
+	albedo = nodes.new("ShaderNodeTexImage")
+	albedo.image = bpy.data.images.load(os.path.abspath(textures % "albedo"))
+	links.new(albedo.outputs["Color"], bsdf.inputs["Base Color"])
+	orm = nodes.new("ShaderNodeTexImage")
+	orm.image = bpy.data.images.load(os.path.abspath(textures % "orm"))
+	orm.image.colorspace_settings.name = "Non-Color"
+	split = nodes.new("ShaderNodeSeparateColor")
+	links.new(orm.outputs["Color"], split.inputs["Color"])
+	links.new(split.outputs["Green"], bsdf.inputs["Roughness"])
+	links.new(split.outputs["Blue"], bsdf.inputs["Metallic"])
+	normal = nodes.new("ShaderNodeTexImage")
+	normal.image = bpy.data.images.load(os.path.abspath(textures % "normal"))
+	normal.image.colorspace_settings.name = "Non-Color"
+	nmap = nodes.new("ShaderNodeNormalMap")
+	links.new(normal.outputs["Color"], nmap.inputs["Color"])
+	links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+	me.materials.clear()
+	me.materials.append(mat)
+	for p in me.polygons:
+		p.use_smooth = True
 
 
 def strap_distance():
