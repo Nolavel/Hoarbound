@@ -29,6 +29,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     turns the beam toward the head's facing (up to 50°) and the wrist tilts it (up to 25°).
   - Measured on the stand: wrist bend 45° (was 106°); roll hand 12°, forearm -14°, upper arm -5°
     (was hand -93°).
+- The lighter's present hold moved onto `HandGrip`.
+  - The lighter stands in a closed fist, thumb on its front. It used to sink into a flat hand.
+  - Wrist bend is 8° (was 28°); forearm roll -18° (was -33°).
+  - The thumb now closes onto the held item too.
 - Superseded by the hand grip system above: the earlier searchlight grip fixes.
   - The palm now closes down on the carry bar. `DoorHandIK`'s `into` vector is the back of the hand,
     and the searchlight passed "down", which turned the palm up.

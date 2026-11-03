@@ -2,14 +2,16 @@ extends SceneTree
 
 ## The searchlight in Henry's hand on a bare stage: close-ups of the grip from round the hand, and the numbers
 ## that say whether the fist closes on the carry handle (palm to handle, finger tips round it, beam vs head).
-## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_searchlight_grip.gd -- <out dir>
+## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_searchlight_grip.gd -- <out dir> [lighter]
+## `lighter`: the lighter raised before the chest (the present hold) instead of the searchlight.
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
-const ITEM: String = "res://data/items/searchlight.tres"
+const ITEMS: Dictionary = {&"searchlight": "res://data/items/searchlight.tres", &"lighter": "res://data/items/lighter.tres"}
 
 var _out: String = "user://shots/searchlight_grip"
 var _player: CharacterBody3D
 var _camera: Camera3D
+var _item: StringName = &"searchlight"
 ## Elbow and wrist in the final pose, kept by _report (read while the skeleton reports its update).
 var _elbow: Vector3
 var _wrist: Vector3
@@ -19,6 +21,8 @@ func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if not args.is_empty():
 		_out = args[0]
+	if args.has("lighter"):
+		_item = &"lighter"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out))
 	_run()
 
@@ -54,12 +58,14 @@ func _run() -> void:
 	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
 		(layer as CanvasLayer).visible = false
 	var inventory := _player.get_node(^"InventoryComponent") as InventoryComponent
-	inventory.try_add(load(ITEM) as ItemResource)
+	inventory.try_add(load(ITEMS[_item]) as ItemResource)
 	var held := _player.get_node(^"HeldItemComponent") as HeldItemComponent
-	if not held.present_owned(&"searchlight"):
-		push_error("grip: could not hold the searchlight")
+	if not held.present_owned(_item):
+		push_error("grip: could not hold the %s" % _item)
 		quit(1)
 		return
+	if _item == &"lighter":
+		held.set(&"_presenting", true)
 	_camera = Camera3D.new()
 	_camera.fov = 30.0
 	root.add_child(_camera)
@@ -82,13 +88,13 @@ func _run() -> void:
 ## The carry handle in the hand's own frame (along the fingers' bones, across index to pinky, out of the palm),
 ## how far each finger tip lies from the handle's axis, and the beam against the head's facing.
 func _report(held: HeldItemComponent, label: String) -> void:
-	var prop := held.get_held_prop() as HeldSearchlight
+	var prop: Node3D = held.get_held_prop()
 	var visual := _player.get_node(^"HenryUALVisual") as HenryUALAnimation
 	var rig: Skeleton3D = visual.skeleton
 	var left: bool = visual.get_held_prop() == prop
 	var s: String = "l" if left else "r"
-	var anchor := prop.find_child("GripAnchor", true, false) as Node3D
-	var grip: Vector3 = anchor.global_position
+	var hand_grip: HandGrip = visual.get_hand_grip(left)
+	var grip: Vector3 = hand_grip.handle_centre
 	var wrist: Vector3 = _bone(rig, "hand_" + s)
 	var along: Vector3 = (_bone(rig, "middle_01_" + s) - wrist).normalized()
 	var across: Vector3 = (_bone(rig, "pinky_01_" + s) - _bone(rig, "index_01_" + s)).normalized()
@@ -96,9 +102,9 @@ func _report(held: HeldItemComponent, label: String) -> void:
 	var d: Vector3 = grip - wrist
 	print("[grip] %s hand %s: handle from wrist along %.0f mm, across %.0f mm, out of palm %.0f mm; knuckle span %.0f mm" % [label, s,
 		d.dot(along) * 1000.0, d.dot(across) * 1000.0, d.dot(palm_n) * 1000.0, (_bone(rig, "middle_01_" + s) - wrist).length() * 1000.0])
-	for axis: Array in [["x", anchor.global_basis.x], ["y", anchor.global_basis.y], ["z", anchor.global_basis.z]]:
+	for axis: Array in [["x", prop.global_basis.x], ["y", prop.global_basis.y], ["z", prop.global_basis.z]]:
 		var v: Vector3 = (axis[1] as Vector3).normalized()
-		print("[grip]   anchor %s: along %.2f across %.2f palm %.2f" % [axis[0], v.dot(along), v.dot(across), v.dot(palm_n)])
+		print("[grip]   item %s: along %.2f across %.2f palm %.2f" % [axis[0], v.dot(along), v.dot(across), v.dot(palm_n)])
 	var line: String = "[grip]   tips from the handle centre:"
 	for finger: String in ["thumb", "index", "middle", "ring", "pinky"]:
 		var tip: Vector3 = _bone(rig, "%s_03_%s" % [finger, s]) - grip
@@ -114,12 +120,10 @@ func _report(held: HeldItemComponent, label: String) -> void:
 	print("[grip]   wrist bend %.0f deg (forearm to knuckles); hand +Y to knuckles %.0f deg; roll hand %.0f, forearm %.0f, upper arm %.0f deg" % [
 		rad_to_deg(fore.angle_to(along)), rad_to_deg((hand_basis * Vector3.UP).normalized().angle_to(along)),
 		rad_to_deg(_roll(rig, hand_b)), rad_to_deg(_roll(rig, rig.find_bone("lowerarm_" + s))), rad_to_deg(_roll(rig, rig.find_bone("upperarm_" + s)))])
-	var head: int = rig.find_bone(&"Head")
-	var head_basis: Basis = rig.global_basis * rig.get_bone_global_pose(head).basis
-	var facing: String = ""
-	for axis: Array in [["+x", Vector3.RIGHT], ["+y", Vector3.UP], ["+z", Vector3.BACK], ["-z", Vector3.FORWARD]]:
-		facing += " %s:%.0f" % [axis[0], rad_to_deg(prop.direction.angle_to((head_basis * (axis[1] as Vector3)).normalized()))]
-	print("[grip]   beam %s, to body +Z %.0f deg, to head axes%s" % [prop.direction, rad_to_deg(prop.direction.angle_to(visual.global_basis.z)), facing])
+	if prop is HeldSearchlight:
+		var beam: Vector3 = (prop as HeldSearchlight).direction
+		var head_basis: Basis = rig.global_basis * rig.get_bone_global_pose(rig.find_bone(&"Head")).basis
+		print("[grip]   beam %s, to body +Z %.0f deg, to head +Z %.0f deg" % [beam, rad_to_deg(beam.angle_to(visual.global_basis.z)), rad_to_deg(beam.angle_to((head_basis * Vector3.BACK).normalized()))])
 
 
 ## A bone's twist about its own +Y against its rest, relative to its parent.
