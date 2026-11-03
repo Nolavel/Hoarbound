@@ -21,6 +21,8 @@ const EAT_KEY: String = "TABLE_EAT"
 const DRINK_KEY: String = "TABLE_DRINK"
 
 @export var source: HeatSource
+## The original ring keeps its save key; a second ring supplies its own key in the scene.
+@export var save_key: StringName = &"stove_warmer"
 
 var _state: State = State.EMPTY
 ## The raw item while warming, the warmed one when ready.
@@ -304,7 +306,7 @@ func _build_prompt() -> void:
 	var col := area.get_node_or_null(^"CollisionShape3D") as CollisionShape3D
 	if col != null:
 		var shape := BoxShape3D.new()
-		shape.size = Vector3(0.3, 0.3, 0.3)
+		shape.size = Vector3(0.28, 0.3, 0.24)
 		col.shape = shape
 	add_child(area)
 	_prompt = area as InteractiveArea
@@ -343,7 +345,7 @@ func _build_prompt() -> void:
 
 
 func get_save_key() -> StringName:
-	return &"stove_warmer"
+	return save_key
 
 
 func get_save_data() -> Dictionary:

@@ -48,6 +48,9 @@ func _run() -> void:
 	root.add_child(stove)
 	var warmer := StoveWarmer.new()
 	stove.add_child(warmer)
+	var warmer2 := StoveWarmer.new()
+	warmer2.save_key = &"stove_warmer_2"
+	stove.add_child(warmer2)
 
 	var body := CharacterBody3D.new()
 	body.add_to_group(&"player")
@@ -65,6 +68,7 @@ func _run() -> void:
 	_test_melt_action(clock, actions, stove, warmer, body, inventory)
 	_test_fire_out_resume(clock, actions, stove, warmer, body, inventory)
 	_test_save_restore(warmer)
+	_test_two_warmers(stove, warmer, warmer2, inventory)
 
 	print("test_stove_warmer: %s" % ("PASS" if _failures == 0 else "%d FAILED" % _failures))
 	quit(1 if _failures > 0 else 0)
@@ -176,6 +180,27 @@ func _test_save_restore(warmer: StoveWarmer) -> void:
 	_check(warmer.get_state() == StoveWarmer.State.WARMING and warmer.get_item_id() == &"snow_handful",
 		"saved warming ring did not restore")
 	_check(is_equal_approx(float(warmer.get_save_data()["progress"]), 0.1), "warming progress did not restore")
+
+
+func _test_two_warmers(stove: HeatSource, warmer: StoveWarmer, warmer2: StoveWarmer,
+	inventory: InventoryComponent) -> void:
+	_check(warmer.get_save_key() != warmer2.get_save_key(), "the two rings share a save key")
+	warmer.load_save_data({})
+	warmer2.load_save_data({})
+	inventory.try_add(ItemCatalog.get_item(&"tinned_stew"))
+	inventory.try_add(ItemCatalog.get_item(&"mug_snow"))
+	_check(warmer.put(inventory, &"tinned_stew"), "the first ring rejected stew")
+	_check(warmer2.put(inventory, &"mug_snow"), "the second ring rejected snow")
+	stove.heat_elapsed.emit(0.1)
+	_check(is_equal_approx(float(warmer.get_save_data()["progress"]), 0.1)
+		and is_equal_approx(float(warmer2.get_save_data()["progress"]), 0.1),
+		"both rings did not warm independently")
+	var first: Dictionary = warmer.get_save_data()
+	var second: Dictionary = warmer2.get_save_data()
+	warmer.load_save_data(first)
+	warmer2.load_save_data(second)
+	_check(warmer.get_item_id() == &"tinned_stew" and warmer2.get_item_id() == &"mug_snow",
+		"independent ring contents did not survive save restore")
 
 
 func _check(condition: bool, message: String) -> void:

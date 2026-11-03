@@ -22,6 +22,13 @@ func _process(_delta: float) -> bool:
 		var visual := StoveVisual.new()
 		stove.add_child(visual)
 		root.add_child(stove)
+		var ring_a := visual.get_node_or_null(^"CookRingA") as MeshInstance3D
+		var ring_b := visual.get_node_or_null(^"CookRingB") as MeshInstance3D
+		_check(ring_a != null and ring_b != null, "the cooktop has fewer than two plates")
+		if ring_a != null and ring_b != null:
+			_check(is_equal_approx(ring_a.position.z, -StoveVisual.COOK_RING_Z)
+				and is_equal_approx(ring_b.position.z, StoveVisual.COOK_RING_Z),
+				"the cooking plates are not spaced symmetrically")
 		_check(visual.get_visible_log_count() == 0 and not visual.is_glowing(), "a cold empty stove shows logs or glow")
 
 		_check(stove.add_logs(1), "cold stove would not accept a log")
