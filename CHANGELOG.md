@@ -23,8 +23,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     - Only the crown and pom come down onto the head (×0.84), with 1.5 cm of slack.
     - Hair under the hat is pressed by rays from the middle of the head to the hat's inside, so no tuft
       pokes through the crown.
-    - The jacket's collar and the turtleneck stand 4 mm clear of the head, so his ears no longer cut
-      through them.
+    - His ears no longer cut through the collars (owner). The lobes hang to 1.637 m, and both collars
+      stood higher at the sides (1.676 and 1.683 m). The turtleneck's top now has a back, side and front
+      profile: high at the back, 7 cm lower at the sides, under the chin in front. The jacket's collar is
+      turned down beside each ear to 1.7 cm under the lobes, to leave room for the head's tilt.
+    - Measured in game, deepest ear point inside a collar: turtleneck 17 → 7 mm, with far fewer points.
+      The jacket's collar still reads up to 17 mm on that metric, which also counts ears hanging over the
+      collar's edge. Close-up captures show no crossing.
   - **Knit hat fit:** the build measures the head (`fit_hat`) and writes the fit to
     `assets/characters/henry/knit_hat/hat_fit.json`, which the game applies. The hat is lifted 3 cm,
     centred on the head (it sat 2 cm too far back) and scaled ×1.048 round its axis, so its inside

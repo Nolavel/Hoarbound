@@ -127,8 +127,12 @@ HEAD_CENTRE_Y = 0.01
 HAT_SOURCE = "assets/characters/henry/knit_hat/knit_hat.glb"
 HAT_FIT = "assets/characters/henry/knit_hat/hat_fit.json"
 HAT_BELOW_HAIRLINE = 0.02
-## Air the jacket's collar and the turtleneck keep off the head (his ears), metres.
-EAR_CLEARANCE = 0.004
+## Where the ears' zone starts out from the middle, and the room under the ear lobes kept for the head's
+## tilt in play (it lowers them about 1.5 cm), metres.
+EAR_ZONE_X = 0.055
+## Half-length (front to back) of the stretch of collar turned down beside each ear, metres.
+EAR_ZONE_Y = 0.08
+EAR_TILT_ROOM = 0.017
 HAT_FRINGE_STEP = 0.012
 HAT_CROWN_THICK = 0.006
 HAT_CROWN_SLACK = 0.015
@@ -153,6 +157,9 @@ TURTLENECK_MAX_R = 0.075
 TURTLENECK_TOP_R = 0.13
 ## How much lower the top sits under the chin than at the back of the neck, metres.
 TURTLENECK_FRONT_DROP = 0.115
+## How much lower the top sits at the sides, under Henry's ear lobes (1.637 m; head tilt in play lowers
+## them about 1.5 cm), metres.
+TURTLENECK_SIDE_DROP = 0.07
 GARMENTS = {
 	"Jacket": (JACKET_COLOUR, 0.030, 0.010, 12),
 	"Pants": ((0.27, 0.30, 0.36), 0.019, 0.008, 8),
@@ -692,11 +699,21 @@ def owner_head(arm, body):
 		poly.use_smooth = True
 	fit_hat(head)
 	G.bind(head, arm)
-	## The jacket's collar and the turtleneck stand clear of his big ears.
-	for name in ("Outfit_Jacket", "Outfit_Collar"):
-		layer = bpy.data.objects.get(name)
-		if layer is not None:
-			G.fit_outside(layer, head, EAR_CLEARANCE, above=chin_z + 0.03)
+	## His big ears hang lower than the jacket's collar stood: beside the head the collar is turned
+	## down to under the ear lobes (with room for the head's tilt in play), easing in from the back.
+	ear = [v.co for v in head.data.vertices if abs(v.co.x) > EAR_ZONE_X + 0.04 and v.co.z > chin_z + 0.02]
+	lobe = min(p.z for p in ear)
+	ear_y = sum(p.y for p in ear) / len(ear)
+	jacket = bpy.data.objects.get("Outfit_Jacket")
+	if jacket is not None:
+		limit = lobe - EAR_TILT_ROOM
+		for v in jacket.data.vertices:
+			p = jacket.matrix_world @ v.co
+			side = min(max((abs(p.x) - EAR_ZONE_X) / 0.04, 0.0), 1.0) * min(max((EAR_ZONE_Y - abs(p.y - ear_y)) / 0.04, 0.0), 1.0)
+			if side > 0.0 and p.z > limit:
+				v.co.z -= (p.z - limit) * side
+		jacket.data.update()
+	print("owner_head: ear lobes at %.3f, collars kept under %.3f" % (lobe, lobe - EAR_TILT_ROOM))
 	## The mannequin's own head and neck go: the new head and the turtleneck cover them.
 	bm = bmesh.new()
 	bm.from_mesh(body.data)
@@ -808,7 +825,8 @@ def owner_turtleneck(arm, body, jacket):
 	neck = arm.matrix_world @ arm.data.bones["neck_01"].head_local
 	head = arm.matrix_world @ arm.data.bones["Head"].head_local
 	collar = G.turtleneck(body, neck, head, neck.z - TURTLENECK_BELOW, head.z + TURTLENECK_ABOVE,
-		TURTLENECK_GAP, TURTLENECK_THICK, TURTLENECK_FOLD, TURTLENECK_MAX_R, TURTLENECK_TOP_R, jacket, TURTLENECK_FRONT_DROP)
+		TURTLENECK_GAP, TURTLENECK_THICK, TURTLENECK_FOLD, TURTLENECK_MAX_R, TURTLENECK_TOP_R, jacket, TURTLENECK_FRONT_DROP,
+		TURTLENECK_SIDE_DROP)
 	knit(collar, arm, KNIT_RIB)
 	G.skin_from(collar, body)
 	G.bind(collar, arm)
