@@ -24,6 +24,7 @@
 [ext_resource type="Resource" path="res://data/items/kenny.tres" id="kenny"]
 [ext_resource type="Resource" path="res://data/items/road_flare.tres" id="road_flare"]
 [ext_resource type="Resource" path="res://data/items/bedroll.tres" id="bedroll"]
+[ext_resource type="Resource" path="res://data/items/frying_pan.tres" id="frying_pan"]
 [ext_resource type="Resource" path="res://data/items/hammer.tres" id="hammer"]
 [ext_resource type="Resource" path="res://data/items/nails.tres" id="nails"]
 
@@ -45,4 +46,4 @@
 
 [resource]
 script = ExtResource("catalog")
-items = [ExtResource("searchlight"), ExtResource("axe"), ExtResource("pineapple_open"), ExtResource("water_flask"), ExtResource("water_flask_750"), ExtResource("water_flask_500"), ExtResource("water_flask_250"), ExtResource("water_flask_empty"), ExtResource("knife"), ExtResource("tinned_pineapple"), ExtResource("lighter"), ExtResource("thermal_shirt"), ExtResource("wool_sweater"), ExtResource("worn_coat"), ExtResource("knit_hat"), ExtResource("work_gloves"), ExtResource("work_trousers"), ExtResource("worn_boots"), ExtResource("tinned_stew"), ExtResource("empty_tin"), ExtResource("snow_handful"), ExtResource("boards"), ExtResource("firewood"), ExtResource("tinder"), ExtResource("backpack"), ExtResource("kenny"), ExtResource("road_flare"), ExtResource("bedroll"), ExtResource("hammer"), ExtResource("nails"), ExtResource("tinned_stew_hot"), ExtResource("warm_water"), ExtResource("mug"), ExtResource("mug_snow"), ExtResource("warm_water_mug"), ExtResource("spov_can"), ExtResource("spov_can_open"), ExtResource("stone")]
+items = [ExtResource("searchlight"), ExtResource("axe"), ExtResource("pineapple_open"), ExtResource("water_flask"), ExtResource("water_flask_750"), ExtResource("water_flask_500"), ExtResource("water_flask_250"), ExtResource("water_flask_empty"), ExtResource("knife"), ExtResource("tinned_pineapple"), ExtResource("lighter"), ExtResource("thermal_shirt"), ExtResource("wool_sweater"), ExtResource("worn_coat"), ExtResource("knit_hat"), ExtResource("work_gloves"), ExtResource("work_trousers"), ExtResource("worn_boots"), ExtResource("tinned_stew"), ExtResource("empty_tin"), ExtResource("snow_handful"), ExtResource("boards"), ExtResource("firewood"), ExtResource("tinder"), ExtResource("backpack"), ExtResource("kenny"), ExtResource("road_flare"), ExtResource("bedroll"), ExtResource("frying_pan"), ExtResource("hammer"), ExtResource("nails"), ExtResource("tinned_stew_hot"), ExtResource("warm_water"), ExtResource("mug"), ExtResource("mug_snow"), ExtResource("warm_water_mug"), ExtResource("spov_can"), ExtResource("spov_can_open"), ExtResource("stone")]

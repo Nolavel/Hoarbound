@@ -312,6 +312,8 @@ func _refresh_contents() -> void:
 				shown[slot] = held
 			&"pack_carabiner":
 				_canvas.hang_item(held, 1)
+			&"pack_carabiner_left":
+				_canvas.hang_item(held, 0)
 			_:
 				_canvas.add_loose(held)
 	_side_items = shown

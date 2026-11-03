@@ -45,6 +45,42 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Frying pan on the left carabiner.
+  - The model is Codex's worn 24 cm pan, cherry-picked from `codex` (`assets/items/frying_pan`).
+  - It is now an item (`frying_pan`, 1.1 kg) in the starting kit, kept in the pack's new
+    `pack_carabiner_left` pocket.
+  - It hangs by its oval eye on the rod, as the mug does on the right: a hinge on the rod inside the
+    carabiner's swing, and it knocks on the pack when Henry moves.
+  - `test_backpack_rig` R1 now expects both carabiners loaded. Measured: the pan never sinks into
+    the pack (4.1 mm at most, within the 6 mm contact margin), and it comes to rest.
+  - The pan's Blender sources are kept out of Godot's import with `source/.gdignore`.
+- Bedroll on C (owner request). Crouch moves to left Ctrl.
+  - Henry carries the bedroll again: it is in his starting kit, strapped on the pack.
+  - C shows the open bedroll on the floor ahead as a grey see-through ghost (reddish where it cannot
+    lie). The ghost has no colliders. F lays it out and it unrolls, ready to sleep on. C again puts the
+    ghost away.
+  - The stand-in roll that used to travel along with the unrolling mat is gone.
+  - The unused `toggle_active_gizmo` action is removed: it sat on Ctrl and had no consumer.
+- The old floor mattress is removed from 727 Fort St. Henry sleeps on the bedroll he lays.
+- Fixed `HenryUALAnimation._keep_head_facing` erroring "!is_inside_tree()" hundreds of times. A
+  skeleton outside the tree still reported updates; those calls are now skipped.
+- Static world shaders no longer require tangents. Static world materials never take a normal texture
+  (`make_static`), but `NORMAL_MAP` was still compiled into their shaders. Godot then demanded
+  tangents from every generated chunk mesh (the "requires tangents" warning). `NORMAL_MAP` is now
+  left out under `HFN_STATIC_WORLD`.
+- Under the arm, the strap is no longer swallowed by the sleeve.
+  - Measured with `measure_straps.gd`: the torso cloth there already cleared the strap (1–3 mm). The
+    sleeve lay over it by 11–19 mm, because the arm itself passed through the strap.
+  - Pressing the sleeve toward the arm hit the 30 mm press limit and opened a hole in the sleeve, so
+    that approach was dropped.
+  - Fix: `ArmStrapClearance` (a skeleton modifier, active only while the pack is worn) treats the
+    sleeve as a capsule round the upper arm, its radius measured from the jacket. Where the capsule
+    meets the strap, the arm turns at the shoulder just far enough to clear it, the way spring-bone
+    colliders push bones out. The shoulder joint under the pad is left alone. The turn applies at
+    once and eases back slowly, capped at 25°.
+  - Result: at rest, nothing under the arm (was 8–13 mm); walking 6–9 mm (was 18).
+- The stove ritual's hand breaks the wrist when measured: hand roll up to 94–141° and wrist bend up to
+  85° while laying fuel and lighting. It is next to move onto `HandGrip`.
 - Mug on the carabiner no longer sinks into the hammer/axe handles (`test_backpack_rig` R3/R9 were red on
   `main`). Cause, measured: the 1.4 cm handle capsule slipped between the mug's contact points. Each 2 cm
   cell took its first vertex, so the worst vertex sat 1.7 cm from any point; the mug went 8–10 mm into the

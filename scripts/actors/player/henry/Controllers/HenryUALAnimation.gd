@@ -768,6 +768,9 @@ func _setup_head_look() -> void:
 
 ## The head's facing in its final pose (after the look), read where modifier poses are final.
 func _keep_head_facing() -> void:
+	## A skeleton out of the tree (a copy being built or torn down) still reports updates; it has no world basis.
+	if not is_instance_valid(skeleton) or not skeleton.is_inside_tree():
+		return
 	var bone: int = skeleton.find_bone(head_bone)
 	var axis: Vector3 = [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.BACK, Vector3.FORWARD][int(head_forward_axis)]
 	_head_facing = (skeleton.global_basis * skeleton.get_bone_global_pose(bone).basis * axis).normalized()

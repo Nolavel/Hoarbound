@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Bedroll: Use in the Hub previews it, F places it; laying spends it from the inventory into a laid roll with F — Sleep
+## Bedroll: C (or Use in the Hub) shows its grey ghost, F places it, C puts the ghost away; laying spends it from the inventory into a laid roll with F — Sleep
 ## (a SleepSpot) and a pack prompt; packing returns it; a save restores it.
 ## Run: godot --headless --script tests/systems/test_bedroll.gd
 
@@ -66,9 +66,12 @@ func _check(condition: bool, message: String) -> void:
 	push_error("bedroll: %s" % message)
 
 
-## Hub Use → preview in front of Henry → confirm lays it; no B key any more.
+## Hub Use or C → preview in front of Henry → confirm lays it.
 func _test_use_flow() -> void:
-	_check(not InputMap.has_action(&"lay_bedroll"), "the temporary B action is still mapped")
+	var on_c: bool = false
+	for event: InputEvent in InputMap.action_get_events(&"lay_bedroll") if InputMap.has_action(&"lay_bedroll") else []:
+		on_c = on_c or (event is InputEventKey and (event as InputEventKey).physical_keycode == KEY_C)
+	_check(on_c, "C does not lay the bedroll")
 	var body := CharacterBody3D.new()
 	var inventory := InventoryComponent.new()
 	body.add_child(inventory)
@@ -87,6 +90,15 @@ func _test_use_flow() -> void:
 	_check(inventory.has_item(&"bedroll"), "the preview spent the bedroll before it was placed")
 	bedroll.cancel_placement()
 	_check(not bedroll.is_placing() and inventory.has_item(&"bedroll"), "cancelling lost the bedroll")
+	var press := InputEventAction.new()
+	press.action = &"lay_bedroll"
+	press.pressed = true
+	bedroll._input(press)
+	_check(bedroll.is_placing(), "C did not show the bedroll's ghost")
+	var ghost: Node = body.get_tree().current_scene.find_child("BedrollPreview", true, false) if body.get_tree().current_scene != null else root.find_child("BedrollPreview", true, false)
+	_check(ghost != null and ghost.find_children("*", "CollisionObject3D", true, false).is_empty(), "the ghost carries colliders")
+	bedroll._input(press)
+	_check(not bedroll.is_placing() and inventory.has_item(&"bedroll"), "C again did not put the ghost away")
 	hub.use_item(&"bedroll")
 	_check(bedroll.confirm_placement(), "F did not lay the previewed bedroll")
 	_check(bedroll.is_laid() and not inventory.has_item(&"bedroll"), "the placed bedroll was not laid and spent")

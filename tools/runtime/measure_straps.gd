@@ -111,10 +111,13 @@ func _run() -> void:
 	for name: String in _stats:
 		var st: Dictionary = _stats[name]
 		var by_t: String = ""
+		var by_s: String = ""
 		for b: int in 11:
 			if st.has("t%d" % b):
 				by_t += " t%.1f:%.0f" % [b * 0.1, float(st["t%d" % b]) * 1000.0]
-		print("[straps-mesh] %-12s deepest by share along the strap (mm):%s" % [name, by_t])
+			if st.has("s%d" % b):
+				by_s += " t%.1f:%.0f" % [b * 0.1, float(st["s%d" % b]) * 1000.0]
+		print("[straps-mesh] %-12s torso cloth, deepest by share along the strap (mm):%s | under the sleeve (%d pts):%s | arm turned off the strap up to %.1f deg (overlap %.0f mm)" % [name, by_t, int(st.get("sleeve_mesh", 0)), by_s, float(st.get("arm_turn", 0.0)), float(st.get("arm_overlap", 0.0)) * 1000.0])
 		print("[straps] %-12s jacket in strap %d pts (deepest %.1f mm), sleeve %d (%.1f mm) | underside off cloth %.1f..%.1f mm | free run in pack %.1f mm, in jacket %.1f mm | pack end gap %.1f mm | strap mesh in jacket %d/%d pts (deepest %.1f mm)" % [
 			name, st.inside, st.deep * 1000.0, st.sleeve, st.sleeve_deep * 1000.0, st.gap_min * 1000.0, st.gap_max * 1000.0, st.pack_in * 1000.0, st.free_in * 1000.0, st.end_gap * 1000.0, st.mesh_in, st.mesh_pts, st.mesh_deep * 1000.0])
 	if "--learn" in OS.get_cmdline_user_args():
@@ -178,15 +181,24 @@ func _measure() -> void:
 	_stats[_state] = st
 	var cloth: PackedVector3Array = _skin_jacket()
 	_hash_cloth(cloth)
+	var clearance := _skeleton.get_node_or_null(^"ArmStrapClearance") as ArmStrapClearance
+	if clearance != null:
+		st["arm_turn"] = maxf(float(st.get("arm_turn", 0.0)), rad_to_deg(maxf(clearance._turn[0], clearance._turn[1])))
+		st["arm_overlap"] = maxf(float(st.get("arm_overlap", 0.0)), maxf(clearance.overlap[0], clearance.overlap[1]))
 	## The bent strap mesh itself (the school pack's pad and webbing): its vertices inside the jacket.
 	for q: Vector4 in _straps.bent_vertices(3):
 		var depth: float = _depth_hashed(Vector3(q.x, q.y, q.z), cloth)
 		st.mesh_pts += 1
 		if depth > 0.0005:
-			st.mesh_in += 1
-			st.mesh_deep = maxf(st.mesh_deep, depth)
+			## The arm lying on the strap (a sleeve point nearest) is reported apart from the torso cloth.
+			var key: String = "s" if _sleeve[_near_index] else "t"
+			if key == "s":
+				st["sleeve_mesh"] = int(st.get("sleeve_mesh", 0)) + 1
+			else:
+				st.mesh_in += 1
+				st.mesh_deep = maxf(st.mesh_deep, depth)
 			var bucket: int = int(q.w * 10.0)
-			st["t%d" % bucket] = maxf(float(st.get("t%d" % bucket, 0.0)), depth)
+			st["%s%d" % [key, bucket]] = maxf(float(st.get("%s%d" % [key, bucket], 0.0)), depth)
 	var canvas: BackpackModel = (_straps.get(&"_pack") as PackRig).get_canvas()
 	var to_pack: Transform3D = canvas.global_transform.affine_inverse()
 	for side: int in 2:

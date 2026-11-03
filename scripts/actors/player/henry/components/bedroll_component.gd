@@ -8,6 +8,7 @@ extends Node
 signal bedroll_laid(bedroll: Node3D)
 signal bedroll_packed
 
+const LAY_ACTION: StringName = &"lay_bedroll"
 const CONFIRM_ACTION: StringName = &"interact"
 const CANCEL_ACTION: StringName = &"pause"
 const PLACE_HINT_KEY: String = "BEDROLL_PLACE_HINT"
@@ -15,14 +16,14 @@ const BLOCKED_HINT_KEY: String = "BEDROLL_PLACE_BLOCKED"
 const COLD_HINT_KEY: String = "BEDROLL_TOO_COLD"
 ## Seconds the roll takes to unroll, and the rolled bundle's radius at the start.
 const UNROLL_S: float = 1.2
-const ROLL_RADIUS: float = 0.17
 const PLACE_DISTANCE: float = 1.3
 const MAX_PLACE_DISTANCE: float = 3.0
 const RAY_LENGTH: float = 6.0
 const MAX_SLOPE_DEG: float = 14.0
 const BEDROLL_SIZE: Vector3 = Vector3(0.75, 0.005, 1.9)
-const VALID_COLOR: Color = Color(0.45, 0.9, 0.55, 0.35)
-const INVALID_COLOR: Color = Color(0.95, 0.28, 0.22, 0.35)
+## The placement ghost: the open bedroll itself, grey and see-through; reddish where it cannot lie.
+const VALID_COLOR: Color = Color(0.72, 0.74, 0.76, 0.4)
+const INVALID_COLOR: Color = Color(0.85, 0.35, 0.3, 0.4)
 const ITEM_ID: StringName = &"bedroll"
 const INTERACTIVE_SCENE: String = "res://scenes/environment/interactive/InteractiveArea.tscn"
 const SLEEP_SPOT_SCRIPT: String = "res://scripts/environment/interactive/sleep_spot.gd"
@@ -47,6 +48,14 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	## C shows the bedroll's ghost on the floor (or puts it away again); F lays it out there.
+	if event.is_action_pressed(LAY_ACTION) and not event.is_echo():
+		if is_placing():
+			cancel_placement()
+			get_viewport().set_input_as_handled()
+		elif can_use(ITEM_ID) and begin_placement():
+			get_viewport().set_input_as_handled()
+		return
 	if not is_placing():
 		return
 	if event.is_action_pressed(CONFIRM_ACTION) and not event.is_echo():
@@ -98,17 +107,21 @@ func begin_placement() -> bool:
 	_preview_material.albedo_color = VALID_COLOR
 	_preview_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_preview_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	var pad := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = BEDROLL_SIZE
-	box.material = _preview_material
-	pad.mesh = box
-	pad.position = Vector3(0.0, BEDROLL_SIZE.y * 0.5, 0.0)
-	_preview.add_child(pad)
+	_preview_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	## The real open bedroll as a ghost: meshes only, no colliders, nothing to bump into.
+	var ghost := BEDROLL_OPEN.instantiate() as Node3D
+	for node: Node in ghost.find_children("*", "CollisionObject3D", true, false):
+		node.get_parent().remove_child(node)
+		node.free()
+	for mesh: Node in ghost.find_children("*", "MeshInstance3D", true, false):
+		(mesh as MeshInstance3D).material_override = _preview_material
+		(mesh as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_preview.add_child(ghost)
 	_preview_hint = Label3D.new()
 	_preview_hint.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_preview_hint.font_size = 28
-	_preview_hint.position = Vector3(0.0, 0.5, 0.0)
+	_preview_hint.font_size = 18
+	_preview_hint.outline_size = 6
+	_preview_hint.position = Vector3(0.0, 0.35, 0.0)
 	_preview.add_child(_preview_hint)
 	_update_preview()
 	return true
@@ -144,6 +157,7 @@ func _update_preview() -> void:
 		_preview_material.albedo_color = VALID_COLOR if _preview_valid else INVALID_COLOR
 	if is_instance_valid(_preview_hint):
 		_preview_hint.text = tr(PLACE_HINT_KEY if _preview_valid else (COLD_HINT_KEY if _preview_cold else BLOCKED_HINT_KEY))
+		_preview_hint.modulate = Color(1.0, 1.0, 1.0, 0.7)
 
 
 ## Camera-centre ray to the floor. In headless tests with no camera, the old
@@ -278,13 +292,11 @@ func _spawn(xf: Transform3D, unroll: bool = true) -> void:
 	bedroll_laid.emit(roll)
 
 
-## The bedroll unrolls: the mat spreads from its head end to its foot while a roll of the same cloth,
-## thinning as it goes, travels ahead of it; at the end only the open mat is left.
+## The bedroll unrolls: the mat spreads from its head end to its foot (no stand-in roll travels with it).
 func _unroll(roll: Node3D, visual: Node3D, pad: MeshInstance3D) -> void:
 	var box: AABB = pad.get_aabb()
 	var to_roll: Transform3D = roll.global_transform.affine_inverse() * pad.global_transform
 	var head_z: float = (to_roll * box.position).z
-	var foot_z: float = (to_roll * (box.position + box.size)).z
 	## The mat grows from its head end: a pivot there scales it along its length.
 	var pivot := Node3D.new()
 	pivot.name = "Unroll"
@@ -292,23 +304,11 @@ func _unroll(roll: Node3D, visual: Node3D, pad: MeshInstance3D) -> void:
 	pivot.position = Vector3(0.0, 0.0, head_z)
 	visual.reparent(pivot, false)
 	visual.position.z -= head_z
-	var bundle := MeshInstance3D.new()
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = ROLL_RADIUS
-	cylinder.bottom_radius = ROLL_RADIUS
-	cylinder.height = BEDROLL_SIZE.x
-	cylinder.material = pad.get_active_material(0)
-	bundle.mesh = cylinder
-	roll.add_child(bundle)
 	var spread := func(t: float) -> void:
 		pivot.scale = Vector3(1.0, 1.0, maxf(t, 0.001))
-		var r: float = lerpf(ROLL_RADIUS, 0.02, t)
-		bundle.transform = Transform3D(Basis(Vector3.BACK, PI * 0.5).scaled(Vector3(r / ROLL_RADIUS, 1.0, r / ROLL_RADIUS)),
-			Vector3(0.0, r, lerpf(head_z, foot_z, t)))
 	spread.call(0.0)
 	var tween := roll.create_tween()
 	tween.tween_method(spread, 0.0, 1.0, UNROLL_S).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tween.tween_callback(bundle.queue_free)
 
 
 func _prompt(parent: Node3D, node_name: String, script_path: String, pos: Vector3, size: Vector3,
