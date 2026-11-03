@@ -2,7 +2,8 @@ class_name BedrollComponent
 extends Node
 
 ## Use in the Hub starts a world-space placement preview. The camera-centre ray
-## chooses the ground; green means the whole bedroll fits, red means it does not.
+## chooses the ground; green means the whole bedroll fits in a warm room, red means it does not.
+## Laid, it unrolls from its head to its foot.
 
 signal bedroll_laid(bedroll: Node3D)
 signal bedroll_packed
@@ -11,11 +12,15 @@ const CONFIRM_ACTION: StringName = &"interact"
 const CANCEL_ACTION: StringName = &"pause"
 const PLACE_HINT_KEY: String = "BEDROLL_PLACE_HINT"
 const BLOCKED_HINT_KEY: String = "BEDROLL_PLACE_BLOCKED"
+const COLD_HINT_KEY: String = "BEDROLL_TOO_COLD"
+## Seconds the roll takes to unroll, and the rolled bundle's radius at the start.
+const UNROLL_S: float = 1.2
+const ROLL_RADIUS: float = 0.17
 const PLACE_DISTANCE: float = 1.3
 const MAX_PLACE_DISTANCE: float = 3.0
 const RAY_LENGTH: float = 6.0
 const MAX_SLOPE_DEG: float = 14.0
-const BEDROLL_SIZE: Vector3 = Vector3(0.75, 0.06, 1.9)
+const BEDROLL_SIZE: Vector3 = Vector3(0.75, 0.005, 1.9)
 const VALID_COLOR: Color = Color(0.45, 0.9, 0.55, 0.35)
 const INVALID_COLOR: Color = Color(0.95, 0.28, 0.22, 0.35)
 const ITEM_ID: StringName = &"bedroll"
@@ -23,6 +28,7 @@ const INTERACTIVE_SCENE: String = "res://scenes/environment/interactive/Interact
 const SLEEP_SPOT_SCRIPT: String = "res://scripts/environment/interactive/sleep_spot.gd"
 const PICKUP_SCRIPT: String = "res://scripts/environment/interactive/item_pickup.gd"
 const PACK_KEY: String = "BEDROLL_PACK"
+const BEDROLL_OPEN: PackedScene = preload("res://assets/items/bedroll/bedroll_open.scn")
 
 @export var inventory: InventoryComponent
 
@@ -31,6 +37,7 @@ var _preview: Node3D
 var _preview_material: StandardMaterial3D
 var _preview_hint: Label3D
 var _preview_valid: bool = false
+var _preview_cold: bool = false
 
 
 func _ready() -> void:
@@ -132,10 +139,11 @@ func _update_preview() -> void:
 	var candidate: Dictionary = _raycast_placement()
 	_preview.global_transform = candidate["transform"]
 	_preview_valid = bool(candidate["valid"])
+	_preview_cold = bool(candidate.get("cold", false))
 	if _preview_material != null:
 		_preview_material.albedo_color = VALID_COLOR if _preview_valid else INVALID_COLOR
 	if is_instance_valid(_preview_hint):
-		_preview_hint.text = tr(PLACE_HINT_KEY if _preview_valid else BLOCKED_HINT_KEY)
+		_preview_hint.text = tr(PLACE_HINT_KEY if _preview_valid else (COLD_HINT_KEY if _preview_cold else BLOCKED_HINT_KEY))
 
 
 ## Camera-centre ray to the floor. In headless tests with no camera, the old
@@ -178,7 +186,9 @@ func _raycast_placement() -> Dictionary:
 		excluded.append(collider.get_rid())
 	shape_query.exclude = excluded
 	var clear: bool = space.intersect_shape(shape_query, 8).is_empty()
-	return {"transform": xf, "valid": slope_ok and distance_ok and height_ok and clear}
+	## A bedroll is for sleeping where it is warm: indoors, in a heated room.
+	var warm: bool = ThermalZone.is_warm_at(body.get_world_3d(), point + Vector3.UP * 0.3)
+	return {"transform": xf, "valid": slope_ok and distance_ok and height_ok and clear and warm, "cold": not warm}
 
 
 func _front_transform() -> Transform3D:
@@ -242,38 +252,63 @@ func _lay_at(xf: Transform3D) -> bool:
 	return true
 
 
-func _spawn(xf: Transform3D) -> void:
+func _spawn(xf: Transform3D, unroll: bool = true) -> void:
 	var roll := Node3D.new()
 	roll.name = "LaidBedroll"
 	var world: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
 	world.add_child(roll)
 	roll.global_transform = xf
-	var cloth := StandardMaterial3D.new()
-	cloth.albedo_color = Color(0.2, 0.26, 0.2)
-	cloth.roughness = 1.0
-	var pad := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = BEDROLL_SIZE
-	box.material = cloth
-	pad.mesh = box
-	pad.position = Vector3(0.0, BEDROLL_SIZE.y * 0.5, 0.0)
-	roll.add_child(pad)
-	var head := MeshInstance3D.new()
-	var bundle := CylinderMesh.new()
-	bundle.top_radius = 0.1
-	bundle.bottom_radius = 0.1
-	bundle.height = 0.75
-	bundle.material = cloth
-	head.mesh = bundle
-	head.transform = Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(0.0, 0.1, -0.85))
-	roll.add_child(head)
+	var visual := BEDROLL_OPEN.instantiate() as Node3D
+	visual.name = "OpenMat"
+	roll.add_child(visual)
+	StylizedEnvironmentMaterial.apply_to_tree(visual)
+	var pad := visual.find_child("Bedroll_Continuous_Sheet_Static", true, false) as MeshInstance3D
+	if pad == null:
+		push_error("Bedroll open scene has no continuous sheet mesh")
+		roll.queue_free()
+		return
+	if unroll:
+		_unroll(roll, visual, pad)
 	_prompt(roll, "Sleep", SLEEP_SPOT_SCRIPT, Vector3(0.6, 0.0, 0.2), Vector3(1.0, 1.4, 1.4), pad, {})
-	var pack: Node3D = _prompt(roll, "Pack", PICKUP_SCRIPT, Vector3(0.0, 0.0, -1.2), Vector3(0.9, 1.2, 0.7), head,
+	var pack: Node3D = _prompt(roll, "Pack", PICKUP_SCRIPT, Vector3(0.0, 0.0, -1.2), Vector3(0.9, 1.2, 0.7), pad,
 		{&"item_id": ITEM_ID})
 	pack.connect(&"picked_up", _on_packed)
 	_laid = roll
 	(pack as InteractiveArea).set_item_name(tr(PACK_KEY))
 	bedroll_laid.emit(roll)
+
+
+## The bedroll unrolls: the mat spreads from its head end to its foot while a roll of the same cloth,
+## thinning as it goes, travels ahead of it; at the end only the open mat is left.
+func _unroll(roll: Node3D, visual: Node3D, pad: MeshInstance3D) -> void:
+	var box: AABB = pad.get_aabb()
+	var to_roll: Transform3D = roll.global_transform.affine_inverse() * pad.global_transform
+	var head_z: float = (to_roll * box.position).z
+	var foot_z: float = (to_roll * (box.position + box.size)).z
+	## The mat grows from its head end: a pivot there scales it along its length.
+	var pivot := Node3D.new()
+	pivot.name = "Unroll"
+	roll.add_child(pivot)
+	pivot.position = Vector3(0.0, 0.0, head_z)
+	visual.reparent(pivot, false)
+	visual.position.z -= head_z
+	var bundle := MeshInstance3D.new()
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = ROLL_RADIUS
+	cylinder.bottom_radius = ROLL_RADIUS
+	cylinder.height = BEDROLL_SIZE.x
+	cylinder.material = pad.get_active_material(0)
+	bundle.mesh = cylinder
+	roll.add_child(bundle)
+	var spread := func(t: float) -> void:
+		pivot.scale = Vector3(1.0, 1.0, maxf(t, 0.001))
+		var r: float = lerpf(ROLL_RADIUS, 0.02, t)
+		bundle.transform = Transform3D(Basis(Vector3.BACK, PI * 0.5).scaled(Vector3(r / ROLL_RADIUS, 1.0, r / ROLL_RADIUS)),
+			Vector3(0.0, r, lerpf(head_z, foot_z, t)))
+	spread.call(0.0)
+	var tween := roll.create_tween()
+	tween.tween_method(spread, 0.0, 1.0, UNROLL_S).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(bundle.queue_free)
 
 
 func _prompt(parent: Node3D, node_name: String, script_path: String, pos: Vector3, size: Vector3,
@@ -320,4 +355,4 @@ func load_save_data(data: Dictionary) -> void:
 		_laid = null
 	if data.has("x"):
 		var origin := Vector3(float(data["x"]), float(data["y"]), float(data["z"]))
-		_spawn(Transform3D(Basis(Vector3.UP, float(data.get("yaw", 0.0))), origin))
+		_spawn(Transform3D(Basis(Vector3.UP, float(data.get("yaw", 0.0))), origin), false)

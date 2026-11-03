@@ -8,6 +8,25 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Henry has his own head: the generated candidate made from the owner's reference. It is not final art;
+  it is used as the current head.
+  - **Placement** (`owner_head` in `tools/blender/build_henry_outfit.py`): decimated to 6000 faces with
+    smooth shading. It is scaled so the chin-to-skull height matches the mannequin's head (×0.375; the
+    skull width matches within 3 mm), and its chin sits on the mannequin's chin.
+  - **Rig:** the neck is cut inside the turtleneck, and the head is skinned to `Head`, blending to
+    `neck_01` down the neck. The mannequin's head and neck are removed.
+  - **Turtleneck** top now dips 11.5 cm towards the front, so it sits under the chin and still rises
+    past the jacket collar at the back.
+  - **Knit hat** is lifted 3 cm (`knit_hat_lift`) to clear the new brows.
+  - **Texture names:** every image in the outfit glb is now named after its material. Godot extracts
+    textures by name, and "Image_0" collisions put the jacket's plaid on the head.
+- Bedroll art from the `codex` branch (cherry-picked): `bedroll_open` and `bedroll_packed` models and
+  textures, plus the pack mounting. The laid bedroll unrolls using that open mat.
+- The bedroll is laid only in a warm room: inside an interior thermal zone warmer than freezing. Out in
+  the cold the preview is red, with "Too cold here — lay it in a warm room". Laid, it unrolls over 1.2 s:
+  the bundle rolls from the head to the foot, the pad spreads behind it, and the pillow roll is left at
+  the head. A save restores it laid out, with no unrolling. The warmth check now lives in
+  `ThermalZone.is_warm_at`, which the snow splats also use.
 - Henry wears a chunky knit sweater with a high, thick turtleneck covering the whole neck (owner:
   "вязанный бабушкин свитер с высоким толстым воротником").
   - **Body and sleeves:** built in `tools/blender/build_henry_outfit.py` as a thin layer under the
@@ -618,6 +637,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Dev street spawn (owner request): `World` → Developer tools → **Dev Spawn Street** picks one of ten streets from different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
 
 ### Fixed
+
+- Henry's knee no longer snaps backwards for a frame when he walks in snow. `LegTwoBoneIK` now bends the
+  knee in the leg's own hinge plane. Before, it bent towards whichever side of the new hip-to-target line
+  the old knee lay. A big snow lift put the knee behind that line, so the solve folded it back. Traced on
+  Duval Street: before the fix the knee went from +253 mm ahead to −201 mm behind and back again. This
+  happened at peak swing (about 90° of knee bend), always after `SnowFeet`.
+- Henry stands still at idle (owner: arms swayed and the chest heaved all the time). The idle and crouch
+  idle clips keep only a share of each bone's swing about its mean pose: 40% in the chest, 30% in the
+  neck and head, 15% elsewhere. Measured live over 3 s: arms 3.2–3.9° → 0.6–1.0°, shin 5.5° → 1.3°,
+  chest 1.9° → 0.5°.
 
 - Jeans crotch (owner: "штанина косяк"): the drape left a web between the legs, reaching 11 cm below
   the crotch, which stretched into a tab or bar on every step. The build now lays that web on the body
