@@ -208,12 +208,12 @@ func _label(parent: Control, pos: Vector2, font_size: int, tint: Color, value: S
 func _update_camera(first: bool) -> void:
     var side := float(_actor.wall_side)
     # Camera stays INSIDE the two walls, never looking through the opposite wall.
-    var desired := _actor.global_position + Vector3(-side * 1.00, 2.55, 5.3)
+    var desired: Vector3 = _actor.global_position + Vector3(-side * 1.00, 2.55, 5.3)
     if first:
         _camera.global_position = desired
     else:
         _camera.global_position = _camera.global_position.lerp(desired, 0.23)
-    var focus := _actor.global_position + Vector3(0.0, 0.50, -2.65)
+    var focus: Vector3 = _actor.global_position + Vector3(0.0, 0.50, -2.65)
     _camera.look_at(focus, Vector3.UP)
     _camera.rotate_object_local(Vector3.BACK, deg_to_rad(_actor.camera_roll))
 
