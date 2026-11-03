@@ -128,6 +128,11 @@ All geometry targets use the `StoveVisual` local frame and its world transform.
 The production visual root is 0.10 m below `HeatSource`; the fuel owner’s origin
 is not interchangeable with the geometry/contact frame.
 
+The two cooking plates sit toward Henry's near interaction edge of the stovetop,
+away from the rear flue. A frying pan on one plate points its handle toward Henry;
+the handle and pan body must leave the other plate clear for a second vessel.
+`Warmer` and `Warmer2` use matching positions and separate save keys.
+
 The tinder arc and action share the same accessibility predicate: an actual held
 item or a worn Quick Access pocket, excluding pack-only ownership. Contact spends
 exactly that source via `HeldOwnership`; it never silently falls back to the pack.

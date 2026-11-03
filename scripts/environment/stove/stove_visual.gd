@@ -21,8 +21,9 @@ const DOOR_W: float = 0.44
 const DOOR_H: float = 0.34
 const FLUE_H: float = 1.7
 const FLUE_RADIUS: float = 0.065
-## Two removable cast-iron cooking plates, clear of the rear flue.
-const COOK_RING_X: float = 0.05
+## Two removable cast-iron cooking plates. +X is Henry's side of the stove;
+## their rear edges stay clear of the flue, with the pan handle pointing forward.
+const COOK_RING_X: float = 0.14
 const COOK_RING_Z: float = 0.14
 const COOK_RING_RADIUS: float = 0.11
 ## Fire strength at the catch, before the warm-up grows it: the firebox shows a small

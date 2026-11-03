@@ -26,9 +26,28 @@ func _process(_delta: float) -> bool:
 		var ring_b := visual.get_node_or_null(^"CookRingB") as MeshInstance3D
 		_check(ring_a != null and ring_b != null, "the cooktop has fewer than two plates")
 		if ring_a != null and ring_b != null:
+			_check(is_equal_approx(ring_a.position.x, StoveVisual.COOK_RING_X)
+				and is_equal_approx(ring_b.position.x, StoveVisual.COOK_RING_X),
+				"the cooking plates are not both near the interaction edge")
 			_check(is_equal_approx(ring_a.position.z, -StoveVisual.COOK_RING_Z)
 				and is_equal_approx(ring_b.position.z, StoveVisual.COOK_RING_Z),
 				"the cooking plates are not spaced symmetrically")
+			_check(StoveVisual.COOK_RING_X - StoveVisual.COOK_RING_RADIUS >
+				StoveVisual.flue_base().x + StoveVisual.FLUE_RADIUS,
+				"the cooking plates encroach on the flue")
+			var pan := SurvivalItemVisual.make(&"frying_pan")
+			ring_a.add_child(pan)
+			pan.position.y = (ring_a.mesh as CylinderMesh).height * 0.5
+			var pan_max_z := -INF
+			var pan_max_x := -INF
+			for mesh: Node in pan.find_children("*", "MeshInstance3D", true, false):
+				var in_visual: AABB = visual.global_transform.affine_inverse() * (mesh as MeshInstance3D).global_transform * (mesh as MeshInstance3D).get_aabb()
+				pan_max_z = maxf(pan_max_z, in_visual.end.z)
+				pan_max_x = maxf(pan_max_x, in_visual.end.x)
+			_check(ring_b.position.z - StoveVisual.COOK_RING_RADIUS - pan_max_z > 0.03,
+				"the pan intrudes on the second cooking plate")
+			_check(pan_max_x > ring_a.position.x + 0.20,
+				"the pan handle does not point toward Henry")
 		_check(visual.get_visible_log_count() == 0 and not visual.is_glowing(), "a cold empty stove shows logs or glow")
 
 		_check(stove.add_logs(1), "cold stove would not accept a log")

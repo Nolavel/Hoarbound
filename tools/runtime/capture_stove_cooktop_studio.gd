@@ -24,12 +24,22 @@ func _run() -> void:
 	sun.light_energy = 2.5
 	sun.shadow_enabled = true
 	root.add_child(sun)
+	var front_fill := OmniLight3D.new()
+	front_fill.position = Vector3(1.1, 1.35, 0.8)
+	front_fill.light_energy = 1.8
+	front_fill.omni_range = 3.0
+	root.add_child(front_fill)
 	var stove := HeatSource.new()
 	stove.starts_burning = false
 	var visual := StoveVisual.new()
 	visual.flue_length = 0.9
 	stove.add_child(visual)
 	root.add_child(stove)
+	var ring := visual.get_node(^"CookRingA") as MeshInstance3D
+	var pan := SurvivalItemVisual.make(&"frying_pan")
+	pan.name = "ReviewFryingPan"
+	ring.add_child(pan)
+	pan.position.y = (ring.mesh as CylinderMesh).height * 0.5
 	var camera := Camera3D.new()
 	camera.fov = 37.0
 	root.add_child(camera)

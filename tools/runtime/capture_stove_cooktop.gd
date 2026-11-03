@@ -35,6 +35,20 @@ func _run() -> void:
 		push_error("Both cooking plates and distinct warmer states are required")
 		quit(1)
 		return
+	var ring_a := visual.get_node(^"CookRingA") as MeshInstance3D
+	var pan := SurvivalItemVisual.make(&"frying_pan")
+	pan.name = "ReviewFryingPan"
+	ring_a.add_child(pan)
+	pan.position.y = (ring_a.mesh as CylinderMesh).height * 0.5
+	var pan_max_z := -INF
+	for mesh: Node in pan.find_children("*", "MeshInstance3D", true, false):
+		var in_stove: AABB = stove.global_transform.affine_inverse() * (mesh as MeshInstance3D).global_transform * (mesh as MeshInstance3D).get_aabb()
+		pan_max_z = maxf(pan_max_z, in_stove.end.z)
+	var clearance: float = StoveVisual.COOK_RING_Z - StoveVisual.COOK_RING_RADIUS - pan_max_z
+	if clearance < 0.01:
+		push_error("The pan intrudes into the second cooking plate: %.3f m clearance" % clearance)
+		quit(1)
+		return
 	for player: Node in get_nodes_in_group(&"player"):
 		(player as Node3D).visible = false
 	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
@@ -52,13 +66,20 @@ func _run() -> void:
 	bounce.omni_range = 2.2
 	bounce.position = stove.to_global(Vector3(0.6, 1.6, 0.1))
 	root.add_child(bounce)
+	var review_sun := DirectionalLight3D.new()
+	review_sun.rotation_degrees = Vector3(-55.0, 25.0, 0.0)
+	review_sun.light_energy = 2.0
+	review_sun.shadow_enabled = false
+	root.add_child(review_sun)
 	var focus := stove.to_global(Vector3(0.03, 0.70, 0.0))
 	camera.look_at_from_position(stove.to_global(Vector3(0.46, 2.0, 0.02)), focus)
+	## The first Forward+ draw can still contain the world's red shader warm-up frame.
+	for _i: int in range(8):
+		await process_frame
 	await _save("02_cooktop.png")
-	warmer_a.load_save_data({"state": int(StoveWarmer.State.READY), "item": "tinned_stew_hot", "progress": StoveWarmer.WARM_HOURS})
 	warmer_b.load_save_data({"state": int(StoveWarmer.State.READY), "item": "warm_water_mug", "progress": StoveWarmer.WARM_HOURS})
-	await _save("03_two_items.png")
-	print("STOVE_COOKTOP two plates, distinct save keys: ", warmer_a.get_save_key(), ", ", warmer_b.get_save_key())
+	await _save("03_second_occupied.png")
+	print("STOVE_COOKTOP pan to second plate clearance=%.3f m; distinct save keys: %s, %s" % [clearance, warmer_a.get_save_key(), warmer_b.get_save_key()])
 	quit()
 
 
