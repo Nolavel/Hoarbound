@@ -1,5 +1,5 @@
-"""Procedural chunky knit textures for Henry's sweater: stockinette for the body and sleeves, 2x2 rib for
-the turtleneck. Each stitch is a pair of slanted yarn loops (the knit "V"); fibre noise is added, and
+"""Procedural chunky knit textures for Henry's sweater: burgundy stockinette with a cream Fair Isle pattern
+(colour per stitch, from a chart) for the body and sleeves, plain burgundy 2x2 rib for the turtleneck. Each stitch is a pair of slanted yarn loops (the knit "V"); fibre noise is added, and
 albedo, tangent-space normal and ORM (glTF: AO in R, roughness in G, metallic in B) come from one height map.
 Run: python3 tools/blender/make_knit_textures.py   (writes assets/characters/gear/knit_*.png)
 """
@@ -10,10 +10,11 @@ from PIL import Image
 
 OUT = "assets/characters/gear"
 SIZE = 1024
-## Stitches across and down one tile (seamless), and the yarn colour (oatmeal wool).
+## Stitches across and down one tile (seamless), and the yarns: burgundy ground, cream pattern.
 COLUMNS = 16
 ROWS = 20
-YARN = np.array([0.80, 0.72, 0.58])
+YARN = np.array([0.28, 0.03, 0.05])
+PATTERN_YARN = np.array([0.86, 0.78, 0.62])
 ## How strongly the height map bends the normals, and roughness of wool.
 NORMAL_STRENGTH = 6.0
 ROUGHNESS = 0.92
@@ -62,6 +63,29 @@ def height_map(rib):
 	return (h - h.min()) / (h.max() - h.min())
 
 
+def chart():
+	"""Fair Isle chart for one tile (ROWS x COLUMNS, True = cream stitch): a row of "lice" dots, a band of
+	diamonds with a dot inside on an 8-stitch repeat, lice offset by half, and a small zigzag."""
+	c = np.zeros((ROWS, COLUMNS), dtype=bool)
+	for x in range(COLUMNS):
+		c[0, x] = x % 4 == 0
+		c[12, x] = x % 4 == 2
+		for r in range(3, 10):
+			d = abs((x % 8) - 4) + abs(r - 6)
+			c[r, x] = d == 3 or d == 0
+		c[15 + (x % 4 if x % 4 < 2 else 4 - x % 4), x] = True
+	return c
+
+
+def stitch_colours():
+	"""Per pixel, the colour of the stitch it belongs to."""
+	yy, xx = np.mgrid[0:SIZE, 0:SIZE] / SIZE
+	col = np.floor(xx * COLUMNS).astype(int) % COLUMNS
+	row = np.floor(yy * ROWS).astype(int) % ROWS
+	cream = chart()[row, col]
+	return np.where(cream[..., None], PATTERN_YARN[None, None, :], YARN[None, None, :])
+
+
 def normal_from(h):
 	dx = (np.roll(h, -1, axis=1) - np.roll(h, 1, axis=1)) * 0.5 * NORMAL_STRENGTH
 	dy = (np.roll(h, -1, axis=0) - np.roll(h, 1, axis=0)) * 0.5 * NORMAL_STRENGTH
@@ -73,7 +97,8 @@ def normal_from(h):
 def write(name, rib):
 	h = height_map(rib)
 	shade = 0.55 + 0.45 * h
-	albedo = np.clip(YARN[None, None, :] * shade[..., None], 0.0, 1.0)
+	yarn = YARN[None, None, :] if rib else stitch_colours()
+	albedo = np.clip(yarn * shade[..., None], 0.0, 1.0)
 	Image.fromarray((albedo ** (1 / 2.2) * 255).astype(np.uint8)).save(os.path.join(OUT, "knit_%s_albedo.png" % name))
 	Image.fromarray(normal_from(h)).save(os.path.join(OUT, "knit_%s_normal.png" % name))
 	orm = np.dstack((0.6 + 0.4 * h, np.full_like(h, ROUGHNESS), np.zeros_like(h)))

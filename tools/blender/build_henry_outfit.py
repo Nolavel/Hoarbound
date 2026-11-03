@@ -113,7 +113,7 @@ GLOVE_STRAP = (0.08, 0.07, 0.06)
 GLOVE_TAB = (0.58, 0.12, 0.08)
 ## name: (colour, push-out metres, shell thickness, smoothing passes)
 ## Smoothing irons out the mannequin's muscles so cloth reads as panels.
-SWEATER_COLOUR = (0.80, 0.72, 0.58)
+SWEATER_COLOUR = (0.40, 0.06, 0.09)
 ## Knit textures (tools/blender/make_knit_textures.py) and the size one tile covers on the body, metres.
 KNIT_BODY = "assets/characters/gear/knit_body_%s.png"
 KNIT_RIB = "assets/characters/gear/knit_rib_%s.png"
