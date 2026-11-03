@@ -92,7 +92,7 @@ func _physics_process(delta: float) -> void:
         _jumped = true
 
     # Only the component handles horizontal speed + gravity while wall-running.
-    var active := wall_run.physics_step(delta, forward, true)
+    var active := wall_run.physics_step(delta, forward, _jumped)
     if not active:
         velocity.x = move_toward(velocity.x, 0.0, 12.0 * delta)
         velocity.z = move_toward(velocity.z, -10.0, 30.0 * delta)
