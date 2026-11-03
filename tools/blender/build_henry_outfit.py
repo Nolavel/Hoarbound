@@ -33,6 +33,13 @@ PANTS_FACES = 20000
 ## The cloth proxy the jeans ride on (faces).
 PANTS_PROXY_FACES = 9000
 PANTS_MARGIN = 0.006
+## The crotch web: cloth this near the midline below the crotch and this far off the body is laid on it.
+CROTCH_HALF = 0.05
+CROTCH_SLACK = 0.012
+## How far above the crotch each leg's cloth keeps to its own leg's bones.
+CROTCH_SEAM = 0.01
+## Half-width of the crotch seam band handed to the pelvis (all of it on the seam, none at the edge).
+CROTCH_PELVIS = 0.025
 ## Cloth drape: frames settled, the held band at the waist / collar (m), and fabric settings.
 DRAPE_FRAMES = 40
 PIN_BAND = 0.03
@@ -469,6 +476,11 @@ def owner_pants(arm, body, generated):
 		pants.select_set(True)
 		bpy.context.view_layer.objects.active = pants
 		bpy.ops.object.join()
+	## The drape leaves a web between the legs 11 cm below the crotch; a crotch seam sits on the body.
+	crotch = min((body.matrix_world @ v.co).z for v in body.data.vertices
+		if abs((body.matrix_world @ v.co).x) < 0.01 and (body.matrix_world @ v.co).z > 0.5)
+	G.close_crotch(pants, body, crotch, CROTCH_HALF, PANTS_MARGIN, CROTCH_SLACK)
+	G.raise_seam(pants, body, crotch + CROTCH_SEAM, CROTCH_PELVIS, PANTS_MARGIN)
 	return pants
 
 
@@ -490,6 +502,18 @@ def finish_pants(arm, body, pants, jacket, hem):
 	the boot's inside the shaft, the jacket's under it."""
 	G.skin_from(pants, body, LEGS | FEET | TORSO)
 	G.smooth_weights(pants)
+	## Smoothing runs across the crotch seam: below it each leg's cloth follows its own leg only,
+	## or the seam is dragged across the gap when the legs part; the seam itself follows the pelvis.
+	crotch = min((body.matrix_world @ v.co).z for v in body.data.vertices
+		if abs((body.matrix_world @ v.co).x) < 0.01 and (body.matrix_world @ v.co).z > 0.5) + CROTCH_SEAM
+	for own, other in (("l", "r"), ("r", "l")):
+		side = 1.0 if own == "l" else -1.0
+		for bone in ("thigh", "calf"):
+			G.merge_weights(pants, ["%s_%s" % (bone, other)], "%s_%s" % (bone, own),
+				where=lambda p, side=side: p.x * side >= CROTCH_PELVIS and p.z < crotch)
+	for bone in ("thigh_l", "thigh_r", "calf_l", "calf_r"):
+		G.shift_weights(pants, bone, "pelvis",
+			lambda p: max(0.0, 1.0 - abs(p.x) / CROTCH_PELVIS) if p.z < crotch else 0.0)
 	boots = bpy.data.objects["Outfit_Boots"]
 	shaft_top = max((boots.matrix_world @ v.co).z for v in boots.data.vertices)
 	G.follow(pants, boots, shaft_top + 0.02, shaft_top - 0.01)

@@ -715,3 +715,53 @@ def shift_weights(obj, source, target, share):
 			src.add([v.index], w * (1.0 - k), "REPLACE")
 		else:
 			src.remove([v.index])
+
+
+def close_crotch(obj, body, below, half, margin, slack):
+	"""Pulls cloth hanging in the gap between the legs (below height `below`, within `half` of the
+	midline, more than `slack` off the body) onto the body's nearest point at `margin`: the jeans'
+	crotch web drapes far lower than a crotch seam sits."""
+	import bmesh
+	from mathutils.bvhtree import BVHTree
+	bm = bmesh.new()
+	bm.from_mesh(body.data)
+	bm.transform(body.matrix_world)
+	tree = BVHTree.FromBMesh(bm)
+	bm.free()
+	inv = obj.matrix_world.inverted()
+	moved = 0
+	for v in obj.data.vertices:
+		p = obj.matrix_world @ v.co
+		if p.z >= below or abs(p.x) >= half:
+			continue
+		hit, normal, _, dist = tree.find_nearest(p)
+		if hit is None or dist <= slack:
+			continue
+		v.co = inv @ (hit + normal * margin)
+		moved += 1
+	obj.data.update()
+	return moved
+
+
+def raise_seam(obj, body, below, half, margin):
+	"""Lifts cloth within `half` of the midline and below height `below` straight up onto the body's
+	underside (the crotch) at `margin`: a seam bridging the gap between the legs is stretched into a
+	band whenever they part."""
+	import bmesh
+	from mathutils import Vector
+	from mathutils.bvhtree import BVHTree
+	bm = bmesh.new()
+	bm.from_mesh(body.data)
+	bm.transform(body.matrix_world)
+	tree = BVHTree.FromBMesh(bm)
+	bm.free()
+	inv = obj.matrix_world.inverted()
+	up = Vector((0.0, 0.0, 1.0))
+	for v in obj.data.vertices:
+		p = obj.matrix_world @ v.co
+		if p.z >= below or abs(p.x) >= half:
+			continue
+		hit = tree.ray_cast(p, up, 0.2)[0]
+		if hit is not None:
+			v.co = inv @ (hit - up * margin)
+	obj.data.update()
