@@ -8,6 +8,7 @@ extends Node3D
 const WORLD_SCENE: PackedScene = preload("res://scenes/world/key_west/key_west_reality.tscn")
 const PANE_SCENE: PackedScene = preload("res://tests/scenes/window_727_sdf_probe.tscn")
 const LIT_SHADER: Shader = preload("res://tests/demos/window_727_real_light/lit_frosted_glass_v3.gdshader")
+const LEGACY_LIT_SHADER: Shader = preload("res://tests/demos/window_727_real_light/lit_frosted_glass_v3_blue_control.gdshader")
 const WINDOW_NAME: StringName = &"FrontWindow1"
 
 var _world: World
@@ -16,6 +17,7 @@ var _probe: Window727SDFProbe
 var _pane: MeshInstance3D
 var _unlit: ShaderMaterial
 var _lit: ShaderMaterial
+var _legacy_lit: ShaderMaterial
 var _camera: Camera3D
 var _label: Label
 var _ready_for_capture: bool = false
@@ -47,9 +49,32 @@ func prepare() -> bool:
 	if sun == null or environment_node == null or environment_node.environment == null:
 		push_error("WINDOW_727_REAL_LIGHT_FAIL: production sun / WorldEnvironment missing")
 		return false
+	# The previous capture used live blizzard conditions (visibility 45 m).
+	# For this lighting A/B pin the *existing* calm weather profile, leaving
+	# the actual 727 environment, sun and stove source unchanged.
+	var weather: WeatherController = null
+	for node: Node in get_tree().get_nodes_in_group(&"weather_controller"):
+		if _world.is_ancestor_of(node):
+			weather = node as WeatherController
+			break
+	if weather == null:
+		push_error("WINDOW_727_REAL_LIGHT_FAIL: game WeatherController missing")
+		return false
+	weather.scheduler_enabled = false
+	weather.set_weather(&"calm", true)
+	if weather.get_current_profile() == null or weather.get_current_profile().id != &"calm":
+		push_error("WINDOW_727_REAL_LIGHT_FAIL: cannot pin real calm weather")
+		return false
+	# The world Environment is already heavily fogged at density 1.0.
+	# Duplicate the resource ONLY inside the test-scene and dial back the
+	# veil to see specular/diffuse details. No synthetic lights or room.
+	environment_node.environment = environment_node.environment.duplicate(true) as Environment
+	var test_env: Environment = environment_node.environment
+	test_env.fog_density = 0.012
+	test_env.volumetric_fog_enabled = false
 	var grade: ColorGradeController = environment_system.color_grade_controller
-	if grade == null or not grade.use_shelter_profile():
-		push_error("WINDOW_727_REAL_LIGHT_FAIL: production shelter colour profile unavailable")
+	if grade == null or not grade.set_profile(&"HFN_ColdAsh_Shelter") or not grade.is_inside_shelter():
+		push_error("WINDOW_727_REAL_LIGHT_FAIL: canonical shelter grade unavailable")
 		return false
 	var stove: HeatSource = _house.get_node_or_null(^"ShelterZone/Stove") as HeatSource
 	if stove == null or stove.flame_light == null:
@@ -89,17 +114,21 @@ func prepare() -> bool:
 	_unlit = _probe.get("_sdf") as ShaderMaterial
 	_lit = _unlit.duplicate(true) as ShaderMaterial
 	_lit.shader = LIT_SHADER
+	_legacy_lit = _unlit.duplicate(true) as ShaderMaterial
+	_legacy_lit.shader = LEGACY_LIT_SHADER
 	for p: StringName in [&"growth_seed", &"melt_seed", &"pane_aspect"]:
-		_lit.set_shader_parameter(p, _unlit.get_shader_parameter(p))
+		for variant: ShaderMaterial in [_lit, _legacy_lit]:
+			variant.set_shader_parameter(p, _unlit.get_shader_parameter(p))
 	_make_camera()
 	_hide_debug_ui()
 	_make_label()
 	_ready_for_capture = true
-	print("WINDOW_727_REAL_LIGHT_OK source=key_west_reality.tscn pane=FrontWindow1 tris=%d sun=%s sun_energy=%.3f stove=%s stove_energy=%.3f shelter_grade=%s glass_mesh=%s" % [
+	print("WINDOW_727_REAL_LIGHT_OK source=key_west_reality.tscn pane=FrontWindow1 tris=%d sun=%s sun_energy=%.3f stove=%s stove_energy=%.3f shelter_grade=%s weather=%s fog_density=%.3f volumetric_fog=%s glass_mesh=%s" % [
 		_probe.verified_triangles(),
 		String(sun.get_path()), sun.light_energy,
 		String(stove.flame_light.get_path()), stove.flame_light.light_energy,
-		String(grade.get_current_profile_id()),
+		String(grade.get_current_profile_id()), String(weather.get_current_profile().id),
+		test_env.fog_density, str(test_env.volumetric_fog_enabled),
 		String(_source_mesh.get_path())
 	])
 	return true
@@ -117,17 +146,18 @@ func set_capture_time(seconds: float) -> void:
 	var fraction: float = clampf(phase_time / 3.0, 0.0, 1.0)
 	# Reuse precisely the approved V3 morph/circles/timing in both phases.
 	_probe.set_test_time(3.0 + phase_time)
-	_lit.set_shader_parameter(&"heated_warmth", fraction)
-	_lit.set_shader_parameter(&"blob_data", _unlit.get_shader_parameter(&"blob_data"))
-	_lit.set_shader_parameter(&"blob_count", _unlit.get_shader_parameter(&"blob_count"))
-	_pane.material_override = _lit if lit_phase else _unlit
+	for variant: ShaderMaterial in [_lit, _legacy_lit]:
+		variant.set_shader_parameter(&"heated_warmth", fraction)
+		variant.set_shader_parameter(&"blob_data", _unlit.get_shader_parameter(&"blob_data"))
+		variant.set_shader_parameter(&"blob_count", _unlit.get_shader_parameter(&"blob_count"))
+	_pane.material_override = _lit if lit_phase else _legacy_lit
 	# Small *repeated* shift reveals real specularity, identical in A/B.
 	var offset: float = sin(phase_time * 1.2) * 0.10
 	var target: Vector3 = _house.global_transform * Vector3(-3.0, 2.0, 10.196)
 	var eye: Vector3 = _house.global_transform * Vector3(-3.0 + offset, 1.97, 7.75)
 	_camera.look_at_from_position(eye, target, Vector3.UP)
 	_label.text = "727 FORT ST / FRONTWINDOW1 | %s | WARMTH: %02d%%" % [
-		"V3 ORIGINAL (UNSHADED)" if not lit_phase else "V3 WITH REAL SUN + STOVE LIGHT",
+		"V3 BLUE LIT CONTROL" if not lit_phase else "V4 NEUTRAL CRYSTAL + WET LIGHT",
 		int(fraction * 100.0)
 	]
 

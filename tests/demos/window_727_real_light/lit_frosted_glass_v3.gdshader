@@ -1,13 +1,14 @@
-// Issue #281: real-light comparison copy of V3, same frost/union and wet mask.
-// on the same reusable blob SDF union. Test-only; no production changes. Test-only material, never assigned to the production GLB.
+// Issue #281, fourth pass. Neutral silver/warm grey ice, physically lit wet
+// zones and crystal microfacets, same V3 SDF/geometry as the blue lit control.
+// Test-only: never assigned to the production landmark or game materials.
 shader_type spatial;
 render_mode cull_disabled, blend_mix, depth_prepass_alpha;
 
 #include "res://shaders/environment/windows/frost_pattern.gdshaderinc"
 #include "res://shaders/common/sdf_smooth_union.gdshaderinc"
 
-uniform vec4 frost_tint : source_color = vec4(0.88, 0.94, 0.98, 1.0);
-uniform vec4 glass_tint : source_color = vec4(0.62, 0.76, 0.86, 1.0);
+uniform vec4 frost_tint : source_color = vec4(0.93, 0.91, 0.86, 1.0);
+uniform vec4 glass_tint : source_color = vec4(0.73, 0.72, 0.68, 1.0);
 uniform float heated_warmth : hint_range(0.0, 1.0) = 0.0;
 uniform float growth_seed = 0.28;
 uniform float melt_seed = 0.73;
@@ -121,14 +122,26 @@ void fragment() {
 	// highlight without taking over the intentionally NPR crystal language.
 	vec3 glass_base = frost_color(UV, f, glass_tint.rgb, frost_tint.rgb);
 	glass_base = mix(glass_base, glass_tint.rgb * 0.78, wet_film * 0.22);
-	vec3 wet_highlight = vec3(0.82, 0.93, 0.96);
+	vec3 wet_highlight = vec3(0.92, 0.88, 0.79);
 	ALBEDO = mix(glass_base, wet_highlight, clamp(wet_trace * 0.19 + front * wet_film * 0.09, 0.0, 0.42));
 	float frost_alpha = clamp(f.x * 0.95 + f.y * 0.15, 0.0, 1.0);
 	float liquid_alpha = wet_film * 0.19 + wet_trace * 0.13;
 	ALPHA = clamp(mix(0.095, 0.995, frost_alpha) + liquid_alpha, 0.0, 1.0);
-	ROUGHNESS = mix(mix(0.25, 0.96, f.x), 0.085, wet_film);
-	// Lit-material test: real scene sun and stove SpotLight3D shade the
-	// water differently from frosted crystal; no fake highlights or lights.
+	// Break the identical mirrored plate response into real microfacets.
+	// Rough chalky frost, smoother crystalline branches and glossy, thin water
+	// respond to the actual sun/room stove — not to fake emissive highlights.
+	float crystal_branch = clamp(f.y * 0.92 + f.x * 0.18, 0.0, 1.0);
+	float frost_roughness = mix(0.84, 0.29, crystal_branch);
+	ROUGHNESS = mix(frost_roughness, 0.07, clamp(wet_film * 0.9 + wet_trace * 0.25, 0.0, 1.0));
 	METALLIC = 0.0;
-	SPECULAR = mix(0.35, 0.95, clamp(wet_film + wet_trace * 0.5, 0.0, 1.0));
+	SPECULAR = mix(0.48 + crystal_branch * 0.22, 0.89, clamp(wet_film + wet_trace * 0.4, 0.0, 1.0));
+
+	// Small stable surface-normal irregularities allow individual crystalline
+	// ridges to catch real light; wet patches stay optically smoother.
+	vec2 facets = vec2(
+		frost_value_noise(UV * vec2(80.0, 57.0) + vec2(1.0, 3.2)),
+		frost_value_noise(UV * vec2(79.0, 59.0) + vec2(7.7, 0.9))
+	) - vec2(0.5);
+	float micro_bump = clamp(f.x * 0.24 + crystal_branch * 0.42, 0.0, 0.50) * (1.0 - wet_film);
+	NORMAL = normalize(NORMAL + vec3(facets * micro_bump, 0.0));
 }

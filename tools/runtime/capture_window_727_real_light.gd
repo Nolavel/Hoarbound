@@ -25,6 +25,10 @@ func _capture() -> void:
 		push_error("WINDOW_727_REAL_LIGHT_FAIL: real scene setup failed after warmup")
 		quit(3)
 		return
+	# Stabilize the *real* day/night direct beam after switching blizzard to
+	# the game's calm profile. Both A/B halves then share the same sunlight.
+	for step: int in range(72):
+		await process_frame
 	for frame: int in range(COUNT):
 		demo.set_capture_time(float(frame) / float(FPS))
 		await process_frame
