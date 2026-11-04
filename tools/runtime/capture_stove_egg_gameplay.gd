@@ -4,8 +4,8 @@ extends SceneTree
 ## The fixed camera is a review close-up, not Henry's final work framing.
 const SCENE: PackedScene = preload("res://archive/graciosa/scenes/Graciosa_Island_Terrain.tscn")
 const OUT: String = "res://docs/runtime_previews/key_west_727/egg_gameplay"
-const FPS: int = 12
-const FRAMES: int = 72
+const FPS: int = 15
+const FRAMES: int = 90
 
 func _initialize() -> void:
 	call_deferred(&"_run")
@@ -47,8 +47,22 @@ func _run() -> void:
 		(player as Node3D).visible = false
 	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
 		(layer as CanvasLayer).visible = false
+	var controller := stove.get_node(^"CooktopInteraction") as CooktopInteractionController
+	if controller == null:
+		push_error("Cooking review: standing cooktop session missing")
+		quit(1)
+		return
+	controller.select_plate(0)
+	controller._preview_inventory = inventory
+	var ring_layer := CanvasLayer.new()
+	ring_layer.layer = 6
+	root.add_child(ring_layer)
+	var action_ring := StoveInteractionRing.new()
+	action_ring.bind_cooktop(controller)
+	ring_layer.add_child(action_ring)
+	action_ring.set_shown(true)
 	var camera := Camera3D.new()
-	camera.fov = 37.0
+	camera.fov = 38.0
 	root.add_child(camera)
 	camera.make_current()
 	var bounce := OmniLight3D.new()
@@ -57,26 +71,30 @@ func _run() -> void:
 	bounce.omni_range = 2.2
 	bounce.position = stove.to_global(Vector3(0.6, 1.8, 0.1))
 	root.add_child(bounce)
-	var focus: Vector3 = stove.to_global(Vector3(0.14, 0.68, 0.0))
-	camera.look_at_from_position(stove.to_global(Vector3(0.48, 1.68, 0.42)), focus)
+	var focus: Vector3 = stove.to_global(CooktopInteractionController.COOK_FOCUS)
+	camera.look_at_from_position(stove.to_global(CooktopInteractionController.COOK_EYE), focus)
 	for _i: int in range(8):
 		await process_frame
 	for frame: int in range(FRAMES):
-		if frame == 6 and not first.put_pan(inventory):
+		if frame == 7 and not first.put_pan(inventory):
 			push_error("Cooking review: pan failed to transfer")
 			quit(1)
 			return
-		if frame == 16 and not first.crack_egg(inventory):
+		if frame == 19 and not first.crack_egg(inventory):
 			push_error("Cooking review: egg failed to transfer")
 			quit(1)
 			return
-		if frame == 35:
+		if frame == 57:
+			controller.select_plate(1)
+		if frame == 64:
+			controller.select_plate(0)
+		if frame == 40:
 			second.load_save_data({"state": int(StoveWarmer.State.READY), "item": "warm_water_mug", "progress": StoveWarmer.WARM_HOURS})
-		if frame >= 16 and first.get_egg_state() == StoveWarmer.EggState.COOKING:
-			first._egg_intro_seconds = minf(3.0, float(frame - 16) / float(FPS))
-			if frame >= 43:
+		if frame >= 19 and first.get_egg_state() == StoveWarmer.EggState.COOKING:
+			first._egg_intro_seconds = minf(3.0, float(frame - 19) / float(FPS))
+			if frame >= 54:
 				## Drive the real heat_elapsed event, accelerated only for this review.
-				stove.heat_elapsed.emit(StoveWarmer.EGG_COOK_HOURS / 23.0)
+				stove.heat_elapsed.emit(StoveWarmer.EGG_COOK_HOURS / 27.0)
 			first._sync_egg_visual()
 		await process_frame
 		await RenderingServer.frame_post_draw

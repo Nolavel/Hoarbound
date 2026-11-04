@@ -718,14 +718,14 @@ jobs:
             2>&1 | tee cooking_capture.log
           grep -q "COOKING_GAMEPLAY_CAPTURE" cooking_capture.log
           ! grep -q "SHADER ERROR" cooking_capture.log
-          test "$(find docs/runtime_previews/key_west_727/egg_gameplay/frames -name 'f_*.png' | wc -l)" -eq 72
-          ffmpeg -hide_banner -loglevel error -y -framerate 12 \
+          test "$(find docs/runtime_previews/key_west_727/egg_gameplay/frames -name 'f_*.png' | wc -l)" -eq 90
+          ffmpeg -hide_banner -loglevel error -y -framerate 15 \
             -i docs/runtime_previews/key_west_727/egg_gameplay/frames/f_%03d.png \
             -an -c:v libx264 -crf 22 -pix_fmt yuv420p -movflags +faststart \
             docs/runtime_previews/key_west_727/egg_gameplay/egg_gameplay_6s.mp4
           test -s docs/runtime_previews/key_west_727/egg_gameplay/egg_gameplay_6s.mp4
-          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_025.png docs/runtime_previews/key_west_727/egg_gameplay/cracking.png
-          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_066.png docs/runtime_previews/key_west_727/egg_gameplay/fried.png
+          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_052.png docs/runtime_previews/key_west_727/egg_gameplay/cracking.png
+          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_082.png docs/runtime_previews/key_west_727/egg_gameplay/fried.png
       - name: Upload 6-second video and review stills
         if: always()
         uses: actions/upload-artifact@v4

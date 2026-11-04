@@ -56,6 +56,18 @@ func _run() -> void:
 	_check(is_equal_approx(float(inventory.get_first_instance_state(&"frying_pan").get("wear", -1.0)), 0.37),
 		"pan instance state did not survive cooking")
 	_check(first.get_save_key() != second.get_save_key(), "rings share a save key")
+	var cook_mode := CooktopInteractionController.new()
+	stove.add_child(cook_mode)
+	cook_mode.select_plate(1)
+	_check(cook_mode.get_selected_warmer() == second, "RMB cooktop selection did not resolve second ring")
+	cook_mode.select_plate(0)
+	_check(cook_mode.get_selected_warmer() == first, "cooktop selection did not return to first ring")
+	var context := StoveInteractionRing.new()
+	context.bind_cooktop(cook_mode)
+	root.add_child(context)
+	_check(context.describe(StoveInteractionRing.Arc.FUEL)["state"] == StoveInteractionRing.ArcState.INACTIVE,
+		"empty cooktop incorrectly shows a pan")
+	context.queue_free()
 	print("test_stove_egg_cooking: %s" % ("all checks passed" if _failed == 0 else "%d FAILED" % _failed))
 	quit(1 if _failed > 0 else 0)
 

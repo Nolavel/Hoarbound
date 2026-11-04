@@ -8,7 +8,7 @@ extends Node3D
 
 const TOTAL_SECONDS: float = 7.0
 const FLOOR_Y: float = 0.0085
-const EGG_Y: float = 0.145
+const EGG_Y: float = 0.185
 const SHELL_RX: float = 0.028
 const SHELL_RY: float = 0.021
 const SHELL_RZ: float = 0.020
@@ -41,17 +41,17 @@ func seek_seconds(seconds: float) -> void:
 	if _left == null:
 		return
 	var split: float = _smooth(0.64, 1.25, _time)
-	var departure: float = _smooth(2.05, 2.80, _time)
+	var departure: float = _smooth(2.45, 3.25, _time)
 	_whole.visible = _time < 0.64
 	_whole.position.y = EGG_Y
 	for side: int in [-1, 1]:
 		var half: Node3D = _left if side < 0 else _right
-		half.position = Vector3(side * (0.028 * split + 0.050 * departure),
-			EGG_Y + 0.014 * split + 0.022 * departure,
+		half.position = Vector3(side * (0.038 * split + 0.055 * departure),
+			EGG_Y + 0.008 * split + 0.022 * departure,
 			side * 0.004 * split)
-		half.rotation.z = side * deg_to_rad(31.0 * split + 7.0 * departure)
-		half.rotation.y = side * deg_to_rad(36.0 * split + 7.0 * departure)
-		half.visible = _time >= 0.64 and _time < 2.80
+		half.rotation.z = side * deg_to_rad(43.0 * split + 12.0 * departure)
+		half.rotation.y = side * deg_to_rad(32.0 * split + 9.0 * departure)
+		half.visible = _time >= 0.64 and _time < 3.25
 		half.get_node(^"BrokenRim").visible = split > 0.03
 	_crack.visible = _time >= 0.46 and _time < 1.18
 	_crack.position.y = EGG_Y
@@ -64,22 +64,22 @@ func seek_seconds(seconds: float) -> void:
 	if _white.visible:
 		_white.mesh = _make_white(spread, false)
 		_white_material.set_shader_parameter("albedo_color",
-			Color(0.72, 0.69, 0.59).lerp(Color(0.85, 0.83, 0.77), _smooth(2.1, 5.5, _time)))
+			Color(0.91, 0.89, 0.83).lerp(Color(0.86, 0.85, 0.78), _smooth(2.1, 5.5, _time)))
 	if _crisp.visible:
 		_crisp.mesh = _make_white(spread, true)
 
-	var flowing: bool = _time >= 1.10 and _time < 1.64
+	var flowing: bool = _time >= 1.08 and _time < 2.22
 	_stream.visible = flowing
 	if flowing:
 		_stream.mesh = _make_stream(_time)
 
-	_yolk.visible = _time >= 1.62
+	_yolk.visible = _time >= 1.65
 	_yolk_highlight.visible = _yolk.visible
 	if _yolk.visible:
-		var drop: float = _smooth(1.62, 2.13, _time)
-		var contact: float = _smooth(2.08, 2.30, _time)
+		var drop: float = _smooth(1.65, 2.44, _time)
+		var contact: float = _smooth(2.36, 2.59, _time)
 		_yolk.position = Vector3(-0.003 - 0.002 * drop,
-			lerpf(EGG_Y - 0.018, FLOOR_Y + 0.012, drop), 0.005)
+			lerpf(EGG_Y - 0.034, FLOOR_Y + 0.012, drop), 0.005)
 		_yolk.scale = Vector3(0.88, 0.88, 0.88).lerp(Vector3(1.16, 0.70, 1.11), contact)
 		if contact > 0.0:
 			_yolk.scale.x *= 1.0 + 0.025 * sin((_time - 2.0) * 9.5) * exp(-0.35 * (_time - 2.0))
@@ -143,7 +143,7 @@ void fragment() {
 	_crack.material_override = StylizedEnvironmentMaterial.make_unshaded(Color(0.22, 0.16, 0.13))
 	add_child(_crack)
 
-	_white_material = StylizedEnvironmentMaterial.make(Color(0.72, 0.69, 0.59), 0.89, true, true)
+	_white_material = StylizedEnvironmentMaterial.make(Color(0.91, 0.89, 0.83), 0.89, true, true)
 	_white = MeshInstance3D.new()
 	_white.name = "SpreadingWhite"
 	_white.material_override = _white_material
@@ -155,7 +155,7 @@ void fragment() {
 	_stream = MeshInstance3D.new()
 	_stream.name = "FallingAlbumen"
 	var stream_material := StandardMaterial3D.new()
-	stream_material.albedo_color = Color(0.86, 0.84, 0.76, 0.48)
+	stream_material.albedo_color = Color(0.93, 0.91, 0.84, 0.58)
 	stream_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	stream_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	stream_material.roughness = 0.8
@@ -171,7 +171,7 @@ void fragment() {
 	yolk_mesh.radial_segments = 32
 	yolk_mesh.rings = 12
 	_yolk.mesh = yolk_mesh
-	_yolk.material_override = StylizedEnvironmentMaterial.make(Color(0.78, 0.32, 0.07), 0.58)
+	_yolk.material_override = StylizedEnvironmentMaterial.make(Color(0.93, 0.51, 0.09), 0.58)
 	add_child(_yolk)
 	_yolk_highlight = MeshInstance3D.new()
 	_yolk_highlight.name = "YolkPaintedHighlight"
@@ -354,15 +354,15 @@ func _make_stream(seconds: float) -> ArrayMesh:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var indices := PackedInt32Array()
-	var extent: float = _smooth(1.10, 1.55, seconds)
-	var upper: float = EGG_Y + 0.006
+	var extent: float = _smooth(1.08, 1.95, seconds)
+	var upper: float = EGG_Y - 0.025
 	var lower: float = lerpf(upper - 0.008, FLOOR_Y + 0.005, extent)
 	for row: int in range(10):
 		var u: float = float(row) / 9.0
 		var y: float = lerpf(upper, lower, u)
-		var center: Vector2 = Vector2(-0.022 * (1.0 - u) + 0.0012 * sin(u * 6.0 + seconds * 11.0),
+		var center: Vector2 = Vector2(-0.004 * u + 0.0012 * sin(u * 6.0 + seconds * 11.0),
 			0.0018 * sin(u * 4.0))
-		var radius: float = 0.0015 + 0.0025 * sin(PI * u) * (1.0 - _smooth(1.72, 1.91, seconds))
+		var radius: float = 0.0019 + 0.0030 * sin(PI * u) * (1.0 - _smooth(2.03, 2.22, seconds))
 		for col: int in range(9):
 			var angle: float = float(col) / 8.0 * TAU
 			var n := Vector3(cos(angle), 0.0, sin(angle))

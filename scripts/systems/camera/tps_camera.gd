@@ -401,6 +401,11 @@ func set_work_framing(focus: Vector3, eye: Vector3) -> void:
 
 
 ## Hands the view back to the follow rig; it eases there at work_framing_rate.
+func set_fixed_work_framing(focus: Vector3, eye: Vector3) -> void:
+	_rig_work.set_framing(focus, eye, Vector2(_yaw, _pitch_deg))
+	_rig_work.lock_look = true
+
+
 func clear_work_framing() -> void:
 	_rig_work.clear()
 
