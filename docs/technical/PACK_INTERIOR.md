@@ -51,17 +51,16 @@ Code: `scripts/items/backpack/pack_straps.gd` (`PackStraps`). `PackRig` builds i
 Code: `scripts/items/backpack/pack_quick_shelf.gd` (`PackQuickShelf`), a child of the Hub camera.
 
 - Each real quick pocket is a card on the Quick Access gradient (`BG_frame.gdshader`, drawn once per fade direction and tinted). There is no text.
-- **Shown on the pack** (side pockets, both carabiners; `PackRig.SHOWN_POCKETS`): nothing is duplicated. The card stands square to the camera behind the real item (`PackRig.get_pocket_visual`), sized to its screen outline, or around the empty pocket's spot (`get_pocket_spot`).
-  - It draws over everything but the item: the item writes a stencil mask through its overlay, and the card reads it (`STENCIL_REF`, no depth test). The hover rim chains after the mask (`next_pass`).
-  - It stops at the edge of the pack opening on screen and shows at `BACKDROP_ALPHA`, so it never covers what the straps hold. A strapped item under the cursor wins over a card.
+- **Shown on the pack** (side pockets, both carabiners; `PackRig.SHOWN_POCKETS`): nothing is drawn over it. An unseen card stands square to the camera behind the real item (`PackRig.get_pocket_visual`), or around the empty pocket's spot (`get_pocket_spot`), only so the ring can hover it. It stops at the pack opening's edge, and a strapped item under the cursor wins over it.
 - **Hidden** (coat, thigh, the lid pocket): the card stands in a column at the frame's side with the pocket's 3D item turning on it, body pockets left and the pack's right.
+- **Selected pocket** (the Quick Access pick, what Henry last held; `QuickAccessComponent.get_selected_index`): its card is amber, as the HUD's active card; on the pack its item wears an amber rim.
 - The fit rule is the equipment's own (`can_stow`): a taken pocket is full (`INVENTORY_POCKET_FULL`), and a size-class refusal is `INVENTORY_POCKET_TOO_SMALL`.
 
 ## Hands
 
 Code: `scripts/items/backpack/pack_handling.gd` (`PackHandling`), `pack_cursor.gd` (`PackCursor`), `shaders/items/item_outline.gdshader`. Keys: `docs/technical/CONTROLS.md`.
 
-- **Hover.** The ring hovers a strapped item (picked on its place's box) or a card, with a pale rim and the "G — drop" hint.
+- **Hover.** The ring hovers a strapped item (picked on its place's box) or a pocket, and flows into the item's outline on screen (the convex hull of a sample of its vertices, resampled around its middle; `PackCursor`), with the "G — drop" hint beside it.
 - **Carry.** LMB (pad A) takes it, the ring hides, and the item rides the cursor with a warm rim. Letting go:
   - over a card moves it into that pocket (`move_to_zone`, or `move_between_zones` from another pocket);
   - over the pack moves it under the straps (`move_to_pack`, after the straps' own refusal check);

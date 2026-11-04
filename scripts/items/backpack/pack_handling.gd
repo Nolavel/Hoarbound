@@ -17,7 +17,10 @@ const STICK_SPEED: float = 0.7
 ## How far the pick ray reaches, metres.
 const RAY_M: float = 3.0
 const OUTLINE_SHADER: Shader = preload("res://shaders/items/item_outline.gdshader")
-const HOVER_RIM: Color = Color(1.0, 1.0, 1.0, 0.85)
+## The selected pocket's item on the pack wears the HUD's active amber.
+const SELECTED_RIM: Color = Color(1.0, 0.72, 0.1, 0.94)
+## The ring's outline samples at most this many vertices of a mesh.
+const OUTLINE_VERTICES: int = 240
 const HELD_RIM: Color = Color(1.0, 0.78, 0.25, 0.95)
 const REFUSED_RIM: Color = Color(1.0, 0.22, 0.18, 0.95)
 ## A refusal shows this long, seconds; a carried item hangs this share of the way from the camera to the pack.
@@ -40,7 +43,9 @@ var enabled: bool = true
 ## The item a hand carries: {"id", "from_slot" or "from_item", "visual": Node3D}; empty when none.
 var _carry: Dictionary = {}
 var _pad_used: bool = false
-var _rimmed: Node3D
+var _selected_rimmed: Node3D
+## Sampled vertices per mesh resource (see _screen_outline()).
+static var _vertex_cache: Dictionary = {}
 
 
 ## Hands for `quick_hub`'s pack (`pack_straps`) and quick pockets (`quick_shelf`), seen through `view`, the ring
@@ -68,6 +73,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			press(action, event.is_pressed())
 			get_viewport().set_input_as_handled()
 			return
+
+
+func _exit_tree() -> void:
+	if is_instance_valid(_selected_rimmed):
+		_rim(_selected_rimmed, Color.TRANSPARENT)
 
 
 ## Moves the ring to `at` (viewport pixels).
@@ -123,6 +133,9 @@ func _process(delta: float) -> void:
 		cursor.at = cursor_at
 		cursor.shown = _carry.is_empty()
 		cursor.hovering = hovered_item >= 0 or (hovered_slot >= 0 and StringName(shelf.slots[hovered_slot]["item_id"]) != &"")
+		var target: Node3D = _hovered_visual() if cursor.hovering and _carry.is_empty() else null
+		cursor.outline = _screen_outline(target) if target != null else PackedVector2Array()
+		cursor.outline_key = target.get_instance_id() if target != null else 0
 		cursor.hint = tr(&"INVENTORY_HINT_DROP") % ("Y" if _pad_used else "G")
 
 
@@ -206,15 +219,11 @@ func _follow_carry() -> void:
 	(_carry["visual"] as Node3D).global_position = at
 
 
-## Rims and card tints: the hovered thing pale, where a carried item would go warm, where it would not red.
+## Card tints and rims: where a carried item would go pale, where it would not red; the selected pocket's
+## item on the pack amber. The hovered thing gets the ring's outline instead of a rim.
 func _show_hover() -> void:
 	var carried: StringName = _carry.get("id", &"")
-	var target: Node3D = null
 	if carried == &"":
-		if hovered_item >= 0:
-			target = straps.items[hovered_item]["visual"]
-		elif hovered_slot >= 0:
-			target = shelf.visual_of(hovered_slot)
 		var lit: int = hovered_slot if hovered_slot >= 0 and StringName(shelf.slots[hovered_slot]["item_id"]) != &"" else -1
 		shelf.set_tint(lit, PackQuickShelf.ACTIVE)
 	else:
@@ -225,12 +234,39 @@ func _show_hover() -> void:
 		var into_pack: bool = int(_carry.get("from_slot", -1)) >= 0 and hovered_slot < 0 and _over_pack()
 		var held: Node3D = (_carry["visual"] as Node3D).get_child(0)
 		_rim(held, REFUSED_RIM if into_pack and straps.refusal(carried) != &"" else HELD_RIM)
-	if target != _rimmed:
-		if is_instance_valid(_rimmed):
-			_rim(_rimmed, Color.TRANSPARENT)
-		if target != null:
-			_rim(target, HOVER_RIM)
-		_rimmed = target
+	var chosen: Node3D = null
+	if shelf.selected >= 0 and shelf.selected < shelf.slots.size() and shelf.slots[shelf.selected]["on_pack"]:
+		chosen = shelf.visual_of(shelf.selected)
+	if chosen != _selected_rimmed:
+		if is_instance_valid(_selected_rimmed):
+			_rim(_selected_rimmed, Color.TRANSPARENT)
+		if chosen != null:
+			_rim(chosen, SELECTED_RIM)
+		_selected_rimmed = chosen
+
+
+## What the ring is over: a strapped item's visual, or a pocket's item (on the pack or on its card).
+func _hovered_visual() -> Node3D:
+	if hovered_item >= 0:
+		return straps.items[hovered_item]["visual"]
+	if hovered_slot >= 0:
+		return shelf.visual_of(hovered_slot)
+	return null
+
+
+## The convex outline of `visual` on screen (viewport pixels), from a sample of its meshes' vertices.
+func _screen_outline(visual: Node3D) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for node: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh == null or mesh.mesh == null or not mesh.is_visible_in_tree():
+			continue
+		var at: Transform3D = mesh.global_transform
+		for v: Vector3 in _sampled_vertices(mesh.mesh):
+			var world: Vector3 = at * v
+			if not camera.is_position_behind(world):
+				points.append(camera.unproject_position(world))
+	return Geometry2D.convex_hull(points) if points.size() >= 3 else PackedVector2Array()
 
 
 func _move_by_stick(delta: float) -> void:
@@ -238,6 +274,21 @@ func _move_by_stick(delta: float) -> void:
 	if stick.length() > 0.0:
 		_pad_used = true
 		set_cursor(cursor_at + stick * STICK_SPEED * camera.get_viewport().get_visible_rect().size.y * delta)
+
+
+## Up to OUTLINE_VERTICES of `mesh`'s vertices, evenly picked, measured once per mesh resource.
+static func _sampled_vertices(mesh: Mesh) -> PackedVector3Array:
+	if _vertex_cache.has(mesh):
+		return _vertex_cache[mesh]
+	var all := PackedVector3Array()
+	for surface: int in mesh.get_surface_count():
+		all.append_array(mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX] as PackedVector3Array)
+	var picked := PackedVector3Array()
+	var stride: int = maxi(all.size() / OUTLINE_VERTICES, 1)
+	for i: int in range(0, all.size(), stride):
+		picked.append(all[i])
+	_vertex_cache[mesh] = picked
+	return picked
 
 
 ## The cursor's ray in pack space: [origin, direction].
@@ -259,10 +310,6 @@ static func _rim(visual: Node3D, colour: Color) -> void:
 		rim = ShaderMaterial.new()
 		rim.shader = OUTLINE_SHADER
 		rim.set_shader_parameter(&"rim_colour", colour)
-	## An item on the pack keeps its card's stencil mask (PackQuickShelf); the rim draws after it.
-	if visual.has_meta(&"backdrop_mask"):
-		(visual.get_meta(&"backdrop_mask") as Material).next_pass = rim
-		return
 	for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		if mesh is MeshInstance3D:
 			(mesh as MeshInstance3D).material_overlay = rim

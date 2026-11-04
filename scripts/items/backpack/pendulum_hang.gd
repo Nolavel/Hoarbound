@@ -21,6 +21,8 @@ const MIN_LEVER_M: float = 0.002
 ## backs it off; and the bisection steps.
 const OVERSHOOT: float = 1.5
 const BISECTIONS: int = 6
+## Backing out of the margin turns at most this much a frame, rad.
+const BACK_OUT_STEP: float = 0.02
 ## Contact keeps this gap (a collision margin): the points sample the surface every ~1.5 cm, so a tool
 ## handle (1.4 cm radius) dips up to ~5 mm between them (measured on the mug).
 const CONTACT_MARGIN: float = 0.006
@@ -84,6 +86,7 @@ func _process(delta: float) -> void:
 	var omega: float = TAU * swing_hz
 	var step: float = minf(delta, MAX_SPRING_STEP_S)
 	_speed_before = _dir_speed
+	var from_dir: Vector3 = _dir
 	_dir_speed += ((target - _dir) * omega * omega - _dir_speed * 2.0 * swing_damping * omega) * step
 	_dir = (_dir + _dir_speed * step).normalized()
 	var to_parent: Basis = get_parent_node_3d().global_basis.orthonormalized().inverse()
@@ -97,7 +100,7 @@ func _process(delta: float) -> void:
 		local = Vector3.DOWN.slerp(local, limit / local.angle_to(Vector3.DOWN)).normalized()
 	_dir = to_parent.inverse() * local
 	if contact_depth.is_valid():
-		_resolve_contact(to_parent)
+		_resolve_contact(to_parent, from_dir)
 		_keep_on_hinge(to_parent)
 		local = (to_parent * _dir).normalized()
 	basis = Basis(Quaternion(Vector3.DOWN, local))
@@ -122,7 +125,7 @@ func _keep_on_hinge(to_parent: Basis) -> void:
 ## Leans the hanging thing off what it touches, dropping the swing's rate into the obstacle
 ## (inelastic contact) and rubbing off half the rest (friction). It turns about the pin (free: toward
 ## the normal) by the least angle that clears every point; depth left is worked off next frame.
-func _resolve_contact(to_parent: Basis) -> void:
+func _resolve_contact(to_parent: Basis, from_dir: Vector3) -> void:
 	var pivot: Vector3 = global_position
 	var from_parent: Basis = to_parent.inverse()
 	var points: PackedVector3Array = _all_points()
@@ -146,6 +149,11 @@ func _resolve_contact(to_parent: Basis) -> void:
 	points = hit[2]
 	if _touching and depth < CONTACT_SLOP:
 		_dir_speed *= CONTACT_FRICTION  # resting on it inside the margin: nothing to correct
+		return
+	## Not inside last frame (within the margin) and in now: it stops where its own path meets the margin
+	## (conservative advancement), instead of being pushed out sideways past the contact and falling back.
+	if hinge_axis != Vector3.ZERO and (_deepest_hit(points, to_parent, from_dir, pivot)[0] as Vector4).w < CONTACT_MARGIN:
+		_advance_to_contact(points, to_parent, pivot, from_dir)
 		return
 	var start: Vector4 = hit[0]
 	var axis: Vector3
@@ -175,6 +183,54 @@ func _resolve_contact(to_parent: Basis) -> void:
 	if _dir_speed.dot(out) < 0.0:
 		_dir_speed -= out * _dir_speed.dot(out)
 	_dir_speed *= CONTACT_FRICTION
+
+
+## Bisects along the frame's swing from `from_dir` (outside, maybe in the margin) to the blocked `_dir`; stops at
+## the contact, dropping the rate into it (inelastic) and rubbing off the rest (friction).
+func _advance_to_contact(points: PackedVector3Array, to_parent: Basis, pivot: Vector3, from_dir: Vector3) -> void:
+	var clear: float = 0.0
+	var blocked: float = 1.0
+	var to: Vector3 = _dir
+	var from_depth: float = (_deepest_hit(points, to_parent, from_dir, pivot)[0] as Vector4).w
+	## It goes no deeper than it was (a grazing contact's depth barely changes over degrees of swing).
+	var allowed: float = maxf(from_depth, CONTACT_SLOP * 0.5)
+	for _i: int in range(BISECTIONS):
+		var mid: float = (clear + blocked) * 0.5
+		if (_deepest_hit(points, to_parent, from_dir.slerp(to, mid).normalized(), pivot)[0] as Vector4).w > allowed:
+			blocked = mid
+		else:
+			clear = mid
+	_dir = from_dir.slerp(to, clear).normalized()
+	if clear <= 0.0 and from_depth > CONTACT_SLOP:
+		_dir = _back_out(points, to_parent, pivot, from_dir, to)
+	var into: Vector3 = (to - from_dir).normalized()
+	var rate: float = maxf(_speed_before.dot(into), 0.0)
+	if rate > KNOCK_MIN_RATE * (KNOCK_RESTRIKE if _touching else 1.0):
+		knocked.emit(rate)
+	_touching = true
+	if _dir_speed.dot(into) > 0.0:
+		_dir_speed -= into * _dir_speed.dot(into)
+	_dir_speed *= CONTACT_FRICTION
+
+
+## Deeper than CONTACT_SLOP at `from_dir`: turns about the pin back the way it came, at most BACK_OUT_STEP a
+## frame, to half the slop; it never flips to the obstacle's far side.
+func _back_out(points: PackedVector3Array, to_parent: Basis, pivot: Vector3, from_dir: Vector3, to: Vector3) -> Vector3:
+	var axis: Vector3 = (to_parent.inverse() * hinge_axis).normalized()
+	var back: float = -signf(axis.dot(from_dir.cross(to)))
+	if back == 0.0:
+		return from_dir
+	var blocked: float = 0.0
+	var clear: float = BACK_OUT_STEP
+	if (_deepest_hit(points, to_parent, from_dir.rotated(axis, back * clear), pivot)[0] as Vector4).w > CONTACT_SLOP * 0.5:
+		return from_dir.rotated(axis, back * clear)  # a grazing contact: creep out over frames, never jump
+	for _i: int in range(BISECTIONS):
+		var mid: float = (blocked + clear) * 0.5
+		if (_deepest_hit(points, to_parent, from_dir.rotated(axis, back * mid), pivot)[0] as Vector4).w > CONTACT_SLOP * 0.5:
+			blocked = mid
+		else:
+			clear = mid
+	return from_dir.rotated(axis, back * clear)
 
 
 ## Its own contact points and every other one of whatever hangs from it (that one's own contact

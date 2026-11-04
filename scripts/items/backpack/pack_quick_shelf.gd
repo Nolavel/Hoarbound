@@ -2,10 +2,10 @@ class_name PackQuickShelf
 extends Node3D
 
 ## Quick Access while Henry holds the pack open (3D inventory). A pocket whose item shows on the pack itself
-## (side pockets, carabiners) gets its Quick Access gradient card (BG_frame.gdshader) behind that real item,
-## nothing duplicated. Only pockets that cannot be seen (coat, thigh, the lid) stand as cards with their 3D item
-## in a column at the frame's sides, no text: body pockets left, the pack's right. Moves go through the Hub, so
-## the cards always show the equipment's own state.
+## (side pockets, carabiners) has no card to see: its item there is what the ring hovers, through an unseen
+## card behind it. Only pockets that cannot be seen (coat, thigh, the lid) stand as cards on the Quick Access
+## gradient (BG_frame.gdshader) with their 3D item, no text: body pockets left, the pack's right. The selected
+## pocket (the Quick Access pick, what Henry holds) shows amber, as on the HUD.
 
 const BG_FRAME: Shader = preload("res://assets/materials/Shaders/BG_frame.gdshader")
 ## A card's side in its own space, and how big its item stands on it (shares of that side).
@@ -26,12 +26,9 @@ const BACKDROP_PAD_M: float = 0.015
 const BACKDROP_BEHIND_M: float = 0.01
 ## The card of an empty pocket on the pack is this big around its spot, metres.
 const EMPTY_SPOT_M: float = 0.07
-## The stencil value an item on the pack writes so its card, drawn over everything, stays behind it.
-const STENCIL_REF: int = 7
-## A card behind an item on the pack lies over the pack and the coat, so it shows this much of its tint's alpha.
-const BACKDROP_ALPHA: float = 0.55
-## Card tints: hovered (warm yellow, as the active Quick Access card), filled, empty, refusing.
-const ACTIVE: Color = Color(1.0, 0.82, 0.0, 0.9)
+## Card tints: hovered (pale), selected (amber, the HUD's active card), filled, empty, refusing.
+const ACTIVE: Color = Color(0.92, 0.92, 0.9, 0.9)
+const SELECTED: Color = Color(1.0, 0.72, 0.1, 0.94)
 const FILLED: Color = Color(0.42, 0.42, 0.42, 0.82)
 const EMPTY: Color = Color(0.3, 0.3, 0.3, 0.38)
 const REFUSE: Color = Color(1.0, 0.25, 0.2, 0.9)
@@ -44,6 +41,9 @@ var slots: Array[Dictionary] = []
 var camera: Camera3D
 var hub: PlayerHubComponent
 var pack: PackRig
+## The selected slot (QuickAccessComponent's pick), or -1.
+var selected: int = -1
+var _quick: QuickAccessComponent
 ## The gradient for the left column (fading toward the pack, rightward) and the right one (leftward).
 var _frames: Array[SubViewport] = []
 
@@ -53,6 +53,7 @@ func setup(quick_hub: PlayerHubComponent, view: Camera3D) -> void:
 	hub = quick_hub
 	camera = view
 	pack = hub.pack
+	_quick = hub.get_parent().get_node_or_null(^"QuickAccessComponent") as QuickAccessComponent if hub.get_parent() != null else null
 	_frames = [_gradient_viewport(0), _gradient_viewport(1)]
 	var rows: Array[int] = [0, 0]
 	for zone: Dictionary in hub.get_quick_access_zones():
@@ -61,8 +62,10 @@ func setup(quick_hub: PlayerHubComponent, view: Camera3D) -> void:
 		var on_pack: bool = pack != null and parts.size() == 2 and parts[0] == "pack" and PackRig.shows_pocket(StringName(parts[1]))
 		var column: int = 1 if parts[0] == "pack" else 0
 		slots.append({"path": path, "on_pack": on_pack, "column": column, "row": -1 if on_pack else rows[column],
-			"item_id": zone["item_id"], "card": _card(_frames[1 - column], on_pack), "visual": null, "tint": EMPTY})
-		if not on_pack:
+			"item_id": zone["item_id"], "card": _card(_frames[1 - column]), "visual": null, "tint": EMPTY})
+		if on_pack:
+			(slots[-1]["card"] as MeshInstance3D).visible = false
+		else:
 			rows[column] += 1
 	if hub.equipment != null:
 		hub.equipment.slot_changed.connect(func(_path: StringName, _id: StringName) -> void: refresh())
@@ -111,16 +114,14 @@ func pick(origin: Vector3, direction: Vector3) -> int:
 	return -1
 
 
-## Tints slot k's card ACTIVE or REFUSE; every other card (or all, with Color.TRANSPARENT) shows filled or empty.
+## Tints slot k's card ACTIVE or REFUSE; every other card (or all, with Color.TRANSPARENT) shows selected,
+## filled or empty.
 func set_tint(k: int, colour: Color) -> void:
 	for i: int in slots.size():
-		var want: Color = colour if i == k and colour.a > 0.0 else (FILLED if StringName(slots[i]["item_id"]) != &"" else EMPTY)
+		var want: Color = colour if i == k and colour.a > 0.0 else _rest_tint(i)
 		if slots[i]["tint"] != want:
 			slots[i]["tint"] = want
-			var shown: Color = want
-			if slots[i]["on_pack"]:
-				shown.a *= BACKDROP_ALPHA
-			((slots[i]["card"] as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = shown
+			((slots[i]["card"] as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = want
 
 
 ## What shows slot k's item: the real one on the pack, or the one standing on its card.
@@ -137,6 +138,10 @@ func _process(delta: float) -> void:
 	var half_h: float = DEPTH_M * tan(deg_to_rad(camera.fov) * 0.5)
 	var half_w: float = half_h * view.x / maxf(view.y, 1.0)
 	var size: float = half_h * 2.0 * CARD_SHARE
+	var pick: int = _quick.get_selected_index() if _quick != null else -1
+	if pick != selected:
+		selected = pick
+		set_tint(-1, Color.TRANSPARENT)
 	for k: int in slots.size():
 		var slot: Dictionary = slots[k]
 		if slot["on_pack"]:
@@ -150,13 +155,13 @@ func _process(delta: float) -> void:
 			visual.rotate_y(SPIN * delta)
 
 
-## Slot k's card stands square to the camera just behind its item on the pack (or its empty spot), covering it.
+## Slot k's unseen card stands square to the camera behind its item on the pack (or its empty spot), so the
+## ring hovers it; it stops at the pack opening's edge.
 func _place_backdrop(k: int) -> void:
 	var to_view: Transform3D = camera.global_transform.affine_inverse()
 	var visual: Node3D = visual_of(k)
 	var corners: Array[Vector3] = []
 	if visual != null and visual.is_visible_in_tree():
-		_mask(visual)
 		var box: AABB = BackpackModel._local_bounds(visual)
 		for i: int in 8:
 			corners.append(to_view * (visual.global_transform * box.get_endpoint(i)))
@@ -187,11 +192,6 @@ func _place_backdrop(k: int) -> void:
 	var span: Vector2 = high - low
 	var card: MeshInstance3D = slots[k]["card"]
 	card.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3(span.x, span.y, 1.0) / CARD_M), Vector3(middle.x, middle.y, -depth))
-	## It fades toward the frame's middle, as the side columns do.
-	var frame: Texture2D = _frames[0 if middle.x > 0.0 else 1].get_texture()
-	var material := card.material_override as StandardMaterial3D
-	if material.albedo_texture != frame:
-		material.albedo_texture = frame
 
 
 ## The pack opening's left and right x on the view plane at `depth` (camera space).
@@ -206,45 +206,17 @@ func _opening_span(to_view: Transform3D, depth: float) -> Vector2:
 	return span
 
 
+func _rest_tint(i: int) -> Color:
+	if i == selected:
+		return SELECTED
+	return FILLED if StringName(slots[i]["item_id"]) != &"" else EMPTY
+
+
 func _pocket(k: int) -> StringName:
 	return StringName(String(slots[k]["path"]).get_slice(EquipmentComponent.POCKET_SEPARATOR, 1))
 
 
-## The item on the pack writes STENCIL_REF where it is seen, so its card never covers it.
-func _mask(visual: Node3D) -> void:
-	if visual.has_meta(&"backdrop_mask"):
-		return
-	var mask := StandardMaterial3D.new()
-	mask.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mask.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mask.albedo_color = Color(0.0, 0.0, 0.0, 0.0)
-	mask.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	mask.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
-	mask.stencil_flags = BaseMaterial3D.STENCIL_FLAG_WRITE
-	mask.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_ALWAYS
-	mask.stencil_reference = STENCIL_REF
-	mask.render_priority = -1
-	mask.set_meta(&"backdrop_mask", true)
-	visual.set_meta(&"backdrop_mask", mask)
-	for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
-		if mesh is MeshInstance3D:
-			(mesh as MeshInstance3D).material_overlay = mask
-
-
-## Takes the masks off the pack's items when the cards go.
-func _exit_tree() -> void:
-	for k: int in slots.size():
-		var visual: Node3D = visual_of(k) if slots[k]["on_pack"] else null
-		if visual == null or not visual.has_meta(&"backdrop_mask"):
-			continue
-		visual.remove_meta(&"backdrop_mask")
-		for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
-			if mesh is MeshInstance3D:
-				(mesh as MeshInstance3D).material_overlay = null
-
-
-## A card on the gradient; one behind an item on the pack draws over everything but that item (stencil).
-func _card(frame: SubViewport, on_pack: bool = false) -> MeshInstance3D:
+func _card(frame: SubViewport) -> MeshInstance3D:
 	var card := MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(CARD_M, CARD_M)
@@ -254,12 +226,6 @@ func _card(frame: SubViewport, on_pack: bool = false) -> MeshInstance3D:
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.albedo_texture = frame.get_texture()
 	material.albedo_color = EMPTY
-	if on_pack:
-		material.no_depth_test = true
-		material.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
-		material.stencil_flags = BaseMaterial3D.STENCIL_FLAG_READ
-		material.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_NOT_EQUAL
-		material.stencil_reference = STENCIL_REF
 	card.material_override = material
 	card.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(card)
