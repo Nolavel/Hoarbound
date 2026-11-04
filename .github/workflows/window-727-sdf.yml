@@ -1,0 +1,72 @@
+name: Window 727 SDF R&D Preview
+on:
+  push:
+    branches: [codex]
+    paths:
+      - '.github/workflows/window-727-sdf.yml'
+      - 'tests/demos/window_727_sdf/**'
+      - 'tests/scenes/window_727_sdf_probe.tscn'
+      - 'tools/runtime/capture_window_727_sdf.gd'
+      - 'shaders/common/sdf_smooth_union.gdshaderinc'
+      - 'shaders/ui/universal_blob_mask.gdshader'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  only-real-window:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+      - name: Godot and software Vulkan dependencies
+        run: |
+          SKIP_APT=1 tools/ci/setup_env.sh
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mesa-vulkan-drivers xvfb ffmpeg
+      - name: Validate Godot import
+        run: tools/ci/import_gate.sh
+      - name: Render only real FrontWindow1, baseline then SDF
+        run: |
+          set -euo pipefail
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR" docs/runtime_previews/window_727_sdf
+          timeout 720 xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . --resolution 720x405 --fixed-fps 12 \
+            --rendering-driver vulkan --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --script res://tools/runtime/capture_window_727_sdf.gd \
+            2>&1 | tee docs/runtime_previews/window_727_sdf/capture.log
+          grep -q 'WINDOW_727_REAL_GLASS_OK' docs/runtime_previews/window_727_sdf/capture.log
+          grep -q 'WINDOW_727_SDF_CAPTURE_OK frames=72' docs/runtime_previews/window_727_sdf/capture.log
+          if grep -Ei 'SHADER ERROR|SCRIPT ERROR|Parse Error|WINDOW_727_TEST_FAIL|Failed loading resource' docs/runtime_previews/window_727_sdf/capture.log; then exit 1; fi
+          test "$(find docs/runtime_previews/window_727_sdf/frames -name 'f_*.png' | wc -l)" -eq 72
+      - name: Encode six-second comparison and representative frames
+        run: |
+          set -euo pipefail
+          cd docs/runtime_previews/window_727_sdf
+          ffmpeg -v error -y -framerate 12 -i frames/f_%03d.png \
+            -vf scale=960:540:flags=lanczos \
+            -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart window_727_sdf_ab_6s.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames,width,height -of csv=p=0 window_727_sdf_ab_6s.mp4 | grep -q '960,540,72'
+          ffmpeg -v error -y -i frames/f_024.png -vf scale=960:540 -frames:v 1 baseline_2s.png
+          ffmpeg -v error -y -i frames/f_060.png -vf scale=960:540 -frames:v 1 sdf_5s.png
+          test -s window_727_sdf_ab_6s.mp4
+      - name: Upload only-window A/B
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-727-window-sdf-issue-281
+          path: |
+            docs/runtime_previews/window_727_sdf/*.mp4
+            docs/runtime_previews/window_727_sdf/*.png
+            docs/runtime_previews/window_727_sdf/*.log
+          if-no-files-found: warn
+          retention-days: 5

@@ -14,10 +14,7 @@ uniform vec4 fill_color : source_color = vec4(1.0);
 uniform vec4 outline_color : source_color = vec4(1.0);
 uniform vec4 background_color : source_color = vec4(0.0);
 
-float smooth_union(float a, float b, float k) {
-	float h = clamp(0.5 + 0.5 * (b - a) / max(k, 0.00001), 0.0, 1.0);
-	return mix(b, a, h) - k * h * (1.0 - h);
-}
+#include "res://shaders/common/sdf_smooth_union.gdshaderinc"
 
 void fragment() {
 	vec2 scale = vec2(aspect_ratio, 1.0);
