@@ -28,6 +28,9 @@ const AJAR_ZIP_SIDE_M: float = 0.22
 const AJAR_PANEL_DEG: float = 24.0
 ## Longest step the sway spring takes in one frame, seconds: a hitch's long frame would blow it up.
 const MAX_SPRING_STEP_S: float = 0.05
+## Pack pockets whose items hang or sit on the outside: pocket -> side-pocket slot or carabiner index.
+const SHOWN_POCKETS: Dictionary = {&"pack_side_left": &"side_left", &"pack_side_right_front": &"side_right_front",
+	&"pack_side_right_back": &"side_right_back", &"pack_carabiner": 1, &"pack_carabiner_left": 0}
 
 @export var size: Vector3 = Vector3(0.34, 0.44, 0.2)
 @export var color: Color = Color(0.36, 0.33, 0.28)
@@ -300,6 +303,29 @@ func walk_owner() -> Node:
 	while walk != null and not (walk is CharacterBody3D):
 		walk = walk.get_parent()
 	return walk
+
+
+## Whether a pack pocket's item shows on the pack itself (side pockets and carabiners).
+static func shows_pocket(pocket: StringName) -> bool:
+	return SHOWN_POCKETS.has(pocket)
+
+
+## The visual of what a shown pocket holds (on the pack), or null when empty or not shown.
+func get_pocket_visual(pocket: StringName) -> Node3D:
+	if _canvas == null or not SHOWN_POCKETS.has(pocket):
+		return null
+	var where: Variant = SHOWN_POCKETS[pocket]
+	return _canvas.hung_visual(where) if where is int else _canvas.slot_visual(where)
+
+
+## Where a shown pocket is on the pack (world): its slot's middle, or its carabiner's hang point.
+func get_pocket_spot(pocket: StringName) -> Vector3:
+	if _canvas == null or not SHOWN_POCKETS.has(pocket):
+		return global_position
+	var where: Variant = SHOWN_POCKETS[pocket]
+	if where is int:
+		return _canvas.get_carabiner(where).get_hang_point().global_position
+	return _canvas.to_global(BackpackModel.SLOTS[where][0])
 
 
 func _on_slot_changed(slot_path: StringName, _item_id: StringName) -> void:

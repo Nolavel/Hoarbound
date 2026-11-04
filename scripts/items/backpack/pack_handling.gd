@@ -109,9 +109,12 @@ func _process(delta: float) -> void:
 	_move_by_stick(delta)
 	hovered_slot = shelf.pick(camera.project_ray_origin(cursor_at), camera.project_ray_normal(cursor_at)) if shelf != null else -1
 	hovered_item = -1
-	if hovered_slot < 0:
+	## A strapped item wins over the card behind an item on the pack's outside.
+	if hovered_slot < 0 or shelf.slots[hovered_slot]["on_pack"]:
 		var ray: Array = _pack_ray()
 		hovered_item = straps.pick(ray[0], ray[0] + ray[1] * RAY_M)
+		if hovered_item >= 0:
+			hovered_slot = -1
 	if not _carry.is_empty():
 		_follow_carry()
 	_show_hover()
@@ -256,6 +259,10 @@ static func _rim(visual: Node3D, colour: Color) -> void:
 		rim = ShaderMaterial.new()
 		rim.shader = OUTLINE_SHADER
 		rim.set_shader_parameter(&"rim_colour", colour)
+	## An item on the pack keeps its card's stencil mask (PackQuickShelf); the rim draws after it.
+	if visual.has_meta(&"backdrop_mask"):
+		(visual.get_meta(&"backdrop_mask") as Material).next_pass = rim
+		return
 	for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		if mesh is MeshInstance3D:
 			(mesh as MeshInstance3D).material_overlay = rim

@@ -502,6 +502,7 @@ func hang_item(item_id: StringName, carabiner_index: int, clip_on: bool = false)
 		swing.max_swing_deg = 90.0  # on the rod it turns until it meets the pack or the tools
 	carabiner.get_hang_point().add_child(swing)
 	swing.add_child(visual)
+	visual.set_meta(&"carabiner_index", carabiner_index)
 	if clip_on:
 		var seated: Vector3 = visual.position
 		visual.position = seated + Vector3.UP * CLIP_ON_LIFT_M
@@ -513,6 +514,22 @@ func hang_item(item_id: StringName, carabiner_index: int, clip_on: bool = false)
 			(mesh as MeshInstance3D).layers = layers_for_contents
 	_hung.append(visual)
 	return true
+
+
+## The item seated in a side-pocket slot (SLEEVE_SLOTS), or null.
+func slot_visual(slot: StringName) -> Node3D:
+	for item: Dictionary in _items:
+		if item["slot"] == slot and is_instance_valid(item["node"]):
+			return item["node"]
+	return null
+
+
+## The item clipped on carabiner `index` (0 left, 1 right), or null.
+func hung_visual(index: int) -> Node3D:
+	for visual: Node3D in _hung:
+		if is_instance_valid(visual) and int(visual.get_meta(&"carabiner_index", -1)) == index:
+			return visual
+	return null
 
 
 func clear_items() -> void:

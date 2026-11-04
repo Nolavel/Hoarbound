@@ -30,6 +30,8 @@ const CINCH_S: float = 0.22
 const TOO_BIG: StringName = &"INVENTORY_TOO_BIG"
 const NO_ROOM: StringName = &"INVENTORY_NO_ROOM"
 
+## Item outlines by id (see _outline()).
+static var _outlines: Dictionary = {}
 ## Per item: {"id", "visual": Node3D, "box": AABB (its place, pack space), "tier": int}.
 var items: Array[Dictionary] = []
 var model: BackpackModel
@@ -215,10 +217,14 @@ static func _turns(size: Vector3) -> Array[Basis]:
 	return out
 
 
+## An item's outline in its own space, measured once per id (refusal() asks every frame while carrying).
 static func _outline(id: StringName) -> AABB:
+	if _outlines.has(id):
+		return _outlines[id]
 	var visual: Node3D = SurvivalItemVisual.make(id)
 	var box: AABB = BackpackModel._local_bounds(visual)
-	visual.free()
+	visual.queue_free()
+	_outlines[id] = box
 	return box
 
 

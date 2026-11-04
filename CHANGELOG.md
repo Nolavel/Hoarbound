@@ -8,6 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory: Quick Access cards no longer duplicate what is seen on the pack.
+  - The side pockets' and carabiners' cards are drawn behind the real thermos, tools, mug and pan (stencil), cut at the pack opening.
+  - Only hidden pockets (coat, thigh, lid) stay as 3D cards at the frame's sides.
+  - `PackStraps` now measures each item's outline once per id instead of every frame.
 - 3D inventory: the ring cursor and hands now work on the straps and the live Quick Access cards
   (`PackHandling`, built by the Hub on Tab).
   - Take from a pocket or the pack with LMB (pad A), and let go over the other to move it there.

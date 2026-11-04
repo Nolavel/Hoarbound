@@ -1,6 +1,6 @@
 # Pack interior (3D inventory)
 
-Tab takes the pack into Henry's hands and opens it toward a fixed camera. The main compartment holds what is in it under three straps. His quick pockets stand as 3D cards at the frame's sides. A ring cursor moves items between the pack, the pockets and the ground.
+Tab takes the pack into Henry's hands and opens it toward a fixed camera. The main compartment holds what is in it under three straps. A quick pocket whose item shows on the pack has its card behind that real item; only hidden pockets stand as 3D cards at the frame's sides. A ring cursor moves items between the pack, the pockets and the ground.
 
 Stands:
 - `tests/systems/test_pack_hands.gd`: the ring and hands on the real player and Hub.
@@ -50,8 +50,11 @@ Code: `scripts/items/backpack/pack_straps.gd` (`PackStraps`). `PackRig` builds i
 
 Code: `scripts/items/backpack/pack_quick_shelf.gd` (`PackQuickShelf`), a child of the Hub camera.
 
-- Each real quick pocket is a card on the Quick Access gradient (`BG_frame.gdshader`, drawn once per column and tinted), with the pocket's 3D item turning on it. There is no text.
-- The cards stand in a column at each side of the frame, clear of the pack: body pockets left, the pack's outside pockets right.
+- Each real quick pocket is a card on the Quick Access gradient (`BG_frame.gdshader`, drawn once per fade direction and tinted). There is no text.
+- **Shown on the pack** (side pockets, both carabiners; `PackRig.SHOWN_POCKETS`): nothing is duplicated. The card stands square to the camera behind the real item (`PackRig.get_pocket_visual`), sized to its screen outline, or around the empty pocket's spot (`get_pocket_spot`).
+  - It draws over everything but the item: the item writes a stencil mask through its overlay, and the card reads it (`STENCIL_REF`, no depth test). The hover rim chains after the mask (`next_pass`).
+  - It stops at the edge of the pack opening on screen and shows at `BACKDROP_ALPHA`, so it never covers what the straps hold. A strapped item under the cursor wins over a card.
+- **Hidden** (coat, thigh, the lid pocket): the card stands in a column at the frame's side with the pocket's 3D item turning on it, body pockets left and the pack's right.
 - The fit rule is the equipment's own (`can_stow`): a taken pocket is full (`INVENTORY_POCKET_FULL`), and a size-class refusal is `INVENTORY_POCKET_TOO_SMALL`.
 
 ## Hands

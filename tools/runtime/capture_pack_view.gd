@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## The 3D inventory's Tab ritual with the real HUD: Henry takes the pack off into his hands and opens it toward
-## the camera, which faces him; his quick pockets' 3D items stand on cards at the frame's sides. The ring
+## the camera, which faces him; hidden quick pockets stand as cards at the sides, shown ones behind their items. The ring
 ## cursor carries a tin, the lighter and the tinder from the pockets into the pack (under the straps), a tin
 ## back out to a pocket, and the axe is refused by the pack. Tab again puts the pack back on. 30 fps PNG frames.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --resolution 1280x720 --script res://tools/runtime/capture_pack_view.gd -- <out dir>
