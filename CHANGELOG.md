@@ -8,6 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Added a Godot-native animation integration reference and the `/hoarbound-animation` Claude Code skill. Both point to Henry's existing AnimationTree/IK owners, GLB QA and the frozen Motion Matching acceptance gates; no runtime animation behavior changed.
 - Work in progress: the shoulder straps are now the school backpack's own pad, webbing and buckle
   (`tools/blender/build_pack_straps.py`). The mesh is straightened into strap space and bent on the GPU
   along the strap path on the jacket (`shaders/items/pack_strap_bend.gdshader`, a spline mesh).
