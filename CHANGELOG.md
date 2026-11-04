@@ -8,6 +8,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory, stage 2: Quick Access beside the open pack (`PackQuickShelf`). Each quick pocket is a card on
+  the Quick Access gradient (`BG_frame.gdshader`), with its item in 3D: body pockets left of the pack, its
+  outside pockets right.
+  - Items move card to pack, pack to card and card to card with the ring and LMB, by the inventory's fit rule.
+  - A refusing pocket turns red and shows its reason. G throws a card's item out.
+  - New strings: `INVENTORY_POCKET_FULL`, `INVENTORY_POCKET_TOO_SMALL`, `POCKET_*`.
+  - Stand: `tests/systems/test_pack_shelf.gd`. Capture: `tools/runtime/capture_pack_shelf.gd`.
 - 3D inventory: a calmer heap while one item is rearranged. The mean speed of the other items while one is
   dragged went from 0.097 to 0.004–0.063 m/s.
   - Only touched items wake (sleeping islands), and a calm-down restarts only when that item itself is knocked.

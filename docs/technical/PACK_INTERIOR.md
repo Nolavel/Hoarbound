@@ -62,6 +62,31 @@ Stand: `tests/systems/test_pack_handling.gd`. Capture: `tools/runtime/capture_pa
   - The stick moves the ring 252 px in a third of a second.
   - The deepest any item came past the cloth is 1.8 mm, during the turn, within the 2 mm grid slop.
 
+## Quick Access in 3D (stage 2)
+
+Code: `scripts/items/backpack/pack_quick_shelf.gd` (`PackQuickShelf`), wired through `PackHandling.setup_shelf`.
+Stand: `tests/systems/test_pack_shelf.gd`. Capture: `tools/runtime/capture_pack_shelf.gd`.
+
+- **Cards.** While the pack is open, each quick pocket is a card beside it. Body pockets (coat left and right, thigh, lid) stand in a column left of the pack; the pack's outside pockets (side pocket, both sleeves, both carabiners) stand right of it.
+  - Each card is the Quick Access gradient: `BG_frame.gdshader`, drawn once per column into a `SubViewport` and tinted per card, fading toward the pack. Cards lie flat on the screen.
+  - The pocket's item stands on its card in 3D and turns slowly. Pocket names are localised (`POCKET_*`).
+- **Moving items.** Everything goes through the same ring and LMB:
+  - card to pack: the item rides the cursor and is put into the compartment where the cursor's ray meets it;
+  - pack to card: the held item leaves the pack into that pocket;
+  - card to card.
+  - The card under the cursor turns warm if it would take the item, red if it would refuse.
+- **The fit rule is the inventory's own** (`EquipmentComponent._check_fit`): the item's size class against the pocket's `max_size`, plus a taken pocket being full.
+  - A refusal shows the reason under the ring (`INVENTORY_POCKET_FULL`, `INVENTORY_POCKET_TOO_SMALL`), and the item goes back.
+  - Known: every item we have is size class POCKET, so any pocket takes any item, even the pan in a coat pocket. This needs the author's call.
+- **G** over a card throws its item out (`dropped`).
+- **Measured on the stand:**
+  - The tin goes from the coat pocket into the pack.
+  - The pan goes from the pack into the free coat pocket.
+  - The taken coat pocket refuses the thermos, which goes back.
+  - G throws the mug off the carabiner.
+  - Nothing comes past the cloth.
+- **Not yet wired:** the cards read and write their own list. Binding them to `EquipmentComponent` pockets and the save is stage 4.
+
 ## Measured (stand, upright pack, axe, frying pan, hammer, thermos, SPoV, mug; seeds 1, 2, 3, 7, 11, 42)
 
 - **Cloth.** Every drawn item point is checked against the canvas as the shader draws it: the rest surface, the bulge over the outlines it was handed, and the slack sag. This replica is independent of the physics walls.
