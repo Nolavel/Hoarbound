@@ -1,5 +1,40 @@
 # Visual FX shaders
 
+## Ambient edge glow (preserved UI feedback prototype)
+
+A reusable visual *reference*, not yet a production inventory overlay.
+
+- Shader: `res://shaders/ui/ambient_edge_glow.gdshader`
+- Standalone demo: `res://tests/demos/ui_feedback/ambient_edge_glow_preview.tscn`
+- Demo playback driver: `res://tests/demos/ui_feedback/ambient_edge_glow_preview.gd`
+- Deterministic capture: `res://tools/runtime/capture_ambient_glow.gd`
+- Original shader capture (Godot 4.8 dev6, Forward+/Vulkan on lavapipe):
+  [successful 6-second Actions run](https://github.com/Nolavel/Hoarbound/actions/runs/41829387153), 960×540, 180 frames at 30 FPS.
+
+The reference cycles **yellow → grey-white → red → green → blue**. Each
+color individually blooms and fades along the **top and bottom long edges**;
+the screen center stays black. The standalone scene repeats the 6-second
+sequence. Open that scene in Godot to inspect the animation. The optional
+capture script renders the shader to PNG frames and encodes an MP4 with
+`ffmpeg` on PATH, using the established Godot/Vulkan capture environment.
+
+**Integration warning:** the prototype writes opaque black
+(`COLOR.a = 1.0`) over the whole `ColorRect`; putting it above real UI
+would hide the inventory. Before production use, it needs a transparent
+alpha-only glow mode, a local per-slot rectangle, and a state-controlled
+single color, with event-driven pulse/hold/fade rather than an automatic
+five-color loop. Do not change the preserved demo to fake an integrated
+feature.
+
+Intended UI feedback language (author direction): **grey** for an unselected
+item, **yellow** for a held but inactive item, and **red** when an item is
+rejected by a destination slot. Green and blue are available in the palette,
+but their gameplay meanings are not yet assigned. Existing Quick Access
+already uses grey/yellow through `BG_frame.gdshader`; reuse its presentational
+owner (`QuickAccessUI`) and domain refusals (`EquipmentComponent.can_stow`)
+rather than making the shader decide inventory rules. Keep meaningful icons,
+text or motion alongside color for accessibility.
+
 ## Fade Volume
 
 Reusable scene: `res://scenes/environment/visual_fx/FadeVolume.tscn`
