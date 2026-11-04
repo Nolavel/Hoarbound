@@ -827,13 +827,11 @@ jobs:
           path: ~/.local/opt/godot-mono
           key: godot-4.8-dev6-v2
 
-      - name: Provision Godot and software Vulkan
-        run: tools/ci/setup_env.sh
-
-      - name: Install ffmpeg
+      - name: Provision Godot and video dependencies
         run: |
+          SKIP_APT=1 tools/ci/setup_env.sh
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          sudo apt-get install -y -qq mesa-vulkan-drivers xvfb ffmpeg
 
       - name: Clean project import
         run: tools/ci/import_gate.sh
