@@ -10,15 +10,15 @@ signal settled
 signal finished
 
 ## Where the pack's middle is held: ahead of the chest, below it, metres.
-const AHEAD_M: float = 0.36
+const AHEAD_M: float = 0.46
 const BELOW_M: float = 0.18
 ## How far the opening tips up from facing straight out, so Henry sees in from above, degrees.
-const TIP_DEG: float = 30.0
+const TIP_DEG: float = 45.0
 ## The camera: the share of the frame height the pack fills, how much it rises above the opening's line, and
 ## how far above the pack's middle it aims (so Henry's face shows over the pack), metres.
-const FRAME_SHARE: float = 0.4
+const FRAME_SHARE: float = 0.55
 const VIEW_RISE: float = 0.35
-const VIEW_LIFT_M: float = 0.2
+const VIEW_LIFT_M: float = 0.03
 ## Swinging off the back and on again takes this long, seconds.
 const SWING_S: float = 0.7
 ## How high the swing arcs above the straight path, metres.
@@ -90,9 +90,14 @@ func held_transform() -> Transform3D:
 func front_view(fov: float) -> Transform3D:
 	var held: Transform3D = held_transform()
 	var opening: Vector3 = -held.basis.z.normalized()
-	var distance: float = (pack.size.y * 0.5 / FRAME_SHARE) / tan(deg_to_rad(fov) * 0.5)
+	var distance: float = view_distance(fov)
 	var eye: Vector3 = held.origin + (opening + Vector3.UP * VIEW_RISE).normalized() * distance
 	return Transform3D(Basis.IDENTITY, eye).looking_at(held.origin + Vector3.UP * VIEW_LIFT_M, Vector3.UP)
+
+
+## How far the front view stands from the pack's middle at `fov` degrees (the camera focuses there), metres.
+func view_distance(fov: float) -> float:
+	return (pack.size.y * 0.5 / FRAME_SHARE) / tan(deg_to_rad(fov) * 0.5)
 
 
 func _process(delta: float) -> void:

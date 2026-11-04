@@ -25,6 +25,8 @@ const STOW_DROP_TIME: float = 0.32
 ## Where inspection stands the pack and Kenny, in Henry's space (he faces -Z).
 const INSPECT_PACK_SPOT: Vector3 = Vector3(0.0, -0.9, -0.75)
 const INSPECT_KENNY_SPOT: Vector3 = Vector3(0.7, -0.9, -0.3)
+## In the pack-in-hands view, sharp this far past the pack's middle, metres.
+const PACK_FOCUS_DEPTH_M: float = 0.35
 ## route_destination's answer when the item stays in the pack.
 const PACK_DESTINATION: StringName = &"pack"
 
@@ -499,6 +501,14 @@ func _enter_camera() -> void:
 		_camera.attributes = _previous_camera.attributes
 		_camera.compositor = _previous_camera.compositor
 	body.add_child(_camera)
+	if is_instance_valid(_front_hold):
+		## The open pack in focus: what lies past it (Henry's legs, the room) softens.
+		var focus := CameraAttributesPractical.new()
+		focus.dof_blur_far_enabled = true
+		focus.dof_blur_far_distance = _front_hold.view_distance(pack_view_fov) + PACK_FOCUS_DEPTH_M
+		focus.dof_blur_far_transition = 0.8
+		focus.dof_blur_amount = 0.06
+		_camera.attributes = focus
 	var target: Transform3D = get_camera_target()
 	_camera.global_transform = _previous_camera.global_transform if _previous_camera != null else target
 	_camera.make_current()
