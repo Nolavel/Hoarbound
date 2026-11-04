@@ -230,7 +230,6 @@ func interact_with(player: Node) -> void:
 			var actions: TimeCostedActionSystem = _actions()
 			if actions != null and actions.is_active():
 				return
-			var inventory: InventoryComponent = InventoryComponent.find_in(player)
 			var id: StringName = find_warmable(inventory)
 			if put(inventory, id):
 				_start_warm_action(player)
@@ -285,8 +284,8 @@ func get_prompt_text(player: Node) -> String:
 					return "Crack egg into pan"
 				return "Take frying pan"
 	if _state == State.EMPTY:
-		var inventory: InventoryComponent = InventoryComponent.find_in(player)
-		if inventory != null and inventory.has_item(PAN_ID):
+		var pack_inventory: InventoryComponent = InventoryComponent.find_in(player)
+		if pack_inventory != null and pack_inventory.has_item(PAN_ID):
 			return "Place frying pan"
 	match _state:
 		State.EMPTY:
