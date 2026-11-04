@@ -11,7 +11,7 @@ on:
       - "**/*.md"
 
 concurrency:
-  group: color-grade-blend-${{ github.ref }}
+  group: color-grade-blend-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[ambient-glow]') && 'ambient-glow' || 'baseline' }}
   cancel-in-progress: true
 
 jobs:
