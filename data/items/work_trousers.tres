@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ItemResource" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="ItemResource" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://core/items/item_resource.gd" id="item"]
 [ext_resource type="Script" path="res://core/items/garment_data.gd" id="garment"]
@@ -12,12 +12,20 @@ max_size = 0
 accepts_non_garment = false
 excluded_from_auto_stow = false
 
+[sub_resource type="Resource" id="P_thigh_right"]
+script = ExtResource("slot")
+id = &"thigh_right"
+display_name = "Right thigh pocket"
+max_size = 0
+accepts_non_garment = false
+excluded_from_auto_stow = false
+
 [sub_resource type="Resource" id="G_work_trousers"]
 script = ExtResource("garment")
 body_slot_id = &"legs_outer"
 body_region = &"legs"
 layer = 2
-pockets = [SubResource("P_thigh_left")]
+pockets = [SubResource("P_thigh_left"), SubResource("P_thigh_right")]
 insulation_c = 2.2
 base_insulation_c = 2.2
 windproof = 0.45

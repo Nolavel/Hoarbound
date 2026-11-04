@@ -26,6 +26,7 @@ func bind_player(player: Player) -> void:
 	quick.coat_left_anchor = anchors.get_node_or_null(^"CoatLeftAnchor") as Node3D
 	quick.coat_right_anchor = anchors.get_node_or_null(^"CoatRightAnchor") as Node3D
 	quick.thigh_left_anchor = anchors.get_node_or_null(^"ThighLeftAnchor") as Node3D
+	quick.thigh_right_anchor = anchors.get_node_or_null(^"ThighRightAnchor") as Node3D
 	quick.pack_lid_anchor = anchors.get_node_or_null(^"PackLidAnchor") as Node3D
 	quick.hands_anchor = anchors.get_node_or_null(^"HandsAnchor") as Node3D
 	var feedback := get_node(^"FeedbackUI") as PlayerFeedbackUI

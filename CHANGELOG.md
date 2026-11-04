@@ -8,6 +8,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Work trousers gain a right thigh pocket (`legs_outer/thigh_right`, Quick Access).
+  - The HUD builds its card from the left thigh's, below the pack lid in the cross.
+  - It has its own anchor (`ThighRightAnchor`) and is reached with the wheel; keys 1-4 are unchanged.
+- 3D inventory layout pass.
+  - The clothes panel is smaller, near the left edge, and the trousers sit apart from the coat.
+  - The hand card stands beside the panel.
+  - The body cards' gradient fades the other way and is fainter. Items no longer spin on cards.
+  - Everything past the pack's back wall, Henry included, blurs with high-quality bokeh while the pack is held.
 - 3D inventory: the coat's and trousers' pocket cards sit on a see-through grey panel of Henry's clothes at the left.
   - The panel is baked from the real jacket and trousers by `tools/runtime/bake_body_silhouette.gd`.
   - A hand card at the right shows what Henry takes in hand; a pocket's item let go on it becomes the pick.

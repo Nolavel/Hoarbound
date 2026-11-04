@@ -12,18 +12,21 @@ const BG_FRAME: Shader = preload("res://assets/materials/Shaders/BG_frame.gdshad
 const BODY_FRONT: Texture2D = preload("res://assets/ui/inventory/body_front.png")
 const BODY_POCKETS: JSON = preload("res://assets/ui/inventory/body_front.json")
 const HAND_ICON: Texture2D = preload("res://assets/ui/hud/pickup_marker/hand_open.svg")
-## The body panel: its height as a share of the frame's, its middle's x as a share of the half width, its tint.
-const BODY_SHARE: float = 0.66
-const BODY_X_SHARE: float = 0.66
+## The body panel: its height as a share of the frame's, its middle's x as a share of the half width (near the
+## left edge), its tint; the cards on it show this share of their tint's alpha.
+const BODY_SHARE: float = 0.54
+const BODY_X_SHARE: float = 0.8
 const BODY_TINT: Color = Color(0.62, 0.63, 0.66, 0.32)
-## The hand card: its middle's x as a share of the half width (near the right edge), and its icon's tint.
-const HAND_X_SHARE: float = 0.88
+const BODY_CARD_ALPHA: float = 0.55
+## The hand card stands beside the panel, at this height on it (0 top, 1 bottom, where the hands hang), with
+## its icon this faint.
+const HAND_V: float = 0.4
 const HAND_ICON_TINT: Color = Color(1.0, 1.0, 1.0, 0.28)
+## An item stands still on its card, turned this much so its shape reads (x, y radians).
+const ITEM_TURN := Vector2(0.3, -0.55)
 ## A card's side in its own space, and how big its item stands on it (shares of that side).
 const CARD_M: float = 0.1
 const ITEM_FIT: float = 0.8
-## An item on its card turns slowly so its shape reads, rad/s.
-const SPIN: float = 0.6
 ## Cards: depth ahead of the camera (metres), card height as a share of the frame height, column x as a share
 ## of the half width, the top row's y as a share of the half height, and the row pitch in card heights.
 const DEPTH_M: float = 0.5
@@ -75,7 +78,7 @@ func setup(quick_hub: PlayerHubComponent, view: Camera3D) -> void:
 		var on_pack: bool = pack != null and parts.size() == 2 and parts[0] == "pack" and PackRig.shows_pocket(StringName(parts[1]))
 		var column: int = 1 if parts[0] == "pack" else 0
 		slots.append({"path": path, "on_pack": on_pack, "column": column, "row": -1 if on_pack else rows[column],
-			"item_id": zone["item_id"], "card": _card(_frames[1 - column]), "visual": null, "tint": EMPTY})
+			"item_id": zone["item_id"], "card": _card(_frames[0]), "visual": null, "tint": EMPTY})
 		var anchor: Array = (BODY_POCKETS.data as Dictionary).get("pockets", {}).get(String(parts[parts.size() - 1]), [])
 		slots[-1]["body_uv"] = Vector2(anchor[0], anchor[1]) if anchor.size() == 2 and column == 0 else Vector2(-1.0, -1.0)
 		if on_pack:
@@ -181,7 +184,10 @@ func set_tint(k: int, colour: Color) -> void:
 		var want: Color = colour if i == k and colour.a > 0.0 else _rest_tint(i)
 		if slots[i]["tint"] != want:
 			slots[i]["tint"] = want
-			((slots[i]["card"] as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = want
+			var shown: Color = want
+			if (slots[i]["body_uv"] as Vector2).x >= 0.0:
+				shown.a *= BODY_CARD_ALPHA
+			((slots[i]["card"] as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = shown
 
 
 ## What shows slot k's item: the real one on the pack, or the one standing on its card.
@@ -191,7 +197,7 @@ func visual_of(k: int) -> Node3D:
 	return slots[k]["visual"]
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if camera == null:
 		return
 	var view: Vector2 = camera.get_viewport().get_visible_rect().size
@@ -208,9 +214,8 @@ func _process(delta: float) -> void:
 	var body_size := Vector2(body_height * BODY_FRONT.get_width() / float(BODY_FRONT.get_height()), body_height)
 	var body_at := Vector3(-half_w * BODY_X_SHARE, 0.0, -DEPTH_M - 0.002)
 	_body.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3(body_size.x, body_size.y, 1.0)), body_at)
-	hand_card.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * size / CARD_M), Vector3(half_w * HAND_X_SHARE, 0.0, -DEPTH_M))
-	if _hand_visual != null:
-		_hand_visual.rotate_y(SPIN * delta)
+	var hand_at := body_at + Vector3(body_size.x * 0.5 + size * 0.75, (0.5 - HAND_V) * body_size.y, 0.002)
+	hand_card.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * size / CARD_M), hand_at)
 	for k: int in slots.size():
 		var slot: Dictionary = slots[k]
 		if slot["on_pack"]:
@@ -222,9 +227,6 @@ func _process(delta: float) -> void:
 		if uv.x >= 0.0:
 			at = body_at + Vector3((uv.x - 0.5) * body_size.x, (0.5 - uv.y) * body_size.y, 0.002)
 		(slot["card"] as Node3D).global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * size / CARD_M), at)
-		var visual: Node3D = slot["visual"]
-		if visual != null:
-			visual.rotate_y(SPIN * delta)
 
 
 ## Slot k's unseen card stands square to the camera behind its item on the pack (or its empty spot), so the
@@ -314,7 +316,9 @@ func _refresh_hand() -> void:
 	if id != &"":
 		_hand_visual = _stand_on(hand_card, id)
 		_hand_visual.set_meta(&"item_id", id)
-	(hand_card.material_override as StandardMaterial3D).albedo_color = FILLED if id != &"" else EMPTY
+	var tint: Color = FILLED if id != &"" else EMPTY
+	tint.a *= BODY_CARD_ALPHA
+	(hand_card.material_override as StandardMaterial3D).albedo_color = tint
 
 
 ## A quad of `texture` tinted `colour`, unlit and see-through, a child of `parent` (this shelf by default).
@@ -374,6 +378,7 @@ func _stand_on(card: MeshInstance3D, id: StringName) -> Node3D:
 	holder.add_child(visual)
 	visual.position = -box.get_center()
 	holder.scale = Vector3.ONE * (CARD_M * ITEM_FIT / maxf(box.size[box.size.max_axis_index()], 0.001))
+	holder.rotation = Vector3(ITEM_TURN.x, ITEM_TURN.y, 0.0)
 	card.add_child(holder)
 	holder.position = Vector3(0.0, 0.0, CARD_M * 0.35)
 	return holder

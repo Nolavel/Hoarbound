@@ -1,8 +1,7 @@
 extends SceneTree
 
-## Bakes the 3D inventory's body panel: Henry's coat and trousers as he stands, seen square from the front by an
-## orthographic camera, drawn as a flat mask (the coat white, the trousers grey) on a clear background (tinted grey and see-through in game).
-## Beside it, where each body pocket sits on the mask (0..1 of the image), found from his bones.
+## Bakes the 3D inventory's body panel: Henry's coat (white) and trousers (grey, GAP_M lower) seen square from the
+## front, as a mask on a clear background; body_front.json holds each pocket's place on it, found from his bones.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1024x1024 --script res://tools/runtime/bake_body_silhouette.gd
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
@@ -16,6 +15,8 @@ const SHADES: Array[float] = [1.0, 0.72]
 const COAT_POCKET_UP_M: float = 0.1
 const COAT_POCKET_OUT_M: float = 0.05
 const THIGH_POCKET_OUT_M: float = 0.07
+## Free space between the coat and the trousers on the panel, metres.
+const GAP_M: float = 0.06
 
 
 func _initialize() -> void:
@@ -70,17 +71,33 @@ func _run() -> void:
 	env.environment.background_color = Color.BLACK
 	env.environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	root.add_child(env)
-	for _i: int in 4:
-		await process_frame
-	await RenderingServer.frame_post_draw
-	## Shades on black, read back opaque: whatever is lit is the mask, its brightness the garment's shade.
-	var shot: Image = root.get_texture().get_image()
-	shot.convert(Image.FORMAT_RGBA8)
-	var image := Image.create(shot.get_width(), shot.get_height(), false, Image.FORMAT_RGBA8)
-	for y: int in shot.get_height():
-		for x: int in shot.get_width():
-			var shade: float = shot.get_pixel(x, y).v
-			image.set_pixel(x, y, Color(shade, shade, shade, 1.0) if shade > 0.03 else Color(0.0, 0.0, 0.0, 0.0))
+	## Each garment on its own pass, so the trousers' top under the coat's hem stays whole.
+	var garments: Array[GeometryInstance3D] = []
+	for name: StringName in GARMENTS:
+		garments.append(root.find_children(String(name), "GeometryInstance3D", true, false)[0] as GeometryInstance3D)
+	var shots: Array[Image] = []
+	for shown: int in garments.size():
+		for i: int in garments.size():
+			garments[i].visible = i == shown
+		for _i: int in 4:
+			await process_frame
+		await RenderingServer.frame_post_draw
+		var shot: Image = root.get_texture().get_image()
+		shot.convert(Image.FORMAT_RGBA8)
+		shots.append(shot)
+	## The trousers' top (worn under the coat) drops GAP_M below the coat's hem; shades on black, read back
+	## opaque: what is lit is the mask.
+	var hem: int = _lit_rows(shots[0]).y
+	var waist: int = _lit_rows(shots[1]).x
+	var gap: int = hem - waist + roundi(GAP_M / camera.size * shots[0].get_height())
+	var image := Image.create(shots[0].get_width(), shots[0].get_height() + gap, false, Image.FORMAT_RGBA8)
+	for layer: int in [1, 0]:
+		var drop: int = gap if layer == 1 else 0
+		for y: int in shots[layer].get_height():
+			for x: int in shots[layer].get_width():
+				var shade: float = shots[layer].get_pixel(x, y).v
+				if shade > 0.03:
+					image.set_pixel(x, y + drop, Color(shade, shade, shade, 1.0))
 	var used: Rect2i = image.get_used_rect()
 	var cropped: Image = image.get_region(used)
 	var right_side: Vector3 = -left_side
@@ -93,6 +110,8 @@ func _run() -> void:
 	var anchors: Dictionary = {}
 	for pocket: String in pockets:
 		var at: Vector2 = camera.unproject_position(pockets[pocket]) - Vector2(used.position)
+		if pocket.begins_with("thigh"):
+			at.y += gap
 		anchors[pocket] = [snappedf(at.x / used.size.x, 0.001), snappedf(at.y / used.size.y, 0.001)]
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_PNG.get_base_dir()))
 	cropped.save_png(ProjectSettings.globalize_path(OUT_PNG))
@@ -101,3 +120,14 @@ func _run() -> void:
 	file.close()
 	print("[body silhouette] ", used.size, " ", anchors)
 	quit()
+
+
+## The first and last rows of `shot` with anything lit.
+func _lit_rows(shot: Image) -> Vector2i:
+	var rows := Vector2i(-1, -1)
+	for y: int in shot.get_height():
+		for x: int in range(0, shot.get_width(), 2):
+			if shot.get_pixel(x, y).v > 0.03:
+				rows = Vector2i(y if rows.x < 0 else rows.x, y)
+				break
+	return rows

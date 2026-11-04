@@ -249,7 +249,8 @@ INVENTORY_POCKET_FULL,"This pocket is taken","Карман занят"
 INVENTORY_POCKET_TOO_SMALL,"Too big for this pocket","Не влезет в этот карман"
 POCKET_COAT_LEFT,Left coat pocket,Левый карман куртки
 POCKET_COAT_RIGHT,Right coat pocket,Правый карман куртки
-POCKET_THIGH_LEFT,Thigh pocket,Карман на бедре
+POCKET_THIGH_LEFT,Left thigh pocket,Левый карман на бедре
+POCKET_THIGH_RIGHT,Right thigh pocket,Правый карман на бедре
 POCKET_PACK_LID,Lid pocket,Клапан рюкзака
 POCKET_PACK_SIDE_LEFT,Side pocket,Боковой карман
 POCKET_PACK_SIDE_RIGHT_FRONT,"Sleeve, front","Рукав, передний"
