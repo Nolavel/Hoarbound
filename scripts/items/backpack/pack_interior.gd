@@ -9,7 +9,7 @@ extends Node3D
 ## (BackpackModel.CANVAS_STRETCH_M); slack cloth sags only onto what is in.
 
 signal refused(item_id: StringName, reason: StringName)
-## Item i left the pack (thrown out with G); the caller puts it in the world.
+## An item left the pack (thrown out with G, or moved to a quick pocket).
 signal removed(item_id: StringName, state: Dictionary)
 
 ## How far past the canvas's resting inside an item may press, metres: the canvas bulges this much and more

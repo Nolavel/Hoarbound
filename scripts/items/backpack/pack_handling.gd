@@ -5,6 +5,7 @@ extends Node
 ## physics space, LMB (pad A) takes it and it follows the cursor on a plane facing the camera, the wheel (pad
 ## LB/RB) turns it, RMB (pad X) shoves the others aside, G (pad Y) throws the hovered or held item out. The
 ## mouse moves the cursor; the left stick does on a pad. Time keeps running: nothing here pauses the game.
+## With a PackQuickShelf (stage 2), items move between the quick pockets' cards and the pack the same way.
 
 signal dropped(item_id: StringName, state: Dictionary)
 
@@ -37,6 +38,13 @@ var _shoving: bool = false
 var _shove_from: Vector3 = Vector3.INF
 var _pad_used: bool = false
 var _rims: Dictionary = {}
+## Quick pockets beside the pack (optional), the card under the ring (-1 none), and an item carried from a card:
+## {"slot", "id", "state", "visual"} while LMB holds it.
+var shelf: PackQuickShelf
+var hovered_slot: int = -1
+var _carry: Dictionary = {}
+## Visuals showing a refusal (red rim) and how long they still do, seconds.
+var _refused: Dictionary = {}
 
 
 ## Hands for `pack_interior` seen through `view`, drawing the ring on `ring` (any of them may change later).
@@ -73,10 +81,16 @@ func set_cursor(at: Vector2) -> void:
 func press(action: StringName, pressed: bool) -> void:
 	match action:
 		GRAB_ACTION:
-			if pressed and interior.held() < 0 and hovered >= 0:
+			if pressed and interior.held() < 0 and _carry.is_empty() and hovered_slot >= 0:
+				_take_from_card(hovered_slot)
+			elif pressed and interior.held() < 0 and hovered >= 0:
 				var hit: Dictionary = _pick()
 				if not hit.is_empty() and int(hit["index"]) == hovered:
 					interior.hold(hovered, hit["point"])
+			elif not pressed and not _carry.is_empty():
+				_release_carry()
+			elif not pressed and interior.held() >= 0 and hovered_slot >= 0:
+				_held_to_card(hovered_slot)
 			elif not pressed:
 				interior.let_go()
 		SHOVE_ACTION:
@@ -86,7 +100,11 @@ func press(action: StringName, pressed: bool) -> void:
 			if pressed:
 				interior.turn_held(1.0 if action == TURN_LEFT_ACTION else -1.0, _view_axis())
 		DROP_ACTION:
-			if pressed:
+			if pressed and _carry.is_empty() and interior.held() < 0 and hovered_slot >= 0:
+				var thrown: Dictionary = shelf.take(hovered_slot)
+				if not thrown.is_empty():
+					dropped.emit(thrown["id"], thrown["state"])
+			elif pressed and _carry.is_empty():
 				var target: int = interior.held() if interior.held() >= 0 else hovered
 				if target >= 0:
 					_clear_rim(target)
@@ -97,6 +115,11 @@ func press(action: StringName, pressed: bool) -> void:
 						dropped.emit(out["id"], out["state"])
 
 
+## Quick pockets beside the pack: their cards are picked before the pack and take items to and from it.
+func setup_shelf(quick: PackQuickShelf) -> void:
+	shelf = quick
+
+
 ## Shows that `item_id` cannot go in: red rim on `visual` (if any) and the reason under the ring.
 func show_refusal(reason: StringName, visual: Node3D = null) -> void:
 	if cursor != null:
@@ -104,6 +127,7 @@ func show_refusal(reason: StringName, visual: Node3D = null) -> void:
 		cursor.warning_s = WARNING_S
 	if visual != null:
 		_set_rim_on(visual, REFUSED_RIM)
+		_refused[visual] = WARNING_S
 
 
 func _physics_process(delta: float) -> void:
@@ -112,8 +136,16 @@ func _physics_process(delta: float) -> void:
 			cursor.visible = false
 		return
 	_move_by_stick(delta)
+	for visual: Variant in _refused.keys():
+		_refused[visual] = float(_refused[visual]) - delta
+		if float(_refused[visual]) <= 0.0 or not is_instance_valid(visual):
+			_refused.erase(visual)
 	var held: int = interior.held()
-	if held >= 0:
+	hovered_slot = _pick_card()
+	if not _carry.is_empty():
+		_follow_carry()
+		hovered = -1
+	elif held >= 0:
 		## On the plane through the grab point that faces the camera.
 		var plane := Plane(_to_pack_dir(-camera.global_basis.z), interior.held_point())
 		var ray: Array = _ray()
@@ -121,6 +153,8 @@ func _physics_process(delta: float) -> void:
 		if target != null:
 			interior.move_held(target)
 		hovered = held
+	elif hovered_slot >= 0:
+		hovered = -1
 	else:
 		var hit: Dictionary = _pick()
 		hovered = int(hit["index"]) if not hit.is_empty() else -1
@@ -136,12 +170,113 @@ func _physics_process(delta: float) -> void:
 				interior.shove(at, (at - _shove_from) / delta)
 			_shove_from = at
 	_update_rims(held)
+	_tint_cards(held)
 	if cursor != null:
 		cursor.visible = true
 		cursor.at = cursor_at
-		cursor.shown = held < 0
-		cursor.hovering = hovered >= 0
+		cursor.shown = held < 0 and _carry.is_empty()
+		cursor.hovering = hovered >= 0 or (hovered_slot >= 0 and StringName(shelf.slots[hovered_slot]["item_id"]) != &"")
 		cursor.hint = tr(&"INVENTORY_HINT_DROP") % ("Y" if _pad_used else "G")
+
+
+## The card under the ring, or -1.
+func _pick_card() -> int:
+	if shelf == null:
+		return -1
+	return shelf.pick(camera.project_ray_origin(cursor_at), camera.project_ray_normal(cursor_at))
+
+
+## Cards show what a release would do: warm where it would go, red where it would be refused.
+func _tint_cards(held: int) -> void:
+	if shelf == null:
+		return
+	var carried: StringName = _carry.get("id", interior.items[held]["id"] if held >= 0 else &"")
+	if hovered_slot < 0:
+		shelf.set_tint(-1, Color.TRANSPARENT)
+	elif carried != &"":
+		shelf.set_tint(hovered_slot, PackQuickShelf.ACTIVE if shelf.refusal(hovered_slot, carried) == &"" else PackQuickShelf.REFUSE)
+	elif StringName(shelf.slots[hovered_slot]["item_id"]) != &"":
+		shelf.set_tint(hovered_slot, PackQuickShelf.ACTIVE)
+	else:
+		shelf.set_tint(-1, Color.TRANSPARENT)
+	for k: int in shelf.slots.size():
+		var visual: Node3D = shelf.visual_of(k)
+		if visual != null:
+			if k == hovered_slot and carried == &"":
+				_set_rim_on(visual, HOVER_RIM)
+			else:
+				for mesh: Node in visual.find_children("*", "MeshInstance3D", true, false):
+					(mesh as MeshInstance3D).material_overlay = null
+
+
+## LMB on a filled card: its item comes off the card and rides the cursor.
+func _take_from_card(k: int) -> void:
+	var out: Dictionary = shelf.take(k)
+	if out.is_empty():
+		return
+	var visual: Node3D = SurvivalItemVisual.make(out["id"])
+	var box: AABB = BackpackModel._local_bounds(visual)
+	var holder := Node3D.new()
+	holder.add_child(visual)
+	visual.position = -box.get_center()
+	holder.scale = Vector3.ONE * (PackQuickShelf.ITEM_FIT_M * 1.3 / maxf(box.size[box.size.max_axis_index()], 0.001))
+	interior.model.get_parent().add_child(holder)
+	_set_rim_on(visual, HELD_RIM)
+	_carry = {"slot": k, "id": out["id"], "state": out["state"], "visual": holder}
+	_follow_carry()
+
+
+## The carried item hangs on the cursor's ray at the pack's depth.
+func _follow_carry() -> void:
+	var holder: Node3D = _carry["visual"]
+	var depth: float = camera.global_position.distance_to(interior.model.global_transform * PackInterior.inside().get_center())
+	holder.global_position = camera.project_ray_origin(cursor_at) + camera.project_ray_normal(cursor_at) * depth * 0.9
+
+
+## LMB released while carrying from a card: onto another card, into the pack, or back where it came from.
+func _release_carry() -> void:
+	var carried: Dictionary = _carry
+	_carry = {}
+	(carried["visual"] as Node3D).queue_free()
+	var id: StringName = carried["id"]
+	if hovered_slot >= 0:
+		var why: StringName = shelf.refusal(hovered_slot, id)
+		if why == &"":
+			shelf.put(hovered_slot, id, carried["state"])
+			return
+		show_refusal(why)
+	elif _over_pack():
+		var ray: Array = _ray()
+		var room: AABB = PackInterior.inside()
+		var plane := Plane(_view_axis(), room.get_center())
+		var at: Variant = plane.intersects_ray(ray[0], ray[1])
+		var drop: Vector3 = (at as Vector3).clamp(room.position, room.end) if at != null else room.get_center()
+		if interior.add(id, drop, carried["state"]):
+			return
+	shelf.put(int(carried["slot"]), id, carried["state"])
+
+
+## LMB released over a card while holding a pack item: it moves into that pocket, or is refused there.
+func _held_to_card(k: int) -> void:
+	var held: int = interior.held()
+	var id: StringName = interior.items[held]["id"]
+	var why: StringName = shelf.refusal(k, id)
+	if why != &"":
+		show_refusal(why, interior.items[held]["visual"])
+		interior.let_go()
+		return
+	interior.let_go()
+	_clear_rim(held)
+	var out: Dictionary = interior.remove(held)
+	_reindex_rims(held)
+	hovered = -1
+	shelf.put(k, out["id"], out["state"])
+
+
+## Whether the cursor's ray passes through the pack's compartment.
+func _over_pack() -> bool:
+	var ray: Array = _ray()
+	return PackInterior.inside().intersects_ray(ray[0], ray[1]) != null
 
 
 func _move_by_stick(delta: float) -> void:
@@ -177,6 +312,8 @@ func _view_axis() -> Vector3:
 func _update_rims(held: int) -> void:
 	for i: int in interior.items.size():
 		var colour: Color = HELD_RIM if i == held else (HOVER_RIM if i == hovered else Color.TRANSPARENT)
+		if _refused.has(interior.items[i]["visual"]):
+			colour = REFUSED_RIM
 		if colour.a > 0.0:
 			_set_rim(i, colour)
 		else:
