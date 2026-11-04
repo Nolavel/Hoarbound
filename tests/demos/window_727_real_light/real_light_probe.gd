@@ -7,8 +7,7 @@ extends Node3D
 
 const WORLD_SCENE: PackedScene = preload("res://scenes/world/key_west/key_west_reality.tscn")
 const PANE_SCENE: PackedScene = preload("res://tests/scenes/window_727_sdf_probe.tscn")
-const LIT_SHADER: Shader = preload("res://tests/demos/window_727_real_light/lit_frosted_glass_v5_neutral.gdshader")
-const LEGACY_LIT_SHADER: Shader = preload("res://tests/demos/window_727_real_light/lit_frosted_glass_v3.gdshader")
+const LIT_SHADER: Shader = preload("res://tests/demos/window_727_real_light/lit_frosted_glass_v6_white_opaque.gdshader")
 const WINDOW_NAME: StringName = &"FrontWindow1"
 
 var _world: World
@@ -141,11 +140,16 @@ func prepare() -> bool:
 	_unlit = _probe.get("_sdf") as ShaderMaterial
 	_lit = _unlit.duplicate(true) as ShaderMaterial
 	_lit.shader = LIT_SHADER
-	_legacy_lit = _unlit.duplicate(true) as ShaderMaterial
-	_legacy_lit.shader = LEGACY_LIT_SHADER
 	for p: StringName in [&"growth_seed", &"melt_seed", &"pane_aspect"]:
-		for variant: ShaderMaterial in [_lit, _legacy_lit]:
-			variant.set_shader_parameter(p, _unlit.get_shader_parameter(p))
+		_lit.set_shader_parameter(p, _unlit.get_shader_parameter(p))
+	# Apply neutral daylight before the FIRST captured frame; V6 video must
+	# contain no half in the old blue-sky profile.
+	_day_settings.day_ambient_color = Color(0.70, 0.70, 0.70)
+	_day_settings.day_cloud_color = Color(0.48, 0.48, 0.48)
+	_day_settings.day_ground_color = Color(0.30, 0.30, 0.30)
+	_daynight.force_update_lighting()
+	_neutral_palette_active = true
+	print("WINDOW_727_WHITE_RIM_OK ambient=%s cloud=%s no_blue_control=true" % [str(_day_settings.day_ambient_color), str(_day_settings.day_cloud_color)])
 	_make_camera()
 	_hide_debug_ui()
 	_make_label()
@@ -168,35 +172,18 @@ func valid() -> bool:
 func set_capture_time(seconds: float) -> void:
 	if not _ready_for_capture:
 		return
-	var lit_phase: bool = seconds >= 3.0
-	var phase_time: float = fmod(seconds, 3.0)
-	var fraction: float = clampf(phase_time / 3.0, 0.0, 1.0)
-	# Reuse precisely the approved V3 morph/circles/timing in both phases.
-	_probe.set_test_time(3.0 + phase_time)
-	for variant: ShaderMaterial in [_lit, _legacy_lit]:
-		variant.set_shader_parameter(&"heated_warmth", fraction)
-		variant.set_shader_parameter(&"blob_data", _unlit.get_shader_parameter(&"blob_data"))
-		variant.set_shader_parameter(&"blob_count", _unlit.get_shader_parameter(&"blob_count"))
-	if lit_phase and not _neutral_palette_active:
-		# The game daylight fill (0.46, 0.58, 0.86) and clouds are blue.
-		# Test natural neutral overcast *at the sky source*, not by tinting glass.
-		# Only the existing runtime DayNightSettings; no new lights or grade hacks.
-		_day_settings.day_ambient_color = Color(0.66, 0.65, 0.63)
-		_day_settings.day_cloud_color = Color(0.43, 0.43, 0.41)
-		_day_settings.day_ground_color = Color(0.26, 0.25, 0.24)
-		_daynight.force_update_lighting()
-		_neutral_palette_active = true
-		print("WINDOW_727_NEUTRAL_DAYLIGHT_OK ambient=%s cloud=%s shelter_lut_unchanged=true" % [str(_day_settings.day_ambient_color), str(_day_settings.day_cloud_color)])
-	_pane.material_override = _lit if lit_phase else _legacy_lit
-	# Small *repeated* shift reveals real specularity, identical in A/B.
-	var offset: float = sin(phase_time * 1.2) * 0.10
+	# One uninterrupted six-second thaw, never old blue V4 and never a reset.
+	var fraction: float = clampf(seconds / 6.0, 0.0, 0.999)
+	_probe.set_test_time(3.0 + fraction * 3.0)
+	_lit.set_shader_parameter(&"heated_warmth", fraction)
+	_lit.set_shader_parameter(&"blob_data", _unlit.get_shader_parameter(&"blob_data"))
+	_lit.set_shader_parameter(&"blob_count", _unlit.get_shader_parameter(&"blob_count"))
+	_pane.material_override = _lit
+	var offset: float = sin(seconds * 0.60) * 0.07
 	var target: Vector3 = _house.global_transform * Vector3(-3.0, 2.0, 10.196)
 	var eye: Vector3 = _house.global_transform * Vector3(-3.0 + offset, 1.97, 7.75)
 	_camera.look_at_from_position(eye, target, Vector3.UP)
-	_label.text = "727 FORT ST / FRONTWINDOW1 | %s | WARMTH: %02d%%" % [
-		"V4 BLUE-SKY CONTROL" if not lit_phase else "V5 NEUTRAL DAYLIGHT / NATURAL ICE",
-		int(fraction * 100.0)
-	]
+	_label.text = "727 FORT ST / FRONTWINDOW1 | V6 WHITE OPAQUE FROST | THAW: %02d%%" % [int(fraction * 100.0)]
 
 
 func _find_streamed_727_glass(origin: Vector3) -> MeshInstance3D:

@@ -70,3 +70,27 @@ Control 0–3 seconds: V4 original blue skylight; 3–6 seconds: V5 neutral
 skylight, same melt progression and camera. This changes **sky palette and
 material together**; final production decision must separately check the sky
 across outdoor locations, so the experiment remains isolated to `codex`.
+
+## V6 — owner's correction: white and opaque until truly thawed
+
+V5 was visibly wrong. Changing sky colour did not correct blue translucent
+frost because V5 computed `ALPHA` from the *sparse frost_pattern detail*:
+`mix(0.035, 0.995, f.x * 0.95 + f.y * 0.15)`. Whenever no vein happened to
+cover a texel, the shader revealed outdoors even where SDF said frozen.
+
+V6 uses `ice_coverage = 1 - cleared` for **both transparency and frosted
+white appearance**. Unthawed areas have `ALPHA=1`, including the cold rim,
+with a 7.5%-wide guaranteed frozen margin. The small gap between clear and
+opaque is restricted to the actual moving SDF boundary; the original
+crystalline motif affects relief/roughness, not whether ice exists.
+White (not silver-blue) crystal albedo and low, neutral scattering emission
+preserve visible ice under the scene's weak daylight; wet, genuinely cleared
+portions are transparent and respond to real specular lighting.
+
+Neutral gray daylight is set in this **test instance before the first frame**.
+No V4 blue-sky segment in the 6s movie. The window itself, surrounding
+building, real sunlight/stove and shelter LUT are preserved. Production
+materials and main remain untouched until artistic approval.
+
+The 6s movie covers a continuous 0->~100% simulated thaw. It is not a
+physical melting-rate simulation.
