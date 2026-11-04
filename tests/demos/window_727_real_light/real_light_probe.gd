@@ -7,8 +7,8 @@ extends Node3D
 
 const WORLD_SCENE: PackedScene = preload("res://scenes/world/key_west/key_west_reality.tscn")
 const PANE_SCENE: PackedScene = preload("res://tests/scenes/window_727_sdf_probe.tscn")
-const LIT_SHADER: Shader = preload("res://tests/demos/window_727_real_light/lit_frosted_glass_v3.gdshader")
-const LEGACY_LIT_SHADER: Shader = preload("res://tests/demos/window_727_real_light/lit_frosted_glass_v3_blue_control.gdshader")
+const LIT_SHADER: Shader = preload("res://tests/demos/window_727_real_light/lit_frosted_glass_v5_neutral.gdshader")
+const LEGACY_LIT_SHADER: Shader = preload("res://tests/demos/window_727_real_light/lit_frosted_glass_v3.gdshader")
 const WINDOW_NAME: StringName = &"FrontWindow1"
 
 var _world: World
@@ -22,6 +22,9 @@ var _camera: Camera3D
 var _label: Label
 var _ready_for_capture: bool = false
 var _source_mesh: MeshInstance3D
+var _daynight: DayNightManager
+var _day_settings: DayNightSettings
+var _neutral_palette_active: bool = false
 
 
 func disable_nonessential_preview_viewports() -> void:
@@ -93,6 +96,11 @@ func prepare() -> bool:
 	var grade: ColorGradeController = environment_system.color_grade_controller
 	if grade == null or not grade.set_profile(&"HFN_ColdAsh_Shelter") or not grade.is_inside_shelter():
 		push_error("WINDOW_727_REAL_LIGHT_FAIL: canonical shelter grade unavailable")
+		return false
+	_daynight = environment_system.get_node_or_null(^"DayNightManager") as DayNightManager
+	_day_settings = _daynight.settings if _daynight != null else null
+	if _day_settings == null:
+		push_error("WINDOW_727_REAL_LIGHT_FAIL: real day/night settings unavailable")
 		return false
 	var stove: HeatSource = _house.get_node_or_null(^"ShelterZone/Stove") as HeatSource
 	if stove == null or stove.flame_light == null:
@@ -169,6 +177,16 @@ func set_capture_time(seconds: float) -> void:
 		variant.set_shader_parameter(&"heated_warmth", fraction)
 		variant.set_shader_parameter(&"blob_data", _unlit.get_shader_parameter(&"blob_data"))
 		variant.set_shader_parameter(&"blob_count", _unlit.get_shader_parameter(&"blob_count"))
+	if lit_phase and not _neutral_palette_active:
+		# The game daylight fill (0.46, 0.58, 0.86) and clouds are blue.
+		# Test natural neutral overcast *at the sky source*, not by tinting glass.
+		# Only the existing runtime DayNightSettings; no new lights or grade hacks.
+		_day_settings.day_ambient_color = Color(0.66, 0.65, 0.63)
+		_day_settings.day_cloud_color = Color(0.43, 0.43, 0.41)
+		_day_settings.day_ground_color = Color(0.26, 0.25, 0.24)
+		_daynight.force_update_lighting()
+		_neutral_palette_active = true
+		print("WINDOW_727_NEUTRAL_DAYLIGHT_OK ambient=%s cloud=%s shelter_lut_unchanged=true" % [str(_day_settings.day_ambient_color), str(_day_settings.day_cloud_color)])
 	_pane.material_override = _lit if lit_phase else _legacy_lit
 	# Small *repeated* shift reveals real specularity, identical in A/B.
 	var offset: float = sin(phase_time * 1.2) * 0.10
@@ -176,7 +194,7 @@ func set_capture_time(seconds: float) -> void:
 	var eye: Vector3 = _house.global_transform * Vector3(-3.0 + offset, 1.97, 7.75)
 	_camera.look_at_from_position(eye, target, Vector3.UP)
 	_label.text = "727 FORT ST / FRONTWINDOW1 | %s | WARMTH: %02d%%" % [
-		"V3 BLUE LIT CONTROL" if not lit_phase else "V4 NEUTRAL CRYSTAL + WET LIGHT",
+		"V4 BLUE-SKY CONTROL" if not lit_phase else "V5 NEUTRAL DAYLIGHT / NATURAL ICE",
 		int(fraction * 100.0)
 	]
 

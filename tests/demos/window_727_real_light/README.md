@@ -50,3 +50,23 @@ not production weather behavior. No new lights, no production material changes.
 Initial clear-weather job [#41845084996](https://github.com/Nolavel/Hoarbound/actions/runs/41845084996) hit the 900s capture timeout: the full world's SnowContact SubViewport alone consumed ~8 seconds GPU per profiled frame on llvmpipe, with 1280x1024 root rendering and ~320 total frames. World/lighting/material setup itself passed, with real 727 geometry, calm profile and shelter LUT. We did *not* claim a successful preview.
 
 Second run keeps the same real 727 building geometry, existing world sun and stove, crystal shader and lighting. It turns off auxiliary offscreen snow-contact/shape/dev-map **Subviewports in the test scene only** (not a change to world lighting, textures or geometry), sets the root capture window to 640x360 16:9, and reduces warmup/settle frame counts. The exported video remains 960x540. This is a preview efficiency adjustment, not a gameplay optimization.
+
+## V5 experiment: remove blue at its daylight source
+
+V4 tried a neutral frost colour, but the entire room remained blue-gray.
+The scene's DayNightSettings daylight fill was `Color(0.46, 0.58, 0.86)`
+and daytime clouds `Color(0.30, 0.39, 0.48)`; repainting the pane cannot
+remove these light source colours from the walls. V5 uses the real runtime
+DayNightSettings but changes them only in the second A/B half (3–6 s) to
+a neutral overcast `day_ambient_color=(0.66,0.65,0.63)`, clouds
+`(0.43,0.43,0.41)` and slightly neutral ground colour. `force_update_lighting()`
+updates the actual day/night-managed sun/sky scene; no synthetic lights,
+post-render desaturation or change to the shelter LUT. Same real 727,
+stove, weather `calm`, front glass 12 triangles, original V3 SDF thaw.
+
+The V5 material uses near-neutral ice and water albedo, physically ordinary
+dielectric specular (0.46–0.50) and lower roughness on the wet film.
+Control 0–3 seconds: V4 original blue skylight; 3–6 seconds: V5 neutral
+skylight, same melt progression and camera. This changes **sky palette and
+material together**; final production decision must separately check the sky
+across outdoor locations, so the experiment remains isolated to `codex`.
