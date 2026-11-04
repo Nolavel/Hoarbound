@@ -74,6 +74,7 @@ static func _mask(after: Material) -> StandardMaterial3D:
 	mask.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mask.albedo_color = Color(0.0, 0.0, 0.0, 0.0)
 	mask.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	mask.cull_mode = BaseMaterial3D.CULL_DISABLED  # the dropped panel and the inner walls show their back faces
 	mask.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
 	mask.stencil_flags = BaseMaterial3D.STENCIL_FLAG_WRITE
 	mask.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_ALWAYS
