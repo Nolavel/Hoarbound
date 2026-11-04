@@ -36,6 +36,10 @@ const PACK_DESTINATION: StringName = &"pack"
 @export var camera_side: float = 0.4
 @export var camera_height: float = 0.3
 @export var camera_blend_time: float = 0.45
+## The pack-in-hands view's angle of view, degrees.
+@export var pack_view_fov: float = 50.0
+## 3D inventory: Tab takes the pack into Henry's hands, open toward a camera facing him (else it opens on his back).
+@export var pack_in_hands: bool = true
 
 ## The pack on Henry; resolved from his visual when left empty.
 var pack: PackRig
@@ -50,6 +54,10 @@ var _took_pack_off: bool = false
 ## Restore the gameplay mouse mode exactly when leaving the Hub.
 var _previous_mouse_mode: int = Input.MOUSE_MODE_CAPTURED
 var _thermal_manager: ThermalManager
+## The pack held before Henry while the Hub is open in pack_in_hands mode.
+var _front_hold: PackFrontHold
+## Set while full inspection opens the Hub: it sets the pack down instead of taking it in hand.
+var _opening_inspection: bool = false
 
 
 ## A UI composition root owns the presentation panel, not Henry.
@@ -94,10 +102,15 @@ func open() -> bool:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_open = true
 	var pack: PackRig = _pack()
-	if pack != null:
+	var visual: HenryUALAnimation = _visual()
+	## 3D inventory (stage 3): Henry takes the pack off into his hands and opens it toward the camera.
+	if pack_in_hands and not _opening_inspection and visual != null and pack != null and not visual.is_pack_down():
+		_front_hold = visual.hold_pack_front()
+	elif pack != null:
 		pack.set_openness(PackRig.Openness.FULL)
 	_enter_camera()
-	_show_panel()
+	if _front_hold == null:
+		_show_panel()
 	hub_opened.emit()
 	return true
 
@@ -120,7 +133,10 @@ func open_inspection() -> bool:
 	var visual: HenryUALAnimation = _visual()
 	if visual == null or _pack() == null:
 		return false
-	if not _open and not open():
+	_opening_inspection = true
+	var opened: bool = _open or open()
+	_opening_inspection = false
+	if not opened:
 		return false
 	var body := get_parent() as Node3D
 	_took_pack_off = not visual.is_pack_down()
@@ -154,7 +170,11 @@ func close() -> bool:
 			visual.pick_pack_up()
 		_took_pack_off = false
 		inspection_closed.emit()
-	if pack != null:
+	if _front_hold != null and visual != null:
+		## It swings back on and shuts there (PackFrontHold).
+		visual.release_pack_front()
+		_front_hold = null
+	elif pack != null:
 		## Set down by the stove it stays ajar; on the back it shuts.
 		var down: bool = visual != null and visual.is_pack_down()
 		pack.set_openness(PackRig.Openness.AJAR if down else PackRig.Openness.CLOSED)
@@ -362,6 +382,8 @@ func _user_for(item_id: StringName) -> Node:
 func get_camera_target() -> Transform3D:
 	var body := get_parent() as Node3D
 	var pack: PackRig = _pack()
+	if is_instance_valid(_front_hold):
+		return _front_hold.front_view(pack_view_fov)
 	if _inspecting and pack != null and pack.is_inside_tree():
 		## Beside Henry, past his left shoulder, looking down into the open pack on the floor.
 		var basis: Basis = body.global_transform.basis.orthonormalized()
@@ -469,7 +491,7 @@ func _enter_camera() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "HubCamera"
 	_camera.top_level = true
-	_camera.fov = 50.0
+	_camera.fov = pack_view_fov if is_instance_valid(_front_hold) else 50.0
 	## It sees what the game camera sees: reserved layers (dev map labels, snow contact) stay out.
 	if _previous_camera != null:
 		_camera.cull_mask = _previous_camera.cull_mask

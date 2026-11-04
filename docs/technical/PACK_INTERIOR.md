@@ -87,6 +87,20 @@ Stand: `tests/systems/test_pack_shelf.gd`. Capture: `tools/runtime/capture_pack_
   - Nothing comes past the cloth.
 - **Not yet wired:** the cards read and write their own list. Binding them to `EquipmentComponent` pockets and the save is stage 4.
 
+## Tab ritual and view (stage 3)
+
+Code: `scripts/actors/player/henry/pack/pack_front_hold.gd` (`PackFrontHold`, via `HenryUALAnimation.hold_pack_front()` / `release_pack_front()`), and `PlayerHubComponent` with `pack_in_hands` set (the default).
+Capture: `tools/runtime/capture_pack_view.gd`, with the real HUD. Stills: `tools/runtime/capture_pack_hold.gd`.
+
+- **Tab.** Henry takes the pack off his back. It swings in an arc over 0.7 s to 36 cm ahead of his chest and 18 cm below it.
+  - It is held upright, opening turned out toward the camera and tipped up 30°, so he sees in from above too.
+  - The front panel drops open away from him.
+  - Both hands take it by the side walls (HandGrip); the fingers come over the rim.
+  - Tab or Esc swings it back on, and it closes there.
+- **Camera.** It faces Henry, fixed, square to the opening and a little above it. It sits at the distance where the pack fills 40% of the frame height at 50°, aimed 20 cm above the pack's middle so his face shows over it (`PackFrontHold.front_view`).
+- **Quick Access cards** stand pinned on their live anchors while the pack is held: no countdown, no wheel selection, no cross layout (`QuickAccessUI.show_pinned`).
+- **Full inspection** (pack set down) is unchanged. It opens the Hub without taking the pack in hand, and the 2D Hub panel shows only there.
+
 ## Measured (stand, upright pack, axe, frying pan, hammer, thermos, SPoV, mug; seeds 1, 2, 3, 7, 11, 42)
 
 - **Cloth.** Every drawn item point is checked against the canvas as the shader draws it: the rest surface, the bulge over the outlines it was handed, and the slack sag. This replica is independent of the physics walls.

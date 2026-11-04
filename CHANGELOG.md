@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory, stage 3: Tab takes the pack into Henry's hands (`PackFrontHold`).
+  - It swings off his back to before his chest, opening toward a fixed camera that faces him, tipped so he sees
+    in from above. The front panel drops open away from him, and his hands hold the sides.
+  - The Quick Access cards stand pinned on their live anchors. Tab or Esc puts the pack back on.
+  - Full inspection is unchanged. Capture: `tools/runtime/capture_pack_view.gd`.
 - 3D inventory, stage 2: Quick Access beside the open pack (`PackQuickShelf`). Each quick pocket is a card on
   the Quick Access gradient (`BG_frame.gdshader`), with its item in 3D: body pockets left of the pack, its
   outside pockets right.
