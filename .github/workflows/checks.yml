@@ -706,12 +706,17 @@ jobs:
           timeout 240 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
             --script res://tests/systems/test_stove_egg_cooking.gd | tee cooking_test.log
           grep -q "all checks passed" cooking_test.log
+      - name: Three eggs, oil, spices and overcook regression
+        run: |
+          timeout 240 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
+            --script res://tests/systems/test_pan_cooking_ritual.gd | tee pan_ritual_test.log
+          grep -q "PAN_RITUAL_PASS" pan_ritual_test.log
       - name: Standing cooktop F enter / exit and fixed camera contract
         run: |
           timeout 240 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
             --script res://tests/systems/test_cooktop_session.gd | tee cooktop_session_test.log
           grep -q "COOKTOP_SESSION_PASS" cooktop_session_test.log
-      - name: Capture and encode 727 stove cooking (6 seconds)
+      - name: Capture and encode 727 three-egg ritual (9 seconds)
         run: |
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export XDG_RUNTIME_DIR=/tmp/xdg
@@ -723,24 +728,25 @@ jobs:
             2>&1 | tee cooking_capture.log
           grep -q "COOKING_GAMEPLAY_CAPTURE" cooking_capture.log
           ! grep -q "SHADER ERROR" cooking_capture.log
-          test "$(find docs/runtime_previews/key_west_727/egg_gameplay/frames -name 'f_*.png' | wc -l)" -eq 90
+          test "$(find docs/runtime_previews/key_west_727/egg_gameplay/frames -name 'f_*.png' | wc -l)" -eq 132
           ffmpeg -hide_banner -loglevel error -y -framerate 15 \
             -i docs/runtime_previews/key_west_727/egg_gameplay/frames/f_%03d.png \
             -an -c:v libx264 -crf 22 -pix_fmt yuv420p -movflags +faststart \
-            docs/runtime_previews/key_west_727/egg_gameplay/egg_gameplay_6s.mp4
-          test -s docs/runtime_previews/key_west_727/egg_gameplay/egg_gameplay_6s.mp4
-          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_052.png docs/runtime_previews/key_west_727/egg_gameplay/cracking.png
-          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_082.png docs/runtime_previews/key_west_727/egg_gameplay/fried.png
-      - name: Upload 6-second video and review stills
+            docs/runtime_previews/key_west_727/egg_gameplay/egg_ritual_9s.mp4
+          test -s docs/runtime_previews/key_west_727/egg_gameplay/egg_ritual_9s.mp4
+          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_064.png docs/runtime_previews/key_west_727/egg_gameplay/cracking.png
+          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_127.png docs/runtime_previews/key_west_727/egg_gameplay/fried.png
+      - name: Upload 9-second ritual video and review stills
         if: always()
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
-          name: hoarbound-egg-gameplay-6s
+          name: hoarbound-egg-ritual-9s
           path: |
             docs/runtime_previews/key_west_727/egg_gameplay/*.mp4
             docs/runtime_previews/key_west_727/egg_gameplay/*.png
             cooking_test.log
+            pan_ritual_test.log
             cooktop_session_test.log
             cooking_capture.log
           if-no-files-found: warn

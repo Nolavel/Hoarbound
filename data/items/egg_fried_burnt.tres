@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemResource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://core/items/item_resource.gd" id="item"]
+[ext_resource type="Script" path="res://core/items/consumable_data.gd" id="consumable"]
+
+[sub_resource type="Resource" id="food"]
+script = ExtResource("consumable")
+calories = 60.0
+
+[resource]
+script = ExtResource("item")
+id = &"egg_fried_burnt"
+display_name = "Burnt egg"
+weight = 0.05
+max_stack = 6
+size_class = 0
+consumable = SubResource("food")

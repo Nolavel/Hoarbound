@@ -5,7 +5,7 @@ extends SceneTree
 const SCENE: PackedScene = preload("res://archive/graciosa/scenes/Graciosa_Island_Terrain.tscn")
 const OUT: String = "res://docs/runtime_previews/key_west_727/egg_gameplay"
 const FPS: int = 15
-const FRAMES: int = 90
+const FRAMES: int = 132
 
 func _initialize() -> void:
 	call_deferred(&"_run")
@@ -39,10 +39,11 @@ func _run() -> void:
 	stove.restore_fuel(1.0, true)
 	var inventory := InventoryComponent.new()
 	root.add_child(inventory)
-	if not inventory.try_add(ItemCatalog.get_item(&"frying_pan")) or not inventory.try_add(ItemCatalog.get_item(&"egg_raw")):
-		push_error("Cooking review: inventory setup failed")
-		quit(1)
-		return
+	for id: StringName in [&"frying_pan", &"cooking_oil_portion", &"salt_pinch", &"pepper_pinch", &"egg_raw", &"egg_raw", &"egg_raw"]:
+		if not inventory.try_add(ItemCatalog.get_item(id)):
+			push_error("Cooking review: could not seed item " + String(id))
+			quit(1)
+			return
 	for player: Node in get_nodes_in_group(&"player"):
 		(player as Node3D).visible = false
 	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
@@ -76,24 +77,35 @@ func _run() -> void:
 	for _i: int in range(8):
 		await process_frame
 	for frame: int in range(FRAMES):
-		if frame == 7 and not first.put_pan(inventory):
-			push_error("Cooking review: pan failed to transfer")
+		## Staged with real cooking actions, real inventory and the real stove heat signal.
+		## Only frame cadence and heat passage are accelerated for CI review.
+		if frame == 4 and not first.put_pan(inventory):
+			push_error("Cooking review: pan did not enter stove")
 			quit(1)
 			return
-		if frame == 19 and not first.crack_egg(inventory):
-			push_error("Cooking review: egg failed to transfer")
+		if frame == 9 and not first.add_oil(inventory):
+			push_error("Cooking review: oil failed")
 			quit(1)
 			return
-		if frame == 57:
+		if frame in [15, 34, 53] and not first.crack_egg(inventory):
+			push_error("Cooking review: egg failed at frame %d" % frame)
+			quit(1)
+			return
+		if frame == 70 and not first.add_seasoning(inventory, StoveWarmer.SALT_ID):
+			push_error("Cooking review: salt failed")
+			quit(1)
+			return
+		if frame == 76 and not first.add_seasoning(inventory, StoveWarmer.PEPPER_ID):
+			push_error("Cooking review: pepper failed")
+			quit(1)
+			return
+		if frame == 83:
 			controller.select_plate(1)
-		if frame == 64:
+		if frame == 90:
 			controller.select_plate(0)
-		if frame >= 19 and first.get_egg_state() == StoveWarmer.EggState.COOKING:
-			first._egg_intro_seconds = minf(3.0, float(frame - 19) / float(FPS))
-			if frame >= 54:
-				## Drive the real heat_elapsed event, accelerated only for this review.
-				stove.heat_elapsed.emit(StoveWarmer.EGG_COOK_HOURS / 27.0)
-			first._sync_egg_visual()
+		if frame >= 20:
+			var step: float = 0.0013 if frame < 96 else 0.0039
+			stove.heat_elapsed.emit(step)
 		await process_frame
 		await RenderingServer.frame_post_draw
 		var path: String = ProjectSettings.globalize_path(OUT.path_join("frames/f_%03d.png" % frame))
@@ -101,10 +113,10 @@ func _run() -> void:
 			push_error("Cooking review: capture failed " + path)
 			quit(1)
 			return
-	print("COOKING_GAMEPLAY_CAPTURE frames=%d pan=%s egg=%d second=%d" % [
-		FRAMES, str(first.has_pan()), first.get_egg_state(), second.get_state()])
-	if not first.has_pan() or first.get_egg_state() != StoveWarmer.EggState.READY:
-		push_error("Cooking review: egg never reached ready")
+	print("COOKING_GAMEPLAY_CAPTURE frames=%d pan=%s eggs=%d first=%s" % [
+		FRAMES, str(first.has_pan()), first.get_egg_count(), first.get_egg_quality(0)])
+	if not first.has_pan() or first.get_egg_count() != 3 or first.get_egg_quality(0) != &"burnt":
+		push_error("Cooking review: first egg never overcooked or 3 eggs not retained")
 		quit(1)
 		return
 	quit()

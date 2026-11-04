@@ -29,6 +29,8 @@ var _yolk: MeshInstance3D
 var _yolk_highlight: MeshInstance3D
 var _bubbles: Array[MeshInstance3D] = []
 var _time: float = 0.0
+var _doneness: float = 0.0
+var _crisp_material: StandardMaterial3D
 
 
 func _ready() -> void:
@@ -63,7 +65,7 @@ func seek_seconds(seconds: float) -> void:
 	_crisp.visible = _time >= 3.65
 	if _white.visible:
 		_white.mesh = _make_white(spread, false)
-		_white_material.albedo_color = Color(0.93, 0.91, 0.84).lerp(Color(0.86, 0.85, 0.79), _smooth(2.1, 5.5, _time))
+		_white_material.albedo_color = Color(0.93, 0.91, 0.84).lerp(Color(0.86, 0.85, 0.79), _smooth(2.1, 5.5, _time)).lerp(Color(0.36, 0.23, 0.15), smoothstep(0.20, 1.0, _doneness))
 	if _crisp.visible:
 		_crisp.mesh = _make_white(spread, true)
 
@@ -91,6 +93,19 @@ func seek_seconds(seconds: float) -> void:
 		if bubble.visible:
 			var phase: float = _time * (7.0 + float(i % 4)) + float(i) * 1.63
 			bubble.scale = Vector3.ONE * (0.65 + 0.35 * maxf(0.0, sin(phase)))
+
+
+## 0 = just set, 1 = burnt. Heat can progress past the 7-second entrance animation.
+func set_doneness(value: float) -> void:
+	_doneness = clampf(value, 0.0, 1.0)
+	if _white_material != null:
+		_white_material.albedo_color = Color(0.86, 0.85, 0.79).lerp(Color(0.36, 0.23, 0.15), smoothstep(0.20, 1.0, _doneness))
+	if _crisp_material != null:
+		_crisp_material.albedo_color = Color(0.53, 0.34, 0.18).lerp(Color(0.14, 0.10, 0.075), _doneness)
+	if _yolk != null:
+		var mat: ShaderMaterial = _yolk.material_override as ShaderMaterial
+		if mat != null:
+			mat.set_shader_parameter("albedo_color", Color(0.93, 0.51, 0.09).lerp(Color(0.32, 0.18, 0.08), _doneness))
 
 
 func _build() -> void:
@@ -151,7 +166,9 @@ void fragment() {
 	add_child(_white)
 	_crisp = MeshInstance3D.new()
 	_crisp.name = "BrowningEdge"
-	_crisp.material_override = StylizedEnvironmentMaterial.make(Color(0.53, 0.34, 0.18), 0.96, false, true)
+	_crisp_material = StylizedEnvironmentMaterial.make_unshaded(Color(0.53, 0.34, 0.18))
+	_crisp_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_crisp.material_override = _crisp_material
 	add_child(_crisp)
 	_stream = MeshInstance3D.new()
 	_stream.name = "FallingAlbumen"

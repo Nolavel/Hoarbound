@@ -133,6 +133,9 @@ func _draw() -> void:
 	if (_feed == null and not is_instance_valid(_cooktop)) or _alpha <= 0.001:
 		return
 	var centre: Vector2 = _anchor()
+	if is_instance_valid(_cooktop):
+		_draw_cooktop_menu(centre)
+		return
 	for arc: Arc in [Arc.FUEL, Arc.TINDER, Arc.FIRE]:
 		_draw_arc(centre, arc, describe(arc))
 	if is_instance_valid(_cooktop):
@@ -262,7 +265,34 @@ func _on_refused(reason: HeatSourceFeed.Refusal) -> void:
 	queue_redraw()
 
 
-## Shared stove ring, second context: PAN / EGG / TAKE on the active cooktop.
+## Cooktop: sector count and text derive from the actual enabled physical actions.
+func _draw_cooktop_menu(centre: Vector2) -> void:
+	var actions: Array[Dictionary] = _cooktop.get_actions()
+	var size: int = actions.size()
+	if size <= 0:
+		return
+	var active: StringName = _cooktop.get_selected_action()
+	var segment: float = 360.0 / float(size)
+	for i: int in range(size):
+		var action: Dictionary = actions[i]
+		var id: StringName = StringName(action.get("id", &""))
+		var available: bool = bool(action.get("enabled", false))
+		var selected: bool = available and id == active
+		var mid: float = -90.0 + float(i) * segment
+		var span := Vector2(mid - segment * 0.43, mid + segment * 0.43)
+		var color: Color = FIRE if selected else LINE
+		_line(centre, span, Color(color, _alpha * (1.0 if selected else (0.48 if available else 0.15))), arc_width_px + (2.0 if selected else 0.0))
+		var radius: float = ring_radius_px + 20.0
+		var pos: Vector2 = centre + Vector2(cos(deg_to_rad(mid)), sin(deg_to_rad(mid))) * radius
+		_text(pos, str(action.get("label", "")), HINT_PX, Color(color, _alpha * (1.0 if selected else (0.7 if available else 0.25))), true)
+	var warmer: StoveWarmer = _cooktop.get_selected_warmer()
+	var count: int = warmer.get_egg_count() if warmer != null else 0
+	_text(centre + Vector2(0.0, -6.0), "PLATE A" if _cooktop.get_selected_index() == 0 else "PLATE B", FONT_PX, Color(LINE, _alpha), true)
+	_text(centre + Vector2(0.0, 12.0), "%d / 3 EGGS" % count, HINT_PX, Color(LINE, _alpha), true)
+	_text(centre + Vector2(0.0, ring_radius_px + 62.0), "WHEEL CHOOSE   LMB APPLY   RMB PLATE   F EXIT", HINT_PX, Color(LINE, 0.83 * _alpha), true)
+
+
+## Shared stove ring, older describe(arc) compatibility for regression tests.
 func _cooktop_arc(arc: Arc) -> Dictionary:
 	var warmer: StoveWarmer = _cooktop.get_selected_warmer()
 	var inventory: InventoryComponent = _cooktop.get_inventory()

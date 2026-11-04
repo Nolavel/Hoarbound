@@ -15,6 +15,11 @@
 [ext_resource type="Resource" path="res://data/items/stone.tres" id="stone"]
 [ext_resource type="Resource" path="res://data/items/egg_raw.tres" id="egg_raw"]
 [ext_resource type="Resource" path="res://data/items/egg_fried.tres" id="egg_fried"]
+[ext_resource type="Resource" path="res://data/items/egg_fried_well.tres" id="egg_fried_well"]
+[ext_resource type="Resource" path="res://data/items/egg_fried_burnt.tres" id="egg_fried_burnt"]
+[ext_resource type="Resource" path="res://data/items/cooking_oil_portion.tres" id="cooking_oil_portion"]
+[ext_resource type="Resource" path="res://data/items/salt_pinch.tres" id="salt_pinch"]
+[ext_resource type="Resource" path="res://data/items/pepper_pinch.tres" id="pepper_pinch"]
 [ext_resource type="Resource" path="res://data/items/tinned_stew_hot.tres" id="tinned_stew_hot"]
 [ext_resource type="Resource" path="res://data/items/warm_water.tres" id="warm_water"]
 [ext_resource type="Resource" path="res://data/items/mug.tres" id="mug"]
@@ -48,4 +53,4 @@
 
 [resource]
 script = ExtResource("catalog")
-items = [ExtResource("searchlight"), ExtResource("axe"), ExtResource("pineapple_open"), ExtResource("water_flask"), ExtResource("water_flask_750"), ExtResource("water_flask_500"), ExtResource("water_flask_250"), ExtResource("water_flask_empty"), ExtResource("knife"), ExtResource("tinned_pineapple"), ExtResource("lighter"), ExtResource("thermal_shirt"), ExtResource("wool_sweater"), ExtResource("worn_coat"), ExtResource("knit_hat"), ExtResource("work_gloves"), ExtResource("work_trousers"), ExtResource("worn_boots"), ExtResource("tinned_stew"), ExtResource("empty_tin"), ExtResource("snow_handful"), ExtResource("boards"), ExtResource("firewood"), ExtResource("tinder"), ExtResource("backpack"), ExtResource("kenny"), ExtResource("road_flare"), ExtResource("bedroll"), ExtResource("frying_pan"), ExtResource("hammer"), ExtResource("nails"), ExtResource("tinned_stew_hot"), ExtResource("warm_water"), ExtResource("mug"), ExtResource("mug_snow"), ExtResource("warm_water_mug"), ExtResource("spov_can"), ExtResource("spov_can_open"), ExtResource("stone"), ExtResource("egg_raw"), ExtResource("egg_fried")]
+items = [ExtResource("searchlight"), ExtResource("axe"), ExtResource("pineapple_open"), ExtResource("water_flask"), ExtResource("water_flask_750"), ExtResource("water_flask_500"), ExtResource("water_flask_250"), ExtResource("water_flask_empty"), ExtResource("knife"), ExtResource("tinned_pineapple"), ExtResource("lighter"), ExtResource("thermal_shirt"), ExtResource("wool_sweater"), ExtResource("worn_coat"), ExtResource("knit_hat"), ExtResource("work_gloves"), ExtResource("work_trousers"), ExtResource("worn_boots"), ExtResource("tinned_stew"), ExtResource("empty_tin"), ExtResource("snow_handful"), ExtResource("boards"), ExtResource("firewood"), ExtResource("tinder"), ExtResource("backpack"), ExtResource("kenny"), ExtResource("road_flare"), ExtResource("bedroll"), ExtResource("frying_pan"), ExtResource("hammer"), ExtResource("nails"), ExtResource("tinned_stew_hot"), ExtResource("warm_water"), ExtResource("mug"), ExtResource("mug_snow"), ExtResource("warm_water_mug"), ExtResource("spov_can"), ExtResource("spov_can_open"), ExtResource("stone"), ExtResource("egg_raw"), ExtResource("egg_fried"), ExtResource("egg_fried_well"), ExtResource("egg_fried_burnt"), ExtResource("cooking_oil_portion"), ExtResource("salt_pinch"), ExtResource("pepper_pinch")]

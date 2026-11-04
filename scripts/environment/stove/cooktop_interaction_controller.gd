@@ -17,6 +17,7 @@ var source: HeatSource
 var _player: Player
 var _phase: Phase = Phase.OUTSIDE
 var _selected: int = 0
+var _action_id: StringName = &""
 var _ring: StoveInteractionRing
 var _claim: bool = false
 var _working_mode: bool = false
@@ -46,6 +47,38 @@ func get_selected_warmer() -> StoveWarmer:
 
 func select_plate(index: int) -> void:
 	_selected = clampi(index, 0, 1)
+	_action_id = &""
+	if is_instance_valid(_ring):
+		_ring.queue_redraw()
+
+
+func get_actions() -> Array[Dictionary]:
+	var warmer: StoveWarmer = get_selected_warmer()
+	return warmer.get_cooking_actions(get_inventory()) if warmer != null else []
+
+
+func get_selected_action() -> StringName:
+	var options: Array[Dictionary] = get_actions()
+	for a: Dictionary in options:
+		if a.get("id", &"") == _action_id:
+			return _action_id
+	for a: Dictionary in options:
+		if bool(a.get("enabled", false)):
+			return StringName(a.get("id", &""))
+	return &""
+
+
+func cycle_action(step: int) -> void:
+	var options: Array[Dictionary] = get_actions()
+	var enabled: Array[StringName] = []
+	for a: Dictionary in options:
+		if bool(a.get("enabled", false)):
+			enabled.append(StringName(a.get("id", &"")))
+	if enabled.is_empty():
+		_action_id = &""
+		return
+	var selected: int = enabled.find(get_selected_action())
+	_action_id = enabled[posmod(selected + step, enabled.size())]
 	if is_instance_valid(_ring):
 		_ring.queue_redraw()
 
@@ -138,24 +171,38 @@ func _input(event: InputEvent) -> void:
 	if _phase != Phase.WORKING or _paused():
 		return
 	var button := event as InputEventMouseButton
-	if button == null or button.button_index not in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
+	if button == null or button.button_index not in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 		return
 	get_viewport().set_input_as_handled()
 	if not button.pressed or button.is_echo():
 		return
-	if button.button_index == MOUSE_BUTTON_RIGHT:
-		select_plate(1 - _selected)
-	else:
-		perform_selected_action()
+	match button.button_index:
+		MOUSE_BUTTON_RIGHT: select_plate(1 - _selected)
+		MOUSE_BUTTON_WHEEL_UP: cycle_action(-1)
+		MOUSE_BUTTON_WHEEL_DOWN: cycle_action(1)
+		MOUSE_BUTTON_LEFT: perform_selected_action()
 
 func perform_selected_action() -> void:
-	if not is_instance_valid(_player) or _phase != Phase.WORKING:
+	if _phase != Phase.WORKING:
 		return
+	perform_action(get_selected_action())
+
+
+## Also called by the scriptable capture; inventory is never modified by the UI itself.
+func perform_action(action_id: StringName) -> bool:
 	var warmer: StoveWarmer = get_selected_warmer()
-	if warmer != null and warmer.can_interact_with(_player):
-		warmer.interact_with(_player)
-		if is_instance_valid(_ring):
-			_ring.queue_redraw()
+	var inventory: InventoryComponent = get_inventory()
+	if warmer == null or inventory == null or action_id == &"":
+		return false
+	var actions: Array[Dictionary] = warmer.get_cooking_actions(inventory)
+	for a: Dictionary in actions:
+		if a.get("id", &"") == action_id and bool(a.get("enabled", false)):
+			var ok: bool = warmer.perform_cooking_action(inventory, action_id)
+			_action_id = &""
+			if is_instance_valid(_ring):
+				_ring.queue_redraw()
+			return ok
+	return false
 
 func _begin_work() -> void:
 	var state: Node = get_node_or_null(^"/root/PlayerState")

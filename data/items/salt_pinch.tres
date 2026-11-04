@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/items/item_resource.gd" id="item"]
+
+[resource]
+script = ExtResource("item")
+id = &"salt_pinch"
+display_name = "A pinch of salt"
+weight = 0.002
+max_stack = 20
+size_class = 0
