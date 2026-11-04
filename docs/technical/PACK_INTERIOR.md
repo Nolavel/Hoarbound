@@ -18,7 +18,10 @@ Capture: `tools/runtime/capture_pack_interior.gd`. The pack hangs upright and op
   - Pushes under 0.5 mm are left to the solver, so the heap can sleep.
 - **Put in the way it fits.** `add()` turns an item longest side up, its middle side across and its thinnest side front to back. This is how the frying pan (39 × 24 cm) passes, on edge. It is then started inside the canvas wherever it was asked to go.
 - **Slack cloth sags onto the contents** (`backpack_canvas.gdshader`). An emptier pack's slump is limited, at each vertex, to the distance to the nearest content. Before this, a near-empty pack's 7 cm top sag cut through a standing axe.
-- **Pockets ride their wall.** The side pockets get the main contents too. Where the heap bulges a side wall, the pocket moves out with it, as it does with the open front's give. It also sits 5 mm off the wall, so it no longer z-fights the wall seen from inside the open pack.
+- **Pockets ride their wall.** The side pockets get the main contents too. Where the heap bulges a side wall, the pocket moves out with it, as it does with the open front's give.
+  - The loops and carabiners follow the same rule in GDScript: `BackpackModel._on_canvas` and `pocket_cloth_point`.
+  - A pocket's layer sewn on the wall is not drawn from inside the open pack. It used to z-fight the wall there.
+  - Known: an item standing in a pocket does not ride the bulge yet, so where the heap presses that wall, the cloth stands up to 2 cm off it.
 - **Settling.**
   - Masses are clamped to 0.25–1.2 kg, because large mass ratios make the solver chatter.
   - Shapes are at least 22 mm thick.

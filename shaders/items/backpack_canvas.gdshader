@@ -237,10 +237,10 @@ void vertex() {
 		}
 	}
 	if (is_pocket) {
-		// Sewn on the side wall: it sits a seam's thickness out (never z-fighting the wall seen from inside)
-		// and moves out with the wall as the open front gives.
+		// Sewn on the side wall: it rides the wall where the main contents bulge it and as the open front gives.
 		float side_x = sign(pocket_wall_x);
-		vec3 wall = vec3(side_x * body_half.x, p.y, p.z);
+		// The wall vertex the pocket is sewn over, on the rounded body (where the shell's own bulge is taken).
+		vec3 wall = vec3(side_x * (body_side_x(p.y, p.z) + slump_wall_m * (1.0 - clamp(fill, 0.0, 1.0)) * smoothstep(0.1, 0.4, p.y / pack_height_m)), p.y, p.z);
 		float wall_push = 0.0;
 		for (int i = 0; i < MAX_ITEMS; i++) {
 			if (i >= wall_item_count) {
@@ -249,7 +249,7 @@ void vertex() {
 			float d = box_distance(wall, wall_item_centre[i].xyz, wall_item_half[i].xyz) - wall_lining_m;
 			wall_push = max(wall_push, smoothstep(soft_m, -soft_m, d) * max(soft_m - d, 0.0));
 		}
-		shaped.x += side_x * (0.005 + min(wall_push, max_stretch_m) + side_give_m * (1.0 - smoothstep(0.0, 0.09, body_half.z * 2.0 - p.z)));
+		shaped.x += side_x * (min(wall_push, max_stretch_m) + side_give_m * (1.0 - smoothstep(0.0, 0.09, body_half.z * 2.0 - p.z)));
 	}
 	// Slack cloth creases: soft ridges and valleys across it, broken up so they never line up.
 	float crease = sin(dot(p, vec3(0.15, 1.0, 0.35)) * fold_freq + noise3(p * 25.0) * 5.0);
@@ -307,6 +307,11 @@ vec3 _patch(vec3 colour, vec2 uv) {
 }
 
 void fragment() {
+	// A pocket's layer sewn on the wall is never seen from outside; seen from inside the open pack it would
+	// fight the wall it lies on, so it is not drawn from that side.
+	if (is_pocket && FRONT_FACING && v_pack_normal.x * sign(pocket_wall_x) < -0.5) {
+		discard;
+	}
 	vec3 colour = FRONT_FACING ? canvas_colour : lining_colour;
 	float metal = 0.0;
 	if (zipper_on && v_zip.x < zipper_half_m) {

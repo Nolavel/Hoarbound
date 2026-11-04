@@ -17,8 +17,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
     Two new strings give the reason: `INVENTORY_TOO_BIG` and `INVENTORY_NO_ROOM`.
   - Canvas (`backpack_canvas.gdshader`):
     - Slack cloth now sags only onto the contents, never through them.
-    - The side pockets ride the wall's bulge and the open front's give.
-    - The pockets sit 5 mm off the wall, which stops them showing through it inside an open pack.
+    - The side pockets and the carabiner loops ride the wall's bulge and the open front's give.
+    - A pocket's sewn layer is no longer drawn from inside, so it stops showing through the wall in an
+      open pack.
     - The interior's volume feeds the fill.
   - The slot layout's inner shelf is removed.
   - Stand: `tests/systems/test_pack_interior.gd`, which checks every item against the cloth as the
