@@ -8,6 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory: cloth sounds and a jolt.
+  - Taking, putting and dropping rustle the cloth, and a refusal pulls softer. The clips are Freesound #237047, CC0, supplied by the owner.
+  - The held pack dips under what is put into it, about 2 cm per kg, then bounces back.
+  - The readout names the fifteen items that had no Russian name.
 - 3D inventory: the item under the ring shows its readout, and a load bar shows what Henry carries.
   - The readout gives the name, weight and key number: a flask's water, food's calories, or else the size.
   - The load bar shows the carried weight against the limit, with a tick where Henry starts to slow.

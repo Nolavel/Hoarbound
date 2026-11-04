@@ -531,6 +531,12 @@ func get_max_weight() -> float:
 	return inventory.max_carry_weight if inventory != null else 0.0
 
 
+## The held pack dips under `kg` put into it (PackFrontHold.jolt); nothing when it is not held.
+func jolt_held_pack(kg: float) -> void:
+	if is_instance_valid(_front_hold):
+		_front_hold.jolt(kg)
+
+
 ## The share of the carry limit past which Henry starts to slow (MovementController.load_penalty_starts).
 func get_load_slows_at() -> float:
 	var body: Node = get_parent()

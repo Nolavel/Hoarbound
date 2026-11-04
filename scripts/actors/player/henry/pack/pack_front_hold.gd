@@ -25,6 +25,13 @@ const STRAP_KEPT_SIDE: int = 0
 const SWING_S: float = 0.7
 ## How high the swing arcs above the straight path, metres.
 const ARC_M: float = 0.18
+## Something put in jolts the pack in his hands: it dips this much per kg (capped), tips with it, and springs
+## back as a damped bounce at JOLT_HZ fading at JOLT_DECAY (1/s).
+const JOLT_M_PER_KG: float = 0.02
+const JOLT_MAX_M: float = 0.03
+const JOLT_TIP_DEG_PER_CM: float = 1.2
+const JOLT_HZ: float = 3.2
+const JOLT_DECAY: float = 7.0
 ## What hangs off the pack settles this long after the swing, then freezes until the pack goes back, seconds.
 const HANG_SETTLE_S: float = 0.8
 ## The hands take the sides this far below the pack's middle, this far out from its walls and this far back
@@ -41,6 +48,8 @@ var _from: Transform3D
 var _t: float = 0.0
 var _ending: bool = false
 var _still_s: float = 0.0
+var _jolt_m: float = 0.0
+var _jolt_t: float = 0.0
 
 
 ## Takes `rig` off the back of `henry` and starts the swing to the front.
@@ -65,6 +74,12 @@ func finish() -> void:
 	_from = held_transform()
 	pack.set_hangers_frozen(false)
 	pack.set_openness(PackRig.Openness.CLOSED)
+
+
+## The pack dips under `kg` put into it and bounces back (a short hitch in his hands).
+func jolt(kg: float) -> void:
+	_jolt_m = minf(maxf(kg, 0.1) * JOLT_M_PER_KG, JOLT_MAX_M)
+	_jolt_t = 0.0
 
 
 func is_settled() -> bool:
@@ -128,6 +143,13 @@ func _process(delta: float) -> void:
 	var held: Transform3D = held_transform() if not _ending else _from
 	var at: Transform3D = start.interpolate_with(held, eased)
 	at.origin += Vector3.UP * ARC_M * sin(PI * eased) * (1.0 - eased)
+	if _jolt_m > 0.0 and not _ending:
+		_jolt_t += delta
+		var dip: float = _jolt_m * exp(-JOLT_DECAY * _jolt_t) * sin(TAU * JOLT_HZ * _jolt_t)
+		at.basis = Basis(at.basis.x.normalized(), deg_to_rad(JOLT_TIP_DEG_PER_CM * dip * 100.0)) * at.basis
+		at.origin -= Vector3.UP * dip
+		if exp(-JOLT_DECAY * _jolt_t) < 0.01:
+			_jolt_m = 0.0
 	pack.global_transform = at
 	_grip_sides(eased)
 	if _ending and _t <= 0.0:

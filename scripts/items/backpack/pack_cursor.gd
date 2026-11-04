@@ -167,7 +167,7 @@ func _draw_info(font: Font, top: Vector2) -> void:
 func _draw_load(font: Font) -> void:
 	var share: float = clampf(load_kg / load_max_kg, 0.0, 1.0)
 	var item_share: float = clampf(load_item_kg / load_max_kg, 0.0, share)
-	var bar := Rect2(Vector2((size.x - LOAD_BAR.x) * 0.5, LOAD_TOP), LOAD_BAR)
+	var bar := Rect2(Vector2((get_viewport_rect().size.x - LOAD_BAR.x) * 0.5, LOAD_TOP), LOAD_BAR)
 	var label: String = tr(&"INVENTORY_LOAD") % [load_kg, load_max_kg]
 	var label_width: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, INFO_SUB_SIZE).x
 	draw_rect(Rect2(bar.position - Vector2(10.0, 30.0), Vector2(bar.size.x + 20.0, bar.size.y + 40.0)), INFO_UNDERLAY)

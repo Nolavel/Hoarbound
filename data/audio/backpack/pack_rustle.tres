@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="SoundEvent" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://core/audio/sound_event.gd" id="1_event"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/backpack_cloth/cloth_rustle_01.ogg" id="2_s"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/backpack_cloth/cloth_rustle_02.ogg" id="3_s"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/backpack_cloth/cloth_rustle_03.ogg" id="4_s"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/backpack_cloth/cloth_rustle_04.ogg" id="5_s"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/backpack_cloth/cloth_rustle_05.ogg" id="6_s"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/items/backpack_cloth/cloth_rustle_06.ogg" id="7_s"]
+
+[resource]
+script = ExtResource("1_event")
+streams = Array[AudioStream]([ExtResource("2_s"), ExtResource("3_s"), ExtResource("4_s"), ExtResource("5_s"), ExtResource("6_s"), ExtResource("7_s")])
+pick = 0
+bus = &"SFX"
+volume_db = -4.0
+volume_jitter_db = 1.5
+pitch = 1.0
+pitch_jitter = 0.07
+spatial = false
+max_instances = 2
+cooldown_s = 0.08

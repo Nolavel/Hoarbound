@@ -17,6 +17,9 @@ const STICK_SPEED: float = 0.7
 ## How far the pick ray reaches, metres.
 const RAY_M: float = 3.0
 const OUTLINE_SHADER: Shader = preload("res://shaders/items/item_outline.gdshader")
+## Cloth handling (Freesound #237047, CC0): a rustle as a hand takes or puts, a softer pull when refused.
+const RUSTLE: SoundEvent = preload("res://data/audio/backpack/pack_rustle.tres")
+const RESIST: SoundEvent = preload("res://data/audio/backpack/pack_resist.tres")
 ## The ring's outline: at most this many triangles of a mesh, rasterised this many cells across.
 const OUTLINE_TRIANGLES: int = 4000
 const OUTLINE_GRID: float = 56.0
@@ -94,6 +97,7 @@ func press(action: StringName, pressed: bool) -> void:
 
 ## Shows why something would not go: the reason under the ring, and a red rim on `visual` if given.
 func show_refusal(reason: StringName, visual: Node3D = null) -> void:
+	_sound(RESIST)
 	if cursor != null:
 		cursor.warning = tr(reason)
 		cursor.warning_s = WARNING_S
@@ -160,6 +164,7 @@ func _take() -> void:
 		straps.set_lifted(hovered_item, true)
 	else:
 		return
+	_sound(RUSTLE)
 	var visual: Node3D = SurvivalItemVisual.make(id)
 	var box: AABB = BackpackModel._local_bounds(visual)
 	var holder := Node3D.new()
@@ -198,6 +203,10 @@ func _release() -> void:
 			show_refusal(why)
 		else:
 			moved = hub.move_to_pack(shelf.slots[from_slot]["path"]) == &""
+			if moved:
+				hub.jolt_held_pack(float(ItemReadout.describe(id).get("kg", 0.0)))
+	if moved:
+		_sound(RUSTLE)
 	if not moved:
 		if from_slot >= 0 and shelf.visual_of(from_slot) != null:
 			shelf.visual_of(from_slot).visible = true
@@ -211,11 +220,13 @@ func _drop_hovered() -> void:
 	if hovered_slot >= 0:
 		var id: StringName = shelf.slots[hovered_slot]["item_id"]
 		if id != &"" and hub.drop_from_zone(shelf.slots[hovered_slot]["path"]):
+			_sound(RUSTLE)
 			shelf.refresh()
 			dropped.emit(id)
 	elif hovered_item >= 0:
 		var id: StringName = straps.items[hovered_item]["id"]
 		if hub.drop_from_pack(id):
+			_sound(RUSTLE)
 			dropped.emit(id)
 
 
@@ -241,6 +252,13 @@ func _show_hover() -> void:
 		var into_pack: bool = int(_carry.get("from_slot", -1)) >= 0 and hovered_slot < 0 and _over_pack()
 		var held: Node3D = (_carry["visual"] as Node3D).get_child(0)
 		_rim(held, REFUSED_RIM if into_pack and straps.refusal(carried) != &"" else HELD_RIM)
+
+
+## Plays a cloth sound for the hands (flat: it is right before the camera).
+func _sound(event: SoundEvent) -> void:
+	var sound: Node = get_node_or_null(^"/root/SoundSystem")
+	if sound != null:
+		sound.call(&"play", event)
 
 
 ## The id of what the ring is over (a strapped item, a pocket's item, the hand's), or &"".
