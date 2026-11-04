@@ -8,11 +8,13 @@ const SPEC_PATH: String = "res://data/world/key_west/reality/landmarks/kw_727_fo
 const GLB_PATH: String = "res://assets/world/key_west/landmarks/kw_727_fort_st.glb"
 const BASELINE: ShaderMaterial = preload("res://assets/world/key_west/landmarks/frosted_glass_727.tres")
 const SDF_SHADER: Shader = preload("res://tests/demos/window_727_sdf/sdf_frosted_glass_727.gdshader")
+const SDF_V2_SHADER: Shader = preload("res://tests/demos/window_727_sdf/sdf_frosted_glass_727_v2.gdshader")
 const BACKDROP_SHADER: Shader = preload("res://tests/demos/window_727_sdf/diagnostic_backdrop.gdshader")
 
 var _window: MeshInstance3D
 var _plain: ShaderMaterial
 var _sdf: ShaderMaterial
+var _sdf_v2: ShaderMaterial
 var _label: Label
 var _valid: bool = false
 var _verified_triangles: int = 0
@@ -35,22 +37,24 @@ func verified_triangles() -> int:
 func set_test_time(seconds: float) -> void:
 	if not _valid:
 		return
-	# Exactly one six-second video: baseline 0..3 s, SDF 3..6 s.
+	# Exactly one six-second video: identical V2 (0..3s), V3 (3..6s).
 	var second: bool = seconds >= 3.0
 	var progress: float = clampf(fmod(seconds, 3.0) / 3.0, 0.0, 1.0)
-	_window.material_override = _sdf if second else _plain
+	_window.material_override = _sdf if second else _sdf_v2
 	_plain.set_shader_parameter(&"heated_warmth", progress)
 	_sdf.set_shader_parameter(&"heated_warmth", progress)
+	_sdf_v2.set_shader_parameter(&"heated_warmth", progress)
 	var radius: float = lerpf(0.001, 0.46, pow(progress, 0.85))
 	var blobs: Array[Vector4] = []
 	for point: Vector2 in [Vector2(0.35, 0.54), Vector2(0.62, 0.46), Vector2(0.49, 0.60)]:
 		blobs.append(Vector4(point.x, point.y, radius, 0.0))
 	while blobs.size() < 16:
 		blobs.append(Vector4.ZERO)
-	_sdf.set_shader_parameter(&"blob_data", blobs)
-	_sdf.set_shader_parameter(&"blob_count", 3 if progress > 0.0 else 0)
+	for variant: ShaderMaterial in [_sdf_v2, _sdf]:
+		variant.set_shader_parameter(&"blob_data", blobs)
+		variant.set_shader_parameter(&"blob_count", 3 if progress > 0.0 else 0)
 	_label.text = "727 FORT ST  /  FRONTWINDOW1     %s     THAW: %02d%%" % [
-		"BASELINE" if not second else "SDF MASK",
+		"V2  /  IRREGULAR FRONT" if not second else "V3  /  THINNING + WET GLASS",
 		int(progress * 100.0)
 	]
 
@@ -155,10 +159,13 @@ func _load_real_pane() -> bool:
 	_plain = BASELINE.duplicate(true) as ShaderMaterial
 	_sdf = ShaderMaterial.new()
 	_sdf.shader = SDF_SHADER
-	for variant: ShaderMaterial in [_plain, _sdf]:
+	_sdf_v2 = ShaderMaterial.new()
+	_sdf_v2.shader = SDF_V2_SHADER
+	for variant: ShaderMaterial in [_plain, _sdf_v2, _sdf]:
 		variant.set_shader_parameter(&"growth_seed", 0.28)
 		variant.set_shader_parameter(&"melt_seed", 0.73)
-	_sdf.set_shader_parameter(&"pane_aspect", width / height)
+	for variant: ShaderMaterial in [_sdf_v2, _sdf]:
+		variant.set_shader_parameter(&"pane_aspect", width / height)
 	print("WINDOW_727_REAL_GLASS_OK source=%s window=FrontWindow1 room=waiting width=%.2f height=%.2f centre_uv=(%.3f,%.3f) selected_triangles=%d" % [
 		GLB_PATH, width, height, centre.x, centre.z, _verified_triangles
 	])

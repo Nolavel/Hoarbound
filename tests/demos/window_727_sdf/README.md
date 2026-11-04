@@ -31,3 +31,23 @@ front retains crystal detail and a subdued wet fringe.
 
 This is visual R&D, not a new production glass implementation. First
 pass: `e1654a5`. Discussion: issue #281.
+
+## Third pass: crystal thinning and wet glass (2026-11-04)
+
+Same real `FrontWindow1` mesh, 12 GLB triangles, projection and fixed camera.
+Capture changed to a same-progress A/B against **frozen V2 shader source**
+(`sdf_frosted_glass_727_v2.gdshader`), rather than the old production frost
+baseline: first three seconds V2, next three seconds V3. Their SDF field,
+seed and warmth progression are identical.
+
+V3 changes *only* the spatial-material optics behind the existing SDF front:
+- A broad translucent precursor thins the existing crystalline film before
+  the boundary clears it; stronger crystal regions persist longer.
+- The tips of the original `frost_pattern` ferns survive in a narrow boundary.
+- A sparse water film forms on newly cleared glass, with six subtle seeded
+  vertical gravity-oriented trails and rounded moving tips.
+- Different optical alpha for frost, thin crystal, wet film and clear pane.
+
+This is an authored illusion, **not fluid mechanics**. The frost generated
+by `frost_pattern.gdshaderinc` remains identical, and `smooth_union` and
+original blob positions are unchanged. No direct binding to ThermalZone.

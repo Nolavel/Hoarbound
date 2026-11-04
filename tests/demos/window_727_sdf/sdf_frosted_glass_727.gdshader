@@ -1,5 +1,5 @@
-// R&D #281: same existing frost renderer, with the thaw front replaced by the
-// reusable blob SDF union. Test-only material, never assigned to the production GLB.
+// R&D #281 V3: staged crystalline thinning, damp glass and slow melt trails
+// on the same reusable blob SDF union. Test-only; no production changes. Test-only material, never assigned to the production GLB.
 shader_type spatial;
 render_mode unshaded, cull_disabled, blend_mix, depth_prepass_alpha;
 
@@ -60,18 +60,67 @@ void fragment() {
 	float edge = min(min(UV.x, 1.0 - UV.x), min(UV.y, 1.0 - UV.y));
 	cleared *= smoothstep(0.012, 0.125, edge);
 
-	// Melting is gradual: crystal tips on the *boundary* resist longer than
-	// the surrounding thin film, leaving small white fronds in the transition.
-	// This affects only a narrow band, not the shape's connected interior.
-	float fringe = 1.0 - smoothstep(0.01, 0.075, abs(field));
-	float crystal_resistance = clamp(0.15 + 0.38 * f.x + 0.12 * f.y, 0.0, 0.65);
-	float residual = cleared * fringe * crystal_resistance;
-	float wet_band = fringe * heated_warmth * 0.55;
-	f.x *= 1.0 - cleared + residual;
-	f.y *= 1.0 - cleared + residual * 0.45;
-	f.z = max(f.z, wet_band * 0.48);
+	// Stage 1: a broad precursor follows the SAME coherent SDF union.
+	// Its outer fringe first loses crystal density, rather than disappearing
+	// behind a sudden solid circular alpha mask. There is no independent
+	// animated noise/time source; the stage is driven only by heated_warmth.
+	float pre_thaw = 1.0 - smoothstep(0.055, 0.185, field);
+	pre_thaw *= smoothstep(0.05, 0.23, heated_warmth);
+	float film_thinning = (1.0 - cleared) * pre_thaw;
+	float crystal_weight = clamp(f.x * 0.7 + f.y * 0.3, 0.0, 1.0);
+	float preferential_melt = mix(0.72, 0.37, crystal_weight);
+	float frost_survival = (1.0 - cleared) * (1.0 - film_thinning * preferential_melt);
+	
+	// Stage 2: dense fern tips outlast the translucent base, but only on the
+	// advancing boundary. Their persistence is spatial, not a static white ring.
+	float front = 1.0 - smoothstep(0.008, 0.086, abs(field));
+	float crystal_resistance = clamp(0.12 + f.y * 0.19 + f.x * 0.20, 0.0, 0.5);
+	float tip_survival = cleared * front * crystal_resistance;
+	f.x *= frost_survival + tip_survival;
+	f.y *= frost_survival + tip_survival * 0.82;
 
-	ALBEDO = mix(frost_color(UV, f, glass_tint.rgb, frost_tint.rgb), glass_tint.rgb * 0.8, f.z * 0.5);
-	ALPHA = mix(0.095, 0.995, clamp(f.x * 0.95 + f.y * 0.15, 0.0, 1.0)) + f.z * 0.12;
-	ROUGHNESS = mix(mix(0.18, 0.96, f.x), 0.05, f.z);
+	// Stage 3: a thin translucent film forms behind the receding frost.
+	// It is slightly denser near the moving front and becomes faint over time.
+	float newly_wet = 1.0 - smoothstep(-0.015, 0.12, abs(field));
+	float wet_interior = cleared * (0.35 + 0.30 * frost_fbm(UV * vec2(14.0, 8.0) + melt_seed * 5.0));
+	float dampness = smoothstep(0.12, 0.31, heated_warmth);
+	float wet_film = clamp((newly_wet * 0.62 + wet_interior * 0.35) * dampness, 0.0, 1.0);
+
+	// Four small gravity-oriented melt trails: curved in x, descending in UV.y.
+	// Every trail starts at a reproducible time and length; it is clipped
+	// to the locally thawed glass, so no bright drips sit on solid frost.
+	float rivulet = 0.0;
+	float drop_tip = 0.0;
+	for (int k = 0; k < 6; k++) {
+		float lane = float(k);
+		float h = frost_hash21(vec2(lane * 3.71 + melt_seed * 9.0, 6.13));
+		float start_y = mix(0.26, 0.43, frost_hash21(vec2(lane, 7.91 + melt_seed)));
+		float start_x = (lane + 0.5) / 6.0 + (h - 0.5) * 0.075;
+		float phase = clamp((heated_warmth - (0.21 + h * 0.27)) * 1.50, 0.0, 1.0);
+		float head_y = start_y + phase * (0.30 + 0.26 * h);
+		float wobble = sin(UV.y * 22.0 + h * 12.0) * 0.004 + sin(UV.y * 41.0 + lane) * 0.002;
+		float dx = abs(UV.x - start_x - wobble);
+		float width = mix(0.0018, 0.0037, h);
+		float line = 1.0 - smoothstep(width, width + 0.0025, dx);
+		float in_length = smoothstep(start_y - 0.008, start_y + 0.024, UV.y) * (1.0 - smoothstep(head_y - 0.014, head_y + 0.004, UV.y));
+		rivulet = max(rivulet, line * in_length * smoothstep(0.035, 0.11, phase));
+		vec2 tip_delta = vec2((UV.x - start_x - wobble) * pane_aspect, (UV.y - head_y) * 0.75);
+		float rounded_head = 1.0 - smoothstep(0.003, 0.012, length(tip_delta));
+		drop_tip = max(drop_tip, rounded_head * smoothstep(0.10, 0.24, phase));
+	}
+	float wet_trace = max(rivulet * 0.62, drop_tip * 0.82) * cleared * dampness;
+	wet_film = max(wet_film, wet_trace * 0.55);
+	f.z = max(f.z, wet_film);
+
+	// Stage 4: frozen frost, translucent precursor, water and clear glass
+	// retain distinct optical densities. Water catches a limited blue-white
+	// highlight without taking over the intentionally NPR crystal language.
+	vec3 glass_base = frost_color(UV, f, glass_tint.rgb, frost_tint.rgb);
+	glass_base = mix(glass_base, glass_tint.rgb * 0.78, wet_film * 0.22);
+	vec3 wet_highlight = vec3(0.82, 0.93, 0.96);
+	ALBEDO = mix(glass_base, wet_highlight, clamp(wet_trace * 0.30 + front * wet_film * 0.11, 0.0, 0.42));
+	float frost_alpha = clamp(f.x * 0.95 + f.y * 0.15, 0.0, 1.0);
+	float liquid_alpha = wet_film * 0.19 + wet_trace * 0.24;
+	ALPHA = clamp(mix(0.095, 0.995, frost_alpha) + liquid_alpha, 0.0, 1.0);
+	ROUGHNESS = mix(mix(0.18, 0.96, f.x), 0.07, wet_film);
 }
