@@ -31,8 +31,18 @@ jobs:
             ~/.local/opt/godot-mono
           key: godot-4.8-dev6-v2
 
+      - name: Provision .NET 8 for Godot Mono
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install CPU Vulkan dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mesa-vulkan-drivers vulkan-tools xvfb unzip
+
       - name: Provision Godot + CPU Vulkan
-        run: tools/ci/setup_env.sh
+        run: SKIP_APT=1 tools/ci/setup_env.sh
 
       - name: Install ffmpeg
         run: |
