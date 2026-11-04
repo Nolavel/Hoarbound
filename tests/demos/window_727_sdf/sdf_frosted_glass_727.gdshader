@@ -21,8 +21,17 @@ void fragment() {
 	// With thaw=0 these values match the baseline before heating.
 	vec3 f = frost_pattern(UV, frost_pane_m(UV, VERTEX), COLOR.r, 0.0, COLOR.b + growth_seed, melt_seed + COLOR.b);
 
+	// Domain distortion gently bends the SDF *before* union. All lobes still
+	// coalesce through the original smooth_union, not through animated textures.
+	// The two independent fields break radial symmetry at the source.
+	vec2 macro_a = UV * vec2(4.3, 3.4) + vec2(melt_seed * 1.4, growth_seed * 1.1);
+	vec2 macro_b = UV * vec2(5.2, 4.7) + vec2(8.3 + growth_seed, 4.7 + melt_seed);
+	vec2 flow = vec2(
+		frost_fbm(macro_a) - 0.485,
+		frost_fbm(macro_b) - 0.485
+	);
 	vec2 metric_scale = vec2(pane_aspect, 1.0);
-	vec2 p = (UV - vec2(0.5)) * metric_scale;
+	vec2 p = (UV - vec2(0.5)) * metric_scale + flow * vec2(0.19, 0.15);
 	float d = 100.0;
 	for (int i = 0; i < 16; i++) {
 		if (i >= blob_count) {
@@ -34,21 +43,32 @@ void fragment() {
 		d = i == 0 ? sd : smooth_union(d, sd, merge_width);
 	}
 
-	// The blob shape *controls* the thaw; it does not replace the crystal texture.
-	// Existing frost noise tears the smooth circles into an irregular melting front.
-	float warp = (frost_fbm(UV * vec2(7.5, 5.3) + vec2(melt_seed * 0.14)) - 0.5) * 0.115;
-	warp += (frost_value_noise(UV * vec2(35.0, 22.0) + melt_seed) - 0.5) * 0.018;
-	float field = d + warp;
-	float cleared = 1.0 - smoothstep(-0.018, 0.030, field);
-	cleared *= smoothstep(0.0, 0.16, heated_warmth);
-	// Persistent frost hugs the real pane edge even at full warmth.
-	float edge = min(min(UV.x, 1.0 - UV.x), min(UV.y, 1.0 - UV.y));
-	cleared *= smoothstep(0.015, 0.13, edge);
+	// The SAME cold rim / crystal pattern still own what is frosted.
+	// Shape the moving boundary at three spatial scales, not by adding
+	// high-frequency noise everywhere on the pane. The medium bands make
+	// irregular inlets and the fine band frays their edge like wet ice.
+	vec2 m = UV * vec2(pane_aspect, 1.0);
+	float broad = frost_fbm(UV * vec2(8.6, 5.9) + vec2(melt_seed * 4.8)) - 0.485;
+	float middle = frost_fbm(UV * vec2(27.0, 16.0) + vec2(10.8, melt_seed * 12.2)) - 0.485;
+	float fine = frost_value_noise(UV * vec2(92.0, 63.0) + vec2(melt_seed * 19.1)) - 0.5;
+	float cold_bias = 0.065 * (0.62 - frost_cold_rank(m, metric_scale));
+	float field = d + broad * 0.23 + middle * 0.105 + fine * 0.020 + cold_bias;
 
-	// The thin wet transition follows the thaw front, not the whole blob interior.
-	float wet_band = (1.0 - smoothstep(0.0, 0.055, abs(field))) * heated_warmth;
-	f.x *= 1.0 - cleared;
-	f.y *= 1.0 - cleared;
+	// Keep the open area solid; only the threshold (the thaw front) is torn.
+	float cleared = 1.0 - smoothstep(-0.010, 0.028, field);
+	cleared *= smoothstep(0.0, 0.16, heated_warmth);
+	float edge = min(min(UV.x, 1.0 - UV.x), min(UV.y, 1.0 - UV.y));
+	cleared *= smoothstep(0.012, 0.125, edge);
+
+	// Melting is gradual: crystal tips on the *boundary* resist longer than
+	// the surrounding thin film, leaving small white fronds in the transition.
+	// This affects only a narrow band, not the shape's connected interior.
+	float fringe = 1.0 - smoothstep(0.01, 0.075, abs(field));
+	float crystal_resistance = clamp(0.15 + 0.38 * f.x + 0.12 * f.y, 0.0, 0.65);
+	float residual = cleared * fringe * crystal_resistance;
+	float wet_band = fringe * heated_warmth * 0.55;
+	f.x *= 1.0 - cleared + residual;
+	f.y *= 1.0 - cleared + residual * 0.45;
 	f.z = max(f.z, wet_band * 0.48);
 
 	ALBEDO = mix(frost_color(UV, f, glass_tint.rgb, frost_tint.rgb), glass_tint.rgb * 0.8, f.z * 0.5);
