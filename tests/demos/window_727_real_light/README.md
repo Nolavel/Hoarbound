@@ -44,3 +44,9 @@ shader was copied byte-for-byte to `lit_frosted_glass_v3_blue_control.gdshader`.
 
 This is an *art-direction lighting diagnostic*. Reduced fog is intentionally
 not production weather behavior. No new lights, no production material changes.
+
+## CI-only software-render optimization
+
+Initial clear-weather job [#41845084996](https://github.com/Nolavel/Hoarbound/actions/runs/41845084996) hit the 900s capture timeout: the full world's SnowContact SubViewport alone consumed ~8 seconds GPU per profiled frame on llvmpipe, with 1280x1024 root rendering and ~320 total frames. World/lighting/material setup itself passed, with real 727 geometry, calm profile and shelter LUT. We did *not* claim a successful preview.
+
+Second run keeps the same real 727 building geometry, existing world sun and stove, crystal shader and lighting. It turns off auxiliary offscreen snow-contact/shape/dev-map **Subviewports in the test scene only** (not a change to world lighting, textures or geometry), sets the root capture window to 640x360 16:9, and reduces warmup/settle frame counts. The exported video remains 960x540. This is a preview efficiency adjustment, not a gameplay optimization.

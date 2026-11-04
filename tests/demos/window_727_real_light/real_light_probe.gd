@@ -24,12 +24,30 @@ var _ready_for_capture: bool = false
 var _source_mesh: MeshInstance3D
 
 
+func disable_nonessential_preview_viewports() -> void:
+	# The world itself stays loaded. SnowContact, snow shape caches and
+	# dev-map subviewports are expensive GPU side passes unrelated to one
+	# window's response to the real 727 lights. Never touch root Window.
+	if _world == null:
+		return
+	var disabled: int = 0
+	for node: Node in _world.find_children("*", "SubViewport", true, false):
+		var viewport: SubViewport = node as SubViewport
+		if viewport.render_target_update_mode != SubViewport.UPDATE_DISABLED:
+			viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+			disabled += 1
+	if disabled > 0:
+		print("WINDOW_727_REAL_LIGHT_OPTIMIZED disabled_aux_viewports=%d" % disabled)
+
+
 func _ready() -> void:
 	_world = WORLD_SCENE.instantiate() as World
 	if _world == null:
 		push_error("WINDOW_727_REAL_LIGHT_FAIL: could not instantiate real key_west_reality world")
 		return
 	_world.spawn_at_shelter = true
+	_world.print_runtime_debug_stats = false
+	_world.enable_runtime_dev_map = false
 	add_child(_world)
 
 
@@ -81,6 +99,7 @@ func prepare() -> bool:
 		push_error("WINDOW_727_REAL_LIGHT_FAIL: real stove or its room light is unavailable")
 		return false
 	stove.ignite()
+	disable_nonessential_preview_viewports()
 	var flame: StoveVisual = stove.get_node_or_null(^"StoveVisual") as StoveVisual
 	if flame == null:
 		push_error("WINDOW_727_REAL_LIGHT_FAIL: real stove visual absent")
