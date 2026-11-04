@@ -19,6 +19,8 @@ author. Claude flags cost and risk for them.
 
 Architecture contract: `docs/technical/ARCHITECTURE.md` (RU companion: `ARCHITECTURE_RU.md`). Read it before structural architecture changes.
 
+For animation authoring, GLB clips, skeletal retargeting, blend shapes or Henry's animation tree, use the project skill `.claude/skills/hoarbound-animation/SKILL.md` and its canonical reference `docs/technical/ANIMATION_PIPELINE.md`. The skill does not authorize replacing the production graph or unfreezing Motion Matching.
+
 Cross-language contract rule: public cross-system seams use capabilities under `core/contracts/`. GDScript, C#, and C++/GDExtension implementations stay private behind the same Godot-visible contract. Do not add new scattered `has_method()` / string-`call()` protocols outside the contract/adapters boundary. GDExtension/C++ may replace a GDScript implementation only after profiling shows a real bottleneck, and the public capability contract and its consumers must remain unchanged.
 
 ## Branch
