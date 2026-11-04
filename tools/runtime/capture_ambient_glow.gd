@@ -26,11 +26,16 @@ func _initialize() -> void:
     if preview == null:
         _fail("preview root is not Control")
         return
-    root.add_child(preview)
+    preview.set_anchors_preset(Control.PRESET_TOP_LEFT)
     preview.size = Vector2(WIDTH, HEIGHT)
+    root.add_child(preview)
     _glow = preview.get_node_or_null(^"Glow") as ColorRect
     if _glow == null:
         _fail("missing Glow ColorRect")
+        return
+    print("AMBIENT_GLOW_LAYOUT viewport=%s preview=%s glow=%s" % [root.size, preview.size, _glow.size])
+    if roundi(_glow.size.x) != WIDTH or roundi(_glow.size.y) != HEIGHT:
+        _fail("gradient does not cover the full viewport")
         return
     _glow.set("animation_enabled", false)
     _shader_material = _glow.material as ShaderMaterial
