@@ -63,6 +63,13 @@ func _run() -> void:
 		if float(interior.items[i]["still_s"]) < PackInterior.SETTLE_S:
 			print("pack interior:   restless %s v %.3f" % [interior.items[i]["id"], interior.speed(i)])
 	_check(interior.is_settled(), "the items did not settle within %.0f s" % SETTLE_LIMIT_S)
+	## Tools lie heavy end down: their bulk (the head) sits below the middle of their box.
+	for i: int in interior.items.size():
+		if interior.items[i]["id"] in [&"hammer", &"axe"]:
+			var at: Transform3D = interior.pose(i)
+			var bulk: float = (at * PackInterior._bulk_centre(interior.items[i]["parts"])).y
+			var middle: float = (at * (interior.items[i]["box"] as AABB).get_center()).y
+			_check(bulk < middle, "the %s lies head up (bulk %.3f above middle %.3f)" % [interior.items[i]["id"], bulk, middle])
 	print("pack interior: deepest past the cloth while falling and settling %.1f mm (negative: clear of it)" % (worst_cloth * 1000.0))
 	_check(worst_cloth <= CLOTH_SLOP_M, "an item came through the canvas (%.1f mm)" % (worst_cloth * 1000.0))
 	## Closed and carried off: poses kept; reopened elsewhere it stays calm and inside.

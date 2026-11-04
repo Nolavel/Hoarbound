@@ -8,6 +8,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory: a calmer heap while one item is rearranged. The mean speed of the other items while one is
+  dragged went from 0.097 to 0.004–0.063 m/s.
+  - Only touched items wake (sleeping islands), and a calm-down restarts only when that item itself is knocked.
+  - The hand has limited strength (12 m/s², 1 m/s), and a held item slips (friction 0.05).
+  - Items carry their weight where their bulk is (a tool's head), go in heavy end down, and turn back toward a
+    fitting turn when no shift fits them inside the canvas.
+  - The RMB sweep is a hand's width and lifts a little.
 - 3D inventory, stage 1: hands in the open pack (`PackHandling`, `PackCursor`; see
   `docs/technical/PACK_INTERIOR.md` and `CONTROLS.md`). Time keeps running.
   - A ring cursor picks items by their drawn outline and shows "G — drop" (Y on a pad).

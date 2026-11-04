@@ -42,7 +42,16 @@ Stand: `tests/systems/test_pack_handling.gd`. Capture: `tools/runtime/capture_pa
   - Collision keeps one box (or cylinder) per item. Multi-part collision (hulls or part boxes) was tried: hulls rattled on the wall mesh and cost 7 ms; part boxes made the heap restless and broke the cloth check.
 - **Holding is a velocity drive.** The grab point closes 14× its gap per second, up to 2.5 m/s, on a plane through it facing the camera. Gravity is cancelled for the held item, and its mass rises to 4.8 kg, so it shoves what lies on it. This is how Penumbra and Amnesia carry props.
 - **Turning is an orientation drive.** The wheel moves a target 15° per notch; the item spins toward it, and the heap can stop it. A teleported turn pushed a pan into an orientation that could not fit the pack.
-- **Shove (RMB).** Items within 4 cm of the cursor's point, on the plane it started on, take the cursor's motion as velocity, up to 0.6 m/s. A kinematic ball of infinite mass blew the heap apart and was replaced.
+- **Shove (RMB).** Items within 6 cm of the cursor's point (a hand's width), on the plane it started on, take the cursor's motion as velocity, up to 0.6 m/s, plus up to 0.25 m/s of lift so jammed items budge. A kinematic ball of infinite mass blew the heap apart and was replaced.
+- **A calm heap while one item moves** (measured as the mean speed of the other items while one is dragged; 0.097 m/s before, 0.004–0.063 m/s after over five drop seeds):
+  - **Sleeping islands.** Taking, letting go and throwing out wake only the item itself, or what touched it. The rest of the heap sleeps until something touches it, as in Rapier and Jolt. The space sleeps a body below 0.04 m/s and 0.2 rad/s after 0.3 s.
+  - **A calm-down restarts only when the item itself is knocked** (faster than 0.25 m/s), not when the heap is touched.
+  - **A hand of limited strength.** The hold is a velocity drive whose change is capped at 12 m/s² and whose speed is capped at 1 m/s. An item blocked by the heap leans on it rather than ramming it every step, like a PhysX drive with a force limit. Before this, the hand had infinite force and kept shoving the heap after the cursor stopped.
+  - **A slippery held item.** Friction drops to 0.05 while held, so it slides out instead of dragging its neighbours along. Its mass doubles.
+  - Tried and dropped: thickening the rest of the heap (extra damping) while an item is held changed nothing measurable.
+- **Weight where the bulk is.** The centre of mass is the volume-weighted centre of the item's part boxes, so a hammer's or axe's sits in its head. Items go in heavy end down, and the stand checks the hammer and axe settle head down.
+- **Fits nowhere as it lies.** If shifting leaves an item more than 2 mm past the canvas (a pan turned with its disc along the depth), it turns back toward the turn it went in with, which passes the refusal check, and is shifted again within the same step.
+- **Not done: sticking to the walls.** Godot combines two bodies' friction by taking the smaller value, so a grippier canvas alone would not hold anything on a wall.
 - **Speed cap.** No item moves faster than 2 m/s or 12 rad/s, a guard like PhysX's max depenetration velocity.
 - **Drop (G).** `remove()` emits `removed`/`dropped` with the item's id and state. The caller puts it in the world (stage 4).
 - **Rims.** An overlay outline: pale on hover, warm when held, red for a refusal (`show_refusal`).

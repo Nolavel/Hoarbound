@@ -33,7 +33,7 @@ const MASS_MIN: float = 0.25
 const MASS_MAX: float = 1.2
 ## Since its last disturbance an item's damping climbs by this per second (to CALM_MAX_DAMP): a heap settles
 ## within a second or two instead of rattling on.
-const CALM_RAMP: float = 4.0
+const CALM_RAMP: float = 6.0
 const CALM_MAX_DAMP: float = 10.0
 ## No item in the pack moves faster than this (m/s, rad/s): a solver pushing two shapes apart can fling them,
 ## as PhysX's max depenetration velocity guards against.
@@ -42,17 +42,37 @@ const MAX_SPIN: float = 12.0
 ## A held item is pulled toward the cursor's point like a stiff spring: its grab point closes this share of the
 ## gap each second, never faster than HOLD_MAX_SPEED (velocity drive, as Penumbra and Amnesia carry props).
 const HOLD_GAIN: float = 14.0
+const HOLD_MAX_SPEED: float = 1.0
+## The most a hand changes a held item's velocity per second (a strength limit), m/s².
+const HOLD_ACCEL: float = 12.0
 ## A held item's mass is MASS_MAX times this while held.
-const HELD_MASS_SCALE: float = 4.0
-const HOLD_MAX_SPEED: float = 2.5
+const HELD_MASS_SCALE: float = 2.0
+## Friction of a held item (it slips past the others).
+const HELD_FRICTION: float = 0.05
 ## A held item turns by this many radians per wheel notch, about the camera's line of sight.
 const TURN_STEP: float = deg_to_rad(15.0)
-## The shove (RMB) moves what lies this close to the cursor's point, never faster than SHOVE_MAX_SPEED, m, m/s.
-const SHOVE_RADIUS_M: float = 0.04
+## The shove (RMB) moves what lies this close to the cursor's point, never faster than SHOVE_MAX_SPEED, lifting it
+## by up to SHOVE_LIFT, m, m/s.
+const SHOVE_RADIUS_M: float = 0.06
 const SHOVE_MAX_SPEED: float = 0.6
+const SHOVE_LIFT: float = 0.25
 ## A part much longer than wide is cut into this many boxes along its length (a tool's head and handle).
 const SLICES: int = 6
 static var _part_cache: Dictionary = {}
+## Share of the way an item that fits nowhere as it lies turns back toward its fitting turn, per try.
+const REFIT_SHARE: float = 0.25
+## At most this many such turns in one step (the last leaves it all but in its fitting turn).
+const REFIT_STEPS: int = 8
+## It turns only when shifting leaves it this far past the canvas, metres.
+const REFIT_FROM_M: float = 0.002
+## An item moving faster than this counts as knocked: its calm-down starts again, m/s.
+const KNOCK_SPEED: float = 0.25
+## When an item leaves, what lies this close to it wakes to settle into the gap, metres.
+const NEIGHBOUR_M: float = 0.02
+## The space's own sleep: a body slower than these (m/s, rad/s) for SLEEP_AFTER_S sleeps until touched.
+const SLEEP_SPEED: float = 0.04
+const SLEEP_SPIN: float = 0.2
+const SLEEP_AFTER_S: float = 0.3
 ## Thinnest collision shape, metres: thinner boxes (a lighter, a glove) chatter.
 const MIN_SHAPE_M: float = 0.022
 ## Refusal reasons (localised by the caller).
@@ -82,6 +102,9 @@ func setup(pack: BackpackModel) -> void:
 	_space = PhysicsServer3D.space_create()
 	PhysicsServer3D.space_set_param(_space, PhysicsServer3D.SPACE_PARAM_SOLVER_ITERATIONS, SOLVER_ITERATIONS)
 	PhysicsServer3D.space_set_param(_space, PhysicsServer3D.SPACE_PARAM_CONTACT_MAX_ALLOWED_PENETRATION, ALLOWED_PENETRATION_M)
+	PhysicsServer3D.space_set_param(_space, PhysicsServer3D.SPACE_PARAM_BODY_LINEAR_VELOCITY_SLEEP_THRESHOLD, SLEEP_SPEED)
+	PhysicsServer3D.space_set_param(_space, PhysicsServer3D.SPACE_PARAM_BODY_ANGULAR_VELOCITY_SLEEP_THRESHOLD, SLEEP_SPIN)
+	PhysicsServer3D.space_set_param(_space, PhysicsServer3D.SPACE_PARAM_BODY_TIME_TO_SLEEP, SLEEP_AFTER_S)
 	PhysicsServer3D.area_set_param(_space, PhysicsServer3D.AREA_PARAM_GRAVITY, _gravity_strength())
 	_walls = PhysicsServer3D.body_create()
 	PhysicsServer3D.body_set_mode(_walls, PhysicsServer3D.BODY_MODE_STATIC)
@@ -180,22 +203,40 @@ func add(item_id: StringName, drop_at: Vector3 = Vector3.INF, state: Dictionary 
 	PhysicsServer3D.body_add_shape(body, shape, Transform3D(Basis.IDENTITY, box.get_center()))
 	if drop_at == Vector3.INF:
 		drop_at = Vector3(0.0, BackpackModel.BODY.y * 0.75, BackpackModel.BODY.z * 0.5)
-	var turn: Basis = fit_basis(box.size)
-	var start := Transform3D(turn, drop_at - turn * box.get_center())
-	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_TRANSFORM, start)
-	add_child(visual)
-	## Picked by its own outline (part boxes), not its collision box: a hammer's box is mostly air.
 	var parts: Array[AABB] = []
 	if round <= 0.0:
 		parts = _parts_for(item_id, visual)
 	if parts.is_empty():
 		parts.append(box)
+	## Its weight sits where its bulk is (a hammer's in its head), not in the middle of its box.
+	PhysicsServer3D.body_set_param(body, PhysicsServer3D.BODY_PARAM_CENTER_OF_MASS, _bulk_centre(parts))
+	var turn: Basis = fit_basis(box.size)
+	## Heavy end down, as a hand puts a hammer in: if its bulk sits above its middle, it goes in the other way up.
+	if (turn * (_bulk_centre(parts) - box.get_center())).dot(-_gravity_vector()) > 0.0:
+		## Half a turn about the pack's depth (or across it when gravity runs along the depth): the fit is kept.
+		var axis: Vector3 = Vector3.BACK if absf(_gravity_vector().normalized().z) < 0.9 else Vector3.RIGHT
+		turn = Basis(axis, PI) * turn
+	var start := Transform3D(turn, drop_at - turn * box.get_center())
+	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_TRANSFORM, start)
+	add_child(visual)
+	## Picked by its own outline (part boxes), not its collision box: a hammer's box is mostly air.
 	items.append({"id": item_id, "rid": body, "shape": shape, "visual": visual, "box": box, "still_s": 0.0, "calm_s": 0.0,
-		"round": round, "parts": parts, "mass": mass, "state": state})
+		"round": round, "parts": parts, "mass": mass, "fit": turn, "state": state})
 	## Started inside the canvas, wherever it was asked to go.
 	_keep_inside(items.size() - 1)
 	visual.transform = pose(items.size() - 1)
 	return true
+
+
+## The centre of an item's bulk: its part boxes' centres weighted by volume (a tool's head outweighs its handle).
+static func _bulk_centre(parts: Array[AABB]) -> Vector3:
+	var sum := Vector3.ZERO
+	var volume: float = 0.0
+	for part: AABB in parts:
+		var v: float = maxf(part.get_volume(), 1e-9)
+		sum += part.get_center() * v
+		volume += v
+	return sum / volume
 
 
 ## Each item kind's drawn outline for picking (visual root space), cached: a tight box per mesh part, or SLICES
@@ -284,6 +325,12 @@ func set_open(open: bool) -> void:
 		disturb()
 
 
+## Wakes item i and restarts its calm-down.
+func _wake(i: int) -> void:
+	items[i]["calm_s"] = 0.0
+	PhysicsServer3D.body_set_state(items[i]["rid"], PhysicsServer3D.BODY_STATE_SLEEPING, false)
+
+
 ## Wakes every item and restarts its calm-down (a grab, a shake, something dropped on the heap).
 func disturb() -> void:
 	for item: Dictionary in items:
@@ -366,10 +413,13 @@ func hold(i: int, point: Vector3) -> void:
 	_held = i
 	## A hand pulls harder than the heap leans on it: heavy while held, it shoves what lies on it aside.
 	PhysicsServer3D.body_set_param(items[i]["rid"], PhysicsServer3D.BODY_PARAM_MASS, MASS_MAX * HELD_MASS_SCALE)
+	## It slides out of the heap rather than dragging its neighbours with it.
+	PhysicsServer3D.body_set_param(items[i]["rid"], PhysicsServer3D.BODY_PARAM_FRICTION, HELD_FRICTION)
 	_held_local = pose(i).affine_inverse() * point
 	_held_target = point
 	_held_basis = pose(i).basis.orthonormalized()
-	disturb()
+	## Only the taken item wakes; what it touches wakes by contact (sleeping islands, as Rapier and Jolt do).
+	_wake(i)
 
 
 ## Where the held item's grab point should go (pack space; kept inside the canvas).
@@ -386,7 +436,8 @@ func turn_held(notches: float, axis: Vector3) -> void:
 func let_go() -> void:
 	if _held >= 0:
 		PhysicsServer3D.body_set_param(items[_held]["rid"], PhysicsServer3D.BODY_PARAM_MASS, float(items[_held]["mass"]))
-		disturb()
+		PhysicsServer3D.body_set_param(items[_held]["rid"], PhysicsServer3D.BODY_PARAM_FRICTION, FRICTION)
+		_wake(_held)
 	_held = -1
 
 
@@ -404,6 +455,7 @@ func remove(i: int) -> Dictionary:
 	if i < 0 or i >= items.size():
 		return {}
 	var item: Dictionary = items[i]
+	var gone: AABB = extent(i).grow(NEIGHBOUR_M)
 	if _held == i:
 		_held = -1
 	elif _held > i:
@@ -412,7 +464,10 @@ func remove(i: int) -> Dictionary:
 	PhysicsServer3D.free_rid(item["shape"])
 	(item["visual"] as Node3D).queue_free()
 	items.remove_at(i)
-	disturb()
+	## What it held up wakes and settles into the gap; the rest of the heap sleeps on.
+	for k: int in items.size():
+		if extent(k).intersects(gone):
+			_wake(k)
 	removed.emit(item["id"], item["state"])
 	return {"id": item["id"], "state": item["state"]}
 
@@ -431,6 +486,8 @@ func shove(point: Vector3, motion: Vector3) -> void:
 		var body: RID = items[i]["rid"]
 		var velocity: Vector3 = PhysicsServer3D.body_get_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY)
 		velocity += (motion - velocity).project(motion.normalized()) if motion.length() > 0.001 else Vector3.ZERO
+		## A hand sweeping through a packed heap lifts what it moves a little, or jammed items never budge.
+		velocity += -_gravity_vector().normalized() * SHOVE_LIFT * clampf(motion.length() / SHOVE_MAX_SPEED, 0.0, 1.0)
 		PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, velocity)
 		PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_SLEEPING, false)
 		items[i]["calm_s"] = 0.0
@@ -449,7 +506,8 @@ func _physics_process(delta: float) -> void:
 	for i: int in items.size():
 		var item: Dictionary = items[i]
 		var body: RID = item["rid"]
-		var calm: float = float(item["calm_s"]) + delta if i != _held else 0.0
+		## Its calm-down restarts only when it is itself set moving (a knock), never because the heap was touched.
+		var calm: float = float(item["calm_s"]) + delta if i != _held and speed(i) < KNOCK_SPEED else 0.0
 		item["calm_s"] = calm
 		PhysicsServer3D.body_set_param(body, PhysicsServer3D.BODY_PARAM_LINEAR_DAMP, minf(LINEAR_DAMP + CALM_RAMP * calm, CALM_MAX_DAMP))
 		PhysicsServer3D.body_set_param(body, PhysicsServer3D.BODY_PARAM_ANGULAR_DAMP, minf(ANGULAR_DAMP + CALM_RAMP * calm, CALM_MAX_DAMP))
@@ -478,12 +536,17 @@ func _drive_held(delta: float) -> void:
 		return
 	var body: RID = items[_held]["rid"]
 	var gap: Vector3 = _held_target - held_point()
-	var velocity: Vector3 = gap * HOLD_GAIN
-	if velocity.length() > HOLD_MAX_SPEED:
-		velocity = velocity.normalized() * HOLD_MAX_SPEED
+	var wanted: Vector3 = gap * HOLD_GAIN
+	if wanted.length() > HOLD_MAX_SPEED:
+		wanted = wanted.normalized() * HOLD_MAX_SPEED
+	## A hand of limited strength: the velocity changes by at most HOLD_ACCEL a second, so an item blocked by the
+	## heap leans on it lightly instead of ramming it every step (a drive with a force limit, as PhysX joints).
+	var now: Vector3 = PhysicsServer3D.body_get_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY)
+	var change: Vector3 = wanted - now
+	if change.length() > HOLD_ACCEL * delta:
+		change = change.normalized() * HOLD_ACCEL * delta
 	## Gravity is cancelled for the step: a held item hangs where the hand is.
-	velocity -= _gravity_vector() * delta
-	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, velocity)
+	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, now + change - _gravity_vector() * delta)
 	## The wheel sets a target turn; the item spins toward it and the heap can stop it (no turning through a pan).
 	var error: Quaternion = _held_basis.get_rotation_quaternion() * pose(_held).basis.get_rotation_quaternion().inverse()
 	if error.w < 0.0:
@@ -505,11 +568,41 @@ func _gravity_vector() -> Vector3:
 func _keep_inside(i: int) -> void:
 	var body: RID = items[i]["rid"]
 	var at: Transform3D = pose(i)
+	var moved: Vector3 = _push_inside(i, at)
+	## Turned so it fits nowhere (a pan whose disc lies along the depth), no shift helps: it turns back toward
+	## the way it went in, which fits by the refusal check, and is pushed in again.
+	var turned: bool = false
+	for _step: int in REFIT_STEPS:
+		## Only a real misfit turns it; a sliver left to the solver must not keep the heap awake.
+		if _past_after(i, at, moved) <= REFIT_FROM_M:
+			break
+		var centre: Vector3 = at * (items[i]["box"] as AABB).get_center()
+		var back := Basis(at.basis.get_rotation_quaternion().slerp((items[i]["fit"] as Basis).get_rotation_quaternion(), REFIT_SHARE))
+		at = Transform3D(back, centre - back * (items[i]["box"] as AABB).get_center())
+		moved = _push_inside(i, at)
+		turned = true
+	if turned:
+		PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, Vector3.ZERO)
+	elif moved.is_zero_approx():
+		return
+	at.origin += moved
+	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_TRANSFORM, at)
+	if moved.is_zero_approx():
+		return
+	var velocity: Vector3 = PhysicsServer3D.body_get_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY)
+	var into: Vector3 = -moved.normalized()
+	velocity -= into * maxf(velocity.dot(into), 0.0)
+	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, velocity)
+
+
+## The shift that brings item i at pose `at` inside the canvas (up to 6 pushes along the worst point's normal).
+func _push_inside(i: int, at: Transform3D) -> Vector3:
 	var moved := Vector3.ZERO
+	var points: PackedVector3Array = _points_at(i, at)
 	for _pass: int in 6:
 		var worst: float = 0.0
 		var normal := Vector3.ZERO
-		for point: Vector3 in support_points(i):
+		for point: Vector3 in points:
 			var gap: Array = _past_canvas(point + moved)
 			if float(gap[0]) > worst:
 				worst = gap[0]
@@ -518,14 +611,14 @@ func _keep_inside(i: int) -> void:
 		if worst < 0.0005:
 			break
 		moved -= normal * worst
-	if moved.is_zero_approx():
-		return
-	at.origin += moved
-	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_TRANSFORM, at)
-	var velocity: Vector3 = PhysicsServer3D.body_get_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY)
-	var into: Vector3 = -moved.normalized()
-	velocity -= into * maxf(velocity.dot(into), 0.0)
-	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, velocity)
+	return moved
+
+
+func _past_after(i: int, at: Transform3D, moved: Vector3) -> float:
+	var worst: float = -INF
+	for point: Vector3 in _points_at(i, at):
+		worst = maxf(worst, float(_past_canvas(point + moved)[0]))
+	return worst
 
 
 ## How far item i reaches past what the canvas allows at its worst point, metres (0 or less: inside).
@@ -539,7 +632,10 @@ func overshoot(i: int) -> float:
 ## The points that bound item i's shape now, pack space: a box's corners, or two rims of a cylinder. `drawn`
 ## reads the pose last drawn (after the projection) instead of the body's.
 func support_points(i: int, drawn: bool = false) -> PackedVector3Array:
-	var at: Transform3D = (items[i]["visual"] as Node3D).transform if drawn else pose(i)
+	return _points_at(i, (items[i]["visual"] as Node3D).transform if drawn else pose(i))
+
+
+func _points_at(i: int, at: Transform3D) -> PackedVector3Array:
 	var box: AABB = items[i]["box"]
 	var round: float = float(items[i]["round"])
 	var out := PackedVector3Array()
