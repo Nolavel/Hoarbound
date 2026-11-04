@@ -257,3 +257,25 @@ from the pane edges, crystals at the front).
 - `test_window_frost` checks all three rules.
 
 
+
+## Universal SDF Blob Mask (independent UI module)
+
+`res://scripts/ui/effects/universal_blob_mask.gd` provides a `ColorRect`-based
+mask with up to 16 normalized circle SDFs (`Vector3(x, y, radius)`), batch
+`set_blobs()` or incremental `set_blob()`, resize-safe aspect correction,
+configurable smooth union, antialiased outlines, fill and fill+outline, plus
+alpha-masked content texture with optional inversion. It owns a separate
+`ShaderMaterial` per instance; no autoload or gameplay ownership changes.
+
+The shader is `res://shaders/ui/universal_blob_mask.gdshader`.
+To make a mask, add a `UniversalBlobMask` as a UI child, set its rect, then
+call `set_blobs([Vector3(0.3, 0.5, 0.1), ...])`. Radii and widths are in
+rect-height units; center coordinates are relative to the rect.
+`MASK` provides pixel alpha for the rect/texture, **not automatic clipping
+for unrelated Control children** (use a SubViewport composition for that).
+Budget is 16 full-screen distance checks/pixel in the worst case; prefer small
+UI rects over full-screen coverage for performance.
+
+Isolated demo: `res://tests/scenes/blob_mask_demo.tscn`.
+The `[blob-mask-preview]` marker in a Codex branch commit triggers a real
+6-second 30-FPS Godot capture in `checks.yml` (MP4 and three PNGs).

@@ -8,6 +8,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Added reusable UniversalBlobMask: 16 SDF circles, smooth union, fill/outline/alpha texture modes, isolated UI demo and six-second Godot capture in the existing checks workflow.
+
 - Added an isolated Gemini-inspired edge-glow shader preview with five-color animated top/bottom gradients, a six-second Godot capture, and a marker-gated reuse of the existing color-grade-blend CI workflow (no gameplay integration).
 - Added a Godot-native animation integration reference and the `/hoarbound-animation` Claude Code skill. Both point to Henry's existing AnimationTree/IK owners, GLB QA and the frozen Motion Matching acceptance gates; no runtime animation behavior changed.
 - Work in progress: the shoulder straps are now the school backpack's own pad, webbing and buckle
