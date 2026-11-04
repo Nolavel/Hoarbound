@@ -72,6 +72,7 @@ var _held_zone: StringName = &""
 ## Side-pocket contents last shown (slot -> item id), and whether the first fill has happened.
 var _side_items: Dictionary = {}
 var _contents_shown: bool = false
+var _hangers_frozen: bool = false
 
 
 func _init() -> void:
@@ -330,6 +331,7 @@ func get_pocket_spot(pocket: StringName) -> Vector3:
 
 ## Freezes or thaws everything hanging off the pack (carabiners and what they hold).
 func set_hangers_frozen(frozen: bool) -> void:
+	_hangers_frozen = frozen
 	for node: Node in find_children("*", "PendulumHang", true, false):
 		(node as PendulumHang).frozen = frozen
 
@@ -344,7 +346,6 @@ func _on_slot_changed(slot_path: StringName, _item_id: StringName) -> void:
 func _refresh_contents() -> void:
 	if _canvas == null or _equipment == null:
 		return
-	_canvas.clear_items()
 	var shown: Dictionary = {}
 	var main: Array[StringName] = []
 	for entry: Dictionary in _equipment.get_available_pockets():
@@ -355,14 +356,10 @@ func _refresh_contents() -> void:
 		match entry["pocket"]:
 			&"pack_side_left", &"pack_side_right_front", &"pack_side_right_back":
 				## Something new in a side pocket is pushed in; what was already there stays seated.
-				var slot: StringName = StringName(String(entry["pocket"]).trim_prefix("pack_"))
-				_canvas.add_item(held, slot, 0.0, _contents_shown and _side_items.get(slot, &"") != held)
-				shown[slot] = held
+				shown[StringName(String(entry["pocket"]).trim_prefix("pack_"))] = held
 			&"pack_carabiner", &"pack_carabiner_left":
 				## Something just put back on a carabiner comes down onto its rod; what hung there stays.
-				var pocket: StringName = entry["pocket"]
-				_canvas.hang_item(held, 1 if pocket == &"pack_carabiner" else 0, _contents_shown and _side_items.get(pocket, &"") != held)
-				shown[pocket] = held
+				shown[entry["pocket"]] = held
 			_:
 				main.append(held)
 	if _inventory != null:
@@ -372,6 +369,25 @@ func _refresh_contents() -> void:
 				continue
 			for _n: int in int(entry["count"]):
 				main.append(item.id)
+	## Only the outside places whose item changed are redone; what stays keeps its node, pose and freeze.
+	for place: StringName in _side_items.keys() + shown.keys():
+		var was: StringName = _side_items.get(place, &"")
+		var now: StringName = shown.get(place, &"")
+		if was == now:
+			continue
+		var carabiner: int = 1 if place == &"pack_carabiner" else (0 if place == &"pack_carabiner_left" else -1)
+		if was != &"":
+			if carabiner >= 0:
+				_canvas.unhang_item(carabiner)
+			else:
+				_canvas.remove_slot_item(place)
+		if now != &"":
+			if carabiner >= 0:
+				_canvas.hang_item(now, carabiner, _contents_shown)
+				if _hangers_frozen:
+					set_hangers_frozen(true)
+			else:
+				_canvas.add_item(now, place, 0.0, _contents_shown)
 	if _straps != null:
 		_straps.sync(main)
 	_side_items = shown

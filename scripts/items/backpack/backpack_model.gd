@@ -532,6 +532,26 @@ func hung_visual(index: int) -> Node3D:
 	return null
 
 
+## Takes out what sits in a side-pocket slot (SLEEVE_SLOTS), leaving the others as they are.
+func remove_slot_item(slot: StringName) -> void:
+	for i: int in range(_items.size() - 1, -1, -1):
+		if _items[i]["slot"] == slot:
+			(_items[i]["node"] as Node).queue_free()
+			_items.remove_at(i)
+	_refresh_proxies()
+
+
+## Unclips what hangs on carabiner `index` (0 left, 1 right), leaving the other as it is.
+func unhang_item(index: int) -> void:
+	for i: int in range(_hung.size() - 1, -1, -1):
+		var visual: Node3D = _hung[i]
+		if not is_instance_valid(visual):
+			_hung.remove_at(i)
+		elif int(visual.get_meta(&"carabiner_index", -1)) == index:
+			visual.get_parent().queue_free()
+			_hung.remove_at(i)
+
+
 func clear_items() -> void:
 	for item: Dictionary in _items:
 		(item["node"] as Node).queue_free()

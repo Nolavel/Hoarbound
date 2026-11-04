@@ -64,6 +64,7 @@ Code: `scripts/items/backpack/pack_focus_blur.gd` (`PackFocusBlur`, a child of t
 
 - Everything but the held pack and the inventory itself is blurred, Henry included. Depth of field cannot do it: from the camera's raised view his chest is nearer than the pack's back wall, and the see-through cards would take the floor's depth and blur.
 - Every mesh of the pack and of the camera's children (cards' items, a carried item) gets an unseen overlay that writes stencil 9; a full-screen quad (render priority −127, after the masks at −128) blurs where it is not written: 13 taps on a disc over the screen texture's mips. It fades in over 0.35 s.
+- A mesh that enters the tree under the pack or the camera is masked as it arrives (`SceneTree.node_added`), so an item put in is never drawn blurred; a slow rescan is the safety net.
 - Flat cards and the body panel (meta `flat_card`) are not masked: they are see-through and draw after the blur, over the blurred world. A rim on a masked mesh chains after its mask (`next_pass`).
 
 ## Hands
@@ -73,7 +74,7 @@ Code: `scripts/items/backpack/pack_handling.gd` (`PackHandling`), `pack_cursor.g
 - **Hover.** The ring hovers a strapped item (picked on its place's box), a pocket or the hand card, and flows into the item's silhouette on screen, with the "G — drop" hint beside it. The silhouette: its triangles rasterised into a 56-cell grid, the boundary traced (Moore neighbourhood), cached while nothing moves; the ring is resampled along its length (`PackCursor`).
 - **Readout.** Under the hovered or carried item: its name, weight and the number that matters most (a flask's water, food's calories, otherwise its size class), from `ItemReadout.describe` (`core/items/item_readout.gd`).
 - **Load bar** (top centre): what Henry carries of his limit (`InventoryComponent.max_carry_weight`), amber past `MovementController.load_penalty_starts` (where he starts to slow, ticked on the bar), with the hovered item's share bright at the fill's end.
-- **Sound and weight.** Taking, putting and dropping rustle the cloth (`data/audio/backpack/pack_rustle.tres`); a refusal pulls softer (`pack_resist.tres`). The clips come from Freesound #237047 (CC0, `assets/audio/sfx/items/backpack_cloth/LICENSE.md`). Something put into the pack jolts it in Henry's hands (`PackFrontHold.jolt`): a dip of 2 cm per kg (3 cm at most), tipped with it, springing back as a damped bounce.
+- **Sound and weight.** Taking, putting and dropping rustle the cloth (`data/audio/backpack/pack_rustle.tres`); a refusal pulls softer (`pack_resist.tres`). The clips come from Freesound #237047 (CC0, `assets/audio/sfx/items/backpack_cloth/LICENSE.md`). Something put into the pack jolts it in Henry's hands (`PackFrontHold.jolt`): a dip of 1.2 cm for the hand's push plus 2 cm per kg (3.5 cm at most), tipped with it, springing back as a damped bounce.
 - **Carry.** LMB (pad A) takes it, the ring hides, and the item rides the cursor at its true size (scaled by how much nearer than the pack it hangs) with a warm rim. Letting go:
   - over a card moves it into that pocket (`move_to_zone`, or `move_between_zones` from another pocket);
   - over the pack moves it under the straps (`move_to_pack`, after the straps' own refusal check);

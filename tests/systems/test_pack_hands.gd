@@ -64,8 +64,9 @@ func _run() -> void:
 	var sleeve_card: int = _slot_with(shelf, &"axe")
 	print("pack hands: %d items in the pack, %d cards" % [straps.items.size(), shelf.slots.size()])
 
-	## The tin from the coat pocket's card into the pack.
+	## The tin from the coat pocket's card into the pack; what hangs outside keeps its node (no rebuild, no flicker).
 	var strapped: int = straps.items.size()
+	var thermos_before: Node3D = _hub.pack.get_pocket_visual(&"pack_side_left")
 	await _aim(_card_screen(shelf, left_card))
 	_check(_hands.hovered_slot == left_card, "the ring over the coat pocket's card does not hover it")
 	var tin_kg: float = ItemCatalog.get_item(&"spov_can").weight
@@ -80,6 +81,8 @@ func _run() -> void:
 	_check(_inventory.get_count(&"spov_can") == 6 and StringName(shelf.slots[left_card]["item_id"]) == &"",
 		"the tin did not go from the coat pocket into the pack")
 	_check(straps.items.size() == strapped + 1, "the straps do not hold the tin (%d, had %d)" % [straps.items.size(), strapped])
+	_check(thermos_before == null or thermos_before == _hub.pack.get_pocket_visual(&"pack_side_left"),
+		"putting a tin in rebuilt the thermos outside (it would flicker)")
 	print("pack hands: coat pocket -> pack, %d under the straps" % straps.items.size())
 
 	## A tin out of the pack onto the empty coat pocket's card.

@@ -25,10 +25,11 @@ const STRAP_KEPT_SIDE: int = 0
 const SWING_S: float = 0.7
 ## How high the swing arcs above the straight path, metres.
 const ARC_M: float = 0.18
-## Something put in jolts the pack in his hands: it dips this much per kg (capped), tips with it, and springs
-## back as a damped bounce at JOLT_HZ fading at JOLT_DECAY (1/s).
+## Something put in jolts the pack in his hands: the hand's push dips it JOLT_BASE_M, the item's weight more
+## per kg (capped); it tips with it and springs back as a damped bounce at JOLT_HZ fading at JOLT_DECAY (1/s).
+const JOLT_BASE_M: float = 0.012
 const JOLT_M_PER_KG: float = 0.02
-const JOLT_MAX_M: float = 0.03
+const JOLT_MAX_M: float = 0.035
 const JOLT_TIP_DEG_PER_CM: float = 1.2
 const JOLT_HZ: float = 3.2
 const JOLT_DECAY: float = 7.0
@@ -78,7 +79,7 @@ func finish() -> void:
 
 ## The pack dips under `kg` put into it and bounces back (a short hitch in his hands).
 func jolt(kg: float) -> void:
-	_jolt_m = minf(maxf(kg, 0.1) * JOLT_M_PER_KG, JOLT_MAX_M)
+	_jolt_m = minf(JOLT_BASE_M + maxf(kg, 0.0) * JOLT_M_PER_KG, JOLT_MAX_M)
 	_jolt_t = 0.0
 
 

@@ -32,6 +32,8 @@ func setup(held_pack: Node3D) -> void:
 	material_override = _blur
 	create_tween().tween_method(func(value: float) -> void: _blur.set_shader_parameter(&"strength", value), 0.0, 1.0, FADE_S)
 	_mask_all()
+	## A mesh that appears (an item put in, a card's item) is masked before it is ever drawn blurred.
+	get_tree().node_added.connect(_on_node_added)
 
 
 func _process(delta: float) -> void:
@@ -41,7 +43,22 @@ func _process(delta: float) -> void:
 		_mask_all()
 
 
+func _on_node_added(node: Node) -> void:
+	if node is GeometryInstance3D and _covers(node):
+		_mask_one.call_deferred(node)
+
+
+## Whether `node` belongs to the pack or to the camera's other children (what stays sharp).
+func _covers(node: Node) -> bool:
+	if is_instance_valid(pack) and (pack == node or pack.is_ancestor_of(node)):
+		return true
+	var camera: Node = get_parent()
+	return camera != null and camera.is_ancestor_of(node) and not is_ancestor_of(node) and node != self
+
+
 func _exit_tree() -> void:
+	if get_tree().node_added.is_connected(_on_node_added):
+		get_tree().node_added.disconnect(_on_node_added)
 	for geometry: GeometryInstance3D in _masked:
 		if is_instance_valid(geometry) and geometry.material_overlay != null and geometry.material_overlay.has_meta(&"focus_mask"):
 			geometry.material_overlay = geometry.material_overlay.next_pass
@@ -58,18 +75,23 @@ func _mask_all() -> void:
 			roots.append(child)
 	for root: Node in roots:
 		for node: Node in [root] + root.find_children("*", "GeometryInstance3D", true, false):
-			var geometry := node as GeometryInstance3D
-			## Flat cards and panels (meta flat_card) are see-through and draw after the blur, over a blurred world.
-			if geometry == null or geometry == self or geometry.has_meta(&"flat_card"):
-				continue
-			if geometry.material_overlay != null and geometry.material_overlay.has_meta(&"focus_mask"):
-				continue
-			## The canvas folds and bulges in its vertex shader, which writes the stencil itself.
-			var own: ShaderMaterial = geometry.material_override as ShaderMaterial
-			if own != null and own.shader == CANVAS_SHADER:
-				continue
-			geometry.material_overlay = _mask(geometry.material_overlay)
-			_masked.append(geometry)
+			_mask_one(node)
+
+
+## Puts the stencil mask on one mesh (once); flat cards and the pack's own canvas are left as they are.
+func _mask_one(node: Node) -> void:
+	var geometry := node as GeometryInstance3D
+	## Flat cards and panels (meta flat_card) are see-through and draw after the blur, over a blurred world.
+	if geometry == null or not is_instance_valid(geometry) or geometry == self or geometry.has_meta(&"flat_card"):
+		return
+	if geometry.material_overlay != null and geometry.material_overlay.has_meta(&"focus_mask"):
+		return
+	## The canvas folds and bulges in its vertex shader, which writes the stencil itself.
+	var own: ShaderMaterial = geometry.material_override as ShaderMaterial
+	if own != null and own.shader == CANVAS_SHADER:
+		return
+	geometry.material_overlay = _mask(geometry.material_overlay)
+	_masked.append(geometry)
 
 
 ## An unseen overlay writing STENCIL_REF where the mesh shows; what was its overlay draws after it.

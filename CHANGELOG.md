@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Pack contents no longer flicker on every change.
+  - The pack rebuilt every outside item (thermos, tools, mug, pan) on each change, so they came back unmasked by the focus blur and unfrozen.
+  - Now only the places whose item changed are redone (`BackpackModel.remove_slot_item`/`unhang_item`).
+  - New hangers take the freeze, and the focus blur masks a mesh as it enters the tree.
+  - The put-in jolt has a base dip (1.2 cm) so even a lighter jolts it.
 - 3D inventory: cloth sounds and a jolt.
   - Taking, putting and dropping rustle the cloth, and a refusal pulls softer. The clips are Freesound #237047, CC0, supplied by the owner.
   - The held pack dips under what is put into it, about 2 cm per kg, then bounces back.
