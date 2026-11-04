@@ -120,7 +120,7 @@ func _rect(parent: Control, at: Vector2, dimensions: Vector2, tint: Color) -> Co
 	item.size = dimensions
 	item.color = tint
 	item.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent._stage.add_child(item)
+	parent.add_child(item)
 	return item
 
 
@@ -131,4 +131,4 @@ func _label(value: String, at: Vector2, font_size: int, tint: Color) -> void:
 	item.add_theme_font_size_override("font_size", font_size)
 	item.add_theme_color_override("font_color", tint)
 	item.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(item)
+	_stage.add_child(item)
