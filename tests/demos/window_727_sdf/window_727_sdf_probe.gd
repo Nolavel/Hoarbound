@@ -41,7 +41,7 @@ func set_test_time(seconds: float) -> void:
 	_window.material_override = _sdf if second else _plain
 	_plain.set_shader_parameter(&"heated_warmth", progress)
 	_sdf.set_shader_parameter(&"heated_warmth", progress)
-	var radius: float = mix(0.001, 0.46, pow(progress, 0.85))
+	var radius: float = lerpf(0.001, 0.46, pow(progress, 0.85))
 	var blobs: Array[Vector4] = []
 	for point: Vector2 in [Vector2(0.35, 0.54), Vector2(0.62, 0.46), Vector2(0.49, 0.60)]:
 		blobs.append(Vector4(point.x, point.y, radius, 0.0))
