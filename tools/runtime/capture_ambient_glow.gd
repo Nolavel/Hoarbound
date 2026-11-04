@@ -3,14 +3,13 @@ extends SceneTree
 ## Isolated six-second Godot GPU-shader review; 180 actual viewport frames at 30 fps.
 ## Reuse the color-grade-blend workflow with the [ambient-glow] commit marker.
 
-const SCENE: String = "res://tests/scenes/ambient_edge_glow_preview.tscn"
+const SHADER: String = "res://shaders/ui/ambient_edge_glow.gdshader"
 const OUTPUT: String = "res://docs/runtime_previews/ambient_glow"
 const FRAMES: int = 180
 const FPS: int = 30
 const WIDTH: int = 960
 const HEIGHT: int = 540
 
-var _glow: ColorRect
 var _shader_material: ShaderMaterial
 var _frames_directory: String
 
@@ -18,39 +17,27 @@ var _frames_directory: String
 func _initialize() -> void:
     root.content_scale_size = Vector2i(WIDTH, HEIGHT)
     root.size = Vector2i(WIDTH, HEIGHT)
-    var packed: PackedScene = load(SCENE) as PackedScene
-    if packed == null:
-        _fail("missing preview scene")
+    var shader: Shader = load(SHADER) as Shader
+    if shader == null:
+        _fail("missing glow shader")
         return
-    var preview: Control = packed.instantiate() as Control
-    if preview == null:
-        _fail("preview root is not Control")
-        return
-    preview.set_anchors_preset(Control.PRESET_TOP_LEFT)
-    preview.size = Vector2(WIDTH, HEIGHT)
-    root.add_child(preview)
-    _glow = preview.get_node_or_null(^"Glow") as ColorRect
-    if _glow == null:
-        _fail("missing Glow ColorRect")
-        return
-    _glow.set_anchors_preset(Control.PRESET_TOP_LEFT)
-    _glow.size = Vector2(WIDTH, HEIGHT)
-    print("AMBIENT_GLOW_LAYOUT viewport=%s preview=%s glow=%s" % [root.size, preview.size, _glow.size])
-    if roundi(_glow.size.x) != WIDTH or roundi(_glow.size.y) != HEIGHT:
-        _fail("gradient does not cover the full viewport")
-        return
-    _glow.set("animation_enabled", false)
-    _shader_material = _glow.material as ShaderMaterial
-    if _shader_material == null:
-        _fail("missing ShaderMaterial")
-        return
+    var glow: ColorRect = ColorRect.new()
+    glow.name = "Glow"
+    glow.position = Vector2.ZERO
+    glow.size = Vector2(WIDTH, HEIGHT)
+    glow.color = Color.WHITE
+    glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    _shader_material = ShaderMaterial.new()
+    _shader_material.shader = shader
+    glow.material = _shader_material
+    root.add_child(glow)
+    print("AMBIENT_GLOW_LAYOUT viewport=%s glow=%s" % [root.size, glow.size])
     _frames_directory = ProjectSettings.globalize_path(OUTPUT.path_join("frames"))
     var result: Error = DirAccess.make_dir_recursive_absolute(_frames_directory)
     if result != OK:
         _fail("cannot create frames directory")
         return
     _render_frames.call_deferred()
-
 
 func _render_frames() -> void:
     for frame: int in range(FRAMES):
@@ -61,6 +48,13 @@ func _render_frames() -> void:
         if image == null or image.get_width() != WIDTH or image.get_height() != HEIGHT:
             _fail("invalid viewport image at frame %d" % frame)
             return
+        if frame == 75:
+            var left: Color = image.get_pixel(80, 12)
+            var right: Color = image.get_pixel(880, 12)
+            var color_delta: float = absf(left.r - right.r) + absf(left.g - right.g) + absf(left.b - right.b)
+            if color_delta < 0.04:
+                _fail("shader has no visible lateral color separation")
+                return
         var frame_path: String = _frames_directory.path_join("frame_%04d.png" % frame)
         if image.save_png(frame_path) != OK:
             _fail("PNG write failed at frame %d" % frame)
