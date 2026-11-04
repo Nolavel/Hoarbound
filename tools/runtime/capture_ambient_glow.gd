@@ -33,6 +33,8 @@ func _initialize() -> void:
     if _glow == null:
         _fail("missing Glow ColorRect")
         return
+    _glow.set_anchors_preset(Control.PRESET_TOP_LEFT)
+    _glow.size = Vector2(WIDTH, HEIGHT)
     print("AMBIENT_GLOW_LAYOUT viewport=%s preview=%s glow=%s" % [root.size, preview.size, _glow.size])
     if roundi(_glow.size.x) != WIDTH or roundi(_glow.size.y) != HEIGHT:
         _fail("gradient does not cover the full viewport")
