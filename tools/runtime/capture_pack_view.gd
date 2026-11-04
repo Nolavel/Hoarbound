@@ -62,21 +62,36 @@ func _run() -> void:
 	for _i: int in 40:
 		await process_frame
 	await _record(0.6)
-	## The pack's main compartment starts empty (the bedroll stays strapped on top).
+	## The pack starts half full of SPoV tins (the bedroll stays strapped on top); a tin waits in the left coat
+	## pocket.
 	var inventory := player.get_node(^"InventoryComponent") as InventoryComponent
 	for entry: Dictionary in inventory.get_entries():
 		if entry["id"] != &"bedroll":
 			for _n: int in int(entry["count"]):
 				inventory.take_instance(entry["id"])
-	await _record(0.3)
-	var hub := player.get_node(^"PlayerHubComponent") as PlayerHubComponent
-	hub.open()
-	await _record(1.2)
 	var tin: ItemResource = ItemCatalog.get_item(&"spov_can")
-	for _n: int in 9:
+	for _n: int in 5:
 		inventory.try_add(tin)
-		await _record(0.55)
-	await _record(1.2)
+	var hub := player.get_node(^"PlayerHubComponent") as PlayerHubComponent
+	var equipment := player.get_node(^"EquipmentComponent") as EquipmentComponent
+	for zone: Dictionary in hub.get_quick_access_zones():
+		if String(zone["path"]).ends_with("coat_left") and zone["item_id"] == &"":
+			var parts: PackedStringArray = String(zone["path"]).split(EquipmentComponent.POCKET_SEPARATOR)
+			equipment.stow(StringName(parts[0]), StringName(parts[1]), &"spov_can")
+	await _record(0.3)
+	hub.open()
+	await _record(1.6)
+	## From the quick pockets into the pack, one by one.
+	var shelf: PackQuickShelf = hub.get_quick_shelf()
+	var rig: PackRig = visual.get_pack_rig()
+	for wanted: String in ["coat_left", "coat_right", "thigh_left"]:
+		for k: int in shelf.slots.size():
+			if String(shelf.slots[k]["path"]).ends_with(wanted) and StringName(shelf.slots[k]["item_id"]) != &"":
+				print("[pack view] sending ", shelf.slots[k]["item_id"], " from ", wanted)
+				shelf.send_to_pack(k, rig.global_position)
+				break
+		await _record(1.1)
+	await _record(1.0)
 	hub.close()
 	await _record(1.4)
 	print("[pack view] frames ", _frame)

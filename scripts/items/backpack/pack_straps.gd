@@ -4,7 +4,8 @@ extends Node3D
 ## The main compartment held by straps, not physics (3D inventory): three straps run across the back wall, one
 ## per tier of the compartment's height. An item goes into the lowest tier with room, standing against the back
 ## wall beside the last one; when a tier's first layer is full, the next layer stands in front of it while the
-## depth allows. Each tier's strap pulls in to the front of what it holds and buckles. All sizes are the items'
+## depth allows. Each tier's strap is fixed to both side walls; it lies on the back wall empty and draws out
+## round the front of what it holds, buckled in the middle. All sizes are the items'
 ## real outlines in metres; what fits nowhere is refused. Pack space (BackpackModel): x across, y up, z out.
 
 signal refused(item_id: StringName, reason: StringName)
@@ -40,7 +41,6 @@ func setup(pack: BackpackModel) -> void:
 	model = pack
 	for tier: int in TIERS:
 		_straps.append(_build_strap(tier))
-		_straps[tier].position.z = room().position.z + STRAP_OFF_M
 
 
 ## The compartment's usable inside, pack space. Across, it keeps a canvas bulge's reach off the side walls: the
@@ -204,23 +204,68 @@ static func _outline(id: StringName) -> AABB:
 	return box
 
 
-## Each tier's strap pulls in to the front of what it holds (or lies back on the wall when it holds nothing).
+## Each tier's strap draws in round what it holds: [left x, right x, front z] of its contents (or flat on the
+## back wall when it holds nothing), eased there after the item lands.
 func _cinch(animate: bool) -> void:
-	var fronts: Array[float] = []
+	var space: AABB = room()
+	var shapes: Array[Vector3] = []
 	for _t: int in TIERS:
-		fronts.append(room().position.z)
+		shapes.append(Vector3(0.0, 0.0, space.position.z))
+	var spans: Array = []
+	for _t: int in TIERS:
+		spans.append([INF, -INF, space.position.z])
 	for item: Dictionary in items:
 		var box: AABB = item["box"]
-		fronts[int(item["tier"])] = maxf(fronts[int(item["tier"])], box.end.z)
+		var span: Array = spans[int(item["tier"])]
+		span[0] = minf(float(span[0]), box.position.x)
+		span[1] = maxf(float(span[1]), box.end.x)
+		span[2] = maxf(float(span[2]), box.end.z)
 	for tier: int in TIERS:
-		var z: float = fronts[tier] + STRAP_OFF_M + STRAP_T_M * 0.5
+		var span: Array = spans[tier]
+		var want := Vector3(0.0, 0.0, space.position.z) if float(span[0]) == INF else Vector3(span[0], span[1], span[2])
 		var strap: Node3D = _straps[tier]
-		if animate and absf(strap.position.z - z) > 0.001:
+		var now: Vector3 = strap.get_meta(&"shape", Vector3(0.0, 0.0, space.position.z))
+		if animate and now.distance_to(want) > 0.001:
 			var tween: Tween = strap.create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			tween.tween_interval(DROP_S)
-			tween.tween_property(strap, ^"position:z", z, CINCH_S)
+			tween.tween_method(_shape_strap.bind(strap), now, want, CINCH_S)
 		else:
-			strap.position.z = z
+			_shape_strap(want, strap)
+
+
+## The strap's webbing along its path: fixed to both side walls by the back wall, out round the front of its
+## contents [left x, right x, front z] (a flat run on the back wall when left == right), the buckle on the
+## front run's middle.
+func _shape_strap(shape: Vector3, strap: Node3D) -> void:
+	strap.set_meta(&"shape", shape)
+	var wall: float = BackpackModel.BODY.x * 0.5 - BackpackModel.CANVAS_LINING_M
+	var back: float = room().position.z + STRAP_T_M * 0.5
+	var front: float = maxf(shape.z, room().position.z) + STRAP_OFF_M + STRAP_T_M * 0.5
+	var path: Array[Vector3] = [Vector3(-wall, 0.0, back)]
+	if shape.x < shape.y:
+		path.append(Vector3(shape.x - STRAP_OFF_M, 0.0, front))
+		path.append(Vector3(shape.y + STRAP_OFF_M, 0.0, front))
+	path.append(Vector3(wall, 0.0, back))
+	var webbing := strap.get_node(^"Webbing") as MeshInstance3D
+	webbing.mesh = _band(path)
+	var middle: Vector3 = (path[1] + path[path.size() - 2]) * 0.5 if path.size() > 2 else Vector3(0.0, 0.0, back)
+	(strap.get_node(^"Buckle") as Node3D).position = middle + Vector3(0.0, 0.0, BUCKLE.z * 0.5)
+	(strap.get_node(^"Tail") as Node3D).position = middle + Vector3(BUCKLE.x * 0.5 + 0.004, -TAIL.y * 0.5, STRAP_T_M)
+
+
+## A flat band STRAP_W_M tall along `path` (in the strap's plane), both faces drawn.
+static func _band(path: Array[Vector3]) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var half := Vector3(0.0, STRAP_W_M * 0.5, 0.0)
+	for k: int in path.size() - 1:
+		var a: Vector3 = path[k]
+		var b: Vector3 = path[k + 1]
+		for tri: Array in [[a - half, b - half, b + half], [a - half, b + half, a + half]]:
+			for v: Vector3 in tri:
+				st.add_vertex(v)
+	st.generate_normals()
+	return st.commit()
 
 
 func _build_strap(tier: int) -> Node3D:
@@ -229,21 +274,31 @@ func _build_strap(tier: int) -> Node3D:
 	strap.name = "Strap%d" % tier
 	strap.position = Vector3(0.0, space.position.y + (float(tier) + 0.5) * tier_height(), 0.0)
 	add_child(strap)
-	_box(strap, Vector3(space.size.x + 0.02, STRAP_W_M, STRAP_T_M), Vector3.ZERO, WEBBING)
-	_box(strap, BUCKLE, Vector3(0.0, 0.0, BUCKLE.z * 0.5), METAL)
-	_box(strap, Vector3(TAIL.x, TAIL.y, STRAP_T_M), Vector3(BUCKLE.x * 0.5 + 0.004, -TAIL.y * 0.5, STRAP_T_M), WEBBING)
+	var webbing := MeshInstance3D.new()
+	webbing.name = "Webbing"
+	webbing.material_override = _material(WEBBING)
+	(webbing.material_override as StandardMaterial3D).cull_mode = BaseMaterial3D.CULL_DISABLED
+	strap.add_child(webbing)
+	_box(strap, BUCKLE, Vector3.ZERO, METAL).name = "Buckle"
+	_box(strap, Vector3(TAIL.x, TAIL.y, STRAP_T_M), Vector3.ZERO, WEBBING).name = "Tail"
+	_shape_strap(Vector3(0.0, 0.0, space.position.z), strap)
 	return strap
 
 
-static func _box(parent: Node3D, size: Vector3, at: Vector3, colour: Color) -> void:
+static func _box(parent: Node3D, size: Vector3, at: Vector3, colour: Color) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = size
 	mesh.mesh = box
-	var material := StandardMaterial3D.new()
-	material.albedo_color = colour
-	material.roughness = 0.8 if colour != METAL else 0.4
-	material.metallic = 0.0 if colour != METAL else 0.6
-	mesh.material_override = material
+	mesh.material_override = _material(colour)
 	mesh.position = at
 	parent.add_child(mesh)
+	return mesh
+
+
+static func _material(colour: Color) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = colour
+	material.roughness = 0.4 if colour == METAL else 0.8
+	material.metallic = 0.6 if colour == METAL else 0.0
+	return material

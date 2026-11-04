@@ -8,6 +8,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory, pack in hand:
+  - One strap stays over Henry's shoulder and lies on the jacket down his chest.
+  - Quick Access beside the open pack shows the real pockets' 3D items on gradient cards at the frame's sides,
+    with no text. Items fly from a card into the pack under the straps.
+  - The inner straps are fixed to the side walls and draw out round what they hold.
+  - The camera shows the dropped panel.
+  - Verlet strap chains pin their ends every step.
 - 3D inventory: the main compartment holds its contents under three straps instead of physics (`PackStraps`).
   - Each item, sized by its real outline, stands into the lowest tier with room against the back wall, layer
     by layer. That tier's strap pulls in and buckles.

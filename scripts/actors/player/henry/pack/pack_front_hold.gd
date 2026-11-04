@@ -16,9 +16,11 @@ const BELOW_M: float = 0.18
 const TIP_DEG: float = 45.0
 ## The camera: the share of the frame height the pack fills, how much it rises above the opening's line, and
 ## how far above the pack's middle it aims (so Henry's face shows over the pack), metres.
-const FRAME_SHARE: float = 0.55
+const FRAME_SHARE: float = 0.47
 const VIEW_RISE: float = 0.35
-const VIEW_LIFT_M: float = 0.03
+const VIEW_LIFT_M: float = -0.07
+## The strap that stays over a shoulder while the pack is held (0 left, 1 right).
+const STRAP_KEPT_SIDE: int = 0
 ## Swinging off the back and on again takes this long, seconds.
 const SWING_S: float = 0.7
 ## How high the swing arcs above the straight path, metres.
@@ -48,6 +50,8 @@ func start(henry: HenryUALAnimation, rig: PackRig) -> void:
 	var world: Node = henry.get_tree().current_scene if henry.get_tree().current_scene != null else henry.get_tree().root
 	rig.reparent(world, true)
 	rig.set_openness(PackRig.Openness.FULL)
+	## He slips one arm out only: the left strap stays over his shoulder (PackShoulderStraps).
+	rig.set_meta(&"strap_on_shoulder", STRAP_KEPT_SIDE)
 
 
 ## Swings the pack back on; `finished` fires when it is home and the hands are free.
@@ -144,6 +148,7 @@ func _put_back() -> void:
 		var grip: HandGrip = visual.get_hand_grip(left)
 		if grip != null:
 			grip.release()
+	pack.remove_meta(&"strap_on_shoulder")
 	if is_instance_valid(_home_parent):
 		pack.reparent(_home_parent, false)
 		pack.transform = _home_transform

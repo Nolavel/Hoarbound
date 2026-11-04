@@ -99,6 +99,7 @@ Code: `scripts/items/backpack/pack_straps.gd` (`PackStraps`), built into the pac
   - Usable inside: 25.6 × 48.8 × 18.8 cm. Across, it keeps a canvas bulge's reach off each side wall, so the side walls and the pockets sewn on them stay flat.
   - SPoV tins: 3 across × 3 tiers = 9 per layer, 18 in two layers.
   - Refusals: `INVENTORY_TOO_BIG` when no tier takes the outline in any turn (the axe); `INVENTORY_NO_ROOM` when no tier has room left.
+- **Straps are part of the pack.** Each strap's ends are fixed to both side walls by the back wall. Empty, it lies flat on the back wall; with contents, it draws out round their front and buckles in the middle (eased 0.22 s after an item lands). It never slides in from anywhere.
 - **Contents.** What the pack holds, minus the bedroll strapped on top, stands under the straps: the `pack_main` pockets plus the inventory, one place per instance. It re-lays out whenever the inventory or a pack pocket changes.
 - **Items taller than a tier** (16 cm) are refused for now. Spanning two straps is not done yet.
 - **Not yet:** the ring cursor and dragging work on `PackInterior` (physics), not on the straps yet. `PackInterior` remains only for those stands.
@@ -113,8 +114,9 @@ Capture: `tools/runtime/capture_pack_view.gd`, with the real HUD. Stills: `tools
   - The front panel drops open away from him.
   - Both hands take it by the side walls (HandGrip); the fingers come over the rim.
   - Tab or Esc swings it back on, and it closes there.
-- **Camera.** It faces Henry, fixed, square to the opening and a little above it. It sits at the distance where the pack fills 40% of the frame height at 50°, aimed 20 cm above the pack's middle so his face shows over it (`PackFrontHold.front_view`).
-- **Quick Access cards** stand pinned on their live anchors while the pack is held: no countdown, no wheel selection, no cross layout (`QuickAccessUI.show_pinned`).
+- **Camera.** It faces Henry, fixed, square to the opening and a little above it. It sits at the distance where the pack fills 47% of the frame height at 50°, aimed 7 cm below the pack's middle so the dropped panel (the hem) shows. Past the pack it softens (depth of field) (`PackFrontHold.front_view`).
+- **One strap stays on.** Henry slips one arm out only. The left strap keeps to the jacket as worn, from the top of the shoulder 14 cm down the chest, then hangs to the pack's top corner (`PackShoulderStraps._draw_on_shoulder`). The other strap hangs free from the pack. Verlet chains now pin their ends every step, so a strap follows a moving pack.
+- **Quick Access beside the pack.** The real quick pockets' 3D items stand on gradient cards with no text, in a column at each side of the frame, clear of the pack: body pockets left, the pack's outside pockets right (`PackQuickShelf.setup_live`, children of the Hub camera). `send_to_pack(slot)` flies a pocket's item into the opening and moves it through the Hub, and the straps take it in.
 - **Full inspection** (pack set down) is unchanged. It opens the Hub without taking the pack in hand, and the 2D Hub panel shows only there.
 
 ## Measured (stand, upright pack, axe, frying pan, hammer, thermos, SPoV, mug; seeds 1, 2, 3, 7, 11, 42)

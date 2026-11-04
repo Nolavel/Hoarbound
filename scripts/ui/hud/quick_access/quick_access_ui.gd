@@ -123,8 +123,6 @@ var _focus_path: StringName = &""
 var _last_confirmed_path: StringName = &""
 var _opened := false
 var _selection_timeout_left := 0.0
-## Pinned up by the open pack (show_pinned): no countdown, no wheel or click selection.
-var _pinned := false
 var _orbit_blend := 0.0
 var _cross_latched := false
 var _direct_busy := false
@@ -157,36 +155,6 @@ func _ready() -> void:
 func _initial_setup() -> void:
 	_snap_all()
 	_refresh_content()
-	## 3D inventory: while Henry holds the pack open, every card stays up on its live anchor.
-	var hub: PlayerHubComponent = quick_access_component.hub if quick_access_component != null else null
-	if hub != null:
-		hub.hub_opened.connect(func() -> void:
-			if hub.pack_in_hands and not hub.is_inspecting():
-				show_pinned())
-		hub.hub_closed.connect(unpin)
-
-
-## Shows every card on its anchor with no countdown and no selection input (the open pack's view).
-func show_pinned() -> void:
-	_pinned = true
-	_opened = true
-	_selection_timeout_left = INF
-	_refresh_content()
-	_set_visible_state(true)
-	_snap_all()
-	_refresh_focus_visuals(false)
-	_animate_reveal_in()
-
-
-func is_pinned() -> bool:
-	return _pinned
-
-
-func unpin() -> void:
-	if not _pinned:
-		return
-	_pinned = false
-	cancel()
 
 
 func is_open() -> bool:
@@ -239,7 +207,7 @@ func direct_draw_slot(slot_number: int) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if _pinned or not event.is_pressed() or event.is_echo():
+	if not event.is_pressed() or event.is_echo():
 		return
 
 	if _opened:
@@ -921,8 +889,7 @@ func _update_card_positions(camera: Camera3D, delta: float, snap: bool) -> void:
 			var projected: Vector2 = raw_targets[path]
 			projected = _soft_bound_slot_position(slot, projected, viewport_size, margin, edge_blend_px)
 			bounded_targets[path] = _clamp_slot_position(slot, projected, viewport_size, margin)
-		## Pinned by the open pack, each card stays on its own pocket: no cross, whatever the framing.
-		_cross_latched = not _pinned and _wants_cross(camera, visible_specs, bounded_targets)
+		_cross_latched = _wants_cross(camera, visible_specs, bounded_targets)
 		target_orbit_blend = 1.0 if _cross_latched else 0.0
 	if snap:
 		_orbit_blend = target_orbit_blend

@@ -58,6 +58,8 @@ var _previous_mouse_mode: int = Input.MOUSE_MODE_CAPTURED
 var _thermal_manager: ThermalManager
 ## The pack held before Henry while the Hub is open in pack_in_hands mode.
 var _front_hold: PackFrontHold
+## The Quick Access cards beside the held pack (pack_in_hands mode).
+var _shelf: PackQuickShelf
 ## Set while full inspection opens the Hub: it sets the pack down instead of taking it in hand.
 var _opening_inspection: bool = false
 
@@ -113,6 +115,12 @@ func open() -> bool:
 	_enter_camera()
 	if _front_hold == null:
 		_show_panel()
+	elif is_instance_valid(_camera):
+		## Quick Access beside the open pack: the real pockets' 3D items on cards at the frame's sides.
+		_shelf = PackQuickShelf.new()
+		_shelf.name = "QuickShelf"
+		_camera.add_child(_shelf)
+		_shelf.setup_live(self, _camera)
 	hub_opened.emit()
 	return true
 
@@ -156,6 +164,11 @@ func open_inspection() -> bool:
 	return true
 
 
+## The live Quick Access cards while the pack is held open, or null.
+func get_quick_shelf() -> PackQuickShelf:
+	return _shelf if is_instance_valid(_shelf) else null
+
+
 func is_inspecting() -> bool:
 	return _inspecting
 
@@ -180,6 +193,9 @@ func close() -> bool:
 		## Set down by the stove it stays ajar; on the back it shuts.
 		var down: bool = visual != null and visual.is_pack_down()
 		pack.set_openness(PackRig.Openness.AJAR if down else PackRig.Openness.CLOSED)
+	if is_instance_valid(_shelf):
+		_shelf.queue_free()
+	_shelf = null
 	_exit_camera()
 	if is_instance_valid(_panel):
 		_panel.hide_hub()
