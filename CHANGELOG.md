@@ -8,6 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory: the item under the ring shows its readout, and a load bar shows what Henry carries.
+  - The readout gives the name, weight and key number: a flask's water, food's calories, or else the size.
+  - The load bar shows the carried weight against the limit, with a tick where Henry starts to slow.
+  - The hovered item's share is lit on the bar. Data comes from the new `ItemReadout`.
 - Work trousers gain a right thigh pocket (`legs_outer/thigh_right`, Quick Access).
   - The HUD builds its card from the left thigh's, below the pack lid in the cross.
   - It has its own anchor (`ThighRightAnchor`) and is reached with the wheel; keys 1-4 are unchanged.

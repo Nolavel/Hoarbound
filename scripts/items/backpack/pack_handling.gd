@@ -133,6 +133,12 @@ func _process(delta: float) -> void:
 		cursor.outline = _screen_outline(target) if target != null else PackedVector2Array()
 		cursor.outline_key = target.get_instance_id() if target != null else 0
 		cursor.hint = tr(&"INVENTORY_HINT_DROP") % ("Y" if _pad_used else "G")
+		var shown_id: StringName = _carry.get("id", _hovered_id())
+		cursor.info = ItemReadout.describe(shown_id) if shown_id != &"" else {}
+		cursor.load_kg = hub.get_weight()
+		cursor.load_max_kg = hub.get_max_weight()
+		cursor.load_slows_at = hub.get_load_slows_at()
+		cursor.load_item_kg = float(cursor.info.get("kg", 0.0))
 
 
 ## LMB on what is under the ring: it leaves its place and rides the cursor.
@@ -235,6 +241,17 @@ func _show_hover() -> void:
 		var into_pack: bool = int(_carry.get("from_slot", -1)) >= 0 and hovered_slot < 0 and _over_pack()
 		var held: Node3D = (_carry["visual"] as Node3D).get_child(0)
 		_rim(held, REFUSED_RIM if into_pack and straps.refusal(carried) != &"" else HELD_RIM)
+
+
+## The id of what the ring is over (a strapped item, a pocket's item, the hand's), or &"".
+func _hovered_id() -> StringName:
+	if hovered_hand:
+		return shelf.slots[shelf.selected]["item_id"] if shelf.selected >= 0 and shelf.selected < shelf.slots.size() else &""
+	if hovered_item >= 0:
+		return straps.items[hovered_item]["id"]
+	if hovered_slot >= 0:
+		return shelf.slots[hovered_slot]["item_id"]
+	return &""
 
 
 ## What the ring is over: a strapped item's visual, a pocket's item (on the pack or on its card), or the hand's.

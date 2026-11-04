@@ -2,6 +2,7 @@ extends SceneTree
 
 ## Hands in the held pack (3D inventory) on the real player and Hub. Tab takes the pack into Henry's hands,
 ## half full of SPoV tins, a tin in the left coat pocket. The ring and LMB:
+## - over the tin it shows its readout (name, weight); the load bar shows what Henry carries;
 ## - carry the tin from the coat pocket's card into the pack (it goes under the straps, the pocket empties);
 ## - take a tin out of the pack onto the empty card (into that pocket);
 ## - a full pocket refuses the axe (its reason shows, the axe stays in its sleeve);
@@ -67,6 +68,11 @@ func _run() -> void:
 	var strapped: int = straps.items.size()
 	await _aim(_card_screen(shelf, left_card))
 	_check(_hands.hovered_slot == left_card, "the ring over the coat pocket's card does not hover it")
+	var tin_kg: float = ItemCatalog.get_item(&"spov_can").weight
+	_check(String(_hands.cursor.info.get("name", "")) != "" and is_equal_approx(float(_hands.cursor.info.get("kg", -1.0)), tin_kg),
+		"the hovered tin shows no readout (name and weight)")
+	_check(is_equal_approx(_hands.cursor.load_kg, _inventory.get_total_weight()) and _hands.cursor.load_max_kg > 0.0,
+		"the load bar does not show what Henry carries")
 	_hands.press(PackHandling.GRAB_ACTION, true)
 	await _glide(_pack_screen(straps))
 	_hands.press(PackHandling.GRAB_ACTION, false)

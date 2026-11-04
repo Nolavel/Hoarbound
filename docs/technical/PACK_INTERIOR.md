@@ -71,6 +71,8 @@ Code: `scripts/items/backpack/pack_focus_blur.gd` (`PackFocusBlur`, a child of t
 Code: `scripts/items/backpack/pack_handling.gd` (`PackHandling`), `pack_cursor.gd` (`PackCursor`), `shaders/items/item_outline.gdshader`. Keys: `docs/technical/CONTROLS.md`.
 
 - **Hover.** The ring hovers a strapped item (picked on its place's box), a pocket or the hand card, and flows into the item's silhouette on screen, with the "G — drop" hint beside it. The silhouette: its triangles rasterised into a 56-cell grid, the boundary traced (Moore neighbourhood), cached while nothing moves; the ring is resampled along its length (`PackCursor`).
+- **Readout.** Under the hovered or carried item: its name, weight and the number that matters most (a flask's water, food's calories, otherwise its size class), from `ItemReadout.describe` (`core/items/item_readout.gd`).
+- **Load bar** (top centre): what Henry carries of his limit (`InventoryComponent.max_carry_weight`), amber past `MovementController.load_penalty_starts` (where he starts to slow, ticked on the bar), with the hovered item's share bright at the fill's end.
 - **Carry.** LMB (pad A) takes it, the ring hides, and the item rides the cursor at its true size (scaled by how much nearer than the pack it hangs) with a warm rim. Letting go:
   - over a card moves it into that pocket (`move_to_zone`, or `move_between_zones` from another pocket);
   - over the pack moves it under the straps (`move_to_pack`, after the straps' own refusal check);

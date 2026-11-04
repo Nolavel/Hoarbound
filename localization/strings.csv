@@ -130,6 +130,9 @@ Firewood,Firewood,Дрова
 Salvaged boards,Salvaged boards,Доски
 Water flask,Water flask,Фляга
 FLASK_SHORT_STATUS,%d / %d ml,%d / %d мл
+ITEM_WEIGHT_KG,%.1f kg,%.1f кг
+ITEM_CALORIES,%d kcal,%d ккал
+INVENTORY_LOAD,Load %.1f / %.0f kg,Нагрузка %.1f / %.0f кг
 Pocket knife,Pocket knife,Нож
 Tinned pineapple,Tinned pineapple,Консервированные ананасы
 Tinned stew,Tinned stew,Тушёнка

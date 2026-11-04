@@ -531,6 +531,13 @@ func get_max_weight() -> float:
 	return inventory.max_carry_weight if inventory != null else 0.0
 
 
+## The share of the carry limit past which Henry starts to slow (MovementController.load_penalty_starts).
+func get_load_slows_at() -> float:
+	var body: Node = get_parent()
+	var movement := body.get_node_or_null(^"MovementController") as MovementController if body != null else null
+	return movement.load_penalty_starts if movement != null else 1.0
+
+
 func _can_open() -> bool:
 	var body := get_parent() as CharacterBody3D
 	if body != null and body.velocity.y < -0.5:
