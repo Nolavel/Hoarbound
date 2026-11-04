@@ -30,6 +30,11 @@ uniform mat4 to_pack = mat4(1.0);
 uniform vec4 item_centre[MAX_ITEMS];
 uniform vec4 item_half[MAX_ITEMS];
 uniform int item_count = 0;
+// Pockets only: what is in the main body, so a pocket rides its wall where the contents bulge it.
+uniform vec4 wall_item_centre[MAX_ITEMS];
+uniform vec4 wall_item_half[MAX_ITEMS];
+uniform int wall_item_count = 0;
+uniform float wall_lining_m = 0.012;
 // Canvas and lining between an item and the outer face, metres; the bulge feathers over `soft_m`.
 uniform float lining_m = 0.012;
 uniform float soft_m = 0.03;
@@ -153,18 +158,22 @@ void vertex() {
 	vec3 an = abs(n);
 	v_edge = smoothstep(0.08, 0.26, 1.0 - max(an.x, max(an.y, an.z)));
 	float push = 0.0;
+	// Nearest content under this vertex (lining included): slack cloth sags only until it lies on it.
+	float clear = 1.0;
 	for (int i = 0; i < MAX_ITEMS; i++) {
 		if (i >= item_count) {
 			break;
 		}
 		float d = box_distance(p, item_centre[i].xyz, item_half[i].xyz) - lining_m;
 		push = max(push, smoothstep(soft_m, -soft_m, d) * max(soft_m - d, 0.0));
+		clear = min(clear, d);
 	}
 	push = min(push, max_stretch_m);
 	float empty = 1.0 - clamp(fill, 0.0, 1.0);
 	float high = smoothstep(pack_height_m * 0.45, pack_height_m, p.y);
-	vec3 slump = vec3(0.0, -slump_top_m * high, 0.0) - n * slump_wall_m * smoothstep(0.1, 0.4, p.y / pack_height_m);
-	vec3 shaped = n * push + slump * empty;
+	vec3 slump = (vec3(0.0, -slump_top_m * high, 0.0) - n * slump_wall_m * smoothstep(0.1, 0.4, p.y / pack_height_m)) * empty;
+	float sag = length(slump);
+	vec3 shaped = n * push + (sag > 0.0 ? slump * (min(sag, max(clear, 0.0)) / sag) : vec3(0.0));
 	v_pack_normal = n;
 	v_stretch = 0.0;
 	float slack = empty * high;
@@ -226,6 +235,21 @@ void vertex() {
 			shaped = pocket_flat(p, n, side, out_x) - p;
 			slack = 1.0;
 		}
+	}
+	if (is_pocket) {
+		// Sewn on the side wall: it sits a seam's thickness out (never z-fighting the wall seen from inside)
+		// and moves out with the wall as the open front gives.
+		float side_x = sign(pocket_wall_x);
+		vec3 wall = vec3(side_x * body_half.x, p.y, p.z);
+		float wall_push = 0.0;
+		for (int i = 0; i < MAX_ITEMS; i++) {
+			if (i >= wall_item_count) {
+				break;
+			}
+			float d = box_distance(wall, wall_item_centre[i].xyz, wall_item_half[i].xyz) - wall_lining_m;
+			wall_push = max(wall_push, smoothstep(soft_m, -soft_m, d) * max(soft_m - d, 0.0));
+		}
+		shaped.x += side_x * (0.005 + min(wall_push, max_stretch_m) + side_give_m * (1.0 - smoothstep(0.0, 0.09, body_half.z * 2.0 - p.z)));
 	}
 	// Slack cloth creases: soft ridges and valleys across it, broken up so they never line up.
 	float crease = sin(dot(p, vec3(0.15, 1.0, 0.35)) * fold_freq + noise3(p * 25.0) * 5.0);

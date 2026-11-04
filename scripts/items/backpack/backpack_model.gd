@@ -99,6 +99,10 @@ const SLIDER_HALF_M: float = 0.013
 ## seam give this far once the panel folds out.
 const MOUTH_M: float = 0.022
 const SIDE_GIVE_M: float = 0.014
+## Canvas and lining between a carried item and the outer face, and the most the canvas bulges out
+## over an item (backpack_canvas.gdshader lining_m, max_stretch_m), metres.
+const CANVAS_LINING_M: float = 0.012
+const CANVAS_STRETCH_M: float = 0.02
 ## The empty slump in backpack_canvas.gdshader, for parts that ride on the canvas.
 const SLUMP_TOP_M: float = 0.07
 const SLUMP_WALL_M: float = 0.018
@@ -216,6 +220,7 @@ func build() -> void:
 		pocket.set_shader_parameter(&"is_pocket", true)
 		pocket.set_shader_parameter(&"pocket_wall_x", side * BODY.x * 0.5)
 		pocket.set_shader_parameter(&"lining_m", POCKET_LINING_M)
+		pocket.set_shader_parameter(&"wall_lining_m", CANVAS_LINING_M)
 		pocket.set_shader_parameter(&"pocket_flat_m", POCKET_FLAT_M)
 		pocket.set_shader_parameter(&"pocket_fold_spread", POCKET_FOLD_SPREAD)
 		pocket.set_shader_parameter(&"rim_y", POCKET_RIM_Y)
@@ -280,7 +285,6 @@ func build() -> void:
 	divider_material.roughness = 0.95
 	_divider.material_override = divider_material
 	add_child(_divider)
-	_add_shelf()
 	_add_bedroll()
 	_add_straps()
 	_add_sliders()
@@ -521,6 +525,11 @@ func canvas_point(p: Vector3, n: Vector3) -> Vector3:
 	return _on_canvas(p, n, 0.0)
 
 
+## The canvas's fill now, 0..1 (what its empty slump is drawn from).
+func get_fill() -> float:
+	return _fill
+
+
 ## Share of the main body the contents fill, 0..1 (the target the canvas springs toward).
 func get_fill_target() -> float:
 	if load_fill >= 0.0:
@@ -529,6 +538,8 @@ func get_fill_target() -> float:
 	for item: Dictionary in _items:
 		var size: Vector3 = (item["box"] as AABB).size
 		litres += size.x * size.y * size.z * 1000.0 * 1.6  # packed items leave air round them
+	for box: AABB in _interior_boxes:
+		litres += box.get_volume() * 1000.0 * 1.6
 	return clampf(litres / CAPACITY_L, 0.0, 1.0)
 
 
@@ -556,6 +567,8 @@ func _process(delta: float) -> void:
 	_panel_material.set_shader_parameter(&"mouth_m", MOUTH_M * clampf(_zip / half_w, 0.0, 1.0))
 	var give: float = SIDE_GIVE_M * clampf(_swing / deg_to_rad(30.0), 0.0, 1.0)
 	_shell_material.set_shader_parameter(&"side_give_m", give)
+	for pocket: ShaderMaterial in _pocket_materials:
+		pocket.set_shader_parameter(&"side_give_m", give)
 	for material: ShaderMaterial in [_shell_material, _panel_material]:
 		material.set_shader_parameter(&"zip_s", _zip)
 	_place_sliders(give)
@@ -624,6 +637,12 @@ func _refresh_proxies() -> void:
 			material.set_shader_parameter(&"item_centre", centres)
 			material.set_shader_parameter(&"item_half", halves)
 			material.set_shader_parameter(&"item_count", count)
+		if entry[1] == main:
+			## Pockets ride the side walls where the main contents bulge them.
+			for pocket: ShaderMaterial in _pocket_materials:
+				pocket.set_shader_parameter(&"wall_item_centre", centres)
+				pocket.set_shader_parameter(&"wall_item_half", halves)
+				pocket.set_shader_parameter(&"wall_item_count", count)
 	_send_sleeves()
 
 
@@ -664,6 +683,8 @@ func _canvas_material(pocket: Vector4) -> ShaderMaterial:
 	material.set_shader_parameter(&"canvas_colour", CANVAS)
 	material.set_shader_parameter(&"pack_height_m", BODY.y)
 	material.set_shader_parameter(&"mesh_pocket", pocket)
+	material.set_shader_parameter(&"lining_m", CANVAS_LINING_M)
+	material.set_shader_parameter(&"max_stretch_m", CANVAS_STRETCH_M)
 	return material
 
 
@@ -770,18 +791,6 @@ static func _hinge_point(panel: ArrayMesh) -> Vector3:
 ## Triangle order that faces normal (Godot's front faces wind clockwise seen from outside).
 static func _front_wound(a: Vector3, b: Vector3, c: Vector3, normal: Vector3, tri: Array) -> Array:
 	return tri if (c - a).cross(b - a).dot(normal) >= 0.0 else [tri[0], tri[2], tri[1]]
-
-
-func _add_shelf() -> void:
-	var shelf := MeshInstance3D.new()
-	shelf.name = "Shelf"
-	var board := BoxMesh.new()
-	## Clear of the panel even when the empty walls cave in.
-	board.size = Vector3(BODY.x - 0.08, 0.008, BODY.z - 0.08)
-	shelf.mesh = board
-	shelf.material_override = _plain(Color(0.2, 0.2, 0.19))
-	shelf.position = Vector3(0.0, 0.355, BODY.z * 0.46)
-	add_child(shelf)
 
 
 ## The actual packed mat and its two post-roll cinch straps, mounted across the pack top.

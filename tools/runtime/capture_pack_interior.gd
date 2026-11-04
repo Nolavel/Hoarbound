@@ -1,12 +1,13 @@
 extends SceneTree
 
-## The slotless compartment (3D inventory stage 0): the pack lies open face up, a dozen items drop in through
-## the mouth one by one and settle on the back wall; then a plank is refused. 30 fps PNG frames from above.
-## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --resolution 960x720 --script res://tools/runtime/capture_pack_interior.gd -- <out dir>
+## The slotless compartment (3D inventory stage 0), the pack hanging upright and open as Henry holds it: the
+## axe, frying pan, hammer, thermos, SPoV tin and mug go in high one by one and fall to the bottom; then the
+## boards are refused. Two views: from above into the open front, and the side wall the heap presses.
+## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --script res://tools/runtime/capture_pack_interior.gd -- <out dir>
 
 const FPS: int = 30
-const ITEMS: Array[StringName] = [&"tinned_stew", &"tinned_stew", &"spov_can", &"water_flask", &"lighter", &"knife",
-	&"stone", &"stone", &"tinned_pineapple", &"work_gloves", &"mug", &"tinder"]
+const ITEMS: Array[StringName] = [&"axe", &"frying_pan", &"hammer", &"water_flask", &"spov_can", &"mug"]
+const PACK_AT: Vector3 = Vector3(0.0, 0.9, 0.0)
 
 var _out: String = "user://shots/pack_interior"
 var _frame: int = 0
@@ -48,32 +49,46 @@ func _run() -> void:
 	var pack := BackpackModel.new()
 	root.add_child(pack)
 	pack.build()
-	## Face up on the floor: the back wall is the floor of the compartment.
-	pack.global_transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(0.0, 0.0, 0.26))
+	pack.global_position = PACK_AT
 	pack.set_open(true)
 	var interior := PackInterior.new()
 	pack.add_child(interior)
 	interior.setup(pack)
 	interior.set_open(true)
-	var camera := Camera3D.new()
-	camera.fov = 42.0
-	root.add_child(camera)
-	camera.look_at_from_position(Vector3(0.0, 1.05, 0.62), Vector3(0.0, 0.08, 0.0))
-	camera.make_current()
+	## Two views of one run: high in front looking down into the opening, and three-quarter from the left side.
+	var row := HBoxContainer.new()
+	row.size = Vector2(1920, 1080)
+	row.add_theme_constant_override("separation", 0)
+	root.add_child(row)
+	var focus: Vector3 = PACK_AT + Vector3(0.0, 0.2, 0.11)
+	for eye: Vector3 in [PACK_AT + Vector3(0.0, 0.95, 0.62), PACK_AT + Vector3(-0.85, 0.45, 0.55)]:
+		var holder := SubViewportContainer.new()
+		holder.custom_minimum_size = Vector2(960, 1080)
+		holder.stretch = true
+		row.add_child(holder)
+		var view := SubViewport.new()
+		view.size = Vector2i(960, 1080)
+		view.world_3d = root.world_3d
+		holder.add_child(view)
+		var camera := Camera3D.new()
+		camera.fov = 38.0
+		view.add_child(camera)
+		camera.look_at_from_position(eye, focus)
 	_caption = Label.new()
-	_caption.position = Vector2(20, 16)
-	_caption.add_theme_font_size_override("font_size", 24)
+	_caption.position = Vector2(24, 20)
+	_caption.add_theme_font_size_override("font_size", 30)
 	root.add_child(_caption)
-	await _record(0.8, "OPEN, EMPTY")
+	await _record(1.6, "HANGING, OPEN, EMPTY")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	for id: StringName in ITEMS:
-		var at := Vector3(rng.randf_range(-0.1, 0.1), rng.randf_range(0.1, 0.42), BackpackModel.BODY.z + 0.08)
+		var at := Vector3(rng.randf_range(-0.06, 0.06), rng.randf_range(0.34, 0.4), rng.randf_range(0.09, 0.13))
 		interior.add(id, at)
-		await _record(0.25, "DROP: %s" % id)
-	await _record(1.5, "SETTLING (room left %.1f l)" % (interior.room_left() * 1000.0))
-	var why: StringName = interior.refusal(&"boards")
-	await _record(1.0, "BOARDS: %s" % TranslationServer.translate(why))
+		await _record(0.7, "IN: %s" % id)
+	await _record(1.5, "SETTLED (room left %.1f l)" % (interior.room_left() * 1000.0))
+	interior.add(&"boards")
+	TranslationServer.set_locale("ru")
+	await _record(1.4, "BOARDS: %s" % TranslationServer.translate(interior.refusal(&"boards")))
 	print("[pack interior] frames ", _frame, " settled ", interior.is_settled())
 	quit(0)
 
