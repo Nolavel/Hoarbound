@@ -126,6 +126,24 @@ static func make(item_id: StringName, _item_override: ItemResource = null) -> No
 		var pan: Node3D = FRYING_PAN_SCENE.instantiate()
 		StylizedEnvironmentMaterial.apply_to_tree(pan)
 		holder.add_child(pan)
+	elif item_id in [&"egg_raw", &"egg_fried"]:
+		if item_id == &"egg_raw":
+			var shell := SphereMesh.new()
+			shell.radius = 0.026
+			shell.height = 0.060
+			shell.radial_segments = 16
+			shell.rings = 8
+			_part(holder, shell, Vector3(0.0, 0.031, 0.0), Color(0.72, 0.58, 0.43))
+		else:
+			var white := CylinderMesh.new()
+			white.top_radius = 0.064
+			white.bottom_radius = 0.060
+			white.height = 0.005
+			_part(holder, white, Vector3(0.0, 0.005, 0.0), Color(0.83, 0.81, 0.72))
+			var yolk := SphereMesh.new()
+			yolk.radius = 0.017
+			yolk.height = 0.013
+			_part(holder, yolk, Vector3(0.0, 0.014, 0.0), Color(0.84, 0.39, 0.10))
 	elif String(item_id).contains("mug") or item_id == &"warm_water":
 		holder.add_child(MUG_SCENE.instantiate())
 		if item_id != &"mug":

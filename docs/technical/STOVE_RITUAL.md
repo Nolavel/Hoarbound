@@ -187,3 +187,7 @@ not prove Forward+ production color or performance. Unsupported scene fog, exist
 room-light balance at late embers and scene-teardown warnings must be reported with
 the capture, not concealed by postprocessing. Visual acceptance still requires
 review of actual game-camera footage.
+
+## Pan and fried egg in codex (2026-11-04)
+
+`StoveWarmer` now serves its existing cooktop plate as a mutually exclusive vessel slot: F moves a real `frying_pan` instance (including its instance state) from inventory, then F spends one `egg_raw` when the stove burns. `HeatSource.heat_elapsed` alone advances cooking (0.08 effective game hours); fire-out pauses progress, the existing seven-second `EggCookingVisual` is just presentation, and F takes a real `egg_fried` into inventory. A second F takes back the empty pan. Each plate retains its previous save key and the existing warmable-tin/mug path; pan contents add optional fields to the same save data. No separate physics solver or recipe engine has been introduced. The placement/crack uses the ring's existing generic interaction animation; a dedicated hand-contact pose and production TPS composition are still art/animation follow-ups. A six-second close-up capture in the real 727 scene is driven by `capture_stove_egg_gameplay.gd` and `[cooking-preview]` in the existing checks workflow.

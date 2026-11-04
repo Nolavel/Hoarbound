@@ -681,6 +681,61 @@ jobs:
           if-no-files-found: warn
           retention-days: 3
 
+  cooking-preview:
+    ## Extend the existing render harness only for explicitly tagged codex commits.
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[cooking-preview]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+      - name: Provision Godot + Lavapipe
+        run: tools/ci/setup_env.sh
+      - name: Import scripts and assets
+        run: tools/ci/import_gate.sh
+      - name: Cooking slot ownership and fire tests
+        run: |
+          timeout 240 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
+            --script res://tests/systems/test_stove_egg_cooking.gd | tee cooking_test.log
+          grep -q "all checks passed" cooking_test.log
+      - name: Capture and encode 727 stove cooking (6 seconds)
+        run: |
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          set -o pipefail
+          timeout 850 xvfb-run -a "$HOME/.local/bin/godot" --path . \
+            --resolution 960x540 --rendering-driver vulkan --rendering-method forward_plus \
+            --audio-driver Dummy --script res://tools/runtime/capture_stove_egg_gameplay.gd \
+            2>&1 | tee cooking_capture.log
+          grep -q "COOKING_GAMEPLAY_CAPTURE" cooking_capture.log
+          ! grep -q "SHADER ERROR" cooking_capture.log
+          test "$(find docs/runtime_previews/key_west_727/egg_gameplay/frames -name 'f_*.png' | wc -l)" -eq 72
+          ffmpeg -hide_banner -loglevel error -y -framerate 12 \
+            -i docs/runtime_previews/key_west_727/egg_gameplay/frames/f_%03d.png \
+            -an -c:v libx264 -crf 22 -pix_fmt yuv420p -movflags +faststart \
+            docs/runtime_previews/key_west_727/egg_gameplay/egg_gameplay_6s.mp4
+          test -s docs/runtime_previews/key_west_727/egg_gameplay/egg_gameplay_6s.mp4
+          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_025.png docs/runtime_previews/key_west_727/egg_gameplay/cracking.png
+          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_066.png docs/runtime_previews/key_west_727/egg_gameplay/fried.png
+      - name: Upload 6-second video and review stills
+        if: always()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: hoarbound-egg-gameplay-6s
+          path: |
+            docs/runtime_previews/key_west_727/egg_gameplay/*.mp4
+            docs/runtime_previews/key_west_727/egg_gameplay/*.png
+            cooking_test.log
+            cooking_capture.log
+          if-no-files-found: warn
+          retention-days: 3
+
   wallrun-demo:
     ## Standalone mechanics capture. Real CharacterBody3D physics; no production locomotion change.
     if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[wallrun-demo]')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'wallrun-demo')

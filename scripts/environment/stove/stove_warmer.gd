@@ -34,6 +34,109 @@ var _steam: GPUParticles3D
 var _action_id: StringName = &""
 var _action_managed: bool = false
 
+## One shared physical cooking plate. The old warming states and save keys stay intact.
+## A pan excludes warmable vessels and carries its own persistent contents.
+enum EggState { NONE, COOKING, READY }
+const PAN_ID: StringName = &"frying_pan"
+const RAW_EGG_ID: StringName = &"egg_raw"
+const FRIED_EGG_ID: StringName = &"egg_fried"
+const EGG_COOK_HOURS: float = 0.08 # 4.8 minutes of effective stove heat
+
+var _pan_installed: bool = false
+var _pan_instance_state: Dictionary = {}
+var _egg_state: EggState = EggState.NONE
+var _egg_progress_h: float = 0.0
+var _egg_intro_seconds: float = 0.0
+var _egg_visual: EggCookingVisual
+
+
+func _process(delta: float) -> void:
+	if _pan_installed and _egg_state == EggState.COOKING and _egg_intro_seconds < 3.0:
+		_egg_intro_seconds = minf(3.0, _egg_intro_seconds + delta)
+		_sync_egg_visual()
+
+
+func has_pan() -> bool:
+	return _pan_installed
+
+
+func get_egg_state() -> EggState:
+	return _egg_state
+
+
+func get_egg_progress_h() -> float:
+	return _egg_progress_h
+
+
+## This transfers the actual nonstackable inventory instance, not a duplicate visual.
+func put_pan(inventory: InventoryComponent) -> bool:
+	if inventory == null or _pan_installed or _state != State.EMPTY:
+		return false
+	var moved: Dictionary = inventory.take_instance(PAN_ID)
+	if moved.is_empty():
+		return false
+	_pan_installed = true
+	_pan_instance_state = (moved.get("instance_state", {}) as Dictionary).duplicate(true)
+	_refresh()
+	state_changed.emit(_state)
+	return true
+
+
+func take_pan(inventory: InventoryComponent) -> bool:
+	if inventory == null or not _pan_installed or _egg_state != EggState.NONE:
+		return false
+	var item: ItemResource = ItemCatalog.get_item(PAN_ID)
+	if item == null or inventory.get_add_refusal(item) != &"":
+		return false
+	if not inventory.try_add_instance(item, _pan_instance_state):
+		return false
+	_pan_installed = false
+	_pan_instance_state = {}
+	_refresh()
+	state_changed.emit(_state)
+	return true
+
+
+## Egg becomes stove-owned at commit. Its seven-second visual is not a timer.
+func crack_egg(inventory: InventoryComponent) -> bool:
+	if inventory == null or not _pan_installed or _egg_state != EggState.NONE or source == null or not source.is_burning():
+		return false
+	if not inventory.try_remove(RAW_EGG_ID):
+		return false
+	_egg_state = EggState.COOKING
+	_egg_progress_h = 0.0
+	_egg_intro_seconds = 0.0
+	_refresh()
+	state_changed.emit(_state)
+	return true
+
+
+func take_fried_egg(inventory: InventoryComponent) -> bool:
+	if inventory == null or not _pan_installed or _egg_state != EggState.READY:
+		return false
+	var item: ItemResource = ItemCatalog.get_item(FRIED_EGG_ID)
+	if item == null or not inventory.try_add(item):
+		return false
+	_egg_state = EggState.NONE
+	_egg_progress_h = 0.0
+	_egg_intro_seconds = 0.0
+	_refresh()
+	state_changed.emit(_state)
+	return true
+
+
+func _sync_egg_visual() -> void:
+	if not is_instance_valid(_egg_visual):
+		return
+	if _egg_state == EggState.READY:
+		_egg_visual.seek_seconds(EggCookingVisual.TOTAL_SECONDS)
+	elif _egg_state == EggState.COOKING:
+		var seconds: float = _egg_intro_seconds
+		if seconds >= 3.0:
+			seconds = 3.0 + 4.0 * clampf(_egg_progress_h / EGG_COOK_HOURS, 0.0, 1.0)
+		_egg_visual.seek_seconds(seconds)
+
+
 
 func _ready() -> void:
 	add_to_group(&"saveable")
@@ -77,6 +180,16 @@ func put(inventory: InventoryComponent, item_id: StringName) -> bool:
 
 ## Game time the stove burned through; the item warms only while it burns.
 func advance(hours: float) -> void:
+	if _pan_installed and _egg_state == EggState.COOKING:
+		_egg_progress_h = minf(EGG_COOK_HOURS, _egg_progress_h + maxf(hours, 0.0))
+		if _egg_progress_h >= EGG_COOK_HOURS - 0.000001:
+			_egg_state = EggState.READY
+			_egg_intro_seconds = 3.0
+			_refresh()
+			state_changed.emit(_state)
+		else:
+			_sync_egg_visual()
+		return
 	if _state != State.WARMING:
 		return
 	_progress_h = minf(WARM_HOURS, _progress_h + maxf(hours, 0.0))
@@ -99,6 +212,19 @@ func take(eater: ConsumptionController) -> bool:
 func interact_with(player: Node) -> void:
 	if player == null:
 		return
+	var inventory: InventoryComponent = InventoryComponent.find_in(player)
+	if _pan_installed:
+		if _egg_state == EggState.READY:
+			take_fried_egg(inventory)
+		elif _egg_state == EggState.NONE:
+			if source != null and source.is_burning() and inventory != null and inventory.has_item(RAW_EGG_ID):
+				crack_egg(inventory)
+			else:
+				take_pan(inventory)
+		return
+	if _state == State.EMPTY and inventory != null and inventory.has_item(PAN_ID):
+		put_pan(inventory)
+		return
 	match _state:
 		State.EMPTY:
 			var actions: TimeCostedActionSystem = _actions()
@@ -115,6 +241,20 @@ func interact_with(player: Node) -> void:
 
 
 func can_interact_with(player: Node) -> bool:
+	var inventory: InventoryComponent = InventoryComponent.find_in(player)
+	if _pan_installed:
+		if _egg_state == EggState.READY:
+			var fried: ItemResource = ItemCatalog.get_item(FRIED_EGG_ID)
+			return inventory != null and fried != null and inventory.get_add_refusal(fried) == &""
+		if _egg_state == EggState.COOKING:
+			return false
+		var pan: ItemResource = ItemCatalog.get_item(PAN_ID)
+		return inventory != null and (
+			(source != null and source.is_burning() and inventory.has_item(RAW_EGG_ID))
+			or (pan != null and inventory.get_add_refusal(pan) == &"")
+		)
+	if _state == State.EMPTY and inventory != null and inventory.has_item(PAN_ID):
+		return true
 	match _state:
 		State.EMPTY:
 			var actions: TimeCostedActionSystem = _actions()
@@ -133,6 +273,21 @@ func can_interact_with(player: Node) -> bool:
 
 
 func get_prompt_text(player: Node) -> String:
+	if _pan_installed:
+		match _egg_state:
+			EggState.READY:
+				return "Take fried egg"
+			EggState.COOKING:
+				return "Egg frying"
+			EggState.NONE:
+				var inventory: InventoryComponent = InventoryComponent.find_in(player)
+				if source != null and source.is_burning() and inventory != null and inventory.has_item(RAW_EGG_ID):
+					return "Crack egg into pan"
+				return "Take frying pan"
+	if _state == State.EMPTY:
+		var inventory: InventoryComponent = InventoryComponent.find_in(player)
+		if inventory != null and inventory.has_item(PAN_ID):
+			return "Place frying pan"
 	match _state:
 		State.EMPTY:
 			var id: StringName = find_warmable(InventoryComponent.find_in(player))
@@ -250,11 +405,22 @@ func _refresh() -> void:
 	if is_instance_valid(_prop):
 		_prop.queue_free()
 	_prop = null
-	if _item_id != &"":
+	_egg_visual = null
+	if _pan_installed:
+		_prop = SurvivalItemVisual.make(PAN_ID)
+		_prop.name = "CookwareFryingPan"
+		_prop.position.y = 0.012 # Warmer anchor at 0.69 m; ring top at ~0.702 m.
+		add_child(_prop)
+		if _egg_state != EggState.NONE:
+			_egg_visual = EggCookingVisual.new()
+			_egg_visual.name = "EggCookingVisual"
+			_prop.add_child(_egg_visual)
+			_sync_egg_visual()
+	elif _item_id != &"":
 		_prop = _make_prop(_item_id)
 		add_child(_prop)
 	if _steam != null:
-		_steam.emitting = _state == State.READY
+		_steam.emitting = _state == State.READY or (_pan_installed and _egg_state == EggState.READY)
 	if _prompt != null:
 		_prompt.call(&"refresh_label")
 
@@ -349,7 +515,10 @@ func get_save_key() -> StringName:
 
 
 func get_save_data() -> Dictionary:
-	return {"state": int(_state), "item": String(_item_id), "progress": _progress_h}
+	return {"state": int(_state), "item": String(_item_id), "progress": _progress_h,
+		"pan_installed": _pan_installed, "pan_instance_state": _pan_instance_state.duplicate(true),
+		"egg_state": int(_egg_state), "egg_progress_h": _egg_progress_h,
+		"egg_intro_seconds": _egg_intro_seconds}
 
 
 func load_save_data(data: Dictionary) -> void:
@@ -361,4 +530,17 @@ func load_save_data(data: Dictionary) -> void:
 	if _item_id == &"" or ItemCatalog.get_item(_item_id) == null:
 		_state = State.EMPTY
 		_item_id = &""
+	_pan_installed = bool(data.get("pan_installed", false))
+	_pan_instance_state = (data.get("pan_instance_state", {}) as Dictionary).duplicate(true)
+	_egg_state = clampi(int(data.get("egg_state", 0)), 0, 2) as EggState
+	_egg_progress_h = clampf(float(data.get("egg_progress_h", 0.0)), 0.0, EGG_COOK_HOURS)
+	_egg_intro_seconds = clampf(float(data.get("egg_intro_seconds", 3.0)), 0.0, 3.0)
+	if not _pan_installed:
+		_pan_instance_state = {}
+		_egg_state = EggState.NONE
+		_egg_progress_h = 0.0
+	if _pan_installed:
+		_state = State.EMPTY
+		_item_id = &""
+		_progress_h = 0.0
 	_refresh()
