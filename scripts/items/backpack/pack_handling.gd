@@ -1,16 +1,14 @@
 class_name PackHandling
 extends Node
 
-## Hands in the open pack (3D inventory): the ring cursor hovers what is under it, a strapped item in the pack
-## (PackStraps) or a quick pocket's card (PackQuickShelf). LMB (pad A) takes it and carries it on the cursor;
-## letting go over a card puts it in that pocket, over the pack puts it under the straps, anywhere else puts it
-## back. G (pad Y) puts the hovered item down on the ground. The mouse or the left stick moves the ring. What
-## would not fit shows red with its reason. Every move goes through the Hub, so the inventory stays the truth.
+## Hands in the open pack (3D inventory): the ring hovers a strapped item or a pocket; LMB (pad A) carries it to
+## a pocket, the pack or back; RMB (pad X) opens, eats, drinks or uses it; G (pad Y) drops it. Moves go via the Hub.
 
 signal dropped(item_id: StringName)
 
 const GRAB_ACTION: StringName = &"pack_grab"
 const DROP_ACTION: StringName = &"drop_carried"
+const USE_ACTION: StringName = &"pack_use"
 const CURSOR_ACTIONS: Array[StringName] = [&"pack_cursor_left", &"pack_cursor_right", &"pack_cursor_up", &"pack_cursor_down"]
 ## Stick cursor speed at full tilt, share of the screen height per second.
 const STICK_SPEED: float = 0.7
@@ -70,7 +68,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
 		_pad_used = true
-	for action: StringName in [GRAB_ACTION, DROP_ACTION]:
+	for action: StringName in [GRAB_ACTION, DROP_ACTION, USE_ACTION]:
 		if event.is_action(action) and not event.is_echo():
 			press(action, event.is_pressed())
 			get_viewport().set_input_as_handled()
@@ -93,6 +91,52 @@ func press(action: StringName, pressed: bool) -> void:
 		DROP_ACTION:
 			if pressed and _carry.is_empty():
 				_drop_hovered()
+		USE_ACTION:
+			if pressed and _carry.is_empty():
+				use_hovered()
+
+
+## RMB (pad X) on what is under the ring: a tin opens where it lies; food and drink close the pack and Henry
+## eats or drinks (his hands need to be free); what cannot be used says why.
+func use_hovered() -> void:
+	var id: StringName = _hovered_id()
+	var verb: StringName = use_verb(id)
+	if id == &"" or verb == &"":
+		return
+	var path: StringName = _hovered_path()
+	var eater := hub.get_parent().get_node_or_null(^"ConsumptionController") as ConsumptionController
+	if verb == &"INVENTORY_HINT_OPEN" and eater != null:
+		var why: ConsumptionController.Refusal = eater.consume_from_zone(path) if path != &"" else eater.consume(id)
+		if why != ConsumptionController.Refusal.NONE:
+			show_refusal(StringName(ConsumptionController.describe_refusal(why)))
+		else:
+			_sound(RUSTLE)
+			shelf.refresh()
+		return
+	var why: ConsumptionController.Refusal = eater.can_consume(id) if eater != null else ConsumptionController.Refusal.NOT_CONSUMABLE
+	if path == &"" and not hub.can_use(id):
+		show_refusal(StringName(ConsumptionController.describe_refusal(why)))
+		return
+	_sound(RUSTLE)
+	## A pocket's item passes through the pack to its user and back (Hub.use_from_zone); refused, it says why.
+	if path != &"" and not hub.use_from_zone(path):
+		show_refusal(StringName(ConsumptionController.describe_refusal(why)))
+	elif path == &"":
+		hub.use_item(id)
+
+
+## What RMB would do with `item_id`: a hint key (INVENTORY_HINT_OPEN, _DRINK, _EAT, _USE), or &"" for nothing.
+func use_verb(item_id: StringName) -> StringName:
+	var item: ItemResource = ItemCatalog.get_item(item_id) if item_id != &"" else null
+	if item == null:
+		return &""
+	if item.opens_into != &"":
+		return &"INVENTORY_HINT_OPEN"
+	if item.water_capacity_ml > 0 or (item.consumable != null and item.consumable.hydration > 0.0 and item.consumable.calories <= 0.0):
+		return &"INVENTORY_HINT_DRINK"
+	if item.consumable != null:
+		return &"INVENTORY_HINT_EAT"
+	return &"INVENTORY_HINT_USE" if hub.can_use(item_id) else &""
 
 
 ## Shows why something would not go: the reason under the ring, and a red rim on `visual` if given.
@@ -137,6 +181,9 @@ func _process(delta: float) -> void:
 		cursor.outline = _screen_outline(target) if target != null else PackedVector2Array()
 		cursor.outline_key = target.get_instance_id() if target != null else 0
 		cursor.hint = tr(&"INVENTORY_HINT_DROP") % ("Y" if _pad_used else "G")
+		var verb: StringName = use_verb(_hovered_id())
+		if verb != &"":
+			cursor.hint = tr(verb) % ("X" if _pad_used else tr(&"KEY_RMB")) + "    " + cursor.hint
 		var shown_id: StringName = _carry.get("id", _hovered_id())
 		cursor.info = ItemReadout.describe(shown_id) if shown_id != &"" else {}
 		cursor.load_kg = hub.get_weight()
@@ -259,6 +306,15 @@ func _sound(event: SoundEvent) -> void:
 	var sound: Node = get_node_or_null(^"/root/SoundSystem")
 	if sound != null:
 		sound.call(&"play", event)
+
+
+## The pocket path of what the ring is over (a pocket or the hand's), or &"" for a strapped item or nothing.
+func _hovered_path() -> StringName:
+	if hovered_hand:
+		return shelf.slots[shelf.selected]["path"] if shelf.selected >= 0 and shelf.selected < shelf.slots.size() else &""
+	if hovered_item < 0 and hovered_slot >= 0:
+		return shelf.slots[hovered_slot]["path"]
+	return &""
 
 
 ## The id of what the ring is over (a strapped item, a pocket's item, the hand's), or &"".

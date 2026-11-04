@@ -59,9 +59,10 @@ Tab takes the pack into Henry's hands (one strap stays on his shoulder). While i
 |---|---|---|
 | Mouse / left stick | `pack_cursor_*` | Moves the ring cursor. It brightens over an item in the pack or on a quick pocket's card and shows the drop hint |
 | LMB / A | `pack_grab` | Hold to take what is under the ring (the ring hides) and carry it. Let go over a card to put it in that pocket, over the pack to put it under the straps, anywhere else to put it back |
+| RMB / X | `pack_use` | Uses the hovered item. A sealed tin opens where it lies (the pack stays open). Food and drink close the pack and Henry eats or drinks, because he needs his hands. Something that cannot be used says why (no knife, empty flask). Shares RMB with `present_held`; that is safe because Henry's hands are empty while the pack is open |
 | G / Y | `drop_carried` | Puts the hovered item down on the ground ahead of Henry |
 
-The hint names G or Y, depending on the device last used. A card turns warm when it would take the carried item and red when it would not. A refusal shows its reason under the ring.
+The hint names the keys (RMB/X for the item's verb: open, eat, drink or use; G/Y to drop), depending on the device last used. A card turns warm when it would take the carried item and red when it would not. A refusal shows its reason under the ring.
 
 ## F: one verb, resolved by context
 

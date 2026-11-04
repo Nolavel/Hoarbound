@@ -3,7 +3,7 @@ extends SceneTree
 ## The 3D inventory's Tab ritual with the real HUD: Henry takes the pack off into his hands and opens it toward
 ## the camera, which faces him; the coat's and trousers' pockets sit on a grey panel of his clothes at the left,
 ## the lighter (the pick) on the hand card at the right, and the ring flows into the outline of the mug, the pan
-## and a tin. The ring
+## and a tin; RMB opens the tin in the coat pocket. The ring
 ## cursor carries a tin, the lighter and the tinder from the pockets into the pack (under the straps), a tin
 ## back out to a pocket, and the axe is refused by the pack. Tab again puts the pack back on. 30 fps PNG frames.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --resolution 1280x720 --script res://tools/runtime/capture_pack_view.gd -- <out dir>
@@ -122,6 +122,11 @@ func _run() -> void:
 	await _glide(hands, _card_at(hands, shelf, _slot_ending(shelf, "coat_left")), 0.6)
 	hands.press(PackHandling.GRAB_ACTION, false)
 	await _record(0.7)
+	## RMB on the tin in the coat pocket: it opens where it lies, the pack stays open.
+	await _glide(hands, _card_at(hands, shelf, _slot_ending(shelf, "coat_left")), 0.5)
+	await _record(0.6)
+	hands.press(PackHandling.USE_ACTION, true)
+	await _record(1.0)
 	## The axe: too big for the pack (red, reason), back to its sleeve.
 	var axe: int = -1
 	for k: int in shelf.slots.size():

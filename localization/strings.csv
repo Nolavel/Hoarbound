@@ -248,6 +248,11 @@ LOAD_BANNER_VALUE,%.1f / %.0f kg,%.1f / %.0f кг
 INVENTORY_TOO_BIG,"Too big for the pack","Не влезет в рюкзак"
 INVENTORY_NO_ROOM,"No room left in the pack","В рюкзаке нет места"
 INVENTORY_HINT_DROP,"%s — drop","%s — выбросить"
+KEY_RMB,RMB,ПКМ
+INVENTORY_HINT_EAT,"%s — eat","%s — съесть"
+INVENTORY_HINT_DRINK,"%s — drink","%s — выпить"
+INVENTORY_HINT_OPEN,"%s — open","%s — открыть"
+INVENTORY_HINT_USE,"%s — use","%s — использовать"
 INVENTORY_POCKET_FULL,"This pocket is taken","Карман занят"
 INVENTORY_POCKET_TOO_SMALL,"Too big for this pocket","Не влезет в этот карман"
 POCKET_COAT_LEFT,Left coat pocket,Левый карман куртки

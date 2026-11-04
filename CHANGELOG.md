@@ -8,6 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory: RMB (pad X) uses the hovered item, and the hint names the verb.
+  - A sealed tin opens where it lies, in its pocket or under the straps, and the pack stays open.
+  - Food and drink close the pack, because Henry needs his hands, and then he eats or drinks.
+  - What cannot be used says why. New action `pack_use` shares RMB with `present_held`; the overlap is allowlisted.
 - Pack contents no longer flicker on every change.
   - The pack rebuilt every outside item (thermos, tools, mug, pan) on each change, so they came back unmasked by the focus blur and unfrozen.
   - Now only the places whose item changed are redone (`BackpackModel.remove_slot_item`/`unhang_item`).

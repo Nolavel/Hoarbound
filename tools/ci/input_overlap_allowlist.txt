@@ -1,3 +1,4 @@
 # Input actions allowed to share a key, one pair per line: action_a, action_b  # why it is safe
 pause, sleep_cancel  # the sleep dialog claims Esc while open; pause never sees it then
 fire, pack_grab  # pack open is modal: LMB takes an item only while Henry looks into the open pack
+present_held, pack_use  # pack open is modal and empties Henry's hands: RMB uses the hovered item only while he holds the pack open

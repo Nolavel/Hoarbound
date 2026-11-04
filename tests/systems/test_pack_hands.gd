@@ -8,8 +8,9 @@ extends SceneTree
 ## - a full pocket refuses the axe (its reason shows, the axe stays in its sleeve);
 ## - the pack refuses the axe as too big;
 ## - the tin let go on the hand card becomes the pick (what Henry takes in hand);
+## - RMB opens the tin in its pocket (the pack stays open), RMB on the open tin closes the pack to eat;
 ## - G puts a pack tin down on the ground.
-## Tab again puts the pack back on.
+## Eating closes the pack (Henry needs his hands).
 ## Run: godot --headless --path . --fixed-fps 30 --script res://tests/systems/test_pack_hands.gd
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
@@ -129,6 +130,15 @@ func _run() -> void:
 	_check(shelf.hand_visual() != null, "the hand card shows nothing")
 	print("pack hands: the coat pocket's tin is the pick on the hand card")
 
+	## RMB on the tin in the coat pocket opens it where it lies (the pack stays open).
+	_check(_hands.use_verb(&"spov_can") == &"INVENTORY_HINT_OPEN", "a sealed tin offers no Open")
+	await _aim(_card_screen(shelf, left_card))
+	_hands.press(PackHandling.USE_ACTION, true)
+	await _frames(5)
+	var opened: StringName = shelf.slots[left_card]["item_id"]
+	_check(opened == ItemCatalog.get_item(&"spov_can").opens_into and _hub.is_open(), "RMB did not open the tin in its pocket (now %s)" % opened)
+	print("pack hands: RMB opened the tin in the coat pocket")
+
 	## G puts a pack tin down on the ground.
 	var before: int = _inventory.get_count(&"spov_can")
 	await _aim(_item_screen(straps, 0))
@@ -138,9 +148,13 @@ func _run() -> void:
 	_check(_inventory.get_count(&"spov_can") == before - 1 and not pickups.is_empty(), "G did not put a tin down on the ground")
 	print("pack hands: G put a tin down")
 
-	_hub.close()
+	## Eating the open tin needs Henry's hands: the pack closes and he eats.
+	await _aim(_card_screen(shelf, left_card))
+	_check(_hands.use_verb(StringName(shelf.slots[left_card]["item_id"])) == &"INVENTORY_HINT_EAT", "the open tin offers no Eat")
+	_hands.press(PackHandling.USE_ACTION, true)
 	await _frames(40)
-	_check(not _hub.is_open() and _hub.get_pack_hands() == null, "Tab again left the hands open")
+	_check(not _hub.is_open() and _hub.get_pack_hands() == null, "eating did not close the pack")
+	print("pack hands: RMB on the open tin closed the pack to eat")
 	_finish()
 
 
