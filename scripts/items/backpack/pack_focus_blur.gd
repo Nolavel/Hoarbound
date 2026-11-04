@@ -58,8 +58,8 @@ func _mask_all() -> void:
 	for root: Node in roots:
 		for node: Node in [root] + root.find_children("*", "GeometryInstance3D", true, false):
 			var geometry := node as GeometryInstance3D
-			## Flat cards and panels are see-through and draw after the blur; under them the world stays blurred.
-			if geometry == null or geometry == self or (geometry is MeshInstance3D and (geometry as MeshInstance3D).mesh is QuadMesh):
+			## Flat cards and panels (meta flat_card) are see-through and draw after the blur, over a blurred world.
+			if geometry == null or geometry == self or geometry.has_meta(&"flat_card"):
 				continue
 			if geometry.material_overlay != null and geometry.material_overlay.has_meta(&"focus_mask"):
 				continue

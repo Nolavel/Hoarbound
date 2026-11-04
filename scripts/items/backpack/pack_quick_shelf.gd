@@ -18,6 +18,8 @@ const BODY_SHARE: float = 0.54
 const BODY_X_SHARE: float = 0.8
 const BODY_TINT: Color = Color(0.62, 0.63, 0.66, 0.32)
 const BODY_CARD_ALPHA: float = 0.55
+## Cards on the panel are this share of the side cards' size, so the two on the coat stay apart.
+const BODY_CARD_SCALE: float = 0.72
 ## The hand card stands beside the panel, at this height on it (0 top, 1 bottom, where the hands hang), with
 ## its icon this faint.
 const HAND_V: float = 0.4
@@ -224,9 +226,11 @@ func _process(_delta: float) -> void:
 		var side: float = -1.0 if int(slot["column"]) == 0 else 1.0
 		var at := Vector3(side * half_w * COLUMN_SHARE, half_h * TOP_SHARE - float(slot["row"]) * size * ROW_PITCH, -DEPTH_M)
 		var uv: Vector2 = slot["body_uv"]
+		var side_m: float = size
 		if uv.x >= 0.0:
 			at = body_at + Vector3((uv.x - 0.5) * body_size.x, (0.5 - uv.y) * body_size.y, 0.002)
-		(slot["card"] as Node3D).global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * size / CARD_M), at)
+			side_m = size * BODY_CARD_SCALE
+		(slot["card"] as Node3D).global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * side_m / CARD_M), at)
 
 
 ## Slot k's unseen card stands square to the camera behind its item on the pack (or its empty spot), so the
@@ -332,6 +336,7 @@ func _flat_quad(texture: Texture2D, colour: Color, parent: Node = null) -> MeshI
 	material.albedo_color = colour
 	quad.material_override = material
 	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	quad.set_meta(&"flat_card", true)
 	(parent if parent != null else self).add_child(quad)
 	return quad
 
@@ -352,6 +357,7 @@ func _card(frame: SubViewport) -> MeshInstance3D:
 	material.albedo_color = EMPTY
 	card.material_override = material
 	card.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	card.set_meta(&"flat_card", true)
 	add_child(card)
 	return card
 

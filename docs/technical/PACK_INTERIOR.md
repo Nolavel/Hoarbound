@@ -58,6 +58,14 @@ Code: `scripts/items/backpack/pack_quick_shelf.gd` (`PackQuickShelf`), a child o
 - **Hand card** (beside the body panel, at the hands' height): the hand icon (`hand_open.svg`, faint) and the Quick Access pick's item, what Henry takes in hand when the pack goes back on. A pocket's item let go on it becomes the pick; taking from it takes from that pocket.
 - The fit rule is the equipment's own (`can_stow`): a taken pocket is full (`INVENTORY_POCKET_FULL`), and a size-class refusal is `INVENTORY_POCKET_TOO_SMALL`.
 
+## Focus blur
+
+Code: `scripts/items/backpack/pack_focus_blur.gd` (`PackFocusBlur`, a child of the Hub camera), `shaders/items/pack_focus_blur.gdshader`.
+
+- Everything but the held pack and the inventory itself is blurred, Henry included. Depth of field cannot do it: from the camera's raised view his chest is nearer than the pack's back wall, and the see-through cards would take the floor's depth and blur.
+- Every mesh of the pack and of the camera's children (cards' items, a carried item) gets an unseen overlay that writes stencil 9; a full-screen quad (render priority −127, after the masks at −128) blurs where it is not written: 13 taps on a disc over the screen texture's mips. It fades in over 0.35 s.
+- Flat cards and the body panel (meta `flat_card`) are not masked: they are see-through and draw after the blur, over the blurred world. A rim on a masked mesh chains after its mask (`next_pass`).
+
 ## Hands
 
 Code: `scripts/items/backpack/pack_handling.gd` (`PackHandling`), `pack_cursor.gd` (`PackCursor`), `shaders/items/item_outline.gdshader`. Keys: `docs/technical/CONTROLS.md`.
