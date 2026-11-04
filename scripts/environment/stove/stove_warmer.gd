@@ -496,16 +496,26 @@ func _refresh() -> void:
 		if _recipe.oil:
 			var oil_mesh := MeshInstance3D.new()
 			oil_mesh.name = "OilFilm"
-			var disc := CylinderMesh.new()
-			disc.top_radius = 0.093
-			disc.bottom_radius = 0.093
-			disc.height = 0.001
-			oil_mesh.mesh = disc
+			## Transparent radial film instead of a solid yellow disc.
+			var patch := QuadMesh.new()
+			patch.size = Vector2(0.165, 0.165)
+			oil_mesh.mesh = patch
+			oil_mesh.rotation.x = -PI * 0.5
 			oil_mesh.position.y = 0.009
 			var grease := StandardMaterial3D.new()
 			grease.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			grease.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			grease.albedo_color = Color(0.96, 0.78, 0.34, 0.22)
+			grease.cull_mode = BaseMaterial3D.CULL_DISABLED
+			grease.albedo_color = Color(0.89, 0.76, 0.41, 0.48)
+			var radial := GradientTexture2D.new()
+			radial.fill = GradientTexture2D.FILL_RADIAL
+			radial.fill_from = Vector2(0.5, 0.5)
+			radial.fill_to = Vector2(1.0, 0.5)
+			var opacity := Gradient.new()
+			opacity.set_color(0, Color(1.0, 1.0, 1.0, 0.20))
+			opacity.set_color(1, Color(1.0, 1.0, 1.0, 0.0))
+			radial.gradient = opacity
+			grease.albedo_texture = radial
 			oil_mesh.material_override = grease
 			_prop.add_child(oil_mesh)
 		for i: int in range(_recipe.eggs.size()):
@@ -539,13 +549,14 @@ func _add_seasoning_visual() -> void:
 		var speck := MeshInstance3D.new()
 		speck.name = "SaltOrPepper%02d" % i
 		var mesh := SphereMesh.new()
-		mesh.radius = 0.0007 if (_recipe.salt and i % 2 == 0) else 0.0012
+		var is_salt: bool = _recipe.salt and (not _recipe.pepper or i % 2 == 0)
+		mesh.radius = 0.0007 if is_salt else 0.0012
 		mesh.height = mesh.radius * 1.7
 		mesh.radial_segments = 6
 		mesh.rings = 3
 		speck.mesh = mesh
 		speck.position = Vector3(cos(angle) * r, 0.016, sin(angle) * r)
-		var color: Color = Color(0.92, 0.90, 0.79) if (_recipe.salt and i % 2 == 0) else Color(0.14, 0.11, 0.09)
+		var color: Color = Color(0.92, 0.90, 0.79) if is_salt else Color(0.14, 0.11, 0.09)
 		speck.material_override = StylizedEnvironmentMaterial.make_unshaded(color)
 		_prop.add_child(speck)
 

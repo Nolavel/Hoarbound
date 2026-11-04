@@ -67,6 +67,15 @@ func _run() -> void:
 	_check(bag.has_item(&"egg_fried_burnt") and bag.has_item(&"egg_fried_well") and bag.has_item(&"egg_fried"),
 		"distinct output quality item ids were not catalogued/transferred")
 	_check(a.get_egg_count() == 0, "food stayed on pan after pickup")
+	## Re-adding an egg after removing the first must claim its vacated position.
+	var layout := PanCookingModel.new()
+	_check(layout.add_egg() and layout.add_egg() and layout.add_egg(), "cannot lay out three yolks")
+	var old_spot: Dictionary = layout.eggs[0]
+	layout.eggs.remove_at(0)
+	_check(layout.add_egg(), "cannot refill after removing one egg")
+	var added: Dictionary = layout.eggs[2]
+	_check(is_equal_approx(float(old_spot["x"]), float(added["x"])) and is_equal_approx(float(old_spot["z"]), float(added["z"])),
+		"new egg overlaps an occupied yolk")
 	_check(a.take_pan(bag), "empty pan cannot be retrieved")
 	_check(is_equal_approx(float(bag.get_first_instance_state(&"frying_pan").get("wear", -1.0)), 0.21),
 		"pan's instance state was lost")

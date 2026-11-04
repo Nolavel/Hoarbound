@@ -19,7 +19,17 @@ var pepper: bool = false
 func add_egg() -> bool:
 	if eggs.size() >= MAX_EGGS:
 		return false
-	var spot: Vector2 = POSITIONS[eggs.size()]
+	## Reuse the first vacant slot even after an egg was taken from the middle.
+	var spot: Vector2 = POSITIONS[0]
+	for candidate: Vector2 in POSITIONS:
+		var occupied: bool = false
+		for egg: Dictionary in eggs:
+			if Vector2(float(egg.get("x", 0.0)), float(egg.get("z", 0.0))).distance_to(candidate) < 0.015:
+				occupied = true
+				break
+		if not occupied:
+			spot = candidate
+			break
 	eggs.append({"heat_h": 0.0, "intro": 0.0, "x": spot.x, "z": spot.y})
 	return true
 

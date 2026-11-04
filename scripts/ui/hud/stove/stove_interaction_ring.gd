@@ -134,6 +134,10 @@ func _draw() -> void:
 		return
 	var centre: Vector2 = _anchor()
 	if is_instance_valid(_cooktop):
+		var height: float = get_viewport_rect().size.y
+		centre.y = height * 0.75
+		ring_radius_px = height * 0.10
+		arc_width_px = maxf(5.0, height * 0.006)
 		_draw_cooktop_menu(centre)
 		return
 	for arc: Arc in [Arc.FUEL, Arc.TINDER, Arc.FIRE]:
@@ -269,6 +273,9 @@ func _on_refused(reason: HeatSourceFeed.Refusal) -> void:
 func _draw_cooktop_menu(centre: Vector2) -> void:
 	var actions: Array[Dictionary] = _cooktop.get_actions()
 	var size: int = actions.size()
+	var scale: float = clampf(get_viewport_rect().size.y / 540.0, 1.0, 2.2)
+	var large: int = roundi(14.0 * scale)
+	var small: int = roundi(11.0 * scale)
 	if size <= 0:
 		return
 	var active: StringName = _cooktop.get_selected_action()
@@ -284,12 +291,12 @@ func _draw_cooktop_menu(centre: Vector2) -> void:
 		_line(centre, span, Color(color, _alpha * (1.0 if selected else (0.48 if available else 0.15))), arc_width_px + (2.0 if selected else 0.0))
 		var radius: float = ring_radius_px + 20.0
 		var pos: Vector2 = centre + Vector2(cos(deg_to_rad(mid)), sin(deg_to_rad(mid))) * radius
-		_text(pos, str(action.get("label", "")), HINT_PX, Color(color, _alpha * (1.0 if selected else (0.7 if available else 0.25))), true)
+		_text(pos, str(action.get("label", "")), small, Color(color, _alpha * (1.0 if selected else (0.7 if available else 0.25))), true)
 	var warmer: StoveWarmer = _cooktop.get_selected_warmer()
 	var count: int = warmer.get_egg_count() if warmer != null else 0
-	_text(centre + Vector2(0.0, -6.0), "PLATE A" if _cooktop.get_selected_index() == 0 else "PLATE B", FONT_PX, Color(LINE, _alpha), true)
-	_text(centre + Vector2(0.0, 12.0), "%d / 3 EGGS" % count, HINT_PX, Color(LINE, _alpha), true)
-	_text(centre + Vector2(0.0, ring_radius_px + 62.0), "WHEEL CHOOSE   LMB APPLY   RMB PLATE   F EXIT", HINT_PX, Color(LINE, 0.83 * _alpha), true)
+	_text(centre + Vector2(0.0, -6.0), "PLATE A" if _cooktop.get_selected_index() == 0 else "PLATE B", large, Color(LINE, _alpha), true)
+	_text(centre + Vector2(0.0, 12.0), "%d / 3 EGGS" % count, small, Color(LINE, _alpha), true)
+	_text(centre + Vector2(0.0, ring_radius_px + 62.0), "WHEEL CHOOSE   LMB APPLY   RMB PLATE   F EXIT", small, Color(LINE, 0.83 * _alpha), true)
 
 
 ## Shared stove ring, older describe(arc) compatibility for regression tests.

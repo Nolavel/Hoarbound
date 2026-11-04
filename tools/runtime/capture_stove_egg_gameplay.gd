@@ -104,7 +104,7 @@ func _run() -> void:
 		if frame == 90:
 			controller.select_plate(0)
 		if frame >= 20:
-			var step: float = 0.0013 if frame < 96 else 0.0039
+			var step: float = 0.0013 if frame < 101 else 0.0030
 			stove.heat_elapsed.emit(step)
 		await process_frame
 		await RenderingServer.frame_post_draw
