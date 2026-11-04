@@ -247,3 +247,12 @@ INVENTORY_NO_ROOM,"No room left in the pack","В рюкзаке нет мест�
 INVENTORY_HINT_DROP,"%s — drop","%s — выбросить"
 INVENTORY_POCKET_FULL,"This pocket is taken","Карман занят"
 INVENTORY_POCKET_TOO_SMALL,"Too big for this pocket","Не влезет в этот карман"
+POCKET_COAT_LEFT,Left coat pocket,Левый карман куртки
+POCKET_COAT_RIGHT,Right coat pocket,Правый карман куртки
+POCKET_THIGH_LEFT,Thigh pocket,Карман на бедре
+POCKET_PACK_LID,Lid pocket,Клапан рюкзака
+POCKET_PACK_SIDE_LEFT,Side pocket,Боковой карман
+POCKET_PACK_SIDE_RIGHT_FRONT,"Sleeve, front","Рукав, передний"
+POCKET_PACK_SIDE_RIGHT_BACK,"Sleeve, back","Рукав, задний"
+POCKET_PACK_CARABINER,Right carabiner,Карабин справа
+POCKET_PACK_CARABINER_LEFT,Left carabiner,Карабин слева

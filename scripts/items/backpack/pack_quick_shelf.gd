@@ -10,11 +10,11 @@ signal changed(slot: int)
 
 const BG_FRAME: Shader = preload("res://assets/materials/Shaders/BG_frame.gdshader")
 ## Card side and the gap between cards, metres; how big an item stands on its card.
-const CARD_M: float = 0.1
-const GAP_M: float = 0.016
-const ITEM_FIT_M: float = 0.075
+const CARD_M: float = 0.12
+const GAP_M: float = 0.03
+const ITEM_FIT_M: float = 0.095
 ## Column offset from the pack's side wall, metres; how far the card stands in front of the pack's back.
-const COLUMN_OUT_M: float = 0.11
+const COLUMN_OUT_M: float = 0.13
 ## An item on its card turns slowly so its shape reads, rad/s.
 const SPIN: float = 0.6
 ## Card tints: hovered (warm yellow, as the active Quick Access card), filled, empty, refusing.
@@ -30,14 +30,15 @@ const TOO_SMALL: StringName = &"INVENTORY_POCKET_TOO_SMALL"
 var slots: Array[Dictionary] = []
 var camera: Camera3D
 var _pack: BackpackModel
-var _frame: SubViewport
+## The gradient for the left column (fading toward the pack, rightward) and the right one (leftward).
+var _frames: Array[SubViewport] = []
 
 
 ## Cards beside `pack` facing `view`, one per [garment item id, pocket id] in `body` (left) and `outside` (right).
 func setup(pack: BackpackModel, view: Camera3D, body: Array, outside: Array) -> void:
 	_pack = pack
 	camera = view
-	_frame = _gradient_viewport()
+	_frames = [_gradient_viewport(0), _gradient_viewport(1)]
 	var columns: Array = [[body, -1.0], [outside, 1.0]]
 	for column: Array in columns:
 		var sources: Array = column[0]
@@ -47,7 +48,7 @@ func setup(pack: BackpackModel, view: Camera3D, body: Array, outside: Array) -> 
 				continue
 			var at := Vector3(float(column[1]) * (BackpackModel.BODY.x * 0.5 + COLUMN_OUT_M),
 				BackpackModel.BODY.y - CARD_M * 0.5 - float(row) * (CARD_M + GAP_M), BackpackModel.BODY.z * 0.6)
-			slots.append(_card(definition, at))
+			slots.append(_card(definition, at, _frames[0 if float(column[1]) < 0.0 else 1]))
 	_refresh_all()
 
 
@@ -119,16 +120,14 @@ func _process(delta: float) -> void:
 		return
 	for slot: Dictionary in slots:
 		var card: MeshInstance3D = slot["card"]
-		## Cards face the camera, upright.
-		var facing: Vector3 = (camera.global_position - card.global_position)
-		facing.y = 0.0 if absf(facing.normalized().y) > 0.95 else facing.y
-		card.look_at(card.global_position - facing, Vector3.UP)
+		## Cards lie flat on the screen, as the Quick Access cards do.
+		card.global_basis = camera.global_basis.orthonormalized()
 		var visual: Node3D = slot["visual"]
 		if visual != null:
 			visual.rotate_y(SPIN * delta)
 
 
-func _card(definition: EquipmentSlotDefinition, at: Vector3) -> Dictionary:
+func _card(definition: EquipmentSlotDefinition, at: Vector3, frame: SubViewport) -> Dictionary:
 	var card := MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(CARD_M, CARD_M)
@@ -136,7 +135,7 @@ func _card(definition: EquipmentSlotDefinition, at: Vector3) -> Dictionary:
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.albedo_texture = _frame.get_texture()
+	material.albedo_texture = frame.get_texture()
 	material.albedo_color = EMPTY
 	material.no_depth_test = false
 	card.material_override = material
@@ -144,9 +143,10 @@ func _card(definition: EquipmentSlotDefinition, at: Vector3) -> Dictionary:
 	add_child(card)
 	card.position = at
 	var label := Label3D.new()
-	label.text = tr(definition.display_name)
-	label.font_size = 36
-	label.pixel_size = 0.0005
+	var key: String = "POCKET_" + String(definition.id).to_upper()
+	label.text = tr(key) if tr(key) != key else definition.display_name
+	label.font_size = 32
+	label.pixel_size = 0.00045
 	label.modulate = Color(0.92, 0.92, 0.9, 0.85)
 	label.outline_size = 8
 	label.position = Vector3(0.0, -CARD_M * 0.5 - 0.008, 0.002)
@@ -181,9 +181,9 @@ func _refresh(k: int) -> void:
 	set_tint(-1, Color.TRANSPARENT)
 
 
-## The Quick Access gradient (BG_frame.gdshader, dense middle fading to the sides), drawn once in white; each
-## card tints it.
-func _gradient_viewport() -> SubViewport:
+## The Quick Access gradient (BG_frame.gdshader) fading in `direction` (0 right, 1 left), drawn once in white;
+## each card tints it.
+func _gradient_viewport(direction: int) -> SubViewport:
 	var view := SubViewport.new()
 	view.size = Vector2i(128, 128)
 	view.transparent_bg = true
@@ -193,7 +193,7 @@ func _gradient_viewport() -> SubViewport:
 	var material := ShaderMaterial.new()
 	material.shader = BG_FRAME
 	material.set_shader_parameter(&"base_color", Color.WHITE)
-	material.set_shader_parameter(&"fade_direction", 4)
+	material.set_shader_parameter(&"fade_direction", direction)
 	material.set_shader_parameter(&"reveal", 1.0)
 	rect.material = material
 	view.add_child(rect)
