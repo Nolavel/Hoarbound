@@ -8,6 +8,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory: the main compartment holds its contents under three straps instead of physics (`PackStraps`).
+  - Each item, sized by its real outline, stands into the lowest tier with room against the back wall, layer
+    by layer. That tier's strap pulls in and buckles.
+  - Items that do not fit are refused, the side walls stay flat, and nine SPoV tins fill one layer.
+  - `PackRig` feeds it from the inventory.
+  - The Tab view capture now shows nine tins going in.
 - 3D inventory, stage 3: Tab takes the pack into Henry's hands (`PackFrontHold`).
   - It swings off his back to before his chest, opening toward a fixed camera that faces him, tipped so he sees
     in from above. The front panel drops open away from him, and his hands hold the sides.

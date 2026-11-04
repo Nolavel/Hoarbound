@@ -74,6 +74,10 @@ func _run() -> void:
 func _check_contents() -> void:
 	var items: Array = _pack.get(&"_items")
 	var ids: Array = items.map(func(item: Dictionary) -> StringName: return item["id"])
+	## The main compartment's contents stand under its straps.
+	var straps := _pack.get_node_or_null(^"Straps") as PackStraps
+	if straps != null:
+		ids.append_array(straps.items.map(func(item: Dictionary) -> StringName: return item["id"]))
 	_report("R1 contents in the canvas", "%s" % [ids], ids.has(&"spov_can") and ids.has(&"tinned_stew") and ids.has(&"water_flask") and ids.has(&"axe") and ids.has(&"hammer"))
 	## The mug on the right carabiner, the frying pan on the left.
 	_report("R1 both carabiners carry their item", "%d" % (_pack.get(&"_hung") as Array).size(), (_pack.get(&"_hung") as Array).size() == 2)

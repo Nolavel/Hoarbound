@@ -61,6 +61,7 @@ var _last_position: Vector3 = Vector3.ZERO
 var _last_velocity: Vector3 = Vector3.ZERO
 var _has_last: bool = false
 var _inventory: InventoryComponent
+var _straps: PackStraps
 var _equipment: EquipmentComponent
 var _quick: QuickAccessComponent
 ## The pocket whose item a hand shows now ("" for none): it is out of its pocket, so not drawn there.
@@ -223,6 +224,11 @@ func _build_canvas() -> void:
 	_canvas.layers_for_contents = render_layers
 	_sway.add_child(_canvas)
 	_canvas.build()
+	## The main compartment's contents stand under its straps (PackStraps), not in slots.
+	_straps = PackStraps.new()
+	_straps.name = "Straps"
+	_canvas.add_child(_straps)
+	_straps.setup(_canvas)
 	for mesh: Node in _canvas.find_children("*", "MeshInstance3D", true, false):
 		(mesh as MeshInstance3D).layers = render_layers
 
@@ -237,6 +243,10 @@ func _process(delta: float) -> void:
 		while walk != null and not (walk is CharacterBody3D):
 			walk = walk.get_parent()
 		_inventory = InventoryComponent.find_in(walk) if walk != null else null
+		if _inventory != null:
+			_inventory.item_added.connect(func(_item: ItemResource, _count: int) -> void: _refresh_contents())
+			_inventory.item_removed.connect(func(_item: ItemResource, _count: int) -> void: _refresh_contents())
+			_refresh_contents()
 	if _inventory != null:
 		_canvas.load_fill = clampf(_inventory.get_total_weight() / full_load_kg, 0.0, 1.0)
 		_canvas.set_bedroll_visible(_inventory.has_item(&"bedroll"))
@@ -292,13 +302,14 @@ func _on_slot_changed(slot_path: StringName, _item_id: StringName) -> void:
 		_refresh_contents()
 
 
-## Shows what the pack's pockets hold: side pockets in the side pouches, the carabiner's item
-## clipped on, everything else loose in the main body.
+## Shows what the pack holds: side pockets in the side pouches, the carabiners' items clipped on, and the main
+## compartment (its pockets and the inventory, bar the bedroll strapped on top) under the straps.
 func _refresh_contents() -> void:
 	if _canvas == null or _equipment == null:
 		return
 	_canvas.clear_items()
 	var shown: Dictionary = {}
+	var main: Array[StringName] = []
 	for entry: Dictionary in _equipment.get_available_pockets():
 		var held: StringName = entry["item_id"]
 		if entry["body_slot"] != &"pack" or held == &"" \
@@ -316,7 +327,16 @@ func _refresh_contents() -> void:
 				_canvas.hang_item(held, 1 if pocket == &"pack_carabiner" else 0, _contents_shown and _side_items.get(pocket, &"") != held)
 				shown[pocket] = held
 			_:
-				_canvas.add_loose(held)
+				main.append(held)
+	if _inventory != null:
+		for entry: Dictionary in _inventory.get_entries():
+			var item: ItemResource = ItemCatalog.get_item(entry["id"])
+			if item == null or item.carried_in_hands or item.id == &"bedroll":
+				continue
+			for _n: int in int(entry["count"]):
+				main.append(item.id)
+	if _straps != null:
+		_straps.sync(main)
 	_side_items = shown
 	_contents_shown = true
 	for mesh: Node in _canvas.find_children("*", "MeshInstance3D", true, false):

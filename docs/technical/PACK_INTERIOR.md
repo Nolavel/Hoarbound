@@ -87,6 +87,22 @@ Stand: `tests/systems/test_pack_shelf.gd`. Capture: `tools/runtime/capture_pack_
   - Nothing comes past the cloth.
 - **Not yet wired:** the cards read and write their own list. Binding them to `EquipmentComponent` pockets and the save is stage 4.
 
+## Straps instead of physics (the main compartment)
+
+Code: `scripts/items/backpack/pack_straps.gd` (`PackStraps`), built into the pack's canvas by `PackRig` and fed from the inventory.
+
+- **Three straps, one per tier.** The straps run across the back wall, one for each third of the compartment's height.
+  - An item goes into the lowest tier with room, against the back wall, beside the last one in the front layer.
+  - When a tier's first layer is full across, the next layer stands in front of it while the depth allows.
+  - Each tier's strap pulls in to the front of what it holds and buckles: 0.35 s drop in over the mouth, then a 0.22 s cinch. An empty tier's strap lies back on the wall.
+- **Real sizes.** An item's outline comes from its model in metres. It is turned thinnest side front to back, standing first (its longest side up) so more fit side by side.
+  - Usable inside: 25.6 × 48.8 × 18.8 cm. Across, it keeps a canvas bulge's reach off each side wall, so the side walls and the pockets sewn on them stay flat.
+  - SPoV tins: 3 across × 3 tiers = 9 per layer, 18 in two layers.
+  - Refusals: `INVENTORY_TOO_BIG` when no tier takes the outline in any turn (the axe); `INVENTORY_NO_ROOM` when no tier has room left.
+- **Contents.** What the pack holds, minus the bedroll strapped on top, stands under the straps: the `pack_main` pockets plus the inventory, one place per instance. It re-lays out whenever the inventory or a pack pocket changes.
+- **Items taller than a tier** (16 cm) are refused for now. Spanning two straps is not done yet.
+- **Not yet:** the ring cursor and dragging work on `PackInterior` (physics), not on the straps yet. `PackInterior` remains only for those stands.
+
 ## Tab ritual and view (stage 3)
 
 Code: `scripts/actors/player/henry/pack/pack_front_hold.gd` (`PackFrontHold`, via `HenryUALAnimation.hold_pack_front()` / `release_pack_front()`), and `PlayerHubComponent` with `pack_in_hands` set (the default).

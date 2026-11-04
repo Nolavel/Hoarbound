@@ -1,8 +1,9 @@
 extends SceneTree
 
-## The 3D inventory's Tab ritual (stage 3) with the real HUD: Henry takes the pack off into his hands and opens
-## it toward the camera, which faces him; the Quick Access cards stand pinned on their live anchors; Tab again
-## puts the pack back on. 30 fps PNG frames.
+## The 3D inventory's Tab ritual with the real HUD: Henry takes the pack off into his hands and opens it toward
+## the camera, which faces him; the Quick Access cards stand pinned on their live anchors. Nine SPoV tins go
+## into the pack one by one: each stands into its place and its tier's strap pulls in. Tab again puts the pack
+## back on. 30 fps PNG frames.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --resolution 1280x720 --script res://tools/runtime/capture_pack_view.gd -- <out dir>
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
@@ -61,9 +62,21 @@ func _run() -> void:
 	for _i: int in 40:
 		await process_frame
 	await _record(0.6)
+	## The pack's main compartment starts empty (the bedroll stays strapped on top).
+	var inventory := player.get_node(^"InventoryComponent") as InventoryComponent
+	for entry: Dictionary in inventory.get_entries():
+		if entry["id"] != &"bedroll":
+			for _n: int in int(entry["count"]):
+				inventory.take_instance(entry["id"])
+	await _record(0.3)
 	var hub := player.get_node(^"PlayerHubComponent") as PlayerHubComponent
 	hub.open()
-	await _record(3.0)
+	await _record(1.2)
+	var tin: ItemResource = ItemCatalog.get_item(&"spov_can")
+	for _n: int in 9:
+		inventory.try_add(tin)
+		await _record(0.55)
+	await _record(1.2)
 	hub.close()
 	await _record(1.4)
 	print("[pack view] frames ", _frame)
