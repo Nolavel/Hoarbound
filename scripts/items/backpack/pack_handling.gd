@@ -256,6 +256,11 @@ func _hovered_visual() -> Node3D:
 
 ## The convex outline of `visual` on screen (viewport pixels), from a sample of its meshes' vertices.
 func _screen_outline(visual: Node3D) -> PackedVector2Array:
+	return screen_outline(visual, camera)
+
+
+## The convex outline of `visual` as `camera` sees it (viewport pixels), from a sample of its vertices.
+static func screen_outline(visual: Node3D, camera: Camera3D) -> PackedVector2Array:
 	var points := PackedVector2Array()
 	for node: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		var mesh := node as MeshInstance3D

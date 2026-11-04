@@ -94,7 +94,7 @@ func _run() -> void:
 	for wanted: String in ["pack_carabiner", "pack_carabiner_left"]:
 		var k: int = _slot_ending(look_shelf, wanted)
 		if k >= 0 and look_shelf.visual_of(k) != null:
-			await _glide(look_hands, look_hands.camera.unproject_position(look_shelf.visual_of(k).global_position), 0.5)
+			await _glide(look_hands, look_shelf.aim_point(k), 0.5)
 			await _record(0.6)
 	var strapped: PackStraps = look_hands.straps
 	await _glide(look_hands, look_hands.camera.unproject_position(strapped.model.global_transform * (strapped.items[0]["box"] as AABB).get_center()), 0.5)
@@ -146,8 +146,8 @@ func _slot_ending(shelf: PackQuickShelf, pocket: String) -> int:
 	return -1
 
 
-func _card_at(hands: PackHandling, shelf: PackQuickShelf, k: int) -> Vector2:
-	return hands.camera.unproject_position((shelf.slots[k]["card"] as Node3D).global_position)
+func _card_at(_hands: PackHandling, shelf: PackQuickShelf, k: int) -> Vector2:
+	return shelf.aim_point(k)
 
 
 func _glide(hands: PackHandling, to: Vector2, seconds: float) -> void:

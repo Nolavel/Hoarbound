@@ -150,7 +150,7 @@ func _slot_with(shelf: PackQuickShelf, item_id: StringName) -> int:
 
 
 func _card_screen(shelf: PackQuickShelf, k: int) -> Vector2:
-	return _hands.camera.unproject_position((shelf.slots[k]["card"] as Node3D).global_position)
+	return shelf.aim_point(k)
 
 
 func _item_screen(straps: PackStraps, i: int) -> Vector2:

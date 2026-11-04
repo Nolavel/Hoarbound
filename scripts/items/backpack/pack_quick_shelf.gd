@@ -100,9 +100,24 @@ func refusal(k: int, item_id: StringName) -> StringName:
 	return FULL if why == EquipmentComponent.Refusal.SLOT_OCCUPIED else TOO_SMALL
 
 
-## The slot whose card a world-space ray meets, or -1.
+## The slot whose card a world-space ray meets, or -1. An item on the pack is hit on its own outline on screen
+## (the ring's), an empty pocket there on its unseen card; overlapping, the smallest wins.
 func pick(origin: Vector3, direction: Vector3) -> int:
+	var best: int = -1
+	var best_area: float = INF
+	var screen: Vector2 = camera.unproject_position(origin + direction)
 	for k: int in slots.size():
+		var visual: Node3D = visual_of(k) if slots[k]["on_pack"] else null
+		if visual != null and visual.is_visible_in_tree():
+			var outline: PackedVector2Array = PackHandling.screen_outline(visual, camera)
+			if outline.size() >= 3 and Geometry2D.is_point_in_polygon(screen, outline):
+				var box: Rect2 = Rect2(outline[0], Vector2.ZERO)
+				for point: Vector2 in outline:
+					box = box.expand(point)
+				if box.get_area() * 1e-6 < best_area:
+					best = k
+					best_area = box.get_area() * 1e-6
+			continue
 		var card: MeshInstance3D = slots[k]["card"]
 		var plane := Plane(card.global_basis.z.normalized(), card.global_position)
 		var hit: Variant = plane.intersects_ray(origin, direction)
@@ -110,8 +125,31 @@ func pick(origin: Vector3, direction: Vector3) -> int:
 			continue
 		var local: Vector3 = card.global_transform.affine_inverse() * (hit as Vector3)
 		if absf(local.x) <= CARD_M * 0.5 and absf(local.y) <= CARD_M * 0.5:
-			return k
-	return -1
+			if not slots[k]["on_pack"]:
+				return k
+			var scale: Vector3 = card.global_basis.get_scale()
+			if scale.x * scale.y < best_area:
+				best = k
+				best_area = scale.x * scale.y
+	return best
+
+
+## A screen point (viewport pixels) that hovers slot k: its card, or a point inside its item's outline on the
+## pack that no other item's outline covers (for stands and captures).
+func aim_point(k: int) -> Vector2:
+	var visual: Node3D = visual_of(k) if slots[k]["on_pack"] else null
+	if visual == null:
+		return camera.unproject_position((slots[k]["card"] as Node3D).global_position)
+	var outline: PackedVector2Array = PackHandling.screen_outline(visual, camera)
+	var middle := Vector2.ZERO
+	for point: Vector2 in outline:
+		middle += point
+	middle /= maxf(outline.size(), 1.0)
+	for point: Vector2 in outline:
+		var aim: Vector2 = point.lerp(middle, 0.35)
+		if pick(camera.project_ray_origin(aim), camera.project_ray_normal(aim)) == k:
+			return aim
+	return middle
 
 
 ## Tints slot k's card ACTIVE or REFUSE; every other card (or all, with Color.TRANSPARENT) shows selected,
