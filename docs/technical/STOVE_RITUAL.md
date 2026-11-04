@@ -133,6 +133,12 @@ away from the rear flue. A frying pan on one plate points its handle toward Henr
 the handle and pan body must leave the other plate clear for a second vessel.
 `Warmer` and `Warmer2` use matching positions and separate save keys.
 
+`EggCookingVisual` is a review-only presentation candidate driven by an explicit
+time value: shell crack and separation, albumen pour, yolk drop, then a small
+hot-edge ripple in the pan. `capture_egg_cooking.gd` records it in a Forward+
+studio using the production stove and pan. It is not yet connected to inventory,
+heat, food state, Henry's hand, or the 727 scene camera.
+
 The tinder arc and action share the same accessibility predicate: an actual held
 item or a worn Quick Access pocket, excluding pack-only ownership. Contact spends
 exactly that source via `HeldOwnership`; it never silently falls back to the pack.
