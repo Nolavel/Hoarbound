@@ -26,7 +26,7 @@ const ARC_M: float = 0.18
 ## The hands take the sides this far below the pack's middle, this far out from its walls and this far back
 ## toward its back face (outside the opening), metres.
 const GRIP_DROP_M: float = 0.08
-const GRIP_OUT_M: float = 0.055
+const GRIP_OUT_M: float = 0.1
 const GRIP_BACK_M: float = 0.05
 
 var visual: HenryUALAnimation
@@ -132,9 +132,10 @@ func _grip_sides(weight: float) -> void:
 		var side: float = -1.0 if left else 1.0
 		var outward: Vector3 = at.basis.x.normalized() * side
 		var wrist: Vector3 = at.origin + outward * (half.x + GRIP_OUT_M) - at.basis.y.normalized() * GRIP_DROP_M + at.basis.z.normalized() * GRIP_BACK_M
-		var along: Vector3 = (-at.basis.y.normalized() - outward * 0.3).normalized()
+		## Fingers down the side and slightly in, palm on the wall from outside; elbows wide so no sleeve enters.
+		var along: Vector3 = (-at.basis.y.normalized() + outward * 0.15).normalized()
 		var across: Vector3 = at.basis.z.normalized()
-		var pole: Vector3 = wrist + outward * 0.35 + Vector3.DOWN * 0.25
+		var pole: Vector3 = wrist + outward * 0.6 + Vector3.DOWN * 0.15 + at.basis.z.normalized() * 0.2
 		grip.hold(wrist, along, across, pole, weight)
 
 
