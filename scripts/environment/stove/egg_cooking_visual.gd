@@ -143,6 +143,8 @@ void fragment() {
 	add_child(_crack)
 
 	_white_material = StylizedEnvironmentMaterial.make_unshaded(Color(0.93, 0.91, 0.84))
+	## The procedural white mesh winds downward; render the top face as well.
+	_white_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_white = MeshInstance3D.new()
 	_white.name = "SpreadingWhite"
 	_white.material_override = _white_material
