@@ -122,6 +122,11 @@ func get_bottom_flap() -> Node3D:
 
 
 ## The canvas pack model, or null when the four-flap tray is drawn.
+## The main compartment's straps (what is in the pack, laid out), or null before the canvas is built.
+func get_straps() -> PackStraps:
+	return _straps
+
+
 func get_canvas() -> BackpackModel:
 	build()
 	return _canvas

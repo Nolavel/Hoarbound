@@ -8,6 +8,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory: the ring cursor and hands now work on the straps and the live Quick Access cards
+  (`PackHandling`, built by the Hub on Tab).
+  - Take from a pocket or the pack with LMB (pad A), and let go over the other to move it there.
+  - The pack and the pockets refuse in red with a reason. G (pad Y) puts the hovered item down on the ground.
+  - New Hub moves: `drop_from_pack`, `drop_from_zone` and `move_between_zones`.
+  - `ItemPickup.ground_ahead`/`spawn_dropped` are shared with the hand's drop.
+  - The physics compartment (`PackInterior`), its stands and captures, and the wheel/RMB actions
+    (`pack_turn_*`, `pack_shove`) are removed.
+  - Stand: `tests/systems/test_pack_hands.gd`.
 - 3D inventory, pack in hand:
   - One strap stays over Henry's shoulder and lies on the jacket down his chest.
   - Quick Access beside the open pack shows the real pockets' 3D items on gradient cards at the frame's sides,

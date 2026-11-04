@@ -1,0 +1,185 @@
+extends SceneTree
+
+## Hands in the held pack (3D inventory) on the real player and Hub. Tab takes the pack into Henry's hands,
+## half full of SPoV tins, a tin in the left coat pocket. The ring and LMB:
+## - carry the tin from the coat pocket's card into the pack (it goes under the straps, the pocket empties);
+## - take a tin out of the pack onto the empty card (into that pocket);
+## - a full pocket refuses the axe (its reason shows, the axe stays in its sleeve);
+## - the pack refuses the axe as too big;
+## - G puts a pack tin down on the ground.
+## Tab again puts the pack back on.
+## Run: godot --headless --path . --fixed-fps 30 --script res://tests/systems/test_pack_hands.gd
+
+const PLAYER: String = "res://scenes/actors/player/player.tscn"
+
+var _failures: int = 0
+var _player: Player
+var _hub: PlayerHubComponent
+var _inventory: InventoryComponent
+var _hands: PackHandling
+
+
+func _initialize() -> void:
+	_run()
+
+
+func _run() -> void:
+	var floor := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = WorldBoundaryShape3D.new()
+	floor.add_child(shape)
+	root.add_child(floor)
+	_player = (load(PLAYER) as PackedScene).instantiate() as Player
+	root.add_child(_player)
+	_player.global_position = Vector3(0.0, 1.0, 0.0)
+	var camera := Camera3D.new()
+	root.add_child(camera)
+	camera.make_current()
+	await _frames(30)
+	_inventory = _player.get_node(^"InventoryComponent") as InventoryComponent
+	_hub = _player.get_node(^"PlayerHubComponent") as PlayerHubComponent
+	var equipment := _player.get_node(^"EquipmentComponent") as EquipmentComponent
+	for entry: Dictionary in _inventory.get_entries():
+		if entry["id"] != &"bedroll":
+			for _n: int in int(entry["count"]):
+				_inventory.take_instance(entry["id"])
+	var tin: ItemResource = ItemCatalog.get_item(&"spov_can")
+	for _n: int in 5:
+		_inventory.try_add(tin)
+	var coat_left: StringName = _zone_path(&"coat_left")
+	var parts: PackedStringArray = String(coat_left).split(EquipmentComponent.POCKET_SEPARATOR)
+	equipment.stow(StringName(parts[0]), StringName(parts[1]), &"spov_can")
+	_check(_hub.open(), "Tab did not open the pack")
+	await _frames(40)
+	_hands = _hub.get_pack_hands()
+	_check(_hands != null, "no hands in the held pack")
+	if _hands == null:
+		_finish()
+		return
+	var shelf: PackQuickShelf = _hub.get_quick_shelf()
+	var straps: PackStraps = _hands.straps
+	var left_card: int = _slot(shelf, coat_left)
+	var sleeve_card: int = _slot_with(shelf, &"axe")
+	print("pack hands: %d items in the pack, %d cards" % [straps.items.size(), shelf.slots.size()])
+
+	## The tin from the coat pocket's card into the pack.
+	var strapped: int = straps.items.size()
+	await _aim(_card_screen(shelf, left_card))
+	_check(_hands.hovered_slot == left_card, "the ring over the coat pocket's card does not hover it")
+	_hands.press(PackHandling.GRAB_ACTION, true)
+	await _glide(_pack_screen(straps))
+	_hands.press(PackHandling.GRAB_ACTION, false)
+	await _frames(20)
+	_check(_inventory.get_count(&"spov_can") == 6 and StringName(shelf.slots[left_card]["item_id"]) == &"",
+		"the tin did not go from the coat pocket into the pack")
+	_check(straps.items.size() == strapped + 1, "the straps do not hold the tin (%d, had %d)" % [straps.items.size(), strapped])
+	print("pack hands: coat pocket -> pack, %d under the straps" % straps.items.size())
+
+	## A tin out of the pack onto the empty coat pocket's card.
+	await _aim(_item_screen(straps, 0))
+	_check(_hands.hovered_item >= 0, "the ring over a strapped tin does not hover it")
+	_hands.press(PackHandling.GRAB_ACTION, true)
+	await _glide(_card_screen(shelf, left_card))
+	_hands.press(PackHandling.GRAB_ACTION, false)
+	await _frames(20)
+	_check(StringName(shelf.slots[left_card]["item_id"]) == &"spov_can" and _inventory.get_count(&"spov_can") == 5,
+		"the tin did not go from the pack into the coat pocket")
+	print("pack hands: pack -> coat pocket")
+
+	## The full coat pocket refuses the axe; it stays in its sleeve.
+	if sleeve_card >= 0:
+		await _aim(_card_screen(shelf, sleeve_card))
+		_hands.press(PackHandling.GRAB_ACTION, true)
+		await _glide(_card_screen(shelf, left_card))
+		_check(shelf.slots[left_card]["tint"] == PackQuickShelf.REFUSE, "the full coat pocket does not show it would refuse")
+		_hands.press(PackHandling.GRAB_ACTION, false)
+		await _frames(5)
+		_check(StringName(shelf.slots[sleeve_card]["item_id"]) == &"axe", "the refused axe left its sleeve")
+		_check(_hands.cursor.warning == tr(PackQuickShelf.FULL), "the full pocket showed no reason")
+		## The pack refuses it as too big.
+		await _aim(_card_screen(shelf, sleeve_card))
+		_hands.press(PackHandling.GRAB_ACTION, true)
+		await _glide(_pack_screen(straps))
+		_hands.press(PackHandling.GRAB_ACTION, false)
+		await _frames(5)
+		_check(StringName(shelf.slots[sleeve_card]["item_id"]) == &"axe", "the axe went into the pack")
+		_check(_hands.cursor.warning == tr(PackStraps.TOO_BIG), "the pack showed no reason for the axe")
+		print("pack hands: the axe was refused by a full pocket and by the pack")
+	else:
+		_check(false, "no sleeve card holds the axe")
+
+	## G puts a pack tin down on the ground.
+	var before: int = _inventory.get_count(&"spov_can")
+	await _aim(_item_screen(straps, 0))
+	_hands.press(PackHandling.DROP_ACTION, true)
+	await _frames(5)
+	var pickups: Array = root.find_children("*", "ItemPickup", true, false)
+	_check(_inventory.get_count(&"spov_can") == before - 1 and not pickups.is_empty(), "G did not put a tin down on the ground")
+	print("pack hands: G put a tin down")
+
+	_hub.close()
+	await _frames(40)
+	_check(not _hub.is_open() and _hub.get_pack_hands() == null, "Tab again left the hands open")
+	_finish()
+
+
+func _finish() -> void:
+	print("pack hands: %s" % ("all checks passed" if _failures == 0 else "%d FAILED" % _failures))
+	quit(1 if _failures > 0 else 0)
+
+
+func _zone_path(pocket: StringName) -> StringName:
+	for zone: Dictionary in _hub.get_quick_access_zones():
+		if String(zone["path"]).ends_with(String(pocket)):
+			return zone["path"]
+	return &""
+
+
+func _slot(shelf: PackQuickShelf, path: StringName) -> int:
+	for k: int in shelf.slots.size():
+		if shelf.slots[k]["path"] == path:
+			return k
+	return -1
+
+
+func _slot_with(shelf: PackQuickShelf, item_id: StringName) -> int:
+	for k: int in shelf.slots.size():
+		if shelf.slots[k]["item_id"] == item_id:
+			return k
+	return -1
+
+
+func _card_screen(shelf: PackQuickShelf, k: int) -> Vector2:
+	return _hands.camera.unproject_position((shelf.slots[k]["card"] as Node3D).global_position)
+
+
+func _item_screen(straps: PackStraps, i: int) -> Vector2:
+	return _hands.camera.unproject_position(straps.model.global_transform * (straps.items[i]["box"] as AABB).get_center())
+
+
+func _pack_screen(straps: PackStraps) -> Vector2:
+	return _hands.camera.unproject_position(straps.model.global_transform * PackStraps.room().get_center())
+
+
+func _aim(at: Vector2) -> void:
+	_hands.set_cursor(at)
+	await _frames(3)
+
+
+func _glide(to: Vector2) -> void:
+	var from: Vector2 = _hands.cursor_at
+	for f: int in 12:
+		_hands.set_cursor(from.lerp(to, float(f + 1) / 12.0))
+		await _frames(1)
+
+
+func _frames(count: int) -> void:
+	for _i: int in count:
+		await process_frame
+
+
+func _check(condition: bool, message: String) -> void:
+	if condition:
+		return
+	_failures += 1
+	push_error("pack hands: %s" % message)

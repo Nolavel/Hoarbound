@@ -1,93 +1,62 @@
 class_name PackQuickShelf
 extends Node3D
 
-## Quick Access while the pack is open (3D inventory, stage 2): each quick pocket is a card beside the pack on
-## the same gradient as the Quick Access cards (BG_frame.gdshader), with its item standing on it in 3D. Body
-## pockets (coat, thigh, lid) stand in a column left of the pack, the pack's outside pockets (side pocket,
-## sleeves, carabiners) right of it. A pocket takes an item by the inventory's own rule (size against max_size).
-
-signal changed(slot: int)
+## Quick Access while Henry holds the pack open (3D inventory): each of his real quick pockets is a card on the
+## Quick Access gradient (BG_frame.gdshader) with its 3D item standing on it, no text. The cards stand in camera
+## space in a column at each side of the frame, clear of the pack: body pockets left, the pack's outside
+## pockets right. Moves go through the Hub, so what the cards show is always the equipment's own state.
 
 const BG_FRAME: Shader = preload("res://assets/materials/Shaders/BG_frame.gdshader")
-## Card side and the gap between cards, metres; how big an item stands on its card.
-const CARD_M: float = 0.12
-const GAP_M: float = 0.03
-const ITEM_FIT_M: float = 0.095
-## Column offset from the pack's side wall, metres; how far the card stands in front of the pack's back.
-const COLUMN_OUT_M: float = 0.13
+## A card's side in its own space, and how big its item stands on it (shares of that side).
+const CARD_M: float = 0.1
+const ITEM_FIT: float = 0.8
 ## An item on its card turns slowly so its shape reads, rad/s.
 const SPIN: float = 0.6
+## Cards: depth ahead of the camera (metres), card height as a share of the frame height, column x as a share
+## of the half width, the top row's y as a share of the half height, and the row pitch in card heights.
+const DEPTH_M: float = 0.5
+const CARD_SHARE: float = 0.115
+const COLUMN_SHARE: float = 0.8
+const TOP_SHARE: float = 0.78
+const ROW_PITCH: float = 1.18
 ## Card tints: hovered (warm yellow, as the active Quick Access card), filled, empty, refusing.
 const ACTIVE: Color = Color(1.0, 0.82, 0.0, 0.9)
 const FILLED: Color = Color(0.42, 0.42, 0.42, 0.82)
 const EMPTY: Color = Color(0.3, 0.3, 0.3, 0.38)
 const REFUSE: Color = Color(1.0, 0.25, 0.2, 0.9)
-## Live cards: depth ahead of the camera (metres), card height as a share of the frame height, column x as a
-## share of the half width, and the top row's y as a share of the half height.
-const LIVE_DEPTH_M: float = 0.5
-const LIVE_CARD_SHARE: float = 0.115
-const LIVE_COLUMN_SHARE: float = 0.8
-const LIVE_TOP_SHARE: float = 0.78
 const FULL: StringName = &"INVENTORY_POCKET_FULL"
 const TOO_SMALL: StringName = &"INVENTORY_POCKET_TOO_SMALL"
 
-## Per slot: {"definition": EquipmentSlotDefinition, "item_id", "state", "card": MeshInstance3D, "label": Label3D,
-## "visual": Node3D or null, "tint": Color}.
+## Per slot: {"path", "column" (0 left, 1 right), "row", "item_id", "card": MeshInstance3D, "visual": Node3D or
+## null, "tint": Color}.
 var slots: Array[Dictionary] = []
 var camera: Camera3D
-## Live mode (setup_live): the cards are Henry's real quick pockets (through the Hub), standing in two columns
-## at the screen's sides, children of the camera; slots carry "path" and moves go through the Hub.
 var hub: PlayerHubComponent
-var _live: bool = false
-var _pack: BackpackModel
 ## The gradient for the left column (fading toward the pack, rightward) and the right one (leftward).
 var _frames: Array[SubViewport] = []
 
 
-## Cards beside `pack` facing `view`, one per [garment item id, pocket id] in `body` (left) and `outside` (right).
-func setup(pack: BackpackModel, view: Camera3D, body: Array, outside: Array) -> void:
-	_pack = pack
-	camera = view
-	_frames = [_gradient_viewport(0), _gradient_viewport(1)]
-	var columns: Array = [[body, -1.0], [outside, 1.0]]
-	for column: Array in columns:
-		var sources: Array = column[0]
-		for row: int in sources.size():
-			var definition: EquipmentSlotDefinition = _pocket(sources[row][0], sources[row][1])
-			if definition == null:
-				continue
-			var at := Vector3(float(column[1]) * (BackpackModel.BODY.x * 0.5 + COLUMN_OUT_M),
-				BackpackModel.BODY.y - CARD_M * 0.5 - float(row) * (CARD_M + GAP_M), BackpackModel.BODY.z * 0.6)
-			slots.append(_card(definition, at, _frames[0 if float(column[1]) < 0.0 else 1]))
-	_refresh_all()
-
-
-## Live cards for `quick_hub`'s quick pockets, at the sides of `view`'s frame (body pockets left, the pack's
-## outside pockets right), each the gradient card with the pocket's 3D item on it, no text.
-func setup_live(quick_hub: PlayerHubComponent, view: Camera3D) -> void:
+## Cards for `quick_hub`'s quick pockets at the sides of `view`'s frame.
+func setup(quick_hub: PlayerHubComponent, view: Camera3D) -> void:
 	hub = quick_hub
 	camera = view
-	_live = true
 	_frames = [_gradient_viewport(0), _gradient_viewport(1)]
 	var rows: Array[int] = [0, 0]
 	for zone: Dictionary in hub.get_quick_access_zones():
 		var path: StringName = zone["path"]
 		var column: int = 1 if String(path).begins_with("pack" + EquipmentComponent.POCKET_SEPARATOR) else 0
-		var slot: Dictionary = _card(null, Vector3.ZERO, _frames[1 - column])
-		slot["path"] = path
-		slot["column"] = column
-		slot["row"] = rows[column]
-		slot["item_id"] = zone["item_id"]
+		slots.append({"path": path, "column": column, "row": rows[column], "item_id": zone["item_id"],
+			"card": _card(_frames[1 - column]), "visual": null, "tint": EMPTY})
 		rows[column] += 1
-		slots.append(slot)
 	if hub.equipment != null:
-		hub.equipment.slot_changed.connect(func(_path: StringName, _id: StringName) -> void: refresh_live())
-	_refresh_all()
+		hub.equipment.slot_changed.connect(func(_path: StringName, _id: StringName) -> void: refresh())
+	for k: int in slots.size():
+		_refresh(k)
 
 
-## Re-reads every live pocket's item.
-func refresh_live() -> void:
-	if not _live or hub == null:
+## Re-reads every pocket's item from the equipment.
+func refresh() -> void:
+	if hub == null:
 		return
 	var by_path: Dictionary = {}
 	for zone: Dictionary in hub.get_quick_access_zones():
@@ -99,11 +68,24 @@ func refresh_live() -> void:
 			_refresh(k)
 
 
-## Live: moves slot k's item into the pack: it flies from its card into the opening, then the Hub moves it
-## (the pack's straps take it in). False when the pocket is empty or the Hub refuses.
+## Why slot k would not take `item_id` now (FULL, TOO_SMALL), or &"" when it would.
+func refusal(k: int, item_id: StringName) -> StringName:
+	if StringName(slots[k]["item_id"]) != &"":
+		return FULL
+	var parts: PackedStringArray = String(slots[k]["path"]).split(EquipmentComponent.POCKET_SEPARATOR)
+	if hub.equipment == null or parts.size() != 2:
+		return TOO_SMALL
+	var why: EquipmentComponent.Refusal = hub.equipment.can_stow(StringName(parts[0]), StringName(parts[1]), item_id)
+	if why == EquipmentComponent.Refusal.NONE:
+		return &""
+	return FULL if why == EquipmentComponent.Refusal.SLOT_OCCUPIED else TOO_SMALL
+
+
+## Flies slot k's item from its card to `into` (world), then moves it into the pack through the Hub.
+## False when the pocket is empty or the Hub refuses (the item stays on its card).
 func send_to_pack(k: int, into: Vector3, seconds: float = 0.4) -> bool:
 	var visual: Node3D = slots[k]["visual"]
-	if not _live or visual == null:
+	if visual == null:
 		return false
 	var flying: Node3D = visual.duplicate()
 	var world: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
@@ -115,67 +97,28 @@ func send_to_pack(k: int, into: Vector3, seconds: float = 0.4) -> bool:
 	tween.parallel().tween_property(flying, ^"scale", flying.scale * 1.6, seconds)
 	await tween.finished
 	flying.queue_free()
-	var path: StringName = slots[k]["path"]
-	var refused: StringName = hub.move_to_pack(path)
-	refresh_live()
-	if refused != &"":
-		if is_instance_valid(visual):
-			visual.visible = true
-		return false
-	return true
+	var refused: StringName = hub.move_to_pack(slots[k]["path"])
+	refresh()
+	if refused != &"" and is_instance_valid(visual):
+		visual.visible = true
+	return refused == &""
 
 
 ## The slot whose card a world-space ray meets, or -1.
 func pick(origin: Vector3, direction: Vector3) -> int:
-	var best: float = INF
-	var found: int = -1
 	for k: int in slots.size():
 		var card: MeshInstance3D = slots[k]["card"]
-		var plane := Plane(card.global_basis.z, card.global_position)
+		var plane := Plane(card.global_basis.z.normalized(), card.global_position)
 		var hit: Variant = plane.intersects_ray(origin, direction)
 		if hit == null:
 			continue
 		var local: Vector3 = card.global_transform.affine_inverse() * (hit as Vector3)
 		if absf(local.x) <= CARD_M * 0.5 and absf(local.y) <= CARD_M * 0.5:
-			var distance: float = origin.distance_to(hit)
-			if distance < best:
-				best = distance
-				found = k
-	return found
+			return k
+	return -1
 
 
-## Why slot k cannot take `item_id` now (FULL, TOO_SMALL), or &"" when it can.
-func refusal(k: int, item_id: StringName) -> StringName:
-	if StringName(slots[k]["item_id"]) != &"":
-		return FULL
-	var item: ItemResource = ItemCatalog.get_item(item_id)
-	var definition: EquipmentSlotDefinition = slots[k]["definition"]
-	if item == null or item.size_class > definition.max_size:
-		return TOO_SMALL
-	return &""
-
-
-func put(k: int, item_id: StringName, state: Dictionary = {}) -> void:
-	slots[k]["item_id"] = item_id
-	slots[k]["state"] = state
-	_refresh(k)
-	changed.emit(k)
-
-
-## Empties slot k: {"id", "state"}, or {} if it held nothing.
-func take(k: int) -> Dictionary:
-	var id: StringName = slots[k]["item_id"]
-	if id == &"":
-		return {}
-	var out: Dictionary = {"id": id, "state": slots[k]["state"]}
-	slots[k]["item_id"] = &""
-	slots[k]["state"] = {}
-	_refresh(k)
-	changed.emit(k)
-	return out
-
-
-## Tints slot k's card: ACTIVE, REFUSE, or back to its filled/empty look with Color.TRANSPARENT.
+## Tints slot k's card ACTIVE or REFUSE; every other card (or all, with Color.TRANSPARENT) shows filled or empty.
 func set_tint(k: int, colour: Color) -> void:
 	for i: int in slots.size():
 		var want: Color = colour if i == k and colour.a > 0.0 else (FILLED if StringName(slots[i]["item_id"]) != &"" else EMPTY)
@@ -191,36 +134,20 @@ func visual_of(k: int) -> Node3D:
 func _process(delta: float) -> void:
 	if camera == null:
 		return
-	if _live:
-		_place_live()
+	var view: Vector2 = camera.get_viewport().get_visible_rect().size
+	var half_h: float = DEPTH_M * tan(deg_to_rad(camera.fov) * 0.5)
+	var half_w: float = half_h * view.x / maxf(view.y, 1.0)
+	var size: float = half_h * 2.0 * CARD_SHARE
 	for slot: Dictionary in slots:
-		var card: MeshInstance3D = slot["card"]
-		if _live:
-			var spinning: Node3D = slot["visual"]
-			if spinning != null:
-				spinning.rotate_y(SPIN * delta)
-			continue
-		## Cards lie flat on the screen, as the Quick Access cards do.
-		card.global_basis = camera.global_basis.orthonormalized()
+		var side: float = -1.0 if int(slot["column"]) == 0 else 1.0
+		var at := Vector3(side * half_w * COLUMN_SHARE, half_h * TOP_SHARE - float(slot["row"]) * size * ROW_PITCH, -DEPTH_M)
+		(slot["card"] as Node3D).global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * size / CARD_M), at)
 		var visual: Node3D = slot["visual"]
 		if visual != null:
 			visual.rotate_y(SPIN * delta)
 
 
-## Live cards stand in camera space LIVE_DEPTH_M ahead, in a column at each side of the frame.
-func _place_live() -> void:
-	var view: Vector2 = camera.get_viewport().get_visible_rect().size
-	var half_h: float = LIVE_DEPTH_M * tan(deg_to_rad(camera.fov) * 0.5)
-	var half_w: float = half_h * view.x / maxf(view.y, 1.0)
-	var size: float = half_h * 2.0 * LIVE_CARD_SHARE
-	for slot: Dictionary in slots:
-		var card: MeshInstance3D = slot["card"]
-		var side: float = -1.0 if int(slot["column"]) == 0 else 1.0
-		var at := Vector3(side * half_w * LIVE_COLUMN_SHARE, half_h * LIVE_TOP_SHARE - float(slot["row"]) * size * 1.18, -LIVE_DEPTH_M)
-		card.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * size / CARD_M), at)
-
-
-func _card(definition: EquipmentSlotDefinition, at: Vector3, frame: SubViewport) -> Dictionary:
+func _card(frame: SubViewport) -> MeshInstance3D:
 	var card := MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(CARD_M, CARD_M)
@@ -230,31 +157,13 @@ func _card(definition: EquipmentSlotDefinition, at: Vector3, frame: SubViewport)
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.albedo_texture = frame.get_texture()
 	material.albedo_color = EMPTY
-	material.no_depth_test = false
 	card.material_override = material
 	card.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(card)
-	card.position = at
-	if definition == null:
-		return {"definition": null, "item_id": &"", "state": {}, "card": card, "label": null, "visual": null, "tint": EMPTY}
-	var label := Label3D.new()
-	var key: String = "POCKET_" + String(definition.id).to_upper()
-	label.text = tr(key) if tr(key) != key else definition.display_name
-	label.font_size = 32
-	label.pixel_size = 0.00045
-	label.modulate = Color(0.92, 0.92, 0.9, 0.85)
-	label.outline_size = 8
-	label.position = Vector3(0.0, -CARD_M * 0.5 - 0.008, 0.002)
-	card.add_child(label)
-	return {"definition": definition, "item_id": &"", "state": {}, "card": card, "label": label, "visual": null, "tint": EMPTY}
+	return card
 
 
-func _refresh_all() -> void:
-	for k: int in slots.size():
-		_refresh(k)
-
-
-## Slot k's item stands on its card, scaled to fit it, turning slowly.
+## Slot k's item stands on its card, scaled to fit it.
 func _refresh(k: int) -> void:
 	var slot: Dictionary = slots[k]
 	var old: Node3D = slot["visual"]
@@ -268,7 +177,7 @@ func _refresh(k: int) -> void:
 		var box: AABB = BackpackModel._local_bounds(visual)
 		holder.add_child(visual)
 		visual.position = -box.get_center()
-		holder.scale = Vector3.ONE * (ITEM_FIT_M / maxf(box.size[box.size.max_axis_index()], 0.001))
+		holder.scale = Vector3.ONE * (CARD_M * ITEM_FIT / maxf(box.size[box.size.max_axis_index()], 0.001))
 		(slot["card"] as MeshInstance3D).add_child(holder)
 		holder.position = Vector3(0.0, 0.0, CARD_M * 0.35)
 		slot["visual"] = holder
@@ -294,13 +203,3 @@ func _gradient_viewport(direction: int) -> SubViewport:
 	view.add_child(rect)
 	add_child(view)
 	return view
-
-
-static func _pocket(garment_id: StringName, pocket_id: StringName) -> EquipmentSlotDefinition:
-	var item: ItemResource = ItemCatalog.get_item(garment_id)
-	if item == null or item.garment == null:
-		return null
-	for pocket: EquipmentSlotDefinition in item.garment.pockets:
-		if pocket.id == pocket_id:
-			return pocket
-	return null

@@ -122,6 +122,24 @@ func add(item_id: StringName) -> bool:
 	return true
 
 
+## The item a pack-space segment from `from` to `to` meets first (on its place's box), or -1.
+func pick(from: Vector3, to: Vector3) -> int:
+	var best: float = INF
+	var found: int = -1
+	for i: int in items.size():
+		var hit: Variant = (items[i]["box"] as AABB).intersects_segment(from, to)
+		if hit != null and from.distance_to(hit) < best:
+			best = from.distance_to(hit)
+			found = i
+	return found
+
+
+## Hides item i's visual while a hand carries it out (shown again with false).
+func set_lifted(i: int, lifted: bool) -> void:
+	if i >= 0 and i < items.size():
+		(items[i]["visual"] as Node3D).visible = not lifted
+
+
 func boxes() -> Array[AABB]:
 	var out: Array[AABB] = []
 	for item: Dictionary in items:

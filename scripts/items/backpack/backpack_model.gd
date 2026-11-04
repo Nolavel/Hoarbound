@@ -604,7 +604,7 @@ func _process(delta: float) -> void:
 
 ## Item boxes the canvas wraps: what is in the main body shapes the shell, panel and straps;
 ## what is in a side pocket shapes only the pockets, never the wall between them.
-## The slotless compartment's items (PackInterior), pack space: they shape the canvas like slotted ones.
+## The main compartment's strapped items (PackStraps), pack space: they shape the canvas like slotted ones.
 func set_interior_boxes(boxes: Array[AABB]) -> void:
 	_interior_boxes = boxes
 	_refresh_proxies()

@@ -25,6 +25,8 @@ const STOW_DROP_TIME: float = 0.32
 ## Where inspection stands the pack and Kenny, in Henry's space (he faces -Z).
 const INSPECT_PACK_SPOT: Vector3 = Vector3(0.0, -0.9, -0.75)
 const INSPECT_KENNY_SPOT: Vector3 = Vector3(0.7, -0.9, -0.3)
+## Something put down from the open pack lands this far ahead of Henry, metres.
+const DROP_AHEAD_M: float = 0.7
 ## In the pack-in-hands view, sharp this far past the pack's middle, metres.
 const PACK_FOCUS_DEPTH_M: float = 0.35
 ## route_destination's answer when the item stays in the pack.
@@ -58,8 +60,9 @@ var _previous_mouse_mode: int = Input.MOUSE_MODE_CAPTURED
 var _thermal_manager: ThermalManager
 ## The pack held before Henry while the Hub is open in pack_in_hands mode.
 var _front_hold: PackFrontHold
-## The Quick Access cards beside the held pack (pack_in_hands mode).
+## The Quick Access cards beside the held pack and the hands working in it (pack_in_hands mode).
 var _shelf: PackQuickShelf
+var _hands: PackHandling
 ## Set while full inspection opens the Hub: it sets the pack down instead of taking it in hand.
 var _opening_inspection: bool = false
 
@@ -120,7 +123,18 @@ func open() -> bool:
 		_shelf = PackQuickShelf.new()
 		_shelf.name = "QuickShelf"
 		_camera.add_child(_shelf)
-		_shelf.setup_live(self, _camera)
+		_shelf.setup(self, _camera)
+		## The ring cursor and hands: take from the pack or a pocket, put it in the other, G puts it down.
+		var layer := CanvasLayer.new()
+		layer.name = "PackCursorLayer"
+		add_child(layer)
+		var ring := PackCursor.new()
+		layer.add_child(ring)
+		_hands = PackHandling.new()
+		_hands.name = "PackHandling"
+		add_child(_hands)
+		_hands.setup(self, pack.get_straps(), _shelf, _camera, ring)
+		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 	hub_opened.emit()
 	return true
 
@@ -169,6 +183,11 @@ func get_quick_shelf() -> PackQuickShelf:
 	return _shelf if is_instance_valid(_shelf) else null
 
 
+## The hands working in the held pack (ring cursor, take and put), or null.
+func get_pack_hands() -> PackHandling:
+	return _hands if is_instance_valid(_hands) else null
+
+
 func is_inspecting() -> bool:
 	return _inspecting
 
@@ -196,6 +215,12 @@ func close() -> bool:
 	if is_instance_valid(_shelf):
 		_shelf.queue_free()
 	_shelf = null
+	if is_instance_valid(_hands):
+		_hands.queue_free()
+		var layer: Node = get_node_or_null(^"PackCursorLayer")
+		if layer != null:
+			layer.queue_free()
+	_hands = null
 	_exit_camera()
 	if is_instance_valid(_panel):
 		_panel.hide_hub()
@@ -282,6 +307,54 @@ func move_to_pack(zone_path: StringName) -> StringName:
 		return OVERWEIGHT
 	contents_changed.emit()
 	return &""
+
+
+## Puts one `item_id` from the pack down on the ground ahead of Henry (its state kept). False with no ground there.
+func drop_from_pack(item_id: StringName) -> bool:
+	var body := get_parent() as Node3D
+	var at: Vector3 = ItemPickup.ground_ahead(body, DROP_AHEAD_M)
+	if inventory == null or at == Vector3.INF or not inventory.has_item(item_id):
+		return false
+	var payload: Dictionary = inventory.take_instance(item_id)
+	if payload.is_empty():
+		return false
+	ItemPickup.spawn_dropped(body, item_id, payload.get("instance_state", {}), at)
+	contents_changed.emit()
+	return true
+
+
+## Puts a quick pocket's item down on the ground ahead of Henry. False with no ground there or an empty pocket.
+func drop_from_zone(zone_path: StringName) -> bool:
+	var body := get_parent() as Node3D
+	var at: Vector3 = ItemPickup.ground_ahead(body, DROP_AHEAD_M)
+	var parts: PackedStringArray = String(zone_path).split(EquipmentComponent.POCKET_SEPARATOR)
+	if equipment == null or at == Vector3.INF or parts.size() != 2:
+		return false
+	var payload: Dictionary = equipment.take_pocket_instance(StringName(parts[0]), StringName(parts[1]))
+	if payload.is_empty():
+		return false
+	ItemPickup.spawn_dropped(body, payload["id"], payload.get("instance_state", {}), at)
+	contents_changed.emit()
+	return true
+
+
+## Moves a quick pocket's item into another quick pocket, or says why not (that pocket full, too small).
+func move_between_zones(from_path: StringName, to_path: StringName) -> EquipmentComponent.Refusal:
+	var source: PackedStringArray = String(from_path).split(EquipmentComponent.POCKET_SEPARATOR)
+	var target: PackedStringArray = String(to_path).split(EquipmentComponent.POCKET_SEPARATOR)
+	if equipment == null or source.size() != 2 or target.size() != 2 or not _is_quick_zone(to_path):
+		return EquipmentComponent.Refusal.NO_SUCH_SLOT
+	var item_id: StringName = equipment.get_pocket_item(StringName(source[0]), StringName(source[1]))
+	var refusal: EquipmentComponent.Refusal = equipment.can_stow(StringName(target[0]), StringName(target[1]), item_id)
+	if refusal != EquipmentComponent.Refusal.NONE:
+		return refusal
+	var payload: Dictionary = equipment.take_pocket_instance(StringName(source[0]), StringName(source[1]))
+	refusal = equipment.stow_instance(StringName(target[0]), StringName(target[1]), item_id, payload.get("instance_state", {}))
+	if refusal != EquipmentComponent.Refusal.NONE:
+		equipment.stow_instance(StringName(source[0]), StringName(source[1]), item_id, payload.get("instance_state", {}))
+		return refusal
+	contents_changed.emit()
+	return EquipmentComponent.Refusal.NONE
 
 
 ## Tap-F stow: the item's visual lifts, flies into the top flap and is freed.

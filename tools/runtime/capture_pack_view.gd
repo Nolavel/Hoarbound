@@ -1,9 +1,9 @@
 extends SceneTree
 
 ## The 3D inventory's Tab ritual with the real HUD: Henry takes the pack off into his hands and opens it toward
-## the camera, which faces him; the Quick Access cards stand pinned on their live anchors. Nine SPoV tins go
-## into the pack one by one: each stands into its place and its tier's strap pulls in. Tab again puts the pack
-## back on. 30 fps PNG frames.
+## the camera, which faces him; his quick pockets' 3D items stand on cards at the frame's sides. The ring
+## cursor carries a tin, the lighter and the tinder from the pockets into the pack (under the straps), a tin
+## back out to a pocket, and the axe is refused by the pack. Tab again puts the pack back on. 30 fps PNG frames.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --resolution 1280x720 --script res://tools/runtime/capture_pack_view.gd -- <out dir>
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
@@ -81,21 +81,63 @@ func _run() -> void:
 	await _record(0.3)
 	hub.open()
 	await _record(1.6)
-	## From the quick pockets into the pack, one by one.
+	## The ring and LMB, as a player: pockets into the pack, a tin out to a pocket, the axe refused.
+	var hands: PackHandling = hub.get_pack_hands()
 	var shelf: PackQuickShelf = hub.get_quick_shelf()
-	var rig: PackRig = visual.get_pack_rig()
+	var straps: PackStraps = hands.straps
+	var into: Vector2 = hands.camera.unproject_position(straps.model.global_transform * PackStraps.room().get_center())
 	for wanted: String in ["coat_left", "coat_right", "thigh_left"]:
-		for k: int in shelf.slots.size():
-			if String(shelf.slots[k]["path"]).ends_with(wanted) and StringName(shelf.slots[k]["item_id"]) != &"":
-				print("[pack view] sending ", shelf.slots[k]["item_id"], " from ", wanted)
-				shelf.send_to_pack(k, rig.global_position)
-				break
-		await _record(1.1)
-	await _record(1.0)
+		var k: int = _slot_ending(shelf, wanted)
+		if k < 0 or StringName(shelf.slots[k]["item_id"]) == &"":
+			continue
+		await _glide(hands, _card_at(hands, shelf, k), 0.45)
+		await _record(0.2)
+		hands.press(PackHandling.GRAB_ACTION, true)
+		await _glide(hands, into, 0.6)
+		hands.press(PackHandling.GRAB_ACTION, false)
+		await _record(0.7)
+	## A tin out of the pack into the emptied left coat pocket.
+	await _glide(hands, hands.camera.unproject_position(straps.model.global_transform * (straps.items[0]["box"] as AABB).get_center()), 0.5)
+	await _record(0.2)
+	hands.press(PackHandling.GRAB_ACTION, true)
+	await _glide(hands, _card_at(hands, shelf, _slot_ending(shelf, "coat_left")), 0.6)
+	hands.press(PackHandling.GRAB_ACTION, false)
+	await _record(0.7)
+	## The axe: too big for the pack (red, reason), back to its sleeve.
+	var axe: int = -1
+	for k: int in shelf.slots.size():
+		if shelf.slots[k]["item_id"] == &"axe":
+			axe = k
+	if axe >= 0:
+		await _glide(hands, _card_at(hands, shelf, axe), 0.5)
+		hands.press(PackHandling.GRAB_ACTION, true)
+		await _glide(hands, into, 0.6)
+		await _record(0.5)
+		hands.press(PackHandling.GRAB_ACTION, false)
+		await _record(1.4)
 	hub.close()
 	await _record(1.4)
 	print("[pack view] frames ", _frame)
 	quit()
+
+
+func _slot_ending(shelf: PackQuickShelf, pocket: String) -> int:
+	for k: int in shelf.slots.size():
+		if String(shelf.slots[k]["path"]).ends_with(pocket):
+			return k
+	return -1
+
+
+func _card_at(hands: PackHandling, shelf: PackQuickShelf, k: int) -> Vector2:
+	return hands.camera.unproject_position((shelf.slots[k]["card"] as Node3D).global_position)
+
+
+func _glide(hands: PackHandling, to: Vector2, seconds: float) -> void:
+	var from: Vector2 = hands.cursor_at
+	var frames: int = maxi(roundi(seconds * FPS), 1)
+	for f: int in frames:
+		hands.set_cursor(from.lerp(to, smoothstep(0.0, 1.0, float(f + 1) / float(frames))))
+		await _record(1.0 / FPS)
 
 
 func _record(seconds: float) -> void:

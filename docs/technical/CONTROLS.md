@@ -53,17 +53,15 @@ of burn time equal **30 game minutes**.
 
 ## Open pack (3D inventory)
 
-While the pack is open, the game keeps running and these keys act inside it (`PackHandling`):
+Tab takes the pack into Henry's hands (one strap stays on his shoulder). While it is open, the game keeps running and these keys act on it (`PackHandling`):
 
 | Key / pad | Action | Effect |
 |---|---|---|
-| Mouse / left stick | `pack_cursor_*` | Moves the ring cursor; it brightens over an item and shows the drop hint |
-| LMB / A | `pack_grab` | Hold to take the item under the ring (the ring hides); it follows the cursor; release puts it down |
-| Wheel / LB, RB | `pack_turn_left`, `pack_turn_right` | Turns the held item 15° per notch about the line of sight |
-| RMB / X | `pack_shove` | Hold and move to sweep the heap aside |
-| G / Y | `drop_carried` | Throws the hovered or held item out of the pack |
+| Mouse / left stick | `pack_cursor_*` | Moves the ring cursor. It brightens over an item in the pack or on a quick pocket's card and shows the drop hint |
+| LMB / A | `pack_grab` | Hold to take what is under the ring (the ring hides) and carry it. Let go over a card to put it in that pocket, over the pack to put it under the straps, anywhere else to put it back |
+| G / Y | `drop_carried` | Puts the hovered item down on the ground ahead of Henry |
 
-The hint names G or Y, depending on the device last used. An item that does not fit gets a red rim and its reason under the ring.
+The hint names G or Y, depending on the device last used. A card turns warm when it would take the carried item and red when it would not. A refusal shows its reason under the ring.
 
 ## F: one verb, resolved by context
 

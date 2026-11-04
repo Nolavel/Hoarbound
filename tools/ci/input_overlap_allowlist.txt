@@ -1,6 +1,3 @@
 # Input actions allowed to share a key, one pair per line: action_a, action_b  # why it is safe
 pause, sleep_cancel  # the sleep dialog claims Esc while open; pause never sees it then
 fire, pack_grab  # pack open is modal: LMB takes an item only while Henry looks into the open pack
-present_held, pack_shove  # pack open is modal: RMB shoves items only while the pack is open
-pack_turn_left, quick_prev  # pack open is modal: the wheel turns the held item, Quick Access is shut
-pack_turn_right, quick_next  # pack open is modal: the wheel turns the held item, Quick Access is shut
