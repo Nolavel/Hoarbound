@@ -8,6 +8,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory, stage 1: hands in the open pack (`PackHandling`, `PackCursor`; see
+  `docs/technical/PACK_INTERIOR.md` and `CONTROLS.md`). Time keeps running.
+  - A ring cursor picks items by their drawn outline and shows "G — drop" (Y on a pad).
+  - LMB takes an item and drags it, and the ring hides while it is held. The wheel turns it.
+  - RMB sweeps the heap, and G throws the item out.
+  - An item that does not fit gets a red rim and its reason (`INVENTORY_HINT_DROP` is new).
+  - There are new `pack_*` actions with gamepad bindings: A, X, LB/RB, Y and the left stick.
+  - The interior gains `pick`/`hold`/`turn_held`/`remove`/`shove`, a speed cap, and a heavier held item.
+  - Stand: `tests/systems/test_pack_handling.gd`. Capture: `tools/runtime/capture_pack_handling.gd`.
 - 3D inventory, stage 0: the main compartment's physics sandbox (`PackInterior`, see
   `docs/technical/PACK_INTERIOR.md`). Items lie loose in it as rigid bodies, in a physics space of
   the pack's own.

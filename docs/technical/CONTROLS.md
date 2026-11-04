@@ -50,6 +50,21 @@ It is a single-use pyrotechnic light, not an on/off electric torch. At the
 First Exit clock rate (a 24-hour day in 3600 real seconds), its 75 real seconds
 of burn time equal **30 game minutes**.
 
+
+## Open pack (3D inventory)
+
+While the pack is open, the game keeps running and these keys act inside it (`PackHandling`):
+
+| Key / pad | Action | Effect |
+|---|---|---|
+| Mouse / left stick | `pack_cursor_*` | Moves the ring cursor; it brightens over an item and shows the drop hint |
+| LMB / A | `pack_grab` | Hold to take the item under the ring (the ring hides); it follows the cursor; release puts it down |
+| Wheel / LB, RB | `pack_turn_left`, `pack_turn_right` | Turns the held item 15° per notch about the line of sight |
+| RMB / X | `pack_shove` | Hold and move to sweep the heap aside |
+| G / Y | `drop_carried` | Throws the hovered or held item out of the pack |
+
+The hint names G or Y, depending on the device last used. An item that does not fit gets a red rim and its reason under the ring.
+
 ## F: one verb, resolved by context
 
 Two kinds of attention pick what F acts on:
