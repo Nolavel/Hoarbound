@@ -17,17 +17,14 @@ const STICK_SPEED: float = 0.7
 ## How far the pick ray reaches, metres.
 const RAY_M: float = 3.0
 const OUTLINE_SHADER: Shader = preload("res://shaders/items/item_outline.gdshader")
-## The selected pocket's item on the pack wears the HUD's active amber.
-const SELECTED_RIM: Color = Color(1.0, 0.72, 0.1, 0.94)
-## The ring's outline samples at most this many vertices of a mesh.
-const OUTLINE_VERTICES: int = 240
+## The ring's outline: at most this many triangles of a mesh, rasterised this many cells across.
+const OUTLINE_TRIANGLES: int = 4000
+const OUTLINE_GRID: float = 56.0
 const HELD_RIM: Color = Color(1.0, 0.78, 0.25, 0.95)
 const REFUSED_RIM: Color = Color(1.0, 0.22, 0.18, 0.95)
 ## A refusal shows this long, seconds; a carried item hangs this share of the way from the camera to the pack.
 const WARNING_S: float = 2.0
 const CARRY_DEPTH: float = 0.85
-## A carried item is drawn this big, metres.
-const CARRY_SIZE_M: float = 0.12
 
 var hub: PlayerHubComponent
 var straps: PackStraps
@@ -39,13 +36,15 @@ var cursor_at: Vector2 = Vector2.ZERO
 ## What is under the ring: a pack item's index, or a card's slot (-1 each when nothing).
 var hovered_item: int = -1
 var hovered_slot: int = -1
+## Whether the ring is over the hand card (what Henry takes in hand).
+var hovered_hand: bool = false
 var enabled: bool = true
 ## The item a hand carries: {"id", "from_slot" or "from_item", "visual": Node3D}; empty when none.
 var _carry: Dictionary = {}
 var _pad_used: bool = false
-var _selected_rimmed: Node3D
-## Sampled vertices per mesh resource (see _screen_outline()).
-static var _vertex_cache: Dictionary = {}
+## Sampled triangles per mesh resource, and each visual's last outline with the pose it was traced in.
+static var _triangle_cache: Dictionary = {}
+static var _outline_cache: Dictionary = {}
 
 
 ## Hands for `quick_hub`'s pack (`pack_straps`) and quick pockets (`quick_shelf`), seen through `view`, the ring
@@ -73,11 +72,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			press(action, event.is_pressed())
 			get_viewport().set_input_as_handled()
 			return
-
-
-func _exit_tree() -> void:
-	if is_instance_valid(_selected_rimmed):
-		_rim(_selected_rimmed, Color.TRANSPARENT)
 
 
 ## Moves the ring to `at` (viewport pixels).
@@ -118,9 +112,10 @@ func _process(delta: float) -> void:
 		return
 	_move_by_stick(delta)
 	hovered_slot = shelf.pick(camera.project_ray_origin(cursor_at), camera.project_ray_normal(cursor_at)) if shelf != null else -1
+	hovered_hand = hovered_slot < 0 and shelf != null and shelf.pick_hand(camera.project_ray_origin(cursor_at), camera.project_ray_normal(cursor_at))
 	hovered_item = -1
 	## A strapped item wins over the card behind an item on the pack's outside.
-	if hovered_slot < 0 or shelf.slots[hovered_slot]["on_pack"]:
+	if not hovered_hand and (hovered_slot < 0 or shelf.slots[hovered_slot]["on_pack"]):
 		var ray: Array = _pack_ray()
 		hovered_item = straps.pick(ray[0], ray[0] + ray[1] * RAY_M)
 		if hovered_item >= 0:
@@ -132,7 +127,8 @@ func _process(delta: float) -> void:
 		cursor.visible = true
 		cursor.at = cursor_at
 		cursor.shown = _carry.is_empty()
-		cursor.hovering = hovered_item >= 0 or (hovered_slot >= 0 and StringName(shelf.slots[hovered_slot]["item_id"]) != &"")
+		cursor.hovering = hovered_item >= 0 or (hovered_slot >= 0 and StringName(shelf.slots[hovered_slot]["item_id"]) != &"") \
+			or (hovered_hand and shelf.hand_visual() != null)
 		var target: Node3D = _hovered_visual() if cursor.hovering and _carry.is_empty() else null
 		cursor.outline = _screen_outline(target) if target != null else PackedVector2Array()
 		cursor.outline_key = target.get_instance_id() if target != null else 0
@@ -142,6 +138,8 @@ func _process(delta: float) -> void:
 ## LMB on what is under the ring: it leaves its place and rides the cursor.
 func _take() -> void:
 	var id: StringName = &""
+	if hovered_hand and shelf.selected >= 0 and shelf.hand_visual() != null:
+		hovered_slot = shelf.selected  # the hand shows the pick's pocket: take from there
 	if hovered_slot >= 0:
 		id = shelf.slots[hovered_slot]["item_id"]
 		if id == &"":
@@ -161,7 +159,8 @@ func _take() -> void:
 	var holder := Node3D.new()
 	holder.add_child(visual)
 	visual.position = -box.get_center()
-	holder.scale = Vector3.ONE * (CARRY_SIZE_M / maxf(box.size[box.size.max_axis_index()], 0.001))
+	## True size: it hangs CARRY_DEPTH of the way to the pack, so it is scaled by that to look as big as beside it.
+	holder.scale = Vector3.ONE * CARRY_DEPTH
 	camera.add_child(holder)
 	_rim(visual, HELD_RIM)
 	_carry["visual"] = holder
@@ -177,7 +176,9 @@ func _release() -> void:
 	var from_slot: int = carried.get("from_slot", -1)
 	var from_item: int = carried.get("from_item", -1)
 	var moved: bool = false
-	if hovered_slot >= 0 and hovered_slot != from_slot:
+	if hovered_hand and from_slot >= 0:
+		shelf.choose(from_slot)  # into the hand: it becomes the pick, staying in its pocket till the pack goes on
+	elif hovered_slot >= 0 and hovered_slot != from_slot:
 		var why: StringName = shelf.refusal(hovered_slot, id)
 		if why != &"":
 			show_refusal(why)
@@ -219,8 +220,8 @@ func _follow_carry() -> void:
 	(_carry["visual"] as Node3D).global_position = at
 
 
-## Card tints and rims: where a carried item would go pale, where it would not red; the selected pocket's
-## item on the pack amber. The hovered thing gets the ring's outline instead of a rim.
+## Card tints and rims: where a carried item would go pale, where it would not red. The hovered thing gets
+## the ring's outline instead of a rim.
 func _show_hover() -> void:
 	var carried: StringName = _carry.get("id", &"")
 	if carried == &"":
@@ -234,19 +235,12 @@ func _show_hover() -> void:
 		var into_pack: bool = int(_carry.get("from_slot", -1)) >= 0 and hovered_slot < 0 and _over_pack()
 		var held: Node3D = (_carry["visual"] as Node3D).get_child(0)
 		_rim(held, REFUSED_RIM if into_pack and straps.refusal(carried) != &"" else HELD_RIM)
-	var chosen: Node3D = null
-	if shelf.selected >= 0 and shelf.selected < shelf.slots.size() and shelf.slots[shelf.selected]["on_pack"]:
-		chosen = shelf.visual_of(shelf.selected)
-	if chosen != _selected_rimmed:
-		if is_instance_valid(_selected_rimmed):
-			_rim(_selected_rimmed, Color.TRANSPARENT)
-		if chosen != null:
-			_rim(chosen, SELECTED_RIM)
-		_selected_rimmed = chosen
 
 
-## What the ring is over: a strapped item's visual, or a pocket's item (on the pack or on its card).
+## What the ring is over: a strapped item's visual, a pocket's item (on the pack or on its card), or the hand's.
 func _hovered_visual() -> Node3D:
+	if hovered_hand:
+		return shelf.hand_visual()
 	if hovered_item >= 0:
 		return straps.items[hovered_item]["visual"]
 	if hovered_slot >= 0:
@@ -254,24 +248,109 @@ func _hovered_visual() -> Node3D:
 	return null
 
 
-## The convex outline of `visual` on screen (viewport pixels), from a sample of its meshes' vertices.
+## The outline of `visual` on screen (viewport pixels).
 func _screen_outline(visual: Node3D) -> PackedVector2Array:
 	return screen_outline(visual, camera)
 
 
-## The convex outline of `visual` as `camera` sees it (viewport pixels), from a sample of its vertices.
+## The silhouette of `visual` as `camera` sees it (viewport pixels): its triangles rasterised into a grid of
+## OUTLINE_GRID cells across, the filled region's boundary traced (Moore neighbourhood). Cached while still.
 static func screen_outline(visual: Node3D, camera: Camera3D) -> PackedVector2Array:
-	var points := PackedVector2Array()
+	var key: int = visual.get_instance_id()
+	var pose: Array = [visual.global_transform, camera.global_transform, camera.fov]
+	if _outline_cache.has(key) and _same_pose(_outline_cache[key][0], pose):
+		return _outline_cache[key][1]
+	var projected := PackedVector2Array()
 	for node: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		var mesh := node as MeshInstance3D
 		if mesh == null or mesh.mesh == null or not mesh.is_visible_in_tree():
 			continue
 		var at: Transform3D = mesh.global_transform
-		for v: Vector3 in _sampled_vertices(mesh.mesh):
-			var world: Vector3 = at * v
-			if not camera.is_position_behind(world):
-				points.append(camera.unproject_position(world))
-	return Geometry2D.convex_hull(points) if points.size() >= 3 else PackedVector2Array()
+		var corners: PackedVector3Array = _sampled_triangles(mesh.mesh)
+		for i: int in range(0, corners.size(), 3):
+			var a: Vector3 = at * corners[i]
+			var b: Vector3 = at * corners[i + 1]
+			var c: Vector3 = at * corners[i + 2]
+			if camera.is_position_behind(a) or camera.is_position_behind(b) or camera.is_position_behind(c):
+				continue
+			projected.append_array([camera.unproject_position(a), camera.unproject_position(b), camera.unproject_position(c)])
+	var outline: PackedVector2Array = _trace_silhouette(projected)
+	_outline_cache[key] = [pose, outline]
+	return outline
+
+
+static func _same_pose(a: Array, b: Array) -> bool:
+	return (a[0] as Transform3D).is_equal_approx(b[0]) and (a[1] as Transform3D).is_equal_approx(b[1]) and is_equal_approx(a[2], b[2])
+
+
+## Triangles (three points each) rasterised into a cell grid, and the outer boundary of the filled cells as a
+## polygon of cell centres (viewport pixels).
+static func _trace_silhouette(triangles: PackedVector2Array) -> PackedVector2Array:
+	if triangles.size() < 3:
+		return PackedVector2Array()
+	var low: Vector2 = triangles[0]
+	var high: Vector2 = triangles[0]
+	for point: Vector2 in triangles:
+		low = low.min(point)
+		high = high.max(point)
+	var cell: float = maxf(maxf(high.x - low.x, high.y - low.y) / OUTLINE_GRID, 1.0)
+	var origin: Vector2 = low - Vector2.ONE * cell  # a one-cell empty border
+	var width: int = int(ceil((high.x - low.x) / cell)) + 3
+	var height: int = int(ceil((high.y - low.y) / cell)) + 3
+	var filled := PackedByteArray()
+	filled.resize(width * height)
+	for i: int in range(0, triangles.size(), 3):
+		var a: Vector2 = (triangles[i] - origin) / cell
+		var b: Vector2 = (triangles[i + 1] - origin) / cell
+		var c: Vector2 = (triangles[i + 2] - origin) / cell
+		for corner: Vector2 in [a, b, c]:
+			filled[int(corner.y) * width + int(corner.x)] = 1  # thin slivers still mark their corners
+		var from := Vector2i(floori(minf(a.x, minf(b.x, c.x))), floori(minf(a.y, minf(b.y, c.y))))
+		var to := Vector2i(floori(maxf(a.x, maxf(b.x, c.x))), floori(maxf(a.y, maxf(b.y, c.y))))
+		for y: int in range(from.y, to.y + 1):
+			for x: int in range(from.x, to.x + 1):
+				if Geometry2D.point_is_inside_triangle(Vector2(x + 0.5, y + 0.5), a, b, c):
+					filled[y * width + x] = 1
+	## Moore neighbourhood tracing, clockwise on screen, from the first filled cell in reading order.
+	var start: int = filled.find(1)
+	if start < 0:
+		return PackedVector2Array()
+	var steps: Array[Vector2i] = [Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1), Vector2i(-1, 1), Vector2i(-1, 0), Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1)]
+	var first := Vector2i(start % width, start / width)
+	var current: Vector2i = first
+	var back: int = 4  # the cell to its west is empty (reading order)
+	var outline := PackedVector2Array()
+	for _guard: int in width * height * 4:
+		outline.append(origin + (Vector2(current) + Vector2.ONE * 0.5) * cell)
+		var moved: bool = false
+		for turn: int in 8:
+			var d: int = (back + 1 + turn) % 8
+			var next: Vector2i = current + steps[d]
+			if next.x < 0 or next.y < 0 or next.x >= width or next.y >= height or filled[next.y * width + next.x] == 0:
+				continue
+			## Backtrack to the empty cell checked just before, as seen from the new cell.
+			var empty: Vector2i = current + steps[(d + 7) % 8] - next
+			back = steps.find(empty)
+			current = next
+			moved = true
+			break
+		if not moved or current == first:
+			break
+	return outline
+
+
+## Up to OUTLINE_TRIANGLES of `mesh`'s triangles (three corners each), evenly picked, measured once per mesh.
+static func _sampled_triangles(mesh: Mesh) -> PackedVector3Array:
+	if _triangle_cache.has(mesh):
+		return _triangle_cache[mesh]
+	var faces: PackedVector3Array = mesh.get_faces()
+	var count: int = faces.size() / 3
+	var stride: int = maxi(count / OUTLINE_TRIANGLES, 1)
+	var picked := PackedVector3Array()
+	for t: int in range(0, count, stride):
+		picked.append_array([faces[t * 3], faces[t * 3 + 1], faces[t * 3 + 2]])
+	_triangle_cache[mesh] = picked
+	return picked
 
 
 func _move_by_stick(delta: float) -> void:
@@ -279,21 +358,6 @@ func _move_by_stick(delta: float) -> void:
 	if stick.length() > 0.0:
 		_pad_used = true
 		set_cursor(cursor_at + stick * STICK_SPEED * camera.get_viewport().get_visible_rect().size.y * delta)
-
-
-## Up to OUTLINE_VERTICES of `mesh`'s vertices, evenly picked, measured once per mesh resource.
-static func _sampled_vertices(mesh: Mesh) -> PackedVector3Array:
-	if _vertex_cache.has(mesh):
-		return _vertex_cache[mesh]
-	var all := PackedVector3Array()
-	for surface: int in mesh.get_surface_count():
-		all.append_array(mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX] as PackedVector3Array)
-	var picked := PackedVector3Array()
-	var stride: int = maxi(all.size() / OUTLINE_VERTICES, 1)
-	for i: int in range(0, all.size(), stride):
-		picked.append(all[i])
-	_vertex_cache[mesh] = picked
-	return picked
 
 
 ## The cursor's ray in pack space: [origin, direction].

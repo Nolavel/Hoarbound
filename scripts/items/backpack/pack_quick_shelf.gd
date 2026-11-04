@@ -2,12 +2,23 @@ class_name PackQuickShelf
 extends Node3D
 
 ## Quick Access while Henry holds the pack open (3D inventory). A pocket whose item shows on the pack itself
-## (side pockets, carabiners) has no card to see: its item there is what the ring hovers, through an unseen
-## card behind it. Only pockets that cannot be seen (coat, thigh, the lid) stand as cards on the Quick Access
-## gradient (BG_frame.gdshader) with their 3D item, no text: body pockets left, the pack's right. The selected
-## pocket (the Quick Access pick, what Henry holds) shows amber, as on the HUD.
+## (side pockets, carabiners) has no card: its item there is hovered on its own outline. Hidden pockets stand as
+## cards on the Quick Access gradient (BG_frame.gdshader) with their 3D item, no text: the coat's and the
+## trousers' over a see-through grey panel of Henry's clothes at the left (body_front.png, baked by
+## tools/runtime/bake_body_silhouette.gd), the pack lid's at the right. The hand card at the right shows what
+## Henry takes in hand (the Quick Access pick); a pocket's item let go on it becomes the pick.
 
 const BG_FRAME: Shader = preload("res://assets/materials/Shaders/BG_frame.gdshader")
+const BODY_FRONT: Texture2D = preload("res://assets/ui/inventory/body_front.png")
+const BODY_POCKETS: JSON = preload("res://assets/ui/inventory/body_front.json")
+const HAND_ICON: Texture2D = preload("res://assets/ui/hud/pickup_marker/hand_open.svg")
+## The body panel: its height as a share of the frame's, its middle's x as a share of the half width, its tint.
+const BODY_SHARE: float = 0.66
+const BODY_X_SHARE: float = 0.66
+const BODY_TINT: Color = Color(0.62, 0.63, 0.66, 0.32)
+## The hand card: its middle's x as a share of the half width (near the right edge), and its icon's tint.
+const HAND_X_SHARE: float = 0.88
+const HAND_ICON_TINT: Color = Color(1.0, 1.0, 1.0, 0.28)
 ## A card's side in its own space, and how big its item stands on it (shares of that side).
 const CARD_M: float = 0.1
 const ITEM_FIT: float = 0.8
@@ -26,9 +37,8 @@ const BACKDROP_PAD_M: float = 0.015
 const BACKDROP_BEHIND_M: float = 0.01
 ## The card of an empty pocket on the pack is this big around its spot, metres.
 const EMPTY_SPOT_M: float = 0.07
-## Card tints: hovered (pale), selected (amber, the HUD's active card), filled, empty, refusing.
+## Card tints: hovered (pale), filled, empty, refusing.
 const ACTIVE: Color = Color(0.92, 0.92, 0.9, 0.9)
-const SELECTED: Color = Color(1.0, 0.72, 0.1, 0.94)
 const FILLED: Color = Color(0.42, 0.42, 0.42, 0.82)
 const EMPTY: Color = Color(0.3, 0.3, 0.3, 0.38)
 const REFUSE: Color = Color(1.0, 0.25, 0.2, 0.9)
@@ -41,9 +51,12 @@ var slots: Array[Dictionary] = []
 var camera: Camera3D
 var hub: PlayerHubComponent
 var pack: PackRig
-## The selected slot (QuickAccessComponent's pick), or -1.
+## The selected slot (QuickAccessComponent's pick: what Henry takes in hand), or -1.
 var selected: int = -1
+var hand_card: MeshInstance3D
 var _quick: QuickAccessComponent
+var _body: MeshInstance3D
+var _hand_visual: Node3D
 ## The gradient for the left column (fading toward the pack, rightward) and the right one (leftward).
 var _frames: Array[SubViewport] = []
 
@@ -63,10 +76,20 @@ func setup(quick_hub: PlayerHubComponent, view: Camera3D) -> void:
 		var column: int = 1 if parts[0] == "pack" else 0
 		slots.append({"path": path, "on_pack": on_pack, "column": column, "row": -1 if on_pack else rows[column],
 			"item_id": zone["item_id"], "card": _card(_frames[1 - column]), "visual": null, "tint": EMPTY})
+		var anchor: Array = (BODY_POCKETS.data as Dictionary).get("pockets", {}).get(String(parts[parts.size() - 1]), [])
+		slots[-1]["body_uv"] = Vector2(anchor[0], anchor[1]) if anchor.size() == 2 and column == 0 else Vector2(-1.0, -1.0)
 		if on_pack:
 			(slots[-1]["card"] as MeshInstance3D).visible = false
-		else:
+		elif (slots[-1]["body_uv"] as Vector2).x < 0.0:
 			rows[column] += 1
+	_body = _flat_quad(BODY_FRONT, BODY_TINT)
+	_body.name = "BodyPanel"
+	hand_card = _card(_frames[0])
+	hand_card.name = "HandCard"
+	var icon: MeshInstance3D = _flat_quad(HAND_ICON, HAND_ICON_TINT)
+	hand_card.add_child(icon)
+	icon.scale = Vector3.ONE * 0.6 * CARD_M
+	icon.position = Vector3(0.0, 0.0, 0.001)
 	if hub.equipment != null:
 		hub.equipment.slot_changed.connect(func(_path: StringName, _id: StringName) -> void: refresh())
 	for k: int in slots.size():
@@ -180,6 +203,15 @@ func _process(delta: float) -> void:
 	if pick != selected:
 		selected = pick
 		set_tint(-1, Color.TRANSPARENT)
+	_refresh_hand()
+	## The clothes panel at the left; the coat's and the trousers' cards sit on it where their pockets are.
+	var body_height: float = half_h * 2.0 * BODY_SHARE
+	var body_size := Vector2(body_height * BODY_FRONT.get_width() / float(BODY_FRONT.get_height()), body_height)
+	var body_at := Vector3(-half_w * BODY_X_SHARE, 0.0, -DEPTH_M - 0.002)
+	_body.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3(body_size.x, body_size.y, 1.0)), body_at)
+	hand_card.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * size / CARD_M), Vector3(half_w * HAND_X_SHARE, 0.0, -DEPTH_M))
+	if _hand_visual != null:
+		_hand_visual.rotate_y(SPIN * delta)
 	for k: int in slots.size():
 		var slot: Dictionary = slots[k]
 		if slot["on_pack"]:
@@ -187,6 +219,9 @@ func _process(delta: float) -> void:
 			continue
 		var side: float = -1.0 if int(slot["column"]) == 0 else 1.0
 		var at := Vector3(side * half_w * COLUMN_SHARE, half_h * TOP_SHARE - float(slot["row"]) * size * ROW_PITCH, -DEPTH_M)
+		var uv: Vector2 = slot["body_uv"]
+		if uv.x >= 0.0:
+			at = body_at + Vector3((uv.x - 0.5) * body_size.x, (0.5 - uv.y) * body_size.y, 0.002)
 		(slot["card"] as Node3D).global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * size / CARD_M), at)
 		var visual: Node3D = slot["visual"]
 		if visual != null:
@@ -245,9 +280,57 @@ func _opening_span(to_view: Transform3D, depth: float) -> Vector2:
 
 
 func _rest_tint(i: int) -> Color:
-	if i == selected:
-		return SELECTED
 	return FILLED if StringName(slots[i]["item_id"]) != &"" else EMPTY
+
+
+## Whether a world-space ray meets the hand card.
+func pick_hand(origin: Vector3, direction: Vector3) -> bool:
+	var hit: Variant = Plane(hand_card.global_basis.z.normalized(), hand_card.global_position).intersects_ray(origin, direction)
+	if hit == null:
+		return false
+	var local: Vector3 = hand_card.global_transform.affine_inverse() * (hit as Vector3)
+	return absf(local.x) <= CARD_M * 0.5 and absf(local.y) <= CARD_M * 0.5
+
+
+## What stands on the hand card (the pick's item), or null.
+func hand_visual() -> Node3D:
+	return _hand_visual
+
+
+## Makes slot k the pick: Henry takes its item in hand when the pack goes back on.
+func choose(k: int) -> void:
+	if _quick != null:
+		_quick.select(k)
+
+
+## The hand card shows the pick's item; it is refreshed when the pick or its pocket changes.
+func _refresh_hand() -> void:
+	var id: StringName = slots[selected]["item_id"] if selected >= 0 and selected < slots.size() else &""
+	var shown: StringName = _hand_visual.get_meta(&"item_id", &"") if _hand_visual != null else &""
+	if id == shown:
+		return
+	if _hand_visual != null:
+		_hand_visual.queue_free()
+		_hand_visual = null
+	if id != &"":
+		_hand_visual = _stand_on(hand_card, id)
+		_hand_visual.set_meta(&"item_id", id)
+	(hand_card.material_override as StandardMaterial3D).albedo_color = FILLED if id != &"" else EMPTY
+
+
+## A quad of `texture` tinted `colour`, unlit and see-through, a child of this shelf.
+func _flat_quad(texture: Texture2D, colour: Color) -> MeshInstance3D:
+	var quad := MeshInstance3D.new()
+	quad.mesh = QuadMesh.new()
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.albedo_texture = texture
+	material.albedo_color = colour
+	quad.material_override = material
+	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(quad)
+	return quad
 
 
 func _pocket(k: int) -> StringName:
@@ -279,17 +362,22 @@ func _refresh(k: int) -> void:
 		slot["visual"] = null
 	var id: StringName = slot["item_id"]
 	if id != &"" and not slot["on_pack"]:
-		var holder := Node3D.new()
-		var visual: Node3D = SurvivalItemVisual.make(id)
-		var box: AABB = BackpackModel._local_bounds(visual)
-		holder.add_child(visual)
-		visual.position = -box.get_center()
-		holder.scale = Vector3.ONE * (CARD_M * ITEM_FIT / maxf(box.size[box.size.max_axis_index()], 0.001))
-		(slot["card"] as MeshInstance3D).add_child(holder)
-		holder.position = Vector3(0.0, 0.0, CARD_M * 0.35)
-		slot["visual"] = holder
+		slot["visual"] = _stand_on(slot["card"], id)
 	slot["tint"] = Color.TRANSPARENT
 	set_tint(-1, Color.TRANSPARENT)
+
+
+## `id`'s 3D item standing on `card`, scaled to fit it.
+func _stand_on(card: MeshInstance3D, id: StringName) -> Node3D:
+	var holder := Node3D.new()
+	var visual: Node3D = SurvivalItemVisual.make(id)
+	var box: AABB = BackpackModel._local_bounds(visual)
+	holder.add_child(visual)
+	visual.position = -box.get_center()
+	holder.scale = Vector3.ONE * (CARD_M * ITEM_FIT / maxf(box.size[box.size.max_axis_index()], 0.001))
+	card.add_child(holder)
+	holder.position = Vector3(0.0, 0.0, CARD_M * 0.35)
+	return holder
 
 
 ## The Quick Access gradient (BG_frame.gdshader) fading in `direction` (0 right, 1 left), drawn once in white;

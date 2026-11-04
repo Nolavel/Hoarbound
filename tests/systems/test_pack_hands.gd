@@ -6,6 +6,7 @@ extends SceneTree
 ## - take a tin out of the pack onto the empty card (into that pocket);
 ## - a full pocket refuses the axe (its reason shows, the axe stays in its sleeve);
 ## - the pack refuses the axe as too big;
+## - the tin let go on the hand card becomes the pick (what Henry takes in hand);
 ## - G puts a pack tin down on the ground.
 ## Tab again puts the pack back on.
 ## Run: godot --headless --path . --fixed-fps 30 --script res://tests/systems/test_pack_hands.gd
@@ -107,6 +108,17 @@ func _run() -> void:
 		print("pack hands: the axe was refused by a full pocket and by the pack")
 	else:
 		_check(false, "no sleeve card holds the axe")
+
+	## The tin let go on the hand card becomes what Henry takes in hand; it stays in its pocket.
+	await _aim(_card_screen(shelf, left_card))
+	_hands.press(PackHandling.GRAB_ACTION, true)
+	await _glide(_hands.camera.unproject_position(shelf.hand_card.global_position))
+	_check(_hands.hovered_hand, "the ring over the hand card does not hover it")
+	_hands.press(PackHandling.GRAB_ACTION, false)
+	await _frames(5)
+	_check(shelf.selected == left_card and StringName(shelf.slots[left_card]["item_id"]) == &"spov_can", "the hand card did not make the coat pocket the pick")
+	_check(shelf.hand_visual() != null, "the hand card shows nothing")
+	print("pack hands: the coat pocket's tin is the pick on the hand card")
 
 	## G puts a pack tin down on the ground.
 	var before: int = _inventory.get_count(&"spov_can")

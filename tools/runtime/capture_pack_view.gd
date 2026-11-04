@@ -1,8 +1,9 @@
 extends SceneTree
 
 ## The 3D inventory's Tab ritual with the real HUD: Henry takes the pack off into his hands and opens it toward
-## the camera, which faces him; hidden quick pockets stand as cards at the sides, the thermos (the pick) is amber,
-## and the ring flows into the outline of the mug, the pan and a tin. The ring
+## the camera, which faces him; the coat's and trousers' pockets sit on a grey panel of his clothes at the left,
+## the lighter (the pick) on the hand card at the right, and the ring flows into the outline of the mug, the pan
+## and a tin. The ring
 ## cursor carries a tin, the lighter and the tinder from the pockets into the pack (under the straps), a tin
 ## back out to a pocket, and the axe is refused by the pack. Tab again puts the pack back on. 30 fps PNG frames.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --resolution 1280x720 --script res://tools/runtime/capture_pack_view.gd -- <out dir>
@@ -79,11 +80,11 @@ func _run() -> void:
 		if String(zone["path"]).ends_with("coat_left") and zone["item_id"] == &"":
 			var parts: PackedStringArray = String(zone["path"]).split(EquipmentComponent.POCKET_SEPARATOR)
 			equipment.stow(StringName(parts[0]), StringName(parts[1]), &"spov_can")
-	## The thermos is the Quick Access pick (what Henry last held): amber on the pack.
+	## The lighter is the Quick Access pick (what Henry takes in hand): it stands on the hand card.
 	var quick := player.get_node(^"QuickAccessComponent") as QuickAccessComponent
 	var zones: Array[Dictionary] = hub.get_quick_access_zones()
 	for k: int in zones.size():
-		if zones[k]["item_id"] == &"water_flask":
+		if zones[k]["item_id"] == &"lighter":
 			quick.select(k)
 	await _record(0.3)
 	hub.open()

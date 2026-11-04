@@ -8,10 +8,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory: the coat's and trousers' pocket cards sit on a see-through grey panel of Henry's clothes at the left.
+  - The panel is baked from the real jacket and trousers by `tools/runtime/bake_body_silhouette.gd`.
+  - A hand card at the right shows what Henry takes in hand; a pocket's item let go on it becomes the pick.
+  - The ring cursor flows into the hovered item's real silhouette (rasterised and traced), not a convex hull.
+  - A carried item shows at its true size. Nothing on the pack wears the amber pick rim any more.
+  - Hangers on the pack (mug, pan, carabiners) freeze once it is held still, and thaw when it goes back on.
 - 3D inventory: Quick Access cards no longer duplicate what is seen on the pack.
   - The side pockets' and carabiners' items are hovered right on the pack, with no card drawn.
   - Only hidden pockets (coat, thigh, lid) stay as 3D cards at the frame's sides.
-  - The selected pocket shows amber, as on the HUD: its card, or a rim on its item on the pack.
   - Over any item the ring cursor flows into the item's outline on screen.
   - `PackStraps` now measures each item's outline once per id instead of every frame.
 - Clipped mug no longer shakes in a tipped pack. `PendulumHang` stopped it where its own swing meets the obstacle

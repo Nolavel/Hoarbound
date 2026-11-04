@@ -9,7 +9,7 @@ const RING_WIDTH: float = 2.0
 const IDLE_COLOUR: Color = Color(0.82, 0.84, 0.86, 0.7)
 const HOVER_COLOUR: Color = Color(1.0, 1.0, 1.0, 0.95)
 ## The ring's points, how far the outline stands off the item (px), and how fast it flows (1/s).
-const POINTS: int = 64
+const POINTS: int = 160
 const OUTLINE_PAD: float = 6.0
 const MORPH_RATE: float = 14.0
 ## The hint's yellow underlay, as the world prompt's.
@@ -22,10 +22,10 @@ var hint: String = ""
 ## A refusal line under the ring (red), and how long it still shows, seconds.
 var warning: String = ""
 var warning_s: float = 0.0
-## The hovered item's convex outline on screen (empty: the plain ring), and which item it is.
+## The hovered item's silhouette outline on screen (empty: the plain ring), and which item it is.
 var outline: PackedVector2Array = PackedVector2Array()
 var outline_key: int = 0
-## 0 the ring, 1 the outline; the outline it flows to or from, resampled to POINTS around its middle.
+## 0 the ring, 1 the outline; the outline it flows to or from, resampled to POINTS along its length.
 var _morph: float = 0.0
 var _shape: PackedVector2Array = PackedVector2Array()
 var _shape_key: int = 0
@@ -73,22 +73,48 @@ func _draw() -> void:
 		draw_string(font, line_at, warning, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(1.0, 0.32, 0.26, alpha))
 
 
-## `hull` (convex) as POINTS points at even angles around its middle, standing OUTLINE_PAD off it.
-func _resample(hull: PackedVector2Array) -> PackedVector2Array:
+## `contour` as POINTS points evenly along its length, starting due right of its middle and running the ring's
+## way round, each pushed OUTLINE_PAD out from the middle.
+func _resample(contour: PackedVector2Array) -> PackedVector2Array:
 	var middle := Vector2.ZERO
-	for point: Vector2 in hull:
+	for point: Vector2 in contour:
 		middle += point
-	middle /= float(hull.size())
+	middle /= float(contour.size())
+	var ring_way: float = _signed_area([Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT])
+	var path: PackedVector2Array = contour.duplicate()
+	if signf(_signed_area(path)) != signf(ring_way):
+		path.reverse()
+	var begin: int = 0
+	var best: float = INF
+	for i: int in path.size():
+		var off: Vector2 = path[i] - middle
+		var score: float = absf(off.angle()) - off.length() * 1e-4
+		if off.x > 0.0 and score < best:
+			best = score
+			begin = i
+	var ring := PackedVector2Array()
+	var lengths := PackedFloat32Array([0.0])
+	for i: int in path.size():
+		ring.append(path[(begin + i) % path.size()])
+	ring.append(ring[0])
+	for i: int in range(1, ring.size()):
+		lengths.append(lengths[i - 1] + ring[i].distance_to(ring[i - 1]))
+	var total: float = maxf(lengths[lengths.size() - 1], 0.001)
 	var out := PackedVector2Array()
 	out.resize(POINTS)
+	var j: int = 0
 	for i: int in POINTS:
-		var direction: Vector2 = Vector2.from_angle(TAU * float(i) / POINTS)
-		var far: Vector2 = middle + direction * 100000.0
-		var hit: Vector2 = middle
-		for j: int in hull.size():
-			var crossing: Variant = Geometry2D.segment_intersects_segment(middle, far, hull[j], hull[(j + 1) % hull.size()])
-			if crossing != null:
-				hit = crossing
-				break
-		out[i] = hit + direction * OUTLINE_PAD
+		var along: float = total * float(i) / POINTS
+		while j < lengths.size() - 2 and lengths[j + 1] < along:
+			j += 1
+		var span: float = maxf(lengths[j + 1] - lengths[j], 0.0001)
+		var point: Vector2 = ring[j].lerp(ring[j + 1], (along - lengths[j]) / span)
+		out[i] = point + (point - middle).normalized() * OUTLINE_PAD
 	return out
+
+
+static func _signed_area(points: PackedVector2Array) -> float:
+	var area: float = 0.0
+	for i: int in points.size():
+		area += points[i].cross(points[(i + 1) % points.size()])
+	return area

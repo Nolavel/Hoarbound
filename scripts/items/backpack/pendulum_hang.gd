@@ -54,6 +54,17 @@ var hinge_axis: Vector3 = Vector3.ZERO
 ## point's normal); one steady direction keeps a hanger touching several things from chattering.
 var contact_out: Vector3 = Vector3.ZERO
 
+## Frozen (the 3D inventory holds the pack still): it keeps its pose on its parent and skips the spring.
+var frozen: bool = false:
+	set(value):
+		frozen = value
+		if not value:
+			## The pivot's motion restarts from rest, so thawing is not read as a knock.
+			_last_position = global_position if is_inside_tree() else _last_position
+			_last_velocity = Vector3.ZERO
+			_dir = global_basis.orthonormalized() * Vector3.DOWN if is_inside_tree() else _dir
+			_dir_speed = Vector3.ZERO
+
 ## Hanging direction and its rate, world space; the node's basis is derived from them.
 var _dir: Vector3 = Vector3.DOWN
 var _dir_speed: Vector3 = Vector3.ZERO
@@ -66,7 +77,7 @@ var _speed_before: Vector3 = Vector3.ZERO
 
 
 func _process(delta: float) -> void:
-	if delta <= 0.0 or not is_inside_tree() or get_parent_node_3d() == null:
+	if frozen or delta <= 0.0 or not is_inside_tree() or get_parent_node_3d() == null:
 		return
 	var at: Vector3 = global_position
 	if not _has_last:

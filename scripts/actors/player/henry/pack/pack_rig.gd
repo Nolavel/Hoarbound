@@ -328,6 +328,12 @@ func get_pocket_spot(pocket: StringName) -> Vector3:
 	return _canvas.to_global(BackpackModel.SLOTS[where][0])
 
 
+## Freezes or thaws everything hanging off the pack (carabiners and what they hold).
+func set_hangers_frozen(frozen: bool) -> void:
+	for node: Node in find_children("*", "PendulumHang", true, false):
+		(node as PendulumHang).frozen = frozen
+
+
 func _on_slot_changed(slot_path: StringName, _item_id: StringName) -> void:
 	if String(slot_path).begins_with("pack/"):
 		_refresh_contents()

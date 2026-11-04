@@ -51,17 +51,18 @@ Code: `scripts/items/backpack/pack_straps.gd` (`PackStraps`). `PackRig` builds i
 Code: `scripts/items/backpack/pack_quick_shelf.gd` (`PackQuickShelf`), a child of the Hub camera.
 
 - Each real quick pocket is a card on the Quick Access gradient (`BG_frame.gdshader`, drawn once per fade direction and tinted). There is no text.
-- **Shown on the pack** (side pockets, both carabiners; `PackRig.SHOWN_POCKETS`): nothing is drawn over it. An unseen card stands square to the camera behind the real item (`PackRig.get_pocket_visual`), or around the empty pocket's spot (`get_pocket_spot`), only so the ring can hover it. The item itself is hit on its own screen outline (the ring's convex hull); where outlines overlap the smallest wins; the unseen card serves an empty pocket. `aim_point(k)` gives stands and captures a point that hovers slot k. A strapped item under the cursor wins over any of them.
-- **Hidden** (coat, thigh, the lid pocket): the card stands in a column at the frame's side with the pocket's 3D item turning on it, body pockets left and the pack's right.
-- **Selected pocket** (the Quick Access pick, what Henry last held; `QuickAccessComponent.get_selected_index`): its card is amber, as the HUD's active card; on the pack its item wears an amber rim.
+- **Shown on the pack** (side pockets, both carabiners; `PackRig.SHOWN_POCKETS`): nothing is drawn over it. An unseen card stands square to the camera behind the real item (`PackRig.get_pocket_visual`), or around the empty pocket's spot (`get_pocket_spot`), only so the ring can hover it. The item itself is hit on its own screen outline (the ring's silhouette); where outlines overlap the smallest wins; the unseen card serves an empty pocket. `aim_point(k)` gives stands and captures a point that hovers slot k. A strapped item under the cursor wins over any of them.
+- **Hidden on the body** (coat, thigh): the cards sit on a see-through grey panel of Henry's coat and trousers at the frame's left, where each pocket is. The panel (`assets/ui/inventory/body_front.png`) and the pockets' places on it (`body_front.json`, from his bones) are baked by `tools/runtime/bake_body_silhouette.gd` from the real `Outfit_Jacket` and `Outfit_Pants` seen square from the front; re-bake when the outfit changes.
+- **Hidden on the pack** (the lid pocket): a card at the right, with its 3D item turning on it.
+- **Hand card** (right, middle): the hand icon (`hand_open.svg`, faint) and the Quick Access pick's item, what Henry takes in hand when the pack goes back on. A pocket's item let go on it becomes the pick; taking from it takes from that pocket.
 - The fit rule is the equipment's own (`can_stow`): a taken pocket is full (`INVENTORY_POCKET_FULL`), and a size-class refusal is `INVENTORY_POCKET_TOO_SMALL`.
 
 ## Hands
 
 Code: `scripts/items/backpack/pack_handling.gd` (`PackHandling`), `pack_cursor.gd` (`PackCursor`), `shaders/items/item_outline.gdshader`. Keys: `docs/technical/CONTROLS.md`.
 
-- **Hover.** The ring hovers a strapped item (picked on its place's box) or a pocket, and flows into the item's outline on screen (the convex hull of a sample of its vertices, resampled around its middle; `PackCursor`), with the "G — drop" hint beside it.
-- **Carry.** LMB (pad A) takes it, the ring hides, and the item rides the cursor with a warm rim. Letting go:
+- **Hover.** The ring hovers a strapped item (picked on its place's box), a pocket or the hand card, and flows into the item's silhouette on screen, with the "G — drop" hint beside it. The silhouette: its triangles rasterised into a 56-cell grid, the boundary traced (Moore neighbourhood), cached while nothing moves; the ring is resampled along its length (`PackCursor`).
+- **Carry.** LMB (pad A) takes it, the ring hides, and the item rides the cursor at its true size (scaled by how much nearer than the pack it hangs) with a warm rim. Letting go:
   - over a card moves it into that pocket (`move_to_zone`, or `move_between_zones` from another pocket);
   - over the pack moves it under the straps (`move_to_pack`, after the straps' own refusal check);
   - anywhere else puts it back.

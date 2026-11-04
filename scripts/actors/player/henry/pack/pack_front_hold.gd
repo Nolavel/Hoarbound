@@ -25,6 +25,8 @@ const STRAP_KEPT_SIDE: int = 0
 const SWING_S: float = 0.7
 ## How high the swing arcs above the straight path, metres.
 const ARC_M: float = 0.18
+## What hangs off the pack settles this long after the swing, then freezes until the pack goes back, seconds.
+const HANG_SETTLE_S: float = 0.8
 ## The hands take the sides this far below the pack's middle, this far out from its walls and this far back
 ## toward its back face (outside the opening), metres.
 const GRIP_DROP_M: float = 0.08
@@ -38,6 +40,7 @@ var _home_transform: Transform3D
 var _from: Transform3D
 var _t: float = 0.0
 var _ending: bool = false
+var _still_s: float = 0.0
 
 
 ## Takes `rig` off the back of `henry` and starts the swing to the front.
@@ -60,6 +63,7 @@ func finish() -> void:
 		return
 	_ending = true
 	_from = held_transform()
+	pack.set_hangers_frozen(false)
 	pack.set_openness(PackRig.Openness.CLOSED)
 
 
@@ -113,6 +117,11 @@ func _process(delta: float) -> void:
 		_t = minf(_t + delta / SWING_S, 1.0)
 		if _t >= 1.0:
 			settled.emit()
+	elif _still_s < HANG_SETTLE_S:
+		_still_s += delta
+		if _still_s >= HANG_SETTLE_S:
+			## Held still in his hands, nothing on it swings: the mug and the pan keep the pose they settled in.
+			pack.set_hangers_frozen(true)
 	var eased: float = smoothstep(0.0, 1.0, _t)
 	var home: Transform3D = _home_parent.global_transform * _home_transform if is_instance_valid(_home_parent) else _from
 	var start: Transform3D = home if not _ending else home
