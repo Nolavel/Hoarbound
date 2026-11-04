@@ -22,7 +22,7 @@ var _right: Node3D
 var _whole: MeshInstance3D
 var _crack: MeshInstance3D
 var _white: MeshInstance3D
-var _white_material: ShaderMaterial
+var _white_material: StandardMaterial3D
 var _crisp: MeshInstance3D
 var _stream: MeshInstance3D
 var _yolk: MeshInstance3D
@@ -63,8 +63,7 @@ func seek_seconds(seconds: float) -> void:
 	_crisp.visible = _time >= 3.65
 	if _white.visible:
 		_white.mesh = _make_white(spread, false)
-		_white_material.set_shader_parameter("albedo_color",
-			Color(0.91, 0.89, 0.83).lerp(Color(0.86, 0.85, 0.78), _smooth(2.1, 5.5, _time)))
+		_white_material.albedo_color = Color(0.93, 0.91, 0.84).lerp(Color(0.86, 0.85, 0.79), _smooth(2.1, 5.5, _time))
 	if _crisp.visible:
 		_crisp.mesh = _make_white(spread, true)
 
@@ -143,7 +142,7 @@ void fragment() {
 	_crack.material_override = StylizedEnvironmentMaterial.make_unshaded(Color(0.22, 0.16, 0.13))
 	add_child(_crack)
 
-	_white_material = StylizedEnvironmentMaterial.make(Color(0.91, 0.89, 0.83), 0.89, true, true)
+	_white_material = StylizedEnvironmentMaterial.make_unshaded(Color(0.93, 0.91, 0.84))
 	_white = MeshInstance3D.new()
 	_white.name = "SpreadingWhite"
 	_white.material_override = _white_material

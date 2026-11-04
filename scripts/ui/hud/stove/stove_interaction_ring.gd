@@ -136,7 +136,7 @@ func _draw() -> void:
 	for arc: Arc in [Arc.FUEL, Arc.TINDER, Arc.FIRE]:
 		_draw_arc(centre, arc, describe(arc))
 	if is_instance_valid(_cooktop):
-		var label: String = "LEFT PLATE" if _cooktop.get_selected_index() == 0 else "RIGHT PLATE"
+		var label: String = "PLATE A" if _cooktop.get_selected_index() == 0 else "PLATE B"
 		_text(centre, label, FONT_PX, Color(LINE, _alpha), true)
 		_text(centre + Vector2(0.0, ring_radius_px + 59.0), "LMB: ACT   RMB: SWITCH   F: EXIT", HINT_PX, Color(LINE, 0.83 * _alpha), true)
 	if _refusal_text != "" and _any_refusal():

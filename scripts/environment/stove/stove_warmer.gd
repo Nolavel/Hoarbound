@@ -413,6 +413,8 @@ func _refresh() -> void:
 		if _egg_state != EggState.NONE:
 			_egg_visual = EggCookingVisual.new()
 			_egg_visual.name = "EggCookingVisual"
+			## Shell x-axis is rotated across the stove so both cracked halves read side-by-side.
+			_egg_visual.rotation.y = PI * 0.5
 			_prop.add_child(_egg_visual)
 			_sync_egg_visual()
 	elif _item_id != &"":

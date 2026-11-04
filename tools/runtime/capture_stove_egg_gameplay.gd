@@ -88,8 +88,6 @@ func _run() -> void:
 			controller.select_plate(1)
 		if frame == 64:
 			controller.select_plate(0)
-		if frame == 40:
-			second.load_save_data({"state": int(StoveWarmer.State.READY), "item": "warm_water_mug", "progress": StoveWarmer.WARM_HOURS})
 		if frame >= 19 and first.get_egg_state() == StoveWarmer.EggState.COOKING:
 			first._egg_intro_seconds = minf(3.0, float(frame - 19) / float(FPS))
 			if frame >= 54:

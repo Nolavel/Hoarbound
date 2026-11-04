@@ -706,6 +706,11 @@ jobs:
           timeout 240 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
             --script res://tests/systems/test_stove_egg_cooking.gd | tee cooking_test.log
           grep -q "all checks passed" cooking_test.log
+      - name: Standing cooktop F enter / exit and fixed camera contract
+        run: |
+          timeout 240 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
+            --script res://tests/systems/test_cooktop_session.gd | tee cooktop_session_test.log
+          grep -q "COOKTOP_SESSION_PASS" cooktop_session_test.log
       - name: Capture and encode 727 stove cooking (6 seconds)
         run: |
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
@@ -736,6 +741,7 @@ jobs:
             docs/runtime_previews/key_west_727/egg_gameplay/*.mp4
             docs/runtime_previews/key_west_727/egg_gameplay/*.png
             cooking_test.log
+            cooktop_session_test.log
             cooking_capture.log
           if-no-files-found: warn
           retention-days: 3
