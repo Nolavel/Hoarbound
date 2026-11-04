@@ -51,7 +51,7 @@ void fragment() {
         float fi = float(i);
         float center = 0.08 + fi * 0.215
             + 0.070 * sin(time * 0.53 + fi * 1.37);
-        float weight = plume(uv.x, center, 0.205);
+        float weight = plume(uv.x, center, 0.145);
         total_color += palette_color(i) * weight;
         total_weight += weight;
     }
@@ -64,6 +64,6 @@ void fragment() {
     float edge_light = (upper * 0.88 + lower * 0.92) * breathing
         * envelope * intensity;
     vec3 charcoal = vec3(0.022, 0.026, 0.033);
-    vec3 glow = hue * edge_light * 0.59;
+    vec3 glow = hue * edge_light * 1.75;
     COLOR = vec4(charcoal + glow, 1.0);
 }
