@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Isolated six-second Godot GPU-shader review; 180 actual viewport frames at 30 fps.
+## Five non-overlapping color pulses at black top/bottom edges in 6 seconds (180 rendered frames, 30 fps).
 ## Reuse the color-grade-blend workflow with the [ambient-glow] commit marker.
 
 const SHADER: String = "res://shaders/ui/ambient_edge_glow.gdshader"
@@ -9,6 +9,7 @@ const FRAMES: int = 180
 const FPS: int = 30
 const WIDTH: int = 960
 const HEIGHT: int = 540
+const REVIEW_FRAMES: Array[int] = [18, 54, 90, 126, 162]  # centers of yellow, white, red, green, blue
 
 var _shader_material: ShaderMaterial
 var _frames_directory: String
@@ -48,18 +49,48 @@ func _render_frames() -> void:
         if image == null or image.get_width() != WIDTH or image.get_height() != HEIGHT:
             _fail("invalid viewport image at frame %d" % frame)
             return
-        if frame == 75:
-            var left: Color = image.get_pixel(80, 12)
-            var right: Color = image.get_pixel(880, 12)
-            var color_delta: float = absf(left.r - right.r) + absf(left.g - right.g) + absf(left.b - right.b)
-            if color_delta < 0.04:
-                _fail("shader has no visible lateral color separation")
+        # Validate the requested behavior from real rendered pixels, not only
+        # the existence of an MP4: black center, colored edges, sequential hues.
+        if frame in REVIEW_FRAMES:
+            var top: Color = image.get_pixel(WIDTH / 2, 12)
+            var bottom: Color = image.get_pixel(WIDTH / 2, HEIGHT - 13)
+            var center: Color = image.get_pixel(WIDTH / 2, HEIGHT / 2)
+            var top_power: float = maxf(top.r, maxf(top.g, top.b))
+            var bottom_power: float = maxf(bottom.r, maxf(bottom.g, bottom.b))
+            var center_power: float = maxf(center.r, maxf(center.g, center.b))
+            var phase: int = REVIEW_FRAMES.find(frame)
+            print("AMBIENT_GLOW_PHASE index=%d top=%s bottom=%s center=%s" % [
+                phase, top, bottom, center
+            ])
+            if minf(top_power, bottom_power) < 0.13 or center_power > 0.065:
+                _fail("edge or black-center contrast failed for color index %d" % phase)
                 return
+            match phase:
+                0: # Yellow: red + green, little blue.
+                    if top.r < top.b * 2.0 or top.g < top.b * 1.6:
+                        _fail("yellow pulse not visible")
+                        return
+                1: # Neutral grey-white rather than any saturated hue.
+                    if maxf(absf(top.r - top.g), absf(top.g - top.b)) > 0.17:
+                        _fail("grey-white pulse not visible")
+                        return
+                2:
+                    if top.r < top.g * 1.55 or top.r < top.b * 1.55:
+                        _fail("red pulse not visible")
+                        return
+                3:
+                    if top.g < top.r * 1.5 or top.g < top.b * 1.25:
+                        _fail("green pulse not visible")
+                        return
+                4:
+                    if top.b < top.r * 1.3 or top.b < top.g * 1.3:
+                        _fail("blue pulse not visible")
+                        return
         var frame_path: String = _frames_directory.path_join("frame_%04d.png" % frame)
         if image.save_png(frame_path) != OK:
             _fail("PNG write failed at frame %d" % frame)
             return
-        if frame == 24 or frame == 75 or frame == 126 or frame == 165:
+        if frame in REVIEW_FRAMES:
             if image.save_png(ProjectSettings.globalize_path(OUTPUT.path_join("review_%04d.png" % frame))) != OK:
                 _fail("review PNG write failed")
                 return
