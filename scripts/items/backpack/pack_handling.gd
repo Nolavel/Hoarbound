@@ -381,4 +381,8 @@ static func _rim(visual: Node3D, colour: Color) -> void:
 		rim.set_shader_parameter(&"rim_colour", colour)
 	for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		if mesh is MeshInstance3D:
-			(mesh as MeshInstance3D).material_overlay = rim
+			var overlay: Material = (mesh as MeshInstance3D).material_overlay
+			if overlay != null and overlay.has_meta(&"focus_mask"):
+				overlay.next_pass = rim  # the focus blur's mask stays first (PackFocusBlur)
+			else:
+				(mesh as MeshInstance3D).material_overlay = rim

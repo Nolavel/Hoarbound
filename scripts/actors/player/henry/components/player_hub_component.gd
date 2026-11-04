@@ -27,11 +27,6 @@ const INSPECT_PACK_SPOT: Vector3 = Vector3(0.0, -0.9, -0.75)
 const INSPECT_KENNY_SPOT: Vector3 = Vector3(0.7, -0.9, -0.3)
 ## Something put down from the open pack lands this far ahead of Henry, metres.
 const DROP_AHEAD_M: float = 0.7
-## In the pack-in-hands view: sharp up to this far past the pack's back wall, the blur reaching full over the
-## next ramp (metres), and how strong it is.
-const PACK_FOCUS_DEPTH_M: float = 0.03
-const PACK_FOCUS_RAMP_M: float = 0.18
-const PACK_BLUR_AMOUNT: float = 0.16
 ## route_destination's answer when the item stays in the pack.
 const PACK_DESTINATION: StringName = &"pack"
 
@@ -594,16 +589,11 @@ func _enter_camera() -> void:
 		_camera.compositor = _previous_camera.compositor
 	body.add_child(_camera)
 	if is_instance_valid(_front_hold):
-		## The open pack in focus: from just past its back wall (Henry himself, the world) everything blurs, with
-		## high-quality bokeh while the pack is held.
-		var focus := CameraAttributesPractical.new()
-		focus.dof_blur_far_enabled = true
-		focus.dof_blur_far_distance = _front_hold.view_distance(pack_view_fov) + _pack().size.z * 0.5 + PACK_FOCUS_DEPTH_M
-		focus.dof_blur_far_transition = PACK_FOCUS_RAMP_M
-		focus.dof_blur_amount = PACK_BLUR_AMOUNT
-		_camera.attributes = focus
-		RenderingServer.camera_attributes_set_dof_blur_quality(RenderingServer.DOF_BLUR_QUALITY_HIGH, true)
-		RenderingServer.camera_attributes_set_dof_blur_bokeh_shape(RenderingServer.DOF_BOKEH_CIRCLE)
+		## The held pack in focus: everything else, Henry too, blurs (a stencil mask, not depth).
+		var blur := PackFocusBlur.new()
+		blur.name = "PackFocusBlur"
+		_camera.add_child(blur)
+		blur.setup(_pack())
 	var target: Transform3D = get_camera_target()
 	_camera.global_transform = _previous_camera.global_transform if _previous_camera != null else target
 	_camera.make_current()
@@ -611,11 +601,6 @@ func _enter_camera() -> void:
 
 
 func _exit_camera() -> void:
-	RenderingServer.camera_attributes_set_dof_blur_quality(
-		ProjectSettings.get_setting(&"rendering/camera/depth_of_field/depth_of_field_bokeh_quality", 1),
-		ProjectSettings.get_setting(&"rendering/camera/depth_of_field/depth_of_field_use_jitter", false))
-	RenderingServer.camera_attributes_set_dof_blur_bokeh_shape(
-		ProjectSettings.get_setting(&"rendering/camera/depth_of_field/depth_of_field_bokeh_shape", 1))
 	if is_instance_valid(_previous_camera):
 		_previous_camera.make_current()
 	if is_instance_valid(_camera):
