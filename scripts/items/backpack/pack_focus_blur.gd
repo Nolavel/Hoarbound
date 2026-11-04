@@ -5,6 +5,7 @@ extends MeshInstance3D
 ## full-screen quad wherever the pack and the camera's children did not write STENCIL_REF (unseen overlays).
 
 const BLUR_SHADER: Shader = preload("res://shaders/items/pack_focus_blur.gdshader")
+const CANVAS_SHADER: Shader = preload("res://shaders/items/backpack_canvas.gdshader")
 const STENCIL_REF: int = 9
 ## Masks go on newly shown meshes this often, seconds; the blur fades in and out over FADE_S.
 const SCAN_S: float = 0.2
@@ -62,6 +63,10 @@ func _mask_all() -> void:
 			if geometry == null or geometry == self or geometry.has_meta(&"flat_card"):
 				continue
 			if geometry.material_overlay != null and geometry.material_overlay.has_meta(&"focus_mask"):
+				continue
+			## The canvas folds and bulges in its vertex shader, which writes the stencil itself.
+			var own: ShaderMaterial = geometry.material_override as ShaderMaterial
+			if own != null and own.shader == CANVAS_SHADER:
 				continue
 			geometry.material_overlay = _mask(geometry.material_overlay)
 			_masked.append(geometry)

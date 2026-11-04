@@ -1,5 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled;
+// Stencil 9 where the canvas shows, deformed as drawn: the held pack stays sharp under PackFocusBlur.
+stencil_mode write, compare_always, 9;
 // Backpack canvas (#260): the shell takes the shape of what is inside it. Each item is a box proxy
 // in pack space; a vertex inside one (plus the lining) is pushed out along its normal. An emptier
 // pack slumps: the top drops and the walls cave in a little. Back faces show the lining.
