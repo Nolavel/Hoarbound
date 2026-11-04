@@ -86,30 +86,34 @@ void fragment() {
 	float dampness = smoothstep(0.12, 0.31, heated_warmth);
 	float wet_film = clamp((newly_wet * 0.62 + wet_interior * 0.35) * dampness, 0.0, 1.0);
 
-	// Four small gravity-oriented melt trails: curved in x, descending in UV.y.
-	// Every trail starts at a reproducible time and length; it is clipped
-	// to the locally thawed glass, so no bright drips sit on solid frost.
+	// Sparse uneven drainage, *not* six evenly spaced bright white lines.
+	// Stable seed picks only a few tracks. Each has different start / delay,
+	// bends on a broad noise field and has a subtle, short translucent tail.
 	float rivulet = 0.0;
 	float drop_tip = 0.0;
 	for (int k = 0; k < 6; k++) {
 		float lane = float(k);
 		float h = frost_hash21(vec2(lane * 3.71 + melt_seed * 9.0, 6.13));
-		float start_y = mix(0.26, 0.43, frost_hash21(vec2(lane, 7.91 + melt_seed)));
-		float start_x = (lane + 0.5) / 6.0 + (h - 0.5) * 0.075;
-		float phase = clamp((heated_warmth - (0.21 + h * 0.27)) * 1.50, 0.0, 1.0);
-		float head_y = start_y + phase * (0.30 + 0.26 * h);
-		float wobble = sin(UV.y * 22.0 + h * 12.0) * 0.004 + sin(UV.y * 41.0 + lane) * 0.002;
+		if (h < 0.31) {
+			continue;
+		}
+		float start_y = mix(0.29, 0.49, frost_hash21(vec2(lane, 7.91 + melt_seed)));
+		float start_x = (lane + 0.25 + h * 0.48) / 6.0;
+		float phase = clamp((heated_warmth - (0.25 + h * 0.31)) * 1.55, 0.0, 1.0);
+		float head_y = start_y + phase * (0.16 + 0.26 * h);
+		float bending = (frost_value_noise(vec2(UV.y * 7.0 + lane * 3.3, h * 9.2)) - 0.5) * 0.028;
+		float wobble = bending + sin(UV.y * 15.0 + h * 11.0) * 0.003;
 		float dx = abs(UV.x - start_x - wobble);
-		float width = mix(0.0018, 0.0037, h);
-		float line = 1.0 - smoothstep(width, width + 0.0025, dx);
-		float in_length = smoothstep(start_y - 0.008, start_y + 0.024, UV.y) * (1.0 - smoothstep(head_y - 0.014, head_y + 0.004, UV.y));
-		rivulet = max(rivulet, line * in_length * smoothstep(0.035, 0.11, phase));
-		vec2 tip_delta = vec2((UV.x - start_x - wobble) * pane_aspect, (UV.y - head_y) * 0.75);
-		float rounded_head = 1.0 - smoothstep(0.003, 0.012, length(tip_delta));
-		drop_tip = max(drop_tip, rounded_head * smoothstep(0.10, 0.24, phase));
+		float width = mix(0.0009, 0.0018, h);
+		float line = 1.0 - smoothstep(width, width + 0.0016, dx);
+		float in_length = smoothstep(start_y - 0.004, start_y + 0.017, UV.y) * (1.0 - smoothstep(head_y - 0.009, head_y + 0.002, UV.y));
+		rivulet = max(rivulet, line * in_length * smoothstep(0.08, 0.20, phase));
+		vec2 tip_delta = vec2((UV.x - start_x - wobble) * pane_aspect, (UV.y - head_y) * 0.85);
+		float rounded_head = 1.0 - smoothstep(0.002, 0.007, length(tip_delta));
+		drop_tip = max(drop_tip, rounded_head * smoothstep(0.17, 0.30, phase));
 	}
-	float wet_trace = max(rivulet * 0.62, drop_tip * 0.82) * cleared * dampness;
-	wet_film = max(wet_film, wet_trace * 0.55);
+	float wet_trace = max(rivulet * 0.36, drop_tip * 0.52) * cleared * dampness;
+	wet_film = max(wet_film, wet_trace * 0.62);
 	f.z = max(f.z, wet_film);
 
 	// Stage 4: frozen frost, translucent precursor, water and clear glass
@@ -118,9 +122,9 @@ void fragment() {
 	vec3 glass_base = frost_color(UV, f, glass_tint.rgb, frost_tint.rgb);
 	glass_base = mix(glass_base, glass_tint.rgb * 0.78, wet_film * 0.22);
 	vec3 wet_highlight = vec3(0.82, 0.93, 0.96);
-	ALBEDO = mix(glass_base, wet_highlight, clamp(wet_trace * 0.30 + front * wet_film * 0.11, 0.0, 0.42));
+	ALBEDO = mix(glass_base, wet_highlight, clamp(wet_trace * 0.19 + front * wet_film * 0.09, 0.0, 0.42));
 	float frost_alpha = clamp(f.x * 0.95 + f.y * 0.15, 0.0, 1.0);
-	float liquid_alpha = wet_film * 0.19 + wet_trace * 0.24;
+	float liquid_alpha = wet_film * 0.19 + wet_trace * 0.13;
 	ALPHA = clamp(mix(0.095, 0.995, frost_alpha) + liquid_alpha, 0.0, 1.0);
 	ROUGHNESS = mix(mix(0.18, 0.96, f.x), 0.07, wet_film);
 }
