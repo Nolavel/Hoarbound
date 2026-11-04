@@ -53,10 +53,10 @@ jobs:
           ffmpeg -v error -y -framerate 12 -i frames/f_%03d.png \
             -vf scale=960:540:flags=lanczos \
             -c:v libx264 -crf 19 -pix_fmt yuv420p -movflags +faststart frontwindow1_neutral_vs_blue_lighting_6s.mp4
-          ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames,width,height -of csv=p=0 frontwindow1_lighting_ab_6s.mp4 | grep -q '960,540,72'
+          ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames,width,height -of csv=p=0 frontwindow1_neutral_vs_blue_lighting_6s.mp4 | grep -q '960,540,72'
           ffmpeg -v error -y -i frames/f_024.png -vf scale=960:540 -frames:v 1 blue_lit_control.png
           ffmpeg -v error -y -i frames/f_060.png -vf scale=960:540 -frames:v 1 neutral_lit_v4.png
-          test -s frontwindow1_lighting_ab_6s.mp4
+          test -s frontwindow1_neutral_vs_blue_lighting_6s.mp4
       - name: Upload real lighting film
         if: always()
         uses: actions/upload-artifact@v4
