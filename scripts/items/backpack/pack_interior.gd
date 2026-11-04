@@ -9,6 +9,8 @@ extends Node3D
 ## (BackpackModel.CANVAS_STRETCH_M); slack cloth sags only onto what is in.
 
 signal refused(item_id: StringName, reason: StringName)
+## Item i left the pack (thrown out with G); the caller puts it in the world.
+signal removed(item_id: StringName, state: Dictionary)
 
 ## How far past the canvas's resting inside an item may press, metres: the canvas bulges this much and more
 ## (CANVAS_STRETCH_M), so the cloth always stays over what pushes it.
@@ -33,6 +35,24 @@ const MASS_MAX: float = 1.2
 ## within a second or two instead of rattling on.
 const CALM_RAMP: float = 4.0
 const CALM_MAX_DAMP: float = 10.0
+## No item in the pack moves faster than this (m/s, rad/s): a solver pushing two shapes apart can fling them,
+## as PhysX's max depenetration velocity guards against.
+const MAX_SPEED: float = 2.0
+const MAX_SPIN: float = 12.0
+## A held item is pulled toward the cursor's point like a stiff spring: its grab point closes this share of the
+## gap each second, never faster than HOLD_MAX_SPEED (velocity drive, as Penumbra and Amnesia carry props).
+const HOLD_GAIN: float = 14.0
+## A held item's mass is MASS_MAX times this while held.
+const HELD_MASS_SCALE: float = 4.0
+const HOLD_MAX_SPEED: float = 2.5
+## A held item turns by this many radians per wheel notch, about the camera's line of sight.
+const TURN_STEP: float = deg_to_rad(15.0)
+## The shove (RMB) moves what lies this close to the cursor's point, never faster than SHOVE_MAX_SPEED, m, m/s.
+const SHOVE_RADIUS_M: float = 0.04
+const SHOVE_MAX_SPEED: float = 0.6
+## A part much longer than wide is cut into this many boxes along its length (a tool's head and handle).
+const SLICES: int = 6
+static var _part_cache: Dictionary = {}
 ## Thinnest collision shape, metres: thinner boxes (a lighter, a glove) chatter.
 const MIN_SHAPE_M: float = 0.022
 ## Refusal reasons (localised by the caller).
@@ -48,6 +68,12 @@ var _walls: RID
 var _wall_shapes: Array[RID] = []
 var _open: bool = false
 var _drawn_boxes: Array[AABB] = []
+## The held item: index (-1 none), its grab point in its own space, where the cursor wants that point (pack
+## space), and the turn the wheel asks of it (pack space).
+var _held: int = -1
+var _held_local: Vector3 = Vector3.ZERO
+var _held_target: Vector3 = Vector3.ZERO
+var _held_basis: Basis = Basis.IDENTITY
 
 
 ## Builds the compartment inside `pack` (pack space: x across, y up, z from the back face to the front).
@@ -137,7 +163,8 @@ func add(item_id: StringName, drop_at: Vector3 = Vector3.INF, state: Dictionary 
 	var body: RID = PhysicsServer3D.body_create()
 	PhysicsServer3D.body_set_mode(body, PhysicsServer3D.BODY_MODE_RIGID)
 	PhysicsServer3D.body_set_space(body, _space)
-	PhysicsServer3D.body_set_param(body, PhysicsServer3D.BODY_PARAM_MASS, clampf(kind.weight if kind != null else 0.3, MASS_MIN, MASS_MAX))
+	var mass: float = clampf(kind.weight if kind != null else 0.3, MASS_MIN, MASS_MAX)
+	PhysicsServer3D.body_set_param(body, PhysicsServer3D.BODY_PARAM_MASS, mass)
 	PhysicsServer3D.body_set_param(body, PhysicsServer3D.BODY_PARAM_FRICTION, FRICTION)
 	PhysicsServer3D.body_set_param(body, PhysicsServer3D.BODY_PARAM_LINEAR_DAMP, LINEAR_DAMP)
 	PhysicsServer3D.body_set_param(body, PhysicsServer3D.BODY_PARAM_ANGULAR_DAMP, ANGULAR_DAMP)
@@ -157,12 +184,77 @@ func add(item_id: StringName, drop_at: Vector3 = Vector3.INF, state: Dictionary 
 	var start := Transform3D(turn, drop_at - turn * box.get_center())
 	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_TRANSFORM, start)
 	add_child(visual)
+	## Picked by its own outline (part boxes), not its collision box: a hammer's box is mostly air.
+	var parts: Array[AABB] = []
+	if round <= 0.0:
+		parts = _parts_for(item_id, visual)
+	if parts.is_empty():
+		parts.append(box)
 	items.append({"id": item_id, "rid": body, "shape": shape, "visual": visual, "box": box, "still_s": 0.0, "calm_s": 0.0,
-		"round": round, "state": state})
+		"round": round, "parts": parts, "mass": mass, "state": state})
 	## Started inside the canvas, wherever it was asked to go.
 	_keep_inside(items.size() - 1)
 	visual.transform = pose(items.size() - 1)
 	return true
+
+
+## Each item kind's drawn outline for picking (visual root space), cached: a tight box per mesh part, or SLICES
+## boxes across a part much longer than wide (a tool's head and its handle).
+static func _parts_for(item_id: StringName, visual: Node3D) -> Array[AABB]:
+	if _part_cache.has(item_id):
+		return _part_cache[item_id]
+	var out: Array[AABB] = []
+	for node: Node in visual.find_children("*", "MeshInstance3D", true, false) + ([visual] if visual is MeshInstance3D else []):
+		var part := node as MeshInstance3D
+		if part.mesh == null:
+			continue
+		var to_root: Transform3D = _path_transform(visual, part)
+		var verts := PackedVector3Array()
+		for surface: int in part.mesh.get_surface_count():
+			for v: Vector3 in part.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]:
+				verts.append(to_root * v)
+		if verts.is_empty():
+			continue
+		var bounds := AABB(verts[0], Vector3.ZERO)
+		for v: Vector3 in verts:
+			bounds = bounds.expand(v)
+		## Tiny parts (rivets) live inside their neighbours' boxes.
+		if bounds.size.length() < MIN_SHAPE_M:
+			continue
+		var axis: int = bounds.size.max_axis_index()
+		var long_side: float = bounds.size[axis]
+		var others: float = maxf(bounds.size[(axis + 1) % 3], bounds.size[(axis + 2) % 3])
+		var slices: int = SLICES if long_side > others * 2.0 else 1
+		var boxes: Array = []
+		boxes.resize(slices)
+		for v: Vector3 in verts:
+			var k: int = mini(int((v[axis] - bounds.position[axis]) / maxf(long_side, 0.0001) * slices), slices - 1)
+			boxes[k] = AABB(v, Vector3.ZERO) if boxes[k] == null else (boxes[k] as AABB).expand(v)
+		for k: int in slices:
+			if boxes[k] == null:
+				continue
+			## Each slice spans its whole band along the part, so neighbours meet with no gap.
+			var box: AABB = boxes[k]
+			var from: float = bounds.position[axis] + long_side * float(k) / float(slices)
+			box = box.expand(_on_axis(box.get_center(), axis, from)).expand(_on_axis(box.get_center(), axis, from + long_side / float(slices)))
+			out.append(box)
+	_part_cache[item_id] = out
+	return out
+
+
+static func _on_axis(at: Vector3, axis: int, value: float) -> Vector3:
+	at[axis] = value
+	return at
+
+
+static func _path_transform(root: Node3D, node: Node3D) -> Transform3D:
+	var at := Transform3D.IDENTITY
+	var walk: Node = node
+	while walk != null and walk != root:
+		if walk is Node3D:
+			at = (walk as Node3D).transform * at
+		walk = walk.get_parent()
+	return at
 
 
 ## The turn that puts an item in the way it passes the mouth: its longest side up, its middle one across, its
@@ -243,17 +335,125 @@ func extent(i: int) -> AABB:
 	return out
 
 
+## The item and point a pack-space ray from `from` to `to` meets first, on the items' drawn outlines (part
+## boxes): {"index", "point"}, or {} for none.
+func pick(from: Vector3, to: Vector3) -> Dictionary:
+	if not _open:
+		return {}
+	var best: float = INF
+	var found: Dictionary = {}
+	for i: int in items.size():
+		var to_item: Transform3D = (items[i]["visual"] as Node3D).transform.affine_inverse()
+		var a: Vector3 = to_item * from
+		var b: Vector3 = to_item * to
+		for part: AABB in items[i]["parts"]:
+			var hit: Variant = part.intersects_segment(a, b)
+			if hit == null:
+				continue
+			var at: Vector3 = (items[i]["visual"] as Node3D).transform * (hit as Vector3)
+			var distance: float = from.distance_to(at)
+			if distance < best:
+				best = distance
+				found = {"index": i, "point": at}
+	return found
+
+
+## Takes item i by `point` (pack space, on it): from now it follows move_held() until let_go().
+func hold(i: int, point: Vector3) -> void:
+	if i < 0 or i >= items.size():
+		return
+	let_go()
+	_held = i
+	## A hand pulls harder than the heap leans on it: heavy while held, it shoves what lies on it aside.
+	PhysicsServer3D.body_set_param(items[i]["rid"], PhysicsServer3D.BODY_PARAM_MASS, MASS_MAX * HELD_MASS_SCALE)
+	_held_local = pose(i).affine_inverse() * point
+	_held_target = point
+	_held_basis = pose(i).basis.orthonormalized()
+	disturb()
+
+
+## Where the held item's grab point should go (pack space; kept inside the canvas).
+func move_held(target: Vector3) -> void:
+	_held_target = target
+
+
+## Turns the held item by `notches` wheel steps about `axis` (pack space).
+func turn_held(notches: float, axis: Vector3) -> void:
+	if _held >= 0:
+		_held_basis = Basis(axis.normalized(), notches * TURN_STEP) * _held_basis
+
+
+func let_go() -> void:
+	if _held >= 0:
+		PhysicsServer3D.body_set_param(items[_held]["rid"], PhysicsServer3D.BODY_PARAM_MASS, float(items[_held]["mass"]))
+		disturb()
+	_held = -1
+
+
+func held() -> int:
+	return _held
+
+
+## Where the held item's grab point is now (pack space).
+func held_point() -> Vector3:
+	return pose(_held) * _held_local if _held >= 0 else Vector3.INF
+
+
+## Takes item i out of the pack: {"id", "state"} and removed(...), or {} for a wrong index.
+func remove(i: int) -> Dictionary:
+	if i < 0 or i >= items.size():
+		return {}
+	var item: Dictionary = items[i]
+	if _held == i:
+		_held = -1
+	elif _held > i:
+		_held -= 1
+	PhysicsServer3D.free_rid(item["rid"])
+	PhysicsServer3D.free_rid(item["shape"])
+	(item["visual"] as Node3D).queue_free()
+	items.remove_at(i)
+	disturb()
+	removed.emit(item["id"], item["state"])
+	return {"id": item["id"], "state": item["state"]}
+
+
+## The shove (RMB): what lies within SHOVE_RADIUS_M of `point` (pack space) is swept along `motion` (m/s,
+## pack space, capped at SHOVE_MAX_SPEED) like a hand pushing through the heap; no body of infinite mass.
+func shove(point: Vector3, motion: Vector3) -> void:
+	if motion.length() > SHOVE_MAX_SPEED:
+		motion = motion.normalized() * SHOVE_MAX_SPEED
+	for i: int in items.size():
+		if i == _held:
+			continue
+		var outline: AABB = extent(i)
+		if _box_distance(point, outline) > SHOVE_RADIUS_M:
+			continue
+		var body: RID = items[i]["rid"]
+		var velocity: Vector3 = PhysicsServer3D.body_get_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY)
+		velocity += (motion - velocity).project(motion.normalized()) if motion.length() > 0.001 else Vector3.ZERO
+		PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, velocity)
+		PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_SLEEPING, false)
+		items[i]["calm_s"] = 0.0
+
+
+static func _box_distance(p: Vector3, box: AABB) -> float:
+	var q: Vector3 = (p - box.get_center()).abs() - box.size * 0.5
+	return q.max(Vector3.ZERO).length() + minf(maxf(q.x, maxf(q.y, q.z)), 0.0)
+
+
 func _physics_process(delta: float) -> void:
 	if model == null or not _open:
 		return
 	_apply_gravity()
+	_drive_held(delta)
 	for i: int in items.size():
 		var item: Dictionary = items[i]
 		var body: RID = item["rid"]
-		var calm: float = float(item["calm_s"]) + delta
+		var calm: float = float(item["calm_s"]) + delta if i != _held else 0.0
 		item["calm_s"] = calm
 		PhysicsServer3D.body_set_param(body, PhysicsServer3D.BODY_PARAM_LINEAR_DAMP, minf(LINEAR_DAMP + CALM_RAMP * calm, CALM_MAX_DAMP))
 		PhysicsServer3D.body_set_param(body, PhysicsServer3D.BODY_PARAM_ANGULAR_DAMP, minf(ANGULAR_DAMP + CALM_RAMP * calm, CALM_MAX_DAMP))
+		_cap_speed(body)
 		_keep_inside(i)
 		var spin: float = (PhysicsServer3D.body_get_state(body, PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY) as Vector3).length()
 		var still: bool = speed(i) < SETTLE_SPEED and spin < SETTLE_SPEED * 3.0
@@ -261,6 +461,43 @@ func _physics_process(delta: float) -> void:
 		(item["visual"] as Node3D).transform = pose(i)
 	_drawn_boxes = boxes()
 	model.set_interior_boxes(_drawn_boxes)
+
+
+func _cap_speed(body: RID) -> void:
+	var velocity: Vector3 = PhysicsServer3D.body_get_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY)
+	if velocity.length() > MAX_SPEED:
+		PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, velocity.normalized() * MAX_SPEED)
+	var spin: Vector3 = PhysicsServer3D.body_get_state(body, PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY)
+	if spin.length() > MAX_SPIN:
+		PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, spin.normalized() * MAX_SPIN)
+
+
+## Velocity drive of the held item toward the cursor's point, and its wheel turns.
+func _drive_held(delta: float) -> void:
+	if _held < 0:
+		return
+	var body: RID = items[_held]["rid"]
+	var gap: Vector3 = _held_target - held_point()
+	var velocity: Vector3 = gap * HOLD_GAIN
+	if velocity.length() > HOLD_MAX_SPEED:
+		velocity = velocity.normalized() * HOLD_MAX_SPEED
+	## Gravity is cancelled for the step: a held item hangs where the hand is.
+	velocity -= _gravity_vector() * delta
+	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, velocity)
+	## The wheel sets a target turn; the item spins toward it and the heap can stop it (no turning through a pan).
+	var error: Quaternion = _held_basis.get_rotation_quaternion() * pose(_held).basis.get_rotation_quaternion().inverse()
+	if error.w < 0.0:
+		error = -error
+	var angle: float = error.get_angle()
+	var spin := Vector3.ZERO
+	if angle > 0.001:
+		spin = error.get_axis().normalized() * minf(angle * HOLD_GAIN, MAX_SPIN)
+	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, spin)
+	PhysicsServer3D.body_set_state(body, PhysicsServer3D.BODY_STATE_SLEEPING, false)
+
+
+func _gravity_vector() -> Vector3:
+	return model.global_basis.orthonormalized().inverse() * Vector3.DOWN * _gravity_strength()
 
 
 ## Projects item i back inside the canvas (Jakobsen-style constraint projection): a heap pressed by a new drop
