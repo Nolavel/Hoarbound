@@ -86,8 +86,7 @@ func setup(quick_hub: PlayerHubComponent, view: Camera3D) -> void:
 	_body.name = "BodyPanel"
 	hand_card = _card(_frames[0])
 	hand_card.name = "HandCard"
-	var icon: MeshInstance3D = _flat_quad(HAND_ICON, HAND_ICON_TINT)
-	hand_card.add_child(icon)
+	var icon: MeshInstance3D = _flat_quad(HAND_ICON, HAND_ICON_TINT, hand_card)
 	icon.scale = Vector3.ONE * 0.6 * CARD_M
 	icon.position = Vector3(0.0, 0.0, 0.001)
 	if hub.equipment != null:
@@ -318,8 +317,8 @@ func _refresh_hand() -> void:
 	(hand_card.material_override as StandardMaterial3D).albedo_color = FILLED if id != &"" else EMPTY
 
 
-## A quad of `texture` tinted `colour`, unlit and see-through, a child of this shelf.
-func _flat_quad(texture: Texture2D, colour: Color) -> MeshInstance3D:
+## A quad of `texture` tinted `colour`, unlit and see-through, a child of `parent` (this shelf by default).
+func _flat_quad(texture: Texture2D, colour: Color, parent: Node = null) -> MeshInstance3D:
 	var quad := MeshInstance3D.new()
 	quad.mesh = QuadMesh.new()
 	var material := StandardMaterial3D.new()
@@ -329,7 +328,7 @@ func _flat_quad(texture: Texture2D, colour: Color) -> MeshInstance3D:
 	material.albedo_color = colour
 	quad.material_override = material
 	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(quad)
+	(parent if parent != null else self).add_child(quad)
 	return quad
 
 
