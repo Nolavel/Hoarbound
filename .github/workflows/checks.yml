@@ -859,12 +859,13 @@ jobs:
         run: |
           cd docs/runtime_previews/blob_mask
           ffmpeg -v error -y -framerate 30 -i frames/frame_%04d.png \
+            -vf scale=960:540:flags=lanczos \
             -c:v libx264 -pix_fmt yuv420p -crf 19 -movflags +faststart blob_mask_6s.mp4
           ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames,width,height -of csv=p=0 blob_mask_6s.mp4 \
             | grep -q '960,540,180'
-          cp frames/frame_0030.png outline_fill_reveal_1s.png
-          cp frames/frame_0090.png outline_fill_reveal_3s.png
-          cp frames/frame_0150.png outline_fill_reveal_5s.png
+          ffmpeg -v error -y -i frames/frame_0030.png -vf scale=960:540 -frames:v 1 outline_fill_reveal_1s.png
+          ffmpeg -v error -y -i frames/frame_0090.png -vf scale=960:540 -frames:v 1 outline_fill_reveal_3s.png
+          ffmpeg -v error -y -i frames/frame_0150.png -vf scale=960:540 -frames:v 1 outline_fill_reveal_5s.png
           test -s blob_mask_6s.mp4
 
       - name: Upload Godot capture

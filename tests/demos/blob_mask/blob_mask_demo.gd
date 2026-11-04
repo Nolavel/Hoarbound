@@ -7,6 +7,7 @@ const PANEL_WIDTH: float = 284.0
 const PANEL_HEIGHT: float = 288.0
 const PANEL_TOP: float = 124.0
 
+var _stage: Control
 var _masks: Array[UniversalBlobMask] = []
 var _external_clock: bool = false
 var _time: float = 0.0
@@ -14,8 +15,21 @@ var _time: float = 0.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stage = Control.new()
+	_stage.size = Vector2(960.0, 540.0)
+	_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_stage)
 	_build_scene()
+	resized.connect(_update_stage_layout)
+	_update_stage_layout()
 	_update_blobs(0.0)
+
+
+func _update_stage_layout() -> void:
+	var available: Vector2 = size
+	var factor: float = minf(available.x / 960.0, available.y / 540.0)
+	_stage.scale = Vector2.ONE * factor
+	_stage.position = (available - _stage.size * factor) * 0.5
 
 
 func _process(delta: float) -> void:
@@ -32,7 +46,7 @@ func set_demo_time(seconds: float) -> void:
 
 
 func _build_scene() -> void:
-	var backdrop: ColorRect = _rect(self, Vector2.ZERO, Vector2(960.0, 540.0), Color("#10141c"))
+	var backdrop: ColorRect = _rect(_stage, Vector2.ZERO, Vector2(960.0, 540.0), Color("#10141c"))
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_label("HOARBOUND / SDF MASK LAB", Vector2(32.0, 20.0), 31, Color("#f3f1e9"))
 	_label("ONE SHADER  /  16 SDF CIRCLES  /  LIVE SMOOTH UNION", Vector2(34.0, 68.0), 15, Color("#8e9eaf"))
@@ -40,7 +54,7 @@ func _build_scene() -> void:
 	for index: int in range(3):
 		var left: float = 32.0 + float(index) * 304.0
 		var panel: ColorRect = _rect(
-			self, Vector2(left, PANEL_TOP),
+			_stage, Vector2(left, PANEL_TOP),
 			Vector2(PANEL_WIDTH, PANEL_HEIGHT), Color("#202832")
 		)
 		_rect(panel, Vector2(10.0, 12.0), Vector2(264.0, 264.0), Color("#131a23"))
@@ -106,7 +120,7 @@ func _rect(parent: Control, at: Vector2, dimensions: Vector2, tint: Color) -> Co
 	item.size = dimensions
 	item.color = tint
 	item.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(item)
+	parent._stage.add_child(item)
 	return item
 
 
