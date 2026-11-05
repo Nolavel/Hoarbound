@@ -39,6 +39,9 @@ var hovered_item: int = -1
 var hovered_slot: int = -1
 ## Whether the ring is over the hand card (what Henry takes in hand).
 var hovered_hand: bool = false
+## The item under the ring on an open container's shelf, or -1; the container itself (null when none).
+var hovered_shelf: int = -1
+var container: ItemContainer
 var enabled: bool = true
 ## The item a hand carries: {"id", "from_slot" or "from_item", "visual": Node3D}; empty when none.
 var _carry: Dictionary = {}
@@ -50,7 +53,8 @@ static var _outline_cache: Dictionary = {}
 
 ## Hands for `quick_hub`'s pack (`pack_straps`) and quick pockets (`quick_shelf`), seen through `view`, the ring
 ## drawn on `ring`.
-func setup(quick_hub: PlayerHubComponent, pack_straps: PackStraps, quick_shelf: PackQuickShelf, view: Camera3D, ring: PackCursor) -> void:
+func setup(quick_hub: PlayerHubComponent, pack_straps: PackStraps, quick_shelf: PackQuickShelf, view: Camera3D, ring: PackCursor, shelves: ItemContainer = null) -> void:
+	container = shelves
 	hub = quick_hub
 	straps = pack_straps
 	shelf = quick_shelf
@@ -99,6 +103,8 @@ func press(action: StringName, pressed: bool) -> void:
 ## RMB (pad X) on what is under the ring: a tin opens where it lies; food and drink close the pack and Henry
 ## eats or drinks (his hands need to be free); what cannot be used says why.
 func use_hovered() -> void:
+	if hovered_shelf >= 0:
+		return  # off the shelf it is used once it is in hand: carry it to the pack or a pocket first
 	var id: StringName = _hovered_id()
 	var verb: StringName = use_verb(id)
 	if id == &"" or verb == &"":
@@ -162,8 +168,9 @@ func _process(delta: float) -> void:
 	hovered_slot = shelf.pick(camera.project_ray_origin(cursor_at), camera.project_ray_normal(cursor_at)) if shelf != null else -1
 	hovered_hand = hovered_slot < 0 and shelf != null and shelf.pick_hand(camera.project_ray_origin(cursor_at), camera.project_ray_normal(cursor_at))
 	hovered_item = -1
+	hovered_shelf = container.pick(cursor_at, camera) if container != null and hovered_slot < 0 and not hovered_hand else -1
 	## A strapped item wins over the card behind an item on the pack's outside.
-	if not hovered_hand and (hovered_slot < 0 or shelf.slots[hovered_slot]["on_pack"]):
+	if not hovered_hand and hovered_shelf < 0 and (hovered_slot < 0 or shelf.slots[hovered_slot]["on_pack"]):
 		var ray: Array = _pack_ray()
 		hovered_item = straps.pick(ray[0], ray[0] + ray[1] * RAY_M)
 		if hovered_item >= 0:
@@ -175,13 +182,13 @@ func _process(delta: float) -> void:
 		cursor.visible = true
 		cursor.at = cursor_at
 		cursor.shown = _carry.is_empty()
-		cursor.hovering = hovered_item >= 0 or (hovered_slot >= 0 and StringName(shelf.slots[hovered_slot]["item_id"]) != &"") \
+		cursor.hovering = hovered_item >= 0 or hovered_shelf >= 0 or (hovered_slot >= 0 and StringName(shelf.slots[hovered_slot]["item_id"]) != &"") \
 			or (hovered_hand and shelf.hand_visual() != null)
 		var target: Node3D = _hovered_visual() if cursor.hovering and _carry.is_empty() else null
 		cursor.outline = _screen_outline(target) if target != null else PackedVector2Array()
 		cursor.outline_key = target.get_instance_id() if target != null else 0
 		cursor.hint = tr(&"INVENTORY_HINT_DROP") % ("Y" if _pad_used else "G")
-		var verb: StringName = use_verb(_hovered_id())
+		var verb: StringName = use_verb(_hovered_id()) if hovered_shelf < 0 else &""
 		if verb != &"":
 			cursor.hint = tr(verb) % ("X" if _pad_used else tr(&"KEY_RMB")) + "    " + cursor.hint
 		var shown_id: StringName = _carry.get("id", _hovered_id())
@@ -197,7 +204,11 @@ func _take() -> void:
 	var id: StringName = &""
 	if hovered_hand and shelf.selected >= 0 and shelf.hand_visual() != null:
 		hovered_slot = shelf.selected  # the hand shows the pick's pocket: take from there
-	if hovered_slot >= 0:
+	if hovered_shelf >= 0:
+		id = container.items[hovered_shelf]["id"]
+		_carry = {"id": id, "from_shelf": hovered_shelf}
+		(container.items[hovered_shelf]["pickup"] as Node3D).visible = false
+	elif hovered_slot >= 0:
 		id = shelf.slots[hovered_slot]["item_id"]
 		if id == &"":
 			return
@@ -233,8 +244,19 @@ func _release() -> void:
 	var id: StringName = carried["id"]
 	var from_slot: int = carried.get("from_slot", -1)
 	var from_item: int = carried.get("from_item", -1)
+	var from_shelf: int = carried.get("from_shelf", -1)
 	var moved: bool = false
-	if hovered_hand and from_slot >= 0:
+	if from_shelf >= 0:
+		moved = _release_from_shelf(from_shelf, id)
+	elif container != null and (hovered_shelf >= 0 or _over_container()):
+		var full: StringName = container.refusal(id)
+		if full != &"":
+			show_refusal(full)
+		elif from_slot >= 0:
+			moved = hub.move_to_container(container, &"", shelf.slots[from_slot]["path"]) == &""
+		else:
+			moved = hub.move_to_container(container, id) == &""
+	elif hovered_hand and from_slot >= 0:
 		shelf.choose(from_slot)  # into the hand: it becomes the pick, staying in its pocket till the pack goes on
 	elif hovered_slot >= 0 and hovered_slot != from_slot:
 		var why: StringName = shelf.refusal(hovered_slot, id)
@@ -254,12 +276,46 @@ func _release() -> void:
 				hub.jolt_held_pack(float(ItemReadout.describe(id).get("kg", 0.0)))
 	if moved:
 		_sound(RUSTLE)
+	if not moved and from_shelf >= 0 and from_shelf < container.items.size():
+		(container.items[from_shelf]["pickup"] as Node3D).visible = true
 	if not moved:
 		if from_slot >= 0 and shelf.visual_of(from_slot) != null:
 			shelf.visual_of(from_slot).visible = true
 		if from_item >= 0:
 			straps.set_lifted(from_item, false)
 	shelf.refresh()
+
+
+## Let go of something taken off the shelf: onto a card (that pocket) or over the pack (under the straps).
+func _release_from_shelf(index: int, id: StringName) -> bool:
+	if hovered_slot >= 0:
+		var why: StringName = shelf.refusal(hovered_slot, id)
+		if why != &"":
+			show_refusal(why)
+			return false
+		return hub.move_from_container(container, index, shelf.slots[hovered_slot]["path"]) == &""
+	if not _over_pack():
+		return false
+	var no_room: StringName = straps.refusal(id)
+	if no_room != &"":
+		show_refusal(no_room)
+		return false
+	var why: StringName = hub.move_from_container(container, index)
+	if why != &"":
+		show_refusal(&"PICKUP_REFUSED_TOO_HEAVY")
+		return false
+	hub.jolt_held_pack(float(ItemReadout.describe(id).get("kg", 0.0)))
+	return true
+
+
+## Whether the cursor's ray passes through the open container's shelves.
+func _over_container() -> bool:
+	if container == null:
+		return false
+	var to_shelves: Transform3D = container.global_transform.affine_inverse()
+	var origin: Vector3 = to_shelves * camera.project_ray_origin(cursor_at)
+	var direction: Vector3 = (to_shelves.basis * camera.project_ray_normal(cursor_at)).normalized()
+	return container.shelves_box().intersects_ray(origin, direction) != null
 
 
 ## G over something: it goes down on the ground ahead of Henry.
@@ -296,9 +352,12 @@ func _show_hover() -> void:
 			shelf.set_tint(hovered_slot, PackQuickShelf.ACTIVE if shelf.refusal(hovered_slot, carried) == &"" else PackQuickShelf.REFUSE)
 		else:
 			shelf.set_tint(-1, Color.TRANSPARENT)
-		var into_pack: bool = int(_carry.get("from_slot", -1)) >= 0 and hovered_slot < 0 and _over_pack()
+		var from_pack: bool = int(_carry.get("from_item", -1)) >= 0
+		var into_shelf: bool = not _carry.has("from_shelf") and hovered_slot < 0 and (hovered_shelf >= 0 or _over_container())
+		var into_pack: bool = not from_pack and not into_shelf and hovered_slot < 0 and _over_pack()
+		var refused: bool = (into_pack and straps.refusal(carried) != &"") or (into_shelf and container.refusal(carried) != &"")
 		var held: Node3D = (_carry["visual"] as Node3D).get_child(0)
-		_rim(held, REFUSED_RIM if into_pack and straps.refusal(carried) != &"" else HELD_RIM)
+		_rim(held, REFUSED_RIM if refused else HELD_RIM)
 
 
 ## Plays a cloth sound for the hands (flat: it is right before the camera).
@@ -319,6 +378,8 @@ func _hovered_path() -> StringName:
 
 ## The id of what the ring is over (a strapped item, a pocket's item, the hand's), or &"".
 func _hovered_id() -> StringName:
+	if hovered_shelf >= 0:
+		return container.items[hovered_shelf]["id"]
 	if hovered_hand:
 		return shelf.slots[shelf.selected]["item_id"] if shelf.selected >= 0 and shelf.selected < shelf.slots.size() else &""
 	if hovered_item >= 0:
@@ -330,6 +391,8 @@ func _hovered_id() -> StringName:
 
 ## What the ring is over: a strapped item's visual, a pocket's item (on the pack or on its card), or the hand's.
 func _hovered_visual() -> Node3D:
+	if hovered_shelf >= 0:
+		return container.items[hovered_shelf]["pickup"]
 	if hovered_hand:
 		return shelf.hand_visual()
 	if hovered_item >= 0:

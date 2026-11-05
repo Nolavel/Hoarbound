@@ -75,7 +75,9 @@ Code: `scripts/environment/interactive/item_container.gd` (`ItemContainer`). Tes
 - Shelves come from the furniture's own box panels (`shelves_from_furniture`): side walls, back wall and horizontal panels; the space between neighbouring horizontals is a shelf; the door's subtree is left out.
 - Items stand leftmost on the first shelf with room, by their real outline, clear of each other (2 cm gaps); no room is `CONTAINER_NO_ROOM`.
 - The 727 waiting-room cabinet (`KeyWest727Shelter.place_supplies`) holds its dressed tins as real items (`CABINET_PROPS`: stew, pineapple) and adopts the layout's pickups socketed `on: Cabinet` (the SPoV can, the gloves); the dressed mug was removed (it duplicated Henry's). An older save that took one of them from the world drops it again (`PickupLedger` → `drop_taken`).
-- Next: Tab at an open container shows its shelves beside the held pack, and the ring carries items between them.
+- **At an open container** (Tab within 1.3 m ahead of a reachable one: `ItemContainer.find_open_near`, its `door` open): the pack opening tips up to 72° and the view moves over Henry's right shoulder, down on the pack and on to the shelves (`PackFrontHold.container_view`, backing off until both fit). The shelves stay sharp under the focus blur.
+  - The ring hovers a shelf item on its silhouette (`ItemContainer.pick`). LMB carries it into the pack (`Hub.move_from_container`, the pack's room checked first, jolt) or onto a pocket's card; a pack or pocket item let go over the shelves goes onto them (`Hub.move_to_container`); a full shelf refuses with `CONTAINER_NO_ROOM`. RMB and G do nothing on a shelf item.
+  - Tests: `tests/systems/test_container_hands.gd`; capture: `tools/runtime/capture_container_view.gd` (the 727 cabinet).
 
 ## Hands
 

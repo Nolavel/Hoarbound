@@ -8,6 +8,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory at an open cabinet: Tab within reach takes its shelves in.
+  - The pack opens upward beside the shelves, seen over Henry's shoulder.
+  - The ring carries items shelf ↔ pack ↔ pockets through new Hub moves (`move_from_container`, `move_to_container`).
+  - A full shelf refuses, and the shelves stay sharp under the focus blur.
 - Furniture can hold items: `ItemContainer`.
   - Shelves are derived from the furniture's own panels, items stand on them by real size, and the contents are saved.
   - Items stay ordinary pickups, so F still takes them.

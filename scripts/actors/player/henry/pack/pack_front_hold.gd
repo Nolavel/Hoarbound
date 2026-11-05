@@ -19,6 +19,14 @@ const TIP_DEG: float = 45.0
 const FRAME_SHARE: float = 0.47
 const VIEW_RISE: float = 0.35
 const VIEW_LIFT_M: float = -0.07
+## At an open container the opening tips further up (Henry looks down into it beside the shelves), degrees;
+## the view sits this high above his chest, this far behind it and this far to his right, aiming this share of
+## the way from the pack to the shelves (metres, share).
+const CONTAINER_TIP_DEG: float = 72.0
+const CONTAINER_EYE_UP_M: float = 0.55
+const CONTAINER_EYE_BACK_M: float = 0.42
+const CONTAINER_EYE_SIDE_M: float = 0.32
+const CONTAINER_AIM_SHARE: float = 0.55
 ## The strap that stays over a shoulder while the pack is held (0 left, 1 right).
 const STRAP_KEPT_SIDE: int = 0
 ## Swinging off the back and on again takes this long, seconds.
@@ -43,6 +51,8 @@ const GRIP_BACK_M: float = 0.05
 
 var visual: HenryUALAnimation
 var pack: PackRig
+## The open container Henry stands at (its own pose and view), or null for the front view.
+var container: ItemContainer
 var _home_parent: Node
 var _home_transform: Transform3D
 var _from: Transform3D
@@ -89,18 +99,10 @@ func is_settled() -> bool:
 
 ## Where the pack is held now (world): ahead of and below the chest, the opening tipped up toward Henry.
 func held_transform() -> Transform3D:
-	var body := visual.get_parent() as Node3D
-	var rig: Skeleton3D = visual.skeleton
-	var chest_bone: int = rig.find_bone(&"spine_03")
-	var chest: Vector3 = rig.to_global(rig.get_bone_global_pose(chest_bone).origin) if chest_bone >= 0 else body.global_position + Vector3.UP * 1.3
-	## Ahead is square to the line between his shoulders, whatever the nodes above the skeleton are turned to.
-	var left_bone: int = rig.find_bone(&"upperarm_l")
-	var right_bone: int = rig.find_bone(&"upperarm_r")
-	var shoulders: Vector3 = rig.to_global(rig.get_bone_global_pose(right_bone).origin) - rig.to_global(rig.get_bone_global_pose(left_bone).origin)
-	var forward: Vector3 = Vector3.UP.cross(shoulders) if left_bone >= 0 and right_bone >= 0 else visual.global_basis.z
-	forward.y = 0.0
-	forward = forward.normalized() if forward.length_squared() > 1e-6 else Vector3.FORWARD
-	var tip: float = deg_to_rad(TIP_DEG)
+	var frame: Array = _body_frame()
+	var chest: Vector3 = frame[0]
+	var forward: Vector3 = frame[1]
+	var tip: float = deg_to_rad(CONTAINER_TIP_DEG if container != null else TIP_DEG)
 	## The rig's -Z is its opening (outward on the back): it faces out ahead of Henry, tipped up; its top leans
 	## back toward him and its bottom (the panel's hinge) is below, so the panel drops open away from him.
 	var opening: Vector3 = (forward * cos(tip) + Vector3.UP * sin(tip)).normalized()
@@ -117,6 +119,42 @@ func front_view(fov: float) -> Transform3D:
 	var distance: float = view_distance(fov)
 	var eye: Vector3 = held.origin + (opening + Vector3.UP * VIEW_RISE).normalized() * distance
 	return Transform3D(Basis.IDENTITY, eye).looking_at(held.origin + Vector3.UP * VIEW_LIFT_M, Vector3.UP)
+
+
+## The view at an open container: over Henry's right shoulder, down on the open pack and on to the shelves
+## beyond it, framing both at `fov` degrees.
+func container_view(fov: float) -> Transform3D:
+	var frame: Array = _body_frame()
+	var chest: Vector3 = frame[0]
+	var forward: Vector3 = frame[1]
+	var right: Vector3 = frame[2]
+	var pack_at: Vector3 = held_transform().origin
+	var shelves_at: Vector3 = container.global_transform * container.shelves_box().get_center()
+	var aim: Vector3 = pack_at.lerp(shelves_at, CONTAINER_AIM_SHARE)
+	var eye: Vector3 = chest + Vector3.UP * CONTAINER_EYE_UP_M - forward * CONTAINER_EYE_BACK_M + right * CONTAINER_EYE_SIDE_M
+	## Back off along the view until both the pack and the shelves fit in the frame's height.
+	var span: float = pack_at.distance_to(shelves_at) + pack.size.y
+	var need: float = span * 0.5 / tan(deg_to_rad(fov) * 0.5)
+	var away: Vector3 = (eye - aim).normalized()
+	if eye.distance_to(aim) < need:
+		eye = aim + away * need
+	return Transform3D(Basis.IDENTITY, eye).looking_at(aim, Vector3.UP)
+
+
+## Henry's chest (spine_03), his flat forward (square to the line between his shoulders, whatever the nodes
+## above the skeleton are turned to) and his right: [Vector3, Vector3, Vector3], world.
+func _body_frame() -> Array:
+	var body := visual.get_parent() as Node3D
+	var rig: Skeleton3D = visual.skeleton
+	var chest_bone: int = rig.find_bone(&"spine_03")
+	var chest: Vector3 = rig.to_global(rig.get_bone_global_pose(chest_bone).origin) if chest_bone >= 0 else body.global_position + Vector3.UP * 1.3
+	var left_bone: int = rig.find_bone(&"upperarm_l")
+	var right_bone: int = rig.find_bone(&"upperarm_r")
+	var shoulders: Vector3 = rig.to_global(rig.get_bone_global_pose(right_bone).origin) - rig.to_global(rig.get_bone_global_pose(left_bone).origin)
+	var forward: Vector3 = Vector3.UP.cross(shoulders) if left_bone >= 0 and right_bone >= 0 else visual.global_basis.z
+	forward.y = 0.0
+	forward = forward.normalized() if forward.length_squared() > 1e-6 else Vector3.FORWARD
+	return [chest, forward, Vector3.UP.cross(forward).normalized() * -1.0]
 
 
 ## How far the front view stands from the pack's middle at `fov` degrees (the camera focuses there), metres.

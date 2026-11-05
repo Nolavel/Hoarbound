@@ -117,6 +117,9 @@ func place_supplies(supplies: Array[ItemPickup], sockets: Dictionary) -> void:
 		if CABINET_PROPS.has(String(prop.name)):
 			dressed.append(CABINET_PROPS[String(prop.name)])
 			prop.free()
+	for node: Node in cabinet.find_children("*", "", true, false):
+		if node is Cabinet:
+			shelves.door = node as Cabinet
 	cabinet.add_child(shelves)
 	for item_id: StringName in dressed:
 		shelves.put(item_id)

@@ -17,6 +17,8 @@ const PANEL_M: float = 0.07
 @export var container_id: StringName = &""
 ## The free space above each shelf, in this node's space: its bottom face is the shelf's top.
 @export var shelves: Array[AABB] = []
+## The door that must be open to reach in (null: always open).
+@export var door: Cabinet
 
 ## Per item: {"id", "state": Dictionary, "world_id": StringName (seeded from the world, or &""),
 ## "pickup": ItemPickup}.
@@ -28,6 +30,57 @@ static var _outlines: Dictionary = {}
 func _ready() -> void:
 	add_to_group(&"saveable")
 	add_to_group(GROUP)
+
+
+## Whether Henry can reach in now (its door, if it has one, is open).
+func is_reachable() -> bool:
+	return door == null or door.is_open()
+
+
+## The shelves' whole space, this node's space.
+func shelves_box() -> AABB:
+	var box := AABB()
+	for shelf: AABB in shelves:
+		box = shelf if box.size == Vector3.ZERO else box.merge(shelf)
+	return box
+
+
+## The item whose pickup shows under `screen` (viewport pixels) as `camera` sees it, or -1: hit on its own
+## silhouette, the smallest when several overlap.
+func pick(screen: Vector2, camera: Camera3D) -> int:
+	var best: int = -1
+	var best_area: float = INF
+	for i: int in items.size():
+		var pickup: ItemPickup = items[i]["pickup"]
+		if not is_instance_valid(pickup) or not pickup.is_visible_in_tree():
+			continue
+		var outline: PackedVector2Array = PackHandling.screen_outline(pickup, camera)
+		if outline.size() < 3 or not Geometry2D.is_point_in_polygon(screen, outline):
+			continue
+		var box := Rect2(outline[0], Vector2.ZERO)
+		for point: Vector2 in outline:
+			box = box.expand(point)
+		if box.get_area() < best_area:
+			best = i
+			best_area = box.get_area()
+	return best
+
+
+## The reachable container whose shelves are nearest ahead of `body` within `reach_m` (`forward`: where it
+## faces, flat), or null.
+static func find_open_near(body: Node3D, forward: Vector3, reach_m: float) -> ItemContainer:
+	var best: ItemContainer = null
+	var best_m: float = reach_m
+	for node: Node in body.get_tree().get_nodes_in_group(GROUP):
+		var container := node as ItemContainer
+		if container == null or not container.is_reachable() or container.shelves.is_empty():
+			continue
+		var to: Vector3 = container.global_transform * container.shelves_box().get_center() - body.global_position
+		to.y = 0.0
+		if to.length() < best_m and (to.length() < 0.2 or forward.dot(to.normalized()) > 0.3):
+			best = container
+			best_m = to.length()
+	return best
 
 
 ## Puts `item_id` on the first shelf with room; &"" when it went in, else why not (NO_ROOM).

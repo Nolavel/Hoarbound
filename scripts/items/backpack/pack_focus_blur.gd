@@ -12,14 +12,17 @@ const SCAN_S: float = 0.2
 const FADE_S: float = 0.35
 
 var pack: Node3D
+## The open container beside the pack, kept sharp too (null when none).
+var shelves: Node3D
 var _blur: ShaderMaterial
 var _scan_s: float = 0.0
 var _masked: Array[GeometryInstance3D] = []
 
 
-## Blurs all but `held_pack` and the camera's own children (cards, a carried item); a child of the camera.
-func setup(held_pack: Node3D) -> void:
+## Blurs all but `held_pack`, `beside` (an open container) and the camera's own children; a child of the camera.
+func setup(held_pack: Node3D, beside: Node3D = null) -> void:
 	pack = held_pack
+	shelves = beside
 	var quad := QuadMesh.new()
 	quad.size = Vector2(2.0, 2.0)
 	mesh = quad
@@ -52,6 +55,8 @@ func _on_node_added(node: Node) -> void:
 func _covers(node: Node) -> bool:
 	if is_instance_valid(pack) and (pack == node or pack.is_ancestor_of(node)):
 		return true
+	if is_instance_valid(shelves) and shelves.is_ancestor_of(node):
+		return true
 	var camera: Node = get_parent()
 	return camera != null and camera.is_ancestor_of(node) and not is_ancestor_of(node) and node != self
 
@@ -70,6 +75,8 @@ func _mask_all() -> void:
 	var roots: Array[Node] = []
 	if is_instance_valid(pack):
 		roots.append(pack)
+	if is_instance_valid(shelves):
+		roots.append(shelves)
 	for child: Node in get_parent().get_children():
 		if child != self:
 			roots.append(child)
