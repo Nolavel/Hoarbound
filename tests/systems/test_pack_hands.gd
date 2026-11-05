@@ -168,6 +168,24 @@ func _run() -> void:
 	_check(not _hub.is_open() and _hub.get_pack_hands() == null, "eating did not close the pack")
 	print("pack hands: RMB on the open tin closed the pack to eat")
 
+	## Pad: a flick steps the ring to the next target that way; from the coat pocket's card rightward it lands on
+	## something else (not off into nothing), and back leftward returns near where it was.
+	_check(_hub.open(), "the pack did not open for the pad check")
+	await _frames(45)
+	_hands = _hub.get_pack_hands()
+	shelf = _hub.get_quick_shelf()
+	var start: Vector2 = shelf.aim_point(0)
+	_hands.set_cursor(start)
+	var targets: int = _hands.snap_targets().size()
+	_check(targets >= 4, "too few pad targets (%d)" % targets)
+	var moved_up: bool = _hands.snap(Vector2.UP)
+	await _frames(3)
+	_check(moved_up and _hands.cursor_at.y < start.y and (_hands.hovered_item >= 0 or _hands.hovered_slot >= 0 or _hands.hovered_hand),
+		"a flick up from a card did not land on an item or a card")
+	_hub.close()
+	await _frames(40)
+	print("pack hands: the pad steps the ring between %d targets" % targets)
+
 	## A threat shuts the open pack (time never stops in the Hub); frostbite's slow loss does not.
 	var health := _hub.get_parent().get_node(^"PlayerHealthSystem") as PlayerHealthSystem
 	_check(_hub.open(), "the pack did not open again")

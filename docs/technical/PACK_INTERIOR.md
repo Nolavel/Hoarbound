@@ -116,6 +116,8 @@ Code: `scripts/items/backpack/pack_handling.gd` (`PackHandling`), `pack_cursor.g
   - Each kg adds 0.12 s, up to 0.4 s.
   - Cold hands (`ThermalManager.get_extremity_cold(&"hands")`, via `Hub.get_hands_cold`) multiply it by up to 2.5. A tin off the bottom strap takes 0.63 s warm and 1.57 s frozen.
   - Past a quarter of that cold load the ring shakes, up to 9 px at 7 Hz, so frozen hands also aim worse.
+- **Pad steps** (`PackHandling.snap`). A flick of the left stick past 0.6 jumps the ring to the nearest target that way, within 55°, off-axis ones counting as farther. Held, it steps every 0.32 s, and it re-arms below 0.3.
+  - Targets (`snap_targets`): every strapped item, every shown card, the hand card, the pack's room (to put a carried item in), an open container's items and its shelves.
 - **Threats shut it** (Green Hell; `Hub.interrupt`). Time never stops in the Hub, and a threat closes the open pack at once and calls off a walk to a container.
   - Threats now: a blow (`PlayerHealthSystem.hurt`, from `take_damage` only; frostbite's slow `drain` does not count) and falling faster than 2 m/s.
   - Thin ice and other threats call `interrupt()` too, once they raise a signal.

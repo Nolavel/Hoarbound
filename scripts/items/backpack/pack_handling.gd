@@ -10,8 +10,14 @@ const GRAB_ACTION: StringName = &"pack_grab"
 const DROP_ACTION: StringName = &"drop_carried"
 const USE_ACTION: StringName = &"pack_use"
 const CURSOR_ACTIONS: Array[StringName] = [&"pack_cursor_left", &"pack_cursor_right", &"pack_cursor_up", &"pack_cursor_down"]
-## Stick cursor speed at full tilt, share of the screen height per second.
-const STICK_SPEED: float = 0.7
+## Pad: a flick of the stick past SNAP_TILT jumps the ring to the nearest target that way (items, cards, the
+## hand, the pack, the shelves), within SNAP_CONE_DEG; held, it steps on every SNAP_REPEAT_S; it re-arms below
+## SNAP_RELEASE. Off-axis targets count as farther (SNAP_OFF_AXIS).
+const SNAP_TILT: float = 0.6
+const SNAP_RELEASE: float = 0.3
+const SNAP_REPEAT_S: float = 0.32
+const SNAP_CONE_DEG: float = 55.0
+const SNAP_OFF_AXIS: float = 2.0
 ## How far the pick ray reaches, metres.
 const RAY_M: float = 3.0
 const OUTLINE_SHADER: Shader = preload("res://shaders/items/item_outline.gdshader")
@@ -64,6 +70,8 @@ var _taking: Dictionary = {}
 var hands_cold: float = 0.0
 var _tremor_t: float = 0.0
 var _pad_used: bool = false
+var _snap_armed: bool = true
+var _snap_s: float = 0.0
 ## Sampled triangles per mesh resource, and each visual's last outline with the pose it was traced in.
 static var _triangle_cache: Dictionary = {}
 static var _outline_cache: Dictionary = {}
@@ -593,10 +601,66 @@ static func _sampled_triangles(mesh: Mesh) -> PackedVector3Array:
 
 func _move_by_stick(delta: float) -> void:
 	var stick := Vector2(Input.get_axis(CURSOR_ACTIONS[0], CURSOR_ACTIONS[1]), Input.get_axis(CURSOR_ACTIONS[2], CURSOR_ACTIONS[3]))
-	if stick.length() > 0.0:
-		_pad_used = true
-		set_cursor(cursor_at + stick * STICK_SPEED * camera.get_viewport().get_visible_rect().size.y * delta)
+	if stick.length() < SNAP_RELEASE:
+		_snap_armed = true
+		return
+	_pad_used = true
+	_snap_s -= delta
+	if stick.length() >= SNAP_TILT and (_snap_armed or _snap_s <= 0.0):
+		_snap_armed = false
+		_snap_s = SNAP_REPEAT_S
+		snap(stick)
 
+
+## Jumps the ring to the nearest target along `direction` (screen space, y down); false when none lies that way.
+func snap(direction: Vector2) -> bool:
+	var way: Vector2 = direction.normalized()
+	var best: Vector2 = cursor_at
+	var best_score: float = INF
+	var cone: float = cos(deg_to_rad(SNAP_CONE_DEG))
+	for target: Vector2 in snap_targets():
+		var offset: Vector2 = target - cursor_at
+		if offset.length() < 12.0:
+			continue
+		var along: float = way.dot(offset.normalized())
+		if along < cone:
+			continue
+		var score: float = offset.length() * (1.0 + SNAP_OFF_AXIS * (1.0 - along))
+		if score < best_score:
+			best_score = score
+			best = target
+	if best_score == INF:
+		return false
+	set_cursor(best)
+	return true
+
+
+## Where the ring can land (viewport pixels): every strapped item, every shown card, the hand card, the pack's
+## room (to put a carried item in) and an open container's items and shelves.
+func snap_targets() -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for item: Dictionary in straps.items:
+		out.append(camera.unproject_position(straps.model.global_transform * (item["box"] as AABB).get_center()))
+	out.append(camera.unproject_position(straps.model.global_transform * PackStraps.room().get_center()))
+	if shelf != null:
+		for k: int in shelf.slots.size():
+			var card: Node3D = shelf.slots[k]["card"]
+			if card != null and card.is_visible_in_tree():
+				out.append(shelf.aim_point(k))
+		if shelf.hand_card != null and shelf.hand_card.is_visible_in_tree():
+			out.append(camera.unproject_position(shelf.hand_card.global_position))
+	if container != null:
+		for item: Dictionary in container.items:
+			var pickup: Node3D = item["pickup"]
+			if is_instance_valid(pickup) and pickup.is_visible_in_tree():
+				out.append(camera.unproject_position(pickup.global_transform * BackpackModel._local_bounds(pickup).get_center()))
+		out.append(camera.unproject_position(container.global_transform * container.shelves_box().get_center()))
+	var screen: Rect2 = camera.get_viewport().get_visible_rect()
+	var shown: Array[Vector2] = []
+	for point: Vector2 in out:
+		if screen.has_point(point):
+			shown.append(point)
+	return shown
 
 ## The cursor's ray in pack space: [origin, direction].
 func _pack_ray() -> Array:

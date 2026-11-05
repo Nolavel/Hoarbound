@@ -57,7 +57,7 @@ Tab takes the pack into Henry's hands (one strap stays on his shoulder). While i
 
 | Key / pad | Action | Effect |
 |---|---|---|
-| Mouse / left stick | `pack_cursor_*` | Moves the ring cursor. It brightens over an item in the pack or on a quick pocket's card and shows the drop hint |
+| Mouse / left stick | `pack_cursor_*` | The mouse moves the ring freely; a flick of the stick steps it to the nearest item, card, the hand or the pack that way (held: it keeps stepping). It brightens over an item in the pack or on a quick pocket's card and shows the drop hint |
 | LMB / A | `pack_grab` | Hold to take what is under the ring: a line fills round it (longer from the bottom strap, for heavy items and with cold hands), then it is carried (the ring hides). Let go over a card to put it in that pocket, over the pack to put it under the straps, anywhere else to put it back |
 | RMB / X | `pack_use` | Uses the hovered item. A sealed tin opens where it lies (the pack stays open). Food and drink close the pack and Henry eats or drinks, because he needs his hands. Something that cannot be used says why (no knife, empty flask). Shares RMB with `present_held`; that is safe because Henry's hands are empty while the pack is open |
 | G / Y | `drop_carried` | Puts the hovered item down on the ground ahead of Henry |
