@@ -151,6 +151,9 @@ const CLIPPED_MAX_SWING_DEG: float = 60.0
 ## The floor's height (world) that what hangs off the pack may not go through, or -INF for none (the pack is
 ## worn or held up: PackFrontHold sets it where the pack stands by a container).
 var hang_floor_y: float = -INF
+## Boxes beside the pack that what hangs off it may not go into, each [Transform3D (box space to world), AABB]
+## (PackFrontHold sets the furniture's own box by a container).
+var hang_obstacles: Array = []
 var _shell_material: ShaderMaterial
 var _panel_material: ShaderMaterial
 var _pocket_materials: Array[ShaderMaterial] = []
@@ -1248,9 +1251,18 @@ func _on_clipped_knock(rate: float, swing: PendulumHang) -> void:
 ## by ROUND_M), each side pocket's cloth as placed this frame and the tool handles hanging below
 ## the sleeves. Vector4(outward world normal, depth).
 func _pack_contact(at: Vector3) -> Vector4:
+	var deepest: Vector4 = _body_contact(at)
 	var floor: Vector4 = Vector4(0.0, 1.0, 0.0, hang_floor_y - at.y)  # the floor, when set: a plane facing up
-	var body: Vector4 = _body_contact(at)
-	return floor if floor.w > body.w else body
+	if floor.w > deepest.w:
+		deepest = floor
+	for obstacle: Array in hang_obstacles:
+		var to_box: Transform3D = (obstacle[0] as Transform3D).affine_inverse()
+		var box: AABB = obstacle[1]
+		var hit: Vector4 = _round_box(to_box * at, box.get_center(), box.size * 0.5, 0.005)
+		if -hit.w > deepest.w:
+			var normal: Vector3 = ((obstacle[0] as Transform3D).basis * Vector3(hit.x, hit.y, hit.z)).normalized()
+			deepest = Vector4(normal.x, normal.y, normal.z, -hit.w)
+	return deepest
 
 
 ## The pack's own body, pockets and the tools' handles (see _pack_contact).

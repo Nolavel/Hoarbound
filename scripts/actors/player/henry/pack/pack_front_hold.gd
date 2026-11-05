@@ -36,8 +36,6 @@ const CONTAINER_PACK_EXTRA_SIDE_M: float = 0.0
 ## clears the floor by CONTAINER_FLOOR_CLEAR_M, metres.
 const CONTAINER_PACK_HANG_M: float = 0.26
 const CONTAINER_FLOOR_CLEAR_M: float = 0.03
-## A hanger meeting the floor there leans out to its side, this much toward the view as well (weight).
-const CONTAINER_HANG_TOWARD_VIEW: float = 0.5
 ## The pack's half sits this much (NDC) in toward the furniture; the frame is worked out this much wider than the
 ## view, so both show this much larger (owner: closer, tighter), their outer edges past the frame.
 const CONTAINER_PACK_IN: float = 0.22
@@ -126,6 +124,7 @@ func begin_container(shelves: ItemContainer, side: float, fov: float) -> void:
 	pack.get_canvas().set_opening(BackpackModel.ZIP_FULL_M, CONTAINER_PANEL_DEG)
 	## What hangs off it rests on the floor there instead of passing through: the floor is the furniture's foot.
 	pack.get_canvas().hang_floor_y = (container.global_transform * container.body_box().position).y
+	pack.get_canvas().hang_obstacles = [[container.global_transform, container.body_box()]]
 	_lean_hangers_out()
 
 
@@ -137,6 +136,7 @@ func finish() -> void:
 	_from = held_transform()
 	visual.visible = true
 	pack.get_canvas().hang_floor_y = -INF
+	pack.get_canvas().hang_obstacles = []
 	for hang: PendulumHang in _hanger_lean:
 		if is_instance_valid(hang):
 			hang.hinge_out = _hanger_lean[hang]
@@ -186,20 +186,17 @@ func container_view(_fov: float) -> Transform3D:
 	return _container_view
 
 
-## By a container what hangs on a pin (the pan, the mug) turns out to its own side of the pack and a little
-## toward the view when it meets the floor (PendulumHang.hinge_out), so it lies beside the pack in sight, not
-## under its open panel. The carabiners already lean out along the pack's sides on their own.
+## By a container what hangs on a pin (the pan, the mug) turns toward the view if it meets the floor
+## (PendulumHang.hinge_out): never under the open panel, never sideways onto the furniture.
 func _lean_hangers_out() -> void:
 	var placed: Transform3D = _container_pack
 	var toward_view: Vector3 = -placed.basis.z.slide(Vector3.UP).normalized()
-	var to_pack: Transform3D = pack.global_transform.affine_inverse()
 	for node: Node in pack.find_children("*", "PendulumHang", true, false):
 		var hang := node as PendulumHang
 		if hang.hinge_axis == Vector3.ZERO:
 			continue
-		var side: float = signf((to_pack * hang.global_position).x)
 		_hanger_lean[hang] = hang.hinge_out
-		hang.hinge_out = (placed.basis.x.slide(Vector3.UP).normalized() * (side if side != 0.0 else 1.0) + toward_view * CONTAINER_HANG_TOWARD_VIEW).normalized()
+		hang.hinge_out = toward_view
 
 
 ## Works out the container view and the pack's place: the view looks in at an angle and stands where the

@@ -8,7 +8,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
-- 3D inventory at a cabinet: the pan and other hangers no longer go through the floor. They turn out on their carabiner, beside the pack and in sight. The framing has the pack a little higher and Henry out of the frame (owner).
+- 3D inventory at a cabinet: the pan and other hangers no longer go through the floor or into the cabinet. Both are now obstacles for the hangers.
+  - Owner's framing: the camera turned a little right, the pack further right and a little higher (the pan hangs free), Henry out of the frame.
 - "Parameter material is null" errors when the game starts and around containers. Item models made only to be measured (pocket sizes, shelf layout, loose items) were freed before ever being drawn, while carrying shader overrides, which Godot 4.8-dev reports from the renderer.
   - `SurvivalItemVisual.release` drops the overrides first. Spawning Henry went from 44 errors to 0 on Vulkan.
 
