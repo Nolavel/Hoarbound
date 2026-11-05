@@ -66,7 +66,7 @@ void fragment() {
 	float fringe = 1.0 - smoothstep(0.01, 0.075, abs(field));
 	float crystal_resistance = clamp(0.15 + 0.38 * f.x + 0.12 * f.y, 0.0, 0.65);
 	float residual = cleared * fringe * crystal_resistance;
-	float wet_band = fringe * heated_warmth * 0.55;
+	float wet_band = fringe * cleared * heated_warmth * 0.55;
 	f.x *= 1.0 - cleared + residual;
 	f.y *= 1.0 - cleared + residual * 0.45;
 	f.z = max(f.z, wet_band * 0.48);

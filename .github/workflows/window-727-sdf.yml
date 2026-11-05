@@ -32,14 +32,14 @@ jobs:
           sudo apt-get install -y -qq mesa-vulkan-drivers xvfb ffmpeg
       - name: Validate Godot import
         run: tools/ci/import_gate.sh
-      - name: Render only real FrontWindow1, V2 then V3
+      - name: Render only real FrontWindow1, main baseline then SDF
         run: |
           set -euo pipefail
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export XDG_RUNTIME_DIR=/tmp/xdg
           mkdir -p "$XDG_RUNTIME_DIR" docs/runtime_previews/window_727_sdf
           timeout 720 xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . --resolution 720x405 --fixed-fps 12 \
+            --path . --resolution 960x540 --fixed-fps 12 \
             --rendering-driver vulkan --rendering-method forward_plus \
             --audio-driver Dummy \
             --script res://tools/runtime/capture_window_727_sdf.gd \
@@ -54,16 +54,16 @@ jobs:
           cd docs/runtime_previews/window_727_sdf
           ffmpeg -v error -y -framerate 12 -i frames/f_%03d.png \
             -vf scale=960:540:flags=lanczos \
-            -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart window_727_sdf_v2_vs_v3_6s.mp4
-          ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames,width,height -of csv=p=0 window_727_sdf_v2_vs_v3_6s.mp4 | grep -q '960,540,72'
-          ffmpeg -v error -y -i frames/f_024.png -vf scale=960:540 -frames:v 1 sdf_v2_2s.png
-          ffmpeg -v error -y -i frames/f_060.png -vf scale=960:540 -frames:v 1 sdf_v3_5s.png
-          test -s window_727_sdf_v2_vs_v3_6s.mp4
+            -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart window_727_main_vs_sdf_6s.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames,width,height -of csv=p=0 window_727_main_vs_sdf_6s.mp4 | grep -q '960,540,72'
+          ffmpeg -v error -y -i frames/f_024.png -vf scale=960:540 -frames:v 1 baseline_2s.png
+          ffmpeg -v error -y -i frames/f_060.png -vf scale=960:540 -frames:v 1 sdf_5s.png
+          test -s window_727_main_vs_sdf_6s.mp4
       - name: Upload only-window A/B
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hoarbound-727-window-wetglass-v3-issue-281
+          name: hoarbound-727-main-vs-sdf-issue-281
           path: |
             docs/runtime_previews/window_727_sdf/*.mp4
             docs/runtime_previews/window_727_sdf/*.png

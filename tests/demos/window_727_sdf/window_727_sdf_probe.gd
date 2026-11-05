@@ -37,10 +37,10 @@ func verified_triangles() -> int:
 func set_test_time(seconds: float) -> void:
 	if not _valid:
 		return
-	# Exactly one six-second video: identical V2 (0..3s), V3 (3..6s).
+	# Six seconds: production baseline then SDF, same 36 warmth samples.
 	var second: bool = seconds >= 3.0
-	var progress: float = clampf(fmod(seconds, 3.0) / 3.0, 0.0, 1.0)
-	_window.material_override = _sdf if second else _sdf_v2
+	var progress: float = clampf(fmod(seconds * 12.0, 36.0) / 35.0, 0.0, 1.0)
+	_window.material_override = _sdf_v2 if second else _plain
 	_plain.set_shader_parameter(&"heated_warmth", progress)
 	_sdf.set_shader_parameter(&"heated_warmth", progress)
 	_sdf_v2.set_shader_parameter(&"heated_warmth", progress)
@@ -54,7 +54,7 @@ func set_test_time(seconds: float) -> void:
 		variant.set_shader_parameter(&"blob_data", blobs)
 		variant.set_shader_parameter(&"blob_count", 3 if progress > 0.0 else 0)
 	_label.text = "727 FORT ST  /  FRONTWINDOW1     %s     THAW: %02d%%" % [
-		"V2  /  IRREGULAR FRONT" if not second else "V3  /  THINNING + WET GLASS",
+		"A / MAIN FROST" if not second else "B / SDF THAW",
 		int(progress * 100.0)
 	]
 
@@ -99,10 +99,7 @@ func _load_real_pane() -> bool:
 		instance.queue_free()
 		return false
 
-	# The existing GLB exporter includes POSITION + NORMAL, but no TEXCOORD_0
-	# or COLOR_0. Extract ONLY the real triangle vertices for this opening.
-	# Test-only UVs are derived by projecting each original vertex to the
-	# existing plan frame. No QuadMesh replacement and no GLB rewrite.
+	# Preserve UV/COLOR already authored in the current main GLB.
 	var vertices: PackedVector3Array = PackedVector3Array()
 	var normals: PackedVector3Array = PackedVector3Array()
 	var texcoords: PackedVector2Array = PackedVector2Array()
@@ -110,6 +107,12 @@ func _load_real_pane() -> bool:
 	for si: int in range(glass.mesh.get_surface_count()):
 		var arrays: Array = glass.mesh.surface_get_arrays(si)
 		var source_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var source_uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var source_color: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		if source_uv.size() != source_vertices.size() or source_color.size() != source_vertices.size():
+			push_error("WINDOW_727_TEST_FAIL: missing source UV/COLOR")
+			instance.queue_free()
+			return false
 		var source_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
 		if source_indices.is_empty():
 			for iv: int in range(source_vertices.size()):
@@ -129,18 +132,21 @@ func _load_real_pane() -> bool:
 				continue
 			if mid.y < y0 - 0.07 or mid.y > y1 + 0.07:
 				continue
+			var all_inside: bool = true
+			for q: Vector3 in planar:
+				if absf(q.x - centre.x) > width * 0.5 + 0.12 or absf(q.z - centre.z) > 0.33 or q.y < y0 - 0.07 or q.y > y1 + 0.07:
+					all_inside = false
+			if not all_inside:
+				continue
 			var n: Vector3 = (tri[1] - tri[0]).cross(tri[2] - tri[0]).normalized()
 			for corner: int in range(3):
 				vertices.append(tri[corner])
 				normals.append(n)
-				var p: Vector3 = planar[corner]
-				texcoords.append(Vector2(
-					0.5 + (p.x - centre.x) / width,
-					0.5 - (p.y - centre.y) / height))
-				colours.append(Color(0.96, 1.0, 0.16, 1.0))
+				texcoords.append(source_uv[source_indices[k + corner]])
+				colours.append(source_color[source_indices[k + corner]])
 			_verified_triangles += 1
 	instance.queue_free()
-	if _verified_triangles < 4:
+	if _verified_triangles != 12:
 		push_error("WINDOW_727_TEST_FAIL: only %d source glass triangles for FrontWindow1" % _verified_triangles)
 		return false
 	var mesh_arrays: Array = []
