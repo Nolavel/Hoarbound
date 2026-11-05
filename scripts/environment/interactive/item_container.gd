@@ -383,6 +383,6 @@ func _outline(id: StringName) -> AABB:
 	probe.show_ground_highlight = false
 	add_child(probe)
 	var box: AABB = BackpackModel._local_bounds(probe)
-	probe.free()
+	SurvivalItemVisual.release(probe)
 	_outlines[id] = box
 	return box
