@@ -186,6 +186,18 @@ func _run() -> void:
 	await _frames(40)
 	print("pack hands: the pad steps the ring between %d targets" % targets)
 
+	## Pockets have real inside sizes (cm): the axe (37 cm) no longer goes into a coat pocket, a tin still does.
+	var equip := _hub.get_parent().get_node(^"EquipmentComponent") as EquipmentComponent
+	_check(ItemFootprint.fits(&"spov_can", Vector3(20, 22, 11)) and not ItemFootprint.fits(&"axe", Vector3(20, 22, 11)),
+		"a coat pocket's size does not take a tin and refuse the axe (axe %s cm)" % ItemFootprint.size_cm(&"axe"))
+	_check(ItemFootprint.fits(&"axe", Vector3(18, 40, 5)), "the axe does not fit its own sleeve")
+	for tool: StringName in [&"hammer", &"axe", &"frying_pan"]:
+		for pocket: StringName in [&"coat_left", &"thigh_right"]:
+			var body_slot: StringName = &"torso_outer" if pocket == &"coat_left" else &"legs_outer"
+			_check(equip.can_stow(body_slot, pocket, tool) != EquipmentComponent.Refusal.NONE,
+				"the %s would go into the %s pocket" % [tool, pocket])
+	print("pack hands: the axe is %s cm, too long for a 20x22x11 coat pocket" % ItemFootprint.size_cm(&"axe").snapped(Vector3.ONE * 0.1))
+
 	## Small things in numbers lie in as one bundle per stack, and the readout says how many.
 	var strapped_before: int = _hub.pack.get_straps().items.size()
 	for _n: int in 20:

@@ -9,6 +9,7 @@ script = ExtResource("slot")
 id = &"coat_left"
 display_name = "Left coat pocket"
 max_size = 0
+inner_cm = Vector3(20, 22, 11)
 accepts_non_garment = false
 excluded_from_auto_stow = false
 
@@ -17,6 +18,7 @@ script = ExtResource("slot")
 id = &"coat_right"
 display_name = "Right coat pocket"
 max_size = 0
+inner_cm = Vector3(20, 22, 11)
 accepts_non_garment = false
 excluded_from_auto_stow = false
 

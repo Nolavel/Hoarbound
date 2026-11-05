@@ -8,6 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Pockets have real inside sizes in cm and take only what fits by the item's model. The hammer, the axe and the pan no longer go into coat or trouser pockets (owner); tins, the knife and the lighter still do.
 - 3D inventory (Hub): small things in numbers (nails, tinder, flares, empty tins) lie in the pack as one bundle per stack, and the readout says how many ("Nails ×20"). 20 nails used to take 20 places.
 - 3D inventory (Hub), gamepad: a flick of the stick steps the ring to the nearest item, card, the hand or the pack that way, instead of steering a free cursor.
 - 3D inventory (Hub): a threat shuts the open pack, since time never stops there. That is a blow (new `PlayerHealthSystem.hurt`, not frostbite's slow loss) or a fall; other threats can call `interrupt()`.

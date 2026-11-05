@@ -116,6 +116,11 @@ Code: `scripts/items/backpack/pack_handling.gd` (`PackHandling`), `pack_cursor.g
   - Each kg adds 0.12 s, up to 0.4 s.
   - Cold hands (`ThermalManager.get_extremity_cold(&"hands")`, via `Hub.get_hands_cold`) multiply it by up to 2.5. A tin off the bottom strap takes 0.63 s warm and 1.57 s frozen.
   - Past a quarter of that cold load the ring shakes, up to 9 px at 7 Hz, so frozen hands also aim worse.
+- **Pockets in centimetres** (`EquipmentSlotDefinition.inner_cm`, `ItemFootprint`). A pocket with an inside size takes an item only if its real size fits: the item's model, measured once per id.
+  - The two smaller sides must pass the mouth, and the longest must fit the depth, standing out up to 30%.
+  - Garments squash, so for them only the size class counts.
+  - Sizes: coat 20×22×11, thigh 18×24×8, pack lid 28×22×8, thermos sleeve 11×22×11, tool sleeves 18×40×5. The main compartment and the carabiners keep the size class alone.
+  - Result: the hammer (34 cm), the axe (37 cm) and the pan (39 cm) go into no coat or trouser pocket; tins, the knife and the lighter still do.
 - **Bundles** (`ItemResource.bundles`). Small things kept in numbers (`max_stack` of 5 or more: nails, tinder, road flares, empty tins) lie under the straps as one bundle per full stack (`PackRig._refresh_contents`). Tins (stack 4) stay one place each.
   - The readout names the count: "Nails ×20" (`ItemReadout.describe(id, count)`, `ITEM_BUNDLE_COUNT`).
   - Taking a bundle takes one unit; the rest stay.
