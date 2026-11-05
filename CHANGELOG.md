@@ -8,6 +8,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory: the body's pockets stand in a row at the bottom centre: trousers, the hand card, coat.
+  - The clothes panel is hidden (owner's call). Its code stays behind `PackQuickShelf.SHOW_BODY_PANEL`.
 - 3D inventory at an open cabinet: Tab within reach takes its shelves in.
   - The pack opens upward beside the shelves, seen over Henry's shoulder.
   - The ring carries items shelf ↔ pack ↔ pockets through new Hub moves (`move_from_container`, `move_to_container`).

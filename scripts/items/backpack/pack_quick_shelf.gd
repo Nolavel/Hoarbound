@@ -1,12 +1,11 @@
 class_name PackQuickShelf
 extends Node3D
 
-## Quick Access while Henry holds the pack open (3D inventory). A pocket whose item shows on the pack itself
-## (side pockets, carabiners) has no card: its item there is hovered on its own outline. Hidden pockets stand as
-## cards on the Quick Access gradient (BG_frame.gdshader) with their 3D item, no text: the coat's and the
-## trousers' over a see-through grey panel of Henry's clothes at the left (body_front.png, baked by
-## tools/runtime/bake_body_silhouette.gd), the pack lid's at the right. The hand card at the right shows what
-## Henry takes in hand (the Quick Access pick); a pocket's item let go on it becomes the pick.
+## Quick Access while Henry holds the pack open (3D inventory). Pockets whose item shows on the pack (side
+## pockets, carabiners) have no card: the item there is hovered on its outline. Hidden pockets stand as cards on
+## the Quick Access gradient (BG_frame.gdshader) with their 3D item, no text: the body's in a row at the bottom
+## centre (trousers, the hand card, coat; the clothes panel is kept behind SHOW_BODY_PANEL), the lid's at the
+## right. The hand card shows the Quick Access pick; a pocket's item let go on it becomes the pick.
 
 const BG_FRAME: Shader = preload("res://assets/materials/Shaders/BG_frame.gdshader")
 const BODY_FRONT: Texture2D = preload("res://assets/ui/inventory/body_front.png")
@@ -24,6 +23,13 @@ const BODY_CARD_SCALE: float = 0.72
 ## its icon this faint.
 const HAND_V: float = 0.4
 const HAND_ICON_TINT: Color = Color(1.0, 1.0, 1.0, 0.28)
+## Off (owner's call), the clothes panel hides and the body's pockets stand in a row at the bottom centre:
+## the trousers' left, the hand in the middle, the coat's right (BOTTOM_ROW order, "hand" the hand card).
+const SHOW_BODY_PANEL: bool = false
+const BOTTOM_ROW: Array[String] = ["thigh_left", "thigh_right", "hand", "coat_left", "coat_right"]
+## The bottom row's middle height (share of the half height, down) and the extra gap between groups (cards).
+const BOTTOM_SHARE: float = 0.8
+const BOTTOM_GROUP_GAP: float = 0.35
 ## An item stands still on its card, turned this much so its shape reads (x, y radians).
 const ITEM_TURN := Vector2(0.3, -0.55)
 ## A card's side in its own space, and how big its item stands on it (shares of that side).
@@ -216,7 +222,10 @@ func _process(_delta: float) -> void:
 	var body_size := Vector2(body_height * BODY_FRONT.get_width() / float(BODY_FRONT.get_height()), body_height)
 	var body_at := Vector3(-half_w * BODY_X_SHARE, 0.0, -DEPTH_M - 0.002)
 	_body.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3(body_size.x, body_size.y, 1.0)), body_at)
+	_body.visible = SHOW_BODY_PANEL
 	var hand_at := body_at + Vector3(body_size.x * 0.5 + size * 0.75, (0.5 - HAND_V) * body_size.y, 0.002)
+	if not SHOW_BODY_PANEL:
+		hand_at = _bottom_spot("hand", half_h, size)
 	hand_card.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * size / CARD_M), hand_at)
 	for k: int in slots.size():
 		var slot: Dictionary = slots[k]
@@ -227,10 +236,23 @@ func _process(_delta: float) -> void:
 		var at := Vector3(side * half_w * COLUMN_SHARE, half_h * TOP_SHARE - float(slot["row"]) * size * ROW_PITCH, -DEPTH_M)
 		var uv: Vector2 = slot["body_uv"]
 		var side_m: float = size
-		if uv.x >= 0.0:
+		if uv.x >= 0.0 and SHOW_BODY_PANEL:
 			at = body_at + Vector3((uv.x - 0.5) * body_size.x, (0.5 - uv.y) * body_size.y, 0.002)
 			side_m = size * BODY_CARD_SCALE
+		elif BOTTOM_ROW.has(String(_pocket(k))):
+			at = _bottom_spot(String(_pocket(k)), half_h, size)
 		(slot["card"] as Node3D).global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * side_m / CARD_M), at)
+
+
+## Where `place` (a BOTTOM_ROW entry) stands in the bottom row, camera space: cards a pitch apart, the groups
+## (trousers, hand, coat) a little further.
+func _bottom_spot(place: String, half_h: float, size: float) -> Vector3:
+	var index: int = BOTTOM_ROW.find(place)
+	var middle: int = BOTTOM_ROW.find("hand")
+	var x: float = float(index - middle) * size * ROW_PITCH
+	if index != middle:
+		x += signf(float(index - middle)) * size * BOTTOM_GROUP_GAP
+	return Vector3(x, -half_h * BOTTOM_SHARE, -DEPTH_M)
 
 
 ## Slot k's unseen card stands square to the camera behind its item on the pack (or its empty spot), so the

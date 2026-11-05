@@ -2,7 +2,7 @@ extends SceneTree
 
 ## The held pack at an open cabinet on a bare stand (fast to frame, unlike Key West): a cabinet built like the
 ## 727 one ahead of Henry with tins and a stew; Tab, then a still of the view. For tuning the container view.
-## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1920x1080 --script res://tools/runtime/capture_container_stand.gd -- <out png>
+## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1920x1080 --script res://tools/runtime/capture_container_stand.gd -- <out png> [plain]
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
 const PANELS: Array = [
@@ -15,12 +15,15 @@ const PANELS: Array = [
 ]
 
 var _out: String = "user://container_stand.png"
+## "plain" as the second argument: no cabinet (the ordinary Tab view).
+var _plain: bool = false
 
 
 func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if not args.is_empty():
 		_out = args[0]
+	_plain = args.size() > 1 and args[1] == "plain"
 	_run()
 
 
@@ -55,6 +58,8 @@ func _run() -> void:
 	for _i: int in 40:
 		await process_frame
 	var forward: Vector3 = -player.global_basis.z.slide(Vector3.UP).normalized()
+	if _plain:
+		forward = Vector3.DOWN * 100.0  # the cabinet goes far below, out of reach and sight
 	var cabinet := Node3D.new()
 	var paint := StandardMaterial3D.new()
 	paint.albedo_color = Color(0.36, 0.38, 0.42)
