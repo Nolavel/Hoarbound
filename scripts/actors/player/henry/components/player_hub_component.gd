@@ -30,6 +30,12 @@ const CONTAINER_REACH_M: float = 1.3
 ## A visit (visit_container): the walk counts as arrived this near its spot and gives up after VISIT_WALK_S;
 ## crouched (or standing at a tall one) the pack opens after VISIT_SETTLE_S, at most VISIT_CROUCH_S on, seconds.
 const VISIT_ARRIVE_M: float = 0.3
+## The door clip (Chest_Open) is cut this long after F, once his hand is at the door, so he walks at once.
+const VISIT_REACH_S: float = 0.45
+## A walk that gets no nearer for VISIT_STALL_S (a wall or the furniture in the way) ends there: arrived when
+## within VISIT_STALL_ARRIVE_M of the spot, else called off.
+const VISIT_STALL_S: float = 0.25
+const VISIT_STALL_ARRIVE_M: float = 0.7
 const VISIT_WALK_S: float = 4.0
 const VISIT_SETTLE_S: float = 0.25
 const VISIT_CROUCH_S: float = 1.2
@@ -75,6 +81,8 @@ var _visit: ItemContainer
 var _visit_spot: Dictionary = {}
 var _visit_walking: bool = false
 var _visit_s: float = 0.0
+var _visit_nearest: float = INF
+var _visit_stall_s: float = 0.0
 ## The Quick Access cards beside the held pack and the hands working in it (pack_in_hands mode).
 var _shelf: PackQuickShelf
 var _hands: PackHandling
@@ -105,6 +113,8 @@ func visit_container(shelves: ItemContainer) -> bool:
 	_visit_spot = shelves.visit_spot(body.global_position)
 	_visit_walking = true
 	_visit_s = 0.0
+	_visit_nearest = INF
+	_visit_stall_s = 0.0
 	body.move_to_position(_visit_spot["at"])
 	return true
 
@@ -125,9 +135,17 @@ func _physics_process(delta: float) -> void:
 	var at: Vector3 = _visit_spot["at"]
 	var off: float = Vector2(at.x - body.global_position.x, at.z - body.global_position.z).length()
 	if _visit_walking:
-		if body.is_walking_to_target() and _visit_s < VISIT_WALK_S:
+		if body.is_action_locking() and _visit_s >= VISIT_REACH_S and _visual() != null:
+			_visual().stop_action()
+		if off < _visit_nearest - 0.01:
+			_visit_nearest = off
+			_visit_stall_s = 0.0
+		elif not body.is_action_locking():
+			_visit_stall_s += delta
+		var stalled: bool = _visit_stall_s >= VISIT_STALL_S
+		if body.is_walking_to_target() and _visit_s < VISIT_WALK_S and not stalled:
 			return
-		if off > VISIT_ARRIVE_M:
+		if off > (VISIT_STALL_ARRIVE_M if stalled else VISIT_ARRIVE_M):
 			_end_visit()  # WASD took over, or he could not get there
 			return
 		body.stop_moving()

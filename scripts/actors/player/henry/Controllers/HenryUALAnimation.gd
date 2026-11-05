@@ -636,6 +636,12 @@ func is_upper_action_active() -> bool:
 		or int(animation_tree.get("parameters/upper_actions/request")) == AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 
 
+## Fades the playing full-body action out now (a scripted walk takes over, as after reaching a cabinet door).
+func stop_action() -> void:
+	if animation_tree != null and _action_node != null:
+		animation_tree.set("parameters/actions/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FADE_OUT)
+
+
 func is_action_active() -> bool:
 	if animation_tree == null:
 		return false

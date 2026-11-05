@@ -33,6 +33,20 @@ const CONTAINER_BOTTOM: float = -1.0
 const CONTAINER_PACK_EXTRA_TOP_M: float = 0.16
 const CONTAINER_PACK_EXTRA_SIDE_M: float = 0.08
 const CONTAINER_PACK_PANEL_M: float = 0.46
+## What hangs off its loops (the pan, the mug) reaches this far below its foot; the pack is lifted until that
+## clears the floor by CONTAINER_FLOOR_CLEAR_M, metres.
+const CONTAINER_PACK_HANG_M: float = 0.26
+const CONTAINER_FLOOR_CLEAR_M: float = 0.03
+## The pack's half sits this much (NDC) in toward the furniture; the frame is worked out this much wider than the
+## view, so both show this much larger (owner: closer, tighter), their outer edges just past the frame.
+const CONTAINER_PACK_IN: float = 0.15
+const CONTAINER_TIGHTEN: float = 1.08
+## Henry is hidden once the swing is this far on (the blur has come up by then).
+const CONTAINER_HIDE_AT: float = 0.6
+## A stand-in forearm (owner: his hand on the pack, from behind, in the blur): sleeve and hand sizes, metres.
+const CONTAINER_ARM_RADIUS_M: float = 0.055
+const CONTAINER_ARM_LENGTH_M: float = 0.8
+const CONTAINER_HAND_M: Vector3 = Vector3(0.09, 0.05, 0.16)
 ## The front panel opens this far there, so it lies on the floor (fully open it would dip under), degrees.
 const CONTAINER_PANEL_DEG: float = 88.0
 ## The strap that stays over a shoulder while the pack is held (0 left, 1 right).
@@ -66,6 +80,7 @@ var container_side: float = 1.0
 ## The container framing, worked out once: the view and the pack's place (world).
 var _container_view := Transform3D()
 var _container_pack := Transform3D()
+var _arm: Node3D
 var _home_parent: Node
 var _home_transform: Transform3D
 var _from: Transform3D
@@ -97,7 +112,8 @@ func begin_container(shelves: ItemContainer, side: float, fov: float) -> void:
 	container_side = side
 	_frame_container(fov)
 	pack.get_canvas().set_opening(BackpackModel.ZIP_FULL_M, CONTAINER_PANEL_DEG)
-	visual.visible = false
+	_arm = _make_arm()
+	pack.get_parent().add_child(_arm)
 
 
 ## Swings the pack back on; `finished` fires when it is home and the hands are free.
@@ -107,6 +123,9 @@ func finish() -> void:
 	_ending = true
 	_from = held_transform()
 	visual.visible = true
+	if is_instance_valid(_arm):
+		_arm.queue_free()
+	_arm = null
 	pack.set_hangers_frozen(false)
 	pack.set_openness(PackRig.Openness.CLOSED)
 
@@ -161,7 +180,7 @@ func _frame_container(fov: float) -> void:
 	var from: Vector3 = (flat + Vector3.UP * CONTAINER_VIEW_UP).normalized()
 	var basis := Basis.looking_at(-from, Vector3.UP)
 	var size: Vector2 = container.get_viewport().get_visible_rect().size
-	var tans := Vector2(tan(deg_to_rad(fov) * 0.5) * size.x / maxf(size.y, 1.0), tan(deg_to_rad(fov) * 0.5))
+	var tans := Vector2(tan(deg_to_rad(fov) * 0.5) * size.x / maxf(size.y, 1.0), tan(deg_to_rad(fov) * 0.5)) * CONTAINER_TIGHTEN
 	var mid_y: float = (CONTAINER_TOP + CONTAINER_BOTTOM) * 0.5
 	var half := Vector2(CONTAINER_SHARE, (CONTAINER_TOP - CONTAINER_BOTTOM) * 0.5)
 	var body: AABB = container.body_box()
@@ -177,7 +196,8 @@ func _frame_container(fov: float) -> void:
 	## The pack floats in the other half, as near as fills it across (or the band's height), its foot on the
 	## furniture's foot line on screen so the two read as standing side by side.
 	var depth: float = (container.global_transform * body.get_center() - eye).dot(-basis.z) * 0.6
-	var aim := Vector2(container_side * 0.5, mid_y)
+	var pack_x: float = container_side * (0.5 - CONTAINER_PACK_IN)
+	var aim := Vector2(pack_x, mid_y)
 	for _step: int in 60:
 		var at: Vector3 = eye + (-basis.z + basis.x * aim.x * tans.x + basis.y * aim.y * tans.y) * depth
 		_container_pack = _pack_facing(at, eye)
@@ -187,8 +207,13 @@ func _frame_container(fov: float) -> void:
 		var pack_box: Rect2 = _ndc_box(corners, _container_view, tans)
 		var room_y: float = CONTAINER_TOP - furniture_box.position.y
 		depth *= maxf(pack_box.size.x / (half.x * 2.0), pack_box.size.y / room_y)
-		aim.x -= (pack_box.get_center().x - container_side * 0.5) * 0.5
+		aim.x -= (pack_box.get_center().x - pack_x) * 0.5
 		aim.y -= (pack_box.position.y - furniture_box.position.y) * 0.5
+	## Nearer than the furniture, its foot on the same screen line stands above the floor; lifted further if
+	## what hangs off it would still reach the floor.
+	var floor_y: float = (container.global_transform * body.position).y
+	var hang_y: float = _container_pack.origin.y - pack.size.y * 0.5 - CONTAINER_PACK_HANG_M
+	_container_pack.origin.y += maxf(floor_y + CONTAINER_FLOOR_CLEAR_M - hang_y, 0.0)
 
 
 ## One step of fitting `corners` into the NDC box at `centre` ± `half` from `view` (by width only when
@@ -220,6 +245,49 @@ static func _ndc_box(corners: Array[Vector3], view: Transform3D, tans: Vector2) 
 func _pack_facing(at: Vector3, eye: Vector3) -> Transform3D:
 	var toward: Vector3 = (eye - at).slide(Vector3.UP).normalized()
 	return Transform3D(Basis(Vector3.UP.cross(toward).normalized() * -1.0, Vector3.UP, -toward), at)
+
+
+## The stand-in forearm: a sleeve in the jacket's cloth and a hand, outside the pack (so the focus blur takes it).
+func _make_arm() -> Node3D:
+	var arm := Node3D.new()
+	arm.name = "ContainerArm"
+	var sleeve := MeshInstance3D.new()
+	var tube := CylinderMesh.new()
+	tube.top_radius = CONTAINER_ARM_RADIUS_M
+	tube.bottom_radius = CONTAINER_ARM_RADIUS_M * 0.8
+	tube.height = CONTAINER_ARM_LENGTH_M
+	sleeve.mesh = tube
+	sleeve.position = Vector3(0.0, CONTAINER_ARM_LENGTH_M * 0.5 + CONTAINER_HAND_M.z * 0.4, 0.0)
+	var jacket := visual.find_child(PackShoulderStraps.JACKET, true, false) as MeshInstance3D
+	if jacket != null and jacket.mesh != null:
+		sleeve.material_override = jacket.get_active_material(0)
+	arm.add_child(sleeve)
+	var hand := MeshInstance3D.new()
+	var palm := CapsuleMesh.new()
+	palm.radius = CONTAINER_HAND_M.x * 0.5
+	palm.height = CONTAINER_HAND_M.z
+	hand.mesh = palm
+	hand.scale = Vector3(1.0, 1.0, CONTAINER_HAND_M.y / CONTAINER_HAND_M.x)
+	var skin := StandardMaterial3D.new()
+	skin.albedo_color = Color(0.62, 0.46, 0.36)
+	skin.roughness = 0.8
+	hand.material_override = skin
+	arm.add_child(hand)
+	for part: GeometryInstance3D in [sleeve, hand]:
+		part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return arm
+
+
+## The forearm comes from behind and outside the pack (away from the furniture), its hand over the outer top
+## corner as if holding it there: +Y runs up the arm.
+func _place_arm(at: Transform3D) -> void:
+	var half: Vector3 = pack.size * 0.5
+	var outward: Vector3 = (at.origin - container.global_transform * container.body_box().get_center()).slide(Vector3.UP).normalized()
+	var outer_x: float = signf(at.basis.x.dot(outward)) * half.x
+	var grip: Vector3 = at * Vector3(outer_x, half.y, half.z * 0.4)
+	var up_arm: Vector3 = (Vector3.UP * 0.3 + at.basis.z.normalized() * 0.5 + outward * 0.8).normalized()
+	var side: Vector3 = up_arm.cross(at.basis.z).normalized()
+	_arm.global_transform = Transform3D(Basis(side, up_arm, side.cross(up_arm)), grip)
 
 
 ## The corners of what the open pack takes up, rig space: its body, the bedroll, the panel open on the floor.
@@ -269,6 +337,8 @@ func _process(delta: float) -> void:
 		if _still_s >= HANG_SETTLE_S:
 			## Held still in his hands, nothing on it swings: the mug and the pan keep the pose they settled in.
 			pack.set_hangers_frozen(true)
+	if container != null and not _ending and visual.visible and _t >= CONTAINER_HIDE_AT:
+		visual.visible = false
 	var eased: float = smoothstep(0.0, 1.0, _t)
 	var home: Transform3D = _home_parent.global_transform * _home_transform if is_instance_valid(_home_parent) else _from
 	var start: Transform3D = home if not _ending else home
@@ -283,6 +353,8 @@ func _process(delta: float) -> void:
 		if exp(-JOLT_DECAY * _jolt_t) < 0.01:
 			_jolt_m = 0.0
 	pack.global_transform = at
+	if is_instance_valid(_arm):
+		_place_arm(at)
 	if container == null:
 		_grip_sides(eased)
 	if _ending and _t <= 0.0:

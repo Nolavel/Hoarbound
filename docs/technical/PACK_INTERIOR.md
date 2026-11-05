@@ -84,9 +84,12 @@ Code: `scripts/environment/interactive/item_container.gd` (`ItemContainer`). Tes
   - **Framing (owner's sketch).** Only the pack and the furniture are in the frame, Henry hidden (owner: he does not matter here) (`PackFrontHold.begin_container`, `_frame_container`).
     - The view looks in at 30° from the side away from the pack and a little above. The furniture's front is turned to the pack and its far side shows, through a 34° lens (`Hub.container_view_fov`).
     - The view stands where the furniture (`ItemContainer.body_box`, its door left out) fills its half: 48% of the frame width (`CONTAINER_SHARE`).
-    - The pack floats in the other half, upright, its opening turned to the view, its front panel open flat (88°). It is as near as fills 48% across, its foot on the furniture's foot line on screen.
-    - Both fit in nearly the whole height. The load bar and the pocket cards draw over them.
-    - Measured on the stand (`tools/runtime/capture_container_stand.gd left|right`): pack 48%, furniture 47%.
+    - The pack floats in the other half, pressed in toward the furniture (`CONTAINER_PACK_IN`). It stands upright, its opening turned to the view, its front panel open flat (88°). It is as near as fills its half, its foot on the furniture's foot line on screen.
+    - It is lifted further if what hangs off it (the pan, 0.26 m) would reach the floor (`CONTAINER_FLOOR_CLEAR_M`).
+    - The frame is worked out 8% wider than the view (`CONTAINER_TIGHTEN`), so both show larger and their outer edges run just past the frame (owner: tighter). The load bar and the pocket cards draw over them.
+    - Henry is hidden once the pack's swing is 60% on, when the blur has come up. A stand-in forearm stays in the blur: a sleeve in the jacket's cloth and a hand, reaching from behind and outside the pack to its outer top corner (`_make_arm`, `_place_arm`).
+    - Measured on the stand (`tools/runtime/capture_container_stand.gd left|right`): pack 52%, furniture 50%, both just past the frame's outer edges.
+  - **No wait at the door.** F plays Henry's Chest_Open clip, which holds him still. The visit cuts it 0.45 s in, once his hand is at the door, and he walks at once (`HenryUALAnimation.stop_action`, `Hub.VISIT_REACH_S`). A walk that gets no nearer for 0.25 s (a wall or the furniture in the way) counts as arrived within 0.7 m (`VISIT_STALL_S`). Before, Henry pushed against it until a 4 s timeout: the freeze the owner saw (Key West trace: stuck 0.18 m short from 2.2 s to 4 s).
   - The ring hovers a shelf item on its silhouette (`ItemContainer.pick`). LMB carries it into the pack (`Hub.move_from_container`, the pack's room checked first, jolt) or onto a pocket's card; a pack or pocket item let go over the shelves goes onto them (`Hub.move_to_container`); a full shelf refuses with `CONTAINER_NO_ROOM`. RMB and G do nothing on a shelf item.
   - Tests: `tests/systems/test_container_hands.gd`; capture: `tools/runtime/capture_container_view.gd` (the 727 cabinet).
 
