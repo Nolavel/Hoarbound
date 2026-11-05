@@ -75,12 +75,19 @@ Code: `scripts/environment/interactive/item_container.gd` (`ItemContainer`). Tes
 - Shelves come from the furniture's own box panels (`shelves_from_furniture`): side walls, back wall and horizontal panels; the space between neighbouring horizontals is a shelf; the door's subtree is left out.
 - Items stand leftmost on the first shelf with room, by their real outline, clear of each other (2 cm gaps); no room is `CONTAINER_NO_ROOM`.
 - The 727 waiting-room cabinet (`KeyWest727Shelter.place_supplies`) holds its dressed tins as real items (`CABINET_PROPS`: stew, pineapple) and adopts the layout's pickups socketed `on: Cabinet` (the SPoV can, the gloves); the dressed mug was removed (it duplicated Henry's). An older save that took one of them from the world drops it again (`PickupLedger` → `drop_taken`).
-- **Visiting a container** (owner's design). Henry walks to its visit spot and the pack opens there (`PlayerHubComponent.visit_container`). Either trigger starts the walk:
-  - F opening its door, with the player within 3 m (`ItemContainer._on_door_toggled`);
-  - Tab within 1.3 m of a reachable one (`ItemContainer.find_open_near`).
+- **Visiting a container** (owner's design), in two presses of F.
+  - **F on the door** only opens and shuts it. Open, the door is aimed at on its swung-open leaf (`Cabinet.get_focus_point`), so aiming into the shelves offers the search instead.
+  - **Open, with something inside:**
+    - The shelves' open face is frosted over: a quad with `shaders/items/frosted_veil.gdshader` (the screen behind at a blurred mip, hazed). What is inside reads only as unclear shapes (`ItemContainer._make_veil`).
+    - Its items are not taken by F (`ItemPickup.in_container`).
+    - Instead the search is offered at the middle of the face (`ContainerSearch`, pickup channel): the pickup marker's ring and F, with an eye over the F (`InteractiveArea.marker_icon`, `assets/ui/hud/pickup_marker/eye.svg`, Material Symbols, Apache 2.0).
+  - **F on the search** (or Tab beside an open container) walks Henry to his point (`PlayerHubComponent.visit_container`).
+  - **At the point** he crouches and slips the pack off into his hands together, in the game camera that keeps following him (`PackFrontHold`, as by Tab). The Hub's camera is only made current at the cut.
+  - **The cut.** Once the pack is in his hands (`settled`), the view cuts hard to the working frame (`Hub._cut_to_container`). The pack takes its framed place, Henry leaves the frame, and the focus blur, the cards and the ring come on. The frost lifts while the Hub holds that container.
+  - **Closing** puts the pack back from his hands as by Tab.
   - **The free side.** The pack goes on the side away from the door's hinge, where the open door does not swing (`ItemContainer.free_side`). With no door it goes on the side Henry came from.
   - **The spot.** Henry's spot is 0.45 m out from the shelves' front and 0.58 m past the edge on that side (`ItemContainer.visit_spot`). WASD on the way calls the visit off, and so does Tab again.
-  - **Crouching.** There he faces the front. If the shelves top out below 1.1 m he crouches (`ItemContainer.is_low`, `Player.set_work_crouch`). The pack opens once he is down, and closing it stands him up.
+  - **Crouching.** There he faces the front. If the shelves top out below 1.1 m he crouches (`ItemContainer.is_low`, `Player.set_work_crouch`). Closing the pack stands him up.
   - **Hangers keep out of the floor and the furniture.** By a container, what hangs off the carabiners stays free instead of frozen. Two more obstacles join the pack's own body for the pendulum's contact solver (`BackpackModel._pack_contact`):
     - the floor at the furniture's foot (`hang_floor_y`);
     - the furniture's own box (`hang_obstacles`, from `ItemContainer.body_box`).

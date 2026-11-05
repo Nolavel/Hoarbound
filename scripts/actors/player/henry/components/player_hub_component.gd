@@ -27,8 +27,8 @@ const INSPECT_PACK_SPOT: Vector3 = Vector3(0.0, -0.9, -0.75)
 const INSPECT_KENNY_SPOT: Vector3 = Vector3(0.7, -0.9, -0.3)
 ## An open container this near ahead of Henry joins the held pack (its shelves), metres.
 const CONTAINER_REACH_M: float = 1.3
-## A visit (visit_container): the walk counts as arrived this near its spot and gives up after VISIT_WALK_S;
-## crouched (or standing at a tall one) the pack opens after VISIT_SETTLE_S, at most VISIT_CROUCH_S on, seconds.
+## A visit (visit_container): the walk counts as arrived this near its spot and gives up after VISIT_WALK_S,
+## seconds; there he crouches and takes the pack off at once.
 const VISIT_ARRIVE_M: float = 0.3
 ## A threat shuts the open Hub (Green Hell): damage, or falling faster than this, m/s (interrupt()).
 const INTERRUPT_FALL_SPEED: float = 2.0
@@ -39,8 +39,6 @@ const VISIT_REACH_S: float = 0.45
 const VISIT_STALL_S: float = 0.25
 const VISIT_STALL_ARRIVE_M: float = 0.7
 const VISIT_WALK_S: float = 4.0
-const VISIT_SETTLE_S: float = 0.25
-const VISIT_CROUCH_S: float = 1.2
 ## Something put down from the open pack lands this far ahead of Henry, metres.
 const DROP_AHEAD_M: float = 0.7
 ## route_destination's answer when the item stays in the pack.
@@ -173,9 +171,7 @@ func _physics_process(delta: float) -> void:
 		var floor_y: float = body.global_position.y - 1.0  # the body's origin is the capsule centre
 		if _visit.is_low(floor_y):
 			body.set_work_crouch(true)
-		return
-	var settled: bool = not body.is_work_crouching() or body.is_crouching()
-	if (settled and _visit_s >= VISIT_SETTLE_S) or _visit_s >= VISIT_CROUCH_S:
+		## He crouches and slips the pack off together (owner); the view cuts once it is in his hands.
 		var shelves: ItemContainer = _visit
 		var side: float = _visit_spot["side"]
 		_visit = null
@@ -271,6 +267,11 @@ func _open_at(shelves: ItemContainer, side: float) -> bool:
 		add_child(_hands)
 		_hands.setup(self, pack.get_straps(), _shelf, _camera, ring, container)
 		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+		if container != null:
+			## At a container the game view stays while he takes the pack off; the frame and its UI come at the cut.
+			_shelf.visible = false
+			_hands.enabled = false
+			_front_hold.settled.connect(_cut_to_container, CONNECT_ONE_SHOT)
 	hub_opened.emit()
 	return true
 
@@ -797,16 +798,35 @@ func _enter_camera() -> void:
 		_camera.attributes = _previous_camera.attributes
 		_camera.compositor = _previous_camera.compositor
 	body.add_child(_camera)
-	if is_instance_valid(_front_hold):
-		## The held pack in focus: everything else, Henry too, blurs (a stencil mask, not depth).
-		var blur := PackFocusBlur.new()
-		blur.name = "PackFocusBlur"
-		_camera.add_child(blur)
-		blur.setup(_pack(), container.get_parent() as Node3D if container != null else null)
 	var target: Transform3D = get_camera_target()
 	_camera.global_transform = _previous_camera.global_transform if _previous_camera != null else target
+	if is_instance_valid(_front_hold) and container != null:
+		return  # at a container the game camera keeps following Henry until the pack is off (_cut_to_container)
 	_camera.make_current()
+	if is_instance_valid(_front_hold):
+		_add_focus_blur()
 	create_tween().set_trans(Tween.TRANS_SINE).tween_property(_camera, ^"global_transform", target, camera_blend_time)
+
+
+## The held pack in focus: everything else, Henry too, blurs (a stencil mask, not depth).
+func _add_focus_blur() -> void:
+	var blur := PackFocusBlur.new()
+	blur.name = "PackFocusBlur"
+	_camera.add_child(blur)
+	blur.setup(_pack(), container.get_parent() as Node3D if container != null else null)
+
+
+## The pack is off his back at a container: a hard cut to the working frame (owner), its blur and UI on.
+func _cut_to_container() -> void:
+	if not _open or not is_instance_valid(_camera) or container == null:
+		return
+	_camera.global_transform = get_camera_target()
+	_camera.make_current()
+	_add_focus_blur()
+	if is_instance_valid(_shelf):
+		_shelf.visible = true
+	if is_instance_valid(_hands):
+		_hands.enabled = true
 
 
 func _exit_camera() -> void:

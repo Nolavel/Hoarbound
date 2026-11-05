@@ -34,6 +34,17 @@ func is_open() -> bool:
 	return _open
 
 
+## Open, it is aimed at on its swung-open leaf, so aiming into the shelves offers what is inside instead
+## (ContainerSearch: F searches, F on the leaf shuts it).
+func get_focus_point(observer: Vector3) -> Vector3:
+	if _open and door_hinge != null:
+		var leaf := door_hinge.find_children("*", "MeshInstance3D", true, false)
+		if not leaf.is_empty():
+			var mesh := leaf[0] as MeshInstance3D
+			return mesh.global_transform * mesh.get_aabb().get_center()
+	return super(observer)
+
+
 ## Refuses while the door is still swinging, so repeated presses stay sane.
 func can_interact() -> bool:
 	return super() and door_hinge != null and not is_swinging()

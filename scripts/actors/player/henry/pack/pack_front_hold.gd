@@ -46,8 +46,6 @@ const CONTAINER_TIGHTEN: float = 1.15
 const CONTAINER_PACK_SHARE: float = 0.3
 const CONTAINER_PACK_LIFT: float = 0.3
 const CONTAINER_PACK_PLANE: float = 0.75
-## Henry is hidden once the swing is this far on (the blur has come up by then).
-const CONTAINER_HIDE_AT: float = 0.6
 ## The front panel opens this far there, so it lies on the floor (fully open it would dip under), degrees.
 const CONTAINER_PANEL_DEG: float = 88.0
 ## The strap that stays over a shoulder while the pack is held (0 left, 1 right).
@@ -82,6 +80,8 @@ var container_side: float = 1.0
 var _container_view := Transform3D()
 var _container_pack := Transform3D()
 var _framing: ContainerFraming
+## Once the pack is off his back at a container, it is in its framed place by the furniture (the view cuts).
+var _container_cut: bool = false
 ## Each pinned hanger's own hinge_out while it turns out by a container (put back after).
 var _hanger_lean: Dictionary = {}
 var _home_parent: Node
@@ -133,6 +133,8 @@ func finish() -> void:
 	if _ending:
 		return
 	_ending = true
+	## Back from the furniture's frame, it goes on again from his hands as by Tab (the view has left already).
+	_container_cut = false
 	_from = held_transform()
 	visual.visible = true
 	pack.get_canvas().hang_floor_y = -INF
@@ -160,7 +162,7 @@ func held_transform() -> Transform3D:
 	var frame: Array = _body_frame()
 	var chest: Vector3 = frame[0]
 	var forward: Vector3 = frame[1]
-	if container != null:
+	if container != null and _container_cut:
 		return _container_pack
 	var tip: float = deg_to_rad(TIP_DEG)
 	## The rig's -Z is its opening (outward on the back): it faces out ahead of Henry, tipped up; its top leans
@@ -319,6 +321,11 @@ func _process(delta: float) -> void:
 	elif _t < 1.0:
 		_t = minf(_t + delta / SWING_S, 1.0)
 		if _t >= 1.0:
+			if container != null:
+				## Off his back in his hands: now the pack is in its place by the furniture and Henry leaves the frame.
+				_container_cut = true
+				if _framing == null or not _framing.show_henry:
+					visual.visible = false
 			settled.emit()
 	elif _still_s < HANG_SETTLE_S:
 		_still_s += delta
@@ -326,8 +333,6 @@ func _process(delta: float) -> void:
 			## Held still in his hands, nothing on it swings: the mug and the pan keep the pose they settled in.
 			## By a container they stay free, so they can lie on the floor (BackpackModel.hang_floor_y).
 			pack.set_hangers_frozen(true)
-	if container != null and not _ending and visual.visible and _t >= CONTAINER_HIDE_AT and (_framing == null or not _framing.show_henry):
-		visual.visible = false
 	var eased: float = smoothstep(0.0, 1.0, _t)
 	var home: Transform3D = _home_parent.global_transform * _home_transform if is_instance_valid(_home_parent) else _from
 	var start: Transform3D = home if not _ending else home
@@ -342,8 +347,8 @@ func _process(delta: float) -> void:
 		if exp(-JOLT_DECAY * _jolt_t) < 0.01:
 			_jolt_m = 0.0
 	pack.global_transform = at
-	if container == null:
-		_grip_sides(eased)
+	if container == null or not _container_cut:
+		_grip_sides(eased)  # his hands hold it as it comes off, until the cut to the furniture's frame
 	if _ending and _t <= 0.0:
 		_put_back()
 

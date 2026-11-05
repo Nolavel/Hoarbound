@@ -18,8 +18,9 @@ const PANEL_M: float = 0.07
 const VISIT_OUT_M: float = 0.45
 const VISIT_PAST_M: float = 0.58
 const LOW_TOP_M: float = 1.1
-## F opening the door sends a player this near on a visit (PlayerHubComponent.visit_container), metres.
-const VISIT_CALL_M: float = 3.0
+## The frosted veil over the open face (owner: unclear shapes until searched) and how far out of it it stands.
+const VEIL_SHADER: Shader = preload("res://shaders/items/frosted_veil.gdshader")
+const VEIL_OUT_M: float = 0.004
 
 ## Stable id for the save ("container/<id>").
 @export var container_id: StringName = &""
@@ -34,13 +35,46 @@ var items: Array[Dictionary] = []
 ## Each item id's outline as a pickup stands (its own space), measured once.
 static var _outlines: Dictionary = {}
 var _body := AABB()
+var _veil: MeshInstance3D
+var _search: ContainerSearch
 
 
 func _ready() -> void:
 	add_to_group(&"saveable")
 	add_to_group(GROUP)
-	if door != null:
-		door.door_toggled.connect(_on_door_toggled)
+	## F on the door only opens and shuts it; what is inside is searched with a second F (ContainerSearch).
+	_search = ContainerSearch.new()
+	_search.container = self
+	add_child(_search)
+
+
+## While the door is open and something is inside, the open face is frosted over (items read as blurs) and
+## the search marker is offered; at Henry's own visit (the Hub holds this container) the frost lifts.
+func _process(_delta: float) -> void:
+	if shelves.is_empty():
+		return
+	if _veil == null:
+		_veil = _make_veil()
+	var player := get_tree().get_first_node_in_group(&"player")
+	var hub := player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent if player != null else null
+	var at_it: bool = hub != null and hub.container == self
+	_veil.visible = is_reachable() and not items.is_empty() and not at_it
+
+
+func _make_veil() -> MeshInstance3D:
+	var box: AABB = shelves_box()
+	var veil := MeshInstance3D.new()
+	veil.name = "FrostedVeil"
+	var quad := QuadMesh.new()
+	quad.size = Vector2(box.size.x, box.size.y)
+	veil.mesh = quad
+	veil.position = Vector3(box.get_center().x, box.get_center().y, box.end.z + VEIL_OUT_M)
+	var frost := ShaderMaterial.new()
+	frost.shader = VEIL_SHADER
+	veil.material_override = frost
+	veil.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(veil)
+	return veil
 
 
 ## The front: the middle of the shelves' open face, its outward way (flat) and the right of one looking in,
@@ -100,18 +134,6 @@ func body_box() -> AABB:
 ## Whether the shelves are low enough that Henry crouches to them (top below LOW_TOP_M over `floor_y`).
 func is_low(floor_y: float) -> bool:
 	return (global_transform * shelves_box().end).y - floor_y < LOW_TOP_M
-
-
-## F opened the door: the player who did it walks over, crouches if low, and the pack opens beside it.
-func _on_door_toggled(open: bool) -> void:
-	if not open or shelves.is_empty():
-		return
-	var player := get_tree().get_first_node_in_group(&"player") as Node3D
-	if player == null or player.global_position.distance_to(global_position) > VISIT_CALL_M:
-		return
-	var hub := player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
-	if hub != null and not hub.is_open():
-		hub.visit_container(self)
 
 
 ## Whether Henry can reach in now (its door, if it has one, is open).
@@ -353,6 +375,7 @@ func _make_pickup(item: Dictionary) -> ItemPickup:
 	pickup.item_id = item["id"]
 	pickup.instance_state = item["state"]
 	pickup.show_ground_highlight = false  # it stands on a shelf, not the ground
+	pickup.in_container = true  # reached through the search, not F on it
 	add_child(pickup)
 	var box: AABB = BackpackModel._local_bounds(pickup)
 	var collision := CollisionShape3D.new()

@@ -15,6 +15,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory at a cabinet, two presses of F (owner's design).
+  - The first F only opens the door. What is inside shows as blurs behind frost, and a search marker (an eye over F) sits on the open face.
+  - The second F walks Henry over. He crouches as he takes the pack off, then the view cuts hard to the cabinet-and-pack frame.
+  - Shelf items are no longer taken by F directly.
 - 3D inventory (Hub): the silhouette of the garment that owns the hovered pocket (coat or trousers, not both) fades in, with a dot where that pocket is (owner), and fades out after.
 - Pockets have real inside sizes in cm and take only what fits by the item's model. The hammer, the axe and the pan no longer go into coat or trouser pockets (owner); tins, the knife and the lighter still do.
 - 3D inventory (Hub): small things in numbers (nails, tinder, flares, empty tins) lie in the pack as one bundle per stack, and the readout says how many ("Nails ×20"). 20 nails used to take 20 places.

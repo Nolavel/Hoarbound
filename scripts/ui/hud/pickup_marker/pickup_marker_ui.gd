@@ -185,6 +185,8 @@ func _mode_for(target: InteractiveArea, owned_by_gesture: bool) -> StringName:
 
 
 func _uses_ring(target: InteractiveArea) -> bool:
+	if target.marker_icon != null:
+		return true  # a search (ContainerSearch): the ring, its icon over the F
 	var pickup := target as ItemPickup
 	var item: ItemResource = ItemCatalog.get_item(pickup.item_id) if pickup != null else null
 	return item != null and not item.carried_in_hands
@@ -306,6 +308,11 @@ func _draw_ring(centre: Vector2) -> void:
 	var glyph: Color = _key_glyph_color()
 	if glyph.a > 0.01:
 		_draw_key_glyph(layout["key_point"], glyph)
+	if is_instance_valid(_target) and _target.marker_icon != null and glyph.a > 0.01:
+		## What F does here (the eye: search), just above the key.
+		var icon: float = key_size * 1.1
+		var icon_at: Vector2 = (layout["key_point"] as Vector2) - Vector2(icon * 0.5, key_size * 0.5 + KEY_GAP_PX + icon)
+		draw_texture_rect(_target.marker_icon, Rect2(icon_at, Vector2(icon, icon)), false, Color(DOT_COLOR, glyph.a))
 	var hand_a: float = _hand_alpha()
 	if hand_a > 0.01:
 		draw_texture_rect(HAND_ICON, layout["hand_rect"], false, Color(DOT_COLOR, hand_a))
