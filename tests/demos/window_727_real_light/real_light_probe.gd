@@ -7,7 +7,7 @@ extends Node3D
 
 const WORLD_SCENE: PackedScene = preload("res://scenes/world/key_west/key_west_reality.tscn")
 const PANE_SCENE: PackedScene = preload("res://tests/scenes/window_727_sdf_probe.tscn")
-const LIT_SHADER: Shader = preload("res://tests/demos/window_727_real_light/lit_frosted_glass_v6_white_opaque.gdshader")
+const LIT_SHADER: Shader = preload("res://tests/demos/window_727_real_light/lit_frosted_glass_v3_white_tint_only.gdshader")
 const WINDOW_NAME: StringName = &"FrontWindow1"
 
 var _world: World
@@ -16,14 +16,10 @@ var _probe: Window727SDFProbe
 var _pane: MeshInstance3D
 var _unlit: ShaderMaterial
 var _lit: ShaderMaterial
-var _legacy_lit: ShaderMaterial
 var _camera: Camera3D
 var _label: Label
 var _ready_for_capture: bool = false
 var _source_mesh: MeshInstance3D
-var _daynight: DayNightManager
-var _day_settings: DayNightSettings
-var _neutral_palette_active: bool = false
 
 
 func disable_nonessential_preview_viewports() -> void:
@@ -96,11 +92,6 @@ func prepare() -> bool:
 	if grade == null or not grade.set_profile(&"HFN_ColdAsh_Shelter") or not grade.is_inside_shelter():
 		push_error("WINDOW_727_REAL_LIGHT_FAIL: canonical shelter grade unavailable")
 		return false
-	_daynight = environment_system.get_node_or_null(^"DayNightManager") as DayNightManager
-	_day_settings = _daynight.settings if _daynight != null else null
-	if _day_settings == null:
-		push_error("WINDOW_727_REAL_LIGHT_FAIL: real day/night settings unavailable")
-		return false
 	var stove: HeatSource = _house.get_node_or_null(^"ShelterZone/Stove") as HeatSource
 	if stove == null or stove.flame_light == null:
 		push_error("WINDOW_727_REAL_LIGHT_FAIL: real stove or its room light is unavailable")
@@ -142,14 +133,6 @@ func prepare() -> bool:
 	_lit.shader = LIT_SHADER
 	for p: StringName in [&"growth_seed", &"melt_seed", &"pane_aspect"]:
 		_lit.set_shader_parameter(p, _unlit.get_shader_parameter(p))
-	# Apply neutral daylight before the FIRST captured frame; V6 video must
-	# contain no half in the old blue-sky profile.
-	_day_settings.day_ambient_color = Color(0.70, 0.70, 0.70)
-	_day_settings.day_cloud_color = Color(0.48, 0.48, 0.48)
-	_day_settings.day_ground_color = Color(0.30, 0.30, 0.30)
-	_daynight.force_update_lighting()
-	_neutral_palette_active = true
-	print("WINDOW_727_WHITE_RIM_OK ambient=%s cloud=%s no_blue_control=true" % [str(_day_settings.day_ambient_color), str(_day_settings.day_cloud_color)])
 	_make_camera()
 	_hide_debug_ui()
 	_make_label()
@@ -172,7 +155,7 @@ func valid() -> bool:
 func set_capture_time(seconds: float) -> void:
 	if not _ready_for_capture:
 		return
-	# One uninterrupted six-second thaw, never old blue V4 and never a reset.
+	# Same original V3 thaw and alpha response; only frost/glass tint neutralized.
 	var fraction: float = clampf(seconds / 6.0, 0.0, 0.999)
 	_probe.set_test_time(3.0 + fraction * 3.0)
 	_lit.set_shader_parameter(&"heated_warmth", fraction)
@@ -183,7 +166,7 @@ func set_capture_time(seconds: float) -> void:
 	var target: Vector3 = _house.global_transform * Vector3(-3.0, 2.0, 10.196)
 	var eye: Vector3 = _house.global_transform * Vector3(-3.0 + offset, 1.97, 7.75)
 	_camera.look_at_from_position(eye, target, Vector3.UP)
-	_label.text = "727 FORT ST / FRONTWINDOW1 | V6 WHITE OPAQUE FROST | THAW: %02d%%" % [int(fraction * 100.0)]
+	_label.text = "727 FORT ST / FRONTWINDOW1 | V3 ORIGINAL + WHITE FROST TINT | THAW: %02d%%" % [int(fraction * 100.0)]
 
 
 func _find_streamed_727_glass(origin: Vector3) -> MeshInstance3D:

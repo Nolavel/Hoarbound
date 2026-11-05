@@ -94,3 +94,21 @@ materials and main remain untouched until artistic approval.
 
 The 6s movie covers a continuous 0->~100% simulated thaw. It is not a
 physical melting-rate simulation.
+
+## Restore V3 shape + alpha; only remove blue from frost tint
+
+Owner rejected V5/V6 as visual regressions and requested original window
+behavior back. Current preview uses byte-identical original V3 lit shader
+(`lit_frosted_glass_v3_blue_control.gdshader`) except for exactly three RGB
+constants: `frost_tint=(1,1,1)`, `glass_tint=(0.78,0.78,0.78)` to prevent
+thin ice picking up a cyan base, and neutral wet highlights
+`wet_highlight=(0.96,0.96,0.96)`. No new alpha formula, rim mask,
+EMISSION, lighting, color grading, or changed frost morphology. The runtime
+preview stops overriding DayNightSettings: sky/room lighting is once again the
+project default under the existing real-weather calm diagnostic, real sun and
+stove. **The existing DayNightSettings ambient is blue**; lit-white frost can
+still show cool ambient shading. Do not incorrectly claim pixel-white output
+without checking the film; source colour itself is pure neutral white.
+
+The film has one continuous six-second melt of the original V3 field.
+No production window or main changes.

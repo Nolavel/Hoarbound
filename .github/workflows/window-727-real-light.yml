@@ -30,7 +30,7 @@ jobs:
           sudo apt-get install -y -qq mesa-vulkan-drivers xvfb ffmpeg
       - name: Clean import gate
         run: tools/ci/import_gate.sh
-      - name: Render single V6 white opaque frost thaw on real 727 window
+      - name: Render restored original V3 thaw with white frost tint only
         run: |
           set -euo pipefail
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
@@ -44,7 +44,6 @@ jobs:
             2>&1 | tee docs/runtime_previews/window_727_real_light/capture.log
           grep -q 'WINDOW_727_REAL_LIGHT_OK.*shelter_grade=HFN_ColdAsh_Shelter.*weather=calm' docs/runtime_previews/window_727_real_light/capture.log
           grep -q 'WINDOW_727_REAL_LIGHT_CAPTURE_OK frames=72' docs/runtime_previews/window_727_real_light/capture.log
-          grep -q 'WINDOW_727_WHITE_RIM_OK.*no_blue_control=true' docs/runtime_previews/window_727_real_light/capture.log
           if grep -Ei 'SCRIPT ERROR|SHADER ERROR|Parse Error|WINDOW_727_REAL_LIGHT_FAIL|Failed loading resource' docs/runtime_previews/window_727_real_light/capture.log; then exit 1; fi
           test "$(find docs/runtime_previews/window_727_real_light/frames -name 'f_*.png' | wc -l)" -eq 72
       - name: Video and real-light stills
@@ -53,16 +52,16 @@ jobs:
           cd docs/runtime_previews/window_727_real_light
           ffmpeg -v error -y -framerate 12 -i frames/f_%03d.png \
             -vf scale=960:540:flags=lanczos \
-            -c:v libx264 -crf 19 -pix_fmt yuv420p -movflags +faststart frontwindow1_v6_white_opaque_frost_6s.mp4
-          ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames,width,height -of csv=p=0 frontwindow1_v6_white_opaque_frost_6s.mp4 | grep -q '960,540,72'
-          ffmpeg -v error -y -i frames/f_001.png -vf scale=960:540 -frames:v 1 white_frost_start.png
-          ffmpeg -v error -y -i frames/f_060.png -vf scale=960:540 -frames:v 1 white_frost_thaw.png
-          test -s frontwindow1_v6_white_opaque_frost_6s.mp4
+            -c:v libx264 -crf 19 -pix_fmt yuv420p -movflags +faststart frontwindow1_original_v3_white_frost_6s.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames,width,height -of csv=p=0 frontwindow1_original_v3_white_frost_6s.mp4 | grep -q '960,540,72'
+          ffmpeg -v error -y -i frames/f_001.png -vf scale=960:540 -frames:v 1 white_tint_start.png
+          ffmpeg -v error -y -i frames/f_060.png -vf scale=960:540 -frames:v 1 white_tint_thaw.png
+          test -s frontwindow1_original_v3_white_frost_6s.mp4
       - name: Upload real lighting film
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hoarbound-727-white-opaque-v6-issue-281
+          name: hoarbound-727-v3-white-tint-issue-281
           path: |
             docs/runtime_previews/window_727_real_light/*.mp4
             docs/runtime_previews/window_727_real_light/*.png
