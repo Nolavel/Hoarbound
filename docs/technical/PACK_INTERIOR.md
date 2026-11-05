@@ -73,8 +73,8 @@ Code: `scripts/environment/interactive/item_container.gd` (`ItemContainer`). Tes
 
 - A piece of furniture holds items on its shelves, which stand there as ordinary `ItemPickup`s (F still takes one straight into the pack, and it leaves the list). The list is the truth and is saved as `container/<id>`.
 - Shelves come from the furniture's own box panels (`shelves_from_furniture`): side walls, back wall and horizontal panels; the space between neighbouring horizontals is a shelf; the door's subtree is left out.
-- Items stand leftmost on the first shelf with room, by their real outline, clear of `reserved` space (set dressing) and of each other (2 cm gaps); no room is `CONTAINER_NO_ROOM`.
-- The 727 waiting-room cabinet (`KeyWest727Shelter.place_supplies`) adopts the layout's pickups socketed `on: Cabinet` (the SPoV can, the gloves). An older save that took one of them from the world drops it again (`PickupLedger` → `drop_taken`).
+- Items stand leftmost on the first shelf with room, by their real outline, clear of each other (2 cm gaps); no room is `CONTAINER_NO_ROOM`.
+- The 727 waiting-room cabinet (`KeyWest727Shelter.place_supplies`) holds its dressed tins as real items (`CABINET_PROPS`: stew, pineapple) and adopts the layout's pickups socketed `on: Cabinet` (the SPoV can, the gloves); the dressed mug was removed (it duplicated Henry's). An older save that took one of them from the world drops it again (`PickupLedger` → `drop_taken`).
 - Next: Tab at an open container shows its shelves beside the held pack, and the ring carries items between them.
 
 ## Hands

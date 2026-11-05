@@ -15,6 +15,8 @@ const HUT_KINDS: Dictionary = {"hut_stove": "ShelterZone/Stove", "hut_mattress":
 	"hut_tool_bench": "ToolBench", "hut_supply_bench": "SupplyBench"}
 ## The waiting-room cabinet's shelves in the save.
 const CABINET_CONTAINER_ID: StringName = &"727_waiting_cabinet"
+## The cabinet's set-dressing props (ShelterCabinet) that are real items here: prop name -> item id.
+const CABINET_PROPS: Dictionary = {"CabinetProp_StewTin": &"tinned_stew", "CabinetProp_PineappleTin": &"tinned_pineapple"}
 const CLINIC_OFFSET_C: float = 4.0
 const CLINIC_WIND_EXPOSURE: float = 0.15
 const CLINIC_WINDOW_SEVERITY: float = 0.2
@@ -109,11 +111,15 @@ func place_supplies(supplies: Array[ItemPickup], sockets: Dictionary) -> void:
 	shelves.name = "Shelves"
 	shelves.container_id = CABINET_CONTAINER_ID
 	shelves.shelves = ItemContainer.shelves_from_furniture(cabinet, cabinet.get_node_or_null(^"DoorHinge"))
-	## The cabinet's set dressing (ShelterCabinet props) keeps its place; items stand clear of it.
+	## The cabinet's dressed tins (ShelterCabinet props) become real items on its shelves.
+	var dressed: Array[StringName] = []
 	for prop: Node in cabinet.get_children():
-		if prop is Node3D and String(prop.name).begins_with("CabinetProp_"):
-			shelves.reserved.append((prop as Node3D).transform * BackpackModel._local_bounds(prop as Node3D))
+		if CABINET_PROPS.has(String(prop.name)):
+			dressed.append(CABINET_PROPS[String(prop.name)])
+			prop.free()
 	cabinet.add_child(shelves)
+	for item_id: StringName in dressed:
+		shelves.put(item_id)
 	shelves.adopt(in_cabinet)
 	cabinet_shelves = shelves
 

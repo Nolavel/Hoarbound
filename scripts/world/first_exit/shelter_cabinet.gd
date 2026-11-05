@@ -59,8 +59,3 @@ static func _add_cabinet_set_dressing(cabinet: Node3D) -> void:
 	pineapple.rotation.y = deg_to_rad(16.0)
 	cabinet.add_child(pineapple)
 
-	var mug := SurvivalItemVisual.make(&"mug")
-	mug.name = "CabinetProp_Mug"
-	mug.position = Vector3(0.10, 0.475, -0.02)
-	mug.rotation.y = deg_to_rad(24.0)
-	cabinet.add_child(mug)

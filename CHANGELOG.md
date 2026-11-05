@@ -11,7 +11,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Furniture can hold items: `ItemContainer`.
   - Shelves are derived from the furniture's own panels, items stand on them by real size, and the contents are saved.
   - Items stay ordinary pickups, so F still takes them.
-  - The 727 waiting-room cabinet now holds the SPoV can and the gloves on its shelves, clear of its set dressing.
+  - The 727 waiting-room cabinet now holds the SPoV can and the gloves on its shelves. Its dressed stew and pineapple tins are real items now (owner's call).
+  - The cabinet's dressed mug is gone, since it duplicated Henry's own.
   - An older save that took them from the world is respected.
 - Item readout shows grams under 1 kg (a lighter read "0.0 kg").
 - 3D inventory: RMB (pad X) uses the hovered item, and the hint names the verb.

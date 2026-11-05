@@ -17,8 +17,6 @@ const PANEL_M: float = 0.07
 @export var container_id: StringName = &""
 ## The free space above each shelf, in this node's space: its bottom face is the shelf's top.
 @export var shelves: Array[AABB] = []
-## Space already taken on the shelves by things that are not items (set dressing), this node's space.
-@export var reserved: Array[AABB] = []
 
 ## Per item: {"id", "state": Dictionary, "world_id": StringName (seeded from the world, or &""),
 ## "pickup": ItemPickup}.
@@ -179,15 +177,11 @@ func _layout() -> void:
 
 
 ## Where each id would stand (its pickup's origin, this node's space), or null where none has room: on the
-## first shelf, leftmost, clear of the reserved space and of what is placed already.
+## first shelf with room, leftmost, clear of what is placed already.
 func _plan(ids: Array[StringName]) -> Array:
 	var taken: Array[Array] = []  # per shelf: [x from, x to] spans in use
 	for shelf: AABB in shelves:
-		var spans: Array = []
-		for box: AABB in reserved:
-			if box.intersects(shelf):
-				spans.append(Vector2(box.position.x, box.end.x))
-		taken.append(spans)
+		taken.append([])
 	var out: Array = []
 	for id: StringName in ids:
 		var box: AABB = _outline(id)
