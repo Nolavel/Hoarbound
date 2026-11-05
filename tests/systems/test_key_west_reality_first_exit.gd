@@ -81,8 +81,15 @@ func _check_audit() -> void:
 		if expected.has(key):
 			_check(expected[key] == [p.item_id, p.count, p.world_id], "%s changed: %s -> %s" % [key, expected[key], [p.item_id, p.count, p.world_id]])
 		_check(p.is_inside_tree(), "%s is not in the world" % key)
+	## The 727 cabinet adopts the supplies socketed on it: they stand on its shelves, same persistence ids.
+	var stored: Dictionary = {}
+	var shelves: ItemContainer = _overlay.shelter.cabinet_shelves if _overlay.shelter != null else null
+	if shelves != null:
+		for item: Dictionary in shelves.items:
+			stored[item["world_id"]] = item["id"]
 	for key: String in expected:
-		_check(seen.has(key), "template pickup %s was dropped" % key)
+		var on_shelf: bool = stored.get(expected[key][2], &"") == expected[key][0]
+		_check(seen.has(key) or on_shelf, "template pickup %s was dropped" % key)
 
 
 func _check_pickup(p: ItemPickup) -> void:

@@ -8,6 +8,142 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory (Hub): the silhouette of the garment that owns the hovered pocket (coat or trousers, not both) fades in, with a dot where that pocket is (owner), and fades out after.
+- Pockets have real inside sizes in cm and take only what fits by the item's model. The hammer, the axe and the pan no longer go into coat or trouser pockets (owner); tins, the knife and the lighter still do.
+- 3D inventory (Hub): small things in numbers (nails, tinder, flares, empty tins) lie in the pack as one bundle per stack, and the readout says how many ("Nails ×20"). 20 nails used to take 20 places.
+- 3D inventory (Hub), gamepad: a flick of the stick steps the ring to the nearest item, card, the hand or the pack that way, instead of steering a free cursor.
+- 3D inventory (Hub): a threat shuts the open pack, since time never stops there. That is a blow (new `PlayerHealthSystem.hurt`, not frostbite's slow loss) or a fall; other threats can call `interrupt()`.
+- 3D inventory (Hub): taking costs time. LMB is held while a line fills round the item, and letting go early takes nothing.
+  - The bottom strap and heavy items take longer. Cold hands take up to 2.5 times as long and shake the ring.
+  - A tin off the bottom strap takes 0.63 s warm and 1.57 s with frozen hands.
+- 3D inventory: the body's pockets stand in a row at the bottom centre: trousers, the hand card, coat.
+  - The clothes panel is hidden (owner's call). Its code stays behind `PackQuickShelf.SHOW_BODY_PANEL`.
+- 3D inventory at a cabinet: F opening its door (or Tab beside an open one) sends Henry over to it.
+  - He walks to the side away from the door's hinge and crouches at a low cabinet.
+  - The frame then holds only the pack and the cabinet, side by side at about 48% of the width each (owner's sketch). Henry is hidden.
+  - The view looks in at an angle, so the cabinet's front turns to the pack. The pack stands open toward the view, its front panel flat.
+  - The pack sits close against the cabinet, higher and well nearer the view, its bedroll kept in frame, with no gap to the cabinet. Its front nearly shares the cabinet's plane. The frame is tighter.
+  - Henry no longer freezes on the way. A walk blocked short of the spot now counts as arrived after 0.25 s, where before he pushed for 4 s. The door clip is cut once his hand reaches the door.
+  - The chest-pack variant is gone.
+  - The framing is authored in the editor: `tests/scenes/container_framing_stage.tscn` (floor, cabinet, Henry, pack, camera).
+    - Save framing writes `data/items/container_framing.tres`. The game puts the camera and the pack there, mirrored for the other side.
+    - Henry walks to his point and stays blurred behind the pack.
+  - While the Hub is open no world prompt (a door, the cabinet) is offered, just as pickups already were not.
+  - The ring carries items shelf ↔ pack ↔ pockets through new Hub moves (`move_from_container`, `move_to_container`).
+  - A full shelf refuses, and the shelves stay sharp under the focus blur.
+- Furniture can hold items: `ItemContainer`.
+  - Shelves are derived from the furniture's own panels, items stand on them by real size, and the contents are saved.
+  - Items stay ordinary pickups, so F still takes them.
+  - The 727 waiting-room cabinet now holds the SPoV can and the gloves on its shelves. Its dressed stew and pineapple tins are real items now (owner's call).
+  - The cabinet's dressed mug is gone, since it duplicated Henry's own.
+  - An older save that took them from the world is respected.
+- Item readout shows grams under 1 kg (a lighter read "0.0 kg").
+- 3D inventory: RMB (pad X) uses the hovered item, and the hint names the verb.
+  - A sealed tin opens where it lies, in its pocket or under the straps, and the pack stays open.
+  - Food and drink close the pack, because Henry needs his hands, and then he eats or drinks.
+  - What cannot be used says why. New action `pack_use` shares RMB with `present_held`; the overlap is allowlisted.
+- Pack contents no longer flicker on every change.
+  - The pack rebuilt every outside item (thermos, tools, mug, pan) on each change, so they came back unmasked by the focus blur and unfrozen.
+  - Now only the places whose item changed are redone (`BackpackModel.remove_slot_item`/`unhang_item`).
+  - New hangers take the freeze, and the focus blur masks a mesh as it enters the tree.
+  - The put-in jolt has a base dip (1.2 cm) so even a lighter jolts it.
+- 3D inventory: cloth sounds and a jolt.
+  - Taking, putting and dropping rustle the cloth, and a refusal pulls softer. The clips are Freesound #237047, CC0, supplied by the owner.
+  - The held pack dips under what is put into it, about 2 cm per kg, then bounces back.
+  - The readout names the fifteen items that had no Russian name.
+- 3D inventory: the item under the ring shows its readout, and a load bar shows what Henry carries.
+  - The readout gives the name, weight and key number: a flask's water, food's calories, or else the size.
+  - The load bar shows the carried weight against the limit, with a tick where Henry starts to slow.
+  - The hovered item's share is lit on the bar. Data comes from the new `ItemReadout`.
+- Work trousers gain a right thigh pocket (`legs_outer/thigh_right`, Quick Access).
+  - The HUD builds its card from the left thigh's, below the pack lid in the cross.
+  - It has its own anchor (`ThighRightAnchor`) and is reached with the wheel; keys 1-4 are unchanged.
+- 3D inventory layout pass.
+  - The clothes panel is smaller, near the left edge, and the trousers sit apart from the coat.
+  - The hand card stands beside the panel.
+  - The body cards' gradient fades the other way and is fainter. Items no longer spin on cards.
+  - Everything but the held pack and the inventory, Henry included, blurs while the pack is held (`PackFocusBlur`).
+    The pack writes a stencil mask, and a full-screen quad blurs the rest. Depth of field could not part them.
+- 3D inventory: the coat's and trousers' pocket cards sit on a see-through grey panel of Henry's clothes at the left.
+  - The panel is baked from the real jacket and trousers by `tools/runtime/bake_body_silhouette.gd`.
+  - A hand card at the right shows what Henry takes in hand; a pocket's item let go on it becomes the pick.
+  - The ring cursor flows into the hovered item's real silhouette (rasterised and traced), not a convex hull.
+  - A carried item shows at its true size. Nothing on the pack wears the amber pick rim any more.
+  - Hangers on the pack (mug, pan, carabiners) freeze once it is held still, and thaw when it goes back on.
+- 3D inventory: Quick Access cards no longer duplicate what is seen on the pack.
+  - The side pockets' and carabiners' items are hovered right on the pack, with no card drawn.
+  - Only hidden pockets (coat, thigh, lid) stay as 3D cards at the frame's sides.
+  - Over any item the ring cursor flows into the item's outline on screen.
+  - `PackStraps` now measures each item's outline once per id instead of every frame.
+- Clipped mug no longer shakes in a tipped pack. `PendulumHang` stopped it where its own swing meets the obstacle
+  (conservative advancement) and never let it deeper than it was. It backs out of the margin one small step a frame,
+  instead of being thrown past a grazing contact and falling back every frame.
+- 3D inventory: the ring cursor and hands now work on the straps and the live Quick Access cards
+  (`PackHandling`, built by the Hub on Tab).
+  - Take from a pocket or the pack with LMB (pad A), and let go over the other to move it there.
+  - The pack and the pockets refuse in red with a reason. G (pad Y) puts the hovered item down on the ground.
+  - New Hub moves: `drop_from_pack`, `drop_from_zone` and `move_between_zones`.
+  - `ItemPickup.ground_ahead`/`spawn_dropped` are shared with the hand's drop.
+  - The physics compartment (`PackInterior`), its stands and captures, and the wheel/RMB actions
+    (`pack_turn_*`, `pack_shove`) are removed.
+  - Stand: `tests/systems/test_pack_hands.gd`.
+- 3D inventory, pack in hand:
+  - One strap stays over Henry's shoulder and lies on the jacket down his chest.
+  - Quick Access beside the open pack shows the real pockets' 3D items on gradient cards at the frame's sides,
+    with no text. Items fly from a card into the pack under the straps.
+  - The inner straps are fixed to the side walls and draw out round what they hold.
+  - The camera shows the dropped panel.
+  - Verlet strap chains pin their ends every step.
+- 3D inventory: the main compartment holds its contents under three straps instead of physics (`PackStraps`).
+  - Each item, sized by its real outline, stands into the lowest tier with room against the back wall, layer
+    by layer. That tier's strap pulls in and buckles.
+  - Items that do not fit are refused, the side walls stay flat, and nine SPoV tins fill one layer.
+  - `PackRig` feeds it from the inventory.
+  - The Tab view capture now shows nine tins going in.
+- 3D inventory, stage 3: Tab takes the pack into Henry's hands (`PackFrontHold`).
+  - It swings off his back to before his chest, opening toward a fixed camera that faces him, tipped so he sees
+    in from above. The front panel drops open away from him, and his hands hold the sides.
+  - The Quick Access cards stand pinned on their live anchors. Tab or Esc puts the pack back on.
+  - Full inspection is unchanged. Capture: `tools/runtime/capture_pack_view.gd`.
+- 3D inventory, stage 2: Quick Access beside the open pack (`PackQuickShelf`). Each quick pocket is a card on
+  the Quick Access gradient (`BG_frame.gdshader`), with its item in 3D: body pockets left of the pack, its
+  outside pockets right.
+  - Items move card to pack, pack to card and card to card with the ring and LMB, by the inventory's fit rule.
+  - A refusing pocket turns red and shows its reason. G throws a card's item out.
+  - New strings: `INVENTORY_POCKET_FULL`, `INVENTORY_POCKET_TOO_SMALL`, `POCKET_*`.
+  - Stand: `tests/systems/test_pack_shelf.gd`. Capture: `tools/runtime/capture_pack_shelf.gd`.
+- 3D inventory: a calmer heap while one item is rearranged. The mean speed of the other items while one is
+  dragged went from 0.097 to 0.004–0.063 m/s.
+  - Only touched items wake (sleeping islands), and a calm-down restarts only when that item itself is knocked.
+  - The hand has limited strength (12 m/s², 1 m/s), and a held item slips (friction 0.05).
+  - Items carry their weight where their bulk is (a tool's head), go in heavy end down, and turn back toward a
+    fitting turn when no shift fits them inside the canvas.
+  - The RMB sweep is a hand's width and lifts a little.
+- 3D inventory, stage 1: hands in the open pack (`PackHandling`, `PackCursor`; see
+  `docs/technical/PACK_INTERIOR.md` and `CONTROLS.md`). Time keeps running.
+  - A ring cursor picks items by their drawn outline and shows "G — drop" (Y on a pad).
+  - LMB takes an item and drags it, and the ring hides while it is held. The wheel turns it.
+  - RMB sweeps the heap, and G throws the item out.
+  - An item that does not fit gets a red rim and its reason (`INVENTORY_HINT_DROP` is new).
+  - There are new `pack_*` actions with gamepad bindings: A, X, LB/RB, Y and the left stick.
+  - The interior gains `pick`/`hold`/`turn_held`/`remove`/`shove`, a speed cap, and a heavier held item.
+  - Stand: `tests/systems/test_pack_handling.gd`. Capture: `tools/runtime/capture_pack_handling.gd`.
+- 3D inventory, stage 0: the main compartment's physics sandbox (`PackInterior`, see
+  `docs/technical/PACK_INTERIOR.md`). Items lie loose in it as rigid bodies, in a physics space of
+  the pack's own.
+  - The collision walls are the canvas's inner rounded surface, plus the 16 mm it may stretch. Every
+    item's support points are projected back inside after each step.
+  - Items go in the way they fit (the frying pan on edge), and bulky or oversized items are refused.
+    Two new strings give the reason: `INVENTORY_TOO_BIG` and `INVENTORY_NO_ROOM`.
+  - Canvas (`backpack_canvas.gdshader`):
+    - Slack cloth now sags only onto the contents, never through them.
+    - The side pockets and the carabiner loops ride the wall's bulge and the open front's give.
+    - A pocket's sewn layer is no longer drawn from inside, so it stops showing through the wall in an
+      open pack.
+    - The interior's volume feeds the fill.
+  - The slot layout's inner shelf is removed.
+  - Stand: `tests/systems/test_pack_interior.gd`, which checks every item against the cloth as the
+    shader draws it. Capture: `tools/runtime/capture_pack_interior.gd`, with the pack hanging and open.
 - Archived the sequential five-color UI edge-glow shader, self-contained Godot demo and 6-second capture script in the production repository as a visual reference; no inventory/runtime integration.
 - Added a Godot-native animation integration reference and the `/hoarbound-animation` Claude Code skill. Both point to Henry's existing AnimationTree/IK owners, GLB QA and the frozen Motion Matching acceptance gates; no runtime animation behavior changed.
 - Work in progress: the shoulder straps are now the school backpack's own pad, webbing and buckle

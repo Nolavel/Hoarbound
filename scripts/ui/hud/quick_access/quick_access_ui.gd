@@ -16,6 +16,7 @@ const CROSS_PLACES: Dictionary = {
 	PATH_COAT_RIGHT: Vector2(1.0, 0.0),
 	PATH_PACK_LID: Vector2(0.0, -1.0),
 	PATH_THIGH_LEFT: Vector2(0.0, 1.0),
+	PATH_THIGH_RIGHT: Vector2(0.0, 2.0),
 	PATH_PACK_SIDE_LEFT: Vector2(-1.0, -1.0),
 	PATH_SLEEVE_FRONT: Vector2(1.0, -1.0),
 	PATH_SLEEVE_BACK: Vector2(1.0, 1.0),
@@ -28,8 +29,9 @@ const DIRECT_ACTIONS: Array[StringName] = [
 const PATH_COAT_LEFT: StringName = &"torso_outer/coat_left"
 const PATH_COAT_RIGHT: StringName = &"torso_outer/coat_right"
 const PATH_THIGH_LEFT: StringName = &"legs_outer/thigh_left"
+const PATH_THIGH_RIGHT: StringName = &"legs_outer/thigh_right"
 const PATH_PACK_LID: StringName = &"pack/pack_lid"
-const POCKET_ORDER: Array[StringName] = [PATH_COAT_LEFT, PATH_COAT_RIGHT, PATH_PACK_LID, PATH_THIGH_LEFT]
+const POCKET_ORDER: Array[StringName] = [PATH_COAT_LEFT, PATH_COAT_RIGHT, PATH_PACK_LID, PATH_THIGH_LEFT, PATH_THIGH_RIGHT]
 ## Outside a worn pack: cards built at runtime from the coat card, pinned to the pack's own anchors
 ## (BackpackModel.get_quick_anchor); reached with the wheel, keys 1-4 stay on POCKET_ORDER.
 const PATH_PACK_SIDE_LEFT: StringName = &"pack/pack_side_left"
@@ -55,6 +57,7 @@ const ICON_GENERIC := "res://assets/ui/hud/quick_access/icons/inventory_2.svg"
 @export var coat_left_anchor: Node3D
 @export var coat_right_anchor: Node3D
 @export var thigh_left_anchor: Node3D
+@export var thigh_right_anchor: Node3D
 @export var pack_lid_anchor: Node3D
 @export var hands_anchor: Node3D
 
@@ -73,6 +76,7 @@ const ICON_GENERIC := "res://assets/ui/hud/quick_access/icons/inventory_2.svg"
 @export var coat_left_offset := Vector2.ZERO
 @export var coat_right_offset := Vector2.ZERO
 @export var thigh_left_offset := Vector2.ZERO
+@export var thigh_right_offset := Vector2.ZERO
 @export var pack_lid_offset := Vector2.ZERO
 @export var hands_offset := Vector2.ZERO
 
@@ -115,6 +119,8 @@ const ICON_GENERIC := "res://assets/ui/hud/quick_access/icons/inventory_2.svg"
 @onready var hands_label: Label = $Hands/Label
 
 var quick_access_component: QuickAccessComponent
+## The right thigh pocket's card: a copy of the left one's, built at runtime.
+var thigh_right: Control
 var _materials: Dictionary = {}
 var _slots: Dictionary = {}
 var _icons: Dictionary = {}
@@ -294,6 +300,12 @@ func _build_maps() -> void:
 	_slots = {PATH_COAT_LEFT: coat_left, PATH_COAT_RIGHT: coat_right, PATH_THIGH_LEFT: thigh_left, PATH_PACK_LID: pack_lid}
 	_icons = {PATH_COAT_LEFT: coat_left_icon, PATH_COAT_RIGHT: coat_right_icon, PATH_THIGH_LEFT: thigh_left_icon, PATH_PACK_LID: pack_lid_icon}
 	_labels = {PATH_COAT_LEFT: coat_left_label, PATH_COAT_RIGHT: coat_right_label, PATH_THIGH_LEFT: thigh_left_label, PATH_PACK_LID: pack_lid_label}
+	thigh_right = thigh_left.duplicate() as Control
+	thigh_right.name = "ThighRight"
+	add_child(thigh_right)
+	_slots[PATH_THIGH_RIGHT] = thigh_right
+	_icons[PATH_THIGH_RIGHT] = thigh_right.get_node(^"Icon")
+	_labels[PATH_THIGH_RIGHT] = thigh_right.get_node(^"Label")
 
 
 ## The cards for what sits outside the pack: copies of the coat card, one per PACK_ORDER path.
@@ -518,7 +530,8 @@ func _location_label(path: StringName) -> String:
 	match path:
 		PATH_COAT_LEFT: return "COAT L"
 		PATH_COAT_RIGHT: return "COAT R"
-		PATH_THIGH_LEFT: return "THIGH"
+		PATH_THIGH_LEFT: return "THIGH L"
+		PATH_THIGH_RIGHT: return "THIGH R"
 		PATH_PACK_LID: return "PACK LID"
 		PATH_PACK_SIDE_LEFT: return tr(&"QA_PACK_SIDE")
 		PATH_SLEEVE_FRONT: return tr(&"QA_SLEEVE_FRONT")
@@ -704,7 +717,7 @@ func _pulse_hands() -> void:
 
 func _animate_reveal_in() -> void:
 	_kill_reveal_tween()
-	var order: Array[StringName] = [&"hands", PATH_COAT_LEFT, PATH_COAT_RIGHT, PATH_THIGH_LEFT, PATH_PACK_LID]
+	var order: Array[StringName] = [&"hands", PATH_COAT_LEFT, PATH_COAT_RIGHT, PATH_THIGH_LEFT, PATH_THIGH_RIGHT, PATH_PACK_LID]
 	order.append_array(PACK_ORDER)
 	for key: StringName in order:
 		_set_shader_reveal(_materials.get(key) as ShaderMaterial, 0.0)
@@ -970,6 +983,7 @@ func _card_specs() -> Array[Dictionary]:
 		{"path": PATH_COAT_LEFT, "slot": coat_left, "anchor": coat_left_anchor, "offset": coat_left_offset},
 		{"path": PATH_COAT_RIGHT, "slot": coat_right, "anchor": coat_right_anchor, "offset": coat_right_offset},
 		{"path": PATH_THIGH_LEFT, "slot": thigh_left, "anchor": thigh_left_anchor, "offset": thigh_left_offset},
+		{"path": PATH_THIGH_RIGHT, "slot": thigh_right, "anchor": thigh_right_anchor, "offset": thigh_right_offset},
 		{"path": PATH_PACK_LID, "slot": pack_lid, "anchor": pack_lid_anchor, "offset": pack_lid_offset},
 		{"path": &"hands", "slot": hands, "anchor": hands_anchor, "offset": hands_offset},
 	]

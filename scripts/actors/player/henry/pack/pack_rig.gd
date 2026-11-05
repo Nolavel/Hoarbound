@@ -28,6 +28,9 @@ const AJAR_ZIP_SIDE_M: float = 0.22
 const AJAR_PANEL_DEG: float = 24.0
 ## Longest step the sway spring takes in one frame, seconds: a hitch's long frame would blow it up.
 const MAX_SPRING_STEP_S: float = 0.05
+## Pack pockets whose items hang or sit on the outside: pocket -> side-pocket slot or carabiner index.
+const SHOWN_POCKETS: Dictionary = {&"pack_side_left": &"side_left", &"pack_side_right_front": &"side_right_front",
+	&"pack_side_right_back": &"side_right_back", &"pack_carabiner": 1, &"pack_carabiner_left": 0}
 
 @export var size: Vector3 = Vector3(0.34, 0.44, 0.2)
 @export var color: Color = Color(0.36, 0.33, 0.28)
@@ -61,6 +64,7 @@ var _last_position: Vector3 = Vector3.ZERO
 var _last_velocity: Vector3 = Vector3.ZERO
 var _has_last: bool = false
 var _inventory: InventoryComponent
+var _straps: PackStraps
 var _equipment: EquipmentComponent
 var _quick: QuickAccessComponent
 ## The pocket whose item a hand shows now ("" for none): it is out of its pocket, so not drawn there.
@@ -68,6 +72,7 @@ var _held_zone: StringName = &""
 ## Side-pocket contents last shown (slot -> item id), and whether the first fill has happened.
 var _side_items: Dictionary = {}
 var _contents_shown: bool = false
+var _hangers_frozen: bool = false
 
 
 func _init() -> void:
@@ -121,6 +126,11 @@ func get_bottom_flap() -> Node3D:
 
 
 ## The canvas pack model, or null when the four-flap tray is drawn.
+## The main compartment's straps (what is in the pack, laid out), or null before the canvas is built.
+func get_straps() -> PackStraps:
+	return _straps
+
+
 func get_canvas() -> BackpackModel:
 	build()
 	return _canvas
@@ -223,6 +233,11 @@ func _build_canvas() -> void:
 	_canvas.layers_for_contents = render_layers
 	_sway.add_child(_canvas)
 	_canvas.build()
+	## The main compartment's contents stand under its straps (PackStraps), not in slots.
+	_straps = PackStraps.new()
+	_straps.name = "Straps"
+	_canvas.add_child(_straps)
+	_straps.setup(_canvas)
 	for mesh: Node in _canvas.find_children("*", "MeshInstance3D", true, false):
 		(mesh as MeshInstance3D).layers = render_layers
 
@@ -237,6 +252,10 @@ func _process(delta: float) -> void:
 		while walk != null and not (walk is CharacterBody3D):
 			walk = walk.get_parent()
 		_inventory = InventoryComponent.find_in(walk) if walk != null else null
+		if _inventory != null:
+			_inventory.item_added.connect(func(_item: ItemResource, _count: int) -> void: _refresh_contents())
+			_inventory.item_removed.connect(func(_item: ItemResource, _count: int) -> void: _refresh_contents())
+			_refresh_contents()
 	if _inventory != null:
 		_canvas.load_fill = clampf(_inventory.get_total_weight() / full_load_kg, 0.0, 1.0)
 		_canvas.set_bedroll_visible(_inventory.has_item(&"bedroll"))
@@ -287,18 +306,48 @@ func walk_owner() -> Node:
 	return walk
 
 
+## Whether a pack pocket's item shows on the pack itself (side pockets and carabiners).
+static func shows_pocket(pocket: StringName) -> bool:
+	return SHOWN_POCKETS.has(pocket)
+
+
+## The visual of what a shown pocket holds (on the pack), or null when empty or not shown.
+func get_pocket_visual(pocket: StringName) -> Node3D:
+	if _canvas == null or not SHOWN_POCKETS.has(pocket):
+		return null
+	var where: Variant = SHOWN_POCKETS[pocket]
+	return _canvas.hung_visual(where) if where is int else _canvas.slot_visual(where)
+
+
+## Where a shown pocket is on the pack (world): its slot's middle, or its carabiner's hang point.
+func get_pocket_spot(pocket: StringName) -> Vector3:
+	if _canvas == null or not SHOWN_POCKETS.has(pocket):
+		return global_position
+	var where: Variant = SHOWN_POCKETS[pocket]
+	if where is int:
+		return _canvas.get_carabiner(where).get_hang_point().global_position
+	return _canvas.to_global(BackpackModel.SLOTS[where][0])
+
+
+## Freezes or thaws everything hanging off the pack (carabiners and what they hold).
+func set_hangers_frozen(frozen: bool) -> void:
+	_hangers_frozen = frozen
+	for node: Node in find_children("*", "PendulumHang", true, false):
+		(node as PendulumHang).frozen = frozen
+
+
 func _on_slot_changed(slot_path: StringName, _item_id: StringName) -> void:
 	if String(slot_path).begins_with("pack/"):
 		_refresh_contents()
 
 
-## Shows what the pack's pockets hold: side pockets in the side pouches, the carabiner's item
-## clipped on, everything else loose in the main body.
+## Shows what the pack holds: side pockets in the side pouches, the carabiners' items clipped on, and the main
+## compartment (its pockets and the inventory, bar the bedroll strapped on top) under the straps.
 func _refresh_contents() -> void:
 	if _canvas == null or _equipment == null:
 		return
-	_canvas.clear_items()
 	var shown: Dictionary = {}
+	var main: Array[StringName] = []
 	for entry: Dictionary in _equipment.get_available_pockets():
 		var held: StringName = entry["item_id"]
 		if entry["body_slot"] != &"pack" or held == &"" \
@@ -307,16 +356,42 @@ func _refresh_contents() -> void:
 		match entry["pocket"]:
 			&"pack_side_left", &"pack_side_right_front", &"pack_side_right_back":
 				## Something new in a side pocket is pushed in; what was already there stays seated.
-				var slot: StringName = StringName(String(entry["pocket"]).trim_prefix("pack_"))
-				_canvas.add_item(held, slot, 0.0, _contents_shown and _side_items.get(slot, &"") != held)
-				shown[slot] = held
+				shown[StringName(String(entry["pocket"]).trim_prefix("pack_"))] = held
 			&"pack_carabiner", &"pack_carabiner_left":
 				## Something just put back on a carabiner comes down onto its rod; what hung there stays.
-				var pocket: StringName = entry["pocket"]
-				_canvas.hang_item(held, 1 if pocket == &"pack_carabiner" else 0, _contents_shown and _side_items.get(pocket, &"") != held)
-				shown[pocket] = held
+				shown[entry["pocket"]] = held
 			_:
-				_canvas.add_loose(held)
+				main.append(held)
+	if _inventory != null:
+		for entry: Dictionary in _inventory.get_entries():
+			var item: ItemResource = ItemCatalog.get_item(entry["id"])
+			if item == null or item.carried_in_hands or item.id == &"bedroll":
+				continue
+			## Small things in numbers lie in as one bundle per stack (ItemResource.bundles).
+			var places: int = ceili(float(entry["count"]) / maxf(item.max_stack, 1)) if item.bundles() else int(entry["count"])
+			for _n: int in places:
+				main.append(item.id)
+	## Only the outside places whose item changed are redone; what stays keeps its node, pose and freeze.
+	for place: StringName in _side_items.keys() + shown.keys():
+		var was: StringName = _side_items.get(place, &"")
+		var now: StringName = shown.get(place, &"")
+		if was == now:
+			continue
+		var carabiner: int = 1 if place == &"pack_carabiner" else (0 if place == &"pack_carabiner_left" else -1)
+		if was != &"":
+			if carabiner >= 0:
+				_canvas.unhang_item(carabiner)
+			else:
+				_canvas.remove_slot_item(place)
+		if now != &"":
+			if carabiner >= 0:
+				_canvas.hang_item(now, carabiner, _contents_shown)
+				if _hangers_frozen:
+					set_hangers_frozen(true)
+			else:
+				_canvas.add_item(now, place, 0.0, _contents_shown)
+	if _straps != null:
+		_straps.sync(main)
 	_side_items = shown
 	_contents_shown = true
 	for mesh: Node in _canvas.find_children("*", "MeshInstance3D", true, false):

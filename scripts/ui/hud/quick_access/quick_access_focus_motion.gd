@@ -12,8 +12,9 @@ const EMPTY_ICON_PATH := "res://assets/ui/hud/quick_access/icons/empty_circle.sv
 const PATH_COAT_LEFT: StringName = &"torso_outer/coat_left"
 const PATH_COAT_RIGHT: StringName = &"torso_outer/coat_right"
 const PATH_THIGH_LEFT: StringName = &"legs_outer/thigh_left"
+const PATH_THIGH_RIGHT: StringName = &"legs_outer/thigh_right"
 const PATH_PACK_LID: StringName = &"pack/pack_lid"
-const POCKET_ORDER: Array[StringName] = [PATH_COAT_LEFT, PATH_COAT_RIGHT, PATH_PACK_LID, PATH_THIGH_LEFT]
+const POCKET_ORDER: Array[StringName] = [PATH_COAT_LEFT, PATH_COAT_RIGHT, PATH_PACK_LID, PATH_THIGH_LEFT, PATH_THIGH_RIGHT]
 
 var _ui: QuickAccessUI
 var _base_offsets: Dictionary = {}
@@ -29,6 +30,7 @@ func _ready() -> void:
 		PATH_COAT_LEFT: _ui.coat_left_offset,
 		PATH_COAT_RIGHT: _ui.coat_right_offset,
 		PATH_THIGH_LEFT: _ui.thigh_left_offset,
+		PATH_THIGH_RIGHT: _ui.thigh_right_offset,
 		PATH_PACK_LID: _ui.pack_lid_offset,
 	}
 	_empty_circle = load(EMPTY_ICON_PATH) as Texture2D
@@ -76,6 +78,7 @@ func _slot(path: StringName) -> Control:
 		PATH_COAT_LEFT: return _ui.get_node_or_null(^"CoatLeft") as Control
 		PATH_COAT_RIGHT: return _ui.get_node_or_null(^"CoatRight") as Control
 		PATH_THIGH_LEFT: return _ui.get_node_or_null(^"ThighLeft") as Control
+		PATH_THIGH_RIGHT: return _ui.get_node_or_null(^"ThighRight") as Control
 		PATH_PACK_LID: return _ui.get_node_or_null(^"PackLid") as Control
 	return null
 
@@ -90,6 +93,7 @@ func _get_offset(path: StringName) -> Vector2:
 		PATH_COAT_LEFT: return _ui.coat_left_offset
 		PATH_COAT_RIGHT: return _ui.coat_right_offset
 		PATH_THIGH_LEFT: return _ui.thigh_left_offset
+		PATH_THIGH_RIGHT: return _ui.thigh_right_offset
 		PATH_PACK_LID: return _ui.pack_lid_offset
 	return Vector2.ZERO
 
@@ -99,4 +103,5 @@ func _set_offset(path: StringName, value: Vector2) -> void:
 		PATH_COAT_LEFT: _ui.coat_left_offset = value
 		PATH_COAT_RIGHT: _ui.coat_right_offset = value
 		PATH_THIGH_LEFT: _ui.thigh_left_offset = value
+		PATH_THIGH_RIGHT: _ui.thigh_right_offset = value
 		PATH_PACK_LID: _ui.pack_lid_offset = value

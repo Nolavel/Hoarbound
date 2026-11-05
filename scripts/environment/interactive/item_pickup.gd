@@ -135,6 +135,39 @@ func _wood_work() -> WoodWorkComponent:
 	return player.get_node_or_null(^"WoodWorkComponent") as WoodWorkComponent if player != null else null
 
 
+## Where `body` would put something down ahead of it (`ahead_m` in front, on the ground), or Vector3.INF.
+static func ground_ahead(body: Node3D, ahead_m: float) -> Vector3:
+	var forward: Vector3 = -body.global_basis.z
+	forward.y = 0.0
+	forward = forward.normalized()
+	var at: Vector3 = body.global_position + forward * ahead_m
+	var ray := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.8, at + Vector3.DOWN * 3.0)
+	if body is CollisionObject3D:
+		ray.exclude = [(body as CollisionObject3D).get_rid()]
+	var hit: Dictionary = body.get_world_3d().direct_space_state.intersect_ray(ray)
+	return hit["position"] if not hit.is_empty() else Vector3.INF
+
+
+## A pickup for one `item_id` (its runtime state kept) lying at `at` in `body`'s world.
+static func spawn_dropped(body: Node3D, item_id: StringName, instance_state: Dictionary, at: Vector3) -> ItemPickup:
+	var pickup := ItemPickup.new()
+	pickup.item_id = item_id
+	pickup.count = 1
+	pickup.instance_state = instance_state
+	pickup.world_id = StringName("dropped:%s:%d:%d" % [item_id, Time.get_ticks_msec(), body.get_instance_id()])
+	var collision := CollisionShape3D.new()
+	var shape := SphereShape3D.new()
+	shape.radius = 0.3
+	collision.shape = shape
+	pickup.add_child(collision)
+	var tree: SceneTree = body.get_tree()
+	var world: Node = tree.current_scene if tree.current_scene != null else tree.root
+	world.add_child(pickup)
+	pickup.global_position = at
+	pickup.rotation.y = randf() * TAU
+	return pickup
+
+
 static func _refusal_key(reason: StringName) -> String:
 	match reason:
 		&"hands_full":

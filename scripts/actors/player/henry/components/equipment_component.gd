@@ -601,8 +601,14 @@ func load_save_data(data: Dictionary) -> void:
 	insulation_changed.emit(get_effective_insulation_c())
 
 
+## Too large by size class, or (a pocket with an inner size) by the item's real size; clothing squashes, so only
+## the class counts for a garment.
 func _check_fit(definition: EquipmentSlotDefinition, item: ItemResource) -> Refusal:
-	return Refusal.TOO_LARGE if item.size_class > definition.max_size else Refusal.NONE
+	if item.size_class > definition.max_size:
+		return Refusal.TOO_LARGE
+	if definition.inner_cm != Vector3.ZERO and item.garment == null and not ItemFootprint.fits(item.id, definition.inner_cm):
+		return Refusal.TOO_LARGE
+	return Refusal.NONE
 
 
 func _find_body_slot(slot_id: StringName) -> EquipmentSlotDefinition:

@@ -13,6 +13,10 @@ const HUT_WINDOWS: Array[String] = ["FrontWindow1", "FrontWindow2", "BackWindow1
 const HUT_KINDS: Dictionary = {"hut_stove": "ShelterZone/Stove", "hut_mattress": "ShelterZone/Mattress",
 	"hut_rest_crate": "ShelterZone/RestCrate", "hut_cabinet": "ShelterZone/Cabinet",
 	"hut_tool_bench": "ToolBench", "hut_supply_bench": "SupplyBench"}
+## The waiting-room cabinet's shelves in the save.
+const CABINET_CONTAINER_ID: StringName = &"727_waiting_cabinet"
+## The cabinet's set-dressing props (ShelterCabinet) that are real items here: prop name -> item id.
+const CABINET_PROPS: Dictionary = {"CabinetProp_StewTin": &"tinned_stew", "CabinetProp_PineappleTin": &"tinned_pineapple"}
 const CLINIC_OFFSET_C: float = 4.0
 const CLINIC_WIND_EXPOSURE: float = 0.15
 const CLINIC_WINDOW_SEVERITY: float = 0.2
@@ -28,6 +32,8 @@ const BOX_COLOURS: Dictionary = {"counter": Color(0.62, 0.56, 0.48), "bench": Co
 	"sink": Color(0.86, 0.87, 0.88)}
 
 var interior: Dictionary = {}
+## The waiting-room cabinet's shelves, holding the supplies the layout puts on it (built by place_supplies).
+var cabinet_shelves: ItemContainer
 var _house: Node3D
 var _floor_y: float = 0.0
 var _glass_warmth: float = 0.0
@@ -83,13 +89,42 @@ func build() -> void:
 ## Lays the First Exit supplies on their interior sockets ({name: {uv, h, yaw_deg}}, h above the floor).
 ## Pickup ids, counts and world_ids are the template's; only the place changes.
 func place_supplies(supplies: Array[ItemPickup], sockets: Dictionary) -> void:
+	## What the layout puts on the cabinet goes into its shelves (ItemContainer), not loose on the floor.
+	var in_cabinet: Array[ItemPickup] = []
 	for pickup: ItemPickup in supplies:
 		var socket: Dictionary = sockets[String(pickup.name)]
+		if str(socket.get("on", "")) == "Cabinet":
+			in_cabinet.append(pickup)
+			continue
 		var yaw: Basis = Basis(Vector3.UP, deg_to_rad(float(socket.get("yaw_deg", 0.0))))
 		pickup.transform = Transform3D(yaw, plan_point(socket["uv"], _floor_y + float(socket["h"])))
 		pickup.set_meta("reconstruction_class", "game_authored_override")
 		pickup.set_meta("site", "727_%s" % socket["room"])
 		_house.add_child(pickup)
+	var cabinet := _house.get_node_or_null(NodePath(HUT_KINDS["hut_cabinet"])) as Node3D
+	if cabinet == null:
+		push_error("KeyWest727Shelter: no cabinet for %d supplies" % in_cabinet.size())
+		for pickup: ItemPickup in in_cabinet:
+			pickup.free()
+		return
+	var shelves := ItemContainer.new()
+	shelves.name = "Shelves"
+	shelves.container_id = CABINET_CONTAINER_ID
+	shelves.shelves = ItemContainer.shelves_from_furniture(cabinet, cabinet.get_node_or_null(^"DoorHinge"))
+	## The cabinet's dressed tins (ShelterCabinet props) become real items on its shelves.
+	var dressed: Array[StringName] = []
+	for prop: Node in cabinet.get_children():
+		if CABINET_PROPS.has(String(prop.name)):
+			dressed.append(CABINET_PROPS[String(prop.name)])
+			prop.free()
+	for node: Node in cabinet.find_children("*", "", true, false):
+		if node is Cabinet:
+			shelves.door = node as Cabinet
+	cabinet.add_child(shelves)
+	for item_id: StringName in dressed:
+		shelves.put(item_id)
+	shelves.adopt(in_cabinet)
+	cabinet_shelves = shelves
 
 
 ## How far a stove has warmed a zone, 0..1 of what the zone can be heated by; the glass reads it.

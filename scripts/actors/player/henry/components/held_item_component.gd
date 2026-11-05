@@ -212,35 +212,15 @@ func drop_held() -> bool:
 	if not is_holding():
 		return false
 	var body := get_parent() as Node3D
-	var forward: Vector3 = -body.global_basis.z
-	forward.y = 0.0
-	forward = forward.normalized()
-	var at: Vector3 = body.global_position + forward * DROP_AHEAD_M
-	var ray := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.8, at + Vector3.DOWN * 3.0)
-	if body is CollisionObject3D:
-		ray.exclude = [(body as CollisionObject3D).get_rid()]
-	var hit: Dictionary = body.get_world_3d().direct_space_state.intersect_ray(ray)
-	if hit.is_empty():
+	var at: Vector3 = ItemPickup.ground_ahead(body, DROP_AHEAD_M)
+	if at == Vector3.INF:
 		return false
 	var item_id: StringName = _item_id
 	var payload: Dictionary = HeldOwnership.take(inventory, equipment, item_id, _source_zone)
 	if payload.is_empty():
 		return false
 	put_away()
-	var pickup := ItemPickup.new()
-	pickup.item_id = item_id
-	pickup.count = 1
-	pickup.instance_state = payload.get("instance_state", {})
-	pickup.world_id = StringName("dropped:%s:%d:%d" % [item_id, Time.get_ticks_msec(), get_instance_id()])
-	var collision := CollisionShape3D.new()
-	var shape := SphereShape3D.new()
-	shape.radius = 0.3
-	collision.shape = shape
-	pickup.add_child(collision)
-	var world: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
-	world.add_child(pickup)
-	pickup.global_position = hit["position"]
-	pickup.rotation.y = randf() * TAU
+	ItemPickup.spawn_dropped(body, item_id, payload.get("instance_state", {}), at)
 	return true
 
 

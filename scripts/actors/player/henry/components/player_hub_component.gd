@@ -25,6 +25,24 @@ const STOW_DROP_TIME: float = 0.32
 ## Where inspection stands the pack and Kenny, in Henry's space (he faces -Z).
 const INSPECT_PACK_SPOT: Vector3 = Vector3(0.0, -0.9, -0.75)
 const INSPECT_KENNY_SPOT: Vector3 = Vector3(0.7, -0.9, -0.3)
+## An open container this near ahead of Henry joins the held pack (its shelves), metres.
+const CONTAINER_REACH_M: float = 1.3
+## A visit (visit_container): the walk counts as arrived this near its spot and gives up after VISIT_WALK_S;
+## crouched (or standing at a tall one) the pack opens after VISIT_SETTLE_S, at most VISIT_CROUCH_S on, seconds.
+const VISIT_ARRIVE_M: float = 0.3
+## A threat shuts the open Hub (Green Hell): damage, or falling faster than this, m/s (interrupt()).
+const INTERRUPT_FALL_SPEED: float = 2.0
+## The door clip (Chest_Open) is cut this long after F, once his hand is at the door, so he walks at once.
+const VISIT_REACH_S: float = 0.45
+## A walk that gets no nearer for VISIT_STALL_S (a wall or the furniture in the way) ends there: arrived when
+## within VISIT_STALL_ARRIVE_M of the spot, else called off.
+const VISIT_STALL_S: float = 0.25
+const VISIT_STALL_ARRIVE_M: float = 0.7
+const VISIT_WALK_S: float = 4.0
+const VISIT_SETTLE_S: float = 0.25
+const VISIT_CROUCH_S: float = 1.2
+## Something put down from the open pack lands this far ahead of Henry, metres.
+const DROP_AHEAD_M: float = 0.7
 ## route_destination's answer when the item stays in the pack.
 const PACK_DESTINATION: StringName = &"pack"
 
@@ -36,6 +54,12 @@ const PACK_DESTINATION: StringName = &"pack"
 @export var camera_side: float = 0.4
 @export var camera_height: float = 0.3
 @export var camera_blend_time: float = 0.45
+## The pack-in-hands view's angle of view, degrees.
+@export var pack_view_fov: float = 50.0
+## At a container: a longer lens, so the pack and the furniture side by side keep their shape.
+@export var container_view_fov: float = 34.0
+## 3D inventory: Tab takes the pack into Henry's hands, open toward a camera facing him (else it opens on his back).
+@export var pack_in_hands: bool = true
 
 ## The pack on Henry; resolved from his visual when left empty.
 var pack: PackRig
@@ -50,6 +74,22 @@ var _took_pack_off: bool = false
 ## Restore the gameplay mouse mode exactly when leaving the Hub.
 var _previous_mouse_mode: int = Input.MOUSE_MODE_CAPTURED
 var _thermal_manager: ThermalManager
+## The pack held before Henry while the Hub is open in pack_in_hands mode.
+var _front_hold: PackFrontHold
+## The open container Henry stands at while the pack is held (its shelves join the inventory), or null.
+var container: ItemContainer
+## The container Henry is walking to or crouching at before the pack opens, its spot and the phase's time.
+var _visit: ItemContainer
+var _visit_spot: Dictionary = {}
+var _visit_walking: bool = false
+var _visit_s: float = 0.0
+var _visit_nearest: float = INF
+var _visit_stall_s: float = 0.0
+## The Quick Access cards beside the held pack and the hands working in it (pack_in_hands mode).
+var _shelf: PackQuickShelf
+var _hands: PackHandling
+## Set while full inspection opens the Hub: it sets the pack down instead of taking it in hand.
+var _opening_inspection: bool = false
 
 
 ## A UI composition root owns the presentation panel, not Henry.
@@ -59,10 +99,100 @@ func bind_panel(panel: PlayerHubPanel) -> void:
 
 func _ready() -> void:
 	var body: Node = get_parent()
+	var health := body.get_node_or_null(^"PlayerHealthSystem") as PlayerHealthSystem if body != null else null
+	if health != null:
+		health.hurt.connect(func(_amount: float, _source: String) -> void: interrupt())
 	if inventory == null:
 		inventory = InventoryComponent.find_in(body)
 	if equipment == null and body != null:
 		equipment = body.get_node_or_null(^"EquipmentComponent") as EquipmentComponent
+
+
+## Henry walks to `shelves`' visit spot (ItemContainer.visit_spot), crouches at a low one, faces in, and the
+## pack opens beside it. WASD on the way calls it off.
+func visit_container(shelves: ItemContainer) -> bool:
+	var body := get_parent() as Player
+	if _open or body == null or not _can_open() or not shelves.is_reachable():
+		return false
+	_visit = shelves
+	_visit_spot = shelves.visit_spot(body.global_position)
+	_visit_walking = true
+	_visit_s = 0.0
+	_visit_nearest = INF
+	_visit_stall_s = 0.0
+	body.move_to_position(_visit_spot["at"])
+	return true
+
+
+## A threat (damage, a fall; later thin ice and the like): the open Hub shuts at once and a visit is called off.
+## Time never stops in the Hub, so this is what makes an open pack a risk.
+func interrupt() -> void:
+	if _visit != null:
+		_end_visit()
+	if _open:
+		close()
+
+
+## Whether Henry is on his way to (or settling at) a container before the pack opens.
+func is_visiting() -> bool:
+	return _visit != null
+
+
+func _physics_process(delta: float) -> void:
+	var falling := get_parent() as CharacterBody3D
+	if (_open or _visit != null) and falling != null and falling.velocity.y < -INTERRUPT_FALL_SPEED:
+		interrupt()
+		return
+	if _visit == null:
+		return
+	var body := get_parent() as Player
+	if body == null or not is_instance_valid(_visit) or not _visit.is_reachable():
+		_end_visit()
+		return
+	_visit_s += delta
+	var at: Vector3 = _visit_spot["at"]
+	var off: float = Vector2(at.x - body.global_position.x, at.z - body.global_position.z).length()
+	if _visit_walking:
+		if body.is_action_locking() and _visit_s >= VISIT_REACH_S and _visual() != null:
+			_visual().stop_action()
+		if off < _visit_nearest - 0.01:
+			_visit_nearest = off
+			_visit_stall_s = 0.0
+		elif not body.is_action_locking():
+			_visit_stall_s += delta
+		var stalled: bool = _visit_stall_s >= VISIT_STALL_S
+		if body.is_walking_to_target() and _visit_s < VISIT_WALK_S and not stalled:
+			return
+		if off > (VISIT_STALL_ARRIVE_M if stalled else VISIT_ARRIVE_M):
+			_end_visit()  # WASD took over, or he could not get there
+			return
+		body.stop_moving()
+		_visit_walking = false
+		_visit_s = 0.0
+		body.face_work_target(_visit_spot["face"])
+		var floor_y: float = body.global_position.y - 1.0  # the body's origin is the capsule centre
+		if _visit.is_low(floor_y):
+			body.set_work_crouch(true)
+		return
+	var settled: bool = not body.is_work_crouching() or body.is_crouching()
+	if (settled and _visit_s >= VISIT_SETTLE_S) or _visit_s >= VISIT_CROUCH_S:
+		var shelves: ItemContainer = _visit
+		var side: float = _visit_spot["side"]
+		_visit = null
+		_open_at(shelves, side)
+
+
+## The container view's angle: the owner's framing camera, else container_view_fov, degrees.
+func _container_fov() -> float:
+	var framing: ContainerFraming = ContainerFraming.load_saved()
+	return framing.camera_fov if framing != null else container_view_fov
+
+
+func _end_visit() -> void:
+	var body := get_parent() as Player
+	if body != null and body.is_work_crouching():
+		body.set_work_crouch(false)
+	_visit = null
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -83,21 +213,64 @@ func is_open() -> bool:
 
 
 func toggle() -> bool:
+	if _visit != null:
+		_end_visit()
+		return false
 	return close() if _open else open()
 
 
-## Enters the Hub. Refused mid-fall, while carrying in both hands or mid-action.
+## Enters the Hub. Refused mid-fall, while carrying in both hands or mid-action. By an open container within
+## reach Henry first steps over to it (visit_container) and the pack opens there.
 func open() -> bool:
+	if _open or _visit != null:
+		return false
+	var body := get_parent() as Node3D
+	if pack_in_hands and body != null and not _opening_inspection:
+		var near: ItemContainer = ItemContainer.find_open_near(body, -body.global_basis.z.slide(Vector3.UP).normalized(), CONTAINER_REACH_M)
+		if near != null:
+			return visit_container(near)
+	return _open_at(null, 1.0)
+
+
+## Enters the Hub, at `shelves` (null: none) with the pack held on `side` of it.
+func _open_at(shelves: ItemContainer, side: float) -> bool:
 	if _open or not _can_open() or not _stow_safe_held_items():
+		_end_visit()
 		return false
 	_previous_mouse_mode = Input.mouse_mode
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_open = true
 	var pack: PackRig = _pack()
-	if pack != null:
+	var visual: HenryUALAnimation = _visual()
+	## 3D inventory (stage 3): Henry takes the pack off into his hands and opens it toward the camera.
+	if pack_in_hands and not _opening_inspection and visual != null and pack != null and not visual.is_pack_down():
+		_front_hold = visual.hold_pack_front()
+		## At an open container (visited), its shelves join the pack (ItemContainer).
+		container = shelves
+		if _front_hold != null and container != null:
+			_front_hold.begin_container(container, side, _container_fov())
+	elif pack != null:
 		pack.set_openness(PackRig.Openness.FULL)
 	_enter_camera()
-	_show_panel()
+	if _front_hold == null:
+		_show_panel()
+	elif is_instance_valid(_camera):
+		## Quick Access beside the open pack: the real pockets' 3D items on cards at the frame's sides.
+		_shelf = PackQuickShelf.new()
+		_shelf.name = "QuickShelf"
+		_camera.add_child(_shelf)
+		_shelf.setup(self, _camera)
+		## The ring cursor and hands: take from the pack or a pocket, put it in the other, G puts it down.
+		var layer := CanvasLayer.new()
+		layer.name = "PackCursorLayer"
+		add_child(layer)
+		var ring := PackCursor.new()
+		layer.add_child(ring)
+		_hands = PackHandling.new()
+		_hands.name = "PackHandling"
+		add_child(_hands)
+		_hands.setup(self, pack.get_straps(), _shelf, _camera, ring, container)
+		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 	hub_opened.emit()
 	return true
 
@@ -120,7 +293,10 @@ func open_inspection() -> bool:
 	var visual: HenryUALAnimation = _visual()
 	if visual == null or _pack() == null:
 		return false
-	if not _open and not open():
+	_opening_inspection = true
+	var opened: bool = _open or open()
+	_opening_inspection = false
+	if not opened:
 		return false
 	var body := get_parent() as Node3D
 	_took_pack_off = not visual.is_pack_down()
@@ -136,6 +312,16 @@ func open_inspection() -> bool:
 		_panel.set_inspecting(true)
 	inspection_opened.emit(_pack())
 	return true
+
+
+## The live Quick Access cards while the pack is held open, or null.
+func get_quick_shelf() -> PackQuickShelf:
+	return _shelf if is_instance_valid(_shelf) else null
+
+
+## The hands working in the held pack (ring cursor, take and put), or null.
+func get_pack_hands() -> PackHandling:
+	return _hands if is_instance_valid(_hands) else null
 
 
 func is_inspecting() -> bool:
@@ -154,10 +340,25 @@ func close() -> bool:
 			visual.pick_pack_up()
 		_took_pack_off = false
 		inspection_closed.emit()
-	if pack != null:
+	if _front_hold != null and visual != null:
+		## It swings back on and shuts there (PackFrontHold).
+		visual.release_pack_front()
+		_front_hold = null
+	elif pack != null:
 		## Set down by the stove it stays ajar; on the back it shuts.
 		var down: bool = visual != null and visual.is_pack_down()
 		pack.set_openness(PackRig.Openness.AJAR if down else PackRig.Openness.CLOSED)
+	if is_instance_valid(_shelf):
+		_shelf.queue_free()
+	_shelf = null
+	if is_instance_valid(_hands):
+		_hands.queue_free()
+		var layer: Node = get_node_or_null(^"PackCursorLayer")
+		if layer != null:
+			layer.queue_free()
+	_hands = null
+	container = null
+	_end_visit()
 	_exit_camera()
 	if is_instance_valid(_panel):
 		_panel.hide_hub()
@@ -244,6 +445,105 @@ func move_to_pack(zone_path: StringName) -> StringName:
 		return OVERWEIGHT
 	contents_changed.emit()
 	return &""
+
+
+## Takes item `index` off `shelves` into the pack, or into the quick pocket `zone_path`: &"" when it moved,
+## else why not (OVERWEIGHT, or the pocket's refusal as &"pocket_refused").
+func move_from_container(shelves: ItemContainer, index: int, zone_path: StringName = &"") -> StringName:
+	if shelves == null or inventory == null or index < 0 or index >= shelves.items.size():
+		return &"empty"
+	var item_id: StringName = shelves.items[index]["id"]
+	var item: ItemResource = ItemCatalog.get_item(item_id)
+	if zone_path != &"":
+		var parts: PackedStringArray = String(zone_path).split(EquipmentComponent.POCKET_SEPARATOR)
+		if equipment == null or parts.size() != 2:
+			return &"no_such_slot"
+		if equipment.can_stow(StringName(parts[0]), StringName(parts[1]), item_id) != EquipmentComponent.Refusal.NONE:
+			return &"pocket_refused"
+		var into_pocket: Dictionary = shelves.take(index)
+		if equipment.stow_instance(StringName(parts[0]), StringName(parts[1]), item_id, into_pocket["state"]) != EquipmentComponent.Refusal.NONE:
+			shelves.put(item_id, into_pocket["state"])
+			return &"pocket_refused"
+	else:
+		if item == null or inventory.get_add_refusal(item) != &"":
+			return OVERWEIGHT
+		var into_pack: Dictionary = shelves.take(index)
+		if not inventory.try_add_instance(item, into_pack["state"]):
+			shelves.put(item_id, into_pack["state"])
+			return OVERWEIGHT
+	contents_changed.emit()
+	return &""
+
+
+## Puts one `item_id` from the pack, or the quick pocket `zone_path`'s item, onto `shelves`: &"" when it moved,
+## else why not (ItemContainer.NO_ROOM).
+func move_to_container(shelves: ItemContainer, item_id: StringName = &"", zone_path: StringName = &"") -> StringName:
+	if shelves == null or inventory == null:
+		return &"empty"
+	var parts: PackedStringArray = String(zone_path).split(EquipmentComponent.POCKET_SEPARATOR)
+	if zone_path != &"":
+		if equipment == null or parts.size() != 2:
+			return &"no_such_slot"
+		item_id = equipment.get_pocket_item(StringName(parts[0]), StringName(parts[1]))
+	if item_id == &"" or (zone_path == &"" and not inventory.has_item(item_id)):
+		return &"empty"
+	var why: StringName = shelves.refusal(item_id)
+	if why != &"":
+		return why
+	var payload: Dictionary = equipment.take_pocket_instance(StringName(parts[0]), StringName(parts[1])) if zone_path != &"" else inventory.take_instance(item_id)
+	if payload.is_empty():
+		return &"empty"
+	shelves.put(item_id, payload.get("instance_state", {}))
+	contents_changed.emit()
+	return &""
+
+
+## Puts one `item_id` from the pack down on the ground ahead of Henry (its state kept). False with no ground there.
+func drop_from_pack(item_id: StringName) -> bool:
+	var body := get_parent() as Node3D
+	var at: Vector3 = ItemPickup.ground_ahead(body, DROP_AHEAD_M)
+	if inventory == null or at == Vector3.INF or not inventory.has_item(item_id):
+		return false
+	var payload: Dictionary = inventory.take_instance(item_id)
+	if payload.is_empty():
+		return false
+	ItemPickup.spawn_dropped(body, item_id, payload.get("instance_state", {}), at)
+	contents_changed.emit()
+	return true
+
+
+## Puts a quick pocket's item down on the ground ahead of Henry. False with no ground there or an empty pocket.
+func drop_from_zone(zone_path: StringName) -> bool:
+	var body := get_parent() as Node3D
+	var at: Vector3 = ItemPickup.ground_ahead(body, DROP_AHEAD_M)
+	var parts: PackedStringArray = String(zone_path).split(EquipmentComponent.POCKET_SEPARATOR)
+	if equipment == null or at == Vector3.INF or parts.size() != 2:
+		return false
+	var payload: Dictionary = equipment.take_pocket_instance(StringName(parts[0]), StringName(parts[1]))
+	if payload.is_empty():
+		return false
+	ItemPickup.spawn_dropped(body, payload["id"], payload.get("instance_state", {}), at)
+	contents_changed.emit()
+	return true
+
+
+## Moves a quick pocket's item into another quick pocket, or says why not (that pocket full, too small).
+func move_between_zones(from_path: StringName, to_path: StringName) -> EquipmentComponent.Refusal:
+	var source: PackedStringArray = String(from_path).split(EquipmentComponent.POCKET_SEPARATOR)
+	var target: PackedStringArray = String(to_path).split(EquipmentComponent.POCKET_SEPARATOR)
+	if equipment == null or source.size() != 2 or target.size() != 2 or not _is_quick_zone(to_path):
+		return EquipmentComponent.Refusal.NO_SUCH_SLOT
+	var item_id: StringName = equipment.get_pocket_item(StringName(source[0]), StringName(source[1]))
+	var refusal: EquipmentComponent.Refusal = equipment.can_stow(StringName(target[0]), StringName(target[1]), item_id)
+	if refusal != EquipmentComponent.Refusal.NONE:
+		return refusal
+	var payload: Dictionary = equipment.take_pocket_instance(StringName(source[0]), StringName(source[1]))
+	refusal = equipment.stow_instance(StringName(target[0]), StringName(target[1]), item_id, payload.get("instance_state", {}))
+	if refusal != EquipmentComponent.Refusal.NONE:
+		equipment.stow_instance(StringName(source[0]), StringName(source[1]), item_id, payload.get("instance_state", {}))
+		return refusal
+	contents_changed.emit()
+	return EquipmentComponent.Refusal.NONE
 
 
 ## Tap-F stow: the item's visual lifts, flies into the top flap and is freed.
@@ -362,6 +662,8 @@ func _user_for(item_id: StringName) -> Node:
 func get_camera_target() -> Transform3D:
 	var body := get_parent() as Node3D
 	var pack: PackRig = _pack()
+	if is_instance_valid(_front_hold):
+		return _front_hold.container_view(_container_fov()) if is_instance_valid(_front_hold.container) else _front_hold.front_view(pack_view_fov)
 	if _inspecting and pack != null and pack.is_inside_tree():
 		## Beside Henry, past his left shoulder, looking down into the open pack on the floor.
 		var basis: Basis = body.global_transform.basis.orthonormalized()
@@ -381,6 +683,11 @@ func get_camera_target() -> Transform3D:
 	var side: Vector3 = Vector3.UP.cross(outward).normalized()
 	var eye: Vector3 = centre + outward * camera_back + side * camera_side + Vector3(0.0, camera_height, 0.0)
 	return Transform3D(Basis.IDENTITY, eye).looking_at(centre, Vector3.UP)
+
+
+## How cold Henry's hands are, 0..1 (ExtremityCold load): slower, shakier hands in the open pack.
+func get_hands_cold() -> float:
+	return _thermal_manager.get_extremity_cold(&"hands") if _thermal_manager != null else 0.0
 
 
 func set_thermal_manager(thermal: ThermalManager) -> void:
@@ -418,6 +725,19 @@ func get_weight() -> float:
 
 func get_max_weight() -> float:
 	return inventory.max_carry_weight if inventory != null else 0.0
+
+
+## The held pack dips under `kg` put into it (PackFrontHold.jolt); nothing when it is not held.
+func jolt_held_pack(kg: float) -> void:
+	if is_instance_valid(_front_hold):
+		_front_hold.jolt(kg)
+
+
+## The share of the carry limit past which Henry starts to slow (MovementController.load_penalty_starts).
+func get_load_slows_at() -> float:
+	var body: Node = get_parent()
+	var movement := body.get_node_or_null(^"MovementController") as MovementController if body != null else null
+	return movement.load_penalty_starts if movement != null else 1.0
 
 
 func _can_open() -> bool:
@@ -469,7 +789,7 @@ func _enter_camera() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "HubCamera"
 	_camera.top_level = true
-	_camera.fov = 50.0
+	_camera.fov = (_container_fov() if container != null else pack_view_fov) if is_instance_valid(_front_hold) else 50.0
 	## It sees what the game camera sees: reserved layers (dev map labels, snow contact) stay out.
 	if _previous_camera != null:
 		_camera.cull_mask = _previous_camera.cull_mask
@@ -477,6 +797,12 @@ func _enter_camera() -> void:
 		_camera.attributes = _previous_camera.attributes
 		_camera.compositor = _previous_camera.compositor
 	body.add_child(_camera)
+	if is_instance_valid(_front_hold):
+		## The held pack in focus: everything else, Henry too, blurs (a stencil mask, not depth).
+		var blur := PackFocusBlur.new()
+		blur.name = "PackFocusBlur"
+		_camera.add_child(blur)
+		blur.setup(_pack(), container.get_parent() as Node3D if container != null else null)
 	var target: Transform3D = get_camera_target()
 	_camera.global_transform = _previous_camera.global_transform if _previous_camera != null else target
 	_camera.make_current()

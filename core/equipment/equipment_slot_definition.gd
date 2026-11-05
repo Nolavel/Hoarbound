@@ -32,6 +32,10 @@ extends Resource
 ## slot is BULKY.
 @export var max_size: ItemTraits.SizeClass = ItemTraits.SizeClass.POCKET
 
+## Inside size of a pocket, cm: width, depth, thickness (ItemFootprint.fits against the item's model). Zero:
+## the size class alone decides (the pack's main compartment, the carabiners).
+@export var inner_cm: Vector3 = Vector3.ZERO
+
 ## May something that is NOT a garment go here. False wherever clothing is
 ## worn and on every pocket; true on the pack and on Kenny's fixture.
 @export var accepts_non_garment: bool = false

@@ -118,6 +118,18 @@ func _check_unlit_flare() -> void:
 ## Drawing pocket B while A's item is shown trades them: B keeps the old item, the hand
 ## shows B's item from A, and no item is ever both in a pocket card and in hand.
 func _check_draw_swaps_hand() -> void:
+	## The trade itself is checked here, not pocket sizes: the hammer (34 cm) is too long for a real coat pocket
+	## (EquipmentSlotDefinition.inner_cm), so the coat's sizes are lifted for this check and put back after.
+	var coat_sizes: Dictionary = {}
+	for pocket: EquipmentSlotDefinition in ItemCatalog.get_item(&"worn_coat").garment.pockets:
+		coat_sizes[pocket] = pocket.inner_cm
+		pocket.inner_cm = Vector3.ZERO
+	await _trade_hammer_and_flare()
+	for pocket: EquipmentSlotDefinition in coat_sizes:
+		pocket.inner_cm = coat_sizes[pocket]
+
+
+func _trade_hammer_and_flare() -> void:
 	## Coat pockets trade; the pack's pockets are fixed places and never do (test_backpack_rig R15).
 	var a: StringName = await _coat_pocket(&"hammer")
 	var b: StringName = HeldOwnership.pocket_holding(_equipment, &"road_flare")

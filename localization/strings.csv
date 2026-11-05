@@ -130,6 +130,11 @@ Firewood,Firewood,Дрова
 Salvaged boards,Salvaged boards,Доски
 Water flask,Water flask,Фляга
 FLASK_SHORT_STATUS,%d / %d ml,%d / %d мл
+ITEM_WEIGHT_KG,%.1f kg,%.1f кг
+ITEM_WEIGHT_G,%d g,%d г
+ITEM_CALORIES,%d kcal,%d ккал
+ITEM_BUNDLE_COUNT,%s ×%d,%s ×%d
+INVENTORY_LOAD,Load %.1f / %.0f kg,Нагрузка %.1f / %.0f кг
 Pocket knife,Pocket knife,Нож
 Tinned pineapple,Tinned pineapple,Консервированные ананасы
 Tinned stew,Tinned stew,Тушёнка
@@ -242,3 +247,39 @@ QA_SLEEVE_BACK,SLEEVE B,ЧЕХОЛ ЗАД
 QA_CARABINER,CARABINER,КАРАБИН
 LOAD_BANNER_TITLE,LOAD,НАГРУЗКА
 LOAD_BANNER_VALUE,%.1f / %.0f kg,%.1f / %.0f кг
+INVENTORY_TOO_BIG,"Too big for the pack","Не влезет в рюкзак"
+INVENTORY_NO_ROOM,"No room left in the pack","В рюкзаке нет места"
+INVENTORY_HINT_DROP,"%s — drop","%s — выбросить"
+KEY_RMB,RMB,ПКМ
+CONTAINER_NO_ROOM,No room on the shelf,На полке нет места
+INVENTORY_HINT_EAT,"%s — eat","%s — съесть"
+INVENTORY_HINT_DRINK,"%s — drink","%s — выпить"
+INVENTORY_HINT_OPEN,"%s — open","%s — открыть"
+INVENTORY_HINT_USE,"%s — use","%s — использовать"
+INVENTORY_POCKET_FULL,"This pocket is taken","Карман занят"
+INVENTORY_POCKET_TOO_SMALL,"Too big for this pocket","Не влезет в этот карман"
+POCKET_COAT_LEFT,Left coat pocket,Левый карман куртки
+POCKET_COAT_RIGHT,Right coat pocket,Правый карман куртки
+POCKET_THIGH_LEFT,Left thigh pocket,Левый карман на бедре
+POCKET_THIGH_RIGHT,Right thigh pocket,Правый карман на бедре
+POCKET_PACK_LID,Lid pocket,Клапан рюкзака
+POCKET_PACK_SIDE_LEFT,Side pocket,Боковой карман
+POCKET_PACK_SIDE_RIGHT_FRONT,"Sleeve, front","Рукав, передний"
+POCKET_PACK_SIDE_RIGHT_BACK,"Sleeve, back","Рукав, задний"
+POCKET_PACK_CARABINER,Right carabiner,Карабин справа
+POCKET_PACK_CARABINER_LEFT,Left carabiner,Карабин слева
+Bedroll,Bedroll,Спальник
+Empty tin,Empty tin,Пустая банка
+Frying pan,Frying pan,Сковорода
+Hot stew,Hot stew,Горячее рагу
+Kenny,Kenny,Кенни
+Knit hat,Knit hat,Вязаная шапка
+Mug,Mug,Кружка
+Old backpack,Old backpack,Старый рюкзак
+Road flare,Road flare,Фальшфейер
+Thermal shirt,Thermal shirt,Термобельё
+Warm water,Warm water,Тёплая вода
+Wool sweater,Wool sweater,Шерстяной свитер
+Work trousers,Work trousers,Рабочие штаны
+Worn boots,Worn boots,Поношенные ботинки
+Worn coat,Worn coat,Поношенная куртка

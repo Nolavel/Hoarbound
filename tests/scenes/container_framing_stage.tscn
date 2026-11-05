@@ -1,0 +1,149 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="1_enxdb"]
+[ext_resource type="Script" path="res://scripts/actors/player/henry/Controllers/HenryUALAnimation.gd" id="2_kfoxe"]
+[ext_resource type="PackedScene" path="res://assets/animation/ual/Unreal-Godot_2/UAL2_Standard.glb" id="3_dnymf"]
+[ext_resource type="PackedScene" path="res://assets/characters/henry/knit_hat/knit_hat.glb" id="4_owdl6"]
+
+[sub_resource type="Environment" id="Environment_xn37o"]
+background_mode = 1
+background_color = Color(0.72, 0.75, 0.8, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.7, 0.72, 0.78, 1)
+
+[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_6ku8b"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ejcpg"]
+albedo_color = Color(0.45, 0.42, 0.38, 1)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_5gekn"]
+size = Vector2(8, 8)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yaehw"]
+albedo_color = Color(0.36, 0.38, 0.42, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_fa1v7"]
+size = Vector3(0.8, 0.9, 0.03)
+
+[sub_resource type="BoxMesh" id="BoxMesh_h5374"]
+size = Vector3(0.03, 0.9, 0.45)
+
+[sub_resource type="BoxMesh" id="BoxMesh_phxh6"]
+size = Vector3(0.03, 0.9, 0.45)
+
+[sub_resource type="BoxMesh" id="BoxMesh_5bm5k"]
+size = Vector3(0.8, 0.03, 0.45)
+
+[sub_resource type="BoxMesh" id="BoxMesh_aygce"]
+size = Vector3(0.8, 0.06, 0.45)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rixv2"]
+size = Vector3(0.74, 0.02, 0.4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_j2d2f"]
+size = Vector3(0.78, 0.84, 0.025)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_omoyf"]
+albedo_color = Color(0.2, 0.22, 0.24, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_nktcl"]
+size = Vector3(0.34, 0.44, 0.2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_r7swo"]
+albedo_color = Color(0.32, 0.2, 0.17, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_f84m5"]
+top_radius = 0.08
+bottom_radius = 0.08
+height = 0.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_yxxp1"]
+size = Vector3(0.34, 0.02, 0.44)
+
+[node name="ContainerFramingStage" type="Node3D" unique_id=541971125]
+
+[node name="Environment" type="WorldEnvironment" parent="." unique_id=631101008]
+environment = SubResource("Environment_xn37o")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=214682357]
+transform = Transform3D(0.81915206, -0.43938506, 0.36868784, 0, 0.64278764, 0.76604444, -0.57357645, -0.62750685, 0.5265408, 0, 0, 0)
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=547843347]
+
+[node name="Shape" type="CollisionShape3D" parent="Floor" unique_id=1973687706]
+shape = SubResource("WorldBoundaryShape3D_6ku8b")
+
+[node name="Ground" type="MeshInstance3D" parent="Floor" unique_id=287056298]
+material_override = SubResource("StandardMaterial3D_ejcpg")
+mesh = SubResource("PlaneMesh_5gekn")
+
+[node name="Cabinet" type="Node3D" parent="." unique_id=1850003270]
+
+[node name="Panel0" type="MeshInstance3D" parent="Cabinet" unique_id=670463518]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, -0.21)
+material_override = SubResource("StandardMaterial3D_yaehw")
+mesh = SubResource("BoxMesh_fa1v7")
+
+[node name="Panel1" type="MeshInstance3D" parent="Cabinet" unique_id=910221012]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.385, 0.45, 0)
+material_override = SubResource("StandardMaterial3D_yaehw")
+mesh = SubResource("BoxMesh_h5374")
+
+[node name="Panel2" type="MeshInstance3D" parent="Cabinet" unique_id=2079874976]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.385, 0.45, 0)
+material_override = SubResource("StandardMaterial3D_yaehw")
+mesh = SubResource("BoxMesh_phxh6")
+
+[node name="Panel3" type="MeshInstance3D" parent="Cabinet" unique_id=2008436612]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.885, 0)
+material_override = SubResource("StandardMaterial3D_yaehw")
+mesh = SubResource("BoxMesh_5bm5k")
+
+[node name="Panel4" type="MeshInstance3D" parent="Cabinet" unique_id=1955480711]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
+material_override = SubResource("StandardMaterial3D_yaehw")
+mesh = SubResource("BoxMesh_aygce")
+
+[node name="Panel5" type="MeshInstance3D" parent="Cabinet" unique_id=1153895493]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+material_override = SubResource("StandardMaterial3D_yaehw")
+mesh = SubResource("BoxMesh_rixv2")
+
+[node name="DoorHinge" type="Node3D" parent="Cabinet" unique_id=1895916600]
+transform = Transform3D(-0.25881904, 0, -0.9659258, 0, 1, 0, 0.9659258, 0, -0.25881904, -0.39, 0.45, 0.225)
+
+[node name="Door" type="MeshInstance3D" parent="Cabinet/DoorHinge" unique_id=484589915]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.39, 0, 0.012)
+material_override = SubResource("StandardMaterial3D_yaehw")
+mesh = SubResource("BoxMesh_j2d2f")
+
+[node name="Front" type="Node3D" parent="." unique_id=1930495763]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.465, 0.225)
+
+[node name="Camera" type="Camera3D" parent="Front" unique_id=1424186618]
+transform = Transform3D(0.8660254, 0.07417023, -0.49446818, 0, 0.98893636, 0.14834046, 0.5, -0.1284666, 0.856444, -0.39702916, 0.20197788, 1.4561744)
+current = true
+fov = 34.0
+
+[node name="Pack" type="Node3D" parent="Front" unique_id=914900674]
+transform = Transform3D(-0.9853636, 0, 0.17046624, 0, 1, 0, -0.17046624, 0, -0.9853636, 0.31200933, 0.044999987, 0.588655)
+
+[node name="Body" type="MeshInstance3D" parent="Front/Pack" unique_id=1974399336]
+material_override = SubResource("StandardMaterial3D_omoyf")
+mesh = SubResource("BoxMesh_nktcl")
+
+[node name="Bedroll" type="MeshInstance3D" parent="Front/Pack" unique_id=1892329170]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0.3, 0.02)
+material_override = SubResource("StandardMaterial3D_r7swo")
+mesh = SubResource("CylinderMesh_f84m5")
+
+[node name="OpenPanel" type="MeshInstance3D" parent="Front/Pack" unique_id=595164935]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.21, -0.32)
+material_override = SubResource("StandardMaterial3D_omoyf")
+mesh = SubResource("BoxMesh_yxxp1")
+
+[node name="Henry" type="Node3D" parent="Front" unique_id=1385313891 instance=ExtResource("1_enxdb")]
+transform = Transform3D(0.7772067, 0, -0.62924534, 0, 1, 0, 0.6292454, 0, 0.77720666, 0.62, -0.465, 0.2)
+script = ExtResource("2_kfoxe")
+secondary_library_scene = ExtResource("3_dnymf")
+knit_hat_scene = ExtResource("4_owdl6")
