@@ -31,6 +31,9 @@ const SHOW_BODY_PANEL: bool = false
 const BODY_FADE_S: float = 0.22
 const BODY_DOT_TINT: Color = Color(1.0, 0.86, 0.45, 0.95)
 const BODY_DOT_SHARE: float = 0.06
+## Where the coat ends and the trousers begin in body_front.png (share of its height, the gap between them):
+## only the garment that owns the hovered pocket shows.
+const BODY_SPLIT_V: float = 0.496
 const BOTTOM_ROW: Array[String] = ["thigh_left", "thigh_right", "hand", "coat_left", "coat_right"]
 ## The bottom row's middle height (share of the half height, down) and the extra gap between groups (cards).
 const BOTTOM_SHARE: float = 0.8
@@ -232,7 +235,6 @@ func _process(delta: float) -> void:
 	var body_height: float = half_h * 2.0 * BODY_SHARE
 	var body_size := Vector2(body_height * BODY_FRONT.get_width() / float(BODY_FRONT.get_height()), body_height)
 	var body_at := Vector3(-half_w * BODY_X_SHARE, 0.0, -DEPTH_M - 0.002)
-	_body.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3(body_size.x, body_size.y, 1.0)), body_at)
 	_fade_body(delta, body_at, body_size)
 	var hand_at := body_at + Vector3(body_size.x * 0.5 + size * 0.75, (0.5 - HAND_V) * body_size.y, 0.002)
 	if not SHOW_BODY_PANEL:
@@ -255,9 +257,20 @@ func _process(delta: float) -> void:
 		(slot["card"] as Node3D).global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * side_m / CARD_M), at)
 
 
-## With the panel off, it fades in while the ring is on a body pocket, a dot where that pocket is on the body.
+## With the panel off, the hovered pocket's garment alone (coat or trousers) fades in, a dot where the pocket is.
 func _fade_body(delta: float, body_at: Vector3, body_size: Vector2) -> void:
 	var on_body: bool = focus_slot >= 0 and focus_slot < slots.size() and (slots[focus_slot]["body_uv"] as Vector2).x >= 0.0
+	## The whole panel when it is switched on; else only the hovered pocket's garment (its part of the picture).
+	var part := Vector2(0.0, 1.0)
+	if on_body and not SHOW_BODY_PANEL:
+		var coat: bool = (slots[focus_slot]["body_uv"] as Vector2).y < BODY_SPLIT_V
+		part = Vector2(0.0, BODY_SPLIT_V) if coat else Vector2(BODY_SPLIT_V, 1.0)
+	if on_body or SHOW_BODY_PANEL:
+		var material := _body.material_override as StandardMaterial3D
+		material.uv1_scale = Vector3(1.0, part.y - part.x, 1.0)
+		material.uv1_offset = Vector3(0.0, part.x, 0.0)
+		var part_at: Vector3 = body_at + Vector3(0.0, (0.5 - (part.x + part.y) * 0.5) * body_size.y, 0.0)
+		_body.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3(body_size.x, body_size.y * (part.y - part.x), 1.0)), part_at)
 	if on_body:
 		var uv: Vector2 = slots[focus_slot]["body_uv"]
 		var dot: float = body_size.y * BODY_DOT_SHARE
