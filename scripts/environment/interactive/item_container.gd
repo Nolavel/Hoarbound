@@ -13,6 +13,14 @@ const GAP_M: float = 0.02
 ## A panel thinner than this along an axis counts as a wall, a shelf or a lid (shelves_from_furniture), metres.
 const PANEL_M: float = 0.07
 
+## Henry stands this far out from the front and past the side edge to visit; shelves topping out below
+## LOW_TOP_M above the floor make him crouch there, metres.
+const VISIT_OUT_M: float = 0.45
+const VISIT_PAST_M: float = 0.58
+const LOW_TOP_M: float = 1.1
+## F opening the door sends a player this near on a visit (PlayerHubComponent.visit_container), metres.
+const VISIT_CALL_M: float = 3.0
+
 ## Stable id for the save ("container/<id>").
 @export var container_id: StringName = &""
 ## The free space above each shelf, in this node's space: its bottom face is the shelf's top.
@@ -30,6 +38,45 @@ static var _outlines: Dictionary = {}
 func _ready() -> void:
 	add_to_group(&"saveable")
 	add_to_group(GROUP)
+	if door != null:
+		door.door_toggled.connect(_on_door_toggled)
+
+
+## The front: the middle of the shelves' open face, its outward way (flat) and the right of one looking in,
+## world: [Vector3, Vector3, Vector3].
+func front() -> Array:
+	var box: AABB = shelves_box()
+	var out: Vector3 = (global_basis.orthonormalized() * Vector3.BACK).slide(Vector3.UP).normalized()
+	var front_at: Vector3 = global_transform * Vector3(box.get_center().x, box.get_center().y, box.end.z)
+	return [front_at, out, Vector3.UP.cross(out).normalized()]
+
+
+## Where Henry stands to use it, coming from `from` (world): out from the front, past the edge on his side;
+## {"at": Vector3 (floor height of `from`), "side": -1.0 left or 1.0 right, as one looks in}.
+func visit_spot(from: Vector3) -> Dictionary:
+	var face: Array = front()
+	var right: Vector3 = face[2]
+	var side: float = 1.0 if (from - (face[0] as Vector3)).dot(right) >= 0.0 else -1.0
+	var at: Vector3 = (face[0] as Vector3) + (face[1] as Vector3) * VISIT_OUT_M + right * side * (shelves_box().size.x * 0.5 + VISIT_PAST_M)
+	at.y = from.y
+	return {"at": at, "side": side}
+
+
+## Whether the shelves are low enough that Henry crouches to them (top below LOW_TOP_M over `floor_y`).
+func is_low(floor_y: float) -> bool:
+	return (global_transform * shelves_box().end).y - floor_y < LOW_TOP_M
+
+
+## F opened the door: the player who did it walks over, crouches if low, and the pack opens beside it.
+func _on_door_toggled(open: bool) -> void:
+	if not open or shelves.is_empty():
+		return
+	var player := get_tree().get_first_node_in_group(&"player") as Node3D
+	if player == null or player.global_position.distance_to(global_position) > VISIT_CALL_M:
+		return
+	var hub := player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
+	if hub != null and not hub.is_open():
+		hub.visit_container(self)
 
 
 ## Whether Henry can reach in now (its door, if it has one, is open).

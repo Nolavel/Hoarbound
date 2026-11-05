@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## The held pack at an open cabinet (3D inventory, ItemContainer) on the real player and Hub. A cabinet built
-## like the 727 one stands ahead of Henry with two tins and a stew on its shelves; Tab finds it, and the ring:
+## like the 727 one stands ahead of Henry with two tins and a stew on its shelves; Tab finds it, Henry walks to
+## its side and crouches (it is low), the pack opens there, and the ring:
 ## - carries a tin off the shelf into the pack (the shelf loses it, the pack gains it);
 ## - carries a pack tin back onto the shelf;
 ## - carries the coat pocket's tin onto the shelf, and a shelf tin into the empty coat pocket;
@@ -73,8 +74,15 @@ func _run() -> void:
 		_box.put(id)
 	await _frames(5)
 
-	_check(_hub.open(), "Tab did not open the pack")
+	_check(_hub.open() and _hub.is_visiting(), "Tab at the open cabinet did not send Henry over to it")
+	for _i: int in 240:
+		await _frames(1)
+		if _hub.is_open():
+			break
 	await _frames(45)
+	_check(player.is_crouching(), "Henry did not crouch at the low cabinet")
+	var spot: Vector3 = _box.visit_spot(player.global_position)["at"]
+	_check(Vector2(spot.x - player.global_position.x, spot.z - player.global_position.z).length() < 0.35, "Henry did not reach the cabinet's side")
 	_hands = _hub.get_pack_hands()
 	_check(_hub.container == _box and _hands != null and _hands.container == _box, "Tab at the open cabinet did not take its shelves in")
 	if _hands == null or _hands.container == null:
@@ -141,6 +149,7 @@ func _run() -> void:
 	_hub.close()
 	await _frames(40)
 	_check(_hub.container == null and not _hub.is_open(), "closing the pack kept the cabinet")
+	_check(not player.is_work_crouching(), "closing the pack left Henry crouched")
 	_finish()
 
 

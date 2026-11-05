@@ -1,7 +1,7 @@
 extends SceneTree
 
-## The held pack at the open 727 cabinet in Key West Reality (3D inventory, ItemContainer): Henry stands at the
-## cabinet with its door open, Tab takes the pack into his hands beside the shelves, and the ring carries the
+## The held pack at the 727 cabinet in Key West Reality (3D inventory, ItemContainer): Henry stands before the
+## shut cabinet, F opens it, he walks to its side, crouches and the pack opens beside it; the ring carries the
 ## stew off the shelf into the pack, then a tin from the pack back onto the shelf. Tab again puts the pack on.
 ## 30 fps PNG frames; with --write-movie the sound is recorded too.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --resolution 1920x1080 --script res://tools/runtime/capture_container_view.gd -- <out dir>
@@ -38,28 +38,28 @@ func _run() -> void:
 	for _i: int in range(120):
 		await process_frame
 	var shelves := world.find_children("Shelves", "ItemContainer", true, false)[0] as ItemContainer
-	if shelves.door != null and not shelves.door.is_open():
+	if shelves.door != null and shelves.door.is_open():
 		shelves.door.interact()
-	for _i: int in range(60):
-		await process_frame
-	## Henry stands at the cabinet, facing into it (his forward is -Z).
-	var cabinet: Node3D = shelves.get_parent() as Node3D
-	var out: Vector3 = cabinet.global_basis.z.slide(Vector3.UP).normalized()
-	var centre: Vector3 = shelves.global_transform * shelves.shelves_box().get_center()
-	var stand: Vector3 = centre + out * 0.7
+	## Henry stands out before the cabinet, a little off to its left (as one looks in), facing it.
+	var face: Array = shelves.front()
+	var stand: Vector3 = (face[0] as Vector3) + (face[1] as Vector3) * 1.3 - (face[2] as Vector3) * 0.35
 	stand.y = player.global_position.y
 	player.global_position = stand
 	player.velocity = Vector3.ZERO
-	player.look_at(stand - out, Vector3.UP)
+	player.look_at(face[0] as Vector3 * Vector3(1, 0, 1) + Vector3.UP * stand.y, Vector3.UP)
 	var inventory := player.get_node(^"InventoryComponent") as InventoryComponent
 	for _n: int in 3:
 		inventory.try_add(ItemCatalog.get_item(&"spov_can"))
-	for _i: int in range(40):
+	for _i: int in range(60):
 		await physics_frame
 	var hub := player.get_node(^"PlayerHubComponent") as PlayerHubComponent
 	await _record(0.5)
-	hub.open()
-	await _record(1.8)
+	shelves.door.interact()
+	for _i: int in range(240):
+		await _record(1.0 / FPS)
+		if hub.is_open():
+			break
+	await _record(1.5)
 	var hands: PackHandling = hub.get_pack_hands()
 	print("[container] at the cabinet: ", hands != null and hands.container == shelves, " holds ", shelves.items.map(func(item: Dictionary) -> StringName: return item["id"]))
 	if hands == null or hands.container == null:

@@ -2,7 +2,7 @@ extends SceneTree
 
 ## The held pack at an open cabinet on a bare stand (fast to frame, unlike Key West): a cabinet built like the
 ## 727 one ahead of Henry with tins and a stew; Tab, then a still of the view. For tuning the container view.
-## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1920x1080 --script res://tools/runtime/capture_container_stand.gd -- <out png> [plain]
+## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1920x1080 --script res://tools/runtime/capture_container_stand.gd -- <out png> [plain|left|right]
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
 const PANELS: Array = [
@@ -15,8 +15,10 @@ const PANELS: Array = [
 ]
 
 var _out: String = "user://container_stand.png"
-## "plain" as the second argument: no cabinet (the ordinary Tab view).
+## "plain" as the second argument: no cabinet (the ordinary Tab view); "left" / "right": Henry starts off to
+## that side of the cabinet's front (as one looks in), so he visits that side.
 var _plain: bool = false
+var _start_side: float = 0.0
 
 
 func _initialize() -> void:
@@ -24,6 +26,8 @@ func _initialize() -> void:
 	if not args.is_empty():
 		_out = args[0]
 	_plain = args.size() > 1 and args[1] == "plain"
+	if args.size() > 1 and args[1] in ["left", "right"]:
+		_start_side = -1.0 if args[1] == "left" else 1.0
 	_run()
 
 
@@ -80,8 +84,17 @@ func _run() -> void:
 	cabinet.add_child(box_node)
 	for id: StringName in [&"tinned_stew", &"tinned_pineapple", &"spov_can", &"spov_can", &"work_gloves"]:
 		box_node.put(id)
+	if _start_side != 0.0:
+		## Seen from the cabinet's front looking in, its right is the player's left.
+		player.global_position += player.global_basis.x * -_start_side * 0.7
+	for _i: int in 5:
+		await physics_frame
 	var hub := player.get_node(^"PlayerHubComponent") as PlayerHubComponent
 	hub.open()
+	for _i: int in 240:
+		await process_frame
+		if hub.is_open():
+			break
 	for _i: int in 60:
 		await process_frame
 	await RenderingServer.frame_post_draw

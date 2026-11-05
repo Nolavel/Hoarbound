@@ -5,8 +5,6 @@ extends MeshInstance3D
 ## build_pack_straps.py) bent along a path on the GPU. Worn, the path's points are jacket triangles
 ## (strap_points.json), skinned as the GPU skins the jacket, with straight runs to the pack; off his back, a limp loop.
 
-## The strap_on_shoulder meta for the pack worn on the chest: both straps over his shoulders.
-const BOTH_SHOULDERS: int = 2
 const POINTS_FILE: String = "res://scenes/actors/player/henry/strap_points.json"
 ## The straightened straps (strap space: x across, y off the body, z along, metres) and their lengths.
 const STRAP_MESHES: Array[String] = ["res://assets/characters/gear/pack_strap_pos.glb", "res://assets/characters/gear/pack_strap_neg.glb"]
@@ -263,12 +261,12 @@ func _redraw() -> void:
 		var changed: bool = worn != _worn_last
 		_worn_last = worn
 		_bind_xf.clear()
-		## Held before him (PackFrontHold), one strap stays over a shoulder; worn on his chest, both do.
+		## Held before him (PackFrontHold), one strap stays over a shoulder.
 		var on_shoulder: int = int(_pack.get_meta(&"strap_on_shoulder", -1)) if not worn else -1
 		for side: int in range(2):
 			if worn:
 				_draw_worn(side)
-			elif side == on_shoulder or on_shoulder == BOTH_SHOULDERS:
+			elif side == on_shoulder:
 				_draw_on_shoulder(side, step, changed)
 			else:
 				_draw_limp(side, step, changed)

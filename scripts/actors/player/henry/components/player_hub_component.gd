@@ -27,6 +27,12 @@ const INSPECT_PACK_SPOT: Vector3 = Vector3(0.0, -0.9, -0.75)
 const INSPECT_KENNY_SPOT: Vector3 = Vector3(0.7, -0.9, -0.3)
 ## An open container this near ahead of Henry joins the held pack (its shelves), metres.
 const CONTAINER_REACH_M: float = 1.3
+## A visit (visit_container): the walk counts as arrived this near its spot and gives up after VISIT_WALK_S;
+## crouched (or standing at a tall one) the pack opens after VISIT_SETTLE_S, at most VISIT_CROUCH_S on, seconds.
+const VISIT_ARRIVE_M: float = 0.3
+const VISIT_WALK_S: float = 4.0
+const VISIT_SETTLE_S: float = 0.25
+const VISIT_CROUCH_S: float = 1.2
 ## Something put down from the open pack lands this far ahead of Henry, metres.
 const DROP_AHEAD_M: float = 0.7
 ## route_destination's answer when the item stays in the pack.
@@ -62,6 +68,11 @@ var _thermal_manager: ThermalManager
 var _front_hold: PackFrontHold
 ## The open container Henry stands at while the pack is held (its shelves join the inventory), or null.
 var container: ItemContainer
+## The container Henry is walking to or crouching at before the pack opens, its spot and the phase's time.
+var _visit: ItemContainer
+var _visit_spot: Dictionary = {}
+var _visit_walking: bool = false
+var _visit_s: float = 0.0
 ## The Quick Access cards beside the held pack and the hands working in it (pack_in_hands mode).
 var _shelf: PackQuickShelf
 var _hands: PackHandling
@@ -82,6 +93,64 @@ func _ready() -> void:
 		equipment = body.get_node_or_null(^"EquipmentComponent") as EquipmentComponent
 
 
+## Henry walks to `shelves`' visit spot (ItemContainer.visit_spot), crouches at a low one, faces in, and the
+## pack opens beside it. WASD on the way calls it off.
+func visit_container(shelves: ItemContainer) -> bool:
+	var body := get_parent() as Player
+	if _open or body == null or not _can_open() or not shelves.is_reachable():
+		return false
+	_visit = shelves
+	_visit_spot = shelves.visit_spot(body.global_position)
+	_visit_walking = true
+	_visit_s = 0.0
+	body.move_to_position(_visit_spot["at"])
+	return true
+
+
+## Whether Henry is on his way to (or settling at) a container before the pack opens.
+func is_visiting() -> bool:
+	return _visit != null
+
+
+func _physics_process(delta: float) -> void:
+	if _visit == null:
+		return
+	var body := get_parent() as Player
+	if body == null or not is_instance_valid(_visit) or not _visit.is_reachable():
+		_end_visit()
+		return
+	_visit_s += delta
+	var at: Vector3 = _visit_spot["at"]
+	var off: float = Vector2(at.x - body.global_position.x, at.z - body.global_position.z).length()
+	if _visit_walking:
+		if body.is_walking_to_target() and _visit_s < VISIT_WALK_S:
+			return
+		if off > VISIT_ARRIVE_M:
+			_end_visit()  # WASD took over, or he could not get there
+			return
+		body.stop_moving()
+		_visit_walking = false
+		_visit_s = 0.0
+		body.face_work_target(_visit.front()[0])
+		var floor_y: float = body.global_position.y - 1.0  # the body's origin is the capsule centre
+		if _visit.is_low(floor_y):
+			body.set_work_crouch(true)
+		return
+	var settled: bool = not body.is_work_crouching() or body.is_crouching()
+	if (settled and _visit_s >= VISIT_SETTLE_S) or _visit_s >= VISIT_CROUCH_S:
+		var shelves: ItemContainer = _visit
+		var side: float = _visit_spot["side"]
+		_visit = null
+		_open_at(shelves, side)
+
+
+func _end_visit() -> void:
+	var body := get_parent() as Player
+	if body != null and body.is_work_crouching():
+		body.set_work_crouch(false)
+	_visit = null
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if InputMap.has_action(ACTION) and event.is_action_pressed(ACTION):
 		toggle()
@@ -100,12 +169,29 @@ func is_open() -> bool:
 
 
 func toggle() -> bool:
+	if _visit != null:
+		_end_visit()
+		return false
 	return close() if _open else open()
 
 
-## Enters the Hub. Refused mid-fall, while carrying in both hands or mid-action.
+## Enters the Hub. Refused mid-fall, while carrying in both hands or mid-action. By an open container within
+## reach Henry first steps over to it (visit_container) and the pack opens there.
 func open() -> bool:
+	if _open or _visit != null:
+		return false
+	var body := get_parent() as Node3D
+	if pack_in_hands and body != null and not _opening_inspection:
+		var near: ItemContainer = ItemContainer.find_open_near(body, -body.global_basis.z.slide(Vector3.UP).normalized(), CONTAINER_REACH_M)
+		if near != null:
+			return visit_container(near)
+	return _open_at(null, 1.0)
+
+
+## Enters the Hub, at `shelves` (null: none) with the pack held on `side` of it.
+func _open_at(shelves: ItemContainer, side: float) -> bool:
 	if _open or not _can_open() or not _stow_safe_held_items():
+		_end_visit()
 		return false
 	_previous_mouse_mode = Input.mouse_mode
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -115,11 +201,10 @@ func open() -> bool:
 	## 3D inventory (stage 3): Henry takes the pack off into his hands and opens it toward the camera.
 	if pack_in_hands and not _opening_inspection and visual != null and pack != null and not visual.is_pack_down():
 		_front_hold = visual.hold_pack_front()
-		## At an open cabinet within reach, its shelves join the pack (ItemContainer).
-		var body := get_parent() as Node3D
-		container = ItemContainer.find_open_near(body, -body.global_basis.z.slide(Vector3.UP).normalized(), CONTAINER_REACH_M) if body != null else null
+		## At an open container (visited), its shelves join the pack (ItemContainer).
+		container = shelves
 		if _front_hold != null and container != null:
-			_front_hold.begin_container(container)
+			_front_hold.begin_container(container, side)
 	elif pack != null:
 		pack.set_openness(PackRig.Openness.FULL)
 	_enter_camera()
@@ -229,6 +314,7 @@ func close() -> bool:
 			layer.queue_free()
 	_hands = null
 	container = null
+	_end_visit()
 	_exit_camera()
 	if is_instance_valid(_panel):
 		_panel.hide_hub()
