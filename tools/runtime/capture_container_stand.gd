@@ -100,4 +100,23 @@ func _run() -> void:
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out))
 	print("[container stand] saved ", _out, " container ", hub.container != null)
+	if hub.container != null:
+		var view_camera: Camera3D = root.get_viewport().get_camera_3d()
+		var hold: PackFrontHold = hub.get("_front_hold")
+		var pack_points: Array[Vector3] = []
+		for corner: Vector3 in hold.call(&"_container_pack_corners"):
+			pack_points.append(hold.held_transform() * corner)
+		var body_points: Array[Vector3] = []
+		for i: int in 8:
+			body_points.append(hub.container.global_transform * hub.container.body_box().get_endpoint(i))
+		print("[container stand] screen share: pack ", _share(view_camera, pack_points), " furniture ", _share(view_camera, body_points))
 	quit()
+
+
+## The share of the frame's width and height that `points` cover on screen, and their x span in pixels.
+func _share(camera: Camera3D, points: Array[Vector3]) -> String:
+	var box := Rect2(camera.unproject_position(points[0]), Vector2.ZERO)
+	for point: Vector3 in points:
+		box = box.expand(camera.unproject_position(point))
+	var size: Vector2 = root.get_viewport().get_visible_rect().size
+	return "%.0f%% wide, %.0f%% high (x %.0f..%.0f)" % [box.size.x / size.x * 100.0, box.size.y / size.y * 100.0, box.position.x, box.end.x]

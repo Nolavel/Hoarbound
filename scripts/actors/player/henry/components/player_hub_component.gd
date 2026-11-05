@@ -48,6 +48,8 @@ const PACK_DESTINATION: StringName = &"pack"
 @export var camera_blend_time: float = 0.45
 ## The pack-in-hands view's angle of view, degrees.
 @export var pack_view_fov: float = 50.0
+## At a container: a longer lens, so the pack and the furniture side by side keep their shape.
+@export var container_view_fov: float = 34.0
 ## 3D inventory: Tab takes the pack into Henry's hands, open toward a camera facing him (else it opens on his back).
 @export var pack_in_hands: bool = true
 
@@ -204,7 +206,7 @@ func _open_at(shelves: ItemContainer, side: float) -> bool:
 		## At an open container (visited), its shelves join the pack (ItemContainer).
 		container = shelves
 		if _front_hold != null and container != null:
-			_front_hold.begin_container(container, side)
+			_front_hold.begin_container(container, side, container_view_fov)
 	elif pack != null:
 		pack.set_openness(PackRig.Openness.FULL)
 	_enter_camera()
@@ -619,7 +621,7 @@ func get_camera_target() -> Transform3D:
 	var body := get_parent() as Node3D
 	var pack: PackRig = _pack()
 	if is_instance_valid(_front_hold):
-		return _front_hold.container_view(pack_view_fov) if is_instance_valid(_front_hold.container) else _front_hold.front_view(pack_view_fov)
+		return _front_hold.container_view(container_view_fov) if is_instance_valid(_front_hold.container) else _front_hold.front_view(pack_view_fov)
 	if _inspecting and pack != null and pack.is_inside_tree():
 		## Beside Henry, past his left shoulder, looking down into the open pack on the floor.
 		var basis: Basis = body.global_transform.basis.orthonormalized()
@@ -740,7 +742,7 @@ func _enter_camera() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "HubCamera"
 	_camera.top_level = true
-	_camera.fov = pack_view_fov if is_instance_valid(_front_hold) else 50.0
+	_camera.fov = (container_view_fov if container != null else pack_view_fov) if is_instance_valid(_front_hold) else 50.0
 	## It sees what the game camera sees: reserved layers (dev map labels, snow contact) stay out.
 	if _previous_camera != null:
 		_camera.cull_mask = _previous_camera.cull_mask

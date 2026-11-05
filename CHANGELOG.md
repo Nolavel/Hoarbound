@@ -11,9 +11,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - 3D inventory: the body's pockets stand in a row at the bottom centre: trousers, the hand card, coat.
   - The clothes panel is hidden (owner's call). Its code stays behind `PackQuickShelf.SHOW_BODY_PANEL`.
 - 3D inventory at a cabinet: F opening its door (or Tab beside an open one) sends Henry over to it.
-  - He walks to its side (the side he came from), crouches at a low one, and the pack opens there.
-  - The pack stays in his hands beside the cabinet, turned to the view (the chest-pack variant is gone).
-  - The view frames the pack and the shelves side by side, about half the frame each, whatever the height.
+  - He walks to the side away from the door's hinge and crouches at a low cabinet.
+  - The frame then holds only the pack and the cabinet, side by side at about 48% of the width each (owner's sketch). Henry is hidden.
+  - The view looks in at an angle, so the cabinet's front turns to the pack. The pack stands open toward the view, its front panel flat.
+  - The chest-pack variant is gone.
   - While the Hub is open no world prompt (a door, the cabinet) is offered, just as pickups already were not.
   - The ring carries items shelf ↔ pack ↔ pockets through new Hub moves (`move_from_container`, `move_to_container`).
   - A full shelf refuses, and the shelves stay sharp under the focus blur.

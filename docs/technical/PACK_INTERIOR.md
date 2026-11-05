@@ -78,11 +78,15 @@ Code: `scripts/environment/interactive/item_container.gd` (`ItemContainer`). Tes
 - **Visiting a container** (owner's design). Henry walks to its visit spot and the pack opens there (`PlayerHubComponent.visit_container`). Either trigger starts the walk:
   - F opening its door, with the player within 3 m (`ItemContainer._on_door_toggled`);
   - Tab within 1.3 m of a reachable one (`ItemContainer.find_open_near`).
-  - The spot is 0.45 m out from the shelves' front and 0.58 m past the edge on the side he came from (`ItemContainer.visit_spot`, which also gives `side`). WASD on the way calls the visit off, and so does Tab again.
-  - There he faces the front. If the shelves top out below 1.1 m he crouches (`ItemContainer.is_low`, `Player.set_work_crouch`). The pack opens once he is down; closing it stands him up.
-  - The pack stays in his hands beside the container, its opening turned to the view and tipped up 35° (`PackFrontHold.begin_container(shelves, side)`).
-  - The view looks in from the container's front and a little above, aimed between the pack and the shelves (`container_view`). It moves as near as lets every corner of both span 84% of the frame, so each takes about half: the pack on the side he came from, the shelves on the other.
-  - Only the pack, the container and the inventory stay sharp; Henry is blurred with the world.
+  - **The free side.** The pack goes on the side away from the door's hinge, where the open door does not swing (`ItemContainer.free_side`). With no door it goes on the side Henry came from.
+  - **The spot.** Henry's spot is 0.45 m out from the shelves' front and 0.58 m past the edge on that side (`ItemContainer.visit_spot`). WASD on the way calls the visit off, and so does Tab again.
+  - **Crouching.** There he faces the front. If the shelves top out below 1.1 m he crouches (`ItemContainer.is_low`, `Player.set_work_crouch`). The pack opens once he is down, and closing it stands him up.
+  - **Framing (owner's sketch).** Only the pack and the furniture are in the frame, Henry hidden (owner: he does not matter here) (`PackFrontHold.begin_container`, `_frame_container`).
+    - The view looks in at 30° from the side away from the pack and a little above. The furniture's front is turned to the pack and its far side shows, through a 34° lens (`Hub.container_view_fov`).
+    - The view stands where the furniture (`ItemContainer.body_box`, its door left out) fills its half: 48% of the frame width (`CONTAINER_SHARE`).
+    - The pack floats in the other half, upright, its opening turned to the view, its front panel open flat (88°). It is as near as fills 48% across, its foot on the furniture's foot line on screen.
+    - Both fit in nearly the whole height. The load bar and the pocket cards draw over them.
+    - Measured on the stand (`tools/runtime/capture_container_stand.gd left|right`): pack 48%, furniture 47%.
   - The ring hovers a shelf item on its silhouette (`ItemContainer.pick`). LMB carries it into the pack (`Hub.move_from_container`, the pack's room checked first, jolt) or onto a pocket's card; a pack or pocket item let go over the shelves goes onto them (`Hub.move_to_container`); a full shelf refuses with `CONTAINER_NO_ROOM`. RMB and G do nothing on a shelf item.
   - Tests: `tests/systems/test_container_hands.gd`; capture: `tools/runtime/capture_container_view.gd` (the 727 cabinet).
 

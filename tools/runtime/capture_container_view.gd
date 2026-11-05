@@ -61,6 +61,8 @@ func _run() -> void:
 			break
 	await _record(1.5)
 	var hands: PackHandling = hub.get_pack_hands()
+	var hinge: Vector3 = shelves.global_transform.affine_inverse() * shelves.door.door_hinge.global_position
+	print("[container] door hinge x ", snappedf(hinge.x, 0.01), " shelves middle x ", snappedf(shelves.shelves_box().get_center().x, 0.01), " pack side ", hub.get("_front_hold").container_side if hub.get("_front_hold") != null else 0.0)
 	print("[container] at the cabinet: ", hands != null and hands.container == shelves, " holds ", shelves.items.map(func(item: Dictionary) -> StringName: return item["id"]))
 	if hands == null or hands.container == null:
 		quit(1)

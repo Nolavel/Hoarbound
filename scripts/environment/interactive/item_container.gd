@@ -33,6 +33,7 @@ const VISIT_CALL_M: float = 3.0
 var items: Array[Dictionary] = []
 ## Each item id's outline as a pickup stands (its own space), measured once.
 static var _outlines: Dictionary = {}
+var _body := AABB()
 
 
 func _ready() -> void:
@@ -51,15 +52,41 @@ func front() -> Array:
 	return [front_at, out, Vector3.UP.cross(out).normalized()]
 
 
-## Where Henry stands to use it, coming from `from` (world): out from the front, past the edge on his side;
-## {"at": Vector3 (floor height of `from`), "side": -1.0 left or 1.0 right, as one looks in}.
+## Where Henry stands to use it, coming from `from` (world): out from the front, past the edge on the free side
+## (free_side); {"at": Vector3 (floor height of `from`), "side": -1.0 left or 1.0 right, as one looks in}.
 func visit_spot(from: Vector3) -> Dictionary:
 	var face: Array = front()
 	var right: Vector3 = face[2]
-	var side: float = 1.0 if (from - (face[0] as Vector3)).dot(right) >= 0.0 else -1.0
+	var side: float = free_side(from)
 	var at: Vector3 = (face[0] as Vector3) + (face[1] as Vector3) * VISIT_OUT_M + right * side * (shelves_box().size.x * 0.5 + VISIT_PAST_M)
 	at.y = from.y
 	return {"at": at, "side": side}
+
+
+## The side the pack goes (-1 left, 1 right, as one looks in): away from the door's hinge, where the open door
+## swings; with no door, the side `from` (world) is on.
+func free_side(from: Vector3) -> float:
+	if door != null and door.door_hinge != null:
+		var hinge: Vector3 = global_transform.affine_inverse() * door.door_hinge.global_position
+		return -1.0 if hinge.x > shelves_box().get_center().x else 1.0
+	return 1.0 if (from - (front()[0] as Vector3)).dot(front()[2] as Vector3) >= 0.0 else -1.0
+
+
+## The furniture's own outline, this node's space: every mesh of its parent but the door's (measured once).
+func body_box() -> AABB:
+	if _body.size != Vector3.ZERO:
+		return _body
+	var skip: Node = door.door_hinge if door != null and door.door_hinge != null else null
+	var to_here: Transform3D = global_transform.affine_inverse()
+	for node: Node in get_parent().find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh.mesh == null or is_ancestor_of(mesh) or (skip != null and skip.is_ancestor_of(mesh)) or not mesh.is_visible_in_tree():
+			continue
+		var part: AABB = (to_here * mesh.global_transform) * mesh.mesh.get_aabb()
+		_body = part if _body.size == Vector3.ZERO else _body.merge(part)
+	if _body.size == Vector3.ZERO:
+		_body = shelves_box()
+	return _body
 
 
 ## Whether the shelves are low enough that Henry crouches to them (top below LOW_TOP_M over `floor_y`).

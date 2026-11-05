@@ -19,17 +19,22 @@ const TIP_DEG: float = 45.0
 const FRAME_SHARE: float = 0.47
 const VIEW_RISE: float = 0.35
 const VIEW_LIFT_M: float = -0.07
-## At a container (Henry beside it, crouched at a low one) the pack is held this far out before his chest,
-## opening turned to the view and tipped up this much (metres, degrees). The view looks in from the container's
-## front, turned toward the pack's side and raised by these weights, as near as lets the pack and the shelves
-## together span CONTAINER_FRAME_SPAN of the frame (about half each), between the distance bounds (metres).
-const CONTAINER_HOLD_AHEAD_M: float = 0.34
-const CONTAINER_TIP_DEG: float = 35.0
-const CONTAINER_VIEW_SIDE: float = -0.1
-const CONTAINER_VIEW_UP: float = 0.35
-const CONTAINER_FRAME_SPAN: float = 0.84
-const CONTAINER_MIN_DISTANCE_M: float = 0.6
-const CONTAINER_MAX_DISTANCE_M: float = 4.0
+## At a container only the pack and the furniture are framed, side by side, each across CONTAINER_SHARE of the
+## frame width (owner's call: 48%), Henry hidden. The view looks in at an angle from the side away from the pack
+## (degrees off the front, owner's sketch: the front turned to the pack, the far side showing), and this much up
+## as a weight; the band both fit in (NDC y: nearly the whole height, the load bar and cards drawn over it).
+const CONTAINER_SHARE: float = 0.48
+const CONTAINER_VIEW_TURN_DEG: float = 30.0
+const CONTAINER_VIEW_UP: float = 0.15
+const CONTAINER_TOP: float = 0.98
+const CONTAINER_BOTTOM: float = -1.0
+## The pack stands on the floor beside it, opening turned to the view, the front panel lying open before it.
+## What it takes up beyond its body (rig space, metres): the bedroll above, the loops, the panel on the floor.
+const CONTAINER_PACK_EXTRA_TOP_M: float = 0.16
+const CONTAINER_PACK_EXTRA_SIDE_M: float = 0.08
+const CONTAINER_PACK_PANEL_M: float = 0.46
+## The front panel opens this far there, so it lies on the floor (fully open it would dip under), degrees.
+const CONTAINER_PANEL_DEG: float = 88.0
 ## The strap that stays over a shoulder while the pack is held (0 left, 1 right).
 const STRAP_KEPT_SIDE: int = 0
 ## Swinging off the back and on again takes this long, seconds.
@@ -54,10 +59,13 @@ const GRIP_BACK_M: float = 0.05
 
 var visual: HenryUALAnimation
 var pack: PackRig
-## The open container Henry is at (its own pose and view), or null for the front view; the side of it he came
-## from and holds the pack on (-1 left, 1 right, as one looks in).
+## The open container being framed (its own pose and view), or null for the front view; the side of it the pack
+## floats on (-1 left, 1 right, as one looks in).
 var container: ItemContainer
 var container_side: float = 1.0
+## The container framing, worked out once: the view and the pack's place (world).
+var _container_view := Transform3D()
+var _container_pack := Transform3D()
 var _home_parent: Node
 var _home_transform: Transform3D
 var _from: Transform3D
@@ -82,11 +90,14 @@ func start(henry: HenryUALAnimation, rig: PackRig) -> void:
 	rig.set_meta(&"strap_on_shoulder", STRAP_KEPT_SIDE)
 
 
-## At `shelves` (an open container), Henry beside it on `side` (ItemContainer.visit_spot): the pack in his
-## hands turns its opening to the view.
-func begin_container(shelves: ItemContainer, side: float) -> void:
+## At `shelves` (an open container): the pack floats on `side` of it (ItemContainer.visit_spot), the two framed
+## side by side at `fov` degrees; Henry is hidden until the pack goes back.
+func begin_container(shelves: ItemContainer, side: float, fov: float) -> void:
 	container = shelves
 	container_side = side
+	_frame_container(fov)
+	pack.get_canvas().set_opening(BackpackModel.ZIP_FULL_M, CONTAINER_PANEL_DEG)
+	visual.visible = false
 
 
 ## Swings the pack back on; `finished` fires when it is home and the hands are free.
@@ -95,6 +106,7 @@ func finish() -> void:
 		return
 	_ending = true
 	_from = held_transform()
+	visual.visible = true
 	pack.set_hangers_frozen(false)
 	pack.set_openness(PackRig.Openness.CLOSED)
 
@@ -115,11 +127,7 @@ func held_transform() -> Transform3D:
 	var chest: Vector3 = frame[0]
 	var forward: Vector3 = frame[1]
 	if container != null:
-		## Held out before his chest toward where the view stands, tipped up so it shows in from above.
-		var toward: Vector3 = (container_eye() - chest).slide(Vector3.UP).normalized()
-		var open_to: Vector3 = (toward * cos(deg_to_rad(CONTAINER_TIP_DEG)) + Vector3.UP * sin(deg_to_rad(CONTAINER_TIP_DEG))).normalized()
-		var up_side: Vector3 = (Vector3.UP - open_to * Vector3.UP.dot(open_to)).normalized()
-		return Transform3D(Basis(up_side.cross(-open_to).normalized(), up_side, -open_to), chest + toward * CONTAINER_HOLD_AHEAD_M)
+		return _container_pack
 	var tip: float = deg_to_rad(TIP_DEG)
 	## The rig's -Z is its opening (outward on the back): it faces out ahead of Henry, tipped up; its top leans
 	## back toward him and its bottom (the panel's hinge) is below, so the panel drops open away from him.
@@ -139,46 +147,91 @@ func front_view(fov: float) -> Transform3D:
 	return Transform3D(Basis.IDENTITY, eye).looking_at(held.origin + Vector3.UP * VIEW_LIFT_M, Vector3.UP)
 
 
-## The view at an open container: in from its front, turned toward the pack's side and a little above, aimed
-## between the pack and the shelves, as near as lets both fit across CONTAINER_FRAME_SPAN of the frame.
-func container_view(fov: float) -> Transform3D:
-	var held: Transform3D = held_transform()
-	var shelves_box: AABB = container.shelves_box()
-	var aim: Vector3 = (container.global_transform * shelves_box.get_center()).lerp(held.origin, 0.5)
-	var corners: Array[Vector3] = []
-	var pack_box := AABB(-pack.size * 0.5, pack.size)
+## The view at an open container: the furniture across one half of the frame, the pack across the other.
+func container_view(_fov: float) -> Transform3D:
+	return _container_view
+
+
+## Works out the container view and the pack's place: the view looks in at an angle and stands where the
+## furniture fills its half (CONTAINER_SHARE of the width); the pack stands on the floor where it fills the other.
+func _frame_container(fov: float) -> void:
+	var face: Array = container.front()
+	var turn: float = deg_to_rad(CONTAINER_VIEW_TURN_DEG)
+	var flat: Vector3 = (face[1] as Vector3) * cos(turn) - (face[2] as Vector3) * container_side * sin(turn)
+	var from: Vector3 = (flat + Vector3.UP * CONTAINER_VIEW_UP).normalized()
+	var basis := Basis.looking_at(-from, Vector3.UP)
+	var size: Vector2 = container.get_viewport().get_visible_rect().size
+	var tans := Vector2(tan(deg_to_rad(fov) * 0.5) * size.x / maxf(size.y, 1.0), tan(deg_to_rad(fov) * 0.5))
+	var mid_y: float = (CONTAINER_TOP + CONTAINER_BOTTOM) * 0.5
+	var half := Vector2(CONTAINER_SHARE, (CONTAINER_TOP - CONTAINER_BOTTOM) * 0.5)
+	var body: AABB = container.body_box()
+	var furniture: Array[Vector3] = []
 	for i: int in 8:
-		corners.append(held * pack_box.get_endpoint(i))
-		corners.append(container.global_transform * shelves_box.get_endpoint(i))
-	var tan_up: float = tan(deg_to_rad(fov) * 0.5) * CONTAINER_FRAME_SPAN
-	var tan_across: float = tan_up * 16.0 / 9.0
-	var from: Vector3 = _container_from()
-	var view := Transform3D()
-	var distance: float = CONTAINER_MIN_DISTANCE_M
-	while distance < CONTAINER_MAX_DISTANCE_M:
-		view = Transform3D(Basis.IDENTITY, aim + from * distance).looking_at(aim, Vector3.UP)
-		var fits: bool = true
-		for corner: Vector3 in corners:
-			var local: Vector3 = view.affine_inverse() * corner
-			if -local.z <= 0.05 or absf(local.x) > -local.z * tan_across or absf(local.y) > -local.z * tan_up:
-				fits = false
-				break
-		if fits:
-			break
-		distance += 0.03
-	return view
+		furniture.append(container.global_transform * body.get_endpoint(i))
+	## The furniture fills its half (CONTAINER_SHARE across, within the band's height).
+	var eye: Vector3 = container.global_transform * body.get_center() + from * 3.0
+	for _step: int in 40:
+		eye = _fit(furniture, Transform3D(basis, eye), tans, Vector2(-container_side * 0.5, mid_y), half)[0]
+	_container_view = Transform3D(basis, eye)
+	var furniture_box: Rect2 = _ndc_box(furniture, _container_view, tans)
+	## The pack floats in the other half, as near as fills it across (or the band's height), its foot on the
+	## furniture's foot line on screen so the two read as standing side by side.
+	var depth: float = (container.global_transform * body.get_center() - eye).dot(-basis.z) * 0.6
+	var aim := Vector2(container_side * 0.5, mid_y)
+	for _step: int in 60:
+		var at: Vector3 = eye + (-basis.z + basis.x * aim.x * tans.x + basis.y * aim.y * tans.y) * depth
+		_container_pack = _pack_facing(at, eye)
+		var corners: Array[Vector3] = []
+		for corner: Vector3 in _container_pack_corners():
+			corners.append(_container_pack * corner)
+		var pack_box: Rect2 = _ndc_box(corners, _container_view, tans)
+		var room_y: float = CONTAINER_TOP - furniture_box.position.y
+		depth *= maxf(pack_box.size.x / (half.x * 2.0), pack_box.size.y / room_y)
+		aim.x -= (pack_box.get_center().x - container_side * 0.5) * 0.5
+		aim.y -= (pack_box.position.y - furniture_box.position.y) * 0.5
 
 
-## Roughly where the container view stands (the pack turns its opening there): out from the container's front.
-func container_eye() -> Vector3:
-	var front: Array = container.front()
-	return (front[0] as Vector3) + _container_from() * 1.6
+## One step of fitting `corners` into the NDC box at `centre` ± `half` from `view` (by width only when
+## `across`): [the moved eye].
+static func _fit(corners: Array[Vector3], view: Transform3D, tans: Vector2, centre: Vector2, half: Vector2, across: bool = false) -> Array:
+	var ndc: Rect2 = _ndc_box(corners, view, tans)
+	var depth: float = 0.0
+	for corner: Vector3 in corners:
+		depth += -(view.affine_inverse() * corner).z / corners.size()
+	var scale: float = ndc.size.x / (half.x * 2.0) if across else maxf(ndc.size.x / (half.x * 2.0), ndc.size.y / (half.y * 2.0))
+	var shift: Vector2 = ndc.get_center() - centre
+	var eye: Vector3 = view.origin + view.basis.x * shift.x * tans.x * depth + view.basis.y * shift.y * tans.y * depth
+	eye += view.basis.z * depth * (scale - 1.0)
+	return [eye]
 
 
-## The way the container view looks from (unit, world): out of its front, toward the pack's side, up.
-func _container_from() -> Vector3:
-	var front: Array = container.front()
-	return ((front[1] as Vector3) + (front[2] as Vector3) * container_side * CONTAINER_VIEW_SIDE + Vector3.UP * CONTAINER_VIEW_UP).normalized()
+## The NDC box (x right, y up, -1..1) that `corners` cover as seen from `view` with half-angle tangents `tans`.
+static func _ndc_box(corners: Array[Vector3], view: Transform3D, tans: Vector2) -> Rect2:
+	var to_view: Transform3D = view.affine_inverse()
+	var box := Rect2()
+	for i: int in corners.size():
+		var local: Vector3 = to_view * corners[i]
+		var point := Vector2(local.x / (-local.z * tans.x), local.y / (-local.z * tans.y))
+		box = Rect2(point, Vector2.ZERO) if i == 0 else box.expand(point)
+	return box
+
+
+## The pack standing upright at `at`, its opening turned to `eye` (flat).
+func _pack_facing(at: Vector3, eye: Vector3) -> Transform3D:
+	var toward: Vector3 = (eye - at).slide(Vector3.UP).normalized()
+	return Transform3D(Basis(Vector3.UP.cross(toward).normalized() * -1.0, Vector3.UP, -toward), at)
+
+
+## The corners of what the open pack takes up, rig space: its body, the bedroll, the panel open on the floor.
+func _container_pack_corners() -> Array[Vector3]:
+	var half: Vector3 = pack.size * 0.5
+	var low := Vector3(-half.x - CONTAINER_PACK_EXTRA_SIDE_M, -half.y, -half.z - CONTAINER_PACK_PANEL_M)
+	var high := Vector3(half.x + CONTAINER_PACK_EXTRA_SIDE_M, half.y + CONTAINER_PACK_EXTRA_TOP_M, half.z)
+	var box := AABB(low, high - low)
+	var out: Array[Vector3] = []
+	for i: int in 8:
+		out.append(box.get_endpoint(i))
+	return out
 
 
 ## Henry's chest (spine_03), his flat forward (square to the line between his shoulders, whatever the nodes
@@ -230,7 +283,8 @@ func _process(delta: float) -> void:
 		if exp(-JOLT_DECAY * _jolt_t) < 0.01:
 			_jolt_m = 0.0
 	pack.global_transform = at
-	_grip_sides(eased)
+	if container == null:
+		_grip_sides(eased)
 	if _ending and _t <= 0.0:
 		_put_back()
 
