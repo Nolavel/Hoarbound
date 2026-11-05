@@ -6,6 +6,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed
+
+- "Parameter material is null" errors when the game starts and around containers. Item models made only to be measured (pocket sizes, shelf layout, loose items) were freed before ever being drawn, while carrying shader overrides, which Godot 4.8-dev reports from the renderer.
+  - `SurvivalItemVisual.release` drops the overrides first. Spawning Henry went from 44 errors to 0 on Vulkan.
+
 ### Changed
 
 - 3D inventory (Hub): the silhouette of the garment that owns the hovered pocket (coat or trousers, not both) fades in, with a dot where that pocket is (owner), and fades out after.

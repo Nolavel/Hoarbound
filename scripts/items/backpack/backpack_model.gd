@@ -429,7 +429,7 @@ func add_loose(item_id: StringName) -> bool:
 	var visual: Node3D = SurvivalItemVisual.make(item_id)
 	var box: AABB = _local_bounds(visual)
 	if box.size == Vector3.ZERO:
-		visual.free()
+		SurvivalItemVisual.release(visual)
 		return false
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(str(item_id)) + _items.size() * 7919

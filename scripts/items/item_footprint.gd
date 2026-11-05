@@ -16,8 +16,7 @@ static func size_cm(item_id: StringName) -> Vector3:
 		return _cm[item_id]
 	var visual: Node3D = SurvivalItemVisual.make(item_id)
 	var box: AABB = BackpackModel._local_bounds(visual) if visual != null else AABB()
-	if visual != null:
-		visual.free()
+	SurvivalItemVisual.release(visual)
 	var sides: Array[float] = [box.size.x * 100.0, box.size.y * 100.0, box.size.z * 100.0]
 	sides.sort()
 	_cm[item_id] = Vector3(sides[2], sides[1], sides[0])

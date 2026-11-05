@@ -220,6 +220,19 @@ static func _hand_tool(scene: PackedScene, handle: Array, tag: Texture2D) -> Nod
 	return tool
 
 
+## Frees a visual that was never drawn (made only to be measured). Its shader overrides are dropped first: freed
+## undrawn, they raise "material is null" in the renderer (Godot 4.8-dev).
+static func release(visual: Node) -> void:
+	if visual == null or not is_instance_valid(visual):
+		return
+	for node: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh != null:
+			for surface: int in mesh.get_surface_override_material_count():
+				mesh.set_surface_override_material(surface, null)
+	visual.free()
+
+
 ## Hinged lid of a thermos prop; rotate it about local +Z to flip it open (it never comes off).
 static func thermos_lid(holder: Node3D) -> Node3D:
 	return holder.find_child("Thermos_Lid", true, false) as Node3D
