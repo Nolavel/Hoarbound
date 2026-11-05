@@ -53,6 +53,9 @@ var hinge_axis: Vector3 = Vector3.ZERO
 ## Free hangers only: a fixed world direction to lean out along on contact (zero = the deepest
 ## point's normal); one steady direction keeps a hanger touching several things from chattering.
 var contact_out: Vector3 = Vector3.ZERO
+## Hinged hangers only: a world direction to turn toward when a contact pushes it about its pin (zero = whichever
+## way the contact's lever turns it); the pack by a container sends the pan out to its side, in sight.
+var hinge_out: Vector3 = Vector3.ZERO
 
 ## Frozen (the 3D inventory holds the pack still): it keeps its pose on its parent and skips the spring.
 var frozen: bool = false:
@@ -271,7 +274,12 @@ func _clear_angle(points: PackedVector3Array, to_parent: Basis, pivot: Vector3, 
 		var lever: float = axis.cross((hit[1] as Vector3) - pivot).dot(normal)
 		if absf(lever) < MIN_LEVER_M:
 			return best
-		var next: float = clampf(blocked + depth / lever * OVERSHOOT, blocked - MAX_CONTACT_TILT, blocked + MAX_CONTACT_TILT)
+		var step: float = depth / lever * OVERSHOOT
+		if hinge_out != Vector3.ZERO:
+			## Turn the preferred way, whichever side the contact's lever would choose.
+			var way: float = signf((_dir.rotated(axis, 0.1) - _dir).dot(hinge_out))
+			step = absf(step) * (way if way != 0.0 else 1.0)
+		var next: float = clampf(blocked + step, blocked - MAX_CONTACT_TILT, blocked + MAX_CONTACT_TILT)
 		if (to_parent * _dir.rotated(axis, next)).angle_to(Vector3.DOWN) > limit:
 			return best
 		hit = _deepest_hit(points, to_parent, _dir.rotated(axis, next), pivot)

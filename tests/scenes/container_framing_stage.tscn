@@ -125,7 +125,7 @@ current = true
 fov = 34.0
 
 [node name="Pack" type="Node3D" parent="Front" unique_id=914900674]
-transform = Transform3D(-0.751319, 0, 0.6599393, 0, 1, 0, -0.6599393, 0, -0.751319, 0.5559664, 0.001902014, 0.23650572)
+transform = Transform3D(-0.751319, 0, 0.6599393, 0, 1, 0, -0.6599393, 0, -0.751319, 0.5559664, 0.061902014, 0.23650572)
 
 [node name="Body" type="MeshInstance3D" parent="Front/Pack" unique_id=1974399336]
 material_override = SubResource("StandardMaterial3D_omoyf")
@@ -143,3 +143,4 @@ mesh = SubResource("BoxMesh_yxxp1")
 
 [node name="Henry" parent="Front" unique_id=1385313891 instance=ExtResource("1_enxdb")]
 transform = Transform3D(-0.7443721, 0, -0.6677651, 0, 1, 0, 0.66776514, 0, -0.744372, 0.62, -0.465, 0.76182866)
+visible = false

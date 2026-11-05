@@ -81,6 +81,10 @@ Code: `scripts/environment/interactive/item_container.gd` (`ItemContainer`). Tes
   - **The free side.** The pack goes on the side away from the door's hinge, where the open door does not swing (`ItemContainer.free_side`). With no door it goes on the side Henry came from.
   - **The spot.** Henry's spot is 0.45 m out from the shelves' front and 0.58 m past the edge on that side (`ItemContainer.visit_spot`). WASD on the way calls the visit off, and so does Tab again.
   - **Crouching.** There he faces the front. If the shelves top out below 1.1 m he crouches (`ItemContainer.is_low`, `Player.set_work_crouch`). The pack opens once he is down, and closing it stands him up.
+  - **Hangers rest on the floor.** By a container, what hangs off the carabiners stays free instead of frozen.
+    - The floor, the furniture's foot (`BackpackModel.hang_floor_y`), is one more contact plane for the pendulum's solver, so a hanger turns on its carabiner instead of passing through.
+    - What hangs on a pin (the pan, the mug) turns out to its own side of the pack and a little toward the view (`PendulumHang.hinge_out`, set by `PackFrontHold._lean_hangers_out`), so it lies in sight beside the pack, not under its open panel.
+    - Stand trace: the pan rests 8 mm above the floor.
   - **Owner-authored framing (editor).** Open `tests/scenes/container_framing_stage.tscn`: floor, the 727 cabinet with its door open on the left hinge, Henry, a stand-in pack, and the camera.
     - Move `Front/Camera`, `Front/Pack` and `Front/Henry`, and preview through `Camera` (its `fov` counts). Then press **Save framing** in the stage root's inspector. It writes `data/items/container_framing.tres` (`ContainerFraming`).
     - Henry's visibility there is saved too: hide him to hide him in game.

@@ -148,6 +148,9 @@ const CLIPPED_SWING_HZ: float = 1.8
 const CLIPPED_SWING_DAMPING: float = 0.65
 const CLIPPED_MAX_SWING_DEG: float = 60.0
 
+## The floor's height (world) that what hangs off the pack may not go through, or -INF for none (the pack is
+## worn or held up: PackFrontHold sets it where the pack stands by a container).
+var hang_floor_y: float = -INF
 var _shell_material: ShaderMaterial
 var _panel_material: ShaderMaterial
 var _pocket_materials: Array[ShaderMaterial] = []
@@ -1245,6 +1248,13 @@ func _on_clipped_knock(rate: float, swing: PendulumHang) -> void:
 ## by ROUND_M), each side pocket's cloth as placed this frame and the tool handles hanging below
 ## the sleeves. Vector4(outward world normal, depth).
 func _pack_contact(at: Vector3) -> Vector4:
+	var floor: Vector4 = Vector4(0.0, 1.0, 0.0, hang_floor_y - at.y)  # the floor, when set: a plane facing up
+	var body: Vector4 = _body_contact(at)
+	return floor if floor.w > body.w else body
+
+
+## The pack's own body, pockets and the tools' handles (see _pack_contact).
+func _body_contact(at: Vector3) -> Vector4:
 	var q: Vector3 = _to_pack * at
 	var best: Vector4 = _round_box(q, Vector3(0.0, BODY.y * 0.5, BODY.z * 0.5), BODY * 0.5, ROUND_M)
 	## Pockets and handles only matter beside the body's sides, below the rims.
