@@ -125,7 +125,7 @@ current = true
 fov = 34.0
 
 [node name="Pack" type="Node3D" parent="Front" unique_id=914900674]
-transform = Transform3D(-0.5906615, 0, 0.80691946, 0, 1, 0, -0.80691946, 0, -0.5906615, 0.51635027, 0.044999987, 0.28602526)
+transform = Transform3D(-0.5906615, 0, 0.80691946, 0, 1, 0, -0.80691946, 0, -0.5906615, 0.5658698, 0.044999987, 0.31573722)
 
 [node name="Body" type="MeshInstance3D" parent="Front/Pack" unique_id=1974399336]
 material_override = SubResource("StandardMaterial3D_omoyf")
