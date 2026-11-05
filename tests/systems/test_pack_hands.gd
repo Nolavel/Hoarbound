@@ -167,6 +167,18 @@ func _run() -> void:
 	await _frames(40)
 	_check(not _hub.is_open() and _hub.get_pack_hands() == null, "eating did not close the pack")
 	print("pack hands: RMB on the open tin closed the pack to eat")
+
+	## A threat shuts the open pack (time never stops in the Hub); frostbite's slow loss does not.
+	var health := _hub.get_parent().get_node(^"PlayerHealthSystem") as PlayerHealthSystem
+	_check(_hub.open(), "the pack did not open again")
+	await _frames(45)
+	health.drain(1.0, "frostbite")
+	await _frames(2)
+	_check(_hub.is_open(), "frostbite's slow loss shut the pack")
+	health.take_damage(5.0, "test")
+	await _frames(2)
+	_check(not _hub.is_open(), "a blow did not shut the pack")
+	print("pack hands: a blow shuts the open pack, frostbite does not")
 	_finish()
 
 

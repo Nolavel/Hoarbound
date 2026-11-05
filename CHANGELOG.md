@@ -8,6 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory (Hub): a threat shuts the open pack, since time never stops there. That is a blow (new `PlayerHealthSystem.hurt`, not frostbite's slow loss) or a fall; other threats can call `interrupt()`.
 - 3D inventory (Hub): taking costs time. LMB is held while a line fills round the item, and letting go early takes nothing.
   - The bottom strap and heavy items take longer. Cold hands take up to 2.5 times as long and shake the ring.
   - A tin off the bottom strap takes 0.63 s warm and 1.57 s with frozen hands.

@@ -31,6 +31,8 @@ var _fall_velocity_history: Array[float] = []
 # === СИГНАЛЫ ===
 signal health_changed(current: float, max: float)
 signal damage_taken(amount: float, source: String)
+## A blow (take_damage), not a slow loss such as frostbite (drain): what startles Henry out of his pack.
+signal hurt(amount: float, source: String)
 signal healed(amount: float)
 signal died
 signal revived
@@ -108,6 +110,7 @@ func take_damage(amount: float, source: String = "unknown") -> void:
 	
 	# Эмитим сигналы
 	damage_taken.emit(actual_damage, source)
+	hurt.emit(actual_damage, source)
 	health_changed.emit(current_health, max_health)
 	
 	# Эффекты урона

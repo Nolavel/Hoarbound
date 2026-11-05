@@ -30,6 +30,8 @@ const CONTAINER_REACH_M: float = 1.3
 ## A visit (visit_container): the walk counts as arrived this near its spot and gives up after VISIT_WALK_S;
 ## crouched (or standing at a tall one) the pack opens after VISIT_SETTLE_S, at most VISIT_CROUCH_S on, seconds.
 const VISIT_ARRIVE_M: float = 0.3
+## A threat shuts the open Hub (Green Hell): damage, or falling faster than this, m/s (interrupt()).
+const INTERRUPT_FALL_SPEED: float = 2.0
 ## The door clip (Chest_Open) is cut this long after F, once his hand is at the door, so he walks at once.
 const VISIT_REACH_S: float = 0.45
 ## A walk that gets no nearer for VISIT_STALL_S (a wall or the furniture in the way) ends there: arrived when
@@ -97,6 +99,9 @@ func bind_panel(panel: PlayerHubPanel) -> void:
 
 func _ready() -> void:
 	var body: Node = get_parent()
+	var health := body.get_node_or_null(^"PlayerHealthSystem") as PlayerHealthSystem if body != null else null
+	if health != null:
+		health.hurt.connect(func(_amount: float, _source: String) -> void: interrupt())
 	if inventory == null:
 		inventory = InventoryComponent.find_in(body)
 	if equipment == null and body != null:
@@ -119,12 +124,25 @@ func visit_container(shelves: ItemContainer) -> bool:
 	return true
 
 
+## A threat (damage, a fall; later thin ice and the like): the open Hub shuts at once and a visit is called off.
+## Time never stops in the Hub, so this is what makes an open pack a risk.
+func interrupt() -> void:
+	if _visit != null:
+		_end_visit()
+	if _open:
+		close()
+
+
 ## Whether Henry is on his way to (or settling at) a container before the pack opens.
 func is_visiting() -> bool:
 	return _visit != null
 
 
 func _physics_process(delta: float) -> void:
+	var falling := get_parent() as CharacterBody3D
+	if (_open or _visit != null) and falling != null and falling.velocity.y < -INTERRUPT_FALL_SPEED:
+		interrupt()
+		return
 	if _visit == null:
 		return
 	var body := get_parent() as Player
