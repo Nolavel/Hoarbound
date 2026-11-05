@@ -42,8 +42,9 @@ const CONTAINER_FLOOR_CLEAR_M: float = 0.03
 const CONTAINER_PACK_IN: float = 0.15
 const CONTAINER_TIGHTEN: float = 1.15
 ## The pack, nearer the view than its half alone asks, spans this share of the frame width (its body, loops
-## left out); its foot sits this much (NDC) above the furniture's; it turns this far toward the furniture, degrees.
-const CONTAINER_PACK_SHARE: float = 0.4
+## left out); its foot sits this much (NDC) above the furniture's, lower when its top (the bedroll) would leave
+## the frame; it turns this far toward the furniture, degrees.
+const CONTAINER_PACK_SHARE: float = 0.47
 const CONTAINER_PACK_LIFT: float = 0.3
 const CONTAINER_PACK_TURN_DEG: float = 18.0
 ## Henry is hidden once the swing is this far on (the blur has come up by then).
@@ -202,7 +203,8 @@ func _frame_container(fov: float) -> void:
 		var pack_box: Rect2 = _ndc_box(corners, _container_view, tans)
 		depth *= pack_box.size.x / (CONTAINER_PACK_SHARE * 2.0)
 		aim.x -= (pack_box.get_center().x - pack_x) * 0.5
-		aim.y -= (pack_box.position.y - furniture_box.position.y - CONTAINER_PACK_LIFT) * 0.5
+		var foot: float = minf(furniture_box.position.y + CONTAINER_PACK_LIFT, CONTAINER_TOP - pack_box.size.y)
+		aim.y -= (pack_box.position.y - foot) * 0.5
 	## Nearer than the furniture, its foot on the same screen line stands above the floor; lifted further if
 	## what hangs off it would still reach the floor.
 	var floor_y: float = (container.global_transform * body.position).y
