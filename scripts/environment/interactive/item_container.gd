@@ -52,15 +52,23 @@ func front() -> Array:
 	return [front_at, out, Vector3.UP.cross(out).normalized()]
 
 
-## Where Henry stands to use it, coming from `from` (world): out from the front, past the edge on the free side
-## (free_side); {"at": Vector3 (floor height of `from`), "side": -1.0 left or 1.0 right, as one looks in}.
+## Where Henry stands to use it, coming from `from` (world): the owner's Henry point (ContainerFraming) on the
+## free side (free_side), else out from the front past the edge; {"at": Vector3 (floor height of `from`),
+## "face": Vector3 (a point he turns to), "side": -1.0 left or 1.0 right, as one looks in}.
 func visit_spot(from: Vector3) -> Dictionary:
 	var face: Array = front()
 	var right: Vector3 = face[2]
 	var side: float = free_side(from)
 	var at: Vector3 = (face[0] as Vector3) + (face[1] as Vector3) * VISIT_OUT_M + right * side * (shelves_box().size.x * 0.5 + VISIT_PAST_M)
+	var facing: Vector3 = face[0]
+	var framing: ContainerFraming = ContainerFraming.load_saved()
+	if framing != null:
+		var henry: Transform3D = ContainerFraming.front_of(self) * ContainerFraming.on_side(framing.henry, side)
+		at = henry.origin
+		facing = henry.origin + henry.basis.z.slide(Vector3.UP).normalized()  # his visual faces +Z
 	at.y = from.y
-	return {"at": at, "side": side}
+	facing.y = from.y
+	return {"at": at, "face": facing, "side": side}
 
 
 ## The side the pack goes (-1 left, 1 right, as one looks in): away from the door's hinge, where the open door

@@ -151,7 +151,7 @@ func _physics_process(delta: float) -> void:
 		body.stop_moving()
 		_visit_walking = false
 		_visit_s = 0.0
-		body.face_work_target(_visit.front()[0])
+		body.face_work_target(_visit_spot["face"])
 		var floor_y: float = body.global_position.y - 1.0  # the body's origin is the capsule centre
 		if _visit.is_low(floor_y):
 			body.set_work_crouch(true)
@@ -162,6 +162,12 @@ func _physics_process(delta: float) -> void:
 		var side: float = _visit_spot["side"]
 		_visit = null
 		_open_at(shelves, side)
+
+
+## The container view's angle: the owner's framing camera, else container_view_fov, degrees.
+func _container_fov() -> float:
+	var framing: ContainerFraming = ContainerFraming.load_saved()
+	return framing.camera_fov if framing != null else container_view_fov
 
 
 func _end_visit() -> void:
@@ -224,7 +230,7 @@ func _open_at(shelves: ItemContainer, side: float) -> bool:
 		## At an open container (visited), its shelves join the pack (ItemContainer).
 		container = shelves
 		if _front_hold != null and container != null:
-			_front_hold.begin_container(container, side, container_view_fov)
+			_front_hold.begin_container(container, side, _container_fov())
 	elif pack != null:
 		pack.set_openness(PackRig.Openness.FULL)
 	_enter_camera()
@@ -639,7 +645,7 @@ func get_camera_target() -> Transform3D:
 	var body := get_parent() as Node3D
 	var pack: PackRig = _pack()
 	if is_instance_valid(_front_hold):
-		return _front_hold.container_view(container_view_fov) if is_instance_valid(_front_hold.container) else _front_hold.front_view(pack_view_fov)
+		return _front_hold.container_view(_container_fov()) if is_instance_valid(_front_hold.container) else _front_hold.front_view(pack_view_fov)
 	if _inspecting and pack != null and pack.is_inside_tree():
 		## Beside Henry, past his left shoulder, looking down into the open pack on the floor.
 		var basis: Basis = body.global_transform.basis.orthonormalized()
@@ -760,7 +766,7 @@ func _enter_camera() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "HubCamera"
 	_camera.top_level = true
-	_camera.fov = (container_view_fov if container != null else pack_view_fov) if is_instance_valid(_front_hold) else 50.0
+	_camera.fov = (_container_fov() if container != null else pack_view_fov) if is_instance_valid(_front_hold) else 50.0
 	## It sees what the game camera sees: reserved layers (dev map labels, snow contact) stay out.
 	if _previous_camera != null:
 		_camera.cull_mask = _previous_camera.cull_mask

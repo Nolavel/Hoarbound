@@ -110,6 +110,9 @@ func _run() -> void:
 		for i: int in 8:
 			body_points.append(hub.container.global_transform * hub.container.body_box().get_endpoint(i))
 		print("[container stand] screen share: pack ", _share(view_camera, pack_points), " furniture ", _share(view_camera, body_points))
+		var face: Array = hub.container.front()
+		var to_front: Transform3D = Transform3D(Basis(face[2], Vector3.UP, face[1]), face[0]).affine_inverse()
+		print("[container stand] side ", hold.container_side, " camera ", var_to_str(to_front * view_camera.global_transform), " pack ", var_to_str(to_front * hold.held_transform()), " henry ", var_to_str(to_front * player.global_transform))
 	quit()
 
 

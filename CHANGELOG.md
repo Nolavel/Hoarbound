@@ -17,6 +17,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - The pack sits close against the cabinet, higher and well nearer the view, its bedroll kept in frame, with no gap to the cabinet. Its front nearly shares the cabinet's plane. The frame is tighter.
   - Henry no longer freezes on the way. A walk blocked short of the spot now counts as arrived after 0.25 s, where before he pushed for 4 s. The door clip is cut once his hand reaches the door.
   - The chest-pack variant is gone.
+  - The framing is authored in the editor: `tests/scenes/container_framing_stage.tscn` (floor, cabinet, Henry, pack, camera).
+    - Save framing writes `data/items/container_framing.tres`. The game puts the camera and the pack there, mirrored for the other side.
+    - Henry walks to his point and stays blurred behind the pack.
   - While the Hub is open no world prompt (a door, the cabinet) is offered, just as pickups already were not.
   - The ring carries items shelf ↔ pack ↔ pockets through new Hub moves (`move_from_container`, `move_to_container`).
   - A full shelf refuses, and the shelves stay sharp under the focus blur.

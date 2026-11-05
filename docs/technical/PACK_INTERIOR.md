@@ -81,7 +81,14 @@ Code: `scripts/environment/interactive/item_container.gd` (`ItemContainer`). Tes
   - **The free side.** The pack goes on the side away from the door's hinge, where the open door does not swing (`ItemContainer.free_side`). With no door it goes on the side Henry came from.
   - **The spot.** Henry's spot is 0.45 m out from the shelves' front and 0.58 m past the edge on that side (`ItemContainer.visit_spot`). WASD on the way calls the visit off, and so does Tab again.
   - **Crouching.** There he faces the front. If the shelves top out below 1.1 m he crouches (`ItemContainer.is_low`, `Player.set_work_crouch`). The pack opens once he is down, and closing it stands him up.
-  - **Framing (owner's sketch).** Only the pack and the furniture are in the frame, Henry hidden (owner: he does not matter here) (`PackFrontHold.begin_container`, `_frame_container`).
+  - **Owner-authored framing (editor).** Open `tests/scenes/container_framing_stage.tscn`: floor, the 727 cabinet with its door open on the left hinge, Henry, a stand-in pack, and the camera.
+    - Move `Front/Camera`, `Front/Pack` and `Front/Henry`, and preview through `Camera` (its `fov` counts). Then press **Save framing** in the stage root's inspector. It writes `data/items/container_framing.tres` (`ContainerFraming`).
+    - Henry's visibility there is saved too: hide him to hide him in game.
+    - All three are relative to `Front`, the middle of the shelves' open face (`ItemContainer.front`), authored for the pack on the right. For a door hinged on the right, the game mirrors them (`ContainerFraming.on_side`).
+    - In game the camera and the pack are put there (`PackFrontHold.begin_container`). Henry walks to his point and faces as his visual does there (`ItemContainer.visit_spot`), crouching at a low cabinet. He stays in the blur behind the pack.
+    - The stage's Henry and pack are for editing only. Henry's script needs the player, so do not run the stage scene.
+    - The saved points are offsets from the front, so they suit cabinets about the 727's size. The worked-out framing below is the fallback when no framing is saved.
+  - **Worked-out framing (fallback, owner's sketch).** Only the pack and the furniture are in the frame, Henry hidden (owner: he does not matter here) (`PackFrontHold.begin_container`, `_frame_container`).
     - The view looks in at 30° from the side away from the pack and a little above. The furniture's front is turned to the pack and its far side shows, through a 34° lens (`Hub.container_view_fov`).
     - The view stands where the furniture (`ItemContainer.body_box`, its door left out) fills its half: 48% of the frame width (`CONTAINER_SHARE`).
     - The pack floats in the other half, pressed in toward the furniture (`CONTAINER_PACK_IN`). It stands upright, its front panel open flat (88°). Its front turns three quarters of the way from the view to the furniture's front, so the two nearly share a plane (`CONTAINER_PACK_PLANE`, owner).

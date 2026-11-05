@@ -81,6 +81,7 @@ var container_side: float = 1.0
 ## The container framing, worked out once: the view and the pack's place (world).
 var _container_view := Transform3D()
 var _container_pack := Transform3D()
+var _framing: ContainerFraming
 var _home_parent: Node
 var _home_transform: Transform3D
 var _from: Transform3D
@@ -105,12 +106,19 @@ func start(henry: HenryUALAnimation, rig: PackRig) -> void:
 	rig.set_meta(&"strap_on_shoulder", STRAP_KEPT_SIDE)
 
 
-## At `shelves` (an open container): the pack floats on `side` of it (ItemContainer.visit_spot), the two framed
-## side by side at `fov` degrees; Henry is hidden until the pack goes back.
+## At `shelves` (an open container): the pack on `side` of it (ItemContainer.visit_spot), framed by the owner's
+## ContainerFraming, else worked out at `fov` degrees; Henry is hidden unless the framing shows him.
 func begin_container(shelves: ItemContainer, side: float, fov: float) -> void:
 	container = shelves
 	container_side = side
-	_frame_container(fov)
+	_framing = ContainerFraming.load_saved()
+	if _framing != null:
+		## The owner's framing (tests/scenes/container_framing_stage.tscn), mirrored for the pack on the left.
+		var front: Transform3D = ContainerFraming.front_of(container)
+		_container_view = front * ContainerFraming.on_side(_framing.camera, side)
+		_container_pack = front * ContainerFraming.on_side(_framing.pack, side)
+	else:
+		_frame_container(fov)
 	pack.get_canvas().set_opening(BackpackModel.ZIP_FULL_M, CONTAINER_PANEL_DEG)
 
 
@@ -292,7 +300,7 @@ func _process(delta: float) -> void:
 		if _still_s >= HANG_SETTLE_S:
 			## Held still in his hands, nothing on it swings: the mug and the pan keep the pose they settled in.
 			pack.set_hangers_frozen(true)
-	if container != null and not _ending and visual.visible and _t >= CONTAINER_HIDE_AT:
+	if container != null and not _ending and visual.visible and _t >= CONTAINER_HIDE_AT and (_framing == null or not _framing.show_henry):
 		visual.visible = false
 	var eased: float = smoothstep(0.0, 1.0, _t)
 	var home: Transform3D = _home_parent.global_transform * _home_transform if is_instance_valid(_home_parent) else _from
