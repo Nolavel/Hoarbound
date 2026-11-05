@@ -21,7 +21,8 @@ static func describe(item_id: StringName) -> Dictionary:
 		detail = TranslationServer.translate(StringName(SIZE_KEYS[int(item.size_class)]))
 	return {
 		"name": TranslationServer.translate(StringName(item.display_name)),
-		"weight": TranslationServer.translate(&"ITEM_WEIGHT_KG") % item.weight,
+		"weight": TranslationServer.translate(&"ITEM_WEIGHT_KG") % item.weight if item.weight >= 1.0
+			else TranslationServer.translate(&"ITEM_WEIGHT_G") % roundi(item.weight * 1000.0),
 		"detail": detail,
 		"kg": item.weight,
 	}
