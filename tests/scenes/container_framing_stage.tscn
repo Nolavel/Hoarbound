@@ -120,12 +120,12 @@ mesh = SubResource("BoxMesh_j2d2f")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.465, 0.225)
 
 [node name="Camera" type="Camera3D" parent="Front" unique_id=1424186618]
-transform = Transform3D(0.9047969, 0.06316984, -0.42113224, 5.551774e-09, 0.9889365, 0.14834048, 0.42584363, -0.13421799, 0.89478654, -0.39702916, 0.20197788, 1.285119)
+transform = Transform3D(0.90479684, 0.06316983, -0.4211322, 5.551774e-09, 0.98893636, 0.14834046, 0.4258436, -0.13421798, 0.8947865, -0.45815462, 0.1595594, 1.3860445)
 current = true
 fov = 34.0
 
 [node name="Pack" type="Node3D" parent="Front" unique_id=914900674]
-transform = Transform3D(-0.5906615, 0, 0.80691946, 0, 1, 0, -0.80691946, 0, -0.5906615, 0.5658698, 0.044999987, 0.31573722)
+transform = Transform3D(-0.751319, 0, 0.6599393, 0, 1, 0, -0.6599393, 0, -0.751319, 0.5559664, 0.001902014, 0.23650572)
 
 [node name="Body" type="MeshInstance3D" parent="Front/Pack" unique_id=1974399336]
 material_override = SubResource("StandardMaterial3D_omoyf")
