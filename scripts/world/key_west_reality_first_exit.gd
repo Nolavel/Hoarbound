@@ -98,7 +98,10 @@ func _place_pickups(template: Node) -> void:
 		return
 	shelter.build()
 	shelter.place_supplies(interior, sockets)
-	pickups.append_array(interior)
+	## Those the cabinet adopted live on its shelves now (KeyWest727Shelter.cabinet_shelves).
+	for pickup: ItemPickup in interior:
+		if is_instance_valid(pickup):
+			pickups.append(pickup)
 
 
 ## Henry wakes past the wing walls, facing out of the door (player forward is -Z).

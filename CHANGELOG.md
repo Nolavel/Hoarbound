@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Furniture can hold items: `ItemContainer`.
+  - Shelves are derived from the furniture's own panels, items stand on them by real size, and the contents are saved.
+  - Items stay ordinary pickups, so F still takes them.
+  - The 727 waiting-room cabinet now holds the SPoV can and the gloves on its shelves, clear of its set dressing.
+  - An older save that took them from the world is respected.
 - Item readout shows grams under 1 kg (a lighter read "0.0 kg").
 - 3D inventory: RMB (pad X) uses the hovered item, and the hint names the verb.
   - A sealed tin opens where it lies, in its pocket or under the straps, and the pack stays open.

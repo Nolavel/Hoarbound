@@ -250,6 +250,7 @@ INVENTORY_TOO_BIG,"Too big for the pack","Не влезет в рюкзак"
 INVENTORY_NO_ROOM,"No room left in the pack","В рюкзаке нет места"
 INVENTORY_HINT_DROP,"%s — drop","%s — выбросить"
 KEY_RMB,RMB,ПКМ
+CONTAINER_NO_ROOM,No room on the shelf,На полке нет места
 INVENTORY_HINT_EAT,"%s — eat","%s — съесть"
 INVENTORY_HINT_DRINK,"%s — drink","%s — выпить"
 INVENTORY_HINT_OPEN,"%s — open","%s — открыть"

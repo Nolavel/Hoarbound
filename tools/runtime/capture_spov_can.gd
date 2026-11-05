@@ -34,7 +34,13 @@ func _run() -> void:
 		node.call(&"force_update_lighting")
 	for _i: int in range(120):
 		await process_frame
-	var can := _world.find_children("SPoVCanShelter", "", true, false)[0] as Node3D
+	## The can stands on the cabinet's shelves (ItemContainer), which adopted the layout's pickup.
+	var shelves := _world.find_children("Shelves", "ItemContainer", true, false)[0] as ItemContainer
+	var can: Node3D = null
+	for item: Dictionary in shelves.items:
+		if item["id"] == &"spov_can":
+			can = item["pickup"]
+	print("[spov] cabinet holds ", shelves.items.map(func(item: Dictionary) -> StringName: return item["id"]))
 	var cabinet: Cabinet = _world.find_children("*", "", true, false).filter(func(n: Node) -> bool: return n is Cabinet)[0]
 	print("[spov] cabinet ", cabinet.get_path(), " open=", cabinet.is_open(), " can at ", can.global_position)
 	if not cabinet.is_open():
