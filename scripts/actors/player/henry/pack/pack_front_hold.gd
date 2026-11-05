@@ -29,24 +29,23 @@ const CONTAINER_VIEW_UP: float = 0.15
 const CONTAINER_TOP: float = 0.98
 const CONTAINER_BOTTOM: float = -1.0
 ## The pack stands on the floor beside it, opening turned to the view, the front panel lying open before it.
-## What it takes up beyond its body (rig space, metres): the bedroll above, the loops, the panel on the floor.
+## What it takes up beyond its body (rig space, metres): the bedroll above, the loops.
 const CONTAINER_PACK_EXTRA_TOP_M: float = 0.16
 const CONTAINER_PACK_EXTRA_SIDE_M: float = 0.0
-const CONTAINER_PACK_PANEL_M: float = 0.46
 ## What hangs off its loops (the pan, the mug) reaches this far below its foot; the pack is lifted until that
 ## clears the floor by CONTAINER_FLOOR_CLEAR_M, metres.
 const CONTAINER_PACK_HANG_M: float = 0.26
 const CONTAINER_FLOOR_CLEAR_M: float = 0.03
 ## The pack's half sits this much (NDC) in toward the furniture; the frame is worked out this much wider than the
 ## view, so both show this much larger (owner: closer, tighter), their outer edges past the frame.
-const CONTAINER_PACK_IN: float = 0.15
+const CONTAINER_PACK_IN: float = 0.22
 const CONTAINER_TIGHTEN: float = 1.15
 ## The pack, nearer the view than its half alone asks, spans this share of the frame width (its body, loops
 ## left out); its foot sits this much (NDC) above the furniture's, lower when its top (the bedroll) would leave
-## the frame; it turns this far toward the furniture, degrees.
-const CONTAINER_PACK_SHARE: float = 0.47
+## the frame; its front turns this share of the way from the view to the furniture's front.
+const CONTAINER_PACK_SHARE: float = 0.3
 const CONTAINER_PACK_LIFT: float = 0.3
-const CONTAINER_PACK_TURN_DEG: float = 18.0
+const CONTAINER_PACK_PLANE: float = 0.75
 ## Henry is hidden once the swing is this far on (the blur has come up by then).
 const CONTAINER_HIDE_AT: float = 0.6
 ## The front panel opens this far there, so it lies on the floor (fully open it would dip under), degrees.
@@ -237,22 +236,19 @@ static func _ndc_box(corners: Array[Vector3], view: Transform3D, tans: Vector2) 
 	return box
 
 
-## The pack standing upright at `at`, its opening turned to `eye` (flat), then CONTAINER_PACK_TURN_DEG toward
-## the furniture.
+## The pack standing upright at `at`, its opening turned from `eye` (flat) CONTAINER_PACK_PLANE of the way to the
+## furniture's own front, so the two fronts nearly share a plane (owner).
 func _pack_facing(at: Vector3, eye: Vector3) -> Transform3D:
 	var toward: Vector3 = (eye - at).slide(Vector3.UP).normalized()
-	var to_furniture: Vector3 = (container.global_transform * container.body_box().get_center() - at).slide(Vector3.UP)
-	var across: Vector3 = to_furniture - toward * to_furniture.dot(toward)
-	if across.length_squared() > 1e-6:
-		var turn: float = deg_to_rad(CONTAINER_PACK_TURN_DEG)
-		toward = (toward * cos(turn) + across.normalized() * sin(turn)).normalized()
+	toward = toward.slerp(container.front()[1] as Vector3, CONTAINER_PACK_PLANE).normalized()
 	return Transform3D(Basis(Vector3.UP.cross(toward).normalized() * -1.0, Vector3.UP, -toward), at)
 
 
-## The corners of what the open pack takes up, rig space: its body, the bedroll, the panel open on the floor.
+## The corners of what the pack is placed by, rig space: its body and the bedroll (the open panel left out, so
+## turning it does not shift the pack).
 func _container_pack_corners() -> Array[Vector3]:
 	var half: Vector3 = pack.size * 0.5
-	var low := Vector3(-half.x - CONTAINER_PACK_EXTRA_SIDE_M, -half.y, -half.z - CONTAINER_PACK_PANEL_M)
+	var low := Vector3(-half.x - CONTAINER_PACK_EXTRA_SIDE_M, -half.y, -half.z)
 	var high := Vector3(half.x + CONTAINER_PACK_EXTRA_SIDE_M, half.y + CONTAINER_PACK_EXTRA_TOP_M, half.z)
 	var box := AABB(low, high - low)
 	var out: Array[Vector3] = []
