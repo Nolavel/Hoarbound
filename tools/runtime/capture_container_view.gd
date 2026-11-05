@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## The held pack at the 727 cabinet in Key West Reality (3D inventory, ItemContainer): Henry stands before the
-## shut cabinet, F opens it, he walks to its side, crouches and the pack opens beside it; the ring carries the
+## shut cabinet, F opens it (frosted face, search marker), F again: he walks over, crouches as the pack comes off, the
+## view cuts to the framed pack beside the cabinet; the ring carries the
 ## stew off the shelf into the pack, then a tin from the pack back onto the shelf. Tab again puts the pack on.
 ## 30 fps PNG frames; with --write-movie the sound is recorded too.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --fixed-fps 30 --resolution 1920x1080 --script res://tools/runtime/capture_container_view.gd -- <out dir>
@@ -55,6 +56,21 @@ func _run() -> void:
 	var hub := player.get_node(^"PlayerHubComponent") as PlayerHubComponent
 	await _record(0.5)
 	shelves.door.interact()
+	## The door open: the face frosts over and the search (an eye over F) is offered; seen from behind Henry.
+	var game_camera: Camera3D = root.get_viewport().get_camera_3d()
+	var look := Camera3D.new()
+	look.fov = 55.0
+	root.add_child(look)
+	var eye: Vector3 = (face[0] as Vector3) + (face[1] as Vector3) * 2.1 + (face[2] as Vector3) * 0.55
+	eye.y = player.global_position.y + 0.55
+	look.global_transform = Transform3D(Basis.IDENTITY, eye).looking_at(face[0] as Vector3, Vector3.UP)
+	look.make_current()
+	await _record(2.0)
+	## A second F searches: back in the game camera, he walks over, crouches as the pack comes off, the view cuts.
+	if game_camera != null:
+		game_camera.make_current()
+	look.queue_free()
+	(shelves.get_node(^"Search") as ContainerSearch).interact()
 	for _i: int in range(240):
 		await _record(1.0 / FPS)
 		if hub.is_open():
