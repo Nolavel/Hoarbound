@@ -26,6 +26,11 @@ const HAND_ICON_TINT: Color = Color(1.0, 1.0, 1.0, 0.28)
 ## Off (owner's call), the clothes panel hides and the body's pockets stand in a row at the bottom centre:
 ## the trousers' left, the hand in the middle, the coat's right (BOTTOM_ROW order, "hand" the hand card).
 const SHOW_BODY_PANEL: bool = false
+## The clothes panel still shows while the ring is on a body pocket (owner): it fades in and out over BODY_FADE_S,
+## a dot of BODY_DOT_TINT marking where that pocket is on the body (BODY_DOT_SHARE of the panel's height).
+const BODY_FADE_S: float = 0.22
+const BODY_DOT_TINT: Color = Color(1.0, 0.86, 0.45, 0.95)
+const BODY_DOT_SHARE: float = 0.06
 const BOTTOM_ROW: Array[String] = ["thigh_left", "thigh_right", "hand", "coat_left", "coat_right"]
 ## The bottom row's middle height (share of the half height, down) and the extra gap between groups (cards).
 const BOTTOM_SHARE: float = 0.8
@@ -67,6 +72,10 @@ var selected: int = -1
 var hand_card: MeshInstance3D
 var _quick: QuickAccessComponent
 var _body: MeshInstance3D
+var _body_dot: MeshInstance3D
+## The slot the ring is on (PackHandling sets it each frame), or -1; how far the clothes panel has faded in.
+var focus_slot: int = -1
+var _body_fade: float = 0.0
 var _hand_visual: Node3D
 ## The gradient for the left column (fading toward the pack, rightward) and the right one (leftward).
 var _frames: Array[SubViewport] = []
@@ -95,6 +104,8 @@ func setup(quick_hub: PlayerHubComponent, view: Camera3D) -> void:
 			rows[column] += 1
 	_body = _flat_quad(BODY_FRONT, BODY_TINT)
 	_body.name = "BodyPanel"
+	_body_dot = _flat_quad(_dot_texture(), BODY_DOT_TINT)
+	_body_dot.name = "BodyPocketDot"
 	hand_card = _card(_frames[0])
 	hand_card.name = "HandCard"
 	var icon: MeshInstance3D = _flat_quad(HAND_ICON, HAND_ICON_TINT, hand_card)
@@ -205,7 +216,7 @@ func visual_of(k: int) -> Node3D:
 	return slots[k]["visual"]
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if camera == null:
 		return
 	var view: Vector2 = camera.get_viewport().get_visible_rect().size
@@ -222,7 +233,7 @@ func _process(_delta: float) -> void:
 	var body_size := Vector2(body_height * BODY_FRONT.get_width() / float(BODY_FRONT.get_height()), body_height)
 	var body_at := Vector3(-half_w * BODY_X_SHARE, 0.0, -DEPTH_M - 0.002)
 	_body.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3(body_size.x, body_size.y, 1.0)), body_at)
-	_body.visible = SHOW_BODY_PANEL
+	_fade_body(delta, body_at, body_size)
 	var hand_at := body_at + Vector3(body_size.x * 0.5 + size * 0.75, (0.5 - HAND_V) * body_size.y, 0.002)
 	if not SHOW_BODY_PANEL:
 		hand_at = _bottom_spot("hand", half_h, size)
@@ -242,6 +253,34 @@ func _process(_delta: float) -> void:
 		elif BOTTOM_ROW.has(String(_pocket(k))):
 			at = _bottom_spot(String(_pocket(k)), half_h, size)
 		(slot["card"] as Node3D).global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * side_m / CARD_M), at)
+
+
+## With the panel off, it fades in while the ring is on a body pocket, a dot where that pocket is on the body.
+func _fade_body(delta: float, body_at: Vector3, body_size: Vector2) -> void:
+	var on_body: bool = focus_slot >= 0 and focus_slot < slots.size() and (slots[focus_slot]["body_uv"] as Vector2).x >= 0.0
+	if on_body:
+		var uv: Vector2 = slots[focus_slot]["body_uv"]
+		var dot: float = body_size.y * BODY_DOT_SHARE
+		var dot_at: Vector3 = body_at + Vector3((uv.x - 0.5) * body_size.x, (0.5 - uv.y) * body_size.y, 0.001)
+		_body_dot.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY.scaled(Vector3(dot, dot, 1.0)), dot_at)
+	var target: float = 1.0 if SHOW_BODY_PANEL or on_body else 0.0
+	_body_fade = move_toward(_body_fade, target, delta / BODY_FADE_S)
+	var shown: float = smoothstep(0.0, 1.0, _body_fade)
+	(_body.material_override as StandardMaterial3D).albedo_color.a = BODY_TINT.a * shown
+	(_body_dot.material_override as StandardMaterial3D).albedo_color.a = BODY_DOT_TINT.a * shown * (1.0 if on_body else 0.0)
+	_body.visible = shown > 0.001
+	_body_dot.visible = _body.visible and on_body
+
+
+## A soft round dot (white, alpha falling off to its edge), made once.
+static func _dot_texture() -> Texture2D:
+	var size: int = 32
+	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	for y: int in size:
+		for x: int in size:
+			var r: float = Vector2(x - size * 0.5 + 0.5, y - size * 0.5 + 0.5).length() / (size * 0.5)
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, clampf(1.0 - smoothstep(0.55, 1.0, r), 0.0, 1.0)))
+	return ImageTexture.create_from_image(image)
 
 
 ## Where `place` (a BOTTOM_ROW entry) stands in the bottom row, camera space: cards a pitch apart, the groups

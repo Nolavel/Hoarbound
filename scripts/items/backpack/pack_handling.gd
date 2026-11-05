@@ -230,6 +230,8 @@ func _process(delta: float) -> void:
 			hovered_slot = -1
 	if not _carry.is_empty():
 		_follow_carry()
+	if shelf != null:
+		shelf.focus_slot = hovered_slot
 	_show_hover()
 	if cursor != null:
 		cursor.visible = true

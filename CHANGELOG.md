@@ -8,6 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory (Hub): the coat-and-trousers silhouette fades in while the ring is on a body pocket, with a dot where that pocket is (owner), and fades out after.
 - Pockets have real inside sizes in cm and take only what fits by the item's model. The hammer, the axe and the pan no longer go into coat or trouser pockets (owner); tins, the knife and the lighter still do.
 - 3D inventory (Hub): small things in numbers (nails, tinder, flares, empty tins) lie in the pack as one bundle per stack, and the readout says how many ("Nails ×20"). 20 nails used to take 20 places.
 - 3D inventory (Hub), gamepad: a flick of the stick steps the ring to the nearest item, card, the hand or the pack that way, instead of steering a free cursor.

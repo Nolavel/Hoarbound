@@ -121,6 +121,7 @@ Code: `scripts/items/backpack/pack_handling.gd` (`PackHandling`), `pack_cursor.g
   - Garments squash, so for them only the size class counts.
   - Sizes: coat 20×22×11, thigh 18×24×8, pack lid 28×22×8, thermos sleeve 11×22×11, tool sleeves 18×40×5. The main compartment and the carabiners keep the size class alone.
   - Result: the hammer (34 cm), the axe (37 cm) and the pan (39 cm) go into no coat or trouser pocket; tins, the knife and the lighter still do.
+- **Clothes silhouette on demand** (owner). The clothes panel stays off (`SHOW_BODY_PANEL`), but while the ring is on a coat or trouser pocket's card it fades in at the left over 0.22 s (`PackQuickShelf._fade_body`, `focus_slot` set by `PackHandling`). An amber dot marks where that pocket is on the body (`body_front.json`). Off the card, it fades out.
 - **Bundles** (`ItemResource.bundles`). Small things kept in numbers (`max_stack` of 5 or more: nails, tinder, road flares, empty tins) lie under the straps as one bundle per full stack (`PackRig._refresh_contents`). Tins (stack 4) stay one place each.
   - The readout names the count: "Nails ×20" (`ItemReadout.describe(id, count)`, `ITEM_BUNDLE_COUNT`).
   - Taking a bundle takes one unit; the rest stay.
