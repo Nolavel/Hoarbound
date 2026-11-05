@@ -78,12 +78,12 @@ Code: `scripts/environment/interactive/item_container.gd` (`ItemContainer`). Tes
 - **Visiting a container** (owner's design), in two presses of F.
   - **F on the door** only opens and shuts it. Open, the door is aimed at on its swung-open leaf (`Cabinet.get_focus_point`), so aiming into the shelves offers the search instead.
   - **Open, with something inside:**
-    - The shelves' open face is frosted over: a quad with `shaders/items/frosted_veil.gdshader` (the screen behind at a blurred mip, hazed). What is inside reads only as unclear shapes (`ItemContainer._make_veil`).
+    - The shelves' open face is frosted over: a quad with `shaders/items/frosted_veil.gdshader` (the screen behind at a blurred mip, 80% over the sharp view: half-seen shapes). What is inside reads only as unclear shapes (`ItemContainer._make_veil`).
     - Its items are not taken by F (`ItemPickup.in_container`).
-    - Instead the search is offered at the middle of the face (`ContainerSearch`, pickup channel): the pickup marker's ring and F, with an eye over the F (`InteractiveArea.marker_icon`, `assets/ui/hud/pickup_marker/eye.svg`, Material Symbols, Apache 2.0).
+    - Instead the search is offered at the middle of the face (`ContainerSearch`, pickup channel): the pickup marker's ring and F, with an eye inside the ring (`InteractiveArea.marker_icon`, `assets/ui/hud/pickup_marker/eye.svg`, Material Symbols, Apache 2.0).
   - **F on the search** (or Tab beside an open container) walks Henry to his point (`PlayerHubComponent.visit_container`).
-  - **At the point** he crouches and slips the pack off into his hands together, in the game camera that keeps following him (`PackFrontHold`, as by Tab). The Hub's camera is only made current at the cut.
-  - **The cut.** Once the pack is in his hands (`settled`), the view cuts hard to the working frame (`Hub._cut_to_container`). The pack takes its framed place, Henry leaves the frame, and the focus blur, the cards and the ring come on. The frost lifts while the Hub holds that container.
+  - **At the point** he crouches and slips the pack off into his hands together, exactly as by Tab: the same view in front of him, so its turn off his back shows (`PackFrontHold`).
+  - **The cut.** Once the pack is in his hands (`settled`), the view cuts hard to the working frame (`Hub._cut_to_container`). Outlines traced in that frame would use the view before the jump, so the outline cache is cleared and the cards and ring come on a frame later. The pack takes its framed place, Henry leaves the frame, and the focus blur, the cards and the ring come on. The frost lifts while the Hub holds that container.
   - **Closing** puts the pack back from his hands as by Tab.
   - **The free side.** The pack goes on the side away from the door's hinge, where the open door does not swing (`ItemContainer.free_side`). With no door it goes on the side Henry came from.
   - **The spot.** Henry's spot is 0.45 m out from the shelves' front and 0.58 m past the edge on that side (`ItemContainer.visit_spot`). WASD on the way calls the visit off, and so does Tab again.

@@ -502,6 +502,11 @@ func _screen_outline(visual: Node3D) -> PackedVector2Array:
 	return screen_outline(visual, camera)
 
 
+## Forgets every traced outline (the view jumped: a hard cut).
+static func clear_outline_cache() -> void:
+	_outline_cache.clear()
+
+
 ## The silhouette of `visual` as `camera` sees it (viewport pixels): its triangles rasterised into a grid of
 ## OUTLINE_GRID cells across, the filled region's boundary traced (Moore neighbourhood). Cached while still.
 static func screen_outline(visual: Node3D, camera: Camera3D) -> PackedVector2Array:

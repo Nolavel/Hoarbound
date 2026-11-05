@@ -128,6 +128,11 @@ func begin_container(shelves: ItemContainer, side: float, fov: float) -> void:
 	_lean_hangers_out()
 
 
+## Whether the pack is in its framed place by a container (after the cut).
+func is_container_cut() -> bool:
+	return _container_cut
+
+
 ## Swings the pack back on; `finished` fires when it is home and the hands are free.
 func finish() -> void:
 	if _ending:

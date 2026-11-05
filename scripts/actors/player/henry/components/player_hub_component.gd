@@ -664,7 +664,8 @@ func get_camera_target() -> Transform3D:
 	var body := get_parent() as Node3D
 	var pack: PackRig = _pack()
 	if is_instance_valid(_front_hold):
-		return _front_hold.container_view(_container_fov()) if is_instance_valid(_front_hold.container) else _front_hold.front_view(pack_view_fov)
+		## At a container: the Tab view while the pack comes off, the furniture's frame after the cut.
+		return _front_hold.container_view(_container_fov()) if is_instance_valid(_front_hold.container) and _front_hold.is_container_cut() else _front_hold.front_view(pack_view_fov)
 	if _inspecting and pack != null and pack.is_inside_tree():
 		## Beside Henry, past his left shoulder, looking down into the open pack on the floor.
 		var basis: Basis = body.global_transform.basis.orthonormalized()
@@ -790,7 +791,7 @@ func _enter_camera() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "HubCamera"
 	_camera.top_level = true
-	_camera.fov = (_container_fov() if container != null else pack_view_fov) if is_instance_valid(_front_hold) else 50.0
+	_camera.fov = pack_view_fov if is_instance_valid(_front_hold) else 50.0
 	## It sees what the game camera sees: reserved layers (dev map labels, snow contact) stay out.
 	if _previous_camera != null:
 		_camera.cull_mask = _previous_camera.cull_mask
@@ -800,10 +801,10 @@ func _enter_camera() -> void:
 	body.add_child(_camera)
 	var target: Transform3D = get_camera_target()
 	_camera.global_transform = _previous_camera.global_transform if _previous_camera != null else target
-	if is_instance_valid(_front_hold) and container != null:
-		return  # at a container the game camera keeps following Henry until the pack is off (_cut_to_container)
 	_camera.make_current()
-	if is_instance_valid(_front_hold):
+	## At a container the pack comes off as by Tab (the same view, so its turn off his back shows); the frame,
+	## its blur and UI come at the cut (_cut_to_container).
+	if is_instance_valid(_front_hold) and container == null:
 		_add_focus_blur()
 	create_tween().set_trans(Tween.TRANS_SINE).tween_property(_camera, ^"global_transform", target, camera_blend_time)
 
@@ -820,9 +821,14 @@ func _add_focus_blur() -> void:
 func _cut_to_container() -> void:
 	if not _open or not is_instance_valid(_camera) or container == null:
 		return
+	_camera.fov = _container_fov()
 	_camera.global_transform = get_camera_target()
-	_camera.make_current()
 	_add_focus_blur()
+	## Outlines traced in this frame would use the view before the jump: the cards and ring wait one frame.
+	PackHandling.clear_outline_cache()
+	await get_tree().process_frame
+	if not _open:
+		return
 	if is_instance_valid(_shelf):
 		_shelf.visible = true
 	if is_instance_valid(_hands):

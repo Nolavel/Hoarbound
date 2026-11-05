@@ -60,6 +60,11 @@ func _run() -> void:
 	var game_camera: Camera3D = root.get_viewport().get_camera_3d()
 	var look := Camera3D.new()
 	look.fov = 55.0
+	if game_camera != null:
+		look.environment = game_camera.environment
+		look.attributes = game_camera.attributes
+		look.compositor = game_camera.compositor
+		look.cull_mask = game_camera.cull_mask
 	root.add_child(look)
 	var eye: Vector3 = (face[0] as Vector3) + (face[1] as Vector3) * 2.1 + (face[2] as Vector3) * 0.55
 	eye.y = player.global_position.y + 0.55
