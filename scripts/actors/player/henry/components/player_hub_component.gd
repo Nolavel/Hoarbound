@@ -118,8 +118,8 @@ func open() -> bool:
 		## At an open cabinet within reach, its shelves join the pack (ItemContainer).
 		var body := get_parent() as Node3D
 		container = ItemContainer.find_open_near(body, -body.global_basis.z.slide(Vector3.UP).normalized(), CONTAINER_REACH_M) if body != null else null
-		if _front_hold != null:
-			_front_hold.container = container
+		if _front_hold != null and container != null:
+			_front_hold.begin_container(container)
 	elif pack != null:
 		pack.set_openness(PackRig.Openness.FULL)
 	_enter_camera()
