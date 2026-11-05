@@ -375,6 +375,10 @@ func _perform(target: InteractiveArea) -> void:
 
 ## The world mechanism nearest the view's aim, within reach of Henry and in sight of the camera.
 func _resolve_world(seated: bool, delta: float) -> InteractiveArea:
+	## The open Hub owns the hands and the view: no door or cabinet is offered either (its prompt would sit on it).
+	var hub := _player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
+	if hub != null and hub.is_open():
+		return null
 	var previous: InteractiveArea = world_target if _is_available(world_target) else null
 	var radius: float = seated_reach if seated else intent_radius
 	if previous != null and previous.keeps_focus() and _flat_distance_to_focus(previous) <= radius:

@@ -13,6 +13,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - 3D inventory at an open cabinet: Tab within reach takes its shelves in.
   - Henry steps past the cabinet's left edge, facing out, and the pack hangs open on his chest from both straps.
   - The view looks square into the cabinet and frames the pack and every shelf corner, whatever the height.
+  - While the Hub is open no world prompt (a door, the cabinet) is offered, just as pickups already were not.
   - The ring carries items shelf ↔ pack ↔ pockets through new Hub moves (`move_from_container`, `move_to_container`).
   - A full shelf refuses, and the shelves stay sharp under the focus blur.
 - Furniture can hold items: `ItemContainer`.
