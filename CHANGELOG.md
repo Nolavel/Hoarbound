@@ -14,8 +14,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - He walks to the side away from the door's hinge and crouches at a low cabinet.
   - The frame then holds only the pack and the cabinet, side by side at about 48% of the width each (owner's sketch). Henry is hidden.
   - The view looks in at an angle, so the cabinet's front turns to the pack. The pack stands open toward the view, its front panel flat.
-  - The pack sits close against the cabinet, lifted so its pan clears the floor, and the frame is tighter.
-  - A blurred stand-in arm reaches from behind to hold the pack.
+  - The pack sits close against the cabinet, higher, nearer the view and turned a little toward the cabinet. The frame is tighter.
   - Henry no longer freezes on the way. A walk blocked short of the spot now counts as arrived after 0.25 s, where before he pushed for 4 s. The door clip is cut once his hand reaches the door.
   - The chest-pack variant is gone.
   - While the Hub is open no world prompt (a door, the cabinet) is offered, just as pickups already were not.
