@@ -667,6 +667,11 @@ func get_camera_target() -> Transform3D:
 	return Transform3D(Basis.IDENTITY, eye).looking_at(centre, Vector3.UP)
 
 
+## How cold Henry's hands are, 0..1 (ExtremityCold load): slower, shakier hands in the open pack.
+func get_hands_cold() -> float:
+	return _thermal_manager.get_extremity_cold(&"hands") if _thermal_manager != null else 0.0
+
+
 func set_thermal_manager(thermal: ThermalManager) -> void:
 	_thermal_manager = thermal
 

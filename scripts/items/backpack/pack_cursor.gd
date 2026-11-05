@@ -23,6 +23,8 @@ const LOAD_HEAVY: Color = Color(1.0, 0.72, 0.1, 0.9)
 const LOAD_ITEM: Color = Color(1.0, 1.0, 1.0, 1.0)
 ## The hint's yellow underlay, as the world prompt's.
 const HINT_UNDERLAY: Color = Color(1.0, 0.823529, 0.0, 0.42)
+## The take's line along the ring.
+const PROGRESS_COLOUR: Color = Color(1.0, 0.86, 0.45, 1.0)
 
 var at: Vector2 = Vector2.ZERO
 var hovering: bool = false
@@ -41,6 +43,8 @@ var load_kg: float = 0.0
 var load_max_kg: float = 0.0
 var load_slows_at: float = 1.0
 var load_item_kg: float = 0.0
+## A take under way, 0..1 (PackHandling: LMB held): a thick line fills round the ring's outline.
+var progress: float = 0.0
 ## 0 the ring, 1 the outline; the outline it flows to or from, resampled to POINTS along its length.
 var _morph: float = 0.0
 var _shape: PackedVector2Array = PackedVector2Array()
@@ -75,6 +79,9 @@ func _draw() -> void:
 			line.append(point)
 			right = maxf(right, point.x)
 		draw_polyline(line, HOVER_COLOUR if hovering else IDLE_COLOUR, RING_WIDTH, true)
+		if progress > 0.0:
+			## The take fills the ring's own line (the item's outline when hovered) round from its start.
+			draw_polyline(line.slice(0, maxi(int(float(POINTS) * progress), 2) + 1), PROGRESS_COLOUR, RING_WIDTH + 2.5, true)
 		var bottom: float = at.y + RING_RADIUS
 		var centre_x: float = 0.0
 		for point: Vector2 in line:

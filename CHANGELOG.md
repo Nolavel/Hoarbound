@@ -8,6 +8,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 3D inventory (Hub): taking costs time. LMB is held while a line fills round the item, and letting go early takes nothing.
+  - The bottom strap and heavy items take longer. Cold hands take up to 2.5 times as long and shake the ring.
+  - A tin off the bottom strap takes 0.63 s warm and 1.57 s with frozen hands.
 - 3D inventory: the body's pockets stand in a row at the bottom centre: trousers, the hand card, coat.
   - The clothes panel is hidden (owner's call). Its code stays behind `PackQuickShelf.SHOW_BODY_PANEL`.
 - 3D inventory at a cabinet: F opening its door (or Tab beside an open one) sends Henry over to it.

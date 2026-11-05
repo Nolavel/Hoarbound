@@ -111,7 +111,12 @@ Code: `scripts/items/backpack/pack_handling.gd` (`PackHandling`), `pack_cursor.g
 - **Load bar** (top centre): what Henry carries of his limit (`InventoryComponent.max_carry_weight`), amber past `MovementController.load_penalty_starts` (where he starts to slow, ticked on the bar), with the hovered item's share bright at the fill's end.
 - **Sound and weight.** Taking, putting and dropping rustle the cloth (`data/audio/backpack/pack_rustle.tres`); a refusal pulls softer (`pack_resist.tres`). The clips come from Freesound #237047 (CC0, `assets/audio/sfx/items/backpack_cloth/LICENSE.md`). Something put into the pack jolts it in Henry's hands (`PackFrontHold.jolt`): a dip of 1.2 cm for the hand's push plus 2 cm per kg (3.5 cm at most), tipped with it, springing back as a damped bounce.
 - **Use** (RMB, pad X; `use_hovered`): the verb comes from the item (`use_verb`). A tin opens where it lies through `ConsumptionController` and the pack stays open. Food and drink go through `Hub.use_item` or `use_from_zone`, which close the pack so Henry has his hands. A refusal shows `ConsumptionController.describe_refusal`.
-- **Carry.** LMB (pad A) takes it, the ring hides, and the item rides the cursor at its true size (scaled by how much nearer than the pack it hangs) with a warm rim. Letting go:
+- **Taking costs time** (Project Zomboid's timed actions; `PackHandling.take_seconds`). LMB is held while the hand works the item free, and a thick amber line fills round its outline (`PackCursor.progress`). Let go before it is full and nothing is taken.
+  - A pocket, the hand card or a shelf: 0.2 s. A strapped item: 0.28 s, plus up to 0.3 s on the bottom tier.
+  - Each kg adds 0.12 s, up to 0.4 s.
+  - Cold hands (`ThermalManager.get_extremity_cold(&"hands")`, via `Hub.get_hands_cold`) multiply it by up to 2.5. A tin off the bottom strap takes 0.63 s warm and 1.57 s frozen.
+  - Past a quarter of that cold load the ring shakes, up to 9 px at 7 Hz, so frozen hands also aim worse.
+- **Carry.** Once taken, the ring hides, and the item rides the cursor at its true size (scaled by how much nearer than the pack it hangs) with a warm rim. Letting go:
   - over a card moves it into that pocket (`move_to_zone`, or `move_between_zones` from another pocket);
   - over the pack moves it under the straps (`move_to_pack`, after the straps' own refusal check);
   - anywhere else puts it back.

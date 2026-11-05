@@ -96,7 +96,7 @@ func _run() -> void:
 	var tins: int = _inventory.get_count(&"spov_can")
 	await _aim(_shelf_screen(0))
 	_check(_hands.hovered_shelf == 0, "the ring over a shelf tin does not hover it")
-	_hands.press(PackHandling.GRAB_ACTION, true)
+	await _grab()
 	await _glide(_pack_screen(straps))
 	_hands.press(PackHandling.GRAB_ACTION, false)
 	await _frames(10)
@@ -105,7 +105,7 @@ func _run() -> void:
 
 	## A pack tin back onto the shelf.
 	await _aim(_item_screen(straps, 0))
-	_hands.press(PackHandling.GRAB_ACTION, true)
+	await _grab()
 	await _glide(_shelves_screen())
 	_hands.press(PackHandling.GRAB_ACTION, false)
 	await _frames(10)
@@ -118,13 +118,13 @@ func _run() -> void:
 		if shelf.slots[k]["path"] == coat_left:
 			left_card = k
 	await _aim(shelf.aim_point(left_card))
-	_hands.press(PackHandling.GRAB_ACTION, true)
+	await _grab()
 	await _glide(_shelves_screen())
 	_hands.press(PackHandling.GRAB_ACTION, false)
 	await _frames(10)
 	_check(StringName(shelf.slots[left_card]["item_id"]) == &"" and _box.items.size() == on_shelf + 1, "the coat pocket's tin did not go onto the shelf")
 	await _aim(_shelf_screen(0))
-	_hands.press(PackHandling.GRAB_ACTION, true)
+	await _grab()
 	await _glide(shelf.aim_point(left_card))
 	_hands.press(PackHandling.GRAB_ACTION, false)
 	await _frames(10)
@@ -138,7 +138,7 @@ func _run() -> void:
 	var full_count: int = _box.items.size()
 	var before: int = _inventory.get_count(&"spov_can")
 	await _aim(_item_screen(straps, 0))
-	_hands.press(PackHandling.GRAB_ACTION, true)
+	await _grab()
 	await _glide(_shelves_screen())
 	_hands.press(PackHandling.GRAB_ACTION, false)
 	await _frames(5)
@@ -183,6 +183,15 @@ func _cabinet() -> Node3D:
 		mesh.position = panel[1]
 		cabinet.add_child(mesh)
 	return cabinet
+
+
+## LMB held until the hand has taken the item (a take costs time, PackHandling.take_seconds).
+func _grab() -> void:
+	_hands.press(PackHandling.GRAB_ACTION, true)
+	for _i: int in 90:
+		if not _hands.is_taking():
+			break
+		await _frames(1)
 
 
 func _aim(at: Vector2) -> void:

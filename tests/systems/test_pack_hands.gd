@@ -75,7 +75,7 @@ func _run() -> void:
 		"the hovered tin shows no readout (name and weight)")
 	_check(is_equal_approx(_hands.cursor.load_kg, _inventory.get_total_weight()) and _hands.cursor.load_max_kg > 0.0,
 		"the load bar does not show what Henry carries")
-	_hands.press(PackHandling.GRAB_ACTION, true)
+	await _grab()
 	await _glide(_pack_screen(straps))
 	_hands.press(PackHandling.GRAB_ACTION, false)
 	await _frames(20)
@@ -89,7 +89,19 @@ func _run() -> void:
 	## A tin out of the pack onto the empty coat pocket's card.
 	await _aim(_item_screen(straps, 0))
 	_check(_hands.hovered_item >= 0, "the ring over a strapped tin does not hover it")
+	## Taking costs time: cold hands take longer, and LMB let go too soon takes nothing.
+	_hands.hands_cold = 0.0
+	var warm_s: float = _hands.take_seconds()
+	_hands.hands_cold = 1.0
+	var cold_s: float = _hands.take_seconds()
+	_check(warm_s > 0.1 and cold_s > warm_s * 2.0, "cold hands do not take longer (warm %.2f s, cold %.2f s)" % [warm_s, cold_s])
 	_hands.press(PackHandling.GRAB_ACTION, true)
+	await _frames(1)
+	_hands.press(PackHandling.GRAB_ACTION, false)
+	await _frames(3)
+	_check(not _hands.is_carrying() and not _hands.is_taking() and straps.items.size() == strapped + 1, "LMB let go at once still took the tin")
+	print("pack hands: a take lasts %.2f s warm, %.2f s with frozen hands; let go early takes nothing" % [warm_s, cold_s])
+	await _grab()
 	await _glide(_card_screen(shelf, left_card))
 	_hands.press(PackHandling.GRAB_ACTION, false)
 	await _frames(20)
@@ -100,7 +112,7 @@ func _run() -> void:
 	## The full coat pocket refuses the axe; it stays in its sleeve.
 	if sleeve_card >= 0:
 		await _aim(_card_screen(shelf, sleeve_card))
-		_hands.press(PackHandling.GRAB_ACTION, true)
+		await _grab()
 		await _glide(_card_screen(shelf, left_card))
 		_check(shelf.slots[left_card]["tint"] == PackQuickShelf.REFUSE, "the full coat pocket does not show it would refuse")
 		_hands.press(PackHandling.GRAB_ACTION, false)
@@ -109,7 +121,7 @@ func _run() -> void:
 		_check(_hands.cursor.warning == tr(PackQuickShelf.FULL), "the full pocket showed no reason")
 		## The pack refuses it as too big.
 		await _aim(_card_screen(shelf, sleeve_card))
-		_hands.press(PackHandling.GRAB_ACTION, true)
+		await _grab()
 		await _glide(_pack_screen(straps))
 		_hands.press(PackHandling.GRAB_ACTION, false)
 		await _frames(5)
@@ -121,7 +133,7 @@ func _run() -> void:
 
 	## The tin let go on the hand card becomes what Henry takes in hand; it stays in its pocket.
 	await _aim(_card_screen(shelf, left_card))
-	_hands.press(PackHandling.GRAB_ACTION, true)
+	await _grab()
 	await _glide(_hands.camera.unproject_position(shelf.hand_card.global_position))
 	_check(_hands.hovered_hand, "the ring over the hand card does not hover it")
 	_hands.press(PackHandling.GRAB_ACTION, false)
@@ -194,6 +206,15 @@ func _item_screen(straps: PackStraps, i: int) -> Vector2:
 
 func _pack_screen(straps: PackStraps) -> Vector2:
 	return _hands.camera.unproject_position(straps.model.global_transform * PackStraps.room().get_center())
+
+
+## LMB held until the hand has taken the item (a take costs time, PackHandling.take_seconds).
+func _grab() -> void:
+	_hands.press(PackHandling.GRAB_ACTION, true)
+	for _i: int in 90:
+		if not _hands.is_taking():
+			break
+		await _frames(1)
 
 
 func _aim(at: Vector2) -> void:

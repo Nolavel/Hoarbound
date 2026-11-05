@@ -112,6 +112,8 @@ func _run() -> void:
 		await _glide(hands, _card_at(hands, shelf, k), 0.45)
 		await _record(0.2)
 		hands.press(PackHandling.GRAB_ACTION, true)
+		while hands.is_taking():
+			await _record(1.0 / FPS)
 		await _glide(hands, into, 0.6)
 		hands.press(PackHandling.GRAB_ACTION, false)
 		await _record(0.7)
@@ -119,6 +121,8 @@ func _run() -> void:
 	await _glide(hands, hands.camera.unproject_position(straps.model.global_transform * (straps.items[0]["box"] as AABB).get_center()), 0.5)
 	await _record(0.2)
 	hands.press(PackHandling.GRAB_ACTION, true)
+	while hands.is_taking():
+		await _record(1.0 / FPS)
 	await _glide(hands, _card_at(hands, shelf, _slot_ending(shelf, "coat_left")), 0.6)
 	hands.press(PackHandling.GRAB_ACTION, false)
 	await _record(0.7)
@@ -135,6 +139,8 @@ func _run() -> void:
 	if axe >= 0:
 		await _glide(hands, _card_at(hands, shelf, axe), 0.5)
 		hands.press(PackHandling.GRAB_ACTION, true)
+		while hands.is_taking():
+			await _record(1.0 / FPS)
 		await _glide(hands, into, 0.6)
 		await _record(0.5)
 		hands.press(PackHandling.GRAB_ACTION, false)

@@ -26,6 +26,19 @@ const REFUSED_RIM: Color = Color(1.0, 0.22, 0.18, 0.95)
 ## A refusal shows this long, seconds; a carried item hangs this share of the way from the camera to the pack.
 const WARNING_S: float = 2.0
 const CARRY_DEPTH: float = 0.85
+## Taking costs time (Project Zomboid's timed actions): LMB is held while the hand works an item free. A pocket
+## or a shelf takes TAKE_REACH_S, a strapped item TAKE_STRAP_S plus up to TAKE_DEEP_S on the bottom tier; each kg
+## adds TAKE_S_PER_KG (to TAKE_KG_MAX_S); cold hands (ExtremityCold load 0..1) multiply it up to 1 + COLD_SLOWS.
+const TAKE_REACH_S: float = 0.2
+const TAKE_STRAP_S: float = 0.28
+const TAKE_DEEP_S: float = 0.3
+const TAKE_S_PER_KG: float = 0.12
+const TAKE_KG_MAX_S: float = 0.4
+const COLD_SLOWS: float = 1.5
+## Cold hands shake: the ring wanders up to TREMOR_PX at full cold load, TREMOR_HZ; it starts past TREMOR_FROM.
+const TREMOR_PX: float = 9.0
+const TREMOR_HZ: float = 7.0
+const TREMOR_FROM: float = 0.25
 
 var hub: PlayerHubComponent
 var straps: PackStraps
@@ -45,6 +58,11 @@ var container: ItemContainer
 var enabled: bool = true
 ## The item a hand carries: {"id", "from_slot" or "from_item", "visual": Node3D}; empty when none.
 var _carry: Dictionary = {}
+## A take under way (LMB held): {"hovered": [slot, item, shelf, hand], "s": done, "need": seconds}; empty when none.
+var _taking: Dictionary = {}
+## How cold Henry's hands are, 0..1 (the Hub's ExtremityCold load), and the tremor's clock.
+var hands_cold: float = 0.0
+var _tremor_t: float = 0.0
 var _pad_used: bool = false
 ## Sampled triangles per mesh resource, and each visual's last outline with the pose it was traced in.
 static var _triangle_cache: Dictionary = {}
@@ -88,8 +106,10 @@ func set_cursor(at: Vector2) -> void:
 func press(action: StringName, pressed: bool) -> void:
 	match action:
 		GRAB_ACTION:
-			if pressed and _carry.is_empty():
-				_take()
+			if pressed and _carry.is_empty() and _taking.is_empty():
+				_begin_take()
+			elif not pressed and not _taking.is_empty():
+				_taking = {}  # let go before the hand had it: nothing taken
 			elif not pressed and not _carry.is_empty():
 				_release()
 		DROP_ACTION:
@@ -159,12 +179,37 @@ func is_carrying() -> bool:
 	return not _carry.is_empty()
 
 
+## Whether a take is under way (LMB held, the hand still working the item free).
+func is_taking() -> bool:
+	return not _taking.is_empty()
+
+
+## How long taking what is under the ring would take now, seconds (0 when nothing is there).
+func take_seconds() -> float:
+	var id: StringName = _hovered_id()
+	if id == &"":
+		return 0.0
+	var need: float = TAKE_REACH_S
+	if hovered_item >= 0:
+		var depth: float = 1.0 - float(straps.items[hovered_item]["tier"]) / maxf(PackStraps.TIERS - 1, 1)
+		need = TAKE_STRAP_S + TAKE_DEEP_S * depth
+	need += minf(float(ItemReadout.describe(id).get("kg", 0.0)) * TAKE_S_PER_KG, TAKE_KG_MAX_S)
+	return need * (1.0 + COLD_SLOWS * clampf(hands_cold, 0.0, 1.0))
+
+
 func _process(delta: float) -> void:
 	if not enabled or camera == null or straps == null:
 		if cursor != null:
 			cursor.visible = false
 		return
 	_move_by_stick(delta)
+	hands_cold = hub.get_hands_cold() if hub != null else hands_cold
+	if not _taking.is_empty():
+		_advance_take(delta)
+		if cursor != null:
+			cursor.progress = clampf(float(_taking.get("s", 0.0)) / maxf(float(_taking.get("need", 1.0)), 0.001), 0.0, 1.0) if not _taking.is_empty() else 0.0
+			cursor.at = cursor_at + _tremor(delta)
+		return
 	hovered_slot = shelf.pick(camera.project_ray_origin(cursor_at), camera.project_ray_normal(cursor_at)) if shelf != null else -1
 	hovered_hand = hovered_slot < 0 and shelf != null and shelf.pick_hand(camera.project_ray_origin(cursor_at), camera.project_ray_normal(cursor_at))
 	hovered_item = -1
@@ -180,7 +225,8 @@ func _process(delta: float) -> void:
 	_show_hover()
 	if cursor != null:
 		cursor.visible = true
-		cursor.at = cursor_at
+		cursor.progress = 0.0
+		cursor.at = cursor_at + _tremor(delta)
 		cursor.shown = _carry.is_empty()
 		cursor.hovering = hovered_item >= 0 or hovered_shelf >= 0 or (hovered_slot >= 0 and StringName(shelf.slots[hovered_slot]["item_id"]) != &"") \
 			or (hovered_hand and shelf.hand_visual() != null)
@@ -199,7 +245,45 @@ func _process(delta: float) -> void:
 		cursor.load_item_kg = float(cursor.info.get("kg", 0.0))
 
 
-## LMB on what is under the ring: it leaves its place and rides the cursor.
+## LMB pressed on something: the hand starts working it free (take_seconds); held long enough, it is taken.
+func _begin_take() -> void:
+	var need: float = take_seconds()
+	if need <= 0.0:
+		return
+	_taking = {"hovered": [hovered_slot, hovered_item, hovered_shelf, hovered_hand], "s": 0.0, "need": need}
+	_sound(RUSTLE)
+
+
+## The take runs on while LMB is held; the hover it began on is kept, so the cursor may already move off.
+func _advance_take(delta: float) -> void:
+	_taking["s"] = float(_taking["s"]) + delta
+	if float(_taking["s"]) < float(_taking["need"]):
+		return
+	var began: Array = _taking["hovered"]
+	_taking = {}
+	var now: Array = [hovered_slot, hovered_item, hovered_shelf, hovered_hand]
+	hovered_slot = began[0]
+	hovered_item = began[1]
+	hovered_shelf = began[2]
+	hovered_hand = began[3]
+	_take()
+	hovered_slot = now[0]
+	hovered_item = now[1]
+	hovered_shelf = now[2]
+	hovered_hand = now[3]
+
+
+## Cold hands' shake for the ring this frame: two sines off beat, scaled by the cold past TREMOR_FROM.
+func _tremor(delta: float) -> Vector2:
+	var shake: float = clampf((hands_cold - TREMOR_FROM) / (1.0 - TREMOR_FROM), 0.0, 1.0)
+	if shake <= 0.0:
+		return Vector2.ZERO
+	_tremor_t += delta
+	var phase: float = TAU * TREMOR_HZ * _tremor_t
+	return Vector2(sin(phase) + 0.5 * sin(phase * 2.3), cos(phase * 1.3) + 0.5 * sin(phase * 3.1)) * TREMOR_PX * shake / 1.5
+
+
+## The hand has it: it leaves its place and rides the cursor.
 func _take() -> void:
 	var id: StringName = &""
 	if hovered_hand and shelf.selected >= 0 and shelf.hand_visual() != null:
