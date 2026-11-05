@@ -49,3 +49,6 @@ func load_save_data(data: Dictionary) -> void:
 		var pickup := node as ItemPickup
 		if pickup != null and is_taken(pickup.world_id):
 			pickup.queue_free()
+	## Furniture adopted some authored pickups; an older save may have taken them before it did.
+	for node: Node in get_tree().get_nodes_in_group(ItemContainer.GROUP):
+		(node as ItemContainer).drop_taken(self)

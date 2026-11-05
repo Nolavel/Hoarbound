@@ -12,12 +12,15 @@ Quick Access is a physical-pocket selector around Henry, not a generic hotbar.
 - `1`–`4` remain expert direct-draw shortcuts. They flash only the addressed pocket instead of opening the full selector.
 - Empty pockets stay visible as part of Henry's body map but wheel navigation skips them.
 
-The four selectable locations are:
+The body's selectable locations are:
 
 1. left coat pocket;
 2. right coat pocket;
-3. left thigh pocket;
-4. backpack lid pocket.
+3. backpack lid pocket;
+4. left thigh pocket;
+5. right thigh pocket (wheel only: keys `1`–`4` stay on the first four).
+
+The right thigh card is built at runtime from the left thigh's (`QuickAccessUI.thigh_right`) and follows `ThighRightAnchor`.
 
 `HANDS` is deliberately not a fifth slot. It is a live status card that reports the item Henry is actually holding and, when useful, its state.
 
@@ -27,7 +30,7 @@ The cards are projected from `QuickAccessAnchors` around Henry and rendered as s
 
 - The anchor rig follows camera yaw each frame; screen-space card following provides the visible smoothing.
 - Opening the selector does not pause orbit. In a normal frame, each card follows its own `Node3D` anchor. When projected cards begin to crowd, or the camera frames Henry in a tight space (`TpsCamera.get_composition()`), they blend smoothly into a cross around `HANDS`. As framing opens up, they blend back to their individual anchors.
-- The cross has fixed places: left coat pocket left, right coat pocket right, pack lid above, thigh below. Spacing comes from the real card sizes plus `ORBIT_GAP_PX`, so no two cards can touch; the cross is bounded as a whole, never card by card.
+- The cross has fixed places: left coat pocket left, right coat pocket right, pack lid above, left thigh below, right thigh below it. Spacing comes from the real card sizes plus `ORBIT_GAP_PX`, so no two cards can touch; the cross is bounded as a whole, never card by card.
 - The cross centre glides from Henry's projected hands to the screen centre with the camera composition: around Henry when cards merely crowd in the open, centred on screen in tight spaces where Henry sits low at the frame edge.
 - The selector closes after five seconds without navigation or confirmation. Each wheel tick while open restarts the five-second countdown, even if no other filled pocket is available.
 - Cards use `BG_frame.gdshader`; `reveal` grows the background outward and `base_color` carries inactive/active state.

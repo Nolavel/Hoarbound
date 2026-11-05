@@ -50,6 +50,20 @@ It is a single-use pyrotechnic light, not an on/off electric torch. At the
 First Exit clock rate (a 24-hour day in 3600 real seconds), its 75 real seconds
 of burn time equal **30 game minutes**.
 
+
+## Open pack (3D inventory)
+
+Tab takes the pack into Henry's hands (one strap stays on his shoulder). While it is open, the game keeps running and these keys act on it (`PackHandling`):
+
+| Key / pad | Action | Effect |
+|---|---|---|
+| Mouse / left stick | `pack_cursor_*` | The mouse moves the ring freely; a flick of the stick steps it to the nearest item, card, the hand or the pack that way (held: it keeps stepping). It brightens over an item in the pack or on a quick pocket's card and shows the drop hint |
+| LMB / A | `pack_grab` | Hold to take what is under the ring: a line fills round it (longer from the bottom strap, for heavy items and with cold hands), then it is carried (the ring hides). Let go over a card to put it in that pocket, over the pack to put it under the straps, anywhere else to put it back |
+| RMB / X | `pack_use` | Uses the hovered item. A sealed tin opens where it lies (the pack stays open). Food and drink close the pack and Henry eats or drinks, because he needs his hands. Something that cannot be used says why (no knife, empty flask). Shares RMB with `present_held`; that is safe because Henry's hands are empty while the pack is open |
+| G / Y | `drop_carried` | Puts the hovered item down on the ground ahead of Henry |
+
+The hint names the keys (RMB/X for the item's verb: open, eat, drink or use; G/Y to drop), depending on the device last used. A card turns warm when it would take the carried item and red when it would not. A refusal shows its reason under the ring.
+
 ## F: one verb, resolved by context
 
 Two kinds of attention pick what F acts on:

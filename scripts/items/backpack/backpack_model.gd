@@ -99,6 +99,12 @@ const SLIDER_HALF_M: float = 0.013
 ## seam give this far once the panel folds out.
 const MOUTH_M: float = 0.022
 const SIDE_GIVE_M: float = 0.014
+## Canvas and lining between a carried item and the outer face, and the most the canvas bulges out
+## over an item (backpack_canvas.gdshader lining_m, max_stretch_m), metres.
+const CANVAS_LINING_M: float = 0.012
+const CANVAS_STRETCH_M: float = 0.02
+## The bulge feathers over this distance (backpack_canvas.gdshader soft_m), metres.
+const CANVAS_SOFT_M: float = 0.03
 ## The empty slump in backpack_canvas.gdshader, for parts that ride on the canvas.
 const SLUMP_TOP_M: float = 0.07
 const SLUMP_WALL_M: float = 0.018
@@ -160,6 +166,10 @@ var _main_count: int = 0
 ## Per sleeve (SLEEVE_SLOTS): what it holds is lifted this far above its seat while being
 ## pushed in, at this speed; the hem's flare and drag and their rates (springs).
 var _pocket_rise: Array[float] = [0.0, 0.0, 0.0]
+var _interior_boxes: Array[AABB] = []
+## The main body's item boxes the canvas bulges over (as sent to the shader).
+var _main_proxies: Array[AABB] = []
+var _side_give: float = 0.0
 var _pocket_push: Array[float] = [0.0, 0.0, 0.0]
 var _hem_open: Array[float] = [0.0, 0.0, 0.0]
 var _hem_open_speed: Array[float] = [0.0, 0.0, 0.0]
@@ -215,6 +225,7 @@ func build() -> void:
 		pocket.set_shader_parameter(&"is_pocket", true)
 		pocket.set_shader_parameter(&"pocket_wall_x", side * BODY.x * 0.5)
 		pocket.set_shader_parameter(&"lining_m", POCKET_LINING_M)
+		pocket.set_shader_parameter(&"wall_lining_m", CANVAS_LINING_M)
 		pocket.set_shader_parameter(&"pocket_flat_m", POCKET_FLAT_M)
 		pocket.set_shader_parameter(&"pocket_fold_spread", POCKET_FOLD_SPREAD)
 		pocket.set_shader_parameter(&"rim_y", POCKET_RIM_Y)
@@ -279,7 +290,6 @@ func build() -> void:
 	divider_material.roughness = 0.95
 	_divider.material_override = divider_material
 	add_child(_divider)
-	_add_shelf()
 	_add_bedroll()
 	_add_straps()
 	_add_sliders()
@@ -419,7 +429,7 @@ func add_loose(item_id: StringName) -> bool:
 	var visual: Node3D = SurvivalItemVisual.make(item_id)
 	var box: AABB = _local_bounds(visual)
 	if box.size == Vector3.ZERO:
-		visual.free()
+		SurvivalItemVisual.release(visual)
 		return false
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(str(item_id)) + _items.size() * 7919
@@ -492,6 +502,7 @@ func hang_item(item_id: StringName, carabiner_index: int, clip_on: bool = false)
 		swing.max_swing_deg = 90.0  # on the rod it turns until it meets the pack or the tools
 	carabiner.get_hang_point().add_child(swing)
 	swing.add_child(visual)
+	visual.set_meta(&"carabiner_index", carabiner_index)
 	if clip_on:
 		var seated: Vector3 = visual.position
 		visual.position = seated + Vector3.UP * CLIP_ON_LIFT_M
@@ -505,6 +516,42 @@ func hang_item(item_id: StringName, carabiner_index: int, clip_on: bool = false)
 	return true
 
 
+## The item seated in a side-pocket slot (SLEEVE_SLOTS), or null.
+func slot_visual(slot: StringName) -> Node3D:
+	for item: Dictionary in _items:
+		if item["slot"] == slot and is_instance_valid(item["node"]):
+			return item["node"]
+	return null
+
+
+## The item clipped on carabiner `index` (0 left, 1 right), or null.
+func hung_visual(index: int) -> Node3D:
+	for visual: Node3D in _hung:
+		if is_instance_valid(visual) and int(visual.get_meta(&"carabiner_index", -1)) == index:
+			return visual
+	return null
+
+
+## Takes out what sits in a side-pocket slot (SLEEVE_SLOTS), leaving the others as they are.
+func remove_slot_item(slot: StringName) -> void:
+	for i: int in range(_items.size() - 1, -1, -1):
+		if _items[i]["slot"] == slot:
+			(_items[i]["node"] as Node).queue_free()
+			_items.remove_at(i)
+	_refresh_proxies()
+
+
+## Unclips what hangs on carabiner `index` (0 left, 1 right), leaving the other as it is.
+func unhang_item(index: int) -> void:
+	for i: int in range(_hung.size() - 1, -1, -1):
+		var visual: Node3D = _hung[i]
+		if not is_instance_valid(visual):
+			_hung.remove_at(i)
+		elif int(visual.get_meta(&"carabiner_index", -1)) == index:
+			visual.get_parent().queue_free()
+			_hung.remove_at(i)
+
+
 func clear_items() -> void:
 	for item: Dictionary in _items:
 		(item["node"] as Node).queue_free()
@@ -515,9 +562,14 @@ func clear_items() -> void:
 	_refresh_proxies()
 
 
-## Where the canvas moves a pack-space point p (outward normal n) as it slumps empty.
+## Where the canvas moves a pack-space point p (outward normal n): bulged over the contents, slack sagging onto them.
 func canvas_point(p: Vector3, n: Vector3) -> Vector3:
 	return _on_canvas(p, n, 0.0)
+
+
+## The canvas's fill now, 0..1 (what its empty slump is drawn from).
+func get_fill() -> float:
+	return _fill
 
 
 ## Share of the main body the contents fill, 0..1 (the target the canvas springs toward).
@@ -528,6 +580,8 @@ func get_fill_target() -> float:
 	for item: Dictionary in _items:
 		var size: Vector3 = (item["box"] as AABB).size
 		litres += size.x * size.y * size.z * 1000.0 * 1.6  # packed items leave air round them
+	for box: AABB in _interior_boxes:
+		litres += box.get_volume() * 1000.0 * 1.6
 	return clampf(litres / CAPACITY_L, 0.0, 1.0)
 
 
@@ -555,6 +609,9 @@ func _process(delta: float) -> void:
 	_panel_material.set_shader_parameter(&"mouth_m", MOUTH_M * clampf(_zip / half_w, 0.0, 1.0))
 	var give: float = SIDE_GIVE_M * clampf(_swing / deg_to_rad(30.0), 0.0, 1.0)
 	_shell_material.set_shader_parameter(&"side_give_m", give)
+	_side_give = give
+	for pocket: ShaderMaterial in _pocket_materials:
+		pocket.set_shader_parameter(&"side_give_m", give)
 	for material: ShaderMaterial in [_shell_material, _panel_material]:
 		material.set_shader_parameter(&"zip_s", _zip)
 	_place_sliders(give)
@@ -584,8 +641,14 @@ func _process(delta: float) -> void:
 
 ## Item boxes the canvas wraps: what is in the main body shapes the shell, panel and straps;
 ## what is in a side pocket shapes only the pockets, never the wall between them.
+## The main compartment's strapped items (PackStraps), pack space: they shape the canvas like slotted ones.
+func set_interior_boxes(boxes: Array[AABB]) -> void:
+	_interior_boxes = boxes
+	_refresh_proxies()
+
+
 func _refresh_proxies() -> void:
-	var main: Array[AABB] = []
+	var main: Array[AABB] = _interior_boxes.duplicate()
 	var pockets: Array = [[], []]
 	for item: Dictionary in _items:
 		var sleeve: int = SLEEVE_SLOTS.find(item["slot"])
@@ -601,11 +664,14 @@ func _refresh_proxies() -> void:
 		var centres: Array = []
 		var halves: Array = []
 		for box: AABB in entry[1]:
+			if centres.size() >= MAX_ITEMS:
+				break
 			centres.append(Vector4(box.get_center().x, box.get_center().y, box.get_center().z, 0.0))
 			halves.append(Vector4(box.size.x * 0.5, box.size.y * 0.5, box.size.z * 0.5, 0.0))
 		var count: int = centres.size()
 		if entry[1] == main:
 			_main_count = count
+			_main_proxies.assign(entry[1].slice(0, count))
 		while centres.size() < MAX_ITEMS:
 			centres.append(Vector4(0.0, -10.0, 0.0, 0.0))
 			halves.append(Vector4.ZERO)
@@ -615,6 +681,12 @@ func _refresh_proxies() -> void:
 			material.set_shader_parameter(&"item_centre", centres)
 			material.set_shader_parameter(&"item_half", halves)
 			material.set_shader_parameter(&"item_count", count)
+		if entry[1] == main:
+			## Pockets ride the side walls where the main contents bulge them.
+			for pocket: ShaderMaterial in _pocket_materials:
+				pocket.set_shader_parameter(&"wall_item_centre", centres)
+				pocket.set_shader_parameter(&"wall_item_half", halves)
+				pocket.set_shader_parameter(&"wall_item_count", count)
 	_send_sleeves()
 
 
@@ -655,6 +727,8 @@ func _canvas_material(pocket: Vector4) -> ShaderMaterial:
 	material.set_shader_parameter(&"canvas_colour", CANVAS)
 	material.set_shader_parameter(&"pack_height_m", BODY.y)
 	material.set_shader_parameter(&"mesh_pocket", pocket)
+	material.set_shader_parameter(&"lining_m", CANVAS_LINING_M)
+	material.set_shader_parameter(&"max_stretch_m", CANVAS_STRETCH_M)
 	return material
 
 
@@ -743,10 +817,21 @@ static func _seam_surface(run: float, side: float, half: Vector3) -> Vector3:
 
 ## Where the canvas moves a point at rest p (outward normal n): the empty slump plus `give` outward.
 func _on_canvas(p: Vector3, n: Vector3, give: float) -> Vector3:
+	## As the shader: the bulge over the main contents, and slack that sags only onto them.
+	var push: float = 0.0
+	var clear: float = 1.0
+	for box: AABB in _main_proxies:
+		var q: Vector3 = (p - box.get_center()).abs() - box.size * 0.5
+		var d: float = q.max(Vector3.ZERO).length() + minf(maxf(q.x, maxf(q.y, q.z)), 0.0) - CANVAS_LINING_M
+		push = maxf(push, smoothstep(CANVAS_SOFT_M, -CANVAS_SOFT_M, d) * maxf(CANVAS_SOFT_M - d, 0.0))
+		clear = minf(clear, d)
 	var empty: float = 1.0 - clampf(_fill, 0.0, 1.0)
 	var high: float = smoothstep(BODY.y * 0.45, BODY.y, p.y)
-	var slump := Vector3(0.0, -SLUMP_TOP_M * high, 0.0) - n * SLUMP_WALL_M * smoothstep(0.1, 0.4, p.y / BODY.y)
-	return p + slump * empty + n * give
+	var slump: Vector3 = (Vector3(0.0, -SLUMP_TOP_M * high, 0.0) - n * SLUMP_WALL_M * smoothstep(0.1, 0.4, p.y / BODY.y)) * empty
+	var sag: float = slump.length()
+	if sag > 0.0:
+		slump *= minf(sag, maxf(clear, 0.0)) / sag
+	return p + slump + n * (minf(push, CANVAS_STRETCH_M) + give)
 
 
 ## Where the panel's bottom edge sits (its lowest vertex), in pack space: the hinge line.
@@ -761,18 +846,6 @@ static func _hinge_point(panel: ArrayMesh) -> Vector3:
 ## Triangle order that faces normal (Godot's front faces wind clockwise seen from outside).
 static func _front_wound(a: Vector3, b: Vector3, c: Vector3, normal: Vector3, tri: Array) -> Array:
 	return tri if (c - a).cross(b - a).dot(normal) >= 0.0 else [tri[0], tri[2], tri[1]]
-
-
-func _add_shelf() -> void:
-	var shelf := MeshInstance3D.new()
-	shelf.name = "Shelf"
-	var board := BoxMesh.new()
-	## Clear of the panel even when the empty walls cave in.
-	board.size = Vector3(BODY.x - 0.08, 0.008, BODY.z - 0.08)
-	shelf.mesh = board
-	shelf.material_override = _plain(Color(0.2, 0.2, 0.19))
-	shelf.position = Vector3(0.0, 0.355, BODY.z * 0.46)
-	add_child(shelf)
 
 
 ## The actual packed mat and its two post-roll cinch straps, mounted across the pack top.
@@ -983,6 +1056,23 @@ func pocket_outer_x(index: int) -> float:
 ## the same rule as backpack_canvas.gdshader (kept side by side with it), for loops, contact, the
 ## inspector and the stand.
 func pocket_cloth_point(index: int, p: Vector3, n: Vector3) -> Vector3:
+	var side: float = -1.0 if index == 0 else 1.0
+	return _pocket_cloth_rest(index, p, n) + Vector3(side * _pocket_shift(side, p), 0.0, 0.0)
+
+
+## How far a pocket rides out from where it is sewn, as the shader: the wall's bulge over the main contents
+## there, and the open front's give.
+func _pocket_shift(side: float, p: Vector3) -> float:
+	var wall := Vector3(side * body_side_x(p.y, p.z, false), p.y, p.z)
+	var push: float = 0.0
+	for box: AABB in _main_proxies:
+		var q: Vector3 = (wall - box.get_center()).abs() - box.size * 0.5
+		var d: float = q.max(Vector3.ZERO).length() + minf(maxf(q.x, maxf(q.y, q.z)), 0.0) - CANVAS_LINING_M
+		push = maxf(push, smoothstep(CANVAS_SOFT_M, -CANVAS_SOFT_M, d) * maxf(CANVAS_SOFT_M - d, 0.0))
+	return minf(push, CANVAS_STRETCH_M) + _side_give * (1.0 - smoothstep(0.0, 0.09, BODY.z - p.z))
+
+
+func _pocket_cloth_rest(index: int, p: Vector3, n: Vector3) -> Vector3:
 	var side: float = -1.0 if index == 0 else 1.0
 	var flat: Vector3 = pocket_empty_point(index, p, n)
 	var wall: float = side * body_side_x(p.y, p.z)

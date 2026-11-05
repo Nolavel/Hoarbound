@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ContainerFraming" format=3 uid="uid://cyrigiwbnfgic"]
+
+[ext_resource type="Script" uid="uid://b0bka1nyndmnc" path="res://scripts/items/backpack/container_framing.gd" id="1_ykctv"]
+
+[resource]
+script = ExtResource("1_ykctv")
+camera = Transform3D(0.90479684, 0.06316983, -0.4211322, 5.551774e-09, 0.98893636, 0.14834046, 0.4258436, -0.13421798, 0.8947865, -0.45815462, 0.1595594, 1.3860445)
+pack = Transform3D(-0.751319, 0, 0.6599393, 0, 1, 0, -0.6599393, 0, -0.751319, 0.5559664, 0.001902014, 0.23650572)
+henry = Transform3D(-0.7443721, 0, -0.6677651, 0, 1, 0, 0.66776514, 0, -0.744372, 0.62, -0.465, 0.76182866)

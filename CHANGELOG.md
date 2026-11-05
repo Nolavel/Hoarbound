@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 35374)
+Total output lines: 1368
+
 # Changelog
 
 Short record of notable production changes. Newest first.
@@ -6,8 +9,150 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed
+
+- "Parameter material is null" errors when the game starts and around containers. Item models made only to be measured (pocket sizes, shelf layout, loose items) were freed before ever being drawn, while carrying shader overrides, which Godot 4.8-dev reports from the renderer.
+  - `SurvivalItemVisual.release` drops the overrides first. Spawning Henry went from 44 errors to 0 on Vulkan.
+
 ### Changed
 
+- 3D inventory (Hub): the silhouette of the garment that owns the hovered pocket (coat or trousers, not both) fades in, with a dot where that pocket is (owner), and fades out after.
+- Pockets have real inside sizes in cm and take only what fits by the item's model. The hammer, the axe and the pan no longer go into coat or trouser pockets (owner); tins, the knife and the lighter still do.
+- 3D inventory (Hub): small things in numbers (nails, tinder, flares, empty tins) lie in the pack as one bundle per stack, and the readout says how many ("Nails ×20"). 20 nails used to take 20 places.
+- 3D inventory (Hub), gamepad: a flick of the stick steps the ring to the nearest item, card, the hand or the pack that way, instead of steering a free cursor.
+- 3D inventory (Hub): a threat shuts the open pack, since time never stops there. That is a blow (new `PlayerHealthSystem.hurt`, not frostbite's slow loss) or a fall; other threats can call `interrupt()`.
+- 3D inventory (Hub): taking costs time. LMB is held while a line fills round the item, and letting go early takes nothing.
+  - The bottom strap and heavy items take longer. Cold hands take up to 2.5 times as long and shake the ring.
+  - A tin off the bottom strap takes 0.63 s warm and 1.57 s with frozen hands.
+- 3D inventory: the body's pockets stand in a row at the bottom centre: trousers, the hand card, coat.
+  - The clothes panel is hidden (owner's call). Its code stays behind `PackQuickShelf.SHOW_BODY_PANEL`.
+- 3D inventory at a cabinet: F opening its door (or Tab beside an open one) sends Henry over to it.
+  - He walks to the side away from the door's hinge and crouches at a low cabinet.
+  - The frame then holds only the pack and the cabinet, side by side at about 48% of the width each (owner's sketch). Henry is hidden.
+  - The view looks in at an angle, so the cabinet's front turns to the pack. The pack stands open toward the view, its front panel flat.
+  - The pack sits close against the cabinet, higher and well nearer the view, its bedroll kept in frame, with no gap to the cabinet. Its front nearly shares the cabinet's plane. The frame is tighter.
+  - Henry no longer freezes on the way. A walk blocked short of the spot now counts as arrived after 0.25 s, where before he pushed for 4 s. The door clip is cut once his hand reaches the door.
+  - The chest-pack variant is gone.
+  - The framing is authored in the editor: `tests/scenes/container_framing_stage.tscn` (floor, cabinet, Henry, pack, camera).
+    - Save framing writes `data/items/container_framing.tres`. The game puts the camera and the pack there, mirrored for the other side.
+    - Henry walks to his point and stays blurred behind the pack.
+  - While the Hub is open no world prompt (a door, the cabinet) is offered, just as pickups already were not.
+  - The ring carries items shelf ↔ pack ↔ pockets through new Hub moves (`move_from_container`, `move_to_container`).
+  - A full shelf refuses, and the shelves stay sharp under the focus blur.
+- Furniture can hold items: `ItemContainer`.
+  - Shelves are derived from the furniture's own panels, items stand on them by real size, and the contents are saved.
+  - Items stay ordinary pickups, so F still takes them.
+  - The 727 waiting-room cabinet now holds the SPoV can and the gloves on its shelves. Its dressed stew and pineapple tins are real items now (owner's call).
+  - The cabinet's dressed mug is gone, since it duplicated Henry's own.
+  - An older save that took them from the world is respected.
+- Item readout shows grams under 1 kg (a lighter read "0.0 kg").
+- 3D inventory: RMB (pad X) uses the hovered item, and the hint names the verb.
+  - A sealed tin opens where it lies, in its pocket or under the straps, and the pack stays open.
+  - Food and drink close the pack, because Henry needs his hands, and then he eats or drinks.
+  - What cannot be used says why. New action `pack_use` shares RMB with `present_held`; the overlap is allowlisted.
+- Pack contents no longer flicker on every change.
+  - The pack rebuilt every outside item (thermos, tools, mug, pan) on each change, so they came back unmasked by the focus blur and unfrozen.
+  - Now only the places whose item changed are redone (`BackpackModel.remove_slot_item`/`unhang_item`).
+  - New hangers take the freeze, and the focus blur masks a mesh as it enters the tree.
+  - The put-in jolt has a base dip (1.2 cm) so even a lighter jolts it.
+- 3D inventory: cloth sounds and a jolt.
+  - Taking, putting and dropping rustle the cloth, and a refusal pulls softer. The clips are Freesound #237047, CC0, supplied by the owner.
+  - The held pack dips under what is put into it, about 2 cm per kg, then bounces back.
+  - The readout names the fifteen items that had no Russian name.
+- 3D inventory: the item under the ring shows its readout, and a load bar shows what Henry carries.
+  - The readout gives the name, weight and key number: a flask's water, food's calories, or else the size.
+  - The load bar shows the carried weight against the limit, with a tick where Henry starts to slow.
+  - The hovered item's share is lit on the bar. Data comes from the new `ItemReadout`.
+- Work trousers gain a right thigh pocket (`legs_outer/thigh_right`, Quick Access).
+  - The HUD builds its card from the left thigh's, below the pack lid in the cross.
+  - It has its own anchor (`ThighRightAnchor`) and is reached with the wheel; keys 1-4 are unchanged.
+- 3D inventory layout pass.
+  - The clothes panel is smaller, near the left edge, and the trousers sit apart from the coat.
+  - The hand card stands beside the panel.
+  - The body cards' gradient fades the other way and is fainter. Items no longer spin on cards.
+  - Everything but the held pack and the inventory, Henry included, blurs while the pack is held (`PackFocusBlur`).
+    The pack writes a stencil mask, and a full-screen quad blurs the rest. Depth of field could not part them.
+- 3D inventory: the coat's and trousers' pocket cards sit on a see-through grey panel of Henry's clothes at the left.
+  - The panel is baked from the real jacket and trousers by `tools/runtime/bake_body_silhouette.gd`.
+  - A hand card at the right shows what Henry takes in hand; a pocket's item let go on it becomes the pick.
+  - The ring cursor flows into the hovered item's real silhouette (rasterised and traced), not a convex hull.
+  - A carried item shows at its true size. Nothing on the pack wears the amber pick rim any more.
+  - Hangers on the pack (mug, pan, carabiners) freeze once it is held still, and thaw when it goes back on.
+- 3D inventory: Quick Access cards no longer duplicate what is seen on the pack.
+  - The side pockets' and carabiners' items are hovered right on the pack, with no card drawn.
+  - Only hidden pockets (coat, thigh, lid) stay as 3D cards at the frame's sides.
+  - Over any item the ring cursor flows into the item's outline on screen.
+  - `PackStraps` now measures each item's outline once per id instead of every frame.
+- Clipped mug no longer shakes in a tipped pack. `PendulumHang` stopped it where its own swing meets the obstacle
+  (conservative advancement) and never let it deeper than it was. It backs out of the margin one small step a frame,
+  instead of being thrown past a grazing contact and falling back every frame.
+- 3D inventory: the ring cursor and hands now work on the straps and the live Quick Access cards
+  (`PackHandling`, built by the Hub on Tab).
+  - Take from a pocket or the pack with LMB (pad A), and let go over the other to move it there.
+  - The pack and the pockets refuse in red with a reason. G (pad Y) puts the hovered item down on the ground.
+  - New Hub moves: `drop_from_pack`, `drop_from_zone` and `move_between_zones`.
+  - `ItemPickup.ground_ahead`/`spawn_dropped` are shared with the hand's drop.
+  - The physics compartment (`PackInterior`), its stands and captures, and the wheel/RMB actions
+    (`pack_turn_*`, `pack_shove`) are removed.
+  - Stand: `tests/systems/test_pack_hands.gd`.
+- 3D inventory, pack in hand:
+  - One strap stays over Henry's shoulder and lies on the jacket down his chest.
+  - Quick Access beside the open pack shows the real pockets' 3D items on gradient cards at the frame's sides,
+    with no text. Items fly from a card into the pack under the straps.
+  - The inner straps are fixed to the side walls and draw out round what they hold.
+  - The camera shows the dropped panel.
+  - Verlet strap chains pin their ends every step.
+- 3D inventory: the main compartment holds its contents under three straps instead of physics (`PackStraps`).
+  - Each item, sized by its real outline, stands into the lowest tier with room against the back wall, layer
+    by layer. That tier's strap pulls in and buckles.
+  - Items that do not fit are refused, the side walls stay flat, and nine SPoV tins fill one layer.
+  - `PackRig` feeds it from the inventory.
+  - The Tab view capture now shows nine tins going in.
+- 3D inventory, stage 3: Tab takes the pack into Henry's hands (`PackFrontHold`).
+  - It swings off his back to before his chest, opening toward a fixed camera that faces him, tipped so he sees
+    in from above. The front panel drops open away from him, and his hands hold the sides.
+  - The Quick Access cards stand pinned on their live anchors. Tab or Esc puts the pack back on.
+  - Full inspection is unchanged. Capture: `tools/runtime/capture_pack_view.gd`.
+- 3D inventory, stage 2: Quick Access beside the open pack (`PackQuickShelf`). Each quick pocket is a card on
+  the Quick Access gradient (`BG_frame.gdshader`), with its item in 3D: body pockets left of the pack, its
+  outside pockets right.
+  - Items move card to pack, pack to card and card to card with the ring and LMB, by the inventory's fit rule.
+  - A refusing pocket turns red and shows its reason. G throws a card's item out.
+  - New strings: `INVENTORY_POCKET_FULL`, `INVENTORY_POCKET_TOO_SMALL`, `POCKET_*`.
+  - Stand: `tests/systems/test_pack_shelf.gd`. Capture: `tools/runtime/capture_pack_shelf.gd`.
+- 3D inventory: a calmer heap while one item is rearranged. The mean speed of the other items while one is
+  dragged went from 0.097 to 0.004–0.063 m/s.
+  - Only touched items wake (sleeping islands), and a calm-down restarts only when that item itself is knocked.
+  - The hand has limited strength (12 m/s², 1 m/s), and a held item slips (friction 0.05).
+  - Items carry their weight where their bulk is (a tool's head), go in heavy end down, and turn back toward a
+    fitting turn when no shift fits them inside the canvas.
+  - The RMB sweep is a hand's width and lifts a little.
+- 3D inventory, stage 1: hands in the open pack (`PackHandling`, `PackCursor`; see
+  `docs/technical/PACK_INTERIOR.md` and `CONTROLS.md`). Time keeps running.
+  - A ring cursor picks items by their drawn outline and shows "G — drop" (Y on a pad).
+  - LMB takes an item and drags it, and the ring hides while it is held. The wheel turns it.
+  - RMB sweeps the heap, and G throws the item out.
+  - An item that does not fit gets a red rim and its reason (`INVENTORY_HINT_DROP` is new).
+  - There are new `pack_*` actions with gamepad bindings: A, X, LB/RB, Y and the left stick.
+  - The interior gains `pick`/`hold`/`turn_held`/`remove`/`shove`, a speed cap, and a heavier held item.
+  - Stand: `tests/systems/test_pack_handling.gd`. Capture: `tools/runtime/capture_pack_handling.gd`.
+- 3D inventory, stage 0: the main compartment's physics sandbox (`PackInterior`, see
+  `docs/technical/PACK_INTERIOR.md`). Items lie loose in it as rigid bodies, in a physics space of
+  the pack's own.
+  - The collision walls are the canvas's inner rounded surface, plus the 16 mm it may stretch. Every
+    item's support points are projected back inside after each step.
+  - Items go in the way they fit (the frying pan on edge), and bulky or oversized items are refused.
+    Two new strings give the reason: `INVENTORY_TOO_BIG` and `INVENTORY_NO_ROOM`.
+  - Canvas (`backpack_canvas.gdshader`):
+    - Slack cloth now sags only onto the contents, never through them.
+    - The side pockets and the carabiner loops ride the wall's bulge and the open front's give.
+    - A pocket's sewn layer is no longer drawn from inside, so it stops showing through the wall in an
+      open pack.
+    - The interior's volume feeds the fill.
+  - The slot layout's inner shelf is removed.
+  - Stand: `tests/systems/test_pack_interior.gd`, which checks every item against the cloth as the
+    shader draws it. Capture: `tools/runtime/capture_pack_interior.gd`, with the pack hanging and open.
+- Archived the sequential five-color UI edge-glow shader, self-contained Godot demo and 6-second capture script in the production repository as a visual reference; no inventory/runtime integration.
 - Added reusable UniversalBlobMask: 16 SDF circles, smooth union, fill/outline/alpha texture modes, isolated UI demo and six-second Godot capture in the existing checks workflow.
 
 - Added an isolated Gemini-inspired edge-glow shader preview with five-color animated top/bottom gradients, a six-second Godot capture, and a marker-gated reuse of the existing color-grade-blend CI workflow (no gameplay integration).
@@ -566,226 +711,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   `snow_clearance_m` (0.25 m) above `SnowField.get_snow_top` under it.
   - **Launch:** `ThrowComponent.launch_direction` solves the low arc to the camera's aim point, and lobs at
     45 degrees when the point is out of reach.
-  - **In flight:** `ThrownItem` strikes its first contact through the new `ThrowImpactCapability` (`core/contracts`).
-    Snow bursts and is gone; a stone rolls to rest on ground damping and becomes a pickup again.
-  - **Wall stones:** `StoneScatter` lays stones at the foot of house walls near Henry, from the building outlines.
-    About 7 % of 4 m wall spots hold one, hashed by position so a wall's stones never move. A taken one stays
-    taken through the `PickupLedger`.
-  - New item: `stone` (0.35 kg). Tests: `test_throw`, `test_stone_scatter`.
-- Snow by hand (#257, stage 1).
-  - **F on open snow** with nothing else in focus: Henry stoops (`pickup_right_low`). A held empty mug fills with snow
-    in hand, and a free hand takes a handful of snow (`snow_handful`, now actually produced in play).
-  - **Refused** indoors or where less than 3 cm of settled snow lies underfoot (`SnowField.get_depth`).
-  - **Signal:** `InteractComponent.interact_unclaimed` hands the unclaimed F to ground actions.
-  - **Visuals:** the mug shows a heap of snow above the rim, and the handful is a lumpy snow clump instead of the
-    placeholder parcel.
-  - Item Use on a packed mug still scoops as before. Test: `test_snow_scoop`. Capture: `tools/runtime/capture_snow_scoop.gd`.
-- 727 chimney and roof smoke (#252).
-  - **Root cause of the break:** the stove's flue had a fixed length (`FLUE_H` 1.7 m) and stopped at 3.08 m under the
-    3.66 m ceiling. The roof stack stood over the stove's centre, not over the flue, and was twice as thick.
-  - **One continuous flue:** `StoveVisual.flue_length` and `flue_base()` let the shelter run the flue into the ceiling
-    (`interior.ceiling_y`). The roof stack continues it on the same axis and radius up to roof + 0.8 m, with a cap.
-  - **`ChimneySmoke` on the cap:**
-    - it smokes only while the `HeatSource` burns, and its density follows the fire's intensity;
-    - `chimney_smoke.gdshader` pulls every puff toward the air's velocity: the weather's wind with its gust, plus the plume's rise;
-    - a gust therefore bends the whole plume at once. Godot's built-in damping cannot do this: it slows a particle
-      by a constant amount instead of pulling it toward the air.
-  - The road flare reuses the same noise-edged puff texture (`ChimneySmoke.puff_texture`).
-  - Test: chimney checks in `test_key_west_727_shelter`. Capture: `tools/runtime/capture_chimney_smoke.gd`.
-- Weather profile `clear` (no wind, no snowfall) for tests and captures. It is `manual_only`: it is set only by
-  `set_weather`, never drawn by the weather roll (`WeatherProfile.manual_only`, `_pick_weighted` skips it).
-- SPoV canned meat (owner's artist asset, `assets/source/spov_canned_meat/CanModel.rar`). `tools/blender/build_spov_can.py`
-  builds `assets/items/spov_can/SPoV_Can.glb`: 10.4 x 6.1 x 7.1 cm (a 340 g luncheon-meat tin, the artist's proportions
-  kept), 356 + 240 tris. The 40 lid-seam edges shared by three faces are split, and the pull ring is laid flat on the
-  recessed lid at one end. The painted label is matte paper: the source Metallic map marked the whole surface metal,
-  so the label is masked out of it. Items `spov_can` → `spov_can_open` follow the pineapple contract, with no tool
-  needed: the first Use pulls the ring, the next eats 1,070 kcal (340 g x 3.15 kcal/g). The open can hides the ring
-  and shows the meat. Owner: the emptied can is thrown on the floor. A new `ConsumableData.discard_leftover` tosses it
-  as a falling body (`ConsumptionController.leftover_discarded`) instead of keeping an inventory item. No ring-pull animation yet; opening plays the existing `fix` action. One can lies on the
-  bottom shelf of the 727 waiting-room cabinet, label to the door. The open-tin hint now names the ring or the knife
-  (`ConsumptionController.open_action_key`). Test: `tests/systems/test_spov_can.gd`. Capture:
-  `tools/runtime/capture_spov_can.gd`.
-- Held lighter flame on RMB (`present_held`). While RMB is held, Henry raises the lighter before his chest
-  (a second `StoveHandReach`, `PresentReach`, palm turned in), and after 0.3 s the flint wheel rolls and the flame lights.
-  The lighter stands upright in the fist while raised; on release its authored HeldFit returns. The flame burns while RMB
-  is held but goes out after 10 s anyway; a fresh press lights it again. The flame is now one node, `LighterFlame`,
-  shared by the held lighter and the stove act. Capture: `tools/runtime/capture_held_lighter.gd`.
-  Lowering fix (owner report: the hand jerked before letting go): the raised fist now keeps the hanging wrist
-  roll (thumb up), so the hand no longer turns over at half weight. The arm eases down over 0.4 s. The lighter
-  turns from upright back to its HeldFit in the hand's frame, so it no longer flips. Measured by a per-frame
-  trace of the hand bone's roll axis.
-- Authored lighter model (`assets/items/lighter/Lighter_game_ready.glb`, owner's asset) replaces the orange box
-  everywhere: world pickup, held prop and the stove lighting act. `LighterStrikeVFX` holds it with the grip at the
-  origin and the burner nozzle on its +Y axis; the flint wheel rolls on each strike. The flame is a tongue mesh with
-  the stove log-flame shading (blue root, yellow body, view-facing edge, faded tip, `lighter_flame.gdshader`). It
-  pivots on the nozzle and always burns world-up whatever the hand's tilt. At the stove the nozzle sits 12 mm under
-  the tinder so the flame's middle licks it. Close-up capture: `tools/runtime/capture_lighter.gd`.
-- Work gloves you can find and wear (#236, owner: the 727 cabinet). `tools/blender/build_henry_outfit.py` cuts
-  `Outfit_Gloves` from the hands and fingers, from the wrist up under the sleeve, in dark leather brown. They are
-  decimated to about 6,000 vertices and hide `Skin_Gloves` while worn. The pickup lies on the top shelf of the
-  727 cabinet beside the mug (`GlovesShelter`), with a blocky pair as its world prop. The outfit now rebuilds with
-  Blender 5.2 (`pip install bpy`); the previous meshes come out vertex for vertex.
-- Wall thermometer in the 727 waiting room (#236), just inside the lobby arch (`WallThermometer`, nail at 1.7 m, placed
-  from the landmark spec's furniture list). It is an ordinary glass thermometer on a board, hung by a wire loop from a nail, with a red column from −40 to +40 °C; the figure
-  (`THERMOMETER_READING`, °C only) sits on a grey gradient plate below it and fades out between 2.5 and 3 m from Henry.
-  It reads outdoor air plus its zone's warmth; the column and figure follow it smoothly. No interaction.
-- Stove fire per log, ported from the `codex` branch (Codex's work, finished here). Each log has its own
-  irregular geometry, char, flame and embers, plus weak ignition smoke. Henry's arm reaches in through
-  `StoveHandReach` to take, insert and release each item. Tinder comes only from a Quick Access pocket or
-  the hand, not the pack. Log poses and char origins survive save/load and refuel. `HeatSource` stays the
-  only authority on fuel and heat. Codex's 11 MB of capture media stayed on its branch.
-- Frostbite consequences (#236 stage 6, owner direction). Each body part gets frostnip, then frostbite, after
-  its cold load is held long enough (0.6 for 20 min; 0.85 for about 36 min). The stage heals in warmth
-  (frostbite over 6 h) and is saved. Six afflictions carry the effects:
-  - numb hands slow fine work, so the lighter hold grows from 3 s to about 5 s and laying fuel takes longer;
-  - frostbitten feet slow walking and allow no sprint;
-  - frostbite drains health (4–5 per game hour, through the new `PlayerHealthSystem.drain`, without hit feedback).
-  The modifiers reach movement, actions, fatigue and the stove through the new `StatusModifierCapability`;
-  the three existing string-call readers moved onto it. `test_frostbite` covers stages, healing, afflictions,
-  health, sprint, the lighter and gloves.
-- Work gloves: a `hands_outer` slot and the `work_gloves` garment (insulation 4 °C, windproof 0.6). There is no
-  visual mesh yet (needs a Blender outfit pass) and they are not placed in the world.
-
-- Body part library (#236): `BodyPartDefinition` / `BodyPartLibrary` (`core/body/`, `data/body/`) describe the
-  head, hands and feet. Each has its garment region, wind exposure, cold sensitivity, cold thresholds, HUD mask
-  and bones. `ExtremityCold` and the HUD silhouette read the library instead of hard-coded regions.
-  Wind now reaches each part by its own exposure and its cover's windproofing: the face takes the whole wind,
-  booted feet about a third. A new part is data only. `test_cold_readouts` covers the library, the wind split
-  and a data-only part.
-
-- Daily air temperature (#236 stage 5): `ThermalManager` uses `data/climate/air_temperature_day.tres` when no
-  curve is assigned (world.gd creates it in code, so it always ran flat at −18 °C). The air is coldest at
-  05:30 (−28 °C) and warmest at 14:30 (−8 °C), with weather offsets on top. `test_cold_readouts` checks the
-  extremes and the midnight wrap.
-
-- Vitals HUD rework (owner design, #236; spec in `docs/technical/VITALS_HUD.md`). The round progress rings
-  are replaced by gradient columns: a dark column fading upward and a state-tinted pigment over it that
-  empties from the top, with a thin edge line and rounded bottom. Green, yellow and red blend across each
-  threshold. The symbols stay half-tone until a vital nears critical. Trend chevrons sit above a rising
-  column and below a falling one, doubled for a fast change. Body temperature and `FEELS ±N°` sit beside
-  the warmth column. A faint front silhouette stands over it and frosts blue from the fingertips, toes and
-  crown with the new extremity cold load. The block moved toward the corner: smaller columns, a larger
-  health strip (260 × 16).
-- Extremity cold (`ExtremityCold`, `ThermalManager.get_extremity_cold`): a 0..1 load on the head, hands and
-  feet from felt cold, that region's garment insulation and its wetness (`EquipmentComponent.get_region_protection`).
-  It is saved, warm sleep clears it, and it is a warning layer only.
-
-- Floor snow prints (owner request): indoors Henry's boots leave white prints, the inverse of the snow print:
-  white where the tread's grooves packed with snow outside, broken into clumps (`BootSole.floor_print_image`,
-  the same lug pattern the snow shader presses). A step outside on snow fills the tread; each indoor step
-  leaves 20 % of what it holds, so about ten prints fade out step by step, and the tread melts empty in about
-  2 min in a 20 °C room. A print holds, then fades over its last half: 5 min in a 20 °C room, 25 min at
-  0 °C (`FloorSnowPrints`, `test_floor_snow_prints`). The decal is a cube one sole long with the sole's
-  shape in its texture: a thin, long decal box lost screen tiles of the print in Forward+ (seen on the 727
-  floor; godotengine/godot#73945). The two prints bake in ~34 ms at load.
-- Blizzard flow (`BlizzardFlow`, FUTURE_INTENT §10): blown snow as fog volumes on the wide streets
-  (pavement ≥ 7 m, Key West's top ~15 % of road length) that run with the wind (|cos| ≥ 0.6, street-canyon
-  channelling), up to six near Henry. Density is the blowing-snow extinction for the live 10 m wind, gusts
-  included: Tabler's visibility V = 1.126e8·U^-4.85 m (TRB SR185) through Koschmieder 3.912 / V, capped at
-  ~13 m visibility. It starts only past the snowpack's blowing threshold (5–10 m/s) with snow laid. Densest
-  at the street and thinning with a 3 m scale height (body height); ~12 m billows with gaps and a 5 m tear
-  octave advect downwind; volumes fade in and out over 2 s. Each billow core settles at the overcast it
-  scatters (the environment ambient: Godot scales fog EMISSION by density), so the flow reads lighter than
-  the air, not as dark bands as with a fixed 0.18 glow (measured at forced density). Flakes ride each
-  volume and the ground streamers run along the flow streets, on screen only. Street centrelines come from the road ribbons `KeyWestRealityGround` already paves
-  (`get_wide_streets`, `test_key_west_reality_ground`). The weather readout shows the flow.
-- Key West mug model (owner request): `SurvivalItemVisual` draws `assets/items/mug/Mug_game_ready.glb` for the
-  mug, mug of snow and warm water (held, world pickups, shelter cabinet) instead of the grey cylinder. The model is
-  real scale (13 x 8.7 x 10 cm, base at 0); snow and water are a disc inside the measured 4.4 cm inner wall.
-  Henry starts with the mug in the pack lid pocket instead of the pack, so one Quick Access pocket is free at start.
-- Weather debug (debug builds, Key West), one key, 0. The first press shows the profile, scheduler or pin,
-  blend, wind and drift gate, snowfall, visibility, cover, hour, sun beam, shelter state and the live streak,
-  ground-drift counts. Each next press pins calm, snowfall, windy, blizzard in turn; the one
-  after blizzard hands the weather back to the scheduler and hides the readout.
-- Rooms frame Henry low-left (owner note): any room uses the tight composition and the camera rises until his eyes
-  sit at mid-height (stove 29–30 % / 46–47 %, was 33 % / 37 %). Auto shoulder swap when the player's side is walled off
-  and the other is free, with delays, never in doorways or during mouse turns (Sifu, a Borderlands 4 camera mod;
-  Ghost Recon Breakpoint's complaints). Deoccluder-style hold measured worse and ships off. Open camera items are
-  listed in `docs/technical/TPS_CAMERA.md` → Open items.
-- Leeward wall drifts baked into the Key West wind map (owner request: the lee side of every house had
-  deeper drifts, the windward side less).
-  - `bake_key_west_snow_wind.py --reality`: ASCE 7-16 leeward drift per wall, height from the roof run along
-    the wind (0.3–1.1 m at full cover, capped at half the wall), tapering over 4 hd; windward banks halved.
-    `factor_max` 2.5 → 8.5. Chunk cover, clipmap rings and SnowField read the same map, so drifts are drawn
-    and waded alike.
-- Snow material and drift crests (testers: the snow read as jelly).
-  - Causes, from close-up frames on Duval Street: no detail under the 2 m lattice and the ~0.7 m ripple, a
-    near-uniform albedo (±3 %) and plastic specular, so shadowed snow was a flat blue fill; print floors drew
-    topographic rings (`sin(depth × 110)` strata over lumpy floors) and glints were view-independent
-    emission confetti. Deep trench walls showed agate rings; a debug render split albedo from normal and
-    put them in the albedo: the shared painterly pass seeds its pigment noise with the surface normal,
-    which on a curved trench wall sweeps through dozens of noise periods. Snow now passes the ground's up
-    vector to that pass in both layers.
-  - Now both layers share per-pixel grain on level snow (7 cm and 2.4 cm, each fading before a pixel spans
-    it), albedo patches and grain hollows, ice facets that flash toward the sun in `light()` (none in shadow,
-    none on packed floors), `SPECULAR` 0.3 and a cubic B-spline wind map for shading slopes. Print slopes use
-    a three-texel Sobel without the outline jag; deep pits darken with depth; a boot's outline and tread are
-    kept only on and around its sole, not where the wading body pressed deeper.
-  - Lee drifts keep a trough at the wall foot (the lee eddy) and crest 3 m out, with only a 1-2-1 pass so the
-    crest survives on the 2 m lattice; `factor_max` 8.5 so crests are not clipped.
-- Snowpack firmness (owner request: furrows belong to fresh wet snow; a dry cold pack is a crust that breaks
-  with difficulty, then the leg drops fast).
-  - `SnowPresentationSystem.firmness` (saved): snowfall buries the crust, dry cold and wind harden it over a
-    day, a thaw softens it. It sets the field's softness, crust strength and how deep and fast a broken crust
-    drops; only loose snow (firmness < 0.5) lets the wading body and dragging toe cut a trench.
-  - Tests in `test_snow_presentation`, `test_snow_resistance`, `test_snow_shell`; `snow-walk` CI runs both packs.
-    Duval Street walk: fresh pack 3 plunges (drift pockets only), crust pack 29 with clean-walled postholes.
-  - `snow-walk` reads the GPU print field under every standing boot (`SNOW_WALK_GHOSTS`) to chase the
-    "walks through drawn snow without a mark" report: 0 of 509 boots in over 5 cm of snow left no print on
-    this route, so the report is not reproduced here yet.
-- Snowpack and boot prints (owner request).
-  - `SnowResistance`: wind crust holds a boot until the step's load breaks it (strength varies in ~1.6 m patches,
-    running breaks more), drifts hide soft pockets where a leg plunges almost to the ground; a plunge dips the
-    stride and plays a crust snap. Collision stays on the ground. `test_snow_resistance`.
-  - Prints are Henry's army boot outsole (`BootSole`): heel block, arched shank, ball, round toe, in both the
-    persistent stamp and the contact soles. The packed field carries each print's sole uv, and `snow_ground` draws
-    the exact outline and the lug tread per pixel.
-  - `capture_snow_walk.gd` and the `snow-walk` job in `checks.yml`: TPS and leg-height videos of the walk.
-  - Independent review (Sonnet agent + `/code-review high`): prints shade per pixel in coarse rings, narrower morph
-    bands, no string `has_method`/`connect` seams, retry cap at the coast. It also caught that the wall lee ramps
-    never ran over the baked map; they are now out of the drawn base until the chunk bake carries them.
-- Henry is never see-through in play (owner rule). A body guard predicts where each mouse step would put the camera
-  and soft-stops turns that take it closer than 0.8–0.6 m to his eyes (turning out is free); walking into a wall
-  speeds up the shoulder lift; the framing offset follows the real camera distance; over the shoulder the view keeps
-  his eyes inside the frame. The fade remains only as an emergency at 0.45 m. 727 trace: faded frames 0 in every
-  phase (were up to 59). `docs/technical/TPS_CAMERA.md` → Body guard.
-- Shoulder lift in corners (owner request): with little room behind Henry the camera climbs over his shoulder (70° up
-  the orbit, view tilted 35°, pivot up to 0.3 m under the ceiling) instead of pressing into him. In the 727 corner his
-  head left the frame in 1 of 240 turn frames (was 51) and facing the corridor wall in none (was 25).
-  `docs/technical/TPS_CAMERA.md` → Shoulder lift.
-- Tight-space camera composition (owner reference): Henry at the frame's left (eyes at 27 %) in cramped rooms, after
-  Cinemachine Third Person Follow, Grossman's framing (NZGDC 2025) and Nesky (GDC 2014). Measured first with
-  `tools/runtime/trace_camera_tight.gd` in 727: the composition followed the view (0.50–0.80 at the stove during one
-  turn), a room search turned the camera 30° by itself, and the mouse stuck at −81° in the corridor. Now the
-  composition reads room all round Henry (0.58–0.59), the shoulder offset scales with the boom (no lens shift, aim and
-  walk share the centre), recompose eases with hysteresis, no automatic turns in tight spaces, and the doorway mouse
-  stop applies only while Henry passes a door. `docs/technical/TPS_CAMERA.md` → Tight-space composition.
-- Quick Access in tight spaces gathers in a cross at the screen centre (coats left/right, pack lid above, thigh below).
-  The old diagonal orbit took each pocket's side from its projected anchor, so two pockets could land in one corner
-  and overlap; places are now fixed and spaced from the real card sizes, and the cross is bounded as a whole.
-- Stove fire burns unevenly (owner request). It catches small and grows with the `HeatSource` warm-up
-  (0.08 -> 1 intensity, smoothstep): the firebox starts at 45%, the room light at 20%. At the nominal burn
-  two Perlin layers replace the old sine product: a slow swell (~0.35 Hz, a little brighter or dimmer, never
-  repeating) and fast flame jitter (~9 Hz); embers follow mostly the swell. Mean energies match the old ones.
-  `test_stove_visual` now checks a dim catch and a nominal warmed burn.
-- Interior shadow mode (owner request). Outdoors shadows keep the dry-brush edge. Under a shelter roof they
-  return to the earlier value-noise edge (4186533).
-  - `stylized_shadow_interior_mode` now feeds the shared shadow include and turns the brush mix down to 0.
-  - `ShelterGradeBinder` fades it with the LUT, on `sheltered_changed` over `shelter_blend_s`.
-  - 727 Fort St floor is dark old wood (`floor_old_wood_727.tres`), swapped for the glb `floor_vinyl` on import,
-    so the stove shadows read on it.
-- Colour grade crossfade (from Grok's `grok` branch).
-  - Grok's rules are kept:
-    - outdoor LUTs blend over ±0.5 h corridors at 05/07/17/21 h;
-    - Shelter fades in and out over 0.5 s;
-    - `blend_outdoor_profiles` and the capture tool.
-  - His fullscreen blend pass is replaced. It graded the linear pre-tonemap image with the Environment adjustment
-    off: a 0.22 mean colour pop at the start and end of every blend, and the painterly far wash was erased.
-  - Now `LutBlendCache` bakes in-between LUTs for every profile pair on worker threads (UE4 CombineLUTs approach).
-    The nearest of 16 steps goes into the Environment's own LUT; brightness, contrast and saturation lerp.
-  - Ends match the snaps within frame noise (0.005 / 0.002). Each step is below 0.005.
-  - `test_lut_blend_cache`; `docs/visual_fx_shaders.md` → Color Grade Blend.
-- Dev street spawn (owner request): `World` → Developer tools → **Dev Spawn Street** picks one of ten streets from different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
+  - **In flight:** `ThrownItem` strikes its first c…5374 tokens truncated… different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
 
 ### Fixed
 
@@ -1223,3 +1149,4 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 ## Changelog rule
 
 Record outcomes, not the development session. Prefer one short bullet per meaningful change. Put implementation evidence, experiment history, benchmark dumps and long rationale in the relevant issue, PR or canonical document instead of duplicating them here.
+

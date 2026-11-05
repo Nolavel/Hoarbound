@@ -203,6 +203,7 @@ var _pack: PackRig
 ## Where the pack and Kenny hang while set down: [parent, local transform].
 var _pack_home: Array = []
 var _kenny_home: Array = []
+var _front_hold: PackFrontHold
 ## Garment name to the skin mesh it covers.
 var _skin_parts: Dictionary = {}
 ## Garment name to its material, darkened by wetness.
@@ -633,6 +634,12 @@ func hold_upper_action_at(seconds: float) -> void:
 func is_upper_action_active() -> bool:
 	return animation_tree != null and (bool(animation_tree.get("parameters/upper_actions/active")) \
 		or int(animation_tree.get("parameters/upper_actions/request")) == AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+
+
+## Fades the playing full-body action out now (a scripted walk takes over, as after reaching a cabinet door).
+func stop_action() -> void:
+	if animation_tree != null and _action_node != null:
+		animation_tree.set("parameters/actions/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FADE_OUT)
 
 
 func is_action_active() -> bool:
@@ -1086,6 +1093,28 @@ func _add_inspect_prompt() -> void:
 
 func is_pack_down() -> bool:
 	return not _pack_home.is_empty()
+
+
+## Swings the pack off the back into both hands before the chest, open toward the camera (PackFrontHold).
+func hold_pack_front() -> PackFrontHold:
+	if _pack == null or not _pack.is_visible_in_tree() or is_pack_down() or _front_hold != null:
+		return _front_hold
+	_front_hold = PackFrontHold.new()
+	_front_hold.name = "PackFrontHold"
+	add_child(_front_hold)
+	_front_hold.start(self, _pack)
+	_front_hold.finished.connect(func() -> void: _front_hold = null)
+	return _front_hold
+
+
+## Swings the held pack back on; the hold frees itself when it is home.
+func release_pack_front() -> void:
+	if _front_hold != null:
+		_front_hold.finish()
+
+
+func is_pack_in_hands() -> bool:
+	return _front_hold != null
 
 
 ## The pack on Henry's back, or null before the model is set up.

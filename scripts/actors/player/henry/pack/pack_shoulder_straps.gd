@@ -30,6 +30,10 @@ const FREE_POINTS: int = 7
 ## Off the back: chain points of the whole loop, and its strap width.
 const LIMP_POINTS: int = 26
 const WIDTH_M: float = 0.042
+## A strap left over a shoulder: how far down the chest it lies on the jacket before it leaves for the pack
+## (metres), and its slack over straight from there.
+const SHOULDER_CHEST_DROP_M: float = 0.14
+const SHOULDER_SLACK: float = 0.06
 ## Verlet: constraint passes, share of velocity kept per step, gravity (m/s^2).
 const ITERATIONS: int = 10
 const DAMPING: float = 0.96
@@ -257,9 +261,13 @@ func _redraw() -> void:
 		var changed: bool = worn != _worn_last
 		_worn_last = worn
 		_bind_xf.clear()
+		## Held before him (PackFrontHold), one strap stays over a shoulder.
+		var on_shoulder: int = int(_pack.get_meta(&"strap_on_shoulder", -1)) if not worn else -1
 		for side: int in range(2):
 			if worn:
 				_draw_worn(side)
+			elif side == on_shoulder:
+				_draw_on_shoulder(side, step, changed)
 			else:
 				_draw_limp(side, step, changed)
 	_material.set_shader_parameter(&"frame_centre", _centres)
@@ -375,7 +383,8 @@ func _draw_limp(side: int, step: float, reset: bool) -> void:
 	length = maxf(length * 1.35, 0.5)
 	var straight: float = maxf(top.distance_to(bottom), 0.01)
 	var run: Array = _chain(_limp, side, top, bottom, LIMP_POINTS, length / straight - 1.0, step, reset, pack_out * 0.12)
-	var floor_y: float = _pack.get_canvas().global_position.y + 0.005
+	## Set down, it lies on the floor round the pack; held before Henry, it just hangs.
+	var floor_y: float = -INF if _pack.has_meta(&"strap_on_shoulder") else _pack.get_canvas().global_position.y + 0.005
 	var path: Array[Vector3] = []
 	for k: int in range(run.size()):
 		var p: Vector3 = run[k]
@@ -389,6 +398,38 @@ func _draw_limp(side: int, step: float, reset: bool) -> void:
 		var along: Vector3 = (path[mini(k + 1, path.size() - 1)] - path[maxi(k - 1, 0)]).normalized()
 		var across: Vector3 = along.cross(pack_out).normalized() * WIDTH_M * 0.5
 		band.append([path[k] - across, path[k], path[k] + across, pack_out, WEBBING_M])
+	_bend(band, false)
+
+
+## A strap still over Henry's shoulder while the pack is held before him: it lies on the jacket as worn, from
+## the top of the shoulder down the chest (the worn rows past the shoulder's peak), then hangs from there to the
+## pack's top corner on that side (a verlet chain with a little slack).
+func _draw_on_shoulder(side: int, step: float, reset: bool) -> void:
+	var rows: Array = worn_rows(side)
+	if rows.size() < 3:
+		_draw_limp(side, step, reset)
+		return
+	var peak: int = 0
+	for i: int in rows.size():
+		if (rows[i][1] as Vector3).y > (rows[peak][1] as Vector3).y:
+			peak = i
+	## The rows run back to front over the shoulder; the chest part is past the peak, down to SHOULDER_CHEST_DROP_M.
+	var on_body: Array = []
+	var top_y: float = (rows[peak][1] as Vector3).y
+	for i: int in range(peak, rows.size()):
+		if (rows[i][1] as Vector3).y < top_y - SHOULDER_CHEST_DROP_M:
+			break
+		on_body.append(rows[i])
+	var leave: Vector3 = on_body[on_body.size() - 1][1]
+	var flip := Vector3(1.0 if side == 0 else -1.0, 1.0, 1.0)
+	var end: Vector3 = _pack_end(PACK_TOP * flip, leave)
+	var pack_out: Vector3 = (_pack.get_canvas().global_basis * Vector3.FORWARD).normalized()
+	var run: Array = _chain(_limp, side, leave, end, LIMP_POINTS, SHOULDER_SLACK, step, reset)
+	var band: Array = on_body.duplicate()
+	for k: int in range(1, run.size()):
+		var along: Vector3 = ((run[mini(k + 1, run.size() - 1)] as Vector3) - (run[maxi(k - 1, 0)] as Vector3)).normalized()
+		var across: Vector3 = along.cross(pack_out).normalized() * WIDTH_M * 0.5
+		band.append([run[k] - across, run[k], run[k] + across, pack_out, WEBBING_M])
 	_bend(band, false)
 
 
@@ -420,6 +461,11 @@ func _chain(store: Array, side: int, from: Vector3, to: Vector3, count: int, sla
 		points[k] = p + carried + Vector3.DOWN * GRAVITY * step * step
 	points[0] = from
 	points[count - 1] = to
+	## The ends follow what they hang from every step (the pack can move: carried, held before him).
+	points[0] = from
+	points[count - 1] = to
+	previous[0] = from
+	previous[count - 1] = to
 	for _pass: int in range(ITERATIONS):
 		for k: int in range(count - 1):
 			var a: Vector3 = points[k]

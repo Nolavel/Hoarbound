@@ -18,6 +18,7 @@ script = ExtResource("slot")
 id = &"pack_lid"
 display_name = "Lid pocket"
 max_size = 0
+inner_cm = Vector3(28, 22, 8)
 accepts_non_garment = true
 excluded_from_auto_stow = false
 
@@ -35,6 +36,7 @@ script = ExtResource("slot")
 id = &"pack_side_left"
 display_name = "Left side pocket"
 max_size = 0
+inner_cm = Vector3(11, 22, 11)
 accepts_non_garment = true
 excluded_from_auto_stow = false
 
@@ -43,6 +45,7 @@ script = ExtResource("slot")
 id = &"pack_side_right_front"
 display_name = "Right side sleeve, front"
 max_size = 0
+inner_cm = Vector3(18, 40, 5)
 accepts_non_garment = true
 excluded_from_auto_stow = false
 
@@ -51,6 +54,7 @@ script = ExtResource("slot")
 id = &"pack_side_right_back"
 display_name = "Right side sleeve, back"
 max_size = 0
+inner_cm = Vector3(18, 40, 5)
 accepts_non_garment = true
 excluded_from_auto_stow = false
 
