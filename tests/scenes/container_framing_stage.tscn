@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://cpcd3w36v3vb2"]
 
 [ext_resource type="PackedScene" uid="uid://do28umopmom25" path="res://scenes/actors/player/HenryUALVisual.tscn" id="1_enxdb"]
+[ext_resource type="Script" uid="uid://d2xni6gim60h1" path="res://scripts/tools/container_framing_stage.gd" id="2_stage"]
 
 [sub_resource type="Environment" id="Environment_xn37o"]
 background_mode = 1
@@ -58,6 +59,7 @@ height = 0.5
 size = Vector3(0.34, 0.02, 0.44)
 
 [node name="ContainerFramingStage" type="Node3D" unique_id=541971125]
+script = ExtResource("2_stage")
 
 [node name="Environment" type="WorldEnvironment" parent="." unique_id=631101008]
 environment = SubResource("Environment_xn37o")
