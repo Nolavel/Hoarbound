@@ -1,9 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cpcd3w36v3vb2"]
 
-[ext_resource type="PackedScene" path="res://scenes/actors/player/HenryUALVisual.tscn" id="1_enxdb"]
-[ext_resource type="Script" path="res://scripts/actors/player/henry/Controllers/HenryUALAnimation.gd" id="2_kfoxe"]
-[ext_resource type="PackedScene" path="res://assets/animation/ual/Unreal-Godot_2/UAL2_Standard.glb" id="3_dnymf"]
-[ext_resource type="PackedScene" path="res://assets/characters/henry/knit_hat/knit_hat.glb" id="4_owdl6"]
+[ext_resource type="PackedScene" uid="uid://do28umopmom25" path="res://scenes/actors/player/HenryUALVisual.tscn" id="1_enxdb"]
 
 [sub_resource type="Environment" id="Environment_xn37o"]
 background_mode = 1
@@ -121,12 +118,12 @@ mesh = SubResource("BoxMesh_j2d2f")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.465, 0.225)
 
 [node name="Camera" type="Camera3D" parent="Front" unique_id=1424186618]
-transform = Transform3D(0.8660254, 0.07417023, -0.49446818, 0, 0.98893636, 0.14834046, 0.5, -0.1284666, 0.856444, -0.39702916, 0.20197788, 1.4561744)
+transform = Transform3D(0.9047969, 0.06316984, -0.42113224, 5.551774e-09, 0.9889365, 0.14834048, 0.42584363, -0.13421799, 0.89478654, -0.39702916, 0.20197788, 1.285119)
 current = true
 fov = 34.0
 
 [node name="Pack" type="Node3D" parent="Front" unique_id=914900674]
-transform = Transform3D(-0.9853636, 0, 0.17046624, 0, 1, 0, -0.17046624, 0, -0.9853636, 0.31200933, 0.044999987, 0.588655)
+transform = Transform3D(-0.5906615, 0, 0.80691946, 0, 1, 0, -0.80691946, 0, -0.5906615, 0.51635027, 0.044999987, 0.28602526)
 
 [node name="Body" type="MeshInstance3D" parent="Front/Pack" unique_id=1974399336]
 material_override = SubResource("StandardMaterial3D_omoyf")
@@ -142,8 +139,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.21, -0.32)
 material_override = SubResource("StandardMaterial3D_omoyf")
 mesh = SubResource("BoxMesh_yxxp1")
 
-[node name="Henry" type="Node3D" parent="Front" unique_id=1385313891 instance=ExtResource("1_enxdb")]
-transform = Transform3D(0.7772067, 0, -0.62924534, 0, 1, 0, 0.6292454, 0, 0.77720666, 0.62, -0.465, 0.2)
-script = ExtResource("2_kfoxe")
-secondary_library_scene = ExtResource("3_dnymf")
-knit_hat_scene = ExtResource("4_owdl6")
+[node name="Henry" parent="Front" unique_id=1385313891 instance=ExtResource("1_enxdb")]
+transform = Transform3D(-0.7443721, 0, -0.6677651, 0, 1, 0, 0.66776514, 0, -0.744372, 0.62, -0.465, 0.76182866)
