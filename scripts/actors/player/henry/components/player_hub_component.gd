@@ -136,6 +136,17 @@ func is_visiting() -> bool:
 	return _visit != null
 
 
+## At a container, until the cut, the view eases toward the Tab view of Henry as he is now: he crouches while the
+## pack comes off, so a target fixed at the start would aim where his chest was standing.
+func _process(delta: float) -> void:
+	if not _open or not is_instance_valid(_camera) or not is_instance_valid(_front_hold) or container == null:
+		return
+	if _front_hold.is_container_cut():
+		return
+	var ease: float = 1.0 - exp(-delta / maxf(camera_blend_time * 0.35, 0.01))
+	_camera.global_transform = _camera.global_transform.interpolate_with(get_camera_target(), ease)
+
+
 func _physics_process(delta: float) -> void:
 	var falling := get_parent() as CharacterBody3D
 	if (_open or _visit != null) and falling != null and falling.velocity.y < -INTERRUPT_FALL_SPEED:
@@ -804,7 +815,9 @@ func _enter_camera() -> void:
 	_camera.make_current()
 	## At a container the pack comes off as by Tab (the same view, so its turn off his back shows); the frame,
 	## its blur and UI come at the cut (_cut_to_container).
-	if is_instance_valid(_front_hold) and container == null:
+	if is_instance_valid(_front_hold) and container != null:
+		return  # the Tab view follows him as he crouches (_process), then the cut
+	if is_instance_valid(_front_hold):
 		_add_focus_blur()
 	create_tween().set_trans(Tween.TRANS_SINE).tween_property(_camera, ^"global_transform", target, camera_blend_time)
 
