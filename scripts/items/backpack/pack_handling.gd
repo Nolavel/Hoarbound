@@ -246,7 +246,8 @@ func _process(delta: float) -> void:
 		if verb != &"":
 			cursor.hint = tr(verb) % ("X" if _pad_used else tr(&"KEY_RMB")) + "    " + cursor.hint
 		var shown_id: StringName = _carry.get("id", _hovered_id())
-		cursor.info = ItemReadout.describe(shown_id) if shown_id != &"" else {}
+		var in_pack: bool = hovered_item >= 0 and _carry.is_empty()
+		cursor.info = ItemReadout.describe(shown_id, hub.inventory.get_count(shown_id) if in_pack and hub.inventory != null else 1) if shown_id != &"" else {}
 		cursor.load_kg = hub.get_weight()
 		cursor.load_max_kg = hub.get_max_weight()
 		cursor.load_slows_at = hub.get_load_slows_at()

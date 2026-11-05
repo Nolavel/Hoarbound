@@ -367,7 +367,9 @@ func _refresh_contents() -> void:
 			var item: ItemResource = ItemCatalog.get_item(entry["id"])
 			if item == null or item.carried_in_hands or item.id == &"bedroll":
 				continue
-			for _n: int in int(entry["count"]):
+			## Small things in numbers lie in as one bundle per stack (ItemResource.bundles).
+			var places: int = ceili(float(entry["count"]) / maxf(item.max_stack, 1)) if item.bundles() else int(entry["count"])
+			for _n: int in places:
 				main.append(item.id)
 	## Only the outside places whose item changed are redone; what stays keeps its node, pose and freeze.
 	for place: StringName in _side_items.keys() + shown.keys():

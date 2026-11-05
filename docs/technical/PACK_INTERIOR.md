@@ -116,6 +116,9 @@ Code: `scripts/items/backpack/pack_handling.gd` (`PackHandling`), `pack_cursor.g
   - Each kg adds 0.12 s, up to 0.4 s.
   - Cold hands (`ThermalManager.get_extremity_cold(&"hands")`, via `Hub.get_hands_cold`) multiply it by up to 2.5. A tin off the bottom strap takes 0.63 s warm and 1.57 s frozen.
   - Past a quarter of that cold load the ring shakes, up to 9 px at 7 Hz, so frozen hands also aim worse.
+- **Bundles** (`ItemResource.bundles`). Small things kept in numbers (`max_stack` of 5 or more: nails, tinder, road flares, empty tins) lie under the straps as one bundle per full stack (`PackRig._refresh_contents`). Tins (stack 4) stay one place each.
+  - The readout names the count: "Nails ×20" (`ItemReadout.describe(id, count)`, `ITEM_BUNDLE_COUNT`).
+  - Taking a bundle takes one unit; the rest stay.
 - **Pad steps** (`PackHandling.snap`). A flick of the left stick past 0.6 jumps the ring to the nearest target that way, within 55°, off-axis ones counting as farther. Held, it steps every 0.32 s, and it re-arms below 0.3.
   - Targets (`snap_targets`): every strapped item, every shown card, the hand card, the pack's room (to put a carried item in), an open container's items and its shelves.
 - **Threats shut it** (Green Hell; `Hub.interrupt`). Time never stops in the Hub, and a threat closes the open pack at once and calls off a walk to a container.

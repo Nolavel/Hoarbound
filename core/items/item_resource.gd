@@ -12,6 +12,9 @@
 class_name ItemResource
 extends Resource
 
+## A stack this big or bigger rides the pack as a bundle (bundles()).
+const BUNDLE_FROM: int = 5
+
 @export_group("Identity")
 ## Stable id, unique in the catalog. The file name matches it by convention.
 @export var id: StringName = &""
@@ -75,3 +78,9 @@ func get_status_text() -> String:
 	if id == &"knife":
 		return tr("KNIFE_PURPOSE")
 	return ""
+
+
+## Small things kept in numbers (max_stack at least BUNDLE_FROM: nails, tinder, flares) ride the pack as one
+## bundle per stack, not one place each.
+func bundles() -> bool:
+	return max_stack >= BUNDLE_FROM

@@ -186,6 +186,16 @@ func _run() -> void:
 	await _frames(40)
 	print("pack hands: the pad steps the ring between %d targets" % targets)
 
+	## Small things in numbers lie in as one bundle per stack, and the readout says how many.
+	var strapped_before: int = _hub.pack.get_straps().items.size()
+	for _n: int in 20:
+		_inventory.try_add(ItemCatalog.get_item(&"nails"))
+	await _frames(5)
+	_check(_hub.pack.get_straps().items.filter(func(item: Dictionary) -> bool: return item["id"] == &"nails").size() == 1,
+		"20 nails took more than one place under the straps")
+	_check(ItemReadout.describe(&"nails", 20)["name"].ends_with("20"), "the nails' readout does not say how many")
+	print("pack hands: 20 nails lie in as one bundle (%d -> %d places)" % [strapped_before, _hub.pack.get_straps().items.size()])
+
 	## A threat shuts the open pack (time never stops in the Hub); frostbite's slow loss does not.
 	var health := _hub.get_parent().get_node(^"PlayerHealthSystem") as PlayerHealthSystem
 	_check(_hub.open(), "the pack did not open again")
