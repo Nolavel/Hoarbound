@@ -667,7 +667,7 @@ func _enter_camera() -> void:
 		var blur := PackFocusBlur.new()
 		blur.name = "PackFocusBlur"
 		_camera.add_child(blur)
-		blur.setup(_pack(), container)
+		blur.setup(_pack(), container.get_parent() as Node3D if container != null else null)
 	var target: Transform3D = get_camera_target()
 	_camera.global_transform = _previous_camera.global_transform if _previous_camera != null else target
 	_camera.make_current()

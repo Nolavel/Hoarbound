@@ -19,14 +19,18 @@ const TIP_DEG: float = 45.0
 const FRAME_SHARE: float = 0.47
 const VIEW_RISE: float = 0.35
 const VIEW_LIFT_M: float = -0.07
-## At an open container the opening tips further up (Henry looks down into it beside the shelves), degrees;
-## the view sits this high above his chest, this far behind it and this far to his right, aiming this share of
-## the way from the pack to the shelves (metres, share).
-const CONTAINER_TIP_DEG: float = 72.0
-const CONTAINER_EYE_UP_M: float = 0.55
-const CONTAINER_EYE_BACK_M: float = 0.42
-const CONTAINER_EYE_SIDE_M: float = 0.32
-const CONTAINER_AIM_SHARE: float = 0.55
+## At an open container the pack is held this far ahead of his chest, to his right and below it (metres) with
+## its opening turned back, right and up (weights), and the view stands back, right and up of the aim (weights),
+## no nearer than CONTAINER_MIN_DISTANCE_M, aiming this share of the way from the pack to the shelves.
+const CONTAINER_HOLD := Vector3(0.22, -0.3, 0.12)
+const CONTAINER_OPEN_BACK: float = 0.7
+const CONTAINER_OPEN_SIDE: float = -0.35
+const CONTAINER_OPEN_UP: float = 0.55
+const CONTAINER_VIEW_SIDE: float = -0.55
+const CONTAINER_VIEW_UP: float = 0.5
+const CONTAINER_VIEW_BACK: float = 0.9
+const CONTAINER_MIN_DISTANCE_M: float = 1.7
+const CONTAINER_AIM_SHARE: float = 0.6
 ## The strap that stays over a shoulder while the pack is held (0 left, 1 right).
 const STRAP_KEPT_SIDE: int = 0
 ## Swinging off the back and on again takes this long, seconds.
@@ -102,7 +106,14 @@ func held_transform() -> Transform3D:
 	var frame: Array = _body_frame()
 	var chest: Vector3 = frame[0]
 	var forward: Vector3 = frame[1]
-	var tip: float = deg_to_rad(CONTAINER_TIP_DEG if container != null else TIP_DEG)
+	if container != null:
+		## At a container: held at his right, its opening turned back toward the view over his right shoulder.
+		var right: Vector3 = frame[2]
+		var open_to: Vector3 = (-forward * CONTAINER_OPEN_BACK + right * CONTAINER_OPEN_SIDE + Vector3.UP * CONTAINER_OPEN_UP).normalized()
+		var up_side: Vector3 = (Vector3.UP - open_to * Vector3.UP.dot(open_to)).normalized()
+		var at: Vector3 = chest + forward * CONTAINER_HOLD.x + right * CONTAINER_HOLD.y - Vector3.UP * CONTAINER_HOLD.z
+		return Transform3D(Basis(up_side.cross(-open_to).normalized(), up_side, -open_to), at)
+	var tip: float = deg_to_rad(TIP_DEG)
 	## The rig's -Z is its opening (outward on the back): it faces out ahead of Henry, tipped up; its top leans
 	## back toward him and its bottom (the panel's hinge) is below, so the panel drops open away from him.
 	var opening: Vector3 = (forward * cos(tip) + Vector3.UP * sin(tip)).normalized()
@@ -121,24 +132,20 @@ func front_view(fov: float) -> Transform3D:
 	return Transform3D(Basis.IDENTITY, eye).looking_at(held.origin + Vector3.UP * VIEW_LIFT_M, Vector3.UP)
 
 
-## The view at an open container: over Henry's right shoulder, down on the open pack and on to the shelves
-## beyond it, framing both at `fov` degrees.
+## The view at an open container: from behind his right, at chest height, into the pack he holds there and on
+## to the cabinet's front, its shelves seen at an angle, framing both at `fov` degrees.
 func container_view(fov: float) -> Transform3D:
 	var frame: Array = _body_frame()
-	var chest: Vector3 = frame[0]
 	var forward: Vector3 = frame[1]
 	var right: Vector3 = frame[2]
 	var pack_at: Vector3 = held_transform().origin
 	var shelves_at: Vector3 = container.global_transform * container.shelves_box().get_center()
 	var aim: Vector3 = pack_at.lerp(shelves_at, CONTAINER_AIM_SHARE)
-	var eye: Vector3 = chest + Vector3.UP * CONTAINER_EYE_UP_M - forward * CONTAINER_EYE_BACK_M + right * CONTAINER_EYE_SIDE_M
-	## Back off along the view until both the pack and the shelves fit in the frame's height.
-	var span: float = pack_at.distance_to(shelves_at) + pack.size.y
-	var need: float = span * 0.5 / tan(deg_to_rad(fov) * 0.5)
-	var away: Vector3 = (eye - aim).normalized()
-	if eye.distance_to(aim) < need:
-		eye = aim + away * need
-	return Transform3D(Basis.IDENTITY, eye).looking_at(aim, Vector3.UP)
+	var side: Vector3 = (right * CONTAINER_VIEW_SIDE + Vector3.UP * CONTAINER_VIEW_UP - forward * CONTAINER_VIEW_BACK).normalized()
+	## Far enough that both the pack and the shelves fit in the frame's height.
+	var span: float = maxf(pack_at.distance_to(shelves_at) + pack.size.y, container.shelves_box().size.y)
+	var distance: float = maxf(span * 0.5 / tan(deg_to_rad(fov) * 0.5), CONTAINER_MIN_DISTANCE_M)
+	return Transform3D(Basis.IDENTITY, aim + side * distance).looking_at(aim, Vector3.UP)
 
 
 ## Henry's chest (spine_03), his flat forward (square to the line between his shoulders, whatever the nodes

@@ -1,0 +1,85 @@
+extends SceneTree
+
+## The held pack at an open cabinet on a bare stand (fast to frame, unlike Key West): a cabinet built like the
+## 727 one ahead of Henry with tins and a stew; Tab, then a still of the view. For tuning the container view.
+## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1920x1080 --script res://tools/runtime/capture_container_stand.gd -- <out png>
+
+const PLAYER: String = "res://scenes/actors/player/player.tscn"
+const PANELS: Array = [
+	[Vector3(0.8, 0.9, 0.03), Vector3(0.0, 0.45, -0.21)],
+	[Vector3(0.03, 0.9, 0.45), Vector3(-0.385, 0.45, 0.0)],
+	[Vector3(0.03, 0.9, 0.45), Vector3(0.385, 0.45, 0.0)],
+	[Vector3(0.8, 0.03, 0.45), Vector3(0.0, 0.885, 0.0)],
+	[Vector3(0.8, 0.06, 0.45), Vector3(0.0, 0.03, 0.0)],
+	[Vector3(0.74, 0.02, 0.4), Vector3(0.0, 0.45, 0.0)],
+]
+
+var _out: String = "user://container_stand.png"
+
+
+func _initialize() -> void:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if not args.is_empty():
+		_out = args[0]
+	_run()
+
+
+func _run() -> void:
+	TranslationServer.set_locale("ru")
+	var floor := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = WorldBoundaryShape3D.new()
+	floor.add_child(shape)
+	var ground := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(20.0, 20.0)
+	ground.mesh = plane
+	floor.add_child(ground)
+	root.add_child(floor)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-50.0, 35.0, 0.0)
+	root.add_child(sun)
+	var env := WorldEnvironment.new()
+	env.environment = Environment.new()
+	env.environment.background_mode = Environment.BG_COLOR
+	env.environment.background_color = Color(0.72, 0.75, 0.8)
+	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.environment.ambient_light_color = Color(0.7, 0.72, 0.78)
+	root.add_child(env)
+	var player := (load(PLAYER) as PackedScene).instantiate() as Player
+	root.add_child(player)
+	player.global_position = Vector3(0.0, 1.0, 0.0)
+	var camera := Camera3D.new()
+	root.add_child(camera)
+	camera.make_current()
+	for _i: int in 40:
+		await process_frame
+	var forward: Vector3 = -player.global_basis.z.slide(Vector3.UP).normalized()
+	var cabinet := Node3D.new()
+	var paint := StandardMaterial3D.new()
+	paint.albedo_color = Color(0.36, 0.38, 0.42)
+	for panel: Array in PANELS:
+		var mesh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = panel[0]
+		mesh.mesh = box
+		mesh.position = panel[1]
+		mesh.material_override = paint
+		cabinet.add_child(mesh)
+	root.add_child(cabinet)
+	cabinet.global_position = player.global_position * Vector3(1, 0, 1) + forward * 0.75
+	cabinet.look_at(cabinet.global_position - forward, Vector3.UP, true)
+	var box_node := ItemContainer.new()
+	box_node.container_id = &"stand_cabinet"
+	box_node.shelves = ItemContainer.shelves_from_furniture(cabinet, null)
+	cabinet.add_child(box_node)
+	for id: StringName in [&"tinned_stew", &"tinned_pineapple", &"spov_can", &"spov_can", &"work_gloves"]:
+		box_node.put(id)
+	var hub := player.get_node(^"PlayerHubComponent") as PlayerHubComponent
+	hub.open()
+	for _i: int in 60:
+		await process_frame
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out))
+	print("[container stand] saved ", _out, " container ", hub.container != null)
+	quit()
