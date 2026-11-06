@@ -34,10 +34,21 @@ func sit(spot: Node3D) -> bool:
 		return false
 	if visual != null and visual.is_carrying():
 		return false
-	for child: Node in body.get_children():
-		if child.has_method(&"is_holding") and bool(child.call(&"is_holding")):
-			if not child.has_method(&"put_away_unlit") or not bool(child.call(&"put_away_unlit")):
-				return false
+	## Prepare: every holder that holds something has to be able to let go of it.
+	## Nothing is touched yet, so a refusal leaves Henry exactly as he was.
+	var holders: Array[Node] = _holders(body)
+	for holder: Node in holders:
+		if not _can_release(holder):
+			return false
+	## Commit: the hands go empty for the sit. A holder that refuses here gets
+	## what it held back, so a refused sit still changes nothing.
+	var released: Array[Dictionary] = []
+	for holder: Node in holders:
+		var held: Dictionary = _held(holder)
+		if not bool(holder.call(&"put_away_unlit")):
+			_give_back(released)
+			return false
+		released.append(held)
 	_spot = spot
 	body.velocity = Vector3.ZERO
 	var facing: Vector3 = -spot.global_transform.basis.z
@@ -55,6 +66,57 @@ func sit(spot: Node3D) -> bool:
 		_table.lay_out(InventoryComponent.find_in(body), body.get_node_or_null(^"EquipmentComponent") as EquipmentComponent)
 	sat_down.emit(spot)
 	return true
+
+
+## The holders that hold something and have to let go before Henry can sit.
+func _holders(body: Node) -> Array[Node]:
+	var out: Array[Node] = []
+	for child: Node in body.get_children():
+		if child.has_method(&"is_holding") and bool(child.call(&"is_holding")):
+			out.append(child)
+	return out
+
+
+## Whether the holder can let go of what it holds, without changing anything.
+## A flare that is burning or spent cannot be stowed, and the holder says so
+## before anything is touched.
+func _can_release(holder: Node) -> bool:
+	if not holder.has_method(&"put_away_unlit"):
+		return false
+	if holder.has_method(&"is_holding_unlit"):
+		return bool(holder.call(&"is_holding_unlit"))
+	return bool(holder.call(&"is_holding"))
+
+
+## What a holder shows, so it can be given back if a later holder refuses.
+func _held(holder: Node) -> Dictionary:
+	var item_id: StringName = &""
+	if holder.has_method(&"get_item_id"):
+		item_id = holder.call(&"get_item_id")
+	else:
+		var names: Dictionary = {}
+		for property: Dictionary in holder.get_property_list():
+			names[property["name"]] = true
+		for candidate: StringName in [&"flare_item_id", &"hammer_item_id"]:
+			if names.has(candidate):
+				item_id = holder.get(candidate)
+				break
+	var zone: StringName = &""
+	if holder.has_method(&"get_source_zone"):
+		zone = holder.call(&"get_source_zone")
+	return {"holder": holder, "item_id": item_id, "zone": zone}
+
+
+## Gives a holder back what it held. The item never left storage, so showing it
+## again restores the hand.
+func _give_back(released: Array[Dictionary]) -> void:
+	for entry: Dictionary in released:
+		var holder: Node = entry["holder"]
+		var item_id: StringName = entry["item_id"]
+		var zone: StringName = entry["zone"]
+		if item_id == &"" or zone == &"" or not holder.has_method(&"equip_from_zone"):
+			continue
+		holder.call(&"equip_from_zone", item_id, zone)
 
 
 func stand() -> bool:
