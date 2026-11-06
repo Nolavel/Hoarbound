@@ -8,7 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
-- Sitting down no longer changes a hand when Henry cannot sit. `RestComponent.sit()` used to put the held items away while it was still checking the other holders, so a sit that was refused (a burning flare cannot be stowed) left the other hand empty. The check now runs before anything is touched, and a holder that did let go gets its item back when a later holder refuses.
+- Sitting down no longer changes a hand when Henry cannot sit. `RestComponent.sit()` used to put the held items away while it was still checking the other holders, so a sit that was refused (a burning flare cannot be stowed) left the other hand empty. The holders are now checked before anything is touched, and a holder that did let go is given its item back when a later one refuses. A holder that could not be shown again refuses the sit before anything is touched; the item then stays in storage and the hand is empty.
 - `tools/ci/render.sh` fails when the render did not run Forward+. A Vulkan run that falls back to OpenGL writes a PNG all the same, and that PNG showed the wrong renderer without a word. The lavapipe ICD is also looked up under the name the distribution actually uses (`lvp_icd.x86_64.json` on Debian), where the old fixed path left the loader with no driver at all.
 - 3D inventory at furniture: the pack never passes into a cabinet, a drawer or a door, and every item inside shows (owner). Just before the cut the pack moves out until no part of it (body, open panel, what hangs) comes within 2 cm of the furniture. The view then turns up or aside and backs off until it sees each item past everything (`ContainerClearance`).
   - Kitchen cupboard: the open panel went into the right door; drawers: the front panel hid what lay inside.
@@ -25,7 +25,6 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
-- The capability contract is a required check now, not a report: `checks` runs `test_capability_contract` and fails the build when it reports a failure. The verdict is read from the log, because a failed suite does not always set an exit code (issue #209).
 - `AGENTS.md` names the agents that are on the project: MCode (`minimax`) is in the roles table, Grok is not.
 - Claude tooling: project skill `hoarbound-godot-studio` with review lenses for the engine, GDScript, C#, shaders and GDExtension, and procedures for code review, performance profiles, asset audits and test evidence. Adapted by selection from Claude Code Game Studios (MIT, attribution in the skill's `NOTICE.md`). Its hooks, settings and process are not adopted.
 
