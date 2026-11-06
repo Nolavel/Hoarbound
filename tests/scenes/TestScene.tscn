@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://world/world.gd" id="90_world"]
 [ext_resource type="PackedScene" path="res://scenes/environment/shelter/test_shelter.tscn" id="91_shelter"]
 [ext_resource type="Script" path="res://scripts/environment/interactive/item_pickup.gd" id="92_pickup"]
+[ext_resource type="PackedScene" path="res://tests/scenes/container_row.tscn" id="93_container_row"]
 [ext_resource type="PackedScene" uid="uid://cvv8y27vmgjfi" path="res://scenes/game/systems/world/WorldEnvironmentSystem.tscn" id="2_2ompc"]
 [ext_resource type="PackedScene" uid="uid://dputwp1am8vfu" path="res://scenes/game/systems/camera/tps_camera.tscn" id="3_4vd7y"]
 [ext_resource type="PackedScene" uid="uid://ciy301x7wh6ie" path="res://scenes/actors/player/player.tscn" id="4_vhdnb"]
@@ -267,3 +268,6 @@ shape = SubResource("SphereShape3D_pickup")
 
 [editable path="WorldEnvironmentSystem"]
 [editable path="Player"]
+
+[node name="ContainerRow" parent="." instance=ExtResource("93_container_row")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 12, 0, 5)

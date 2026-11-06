@@ -62,6 +62,8 @@ enum PickupSubtype {
 @export var focus_priority: float = 0.0
 ## Radius around the focus point that still counts as aimed at, metres.
 @export var focus_radius: float = 0.12
+## An icon the pickup marker draws above its F (the eye for "search"); null draws none.
+@export var marker_icon: Texture2D
 
 @export_group("Special awareness")
 ## Opt-in: Henry notices this rare object with a check mark. Never for ordinary loot.

@@ -1,8 +1,8 @@
 extends SceneTree
 
 ## The held pack at an open cabinet (3D inventory, ItemContainer) on the real player and Hub. A cabinet built
-## like the 727 one stands ahead of Henry with two tins and a stew on its shelves; Tab finds it, Henry walks to
-## its side and crouches (it is low), the pack opens there, and the ring:
+## like the 727 one stands ahead of Henry with two tins and a stew on its shelves; Tab searches it where he
+## stands: he crouches (it is low), the pack opens, and the ring:
 ## - carries a tin off the shelf into the pack (the shelf loses it, the pack gains it);
 ## - carries a pack tin back onto the shelf;
 ## - carries the coat pocket's tin onto the shelf, and a shelf tin into the empty coat pocket;
@@ -74,16 +74,27 @@ func _run() -> void:
 		_box.put(id)
 	await _frames(5)
 
-	_check(_hub.open() and _hub.is_visiting(), "Tab at the open cabinet did not send Henry over to it")
-	for _i: int in 240:
-		await _frames(1)
-		if _hub.is_open():
-			break
+	## Its items are blurs behind frost and not taken by F; the search (an eye over F) is what is offered.
+	var search := _box.get_node(^"Search") as ContainerSearch
+	_check(search != null and search.can_interact() and search.marker_icon != null, "the open cabinet offers no search with an eye")
+	_check(not (_box.items[0]["pickup"] as ItemPickup).can_interact(), "a shelf item is still taken by F")
+	await _frames(2)
+	var veil := _box.get_node_or_null(^"FrostedVeil") as MeshInstance3D
+	_check(veil != null and veil.visible, "the open cabinet's face is not frosted over")
+	var stood: Vector3 = player.global_position
+	_check(_hub.open() and _hub.is_open(), "Tab at the open cabinet did not search it")
 	await _frames(45)
 	_check(player.is_crouching(), "Henry did not crouch at the low cabinet")
-	var spot: Vector3 = _box.visit_spot(player.global_position)["at"]
-	_check(Vector2(spot.x - player.global_position.x, spot.z - player.global_position.z).length() < 0.35, "Henry did not reach the cabinet's side")
+	_check(Vector2(player.global_position.x - stood.x, player.global_position.z - stood.z).length() < 0.05, "Henry walked to search (he searches where he stands)")
+	_check(veil == null or not veil.visible, "the frost stayed over the cabinet during Henry's own search")
+	_check(not search.can_interact(), "the search is still offered while Henry is at the cabinet")
 	_hands = _hub.get_pack_hands()
+	## The working frame comes at the cut, once the pack is off his back: wait for it, not for a frame count.
+	for _i: int in 120:
+		if _hands == null or _hands.enabled:
+			break
+		await _frames(1)
+	_check(_hands != null and _hands.enabled, "the view never cut to the cabinet's frame")
 	_check(_hub.container == _box and _hands != null and _hands.container == _box, "Tab at the open cabinet did not take its shelves in")
 	if _hands == null or _hands.container == null:
 		_finish()

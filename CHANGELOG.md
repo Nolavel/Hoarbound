@@ -8,11 +8,31 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- 3D inventory at furniture: the pack never passes into a cabinet, a drawer or a door, and every item inside shows (owner). Just before the cut the pack moves out until no part of it (body, open panel, what hangs) comes within 2 cm of the furniture. The view then turns up or aside and backs off until it sees each item past everything (`ContainerClearance`).
+  - Kitchen cupboard: the open panel went into the right door; drawers: the front panel hid what lay inside.
+  - One fitting for every kind of furniture (owner).
+    - The owner's framing stands as authored at the 727-like cabinet: the camera exactly, the pack within 3 cm. It had drifted from my pack turn, the camera backing off and a wide reserve under the pan.
+    - A side door on the pack's side opens all the way (175°), and the pack stands before it, nearer the camera.
+    - What hangs off the pack is checked as it really hangs at rest.
+    - Looking down into a drawer or chest, the pack's opening turns to the camera.
+
+- 3D inventory at a cabinet: the pan and other hangers no longer go through the floor or into the cabinet. Both are now obstacles for the hangers.
+  - Owner's framing: the camera turned a little right, the pack further right and a little higher (the pan hangs free), Henry out of the frame.
 - "Parameter material is null" errors when the game starts and around containers. Item models made only to be measured (pocket sizes, shelf layout, loose items) were freed before ever being drawn, while carrying shader overrides, which Godot 4.8-dev reports from the renderer.
   - `SurvivalItemVisual.release` drops the overrides first. Spawning Henry went from 44 errors to 0 on Vulkan.
 
 ### Changed
 
+- Claude tooling: project skill `hoarbound-godot-studio` with review lenses for the engine, GDScript, C#, shaders and GDExtension, and procedures for code review, performance profiles, asset audits and test evidence. Adapted by selection from Claude Code Game Studios (MIT, attribution in the skill's `NOTICE.md`). Its hooks, settings and process are not adopted.
+
+- 3D inventory at furniture, owner's design: the second F (the eye) searches where Henry stands. He walks up himself, so he no longer walks to a point; he only faces it and crouches at low furniture.
+- Containers of every kind: several doors (`openers`), drawers (`Drawer`), lids on a horizontal hinge (`Cabinet.swing_axis`), shelves that open upward (`opens_up`: the frost and the eye on top, the view looking down into them).
+- Test row of furniture (`ContainerRow`, also in `TestScene`): a floor cabinet, a two-door kitchen cupboard on a wall, a dresser with three drawers, a floor chest; some hold things, some are empty. `test_container_kinds` runs the search on each.
+
+- 3D inventory at a cabinet, two presses of F (owner's design).
+  - The first F only opens the door. What is inside shows half-seen behind frost, and a search marker (F with an eye inside its ring) sits on the open face.
+  - The second F walks Henry over. He crouches as he takes the pack off, seen as by Tab, then the view cuts hard to the cabinet-and-pack frame.
+  - Shelf items are no longer taken by F directly.
 - 3D inventory (Hub): the silhouette of the garment that owns the hovered pocket (coat or trousers, not both) fades in, with a dot where that pocket is (owner), and fades out after.
 - Pockets have real inside sizes in cm and take only what fits by the item's model. The hammer, the axe and the pan no longer go into coat or trouser pockets (owner); tins, the knife and the lighter still do.
 - 3D inventory (Hub): small things in numbers (nails, tinder, flares, empty tins) lie in the pack as one bundle per stack, and the readout says how many ("Nails ×20"). 20 nails used to take 20 places.

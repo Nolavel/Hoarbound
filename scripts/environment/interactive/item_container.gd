@@ -1,8 +1,8 @@
 class_name ItemContainer
 extends Node3D
 
-## What a piece of furniture holds: items standing on its shelves by their real size, each an ItemPickup
-## (F still takes it). The item list is the truth; it is saved, and the pickups follow it.
+## What a piece of furniture holds (a cabinet, a kitchen cupboard, a drawer, a chest): items standing on its
+## shelves by their real size, each an ItemPickup reached through its search. The list is saved; pickups follow.
 
 signal contents_changed
 
@@ -18,8 +18,9 @@ const PANEL_M: float = 0.07
 const VISIT_OUT_M: float = 0.45
 const VISIT_PAST_M: float = 0.58
 const LOW_TOP_M: float = 1.1
-## F opening the door sends a player this near on a visit (PlayerHubComponent.visit_container), metres.
-const VISIT_CALL_M: float = 3.0
+## The frosted veil over the open face (owner: unclear shapes until searched) and how far out of it it stands.
+const VEIL_SHADER: Shader = preload("res://shaders/items/frosted_veil.gdshader")
+const VEIL_OUT_M: float = 0.004
 
 ## Stable id for the save ("container/<id>").
 @export var container_id: StringName = &""
@@ -27,6 +28,13 @@ const VISIT_CALL_M: float = 3.0
 @export var shelves: Array[AABB] = []
 ## The door that must be open to reach in (null: always open).
 @export var door: Cabinet
+## More ways in (kitchen doors side by side, a drawer, a chest's lid): open when any of them is (each a Cabinet
+## or a Drawer). `door`, when set, counts as one of them.
+@export var openers: Array[InteractiveArea] = []
+## The shelves open upward (a drawer, a chest): the frost and the search sit on their top face, not the front.
+@export var opens_up: bool = false
+## The whole piece of furniture these shelves are in (a dresser for one of its drawers); null: the parent.
+@export var furniture: Node3D
 
 ## Per item: {"id", "state": Dictionary, "world_id": StringName (seeded from the world, or &""),
 ## "pickup": ItemPickup}.
@@ -34,13 +42,56 @@ var items: Array[Dictionary] = []
 ## Each item id's outline as a pickup stands (its own space), measured once.
 static var _outlines: Dictionary = {}
 var _body := AABB()
+var _veil: MeshInstance3D
+var _search: ContainerSearch
 
 
 func _ready() -> void:
 	add_to_group(&"saveable")
 	add_to_group(GROUP)
-	if door != null:
-		door.door_toggled.connect(_on_door_toggled)
+	## F on the door only opens and shuts it; what is inside is searched with a second F (ContainerSearch).
+	_search = ContainerSearch.new()
+	_search.container = self
+	add_child(_search)
+
+
+## While the door is open and something is inside, the open face is frosted over (items read as blurs) and
+## the search marker is offered; at Henry's own visit (the Hub holds this container) the frost lifts.
+func _process(_delta: float) -> void:
+	if shelves.is_empty():
+		return
+	if _veil == null:
+		_veil = _make_veil()
+	var player := get_tree().get_first_node_in_group(&"player")
+	var hub := player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent if player != null else null
+	var at_it: bool = hub != null and hub.container == self
+	_veil.visible = is_reachable() and not items.is_empty() and not at_it
+
+
+func _make_veil() -> MeshInstance3D:
+	var box: AABB = shelves_box()
+	var veil := MeshInstance3D.new()
+	veil.name = "FrostedVeil"
+	var quad := QuadMesh.new()
+	veil.mesh = quad
+	if opens_up:
+		## Over the top face, lying flat (the quad faces +Z; turned to face up).
+		quad.size = Vector2(box.size.x, box.size.z)
+		veil.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(box.get_center().x, box.end.y + VEIL_OUT_M, box.get_center().z))
+	else:
+		quad.size = Vector2(box.size.x, box.size.y)
+		veil.position = Vector3(box.get_center().x, box.get_center().y, box.end.z + VEIL_OUT_M)
+	var frost := ShaderMaterial.new()
+	frost.shader = VEIL_SHADER
+	veil.material_override = frost
+	veil.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(veil)
+	return veil
+
+
+## The whole piece of furniture these shelves are in (furniture, else the parent).
+func furniture_root() -> Node3D:
+	return furniture if furniture != null else get_parent() as Node3D
 
 
 ## The front: the middle of the shelves' open face, its outward way (flat) and the right of one looking in,
@@ -71,12 +122,28 @@ func visit_spot(from: Vector3) -> Dictionary:
 	return {"at": at, "face": facing, "side": side}
 
 
-## The side the pack goes (-1 left, 1 right, as one looks in): away from the door's hinge, where the open door
-## swings; with no door, the side `from` (world) is on.
+## The side the pack goes (-1 left, 1 right, as one looks in): away from the side-hinged doors swung open there
+## (a single door counts open or not: it will be); otherwise (no door, open doors on both sides, a lid, a
+## drawer) the side `from` (world) is on.
 func free_side(from: Vector3) -> float:
-	if door != null and door.door_hinge != null:
-		var hinge: Vector3 = global_transform.affine_inverse() * door.door_hinge.global_position
-		return -1.0 if hinge.x > shelves_box().get_center().x else 1.0
+	var doors: Array[Cabinet] = []
+	for opener: InteractiveArea in all_openers():
+		var cabinet := opener as Cabinet
+		if cabinet != null and cabinet.door_hinge != null and cabinet.swing_axis.is_equal_approx(Vector3.UP):
+			doors.append(cabinet)
+	var blocked := Vector2.ZERO  # open doors on the left (x) and the right (y)
+	for cabinet: Cabinet in doors:
+		if doors.size() > 1 and not cabinet.is_open():
+			continue
+		var hinge: Vector3 = global_transform.affine_inverse() * cabinet.door_hinge.global_position
+		if hinge.x > shelves_box().get_center().x:
+			blocked.y += 1.0
+		else:
+			blocked.x += 1.0
+	if blocked.x > 0.0 and blocked.y == 0.0:
+		return 1.0
+	if blocked.y > 0.0 and blocked.x == 0.0:
+		return -1.0
 	return 1.0 if (from - (front()[0] as Vector3)).dot(front()[2] as Vector3) >= 0.0 else -1.0
 
 
@@ -84,11 +151,17 @@ func free_side(from: Vector3) -> float:
 func body_box() -> AABB:
 	if _body.size != Vector3.ZERO:
 		return _body
-	var skip: Node = door.door_hinge if door != null and door.door_hinge != null else null
+	var skips: Array[Node] = []
+	for opener: InteractiveArea in all_openers():
+		var cabinet := opener as Cabinet
+		if cabinet != null and cabinet.door_hinge != null:
+			skips.append(cabinet.door_hinge)
 	var to_here: Transform3D = global_transform.affine_inverse()
 	for node: Node in get_parent().find_children("*", "MeshInstance3D", true, false):
 		var mesh := node as MeshInstance3D
-		if mesh.mesh == null or is_ancestor_of(mesh) or (skip != null and skip.is_ancestor_of(mesh)) or not mesh.is_visible_in_tree():
+		if mesh.mesh == null or is_ancestor_of(mesh) or not mesh.is_visible_in_tree():
+			continue
+		if skips.any(func(skip: Node) -> bool: return skip.is_ancestor_of(mesh)):
 			continue
 		var part: AABB = (to_here * mesh.global_transform) * mesh.mesh.get_aabb()
 		_body = part if _body.size == Vector3.ZERO else _body.merge(part)
@@ -102,21 +175,26 @@ func is_low(floor_y: float) -> bool:
 	return (global_transform * shelves_box().end).y - floor_y < LOW_TOP_M
 
 
-## F opened the door: the player who did it walks over, crouches if low, and the pack opens beside it.
-func _on_door_toggled(open: bool) -> void:
-	if not open or shelves.is_empty():
-		return
-	var player := get_tree().get_first_node_in_group(&"player") as Node3D
-	if player == null or player.global_position.distance_to(global_position) > VISIT_CALL_M:
-		return
-	var hub := player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
-	if hub != null and not hub.is_open():
-		hub.visit_container(self)
-
-
-## Whether Henry can reach in now (its door, if it has one, is open).
+## Whether Henry can reach in now: always with no way in to open, else when any of its ways in is open.
 func is_reachable() -> bool:
-	return door == null or door.is_open()
+	var ways: Array[InteractiveArea] = all_openers()
+	if ways.is_empty():
+		return true
+	for opener: InteractiveArea in ways:
+		if (opener is Cabinet and (opener as Cabinet).is_open()) or (opener is Drawer and (opener as Drawer).is_open()):
+			return true
+	return false
+
+
+## Its ways in: `door` (when set) and `openers`.
+func all_openers() -> Array[InteractiveArea]:
+	var out: Array[InteractiveArea] = []
+	if door != null:
+		out.append(door)
+	for opener: InteractiveArea in openers:
+		if opener != null and not out.has(opener):
+			out.append(opener)
+	return out
 
 
 ## The shelves' whole space, this node's space.
@@ -353,6 +431,7 @@ func _make_pickup(item: Dictionary) -> ItemPickup:
 	pickup.item_id = item["id"]
 	pickup.instance_state = item["state"]
 	pickup.show_ground_highlight = false  # it stands on a shelf, not the ground
+	pickup.in_container = true  # reached through the search, not F on it
 	add_child(pickup)
 	var box: AABB = BackpackModel._local_bounds(pickup)
 	var collision := CollisionShape3D.new()
