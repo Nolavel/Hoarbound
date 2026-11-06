@@ -17,8 +17,7 @@ const CLOSE_KEY: String = "CABINET_CLOSE"
 @export var open_angle_deg: float = -105.0
 ## The hinge's axis: up for a door, right (X) for a chest's lid.
 @export var swing_axis: Vector3 = Vector3.UP
-## Held out of the way (hold_at), it may stand from this to this far open (same way as open_angle_deg), degrees.
-@export var hold_min_deg: float = 80.0
+## Held out of the way (hold_at, a pack set down beside it), it opens this far (same way as open_angle_deg).
 @export var hold_max_deg: float = 175.0
 ## Prompt keys while shut and while open (a chest says so).
 @export var open_key: String = OPEN_KEY

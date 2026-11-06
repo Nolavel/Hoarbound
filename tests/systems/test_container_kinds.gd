@@ -174,11 +174,30 @@ func _check_clear(id: String, shelves: ItemContainer, camera: Camera3D) -> void:
 	var apart: float = nearest.distance_to(pack.global_position)
 	_check(apart < 0.75, "%s: the pack stands %.2f m off the furniture" % [id, apart])
 	print("container kinds: %s pack opening %.0f degrees off the view, %.2f m off the shelves" % [id, facing, apart])
-	## Side doors as they were held out of the pack's way.
+	## The owner's framing (container_framing.tres) stands at the 727-like floor cabinet: the view as authored,
+	## the pack within 3 cm of its authored place (only lifted so what hangs clears the floor).
+	var framing: ContainerFraming = ContainerFraming.load_saved()
+	if id == "floor_cabinet" and framing != null:
+		var front: Transform3D = ContainerFraming.front_of(shelves)
+		var holds: Array[Node] = root.find_children("*", "PackFrontHold", true, false)
+		var side: float = (holds[0] as PackFrontHold).container_side if not holds.is_empty() else 1.0
+		var view: Vector3 = (front * ContainerFraming.on_side(framing.camera, side)).origin
+		var placed: Vector3 = (front * ContainerFraming.on_side(framing.pack, side)).origin
+		_check(camera.global_position.distance_to(view) < 0.01, "%s: the view left the owner's framing by %.2f m" % [id, camera.global_position.distance_to(view)])
+		_check(pack.global_position.distance_to(placed) < 0.03, "%s: the pack left the owner's framing by %.2f m" % [id, pack.global_position.distance_to(placed)])
+	## A side door on the pack's side stands all the way open, and the pack stands before it, nearer the view.
 	for way: InteractiveArea in shelves.all_openers():
 		var door := way as Cabinet
-		if door != null and door.is_open() and door.swing_axis.is_equal_approx(Vector3.UP):
-			print("container kinds: %s door %s at %.0f degrees" % [id, door.name, rad_to_deg(door.door_hinge.rotation.y)])
+		if door == null or not door.is_open() or not door.swing_axis.is_equal_approx(Vector3.UP):
+			continue
+		var angle: float = absf(rad_to_deg(door.door_hinge.rotation.y))
+		var leaf: Vector3 = door.get_focus_point(camera.global_position)
+		var on_pack_side: bool = (leaf - shelves.front()[0]).dot(shelves.front()[2]) * (pack.global_position - shelves.front()[0]).dot(shelves.front()[2]) > 0.0
+		if on_pack_side:
+			_check(angle > door.hold_max_deg - 1.0, "%s: door %s on the pack's side only opened %.0f degrees" % [id, door.name, angle])
+			_check(camera.global_position.distance_to(pack.global_position) < camera.global_position.distance_to(leaf),
+				"%s: the pack stands behind door %s, not before it" % [id, door.name])
+		print("container kinds: %s door %s at %.0f degrees%s" % [id, door.name, angle, " (pack's side)" if on_pack_side else ""])
 	## Its open face, corner to corner, shows past every part of the furniture (an open door in front hides it).
 	var half: Vector3 = pack.size * 0.45
 	for corner: Vector3 in [Vector3.ZERO, Vector3(-half.x, -half.y, -half.z), Vector3(half.x, -half.y, -half.z),

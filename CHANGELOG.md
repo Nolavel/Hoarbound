@@ -10,7 +10,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 - 3D inventory at furniture: the pack never passes into a cabinet, a drawer or a door, and every item inside shows (owner). Just before the cut the pack moves out until no part of it (body, open panel, what hangs) comes within 2 cm of the furniture. The view then turns up or aside and backs off until it sees each item past everything (`ContainerClearance`).
   - Kitchen cupboard: the open panel went into the right door; drawers: the front panel hid what lay inside.
-  - One fitting for every kind of furniture (owner). The pack's opening turns straight to the camera. Each open side door tries angles until the pack fits where it stands. The pack moves the least way clear, and the view comes as near as frames everything. The two-door cupboard used to push the pack 0.41 m away, because its door opened onto the pack's place; now that door goes to 80°.
+  - One fitting for every kind of furniture (owner).
+    - The owner's framing stands as authored at the 727-like cabinet: the camera exactly, the pack within 3 cm. It had drifted from my pack turn, the camera backing off and a wide reserve under the pan.
+    - A side door on the pack's side opens all the way (175°), and the pack stands before it, nearer the camera.
+    - What hangs off the pack is checked as it really hangs at rest.
+    - Looking down into a drawer or chest, the pack's opening turns to the camera.
 
 - 3D inventory at a cabinet: the pan and other hangers no longer go through the floor or into the cabinet. Both are now obstacles for the hangers.
   - Owner's framing: the camera turned a little right, the pack further right and a little higher (the pan hangs free), Henry out of the frame.
