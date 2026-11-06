@@ -77,7 +77,7 @@ agent branch.
 | **Author (human)** | any | Design, narrative, art direction, final say on scope and integration. |
 | **Claude** | `claudeflow` | Technical direction: architecture, engine baseline, build/CI, headless render pipeline, code review. See `CLAUDE.md`. |
 | **Codex** | `codex` | Implementation and engineering: gameplay, physics, rendering, UI, world systems, tooling, refactors, runtime validation, and production integration work it opens. |
-| **Grok** | `grok` | Commercial readiness, scope control, vertical-slice readiness audits, risk matrix, and related technical docs. Proposes only; does not auto-implement gameplay. |
+| **MCode (minimax)** | `minimax` | Systems engineering: ownership of state, atomicity and rollback, cross-language capability contracts, Godot headless / CI / profiling. Researches and implements in this branch only; proposes, does not integrate on its own. |
 
 Handover rules:
 
