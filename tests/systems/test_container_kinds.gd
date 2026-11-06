@@ -163,6 +163,17 @@ func _check_clear(id: String, shelves: ItemContainer, camera: Camera3D) -> void:
 	var pack_middle: Vector3 = pack.global_position
 	_check(Rect2(Vector2.ZERO, size).has_point(camera.unproject_position(pack_middle)) and not camera.is_position_behind(pack_middle),
 		"%s: the pack is off screen" % id)
+	## Looked down on, the pack tips back: its opening turns to within 40 degrees of the view.
+	var to_eye: Vector3 = (camera.global_position - pack.global_position).normalized()
+	if camera.global_basis.z.normalized().y > sin(deg_to_rad(20.0)):
+		var facing: float = rad_to_deg(acos(clampf((-pack.global_basis.z.normalized()).dot(to_eye), -1.0, 1.0)))
+		_check(facing < 40.0, "%s: seen from above, the pack's opening is %.0f degrees off the view" % [id, facing])
+		print("container kinds: %s seen from above, opening %.0f degrees off the view" % [id, facing])
+	## A side door on the pack's side stands wide, out of its way.
+	for way: InteractiveArea in shelves.all_openers():
+		var door := way as Cabinet
+		if door != null and door.is_open() and door.swing_axis.is_equal_approx(Vector3.UP):
+			print("container kinds: %s door %s at %.0f degrees" % [id, door.name, rad_to_deg(door.door_hinge.rotation.y)])
 	## Its open face, corner to corner, shows past every part of the furniture (an open door in front hides it).
 	var half: Vector3 = pack.size * 0.45
 	for corner: Vector3 in [Vector3.ZERO, Vector3(-half.x, -half.y, -half.z), Vector3(half.x, -half.y, -half.z),

@@ -17,6 +17,8 @@ const CLOSE_KEY: String = "CABINET_CLOSE"
 @export var open_angle_deg: float = -105.0
 ## The hinge's axis: up for a door, right (X) for a chest's lid.
 @export var swing_axis: Vector3 = Vector3.UP
+## A side-hinged door swings this far (same way as open_angle_deg) to make room for the pack set down beside it.
+@export var wide_angle_deg: float = 165.0
 ## Prompt keys while shut and while open (a chest says so).
 @export var open_key: String = OPEN_KEY
 @export var close_key: String = CLOSE_KEY
@@ -25,6 +27,7 @@ const CLOSE_KEY: String = "CABINET_CLOSE"
 @export_range(0.1, 2.0, 0.05) var swing_time: float = 0.55
 
 var _open: bool = false
+var _wide: bool = false
 var _tween: Tween
 
 
@@ -59,8 +62,33 @@ func is_swinging() -> bool:
 	return _tween != null and _tween.is_running()
 
 
+## Open, it is put at wide_angle_deg at once (at a hard cut of the view, so no swing shows).
+func open_wide() -> void:
+	if not _open or door_hinge == null:
+		return
+	if _tween != null:
+		_tween.kill()
+	_wide = true
+	door_hinge.rotation = swing_axis.normalized() * deg_to_rad(signf(open_angle_deg) * absf(wide_angle_deg))
+
+
+## From wide, it swings back to its usual open angle.
+func end_wide() -> void:
+	if not _wide or door_hinge == null:
+		return
+	_wide = false
+	if not _open:
+		return
+	_tween = create_tween()
+	_tween.tween_property(door_hinge, ^"rotation", swing_axis.normalized() * deg_to_rad(open_angle_deg), swing_time) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
 func _on_interaction_performed() -> void:
 	_open = not _open
+	_wide = false
+	if _tween != null:
+		_tween.kill()
 	var target: Vector3 = swing_axis.normalized() * deg_to_rad(open_angle_deg) if _open else Vector3.ZERO
 	_tween = create_tween()
 	_tween.tween_interval(hand_delay)
