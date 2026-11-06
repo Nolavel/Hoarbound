@@ -10,13 +10,39 @@ scene="${1:?scene path required}"
 out="${2:-user://shots/shot.png}"
 frames="${3:-30}"
 
-export VK_DRIVER_FILES="${VK_DRIVER_FILES:-/usr/share/vulkan/icd.d/lvp_icd.json}"
+## The lavapipe ICD is named differently across distributions. A path that does not
+## exist leaves the loader with no driver, and Godot then falls back to OpenGL and
+## still writes a PNG - so take the first name that is actually there.
+if [ -z "${VK_DRIVER_FILES:-}" ]; then
+	for candidate in \
+		/usr/share/vulkan/icd.d/lvp_icd.x86_64.json \
+		/usr/share/vulkan/icd.d/lvp_icd.json; do
+		if [ -f "$candidate" ]; then
+			export VK_DRIVER_FILES="$candidate"
+			break
+		fi
+	done
+fi
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/xdg}"
 mkdir -p "$XDG_RUNTIME_DIR"
 
-exec xvfb-run -a "$GODOT_BIN" \
+log="$(mktemp)"
+trap 'rm -f "$log"' EXIT
+
+if ! xvfb-run -a "$GODOT_BIN" \
 	--path "$PROJECT_DIR" \
 	--rendering-driver vulkan \
 	--rendering-method forward_plus \
 	--audio-driver Dummy \
-	--script tools/ci/screenshot.gd -- "$scene" "$out" "$frames"
+	--script tools/ci/screenshot.gd -- "$scene" "$out" "$frames" 2>&1 | tee "$log"; then
+	echo "render.sh: the render failed" >&2
+	exit 1
+fi
+
+## A Vulkan run that fell back to OpenGL writes a PNG just the same, and that PNG
+## does not show Forward+. Say so instead of handing out a picture of the wrong
+## renderer.
+if ! grep -q "Forward+" "$log"; then
+	echo "render.sh: the render did not run Forward+ (Vulkan); see the log above" >&2
+	exit 1
+fi
