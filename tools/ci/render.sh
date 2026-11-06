@@ -41,8 +41,9 @@ fi
 
 ## A Vulkan run that fell back to OpenGL writes a PNG just the same, and that PNG
 ## does not show Forward+. Say so instead of handing out a picture of the wrong
-## renderer.
-if ! grep -q "Forward+" "$log"; then
+## renderer. The word "Forward+" also turns up in the OpenGL warnings, so the
+## renderer's own banner is what is looked for.
+if ! grep -qE "Vulkan .*Forward\+.*Using Device" "$log"; then
 	echo "render.sh: the render did not run Forward+ (Vulkan); see the log above" >&2
 	exit 1
 fi
