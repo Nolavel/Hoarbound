@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ## Renders a scene to PNG on CPU (lavapipe + Xvfb). No GPU required.
-## Usage: tools/ci/render.sh <res://scene.tscn> <out.png> [frames]
+## Usage: bash tools/ci/render.sh <res://scene.tscn> <out.png> [frames]
 set -euo pipefail
 
 GODOT_BIN="${GODOT_BIN:-$HOME/.local/bin/godot}"
