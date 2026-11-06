@@ -17,8 +17,9 @@ const CLOSE_KEY: String = "CABINET_CLOSE"
 @export var open_angle_deg: float = -105.0
 ## The hinge's axis: up for a door, right (X) for a chest's lid.
 @export var swing_axis: Vector3 = Vector3.UP
-## A side-hinged door swings this far (same way as open_angle_deg) to make room for the pack set down beside it.
-@export var wide_angle_deg: float = 165.0
+## Held out of the way (hold_at), it may stand from this to this far open (same way as open_angle_deg), degrees.
+@export var hold_min_deg: float = 80.0
+@export var hold_max_deg: float = 175.0
 ## Prompt keys while shut and while open (a chest says so).
 @export var open_key: String = OPEN_KEY
 @export var close_key: String = CLOSE_KEY
@@ -27,7 +28,7 @@ const CLOSE_KEY: String = "CABINET_CLOSE"
 @export_range(0.1, 2.0, 0.05) var swing_time: float = 0.55
 
 var _open: bool = false
-var _wide: bool = false
+var _held: bool = false
 var _tween: Tween
 
 
@@ -62,21 +63,22 @@ func is_swinging() -> bool:
 	return _tween != null and _tween.is_running()
 
 
-## Open, it is put at wide_angle_deg at once (at a hard cut of the view, so no swing shows).
-func open_wide() -> void:
+## Open, it is held at `degrees` (about swing_axis) at once: a hard cut of the view hides the jump. Only to keep
+## it out of the way of what is done beside it (the pack); release_hold() swings it back.
+func hold_at(degrees: float) -> void:
 	if not _open or door_hinge == null:
 		return
 	if _tween != null:
 		_tween.kill()
-	_wide = true
-	door_hinge.rotation = swing_axis.normalized() * deg_to_rad(signf(open_angle_deg) * absf(wide_angle_deg))
+	_held = true
+	door_hinge.rotation = swing_axis.normalized() * deg_to_rad(degrees)
 
 
-## From wide, it swings back to its usual open angle.
-func end_wide() -> void:
-	if not _wide or door_hinge == null:
+## From a hold, it swings back to its usual open angle.
+func release_hold() -> void:
+	if not _held or door_hinge == null:
 		return
-	_wide = false
+	_held = false
 	if not _open:
 		return
 	_tween = create_tween()
@@ -86,7 +88,7 @@ func end_wide() -> void:
 
 func _on_interaction_performed() -> void:
 	_open = not _open
-	_wide = false
+	_held = false
 	if _tween != null:
 		_tween.kill()
 	var target: Vector3 = swing_axis.normalized() * deg_to_rad(open_angle_deg) if _open else Vector3.ZERO

@@ -10,14 +10,14 @@ const STEP_M: float = 0.01
 const MAX_PUSH_M: float = 1.2
 ## What hangs off the pack keeps this far over the floor, metres.
 const FLOOR_CLEAR_M: float = 0.03
-## A hanger (the pan, the mug) takes up this far around the line under its pin, metres.
-const HANG_HALF_M: float = 0.1
 ## The view turns up and aside in these steps, at most this far; it backs off in these steps, at most this far.
 const TURN_STEP_DEG: float = 5.0
 const TURN_UP_MAX_DEG: float = 50.0
 const TURN_SIDE_MAX_DEG: float = 30.0
 const BACK_STEP_M: float = 0.05
 const BACK_MAX_M: float = 1.5
+## It first tries this much nearer, so what is framed fills the frame (tight), metres.
+const NEAR_MAX_M: float = 0.6
 ## What is framed stays within this much of the frame (NDC), the load bar and the cards' strips left free.
 const FRAME_EDGE_X: float = 0.95
 const FRAME_TOP: float = 0.88
@@ -37,7 +37,8 @@ static func furniture_parts(container: ItemContainer) -> Array:
 
 
 ## What the pack takes up, in its own space, its front panel folded `panel_deg` out: [[Transform3D, AABB], ...]
-## (its rigid meshes, the open panel's sweep, a column under each hanger's pin reaching as low as it hangs).
+## (its meshes, the open panel's sweep, a column under each pin as deep and wide as its hanger: placed at a cut,
+## a hanger already inside a part could never swing clear of it by contact).
 static func pack_shape(pack: PackRig, panel_deg: float) -> Array:
 	var to_pack: Transform3D = pack.global_transform.affine_inverse()
 	var canvas: BackpackModel = pack.get_canvas()
@@ -55,6 +56,29 @@ static func pack_shape(pack: PackRig, panel_deg: float) -> Array:
 		var hang := node as PendulumHang
 		var pin: Vector3 = to_pack * hang.global_position
 		var reach: float = 0.0
+		var wide: float = 0.0
+		for part: Node in hang.find_children("*", "MeshInstance3D", true, false):
+			var mesh := part as MeshInstance3D
+			if mesh.mesh == null or not mesh.is_visible_in_tree():
+				continue
+			var box: AABB = mesh.global_transform * mesh.mesh.get_aabb()
+			for i: int in 8:
+				var off: Vector3 = box.get_endpoint(i) - hang.global_position
+				reach = maxf(reach, off.length())
+				wide = maxf(wide, Vector2(off.x, off.z).length())
+		if reach > 0.0:
+			var half: float = minf(wide, reach) * 0.5
+			var low := Vector3(pin.x - half, pin.y - reach, pin.z - half)
+			shape.append([Transform3D.IDENTITY, AABB(low, Vector3(half * 2.0, reach, half * 2.0))])
+	return shape
+
+
+## How far below the pack's middle what hangs off it reaches at most (each pin's height less its reach), metres.
+static func hang_depth(pack: PackRig) -> float:
+	var deepest: float = pack.size.y * 0.5
+	for node: Node in pack.find_children("*", "PendulumHang", true, false):
+		var hang := node as PendulumHang
+		var reach: float = 0.0
 		for part: Node in hang.find_children("*", "MeshInstance3D", true, false):
 			var mesh := part as MeshInstance3D
 			if mesh.mesh == null or not mesh.is_visible_in_tree():
@@ -62,27 +86,31 @@ static func pack_shape(pack: PackRig, panel_deg: float) -> Array:
 			var box: AABB = mesh.global_transform * mesh.mesh.get_aabb()
 			for i: int in 8:
 				reach = maxf(reach, box.get_endpoint(i).distance_to(hang.global_position))
-		if reach > 0.0:
-			var low := Vector3(pin.x - HANG_HALF_M, pin.y - reach, pin.z - HANG_HALF_M)
-			shape.append([Transform3D.IDENTITY, AABB(low, Vector3(HANG_HALF_M * 2.0, reach, HANG_HALF_M * 2.0))])
-	return shape
+		var pin_drop: float = (pack.global_transform.affine_inverse() * hang.global_position).y
+		deepest = maxf(deepest, reach - pin_drop)
+	return deepest
 
 
-## The pack's place moved along `out` (world, flat) until no part of `shape` there comes within GAP_M of any of
-## `parts`, then lifted until it clears the floor at `floor_y`.
-static func place_pack(placed: Transform3D, shape: Array, parts: Array, out: Vector3, floor_y: float) -> Transform3D:
-	var step: Vector3 = out.normalized() * STEP_M
-	for _i: int in int(MAX_PUSH_M / STEP_M):
-		if not touches(placed, shape, parts, GAP_M):
-			break
-		placed.origin += step
-	var lowest: float = INF
-	for part: Array in shape:
-		var xf: Transform3D = placed * (part[0] as Transform3D)
-		for i: int in 8:
-			lowest = minf(lowest, (xf * (part[1] as AABB).get_endpoint(i)).y)
-	placed.origin.y += maxf(floor_y + FLOOR_CLEAR_M - lowest, 0.0)
-	return placed
+## The pack's place moved the least way, along one of `ways` (world), until no part of `shape` there comes within
+## GAP_M of any of `parts`, then lifted until what hangs `depth` below its middle clears the floor at `floor_y`:
+## [Transform3D, the distance moved (INF when no way clears within MAX_PUSH_M)].
+static func place_pack(placed: Transform3D, shape: Array, parts: Array, ways: Array[Vector3], floor_y: float,
+		depth: float) -> Array:
+	placed.origin.y += maxf(floor_y + FLOOR_CLEAR_M + depth - placed.origin.y, 0.0)
+	var best: Transform3D = placed
+	var moved: float = INF
+	for way: Vector3 in ways:
+		var step: Vector3 = way.normalized() * STEP_M
+		var at: Transform3D = placed
+		for i: int in int(MAX_PUSH_M / STEP_M) + 1:
+			if i * STEP_M >= moved:
+				break
+			if not touches(at, shape, parts, GAP_M):
+				best = at
+				moved = i * STEP_M
+				break
+			at.origin += step
+	return [best, moved]
 
 
 ## Whether any of `shape` placed at `placed` comes within `gap` of any of `parts`.
@@ -97,9 +125,10 @@ static func touches(placed: Transform3D, shape: Array, parts: Array, gap: float)
 
 ## The view turned about what it frames (up first, then aside, the least turn that works) and backed off until
 ## it sees every one of `targets` past `parts` and `pack_parts`, every one of `framed` (the pack) past `parts`,
-## stands in no part and frames them all (world): the view unchanged when none works.
-static func aim_view(view: Transform3D, targets: Array[Vector3], framed: Array[Vector3], parts: Array,
-		pack_parts: Array, fov: float, aspect: float) -> Transform3D:
+## stands in no part and frames them all with `scenery` (world; framed, not needed in sight), as near as that
+## allows: the view unchanged when none works.
+static func aim_view(view: Transform3D, targets: Array[Vector3], framed: Array[Vector3], scenery: Array[Vector3],
+		parts: Array, pack_parts: Array, fov: float, aspect: float) -> Transform3D:
 	var blockers: Array = parts.duplicate()
 	blockers.append_array(pack_parts)
 	var pivot := Vector3.ZERO
@@ -119,19 +148,19 @@ static func aim_view(view: Transform3D, targets: Array[Vector3], framed: Array[V
 	var tans := Vector2(tan(deg_to_rad(fov) * 0.5) * aspect, tan(deg_to_rad(fov) * 0.5))
 	var all: Array[Vector3] = targets.duplicate()
 	all.append_array(framed)
+	all.append_array(scenery)
 	for turn: Vector2 in turns:
 		var spin := Basis(Vector3.UP, deg_to_rad(turn.y)) * Basis(view.basis.x.normalized(), -deg_to_rad(turn.x))
 		var turned := Transform3D(spin * view.basis, pivot + spin * (view.origin - pivot))
 		if turned.basis.y.y <= 0.05:
 			continue
-		var back: float = 0.0
+		var back: float = -NEAR_MAX_M
 		while back <= BACK_MAX_M:
 			var eye := Transform3D(turned.basis, turned.origin + turned.basis.z.normalized() * back)
 			if _frames_all(eye, all, tans):
 				if _sees_all(eye.origin, targets, blockers) and _sees_all(eye.origin, framed, parts) \
 						and not _inside_any(eye.origin, blockers):
 					return eye
-				break
 			back += BACK_STEP_M
 	return view
 

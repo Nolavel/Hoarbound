@@ -7,7 +7,7 @@ extends SceneTree
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
 const ROW: String = "res://tests/scenes/container_row.tscn"
 const SEARCHED: Array = [["floor_cabinet", ["floor_cabinet"]], ["cupboard", ["cupboard_left", "cupboard_right"]],
-	["drawer_top", ["drawer_top"]], ["drawer_middle", ["drawer_middle"]]]
+	["drawer_top", ["drawer_top"]], ["drawer_middle", ["drawer_middle"]], ["chest", ["chest"]]]
 
 var _out: String = "user://shots/container_row"
 

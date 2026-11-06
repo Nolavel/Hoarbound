@@ -22,7 +22,7 @@ const CASES: Array = [
 	["drawer_top", ["drawer_top"], true, true],
 	["drawer_middle", ["drawer_middle"], true, true],
 	["drawer_bottom", ["drawer_bottom"], false, true],
-	["chest", ["chest"], false, true],
+	["chest", ["chest"], true, true],
 ]
 ## Henry stands this far out from a container's front to search it, metres.
 const STAND_M: float = 0.9
@@ -147,7 +147,7 @@ func _check_clear(id: String, shelves: ItemContainer, camera: Camera3D) -> void:
 			if ContainerClearance.boxes_overlap(piece[0], piece[1], part[0], part[1], 0.0):
 				hits += 1
 				if hits <= 3:
-					push_error("container kinds: %s: pack mesh %s passes into the furniture" % [id, piece[2]])
+					push_error("container kinds: %s: pack mesh %s passes into the furniture part %s at %s" % [id, piece[2], part[1], (part[0] as Transform3D).origin])
 	_check(hits == 0, "%s: %d pack meshes pass into the furniture" % [id, hits])
 	var blockers: Array = parts.duplicate()
 	blockers.append_array(mine)
@@ -163,13 +163,18 @@ func _check_clear(id: String, shelves: ItemContainer, camera: Camera3D) -> void:
 	var pack_middle: Vector3 = pack.global_position
 	_check(Rect2(Vector2.ZERO, size).has_point(camera.unproject_position(pack_middle)) and not camera.is_position_behind(pack_middle),
 		"%s: the pack is off screen" % id)
-	## Looked down on, the pack tips back: its opening turns to within 40 degrees of the view.
+	## The pack's opening faces the view (within 15 degrees; a view from far above is met up to 50 degrees back).
 	var to_eye: Vector3 = (camera.global_position - pack.global_position).normalized()
-	if camera.global_basis.z.normalized().y > sin(deg_to_rad(20.0)):
-		var facing: float = rad_to_deg(acos(clampf((-pack.global_basis.z.normalized()).dot(to_eye), -1.0, 1.0)))
-		_check(facing < 40.0, "%s: seen from above, the pack's opening is %.0f degrees off the view" % [id, facing])
-		print("container kinds: %s seen from above, opening %.0f degrees off the view" % [id, facing])
-	## A side door on the pack's side stands wide, out of its way.
+	var facing: float = rad_to_deg(acos(clampf((-pack.global_basis.z.normalized()).dot(to_eye), -1.0, 1.0)))
+	var steep: float = maxf(rad_to_deg(asin(clampf(to_eye.y, -1.0, 1.0))) - 50.0, 0.0)
+	_check(facing < 15.0 + steep, "%s: the pack's opening is %.0f degrees off the view" % [id, facing])
+	## It stays by the furniture: its middle within 0.75 m of the open face's nearest edge.
+	var face: AABB = shelves.global_transform * shelves.shelves_box()
+	var nearest: Vector3 = pack.global_position.clamp(face.position, face.end)
+	var apart: float = nearest.distance_to(pack.global_position)
+	_check(apart < 0.75, "%s: the pack stands %.2f m off the furniture" % [id, apart])
+	print("container kinds: %s pack opening %.0f degrees off the view, %.2f m off the shelves" % [id, facing, apart])
+	## Side doors as they were held out of the pack's way.
 	for way: InteractiveArea in shelves.all_openers():
 		var door := way as Cabinet
 		if door != null and door.is_open() and door.swing_axis.is_equal_approx(Vector3.UP):

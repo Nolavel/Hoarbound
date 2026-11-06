@@ -50,11 +50,10 @@ const CONTAINER_PACK_PLANE: float = 0.75
 const CONTAINER_OPENS_UP_DEG: float = 55.0
 ## The shelves the framing was authored on (the 727 cabinet's, width and height), metres.
 const CONTAINER_REF_SHELVES: Vector2 = Vector2(0.74, 0.81)
-## Viewed from above (looking down more than CONTAINER_TILT_FROM_DEG), the pack tips back by this share of the
-## view's drop, at most CONTAINER_TILT_MAX_DEG, its opening turned up to the view (owner: its contents read).
-const CONTAINER_TILT_FROM_DEG: float = 20.0
-const CONTAINER_TILT_SHARE: float = 0.65
-const CONTAINER_TILT_MAX_DEG: float = 40.0
+## The pack's opening faces the view, tipped back to look up at it at most this far (owner: its contents read);
+## side doors are tried in this step out of the pack's way, degrees.
+const CONTAINER_FACE_TIP_DEG: float = 50.0
+const CONTAINER_DOOR_STEP_DEG: float = 5.0
 ## The front panel opens this far there, so it lies on the floor (fully open it would dip under), degrees.
 const CONTAINER_PANEL_DEG: float = 88.0
 ## The strap that stays over a shoulder while the pack is held (0 left, 1 right).
@@ -92,8 +91,8 @@ var _framing: ContainerFraming
 ## Once the pack is off his back at a container, it is in its framed place by the furniture (the view cuts).
 var _container_cut: bool = false
 var _container_fov: float = 50.0
-## Doors swung wide to make room for the pack (put back on finish).
-var _widened: Array[Cabinet] = []
+## Doors held out of the pack's way (swung back on finish).
+var _held_doors: Array[Cabinet] = []
 ## Each pinned hanger's own hinge_out while it turns out by a container (put back after).
 var _hanger_lean: Dictionary = {}
 var _home_parent: Node
@@ -175,10 +174,10 @@ func finish() -> void:
 	visual.visible = true
 	pack.get_canvas().hang_floor_y = -INF
 	pack.get_canvas().hang_obstacles = []
-	for door: Cabinet in _widened:
+	for door: Cabinet in _held_doors:
 		if is_instance_valid(door):
-			door.end_wide()
-	_widened.clear()
+			door.release_hold()
+	_held_doors.clear()
 	for hang: PendulumHang in _hanger_lean:
 		if is_instance_valid(hang):
 			hang.hinge_out = _hanger_lean[hang]
@@ -228,44 +227,93 @@ func container_view(_fov: float) -> Transform3D:
 	return _container_view
 
 
-## Just before the cut: the pack moves out from the furniture until no part of it comes near any of its parts
-## (doors and drawers as they stand), and the view turns until it sees every item inside and the pack past them.
+## Just before the cut, the working frame is fitted to this piece of furniture (owner: one system for every kind):
+## the pack's opening faces the view; side doors turn to the angle that leaves the pack its place; the pack moves
+## the least way clear of every part; the view turns until it sees every item and the pack, as near as it frames.
 func _clear_container() -> void:
-	## A side-hinged door on the pack's side swings wide, out of its way (owner).
-	for opener: InteractiveArea in container.all_openers():
-		var door := opener as Cabinet
-		if door == null or not door.is_open() or door.door_hinge == null or not door.swing_axis.is_equal_approx(Vector3.UP):
-			continue
-		var hinge: Vector3 = container.global_transform.affine_inverse() * door.door_hinge.global_position
-		if signf(hinge.x - container.shelves_box().get_center().x) == container_side:
-			door.open_wide()
-			_widened.append(door)
-	## Looked down on, the pack tips back so its open inside faces the view.
-	var drop: float = rad_to_deg(asin(clampf(_container_view.basis.z.normalized().y, -1.0, 1.0)))
-	if drop > CONTAINER_TILT_FROM_DEG:
-		var tilt: float = deg_to_rad(minf(drop * CONTAINER_TILT_SHARE, CONTAINER_TILT_MAX_DEG))
-		_container_pack.basis = Basis(_container_pack.basis.x.normalized(), tilt) * _container_pack.basis
-	var parts: Array = ContainerClearance.furniture_parts(container)
+	var size: Vector2 = container.get_viewport().get_visible_rect().size
+	var aspect: float = size.x / maxf(size.y, 1.0)
+	var depth: float = ContainerClearance.hang_depth(pack)
+	var floor_y: float = visual.global_position.y
+	_face_view()
 	var shape: Array = ContainerClearance.pack_shape(pack, CONTAINER_PANEL_DEG)
-	var out: Vector3 = (container.front()[2] as Vector3) * container_side
-	_container_pack = ContainerClearance.place_pack(_container_pack, shape, parts, out, visual.global_position.y)
-	var placed: Array = []
-	for mine: Array in shape:
-		placed.append([_container_pack * (mine[0] as Transform3D), mine[1]])
+	_fit_doors(shape, floor_y, depth)
+	var parts: Array = ContainerClearance.furniture_parts(container)
+	_container_pack = ContainerClearance.place_pack(_container_pack, shape, parts, _ways_out(), floor_y, depth)[0]
 	var targets: Array[Vector3] = []
 	for item: Dictionary in container.items:
 		var pickup: Node3D = item["pickup"]
 		if is_instance_valid(pickup):
 			targets.append(ContainerClearance.middle_of(pickup))
-	## The pack's body: its middle and the corners of its open face, seen past the furniture.
-	var half: Vector3 = pack.size * 0.5
-	var framed: Array[Vector3] = [_container_pack.origin]
-	for corner: Vector3 in [Vector3(-half.x, -half.y, -half.z), Vector3(half.x, -half.y, -half.z),
-			Vector3(-half.x, half.y, -half.z), Vector3(half.x, half.y, -half.z)]:
-		framed.append(_container_pack * (corner * 0.9))
-	var size: Vector2 = container.get_viewport().get_visible_rect().size
-	_container_view = ContainerClearance.aim_view(_container_view, targets, framed, parts, placed, _container_fov, size.x / maxf(size.y, 1.0))
+	var scenery: Array[Vector3] = []
+	var box: AABB = container.shelves_box()
+	for i: int in 8:
+		scenery.append(container.global_transform * box.get_endpoint(i))
+	## Twice: the view moves, the pack turns to it again and is placed clear again.
+	for _pass: int in 2:
+		var placed: Array = []
+		for mine: Array in shape:
+			placed.append([_container_pack * (mine[0] as Transform3D), mine[1]])
+		var half: Vector3 = pack.size * 0.5
+		var framed: Array[Vector3] = [_container_pack.origin]
+		for corner: Vector3 in [Vector3(-half.x, -half.y, -half.z), Vector3(half.x, -half.y, -half.z),
+				Vector3(-half.x, half.y, -half.z), Vector3(half.x, half.y, -half.z)]:
+			framed.append(_container_pack * (corner * 0.9))
+		_container_view = ContainerClearance.aim_view(_container_view, targets, framed, scenery, parts, placed,
+			_container_fov, aspect)
+		_face_view()
+		_container_pack = ContainerClearance.place_pack(_container_pack, shape, parts, _ways_out(), floor_y, depth)[0]
 	pack.get_canvas().hang_obstacles = parts
+
+
+## The pack turned so its opening (-Z) looks straight at the view, tipped back at most CONTAINER_FACE_TIP_DEG.
+func _face_view() -> void:
+	var to_eye: Vector3 = _container_view.origin - _container_pack.origin
+	var flat: Vector3 = to_eye.slide(Vector3.UP)
+	if flat.length() < 0.01:
+		return
+	var tip: float = minf(atan2(to_eye.y, flat.length()), deg_to_rad(CONTAINER_FACE_TIP_DEG))
+	var look: Vector3 = flat.normalized() * cos(tip) + Vector3.UP * sin(tip)
+	_container_pack.basis = Basis.looking_at(look, Vector3.UP)
+
+
+## Each open side door tries angles from where it stands outward (Cabinet.hold_min_deg..hold_max_deg) and keeps the
+## first that lets the pack stay where it is, else the one that moves it least (owner: doors turn out of our way).
+func _fit_doors(shape: Array, floor_y: float, depth: float) -> void:
+	for opener: InteractiveArea in container.all_openers():
+		var door := opener as Cabinet
+		if door == null or not door.is_open() or door.door_hinge == null or not door.swing_axis.is_equal_approx(Vector3.UP):
+			continue
+		var way: float = signf(door.open_angle_deg)
+		var angles: Array[float] = [absf(door.open_angle_deg)]
+		var step: float = CONTAINER_DOOR_STEP_DEG
+		while step <= 180.0:
+			for angle: float in [absf(door.open_angle_deg) + step, absf(door.open_angle_deg) - step]:
+				if angle >= door.hold_min_deg and angle <= door.hold_max_deg:
+					angles.append(angle)
+			step += CONTAINER_DOOR_STEP_DEG
+		var best: float = angles[0]
+		var least: float = INF
+		for angle: float in angles:
+			door.hold_at(way * angle)
+			var moved: float = ContainerClearance.place_pack(_container_pack, shape,
+				ContainerClearance.furniture_parts(container), _ways_out(), floor_y, depth)[1]
+			if moved < least - 0.005:
+				least = moved
+				best = angle
+			if moved <= 0.0:
+				break
+		door.hold_at(way * best)
+		_held_doors.append(door)
+
+
+## The ways the pack may move off the furniture: out to its side, out in front, up, and between them (world).
+func _ways_out() -> Array[Vector3]:
+	var face: Array = container.front()
+	var side: Vector3 = (face[2] as Vector3) * container_side
+	var out: Vector3 = face[1]
+	return [side, out, Vector3.UP, (side + out).normalized(), (side + Vector3.UP).normalized(),
+		(out + Vector3.UP).normalized()]
 
 
 ## By a container what hangs on a pin (the pan, the mug) turns toward the view if it meets the floor

@@ -2,7 +2,7 @@ class_name ContainerRow
 extends Node3D
 
 ## A row of furniture for trying the container search (owner): a floor cabinet, a kitchen cupboard with two doors
-## high on the wall, a dresser with three drawers, a floor chest with a lid. Some hold things, some are empty.
+## high on the wall, a dresser with three drawers, a floor chest with a lid. Some hold things, the bottom drawer is empty.
 ## Built when it enters the tree; each piece's front faces this node's +Z, spaced along +X.
 
 ## Each piece's distance from the last along +X, metres.
@@ -17,7 +17,7 @@ const WALL: Color = Color(0.55, 0.55, 0.52)
 @export var top_drawer_items: Array[StringName] = [&"spov_can", &"lighter"]
 @export var middle_drawer_items: Array[StringName] = [&"tinder"]
 @export var bottom_drawer_items: Array[StringName] = []
-@export var chest_items: Array[StringName] = []
+@export var chest_items: Array[StringName] = [&"tinned_pineapple", &"spov_can", &"lighter"]
 
 ## The row's containers by name (floor_cabinet, cupboard, drawer_top, drawer_middle, drawer_bottom, chest).
 var containers: Dictionary = {}
