@@ -33,6 +33,9 @@ func _ready() -> void:
 	var equipment: EquipmentComponent = _equipment()
 	if equipment != null:
 		equipment.slot_changed.connect(func(_a: StringName, _b: StringName) -> void: _queue_sync())
+	## The hands protocol lives at the boundary. A burning flare cannot be put
+	## away, and is_holding_unlit is the guard its release uses.
+	HeldReleaseCapability.publish(self, &"is_holding", &"is_holding_unlit", &"put_away_unlit")
 
 
 ## G drops a burning flare where an armful would be dropped.

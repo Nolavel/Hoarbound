@@ -70,6 +70,9 @@ func _ready() -> void:
 		inventory.weight_changed.connect(func(_a: float, _b: float) -> void: _queue_sync())
 	if equipment != null:
 		equipment.slot_changed.connect(func(_a: StringName, _b: StringName) -> void: _queue_sync())
+	## The hands protocol lives at the boundary: what this holder holds, whether
+	## it may let go, and how it lets go.
+	HeldReleaseCapability.publish(self, &"is_holding", &"is_holding", &"put_away_unlit")
 
 
 func supports_item(item_id: StringName) -> bool:

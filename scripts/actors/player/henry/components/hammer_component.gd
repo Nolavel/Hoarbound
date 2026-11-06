@@ -22,6 +22,9 @@ func _ready() -> void:
 	var equipment: EquipmentComponent = _equipment()
 	if equipment != null:
 		equipment.slot_changed.connect(func(_a: StringName, _b: StringName) -> void: _queue_sync())
+	## The hands protocol lives at the boundary: what this holder holds, whether
+	## it may let go, and how it lets go.
+	HeldReleaseCapability.publish(self, &"is_holding", &"is_holding", &"put_away_unlit")
 
 
 func can_use(item_id: StringName) -> bool:
