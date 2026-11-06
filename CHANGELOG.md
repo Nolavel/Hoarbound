@@ -23,6 +23,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Architecture docs: a contract policy (ARCHITECTURE §16, RU too) and decision records (§17, `docs/technical/adr/`).
+  - §16 has a table of when to use a direct call, a signal, a command with a result, a capability or injection, and four rules for cross-system links.
+  - It classifies the existing `has_method` uses into kinds A–E; the current count is a temporary debt baseline.
+  - It works through two references: `SaveParticipantCapability` and `HandsTransaction` (its partial commit).
+  - The decision records: ADR 0001 no global ECS, ADR 0002 capabilities only at real seams, ADR 0003 GodotPhysics3D and native code after profiling.
+
 - Claude tooling: project skill `hoarbound-godot-studio` with review lenses for the engine, GDScript, C#, shaders and GDExtension, and procedures for code review, performance profiles, asset audits and test evidence. Adapted by selection from Claude Code Game Studios (MIT, attribution in the skill's `NOTICE.md`). Its hooks, settings and process are not adopted.
 
 - 3D inventory at furniture, owner's design: the second F (the eye) searches where Henry stands. He walks up himself, so he no longer walks to a point; he only faces it and crouches at low furniture.

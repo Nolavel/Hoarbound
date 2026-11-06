@@ -111,6 +111,8 @@ Signals are appropriate for facts that happened. Commands / explicit methods are
 
 Do not introduce a global event bus merely to hide dependencies. Dependencies should remain visible and directional.
 
+How to choose between a direct call, a signal, a command, a capability and injection, and which dynamic calls are allowed, is in §16.
+
 ## 7. Cross-language capability contracts
 
 Hoarbound uses a small Godot-visible capability boundary when a subsystem contract must survive different implementation languages or unrelated Node classes.
@@ -315,3 +317,55 @@ The target is not a fashionable architecture label. A subsystem is healthy when 
 - if the implementation changes language, which public contract stays stable?
 
 If those answers are clear, the system is moving toward production shape.
+
+## 16. Contract policy: how systems talk
+
+Pick the mechanism by what the interaction **means**, not by what is shortest to write. The five are not interchangeable:
+
+| Meaning | Mechanism | Example |
+|---|---|---|
+| A known component, a mandatory dependency, inside one subsystem | Typed direct call through a typed reference | `inventory.add_item(item)` |
+| Something happened; anyone may listen | Typed signal | `contents_changed`, `door_toggled(open)` |
+| One owner asks another to act; it may refuse | Command with a result (a refusal value, never a silent skip) | `HandsTransaction.commit() -> Refusal` |
+| A stable seam that unrelated classes or another language must satisfy | Capability adapter under `core/contracts/` | `SaveParticipantCapability` |
+| A subsystem needs a dependency it does not own | Injection by its owner or the composition root (`world/world.gd`, `WorldContext`) | `@export` reference, `setup(context)` |
+
+Four rules hold for every cross-system link:
+
+1. **One owner per state.** Before writing an API, name the system that makes the final decision and the systems that only supply facts. Everyone else observes or requests (§5).
+2. **Mandatory dependencies fail at wiring, not silently.** A missing required component is reported when the system is set up (`push_error`, a failed check), never hidden behind `if has_method(...)` that skips the action.
+3. **A contract describes behaviour, not method names.** It states its arguments, its result, the refusals it may return, its side effects, and the state guaranteed after a refusal. A command that touches several owners either validates everyone before changing anyone and cannot fail after that, or defines compensation (undo) for a participant that refuses mid-way.
+4. **A new cross-system link ships with its proof.** At minimum: the success path, a refusal, and the state after the refusal. A missing dependency is tested when the link is mandatory.
+
+### Dynamic dispatch: what is allowed
+
+Existing `has_method()` / string-`call()` uses are classified, not counted:
+
+| Class | Example | Status |
+|---|---|---|
+| A. Optional lifecycle hook called by a composition root | `world/world.gd` `on_world_ready`, `apply_world_profile` | Allowed. The hook is optional by design. |
+| B. Tools, tests, diagnostics, editor code | capture tools, test harnesses | Allowed. Not production gameplay. |
+| C. Boundary mechanics | `core/contracts/`, language adapters | Allowed. This is where reflection lives. |
+| D. Discovery of participants by method name | `SimulationClock` (`advance_simulation`) | Debt. It migrates to an explicit registration or capability when the system is next touched. |
+| E. A mandatory gameplay operation between state owners | `HandsTransaction` (`put_away`, `is_holding`) | Debt with a risk. A silent skip or a partial commit can corrupt game state. Fixed first. |
+
+The current count outside `core/contracts/` is a **temporary debt baseline**, not a norm. CI may hold it as a ratchet (no file may add to it), but the target is to remove classes D and E deliberately, not to make the number go down.
+
+### Two worked references
+
+- **`SaveParticipantCapability`, a deliberate abstraction.** The save manager does not know how any participant stores its state. A GDScript, C# or C++ provider maps its own method names onto `key / capture / restore`, and the consumer never changes (§7).
+- **`HandsTransaction`, why method discovery is not enough.** `commit()` asks each holder in turn to put its item away. If the first agrees and the second refuses, the result is `HANDS_BUSY` with the first already changed. Replacing `has_method` with a capability would not fix that. The fix is in the contract: every holder is validated before any is changed, and the commit either cannot fail afterwards or undoes what it already did.
+
+## 17. Architecture decision records
+
+Decisions people will reasonably challenge are recorded in `docs/technical/adr/`. Each record keeps its context, the alternatives weighed, the cost of the choice, and the evidence that would reopen it. An accepted record is not rewritten later: a new record supersedes it.
+
+A different pattern is welcome when it shows which Hoarbound problem it solves, what it simplifies, which guarantees it keeps, and how it is verified. A decision is never defended only by who made it.
+
+The principle and the mechanism are separate. `CapabilityContract` can be replaced if something more reliable appears; explicit ownership does not change with it.
+
+| Record | Decision |
+|---|---|
+| [ADR 0001](adr/0001-no-global-ecs.md) | No project-wide ECS; Godot-native composition with local data-oriented islands |
+| [ADR 0002](adr/0002-capabilities-at-bounded-seams.md) | Capability contracts only at real seams; typed calls inside a subsystem |
+| [ADR 0003](adr/0003-measured-engine-and-native-choices.md) | GodotPhysics3D, and native C++ only after profiling |
