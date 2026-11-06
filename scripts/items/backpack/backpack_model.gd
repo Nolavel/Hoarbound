@@ -340,6 +340,19 @@ func get_fold_degrees() -> float:
 	return rad_to_deg(_swing)
 
 
+## The room the front panel sweeps folded `degrees` out from its hinge (this node's space), droop included:
+## it bends in the shader, so its mesh's own box never shows it.
+func open_panel_box(degrees: float) -> AABB:
+	build()
+	var length: float = BODY.y - _hinge_at.y
+	var out: float = signf(_hinge_at.z - BODY.z * 0.5)
+	var fold: float = deg_to_rad(degrees)
+	var tip := Vector3(0.0, _hinge_at.y + length * cos(fold), _hinge_at.z + out * length * sin(fold))
+	var low := Vector3(-BODY.x * 0.5, minf(_hinge_at.y, tip.y) - DROOP_FLAT_M - 0.02, minf(_hinge_at.z, tip.z) - 0.02)
+	var high := Vector3(BODY.x * 0.5, maxf(_hinge_at.y, tip.y) + 0.03, maxf(_hinge_at.z, tip.z) + 0.02)
+	return AABB(low, high - low)
+
+
 ## The carabiner on the left (0) or right (1) side, for things clipped on later.
 ## Where Quick Access pins the card of pack pocket `pocket_id` that sits outside the pack (the side
 ## pockets and sleeves, and the right carabiner the mug clips on); null for the rest.

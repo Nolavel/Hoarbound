@@ -310,7 +310,8 @@ func _refuse_hands(target: InteractiveArea, refusal: HandsTransaction.Refusal) -
 
 ## Takes a pickup in place, or walks to its solved spot first; hands swaps it into a hand.
 func _take_pickup(pickup: InteractiveArea, hands: HandsTransaction) -> void:
-	if _is_seated():
+	## Only items are walked to; a search (ContainerSearch, offered within reach) acts where Henry stands.
+	if _is_seated() or not pickup is ItemPickup:
 		_stop_approach()
 		_act_on_pickup(pickup, hands)
 		return

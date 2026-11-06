@@ -81,23 +81,29 @@ Code: `scripts/environment/interactive/item_container.gd` (`ItemContainer`). Tes
     - The shelves' open face is frosted over: a quad with `shaders/items/frosted_veil.gdshader` (the screen behind at a blurred mip, 80% over the sharp view: half-seen shapes). What is inside reads only as unclear shapes (`ItemContainer._make_veil`).
     - Its items are not taken by F (`ItemPickup.in_container`).
     - Instead the search is offered at the middle of the face (`ContainerSearch`, pickup channel): the pickup marker's ring and F, with an eye inside the ring (`InteractiveArea.marker_icon`, `assets/ui/hud/pickup_marker/eye.svg`, Material Symbols, Apache 2.0).
-  - **F on the search** (or Tab beside an open container) walks Henry to his point (`PlayerHubComponent.visit_container`).
-  - **At the point** he crouches and slips the pack off into his hands together, exactly as by Tab: the same view in front of him, so its turn off his back shows (`PackFrontHold`).
+  - **F on the search** (or Tab beside an open container) works where Henry stands: he has walked up himself, so he does not walk again (owner). He stops, faces the front and crouches if the shelves top out below 1.1 m (`PlayerHubComponent.visit_container`, `ItemContainer.is_low`). The search is offered only within 1.4 m of its marker (`ContainerSearch.REACH_M`).
+  - **The pack comes off** into his hands as by Tab: the same view in front of him, so its turn off his back shows (`PackFrontHold`).
   - **The cut.** Once the pack is in his hands (`settled`), the view cuts hard to the working frame (`Hub._cut_to_container`). Outlines traced in that frame would use the view before the jump, so the outline cache is cleared and the cards and ring come on a frame later. The pack takes its framed place, Henry leaves the frame, and the focus blur, the cards and the ring come on. The frost lifts while the Hub holds that container.
-  - **Closing** puts the pack back from his hands as by Tab.
-  - **The free side.** The pack goes on the side away from the door's hinge, where the open door does not swing (`ItemContainer.free_side`). With no door it goes on the side Henry came from.
-  - **The spot.** Henry's spot is 0.45 m out from the shelves' front and 0.58 m past the edge on that side (`ItemContainer.visit_spot`). WASD on the way calls the visit off, and so does Tab again.
-  - **Crouching.** There he faces the front. If the shelves top out below 1.1 m he crouches (`ItemContainer.is_low`, `Player.set_work_crouch`). Closing the pack stands him up.
+  - **Closing** puts the pack back from his hands as by Tab and stands him up.
+  - **The free side.** The pack goes on the side away from the side-hinged doors swung open there (`ItemContainer.free_side`); a single door counts whether open or not. With no door, open doors on both sides, a lid or a drawer, it goes on the side Henry stands on.
+  - **Kinds of furniture.** An `ItemContainer` can have several ways in (`openers`: `Cabinet` doors and lids, `Drawer`s); it is reachable when any is open (`is_reachable`). `opens_up` (a drawer, a chest) puts the frost and the search on the top face, and the view looks down into it at 55° (`PackFrontHold.CONTAINER_OPENS_UP_DEG`). `Cabinet.swing_axis` turns a lid on a horizontal hinge; `Drawer` slides `travel` out. `furniture` names the whole piece when the shelves are one drawer of a dresser. The owner's framing, authored on the 727 cabinet, is pushed out in proportion for wider or taller shelves (`CONTAINER_REF_SHELVES`).
+  - **Clear of the furniture, every item seen** (owner: the pack never passes into a cabinet, a drawer or a door, and what is inside shows). Just before the cut (`PackFrontHold._clear_container`, `ContainerClearance`):
+    - every visible mesh of the piece (doors and drawers as they stand, items of any container left out) is an oriented box;
+    - the pack is an oriented box per rigid mesh, the open front panel's sweep (`BackpackModel.open_panel_box`, it bends in the shader) and a column under each hanger's pin as deep as it hangs;
+    - the pack moves out sideways 1 cm at a time until none of its boxes comes within 2 cm of any part (separating axes), then rises until its hangers clear the floor;
+    - the view turns about the pack (up first, then aside, the least turn that works, 5° steps, up to 50° up and 30° aside) and backs off 5 cm at a time until every item's middle shows past the furniture and the pack, the pack's open face (its middle and corners) shows past the furniture, both are in the frame (load bar and cards' strips left free) and the eye stands in no part. With none working, the authored view stays.
+    - Every part is also a hanger obstacle (`hang_obstacles`).
+  - **Test row.** `tests/scenes/container_row.tscn` (`ContainerRow`, also in `TestScene`): a floor cabinet with a left-hinged door, a kitchen cupboard high on a wall with two doors, a dresser with three drawers, a floor chest with a lid. The cabinet, the cupboard and the top two drawers hold things; the bottom drawer and the chest are empty. `tests/systems/test_container_kinds.gd` runs every one: no search while shut, a search only when something is inside, done in place, crouching only at low ones, no pack mesh inside any furniture part, every item and the pack's face seen past everything, the ring on an item. Stills: `tools/runtime/capture_container_row.gd`.
   - **Hangers keep out of the floor and the furniture.** By a container, what hangs off the carabiners stays free instead of frozen. Two more obstacles join the pack's own body for the pendulum's contact solver (`BackpackModel._pack_contact`):
-    - the floor at the furniture's foot (`hang_floor_y`);
-    - the furniture's own box (`hang_obstacles`, from `ItemContainer.body_box`).
+    - the floor under Henry (`hang_floor_y`; a kitchen cupboard hangs high on the wall);
+    - every part of the furniture (`hang_obstacles`, from `ContainerClearance.furniture_parts`).
     - A hanger therefore turns on its carabiner instead of passing through either. If what hangs on a pin meets the floor, it turns toward the view (`PendulumHang.hinge_out`), never under the open panel.
     - The owner's framing lifts the pack so the pan hangs free: stand trace, 4 cm above the floor, clear of the cabinet's side.
   - **Owner-authored framing (editor).** Open `tests/scenes/container_framing_stage.tscn`: floor, the 727 cabinet with its door open on the left hinge, Henry, a stand-in pack, and the camera.
     - Move `Front/Camera`, `Front/Pack` and `Front/Henry`, and preview through `Camera` (its `fov` counts). Then press **Save framing** in the stage root's inspector. It writes `data/items/container_framing.tres` (`ContainerFraming`).
     - Henry's visibility there is saved too: hide him to hide him in game.
     - All three are relative to `Front`, the middle of the shelves' open face (`ItemContainer.front`), authored for the pack on the right. For a door hinged on the right, the game mirrors them (`ContainerFraming.on_side`).
-    - In game the camera and the pack are put there (`PackFrontHold.begin_container`). Henry walks to his point and faces as his visual does there (`ItemContainer.visit_spot`), crouching at a low cabinet. He stays in the blur behind the pack.
+    - In game the camera and the pack are put there (`PackFrontHold.begin_container`), then moved clear (above). Henry's saved point is not walked to: he searches where he stands.
     - The stage's Henry and pack are for editing only. Henry's script needs the player, so do not run the stage scene.
     - The saved points are offsets from the front, so they suit cabinets about the 727's size. The worked-out framing below is the fallback when no framing is saved.
   - **Worked-out framing (fallback, owner's sketch).** Only the pack and the furniture are in the frame, Henry hidden (owner: he does not matter here) (`PackFrontHold.begin_container`, `_frame_container`).
@@ -110,9 +116,8 @@ Code: `scripts/environment/interactive/item_container.gd` (`ItemContainer`). Tes
     - The frame is worked out 15% wider than the view (`CONTAINER_TIGHTEN`), so both show larger and their outer edges run past the frame (owner: tighter). The load bar and the pocket cards draw over them.
     - Henry is hidden once the pack's swing is 60% on, when the blur has come up. The stand-in arm was tried and dropped (owner: it read as rubber).
     - Measured on the stand (`tools/runtime/capture_container_stand.gd left|right`), by body and bedroll: pack 35%, furniture 53%; the flask or the mug touches the furniture's edge.
-  - **No wait at the door.** F plays Henry's Chest_Open clip, which holds him still. The visit cuts it 0.45 s in, once his hand is at the door, and he walks at once (`HenryUALAnimation.stop_action`, `Hub.VISIT_REACH_S`). A walk that gets no nearer for 0.25 s (a wall or the furniture in the way) counts as arrived within 0.7 m (`VISIT_STALL_S`). Before, Henry pushed against it until a 4 s timeout: the freeze the owner saw (Key West trace: stuck 0.18 m short from 2.2 s to 4 s).
   - The ring hovers a shelf item on its silhouette (`ItemContainer.pick`). LMB carries it into the pack (`Hub.move_from_container`, the pack's room checked first, jolt) or onto a pocket's card; a pack or pocket item let go over the shelves goes onto them (`Hub.move_to_container`); a full shelf refuses with `CONTAINER_NO_ROOM`. RMB and G do nothing on a shelf item.
-  - Tests: `tests/systems/test_container_hands.gd`; capture: `tools/runtime/capture_container_view.gd` (the 727 cabinet).
+  - Tests: `tests/systems/test_container_hands.gd`, `tests/systems/test_container_kinds.gd`; captures: `tools/runtime/capture_container_view.gd` (the 727 cabinet), `tools/runtime/capture_container_row.gd` (the test row).
 
 ## Hands
 

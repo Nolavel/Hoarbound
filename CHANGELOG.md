@@ -8,12 +8,19 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- 3D inventory at furniture: the pack never passes into a cabinet, a drawer or a door, and every item inside shows (owner). Just before the cut the pack moves out until no part of it (body, open panel, what hangs) comes within 2 cm of the furniture. The view then turns up or aside and backs off until it sees each item past everything (`ContainerClearance`).
+  - Kitchen cupboard: the open panel went into the right door; drawers: the front panel hid what lay inside.
+
 - 3D inventory at a cabinet: the pan and other hangers no longer go through the floor or into the cabinet. Both are now obstacles for the hangers.
   - Owner's framing: the camera turned a little right, the pack further right and a little higher (the pan hangs free), Henry out of the frame.
 - "Parameter material is null" errors when the game starts and around containers. Item models made only to be measured (pocket sizes, shelf layout, loose items) were freed before ever being drawn, while carrying shader overrides, which Godot 4.8-dev reports from the renderer.
   - `SurvivalItemVisual.release` drops the overrides first. Spawning Henry went from 44 errors to 0 on Vulkan.
 
 ### Changed
+
+- 3D inventory at furniture, owner's design: the second F (the eye) searches where Henry stands. He walks up himself, so he no longer walks to a point; he only faces it and crouches at low furniture.
+- Containers of every kind: several doors (`openers`), drawers (`Drawer`), lids on a horizontal hinge (`Cabinet.swing_axis`), shelves that open upward (`opens_up`: the frost and the eye on top, the view looking down into them).
+- Test row of furniture (`ContainerRow`, also in `TestScene`): a floor cabinet, a two-door kitchen cupboard on a wall, a dresser with three drawers, a floor chest; some hold things, some are empty. `test_container_kinds` runs the search on each.
 
 - 3D inventory at a cabinet, two presses of F (owner's design).
   - The first F only opens the door. What is inside shows half-seen behind frost, and a search marker (F with an eye inside its ring) sits on the open face.

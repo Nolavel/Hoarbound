@@ -56,6 +56,10 @@ PICKUP_REFUSED_HELD_BUSY,Hands are busy with something that cannot be put away,"
 PICKUP_REFUSED_NOT_HANDHELD,This is not carried in one hand,Это не взять в одну руку
 CABINET_OPEN,Open the cabinet,Открыть шкаф
 CABINET_CLOSE,Close the cabinet,Закрыть шкаф
+CHEST_OPEN,Open the chest,Открыть сундук
+CHEST_CLOSE,Close the chest,Закрыть сундук
+DRAWER_OPEN,Pull the drawer out,Выдвинуть ящик
+DRAWER_CLOSE,Push the drawer in,Задвинуть ящик
 SLEEP_PROMPT,Sleep,Спать
 SLEEP_DIALOG_KEYS,Wheel or ← →  hours      [ F ]  sleep and save      [ Esc ]  cancel,Колесо или ← →  часы      [ F ]  спать и сохранить      [ Esc ]  отмена
 BEDROLL_PACK,Roll up the bedroll,Свернуть спальник
