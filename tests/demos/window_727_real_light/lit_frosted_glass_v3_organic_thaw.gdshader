@@ -1,14 +1,3 @@
-// FAILED ART TEST - do not promote to production (issue #281).
-// Kept verbatim as the result of the trial. Two known defects:
-//   1. The lobe is stretched along the PERPENDICULAR of `axis` (roughly
-//      horizontally), not downwards as the comments below claim: `along` is
-//      that perpendicular component, and shrinking it widens the level set
-//      along `along`, not along `axis`.
-//   2. The centre creep adds +UV.y while the comment says "down"; the pane's
-//      V orientation in the streamed asset was never verified.
-// The shader compiles and runs, but it did not beat the V3 white-tint control
-// as a readable art improvement.
-
 // Issue #281, MCode/MiniMax: V3's shape and alpha model, organic thaw.
 //
 // The approved control (lit_frosted_glass_v3_white_tint_only.gdshader) is
