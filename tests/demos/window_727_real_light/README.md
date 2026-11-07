@@ -112,3 +112,12 @@ without checking the film; source colour itself is pure neutral white.
 
 The film has one continuous six-second melt of the original V3 field.
 No production window or main changes.
+
+## MCode art trial (failed - kept as the trial result, do not promote)
+
+`lit_frosted_glass_v3_organic_thaw.gdshader` is the result of the MiniMax art
+trial on issue #281. It did not reach the goal: in the delivered framing the
+variant is not readably better than the V3 white-tint control, and its lobe
+geometry contradicts its own comments (`along` is the component perpendicular
+to `axis`, so shrinking it widens the lobe roughly horizontally rather than
+downwards). The file is kept verbatim as the trial result; see issue #281.
