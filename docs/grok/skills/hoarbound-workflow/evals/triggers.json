@@ -1,0 +1,21 @@
+{
+  "skill": "hoarbound-workflow",
+  "test_cases": [
+    {
+      "input": "Review the current architecture of Hoarbound",
+      "should_trigger": true
+    },
+    {
+      "input": "What are the branch ownership rules?",
+      "should_trigger": true
+    },
+    {
+      "input": "Help me with a completely unrelated Unity project",
+      "should_trigger": false
+    },
+    {
+      "input": "Audit the commercial readiness of the vertical slice",
+      "should_trigger": true
+    }
+  ]
+}

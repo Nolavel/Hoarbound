@@ -1,0 +1,20 @@
+{
+  "skill": "hoarbound-workflow",
+  "test_cases": [
+    {
+      "name": "branch_ownership",
+      "input": "I want to implement a new gameplay system for inventory.",
+      "assertions": ["Should refuse to implement directly and propose only, remind about Codex ownership and grok branch"]
+    },
+    {
+      "name": "mandatory_docs",
+      "input": "Change the terrain generation approach.",
+      "assertions": ["Should reference KEY_WEST_DESIGN_DOCTRINE and EXPERIENCE_PILLARS before proceeding"]
+    },
+    {
+      "name": "sync_reminder",
+      "input": "Start a new audit of the current First Exit state.",
+      "assertions": ["Should mention need to sync main into grok first"]
+    }
+  ]
+}
