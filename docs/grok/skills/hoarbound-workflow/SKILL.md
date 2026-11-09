@@ -23,12 +23,43 @@ Use this skill whenever working with the Hoarbound repository (Godot 4.8 .NET, f
 
 ## Architecture Quick Reference
 
-- Engine: Godot 4.8-dev6 .NET (mono), Godot.NET.Sdk 4.8.0-dev.6, net8.0
+- Engine: **Godot 4.8-dev6 .NET (mono)**, Godot.NET.Sdk 4.8.0-dev.6, target **net8.0**
 - Main scene: `res://scenes/world/key_west/key_west_reality.tscn`
 - Terrain: `IslandTerrain` from heightmap (edit in Blender)
 - Full ECS rejected; selective ECS/DOD only with justification
 - Cross-system seams via capability contracts in `core/contracts/`
 - Simulation state is authoritative; presentation derives from it
+
+## Recognizing Claude's Work
+
+Claude owns `claudeflow` and focuses on technical direction, architecture, CI, headless rendering pipeline, and high-level system design.
+
+Typical signs of Claude's work:
+- Commits and docs mentioning `claudeflow` or "Owner: Claude"
+- Architecture contracts, capability seams, streaming ownership, camera/passage systems
+- Headless/CI render pipeline improvements
+- Files under `docs/technical/` that define ownership or contracts (e.g. TPS_CAMERA.md, KEY_WEST_REALITY_LIBRARY.md)
+- Changes that introduce or refine `core/contracts/` boundaries
+
+When reviewing or building on Claude's work:
+- Prefer reading the ownership notes in the relevant docs first
+- Do not silently revert or re-implement architectural decisions without discussion
+- Surface conflicts with product doctrines (Experience Pillars, Key West Doctrine, Architecture) to the author
+
+## Godot 4.8-dev6 Practical Notes
+
+Current project baseline is **4.8-dev6** (Sept 2026). Later snapshots (dev7, beta1–3) exist and introduce:
+- Screen-space contact shadows
+- Mip-level texture streaming
+- Editor dock changes
+- **.NET 10 requirement** starting from later 4.8 builds (project currently targets net8.0)
+
+Practical guidance while staying on 4.8-dev6:
+- Prefer engine-native mechanisms (AnimationTree, MultiMesh, joints, existing streaming) over custom layers
+- Headless runs: `godot --headless --path .` for validation; be aware of rendering differences on CI (lavapipe etc.)
+- C# / GDScript seams stay behind capability contracts
+- When proposing upgrades, note the .NET version jump and test on a branch first
+- Official notes: [4.8-dev6 snapshot](https://godotengine.org/article/dev-snapshot-godot-4-8-dev-6/)
 
 ## Agent Roles
 
