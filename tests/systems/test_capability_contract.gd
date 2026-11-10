@@ -6,7 +6,9 @@ extends SceneTree
 ## - a refused publish (missing method, empty id or map, no provider) publishes nothing and keeps what was there;
 ## - a freed provider or an unpublished capability answers nothing instead of crashing;
 ## - a participant that does not return a Dictionary refuses the whole save, and the slot keeps its last good save;
-## - a slot without a participant's key leaves that participant untouched on load.
+## - a slot without a participant's key leaves that participant untouched on load;
+## - a simulation participant: legacy names adapted, a missing priority defaults, own names mapped, a
+##   non-participant refused, and the clock advances them in priority order.
 ## Expected refusals print errors; the verdict is the last line.
 
 const TEST_SLOT: int = 5
@@ -92,6 +94,7 @@ func _run() -> void:
 	_refused_save(manager, participant)
 	_absent_key(manager, participant)
 	_partial_legacy(manager)
+	_simulation_participants()
 
 	manager.delete_slot(TEST_SLOT)
 	_dispose(legacy)
@@ -171,6 +174,60 @@ func _partial_legacy(manager: SaveManager) -> void:
 	manager.register(partial)
 	_check(manager.save_to_slot(TEST_SLOT), "an unadapted provider broke the save of the others")
 	_dispose(partial)
+
+
+func _simulation_participants() -> void:
+	var legacy := _LegacyTicker.new()
+	var plain := _PlainTicker.new()
+	var mapped := _MappedTicker.new()
+	var stranger := Node.new()
+	_check(SimulationParticipantCapability.ensure(legacy), "a legacy simulation participant was not adapted")
+	_check(SimulationParticipantCapability.priority(legacy) == 5, "a legacy participant's own priority was lost")
+	_check(SimulationParticipantCapability.ensure(plain), "a participant with no priority method was refused")
+	_check(SimulationParticipantCapability.priority(plain) == SimulationParticipantCapability.DEFAULT_PRIORITY,
+		"a participant with no priority did not get the default")
+	_check(SimulationParticipantCapability.publish(mapped, &"tick", &"rank"), "own simulation method names were refused")
+	_check(not SimulationParticipantCapability.publish(mapped, &"no_such_tick"), "a missing advance method was published")
+	_check(not SimulationParticipantCapability.ensure(stranger), "a node with no advance became a participant")
+	var clock := SimulationClock.new()
+	root.add_child(clock)
+	var order: Array[String] = []
+	for ticker: Node in [plain, legacy, mapped]:
+		ticker.set_meta(&"log", order)
+		clock.register_participant(ticker)
+	clock.register_participant(stranger)
+	_check(clock.get_participant_count() == 3, "the clock took %d participants, not 3" % clock.get_participant_count())
+	clock.advance_hours(0.1, &"test")
+	_check(order == ["mapped", "legacy", "plain"], "the clock advanced in order %s, not by priority" % [order])
+	for node: Node in [clock, legacy, plain, mapped, stranger]:
+		node.free()
+
+
+class _LegacyTicker:
+	extends Node
+
+	func get_simulation_priority() -> int:
+		return 5
+
+	func advance_simulation(_hours: float, _context: SimulationStepContext) -> void:
+		(get_meta(&"log") as Array).append("legacy")
+
+
+class _PlainTicker:
+	extends Node
+
+	func advance_simulation(_hours: float, _context: SimulationStepContext) -> void:
+		(get_meta(&"log") as Array).append("plain")
+
+
+class _MappedTicker:
+	extends Node
+
+	func rank() -> int:
+		return 1
+
+	func tick(_hours: float, _context: SimulationStepContext) -> void:
+		(get_meta(&"log") as Array).append("mapped")
 
 
 class _KeyedParticipant:

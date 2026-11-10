@@ -10,8 +10,6 @@ signal advance_completed(total_hours: float, advanced_hours: float, reason: Stri
 
 const HOURS_PER_DAY: float = 24.0
 const REALTIME_REASON: StringName = &"realtime"
-const SIMULATION_METHOD: StringName = &"advance_simulation"
-const PRIORITY_METHOD: StringName = &"get_simulation_priority"
 
 @export_range(0.01, 1.0, 0.01) var max_step_hours: float = 0.25
 
@@ -112,12 +110,12 @@ func is_realtime_blocked() -> bool:
 
 
 func register_participant(node: Node) -> void:
-	if node == null or node == self or not node.has_method(SIMULATION_METHOD):
+	if node == null or node == self or not SimulationParticipantCapability.ensure(node):
 		return
 	for entry: Dictionary in _participants:
 		if entry["node"] == node:
 			return
-	var priority: int = int(node.call(PRIORITY_METHOD)) if node.has_method(PRIORITY_METHOD) else 1000
+	var priority: int = SimulationParticipantCapability.priority(node)
 	_participants.append({"node": node, "priority": priority, "order": _next_order})
 	_next_order += 1
 	_participants.sort_custom(_participant_before)
@@ -154,7 +152,7 @@ func _dispatch_step(hours: float, reason: StringName) -> void:
 	for entry: Dictionary in _participants:
 		var participant := entry["node"] as Node
 		if participant != null:
-			participant.call(SIMULATION_METHOD, hours, context)
+			SimulationParticipantCapability.advance(participant, hours, context)
 	simulation_step_completed.emit(context)
 
 

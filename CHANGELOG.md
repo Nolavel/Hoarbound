@@ -8,6 +8,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- The simulation clock advances its participants through `SimulationParticipantCapability` (`core/contracts/`), as saves already do. This is class D in §16.
+  - The legacy `advance_simulation` / `get_simulation_priority` names are adapted at the boundary, so weather, afflictions, snow, the held light and the bio monitor are unchanged.
+  - Any provider, a C++ weather included, may publish its own names.
+  - `CapabilityContract.has_operation` allows an optional operation; a missing priority defaults to 1000.
+  - `test_capability_contract` covers adaptation, the default, mapped names, refusal and priority order.
+  - The ratchet baseline is now 149 calls in 38 files.
+
 - Quick Access draws, names and uses what a hand shows through `HeldDrawCapability` (`core/contracts/`). The held item, the hammer and a flare publish it beside `HeldReleaseCapability`. This is the last class E dynamic dispatch (§16).
   - `quick_access_component.gd` lost all 14 `has_method`/string `call` uses, and the ratchet baseline drops to 151 calls in 39 files.
   - The hammer answers Quick Access use explicitly with false, as it did by lacking the method.

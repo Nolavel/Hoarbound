@@ -15,7 +15,6 @@
 3 D scripts/actors/player/henry/components/player_hub_component.gd  # item users found by can_use/use
 2 D scripts/environment/interactive/hinged_door.gd  # a blocker that can move_to_position
 1 D scripts/environment/interactive/interactive_area.gd  # get_interaction_data on a loaded node
-2 D scripts/systems/time/simulation_clock.gd  # simulation participants found by advance_simulation
 3 D scripts/systems/world/snow/snow_chunk_cover.gd  # optional city obstacle and terrain height sources
 2 F core/audio/sound_system.gd  # plays a player node of either audio class
 13 F scripts/actors/player/henry/Controllers/HenryUALAnimation.gd  # queries on the player (Player)
