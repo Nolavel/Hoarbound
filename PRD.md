@@ -44,6 +44,8 @@ Expected route:
 
 Battery Osceola and 727 Fort Street are the canonical First Exit endpoints as of the owner decision on 2026-10-10. The former custom Fort Street hut remains in the world but is no longer the primary shelter destination. Issue #211 owns the remaining generator/runtime migration.
 
+The thin First Exit compass (owner 2026-11-09, #293) is in this slice. It shows a camera bearing to 727 and clears on arrival. It is not a route, a distance, or a major HUD redesign.
+
 Coastal thin ice is intentionally deferred to a later Coast / Thin Ice slice.
 
 ## 4. First Exit A success criteria
@@ -88,7 +90,7 @@ That run validates interaction flow, readability and systemic pressure. It does 
 - new survival meters added for completeness;
 - island expansion unrelated to the First Exit route;
 - large crafting trees;
-- major HUD redesign;
+- major HUD redesign (the thin First Exit compass in #293 is not one);
 - new standalone managers when an existing owner can handle the behaviour;
 - technology or shader experiments that do not help close the playable loop.
 

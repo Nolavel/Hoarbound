@@ -79,6 +79,8 @@ agent branch.
 | **Codex** | `codex` | Implementation and engineering: gameplay, physics, rendering, UI, world systems, tooling, refactors, runtime validation, and production integration work it opens. |
 | **Grok** | `grok` | Commercial readiness, scope control, vertical-slice readiness audits, risk matrix, and related technical docs. Proposes only; does not auto-implement gameplay. |
 
+Grok writes issue #1 handoffs itself, at any time (`docs/grok/skills/hoarbound-workflow/SKILL.md`). An explicit owner request to implement on `grok` overrides the propose-only default for that task only.
+
 Handover rules:
 
 - An agent reviews the other's branch on request; it never pushes to it.

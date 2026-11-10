@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/ui/hud/player_feedback_ui.gd" id="6_feedback"]
 [ext_resource type="Script" path="res://scripts/ui/hud/player_hub_panel.gd" id="7_hub"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/backpack_load_banner.tscn" id="8_load"]
+[ext_resource type="Script" path="res://scripts/ui/hud/compass_strip.gd" id="9_compass"]
 
 [node name="GameplayUI" type="Node" groups=["gameplay_ui"]]
 script = ExtResource("1_gameplay")
@@ -16,6 +17,19 @@ script = ExtResource("1_gameplay")
 
 [node name="GameplayCanvas" type="CanvasLayer" parent="."]
 layer = 0
+
+[node name="Compass" type="CanvasLayer" parent="."]
+layer = 2
+
+[node name="CompassStrip" type="Control" parent="Compass"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("9_compass")
 
 [node name="MouseCursorUI" parent="GameplayCanvas" instance=ExtResource("3_cursor")]
 

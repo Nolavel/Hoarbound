@@ -2,11 +2,12 @@ name: checks
 
 ## `checks` is the cheap gate on every push and PR: import, input map, filenames, and the contract suites in
 ## tools/ci/required_suites.txt. Other suites churn with the mechanics and are reported by `suites`, not gated.
+## `grok` is on the same gate as the other agent branches. It is not a second pipeline.
 ## Preview/render jobs run only for a commit tagged with their [marker]; the Key West Reality jobs
 ## also run on a manual dispatch, to re-check the committed snapshot.
 on:
   push:
-    branches: [main, codex, claudeflow]
+    branches: [main, codex, claudeflow, grok]
     paths-ignore:
       - "docs/**"
       - "**/*.md"
@@ -18,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       preview:
-        description: "Empty re-checks Key West Reality; snow-surface or snow-walk runs only that capture"
+        description: "Empty re-checks Key West Reality; compass runs the First Exit compass preview; snow-surface or snow-walk runs only that capture"
         default: ""
       baseline_ref:
         description: "snow-surface: ref whose snow code is the `old` variant"
@@ -32,7 +33,7 @@ concurrency:
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -66,9 +67,87 @@ jobs:
         ## Cross-system contracts gate the build (ARCHITECTURE.md §16); same verdict as tools/ci/run_tests.sh.
         run: tools/ci/run_tests.sh $(sed -e 's/#.*//' tools/ci/required_suites.txt | tr -s '[:space:]' ' ')
 
+  compass-preview:
+    ## Real Key West viewport of the First Exit compass. Dispatch with preview=compass, or a single tagged review push on grok.
+    ## Not a second pipeline: same workflow, Godot, lavapipe and ffmpeg as the other captures.
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'compass') || (github.event_name == 'push' && github.ref == 'refs/heads/grok' && contains(github.event.head_commit.message, '[compass-review]'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Capture the compass in Key West
+        id: capture
+        env:
+          OUT: docs/runtime_previews/compass_preview
+        run: |
+          set -o pipefail
+          mkdir -p "$OUT"
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 960x540 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --fixed-fps 15 \
+            --script res://tools/runtime/capture_compass_preview.gd \
+            -- "$OUT" 2>&1 | tee "$OUT/godot.log"
+          status=${PIPESTATUS[0]}
+          if [ -d "$OUT/frames" ] && ls "$OUT/frames"/frame_*.png >/dev/null 2>&1; then
+            ffmpeg -y -loglevel error -framerate 15 -i "$OUT/frames/frame_%04d.png" \
+              -c:v libx264 -pix_fmt yuv420p -s 960x540 -crf 20 "$OUT/compass_preview.mp4"
+          fi
+          if [ -f "$OUT/compass_preview.mp4" ]; then
+            dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT/compass_preview.mp4")
+            echo "compass video duration ${dur}s"
+            python3 -c "import sys; d=float(sys.argv[1]); sys.exit(0 if 10.0 <= d <= 15.0 else 1)" "$dur" \
+              || { echo "video duration outside 10–15s"; status=1; }
+          else
+            echo "compass video was not written"
+            status=1
+          fi
+          python3 -c "import json,sys; p=json.load(open(sys.argv[1])); print(p); sys.exit(0 if p.get('passed') else 1)" \
+            "$OUT/compass_preview.json" || status=1
+          exit "$status"
+
+      - name: Upload compass preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: hoarbound-compass-preview
+          path: |
+            docs/runtime_previews/compass_preview/compass_preview.mp4
+            docs/runtime_previews/compass_preview/stills/*.png
+            docs/runtime_previews/compass_preview/compass_preview.json
+            docs/runtime_previews/compass_preview/godot.log
+          if-no-files-found: warn
+          retention-days: 7
+
   key-west-reality:
     if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
@@ -177,7 +256,7 @@ jobs:
     ## Zero-setup review path: the committed snapshot exactly as cloned; no unpack, export or
     ## generation (the rebuild/digest job above is the reproducibility check).
     if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -224,7 +303,7 @@ jobs:
     ## Lavapipe/Forward+ captures on the Key West Reality scene, chosen by a commit tag.
     ## Painterly preview is diagnostic A/B: CONTROL and TEST run as independent Godot processes.
     if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -442,7 +521,7 @@ jobs:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'snow-surface') ||
       (github.event_name == 'push' && contains(github.event.head_commit.message, '[snow-surface]'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -573,7 +652,7 @@ jobs:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'snow-walk') ||
       (github.event_name == 'push' && contains(github.event.head_commit.message, '[snow-walk]'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     strategy:
       fail-fast: false
