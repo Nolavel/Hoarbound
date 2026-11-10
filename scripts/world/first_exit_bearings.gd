@@ -31,6 +31,10 @@ var _save: SaveManager
 var _world: World
 var _inside_727: bool = false
 var _awaiting_load: bool = false
+## True from a teleport (load, or the first placement) until the physics step
+## has refreshed Area3D overlaps. Signals in that window are not entrances.
+var _holding_edges: bool = false
+var _settle_token: int = 0
 
 
 func on_world_ready(context: WorldContext) -> void:
@@ -54,7 +58,7 @@ func on_world_ready(context: WorldContext) -> void:
 
 func begin_without_save() -> void:
 	begin_play(_is_scenario_start())
-	_sample_probe(false)
+	_schedule_settled_probe()
 
 
 ## scenario_start arms 727 once. A shelter spawn or dev-street boot passes false
@@ -200,7 +204,7 @@ func apply_absent_save() -> void:
 func on_loaded_payload(payload: Dictionary) -> void:
 	if not payload.has(String(get_save_key())):
 		apply_absent_save()
-	_sample_probe(false)
+	_schedule_settled_probe()
 
 
 func _on_load_completed(slot: int) -> void:
@@ -263,7 +267,51 @@ func _bind_probe() -> void:
 
 
 func _on_probe_area(_area: Area3D) -> void:
+	if _holding_edges:
+		return
 	_sample_probe(true)
+
+
+## The overlap list is stale until the next physics step. Call this, ignore
+## edges, then accept_settled_overlap with whatever the probe reports after.
+func hold_probe_edges() -> void:
+	_holding_edges = true
+
+
+## A probe signal. Dropped while a settle is in progress.
+func notify_probe_edge(zones: Array) -> void:
+	if _holding_edges:
+		return
+	note_zones(zones, true)
+
+
+## The first overlap list that belongs to the loaded position. Not an entrance.
+func accept_settled_overlap(zones: Array) -> void:
+	_holding_edges = false
+	note_zones(zones, false)
+
+
+func _schedule_settled_probe() -> void:
+	_settle_token += 1
+	var token: int = _settle_token
+	hold_probe_edges()
+	if is_inside_tree():
+		_wait_for_settled_probe(token)
+
+
+func _wait_for_settled_probe(token: int) -> void:
+	## Two steps: the first moves the physics state, the second is the one
+	## get_overlapping_areas() is documented to have refreshed.
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if token != _settle_token or not is_inside_tree():
+		return
+	var zones: Array = []
+	if _thermal != null and _thermal.zone_probe != null:
+		zones = _thermal.zone_probe.get_overlapping_areas()
+	if token != _settle_token:
+		return
+	accept_settled_overlap(zones)
 
 
 func _sample_probe(fresh_edge: bool) -> void:

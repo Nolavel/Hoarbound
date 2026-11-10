@@ -26,6 +26,7 @@ func _run() -> void:
 	_test_save_manager_adopts_the_systems_list()
 	_test_the_thermal_stack_is_wired_and_follows_the_player()
 	_test_a_scene_with_its_own_floor_streams_nothing()
+	_test_first_exit_bearings_follow_the_key_west_profile()
 	if _failures > 0:
 		push_error("world: %d check(s) failed" % _failures)
 		quit(1)
@@ -52,6 +53,40 @@ func _check(condition: bool, message: String) -> void:
 		return
 	_failures += 1
 	push_error("world: %s" % message)
+
+
+func _expected_systems(world: World) -> int:
+	var count: int = World.WORLD_SYSTEM_SCRIPTS.size()
+	if world.world_profile == null or world.world_profile.id != World.FIRST_EXIT_PROFILE_ID:
+		count -= 1
+	return count
+
+
+## The stub world is not Key West, so it must not grow the 727 compass.
+## A profile with that id must.
+func _test_first_exit_bearings_follow_the_key_west_profile() -> void:
+	var bearings_script: GDScript = load("res://scripts/world/first_exit_bearings.gd")
+	var plain := _make_world()
+	plain.initialize()
+	_check(
+		plain.get_context().get_system(bearings_script) == null,
+		"First Exit bearings were built for a world that is not Key West"
+	)
+	_dispose(plain)
+	var key_west := _make_world()
+	var profile := WorldProfile.new()
+	profile.id = World.FIRST_EXIT_PROFILE_ID
+	key_west.world_profile = profile
+	key_west.initialize()
+	_check(
+		key_west.get_context().get_system(bearings_script) != null,
+		"Key West did not build First Exit bearings"
+	)
+	_check(
+		key_west.get_context().systems.size() == World.WORLD_SYSTEM_SCRIPTS.size(),
+		"Key West dropped a system other than the compass"
+	)
+	_dispose(key_west)
 
 
 func _dispose(node: Node) -> void:
@@ -106,17 +141,18 @@ func _test_world_builds_its_systems_once() -> void:
 	world.initialize()
 	var context: WorldContext = world.get_context()
 	_check(context != null, "initialize() produced no context")
+	var expected: int = _expected_systems(world)
 	_check(
-		context.systems.size() == World.WORLD_SYSTEM_SCRIPTS.size(),
+		context.systems.size() == expected,
 		"built %d systems, expected %d"
-		% [context.systems.size(), World.WORLD_SYSTEM_SCRIPTS.size()]
+		% [context.systems.size(), expected]
 	)
 	_check(context.is_complete(), "the context is missing player, camera or container")
 
 	## Idempotent: a second call must not double every system.
 	world.initialize()
 	_check(
-		world.get_context().systems.size() == World.WORLD_SYSTEM_SCRIPTS.size(),
+		world.get_context().systems.size() == _expected_systems(world),
 		"a second initialize() rebuilt the systems"
 	)
 	_dispose(world)

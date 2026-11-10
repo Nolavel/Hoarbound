@@ -26,7 +26,11 @@ func on_world_ready(context: WorldContext) -> void:
 	_camera = context.camera
 	_player = context.player
 	_bearings = context.get_system(BEARINGS_SCRIPT) as FirstExitBearings
-	if _bearings != null and not _bearings.bearings_changed.is_connected(queue_redraw):
+	if _bearings == null:
+		hide()
+		set_process(false)
+		return
+	if not _bearings.bearings_changed.is_connected(queue_redraw):
 		_bearings.bearings_changed.connect(queue_redraw)
 	_have_bearing = false
 

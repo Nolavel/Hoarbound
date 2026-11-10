@@ -1,12 +1,13 @@
 name: checks
 
 ## `checks` is the cheap gate on every push and PR: import, input map, filenames.
+## `grok` is on the same gate as the other agent branches. It is not a second pipeline.
 ## Test suites run locally until mechanics settle; they churn too fast to gate main.
 ## Preview/render jobs run only for a commit tagged with their [marker]; the Key West Reality jobs
 ## also run on a manual dispatch, to re-check the committed snapshot.
 on:
   push:
-    branches: [main, codex, claudeflow]
+    branches: [main, codex, claudeflow, grok]
     paths-ignore:
       - "docs/**"
       - "**/*.md"

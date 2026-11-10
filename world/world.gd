@@ -4,6 +4,8 @@
 class_name World
 extends Node3D
 
+const FIRST_EXIT_BEARINGS_PATH: String = "res://scripts/world/first_exit_bearings.gd"
+const FIRST_EXIT_PROFILE_ID: StringName = &"key_west_reality"
 const WORLD_READY_METHOD: StringName = &"on_world_ready"
 const APPLY_WORLD_PROFILE_METHOD: StringName = &"apply_world_profile"
 const GRAPHICS_QUALITY: GDScript = preload("res://scripts/settings/graphics_quality.gd")
@@ -166,11 +168,19 @@ func _apply_profile_content() -> void:
 
 func _build_systems() -> void:
 	for system_script: GDScript in WORLD_SYSTEM_SCRIPTS:
+		## The 727 tape is First Exit A, not a feature of every world that
+		## shares this root. Graciosa and any other profile do not get it.
+		if system_script.resource_path == FIRST_EXIT_BEARINGS_PATH and not _uses_first_exit_bearings():
+			continue
 		var instance: Node = system_script.new()
 		if _profile != null and instance.has_method(APPLY_WORLD_PROFILE_METHOD):
 			instance.call(APPLY_WORLD_PROFILE_METHOD, _profile)
 		add_child(instance)
 		_systems.append(instance)
+
+
+func _uses_first_exit_bearings() -> bool:
+	return _profile != null and _profile.id == FIRST_EXIT_PROFILE_ID
 
 
 func _place_player() -> void:

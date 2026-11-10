@@ -19,6 +19,7 @@ func _run() -> void:
 	_check_catalog()
 	_check_lifecycle()
 	_check_zones()
+	_check_settled_load_inside()
 	_check_save()
 	if _failures > 0:
 		push_error("first exit bearings: %d check(s) failed" % _failures)
@@ -108,6 +109,34 @@ func _check_zones() -> void:
 	_check(bearings.active_target_id == "", "re-entering 727 left a manual mark up")
 	zone.free()
 	shelter.free()
+	bearings.free()
+
+
+## A save inside 727 with a manual pin. The probe list is stale until physics
+## settles, so the late interior report must not count as a new entrance.
+func _check_settled_load_inside() -> void:
+	var bearings := FirstExitBearings.new()
+	bearings.begin_play(true)
+	var place: String = bearings.shelter_id()
+	var zones: Array = _house_zone()
+	var house: Node = (zones[0] as Node).get_parent()
+	bearings.note_zones(zones)
+	bearings.note_zones([])
+	bearings.recall()
+	_check(bearings.active_target_id == place, "recall did not pin 727 before the loaded-interior case")
+	bearings.hold_probe_edges()
+	bearings.notify_probe_edge(zones)
+	_check(bearings.active_target_id == place, "a probe edge during settle cleared the manual mark")
+	bearings.accept_settled_overlap(zones)
+	_check(
+		bearings.active_target_id == place and bearings.is_visited(place),
+		"the settled interior sample treated the loaded position as a new entrance"
+	)
+	bearings.notify_probe_edge([])
+	_check(bearings.active_target_id == place, "leaving after a settled load cleared the manual mark")
+	bearings.notify_probe_edge(zones)
+	_check(bearings.active_target_id == "", "a real re-entry after leaving did not clear the manual mark")
+	house.free()
 	bearings.free()
 
 
