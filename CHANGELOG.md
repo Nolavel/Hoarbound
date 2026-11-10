@@ -8,6 +8,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- InteractComponent works its host through `InteractHostCapability` (`core/contracts/`). This is class D in §16.
+  - Every operation is optional (animate, attention origin and direction, face, walk to, stop, action locked). The host's legacy names are adapted at the boundary, so Henry and the test walkers are unchanged.
+  - Typing the host as `Player` broke the walker stubs in test_interaction and test_pickup_affordance, so a contract was used instead.
+  - `run` answers `[ok, result]`, so a missing operation is told apart from a false answer.
+  - The ratchet baseline is now 121 calls in 34 files. The one call left is class F, `is_movement_blocked` on the PlayerState autoload.
+  - `test_capability_contract` covers adaptation, partial hosts, mapped names and absent operations. It fails when `run` stops checking the operation.
+
 - More class D dynamic dispatch removed (§16). The ratchet baseline is now 140 calls in 34 files.
   - The Hub hands an item to its user through `ItemUserCapability`. Six components use items (bedroll, hammer, held item, flare, snow scoop); their legacy `can_use`/`use` names are adapted at the boundary.
   - Passage traversal reads doors and narrow passages through `PassageProviderCapability`.

@@ -10,6 +10,7 @@ extends SceneTree
 ## - a simulation participant: legacy names adapted, a missing priority defaults, own names mapped, a
 ##   non-participant refused, and the clock advances them in priority order;
 ## - an item user and a passage provider: legacy names adapted, a half one refused, own names mapped.
+## - an interact host: any subset of legacy names adapted, an absent operation runs nothing ([false, null]).
 ## Expected refusals print errors; the verdict is the last line.
 
 const TEST_SLOT: int = 5
@@ -97,6 +98,7 @@ func _run() -> void:
 	_partial_legacy(manager)
 	_simulation_participants()
 	_item_users_and_passages()
+	_interact_hosts()
 
 	manager.delete_slot(TEST_SLOT)
 	_dispose(legacy)
@@ -223,6 +225,42 @@ func _item_users_and_passages() -> void:
 		"a passage provider's own method name was not used")
 	for node: Node in [user, half, passage, stranger, mapped]:
 		node.free()
+
+
+func _interact_hosts() -> void:
+	var walker := _LegacyWalker.new()
+	var stranger := Node.new()
+	_check(InteractHostCapability.offers(walker, &"walk_to") and InteractHostCapability.offers(walker, &"action_locked"),
+		"a legacy walker's methods were not adapted")
+	_check(not InteractHostCapability.offers(walker, &"animate"), "a walker offers an animation it does not have")
+	var moved: Array = InteractHostCapability.run(walker, &"walk_to", [Vector3(1.0, 0.0, 2.0)])
+	_check(moved[0] and walker.target == Vector3(1.0, 0.0, 2.0), "walk_to did not reach the legacy method")
+	var locked: Array = InteractHostCapability.run(walker, &"action_locked")
+	_check(locked[0] and locked[1] == true, "action_locked did not answer through the contract")
+	_check(InteractHostCapability.run(walker, &"animate") == [false, null], "an absent operation ran or answered")
+	_check(not InteractHostCapability.ensure(stranger) and InteractHostCapability.run(stranger, &"stop") == [false, null],
+		"a node with no host method counted as a host")
+	var mapped := _LegacyWalker.new()
+	_check(InteractHostCapability.publish(mapped, {&"stop": &"halt"}) and InteractHostCapability.run(mapped, &"stop")[0]
+		and mapped.halted and not InteractHostCapability.offers(mapped, &"walk_to"), "a host's own method names were not used")
+	for node: Node in [walker, stranger, mapped]:
+		node.free()
+
+
+class _LegacyWalker:
+	extends Node
+
+	var target: Vector3 = Vector3.ZERO
+	var halted: bool = false
+
+	func move_to_position(at: Vector3) -> void:
+		target = at
+
+	func is_action_locking() -> bool:
+		return true
+
+	func halt() -> void:
+		halted = true
 
 
 class _LegacyUser:
