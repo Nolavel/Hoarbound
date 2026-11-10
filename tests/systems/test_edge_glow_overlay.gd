@@ -26,16 +26,19 @@ func _run() -> void:
     a.set_feedback_state(EdgeGlowOverlay.STATE_HELD)
     a.set_reduced_motion(true)
     await process_frame
+    await process_frame
     _check(a.get_feedback_state() == EdgeGlowOverlay.STATE_HELD, "held state was lost")
     _check(float(mat.get_shader_parameter(&"glow_strength")) > 0.3, "held light is off")
     _check(is_zero_approx(float(mat.get_shader_parameter(&"motion_factor"))), "reduced motion still sweeps")
 
     a.show_refusal()
     await process_frame
+    await process_frame
     var tint: Color = mat.get_shader_parameter(&"glow_color")
     _check(tint.r > tint.g and tint.r > tint.b, "rejection event was not red")
     _check(a.get_feedback_state() == EdgeGlowOverlay.STATE_HELD, "rejection changed persistent state")
     a.set_feedback_enabled(false)
+    await process_frame
     await process_frame
     _check(is_zero_approx(float(mat.get_shader_parameter(&"glow_strength"))), "disabled overlay still visible")
 
