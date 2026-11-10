@@ -89,6 +89,8 @@ var _framing: ContainerFraming
 ## Once the pack is off his back at a container, it is in its framed place by the furniture (the view cuts).
 var _container_cut: bool = false
 var _container_fov: float = 50.0
+## The next frame sets what hangs off the pack at rest (the cut just moved it).
+var _rest_hangers: bool = false
 ## Doors held out of the pack's way (swung back on finish).
 var _held_doors: Array[Cabinet] = []
 ## Each pinned hanger's own hinge_out while it turns out by a container (put back after).
@@ -439,6 +441,7 @@ func _process(delta: float) -> void:
 				## Off his back in his hands: now the pack is in its place by the furniture and Henry leaves the frame.
 				_clear_container()
 				_container_cut = true
+				_rest_hangers = true
 				if _framing == null or not _framing.show_henry:
 					visual.visible = false
 			settled.emit()
@@ -462,6 +465,11 @@ func _process(delta: float) -> void:
 		if exp(-JOLT_DECAY * _jolt_t) < 0.01:
 			_jolt_m = 0.0
 	pack.global_transform = at
+	if _rest_hangers:
+		## The cut moved the pack at once: what hangs off it hangs at rest there, as the clearance planned it.
+		_rest_hangers = false
+		for node: Node in pack.find_children("*", "PendulumHang", true, false):
+			(node as PendulumHang).rest_now()
 	if container == null or not _container_cut:
 		_grip_sides(eased)  # his hands hold it as it comes off, until the cut to the furniture's frame
 	if _ending and _t <= 0.0:

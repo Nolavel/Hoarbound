@@ -53,6 +53,9 @@ func _ready() -> void:
 	_search = ContainerSearch.new()
 	_search.container = self
 	add_child(_search)
+	## Filled before it entered the tree (a house built off-tree): laid out now, when items can be measured.
+	if not items.is_empty():
+		_layout()
 
 
 ## While the door is open and something is inside, the open face is frosted over (items read as blurs) and
@@ -270,6 +273,8 @@ func take(index: int) -> Dictionary:
 
 ## Why `item_id` would not go in beside what is there now (NO_ROOM), or &"".
 func refusal(item_id: StringName) -> StringName:
+	if not is_inside_tree():
+		return &""  # nothing can be measured off-tree: what a built house holds is laid out on entering the tree
 	var ids: Array[StringName] = []
 	for item: Dictionary in items:
 		ids.append(item["id"])
@@ -372,6 +377,8 @@ static func shelves_from_furniture(root: Node3D, skip: Node = null) -> Array[AAB
 
 ## Places a pickup for every item, standing on the shelves in order, left to right.
 func _layout() -> void:
+	if not is_inside_tree():
+		return  # _ready lays it out (an item measures only in the tree, where its model is built)
 	var ids: Array[StringName] = []
 	for item: Dictionary in items:
 		ids.append(item["id"])
@@ -457,6 +464,8 @@ func _on_picked_up(_item_id: StringName, _count: int, pickup: ItemPickup) -> voi
 func _outline(id: StringName) -> AABB:
 	if _outlines.has(id):
 		return _outlines[id]
+	if not is_inside_tree():
+		return AABB()  # a probe builds its model in _ready: off-tree it would measure, and cache, nothing
 	var probe := ItemPickup.new()
 	probe.item_id = id
 	probe.show_ground_highlight = false

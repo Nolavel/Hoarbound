@@ -9,6 +9,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 ### Added
 
 - First Exit A compass (owner 2026-11-09, #293): a thin top tape that follows the camera's horizontal view, and one ochre mark for 727. No distance, no turn arrows, no lit route. The mark is armed once, on the Battery Osceola scenario start only; the developer shelter spawn does not arm it. Entering the 727 interior clears it, and leaving does not bring it back. R marks the known house again. Knowledge lives on `FirstExitBearings`, not on the HUD or on Henry, and survives sleep/save. Older saves without this key do not grow a new mission mark.
+- 727 shelter: a kitchen cupboard, a dresser and a chest in the waiting room, searchable with the pack like the waiting-room cabinet (owner).
+  - They are built by the new shared `FurnitureKit`, which the test row now uses too. Each stands 1 cm off its wall; the chest stands 17 cm off, room for its lid.
+  - Contents are game-invented: the cupboard holds a SPoV can and an empty tin; the dresser nails and tinder, with the bottom drawer empty; the chest a tin of pineapple.
+  - `test_727_furniture` checks the placement against the real shell's walls (ray gaps), and the search at each piece: no pack mesh in the furniture, the walls or the floor, and every item in sight.
+
 - CI ratchet on dynamic dispatch (ARCHITECTURE §16, architecture step 3).
   - `tools/ci/check_dynamic_dispatch.py` counts `has_method(` and string `.call(` per game-code file against `tools/ci/dynamic_dispatch_baseline.txt`. Each file there has its count and class (A–F); class F, an untyped call on a known class or service, is new in §16.
   - A file may not add a call, a new file may not start, and a file that removed some must lower its line.
@@ -18,6 +23,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 - First Exit compass (#293): the bearings script no longer names `class_name World`, so loading the gameplay HUD does not cycle through it. CI jobs that install the .NET SDK pin `ubuntu-24.04` (`ubuntu-latest` is 26.04 and has no `dotnet-sdk-8.0`).
 - First Exit compass (#293): the debug clock is off in the game (`perfomance_visible_display` on the world clock), not only in the preview. The preview's inside-727 save now boots a new world through `pending_load_slot`.
+- Containers filled off-tree, like the 727 house, stacked every item in one spot. Off-tree an item measured as nothing, and that size was cached. They now lay out on entering the tree, and an off-tree size is never cached. `test_727_furniture` checks the items stand apart.
+- Pickups draw every item `SurvivalItemVisual` knows (empty tin, tinder, mug, pan…) instead of a 32 cm placeholder parcel; the parcel had hidden the SPoV can in the cupboard.
+- At the cut to a container's frame, what hangs off the pack hangs at rest (`PendulumHang.rest_now`). It no longer carries the swing from the pack's way off his back into the planned pose.
+- `test_key_west_727_shelter` expected the mattress the owner removed on 2026-11-03; it now skips it, and the suite passes again.
 - Taking an item into the hand (hold F) is now whole or nothing. With two things held, the first was put away before the second refused, so a refused take left a hand empty.
   - The hand components publish the new `HeldReleaseCapability` (`core/contracts/`), whose `can_release` is each holder's own guard: the held item, the hammer, and a flare (only unlit and still owned by storage).
   - `HandsTransaction.check()` asks every holder before anything changes. Storage takes the new item first, the one step that may still refuse; then the holders let go.
@@ -26,6 +35,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - Sitting down, laying the bedroll, opening the pack and taking an armful each emptied the first hand before a second hand refused. Each now refuses with every hand as it was.
   - A Quick Access pocket change hides only what can go back to storage; a burning flare stays in hand.
   - `tests/systems/test_held_release_callers.gd` covers all five on the real player. It failed four times on the old code, passes now, and gates `checks`.
+
 - CI `checks`: the filename gate failed on every branch because of an orphaned `tools/runtime/_boot_warn.gd.uid` left by an earlier commit; it is removed.
 - The capability contract now gates `checks` (ARCHITECTURE §16, rule 4).
   - `tools/ci/required_suites.txt` lists the contract suites; `run_tests.sh <suite...>` runs them with the same verdict as the full run.

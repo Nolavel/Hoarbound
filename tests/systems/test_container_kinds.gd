@@ -24,6 +24,7 @@ const CASES: Array = [
 	["drawer_bottom", ["drawer_bottom"], false, true],
 	["chest", ["chest"], true, true],
 ]
+const CHECKS: GDScript = preload("res://tests/systems/container_search_checks.gd")
 ## Henry stands this far out from a container's front to search it, metres.
 const STAND_M: float = 0.9
 
@@ -121,58 +122,18 @@ func _toggle(ways: Array) -> void:
 	await _frames(40)
 
 
-## No mesh of the pack inside any furniture part; every item and the pack seen past everything, on screen.
+## The working frame (container_search_checks.gd): no pack mesh in the furniture, everything in sight.
 func _check_clear(id: String, shelves: ItemContainer, camera: Camera3D) -> void:
-	var parts: Array = ContainerClearance.furniture_parts(shelves)
-	var pack: PackRig = null
-	for node: Node in root.find_children("*", "PackRig", true, false):
-		pack = node as PackRig
+	var failures: Array[String] = CHECKS.frame_failures(id, shelves, camera, root)
+	for failure: String in failures:
+		_check(false, failure)
+	var pack: PackRig = CHECKS.pack_in(root)
 	if pack == null:
-		_check(false, "%s: no pack in the frame" % id)
 		return
-	var mine: Array = []
-	for node: Node in pack.find_children("*", "MeshInstance3D", true, false):
-		var mesh := node as MeshInstance3D
-		if mesh.mesh == null or not mesh.is_visible_in_tree():
-			continue
-		if mesh.name == &"FrontPanel":
-			## It bends in the shader: its sweep as it lies open now.
-			var canvas: BackpackModel = pack.get_canvas()
-			mine.append([canvas.global_transform, canvas.open_panel_box(canvas.get_fold_degrees()), "FrontPanel"])
-			continue
-		mine.append([mesh.global_transform, mesh.mesh.get_aabb(), String(pack.get_path_to(mesh))])
-	var hits: int = 0
-	for piece: Array in mine:
-		for part: Array in parts:
-			if ContainerClearance.boxes_overlap(piece[0], piece[1], part[0], part[1], 0.0):
-				hits += 1
-				if hits <= 3:
-					push_error("container kinds: %s: pack mesh %s passes into the furniture part %s at %s" % [id, piece[2], part[1], (part[0] as Transform3D).origin])
-	_check(hits == 0, "%s: %d pack meshes pass into the furniture" % [id, hits])
-	var blockers: Array = parts.duplicate()
-	blockers.append_array(mine)
-	var size: Vector2 = camera.get_viewport().get_visible_rect().size
-	var hidden: int = 0
-	for item: Dictionary in shelves.items:
-		var middle: Vector3 = ContainerClearance.middle_of(item["pickup"])
-		var screen: Vector2 = camera.unproject_position(middle)
-		var shown: bool = not camera.is_position_behind(middle) and Rect2(Vector2.ZERO, size).has_point(screen)
-		if not shown or not ContainerClearance.sees(camera.global_position, middle, blockers):
-			hidden += 1
-	_check(hidden == 0, "%s: %d of %d items inside do not show to the view" % [id, hidden, shelves.items.size()])
-	var pack_middle: Vector3 = pack.global_position
-	_check(Rect2(Vector2.ZERO, size).has_point(camera.unproject_position(pack_middle)) and not camera.is_position_behind(pack_middle),
-		"%s: the pack is off screen" % id)
-	## The pack's opening faces the view (within 15 degrees; a view from far above is met up to 50 degrees back).
+	var face: AABB = shelves.global_transform * shelves.shelves_box()
+	var apart: float = pack.global_position.clamp(face.position, face.end).distance_to(pack.global_position)
 	var to_eye: Vector3 = (camera.global_position - pack.global_position).normalized()
 	var facing: float = rad_to_deg(acos(clampf((-pack.global_basis.z.normalized()).dot(to_eye), -1.0, 1.0)))
-	var steep: float = maxf(rad_to_deg(asin(clampf(to_eye.y, -1.0, 1.0))) - 50.0, 0.0)
-	_check(facing < 15.0 + steep, "%s: the pack's opening is %.0f degrees off the view" % [id, facing])
-	## It stays by the furniture: its middle within 0.75 m of the open face's nearest edge.
-	var face: AABB = shelves.global_transform * shelves.shelves_box()
-	var nearest: Vector3 = pack.global_position.clamp(face.position, face.end)
-	var apart: float = nearest.distance_to(pack.global_position)
-	_check(apart < 0.75, "%s: the pack stands %.2f m off the furniture" % [id, apart])
 	print("container kinds: %s pack opening %.0f degrees off the view, %.2f m off the shelves" % [id, facing, apart])
 	## The owner's framing (container_framing.tres) stands at the 727-like floor cabinet: the view as authored,
 	## the pack within 3 cm of its authored place (only lifted so what hangs clears the floor).
@@ -198,13 +159,7 @@ func _check_clear(id: String, shelves: ItemContainer, camera: Camera3D) -> void:
 			_check(camera.global_position.distance_to(pack.global_position) < camera.global_position.distance_to(leaf),
 				"%s: the pack stands behind door %s, not before it" % [id, door.name])
 		print("container kinds: %s door %s at %.0f degrees%s" % [id, door.name, angle, " (pack's side)" if on_pack_side else ""])
-	## Its open face, corner to corner, shows past every part of the furniture (an open door in front hides it).
-	var half: Vector3 = pack.size * 0.45
-	for corner: Vector3 in [Vector3.ZERO, Vector3(-half.x, -half.y, -half.z), Vector3(half.x, -half.y, -half.z),
-			Vector3(-half.x, half.y, -half.z), Vector3(half.x, half.y, -half.z)]:
-		_check(ContainerClearance.sees(camera.global_position, pack.global_transform * corner, parts),
-			"%s: the pack's face at %s is hidden behind the furniture" % [id, corner])
-	print("container kinds: %s clear (pack meshes in furniture %d, items hidden %d)" % [id, hits, hidden])
+	print("container kinds: %s clear (%d frame failures)" % [id, failures.size()])
 
 
 func _frames(count: int) -> void:

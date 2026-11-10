@@ -38,7 +38,7 @@ static func furniture_parts(container: ItemContainer) -> Array:
 
 ## What the pack takes up turned to `turn` (world), as offsets from its middle in world axes: [[Transform3D, AABB],
 ## ...]: its meshes, the open panel's sweep (`panel_deg`), and what hangs off it as it hangs at rest there (each
-## PendulumHang's -Y down, square to its pin): placed at a cut, a hanger inside a part could never swing clear.
+## PendulumHang's -Y down, square to its pin; the cut sets them so, PendulumHang.rest_now).
 static func pack_shape(pack: PackRig, panel_deg: float, turn: Basis) -> Array:
 	var canvas: BackpackModel = pack.get_canvas()
 	var rest: Dictionary = {}
