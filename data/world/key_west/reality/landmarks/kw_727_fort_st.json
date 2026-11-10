@@ -986,6 +986,39 @@
      0.85,
      0.45
     ]
+   },
+   {
+    "node": "KitchenCupboard",
+    "kind": "kitchen_cupboard",
+    "room": "waiting",
+    "uv": [
+     -3.6,
+     0.445
+    ],
+    "yaw_deg": 0,
+    "size": null
+   },
+   {
+    "node": "Dresser",
+    "kind": "dresser",
+    "room": "waiting",
+    "uv": [
+     -5.345,
+     1.6
+    ],
+    "yaw_deg": 90,
+    "size": null
+   },
+   {
+    "node": "Chest",
+    "kind": "chest",
+    "room": "waiting",
+    "uv": [
+     3.095,
+     4.4
+    ],
+    "yaw_deg": -90,
+    "size": null
    }
   ],
   "outline_uv": [

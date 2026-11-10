@@ -99,6 +99,11 @@ FURNITURE = [
     ("SinkW", "sink", "restroom_w", (-9.8, 2.5), 0, (0.5, 0.85, 0.45)),
     ("ToiletE", "toilet", "restroom_e", (-6.2, 2.3), 0, (0.45, 0.8, 0.7)),
     ("SinkE", "sink", "restroom_e", (-8.8, 2.5), 0, (0.5, 0.85, 0.45)),
+    ## Searchable furniture (FurnitureKit), its origin on the floor, its back 1 cm off the wall it stands on (the
+    ## chest 14 cm, room for its lid): a cupboard hung on the corridor partition, a dresser on the restroom one.
+    ("KitchenCupboard", "kitchen_cupboard", "waiting", (-3.6, 0.445), 0, None),
+    ("Dresser", "dresser", "waiting", (-5.345, 1.6), 90, None),
+    ("Chest", "chest", "waiting", (3.095, 4.4), -90, None),
 ]
 GAME_INVENTED = ("no floor plan, door or window record is reachable (Legistar plan attachments not delivered); "
                  "layout follows a small community health centre (CHI Key West clinic programme: medical, dental, "

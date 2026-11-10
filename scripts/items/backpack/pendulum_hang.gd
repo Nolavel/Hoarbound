@@ -120,6 +120,22 @@ func _process(delta: float) -> void:
 	basis = Basis(Quaternion(Vector3.DOWN, local))
 
 
+## Hangs straight down at once, at rest, square to its pin (a hard cut moved its parent: the pose the furniture
+## clearance planned, ContainerClearance.pack_shape). Call parents before the hangers on them.
+func rest_now() -> void:
+	if not is_inside_tree() or get_parent_node_3d() == null:
+		return
+	var to_parent: Basis = get_parent_node_3d().global_basis.orthonormalized().inverse()
+	_dir = Vector3.DOWN
+	_dir_speed = Vector3.ZERO
+	_keep_on_hinge(to_parent)
+	var local: Vector3 = (to_parent * _dir).normalized()
+	basis = Basis(Quaternion(Vector3.DOWN, local))
+	_last_position = global_position
+	_last_velocity = Vector3.ZERO
+	_has_last = true
+
+
 ## Adds to the swing's rate (rad/s, world space): a knock, such as being clipped back on.
 func nudge(speed: Vector3) -> void:
 	_dir_speed += speed
