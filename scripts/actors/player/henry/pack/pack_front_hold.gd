@@ -283,7 +283,7 @@ func _face_view() -> void:
 ## our way, the pack stands before them); unseen at the hard cut, swung back when the pack goes on.
 func _open_doors_wide() -> void:
 	var middle: float = container.shelves_box().get_center().x
-	for opener: InteractiveArea in container.all_openers():
+	for opener: Opener in container.all_openers():
 		var door := opener as Cabinet
 		if door == null or not door.is_open() or door.door_hinge == null or not door.swing_axis.is_equal_approx(Vector3.UP):
 			continue

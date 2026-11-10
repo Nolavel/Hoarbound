@@ -28,9 +28,9 @@ const VEIL_OUT_M: float = 0.004
 @export var shelves: Array[AABB] = []
 ## The door that must be open to reach in (null: always open).
 @export var door: Cabinet
-## More ways in (kitchen doors side by side, a drawer, a chest's lid): open when any of them is (each a Cabinet
-## or a Drawer). `door`, when set, counts as one of them.
-@export var openers: Array[InteractiveArea] = []
+## More ways in (kitchen doors side by side, a drawer, a chest's lid): open when any of them is (each an Opener:
+## a Cabinet, a Drawer, or any new kind). `door`, when set, counts as one of them.
+@export var openers: Array[Opener] = []
 ## The shelves open upward (a drawer, a chest): the frost and the search sit on their top face, not the front.
 @export var opens_up: bool = false
 ## The whole piece of furniture these shelves are in (a dresser for one of its drawers); null: the parent.
@@ -130,7 +130,7 @@ func visit_spot(from: Vector3) -> Dictionary:
 ## drawer) the side `from` (world) is on.
 func free_side(from: Vector3) -> float:
 	var doors: Array[Cabinet] = []
-	for opener: InteractiveArea in all_openers():
+	for opener: Opener in all_openers():
 		var cabinet := opener as Cabinet
 		if cabinet != null and cabinet.door_hinge != null and cabinet.swing_axis.is_equal_approx(Vector3.UP):
 			doors.append(cabinet)
@@ -155,7 +155,7 @@ func body_box() -> AABB:
 	if _body.size != Vector3.ZERO:
 		return _body
 	var skips: Array[Node] = []
-	for opener: InteractiveArea in all_openers():
+	for opener: Opener in all_openers():
 		var cabinet := opener as Cabinet
 		if cabinet != null and cabinet.door_hinge != null:
 			skips.append(cabinet.door_hinge)
@@ -180,21 +180,21 @@ func is_low(floor_y: float) -> bool:
 
 ## Whether Henry can reach in now: always with no way in to open, else when any of its ways in is open.
 func is_reachable() -> bool:
-	var ways: Array[InteractiveArea] = all_openers()
+	var ways: Array[Opener] = all_openers()
 	if ways.is_empty():
 		return true
-	for opener: InteractiveArea in ways:
-		if (opener is Cabinet and (opener as Cabinet).is_open()) or (opener is Drawer and (opener as Drawer).is_open()):
+	for opener: Opener in ways:
+		if opener.is_open():
 			return true
 	return false
 
 
 ## Its ways in: `door` (when set) and `openers`.
-func all_openers() -> Array[InteractiveArea]:
-	var out: Array[InteractiveArea] = []
+func all_openers() -> Array[Opener]:
+	var out: Array[Opener] = []
 	if door != null:
 		out.append(door)
-	for opener: InteractiveArea in openers:
+	for opener: Opener in openers:
 		if opener != null and not out.has(opener):
 			out.append(opener)
 	return out
