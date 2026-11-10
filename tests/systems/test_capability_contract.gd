@@ -6,7 +6,10 @@ extends SceneTree
 ## - a refused publish (missing method, empty id or map, no provider) publishes nothing and keeps what was there;
 ## - a freed provider or an unpublished capability answers nothing instead of crashing;
 ## - a participant that does not return a Dictionary refuses the whole save, and the slot keeps its last good save;
-## - a slot without a participant's key leaves that participant untouched on load.
+## - a slot without a participant's key leaves that participant untouched on load;
+## - a simulation participant: legacy names adapted, a missing priority defaults, own names mapped, a
+##   non-participant refused, and the clock advances them in priority order;
+## - an item user and a passage provider: legacy names adapted, a half one refused, own names mapped.
 ## Expected refusals print errors; the verdict is the last line.
 
 const TEST_SLOT: int = 5
@@ -92,6 +95,8 @@ func _run() -> void:
 	_refused_save(manager, participant)
 	_absent_key(manager, participant)
 	_partial_legacy(manager)
+	_simulation_participants()
+	_item_users_and_passages()
 
 	manager.delete_slot(TEST_SLOT)
 	_dispose(legacy)
@@ -171,6 +176,112 @@ func _partial_legacy(manager: SaveManager) -> void:
 	manager.register(partial)
 	_check(manager.save_to_slot(TEST_SLOT), "an unadapted provider broke the save of the others")
 	_dispose(partial)
+
+
+func _simulation_participants() -> void:
+	var legacy := _LegacyTicker.new()
+	var plain := _PlainTicker.new()
+	var mapped := _MappedTicker.new()
+	var stranger := Node.new()
+	_check(SimulationParticipantCapability.ensure(legacy), "a legacy simulation participant was not adapted")
+	_check(SimulationParticipantCapability.priority(legacy) == 5, "a legacy participant's own priority was lost")
+	_check(SimulationParticipantCapability.ensure(plain), "a participant with no priority method was refused")
+	_check(SimulationParticipantCapability.priority(plain) == SimulationParticipantCapability.DEFAULT_PRIORITY,
+		"a participant with no priority did not get the default")
+	_check(SimulationParticipantCapability.publish(mapped, &"tick", &"rank"), "own simulation method names were refused")
+	_check(not SimulationParticipantCapability.publish(mapped, &"no_such_tick"), "a missing advance method was published")
+	_check(not SimulationParticipantCapability.ensure(stranger), "a node with no advance became a participant")
+	var clock := SimulationClock.new()
+	root.add_child(clock)
+	var order: Array[String] = []
+	for ticker: Node in [plain, legacy, mapped]:
+		ticker.set_meta(&"log", order)
+		clock.register_participant(ticker)
+	clock.register_participant(stranger)
+	_check(clock.get_participant_count() == 3, "the clock took %d participants, not 3" % clock.get_participant_count())
+	clock.advance_hours(0.1, &"test")
+	_check(order == ["mapped", "legacy", "plain"], "the clock advanced in order %s, not by priority" % [order])
+	for node: Node in [clock, legacy, plain, mapped, stranger]:
+		node.free()
+
+
+func _item_users_and_passages() -> void:
+	var user := _LegacyUser.new()
+	var half := _HalfUser.new()
+	_check(ItemUserCapability.can_use(user, &"bedroll") and not ItemUserCapability.can_use(user, &"stone"),
+		"a legacy item user did not answer through the contract")
+	_check(ItemUserCapability.use(user, &"bedroll") and user.used == &"bedroll", "a legacy item user was not used")
+	_check(not ItemUserCapability.ensure(half) and not ItemUserCapability.can_use(half, &"bedroll"),
+		"an item user with can_use but no use was taken")
+	var passage := _LegacyPassage.new()
+	var stranger := Node.new()
+	_check(PassageProviderCapability.info(passage) == passage.held, "a legacy passage provider gave no info")
+	_check(PassageProviderCapability.info(stranger) == null and not PassageProviderCapability.ensure(stranger),
+		"a node with no passage counted as a provider")
+	var mapped := _LegacyPassage.new()
+	_check(PassageProviderCapability.publish(mapped, &"other_info") and PassageProviderCapability.info(mapped) == null,
+		"a passage provider's own method name was not used")
+	for node: Node in [user, half, passage, stranger, mapped]:
+		node.free()
+
+
+class _LegacyUser:
+	extends Node
+
+	var used: StringName = &""
+
+	func can_use(item_id: StringName) -> bool:
+		return item_id == &"bedroll"
+
+	func use(item_id: StringName) -> bool:
+		used = item_id
+		return true
+
+
+class _HalfUser:
+	extends Node
+
+	func can_use(_item_id: StringName) -> bool:
+		return true
+
+
+class _LegacyPassage:
+	extends Node
+
+	var held := PassageInfo.new()
+
+	func get_passage_info() -> PassageInfo:
+		return held
+
+	func other_info() -> PassageInfo:
+		return null
+
+
+class _LegacyTicker:
+	extends Node
+
+	func get_simulation_priority() -> int:
+		return 5
+
+	func advance_simulation(_hours: float, _context: SimulationStepContext) -> void:
+		(get_meta(&"log") as Array).append("legacy")
+
+
+class _PlainTicker:
+	extends Node
+
+	func advance_simulation(_hours: float, _context: SimulationStepContext) -> void:
+		(get_meta(&"log") as Array).append("plain")
+
+
+class _MappedTicker:
+	extends Node
+
+	func rank() -> int:
+		return 1
+
+	func tick(_hours: float, _context: SimulationStepContext) -> void:
+		(get_meta(&"log") as Array).append("mapped")
 
 
 class _KeyedParticipant:

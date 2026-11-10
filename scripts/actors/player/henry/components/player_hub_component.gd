@@ -575,7 +575,7 @@ func use_item(item_id: StringName) -> bool:
 	if user == null:
 		return false
 	close()
-	return bool(user.call(&"use", item_id))
+	return ItemUserCapability.use(user, item_id)
 
 
 ## Uses a pocketed item: it passes through the pack to its user and goes back
@@ -603,7 +603,7 @@ func _user_for(item_id: StringName) -> Node:
 	if body == null or inventory == null or not inventory.has_item(item_id):
 		return null
 	for child: Node in body.get_children():
-		if child != self and child.has_method(&"can_use") and bool(child.call(&"can_use", item_id)):
+		if child != self and ItemUserCapability.can_use(child, item_id):
 			return child
 	return null
 

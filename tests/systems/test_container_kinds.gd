@@ -56,6 +56,7 @@ func _run() -> void:
 	_hub = _player.get_node(^"PlayerHubComponent") as PlayerHubComponent
 	for case: Array in CASES:
 		await _try(case[0], case[1], case[2], case[3])
+	await _new_kind_plugs_in()
 	_finish()
 
 
@@ -115,6 +116,48 @@ func _try(id: String, ways_in: Array, full: bool, low: bool) -> void:
 	await _toggle(ways_in)
 
 
+## A way in of a kind ItemContainer has never seen (a sliding door) plugs in through Opener with no change there:
+## shut, nothing is reachable or offered; slid open, the shelves are reachable and the search is offered.
+func _new_kind_plugs_in() -> void:
+	var piece := Node3D.new()
+	piece.name = "SlidingCupboard"
+	root.add_child(piece)
+	piece.global_position = Vector3(-3.0, 0.0, 0.0)
+	var door := SlidingDoor.new()
+	piece.add_child(door)
+	var shelves := ItemContainer.new()
+	shelves.container_id = &"test_sliding"
+	shelves.shelves = [AABB(Vector3(-0.4, 0.8, -0.2), Vector3(0.8, 0.3, 0.4))] as Array[AABB]
+	shelves.openers.append(door)
+	piece.add_child(shelves)
+	shelves.put(&"spov_can")
+	var search := shelves.get_node(^"Search") as ContainerSearch
+	var face: Array = shelves.front()
+	var stand: Vector3 = (face[0] as Vector3) + (face[1] as Vector3) * STAND_M
+	stand.y = 1.0
+	_player.global_position = stand
+	_player.velocity = Vector3.ZERO
+	await _frames(5)
+	_check(not shelves.is_reachable() and not search.can_interact(), "a shut sliding door left its shelves reachable")
+	door.slid_open = true
+	await _frames(2)
+	_check(shelves.is_reachable(), "an open sliding door did not make its shelves reachable")
+	_check(search.can_interact(), "an open sliding door with something inside offers no search")
+	print("container kinds: a new kind of way in (sliding door) plugs in through Opener")
+	piece.queue_free()
+	await _frames(2)
+
+
+## A sliding door: a kind of way in the container code does not know.
+class SlidingDoor:
+	extends Opener
+
+	var slid_open: bool = false
+
+	func is_open() -> bool:
+		return slid_open
+
+
 ## F on each of `ways` (opens what is shut, shuts what is open), then lets them swing.
 func _toggle(ways: Array) -> void:
 	for way: String in ways:
@@ -147,7 +190,7 @@ func _check_clear(id: String, shelves: ItemContainer, camera: Camera3D) -> void:
 		_check(camera.global_position.distance_to(view) < 0.01, "%s: the view left the owner's framing by %.2f m" % [id, camera.global_position.distance_to(view)])
 		_check(pack.global_position.distance_to(placed) < 0.03, "%s: the pack left the owner's framing by %.2f m" % [id, pack.global_position.distance_to(placed)])
 	## A side door on the pack's side stands all the way open, and the pack stands before it, nearer the view.
-	for way: InteractiveArea in shelves.all_openers():
+	for way: Opener in shelves.all_openers():
 		var door := way as Cabinet
 		if door == null or not door.is_open() or not door.swing_axis.is_equal_approx(Vector3.UP):
 			continue

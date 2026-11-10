@@ -6,6 +6,33 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed
+
+- More class D dynamic dispatch removed (§16). The ratchet baseline is now 140 calls in 34 files.
+  - The Hub hands an item to its user through `ItemUserCapability`. Six components use items (bedroll, hammer, held item, flare, snow scoop); their legacy `can_use`/`use` names are adapted at the boundary.
+  - Passage traversal reads doors and narrow passages through `PassageProviderCapability`.
+  - A swinging door steps only Henry (`as Player`) out of its arc; it used to ask any blocker for `move_to_position`.
+  - Inventory reads the burning flare's weight from `HeldLightComponent` by type. It is the only provider, so no abstraction is added for one (§13).
+  - `test_capability_contract` covers both new contracts.
+
+- The simulation clock advances its participants through `SimulationParticipantCapability` (`core/contracts/`), as saves already do. This is class D in §16.
+  - The legacy `advance_simulation` / `get_simulation_priority` names are adapted at the boundary, so weather, afflictions, snow, the held light and the bio monitor are unchanged.
+  - Any provider, a C++ weather included, may publish its own names.
+  - `CapabilityContract.has_operation` allows an optional operation; a missing priority defaults to 1000.
+  - `test_capability_contract` covers adaptation, the default, mapped names, refusal and priority order.
+  - The ratchet baseline is now 149 calls in 38 files.
+
+- Quick Access draws, names and uses what a hand shows through `HeldDrawCapability` (`core/contracts/`). The held item, the hammer and a flare publish it beside `HeldReleaseCapability`. This is the last class E dynamic dispatch (§16).
+  - `quick_access_component.gd` lost all 14 `has_method`/string `call` uses, and the ratchet baseline drops to 151 calls in 39 files.
+  - The hammer answers Quick Access use explicitly with false, as it did by lacking the method.
+  - The flare's burning readout asks `HeldLightComponent` by type.
+  - Quick Access, flare and hand suites fail identically before and after (two known flare-hint checks).
+
+- Containers ask any way in through one small seam, `Opener`: `is_open`, `is_swinging`, and a `toggled` signal (architecture step 6).
+  - `Cabinet` and `Drawer` extend it, and `ItemContainer.openers` is `Array[Opener]`. `is_reachable` no longer switches on `is Cabinet` / `is Drawer`.
+  - A new kind plugs in with no change to the container. `test_container_kinds` proves it with a sliding door, which the old type switch failed.
+  - `Cabinet.door_toggled` is now the shared `toggled`; nothing outside listened to it.
+
 ### Added
 
 - First Exit A compass (owner 2026-11-09, #293): a thin top tape that follows the camera's horizontal view, and one ochre mark for 727. No distance, no turn arrows, no lit route. The mark is armed once, on the Battery Osceola scenario start only; the developer shelter spawn does not arm it. Entering the 727 interior clears it, and leaving does not bring it back. R marks the known house again. Knowledge lives on `FirstExitBearings`, not on the HUD or on Henry, and survives sleep/save. Older saves without this key do not grow a new mission mark.

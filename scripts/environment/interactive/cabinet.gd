@@ -1,11 +1,8 @@
 class_name Cabinet
-extends InteractiveArea
+extends Opener
 
 ## A cabinet whose door (or a chest's lid) swings on its hinge. The cabinet owns the door state;
 ## Henry's clip is requested through player_animation_action.
-
-## Emitted when the door starts to swing, true when it opens.
-signal door_toggled(open: bool)
 
 const OPEN_KEY: String = "CABINET_OPEN"
 const CLOSE_KEY: String = "CABINET_CLOSE"
@@ -96,7 +93,7 @@ func _on_interaction_performed() -> void:
 	_tween.tween_property(door_hinge, ^"rotation", target, swing_time) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT if _open else Tween.EASE_IN_OUT)
 	_tween.finished.connect(_update_prompt)
-	door_toggled.emit(_open)
+	toggled.emit(_open)
 
 
 func _update_prompt() -> void:

@@ -65,6 +65,12 @@ static func has(owner: Object, capability: StringName) -> bool:
 	return typeof(provider) == TYPE_OBJECT and is_instance_valid(provider)
 
 
+## Whether `capability` on `owner` maps `operation` (an optional operation may be left out at publish).
+static func has_operation(owner: Object, capability: StringName, operation: StringName) -> bool:
+	var operations: Variant = _descriptor(owner, capability).get(OPERATIONS_KEY, {})
+	return typeof(operations) == TYPE_DICTIONARY and (operations as Dictionary).has(operation)
+
+
 static func invoke(
 	owner: Object,
 	capability: StringName,
