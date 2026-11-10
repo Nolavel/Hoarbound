@@ -17,6 +17,8 @@ func _process(_delta: float) -> void:
 
 ## Hide the layer, not the strip: preserve the strip's own world/profile rule.
 func _sync_hub_feedback() -> void:
+	if not is_node_ready():
+		return
 	var open: bool = is_instance_valid(_hub) and _hub.is_open()
 	var handling: PackHandling = _hub.get_pack_hands() if open else null
 	var working: bool = is_instance_valid(handling) and handling.enabled

@@ -215,6 +215,8 @@ func _open_at(shelves: ItemContainer, side: float) -> bool:
 		## The ring cursor and hands: take from the pack or a pocket, put it in the other, G puts it down.
 		var layer := CanvasLayer.new()
 		layer.name = "PackCursorLayer"
+		## Keep the ring, readout and weight above the fullscreen Hub glow (layer 1).
+		layer.layer = 3
 		add_child(layer)
 		var ring := PackCursor.new()
 		layer.add_child(ring)

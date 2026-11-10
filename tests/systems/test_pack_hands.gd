@@ -50,6 +50,17 @@ func _run() -> void:
 	_glow = _ui.get_node(^"HubFeedback/EdgeGlowOverlay") as EdgeGlowOverlay
 	_hub.action_result.connect(func(success: bool) -> void: _results.append(success))
 	_check(not _glow.visible and (_ui.get_node(^"Compass") as CanvasLayer).visible, "gameplay UI before Hub is wrong")
+	var stow := Node3D.new()
+	root.add_child(stow)
+	_hub.stow_visual(stow)
+	await _frames(2)
+	_check(_hub.is_stowing_pickup() and not (_ui.get_node(^"Compass") as CanvasLayer).visible and not _glow.visible, "pickup stow did not suppress only the compass")
+	for _i: int in 120:
+		if not _hub.is_stowing_pickup():
+			break
+		await _frames(1)
+	await _frames(2)
+	_check(not _hub.is_stowing_pickup() and (_ui.get_node(^"Compass") as CanvasLayer).visible, "pickup stow did not restore compass")
 	var equipment := _player.get_node(^"EquipmentComponent") as EquipmentComponent
 	for entry: Dictionary in _inventory.get_entries():
 		if entry["id"] != &"bedroll":
@@ -90,7 +101,10 @@ func _run() -> void:
 	_check(_glow.get_feedback_state() == EdgeGlowOverlay.STATE_ACTIVE, "held tin did not activate glow")
 	await _glide(_pack_screen(straps))
 	_hands.press(PackHandling.GRAB_ACTION, false)
-	await _frames(20)
+	await _frames(2)
+	var success_tint: Color = (_glow.material as ShaderMaterial).get_shader_parameter(&"glow_color")
+	_check(success_tint.g > success_tint.r and success_tint.g > success_tint.b, "real successful transfer did not turn glow green")
+	await _frames(18)
 	_check(_inventory.get_count(&"spov_can") == 6 and StringName(shelf.slots[left_card]["item_id"]) == &"",
 		"the tin did not go from the coat pocket into the pack")
 	_check(straps.items.size() == strapped + 1, "the straps do not hold the tin (%d, had %d)" % [straps.items.size(), strapped])
@@ -133,6 +147,8 @@ func _run() -> void:
 		await _frames(5)
 		_check(StringName(shelf.slots[sleeve_card]["item_id"]) == &"axe", "the refused axe left its sleeve")
 		_check(_hands.cursor.warning == tr(PackQuickShelf.FULL), "the full pocket showed no reason")
+		var refusal_tint: Color = (_glow.material as ShaderMaterial).get_shader_parameter(&"glow_color")
+		_check(refusal_tint.r > refusal_tint.g and refusal_tint.r > refusal_tint.b, "real refusal did not turn glow red")
 		## The pack refuses it as too big.
 		await _aim(_card_screen(shelf, sleeve_card))
 		await _grab()
