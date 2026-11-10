@@ -1,0 +1,40 @@
+name: discussion-bridge
+
+# Only newly created comments in Discussion #1 or Issue #297 are mirrored.
+# This workflow must exist on the default branch to receive webhook events.
+on:
+  issue_comment:
+    types: [created]
+  discussion_comment:
+    types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  discussions: write
+
+concurrency:
+  group: discussion-bridge-${{ github.event_name }}-${{ github.event.comment.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' && github.event.issue.number == 297) ||
+      (github.event_name == 'discussion_comment' && github.event.discussion.number == 1)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bridge contract checks
+        run: python3 -m unittest discover -s tools/ci -p 'test_discussion_bridge.py'
+
+      - name: Mirror comment or verify endpoints
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRIDGE_ISSUE_NUMBER: '297'
+          BRIDGE_DISCUSSION_NUMBER: '1'
+        run: python3 tools/ci/discussion_bridge.py
