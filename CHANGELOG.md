@@ -6,6 +6,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added
+
+- CI ratchet on dynamic dispatch (ARCHITECTURE §16, architecture step 3).
+  - `tools/ci/check_dynamic_dispatch.py` counts `has_method(` and string `.call(` per game-code file against `tools/ci/dynamic_dispatch_baseline.txt`. Each file there has its count and class (A–F); class F, an untyped call on a known class or service, is new in §16.
+  - A file may not add a call, a new file may not start, and a file that removed some must lower its line.
+  - Baseline: 165 calls in 40 files. It runs in `checks` with its unit test.
+
 ### Fixed
 
 - Taking an item into the hand (hold F) is now whole or nothing. With two things held, the first was put away before the second refused, so a refused take left a hand empty.

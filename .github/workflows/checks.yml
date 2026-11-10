@@ -56,6 +56,12 @@ jobs:
       - name: Check filenames and uid files
         run: tools/ci/check_filenames.sh
 
+      - name: Dynamic dispatch ratchet
+        ## has_method / string call per file may only shrink (ARCHITECTURE.md §16, tools/ci/dynamic_dispatch_baseline.txt).
+        run: |
+          python3 -m unittest discover -s tools/ci -p 'test_check_dynamic_dispatch.py'
+          python3 tools/ci/check_dynamic_dispatch.py
+
       - name: Contract suites (required)
         ## Cross-system contracts gate the build (ARCHITECTURE.md §16); same verdict as tools/ci/run_tests.sh.
         run: tools/ci/run_tests.sh $(sed -e 's/#.*//' tools/ci/required_suites.txt | tr -s '[:space:]' ' ')

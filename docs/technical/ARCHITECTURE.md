@@ -349,7 +349,9 @@ Existing `has_method()` / string-`call()` uses are classified, not counted:
 | D. Discovery of participants by method name | `SimulationClock` (`advance_simulation`) | Debt. It migrates to an explicit registration or capability when the system is next touched. |
 | E. A mandatory gameplay operation between state owners | (none left for the hands: `HandsTransaction`, `RestComponent`, `BedrollComponent`, `PlayerHubComponent`, `ItemPickup` and `QuickAccessComponent` free hands through `HeldReleaseCapability`) | Debt with a risk when it appears: a silent skip or a partial commit can corrupt game state. |
 
-The current count outside `core/contracts/` is a **temporary debt baseline**, not a norm. CI may hold it as a ratchet (no file may add to it), but the target is to remove classes D and E deliberately, not to make the number go down.
+| F. An untyped call on a known class or service | `state.call(&"is_paused")`, `_sound.call(&"play", ...)`, `player.call(&"play_action_animation", ...)` | Debt, low risk. A typed reference (`as PlayerStateMachine`, `as SoundSystem`, `as Player`) removes it when the file is touched. |
+
+The current count outside `core/contracts/`, `tests/`, `tools/`, `addons/` and `archive/` is a **temporary debt baseline**, not a norm: `tools/ci/dynamic_dispatch_baseline.txt` lists each file with its count and class, and `tools/ci/check_dynamic_dispatch.py` holds it as a ratchet in `checks`. A file may not add a call, a new file may not start, and a file that removed some must lower its line. The target is to remove classes D, E and F deliberately, not to make the number go down. Baseline at introduction (2026-11-10): 165 calls in 40 files (A 4, B 13, D 50, E 14, F 84).
 
 ### Two worked references
 
