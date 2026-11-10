@@ -92,35 +92,42 @@ func _draw_tape(x0: float, width: float, base_y: float, slot: Dictionary) -> voi
 		var cardinal: int = int(round(degrees / 90.0)) % 4
 		var on_cardinal: bool = absf(degrees - float(cardinal) * 90.0) < 0.6 or (cardinal == 0 and degrees > 359.4)
 		var on_major: bool = int(round(degrees)) % 45 == 0
-		var length: float = 15.0 if on_cardinal else 8.0 if on_major else 4.0
+		var length: float = 18.0 if on_cardinal else 10.0 if on_major else 5.0
 		var ink := INK
-		ink.a = 0.92 if on_cardinal else 0.50 if on_major else 0.28
-		draw_line(Vector2(x, base_y - length), Vector2(x, base_y), ink, 1.0)
-		if not on_cardinal or absf(x - mark_x) < 16.0:
+		ink.a = 0.95 if on_cardinal else 0.72 if on_major else 0.5
+		var top := Vector2(x, base_y - length)
+		var bottom := Vector2(x, base_y)
+		draw_line(top, bottom, Color(0.04, 0.035, 0.03, 0.8), 3.0)
+		draw_line(top, bottom, ink, 1.5)
+		if not on_cardinal or absf(x - mark_x) < 22.0:
 			continue
 		var letter: String = CARDINALS[cardinal]
-		var at := Vector2(x - _text_width(letter, 18) * 0.5, base_y - 18.0)
-		_text(letter, at, 18, INK)
+		var at := Vector2(x - _text_width(letter, 26) * 0.5, base_y - 22.0)
+		_text(letter, at, 26, INK)
 
 
 func _draw_index(x: float, base_y: float) -> void:
-	draw_line(Vector2(x, base_y - 22.0), Vector2(x, base_y + 3.0), Color(INK.r, INK.g, INK.b, 0.95), 1.0)
+	draw_line(Vector2(x, base_y - 26.0), Vector2(x, base_y + 4.0), Color(0.04, 0.035, 0.03, 0.85), 3.0)
+	draw_line(Vector2(x, base_y - 26.0), Vector2(x, base_y + 4.0), Color(INK.r, INK.g, INK.b, 0.95), 1.5)
 
 
 func _draw_marker(x0: float, width: float, base_y: float, slot: Dictionary) -> void:
 	if bool(slot["on_strip"]):
 		var x: float = _x_of(x0, width, float(slot["u"]))
-		draw_circle(Vector2(x, base_y - 7.0), 2.6, OCHRE)
+		draw_circle(Vector2(x, base_y - 8.0), 4.0, Color(0.04, 0.03, 0.02, 0.85))
+		draw_circle(Vector2(x, base_y - 8.0), 2.6, OCHRE)
 		var label: String = _bearings.active_label()
-		_text(label, Vector2(x - _text_width(label, 14) * 0.5, base_y - 18.0), 14, OCHRE)
+		_text(label, Vector2(x - _text_width(label, 20) * 0.5, base_y - 22.0), 20, OCHRE)
 		return
 	var edge: int = int(slot["edge"])
-	var tip_x: float = x0 + 4.0 if edge < 0 else x0 + width - 4.0
-	var wing: float = 7.0 if edge < 0 else -7.0
-	var tip := Vector2(tip_x, base_y - 7.0)
-	draw_polyline(PackedVector2Array([
-		tip + Vector2(wing, -4.5), tip, tip + Vector2(wing, 4.5),
-	]), OCHRE, 1.5)
+	var tip_x: float = x0 + 6.0 if edge < 0 else x0 + width - 6.0
+	var wing: float = 10.0 if edge < 0 else -10.0
+	var tip := Vector2(tip_x, base_y - 8.0)
+	var chevron := PackedVector2Array([
+		tip + Vector2(wing, -6.0), tip, tip + Vector2(wing, 6.0),
+	])
+	draw_polyline(chevron, Color(0.04, 0.03, 0.02, 0.85), 4.0)
+	draw_polyline(chevron, OCHRE, 2.0)
 
 
 func _x_of(x0: float, width: float, u: float) -> float:
@@ -139,7 +146,7 @@ func _text(text: String, at: Vector2, size: int, color: Color) -> void:
 	var font: Font = _ui_font()
 	if font == null:
 		return
-	draw_string(font, at + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0, 0.45))
+	draw_string(font, at + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0, 0.8))
 	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
 
