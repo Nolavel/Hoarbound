@@ -13,7 +13,7 @@ const ACTIVE_TINT: Color = Color(1.0, 0.67, 0.12)
 const SUCCESS_TINT: Color = Color(0.22, 0.87, 0.40)
 const REJECTED_TINT: Color = Color(0.98, 0.19, 0.15)
 
-@export_range(0.025, 0.25, 0.005) var edge_width: float = 0.115
+@export_range(0.025, 0.25, 0.005) var edge_width: float = 0.100
 @export_range(0.0, 1.0, 0.01) var intensity: float = 1.0
 
 var _state: int = STATE_IDLE

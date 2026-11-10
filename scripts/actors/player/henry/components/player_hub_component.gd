@@ -6,6 +6,8 @@ extends Node
 
 signal hub_opened
 signal hub_closed
+## Result of a completed 3D Hub action. Cancelling a drag has no result.
+signal action_result(success: bool)
 ## Emitted after an item moved between the pack and a Quick Access zone.
 signal contents_changed
 ## Emitted when a quick-stowed item has dropped into the pack.
@@ -158,6 +160,11 @@ func _input(event: InputEvent) -> void:
 
 func is_open() -> bool:
 	return _open
+
+
+## World pickup's visible stow animation, not a second pickup state.
+func is_stowing_pickup() -> bool:
+	return _stows_in_flight > 0
 
 
 func toggle() -> bool:

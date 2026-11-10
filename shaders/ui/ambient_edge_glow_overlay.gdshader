@@ -5,7 +5,7 @@ render_mode unshaded;
 // One cap opens inward from each screen edge. Center and side corners stay clear.
 uniform vec4 glow_color : source_color = vec4(0.76, 0.77, 0.75, 1.0);
 uniform float glow_strength : hint_range(0.0, 1.0, 0.01) = 0.0;
-uniform float edge_width : hint_range(0.025, 0.25, 0.005) = 0.115;
+uniform float edge_width : hint_range(0.025, 0.25, 0.005) = 0.100;
 uniform float clock_seconds = 0.0;
 uniform float motion_factor : hint_range(0.0, 1.0, 0.01) = 1.0;
 
