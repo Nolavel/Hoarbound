@@ -457,9 +457,9 @@ func _show_hover() -> void:
 
 ## Plays a cloth sound for the hands (flat: it is right before the camera).
 func _sound(event: SoundEvent) -> void:
-	var sound: Node = get_node_or_null(^"/root/SoundSystem")
+	var sound := get_node_or_null(^"/root/SoundSystem") as SoundSystemService
 	if sound != null:
-		sound.call(&"play", event)
+		sound.play(event)
 
 
 ## The pocket path of what the ring is over (a pocket or the hand's), or &"" for a strapped item or nothing.

@@ -279,7 +279,7 @@ func _process(delta: float) -> void:
 	if _refresh_left <= 0.0:
 		_refresh_left = 0.12
 		_refresh_content()
-		if _opened and _focus_path != &"" and _zone_item(_focus_path) == &"":
+		if _opened and _focus_path != &"" and zone_item(_focus_path) == &"":
 			_sync_focus_on_open()
 			_refresh_focus_visuals(true)
 
@@ -456,7 +456,7 @@ func _filled_paths() -> Array[StringName]:
 	if quick_access_component == null or quick_access_component.hub == null:
 		return result
 	for path: StringName in _all_paths():
-		if _is_shown(path) and _zone_item(path) != &"":
+		if _is_shown(path) and zone_item(path) != &"":
 			result.append(path)
 	return result
 
@@ -494,7 +494,7 @@ func _zone(path: StringName) -> Dictionary:
 
 
 ## What a pocket card shows: the pocket whose item is in hand reads empty, HANDS owns it.
-func _zone_item(path: StringName) -> StringName:
+func zone_item(path: StringName) -> StringName:
 	if quick_access_component != null and path == quick_access_component.get_held_source_zone():
 		return &""
 	return StringName(_zone(path).get("item_id", &""))
@@ -512,7 +512,7 @@ func _zone_index(path: StringName) -> int:
 
 func _refresh_content() -> void:
 	for path: StringName in _all_paths():
-		var item_id := _zone_item(path)
+		var item_id := zone_item(path)
 		var label := _labels[path] as Label
 		var icon := _icons[path] as TextureRect
 		label.text = "%s\n%s" % [_location_label(path), _item_label(item_id)]
@@ -585,7 +585,7 @@ func _icon_for_item(item_id: StringName) -> Texture2D:
 
 
 func _confirm_path(path: StringName) -> void:
-	if not _opened or _zone_item(path) == &"":
+	if not _opened or zone_item(path) == &"":
 		_pulse_denied(path)
 		return
 	_opened = false
@@ -643,7 +643,7 @@ func _perform_draw(path: StringName) -> bool:
 
 
 func _direct_draw_path(path: StringName) -> void:
-	if _zone_item(path) == &"":
+	if zone_item(path) == &"":
 		return
 	_direct_busy = true
 	_cross_latched = false
@@ -752,7 +752,7 @@ func _refresh_focus_visuals(animate: bool) -> void:
 	for path: StringName in _all_paths():
 		var material := _materials.get(path) as ShaderMaterial
 		var slot := _slots.get(path) as Control
-		var item_id := _zone_item(path)
+		var item_id := zone_item(path)
 		var active := path == _focus_path and item_id != &""
 		var color := active_color if active else (empty_color if item_id == &"" else inactive_color)
 		var target_scale := Vector2.ONE * (1.045 if active else 1.0)

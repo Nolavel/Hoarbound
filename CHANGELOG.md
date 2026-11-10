@@ -8,6 +8,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Class F dynamic dispatch is closed (§16). The ratchet baseline drops from 108 calls in 33 files to 21 calls in 5 files.
+  - The PlayerState and SoundSystem autoloads gain `class_name PlayerStateService` and `SoundSystemService`. All 29 untyped calls to them, and to `InputSystemsService`, are now typed. The stove and timed actions set `PlayerStateService.Mode` directly instead of looking the enum up by name.
+  - Body actions go through `InteractHostCapability`: animate, face, the action lock, and the new `hold` / `holding_still`. Test walkers still work, and a missing operation is skipped.
+  - Henry's animation and the camera read speed, crouch and view through the new `LocomotionReadoutCapability`. Test bodies keep their legacy names, which are adapted at the boundary.
+  - Other calls become typed references: foot contacts (`MotionMatchingLocomotion`), snow obstacles (`KeyWestRealityGround`), the time accelerator (`DayNightManager`) and the stove warmer prompt.
+  - `QuickAccessUI._zone_item` becomes public `zone_item`, since the focus motion reads it.
+
 - StreamingSystem and InputSystems find their participants through capabilities (`core/contracts/`). This is class D in §16. The ratchet baseline is now 108 calls in 33 files.
   - `StreamSourceCapability`: chunks, activate, deactivate, and an optional ring0. The far view and the test sources keep their legacy `*_stream_*` names, which are adapted at the boundary.
   - A source that cannot activate or deactivate is now refused whole at registration. It used to register chunks it could never load or unload.

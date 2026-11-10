@@ -165,7 +165,7 @@ func use_held() -> bool:
 		var next: StringName = item.opens_into if item.opens_into != &"" else \
 			(&"" if item.consumable.discard_leftover else item.consumable.leaves_behind_id)
 		if item.opens_into != &"":
-			get_parent().call(&"play_action_animation", &"fix")
+			InteractHostCapability.run(get_parent(), &"animate", [&"fix"])
 		if next != &"":
 			_item_id = next
 			if HeldOwnership.zone_item(equipment, _source_zone) != next:
@@ -370,9 +370,9 @@ func _advance_present(delta: float) -> void:
 	if _present_seconds >= LIGHTER_RAISE_SECONDS and not flame.is_lit():
 		flame.strike()
 		flame.set_lit(true)
-		var sound: Node = get_node_or_null(^"/root/SoundSystem")
+		var sound := get_node_or_null(^"/root/SoundSystem") as SoundSystemService
 		if sound != null:
-			sound.call(&"play", LIGHTER_STRIKE_EVENT, flame.global_position)
+			sound.play(LIGHTER_STRIKE_EVENT, flame.global_position)
 
 
 ## Fist a forearm before the chest on the holding side, thumb up: HandGrip holds the lighter's body upright in

@@ -115,9 +115,9 @@ func _on_interaction_performed() -> void:
 		return
 	## Ownership is settled now; camera movement during the clip cannot undo it.
 	var player: Node = get_tree().get_first_node_in_group(&"player")
-	if player != null and player.has_method(&"play_action_animation"):
+	if player != null:
 		var action: StringName = player_animation_action if player_animation_action != &"" else &"pickup"
-		player.call(&"play_action_animation", action)
+		InteractHostCapability.run(player, &"animate", [action])
 
 
 func _get_interaction_text() -> String:

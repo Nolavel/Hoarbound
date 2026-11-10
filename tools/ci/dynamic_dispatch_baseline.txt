@@ -7,33 +7,5 @@
 4 A world/world.gd  # composition-root optional hooks (prepare_world_content, apply_world_profile, on_world_ready)
 12 B native/hoarbound_native/ci_project/smoke.gd  # native library smoke test
 1 B scripts/experimental/gdextension_frost/gdextension_frost_lab.gd  # experimental native lab
-2 F core/input/input_systems.gd  # is_paused/is_movement_blocked on the PlayerState autoload (no class_name yet)
-1 F scripts/actors/player/henry/components/interact_component.gd  # is_movement_blocked on the PlayerState autoload (no class_name yet)
 1 D scripts/environment/interactive/interactive_area.gd  # get_interaction_data on a loaded node
 3 D scripts/systems/world/snow/snow_chunk_cover.gd  # optional city obstacle and terrain height sources
-2 F core/audio/sound_system.gd  # plays a player node of either audio class
-13 F scripts/actors/player/henry/Controllers/HenryUALAnimation.gd  # queries on the player (Player)
-3 F scripts/actors/player/henry/Player.gd  # mode state and InputSystems queries
-2 F scripts/actors/player/henry/components/bedroll_component.gd  # play_action_animation on the player
-2 F scripts/actors/player/henry/components/foot_contact_sensor.gd  # contact source queries
-2 F scripts/actors/player/henry/components/held_item_component.gd  # player animation, sound system
-4 F scripts/actors/player/henry/components/snow_scoop_component.gd  # player animation and action lock
-1 F scripts/actors/player/henry/components/strike_component.gd  # sound system
-4 F scripts/actors/player/henry/components/throw_component.gd  # player facing and animation
-3 F scripts/actors/player/henry/components/wood_work_component.gd  # player hold_still and animation
-4 F scripts/environment/interactive/heat_source_feed.gd  # player facing, sound, mode state
-2 F scripts/environment/interactive/item_pickup.gd  # play_action_animation on the player
-2 F scripts/environment/interactive/table_salvage.gd  # player hold_still and animation
-4 F scripts/environment/stove/stove_interaction_controller.gd  # mode state, InputSystems claim
-1 F scripts/environment/stove/stove_warmer.gd  # prompt refresh
-1 F scripts/items/backpack/pack_handling.gd  # sound system
-6 F scripts/systems/actions/time_costed_action_system.gd  # mode state
-11 F scripts/systems/audio/world_audio_binder.gd  # sound system
-8 F scripts/systems/camera/tps_camera.gd  # InputSystems and player queries
-2 F scripts/systems/ice/ice_gait_binder.gd  # InputSystems.is_crouching fallback (Codex: typed InputSystemsService)
-2 F scripts/systems/world/TimeAccelerator.gd  # parent clock hour
-1 F scripts/systems/world/snow/snow_shell.gd  # city obstacle query
-1 F scripts/ui/hud/dynamic_cursor/mouse_cursor_ui.gd  # mode state
-1 F scripts/ui/hud/pickup_marker/pickup_marker_ui.gd  # mode state
-1 F scripts/ui/hud/quick_access/quick_access_focus_motion.gd  # calls the UI private _zone_item
-1 F scripts/ui/menu/pause_menu.gd  # mode state

@@ -14,6 +14,7 @@
 # Do not create a parallel state enum anywhere. Systems that need to know
 # whether the player can act ask here.
 # =============================================================================
+class_name PlayerStateService
 extends Node
 
 ## What the player is doing with their body.

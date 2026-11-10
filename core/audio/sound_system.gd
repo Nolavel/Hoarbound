@@ -1,3 +1,4 @@
+class_name SoundSystemService
 extends Node
 
 ## Autoload `SoundSystem`: plays SoundEvents from pooled voices, runs
@@ -69,7 +70,10 @@ func play(event: SoundEvent, at: Vector3 = Vector3.INF, gain_db: float = 0.0, pi
 		p3d.unit_size = event.unit_size
 		p3d.max_distance = event.max_distance_m
 		p3d.global_position = at
-	player.call(&"play")
+	if spatial:
+		(player as AudioStreamPlayer3D).play()
+	else:
+		(player as AudioStreamPlayer).play()
 	var handle: int = _new_handle()
 	_voices[handle] = {"player": player, "event": event, "started_ms": now}
 	return handle
@@ -232,7 +236,10 @@ func _is_busy(player: Node) -> bool:
 
 func _release_voice(handle: int) -> void:
 	var player: Node = _voices[handle]["player"]
-	player.call(&"stop")
+	if player is AudioStreamPlayer3D:
+		(player as AudioStreamPlayer3D).stop()
+	else:
+		(player as AudioStreamPlayer).stop()
 	_voices.erase(handle)
 
 
