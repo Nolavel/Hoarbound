@@ -67,6 +67,58 @@ jobs:
         ## Cross-system contracts gate the build (ARCHITECTURE.md §16); same verdict as tools/ci/run_tests.sh.
         run: tools/ci/run_tests.sh $(sed -e 's/#.*//' tools/ci/required_suites.txt | tr -s '[:space:]' ' ')
 
+
+  edge-glow-review:
+    # Cheap 2D review in an isolated project; uses the exact source shaders and controller.
+    # No world streaming, game boot, or full asset import; PR #305 only.
+    if: github.event_name == 'pull_request' && github.head_ref == 'feature/issue-282-edge-glow-overlay'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            shaders/ui
+            scripts/ui/effects
+            assets/materials/Shaders
+            assets/ui/hud/quick_access/icons
+            docs/runtime_previews/key_west_727
+            tools/ci
+            tools/runtime
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+      - name: Provision renderer
+        run: |
+          SKIP_APT=1 tools/ci/setup_env.sh
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb mesa-vulkan-drivers
+      - name: Capture five overlay stills
+        run: |
+          set -euo pipefail
+          P="$RUNNER_TEMP/edge-glow-project"
+          OUT="$GITHUB_WORKSPACE/edge-glow-png"
+          mkdir -p "$P" "$OUT"
+          for f in shaders/ui/ambient_edge_glow_overlay.gdshader scripts/ui/effects/edge_glow_overlay.gd assets/materials/Shaders/BG_frame.gdshader tools/runtime/capture_edge_glow_overlay.gd docs/runtime_previews/key_west_727/approach_fort_st.png docs/runtime_previews/key_west_727/henry_by_stove_game_camera.png assets/ui/hud/quick_access/icons/inventory_2.svg assets/ui/hud/quick_access/icons/water_bottle.svg assets/ui/hud/quick_access/icons/lunch_dining.svg; do
+            cp --parents "$f" "$P/"
+          done
+          printf 'config_version=5\n[application]\nconfig/name="Edge glow review"\n[display]\nwindow/size/viewport_width=960\nwindow/size/viewport_height=540\n[rendering]\nrenderer/rendering_method="forward_plus"\n' > "$P/project.godot"
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg"
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" --path "$P" --resolution 960x540 --rendering-driver vulkan --rendering-method forward_plus --audio-driver Dummy --script res://tools/runtime/capture_edge_glow_overlay.gd -- "$OUT" 2>&1 | tee "$OUT/capture.log"
+          grep -q 'EDGE_GLOW_CAPTURE: PASS' "$OUT/capture.log"
+          ! grep -E 'SCRIPT ERROR|SHADER ERROR|Parse Error' "$OUT/capture.log"
+          for f in 01_outdoor_off 02_outdoor_states 03_outdoor_refusal 04_indoor_refusal 05_indoor_recovered; do test -s "$OUT/$f.png"; done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: edge-glow-review-png
+          path: edge-glow-png/
+          if-no-files-found: error
+          retention-days: 7
+
   compass-preview:
     ## Real Key West viewport of the First Exit compass. Dispatch with preview=compass, or a single tagged review push on grok.
     ## Not a second pipeline: same workflow, Godot, lavapipe and ffmpeg as the other captures.
