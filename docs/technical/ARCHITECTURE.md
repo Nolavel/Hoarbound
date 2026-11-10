@@ -347,14 +347,14 @@ Existing `has_method()` / string-`call()` uses are classified, not counted:
 | B. Tools, tests, diagnostics, editor code | capture tools, test harnesses | Allowed. Not production gameplay. |
 | C. Boundary mechanics | `core/contracts/`, language adapters | Allowed. This is where reflection lives. |
 | D. Discovery of participants by method name | `SimulationClock` (`advance_simulation`) | Debt. It migrates to an explicit registration or capability when the system is next touched. |
-| E. A mandatory gameplay operation between state owners | `HandsTransaction` (`put_away`, `is_holding`) | Debt with a risk. A silent skip or a partial commit can corrupt game state. Fixed first. |
+| E. A mandatory gameplay operation between state owners | `put_away_unlit` / `is_holding` callers: `RestComponent`, `BedrollComponent`, `PlayerHubComponent._stow_safe_held_items`, `ItemPickup`, `QuickAccessComponent` | Debt with a risk. A silent skip or a partial commit can corrupt game state. They move to `HeldReleaseCapability` one by one; `HandsTransaction` already has. |
 
 The current count outside `core/contracts/` is a **temporary debt baseline**, not a norm. CI may hold it as a ratchet (no file may add to it), but the target is to remove classes D and E deliberately, not to make the number go down.
 
 ### Two worked references
 
 - **`SaveParticipantCapability`, a deliberate abstraction.** The save manager does not know how any participant stores its state. A GDScript, C# or C++ provider maps its own method names onto `key / capture / restore`, and the consumer never changes (§7).
-- **`HandsTransaction`, why method discovery is not enough.** `commit()` asks each holder in turn to put its item away. If the first agrees and the second refuses, the result is `HANDS_BUSY` with the first already changed. Replacing `has_method` with a capability would not fix that. The fix is in the contract: every holder is validated before any is changed, and the commit either cannot fail afterwards or undoes what it already did.
+- **`HandsTransaction`, why method discovery is not enough.** `commit()` used to ask each holder in turn to put its item away. If the first agreed and the second refused, the result was `HANDS_BUSY` with the first already changed (reproduced by `tests/systems/test_hands_transaction.gd`). Replacing `has_method` with a capability alone would not have fixed that. The fix is in the contract: `HeldReleaseCapability.can_release` is each holder's own guard, so `check()` asks every holder before anything changes; storage taking the new item, the one step that may still refuse, goes first; the holders then let go, which cannot fail after they said they could.
 
 ## 17. Architecture decision records
 

@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Taking an item into the hand (hold F) is now whole or nothing. With two things held, the first was put away before the second refused, so a refused take left a hand empty.
+  - The hand components publish the new `HeldReleaseCapability` (`core/contracts/`), whose `can_release` is each holder's own guard: the held item, the hammer, and a flare (only unlit and still owned by storage).
+  - `HandsTransaction.check()` asks every holder before anything changes. Storage takes the new item first, the one step that may still refuse; then the holders let go.
+  - `tests/systems/test_hands_transaction.gd` reproduced the defect on the old code, passes now, and gates `checks` with the capability contract.
+
 - CI `checks`: the filename gate failed on every branch because of an orphaned `tools/runtime/_boot_warn.gd.uid` left by an earlier commit; it is removed.
 - The capability contract now gates `checks` (ARCHITECTURE §16, rule 4).
   - `tools/ci/required_suites.txt` lists the contract suites; `run_tests.sh <suite...>` runs them with the same verdict as the full run.
