@@ -20,6 +20,7 @@ func _run() -> void:
 	_test_a_claimant_takes_the_interact_key()
 	_test_releasing_a_claim_returns_the_key()
 	_test_a_freed_claimant_does_not_hold_the_key()
+	_test_only_a_claimant_takes_the_key()
 	if _failures > 0:
 		push_error("state: %d check(s) failed" % _failures)
 		quit(1)
@@ -189,6 +190,53 @@ func _test_a_freed_claimant_does_not_hold_the_key() -> void:
 		"a freed claimant still reported as holding the interact key"
 	)
 	input.release_interact(null)
+
+
+## A node that cannot take the key is refused and the owner kept (it used to take the key and crash on the
+## next press); a claimant with only claimed() sits through a hold and a release.
+func _test_only_a_claimant_takes_the_key() -> void:
+	var input: Node = root.get_node_or_null(^"InputSystems")
+	var owner := _make_claimant()
+	var stranger := Node.new()
+	root.add_child(stranger)
+	input.claim_interact(owner)
+	input.claim_interact(stranger)
+	Input.action_press(&"interact")
+	input._begin_interact()
+	_check(owner.claimed == 1, "a node with no claimed() took the key from its owner")
+	input.release_interact(owner)
+	var bare := _make_bare_claimant()
+	input.claim_interact(bare)
+	input._begin_interact()
+	input._tick_interact(0.2)
+	Input.action_release(&"interact")
+	input._end_interact()
+	_check(bare.claimed == 1 and input.is_interact_claimed(), "a claimant with only claimed() was not served")
+	input.release_interact(bare)
+	for node: Node in [owner, stranger, bare]:
+		_dispose(node)
+
+
+func _make_bare_claimant() -> Node:
+	var script := GDScript.new()
+	script.source_code = """
+extends Node
+
+var claimed: int = 0
+
+
+func own_press() -> void:
+	claimed += 1
+
+
+func _init() -> void:
+	InteractClaimantCapability.publish(self, &"own_press")
+"""
+	script.reload()
+	var node := Node.new()
+	node.set_script(script)
+	root.add_child(node)
+	return node
 
 
 func _make_claimant() -> Node:
