@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Stills of the isolated 727 FrontWindow1 thaw probe at fixed thaw steps, one PNG each.
-## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1600x900 --script res://tools/runtime/capture_window_727_thaw.gd -- <out dir> [variant]
+## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1600x900 --script res://tools/runtime/capture_window_727_thaw.gd -- <out dir> [natural|v3] [close]
 
 const PROBE: String = "res://tests/scenes/window_727_sdf_probe.tscn"
 const STEPS: Array[float] = [0.0, 0.12, 0.25, 0.4, 0.55, 0.7, 0.85, 1.0]

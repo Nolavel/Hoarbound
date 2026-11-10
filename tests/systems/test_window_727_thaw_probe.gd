@@ -2,12 +2,13 @@ extends SceneTree
 
 ## The isolated 727 FrontWindow1 thaw probe (issue #281) still loads the real pane and scrubs:
 ## - the pane is the 12 source glass triangles of the landmark GLB, not a stand-in quad;
-## - it opens on the natural thaw shader with its baked frost sheet; V3 stays one switch away for comparison;
+## - it opens on a copy of the game's glass (frosted_glass.gdshader with its two baked frost tiles), never the
+##   shared material; the V3 sheet stays one switch away for comparison;
 ## - thaw is clamped to 0..1 and reaches the material under both variants.
 ## Run: godot --headless --path . --script res://tests/systems/test_window_727_thaw_probe.gd
 
 const PROBE: String = "res://tests/scenes/window_727_sdf_probe.tscn"
-const NATURAL: String = "res://tests/demos/window_727_sdf/natural_thaw_glass_727.gdshader"
+const NATURAL: String = "res://shaders/environment/windows/frosted_glass.gdshader"
 const V3: String = "res://tests/demos/window_727_sdf/sdf_frosted_glass_727.gdshader"
 
 var _failures: int = 0
@@ -27,17 +28,22 @@ func _run() -> void:
 	_check(pane != null, "the extracted pane is missing")
 	if pane != null:
 		var glass := pane.material_override as ShaderMaterial
-		_check(glass != null and glass.shader.resource_path == NATURAL, "the probe does not open on the natural thaw")
-		_check(glass.get_shader_parameter(&"frost_sheet") is Texture2D, "the natural thaw has no baked frost sheet")
+		_check(glass != null and glass.shader.resource_path == NATURAL, "the probe does not open on the game's glass")
+		_check(glass != KeyWest727Shelter.FROSTED_GLASS, "the probe scrubs the shared game material, not a copy")
+		_check(glass.get_shader_parameter(&"frost_edge") is Texture2D and glass.get_shader_parameter(&"frost_field") is Texture2D,
+			"the game's glass has lost a baked frost tile")
 		probe.set_thaw(1.7)
 		_check(is_equal_approx(float(glass.get_shader_parameter(&"heated_warmth")), 1.0), "thaw above 1 was not clamped")
+		_check(is_equal_approx(float(KeyWest727Shelter.FROSTED_GLASS.get_shader_parameter(&"heated_warmth")), 0.0),
+			"scrubbing the probe warmed the game's shared glass")
 		probe.set_variant(&"v3")
-		_check(glass.shader.resource_path == V3, "the V3 sheet is not one switch away")
+		var sheet := pane.material_override as ShaderMaterial
+		_check(sheet != null and sheet.shader.resource_path == V3, "the V3 sheet is not one switch away")
 		probe.set_thaw(0.4)
-		_check(is_equal_approx(float(glass.get_shader_parameter(&"heated_warmth")), 0.4), "thaw did not reach the V3 material")
+		_check(is_equal_approx(float(sheet.get_shader_parameter(&"heated_warmth")), 0.4), "thaw did not reach the V3 material")
 		probe.set_variant(&"natural")
-		_check(glass.shader.resource_path == NATURAL and is_equal_approx(float(glass.get_shader_parameter(&"heated_warmth")), 0.4),
-			"switching back lost the natural thaw or its progress")
+		_check(pane.material_override == glass and is_equal_approx(float(glass.get_shader_parameter(&"heated_warmth")), 0.4),
+			"switching back lost the game's glass or its progress")
 	if _failures > 0:
 		push_error("window thaw probe: %d check(s) failed" % _failures)
 		quit(1)

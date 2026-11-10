@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bevp7k0a72jpx"
-path="res://.godot/imported/frost_sheet_727.png-e9d4867c055a1aace3f55b021b69e05b.ctex"
+uid="uid://d0cujbnri3cs5"
+path="res://.godot/imported/frost_edge_strip.png-897c55ef764a0917fcb41e349d6b1e49.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://tests/demos/window_727_sdf/frost_sheet_727.png"
-dest_files=["res://.godot/imported/frost_sheet_727.png-e9d4867c055a1aace3f55b021b69e05b.ctex"]
+source_file="res://assets/environment/windows/frost_edge_strip.png"
+dest_files=["res://.godot/imported/frost_edge_strip.png-897c55ef764a0917fcb41e349d6b1e49.ctex"]
 
 [params]
 
@@ -24,7 +24,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 mipmaps/preserve_alpha_test_coverage=false
 mipmaps/alpha_test_threshold=0.5
@@ -34,10 +34,10 @@ process/channel_remap/red=0
 process/channel_remap/green=1
 process/channel_remap/blue=2
 process/channel_remap/alpha=3
-process/fix_alpha_border=true
+process/fix_alpha_border=false
 process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

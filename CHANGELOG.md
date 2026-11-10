@@ -13,6 +13,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- The see-through landmark glass (`frosted_glass.gdshader`, the 727 windows) has new frost and a new thaw. Its rule is unchanged: 60-80 % frost in the cold, a warmed room clears.
+  - **Any pane size.** Frost comes from two baked tiles at 1 mm per pixel (`assets/environment/windows/`, from `tools/textures/bake_window_frost_sheet.py`), laid in metres: a strip of fern feathers along each edge and a field of small crystals across the pane. A pane of any size or proportion carries crystals of true size.
+  - **Thaw.** Each texel thaws by its own need; it soaks to glassy ice, breaks into islands and clears. The wet pane mists with beads and sheds runs 1-2 mm wide.
+  - **Ice plates.** Thick soaked frost by the sill comes away as shards that slide down the pane, rest at its bottom edge and melt. Nothing is drawn on the sill itself.
+  - **No screen read**, so snowfall behind the glass stays visible; the view through frost is not blurred.
+  - The opaque panes of generated buildings (`frosted_window.gdshader`) are unchanged.
+  - The 727 probe now scrubs a copy of the game's glass; the test-only natural shader and its sheet are removed. New `tools/runtime/capture_window_frost_shapes.gd` renders six pane sizes.
+  - `test_window_frost` checks both tiles are bound with mipmaps (it fails with a tile removed). GPU cost on real hardware is not measured.
+
 - 727 window thaw probe, second pass after the owner's review against a photo reference. The natural thaw no longer draws `frost_pattern` ferns (16 cm cells: too large for the 2.0 x 1.1 m pane, with an angular base).
   - Frost is a baked sheet at 1 mm per pixel (`frost_sheet_727.png`, from `tools/textures/bake_window_frost_sheet.py`): barbed feathers 2-28 cm long grown from the frame, along scratches and from free specks, with fine hoar. The scale follows K. Libbrecht's window-frost notes.
   - Frost depth is uneven round the pane (deep off the sill), not a frame of one width.

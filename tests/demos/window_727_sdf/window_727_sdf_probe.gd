@@ -7,13 +7,14 @@ extends Node3D
 const SPEC_PATH: String = "res://data/world/key_west/reality/landmarks/kw_727_fort_st.json"
 const GLB_PATH: String = "res://assets/world/key_west/landmarks/kw_727_fort_st.glb"
 const SDF_SHADER: Shader = preload("res://tests/demos/window_727_sdf/sdf_frosted_glass_727.gdshader")
-const NATURAL_SHADER: Shader = preload("res://tests/demos/window_727_sdf/natural_thaw_glass_727.gdshader")
-const FROST_SHEET: Texture2D = preload("res://tests/demos/window_727_sdf/frost_sheet_727.png")
+## The glass the game ships (frosted_glass.gdshader with its baked frost tiles); the probe scrubs a copy of it.
+const GAME_GLASS: ShaderMaterial = preload("res://assets/world/key_west/landmarks/frosted_glass_727.tres")
 const BACKDROP_SHADER: Shader = preload("res://tests/demos/window_727_sdf/diagnostic_backdrop.gdshader")
 const WHEEL_STEP: float = 0.02
 
 var _window: MeshInstance3D
 var _sdf: ShaderMaterial
+var _game: ShaderMaterial
 var _label: Label
 var _slider: HSlider
 var _valid: bool = false
@@ -91,20 +92,21 @@ func set_thaw(progress: float) -> void:
 		_slider.set_value_no_signal(progress)
 	_apply_thaw(progress)
 
-## &"natural" is the natural thaw; &"v3" is the imported SDF sheet, for comparison (V toggles).
+## &"natural" is the game's glass; &"v3" is the imported SDF sheet, for comparison (V toggles).
 func set_variant(variant: StringName) -> void:
 	if not _valid:
 		return
 	_variant = &"v3" if variant == &"v3" else &"natural"
-	_sdf.shader = SDF_SHADER if _variant == &"v3" else NATURAL_SHADER
 	_apply_thaw(_slider.value if _slider != null else 0.0)
 
 func set_test_time(seconds: float) -> void:
 	set_thaw(clampf(seconds / 6.0, 0.0, 1.0))
 
 func _apply_thaw(progress: float) -> void:
-	_window.material_override = _sdf
 	progress = clampf(progress, 0.0, 1.0)
+	_window.material_override = _sdf if _variant == &"v3" else _game
+	_game.set_shader_parameter(&"heated_warmth", progress)
+	_game.set_shader_parameter(&"unheated_warmth", progress)
 	_sdf.set_shader_parameter(&"heated_warmth", progress)
 	var radius: float = lerpf(0.001, 0.46, pow(progress, 0.85))
 	var blobs: Array[Vector4] = []
@@ -114,7 +116,7 @@ func _apply_thaw(progress: float) -> void:
 		blobs.append(Vector4.ZERO)
 	_sdf.set_shader_parameter(&"blob_data", blobs)
 	_sdf.set_shader_parameter(&"blob_count", 3 if progress > 0.0 else 0)
-	_label.text = "727 FRONTWINDOW1   %s   THAW %02d%%" % ["NATURAL THAW" if _variant == &"natural" else "V3 SDF SHEET", int(progress * 100.0)]
+	_label.text = "727 FRONTWINDOW1   %s   WARMTH %02d%%" % ["GAME GLASS" if _variant == &"natural" else "V3 SDF SHEET", int(progress * 100.0)]
 
 func _is_escape(event: InputEvent) -> bool:
 	if event.is_action_pressed(&"ui_cancel"):
@@ -306,12 +308,14 @@ func _load_real_pane() -> bool:
 	_window.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_window)
 	_sdf = ShaderMaterial.new()
-	_sdf.shader = NATURAL_SHADER
+	_sdf.shader = SDF_SHADER
 	_sdf.set_shader_parameter(&"growth_seed", 0.28)
 	_sdf.set_shader_parameter(&"melt_seed", 0.73)
 	_sdf.set_shader_parameter(&"pane_aspect", width / height)
-	_sdf.set_shader_parameter(&"frost_sheet", FROST_SHEET)
-	_window.material_override = _sdf
+	_game = GAME_GLASS.duplicate() as ShaderMaterial
+	_game.set_shader_parameter(&"growth_seed", 0.28)
+	_game.set_shader_parameter(&"melt_seed", 0.73)
+	_window.material_override = _game
 	print("WINDOW_727_REAL_GLASS_OK source=%s window=FrontWindow1 room=waiting width=%.2f height=%.2f centre_uv=(%.3f,%.3f) selected_triangles=%d" % [
 		GLB_PATH, width, height, centre.x, centre.z, _verified_triangles
 	])
