@@ -11,6 +11,8 @@ extends SceneTree
 ##   non-participant refused, and the clock advances them in priority order;
 ## - an item user and a passage provider: legacy names adapted, a half one refused, own names mapped.
 ## - an interact host: any subset of legacy names adapted, an absent operation runs nothing ([false, null]).
+## - a locomotion readout, a ground source and interaction data: legacy names adapted, an absent operation falls
+##   back, a node with none refused; a ground's height is bound once as a Callable.
 ## Expected refusals print errors; the verdict is the last line.
 
 const TEST_SLOT: int = 5
@@ -99,6 +101,7 @@ func _run() -> void:
 	_simulation_participants()
 	_item_users_and_passages()
 	_interact_hosts()
+	_readouts_grounds_and_data()
 
 	manager.delete_slot(TEST_SLOT)
 	_dispose(legacy)
@@ -245,6 +248,48 @@ func _interact_hosts() -> void:
 		and mapped.halted and not InteractHostCapability.offers(mapped, &"walk_to"), "a host's own method names were not used")
 	for node: Node in [walker, stranger, mapped]:
 		node.free()
+
+
+func _readouts_grounds_and_data() -> void:
+	var body := _LegacyBody.new()
+	var stranger := Node.new()
+	_check(is_equal_approx(float(LocomotionReadoutCapability.read(body, &"speed_ratio", 0.0)), 0.5),
+		"a legacy body's speed ratio was not read")
+	_check(LocomotionReadoutCapability.read(body, &"view_ray", 7) == 7, "an absent readout did not fall back")
+	_check(LocomotionReadoutCapability.read(stranger, &"crouching", false) == false and not LocomotionReadoutCapability.ensure(stranger),
+		"a node with no readout counted as a body")
+	var ground := _LegacyGround.new()
+	var sampler: Callable = GroundSourceCapability.height_sampler(ground)
+	_check(sampler.is_valid() and is_equal_approx(float(sampler.call(2.0, 3.0)), 5.0), "a legacy ground's height was not bound")
+	_check(not GroundSourceCapability.offers_obstacles(ground) and GroundSourceCapability.obstacles_in_rect(ground, Rect2()).is_empty(),
+		"a ground with no obstacles offered some")
+	_check(not GroundSourceCapability.height_sampler(stranger).is_valid(), "a node with no height gave a sampler")
+	var item := _LegacyItemScene.new()
+	_check(InteractionDataCapability.data(item).get("name", "") == "lamp", "a legacy scene's interaction data was lost")
+	_check(InteractionDataCapability.data(stranger).is_empty(), "a node with no data gave some")
+	for node: Node in [body, stranger, ground, item]:
+		node.free()
+
+
+class _LegacyBody:
+	extends Node
+
+	func get_locomotion_speed_ratio() -> float:
+		return 0.5
+
+
+class _LegacyGround:
+	extends Node
+
+	func get_height(x: float, z: float) -> float:
+		return x + z
+
+
+class _LegacyItemScene:
+	extends Node
+
+	func get_interaction_data() -> Dictionary:
+		return {"name": "lamp"}
 
 
 class _LegacyWalker:

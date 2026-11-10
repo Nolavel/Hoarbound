@@ -101,6 +101,17 @@ static func invoke(
 	return provider.callv(method, arguments)
 
 
+## `operation` as a Callable bound to its provider, for a hot loop; empty when it is not published.
+static func bind(owner: Object, capability: StringName, operation: StringName) -> Callable:
+	var descriptor: Dictionary = _descriptor(owner, capability)
+	var provider: Variant = descriptor.get(PROVIDER_KEY)
+	var operations: Variant = descriptor.get(OPERATIONS_KEY, {})
+	if typeof(provider) != TYPE_OBJECT or not is_instance_valid(provider) or typeof(operations) != TYPE_DICTIONARY \
+			or not (operations as Dictionary).has(operation):
+		return Callable()
+	return Callable(provider as Object, StringName(str(operations[operation])))
+
+
 static func unpublish(owner: Object, capability: StringName) -> void:
 	if owner == null or not is_instance_valid(owner):
 		return

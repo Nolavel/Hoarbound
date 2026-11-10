@@ -7,5 +7,3 @@
 4 A world/world.gd  # composition-root optional hooks (prepare_world_content, apply_world_profile, on_world_ready)
 12 B native/hoarbound_native/ci_project/smoke.gd  # native library smoke test
 1 B scripts/experimental/gdextension_frost/gdextension_frost_lab.gd  # experimental native lab
-1 D scripts/environment/interactive/interactive_area.gd  # get_interaction_data on a loaded node
-3 D scripts/systems/world/snow/snow_chunk_cover.gd  # optional city obstacle and terrain height sources

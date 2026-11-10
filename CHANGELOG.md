@@ -8,6 +8,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Class D dynamic dispatch is closed (§16). The ratchet baseline is 17 calls in 3 files; all of them are class A (composition-root hooks) or class B (native and lab tools).
+  - `GroundSourceCapability` gives snow chunk cover the ground height and, optionally, the obstacle outlines. Key West ground and island terrain keep their legacy `get_height` / `get_snow_obstacles_in_rect` names.
+  - The new `CapabilityContract.bind` turns an operation into a Callable once, so the per-vertex height loop costs no lookup per call.
+  - `InteractionDataCapability` lets a scene loaded by an InteractiveArea give its name, description, colour and radius (the flashlight and the filter mask).
+  - `test_capability_contract` also covers the locomotion readout, the ground source and the interaction data. It fails when `bind` returns nothing; snow chunk cover then reports that the ground is not a source.
+
 - Class F dynamic dispatch is closed (§16). The ratchet baseline drops from 108 calls in 33 files to 21 calls in 5 files.
   - The PlayerState and SoundSystem autoloads gain `class_name PlayerStateService` and `SoundSystemService`. All 29 untyped calls to them, and to `InputSystemsService`, are now typed. The stove and timed actions set `PlayerStateService.Mode` directly instead of looking the enum up by name.
   - Body actions go through `InteractHostCapability`: animate, face, the action lock, and the new `hold` / `holding_still`. Test walkers still work, and a missing operation is skipped.
