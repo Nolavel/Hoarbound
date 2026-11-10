@@ -135,6 +135,7 @@ text = "Stop Timer"
 
 [node name="DayNightManager" type="Node" parent="." node_paths=PackedStringArray("settings", "directional_light", "world_environment_node", "time_accelerator", "color_grade_controller", "time_label", "day_label", "day_and_night_duration_label", "current_day_label")]
 script = ExtResource("2_n3v7b")
+perfomance_visible_display = false
 sky_shader = ExtResource("6_sky")
 settings = NodePath("DayNightSettings")
 directional_light = NodePath("../Lighting/SunLight")

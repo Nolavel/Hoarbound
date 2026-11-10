@@ -5,7 +5,7 @@ name: suites
 ## reported, not counted; one that starts passing fails this run until it is taken off the list.
 on:
   push:
-    branches: [main, codex, claudeflow]
+    branches: [main, codex, claudeflow, grok]
     paths-ignore:
       - "docs/**"
       - "**/*.md"
@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   suites:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4

@@ -63,6 +63,11 @@
       -3531.78,
       1590.28
      ],
+     "bearing_local_xz": [
+      -3538.75,
+      1594.38
+     ],
+     "bearing_note": "Compass bearing only: the Fort Street entrance. Not the footprint centroid and not a route. Do not read routes/first_exit_gate.json.",
      "reality_checks": {
       "address_usa_structures": "727 FORT ST KEY WEST 33040",
       "osm_name": "Frederick Douglass Skills Center",

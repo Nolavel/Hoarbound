@@ -90,6 +90,8 @@ Required run:
 9. sleep and save;
 10. reload into a coherent world state.
 
+The thin compass (#293) is a bearing toward 727, not a route and not a map. It does not name a street or a distance. Arrival inside 727 clears the mark. The road / shore / ruins choice stays the player's.
+
 If a required step needs a debug teleport, console call, TestScene shortcut or manual state repair, it remains a blocker.
 
 ## 6. Readability / P1 quality
@@ -106,7 +108,7 @@ Prefer better placement, scale, pose, timing and feedback over broad new technol
 ## 7. First Exit A is done when
 
 - [ ] A new player completes Battery Osceola -> 727 Fort Street -> sleep/save in roughly 10–15 minutes.
-- [ ] At least two land routes are readable without a map.
+- [ ] At least two land routes are readable without a map. The compass is a bearing, not a route, and arrival at 727 clears it.
 - [ ] The player can make a poor decision around time, greed, weather or carried load and understand the consequence.
 - [ ] Shelter preparation requires choices rather than functioning as an automatic safe room.
 - [ ] Sleep/reload restores coherent shelter, fuel, weather, bedroll, inventory and consumed-loot state.
