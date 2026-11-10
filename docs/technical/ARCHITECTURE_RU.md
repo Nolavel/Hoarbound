@@ -346,7 +346,7 @@ Capability layer намеренно остаётся маленькой инфр
 | A. Необязательный lifecycle hook, вызываемый composition root | `world/world.gd` `on_world_ready`, `apply_world_profile` | Допустимо. Hook необязателен по замыслу. |
 | B. Инструменты, тесты, диагностика, редакторский код | инструменты захвата, тестовые обвязки | Допустимо. Не production-gameplay. |
 | C. Механика границы | `core/contracts/`, языковые адаптеры | Допустимо. Здесь reflection и живёт. |
-| D. Обнаружение участников по имени метода | источники `StreamingSystem`, обработчики `InputSystems` (`SimulationClock` перешёл на `SimulationParticipantCapability`, `InteractComponent` — на `InteractHostCapability`) | Долг. Переходит на явную регистрацию или capability, когда система снова затрагивается. |
+| D. Обнаружение участников по имени метода | необязательные источники высоты и препятствий в `SnowChunkCover`, `InteractiveArea.get_interaction_data` (`SimulationClock`, `InteractComponent`, `StreamingSystem` и `InputSystems` перешли на capability в `core/contracts/`) | Долг. Переходит на явную регистрацию или capability, когда система снова затрагивается. |
 | E. Обязательная gameplay-операция между владельцами состояния | (не осталось: руки освобождаются через `HeldReleaseCapability`, а достают и используют предмет из быстрого доступа через `HeldDrawCapability`) | Долг с риском, когда появляется: тихий пропуск или частичный commit может испортить игровое состояние. |
 
 | F. Нетипизированный вызов на известном классе или сервисе | `state.call(&"is_paused")`, `_sound.call(&"play", ...)`, `player.call(&"play_action_animation", ...)` | Долг, низкий риск. Убирается типизированной ссылкой (`as PlayerStateMachine`, `as SoundSystem`, `as Player`), когда файл затрагивается. |

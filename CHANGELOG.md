@@ -8,6 +8,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- StreamingSystem and InputSystems find their participants through capabilities (`core/contracts/`). This is class D in §16. The ratchet baseline is now 108 calls in 33 files.
+  - `StreamSourceCapability`: chunks, activate, deactivate, and an optional ring0. The far view and the test sources keep their legacy `*_stream_*` names, which are adapted at the boundary.
+  - A source that cannot activate or deactivate is now refused whole at registration. It used to register chunks it could never load or unload.
+  - `InteractClaimantCapability`: claimed, plus optional held and released. The sleep prompt and the stove keep their `on_interact_*` names.
+  - `claim_interact` refuses a node that cannot take the key and keeps the current owner. Such a node used to take the key and fail on the next press.
+  - The two `PlayerState` reads left in InputSystems are class F (the autoload has no `class_name`).
+  - test_streaming and test_player_state cover the refusals and own-name providers. test_player_state fails with the refusal removed. Streaming, HLOD boundary, sleep prompt, fire and stove suites pass.
+
 - InteractComponent works its host through `InteractHostCapability` (`core/contracts/`). This is class D in §16.
   - Every operation is optional (animate, attention origin and direction, face, walk to, stop, action locked). The host's legacy names are adapted at the boundary, so Henry and the test walkers are unchanged.
   - Typing the host as `Player` broke the walker stubs in test_interaction and test_pickup_affordance, so a contract was used instead.

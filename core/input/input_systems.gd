@@ -140,15 +140,18 @@ func _physics_process(delta: float) -> void:
 ## none of the three interact signals fire. One owner decides what the key
 ## means, instead of subscribers racing each other for it.
 ##
-## The claimant implements as much of this as it needs, duck-typed:
-##   on_interact_claimed()                  key down    (required)
-##   on_interact_held(duration: float)       every physics frame while down
-##   on_interact_released(duration: float)   key up
+## The claimant publishes InteractClaimantCapability: claimed() on key down
+## (required), held(duration) each physics frame and released(duration) on key
+## up (both optional). Legacy on_interact_* names are adapted at the boundary.
 ## ============================================
 
 ## Takes ownership of the interact key. No arbitration: the last caller wins,
 ## which is why a claimant releases as soon as its reason to hold it ends.
+## A node that cannot take the key is refused and the owner is kept.
 func claim_interact(claimant: Node) -> void:
+	if not InteractClaimantCapability.ensure(claimant):
+		push_error("InputSystems: %s cannot claim the interact key" % claimant)
+		return
 	_interact_claimant = claimant
 
 
@@ -169,7 +172,7 @@ func _begin_interact() -> void:
 	_interact_duration = 0.0
 	_interact_active = true
 	if is_instance_valid(_interact_claimant):
-		_interact_claimant.call(&"on_interact_claimed")
+		InteractClaimantCapability.claimed(_interact_claimant)
 	else:
 		interact_pressed.emit()
 
@@ -178,8 +181,7 @@ func _end_interact() -> void:
 	if not _interact_active:
 		return
 	if is_instance_valid(_interact_claimant):
-		if _interact_claimant.has_method(&"on_interact_released"):
-			_interact_claimant.call(&"on_interact_released", _interact_duration)
+		InteractClaimantCapability.released(_interact_claimant, _interact_duration)
 	else:
 		interact_released.emit(_interact_duration)
 	_interact_active = false
@@ -197,8 +199,7 @@ func _tick_interact(delta: float) -> void:
 		return
 	_interact_duration += delta
 	if is_instance_valid(_interact_claimant):
-		if _interact_claimant.has_method(&"on_interact_held"):
-			_interact_claimant.call(&"on_interact_held", _interact_duration)
+		InteractClaimantCapability.held(_interact_claimant, _interact_duration)
 	else:
 		interact_held.emit(_interact_duration)
 
