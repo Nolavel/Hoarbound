@@ -229,16 +229,7 @@ func _can_free_hands() -> bool:
 func _prepare_hands() -> bool:
 	if not _can_free_hands():
 		return false
-	var body: Node = get_parent()
-	for child: Node in body.get_children():
-		if not child.has_method(&"is_holding") or not bool(child.call(&"is_holding")):
-			continue
-		if child.has_method(&"put_away_unlit") and bool(child.call(&"put_away_unlit")):
-			continue
-		if child.has_method(&"put_away") and bool(child.call(&"put_away")):
-			continue
-		return false
-	return true
+	return HeldReleaseCapability.release_all(get_parent())
 
 
 func is_laid() -> bool:

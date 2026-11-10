@@ -234,8 +234,9 @@ func _put_away_unlit_held() -> void:
 	var parent := get_parent()
 	if parent == null:
 		return
-	for child: Node in parent.get_children():
-		if child.has_method(&"put_away_unlit") and bool(child.call(&"put_away_unlit")):
+	## Only what can go back to storage is hidden; a burning flare stays in hand.
+	for holder: Node in HeldReleaseCapability.holders(parent):
+		if HeldReleaseCapability.can_release(holder) and HeldReleaseCapability.release(holder):
 			return
 
 

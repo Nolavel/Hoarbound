@@ -26,6 +26,8 @@ func on_world_ready(context: WorldContext) -> void:
 
 
 func _ready() -> void:
+	## Only an unlit flare storage still owns goes back; a burning, spent or physical one refuses.
+	HeldReleaseCapability.publish(self, &"is_holding", &"is_holding_unlit", &"put_away_unlit")
 	if inventory == null:
 		inventory = InventoryComponent.find_in(get_parent())
 	if inventory != null:

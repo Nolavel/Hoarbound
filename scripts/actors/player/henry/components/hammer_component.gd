@@ -15,6 +15,7 @@ var _source_zone: StringName = &""
 
 
 func _ready() -> void:
+	HeldReleaseCapability.publish(self, &"is_holding", &"is_holding", &"put_away_unlit")
 	if inventory == null:
 		inventory = InventoryComponent.find_in(get_parent())
 	if inventory != null:
