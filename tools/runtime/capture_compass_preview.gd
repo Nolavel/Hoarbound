@@ -53,6 +53,7 @@ func _run() -> void:
 	_set_render(false)
 	for _i: int in 8:
 		await physics_frame
+	_hide_debug(world)
 	_check("scenario_start_arms_single_727",
 		bearings.has_active_target() and bearings.active_label() == "727" and bearings.active_target_id == bearings.shelter_id(),
 		"active=%s label=%s" % [bearings.active_target_id, bearings.active_label()])
@@ -222,6 +223,7 @@ func _other_profile() -> void:
 	var bearings: Node = ctx.get_system(BEARINGS_SCRIPT) if ctx != null else null
 	var hidden: bool = bearings == null and (strip == null or not strip.visible)
 	_set_render(true)
+	_hide_debug(other)
 	await RenderingServer.frame_post_draw
 	var image := root.get_viewport().get_texture().get_image()
 	if image != null:
@@ -338,6 +340,15 @@ func _under_727(area: Node) -> bool:
 func _shelter_zone(shelter: Node) -> Area3D:
 	var found := shelter.find_child("ShelterZone", true, false) as Area3D
 	return found
+
+
+func _hide_debug(node: Node) -> void:
+	if node == null:
+		return
+	for node_name: String in ["DebugTime", "StatsDisplay", "KeyHintsPanel", "DevDioramaMap"]:
+		var found := node.find_child(node_name, true, false)
+		if found != null:
+			found.hide()
 
 
 func _find_strip(root_node: Node) -> CompassStrip:

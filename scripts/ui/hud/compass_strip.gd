@@ -6,8 +6,7 @@ extends Control
 
 const BEARINGS_SCRIPT: GDScript = preload("res://scripts/world/first_exit_bearings.gd")
 const STRIP_WIDTH: float = 400.0
-## Under DebugTime, which owns the top 100px. That clock is not this compass.
-const TOP_MARGIN: float = 108.0
+const TOP_MARGIN: float = 16.0
 const TICK_STEP: float = TAU / 360.0 * 15.0
 const SMOOTH_SEC: float = 0.08
 const CARDINALS: PackedStringArray = ["N", "E", "S", "W"]
