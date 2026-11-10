@@ -703,20 +703,7 @@ func _can_open() -> bool:
 
 
 func _stow_safe_held_items() -> bool:
-	var body: Node = get_parent()
-	if body == null:
-		return true
-	for child: Node in body.get_children():
-		if child.has_method(&"is_burning") and bool(child.call(&"is_burning")):
-			return false
-		if not child.has_method(&"is_holding") or not bool(child.call(&"is_holding")):
-			continue
-		if child.has_method(&"put_away_unlit") and bool(child.call(&"put_away_unlit")):
-			continue
-		if child.has_method(&"put_away") and bool(child.call(&"put_away")):
-			continue
-		return false
-	return true
+	return get_parent() == null or HeldReleaseCapability.release_all(get_parent())
 
 
 func _visual() -> HenryUALAnimation:

@@ -347,7 +347,7 @@ Existing `has_method()` / string-`call()` uses are classified, not counted:
 | B. Tools, tests, diagnostics, editor code | capture tools, test harnesses | Allowed. Not production gameplay. |
 | C. Boundary mechanics | `core/contracts/`, language adapters | Allowed. This is where reflection lives. |
 | D. Discovery of participants by method name | `SimulationClock` (`advance_simulation`) | Debt. It migrates to an explicit registration or capability when the system is next touched. |
-| E. A mandatory gameplay operation between state owners | `put_away_unlit` / `is_holding` callers: `RestComponent`, `BedrollComponent`, `PlayerHubComponent._stow_safe_held_items`, `ItemPickup`, `QuickAccessComponent` | Debt with a risk. A silent skip or a partial commit can corrupt game state. They move to `HeldReleaseCapability` one by one; `HandsTransaction` already has. |
+| E. A mandatory gameplay operation between state owners | (none left for the hands: `HandsTransaction`, `RestComponent`, `BedrollComponent`, `PlayerHubComponent`, `ItemPickup` and `QuickAccessComponent` free hands through `HeldReleaseCapability`) | Debt with a risk when it appears: a silent skip or a partial commit can corrupt game state. |
 
 The current count outside `core/contracts/` is a **temporary debt baseline**, not a norm. CI may hold it as a ratchet (no file may add to it), but the target is to remove classes D and E deliberately, not to make the number go down.
 

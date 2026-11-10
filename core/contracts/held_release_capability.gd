@@ -32,6 +32,20 @@ static func holders(player: Node) -> Array[Node]:
 	return out
 
 
+## Frees every hand of `player` whole or not at all: every holder is asked first, and only when all can let go do
+## they let go (a burning flare keeps every hand as it was). True when the hands are free.
+static func release_all(player: Node) -> bool:
+	var holding: Array[Node] = holders(player)
+	for holder: Node in holding:
+		if not can_release(holder):
+			return false
+	for holder: Node in holding:
+		if not release(holder):
+			push_error("HeldReleaseCapability: %s refused to let go after it said it could" % holder.name)
+			return false
+	return true
+
+
 static func holds(owner: Object) -> bool:
 	return bool(CapabilityContract.invoke(owner, ID, HOLDS))
 

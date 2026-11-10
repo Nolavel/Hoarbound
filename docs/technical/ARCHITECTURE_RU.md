@@ -347,7 +347,7 @@ Capability layer намеренно остаётся маленькой инфр
 | B. Инструменты, тесты, диагностика, редакторский код | инструменты захвата, тестовые обвязки | Допустимо. Не production-gameplay. |
 | C. Механика границы | `core/contracts/`, языковые адаптеры | Допустимо. Здесь reflection и живёт. |
 | D. Обнаружение участников по имени метода | `SimulationClock` (`advance_simulation`) | Долг. Переходит на явную регистрацию или capability, когда система снова затрагивается. |
-| E. Обязательная gameplay-операция между владельцами состояния | вызовы `put_away_unlit` / `is_holding`: `RestComponent`, `BedrollComponent`, `PlayerHubComponent._stow_safe_held_items`, `ItemPickup`, `QuickAccessComponent` | Долг с риском. Тихий пропуск или частичный commit может испортить игровое состояние. Переходят на `HeldReleaseCapability` по одному; `HandsTransaction` уже перешёл. |
+| E. Обязательная gameplay-операция между владельцами состояния | (для рук не осталось: `HandsTransaction`, `RestComponent`, `BedrollComponent`, `PlayerHubComponent`, `ItemPickup` и `QuickAccessComponent` освобождают руки через `HeldReleaseCapability`) | Долг с риском, когда появляется: тихий пропуск или частичный commit может испортить игровое состояние. |
 
 Текущее количество вне `core/contracts/` — **временный baseline долга**, а не норма. CI может держать его как храповик (ни один файл не может его увеличить), но цель — осознанно убрать классы D и E, а не добиться уменьшения числа.
 

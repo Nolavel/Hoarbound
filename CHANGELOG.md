@@ -12,6 +12,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - The hand components publish the new `HeldReleaseCapability` (`core/contracts/`), whose `can_release` is each holder's own guard: the held item, the hammer, and a flare (only unlit and still owned by storage).
   - `HandsTransaction.check()` asks every holder before anything changes. Storage takes the new item first, the one step that may still refuse; then the holders let go.
   - `tests/systems/test_hands_transaction.gd` reproduced the defect on the old code, passes now, and gates `checks` with the capability contract.
+- The same partial release in four more places, fixed through one step, `HeldReleaseCapability.release_all`: every holder is asked first, and only when all can let go do they let go.
+  - Sitting down, laying the bedroll, opening the pack and taking an armful each emptied the first hand before a second hand refused. Each now refuses with every hand as it was.
+  - A Quick Access pocket change hides only what can go back to storage; a burning flare stays in hand.
+  - `tests/systems/test_held_release_callers.gd` covers all five on the real player. It failed four times on the old code, passes now, and gates `checks`.
 
 - CI `checks`: the filename gate failed on every branch because of an orphaned `tools/runtime/_boot_warn.gd.uid` left by an earlier commit; it is removed.
 - The capability contract now gates `checks` (ARCHITECTURE §16, rule 4).
