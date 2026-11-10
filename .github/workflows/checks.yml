@@ -62,7 +62,7 @@ jobs:
     ## Not a second pipeline: same workflow, Godot, lavapipe and ffmpeg as the other captures.
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'compass'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
