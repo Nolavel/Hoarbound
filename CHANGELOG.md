@@ -12,7 +12,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
-- First Exit compass (#293): built only for the `key_west_reality` profile, and a save inside 727 no longer treats the physics overlap refresh as a new entrance. The first settled sample keeps a manual mark.
+- First Exit compass (#293): built only for the `key_west_reality` profile, and a save inside 727 no longer treats the physics overlap refresh as a new entrance. The first settled sample keeps a manual mark. A real-scene check is `workflow_dispatch` with `preview=compass` on the existing `checks` workflow.
 
 - 3D inventory at furniture: the pack never passes into a cabinet, a drawer or a door, and every item inside shows (owner). Just before the cut the pack moves out until no part of it (body, open panel, what hangs) comes within 2 cm of the furniture. The view then turns up or aside and backs off until it sees each item past everything (`ContainerClearance`).
   - Kitchen cupboard: the open panel went into the right door; drawers: the front panel hid what lay inside.
