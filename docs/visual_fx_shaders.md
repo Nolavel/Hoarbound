@@ -35,6 +35,39 @@ owner (`QuickAccessUI`) and domain refusals (`EquipmentComponent.can_stow`)
 rather than making the shader decide inventory rules. Keep meaningful icons,
 text or motion alongside color for accessibility.
 
+## Local edge-glow overlay (Issue #282, isolated component)
+
+The **original** `ambient_edge_glow.gdshader` six-second opaque-black reference
+and its capture remain unchanged.
+
+- Production-candidate shader: `res://shaders/ui/ambient_edge_glow_overlay.gdshader`
+- Presentation-only Control: `res://scripts/ui/effects/edge_glow_overlay.gd` (`EdgeGlowOverlay`)
+- Isolated review scene: `res://tests/demos/ui_feedback/edge_glow_overlay_preview.tscn`
+- Cheap state test: `res://tests/systems/test_edge_glow_overlay.gd`
+
+Add an `EdgeGlowOverlay` as a **child of one slot/card**. It fills only its
+parent's rectangle (local UV), uses alpha rather than a solid black background,
+and ignores mouse input. Each instance owns its own ShaderMaterial.
+
+The presenter may call `set_feedback_state(STATE_UNSELECTED)` (faint neutral),
+`set_feedback_state(STATE_HELD)` (warm yellow), or `set_feedback_state(STATE_OFF)`.
+Only **after a real gameplay rejection**, call `show_refusal()` for a short red
+flash that leaves the previous base state unchanged. Optional:
+`set_feedback_enabled(false)`, `set_reduced_motion(true)`.
+No distance, gameplay item ownership or slot-fit decision is computed here.
+Green/blue remain unassigned.
+
+This is a **test-only component**, not wired to `QuickAccessUI` or other
+production HUD. For that integration, compare the existing `BG_frame.gdshader`
+gray/yellow states and connect the actual rejection result; avoid double
+indicators. The preview's rejected-card pulse is a *simulation* of the
+presenter's event, not proof that inventory emits it.
+
+**Visual gate still open:** verify actual opacity on dark/snow backgrounds, no
+center occlusion, no spill into adjacent card, then author-approve before
+connecting it to real slots. The headless test checks state independence and
+mouse pass-through only; it does not replace pixel or gameplay review.
+
 ## Fade Volume
 
 Reusable scene: `res://scenes/environment/visual_fx/FadeVolume.tscn`
