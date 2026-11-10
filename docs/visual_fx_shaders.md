@@ -35,6 +35,30 @@ owner (`QuickAccessUI`) and domain refusals (`EquipmentComponent.can_stow`)
 rather than making the shader decide inventory rules. Keep meaningful icons,
 text or motion alongside color for accessibility.
 
+## Fullscreen Hub action glow (Issue #282, revised owner scope)
+
+The reference shader and its five-color demo remain untouched. The new
+`ambient_edge_glow_overlay.gdshader` and `EdgeGlowOverlay` are a **single
+fullscreen** CanvasItem overlay, not an effect on slot cards. Enable only
+while Tab-Hub is open, including an open pack paired with a container
+(cabinet, chest, etc.). Never enable in ordinary gameplay or Quick Access.
+
+Presentation API: `set_hub_active(bool)`, `set_action_active(bool)`,
+`show_result(success)`, `set_reduced_motion(bool)`.
+Grey = idle, amber = selected/held/in progress (not success), green = confirmed
+success, red = confirmed refusal. Green/red are brief events; after the pulse
+the prior base state returns. Blue remains unused. Keep existing item/placement
+feedback and refusal reasons; color alone is not the authoritative outcome.
+
+The component is owned by GameplayUI and enabled only while real 3D PackHandling is enabled. The
+isolated preview and headless state test are visual/contract scaffolding.
+`tools/runtime/capture_edge_glow_overlay.gd` opens the real 3D Tab-Hub and 727
+cabinet in Key West Reality and captures scripted color states in live Godot.
+The glow is a pair of smooth elliptical caps with inward-facing apices;
+no horizon strip, noise tongues or screenshot compositing. This is a visual
+prototype, not a live transfer result test.
+PackHandling publishes completed/refused actions through PlayerHubComponent.action_result; GameplayUI observes taking/carrying and actual item hover, suppresses the compass layer during Hub, pickup gesture, committed pickup walk and pickup stow. Closing resets glow. Real pack/container transfer tests check outcome signals independently of scripted visual comparison.
+
 ## Fade Volume
 
 Reusable scene: `res://scenes/environment/visual_fx/FadeVolume.tscn`

@@ -295,7 +295,7 @@ func adopt(pickups: Array[ItemPickup]) -> void:
 	for pickup: ItemPickup in pickups:
 		for _n: int in pickup.count:
 			items.append({"id": pickup.item_id, "state": pickup.instance_state.duplicate(true), "world_id": pickup.world_id, "pickup": null})
-		pickup.free()
+		SurvivalItemVisual.release(pickup)
 	_layout()
 	contents_changed.emit()
 

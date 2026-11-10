@@ -236,6 +236,8 @@ static func release(visual: Node) -> void:
 	for node: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		var mesh := node as MeshInstance3D
 		if mesh != null:
+			mesh.material_overlay = null
+			mesh.material_override = null
 			for surface: int in mesh.get_surface_override_material_count():
 				mesh.set_surface_override_material(surface, null)
 	visual.free()

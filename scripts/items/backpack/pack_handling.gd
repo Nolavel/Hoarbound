@@ -145,6 +145,7 @@ func use_hovered() -> void:
 			show_refusal(StringName(ConsumptionController.describe_refusal(why)))
 		else:
 			_sound(RUSTLE)
+			hub.action_result.emit(true)
 			shelf.refresh()
 		return
 	var why: ConsumptionController.Refusal = eater.can_consume(id) if eater != null else ConsumptionController.Refusal.NOT_CONSUMABLE
@@ -174,7 +175,9 @@ func use_verb(item_id: StringName) -> StringName:
 
 
 ## Shows why something would not go: the reason under the ring, and a red rim on `visual` if given.
-func show_refusal(reason: StringName, visual: Node3D = null) -> void:
+func show_refusal(reason: StringName, visual: Node3D = null, report: bool = true) -> void:
+	if report and hub != null:
+		hub.action_result.emit(false)
 	_sound(RESIST)
 	if cursor != null:
 		cursor.warning = tr(reason)
@@ -341,12 +344,15 @@ func _release() -> void:
 	var from_item: int = carried.get("from_item", -1)
 	var from_shelf: int = carried.get("from_shelf", -1)
 	var moved: bool = false
+	var attempted: bool = false
 	if from_shelf >= 0:
+		attempted = hovered_slot >= 0 or _over_pack()
 		moved = _release_from_shelf(from_shelf, id)
 	elif container != null and (hovered_shelf >= 0 or _over_container()):
+		attempted = true
 		var full: StringName = container.refusal(id)
 		if full != &"":
-			show_refusal(full)
+			show_refusal(full, null, false)
 		elif from_slot >= 0:
 			moved = hub.move_to_container(container, &"", shelf.slots[from_slot]["path"]) == &""
 		else:
@@ -354,21 +360,25 @@ func _release() -> void:
 	elif hovered_hand and from_slot >= 0:
 		shelf.choose(from_slot)  # into the hand: it becomes the pick, staying in its pocket till the pack goes on
 	elif hovered_slot >= 0 and hovered_slot != from_slot:
+		attempted = true
 		var why: StringName = shelf.refusal(hovered_slot, id)
 		if why != &"":
-			show_refusal(why)
+			show_refusal(why, null, false)
 		elif from_slot >= 0:
 			moved = hub.move_between_zones(shelf.slots[from_slot]["path"], shelf.slots[hovered_slot]["path"]) == EquipmentComponent.Refusal.NONE
 		else:
 			moved = hub.move_to_zone(id, shelf.slots[hovered_slot]["path"]) == EquipmentComponent.Refusal.NONE
 	elif from_slot >= 0 and _over_pack():
+		attempted = true
 		var why: StringName = straps.refusal(id)
 		if why != &"":
-			show_refusal(why)
+			show_refusal(why, null, false)
 		else:
 			moved = hub.move_to_pack(shelf.slots[from_slot]["path"]) == &""
 			if moved:
 				hub.jolt_held_pack(float(ItemReadout.describe(id).get("kg", 0.0)))
+	if attempted:
+		hub.action_result.emit(moved)
 	if moved:
 		_sound(RUSTLE)
 	if not moved and from_shelf >= 0 and from_shelf < container.items.size():
@@ -386,18 +396,18 @@ func _release_from_shelf(index: int, id: StringName) -> bool:
 	if hovered_slot >= 0:
 		var why: StringName = shelf.refusal(hovered_slot, id)
 		if why != &"":
-			show_refusal(why)
+			show_refusal(why, null, false)
 			return false
 		return hub.move_from_container(container, index, shelf.slots[hovered_slot]["path"]) == &""
 	if not _over_pack():
 		return false
 	var no_room: StringName = straps.refusal(id)
 	if no_room != &"":
-		show_refusal(no_room)
+		show_refusal(no_room, null, false)
 		return false
 	var why: StringName = hub.move_from_container(container, index)
 	if why != &"":
-		show_refusal(&"PICKUP_REFUSED_TOO_HEAVY")
+		show_refusal(&"PICKUP_REFUSED_TOO_HEAVY", null, false)
 		return false
 	hub.jolt_held_pack(float(ItemReadout.describe(id).get("kg", 0.0)))
 	return true
@@ -420,11 +430,13 @@ func _drop_hovered() -> void:
 		if id != &"" and hub.drop_from_zone(shelf.slots[hovered_slot]["path"]):
 			_sound(RUSTLE)
 			shelf.refresh()
+			hub.action_result.emit(true)
 			dropped.emit(id)
 	elif hovered_item >= 0:
 		var id: StringName = straps.items[hovered_item]["id"]
 		if hub.drop_from_pack(id):
 			_sound(RUSTLE)
+			hub.action_result.emit(true)
 			dropped.emit(id)
 
 
@@ -684,15 +696,22 @@ func _over_pack() -> bool:
 
 ## An outline of `colour` on every mesh of `visual` (none with a transparent colour).
 static func _rim(visual: Node3D, colour: Color) -> void:
+	# The carried visual owns its rim. Hover updates change only its parameter;
+	# allocating/replacing a material every frame churns renderer dependencies.
 	var rim: ShaderMaterial = null
 	if colour.a > 0.0:
-		rim = ShaderMaterial.new()
-		rim.shader = OUTLINE_SHADER
-		rim.set_shader_parameter(&"rim_colour", colour)
+		rim = visual.get_meta(&"pack_rim_material") as ShaderMaterial if visual.has_meta(&"pack_rim_material") else null
+		if rim == null:
+			rim = ShaderMaterial.new()
+			rim.shader = OUTLINE_SHADER
+			visual.set_meta(&"pack_rim_material", rim)
+		if rim.get_shader_parameter(&"rim_colour") != colour:
+			rim.set_shader_parameter(&"rim_colour", colour)
 	for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		if mesh is MeshInstance3D:
 			var overlay: Material = (mesh as MeshInstance3D).material_overlay
 			if overlay != null and overlay.has_meta(&"focus_mask"):
-				overlay.next_pass = rim  # the focus blur's mask stays first (PackFocusBlur)
-			else:
+				if overlay.next_pass != rim:
+					overlay.next_pass = rim
+			elif overlay != rim:
 				(mesh as MeshInstance3D).material_overlay = rim
