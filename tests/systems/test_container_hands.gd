@@ -25,6 +25,7 @@ var _hub: PlayerHubComponent
 var _hands: PackHandling
 var _box: ItemContainer
 var _inventory: InventoryComponent
+var _results: Array[bool] = []
 
 
 func _initialize() -> void:
@@ -46,6 +47,7 @@ func _run() -> void:
 	await _frames(30)
 	_inventory = player.get_node(^"InventoryComponent") as InventoryComponent
 	_hub = player.get_node(^"PlayerHubComponent") as PlayerHubComponent
+	_hub.action_result.connect(func(success: bool) -> void: _results.append(success))
 	var equipment := player.get_node(^"EquipmentComponent") as EquipmentComponent
 	for entry: Dictionary in _inventory.get_entries():
 		if entry["id"] != &"bedroll":
@@ -155,6 +157,7 @@ func _run() -> void:
 	await _frames(5)
 	_check(_box.items.size() == full_count and _inventory.get_count(&"spov_can") == before, "a full shelf took the tin")
 	_check(_hands.cursor.warning == tr(ItemContainer.NO_ROOM), "the full shelf showed no reason")
+	_check(_results == [true, true, true, true, false], "container transfers/refusal did not publish exact results")
 	print("container hands: a full shelf refused")
 
 	_hub.close()

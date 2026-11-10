@@ -50,6 +50,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- Full-screen Hub action glow (#282): smaller soft top/bottom arcs, gray idle, amber item focus/taking/carrying, brief green/red real transfer results; compass hidden in Hub and during pickup gesture/approach/stow.
 - First Exit A compass (owner 2026-11-09, #293): a thin top tape that follows the camera's horizontal view, and one ochre mark for 727. No distance, no turn arrows, no lit route. The mark is armed once, on the Battery Osceola scenario start only; the developer shelter spawn does not arm it. Entering the 727 interior clears it, and leaving does not bring it back. R marks the known house again. Knowledge lives on `FirstExitBearings`, not on the HUD or on Henry, and survives sleep/save. Older saves without this key do not grow a new mission mark.
 - 727 shelter: a kitchen cupboard, a dresser and a chest in the waiting room, searchable with the pack like the waiting-room cabinet (owner).
   - They are built by the new shared `FurnitureKit`, which the test row now uses too. Each stands 1 cm off its wall; the chest stands 17 cm off, room for its lid.
