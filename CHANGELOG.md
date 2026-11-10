@@ -8,6 +8,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- CI `checks`: the filename gate failed on every branch because of an orphaned `tools/runtime/_boot_warn.gd.uid` left by an earlier commit; it is removed.
+- The capability contract now gates `checks` (ARCHITECTURE §16, rule 4).
+  - `tools/ci/required_suites.txt` lists the contract suites; `run_tests.sh <suite...>` runs them with the same verdict as the full run.
+  - `test_capability_contract` gained the refusal cases: a refused publish publishes nothing and keeps what was there; a freed provider answers nothing; a non-Dictionary capture refuses the whole save and the last good save stays; a slot without a participant's key leaves it untouched; a half-legacy provider is refused.
+  - Verified by breaking the contract on purpose twice; the suite failed both times (4 and 5 checks).
+
 - 3D inventory at furniture: the pack never passes into a cabinet, a drawer or a door, and every item inside shows (owner). Just before the cut the pack moves out until no part of it (body, open panel, what hangs) comes within 2 cm of the furniture. The view then turns up or aside and backs off until it sees each item past everything (`ContainerClearance`).
   - Kitchen cupboard: the open panel went into the right door; drawers: the front panel hid what lay inside.
   - One fitting for every kind of furniture (owner).

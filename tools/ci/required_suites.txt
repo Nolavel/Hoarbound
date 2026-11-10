@@ -1,0 +1,4 @@
+# Suites the `checks` gate runs on every push and PR (ARCHITECTURE.md §16, rule 4): the contract
+# tests of cross-system seams. Unlike the report-only `suites` run, a failure here fails the gate.
+# One suite name per line; a reason may follow after '#'. Keep it to fast, stable contract suites.
+test_capability_contract  # SaveParticipantCapability: success, refused publish, dead provider, refused save

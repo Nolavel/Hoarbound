@@ -335,7 +335,7 @@ Four rules hold for every cross-system link:
 1. **One owner per state.** Before writing an API, name the system that makes the final decision and the systems that only supply facts. Everyone else observes or requests (§5).
 2. **Mandatory dependencies fail at wiring, not silently.** A missing required component is reported when the system is set up (`push_error`, a failed check), never hidden behind `if has_method(...)` that skips the action.
 3. **A contract describes behaviour, not method names.** It states its arguments, its result, the refusals it may return, its side effects, and the state guaranteed after a refusal. A command that touches several owners either validates everyone before changing anyone and cannot fail after that, or defines compensation (undo) for a participant that refuses mid-way.
-4. **A new cross-system link ships with its proof.** At minimum: the success path, a refusal, and the state after the refusal. A missing dependency is tested when the link is mandatory.
+4. **A new cross-system link ships with its proof.** At minimum: the success path, a refusal, and the state after the refusal. A missing dependency is tested when the link is mandatory. Contract suites listed in `tools/ci/required_suites.txt` gate every push and PR in `checks`; the other suites are reported by `suites`.
 
 ### Dynamic dispatch: what is allowed
 

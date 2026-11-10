@@ -1,7 +1,7 @@
 name: checks
 
-## `checks` is the cheap gate on every push and PR: import, input map, filenames.
-## Test suites run locally until mechanics settle; they churn too fast to gate main.
+## `checks` is the cheap gate on every push and PR: import, input map, filenames, and the contract suites in
+## tools/ci/required_suites.txt. Other suites churn with the mechanics and are reported by `suites`, not gated.
 ## Preview/render jobs run only for a commit tagged with their [marker]; the Key West Reality jobs
 ## also run on a manual dispatch, to re-check the committed snapshot.
 on:
@@ -55,6 +55,10 @@ jobs:
 
       - name: Check filenames and uid files
         run: tools/ci/check_filenames.sh
+
+      - name: Contract suites (required)
+        ## Cross-system contracts gate the build (ARCHITECTURE.md §16); same verdict as tools/ci/run_tests.sh.
+        run: tools/ci/run_tests.sh $(sed -e 's/#.*//' tools/ci/required_suites.txt | tr -s '[:space:]' ' ')
 
   key-west-reality:
     if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))

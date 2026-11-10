@@ -38,8 +38,8 @@ change when that happens. In the code there are 72 `has_method()` calls in 25 fi
 
 - Adapter code at each real seam, and a descriptor to publish.
 - `CapabilityContract` checks that methods exist, not their signatures, return types or behaviour. The guarantee comes
-  from contract tests: success, refusal, state after a refusal (ARCHITECTURE §16, rule 4). Those tests must run in the
-  `checks` gate, not only in the report-only `suites` run.
+  from contract tests: success, refusal, state after a refusal (ARCHITECTURE §16, rule 4). Those tests run in the
+  `checks` gate (`tools/ci/required_suites.txt`), not only in the report-only `suites` run.
 - Discipline: a capability is not created for every class (ARCHITECTURE §13).
 
 ## Revisit when
