@@ -252,6 +252,11 @@ func get_gesture_target() -> InteractiveArea:
 	return _gesture.target if _gesture != null and _is_available(_gesture.target) else null
 
 
+## A committed pickup walk or F gesture, not mere attention/hover.
+func is_pickup_in_progress() -> bool:
+	return _gesture != null or is_instance_valid(_commit_target)
+
+
 ## True once F is held past the tap window on the gesture target.
 func is_gesture_holding() -> bool:
 	return _gesture != null and _gesture.phase == PickupGesture.Phase.HOLD
