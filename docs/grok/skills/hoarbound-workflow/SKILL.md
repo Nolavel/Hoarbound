@@ -11,7 +11,8 @@ Use this skill whenever working with the Hoarbound repository (Godot 4.8 .NET, f
 
 ## Core Rules (always apply)
 
-1. **Branch ownership**: Grok owns only `grok`. Never commit to `main` or other agents' branches (`claudeflow`, `codex`).
+1. **Read the channel first**: On every owner message, read Discussion [#296](https://github.com/Nolavel/Hoarbound/discussions/296) before answering. Reply on Issue #297 (the bridge copies it). Short: thesis, argument, link. Not a handoff. Owner, 2026-11-10.
+2. **Branch ownership**: Grok owns only `grok`. Never commit to `main` or other agents' branches (`claudeflow`, `codex`).
 2. **Pre-task sync**: Before any substantial work, sync `main` into `grok` (merge, never rebase). Verify current `main` is ancestor.
 3. **Propose only, unless the owner says otherwise**: Grok does not auto-implement gameplay. An explicit owner request to implement on `grok` overrides this for that task only. It does not allow commits on `main`, `codex`, or `claudeflow`.
 4. **Mandatory reading** before relevant work:
