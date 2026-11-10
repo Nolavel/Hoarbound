@@ -4,7 +4,7 @@ extends SceneTree
 const Overlay = preload("res://scripts/ui/effects/edge_glow_overlay.gd")
 const HUB_FRAME = "res://docs/art/issue68/03_hub_full.png"
 const CAMERA_FRAME = "res://docs/runtime_previews/hub_camera/after.png"
-var _overlay: EdgeGlowOverlay
+var _overlay: Overlay
 var _back: TextureRect
 var _out: String
 func _initialize() -> void:
