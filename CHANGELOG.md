@@ -13,7 +13,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 ### Fixed
 
 - First Exit compass (#293): the bearings script no longer names `class_name World`, so loading the gameplay HUD does not cycle through it. CI jobs that install the .NET SDK pin `ubuntu-24.04` (`ubuntu-latest` is 26.04 and has no `dotnet-sdk-8.0`).
-- Dropped the orphan `tools/runtime/_boot_warn.gd.uid`. The filename check only runs after the import gate, so it stayed hidden behind the HUD load error.
+- First Exit compass (#293): the tape is no longer a framed panel. Ticks and cardinals sit on a soft center wash, the index is a hairline, and an off-scale 727 is a chevron rather than a button. It sits below the debug clock.
 
 - 3D inventory at furniture: the pack never passes into a cabinet, a drawer or a door, and every item inside shows (owner). Just before the cut the pack moves out until no part of it (body, open panel, what hangs) comes within 2 cm of the furniture. The view then turns up or aside and backs off until it sees each item past everything (`ContainerClearance`).
   - Kitchen cupboard: the open panel went into the right door; drawers: the front panel hid what lay inside.
