@@ -93,16 +93,31 @@ class Github:
         return result["data"]
 
     def discussion(self, number: int) -> dict:
-        query = """query($owner:String!, $repo:String!, $number:Int!) {
+        """Return pinned Discussion, or discover the only Discussion on first setup.
+
+        GitHub Discussion numbers do not necessarily begin at 1 even for the
+        first Discussion. Never select a random one if the repository has many.
+        """
+        query = """query($owner:String!, $repo:String!) {
           repository(owner:$owner, name:$repo) {
-            discussion(number:$number) { id url number }
+            discussions(first:20) {
+              totalCount
+              nodes { id url number title }
+            }
           }
         }"""
-        data = self.graphql(query, {"owner": self.owner, "repo": self.repo, "number": number})
-        discussion = (data.get("repository") or {}).get("discussion")
-        if discussion is None:
-            raise BridgeError(f"Discussion #{number} missing or inaccessible to GITHUB_TOKEN")
-        return discussion
+        data = self.graphql(query, {"owner": self.owner, "repo": self.repo})
+        connection = (data.get("repository") or {}).get("discussions") or {}
+        nodes = connection.get("nodes") or []
+        total = int(connection.get("totalCount") or 0)
+        selected = next((item for item in nodes if item and item.get("number") == number), None)
+        if selected is None and total == 1 and len(nodes) == 1:
+            selected = nodes[0]
+            print(f"Bridge: original Discussion number {number} unavailable; sole existing Discussion is #{selected['number']}: {selected['url']}")
+        if selected is None:
+            candidates = [(n.get("number"), n.get("title")) for n in nodes if n]
+            raise BridgeError(f"Discussion #{number} missing; found {total} Discussions, candidates: {candidates}")
+        return selected
 
     def discussion_has_marker(self, number: int, marker: str) -> bool:
         query = """query($owner:String!, $repo:String!, $number:Int!, $cursor:String) {
@@ -166,6 +181,10 @@ def main() -> int:
         event = json.load(fh)
     owner, repo = repo_full.split("/", 1)
     gh = Github(token, owner, repo)
+    # Verify the target before posting; the first Discussion may be numbered >1.
+    resolved = gh.discussion(discussion_number)
+    discussion_number = int(resolved["number"])
+    print(f"Bridge target: Discussion #{discussion_number} at {resolved['url']}")
 
     if event_name == "workflow_dispatch":
         # Read-only smoke: proves endpoints are visible, not permission to post.
