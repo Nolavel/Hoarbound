@@ -8,7 +8,8 @@ extends SceneTree
 ## - a participant that does not return a Dictionary refuses the whole save, and the slot keeps its last good save;
 ## - a slot without a participant's key leaves that participant untouched on load;
 ## - a simulation participant: legacy names adapted, a missing priority defaults, own names mapped, a
-##   non-participant refused, and the clock advances them in priority order.
+##   non-participant refused, and the clock advances them in priority order;
+## - an item user and a passage provider: legacy names adapted, a half one refused, own names mapped.
 ## Expected refusals print errors; the verdict is the last line.
 
 const TEST_SLOT: int = 5
@@ -95,6 +96,7 @@ func _run() -> void:
 	_absent_key(manager, participant)
 	_partial_legacy(manager)
 	_simulation_participants()
+	_item_users_and_passages()
 
 	manager.delete_slot(TEST_SLOT)
 	_dispose(legacy)
@@ -201,6 +203,58 @@ func _simulation_participants() -> void:
 	_check(order == ["mapped", "legacy", "plain"], "the clock advanced in order %s, not by priority" % [order])
 	for node: Node in [clock, legacy, plain, mapped, stranger]:
 		node.free()
+
+
+func _item_users_and_passages() -> void:
+	var user := _LegacyUser.new()
+	var half := _HalfUser.new()
+	_check(ItemUserCapability.can_use(user, &"bedroll") and not ItemUserCapability.can_use(user, &"stone"),
+		"a legacy item user did not answer through the contract")
+	_check(ItemUserCapability.use(user, &"bedroll") and user.used == &"bedroll", "a legacy item user was not used")
+	_check(not ItemUserCapability.ensure(half) and not ItemUserCapability.can_use(half, &"bedroll"),
+		"an item user with can_use but no use was taken")
+	var passage := _LegacyPassage.new()
+	var stranger := Node.new()
+	_check(PassageProviderCapability.info(passage) == passage.held, "a legacy passage provider gave no info")
+	_check(PassageProviderCapability.info(stranger) == null and not PassageProviderCapability.ensure(stranger),
+		"a node with no passage counted as a provider")
+	var mapped := _LegacyPassage.new()
+	_check(PassageProviderCapability.publish(mapped, &"other_info") and PassageProviderCapability.info(mapped) == null,
+		"a passage provider's own method name was not used")
+	for node: Node in [user, half, passage, stranger, mapped]:
+		node.free()
+
+
+class _LegacyUser:
+	extends Node
+
+	var used: StringName = &""
+
+	func can_use(item_id: StringName) -> bool:
+		return item_id == &"bedroll"
+
+	func use(item_id: StringName) -> bool:
+		used = item_id
+		return true
+
+
+class _HalfUser:
+	extends Node
+
+	func can_use(_item_id: StringName) -> bool:
+		return true
+
+
+class _LegacyPassage:
+	extends Node
+
+	var held := PassageInfo.new()
+
+	func get_passage_info() -> PassageInfo:
+		return held
+
+	func other_info() -> PassageInfo:
+		return null
 
 
 class _LegacyTicker:

@@ -8,6 +8,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- More class D dynamic dispatch removed (§16). The ratchet baseline is now 140 calls in 34 files.
+  - The Hub hands an item to its user through `ItemUserCapability`. Six components use items (bedroll, hammer, held item, flare, snow scoop); their legacy `can_use`/`use` names are adapted at the boundary.
+  - Passage traversal reads doors and narrow passages through `PassageProviderCapability`.
+  - A swinging door steps only Henry (`as Player`) out of its arc; it used to ask any blocker for `move_to_position`.
+  - Inventory reads the burning flare's weight from `HeldLightComponent` by type. It is the only provider, so no abstraction is added for one (§13).
+  - `test_capability_contract` covers both new contracts.
+
 - The simulation clock advances its participants through `SimulationParticipantCapability` (`core/contracts/`), as saves already do. This is class D in §16.
   - The legacy `advance_simulation` / `get_simulation_priority` names are adapted at the boundary, so weather, afflictions, snow, the held light and the bio monitor are unchanged.
   - Any provider, a C++ weather included, may publish its own names.

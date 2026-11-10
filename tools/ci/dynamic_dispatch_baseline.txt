@@ -10,10 +10,6 @@
 7 D core/input/input_systems.gd  # interact claimant callbacks by name; is_paused/is_movement_blocked on the mode state
 8 D core/world/streaming_system.gd  # runtime stream source seam (get_stream_chunks, activate/deactivate)
 20 D scripts/actors/player/henry/components/interact_component.gd  # optional host operations on a CharacterBody3D (test_seated_aim uses a plain body)
-2 D scripts/actors/player/henry/components/inventory_component.gd  # held physical weight found on children by name
-2 D scripts/actors/player/henry/components/passage_traversal_component.gd  # get_passage_info on a spot
-3 D scripts/actors/player/henry/components/player_hub_component.gd  # item users found by can_use/use
-2 D scripts/environment/interactive/hinged_door.gd  # a blocker that can move_to_position
 1 D scripts/environment/interactive/interactive_area.gd  # get_interaction_data on a loaded node
 3 D scripts/systems/world/snow/snow_chunk_cover.gd  # optional city obstacle and terrain height sources
 2 F core/audio/sound_system.gd  # plays a player node of either audio class
