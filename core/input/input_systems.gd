@@ -81,7 +81,7 @@ var _shoulder_latch: bool = false
 
 
 func _ready() -> void:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
 	if state != null and state.has_signal(&"mode_changed"):
 		state.connect(&"mode_changed", func(_old: int, _new: int) -> void: _apply_mouse_mode())
 
@@ -291,13 +291,13 @@ func _apply_mouse_mode() -> void:
 ## PlayerState is an autoload, but this file is also driven directly by tests
 ## where it may not exist, so both reads are guarded rather than assumed.
 func _is_gameplay_blocked() -> bool:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	return state != null and state.call(&"is_paused")
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	return state != null and state.is_paused()
 
 
 func _is_movement_blocked() -> bool:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	return state != null and state.call(&"is_movement_blocked")
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	return state != null and state.is_movement_blocked()
 
 
 func _pressed(event: InputEvent, action: StringName) -> bool:

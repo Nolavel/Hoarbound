@@ -8,6 +8,26 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Removed three snow suites from the `snow-clipmap-preview` experiment, at the owner's request: test_snow_architecture_contract, test_snow_contact_pipeline and test_snow_surface_clipmap. They tested a snow architecture (multi-channel deformation, radial L0–L2 rings, no live contact writes) that `main` does not ship, so they were red on every branch. They were also dropped from `snow_architecture_gate.sh` and the snow job loops in `checks.yml`.
+
+- Four suites that were red on `main` are green again.
+  - test_shelter_workflow and test_quick_access still read the feedback label and readout that commit `54f88bde` moved into the gameplay UI. They now listen to `ConsumptionController.water_status_requested` and `QuickAccessComponent.readout_changed`. With the hide signal removed, test_quick_access fails.
+  - test_render_layers: render layer 21 had lost its `snow_tile_experiment` name in `project.godot`, though `RenderLayers.SNOW_TILE_EXPERIMENT` still draws on it. The name is restored.
+  - test_container_kinds runs at `--fixed-fps 30` in CI, as its run line says. Without it, the hangers swung on wall-clock deltas, and once a pan hung into the chest on `main`. That failure was not reproduced here (three runs passed under load), so this fix is untested against it.
+
+- Class D dynamic dispatch is closed (§16). The ratchet baseline is 17 calls in 3 files; all of them are class A (composition-root hooks) or class B (native and lab tools).
+  - `GroundSourceCapability` gives snow chunk cover the ground height and, optionally, the obstacle outlines. Key West ground and island terrain keep their legacy `get_height` / `get_snow_obstacles_in_rect` names.
+  - The new `CapabilityContract.bind` turns an operation into a Callable once, so the per-vertex height loop costs no lookup per call.
+  - `InteractionDataCapability` lets a scene loaded by an InteractiveArea give its name, description, colour and radius (the flashlight and the filter mask).
+  - `test_capability_contract` also covers the locomotion readout, the ground source and the interaction data. It fails when `bind` returns nothing; snow chunk cover then reports that the ground is not a source.
+
+- Class F dynamic dispatch is closed (§16). The ratchet baseline drops from 108 calls in 33 files to 21 calls in 5 files.
+  - The PlayerState and SoundSystem autoloads gain `class_name PlayerStateService` and `SoundSystemService`. All 29 untyped calls to them, and to `InputSystemsService`, are now typed. The stove and timed actions set `PlayerStateService.Mode` directly instead of looking the enum up by name.
+  - Body actions go through `InteractHostCapability`: animate, face, the action lock, and the new `hold` / `holding_still`. Test walkers still work, and a missing operation is skipped.
+  - Henry's animation and the camera read speed, crouch and view through the new `LocomotionReadoutCapability`. Test bodies keep their legacy names, which are adapted at the boundary.
+  - Other calls become typed references: foot contacts (`MotionMatchingLocomotion`), snow obstacles (`KeyWestRealityGround`), the time accelerator (`DayNightManager`) and the stove warmer prompt.
+  - `QuickAccessUI._zone_item` becomes public `zone_item`, since the focus motion reads it.
+
 - StreamingSystem and InputSystems find their participants through capabilities (`core/contracts/`). This is class D in §16. The ratchet baseline is now 108 calls in 33 files.
   - `StreamSourceCapability`: chunks, activate, deactivate, and an optional ring0. The far view and the test sources keep their legacy `*_stream_*` names, which are adapted at the boundary.
   - A source that cannot activate or deactivate is now refused whole at registration. It used to register chunks it could never load or unload.

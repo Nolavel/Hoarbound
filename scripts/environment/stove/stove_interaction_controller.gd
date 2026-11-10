@@ -391,10 +391,10 @@ func _spot_is_free(at: Vector3) -> bool:
 
 ## PlayerState WORKING roots Henry (no WASD, sprint, jump or pickups) for the whole ritual.
 func _enter_working_mode() -> void:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	if state == null or int(state.get("mode")) != _mode(&"ON_FOOT"):
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	if state == null or state.mode != PlayerStateService.Mode.ON_FOOT:
 		return
-	state.call(&"set_mode", _mode(&"WORKING"))
+	state.set_mode(PlayerStateService.Mode.WORKING)
 	_set_working_mode = true
 
 
@@ -402,22 +402,20 @@ func _restore_mode() -> void:
 	if not _set_working_mode:
 		return
 	_set_working_mode = false
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	if state != null and int(state.get("mode")) == _mode(&"WORKING"):
-		state.call(&"set_mode", _mode(&"ON_FOOT"))
-
-
-func _mode(mode_name: StringName) -> int:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	return int(state.get_script().get_script_constant_map().get("Mode", {}).get(String(mode_name), -1)) if state != null else -1
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	if state != null and state.mode == PlayerStateService.Mode.WORKING:
+		state.set_mode(PlayerStateService.Mode.ON_FOOT)
 
 
 func _claim_interact(claim: bool) -> void:
-	var input_systems: Node = get_node_or_null(^"/root/InputSystems")
+	var input_systems := get_node_or_null(^"/root/InputSystems") as InputSystemsService
 	if input_systems == null or claim == _claimed:
 		return
 	_claimed = claim
-	input_systems.call(&"claim_interact" if claim else &"release_interact", self)
+	if claim:
+		input_systems.claim_interact(self)
+	else:
+		input_systems.release_interact(self)
 
 
 func _leave_session_group() -> void:
@@ -459,5 +457,5 @@ func _set_phase(phase: Phase) -> void:
 
 
 func _paused() -> bool:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	return state != null and bool(state.call(&"is_paused"))
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	return state != null and bool(state.is_paused())

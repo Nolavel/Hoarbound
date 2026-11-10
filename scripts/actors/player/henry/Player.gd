@@ -135,8 +135,8 @@ func _physics_process(delta: float) -> void:
 	## Working actions (pickup, repair, opening), the Hub and sitting root Henry.
 	var in_hub: bool = (is_instance_valid(hub) and hub.is_open()) or (is_instance_valid(rest) and rest.is_sitting()) \
 		or Time.get_ticks_msec() < _hold_until_ms
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	var mode_locked: bool = state != null and bool(state.call(&"is_movement_blocked"))
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	var mode_locked: bool = state != null and bool(state.is_movement_blocked())
 	var movement_locked: bool = in_hub or mode_locked or is_action_locking()
 	if movement_locked:
 		world_dir = Vector3.ZERO
@@ -189,12 +189,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _update_crouch() -> void:
-	var input_systems: Node = get_node_or_null(^"/root/InputSystems")
-	var wants_crouch: bool = _work_crouch or (
-		input_systems != null
-		and input_systems.has_method(&"is_crouching")
-		and bool(input_systems.call(&"is_crouching"))
-	)
+	var input_systems := get_node_or_null(^"/root/InputSystems") as InputSystemsService
+	var wants_crouch: bool = _work_crouch or (input_systems != null and input_systems.is_crouching())
 	if _crouching and not wants_crouch and not _can_stand_up():
 		return
 	if wants_crouch == _crouching:

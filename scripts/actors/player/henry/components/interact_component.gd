@@ -809,8 +809,8 @@ func _is_blocked() -> bool:
 	var locked: Array = InteractHostCapability.run(_player, &"action_locked") if is_instance_valid(_player) else [false, null]
 	if locked[0] and bool(locked[1]):
 		return true
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	return state != null and bool(state.call(&"is_movement_blocked"))
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	return state != null and bool(state.is_movement_blocked())
 
 
 func _owns_focus_body(owner_area: InteractiveArea, target: InteractiveArea) -> bool:

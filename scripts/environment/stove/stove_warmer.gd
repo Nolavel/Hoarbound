@@ -254,7 +254,7 @@ func _refresh() -> void:
 	if _steam != null:
 		_steam.emitting = _state == State.READY
 	if _prompt != null:
-		_prompt.call(&"refresh_label")
+		(_prompt as StoveWarmerPrompt).refresh_label()
 
 
 ## A tin on the ring for stew; a small pot for snow and water.

@@ -47,14 +47,14 @@ const DEFAULT_DIR: String = "res://data/audio/footsteps/"
 ## Above this air temperature snow is wet and steps go soft, °C.
 @export var wet_air_c: float = -1.0
 
-var _sound: Node
+var _sound: SoundSystemService
 var _thermal: ThermalManager
 var _layer_handles: Array[int] = []
 var _shell: SnowShell
 
 
 func on_world_ready(context: WorldContext) -> void:
-	_sound = get_node_or_null(^"/root/SoundSystem")
+	_sound = get_node_or_null(^"/root/SoundSystem") as SoundSystemService
 	if _sound == null:
 		push_warning("WorldAudioBinder: SoundSystem autoload missing, world stays silent.")
 		return
@@ -62,21 +62,21 @@ func on_world_ready(context: WorldContext) -> void:
 	var weather: WeatherController = context.get_system(WEATHER_SCRIPT) as WeatherController
 	if weather != null:
 		weather.conditions_updated.connect(_on_conditions_updated)
-		_sound.call(&"set_parameter", PARAM_WIND, weather.get_wind_speed_mps())
+		_sound.set_parameter(PARAM_WIND, weather.get_wind_speed_mps())
 	_thermal = context.get_system(THERMAL_SCRIPT) as ThermalManager
 	if _thermal != null:
 		_thermal.sheltered_changed.connect(_on_sheltered_changed)
 		_on_sheltered_changed(_thermal.is_sheltered())
 	_bind_feet(context.player)
 	for layer: SoundLayer in ambience_layers:
-		_layer_handles.append(int(_sound.call(&"start_layer", layer)))
+		_layer_handles.append(_sound.start_layer(layer))
 
 
 func _exit_tree() -> void:
 	if _sound == null:
 		return
 	for handle: int in _layer_handles:
-		_sound.call(&"stop", handle)
+		_sound.stop(handle)
 
 
 func _bind_feet(player: Node3D) -> void:
@@ -103,29 +103,29 @@ func _bank_or(current: SoundEvent, file: String) -> SoundEvent:
 
 
 func _on_conditions_updated(_offset_c: float, wind_speed_mps: float, _snowfall: float) -> void:
-	_sound.call(&"set_parameter", PARAM_WIND, wind_speed_mps)
+	_sound.set_parameter(PARAM_WIND, wind_speed_mps)
 
 
 func _on_sheltered_changed(is_sheltered: bool) -> void:
-	_sound.call(&"set_parameter", PARAM_INTERIOR, 1.0 if is_sheltered else 0.0)
+	_sound.set_parameter(PARAM_INTERIOR, 1.0 if is_sheltered else 0.0)
 
 
 func _on_foot_planted(
 	_side: int, position: Vector3, _normal: Vector3, _forward: Vector3, speed_mps: float
 ) -> void:
-	_sound.call(&"set_parameter", PARAM_FOOT_SPEED, speed_mps)
+	_sound.set_parameter(PARAM_FOOT_SPEED, speed_mps)
 	_bind_shell()
 	var pace_db: float = lerpf(-3.0, 2.0, clampf(speed_mps / 4.0, 0.0, 1.0))
 	var snow: Vector2 = _snow_under(position)
-	_sound.call(&"set_parameter", PARAM_SNOW_DEPTH, snow.x)
+	_sound.set_parameter(PARAM_SNOW_DEPTH, snow.x)
 	if snow.x < thin_snow_m or snow_step_event == null:
 		if footstep_event != null:
-			_sound.call(&"play", footstep_event, position, pace_db, 1.0)
+			_sound.play(footstep_event, position, pace_db, 1.0)
 		return
 	var air: float = _air_c()
 	var step: Dictionary = snow_step_shading(snow.x, snow.y, air)
 	var event: SoundEvent = _snow_bank(float(step["sink"]), snow.y, air)
-	_sound.call(&"play", event, position, float(step["gain_db"]) + pace_db, 1.0)
+	_sound.play(event, position, float(step["gain_db"]) + pace_db, 1.0)
 
 
 ## How one boot in `depth_m` of snow of `softness` sounds at `air_c`:
@@ -178,9 +178,9 @@ func _bind_shell() -> void:
 func _on_crust_broke(_side: int, position: Vector3, plunge_m: float) -> void:
 	var deep: float = clampf(plunge_m / maxf(full_sink_m, 0.01), 0.0, 1.0)
 	if snow_crust_event != null:
-		_sound.call(&"play", snow_crust_event, position, lerpf(-4.0, 1.0, deep), 1.0)
+		_sound.play(snow_crust_event, position, lerpf(-4.0, 1.0, deep), 1.0)
 	if snow_deep_event != null:
-		_sound.call(&"play", snow_deep_event, position, lerpf(-10.0, -2.0, deep), 1.0)
+		_sound.play(snow_deep_event, position, lerpf(-10.0, -2.0, deep), 1.0)
 
 
 func _air_c() -> float:

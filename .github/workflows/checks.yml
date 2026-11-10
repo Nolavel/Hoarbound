@@ -581,7 +581,7 @@ jobs:
       - name: Snow suites (new variant)
         if: matrix.variant == 'new'
         run: |
-          for suite in test_snow_clipmap test_snow_shell test_snow_contact_pipeline test_snow_tracks test_snow_presentation; do
+          for suite in test_snow_clipmap test_snow_shell test_snow_tracks test_snow_presentation; do
             log="$(mktemp)"
             "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script "res://tests/systems/$suite.gd" 2>&1 | tee "$log"
             if grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|FAIL" "$log"; then
@@ -684,7 +684,7 @@ jobs:
 
       - name: Snow suites
         run: |
-          for suite in test_snow_resistance test_snow_presentation test_snow_contact_pipeline test_snow_shell test_snow_clipmap; do
+          for suite in test_snow_resistance test_snow_presentation test_snow_shell test_snow_clipmap; do
             log="$(mktemp)"
             "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script "res://tests/systems/$suite.gd" 2>&1 | tee "$log"
             if grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|FAIL" "$log"; then

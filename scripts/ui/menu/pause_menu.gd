@@ -81,14 +81,14 @@ func quit_to_title() -> void:
 
 ## True when something else, the sleep dialog say, already holds the menu mode.
 func _is_other_menu_open() -> bool:
-	var state: Node = get_node_or_null(PLAYER_STATE_PATH)
-	return state != null and bool(state.call(&"is_paused"))
+	var state := get_node_or_null(PLAYER_STATE_PATH) as PlayerStateService
+	return state != null and bool(state.is_paused())
 
 
 ## Pause belongs to PlayerState, which couples it to the tree; tests run
 ## without the autoload, so its absence falls back to pausing directly.
 func _player_state_call(method: StringName) -> void:
-	var state: Node = get_node_or_null(PLAYER_STATE_PATH)
+	var state := get_node_or_null(PLAYER_STATE_PATH) as PlayerStateService
 	if state != null:
 		state.call(method)
 	elif is_inside_tree():

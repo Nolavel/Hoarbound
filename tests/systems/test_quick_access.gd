@@ -65,12 +65,12 @@ func _run() -> void:
 	hub.move_to_zone(&"road_flare", path)
 	quick.select(0)
 	_check(not quick.use_selected(), "an empty pocket used something")
+	var readout: Array[String] = [""]  # the last text the gameplay UI was given
+	quick.readout_changed.connect(func(text: String) -> void: readout[0] = text)
 	quick.select(1)
-	var readout := quick.get("_readout") as Label
-	_check(readout != null and readout.visible and readout.text.contains("Use selected item"),
-		"selected unlit flare did not show the existing Use Selected Item hint")
+	_check(readout[0].contains("Use selected item"), "selected unlit flare did not show the existing Use Selected Item hint")
 	_check(quick.use_selected(), "the pocketed flare was not used")
-	_check(readout != null and not readout.visible, "flare use left a stale ignition hint on screen")
+	_check(not readout[0].contains("Use selected item"), "flare use left a stale ignition hint on screen")
 	_check(int(user.get(&"uses")) == 1, "the item user was not called once")
 	_check(_zone_item(hub, path) == &"", "the used flare is still in its pocket")
 	_check(inventory.get_count(&"road_flare") == 1, "using the pocketed flare touched the pack's flare")

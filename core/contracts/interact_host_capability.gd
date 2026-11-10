@@ -1,8 +1,8 @@
 class_name InteractHostCapability
 extends RefCounted
 
-## The body InteractComponent works for (Henry, or a test walker): every operation is optional and has a stand-in
-## when the host lacks it. Legacy method names on the host are adapted here, the only place that asks by name.
+## The body an interaction or work action is for (Henry, or a test walker): every operation is optional and is
+## skipped when the host lacks it. Legacy method names on the host are adapted here, the only place that asks by name.
 
 const ID: StringName = &"interact_host"
 ## Operation -> the host's legacy method name.
@@ -14,6 +14,8 @@ const LEGACY: Dictionary = {
 	&"walk_to": &"move_to_position",
 	&"stop": &"stop_moving",
 	&"action_locked": &"is_action_locking",
+	&"hold": &"hold_still",
+	&"holding_still": &"is_holding_still",
 }
 
 

@@ -252,8 +252,7 @@ func _lay_at(xf: Transform3D) -> bool:
 	if not inventory.try_remove(ITEM_ID):
 		return false
 	_spawn(xf)
-	if body.has_method(&"play_action_animation"):
-		body.call(&"play_action_animation", &"fix")
+	InteractHostCapability.run(body, &"animate", [&"fix"])
 	return true
 
 

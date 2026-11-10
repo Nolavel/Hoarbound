@@ -96,8 +96,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	visible = state == null or not bool(state.call(&"is_paused"))
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	visible = state == null or not bool(state.is_paused())
 	refresh(delta)
 
 
