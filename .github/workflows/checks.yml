@@ -68,9 +68,9 @@ jobs:
         run: tools/ci/run_tests.sh $(sed -e 's/#.*//' tools/ci/required_suites.txt | tr -s '[:space:]' ' ')
 
   compass-preview:
-    ## Real Key West viewport of the First Exit compass. Dispatch with preview=compass.
+    ## Real Key West viewport of the First Exit compass. Dispatch with preview=compass, or a single tagged review push on grok.
     ## Not a second pipeline: same workflow, Godot, lavapipe and ffmpeg as the other captures.
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'compass'
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'compass') || (github.event_name == 'push' && github.ref == 'refs/heads/grok' && contains(github.event.head_commit.message, '[compass-review]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:

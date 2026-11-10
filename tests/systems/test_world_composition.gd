@@ -73,10 +73,11 @@ func _test_first_exit_bearings_follow_the_key_west_profile() -> void:
 		"First Exit bearings were built for a world that is not Key West"
 	)
 	_dispose(plain)
-	var key_west := _make_world()
+	## World._ready caches its profile. Assign it BEFORE adding the stub to
+	## SceneTree, exactly as PackedScene does in a real Key West boot.
 	var profile := WorldProfile.new()
 	profile.id = World.FIRST_EXIT_PROFILE_ID
-	key_west.world_profile = profile
+	var key_west := _make_world(profile)
 	key_west.initialize()
 	_check(
 		key_west.get_context().get_system(bearings_script) != null,
@@ -97,8 +98,9 @@ func _dispose(node: Node) -> void:
 
 ## Builds a World with a player, camera and spawn marker already in place,
 ## the way the island scene supplies them.
-func _make_world() -> World:
+func _make_world(profile: WorldProfile = null) -> World:
 	var world := World.new()
+	world.world_profile = profile
 	var container := Node3D.new()
 	container.name = "StreamContainer"
 	world.add_child(container)

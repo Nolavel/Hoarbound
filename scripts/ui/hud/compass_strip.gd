@@ -10,8 +10,9 @@ const TOP_MARGIN: float = 16.0
 const TICK_STEP: float = TAU / 360.0 * 15.0
 const SMOOTH_SEC: float = 0.08
 const CARDINALS: PackedStringArray = ["N", "E", "S", "W"]
-const INK: Color = Color(0.90, 0.87, 0.80, 1.0)
-const OCHRE: Color = Color(0.86, 0.62, 0.28, 1.0)
+## Contrast tested against white snow and the dim 727 interior: warm, not blue.
+const INK: Color = Color(0.95, 0.92, 0.86, 1.0)
+const OCHRE: Color = Color(0.87, 0.57, 0.20, 1.0)
 
 var _camera: Camera3D
 var _player: Node3D
@@ -67,7 +68,7 @@ func _draw() -> void:
 func _draw_wash(x: float, width: float, top: float, height: float) -> void:
 	var mid: float = x + width * 0.5
 	var edge := Color(0.02, 0.02, 0.018, 0.0)
-	var center := Color(0.02, 0.02, 0.018, 0.28)
+	var center := Color(0.02, 0.02, 0.018, 0.42)
 	var bottom: float = top + height
 	draw_polygon(PackedVector2Array([
 		Vector2(x, top), Vector2(mid, top), Vector2(mid, bottom), Vector2(x, bottom),
@@ -93,7 +94,7 @@ func _draw_tape(x0: float, width: float, base_y: float, slot: Dictionary) -> voi
 		var on_major: bool = int(round(degrees)) % 45 == 0
 		var length: float = 18.0 if on_cardinal else 10.0 if on_major else 5.0
 		var ink := INK
-		ink.a = 0.95 if on_cardinal else 0.72 if on_major else 0.5
+		ink.a = 1.0 if on_cardinal else 0.84 if on_major else 0.62
 		var top := Vector2(x, base_y - length)
 		var bottom := Vector2(x, base_y)
 		draw_line(top, bottom, Color(0.04, 0.035, 0.03, 0.8), 3.0)
@@ -116,7 +117,7 @@ func _draw_marker(x0: float, width: float, base_y: float, slot: Dictionary) -> v
 		draw_circle(Vector2(x, base_y - 8.0), 4.0, Color(0.04, 0.03, 0.02, 0.85))
 		draw_circle(Vector2(x, base_y - 8.0), 2.6, OCHRE)
 		var label: String = _bearings.active_label()
-		_text(label, Vector2(x - _text_width(label, 20) * 0.5, base_y - 22.0), 20, OCHRE)
+		_text(label, Vector2(x - _text_width(label, 22) * 0.5, base_y - 22.0), 22, OCHRE)
 		return
 	var edge: int = int(slot["edge"])
 	var tip_x: float = x0 + 6.0 if edge < 0 else x0 + width - 6.0
@@ -145,7 +146,9 @@ func _text(text: String, at: Vector2, size: int, color: Color) -> void:
 	var font: Font = _ui_font()
 	if font == null:
 		return
-	draw_string(font, at + Vector2(1, 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0, 0.8))
+	## An actual two-pixel outline is legible on blizzard-white frames; a 1px
+	## offset shadow disappears at the 960x540 preview scale.
+	draw_string_outline(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 2, Color(0.045, 0.038, 0.032, 0.90))
 	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
 

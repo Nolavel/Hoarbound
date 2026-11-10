@@ -229,6 +229,9 @@ func _save_inside(world: Node3D, _player: CharacterBody3D, _camera: TpsCamera, b
 		await physics_frame
 	if loaded_camera != null and loaded_player != null:
 		await _aim_at(loaded_camera, loaded_player, loaded_player.global_position + Vector3(0, 1.2, 2.0))
+	## The second fresh instance is the same production scene. Hide its debug
+	## controls again, as we did for the initial world, before filming its HUD.
+	_hide_debug(fresh)
 	_set_render(true)
 	await process_frame
 	var overlapped: bool = loaded_bearings != null and _overlaps_727(loaded_bearings, loaded_zone)
