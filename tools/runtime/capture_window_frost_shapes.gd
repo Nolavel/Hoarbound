@@ -2,9 +2,11 @@ extends SceneTree
 
 ## Stills of the game's frosted glass (frosted_glass_727.tres) on panes of different size and proportion, at
 ## several warmths, one PNG each. The panes carry the same per-vertex data the landmark glass does.
-## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1920x1080 --script res://tools/runtime/capture_window_frost_shapes.gd -- <out dir>
+## With "opaque" it shows the generated buildings' panes instead (frosted_window.gdshader, lit, no thaw).
+## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1920x1080 --script res://tools/runtime/capture_window_frost_shapes.gd -- <out dir> [cold coverage 0..1] [opaque]
 
 const GLASS: ShaderMaterial = preload("res://assets/world/key_west/landmarks/frosted_glass_727.tres")
+const OPAQUE: Shader = preload("res://shaders/environment/windows/frosted_window.gdshader")
 const BACKDROP: Shader = preload("res://tests/demos/window_727_sdf/diagnostic_backdrop.gdshader")
 ## [width m, height m, centre x m, centre y m]: square light, casement, sash, picture window, transom, door glass.
 const PANES: Array = [
@@ -12,15 +14,19 @@ const PANES: Array = [
 	[2.0, 1.1, 1.25, 0.35], [1.6, 0.45, 1.05, -0.62], [0.8, 0.45, -1.75, -0.62],
 ]
 const WARMTHS: Array[float] = [0.0, 0.35, 0.6, 0.85, 1.0]
-const COLD_COVERAGE: float = 0.7
 
 var _out: String = "user://shots/window_frost_shapes"
+var _coverage: float = 0.7
+var _opaque: bool = false
 
 
 func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if not args.is_empty():
 		_out = args[0]
+	if args.size() > 1:
+		_coverage = clampf(float(args[1]), 0.0, 1.0)
+	_opaque = args.size() > 2 and args[2] == "opaque"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out))
 	call_deferred(&"_run")
 
@@ -29,6 +35,18 @@ func _run() -> void:
 	var glass := GLASS.duplicate() as ShaderMaterial
 	glass.set_shader_parameter(&"growth_seed", 0.28)
 	glass.set_shader_parameter(&"melt_seed", 0.73)
+	if _opaque:
+		glass = ShaderMaterial.new()
+		glass.shader = OPAQUE
+		var sun := DirectionalLight3D.new()
+		sun.rotation_degrees = Vector3(-35.0, -25.0, 0.0)
+		root.add_child(sun)
+		var env := WorldEnvironment.new()
+		env.environment = Environment.new()
+		env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.environment.ambient_light_color = Color(0.8, 0.85, 0.95)
+		env.environment.ambient_light_energy = 0.7
+		root.add_child(env)
 	var stage := Node3D.new()
 	root.add_child(stage)
 	var board := MeshInstance3D.new()
@@ -49,7 +67,7 @@ func _run() -> void:
 	camera.position = Vector3(-0.2, 0.05, 3.0)
 	stage.add_child(camera)
 	camera.make_current()
-	for warmth: float in WARMTHS:
+	for warmth: float in ([0.0] as Array[float] if _opaque else WARMTHS):
 		glass.set_shader_parameter(&"heated_warmth", warmth)
 		for _i: int in 4:
 			await process_frame
@@ -69,7 +87,8 @@ func _pane(size: Vector2, at: Vector3, seed_value: float, glass: ShaderMaterial)
 		Vector3(half.x, -half.y, 0.0), Vector3(-half.x, -half.y, 0.0)])
 	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.BACK, Vector3.BACK, Vector3.BACK, Vector3.BACK])
 	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0)])
-	var colour := Color(COLD_COVERAGE, 1.0, seed_value, 1.0)
+	## The opaque panes carry (coverage, seed) instead of (coverage, heated, seed).
+	var colour := Color(_coverage, seed_value, 0.0, 1.0) if _opaque else Color(_coverage, 1.0, seed_value, 1.0)
 	arrays[Mesh.ARRAY_COLOR] = PackedColorArray([colour, colour, colour, colour])
 	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 0, 2, 3])
 	var mesh := ArrayMesh.new()

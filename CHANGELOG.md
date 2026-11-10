@@ -13,6 +13,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Every window now draws the baked millimetre frost, and a pane at full coverage is frosted right across.
+  - **Generated buildings.** `frosted_window.gdshader` draws the same frost as the landmark glass (no thaw: these houses stay cold). Its old 16 cm fern pattern is no longer drawn anywhere.
+  - **Full coverage.** From 80 % to 100 % coverage the middle of a pane packs with two more layers of crystals and a full coat of film. Before, a pane at 100 % kept a see-through middle and looked almost like one at 70 %.
+  - **Shared code and textures.** The frost lives in `frost_tiles.gdshaderinc`. Its two tiles are project shader globals (`window_frost_edge`, `window_frost_field`), so the baked city scenes pick them up unbound and were not regenerated.
+  - `capture_window_frost_shapes.gd` takes a coverage and `opaque`; a new preview shows 70 %, 100 %, 100 % thawing, and the opaque panes. `test_window_frost` checks the globals and both shaders.
+  - GPU cost in the streamed city is not measured: each opaque pane now does 7 texture reads in place of the procedural fern loops.
+
 - The see-through landmark glass (`frosted_glass.gdshader`, the 727 windows) has new frost and a new thaw. Its rule is unchanged: 60-80 % frost in the cold, a warmed room clears.
   - **Any pane size.** Frost comes from two baked tiles at 1 mm per pixel (`assets/environment/windows/`, from `tools/textures/bake_window_frost_sheet.py`), laid in metres: a strip of fern feathers along each edge and a field of small crystals across the pane. A pane of any size or proportion carries crystals of true size.
   - **Thaw.** Each texel thaws by its own need; it soaks to glassy ice, breaks into islands and clears. The wet pane mists with beads and sheds runs 1-2 mm wide.

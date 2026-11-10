@@ -74,11 +74,19 @@ func _check_warmth() -> void:
 	_check(is_equal_approx(KeyWest727Shelter.frost_warmth(zone), 1.0), "a fully warmed zone does not read 1")
 	var mat: ShaderMaterial = KeyWest727Shelter.FROSTED_GLASS
 	_check(is_equal_approx(float(mat.get_shader_parameter(&"warm_coverage")), 0.2), "a warmed room does not clear to 20 %")
-	## The frost itself is two baked tiles laid in metres, so any pane size carries crystals of true size.
-	for tile: StringName in [&"frost_edge", &"frost_field"]:
-		var texture := mat.get_shader_parameter(tile) as Texture2D
-		_check(texture != null, "the landmark glass has no %s tile" % tile)
+	## The frost itself is two baked tiles laid in metres, so any pane size carries crystals of true size. They are
+	## project shader globals: the baked city scenes and the landmark glass share them without binding anything.
+	for tile: String in ["window_frost_edge", "window_frost_field"]:
+		var entry: Dictionary = ProjectSettings.get_setting("shader_globals/" + tile, {})
+		var path: String = String(entry.get("value", ""))
+		_check(String(entry.get("type", "")) == "sampler2D" and ResourceLoader.exists(path), "shader global %s names no texture" % tile)
+		var texture := load(path) as Texture2D if ResourceLoader.exists(path) else null
 		_check(texture != null and texture.get_image().has_mipmaps(), "the %s tile has no mipmaps; distant panes would shimmer" % tile)
+	## Both window shaders draw from the tiles; neither still calls the old 16 cm fern pattern.
+	for shader_path: String in ["res://shaders/environment/windows/frosted_glass.gdshader", "res://shaders/environment/windows/frosted_window.gdshader"]:
+		var code: String = (load(shader_path) as Shader).code
+		_check(code.contains("frost_tiles.gdshaderinc") and code.contains("frost_cover("), "%s does not draw frost from the baked tiles" % shader_path.get_file())
+		_check(not code.contains("frost_pattern("), "%s still draws the old fern pattern" % shader_path.get_file())
 	var unheated := ThermalZone.new()
 	_check(is_equal_approx(KeyWest727Shelter.frost_warmth(unheated), 0.0), "an unheated zone reads warm")
 	zone.free()

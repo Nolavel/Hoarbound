@@ -1256,6 +1256,14 @@ stylized_shadow_interior_mode={
 "type": "float",
 "value": 0.0
 }
+window_frost_edge={
+"type": "sampler2D",
+"value": "res://assets/environment/windows/frost_edge_strip.png"
+}
+window_frost_field={
+"type": "sampler2D",
+"value": "res://assets/environment/windows/frost_field.png"
+}
 stylized_shadow_brush_mask={
 "type": "sampler2D",
 "value": "res://assets/textures/shadows/shadow_brush_dry.png"

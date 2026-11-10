@@ -2,16 +2,17 @@
 // COLOR.r = the pane's frost coverage in the cold, COLOR.g = 1 for a heated room, COLOR.b = seed.
 // Warmth of the two rooms comes from the shelter's thermal zones; a warmed room clears to about warm_coverage.
 //
-// The frost is two baked tiles at 1 mm per pixel (tools/textures/bake_window_frost_sheet.py), laid in metres:
-// a strip of fern feathers along each edge of the pane and a field of small crystals across it, so a pane of
-// any size and proportion carries crystals of true size. It thaws by local need: soaks to glassy ice, sheds
+// The frost is two baked tiles laid in metres (frost_tiles.gdshaderinc): a strip of fern feathers along each
+// edge of the pane and a field of small crystals across it. At full coverage the pane is frosted right across.
+// It thaws by local need: soaks to glassy ice, sheds
 // plates that slide to the sill, breaks up and clears; the wet pane mists with beads and sheds thin short runs.
 // No screen read: snowfall and other transparents behind the pane stay visible.
 shader_type spatial;
 render_mode unshaded, cull_disabled, blend_mix, depth_prepass_alpha;
 
-// Only its hash, noise, pane-size and cold-rank helpers are used here.
+// Only its hash, noise and pane-size helpers are used here.
 #include "res://shaders/environment/windows/frost_pattern.gdshaderinc"
+#include "res://shaders/environment/windows/frost_tiles.gdshaderinc"
 
 uniform vec4 frost_tint : source_color = vec4(0.965, 0.970, 0.972, 1.0);
 uniform vec4 hoar_tint : source_color = vec4(0.80, 0.85, 0.90, 1.0);
@@ -23,51 +24,8 @@ uniform float warm_coverage : hint_range(0.0, 1.0) = 0.2;
 // Drawn afresh each world load (the frost) and each time the room starts to warm (the thaw's path).
 uniform float growth_seed = 0.0;
 uniform float melt_seed = 0.0;
-// R crystal lines, G hoar grains, A smooth thickness. The strip tiles along x with the frame on its bottom row.
-uniform sampler2D frost_edge : hint_default_black, repeat_enable, filter_linear_mipmap;
-uniform sampler2D frost_field : hint_default_black, repeat_enable, filter_linear_mipmap;
-
-const vec2 STRIP_M = vec2(1.024, 0.384);
-const float FIELD_M = 1.024;
 const float RUN_GAP_M = 0.043;
 const float PLATE_GAP_M = 0.11;
-
-// The feather strip along one edge: `along` the edge and `dist` in from it, metres, at uniform `scale`.
-vec4 frost_strip(float along, float dist, float scale, float offset) {
-	// The band is not one depth all along an edge: it swells and thins every half metre or so.
-	float depth = scale * mix(0.35, 1.25, frost_value_noise(vec2(along * 2.3 + offset * 9.0, offset * 4.0)));
-	float v = dist / (STRIP_M.y * depth);
-	vec4 s = texture(frost_edge, vec2((along / scale + offset) / STRIP_M.x, 1.0 - clamp(v, 0.001, 1.0)));
-	return s * step(v, 0.97);
-}
-
-// Crystal lines, hoar and smooth thickness at `m` metres on a pane of `pane` metres.
-vec3 frost_at(vec2 m, vec2 pane, float seed, float order) {
-	// A small pane takes smaller feathers, so two edges never swallow it whole.
-	float k = clamp(min(pane.x, pane.y) / 0.9, 0.45, 1.0);
-	float o = seed * 3.7;
-	// The sill grows the longest feathers, the head of the pane the shortest.
-	vec4 e = frost_strip(m.x, pane.y - m.y, k, o);
-	e = max(e, frost_strip(m.y, m.x, k * 0.8, o + 0.31));
-	e = max(e, frost_strip(pane.y - m.y, pane.x - m.x, k * 0.8, o + 0.67));
-	e = max(e, frost_strip(pane.x - m.x, m.y, k * 0.55, o + 0.13));
-	// Free crystals keep to the colder glass; the warm middle of a large pane carries almost none.
-	vec4 f = texture(frost_field, (m + vec2(seed * 3.1, seed * 1.7)) / FIELD_M) * (1.0 - smoothstep(0.45, 0.85, order) * 0.9);
-	return max(e.rga, f.rga);
-}
-
-// When frost reaches a texel: 0 at the frame, 1 some 40 cm in (so a small pane frosts right across), deeper
-// off the sill, uneven all round.
-float frost_order(vec2 m, vec2 pane, float seed) {
-	float side = min(m.x, pane.x - m.x) * 1.1;
-	float bottom = (pane.y - m.y) * 0.75;
-	float top = m.y * 1.6;
-	// A soft minimum rounds the corners instead of mitring them.
-	float k = 0.05;
-	float rank = clamp(-k * log(exp(-side / k) + exp(-bottom / k) + exp(-top / k)) / 0.40, 0.0, 1.0);
-	return clamp(rank * 1.05 + (frost_value_noise(m * 1.9 + seed * 5.3) - 0.5) * 0.75
-		+ (frost_value_noise(m * 8.0 + seed) - 0.5) * 0.16, 0.0, 1.0);
-}
 
 // Warmth a texel needs before it starts to thaw: frost by the frame and low on the pane holds out longer.
 float thaw_need(vec2 m, vec2 pane, float order, float seed) {
@@ -139,14 +97,14 @@ void fragment() {
 
 	// --- the frost: feathers and hoar over a breath-thin film that thickens to the frame
 	float order = frost_order(m, pane, seed);
-	vec3 crystals = frost_at(m, pane, seed, order);
+	vec4 cover = frost_cover(m, pane, COLOR.r, seed, order);
+	float fill = frost_fill(COLOR.r);
 	float reach = COLOR.r * 1.35;
 	float present = (1.0 - smoothstep(reach - 0.22, reach, order)) * smoothstep(0.0, 0.25, COLOR.r);
-	float lines = crystals.x * present;
-	float hoar = crystals.y * present;
-	float body = crystals.z * present;
-	float film = present * mix(0.34, 0.07, smoothstep(0.10, 0.70, order))
-		* (0.75 + 0.5 * frost_value_noise(m * 14.0 + seed * 9.0));
+	float lines = cover.x;
+	float hoar = cover.y;
+	float body = cover.z;
+	float film = cover.w;
 	float thick = lines * 0.95 + hoar * 0.42 + film;
 
 	// --- when this texel thaws
@@ -190,7 +148,7 @@ void fragment() {
 			plate_from = m - vec2(0.0, fall);
 		}
 	}
-	vec3 carried = frost_at(plate_from, pane, seed, frost_order(plate_from, pane, seed));
+	vec3 carried = frost_at(plate_from, pane, seed, frost_order(plate_from, pane, seed), fill);
 
 	// --- runs: thin and short. A bead gathers where the frost soaks, creeps, lets go, and stops as a
 	// hanging drop unless it reaches the sill.
