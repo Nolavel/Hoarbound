@@ -382,17 +382,7 @@ func _free_safe_held_item() -> bool:
 	var player: Node = get_tree().get_first_node_in_group(&"player")
 	if player == null:
 		return true
-	for child: Node in player.get_children():
-		if child.has_method(&"is_burning") and bool(child.call(&"is_burning")):
-			return false
-		if not child.has_method(&"is_holding") or not bool(child.call(&"is_holding")):
-			continue
-		if child.has_method(&"put_away_unlit") and bool(child.call(&"put_away_unlit")):
-			continue
-		if child.has_method(&"put_away") and bool(child.call(&"put_away")):
-			continue
-		return false
-	return true
+	return HeldReleaseCapability.release_all(player)
 
 
 func _get_inventory() -> InventoryComponent:

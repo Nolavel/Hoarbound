@@ -9,11 +9,28 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 ### Added
 
 - First Exit A compass (owner 2026-11-09, #293): a thin top tape that follows the camera's horizontal view, and one ochre mark for 727. No distance, no turn arrows, no lit route. The mark is armed once, on the Battery Osceola scenario start only; the developer shelter spawn does not arm it. Entering the 727 interior clears it, and leaving does not bring it back. R marks the known house again. Knowledge lives on `FirstExitBearings`, not on the HUD or on Henry, and survives sleep/save. Older saves without this key do not grow a new mission mark.
+- CI ratchet on dynamic dispatch (ARCHITECTURE §16, architecture step 3).
+  - `tools/ci/check_dynamic_dispatch.py` counts `has_method(` and string `.call(` per game-code file against `tools/ci/dynamic_dispatch_baseline.txt`. Each file there has its count and class (A–F); class F, an untyped call on a known class or service, is new in §16.
+  - A file may not add a call, a new file may not start, and a file that removed some must lower its line.
+  - Baseline: 165 calls in 40 files. It runs in `checks` with its unit test.
 
 ### Fixed
 
 - First Exit compass (#293): the bearings script no longer names `class_name World`, so loading the gameplay HUD does not cycle through it. CI jobs that install the .NET SDK pin `ubuntu-24.04` (`ubuntu-latest` is 26.04 and has no `dotnet-sdk-8.0`).
 - First Exit compass (#293): the debug clock is off in the game (`perfomance_visible_display` on the world clock), not only in the preview. The preview's inside-727 save now boots a new world through `pending_load_slot`.
+- Taking an item into the hand (hold F) is now whole or nothing. With two things held, the first was put away before the second refused, so a refused take left a hand empty.
+  - The hand components publish the new `HeldReleaseCapability` (`core/contracts/`), whose `can_release` is each holder's own guard: the held item, the hammer, and a flare (only unlit and still owned by storage).
+  - `HandsTransaction.check()` asks every holder before anything changes. Storage takes the new item first, the one step that may still refuse; then the holders let go.
+  - `tests/systems/test_hands_transaction.gd` reproduced the defect on the old code, passes now, and gates `checks` with the capability contract.
+- The same partial release in four more places, fixed through one step, `HeldReleaseCapability.release_all`: every holder is asked first, and only when all can let go do they let go.
+  - Sitting down, laying the bedroll, opening the pack and taking an armful each emptied the first hand before a second hand refused. Each now refuses with every hand as it was.
+  - A Quick Access pocket change hides only what can go back to storage; a burning flare stays in hand.
+  - `tests/systems/test_held_release_callers.gd` covers all five on the real player. It failed four times on the old code, passes now, and gates `checks`.
+- CI `checks`: the filename gate failed on every branch because of an orphaned `tools/runtime/_boot_warn.gd.uid` left by an earlier commit; it is removed.
+- The capability contract now gates `checks` (ARCHITECTURE §16, rule 4).
+  - `tools/ci/required_suites.txt` lists the contract suites; `run_tests.sh <suite...>` runs them with the same verdict as the full run.
+  - `test_capability_contract` gained the refusal cases: a refused publish publishes nothing and keeps what was there; a freed provider answers nothing; a non-Dictionary capture refuses the whole save and the last good save stays; a slot without a participant's key leaves it untouched; a half-legacy provider is refused.
+  - Verified by breaking the contract on purpose twice; the suite failed both times (4 and 5 checks).
 
 - 3D inventory at furniture: the pack never passes into a cabinet, a drawer or a door, and every item inside shows (owner). Just before the cut the pack moves out until no part of it (body, open panel, what hangs) comes within 2 cm of the furniture. The view then turns up or aside and backs off until it sees each item past everything (`ContainerClearance`).
   - Kitchen cupboard: the open panel went into the right door; drawers: the front panel hid what lay inside.
@@ -29,6 +46,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - `SurvivalItemVisual.release` drops the overrides first. Spawning Henry went from 44 errors to 0 on Vulkan.
 
 ### Changed
+
+- Architecture docs: a contract policy (ARCHITECTURE §16, RU too) and decision records (§17, `docs/technical/adr/`).
+  - §16 has a table of when to use a direct call, a signal, a command with a result, a capability or injection, and four rules for cross-system links.
+  - It classifies the existing `has_method` uses into kinds A–E; the current count is a temporary debt baseline.
+  - It works through two references: `SaveParticipantCapability` and `HandsTransaction` (its partial commit).
+  - The decision records: ADR 0001 no global ECS, ADR 0002 capabilities only at real seams, ADR 0003 GodotPhysics3D and native code after profiling.
 
 - Claude tooling: project skill `hoarbound-godot-studio` with review lenses for the engine, GDScript, C#, shaders and GDExtension, and procedures for code review, performance profiles, asset audits and test evidence. Adapted by selection from Claude Code Game Studios (MIT, attribution in the skill's `NOTICE.md`). Its hooks, settings and process are not adopted.
 

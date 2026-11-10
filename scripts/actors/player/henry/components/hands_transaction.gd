@@ -1,9 +1,8 @@
 class_name HandsTransaction
 extends RefCounted
 
-## Hold-F takes a world pickup into Henry's hand. Storage owns the new item and its
-## weight like any pickup; the hand only shows it. Whatever he held is put away first,
-## and only after every check passed; nothing is ever dropped.
+## Hold-F takes a world pickup into Henry's hand, whole or not at all. Storage owns the new item and its weight;
+## the hand only shows it. Holders let go through HeldReleaseCapability, after every check passed.
 
 enum Refusal { NONE, NO_PRESENTER, HANDS_BUSY, STORAGE, GONE }
 
@@ -42,8 +41,9 @@ func check() -> Refusal:
 	var carry := _player.get_node_or_null(^"CarryComponent") as CarryComponent
 	if carry != null and carry.is_carrying():
 		return Refusal.HANDS_BUSY
-	for child: Node in _player.get_children():
-		if child.has_method(&"is_burning") and bool(child.call(&"is_burning")):
+	## Every holder must be able to let go now (a burning flare cannot); asked, never tried.
+	for holder: Node in _holders():
+		if not HeldReleaseCapability.can_release(holder):
 			return Refusal.HANDS_BUSY
 	if _target.get_pickup_refusal() != &"":
 		return Refusal.STORAGE
@@ -62,22 +62,20 @@ func restore() -> void:
 		_old_prop.scale = _old_scale
 
 
-## Revalidates, then swaps in one step: old item put away into its own storage,
-## new item picked up into storage and shown in the hand.
+## Revalidates, then swaps whole or not at all (ARCHITECTURE §16, rule 3). Storage taking the new item is the
+## one step that may still refuse, so it goes first; the holders let go after it, which cannot fail once asked.
 func commit() -> Refusal:
 	var refusal: Refusal = check()
 	restore()
 	if refusal != Refusal.NONE:
 		return refusal
-	for holder: Node in _holders():
-		var put: bool = bool(holder.call(&"put_away_unlit")) if holder.has_method(&"put_away_unlit") else false
-		if not put and holder.has_method(&"put_away"):
-			put = bool(holder.call(&"put_away"))
-		if not put:
-			return Refusal.HANDS_BUSY
+	var holders: Array[Node] = _holders()
 	var item_id: StringName = _target.item_id
 	if not _target.pick_up(true):
 		return Refusal.STORAGE
+	for holder: Node in holders:
+		if not HeldReleaseCapability.release(holder):
+			push_error("HandsTransaction: %s refused to let go after it said it could" % holder.name)
 	var hub := _player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
 	if hub != null:
 		hub.route_now(item_id)
@@ -88,16 +86,10 @@ func commit() -> Refusal:
 
 
 func _holders() -> Array[Node]:
-	var out: Array[Node] = []
-	if _player == null:
-		return out
-	for child: Node in _player.get_children():
-		if child.has_method(&"is_holding") and bool(child.call(&"is_holding")):
-			out.append(child)
-	return out
+	return HeldReleaseCapability.holders(_player)
 
 
+## The shown prop of a held item (the hammer and a flare have none to shrink).
 static func _prop_of(holder: Node) -> Node3D:
-	if holder.has_method(&"get_held_prop"):
-		return holder.call(&"get_held_prop") as Node3D
-	return null
+	var held := holder as HeldItemComponent
+	return held.get_held_prop() if held != null else null

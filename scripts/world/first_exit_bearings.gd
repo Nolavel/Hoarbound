@@ -78,7 +78,7 @@ func begin_play(scenario_start: bool) -> void:
 func _is_scenario_start() -> bool:
 	if _world == null or bool(_world.get(&"spawn_at_shelter")):
 		return false
-	var spawned: Variant = _world.call(&"dev_spawn")
+	var spawned: Variant = Callable(_world, &"dev_spawn").call()
 	return spawned is Dictionary and (spawned as Dictionary).is_empty()
 
 
