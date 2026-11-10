@@ -10,7 +10,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 - 727 shelter: a kitchen cupboard, a dresser and a chest in the waiting room, searchable with the pack like the waiting-room cabinet (owner).
   - They are built by the new shared `FurnitureKit`, which the test row now uses too. Each stands 1 cm off its wall; the chest stands 17 cm off, room for its lid.
-  - Contents are game-invented: the cupboard holds a SPoV can and an empty tin; the dresser nails and tinder, with the bottom drawer empty; the chest a knit hat.
+  - Contents are game-invented: the cupboard holds a SPoV can and an empty tin; the dresser nails and tinder, with the bottom drawer empty; the chest a tin of pineapple.
   - `test_727_furniture` checks the placement against the real shell's walls (ray gaps), and the search at each piece: no pack mesh in the furniture, the walls or the floor, and every item in sight.
 
 - CI ratchet on dynamic dispatch (ARCHITECTURE §16, architecture step 3).
@@ -20,6 +20,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Containers filled off-tree, like the 727 house, stacked every item in one spot. Off-tree an item measured as nothing, and that size was cached. They now lay out on entering the tree, and an off-tree size is never cached. `test_727_furniture` checks the items stand apart.
+- Pickups draw every item `SurvivalItemVisual` knows (empty tin, tinder, mug, pan…) instead of a 32 cm placeholder parcel; the parcel had hidden the SPoV can in the cupboard.
 - At the cut to a container's frame, what hangs off the pack hangs at rest (`PendulumHang.rest_now`). It no longer carries the swing from the pack's way off his back into the planned pose.
 - `test_key_west_727_shelter` expected the mattress the owner removed on 2026-11-03; it now skips it, and the suite passes again.
 - Taking an item into the hand (hold F) is now whole or nothing. With two things held, the first was put away before the second refused, so a refused take left a hand empty.

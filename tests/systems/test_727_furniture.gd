@@ -48,6 +48,8 @@ func _run() -> void:
 	_check(_shelter.furniture_containers.size() == 5, "the shelter built %d furniture containers, not 5" % _shelter.furniture_containers.size())
 	for node_name: String in ["KitchenCupboard", "Dresser", "Chest"]:
 		_check_stands_clear(node_name)
+	for key: String in _shelter.furniture_containers:
+		_check_items_apart(key, _shelter.furniture_containers[key])
 	for case: Array in CASES:
 		await _try(case[0], case[1], case[2])
 	if _failures > 0:
@@ -90,6 +92,28 @@ func _check_stands_clear(node_name: String) -> void:
 		gaps.append("%s %.2f m" % [["back", "right", "left"][[Vector3.BACK * -1.0, Vector3.RIGHT, Vector3.LEFT].find(way)], gap])
 		_check(gap > -0.001, "%s passes %.3f m into %s" % [node_name, -gap, (hit["collider"] as Node).name])
 	print("727 furniture: %s stands clear (furniture: %s; walls: %s)" % [node_name, "none" if names.is_empty() else ", ".join(names), ", ".join(gaps)])
+
+
+## Items laid out in a house built off-tree stand apart, each with its real size, in the shelves' own axes (they
+## used to be measured as nothing off-tree and stacked in one spot).
+func _check_items_apart(key: String, shelves: ItemContainer) -> void:
+	var boxes: Array[AABB] = []
+	for item: Dictionary in shelves.items:
+		var pickup: Node3D = item["pickup"]
+		var box := AABB()
+		var first: bool = true
+		for node: Node in pickup.find_children("*", "MeshInstance3D", true, false):
+			var mesh := node as MeshInstance3D
+			if mesh.mesh == null or not mesh.is_visible_in_tree():
+				continue
+			var part: AABB = (shelves.global_transform.affine_inverse() * mesh.global_transform) * mesh.mesh.get_aabb()
+			box = part if first else box.merge(part)
+			first = false
+		_check(not first and box.size.x > 0.02, "%s: %s has no real size" % [key, item["id"]])
+		for other: AABB in boxes:
+			_check(not other.grow(-0.003).intersects(box), "%s: %s stands inside another item" % [key, item["id"]])
+		boxes.append(box)
+	print("727 furniture: %s holds %d items, apart" % [key, boxes.size()])
 
 
 func _try(key: String, ways: Array, full: bool) -> void:

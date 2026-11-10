@@ -50,6 +50,14 @@ const AXE_HANDLE := [Color(0.93, 0.66, 0.14), Color(0.27, 0.23, 0.18), Color(0.4
 const HAMMER_HANDLE := [Color(0.78, 0.16, 0.1), Color(0.24, 0.16, 0.13), Color(0.4, 0.2, 0.14), 0.28, 0.14, Color(0.95, 0.5, 0.4), 0.4, 0.0, 0.0]
 
 ## Shared readable props for world pickups and the meal table; no inventory state.
+## Whether make() draws `item_id` as itself (false: the plain parcel every unknown item gets).
+static func draws(item_id: StringName) -> bool:
+	var id: String = String(item_id)
+	return id.begins_with("water_flask") or id.begins_with("tinned_") or id.begins_with("spov_can") \
+		or id.contains("mug") or item_id in [&"tinder", &"knife", &"work_gloves", &"axe", &"hammer", &"empty_tin",
+		&"frying_pan", &"warm_water", &"snow_handful", &"stone", &"lighter"]
+
+
 static func make(item_id: StringName, _item_override: ItemResource = null) -> Node3D:
 	var holder := Node3D.new()
 	if String(item_id).begins_with("water_flask"):

@@ -22,7 +22,7 @@ const CABINET_PROPS: Dictionary = {"CabinetProp_StewTin": &"tinned_stew", "Cabin
 const FURNITURE_CONTENTS: Dictionary = {
 	"KitchenCupboard": [&"spov_can", &"empty_tin"],
 	"Dresser": {"top": [&"nails"], "middle": [&"tinder"], "bottom": []},
-	"Chest": [&"knit_hat"],
+	"Chest": [&"tinned_pineapple"],
 }
 const CLINIC_OFFSET_C: float = 4.0
 const CLINIC_WIND_EXPOSURE: float = 0.15
