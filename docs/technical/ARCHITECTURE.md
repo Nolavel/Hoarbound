@@ -346,7 +346,7 @@ Existing `has_method()` / string-`call()` uses are classified, not counted:
 | A. Optional lifecycle hook called by a composition root | `world/world.gd` `on_world_ready`, `apply_world_profile` | Allowed. The hook is optional by design. |
 | B. Tools, tests, diagnostics, editor code | capture tools, test harnesses | Allowed. Not production gameplay. |
 | C. Boundary mechanics | `core/contracts/`, language adapters | Allowed. This is where reflection lives. |
-| D. Discovery of participants by method name | `StreamingSystem` sources, `InteractComponent` host operations, `InputSystems` claimants (`SimulationClock` moved to `SimulationParticipantCapability`) | Debt. It migrates to an explicit registration or capability when the system is next touched. |
+| D. Discovery of participants by method name | `SnowChunkCover` optional height and obstacle sources, `InteractiveArea.get_interaction_data` (`SimulationClock`, `InteractComponent`, `StreamingSystem` and `InputSystems` moved to capabilities in `core/contracts/`) | Debt. It migrates to an explicit registration or capability when the system is next touched. |
 | E. A mandatory gameplay operation between state owners | (none left: hands are freed through `HeldReleaseCapability` and drawn and used from Quick Access through `HeldDrawCapability`) | Debt with a risk when it appears: a silent skip or a partial commit can corrupt game state. |
 
 | F. An untyped call on a known class or service | `state.call(&"is_paused")`, `_sound.call(&"play", ...)`, `player.call(&"play_action_animation", ...)` | Debt, low risk. A typed reference (`as PlayerStateMachine`, `as SoundSystem`, `as Player`) removes it when the file is touched. |

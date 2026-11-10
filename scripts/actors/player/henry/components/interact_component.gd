@@ -343,8 +343,7 @@ func _act_on_pickup(pickup: InteractiveArea, hands: HandsTransaction) -> void:
 	if refusal != HandsTransaction.Refusal.NONE:
 		_refuse_hands(pickup, refusal)
 		return
-	if _player.has_method(&"play_action_animation"):
-		_player.call(&"play_action_animation", &"pickup")
+	InteractHostCapability.run(_player, &"animate", [&"pickup"])
 	if pickup == pickup_target:
 		_set_pickup(null)
 	_refresh_active()
@@ -358,11 +357,11 @@ func _perform(target: InteractiveArea) -> void:
 		return
 	## Pickups request their animation only after inventory acceptance.
 	if target.get_interaction_channel() != InteractiveArea.InteractionChannel.PICKUP \
-		and _player != null and _player.has_method(&"play_action_animation"):
+		and _player != null and InteractHostCapability.offers(_player, &"animate"):
 		var action: StringName = target.player_animation_action
 		if action == &"":
 			action = &"interact"
-		_player.call(&"play_action_animation", action)
+		InteractHostCapability.run(_player, &"animate", [action])
 	target.interact()
 	## A consumed target stops being authoritative before observers hear interaction_performed.
 	if not _is_available(target):
@@ -473,15 +472,16 @@ func _resolve_pickup(seated: bool, delta: float) -> InteractiveArea:
 
 ## Henry's attention origin, from his rig when he has one.
 func get_attention_origin() -> Vector3:
-	if _player.has_method(&"get_attention_origin"):
-		return _player.call(&"get_attention_origin")
+	var origin: Array = InteractHostCapability.run(_player, &"attention_origin")
+	if origin[0]:
+		return origin[1]
 	return _player.global_position + Vector3.UP * Player.EYE_ABOVE_ORIGIN
 
 
 ## Henry's flat attention direction; his facing when the body offers none.
 func get_attention_direction() -> Vector3:
-	var direction: Vector3 = _player.call(&"get_attention_direction") if _player.has_method(&"get_attention_direction") \
-		else -_player.global_transform.basis.z
+	var asked: Array = InteractHostCapability.run(_player, &"attention_direction")
+	var direction: Vector3 = asked[1] if asked[0] else -_player.global_transform.basis.z
 	direction.y = 0.0
 	return direction.normalized() if direction.length() > 0.001 else Vector3.FORWARD
 
@@ -587,8 +587,7 @@ func _reach_profile() -> Dictionary:
 
 
 func _face(point: Vector3) -> void:
-	if _player.has_method(&"face_work_target"):
-		_player.call(&"face_work_target", point)
+	InteractHostCapability.run(_player, &"face", [point])
 
 
 func _is_world_candidate(area: InteractiveArea) -> bool:
@@ -676,7 +675,7 @@ func _flat_distance_to_focus(area: InteractiveArea) -> float:
 
 ## Walks a world mechanism's straight line toward Henry until inside reach.
 func _begin_approach(target: InteractiveArea) -> void:
-	if not _player.has_method(&"move_to_position"):
+	if not InteractHostCapability.offers(_player, &"walk_to"):
 		return
 	var from_target: Vector3 = _player.global_position - target.global_position
 	from_target.y = 0.0
@@ -687,7 +686,7 @@ func _begin_approach(target: InteractiveArea) -> void:
 	_pending = target
 	_approach_elapsed = 0.0
 	_approach_stopped = false
-	_player.call(&"move_to_position", stop_point)
+	InteractHostCapability.run(_player, &"walk_to", [stop_point])
 
 
 ## A world mechanism must still be under the view on arrival.
@@ -714,7 +713,7 @@ func _update_approach(delta: float) -> void:
 ## F committed to this pickup and this spot: walk there, align, take exactly it.
 func _begin_commit(target: InteractiveArea, affordance: PickupAffordance, hands: HandsTransaction = null) -> void:
 	_stop_approach()
-	if not _player.has_method(&"move_to_position"):
+	if not InteractHostCapability.offers(_player, &"walk_to"):
 		if hands != null:
 			hands.restore()
 		return
@@ -726,7 +725,7 @@ func _begin_commit(target: InteractiveArea, affordance: PickupAffordance, hands:
 	_commit_stall = 0.0
 	_approach_stopped = false
 	_approach_elapsed = 0.0
-	_player.call(&"move_to_position", affordance.body_position)
+	InteractHostCapability.run(_player, &"walk_to", [affordance.body_position])
 
 
 ## Arrival takes the committed item; WASD cancels; only a real geometric change
@@ -770,7 +769,7 @@ func _update_commit(delta: float) -> void:
 			_commit_best = INF
 			_commit_stall = 0.0
 			_approach_stopped = false
-			_player.call(&"move_to_position", again.body_position)
+			InteractHostCapability.run(_player, &"walk_to", [again.body_position])
 			return
 		if again.valid and again.in_place:
 			var hands: HandsTransaction = _commit_hands
@@ -786,8 +785,8 @@ func _update_commit(delta: float) -> void:
 func _stop_approach() -> void:
 	var was_walking: bool = _pending != null or _commit_target != null
 	_cancel_approach()
-	if was_walking and _player.has_method(&"stop_moving"):
-		_player.call(&"stop_moving")
+	if was_walking:
+		InteractHostCapability.run(_player, &"stop")
 
 
 func _cancel_approach() -> void:
@@ -807,8 +806,8 @@ func _on_player_movement_stopped() -> void:
 
 
 func _is_blocked() -> bool:
-	if is_instance_valid(_player) and _player.has_method(&"is_action_locking") \
-		and bool(_player.call(&"is_action_locking")):
+	var locked: Array = InteractHostCapability.run(_player, &"action_locked") if is_instance_valid(_player) else [false, null]
+	if locked[0] and bool(locked[1]):
 		return true
 	var state: Node = get_node_or_null(^"/root/PlayerState")
 	return state != null and bool(state.call(&"is_movement_blocked"))
