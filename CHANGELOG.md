@@ -13,6 +13,28 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- The see-through landmark glass (`frosted_glass.gdshader`, the 727 windows) has new frost and a new thaw. Its rule is unchanged: 60-80 % frost in the cold, a warmed room clears.
+  - **Any pane size.** Frost comes from two baked tiles at 1 mm per pixel (`assets/environment/windows/`, from `tools/textures/bake_window_frost_sheet.py`), laid in metres: a strip of fern feathers along each edge and a field of small crystals across the pane. A pane of any size or proportion carries crystals of true size.
+  - **Thaw.** Each texel thaws by its own need; it soaks to glassy ice, breaks into islands and clears. The wet pane mists with beads and sheds runs 1-2 mm wide.
+  - **Ice plates.** Thick soaked frost by the sill comes away as shards that slide down the pane, rest at its bottom edge and melt. Nothing is drawn on the sill itself.
+  - **No screen read**, so snowfall behind the glass stays visible; the view through frost is not blurred.
+  - The opaque panes of generated buildings (`frosted_window.gdshader`) are unchanged.
+  - The 727 probe now scrubs a copy of the game's glass; the test-only natural shader and its sheet are removed. New `tools/runtime/capture_window_frost_shapes.gd` renders six pane sizes.
+  - `test_window_frost` checks both tiles are bound with mipmaps (it fails with a tile removed). GPU cost on real hardware is not measured.
+
+- 727 window thaw probe, second pass after the owner's review against a photo reference. The natural thaw no longer draws `frost_pattern` ferns (16 cm cells: too large for the 2.0 x 1.1 m pane, with an angular base).
+  - Frost is a baked sheet at 1 mm per pixel (`frost_sheet_727.png`, from `tools/textures/bake_window_frost_sheet.py`): barbed feathers 2-28 cm long grown from the frame, along scratches and from free specks, with fine hoar. The scale follows K. Libbrecht's window-frost notes.
+  - Frost depth is uneven round the pane (deep off the sill), not a frame of one width.
+  - Runs are 1-2 mm wide and 5-34 cm long, most of them short; the wet pane mists with fine beads.
+  - The capture tool takes `close` for a 0.55 m wide view. The preview sheet is replaced.
+
+- The 727 FrontWindow1 thaw probe (issue #281, `tests/scenes/window_727_sdf_probe.tscn`) opens on a new test-only natural thaw shader, `natural_thaw_glass_727.gdshader`. **V** switches to the unchanged V3 sheet. Production glass and `frost_pattern.gdshaderinc` are untouched.
+  - Frost scatters the view behind it: the pane blurs the screen by frost thickness. Thick frost is white, thin frost blue, soaked frost grey-green. At 0 % the whole pane is frosted.
+  - Each texel thaws by its own need (warm spots, frame, height on the pane, thickness, noise). It soaks, breaks into slush islands, then clears. The upper pane leads and a band by the frame survives.
+  - Beads run down wandering lanes and cut clear tracks through the frost below. Cleared glass keeps water beads that bend the view.
+  - It is an authored illusion on one 0..1 value, unshaded, not yet judged under the real 727 lights.
+  - Added `tools/runtime/capture_window_727_thaw.gd` (stills per thaw step), `tests/systems/test_window_727_thaw_probe.gd`, and a preview sheet in `docs/runtime_previews/window_frost/`.
+
 - Removed three snow suites from the `snow-clipmap-preview` experiment, at the owner's request: test_snow_architecture_contract, test_snow_contact_pipeline and test_snow_surface_clipmap. They tested a snow architecture (multi-channel deformation, radial L0–L2 rings, no live contact writes) that `main` does not ship, so they were red on every branch. They were also dropped from `snow_architecture_gate.sh` and the snow job loops in `checks.yml`.
 
 - Four suites that were red on `main` are green again.
