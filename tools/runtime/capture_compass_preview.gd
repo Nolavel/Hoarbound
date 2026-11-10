@@ -10,9 +10,9 @@ const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const OTHER_SCENE: String = "res://archive/graciosa/scenes/Graciosa_Island_Terrain.tscn"
 const BEARINGS_SCRIPT: GDScript = preload("res://scripts/world/first_exit_bearings.gd")
 const PITCH_DEG: float = -6.0
-const SWEEP_FRAMES: int = 60
-const HOLD_FRAMES: int = 24
-const SHORT_FRAMES: int = 18
+const SWEEP_FRAMES: int = 48
+const HOLD_FRAMES: int = 20
+const SHORT_FRAMES: int = 14
 
 var _out: String = ""
 var _frames_dir: String = ""
@@ -59,7 +59,7 @@ func _run() -> void:
 		"active=%s label=%s" % [bearings.active_target_id, bearings.active_label()])
 	_set_render(true)
 	await process_frame
-	await _record(6, "01_start.png")
+	await _record(8, "01_start.png")
 	await _sweep(player, camera, bearings)
 	var shelter := world.find_child("Shelter727", true, false) as KeyWest727Shelter
 	if shelter == null:
@@ -71,7 +71,8 @@ func _run() -> void:
 	await _enter_and_leave(player, camera, bearings, zone)
 	await _recall(bearings)
 	await _save_inside(world, player, camera, bearings, zone)
-	world.queue_free()
+	if is_instance_valid(world):
+		world.queue_free()
 	for _i: int in 3:
 		await process_frame
 	await _other_profile()
@@ -109,7 +110,7 @@ func _sweep(player: CharacterBody3D, camera: TpsCamera, bearings: FirstExitBeari
 	var before: float = await _bearing_at_yaw(camera, wrap_yaw_a)
 	var after: float = await _bearing_at_yaw(camera, wrap_yaw_b)
 	var step: float = wrapf(after - before, -PI, PI)
-	await _record(8, "03_wrap.png")
+	await _record(10, "03_wrap.png")
 	var span: float = _bearing_span(relatives)
 	_check("marker_follows_camera", span > deg_to_rad(300.0) and geo_drift < deg_to_rad(2.0) and saw_ahead,
 		"span_deg=%.1f geo_drift_deg=%.2f ahead=%s" % [rad_to_deg(span), rad_to_deg(geo_drift), saw_ahead])
@@ -183,34 +184,61 @@ func _recall(bearings: FirstExitBearings) -> void:
 	await _record(SHORT_FRAMES, "07_recall.png")
 
 
-func _save_inside(world: Node3D, player: CharacterBody3D, camera: TpsCamera, bearings: FirstExitBearings, zone: Area3D) -> void:
-	if zone == null:
+func _save_inside(world: Node3D, _player: CharacterBody3D, _camera: TpsCamera, bearings: FirstExitBearings, zone: Area3D) -> void:
+	if zone == null or bearings == null:
 		_fail("save_load_keeps_manual_marker", "no zone")
 		return
 	var inside: Vector3 = zone.global_position + Vector3.UP * 0.4
 	_set_render(false)
-	_place(player, inside)
-	for _i: int in 6:
-		await process_frame
+	_place(_player, inside)
+	for _i: int in 4:
 		await physics_frame
-	if bearings.active_target_id != "":
-		await _tap_recall()
 	if bearings.active_target_id == "":
 		await _tap_recall()
-	var save := world.get_context().get_system(preload("res://scripts/systems/save/save_manager.gd")) as SaveManager
+	var ctx0: WorldContext = world.get_context()
+	var save := ctx0.get_system(preload("res://scripts/systems/save/save_manager.gd")) as SaveManager
 	var wrote: bool = save != null and save.save_to_slot(4, {"where": "compass_preview"})
-	var loaded: bool = wrote and save.load_from_slot(4)
-	for _i: int in 8:
+	world.queue_free()
+	for _i: int in 3:
 		await process_frame
+	if not wrote:
+		_fail("save_load_keeps_manual_marker", "save did not write")
+		return
+	SaveManager.pending_load_slot = 4
+	var fresh := (load(SCENE) as PackedScene).instantiate() as Node3D
+	fresh.set(&"spawn_at_shelter", false)
+	root.add_child(fresh)
+	var ctx: WorldContext = await _wait_context(fresh, 240)
+	if ctx == null:
+		_fail("save_load_keeps_manual_marker", "reloaded world did not come up")
+		return
+	var loaded_bearings := ctx.get_system(BEARINGS_SCRIPT) as FirstExitBearings
+	var loaded_player := ctx.player as CharacterBody3D
+	var loaded_camera := ctx.camera as TpsCamera
+	for _i: int in 2:
+		await process_frame
+	var shelter := fresh.find_child("Shelter727", true, false)
+	var loaded_zone := _shelter_zone(shelter) if shelter != null else null
+	var ground: Node = fresh.find_child("RealityGround", true, false)
+	var at := loaded_player.global_position if loaded_player != null else inside
+	var waited := 0
+	while waited < 180 and not (ground != null and ground.has_method(&"has_ground_at") and bool(ground.call(&"has_ground_at", at.x, at.z))):
+		await process_frame
+		waited += 1
+	for _i: int in 8:
 		await physics_frame
-	await _aim_at(camera, player, inside + Vector3(0, 1.2, 2.0))
+	if loaded_camera != null and loaded_player != null:
+		await _aim_at(loaded_camera, loaded_player, loaded_player.global_position + Vector3(0, 1.2, 2.0))
 	_set_render(true)
 	await process_frame
-	var overlapped: bool = _overlaps_727(bearings, zone)
-	_check("save_load_keeps_manual_marker",
-		wrote and loaded and overlapped and bearings.active_target_id == bearings.shelter_id(),
-		"wrote=%s loaded=%s overlap=%s active=%s" % [wrote, loaded, overlapped, bearings.active_target_id])
+	var overlapped: bool = loaded_bearings != null and _overlaps_727(loaded_bearings, loaded_zone)
+	var kept: bool = loaded_bearings != null and loaded_bearings.active_target_id == loaded_bearings.shelter_id()
+	_check("save_load_keeps_manual_marker", wrote and kept and overlapped,
+		"wrote=%s kept=%s overlap=%s active=%s boot=new" % [wrote, kept, overlapped, loaded_bearings.active_target_id if loaded_bearings != null else ""])
 	await _record(HOLD_FRAMES, "08_loaded_inside.png")
+	fresh.queue_free()
+	for _i: int in 2:
+		await process_frame
 
 
 func _other_profile() -> void:
