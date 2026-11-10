@@ -347,7 +347,7 @@ Existing `has_method()` / string-`call()` uses are classified, not counted:
 | B. Tools, tests, diagnostics, editor code | capture tools, test harnesses | Allowed. Not production gameplay. |
 | C. Boundary mechanics | `core/contracts/`, language adapters | Allowed. This is where reflection lives. |
 | D. Discovery of participants by method name | `SimulationClock` (`advance_simulation`) | Debt. It migrates to an explicit registration or capability when the system is next touched. |
-| E. A mandatory gameplay operation between state owners | (none left for the hands: `HandsTransaction`, `RestComponent`, `BedrollComponent`, `PlayerHubComponent`, `ItemPickup` and `QuickAccessComponent` free hands through `HeldReleaseCapability`) | Debt with a risk when it appears: a silent skip or a partial commit can corrupt game state. |
+| E. A mandatory gameplay operation between state owners | (none left: hands are freed through `HeldReleaseCapability` and drawn and used from Quick Access through `HeldDrawCapability`) | Debt with a risk when it appears: a silent skip or a partial commit can corrupt game state. |
 
 | F. An untyped call on a known class or service | `state.call(&"is_paused")`, `_sound.call(&"play", ...)`, `player.call(&"play_action_animation", ...)` | Debt, low risk. A typed reference (`as PlayerStateMachine`, `as SoundSystem`, `as Player`) removes it when the file is touched. |
 

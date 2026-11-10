@@ -8,6 +8,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Quick Access draws, names and uses what a hand shows through `HeldDrawCapability` (`core/contracts/`). The held item, the hammer and a flare publish it beside `HeldReleaseCapability`. This is the last class E dynamic dispatch (§16).
+  - `quick_access_component.gd` lost all 14 `has_method`/string `call` uses, and the ratchet baseline drops to 151 calls in 39 files.
+  - The hammer answers Quick Access use explicitly with false, as it did by lacking the method.
+  - The flare's burning readout asks `HeldLightComponent` by type.
+  - Quick Access, flare and hand suites fail identically before and after (two known flare-hint checks).
+
 - Containers ask any way in through one small seam, `Opener`: `is_open`, `is_swinging`, and a `toggled` signal (architecture step 6).
   - `Cabinet` and `Drawer` extend it, and `ItemContainer.openers` is `Array[Opener]`. `is_reachable` no longer switches on `is Cabinet` / `is Drawer`.
   - A new kind plugs in with no change to the container. `test_container_kinds` proves it with a sliding door, which the old type switch failed.

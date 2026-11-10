@@ -17,7 +17,6 @@
 1 D scripts/environment/interactive/interactive_area.gd  # get_interaction_data on a loaded node
 2 D scripts/systems/time/simulation_clock.gd  # simulation participants found by advance_simulation
 3 D scripts/systems/world/snow/snow_chunk_cover.gd  # optional city obstacle and terrain height sources
-14 E scripts/actors/player/henry/components/quick_access_component.gd  # draw/use protocol among holders (equip_from_zone, use_held, get_source_zone)
 2 F core/audio/sound_system.gd  # plays a player node of either audio class
 13 F scripts/actors/player/henry/Controllers/HenryUALAnimation.gd  # queries on the player (Player)
 3 F scripts/actors/player/henry/Player.gd  # mode state and InputSystems queries

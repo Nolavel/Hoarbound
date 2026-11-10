@@ -61,6 +61,7 @@ var _raise: float = 0.0
 
 func _ready() -> void:
 	HeldReleaseCapability.publish(self, &"is_holding", &"is_holding", &"put_away_unlit")
+	HeldDrawCapability.publish(self, &"equip_from_zone", &"get_source_zone", &"use_held")
 	if inventory == null:
 		inventory = InventoryComponent.find_in(get_parent())
 	if equipment == null:

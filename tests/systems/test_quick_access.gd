@@ -93,6 +93,20 @@ var draws: int = 0
 var held_uses: int = 0
 var holding: bool = false
 var burning: bool = false
+func _ready() -> void:
+	HeldDrawCapability.publish(self, &"equip_from_zone", &"get_source_zone", &"use_held")
+	HeldReleaseCapability.publish(self, &"is_holding", &"can_put_away", &"put_away_unlit")
+func is_holding() -> bool:
+	return holding
+func can_put_away() -> bool:
+	return holding and not burning
+func put_away_unlit() -> bool:
+	if not can_put_away():
+		return false
+	holding = false
+	return true
+func get_source_zone() -> StringName:
+	return &""
 func equip_from_zone(item_id: StringName, _zone_path: StringName) -> bool:
 	if item_id != &"road_flare":
 		return false
