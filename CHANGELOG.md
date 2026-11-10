@@ -8,6 +8,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Removed three snow suites from the `snow-clipmap-preview` experiment, at the owner's request: test_snow_architecture_contract, test_snow_contact_pipeline and test_snow_surface_clipmap. They tested a snow architecture (multi-channel deformation, radial L0–L2 rings, no live contact writes) that `main` does not ship, so they were red on every branch. They were also dropped from `snow_architecture_gate.sh` and the snow job loops in `checks.yml`.
+
 - Four suites that were red on `main` are green again.
   - test_shelter_workflow and test_quick_access still read the feedback label and readout that commit `54f88bde` moved into the gameplay UI. They now listen to `ConsumptionController.water_status_requested` and `QuickAccessComponent.readout_changed`. With the hide signal removed, test_quick_access fails.
   - test_render_layers: render layer 21 had lost its `snow_tile_experiment` name in `project.godot`, though `RenderLayers.SNOW_TILE_EXPERIMENT` still draws on it. The name is restored.
