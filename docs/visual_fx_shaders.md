@@ -35,38 +35,27 @@ owner (`QuickAccessUI`) and domain refusals (`EquipmentComponent.can_stow`)
 rather than making the shader decide inventory rules. Keep meaningful icons,
 text or motion alongside color for accessibility.
 
-## Local edge-glow overlay (Issue #282, isolated component)
+## Fullscreen Hub action glow (Issue #282, revised owner scope)
 
-The **original** `ambient_edge_glow.gdshader` six-second opaque-black reference
-and its capture remain unchanged.
+The reference shader and its five-color demo remain untouched. The new
+`ambient_edge_glow_overlay.gdshader` and `EdgeGlowOverlay` are a **single
+fullscreen** CanvasItem overlay, not an effect on slot cards. Enable only
+while Tab-Hub is open, including an open pack paired with a container
+(cabinet, chest, etc.). Never enable in ordinary gameplay or Quick Access.
 
-- Production-candidate shader: `res://shaders/ui/ambient_edge_glow_overlay.gdshader`
-- Presentation-only Control: `res://scripts/ui/effects/edge_glow_overlay.gd` (`EdgeGlowOverlay`)
-- Isolated review scene: `res://tests/demos/ui_feedback/edge_glow_overlay_preview.tscn`
-- Cheap state test: `res://tests/systems/test_edge_glow_overlay.gd`
+Presentation API: `set_hub_active(bool)`, `set_action_active(bool)`,
+`show_result(success)`, `set_reduced_motion(bool)`.
+Grey = idle, amber = selected/held/in progress (not success), green = confirmed
+success, red = confirmed refusal. Green/red are brief events; after the pulse
+the prior base state returns. Blue remains unused. Keep existing item/placement
+feedback and refusal reasons; color alone is not the authoritative outcome.
 
-Add an `EdgeGlowOverlay` as a **child of one slot/card**. It fills only its
-parent's rectangle (local UV), uses alpha rather than a solid black background,
-and ignores mouse input. Each instance owns its own ShaderMaterial.
-
-The presenter may call `set_feedback_state(STATE_UNSELECTED)` (faint neutral),
-`set_feedback_state(STATE_HELD)` (warm yellow), or `set_feedback_state(STATE_OFF)`.
-Only **after a real gameplay rejection**, call `show_refusal()` for a short red
-flash that leaves the previous base state unchanged. Optional:
-`set_feedback_enabled(false)`, `set_reduced_motion(true)`.
-No distance, gameplay item ownership or slot-fit decision is computed here.
-Green/blue remain unassigned.
-
-This is a **test-only component**, not wired to `QuickAccessUI` or other
-production HUD. For that integration, compare the existing `BG_frame.gdshader`
-gray/yellow states and connect the actual rejection result; avoid double
-indicators. The preview's rejected-card pulse is a *simulation* of the
-presenter's event, not proof that inventory emits it.
-
-**Visual gate still open:** verify actual opacity on dark/snow backgrounds, no
-center occlusion, no spill into adjacent card, then author-approve before
-connecting it to real slots. The headless test checks state independence and
-mouse pass-through only; it does not replace pixel or gameplay review.
+The component is **not yet wired into production Hub or containers**. The
+isolated preview and headless state test are visual/contract scaffolding.
+`tools/runtime/capture_edge_glow_overlay.gd` renders the exact shader over
+preserved Hub screenshots; this is a visual prototype, not a live transfer test.
+Before integration, verify the current Hub/PackHandling/ItemContainer results
+and route the authoritative success/refusal into this UI layer.
 
 ## Fade Volume
 

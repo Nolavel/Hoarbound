@@ -80,9 +80,8 @@ jobs:
           sparse-checkout: |
             shaders/ui
             scripts/ui/effects
-            assets/materials/Shaders
-            assets/ui/hud/quick_access/icons
-            docs/runtime_previews/key_west_727
+            docs/art/issue68
+            docs/runtime_previews/hub_camera
             tools/ci
             tools/runtime
       - uses: actions/cache@v4
@@ -94,13 +93,13 @@ jobs:
           SKIP_APT=1 tools/ci/setup_env.sh
           sudo apt-get update -qq
           sudo apt-get install -y -qq xvfb mesa-vulkan-drivers
-      - name: Capture five overlay stills
+      - name: Capture fullscreen Hub stills
         run: |
           set -euo pipefail
           P="$RUNNER_TEMP/edge-glow-project"
           OUT="$GITHUB_WORKSPACE/edge-glow-png"
           mkdir -p "$P" "$OUT"
-          for f in shaders/ui/ambient_edge_glow_overlay.gdshader scripts/ui/effects/edge_glow_overlay.gd assets/materials/Shaders/BG_frame.gdshader tools/runtime/capture_edge_glow_overlay.gd docs/runtime_previews/key_west_727/approach_fort_st.png docs/runtime_previews/key_west_727/henry_by_stove_game_camera.png assets/ui/hud/quick_access/icons/inventory_2.svg assets/ui/hud/quick_access/icons/water_bottle.svg assets/ui/hud/quick_access/icons/lunch_dining.svg; do
+          for f in shaders/ui/ambient_edge_glow_overlay.gdshader scripts/ui/effects/edge_glow_overlay.gd tools/runtime/capture_edge_glow_overlay.gd docs/art/issue68/03_hub_full.png docs/runtime_previews/hub_camera/after.png; do
             cp --parents "$f" "$P/"
           done
           printf 'config_version=5\n[application]\nconfig/name="Edge glow review"\n[display]\nwindow/size/viewport_width=960\nwindow/size/viewport_height=540\n[rendering]\nrenderer/rendering_method="forward_plus"\n' > "$P/project.godot"
@@ -110,7 +109,7 @@ jobs:
           xvfb-run -a "$HOME/.local/bin/godot" --path "$P" --resolution 960x540 --rendering-driver vulkan --rendering-method forward_plus --audio-driver Dummy --script res://tools/runtime/capture_edge_glow_overlay.gd -- "$OUT" 2>&1 | tee "$OUT/capture.log"
           grep -q 'EDGE_GLOW_CAPTURE: PASS' "$OUT/capture.log"
           ! grep -E 'SCRIPT ERROR|SHADER ERROR|Parse Error' "$OUT/capture.log"
-          for f in 01_outdoor_off 02_outdoor_states 03_outdoor_refusal 04_indoor_refusal 05_indoor_recovered; do test -s "$OUT/$f.png"; done
+          for f in 01_hub_off 02_hub_idle 03_hub_active 04_hub_success 05_hub_refusal 06_hub_recovered 07_camera_active 08_camera_success 09_camera_refusal; do test -s "$OUT/$f.png"; done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
