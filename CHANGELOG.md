@@ -8,6 +8,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- 727 window thaw probe, second pass after the owner's review against a photo reference. The natural thaw no longer draws `frost_pattern` ferns (16 cm cells: too large for the 2.0 x 1.1 m pane, with an angular base).
+  - Frost is a baked sheet at 1 mm per pixel (`frost_sheet_727.png`, from `tools/textures/bake_window_frost_sheet.py`): barbed feathers 2-28 cm long grown from the frame, along scratches and from free specks, with fine hoar. The scale follows K. Libbrecht's window-frost notes.
+  - Frost depth is uneven round the pane (deep off the sill), not a frame of one width.
+  - Runs are 1-2 mm wide and 5-34 cm long, most of them short; the wet pane mists with fine beads.
+  - The capture tool takes `close` for a 0.55 m wide view. The preview sheet is replaced.
+
 - The 727 FrontWindow1 thaw probe (issue #281, `tests/scenes/window_727_sdf_probe.tscn`) opens on a new test-only natural thaw shader, `natural_thaw_glass_727.gdshader`. **V** switches to the unchanged V3 sheet. Production glass and `frost_pattern.gdshaderinc` are untouched.
   - Frost scatters the view behind it: the pane blurs the screen by frost thickness. Thick frost is white, thin frost blue, soaked frost grey-green. At 0 % the whole pane is frosted.
   - Each texel thaws by its own need (warm spots, frame, height on the pane, thickness, noise). It soaks, breaks into slush islands, then clears. The upper pane leads and a band by the frame survives.

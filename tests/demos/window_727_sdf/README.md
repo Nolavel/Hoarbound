@@ -54,38 +54,43 @@ original blob positions are unchanged. No direct binding to ThermalZone.
 
 ## Natural thaw (2026-11-10, Claude, on the owner's request)
 
-`natural_thaw_glass_727.gdshader` is a new test-only material on the same real `FrontWindow1` pane, camera and
-checker fixture. The probe opens on it; **V** switches to the unchanged V3 sheet for comparison. V3, V2 and the
-production `frost_pattern.gdshaderinc` are not edited. Preview:
-`docs/runtime_previews/window_frost/window_727_natural_thaw.png` (V3 on top, natural below, one 1:1 detail).
+`natural_thaw_glass_727.gdshader` is a test-only material on the same real `FrontWindow1` pane, camera and
+checker fixture. The probe opens on it; **V** switches to the unchanged V3 sheet. V3, V2 and the production
+`frost_pattern.gdshaderinc` are not edited. Preview:
+`docs/runtime_previews/window_frost/window_727_natural_thaw.png` (whole pane 0-100 %, one V3 frame, close-ups).
 
-What changed, and from what observation of real panes:
+### Second pass, after the owner's review against a photo reference
 
-- **Frost is a layer that scatters the view, not white paint.** The pane reads the screen behind it and blurs it by
-  the local frost thickness (screen mips), so thin frost shows a soft blue view and thick frost goes white. At 0 %
-  the whole pane is frosted: the fern veins of `frost_pattern` sit on a granular hoar base that is thicker at the
-  cold frame and drifted up from the sill. The veins follow a gently bent grain.
-- **Shades.** Thick frost is neutral white, thin frost blue, soaked frost grey-green and more transparent, the
-  rim by the frame slightly grimy. Ridges catch a little light; dry frost has sparse glints.
-- **Where it thaws.** Each texel needs its own warmth: less near the warm spots, more by the frame, low on the
-  pane, and where the frost is thick. Broad noise makes lobes and tongues. Warm air rises, so the upper pane
-  leads and the sill holds out; a band by the frame survives at 100 %.
-- **How it thaws.** A texel first soaks (turns glassy and lets the view through), then breaks into slush islands
-  that shrink, then is clear. Thick fern veins outlast the hoar between them.
-- **Runs.** A bead gathers on a lane while its patch is still soaking, creeps, then runs down a wandering path.
-  It cuts a clear track through the frost below with soaked edges. Behind the head the thread thins and breaks
-  into a string of beads. Water that reached the bottom stands along the sill.
-- **Beads.** Cleared glass keeps scattered water beads at two sizes. Each is a small lens: it bends the view,
-  has a dark rim and one glint, and they thin out as the pane dries.
+The first pass drew its ferns with `frost_pattern`, whose fronds sit in 16 cm cells: on a 2.0 x 1.1 m pane
+they were far too large, its cell polygons showed as an angular base, and the runs were centimetres wide.
 
-The probe's `blob_data` keeps its interface, but here only each blob's position is used, as a warm spot. This is
-an authored illusion driven by one 0..1 value, not a heat or fluid simulation. The lighting is unshaded, as in
-the V3 probe, so it has not been judged under the real 727 lights.
+- **Scale from real frost.** K. Libbrecht (Caltech, "Guide to Frost") describes window-frost branches of a
+  few millimetres, nucleated along scratches and wipe streaks on the glass. The frost is now a **baked sheet**
+  at 1 mm per pixel, `frost_sheet_727.png`, from `tools/textures/bake_window_frost_sheet.py`: feathers 2-28 cm
+  long with barbs about a millimetre apart, grown from the frame (longest off the sill), in rows along
+  scratches, and as small fans from free specks. Fine hoar grains pack by the frame and cling to the feathers.
+  Channels: R crystal lines, G hoar, B when frost reaches a texel, A smooth thickness.
+- **No frame of one width.** How deep the frost reaches is uneven: deep off the sill, shallow under the head,
+  bent by broad noise. The middle carries only a breath-thin film, so the view shows through it, softened.
+- **Frost scatters the view.** The pane reads the screen behind it and blurs it by local frost thickness.
+  Crystals are white, hoar grey-blue, soaked ice glassy grey with light along its ridges.
+- **Thaw by local need.** Frost by the frame, low on the pane, far from the warm spots and thick holds out
+  longer; the upper pane leads. A texel soaks (grains and feathers fuse into clear ice), breaks into slush
+  islands, then clears.
+- **Wet glass.** As it warms the pane mists with fine beads (5 mm grid), with larger beads later; each bead
+  is a small lens. Too far away to resolve, the mist reads as a soft bloom instead of shimmering.
+- **Runs are thin and short.** 46 lanes, 1-2 mm wide, 5-34 cm long, most of them short. A bead gathers where
+  the frost soaks, creeps, lets go, and stops as a hanging drop; it cuts a narrow track through frost below.
 
-Techniques: frosted glass as a blurred screen read (the usual screen-texture approach, as in this project's
-`frosted_veil`), and water beads as lenses on a jittered cell grid (the approach of Martijn Steinrucken's
-"Heartfelt" rain-on-glass shader, written here from scratch).
+`blob_data` keeps the SDF probe's interface, but only each blob's position is used, as a warm spot. This is
+an authored illusion driven by one 0..1 value, not a heat or fluid simulation. It is unshaded, as the V3 probe
+is, and has not been judged under the real 727 lights.
+
+Techniques: frost as a mask sheet with a growth-order channel (the usual way games ship frosted glass), the
+view as a blurred screen read (as this project's `frosted_veil`), beads as lenses on a jittered cell grid (the
+approach of Martijn Steinrucken's "Heartfelt" rain-on-glass shader, written here from scratch).
 
 Stills: `xvfb-run godot --path . --rendering-driver vulkan --resolution 1600x900 --script
-res://tools/runtime/capture_window_727_thaw.gd -- <out dir> [natural|v3]`.
+res://tools/runtime/capture_window_727_thaw.gd -- <out dir> [natural|v3] [close]`.
+Re-bake the sheet: `python3 tools/textures/bake_window_frost_sheet.py` (deterministic, seed 727).
 Check: `tests/systems/test_window_727_thaw_probe.gd`.

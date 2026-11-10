@@ -8,6 +8,7 @@ const SPEC_PATH: String = "res://data/world/key_west/reality/landmarks/kw_727_fo
 const GLB_PATH: String = "res://assets/world/key_west/landmarks/kw_727_fort_st.glb"
 const SDF_SHADER: Shader = preload("res://tests/demos/window_727_sdf/sdf_frosted_glass_727.gdshader")
 const NATURAL_SHADER: Shader = preload("res://tests/demos/window_727_sdf/natural_thaw_glass_727.gdshader")
+const FROST_SHEET: Texture2D = preload("res://tests/demos/window_727_sdf/frost_sheet_727.png")
 const BACKDROP_SHADER: Shader = preload("res://tests/demos/window_727_sdf/diagnostic_backdrop.gdshader")
 const WHEEL_STEP: float = 0.02
 
@@ -309,6 +310,7 @@ func _load_real_pane() -> bool:
 	_sdf.set_shader_parameter(&"growth_seed", 0.28)
 	_sdf.set_shader_parameter(&"melt_seed", 0.73)
 	_sdf.set_shader_parameter(&"pane_aspect", width / height)
+	_sdf.set_shader_parameter(&"frost_sheet", FROST_SHEET)
 	_window.material_override = _sdf
 	print("WINDOW_727_REAL_GLASS_OK source=%s window=FrontWindow1 room=waiting width=%.2f height=%.2f centre_uv=(%.3f,%.3f) selected_triangles=%d" % [
 		GLB_PATH, width, height, centre.x, centre.z, _verified_triangles

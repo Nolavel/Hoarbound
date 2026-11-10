@@ -31,6 +31,13 @@ func _run() -> void:
 		return
 	if _variant != "":
 		probe.set_variant(StringName(_variant))
+	# A third argument "close" frames a 0.55 m wide part of the lower left pane instead of the whole of it.
+	if OS.get_cmdline_user_args().size() > 2 and OS.get_cmdline_user_args()[2] == "close":
+		var camera := probe.get_node(^"WindowTestCamera") as Camera3D
+		var plan: Basis = probe.get_meta(&"plan_basis")
+		var centre: Vector3 = probe.get_meta(&"window_centre")
+		camera.fov = 13.0
+		camera.look_at(plan * (centre + Vector3(-0.45, -0.22, 0.0)), Vector3.UP)
 	for step: float in STEPS:
 		probe.set_thaw(step)
 		for _i: int in 4:

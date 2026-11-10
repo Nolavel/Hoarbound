@@ -2,7 +2,7 @@ extends SceneTree
 
 ## The isolated 727 FrontWindow1 thaw probe (issue #281) still loads the real pane and scrubs:
 ## - the pane is the 12 source glass triangles of the landmark GLB, not a stand-in quad;
-## - it opens on the natural thaw shader and V3 stays one switch away for comparison;
+## - it opens on the natural thaw shader with its baked frost sheet; V3 stays one switch away for comparison;
 ## - thaw is clamped to 0..1 and reaches the material under both variants.
 ## Run: godot --headless --path . --script res://tests/systems/test_window_727_thaw_probe.gd
 
@@ -28,6 +28,7 @@ func _run() -> void:
 	if pane != null:
 		var glass := pane.material_override as ShaderMaterial
 		_check(glass != null and glass.shader.resource_path == NATURAL, "the probe does not open on the natural thaw")
+		_check(glass.get_shader_parameter(&"frost_sheet") is Texture2D, "the natural thaw has no baked frost sheet")
 		probe.set_thaw(1.7)
 		_check(is_equal_approx(float(glass.get_shader_parameter(&"heated_warmth")), 1.0), "thaw above 1 was not clamped")
 		probe.set_variant(&"v3")
