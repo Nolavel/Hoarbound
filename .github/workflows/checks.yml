@@ -83,6 +83,8 @@ jobs:
         run: tools/ci/setup_env.sh
       - name: Import gate
         run: tools/ci/import_gate.sh
+      - name: Verify actual pack and container transfer outcomes
+        run: tools/ci/run_tests.sh test_edge_glow_overlay test_pack_hands test_container_hands
       - name: Capture real 3D Tab-Hub and 727 cabinet
         run: |
           set -euo pipefail
@@ -94,6 +96,8 @@ jobs:
           xvfb-run -a "$HOME/.local/bin/godot" --path . --resolution 960x540 --fixed-fps 30 --rendering-driver vulkan --rendering-method forward_plus --audio-driver Dummy --script res://tools/runtime/capture_edge_glow_overlay.gd -- "$OUT" 2>&1 | tee "$OUT/capture.log"
           grep -q 'EDGE_GLOW_CAPTURE: PASS' "$OUT/capture.log"
           ! grep -E 'SCRIPT ERROR|SHADER ERROR|Parse Error' "$OUT/capture.log"
+          test -s "$OUT/gameplay_before.png"
+          test -s "$OUT/gameplay_after.png"
           for p in tab cabinet; do
             for f in 01_off 02_idle 03_amber 04_green 05_red; do test -s "$OUT/${p}_${f}.png"; done
           done

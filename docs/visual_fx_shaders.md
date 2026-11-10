@@ -50,15 +50,14 @@ success, red = confirmed refusal. Green/red are brief events; after the pulse
 the prior base state returns. Blue remains unused. Keep existing item/placement
 feedback and refusal reasons; color alone is not the authoritative outcome.
 
-The component is **not yet wired into production Hub or containers**. The
+The component is owned by GameplayUI and enabled only while real 3D PackHandling is enabled. The
 isolated preview and headless state test are visual/contract scaffolding.
 `tools/runtime/capture_edge_glow_overlay.gd` opens the real 3D Tab-Hub and 727
 cabinet in Key West Reality and captures scripted color states in live Godot.
 The glow is a pair of smooth elliptical caps with inward-facing apices;
 no horizon strip, noise tongues or screenshot compositing. This is a visual
 prototype, not a live transfer result test.
-Before integration, verify the current Hub/PackHandling/ItemContainer results
-and route the authoritative success/refusal into this UI layer.
+PackHandling publishes completed/refused actions through PlayerHubComponent.action_result; GameplayUI observes taking/carrying and actual item hover, suppresses the compass layer during Hub, pickup gesture, committed pickup walk and pickup stow. Closing resets glow. Real pack/container transfer tests check outcome signals independently of scripted visual comparison.
 
 ## Fade Volume
 

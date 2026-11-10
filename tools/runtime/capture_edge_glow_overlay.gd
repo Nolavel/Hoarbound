@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Live 727 + actual Tab-Hub and cabinet, from capture_container_view.gd.
-## Scripted overlay colors only: not a gameplay result integration.
+## Production overlay; scripted colors provide repeatable visual comparison.
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const FPS: int = 30
 
@@ -60,17 +60,19 @@ func _run() -> void:
 		await physics_frame
 	var hub := player.get_node(^"PlayerHubComponent") as PlayerHubComponent
 
-	# Both shots are live 3D gameplay, using the real Hub camera and held pack.
-	var layer := CanvasLayer.new()
-	layer.layer = 30
-	root.add_child(layer)
-	var screen := Control.new()
-	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(screen)
-	_overlay = EdgeGlowOverlay.new()
-	screen.add_child(_overlay)
-	_overlay.set_process(false)
+	# Use production GameplayUI, never a duplicate overlay.
+	var ui := world.find_child("GameplayUI", true, false) as GameplayUI
+	if ui == null:
+		_fail("production GameplayUI missing")
+		return
+	_overlay = ui.get_node(^"HubFeedback/EdgeGlowOverlay") as EdgeGlowOverlay
+	for node_name: String in ["DebugTime", "StatsDisplay", "KeyHintsPanel", "DevDioramaMap"]:
+		var debug_node := world.find_child(node_name, true, false)
+		if debug_node is CanvasItem:
+			(debug_node as CanvasItem).hide()
+		elif debug_node is CanvasLayer:
+			(debug_node as CanvasLayer).hide()
+	await _snap("gameplay_before")
 	if not hub.open():
 		_fail("Tab-Hub refused to open")
 		return
@@ -79,6 +81,9 @@ func _run() -> void:
 		_fail("Tab-Hub did not produce actual 3D pack handling")
 		return
 	print("EDGE_GLOW_HUB: actual 3D pack")
+	if not _overlay.visible or (ui.get_node(^"Compass") as CanvasLayer).visible:
+		_fail("Tab production UI state wrong")
+		return
 	await _capture_states("tab")
 	hub.close()
 	_overlay.set_hub_active(false)
@@ -96,10 +101,18 @@ func _run() -> void:
 		_fail("cabinet did not produce 3D pack and shelves")
 		return
 	print("EDGE_GLOW_HUB: real 727 cabinet paired with pack")
+	if not _overlay.visible or (ui.get_node(^"Compass") as CanvasLayer).visible:
+		_fail("cabinet production UI state wrong")
+		return
 	await _capture_states("cabinet")
 	hub.close()
 	_overlay.set_hub_active(false)
-	if _frames_saved != 10:
+	await _settle(2)
+	if _overlay.visible or not (ui.get_node(^"Compass") as CanvasLayer).visible:
+		_fail("closing Hub did not restore gameplay UI")
+		return
+	await _snap("gameplay_after")
+	if _frames_saved != 12:
 		_fail("incomplete captures")
 		return
 	print("EDGE_GLOW_CAPTURE: PASS")
@@ -118,6 +131,9 @@ func _advance(seconds: float) -> void:
 
 
 func _capture_states(prefix: String) -> void:
+	var ui := _overlay.get_parent().get_parent() as GameplayUI
+	ui.set_process(false)
+	_overlay.set_process(false)
 	_overlay.set_hub_active(false)
 	await _snap(prefix + "_01_off")
 	_overlay.set_hub_active(true)
@@ -133,6 +149,8 @@ func _capture_states(prefix: String) -> void:
 	_advance(0.15)
 	await _snap(prefix + "_05_red")
 	_overlay.set_hub_active(false)
+	_overlay.set_process(true)
+	ui.set_process(true)
 
 
 func _snap(name: String) -> void:
