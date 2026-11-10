@@ -5,6 +5,7 @@ import unittest
 
 from discussion_bridge import (
     BridgeError,
+    Github,
     destination,
     format_relay,
     is_relay,
@@ -39,6 +40,26 @@ class BridgeTests(unittest.TestCase):
         event["comment"]["body"] = "hello"
         event["comment"]["user"]["login"] = "github-actions[bot]"
         self.assertIsNone(destination("issue_comment", event, 297, 1))
+
+    def test_first_discussion_number_may_not_be_one(self):
+        gh = Github("fake", "Nolavel", "Hoarbound")
+        gh.graphql = lambda _query, _variables: {"repository": {
+            "discussions": {"totalCount": 1, "nodes": [
+                {"number": 296, "id": "D_123", "url": "https://github.com/Nolavel/Hoarbound/discussions/296"}
+            ]}
+        }}
+        self.assertEqual(gh.discussion(1)["number"], 296)
+
+    def test_ambiguous_discussions_fail_closed(self):
+        gh = Github("fake", "Nolavel", "Hoarbound")
+        gh.graphql = lambda _query, _variables: {"repository": {
+            "discussions": {"totalCount": 2, "nodes": [
+                {"number": 296, "id": "D_1", "title": "A"},
+                {"number": 299, "id": "D_2", "title": "B"},
+            ]}
+        }}
+        with self.assertRaises(BridgeError):
+            gh.discussion(1)
 
     def test_attribution_and_marker(self):
         body = format_relay(
