@@ -2,7 +2,7 @@ extends SceneTree
 
 ## The isolated 727 FrontWindow1 thaw probe (issue #281) still loads the real pane and scrubs:
 ## - the pane is the 12 source glass triangles of the landmark GLB, not a stand-in quad;
-## - it opens on a copy of the game's glass (frosted_glass.gdshader with its two baked frost tiles), never the
+## - it opens on a copy of the game's glass (frosted_glass.gdshader), never the
 ##   shared material; the V3 sheet stays one switch away for comparison;
 ## - thaw is clamped to 0..1 and reaches the material under both variants.
 ## Run: godot --headless --path . --script res://tests/systems/test_window_727_thaw_probe.gd
@@ -30,8 +30,6 @@ func _run() -> void:
 		var glass := pane.material_override as ShaderMaterial
 		_check(glass != null and glass.shader.resource_path == NATURAL, "the probe does not open on the game's glass")
 		_check(glass != KeyWest727Shelter.FROSTED_GLASS, "the probe scrubs the shared game material, not a copy")
-		_check(glass.get_shader_parameter(&"frost_edge") is Texture2D and glass.get_shader_parameter(&"frost_field") is Texture2D,
-			"the game's glass has lost a baked frost tile")
 		probe.set_thaw(1.7)
 		_check(is_equal_approx(float(glass.get_shader_parameter(&"heated_warmth")), 1.0), "thaw above 1 was not clamped")
 		_check(is_equal_approx(float(KeyWest727Shelter.FROSTED_GLASS.get_shader_parameter(&"heated_warmth")), 0.0),

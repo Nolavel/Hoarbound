@@ -298,23 +298,26 @@ Owner rule (2026-10-15):
 - **A house with content inside:** each pane keeps 60–80 % frost, fixed per window.
 - **A room a stove has warmed:** its panes clear down to 20 %, gradually, as the room warms.
 
-Pattern of the generated buildings' opaque panes: `shaders/environment/windows/frost_pattern.gdshaderinc`, ported from
-the GDExtension frost lab (frost grows in from the pane edges, crystals at the front). The see-through landmark glass
-no longer draws with it; see below.
+Both window shaders draw frost from two baked tiles through `shaders/environment/windows/frost_tiles.gdshaderinc`
+(see "How the glass draws frost" below). The tiles are project shader globals (`window_frost_edge`,
+`window_frost_field`), so the baked city scenes pick them up with nothing bound and were not regenerated.
+`frost_pattern.gdshaderinc` now only lends its hash, noise and pane-size helpers; its 16 cm fern pattern is not drawn.
 - **Generated buildings:** the chunk builder adds a `windows` surface to each building mesh
   (`KeyWestChunkBuilder._window_row`).
   - Panes are 1.0 × 1.4 m with a 0.9 m sill, every 3.2 m along each straight facade (outline points within 0.35 m of
     a line form one facade), one row per storey.
   - Storeys come from `levels`, else from the measured wall height / 3.2 m.
   - Material: `frosted_window.gdshader`, opaque and lit like the walls. `COLOR.r` is the coverage
-    (`EMPTY_HOUSE_FROST` = 1), `COLOR.g` the pattern seed.
+    (`EMPTY_HOUSE_FROST` = 1), `COLOR.g` the pattern seed. Same frost as the landmark glass, without its thaw.
   - HLOD proxies leave the panes out.
 - **Enterable landmarks (727 Fort St):** the real `Glass` openings use `frosted_glass.gdshader` (see-through).
   - `tools/world/reality/landmark_glass_frost.py` writes per-pane data into the asset: `COLOR.r` = cold coverage 60–80 %
     (hash of the window name), `COLOR.g` = heated room, `COLOR.b` = seed, plus pane UVs.
   - `KeyWest727Shelter` feeds `heated_warmth` = heated offset / max heated offset of its `ShelterZone` on
     `warmth_changed`. Coverage = mix(cold, 0.2, warmth). The unheated clinic rooms stay at their cold coverage.
-  - **How the landmark glass draws frost (2026-11-10).** Two baked tiles at 1 mm per pixel, from
+  - **Full coverage.** From 80 % to 100 % coverage the middle of a pane packs with two more layers of crystals
+    and a full coat of film, so an empty house's pane is frosted right across with no clear glass.
+  - **How the glass draws frost (2026-11-10).** Two baked tiles at 1 mm per pixel, from
     `tools/textures/bake_window_frost_sheet.py` into `assets/environment/windows/`:
     - `frost_edge_strip.png`: fern feathers 4-28 cm long grown from a frame line. The shader lays it along each edge of
       a pane in metres, so a pane of any size or proportion carries feathers of true size (smaller on a small pane, shorter
@@ -334,6 +337,7 @@ no longer draws with it; see below.
     `tests/scenes/window_727_sdf_probe.tscn` scrubs a copy of the game's glass on the real FrontWindow1 pane.
   - Not measured: GPU cost on real hardware (rendered here on CPU only). Per fragment it is about 11 texture reads and
     three short loops of three steps.
-- `test_window_frost` checks all three rules and that the landmark glass has both frost tiles, with mipmaps.
+- `test_window_frost` checks all three rules, that both frost tiles are shader globals with mipmaps, and that both
+  window shaders draw from them.
 
 
