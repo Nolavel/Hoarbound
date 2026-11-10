@@ -6,6 +6,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed
+
+- Containers ask any way in through one small seam, `Opener`: `is_open`, `is_swinging`, and a `toggled` signal (architecture step 6).
+  - `Cabinet` and `Drawer` extend it, and `ItemContainer.openers` is `Array[Opener]`. `is_reachable` no longer switches on `is Cabinet` / `is Drawer`.
+  - A new kind plugs in with no change to the container. `test_container_kinds` proves it with a sliding door, which the old type switch failed.
+  - `Cabinet.door_toggled` is now the shared `toggled`; nothing outside listened to it.
+
 ### Added
 
 - 727 shelter: a kitchen cupboard, a dresser and a chest in the waiting room, searchable with the pack like the waiting-room cabinet (owner).
