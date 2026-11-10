@@ -113,11 +113,15 @@ func _test_supplies() -> void:
 	_check(_inventory.has_item(&"knife"), "F did not pick up the knife")
 	var hub: PlayerHubComponent = _player.get_node(^"PlayerHubComponent") as PlayerHubComponent
 	hub.move_to_pack(&"pack/pack_lid")  # the starter mug; the flask below needs a free pocket
+	var water_status: Array[String] = []
+	var on_status := func(text: String) -> void: water_status.append(text)
+	eater.water_status_requested.connect(on_status)
 	_check(hub.use_item(&"water_flask"), "Hub Use did not drink from a carried flask")
+	eater.water_status_requested.disconnect(on_status)
 	_check(is_equal_approx(bio.current_hydration, 32.0), "250 ml did not restore hydration")
 	_check(_inventory.get_count(&"water_flask_750") == 1 and not _inventory.has_item(&"water_flask"),
 		"one sip did not leave exactly 750 ml in one flask")
-	_check(eater._feedback.visible and eater._feedback.text.contains("750"), "drinking has no remaining-water feedback")
+	_check(not water_status.is_empty() and water_status[-1].contains("750"), "drinking has no remaining-water feedback")
 	var saved: Dictionary = JSON.parse_string(JSON.stringify(_inventory.get_save_data()))
 	_inventory.load_save_data(saved)
 	_check(_inventory.get_count(&"water_flask_750") == 1, "partial flask was refilled/lost by save restore")

@@ -8,6 +8,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Four suites that were red on `main` are green again.
+  - test_shelter_workflow and test_quick_access still read the feedback label and readout that commit `54f88bde` moved into the gameplay UI. They now listen to `ConsumptionController.water_status_requested` and `QuickAccessComponent.readout_changed`. With the hide signal removed, test_quick_access fails.
+  - test_render_layers: render layer 21 had lost its `snow_tile_experiment` name in `project.godot`, though `RenderLayers.SNOW_TILE_EXPERIMENT` still draws on it. The name is restored.
+  - test_container_kinds runs at `--fixed-fps 30` in CI, as its run line says. Without it, the hangers swung on wall-clock deltas, and once a pan hung into the chest on `main`. That failure was not reproduced here (three runs passed under load), so this fix is untested against it.
+
 - Class D dynamic dispatch is closed (§16). The ratchet baseline is 17 calls in 3 files; all of them are class A (composition-root hooks) or class B (native and lab tools).
   - `GroundSourceCapability` gives snow chunk cover the ground height and, optionally, the obstacle outlines. Key West ground and island terrain keep their legacy `get_height` / `get_snow_obstacles_in_rect` names.
   - The new `CapabilityContract.bind` turns an operation into a Callable once, so the per-vertex height loop costs no lookup per call.

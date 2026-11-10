@@ -12,6 +12,7 @@ extends SceneTree
 ##   and the pack is on screen;
 ## - closing the pack stands him up and leaves the furniture searchable again.
 ## Run: godot --headless --path . --fixed-fps 30 --script res://tests/systems/test_container_kinds.gd
+## ci-args: --fixed-fps 30
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
 const ROW: String = "res://tests/scenes/container_row.tscn"
