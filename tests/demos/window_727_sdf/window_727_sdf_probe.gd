@@ -7,6 +7,7 @@ extends Node3D
 const SPEC_PATH: String = "res://data/world/key_west/reality/landmarks/kw_727_fort_st.json"
 const GLB_PATH: String = "res://assets/world/key_west/landmarks/kw_727_fort_st.glb"
 const SDF_SHADER: Shader = preload("res://tests/demos/window_727_sdf/sdf_frosted_glass_727.gdshader")
+const NATURAL_SHADER: Shader = preload("res://tests/demos/window_727_sdf/natural_thaw_glass_727.gdshader")
 const BACKDROP_SHADER: Shader = preload("res://tests/demos/window_727_sdf/diagnostic_backdrop.gdshader")
 const WHEEL_STEP: float = 0.02
 
@@ -18,6 +19,7 @@ var _valid: bool = false
 var _verified_triangles: int = 0
 var _leaving: bool = false
 var _esc_was_down: bool = false
+var _variant: StringName = &"natural"
 
 func _ready() -> void:
 	set_process_input(true)
@@ -88,6 +90,14 @@ func set_thaw(progress: float) -> void:
 		_slider.set_value_no_signal(progress)
 	_apply_thaw(progress)
 
+## &"natural" is the natural thaw; &"v3" is the imported SDF sheet, for comparison (V toggles).
+func set_variant(variant: StringName) -> void:
+	if not _valid:
+		return
+	_variant = &"v3" if variant == &"v3" else &"natural"
+	_sdf.shader = SDF_SHADER if _variant == &"v3" else NATURAL_SHADER
+	_apply_thaw(_slider.value if _slider != null else 0.0)
+
 func set_test_time(seconds: float) -> void:
 	set_thaw(clampf(seconds / 6.0, 0.0, 1.0))
 
@@ -103,7 +113,7 @@ func _apply_thaw(progress: float) -> void:
 		blobs.append(Vector4.ZERO)
 	_sdf.set_shader_parameter(&"blob_data", blobs)
 	_sdf.set_shader_parameter(&"blob_count", 3 if progress > 0.0 else 0)
-	_label.text = "727 FRONTWINDOW1   PLATE FROST   THAW %02d%%" % int(progress * 100.0)
+	_label.text = "727 FRONTWINDOW1   %s   THAW %02d%%" % ["NATURAL THAW" if _variant == &"natural" else "V3 SDF SHEET", int(progress * 100.0)]
 
 func _is_escape(event: InputEvent) -> bool:
 	if event.is_action_pressed(&"ui_cancel"):
@@ -137,6 +147,9 @@ func _input(event: InputEvent) -> void:
 	if _is_escape(event):
 		get_viewport().set_input_as_handled()
 		_leave()
+	elif event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo \
+			and (event as InputEventKey).physical_keycode == KEY_V:
+		set_variant(&"v3" if _variant == &"natural" else &"natural")
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event is InputEventMouseButton:
@@ -292,7 +305,7 @@ func _load_real_pane() -> bool:
 	_window.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_window)
 	_sdf = ShaderMaterial.new()
-	_sdf.shader = SDF_SHADER
+	_sdf.shader = NATURAL_SHADER
 	_sdf.set_shader_parameter(&"growth_seed", 0.28)
 	_sdf.set_shader_parameter(&"melt_seed", 0.73)
 	_sdf.set_shader_parameter(&"pane_aspect", width / height)
@@ -350,7 +363,7 @@ func _make_overlay() -> void:
 	var hint := Label.new()
 	hint.position = Vector2(20.0, 46.0)
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hint.text = "Left is the whole pane frosted. Right opens the thaw. Esc leaves."
+	hint.text = "Left is the whole pane frosted. Right opens the thaw. V compares with the V3 sheet. Esc leaves."
 	hint.add_theme_color_override("font_color", Color(0.93, 0.95, 0.96))
 	hint.add_theme_font_size_override("font_size", 20)
 	root.add_child(hint)

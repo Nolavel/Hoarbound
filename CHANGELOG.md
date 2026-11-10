@@ -8,6 +8,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- The 727 FrontWindow1 thaw probe (issue #281, `tests/scenes/window_727_sdf_probe.tscn`) opens on a new test-only natural thaw shader, `natural_thaw_glass_727.gdshader`. **V** switches to the unchanged V3 sheet. Production glass and `frost_pattern.gdshaderinc` are untouched.
+  - Frost scatters the view behind it: the pane blurs the screen by frost thickness. Thick frost is white, thin frost blue, soaked frost grey-green. At 0 % the whole pane is frosted.
+  - Each texel thaws by its own need (warm spots, frame, height on the pane, thickness, noise). It soaks, breaks into slush islands, then clears. The upper pane leads and a band by the frame survives.
+  - Beads run down wandering lanes and cut clear tracks through the frost below. Cleared glass keeps water beads that bend the view.
+  - It is an authored illusion on one 0..1 value, unshaded, not yet judged under the real 727 lights.
+  - Added `tools/runtime/capture_window_727_thaw.gd` (stills per thaw step), `tests/systems/test_window_727_thaw_probe.gd`, and a preview sheet in `docs/runtime_previews/window_frost/`.
+
 - Removed three snow suites from the `snow-clipmap-preview` experiment, at the owner's request: test_snow_architecture_contract, test_snow_contact_pipeline and test_snow_surface_clipmap. They tested a snow architecture (multi-channel deformation, radial L0–L2 rings, no live contact writes) that `main` does not ship, so they were red on every branch. They were also dropped from `snow_architecture_gate.sh` and the snow job loops in `checks.yml`.
 
 - Four suites that were red on `main` are green again.
