@@ -28,7 +28,7 @@ var _labels: Dictionary = {}
 var _player: Node3D
 var _thermal: ThermalManager
 var _save: SaveManager
-var _world: World
+var _world: Node
 var _inside_727: bool = false
 var _awaiting_load: bool = false
 ## True from a teleport (load, or the first placement) until the physics step
@@ -39,7 +39,7 @@ var _settle_token: int = 0
 
 func on_world_ready(context: WorldContext) -> void:
 	_player = context.player
-	_world = context.world as World
+	_world = context.world
 	_thermal = context.get_system(THERMAL_SCRIPT) as ThermalManager
 	_save = context.get_system(SAVE_SCRIPT) as SaveManager
 	_bind_input()
@@ -76,9 +76,10 @@ func begin_play(scenario_start: bool) -> void:
 ## True when this boot is the stranger run from Battery Osceola, not the
 ## developer shelter spawn and not a debug street start.
 func _is_scenario_start() -> bool:
-	if _world == null or _world.spawn_at_shelter:
+	if _world == null or bool(_world.get(&"spawn_at_shelter")):
 		return false
-	return _world.dev_spawn().is_empty()
+	var spawned: Variant = _world.call(&"dev_spawn")
+	return spawned is Dictionary and (spawned as Dictionary).is_empty()
 
 
 func shelter_id() -> String:

@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-11-10
+- Recorded the compass CI misses on `57e3b3e0`: scene load is not a script compile, `ubuntu-latest` no longer has `dotnet-sdk-8.0`, an in-place `load_from_slot` is not Continue, and a push must not also dispatch a capture. The order is scene, import gate, headless test, then video.
 - Owner confirmed, after Codex's review the same day: Grok writes issue #1 handoffs itself, at any time, without waiting for Codex to draft them.
 - An explicit owner request to implement on `grok` overrides the propose-only default for that task only. The default itself stays.
 - Initial creation of hoarbound-workflow skill.
