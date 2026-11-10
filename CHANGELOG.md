@@ -6,6 +6,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed
+
+- Stone scatter no longer reads a freed pickup as a typed object during refresh; collected IDs stay collected and untaken stones can return after eviction. Added lifecycle regression to the required gate.
+- Hub carried-item rims reuse their material, focus masks track live instance IDs, and disposable item probes clear overrides before freeing. Empty readout/hand/stove requests return early; unknown nonempty catalog IDs still warn.
+
 ### Changed
 
 - Removed three snow suites from the `snow-clipmap-preview` experiment, at the owner's request: test_snow_architecture_contract, test_snow_contact_pipeline and test_snow_surface_clipmap. They tested a snow architecture (multi-channel deformation, radial L0–L2 rings, no live contact writes) that `main` does not ship, so they were red on every branch. They were also dropped from `snow_architecture_gate.sh` and the snow job loops in `checks.yml`.

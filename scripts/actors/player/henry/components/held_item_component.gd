@@ -75,6 +75,8 @@ func _ready() -> void:
 
 
 func supports_item(item_id: StringName) -> bool:
+	if item_id == &"":
+		return false
 	var item: ItemResource = ItemCatalog.get_item(item_id)
 	return item != null and item.garment == null and not item.carried_in_hands \
 		and (item.size_class == ItemTraits.SizeClass.POCKET or item.one_hand_held) and item_id not in [&"hammer", &"road_flare"]
@@ -82,6 +84,8 @@ func supports_item(item_id: StringName) -> bool:
 
 ## Existing Hub Use route for authored large one-hand tools, not consumables.
 func can_use(item_id: StringName) -> bool:
+	if item_id == &"":
+		return false
 	var item: ItemResource = ItemCatalog.get_item(item_id)
 	return item != null and item.one_hand_held and supports_item(item_id) and not is_holding() and inventory != null and inventory.has_item(item_id)
 
@@ -308,7 +312,11 @@ func _sync_owned() -> void:
 
 
 func _show_hint(message: String = "") -> void:
-	var item: ItemResource = ItemCatalog.get_item(_item_id)
+	var item: ItemResource = ItemCatalog.get_item(_item_id) if _item_id != &"" else null
+	if item == null:
+		_message_left = 0.0
+		hint_changed.emit("")
+		return
 	var action: String = tr("HAND_TOOL_HINT")
 	if item.water_capacity_ml > 0:
 		action = tr("CONSUME_REFUSED_EMPTY_FLASK") if item.water_remaining_ml == 0 else "LMB · " + tr("FLASK_DRINK_ACTION")

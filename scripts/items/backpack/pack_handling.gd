@@ -696,15 +696,22 @@ func _over_pack() -> bool:
 
 ## An outline of `colour` on every mesh of `visual` (none with a transparent colour).
 static func _rim(visual: Node3D, colour: Color) -> void:
+	# The carried visual owns its rim. Hover updates change only its parameter;
+	# allocating/replacing a material every frame churns renderer dependencies.
 	var rim: ShaderMaterial = null
 	if colour.a > 0.0:
-		rim = ShaderMaterial.new()
-		rim.shader = OUTLINE_SHADER
-		rim.set_shader_parameter(&"rim_colour", colour)
+		rim = visual.get_meta(&"pack_rim_material") as ShaderMaterial if visual.has_meta(&"pack_rim_material") else null
+		if rim == null:
+			rim = ShaderMaterial.new()
+			rim.shader = OUTLINE_SHADER
+			visual.set_meta(&"pack_rim_material", rim)
+		if rim.get_shader_parameter(&"rim_colour") != colour:
+			rim.set_shader_parameter(&"rim_colour", colour)
 	for mesh: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		if mesh is MeshInstance3D:
 			var overlay: Material = (mesh as MeshInstance3D).material_overlay
 			if overlay != null and overlay.has_meta(&"focus_mask"):
-				overlay.next_pass = rim  # the focus blur's mask stays first (PackFocusBlur)
-			else:
+				if overlay.next_pass != rim:
+					overlay.next_pass = rim
+			elif overlay != rim:
 				(mesh as MeshInstance3D).material_overlay = rim
