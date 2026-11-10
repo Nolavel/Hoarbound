@@ -1,6 +1,6 @@
 name: discussion-bridge
 
-# Only newly created comments in the first actual Discussion or Issue #297 are mirrored.
+# Only newly created comments in the first actual Discussion #296 or Issue #297 are mirrored.
 # This workflow must exist on the default branch to receive webhook events.
 on:
   issue_comment:
@@ -23,7 +23,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && github.event.issue.number == 297) ||
-      github.event_name == 'discussion_comment'
+      (github.event_name == 'discussion_comment' && github.event.discussion.number == 296)
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
@@ -40,5 +40,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRIDGE_ISSUE_NUMBER: '297'
-          BRIDGE_DISCUSSION_NUMBER: '1'
+          BRIDGE_DISCUSSION_NUMBER: '296'
         run: python3 tools/ci/discussion_bridge.py
