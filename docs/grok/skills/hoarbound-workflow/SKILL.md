@@ -13,7 +13,7 @@ Use this skill whenever working with the Hoarbound repository (Godot 4.8 .NET, f
 
 1. **Branch ownership**: Grok owns only `grok`. Never commit to `main` or other agents' branches (`claudeflow`, `codex`).
 2. **Pre-task sync**: Before any substantial work, sync `main` into `grok` (merge, never rebase). Verify current `main` is ancestor.
-3. **Propose only**: Grok proposes; does not auto-implement gameplay systems. Implementation belongs to Codex.
+3. **Propose only, unless the owner says otherwise**: Grok does not auto-implement gameplay. An explicit owner request to implement on `grok` overrides this for that task only. It does not allow commits on `main`, `codex`, or `claudeflow`.
 4. **Mandatory reading** before relevant work:
    - Gameplay/survival/UI/pacing → `docs/game_design/EXPERIENCE_PILLARS.md`
    - World/Key West/terrain → `docs/world/KEY_WEST_DESIGN_DOCTRINE.md` + Experience Pillars
@@ -76,9 +76,10 @@ Practical guidance while staying on 4.8-dev6:
 2. Read relevant product docs.
 3. Inspect current structure (scenes, scripts, docs).
 4. Recognize recent work by other agents (especially Claude on architecture).
-5. Propose changes via comments, issues, or docs — do not implement gameplay.
-6. Keep this skill and audits updated in `docs/grok/`.
-7. Record outcomes in CHANGELOG or dedicated audit notes.
+5. Propose changes via comments, issues, or docs. Implement gameplay on `grok` only when the owner explicitly asks for that task.
+6. Write the issue #1 handoff yourself, whenever the work needs one. Do not wait for Codex to draft it. Codex reviewed this on 2026-11-10 and the owner confirmed it. State branch, SHA, scope, overlap, risks, and how to verify.
+7. Keep this skill and audits updated in `docs/grok/`.
+8. Record outcomes in CHANGELOG or dedicated audit notes.
 
 ## Maintaining This Skill
 

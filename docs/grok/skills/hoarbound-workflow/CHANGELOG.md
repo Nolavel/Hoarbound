@@ -1,6 +1,8 @@
 # Changelog
 
 ## 2026-11-10
+- Owner confirmed, after Codex's review the same day: Grok writes issue #1 handoffs itself, at any time, without waiting for Codex to draft them.
+- An explicit owner request to implement on `grok` overrides the propose-only default for that task only. The default itself stays.
 - Initial creation of hoarbound-workflow skill.
 - Captures branch ownership, mandatory reading, architecture guardrails, and agent roles from AGENTS.md.
 - Designed to work in both Grok chat (via repo) and local Grok Build CLI.
