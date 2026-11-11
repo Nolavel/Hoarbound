@@ -11,6 +11,52 @@ method is assembled from what they presented, plus the shipped open
 implementations it reduces to: Epic's Lyra, Unity Cinemachine and Daedalic's
 Unreal Fest sample.
 
+## Direct rig (2026-11-11): the default
+
+The owner found the camera stupid and awkward in narrow spaces. A trace in the 727 corridor and restroom
+showed why: with Henry standing still and the mouse turning a full circle, the camera rose over him and looked
+down at the floor for most of the turn, stood inside his coat in one frame, and held him across the middle of
+the frame. The cause was not one bug. About ten behaviours each moved the camera by themselves (lift to 70°
+over the shoulder, a swing of ±40° round Henry, auto-look after 0.9 s of rest, shoulder swap, soft stops and an
+orbit cone in doorways), and a doorway took Henry's controls. Each was tuned by traces; together the player
+could not tell what the camera would do next.
+
+`TpsCamera.direct_rig` (on by default) replaces that with the scheme shipped third-person games use in tight
+interiors (The Last of Us Part II, Resident Evil 4 Remake, God of War; rules as in Nesky, *50 Game Camera
+Mistakes*):
+
+- **The camera always stands behind the view, and only the mouse turns the view.** Orbit = view. No lift, no
+  swing, no auto-look, no recentre, no view tilt to keep his eyes in frame. Owner's call: recentring behind a
+  walking Henry is off.
+- **Walls only shorten the boom**, with the same Lyra blend as before: the centre sweep snaps in, the feelers
+  ease in, a release eases out.
+- **The shoulder squeezes as the boom is pressed.** Between boom shares `direct_squeeze_shares` (0.35..0.9) the
+  offset falls to `direct_tight_shoulder` (35 %), so a pressed camera sits close behind the shoulder.
+- **A close Henry turns see-through instead of the camera climbing.** He starts to fade with the camera
+  `direct_fade_distances.x` (0.9 m) from his eyes and stops at `direct_fade_max` (80 %) at 0.45 m: he stays a
+  ghost in frame and the view never reads as first person. An authored work frame (the stove) keeps the old
+  late fade.
+- **The lens widens a little when pressed**: up to `direct_tight_fov_deg` (8°), eased at `direct_fov_rate`, so
+  a wall snap never jumps it.
+- **The mouse is never slowed.** The body guard that scaled a mouse turn near Henry is off.
+- **A doorway never takes the controls.** `PassageTraversalComponent.carry_through` is off: released keys stop
+  Henry, sideways keys still steer. He is still eased onto the centre line while the player pushes through, so a
+  1 m wide capsule does not catch on a jamb. The camera does not close its frame at a door.
+
+What stays from the old rig: follow lag and intent lead, the openness rods that shorten the boom indoors, wall
+collision, stance heights, manual shoulder swap and lean, thin-prop fades, the stove's work framing.
+
+**The old guided rig is still in the code behind `direct_rig = false`** (with `carry_through = true`). It stays
+until the direct rig is accepted in play; then it and its behaviours (`TpsRigPassage`, `TpsRigShoulderLift`,
+`TpsRigShotChoice`, `TpsRigRecompose`, `TpsRigComposition`, `TpsRigAutoSwap`, auto-look) should be deleted, not
+kept as a second camera. `test_tps_camera`, `test_doorway_camera` and `test_passage_traversal` guard that old rig
+and switch it on explicitly. Everything below this section describes the old rig unless it is in the list above.
+
+Check: `tests/systems/test_tps_camera_direct.gd` (a 1.3 m dead end with a wall 0.4 m behind Henry, a full sweep
+with rests): the view equals the look set, the camera never rises over him, never enters a wall, never hides
+him, and the lens never jumps. Known cost: in that dead end the camera ends 0.23 m from his eyes with him 80 %
+faded; there is no room for anything else without passing through a wall.
+
 ## What the player gets
 
 - **Mouse look lands in the same rendered frame.** Look is never filtered and is

@@ -3,6 +3,8 @@ extends SceneTree
 ## Production shelter doorway (Key West, 1.5 x 2.25 m): through every normal traversal
 ## Henry is never dithered, stays on screen and unoccluded, the camera stays out of walls,
 ## nothing pops, and only the mouse turns the control yaw.
+## Guards the legacy guided rig (TpsCamera.direct_rig off): it stays behind that flag until the direct rig is
+## accepted in play. The direct rig's own guarantees are in test_tps_camera_direct.
 ## Run: godot --headless --path . --script res://tests/systems/test_doorway_camera.gd [-- <label> [pivot=<share>] [scenario...]]
 ## With a label, rows and a summary go to user://traces/tps_doorway/<label>/; add --fixed-fps 144 for frame-exact traces.
 
@@ -90,6 +92,8 @@ func _run() -> void:
 	await _ticks(120)
 	_player = _scene.find_child("Player", true, false) as Player
 	_cam = _scene.find_child("PlayerCamera", true, false) as TpsCamera
+	_cam.direct_rig = false
+	(_player.get_node(^"PassageTraversalComponent") as PassageTraversalComponent).carry_through = true
 	var skeletons: Array[Node] = _player.find_children("*", "Skeleton3D", true, false)
 	if not skeletons.is_empty():
 		_skeleton = skeletons[0] as Skeleton3D

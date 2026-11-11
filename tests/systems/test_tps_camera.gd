@@ -2,6 +2,8 @@ extends SceneTree
 
 ## Boom by space, walls, real shoulder, crouch, low ceiling, thin props and their
 ## chains; automatic turns never move the control yaw; gameplay rays skip the sway.
+## Guards the legacy guided rig (TpsCamera.direct_rig off): it stays behind that flag until the direct rig is
+## accepted in play. The direct rig's own guarantees are in test_tps_camera_direct.
 ## Run: godot --headless --script tests/systems/test_tps_camera.gd
 
 const SETTLE_FRAMES: int = 240
@@ -52,6 +54,7 @@ func _build() -> void:
 	root.add_child(_player)
 	_camera = TpsCamera.new()
 	_camera.player = _player
+	_camera.direct_rig = false
 	root.add_child(_camera)
 	_camera.set_look(0.0, -10.0)
 	_walls = Node3D.new()

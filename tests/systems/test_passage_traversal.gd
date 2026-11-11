@@ -4,6 +4,8 @@ extends SceneTree
 ## 35 degrees off carries Henry through its centre, the camera never breaks or takes the yaw,
 ## a key released past the threshold still carries him clear, and a corridor is no doorway.
 ## Authored NarrowPassages across the doorway standard (1.45-1.60 x 2.20-2.30 m) never fade him.
+## Guards the legacy guided rig (TpsCamera.direct_rig off): it stays behind that flag until the direct rig is
+## accepted in play. The direct rig's own guarantees are in test_tps_camera_direct.
 ## Run: godot --headless --script tests/systems/test_passage_traversal.gd
 
 const CONTROL_YAW_DEG: float = 35.0
@@ -30,7 +32,9 @@ func _run() -> void:
 	root.add_child(_player)
 	_camera = (load("res://scenes/game/systems/camera/tps_camera.tscn") as PackedScene).instantiate() as TpsCamera
 	_camera.player = _player
+	_camera.direct_rig = false
 	root.add_child(_camera)
+	(_player.get_node(^"PassageTraversalComponent") as PassageTraversalComponent).carry_through = true
 	await _place(Vector3(0.8, 1.0, 2.6))
 	await _through_the_door()
 	await _back_out()

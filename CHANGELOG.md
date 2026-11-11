@@ -13,6 +13,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- TPS camera: a direct rig is the default (`TpsCamera.direct_rig`). The owner found the camera awkward in narrow spaces; a trace in the 727 corridor and restroom showed it rising over Henry to look down, standing inside his coat, and holding him across the frame.
+  - The camera always stands behind the view and only the mouse turns the view. No lift over the shoulder, no swing round Henry, no auto-look, no recentre behind a walking Henry (owner's call), no view tilt.
+  - Walls only shorten the boom. The shoulder squeezes and the lens widens up to 8° as the boom is pressed. A close Henry turns see-through (to 80 % at most) instead of the camera climbing. The mouse is never slowed near him.
+  - A doorway no longer takes the controls (`PassageTraversalComponent.carry_through` is off): released keys stop Henry and sideways keys steer. He is still eased onto the centre line while the player pushes through.
+  - The old guided rig stays behind `direct_rig = false` until this one is accepted in play; its three suites switch it on explicitly. New `test_tps_camera_direct` guards the direct rig.
+  - The stove's work frame keeps its late fade (the early fade dimmed Henry there; `test_stove_ritual` caught it).
+
 - Every window now draws the baked millimetre frost, and a pane at full coverage is frosted right across.
   - **Generated buildings.** `frosted_window.gdshader` draws the same frost as the landmark glass (no thaw: these houses stay cold). Its old 16 cm fern pattern is no longer drawn anywhere.
   - **Full coverage.** From 80 % to 100 % coverage the middle of a pane packs with two more layers of crystals and a full coat of film. Before, a pane at 100 % kept a see-through middle and looked almost like one at 70 %.

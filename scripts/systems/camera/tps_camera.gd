@@ -14,6 +14,22 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 
 @export var player: CharacterBody3D
 
+## Direct rig (default): the camera always stands behind the view the mouse set. Walls only shorten the
+## boom and squeeze the shoulder, a close Henry turns see-through, nothing turns or lifts the view itself.
+@export var direct_rig: bool = true
+@export_group("Direct rig")
+## Share of the shoulder offset kept with the boom fully pressed in.
+@export_range(0.0, 1.0, 0.05) var direct_tight_shoulder: float = 0.35
+## Boom shares between which the shoulder squeezes and the view widens.
+@export var direct_squeeze_shares: Vector2 = Vector2(0.35, 0.9)
+## Field of view added with the boom fully pressed in, degrees.
+@export_range(0.0, 20.0, 0.5) var direct_tight_fov_deg: float = 8.0
+## The view widens and narrows at this rate, so a wall snap never jumps the lens, 1/s.
+@export var direct_fov_rate: float = 4.0
+## Henry starts to turn see-through with the camera this close to his eyes, and is at direct_fade_max at the second, metres.
+@export var direct_fade_distances: Vector2 = Vector2(0.9, 0.45)
+## Most of Henry the camera may fade: he stays a ghost in frame, the view never reads as first person.
+@export_range(0.0, 1.0, 0.05) var direct_fade_max: float = 0.8
 @export_group("Look")
 @export var look_sensitivity_x: float = 0.65
 @export var look_sensitivity_y: float = 0.65
@@ -260,6 +276,8 @@ var _user_invert_y: bool = false
 var _last_eye_distance: float = INF
 ## FOV this camera added for a doorway; others may set the base FOV meanwhile.
 var _fov_offset: float = 0.0
+## Field of view the direct rig adds for a pressed boom, eased.
+var _direct_fov: float = 0.0
 ## Last rig inputs, for the body guard's prediction: pivot, orbit pitch lift (degrees).
 var _last_pivot: Vector3 = Vector3.ZERO
 var _last_lift_pitch: float = 0.0
@@ -334,7 +352,8 @@ func _process(delta: float) -> void:
 		snap_to_target()
 	_target = target
 	_update_stance(delta)
-	_rig_passage.update(delta)
+	if not direct_rig:
+		_rig_passage.update(delta)
 	_auto.note_look(_apply_look_input(), delta)
 	_apply_lean_and_shoulder_input(delta)
 	_probe.begin(get_world_3d().direct_space_state, [player.get_rid()])
@@ -523,6 +542,9 @@ func measure_room() -> float:
 ## One frame of the rig: the behaviours run in order on a shared TpsRigFrame, then the
 ## camera takes its result (#240 stage 2: the same arithmetic, split by owner).
 func _update_rig(delta: float) -> void:
+	if direct_rig:
+		_update_direct_rig(delta)
+		return
 	var frame: TpsRigFrame = _frame
 	frame.delta = delta
 	var speed_ratio: float = _player_speed_ratio()
@@ -561,6 +583,49 @@ func _update_rig(delta: float) -> void:
 	_sway_deg = _noise.get_noise_1d(_noise_time * 20.0) * breathing_amplitude_deg * (0.4 + tension)
 	h_offset = 0.0
 	_rig_lift.keep_eyes(frame)
+	frame.view = Basis.from_euler(Vector3(deg_to_rad(frame.view_pitch + _sway_deg), frame.view_yaw, 0.0))
+	_rig_work.apply(frame)
+	frame.camera.y = maxf(frame.camera.y, snow_floor(frame.camera))
+	global_position = frame.camera
+	global_basis = frame.view
+	_last_eye_distance = frame.camera.distance_to(get_eye_position())
+	_update_fades(delta, frame.camera)
+
+
+## The direct rig: orbit = view, walls shorten the boom (Lyra's blend), the shoulder squeezes and the view
+## widens by how pressed the boom is. No lift, swing, auto-look, doorway cone or view tilt.
+func _update_direct_rig(delta: float) -> void:
+	var frame: TpsRigFrame = _frame
+	frame.delta = delta
+	_rig_follow.apply(frame, _player_speed_ratio())
+	frame.pivot += Vector3.UP * get_pivot_height()
+	frame.safe = _safe_origin()
+	_clear_auto_look()
+	frame.view_yaw = _yaw
+	frame.view_pitch = _pitch_deg
+	frame.orbit_yaw = _yaw
+	frame.orbit_pitch = _pitch_deg
+	frame.lift = 0.0
+	frame.framing = 0.0
+	_update_aim(delta)
+	frame.want = (_boom + _rig_follow.get_pullback()) * _look_up_scale(frame.view_pitch) * lerpf(1.0, aim_boom_scale, _aim)
+	var roominess: float = clampf(inverse_lerp(near_distance, far_distance, _boom), 0.0, 1.0)
+	## Pressed by a wall (last frame's share, so it never feeds itself), the shoulder gives way to the centre.
+	var free: float = smoothstep(direct_squeeze_shares.x, direct_squeeze_shares.y, _rig_collision.get_boom_share())
+	frame.side = _shoulder.update(delta) * lerpf(tight_shoulder_fraction, 1.0, roominess) * lerpf(direct_tight_shoulder, 1.0, free) \
+			+ _lean * lean_camera_offset
+	_last_pivot = frame.pivot
+	_last_lift_pitch = 0.0
+	_last_side = frame.side
+	frame.right = Vector3(cos(frame.orbit_yaw), 0.0, -sin(frame.orbit_yaw))
+	frame.back = back_dir(frame.orbit_yaw, frame.orbit_pitch)
+	_direct_fov = lerpf(_direct_fov, direct_tight_fov_deg * (1.0 - free), damp(direct_fov_rate, delta)) if _has_position else 0.0
+	_apply_fov_offset(_direct_fov)
+	_rig_collision.apply(frame)
+	_has_position = true
+	_noise_time += delta
+	_sway_deg = _noise.get_noise_1d(_noise_time * 20.0) * breathing_amplitude_deg * (0.4 + tension)
+	h_offset = 0.0
 	frame.view = Basis.from_euler(Vector3(deg_to_rad(frame.view_pitch + _sway_deg), frame.view_yaw, 0.0))
 	_rig_work.apply(frame)
 	frame.camera.y = maxf(frame.camera.y, snow_floor(frame.camera))
@@ -794,7 +859,11 @@ func _update_fades(delta: float, camera: Vector3) -> void:
 		_fader.update_occluders([], delta)
 		return
 	var eye: Vector3 = get_eye_position()
-	var fade: float = clampf(inverse_lerp(body_fade_start, body_fade_end, camera.distance_to(eye)), 0.0, 1.0)
+	## An authored work frame (the stove) stands close on purpose: it keeps the late fade.
+	var early: float = (1.0 - get_work_framing_blend()) if direct_rig else 0.0
+	var fade_from: float = lerpf(body_fade_start, direct_fade_distances.x, early)
+	var fade_to: float = lerpf(body_fade_end, direct_fade_distances.y, early)
+	var fade: float = clampf(inverse_lerp(fade_from, fade_to, camera.distance_to(eye)), 0.0, lerpf(1.0, direct_fade_max, early))
 	_fader.update_body(fade, delta)
 	_probe.passed.clear()
 	_probe.overlaps(camera)
@@ -823,8 +892,10 @@ func _apply_look_input() -> Vector2:
 		* pitch_sensitivity_ratio
 		* y_sign
 	)
-	yaw_step *= _body_guard(yaw_step, 0.0)
-	pitch_step *= _body_guard(0.0, pitch_step)
+	## The direct rig never slows the mouse: a camera that comes close fades Henry instead.
+	if not direct_rig:
+		yaw_step *= _body_guard(yaw_step, 0.0)
+		pitch_step *= _body_guard(0.0, pitch_step)
 	## In a doorway the mouse eases into a soft stop instead of a wall; back in is always free.
 	var weight: float = _rig_passage.get_blend() * _rig_passage.traversal() if _rig_passage.get_framing().has_passage() else 0.0
 	if weight > 0.001 and yaw_step != 0.0:
