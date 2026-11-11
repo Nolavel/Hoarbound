@@ -827,6 +827,8 @@ jobs:
           key: godot-4.8-dev6-v2
       - name: Provision Godot without the 3D renderer stack
         run: SKIP_APT=1 tools/ci/setup_env.sh
+      - name: Import scripts and register class_name symbols
+        run: tools/ci/import_gate.sh
       - name: Targeted First Exit functionality tests
         run: tools/ci/run_tests.sh test_first_exit_bearings
       - name: Produce real CompassStrip PNG (2D Compatibility renderer)
