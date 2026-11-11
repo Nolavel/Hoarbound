@@ -19,7 +19,7 @@ const POP_LIMIT: float = 0.15
 const POP_SPEED: float = 6.0
 ## The direct rig has no doorway frame to close ahead: a view swung at 150 deg/s beside a jamb must pull the
 ## boom in 1.6 m within a tenth of a second. Feelers and leads spread that over frames, each under this.
-const POP_LIMIT_DIRECT: float = 0.35
+const POP_LIMIT_DIRECT: float = 0.4
 ## Fastest the FOV may change, degrees per second.
 const FOV_RATE_LIMIT: float = 45.0
 ## Henry starts this far outside the door plane and walks until this far inside.
@@ -472,7 +472,12 @@ func _sample(moused: bool) -> void:
 	var near: bool = _near_clipped(render)
 	var occluded: bool = _segment_blocked(render, head)
 	## Pressed to half a metre no lens holds a whole man: the direct rig answers for his head only.
-	var on_screen: bool = _cam.is_position_in_frustum(head) and (_direct or _cam.is_position_in_frustum(henry))
+	var on_screen: bool = _cam.is_position_in_frustum(head) and _cam.is_position_in_frustum(henry)
+	if _direct:
+		## Headless draws a square frame; the direct rig holds Henry off-centre, so it is judged at 16:9.
+		var seen: Vector3 = _cam.global_transform.affine_inverse() * head
+		var half: float = tan(deg_to_rad(_cam.fov * 0.5))
+		on_screen = seen.z < 0.0 and absf(seen.x) <= -seen.z * half * 16.0 / 9.0 and absf(seen.y) <= -seen.z * half
 	var share: float = _height_share(head)
 	_stats["frames"] += 1
 	if fade > 0.0:

@@ -18,25 +18,31 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## boom and squeeze the shoulder, a close Henry turns see-through, nothing turns or lifts the view itself.
 @export var direct_rig: bool = true
 @export_group("Direct rig")
-## Share of the shoulder offset kept with the boom fully pressed in.
-@export_range(0.0, 1.0, 0.05) var direct_tight_shoulder: float = 0.35
-## Boom shares between which the shoulder squeezes and the view widens.
-@export var direct_squeeze_shares: Vector2 = Vector2(0.35, 0.9)
-## Boom shares between which a pressed camera comes up from the shoulder joints to Henry's eye line.
+## The shoulder offset as a share of shoulder_offset. It is asked for in full in any space; only walls clip it.
+@export_range(0.5, 2.0, 0.05) var direct_side_scale: float = 1.4
+## Shoulder offset per metre of boom, its floor and how fast it follows (1/s): 0.4 holds Henry a third of
+## the way in from the left edge of a 16:9 frame at any distance; under 0.3 m his body reaches the centre.
+@export var direct_side_per_metre: float = 0.4
+@export var direct_side_min: float = 0.34
+@export var direct_side_rate: float = 3.0
+## It closes in at this rate (1/s) when a wall takes its room, and never past this many metres per metre of
+## boom: there his head stands at the frame's edge.
+@export var direct_side_in_rate: float = 16.0
+@export var direct_side_edge: float = 0.7
+## Boom lengths between which a close camera rises from his shoulder joints to his eye line, metres.
+@export var direct_rise_lengths: Vector2 = Vector2(0.35, 0.9)
+## A boom a wall shortened holds for this long after the wall clears, then eases out over this time, seconds.
+@export var direct_out_hold: float = 0.35
+@export var direct_out_time: float = 0.6
 ## The "camera behind Henry" key turns the view to his facing at this rate (1/s) and to this pitch; any mouse
 ## motion takes the view back at once. It is the only recentre on the direct rig, and only on that key.
 @export var behind_rate: float = 9.0
 @export var behind_pitch_deg: float = -10.0
-@export var direct_eye_line_shares: Vector2 = Vector2(0.3, 0.75)
 ## On the direct rig only colliders thinner than this fade; pillars and trunks over it turn the boom in
 ## front of them, eased by the feelers.
 @export var direct_thin_extent: float = 0.25
-## Field of view added with the boom fully pressed in, degrees.
-@export_range(0.0, 20.0, 0.5) var direct_tight_fov_deg: float = 8.0
-## The view widens and narrows at this rate, so a wall snap never jumps the lens, 1/s.
-@export var direct_fov_rate: float = 4.0
-## Henry starts to turn see-through with the camera this close to his eyes, and is at direct_fade_max at the second, metres.
-@export var direct_fade_distances: Vector2 = Vector2(0.7, 0.4)
+## Henry starts to turn see-through with the camera this close to his body's axis, and is at direct_fade_max at the second, metres.
+@export var direct_fade_distances: Vector2 = Vector2(0.36, 0.22)
 ## Most of Henry the camera may fade: he stays a ghost in frame, the view never reads as first person.
 @export_range(0.0, 1.0, 0.05) var direct_fade_max: float = 0.8
 @export_group("Look")
@@ -290,7 +296,8 @@ var _last_eye_distance: float = INF
 ## FOV this camera added for a doorway; others may set the base FOV meanwhile.
 var _fov_offset: float = 0.0
 ## Field of view the direct rig adds for a pressed boom, eased.
-var _direct_fov: float = 0.0
+var _direct_side: float = 0.0
+var _direct_rise: float = 0.0
 var _behind_active: bool = false
 var _behind_yaw: float = 0.0
 ## Last rig inputs, for the body guard's prediction: pivot, orbit pitch lift (degrees).
@@ -636,31 +643,41 @@ func _update_direct_rig(delta: float) -> void:
 	_update_aim(delta)
 	frame.want = (_boom + _rig_follow.get_pullback()) * _look_up_scale(frame.view_pitch) * lerpf(1.0, aim_boom_scale, _aim) * _user_distance_scale
 	var roominess: float = clampf(inverse_lerp(near_distance, far_distance, _boom), 0.0, 1.0)
-	## Pressed by a wall (last frame's share, so it never feeds itself), the shoulder gives way to the centre.
-	var free: float = smoothstep(direct_squeeze_shares.x, direct_squeeze_shares.y, _rig_collision.get_boom_share())
-	frame.side = _shoulder.update(delta) * lerpf(tight_shoulder_fraction, 1.0, roominess) * lerpf(direct_tight_shoulder, 1.0, free) \
-			+ _lean * lean_camera_offset
-	## Pressed right up to him, the camera comes up from his shoulder joints to his eye line (0.22 m): at
-	## shoulder height a camera 0.3 m behind his eyes lost his head off the top of the frame.
-	var pressed: float = 1.0 - smoothstep(direct_eye_line_shares.x, direct_eye_line_shares.y, _rig_collision.get_boom_share())
-	var rise: float = maxf(_eye_height() - get_pivot_height(), 0.0) * pressed
-	frame.pivot += Vector3.UP * rise
+	## The shoulder is never squeezed toward the centre: Henry stands left of the view's centre in any space
+	## and the centre stays clear of him. Walls clip the offset (the shoulder sweep).
+	## It follows the boom's own length (last frame's, eased, so it cannot feed itself): the same share of
+	## the screen at 3 m and at half a metre, never so little that his body covers the centre.
+	var behind: float = _rig_collision.get_boom_share() * frame.want
+	frame.right = Vector3(cos(frame.orbit_yaw), 0.0, -sin(frame.orbit_yaw))
+	var handed: float = _shoulder.update(delta) / maxf(shoulder_offset, 0.001)
+	## Close in, the offset stops where his head would leave the frame's edge: he stays in the picture.
+	## Closer still (his back on a wall) it stays beside his head, never in it: he leaves the frame instead.
+	var clear: float = body_fade_end + 0.05
+	var floor_side: float = maxf(minf(direct_side_min, behind * direct_side_edge), sqrt(maxf(clear * clear - behind * behind, 0.0)))
+	var side_goal: float = clampf(behind * direct_side_per_metre, floor_side, shoulder_offset * direct_side_scale)
+	var room: float = _rig_collision.lateral_room(frame.safe, frame.pivot, frame.right, side_goal * signf(handed))
+	if room < side_goal - 0.001:
+		side_goal = maxf(room - 0.08, 0.0)
+	var side_rate: float = direct_side_in_rate if side_goal < _direct_side else direct_side_rate
+	_direct_side = lerpf(_direct_side, side_goal, damp(side_rate, delta)) if _has_position else side_goal
+	frame.side = handed * _direct_side + _lean * lean_camera_offset
+	## Close in, the camera also comes up from his shoulder joints toward his eye line, or his head leaves
+	## the top of the frame. Added after the walls, by the same eased length, so it cannot feed back.
+	var rise_goal: float = maxf(_eye_height() - get_pivot_height(), 0.0) * (1.0 - smoothstep(direct_rise_lengths.x, direct_rise_lengths.y, behind))
+	_direct_rise = lerpf(_direct_rise, rise_goal, damp(direct_side_rate, delta)) if _has_position else rise_goal
 	_last_pivot = frame.pivot
 	_last_lift_pitch = 0.0
 	_last_side = frame.side
 	frame.right = Vector3(cos(frame.orbit_yaw), 0.0, -sin(frame.orbit_yaw))
 	frame.back = back_dir(frame.orbit_yaw, frame.orbit_pitch)
-	_direct_fov = lerpf(_direct_fov, direct_tight_fov_deg * (1.0 - free), damp(direct_fov_rate, delta)) if _has_position else 0.0
-	_apply_fov_offset(_direct_fov)
+	_apply_fov_offset(0.0)
 	_rig_collision.apply(frame)
-	## With no room behind him the rise would stand the camera in his head: it gives the rise back to stay
-	## body_fade_end from his eyes, and his head leaves the top of the frame instead.
+	## Jammed on every side, the rise would stand the camera in his head: it is given back first.
 	var eye: Vector3 = get_eye_position()
 	var flat: float = Vector2(frame.camera.x - eye.x, frame.camera.z - eye.z).length()
-	var clear: float = body_fade_end + 0.01
-	if flat < clear and frame.camera.y <= eye.y:
-		var below: float = sqrt(clear * clear - flat * flat)
-		frame.camera.y -= clampf(below - (eye.y - frame.camera.y), 0.0, rise)
+	var keep: float = body_fade_end + 0.01
+	var lowest: float = sqrt(maxf(keep * keep - flat * flat, 0.0))
+	frame.camera.y += clampf(eye.y - lowest - frame.camera.y, 0.0, _direct_rise)
 	_has_position = true
 	_noise_time += delta
 	_sway_deg = _noise.get_noise_1d(_noise_time * 20.0) * breathing_amplitude_deg * (0.4 + tension)
@@ -810,9 +827,15 @@ func snow_floor(point: Vector3) -> float:
 ## Springs the aim push-in toward the player's aim weight.
 func _update_aim(delta: float) -> void:
 	var omega: float = TAU * aim_spring_hz
-	var pull: float = AimIntentCapability.weight(player) - _aim
-	_aim_speed += (omega * omega * pull - 2.0 * aim_spring_damping * omega * _aim_speed) * delta
-	_aim += _aim_speed * delta
+	var goal: float = AimIntentCapability.weight(player)
+	## Stepped at 120 Hz at most: one explicit step over a hitched frame (80 ms and up) blew the spring up
+	## and threw the boom out of the world.
+	var steps: int = clampi(ceili(delta * 120.0), 1, 30)
+	var step: float = minf(delta, 0.25) / float(steps)
+	for i: int in range(steps):
+		_aim_speed += (omega * omega * (goal - _aim) - 2.0 * aim_spring_damping * omega * _aim_speed) * step
+		_aim += _aim_speed * step
+	_aim = clampf(_aim, -0.25, 1.25)
 
 
 func _apply_fov_offset(offset: float) -> void:
@@ -918,11 +941,14 @@ func _update_fades(delta: float, camera: Vector3) -> void:
 		_fader.update_occluders([], delta)
 		return
 	var eye: Vector3 = get_eye_position()
-	## An authored work frame (the stove) stands close on purpose: it keeps the late fade.
-	var early: float = (1.0 - get_work_framing_blend()) if direct_rig else 0.0
-	var fade_from: float = lerpf(body_fade_start, direct_fade_distances.x, early)
-	var fade_to: float = lerpf(body_fade_end, direct_fade_distances.y, early)
-	var fade: float = clampf(inverse_lerp(fade_from, fade_to, camera.distance_to(eye)), 0.0, lerpf(1.0, direct_fade_max, early))
+	var fade: float = clampf(inverse_lerp(body_fade_start, body_fade_end, camera.distance_to(eye)), 0.0, 1.0)
+	if direct_rig:
+		## Beside him the camera sees past Henry: he fades only when it stands against his body, measured to
+		## his axis from crown to knees. An authored work frame (the stove) keeps the plain fade.
+		var crown: Vector3 = eye + Vector3.UP * 0.12
+		var near: Vector3 = Geometry3D.get_closest_point_to_segment(camera, crown, crown - Vector3.UP * 1.2)
+		var close: float = clampf(inverse_lerp(direct_fade_distances.x, direct_fade_distances.y, camera.distance_to(near)), 0.0, direct_fade_max)
+		fade = lerpf(close, fade, get_work_framing_blend())
 	_fader.update_body(fade, delta)
 	_probe.passed.clear()
 	_probe.overlaps(camera)

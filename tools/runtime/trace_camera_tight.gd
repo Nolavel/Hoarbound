@@ -153,7 +153,7 @@ func _bind() -> bool:
 	_house = shelter.get_node(^"House") as Node3D
 	_floor_y = float(shelter.interior["floor_y"])
 	_csv = FileAccess.open(_abs(_out).path_join("trace.csv"), FileAccess.WRITE)
-	_csv.store_line("spot,phase,frame,yaw_deg,view_yaw_deg,pitch,auto_yaw_deg,auto_pitch_deg,openness,boom,side,shoulder_pct,recompose,composition,lift,eye_distance,passage_blend,traversal,eye_sx,eye_sy,cam_x,cam_y,cam_z,lift_cap,shot_yaw_deg,pred_sx,pred_sy,lead_x,lead_z,vel_x,vel_z")
+	_csv.store_line("spot,phase,frame,yaw_deg,view_yaw_deg,pitch,auto_yaw_deg,auto_pitch_deg,openness,boom,side,shoulder_pct,recompose,composition,lift,eye_distance,passage_blend,traversal,eye_sx,eye_sy,cam_x,cam_y,cam_z,lift_cap,shot_yaw_deg,pred_sx,pred_sy,lead_x,lead_z,vel_x,vel_z,fade,px,py,pz")
 	return true
 
 
@@ -206,11 +206,12 @@ func _record() -> void:
 	state.merge({"spot": _spots[_spot][0], "phase": _phase, "frame": _phase_frame, "eye_sx": eye.x, "eye_sy": eye.y,
 		"cam": cam, "body_fade": _camera.get_body_fade()}, true)
 	_rows.append(state)
-	_csv.store_line("%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.2f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f" % [
+	_csv.store_line("%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.2f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f" % [
 		state.spot, state.phase, state.frame, rad_to_deg(state.yaw), rad_to_deg(state.view_yaw), state.pitch,
 		state.auto_yaw_deg, state.auto_pitch_deg, state.openness, state.boom, state.side, state.shoulder_pct,
 		state.recompose, state.composition, state.lift, state.eye_distance, state.passage_blend, state.traversal, eye.x, eye.y,
-		cam.x, cam.y, cam.z, state.lift_cap, state.shot_yaw_deg, state.shot_eye.x, state.shot_eye.y, state.lead.x, state.lead.z, _player.velocity.x, _player.velocity.z])
+		cam.x, cam.y, cam.z, state.lift_cap, state.shot_yaw_deg, state.shot_eye.x, state.shot_eye.y, state.lead.x, state.lead.z, _player.velocity.x, _player.velocity.z, _camera.get_body_fade(),
+		_player.global_position.x, _player.global_position.y, _player.global_position.z])
 
 
 ## Per spot and phase: how far boom, side and Henry's screen position travel, their largest
