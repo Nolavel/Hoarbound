@@ -316,10 +316,16 @@ func clear_target() -> void:
 
 func mark_arrived(id: String) -> bool:
 	_ensure_catalog()
+	var active_before: String = active_target_id
+	var was_visited: bool = is_visited(id)
 	if not _navigation.mark_arrived(id):
 		return false
-	_reset_proximity_feedback()
-	bearings_changed.emit()
+	## Visiting an unrelated landmark must not disturb the active bearing,
+	## radial movement trend, cooldown or ring phase for the selected goal.
+	if active_before != active_target_id:
+		_reset_proximity_feedback()
+	if not was_visited or active_before != active_target_id:
+		bearings_changed.emit()
 	return true
 
 

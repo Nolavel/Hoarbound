@@ -95,3 +95,6 @@ Minimal regression under existing `test_first_exit_bearings` checks two distinct
 
 
 **Authoring entrypoint:** `data/world/key_west/navigation/catalog.tres` is the small, editor-friendly `NavigationTargetLibrary` resource with typed references to allowed `NavigationTarget` assets. Adding an approved location means creating a `.tres` and adding its reference to the catalog via the inspector, **no GDScript changes**. Unlike a JSON list of dynamic `load()` paths, the catalog's `preload` dependency graph is visible to Godot exports. `NavigationCatalog` fails closed for duplicate IDs/roles, unmatched canonical Reality features, missing anchors or invalid threshold ordering. This is an allow-list, not an exporter of buildings or a fog-of-war generator.
+
+
+Switch/arrival isolation: `mark_arrived(id)` only clears feedback when that `id` was actively selected. A confirmed visit to a different authored place updates its `visited` flag without interrupting navigation to the current destination. The focused test also verifies the rendered marker's actual bearing changes to the second source-backed coordinate, not only its displayed label.

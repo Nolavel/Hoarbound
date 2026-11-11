@@ -254,8 +254,16 @@ func _check_navigation_registry() -> void:
 		"unchanged CompassStrip cannot render another authored target")
 	_check(bearings.active_xz().distance_to(bunker_resource.bearing_xz) < 0.01,
 		"active compass bearing still points at Fort Street")
+	var from_xz: Vector2 = Vector2(player.global_position.x, player.global_position.z)
+	var expected: float = FirstExitBearings.relative_bearing(strip._shown,
+		FirstExitBearings.bearing_of(from_xz, bunker_resource.bearing_xz))
+	_check(absf(wrapf(strip._marker_rel - expected, -PI, PI)) < 0.001,
+		"unchanged CompassStrip points to the wrong location after switch")
+	_check(bearings._proximity_initialized, "second landmark proximity not initialized")
 	_check(bearings.mark_arrived(shelter) and bearings.active_target_id == bunker,
 		"arrival at inactive shelter erased another active selection")
+	_check(bearings._proximity_initialized and bearings.active_street_label() == "Battery Osceola",
+		"unrelated landmark arrival reset selected target movement")
 	_check(bearings.is_visited(shelter) and bearings.is_known(shelter),
 		"arrival did not mark inactive location visited")
 
