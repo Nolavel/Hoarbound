@@ -5,8 +5,9 @@ extends RefCounted
 ## landmark roles. It does not load the 13k-building editor Reality index.
 ## Add authored resources here when a location is approved for navigation.
 const LANDMARKS_PATH: String = "res://data/world/key_west/reality/overrides/first_exit_landmarks.geojson"
-const MANIFEST_PATH: String = "res://data/world/key_west/navigation/catalog.json"
-const TARGET_FOLDER: String = "res://data/world/key_west/navigation/"
+## The Godot Resource catalog carries real dependency references, so a
+## selected-scene export cannot silently omit target .tres files.
+const TARGET_LIBRARY: NavigationTargetLibrary = preload("res://data/world/key_west/navigation/catalog.tres")
 
 var _by_id: Dictionary = {}
 var _id_by_role: Dictionary = {}
@@ -38,31 +39,14 @@ func ensure_loaded() -> bool:
 			return false
 		roles[role] = props
 
-	if not FileAccess.file_exists(MANIFEST_PATH):
-		push_error("NavigationCatalog: missing authored target manifest")
-		return false
-	var manifest: Variant = JSON.parse_string(FileAccess.get_file_as_string(MANIFEST_PATH))
-	if not manifest is Dictionary:
-		push_error("NavigationCatalog: invalid target manifest")
-		return false
-	var files: Variant = (manifest as Dictionary).get("targets", [])
-	if not files is Array or (files as Array).is_empty():
-		push_error("NavigationCatalog: empty or invalid targets array")
-		return false
-
 	var targets: Dictionary = {}
 	var role_ids: Dictionary = {}
-	var seen_paths: Dictionary = {}
-	for raw_path: Variant in files:
-		var path: String = String(raw_path)
-		if not path.begins_with(TARGET_FOLDER) or not path.ends_with(".tres") or seen_paths.has(path):
-			push_error("NavigationCatalog: invalid or duplicate target path: " + path)
-			return false
-		seen_paths[path] = true
-		var original: NavigationTarget = load(path) as NavigationTarget
+	for original: NavigationTarget in TARGET_LIBRARY.targets:
 		if original == null or original.id.is_empty() or original.world_role.is_empty():
-			push_error("NavigationCatalog: missing or invalid resource: " + path)
+			push_error("NavigationCatalog: null or invalid target library entry")
 			return false
+		var path: String = original.resource_path
+
 		if targets.has(original.id) or role_ids.has(original.world_role):
 			push_error("NavigationCatalog: duplicate ID/role in " + path)
 			return false
