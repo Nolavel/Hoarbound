@@ -11,6 +11,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Stone scatter no longer reads a freed pickup as a typed object during refresh; collected IDs stay collected and untaken stones can return after eviction. Added lifecycle regression to the required gate.
 - Hub carried-item rims reuse their material, focus masks track live instance IDs, and disposable item probes clear overrides before freeing. Empty readout/hand/stove requests return early; unknown nonempty catalog IDs still warn.
 
+### Added
+
+- `StepStairs` (`scripts/world/props/step_stairs.gd`): a flight of stairs Henry can walk. Visible steps are generated over one wedge collider, because `CharacterBody3D` has no step-up and a 0.17 m box step stops him. Set step count, riser, tread and width; `build_steps = false` keeps only the collider under an authored mesh. New `test_step_stairs`.
+
 ### Changed
 
 - TPS camera: a direct rig is the default (`TpsCamera.direct_rig`). The owner found the camera awkward in narrow spaces; a trace in the 727 corridor and restroom showed it rising over Henry to look down, standing inside his coat, and holding him across the frame.

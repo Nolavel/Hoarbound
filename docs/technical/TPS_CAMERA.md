@@ -76,8 +76,8 @@ Mistakes*):
 
 - **Tight places with the real Henry** (`test_tps_camera_direct_spaces`): crouched through a 1.4 m wide,
   1.45 m high crawl space with a full turn inside, and up a 31° stair ramp between walls: no frame inside or
-  behind geometry, eyes always in frame, largest step 0.08 m and 0.17 m. Box steps of 0.17 m stop Henry: stairs
-  need ramp colliders, which is a movement fact, not a camera one.
+  behind geometry, eyes always in frame, largest step 0.08 m and 0.17 m. Box steps of 0.17 m stop Henry, so a
+  flight is built with `StepStairs` (see `WORLD_ARCHITECTURE.md`).
 
 Doorway trace on the direct rig, D1 of the 727 (`test_doorway_camera_direct`), before and after the warnings:
 

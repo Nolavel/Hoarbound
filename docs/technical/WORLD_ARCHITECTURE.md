@@ -219,3 +219,21 @@ reason, and `HeatSource.get_offset_at()` guards `is_inside_tree()`.
 had been passing on a node outside the tree returning a zero transform that
 happened to equal the origin. That is luck, and it broke the moment the engine
 error behind it was guarded properly.
+
+## Stairs (`StepStairs`)
+
+`CharacterBody3D` has no step-up: a box step of 0.17 m stops Henry. A flight of stairs is therefore visible
+steps over one collider he walks as a slope, the usual technique in shipped third-person games.
+`scripts/world/props/step_stairs.gd` (`StepStairs`, a `@tool` `StaticBody3D`) builds both from four numbers:
+`step_count`, `riser`, `tread`, `width`. Its origin is the foot of the first riser and it climbs along -Z.
+
+- The collider is a convex wedge, solid to the ground, so nothing passes under or through the flight.
+- `ramp_lead` (default 0.5) places the walked slope on the steps: 0 through their inner corners, 1 through
+  the nosings. At 0.5 feet sink or float by at most half a riser.
+- The steps are one generated mesh (`step_material`); `build_steps = false` keeps only the collider under an
+  authored stair mesh. Generated nodes are internal and are not saved with the scene.
+- A flight steeper than 45° (`MovementController.max_floor_angle`) shows a configuration warning.
+
+`test_step_stairs` walks the real Henry up and down ten 0.17 x 0.28 m steps, tries the flight from the side,
+and keeps the premise honest: bare box steps must still stop him. The first-exit house's entry steps predate
+the component and carry their own hidden ramp (`tools/world/build_first_exit_blockout.gd`).
