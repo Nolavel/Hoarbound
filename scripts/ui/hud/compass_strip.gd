@@ -111,6 +111,8 @@ func _tick_marker(delta: float) -> void:
 		_have_marker = true
 		_rear_edge = 0
 		_pulse_elapsed = PULSE_DURATION_SEC
+		_text_signal_age = TREND_TEXT_SEC
+		_pulse_trend = FirstExitBearings.Trend.STABLE
 		_seen_trend_serial = _bearings.trend_serial
 	else:
 		var blend: float = 1.0 - exp(-delta / MARKER_SMOOTH_SEC)
@@ -119,6 +121,12 @@ func _tick_marker(delta: float) -> void:
 		if absf(error) > MARKER_MAX_LAG_RAD:
 			_marker_rel = wrapf(target_rel - signf(error) * MARKER_MAX_LAG_RAD, -PI, PI)
 		_marker_color = _marker_color.lerp(desired, 1.0 - exp(-delta / COLOR_SMOOTH_SEC))
+		## A target reset / teleport clears pending feedback even when the ID
+		## remains unchanged. Never keep the old direction word after reload.
+		if _bearings.trend_state == FirstExitBearings.Trend.STABLE:
+			_pulse_elapsed = PULSE_DURATION_SEC
+			_text_signal_age = TREND_TEXT_SEC
+			_pulse_trend = FirstExitBearings.Trend.STABLE
 		if _seen_trend_serial != _bearings.trend_serial:
 			_seen_trend_serial = _bearings.trend_serial
 			_pulse_trend = int(_bearings.trend_state)

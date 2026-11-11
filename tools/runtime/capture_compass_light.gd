@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Lightweight real CompassStrip capture: no Key West chunks, Vulkan, world 3D or ffmpeg.
 ## Executed only by an explicitly tagged push on codex, using the existing checks workflow.
-## Writes five 960x180 PNGs with actual production Control._draw() output.
+## Writes six 960x180 PNGs with actual production Control._draw() output.
 ## Static captures include both proximity and the transient WARMER/COLDER feedback.
 
 const OUT_SIZE := Vector2i(960, 180)
@@ -65,6 +65,8 @@ func _capture() -> void:
 		 "expected": FirstExitBearings.Proximity.WARM, "pulse": true},
 		{"file": "05_colder_ru.png", "distance": 220.0, "yaw": 0.0, "background": Color("#e6ebef"),
 		 "expected": FirstExitBearings.Proximity.WARM, "pulse": true, "moving_away": true, "ru": true},
+		{"file": "06_warmer_ru.png", "distance": 220.0, "yaw": 0.0, "background": Color("#26303a"),
+		 "expected": FirstExitBearings.Proximity.WARM, "pulse": true, "ru": true},
 	]
 	for entry: Dictionary in cases:
 		var d: float = float(entry["distance"])
@@ -100,9 +102,13 @@ func _capture() -> void:
 			if bearings.trend_state != expected_trend:
 				push_error("COMPASS_QUICK: expected movement event " + str(entry["file"]))
 				_failed = true
-			if strip._trend_text() != ("ХОЛОДНЕЕ" if is_retreat else "WARMER"):
+			var expected_text: String = ("ХОЛОДНЕЕ" if is_retreat else "ТЕПЛЕЕ") if bool(entry.get("ru", false)) else ("COLDER" if is_retreat else "WARMER")
+			if strip._trend_text() != expected_text:
 				push_error("COMPASS_QUICK: missing trend text " + str(entry["file"]))
 				_failed = true
+		elif strip._text_signal_age < CompassStrip.TREND_TEXT_SEC:
+			push_error("COMPASS_QUICK: stale trend text " + str(entry["file"]))
+			_failed = true
 		var picture: Image = viewport.get_texture().get_image()
 		if picture.is_empty() or picture.get_width() != OUT_SIZE.x:
 			push_error("COMPASS_QUICK: bad viewport image for " + str(entry["file"]))
