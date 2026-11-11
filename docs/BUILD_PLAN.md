@@ -249,10 +249,7 @@ speculative optimization.
   frame budget; only measured wins from #174 are applied.
 - **Absorbs:** #172, #174, the relevant part of #173.
 
-**Earlier checkpoint (owner 2026-11-12):** a limited Windows x64 verification build is allowed
-*before Step 9* to expose broken existing interactions and export/packaging blockers.
-It is a technical smoke candidate for a small external check, **not** the accepted,
-tagged publisher-ready vertical slice and not a reason to advance Step 9.
+**Earlier checkpoint (owner 2026-11-12):** a limited Windows x64 verification build is allowed before Step 9. **Keep the current start at 727 Fort Street** (`spawn_at_shelter=true`) until the Battery Osceola route is ready and the owner expressly approves the switch. This early candidate checks Windows export and the existing shelter interactions, repair, fire, sleep, save/reload. It does not close Step 2, #78, #134 or #80 and is not a tagged publisher-ready vertical slice.
 Checklist: `docs/playtest/FIRST_EXIT_A_WINDOWS_BUILD.md`; tracking: #42.
 
 ### 9 — Vertical-slice package
