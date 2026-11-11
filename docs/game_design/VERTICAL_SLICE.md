@@ -105,7 +105,14 @@ After the P0 loop closes, improve the slice without creating new subsystems:
 
 Prefer better placement, scale, pose, timing and feedback over broad new technology.
 
-## 7. First Exit A is done when
+## 6A. Ранний проверочный Windows-билд — не публичный vertical slice
+
+По решению автора от 12 ноября 2026 года перед массовым плейтестом нужен **первый закрытый Windows x64 билд для внешнего человека**. Цель — выяснить, запускается ли игра на чужом компьютере и работают ли **уже существующие** игровые действия как связный маршрут. Новые системы, крупный контент и маркетинговая полировка не входят в задачу.
+
+Технический preflight, экспорт и передача тестеру: [FIRST_EXIT_A_WINDOWS_BUILD.md](../playtest/FIRST_EXIT_A_WINDOWS_BUILD.md). Наблюдение за человеческим прохождением: [FIRST_EXIT_A_RUN.md](../playtest/FIRST_EXIT_A_RUN.md). Рабочий трекер: [issue #42](https://github.com/Nolavel/Hoarbound/issues/42).
+
+Это **предварительный инженерный/человеческий smoke-test**, а не доказательство готовности First Exit A, не публичная демоверсия и не планируемый позднее расширенный тест. Исходный 10–15-минутный цикл, принципы и канонический scope остаются прежними.
+
 
 - [ ] A new player completes Battery Osceola -> 727 Fort Street -> sleep/save in roughly 10–15 minutes.
 - [ ] At least two land routes are readable without a map. The compass is a bearing, not a route, and arrival at 727 clears it.

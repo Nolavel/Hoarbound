@@ -48,6 +48,11 @@ func _initialize() -> void:
 			missing += 0 if ResourceLoader.exists(chunk.content_scene_path) else 1
 		_check(missing == 0, "%d chunk scenes named by world_data.tres are not in the checkout" % missing)
 	_world = (load(SCENE) as PackedScene).instantiate() as Node3D
+	## The exported first-run candidate must not inherit a developer shortcut.
+	_check(not bool(_world.get(&"spawn_at_shelter")), "First Exit candidate does not start at Battery Osceola")
+	_check(not bool(_world.get(&"enable_runtime_debug_panel")), "runtime FPS/debug overlay is enabled")
+	_check(not bool(_world.get(&"print_runtime_debug_stats")), "runtime debug statistics print is enabled")
+	_check(not bool(_world.get(&"enable_runtime_dev_map")), "developer diorama map is enabled")
 	root.add_child(_world)
 
 

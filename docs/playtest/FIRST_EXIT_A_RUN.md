@@ -1,70 +1,56 @@
-# First Exit A — stranger playtest run (#80)
+# First Exit A — проверка человеком в настоящем Windows-билде (#42, #80)
 
-One continuous run on the integrated candidate, Graciosa, no debug, no teleport, no TestScene.
-Game time is fixed: 60 real minutes per game day, a new game starts at 12:00
-(#42), so a 10–15 minute run ends in late afternoon / dusk.
+**Статус:** сценарий для проверки. Успешное прохождение внешним игроком **не подтверждено**.
 
-Start **New Game**, not Continue from a shelter test save. Record the candidate
-commit, renderer, locale and elapsed real time before the run. Do not delete the
-author's saves. The current candidate starts at the bunker and retains all
-author-approved supplies: 33 boards, 66 nails, 12 logs (nine at the shelter), both kits,
-one flask and two pineapple tins. The historical scarcity reduction is not part
-of this candidate. Existing WeatherBeat and pickup/save systems are implemented;
-this run checks whether a stranger discovers and completes their connected flow.
+**Цель:** не оценка потенциала полной игры и не публичная демоверсия, а проверка связности **уже существующих** механик: старт → путь → взаимодействия → 727 → обустройство → согревание → сон → сохранение/загрузка. Первому внешнему участнику нужен обычный запускаемый пакет, а не проект Godot.
 
-## Before: what the observer says to the tester
+**Мир:** `scenes/world/key_west/key_west_reality.tscn`. Начало — Battery Osceola; убежище — **727 Fort Street**. Не Graciosa и не прежний демонстрационный дом. 727 содержит множество доступных для ремонта проёмов: задача игрока — сделать **нужные**, а не заколотить все. Тонкий компас может указывать на известный 727, но не строит путь.
 
-Say only this:
+## Этапы проверки
 
-> "You play Henry. Survive the first night. WASD moves; F interacts; Tab opens
-> your pack; 1–4 draws from pockets; LMB uses the held item; G puts carried wood
-> down; Esc goes back. Think aloud. I will observe without helping."
+1. **Инженерная проверка до передачи:** реальные сцена и ресурсы, автоматические тесты, запуск в standalone Windows x64, сохранение, чистый перезапуск. Подробный перечень — [FIRST_EXIT_A_WINDOWS_BUILD.md](FIRST_EXIT_A_WINDOWS_BUILD.md).
+2. **Проход автора на том же экспортированном пакете:** без редактора Godot, внутренних кнопок, телепорта и ручных вызовов методов. Любой обходной путь фиксируется как дефект, а не как успех.
+3. **Первое прохождение внешним игроком:** наблюдение без подсказок, затем разбор того, что он сам понял. Не путать с будущим массовым тестированием.
 
-Do **not** mention: tinder, boards, the shelter house, wind, the weather turn,
-sitting, the stove ring, the table, or sleep = save.
+## Перед началом
 
-## Timeline and what to watch
+Зафиксировать: commit/SHA кандидата, дату, Windows и тип GPU, разрешение экрана, рендерер, язык, свежий или существующий save, время реального прохождения. Проверить **свежую игру**: загрузка старого dev-save не считается началом First Exit. Не удалять сохранения разработчика и тестера для подготовки сценария.
 
-| Real time | Beat | Watch for | Ask after the run |
-|---|---|---|---|
-| 0:00–0:45 | Bunker, exile | Does the tester try the bunker door? Do they read "no way back"? Is the water tower a heading? | "Where were you, and why did you leave?" |
-| 0:45–2:00 | Route choice: road / shore / ruins | Which route, and did they look before choosing? | "Why that way?" |
-| 2:00–5:30 | Resources | Do they read boards / tinder / firewood as future decisions? Do they leave something behind? | "What did you not take, and why?" |
-| When 200 m from the start, or after 5 min; deferred while sheltered | Weather turn | Did the plan change: faster, less looting, a sheltered path, no going back? | "What changed when the storm came?" |
-| 5:30–7:30 | Finding the shelter among 11 lots | Did they pick it by looking (breaches, stove, mattress), or by a prompt? | "How did you know which house?" |
-| 7:00–9:00 | 4 repairable windows + operable door, boards carried three at a time | Do they discover staging, hammer/nails and camera-aimed LMB placement? Which holes do they choose first? | "Which windows did you close, and why those?" |
-| 8:00–12:00 | Stove and recovery | Light the stove (3 s held catch, 20 s development), sit, wait, dry (steam, trend marks), warm food on the ring, eat from the table. Did it read as a ritual or as a chain of F prompts? | "What were you doing by the stove?" |
-| 11:00–15:00 | Sleep → save → reload | Sleep through the mattress/bedroll. Reload the slot: picked-up loot must not return (#79), shelter, fuel, weather, bedroll and inventory must hold. | — |
+Договориться о записи экрана или о точных таймкодах замечаний. Если игра не запускается либо не предоставляет понятного входа в новую игру, это P0 до самого плейтеста.
 
-Use F on the stove: Henry walks to its door, opens it and crouches. RMB lays
-one log per press; LMB lays tinder once a log is in; release, then a new LMB
-press strikes the lighter and a 3-second hold lights it. F closes the stove. The
-fire then develops over 20 seconds. Observe hand item visibility, water remaining, knife refusal and separate
-pineapple opening/eating, G drop recovery and the protected seated meal ritual.
-Do not give these steps to the tester in advance. If they need help, record the
-timestamp, intended action, visible prompt and intervention as a failed link.
+## Что сказать человеку
 
-## Pass
+> «Это ранняя проверочная сборка. Цель — пережить первую ночь. Исследуй мир, пробуй взаимодействовать с предметами. Проговаривай, что собираешься сделать и чего ожидаешь. Я не буду подсказывать, но запишу всё, что мешает».
 
-**Pass** needs every beat to happen without the observer's help, and the
-tester's own retelling to carry this chain, in their words:
+**Не объяснять заранее:** расположение 727, маршрут, точный набор ресурсов, стадии обустройства, приёмы работы с печью, роль погодного события, смысл сна как сохранения. Управление должно быть доступно в самой игре; если без устного перечня клавиш невозможно начать, записать как UX-дефект.
 
-> "They left me outside. I chose a path because I saw its cost. I did not take
-> everything. The weather turned and made me change the plan. I found a house,
-> saw where the wind got in, closed what I could, made a fire, warmed up, dried
-> off, ate, and only then lay down. After loading, the world remembered."
+## Наблюдаемые переходы
 
-If all systems fire but this chain does not appear in the retelling, First
-Exit A is **not** done. Write one line per missing link and file it.
+| Этап | Что игрок должен реально суметь | Как понять, что связь сломана |
+| --- | --- | --- |
+| Старт / управление | Появиться у Battery Osceola, начать движение, поворачивать камеру, видеть нужный HUD, открыть/закрыть меню | Старт у 727, debug-overlay, отсутствие управления, зависание, неясная точка начала |
+| Ориентация / дорога | Понять доступные направления, увидеть известную цель на компасе, самостоятельно выбрать улицы/берег/руины | Плохая читаемость, скачущий маркер, дорога физически непроходима |
+| Поиск / подбор | Замечать предметы, брать/нести/класть, применять Quick Access/Hub и видеть, где предмет теперь находится | Подсказка есть, а действие не происходит; предмет пропадает/дублируется; инвентарь не совпадает с рукой |
+| Погодный поворот | Столкнуться с ухудшением погоды, оценить риск груза/времени/промокания | Система сработала только визуально; изменение не считывается или ломает взаимодействия |
+| Прибытие в 727 | Узнать дом, войти через дверь, пройти помещения без блокировки камерой, получить корректное состояние «внутри» | Дверь не работает, геометрия мешает, камера теряет игрока, зона тепла не определяется |
+| Подготовка | Взять доступные материалы и инструмент, осознанно выбрать проёмы, пройти размещение/ремонт и увидеть результат | Путаница F/ЛКМ, стояние не там, инструменты/материалы не используются, проём визуально/физически не меняется |
+| Печь / согревание | Достать топливо и растопку, выполнить существующую последовательность управления, увидеть тепло/расход топлива и восстановление | Неясное состояние предмета/огня, невыполнимый переход, отсутствие температурного эффекта |
+| Быт / отдых | Использовать доступные еду/воду, отдых, сон | Нет понятной точки взаимодействия или действие невозможно завершить |
+| Save / Continue | Сохраниться штатным способом, закрыть игру, снова запустить и продолжить без потери логических состояний | Потеря предметов, возврат подобранных pickups, сброс 727/печи/погоды, неправильное место спавна |
+| Повторный запуск / UI | Корректно работать после паузы, смены окна/разрешения, перезапуска приложения | Захваченный курсор, блокировка меню, микроскопические надписи, ошибка при выходе |
 
-## Failure run (second pass)
+Для каждого перехода фиксировать: **намерение → действие игрока → видимую реакцию → ожидаемую реакцию → результат**. Метка: `PASS`, `FAIL`, `NOT TESTED`. У автоматических тестов и автора — отдельная колонка, они не заменяют наблюдение постороннего.
 
-Freeze or fail the night on purpose (greed for weight, ignoring the storm,
-wrong boards). The tester must be able to say what to do differently.
+## Приоритет дефектов
 
-## Publisher frames
+- **P0 / блокер передачи:** crash, экспорт не запускается на чистом PC, неправильный старт, фатальный застревание/софтлок, недоступное необходимое взаимодействие, некорректное сохранение/загрузка, невозможность завершить основной цикл.
+- **P1 / доработка перед первым показом:** непонятный переход между действиями, исчезновение читаемости предмета/подсказки/обратной связи, камера/курсор/звук мешают прохождению, серьёзные зависания или низкий FPS на целевой машине.
+- **P2 / отдельно:** косметика, второстепенная анимация, шейдерная доводка, контент за пределами маршрута. Не превращать первую проверку в бесконечный художественный полиш.
 
-`tools/runtime/capture_first_exit_frames.gd` renders the six frames of the #80
-table (bunker and tower, route with clutter, weather turn, boarding, lit stove,
-seated with Kenny) into `user://shots/first_exit/`. They are for the capture
-checklist, not a substitute for the human run.
+Пока P0 не закрыты, попытка внешнего прохождения не доказывает работоспособность. Для P1 фиксировать частоту и влияние на понимание, не объявлять автоматически любую шероховатость блокером.
+
+## Итог проверки
+
+Отчёт: SHA билда, длительность, пройдённые этапы, P0/P1, где потребовалась помощь, какие действия игрок пытался выполнить, что он считал целью, что неожиданно поменялось из-за погоды/груза, открылся ли сохранённый мир.
+
+**Отдельно от технического PASS:** выдержал ли 10–15-минутный цикл человеческое наблюдение (#78, #134, #80). Успешный запуск .exe, зелёный CI или scripted loop **не доказывают** этого.

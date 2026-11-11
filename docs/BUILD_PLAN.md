@@ -249,6 +249,12 @@ speculative optimization.
   frame budget; only measured wins from #174 are applied.
 - **Absorbs:** #172, #174, the relevant part of #173.
 
+**Earlier checkpoint (owner 2026-11-12):** a limited Windows x64 verification build is allowed
+*before Step 9* to expose broken existing interactions and export/packaging blockers.
+It is a technical smoke candidate for a small external check, **not** the accepted,
+tagged publisher-ready vertical slice and not a reason to advance Step 9.
+Checklist: `docs/playtest/FIRST_EXIT_A_WINDOWS_BUILD.md`; tracking: #42.
+
 ### 9 — Vertical-slice package
 Produce the packaged, screenshot-able, 10–15 minute playable an outsider and the
 author can run cold. This is the first real artifact of the summer-2027 vertical

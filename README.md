@@ -41,6 +41,7 @@ The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs
 
 - [`PRD.md`](PRD.md) — product direction and current milestone
 - [`docs/game_design/VERTICAL_SLICE.md`](docs/game_design/VERTICAL_SLICE.md) — First Exit A scope contract
+- [`docs/playtest/FIRST_EXIT_A_WINDOWS_BUILD.md`](docs/playtest/FIRST_EXIT_A_WINDOWS_BUILD.md) — первый закрытый Windows-билд: подготовка, экспорт и передача тестеру (ещё не проверен)
 - [`docs/GDD.md`](docs/GDD.md) — code-grounded gameplay / systems snapshot
 - [`docs/technical/ARCHITECTURE.md`](docs/technical/ARCHITECTURE.md) — canonical technical architecture contract ([RU](docs/technical/ARCHITECTURE_RU.md))
 - [`docs/technical/GDEXTENSION.md`](docs/technical/GDEXTENSION.md) — production C++ build, CI artifact and local install workflow
