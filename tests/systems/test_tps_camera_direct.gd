@@ -1,6 +1,6 @@
 extends SceneTree
 
-## The direct rig (TpsCamera.direct_rig, the default). Henry stands in a dead-end 1.3 m wide with a wall 0.4 m
+## The TPS camera's direct rig. Henry stands in a dead-end 1.3 m wide with a wall 0.4 m
 ## behind him while the view sweeps a full circle, resting at each step:
 ## - the view is exactly the look the player set: nothing turns or tilts it, at rest or pressed;
 ## - the camera stands behind that view, never lifted over Henry to look down on him;
@@ -69,7 +69,6 @@ func _build() -> void:
 	_camera.player = _player
 	_camera.origin_above_feet = 0.0
 	root.add_child(_camera)
-	_check(_camera.direct_rig, "the direct rig is not the default")
 	_camera.set_look(0.0, PITCH_DEG)
 	var traversal := PassageTraversalComponent.new()
 	_check(not traversal.carry_through, "a doorway carries Henry on by default")

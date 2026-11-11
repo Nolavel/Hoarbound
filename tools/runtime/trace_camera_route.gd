@@ -187,13 +187,13 @@ func _record() -> void:
 	var row: Dictionary = {"leg": LEGS[_leg][0], "phase": _phase, "frame": _phase_frame, "eye_sx": eye.x, "eye_sy": eye.y,
 		"eye_in": eye_in, "body_fade": float(state.get("body_fade", _camera.get_body_fade())), "cam_step": step,
 		"wall_share": _wall_share(size), "body_share": _body_share(size), "mouse_dev_deg": dev, "pitch": float(state.pitch), "boom": float(state.boom),
-		"side": float(state.side), "lift": float(state.lift), "room": str(state.get("room", ""))}
+		"side": float(state.side), "lift": float(float(state.get("lift", 0.0))), "room": float(state.get("room", 0.0))}
 	_rows.append(row)
 	_csv.store_line("%s,%s,%d,%.4f,%.4f,%d,%.3f,%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.3f,%s,%.6f,%.6f,%.6f,%.6f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.3f,%.1f" % [row.leg, row.phase, row.frame,
 		row.eye_sx, row.eye_sy, int(eye_in), row.body_fade, step, row.wall_share, row.body_share, dev, row.pitch, row.boom, row.side,
-		row.lift, row.room, cam.x, cam.y, cam.z, float(state.view_yaw), _camera.fov, float(state.recompose),
-		float(state.composition), float(state.swap), float(state.shoulder_pct), float(state.boom_share),
-		float(state.passage_blend), float(state.passage_x), float(state.passage_side)])
+		float(row.get("lift", 0.0)), float(row.get("room", 0.0)), cam.x, cam.y, cam.z, float(state.view_yaw), _camera.fov, float(float(state.get("recompose", 0.0))),
+		float(float(state.get("composition", 0.0))), float(float(state.get("swap", 0.0))), float(state.shoulder_pct), float(state.boom_share),
+		float(float(state.get("passage_blend", 0.0))), float(state.get("passage_x", 0.0)), float(state.get("passage_side", 0.0))])
 
 
 ## Share of a screen grid whose rays hit geometry within WALL_NEAR_M of the lens; Henry is excluded.

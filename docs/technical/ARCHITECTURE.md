@@ -241,7 +241,7 @@ Camera behaviour should have one final owner and one ordered pipeline:
 
 `Player intent -> Base camera target -> Context modifiers -> Collision / occlusion -> Presentation smoothing -> Final camera`
 
-Shoulder state, passage framing, interaction framing, auto-look and similar behaviours should become modifiers or inputs to that pipeline rather than independent systems competing to move the camera.
+Shoulder state, interaction framing and similar behaviours are modifiers or inputs to that pipeline rather than independent systems competing to move the camera. The live TPS camera is the direct rig (`docs/technical/TPS_CAMERA.md`); the guided rig with passage framing and auto-look is archived in `archive/tps_camera_guided/`.
 
 Multiple subsystems must not independently own the final camera transform.
 

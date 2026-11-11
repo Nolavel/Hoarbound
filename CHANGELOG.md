@@ -17,6 +17,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- TPS camera after the owner's play test of the direct rig (2026-11-11):
+  - Henry stands left of the centre in every space: the shoulder offset now follows the boom's length (0.4 m per metre) instead of being squeezed toward the centre when pressed. His chest holds about 0.35 of a 16:9 frame's width in the open, a 1.5 m corridor and a 3 m room. New `test_tps_camera_framing`.
+  - He turns see-through only with the camera jammed against him. The fade is measured from 0.36 m to his body's axis instead of from 0.7 m to his eyes: beside him the camera sees past him and he stays solid.
+  - Less pumping against walls: no lens widening by boom length, a shortened boom holds 0.35 s and eases out over 0.6 s, the shoulder's sideways room is read ahead so a jamb closes it in before it cuts it, and lead sweeps start 0.1 m off a wall Henry walks at (they started in contact with it and read no room).
+  - Fixed: right mouse with a stone in hand could throw the camera metres away. The aim spring's explicit step is unstable over a frame longer than 73 ms; it is now stepped at 120 Hz. New `test_tps_camera_hitch`.
+  - The guided rig (lift, swing, auto-look, doorway framing, auto shoulder swap, recompose, composition, body guard) is moved whole to `archive/tps_camera_guided/` with its tests and design record; `TpsCamera` is the direct rig only (1143 -> 675 lines). `test_passage_traversal` now guards `PassageTraversalComponent` alone; `test_doorway_camera` is the direct suite at fixed 60 fps.
+
 - TPS camera: a direct rig is the default (`TpsCamera.direct_rig`). The owner found the camera awkward in narrow spaces; a trace in the 727 corridor and restroom showed it rising over Henry to look down, standing inside his coat, and holding him across the frame.
   - The camera always stands behind the view and only the mouse turns the view. No lift over the shoulder, no swing round Henry, no auto-look, no recentre behind a walking Henry (owner's call), no view tilt.
   - Walls only shorten the boom. The shoulder squeezes and the lens widens up to 8° as the boom is pressed. A close Henry turns see-through (to 80 % at most) instead of the camera climbing. The mouse is never slowed near him.

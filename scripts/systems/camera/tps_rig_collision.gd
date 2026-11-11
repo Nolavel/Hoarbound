@@ -1,14 +1,11 @@
 class_name TpsRigCollision
 extends TpsRigBehaviour
 
-## Walls on the boom, Lyra's way: the shoulder leg and the centre sweep snap in, feelers
-## ease in, any release eases back out, and a camera left inside a body is pulled out.
+## Walls on the boom, Lyra's way: the shoulder leg and the centre sweep snap in, feelers and leads
+## ease in, a release holds and then eases back out, and a camera left inside a body is pulled out.
 
-## Lyra's soft feelers around the boom: yaw and pitch offsets (degrees), weight.
-const FEELERS: Array = [[16.0, 0.0, 0.75], [-16.0, 0.0, 0.75], [32.0, 0.0, 0.5], [-32.0, 0.0, 0.5],
-	[0.0, 20.0, 1.0], [0.0, -20.0, 0.5]]
-
-## The direct rig's feelers: sphere sweeps like the boom's own, so they meet a jamb edge before it does.
+## Feelers round the boom: yaw and pitch offsets (degrees), weight. Sphere sweeps like the boom's own, so
+## they meet a jamb edge before it does.
 const DIRECT_FEELERS: Array = [[7.0, 0.0, 1.0], [-7.0, 0.0, 1.0], [16.0, 0.0, 0.6], [-16.0, 0.0, 0.6],
 	[32.0, 0.0, 0.25], [-32.0, 0.0, 0.25], [0.0, 10.0, 1.0], [0.0, -10.0, 1.0], [0.0, 22.0, 0.6], [0.0, -22.0, 0.6]]
 
@@ -23,8 +20,6 @@ const MAX_LEAD_TURN: float = 0.8
 ## Share of the shoulder leg and of the boom the walls leave, eased.
 var _shoulder_pct: float = 1.0
 var _dist_pct: float = 1.0
-## Free length of the centre sweep last frame.
-var _boom_room: float = INF
 ## Seconds left before a shortened direct boom may lengthen again.
 var _out_hold: float = 0.0
 var _last_shoulder: Vector3 = Vector3.INF
@@ -50,10 +45,6 @@ func get_boom_share() -> float:
 	return _dist_pct
 
 
-func get_boom_room() -> float:
-	return _boom_room
-
-
 ## Places frame.shoulder and frame.camera with walls applied.
 func apply(frame: TpsRigFrame) -> void:
 	frame.shoulder = _sweep_shoulder(frame.delta, frame.safe, frame.pivot + frame.right * frame.side)
@@ -69,19 +60,16 @@ func apply(frame: TpsRigFrame) -> void:
 ## it in, and any release eases it back out. Returns the share of `want` kept.
 func _blend_boom(delta: float, shoulder: Vector3, back: Vector3, want: float) -> float:
 	var shares: Vector3 = target_shares(shoulder, back, want)
-	_boom_room = shares.z
 	var hard_pct: float = shares.x
-	var soft_pct: float = minf(shares.y, _foresee(delta, shoulder, back, want)) if rig.direct_rig else shares.y
+	var soft_pct: float = minf(shares.y, _foresee(delta, shoulder, back, want))
 	var this_frame: float = minf(hard_pct, soft_pct)
 	if not rig.is_placed():
 		_dist_pct = this_frame
 	elif _dist_pct < this_frame:
-		## The direct rig waits before it lets the boom back out, and lets it out slowly: a camera that
-		## springs out the moment a wall clears pumps in and out all the way round a room.
+		## It waits before it lets the boom back out, and lets it out slowly: a camera that springs out the
+		## moment a wall clears pumps in and out all the way round a room.
 		_out_hold = maxf(_out_hold - delta, 0.0)
-		if not rig.direct_rig:
-			_dist_pct = lerpf(_dist_pct, this_frame, TpsCamera.damp(1.0 / rig.blend_out_time, delta))
-		elif _out_hold <= 0.0:
+		if _out_hold <= 0.0:
 			_dist_pct = lerpf(_dist_pct, this_frame, TpsCamera.damp(1.0 / rig.direct_out_time, delta))
 	else:
 		_out_hold = rig.direct_out_hold
@@ -158,16 +146,11 @@ func target_shares(shoulder: Vector3, back: Vector3, want: float) -> Vector3:
 	var hard_pct: float = clampf((room - rig.collision_surface_margin) / want, min_pct, 1.0)
 	var soft_pct: float = 1.0
 	var right: Vector3 = back.cross(Vector3.UP).normalized()
-	var direct: bool = rig.direct_rig
-	for feeler: Array in (DIRECT_FEELERS if direct else FEELERS):
+	for feeler: Array in DIRECT_FEELERS:
 		var dir: Vector3 = back.rotated(Vector3.UP, deg_to_rad(feeler[0]))
 		if right.length_squared() > 0.0:
 			dir = dir.rotated(right, deg_to_rad(feeler[1]))
-		var hit: float = 0.0
-		if direct:
-			hit = clampf((probe.sweep(shoulder, dir * want) - rig.collision_surface_margin) / want, 0.0, 1.0)
-		else:
-			hit = probe.ray(shoulder, dir * want) / want
+		var hit: float = clampf((probe.sweep(shoulder, dir * want) - rig.collision_surface_margin) / want, 0.0, 1.0)
 		soft_pct = minf(soft_pct, hit + (1.0 - hit) * (1.0 - float(feeler[2])))
 	return Vector3(hard_pct, maxf(soft_pct, min_pct), room)
 
@@ -184,5 +167,5 @@ func _sweep_shoulder(delta: float, safe: Vector3, goal: Vector3) -> Vector3:
 	if not rig.is_placed() or pct < _shoulder_pct:
 		_shoulder_pct = pct
 	else:
-		_shoulder_pct = lerpf(_shoulder_pct, pct, TpsCamera.damp(1.0 / (rig.direct_out_time if rig.direct_rig else rig.blend_out_time), delta))
+		_shoulder_pct = lerpf(_shoulder_pct, pct, TpsCamera.damp(1.0 / rig.direct_out_time, delta))
 	return safe + leg * _shoulder_pct

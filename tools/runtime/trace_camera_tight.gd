@@ -135,7 +135,7 @@ func _process(_delta: float) -> bool:
 	if _phase == "walk" and _phase_frame % 10 == 0:
 		var st: Dictionary = _camera.get_debug_state()
 		print("camera trace: walk %d own=%.2f other=%.2f swap=%.2f passage=%.2f side=%.2f" % [_phase_frame,
-			st.get("swap_own", 0.0), st.get("swap_other", 0.0), st.get("swap", 0.0), st.passage_blend, st.side])
+			st.get("swap_own", 0.0), st.get("swap_other", 0.0), st.get("swap", 0.0), float(st.get("passage_blend", 0.0)), st.side])
 	if _spot >= _spots.size():
 		_finish()
 		return true
@@ -208,9 +208,9 @@ func _record() -> void:
 	_rows.append(state)
 	_csv.store_line("%s,%s,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f,%.2f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.3f,%.3f,%.3f,%.3f" % [
 		state.spot, state.phase, state.frame, rad_to_deg(state.yaw), rad_to_deg(state.view_yaw), state.pitch,
-		state.auto_yaw_deg, state.auto_pitch_deg, state.openness, state.boom, state.side, state.shoulder_pct,
-		state.recompose, state.composition, state.lift, state.eye_distance, state.passage_blend, state.traversal, eye.x, eye.y,
-		cam.x, cam.y, cam.z, state.lift_cap, state.shot_yaw_deg, state.shot_eye.x, state.shot_eye.y, state.lead.x, state.lead.z, _player.velocity.x, _player.velocity.z, _camera.get_body_fade(),
+		float(state.get("auto_yaw_deg", 0.0)), float(state.get("auto_pitch_deg", 0.0)), state.openness, state.boom, state.side, state.shoulder_pct,
+		float(state.get("recompose", 0.0)), float(state.get("composition", 0.0)), float(state.get("lift", 0.0)), state.eye_distance, float(state.get("passage_blend", 0.0)), float(state.get("traversal", 0.0)), eye.x, eye.y,
+		cam.x, cam.y, cam.z, float(state.get("lift_cap", 0.0)), float(state.get("shot_yaw_deg", 0.0)), 0.0, 0.0, state.lead.x, state.lead.z, _player.velocity.x, _player.velocity.z, _camera.get_body_fade(),
 		_player.global_position.x, _player.global_position.y, _player.global_position.z])
 
 
@@ -226,7 +226,7 @@ func _finish() -> void:
 	for key: String in groups:
 		var rows: Array = groups[key]
 		var sum: Dictionary = {"frames": rows.size()}
-		for field: String in ["boom", "side", "composition", "lift", "eye_sx", "eye_sy", "openness"]:
+		for field: String in ["boom", "side", "eye_sx", "eye_sy", "openness"]:
 			var lo: float = INF
 			var hi: float = -INF
 			var jump: float = 0.0
@@ -240,8 +240,8 @@ func _finish() -> void:
 		var flips: int = 0
 		var auto_max: float = 0.0
 		for i: int in range(rows.size()):
-			auto_max = maxf(auto_max, maxf(absf(float(rows[i].auto_yaw_deg)), absf(float(rows[i].auto_pitch_deg))))
-			if i > 0 and (float(rows[i].recompose) > 0.5) != (float(rows[i - 1].recompose) > 0.5):
+			auto_max = maxf(auto_max, maxf(absf(float(float(rows[i].get("auto_yaw_deg", 0.0)))), absf(float(float(rows[i].get("auto_pitch_deg", 0.0))))))
+			if i > 0 and (float(float(rows[i].get("recompose", 0.0))) > 0.5) != (float(float(rows[i - 1].get("recompose", 0.0))) > 0.5):
 				flips += 1
 		sum["recompose_flips"] = flips
 		var off: int = 0
