@@ -12,22 +12,37 @@ const SMOOTH_SEC: float = 0.08
 const CARDINALS: PackedStringArray = ["N", "E", "S", "W"]
 ## Contrast tested against white snow and the dim 727 interior: warm, not blue.
 const INK: Color = Color(0.95, 0.92, 0.86, 1.0)
-const OCHRE: Color = Color(0.87, 0.57, 0.20, 1.0)
-const COLD_COLOR: Color = Color(0.537, 0.600, 0.627, 1.0) #8999A0
-const WARM_COLOR: Color = Color(0.788, 0.627, 0.373, 1.0) #C9A05F
-const HOT_COLOR: Color = Color(0.871, 0.475, 0.314, 1.0) #DE7950
+## Use Hoarbound's committed font assets, not an arbitrary OS font.
+## All project fonts are Latin-only (see cmap); RU uses engine Cyrillic fallback
+## until a Cyrillic-capable art font is actually added to the asset library.
+const HEADING_FONT: Font = preload("res://assets/fonts/IM Fell English SC/IMFellEnglishSC-Regular.ttf")
+const PROXIMITY_FONT: Font = preload("res://assets/fonts/Averia Libre _ Averia Gruesa Libre _ Averia Serif Libre _ Averia Sans Libre/AveriaLibre-Bold.ttf")
+const SIGNAL_FONT: Font = preload("res://assets/fonts/Special Elite/SpecialElite-Regular.ttf")
+
+## Cooler mineral chalk / mellow honey / restrained copper, not warning-red.
+const COLD_COLOR: Color = Color("#B2C1BF")
+const WARM_COLOR: Color = Color("#E1B777")
+const HOT_COLOR: Color = Color("#F0A177")
 const MARKER_SMOOTH_SEC: float = 0.22
 const MARKER_MAX_LAG_RAD: float = PI * 8.0 / 180.0
 const REAR_LOCK_RAD: float = PI * 8.0 / 180.0
 const COLOR_SMOOTH_SEC: float = 0.5
-const PULSE_DURATION_SEC: float = 0.65
+const PULSE_DURATION_SEC: float = 0.95
+const TREND_TEXT_SEC: float = 2.5
+const RING_EXPAND_SEC: float = 1.25
+const RING_EVENT_SEC: float = 0.95
+const COLD_RHYTHM_SEC: float = 5.8
+const WARM_RHYTHM_SEC: float = 3.8
+const HOT_RHYTHM_SEC: float = 2.6
 
 var _camera: Camera3D
 var _player: Node3D
 var _bearings: FirstExitBearings
 var _shown: float = 0.0
 var _have_bearing: bool = false
-var _font: Font
+var _ambient_clock: float = 0.0
+var _text_signal_age: float = TREND_TEXT_SEC
+var _last_proximity: int = -1
 var _marker_rel: float = 0.0
 var _have_marker: bool = false
 var _marker_target_id: String = ""
@@ -52,6 +67,9 @@ func on_world_ready(context: WorldContext) -> void:
 	_have_marker = false
 	_marker_target_id = ""
 	_rear_edge = 0
+	_ambient_clock = 0.0
+	_text_signal_age = TREND_TEXT_SEC
+	_last_proximity = -1
 
 
 func _process(delta: float) -> void:
@@ -74,12 +92,18 @@ func _tick_marker(delta: float) -> void:
 		_marker_target_id = ""
 		_rear_edge = 0
 		_pulse_elapsed = PULSE_DURATION_SEC
+		_text_signal_age = TREND_TEXT_SEC
+		_last_proximity = -1
 		return
 	var from := Vector2(_player.global_position.x, _player.global_position.z)
 	var target_rel: float = FirstExitBearings.relative_bearing(
 		_shown, FirstExitBearings.bearing_of(from, _bearings.active_xz())
 	)
-	var desired: Color = _proximity_color(int(_bearings.proximity_state))
+	var proximity: int = int(_bearings.proximity_state)
+	var desired: Color = _proximity_color(proximity)
+	if proximity != _last_proximity:
+		_last_proximity = proximity
+		_ambient_clock = 0.0
 	if not _have_marker or _marker_target_id != _bearings.active_target_id:
 		_marker_target_id = _bearings.active_target_id
 		_marker_rel = target_rel
@@ -99,7 +123,10 @@ func _tick_marker(delta: float) -> void:
 			_seen_trend_serial = _bearings.trend_serial
 			_pulse_trend = int(_bearings.trend_state)
 			_pulse_elapsed = 0.0
+			_text_signal_age = 0.0
 	_pulse_elapsed = minf(PULSE_DURATION_SEC, _pulse_elapsed + delta)
+	_text_signal_age = minf(TREND_TEXT_SEC, _text_signal_age + delta)
+	_ambient_clock += delta
 	## Keep an off-strip side stable at +/-180 degrees (target exactly behind).
 	if absf(_marker_rel) < PI - REAR_LOCK_RAD:
 		_rear_edge = -1 if _marker_rel < 0.0 else 1
@@ -125,6 +152,24 @@ func _proximity_text() -> String:
 		FirstExitBearings.Proximity.HOT:
 			return "ГОРЯЧО" if ru else "HOT"
 	return "ХОЛОДНО" if ru else "COLD"
+
+
+func _trend_text() -> String:
+	if _pulse_trend == FirstExitBearings.Trend.STABLE:
+		return ""
+	var ru: bool = TranslationServer.get_locale().begins_with("ru")
+	if _pulse_trend == FirstExitBearings.Trend.APPROACHING:
+		return "ТЕПЛЕЕ" if ru else "WARMER"
+	return "ХОЛОДНЕЕ" if ru else "COLDER"
+
+
+func _rhythm_sec() -> float:
+	match _bearings.proximity_state:
+		FirstExitBearings.Proximity.WARM:
+			return WARM_RHYTHM_SEC
+		FirstExitBearings.Proximity.HOT:
+			return HOT_RHYTHM_SEC
+	return COLD_RHYTHM_SEC
 
 
 func _pulse_scale() -> float:
@@ -170,6 +215,26 @@ func _draw_wash(x: float, width: float, top: float, height: float) -> void:
 	]), PackedColorArray([center, edge, edge, center]))
 
 
+func _draw_waves(mid: Vector2, color: Color) -> void:
+	## A ring briefly blooms and vanishes, cadence depends on proximity.
+	## With no movement, the quiet periodic heartbeat continues; movement
+	## adds a stronger one-shot ring whose direction encodes the trend.
+	var rhythm: float = _rhythm_sec()
+	var ambient_age: float = fposmod(_ambient_clock, rhythm)
+	if ambient_age < RING_EXPAND_SEC:
+		var t: float = ambient_age / RING_EXPAND_SEC
+		var halo_color: Color = color
+		halo_color.a = 0.34 * pow(1.0 - t, 1.9)
+		draw_arc(mid, lerpf(9.0, 24.0, t), 0.0, TAU, 48, halo_color, 1.3, true)
+	if _pulse_elapsed < RING_EVENT_SEC:
+		var p: float = _pulse_elapsed / RING_EVENT_SEC
+		var moving_away: bool = _pulse_trend == FirstExitBearings.Trend.MOVING_AWAY
+		var radius: float = lerpf(21.0, 8.5, p) if moving_away else lerpf(8.5, 27.0, p)
+		var event_color: Color = color
+		event_color.a = 0.72 * pow(1.0 - p, 1.4)
+		draw_arc(mid, radius, 0.0, TAU, 56, event_color, 2.0 - 0.8 * p, true)
+
+
 func _draw_tape(x0: float, width: float, base_y: float, slot: Dictionary) -> void:
 	var half: float = FirstExitBearings.HALF_ARC_RAD
 	var first: int = int(ceil((_shown - half) / TICK_STEP))
@@ -207,42 +272,79 @@ func _draw_marker(x0: float, width: float, base_y: float, slot: Dictionary) -> v
 	var on_strip: bool = bool(slot["on_strip"])
 	var color: Color = _marker_color
 	var scale: float = _pulse_scale()
-	var x: float
-	if on_strip:
-		x = _x_of(x0, width, float(slot["u"]))
-		var mid := Vector2(x, base_y - 8.0)
-		var size: float = 4.0 * scale
-		var dark := PackedVector2Array([
-			mid + Vector2(0.0, -size - 1.5), mid + Vector2(size + 1.5, 0.0),
-			mid + Vector2(0.0, size + 1.5), mid + Vector2(-size - 1.5, 0.0),
-		])
-		var pigment := PackedVector2Array([
-			mid + Vector2(0.0, -size), mid + Vector2(size, 0.0),
-			mid + Vector2(0.0, size), mid + Vector2(-size, 0.0),
-		])
-		draw_colored_polygon(dark, Color(0.04, 0.03, 0.02, 0.85))
-		draw_colored_polygon(pigment, color)
-	else:
+	var x: float = _x_of(x0, width, float(slot["u"])) if on_strip else (
+		x0 + 15.0 if int(slot["edge"]) < 0 else x0 + width - 15.0
+	)
+	var mid := Vector2(x, base_y - 7.0)
+
+	## Three translucent ink layers, not a flat polygon / warning beacon.
+	## This halo makes the marker legible on pale snow and in dark interiors.
+	var haze: Color = color
+	haze.a = 0.055
+	draw_circle(mid, 16.0 * scale, haze)
+	haze.a = 0.13
+	draw_circle(mid, 11.0 * scale, haze)
+	draw_circle(mid, 8.0 * scale, Color(0.045, 0.05, 0.055, 0.8))
+	_draw_waves(mid, color)
+	var line: Color = color
+	line.a = 0.90
+	draw_arc(mid, 7.5 * scale, 0.0, TAU, 40, line, 1.8, true)
+	var center: Color = color
+	center.a = 0.94
+	draw_circle(mid, 2.5 * scale, center)
+
+	if not on_strip:
+		## Keep the existing off-strip direction semantics: short outward
+		## chevron next to the ring, not a misleading compass-independent dot.
 		var edge: int = int(slot["edge"])
-		x = x0 + 6.0 if edge < 0 else x0 + width - 6.0
-		var wing: float = (10.0 if edge < 0 else -10.0) * scale
-		var tip := Vector2(x, base_y - 8.0)
+		var tip_x: float = x - 11.0 if edge < 0 else x + 11.0
+		var wing: float = 6.5 if edge < 0 else -6.5
+		var tip := Vector2(tip_x, mid.y)
 		var chevron := PackedVector2Array([
-			tip + Vector2(wing, -6.0 * scale), tip,
-			tip + Vector2(wing, 6.0 * scale),
+			tip + Vector2(wing, -4.2), tip, tip + Vector2(wing, 4.2),
 		])
-		draw_polyline(chevron, Color(0.04, 0.03, 0.02, 0.85), 4.0)
-		draw_polyline(chevron, color, 2.0)
+		draw_polyline(chevron, Color(0.04, 0.04, 0.04, 0.80), 3.5)
+		draw_polyline(chevron, color, 1.5, true)
+
+	## Hoarbound typography hierarchy: old-style serif identifier,
+	## heavier hand-worn proximity, quieter transient search feedback.
 	var label: String = _bearings.active_label()
-	var size_label: int = 18
-	var label_width: float = _text_width(label, size_label)
-	var label_x: float = clampf(x - label_width * 0.5, x0 + 4.0, x0 + width - label_width - 4.0)
-	_text(label, Vector2(label_x, base_y - 22.0), size_label, color)
-	var proximity_text: String = _proximity_text()
-	var size_text: int = 14
-	var text_width: float = _text_width(proximity_text, size_text)
-	var text_x: float = clampf(x - text_width * 0.5, x0 + 4.0, x0 + width - text_width - 4.0)
-	_text(proximity_text, Vector2(text_x, base_y + 24.0), size_text, color)
+	_marker_text(label, Vector2(x, base_y - 30.0), 21, color, 0)
+	var proximity: String = _proximity_text()
+	_marker_text(proximity, Vector2(x, base_y + 29.0), 16, color, 1)
+	if _text_signal_age < TREND_TEXT_SEC:
+		var signal: String = _trend_text()
+		if signal != "":
+			var fade: float = 1.0
+			if _text_signal_age > TREND_TEXT_SEC - 0.65:
+				fade = (TREND_TEXT_SEC - _text_signal_age) / 0.65
+			var signal_color: Color = color
+			signal_color.a *= 0.96 * clampf(fade, 0.0, 1.0)
+			_marker_text(signal, Vector2(x, base_y + 48.0), 15, signal_color, 2)
+
+
+func _marker_text(value: String, mid: Vector2, font_px: int, color: Color, style: int) -> void:
+	var font: Font = _font_for(value, style)
+	var text_w: float = font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x
+	var x0: float = (get_viewport_rect().size.x - minf(STRIP_WIDTH, get_viewport_rect().size.x * 0.62)) * 0.5
+	var width: float = minf(STRIP_WIDTH, get_viewport_rect().size.x * 0.62)
+	var left: float = clampf(mid.x - text_w * 0.5, x0 + 7.0, x0 + width - text_w - 7.0)
+	var at := Vector2(left, mid.y)
+	draw_string_outline(font, at, value, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px,
+		3, Color(0.035, 0.040, 0.044, color.a * 0.93))
+	draw_string(font, at, value, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px, color)
+
+
+func _font_for(value: String, style: int) -> Font:
+	if style == 0:
+		return HEADING_FONT
+	## All of the project's authored font files are Latin-only. Do not render
+	## missing Cyrillic glyphs as squares. Native fallback is temporary.
+	if TranslationServer.get_locale().begins_with("ru"):
+		return ThemeDB.fallback_font
+	if style == 2:
+		return SIGNAL_FONT
+	return PROXIMITY_FONT
 
 
 func _x_of(x0: float, width: float, u: float) -> float:
@@ -250,11 +352,7 @@ func _x_of(x0: float, width: float, u: float) -> float:
 
 
 func _ui_font() -> Font:
-	if _font == null:
-		var system := SystemFont.new()
-		system.font_names = PackedStringArray(["DejaVu Sans", "Liberation Sans", "sans-serif"])
-		_font = system
-	return _font
+	return HEADING_FONT
 
 
 func _text(text: String, at: Vector2, size: int, color: Color) -> void:

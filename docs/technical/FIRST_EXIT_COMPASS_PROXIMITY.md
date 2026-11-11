@@ -53,3 +53,14 @@ Reject if the marker feels like a GPS route; a word implies exact entrance; a br
 ## Branch integration note
 
 The persistent `codex` branch had diverged significantly from `main` before this work. For a **focused main PR**, the integration commit uses the latest `main` tree plus only the compass files/docs/tests. The previous codex tip remains a parent of that merge commit and its experimental history is recoverable; historic experimental file changes are **not promoted to main** or included in the new branch tip. This baseline reconciliation must be explicitly inspected before merging any later codex experiments.
+
+
+## Artistic revision, owner feedback (2026-11-11)
+
+The initial marker was visually rejected as flat and lacking the movement words. The replacement UI has **two simultaneous text channels**: always-visible proximity (COLD / WARM / HOT; RU ХОЛОДНО / ТЕПЛО / ГОРЯЧО), plus a 2.5-second transient movement word on actual progress (WARMER / COLDER; RU ТЕПЛЕЕ / ХОЛОДНЕЕ), independent of the persistent proximity band. Progress is still based on >=8 m movement and 6 s cooldown.
+
+The central marker is now a small drawn circle with an ink-outline and dot, a faint soft halo, **periodic expanding/fading ring** (cold period 5.8 s, warm 3.8 s, hot 2.6 s) and one-shot outward approach / inward retreat ripples. Off-strip direction remains a clear chevron beside the circle. No perpetual attention-grabbing scale pumping. Color palette moved from muted grey to higher-contrast mineral chalk `#B2C1BF`, honey `#E1B777` and warm copper `#F0A177`, avoiding status-danger red.
+
+Typography: `IMFellEnglishSC-Regular.ttf` (project default) for 727/cardinals, `AveriaLibre-Bold.ttf` for English proximity, `SpecialElite-Regular.ttf` for English movement feedback. The fonts in `assets/fonts` are **Latin-only** (verified cmap), so a temporary engine fallback draws Cyrillic, rather than rendering missing glyph boxes. Follow-up artwork can supply a native Cyrillic-capable companion if Russian becomes a shipping locale.
+
+Quick visual gate produces five cheap real Godot Control PNGs, including a Russian `ХОЛОДНЕЕ` retreat case, plus focused headless tests; it does not verify full-world visibility or motion feel. Claude remains responsible for production scene acceptance.
