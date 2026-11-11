@@ -13,10 +13,9 @@ world_profile = ExtResource("2_profile")
 stream_container = NodePath("StreamContainer")
 player = NodePath("Player")
 camera = NodePath("PlayerCamera")
-spawn_at_shelter = false
-enable_runtime_debug_panel = false
-print_runtime_debug_stats = false
-enable_runtime_dev_map = false
+spawn_at_shelter = true
+print_runtime_debug_stats = true
+enable_runtime_dev_map = true
 
 [node name="StartupTitleCard" parent="." unique_id=4800439 instance=ExtResource("7_startup")]
 
