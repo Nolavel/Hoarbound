@@ -4,6 +4,7 @@ extends SceneTree
 ## Executed only by an explicitly tagged push on codex, using the existing checks workflow.
 ## Writes six 960x180 PNGs with actual production Control._draw() output.
 ## Each capture shows exactly one status word (absolute or movement).
+## Also captures a 7.5-second real UI-only sequence for the identity animation.
 
 const OUT_SIZE := Vector2i(960, 180)
 var _failed: bool = false
@@ -122,9 +123,55 @@ func _capture() -> void:
 			print("COMPASS_QUICK_PNG: ", png, " state=", int(bearings.proximity_state),
 				" trend=", int(bearings.trend_state), " bytes=", FileAccess.get_file_as_bytes(png).size())
 
+	if not _failed:
+		await _capture_identity_loop(viewport, backdrop, strip, player, camera, bearings, target, out_dir)
 	if _failed:
 		push_error("COMPASS_QUICK_CAPTURE: FAIL")
 		quit(1)
 	else:
 		print("COMPASS_QUICK_CAPTURE: PASS")
 		quit(0)
+
+
+## Same live Control, isolated background, fixed simulation steps. No mocked
+## drawing and no 3D world. Frames are cropped from the actual viewport.
+func _capture_identity_loop(viewport: SubViewport, backdrop: ColorRect, strip: CompassStrip,
+		player: Node3D, camera: Camera3D, bearings: FirstExitBearings, target: Vector2, out_dir: String) -> void:
+	TranslationServer.set_locale("ru")
+	backdrop.color = Color("#26303a")
+	player.global_position = Vector3(target.x, 0.0, target.y + 160.0)
+	camera.rotation.y = 0.0
+	bearings._reset_proximity_feedback()
+	bearings._sample_distance(160.0, 0.25)
+	strip._have_marker = false
+	strip._have_bearing = false
+	strip.set_process(false)
+	strip._process(0.0)
+	var frame_dir: String = out_dir.path_join("identity_frames")
+	DirAccess.make_dir_recursive_absolute(frame_dir)
+	var saw_house: bool = false
+	var saw_street: bool = false
+	var saw_return: bool = false
+	for i: int in 90:
+		strip._process(1.0 / 12.0)
+		if strip._identity_is_street() and strip._identity_opacity() > 0.99:
+			saw_street = true
+		elif not strip._identity_is_street() and strip._identity_opacity() > 0.99:
+			saw_house = true
+			if saw_street:
+				saw_return = true
+		await process_frame
+		await RenderingServer.frame_post_draw
+		var picture: Image = viewport.get_texture().get_image()
+		if picture.is_empty():
+			_failed = true
+			break
+		var crop: Image = picture.get_region(Rect2i(240, 0, 480, 144))
+		if crop.save_png(frame_dir.path_join("frame_%03d.png" % i)) != OK:
+			_failed = true
+			break
+	if not saw_house or not saw_street or not saw_return:
+		push_error("COMPASS_QUICK: incomplete house / street / house loop")
+		_failed = true
+	else:
+		print("COMPASS_IDENTITY_LOOP: PASS 90 frames at 12 fps, house/street/house")

@@ -845,6 +845,8 @@ jobs:
           grep -q 'COMPASS_QUICK_CAPTURE: PASS' "$OUT/capture.log"
           ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR' "$OUT/capture.log"
           for image in 01_cold 02_warm_edge 03_hot; do test -s "$OUT/$image.png"; done
+          grep -q 'COMPASS_IDENTITY_LOOP: PASS' "$OUT/capture.log"
+          test -s "$OUT/identity_frames/frame_089.png"
       - name: Upload minimal marker screenshots
         if: always()
         uses: actions/upload-artifact@v4

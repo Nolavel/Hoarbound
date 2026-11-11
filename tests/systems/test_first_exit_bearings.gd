@@ -17,6 +17,7 @@ func _run() -> void:
 	_check_slot()
 	_check_proximity()
 	_check_search_semantics()
+	_check_identity_cycle()
 	_check_camera()
 	_check_catalog()
 	_check_lifecycle()
@@ -150,6 +151,30 @@ func _check_search_semantics() -> void:
 	bearings._sample_distance(40.0, 0.25)
 	_check(strip._display_word() == "ГОРЯЧО", "load initializes current band without old word")
 	TranslationServer.set_locale(locale)
+	strip.free()
+	bearings.free()
+
+
+func _check_identity_cycle() -> void:
+	var bearings := FirstExitBearings.new()
+	bearings.begin_play(true)
+	var strip := CompassStrip.new()
+	strip._bearings = bearings
+	_check(bearings.active_street_label() == "Fort St.", "shelter street identity")
+	_check(bearings.active_label() == "727", "internal landmark label changed")
+	strip._identity_clock = 1.0
+	_check(not strip._identity_is_street() and is_equal_approx(strip._identity_opacity(), 1.0), "house rest phase")
+	strip._identity_clock = CompassStrip.IDENTITY_HOUSE_SEC - 0.09
+	_check(not strip._identity_is_street() and strip._identity_opacity() < 0.6, "house fades before street")
+	strip._identity_clock = CompassStrip.IDENTITY_HOUSE_SEC
+	_check(strip._identity_is_street() and is_zero_approx(strip._identity_opacity()), "no overlapping identity at switch")
+	strip._identity_clock = 5.1
+	_check(strip._identity_is_street() and is_equal_approx(strip._identity_opacity(), 1.0), "street rest phase")
+	strip._identity_clock = CompassStrip.IDENTITY_CYCLE_SEC - 0.09
+	_check(strip._identity_is_street() and strip._identity_opacity() < 0.6, "street fades before house")
+	bearings.recall()
+	strip._tick_marker(0.1)
+	_check(bearings.active_street_label().is_empty() and is_zero_approx(strip._identity_clock), "clear resets identity clock")
 	strip.free()
 	bearings.free()
 
