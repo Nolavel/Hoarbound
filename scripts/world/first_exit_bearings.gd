@@ -117,7 +117,8 @@ func _process(delta: float) -> void:
 	if active_target_id != _proximity_target_id:
 		_reset_proximity_feedback()
 	_sample_elapsed += maxf(delta, 0.0)
-	if _sample_elapsed < PROXIMITY_SAMPLE_SEC:
+	## Sample immediately on a new/loaded target; afterwards keep the 4 Hz cadence.
+	if _proximity_initialized and _sample_elapsed < PROXIMITY_SAMPLE_SEC:
 		return
 	var elapsed: float = _sample_elapsed
 	_sample_elapsed = 0.0
