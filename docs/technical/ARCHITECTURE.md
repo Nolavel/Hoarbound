@@ -91,6 +91,8 @@ Avoid mirrored state such as UI, Player, inventory and world object each storing
 
 When two systems need the same information, one owns it and the other observes or requests it.
 
+This rule forbids **independent sources of truth**, not local read-only caches or derived views. A consumer may retain a slice, computed flag, or cache of another subsystem's state, but may not independently mutate the underlying gameplay fact. The view must have defined initialization, update, and invalidation rules; the authoritative owner remains the sole owner of the original state.
+
 ## 6. Commands and contracts over reach-through
 
 Cross-system communication should use narrow contracts rather than knowledge of another subsystem's internal scene tree.
@@ -336,6 +338,18 @@ Four rules hold for every cross-system link:
 2. **Mandatory dependencies fail at wiring, not silently.** A missing required component is reported when the system is set up (`push_error`, a failed check), never hidden behind `if has_method(...)` that skips the action.
 3. **A contract describes behaviour, not method names.** It states its arguments, its result, the refusals it may return, its side effects, and the state guaranteed after a refusal. A command that touches several owners either validates everyone before changing anyone and cannot fail after that, or defines compensation (undo) for a participant that refuses mid-way.
 4. **A new cross-system link ships with its proof.** At minimum: the success path, a refusal, and the state after the refusal. A missing dependency is tested when the link is mandatory. Contract suites listed in `tools/ci/required_suites.txt` gate every push and PR in `checks`; the other suites are reported by `suites`.
+
+### Reading and delivering state
+
+Choose how to exchange information based on changes meaningful to the consumer, not every internal update of the owner. Multiple approaches are valid:
+
+- **Meaningful events.** The owner or an adapter can deliver changes that affect the consumer without broadcasting every raw update.
+- **Local slice / cache.** The consumer can read a prepared value or flag without repeatedly querying the owner; the cache is not an independent source of truth.
+- **Direct query.** The consumer reads from the owner when that is simpler, cheaper, or when a current value is needed.
+
+The owner, an adapter, or the consumer may filter, transform, and deliver data, depending on responsibility and actual cost. Do not make the owner aware of every consumer's internal rules.
+
+For event-driven and cached views, define initial synchronization, update ordering, and invalidation. When an object is created or restored, a save is loaded, a chunk unloads and reloads, or a data source reconnects, the cache must obtain a current snapshot or undergo an equivalent validation. The absence of a new event does not prove a cache is current unless continuous delivery is guaranteed.
 
 ### Dynamic dispatch: what is allowed
 
