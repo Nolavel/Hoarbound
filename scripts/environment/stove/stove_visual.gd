@@ -21,11 +21,6 @@ const DOOR_W: float = 0.44
 const DOOR_H: float = 0.34
 const FLUE_H: float = 1.7
 const FLUE_RADIUS: float = 0.065
-## Two removable cast-iron cooking plates. +X is Henry's side of the stove;
-## their rear edges stay clear of the flue, with the pan handle pointing forward.
-const COOK_RING_X: float = 0.14
-const COOK_RING_Z: float = 0.14
-const COOK_RING_RADIUS: float = 0.11
 ## Fire strength at the catch, before the warm-up grows it: the firebox shows a small
 ## flame at once, the room brightens with the burn (author request 2026-10-20).
 const FIREBOX_CATCH_STRENGTH: float = 0.6
@@ -362,8 +357,7 @@ func _build() -> void:
 	_box(Vector3(WALL, sill, DOOR_W), Vector3(hx - WALL * 0.5, floor_y + sill * 0.5, 0.0), _iron)
 	_box(Vector3(WALL, sill, DOOR_W), Vector3(hx - WALL * 0.5, top_y - sill * 0.5, 0.0), _iron)
 	_box(Vector3(SIZE.x + 0.06, 0.03, SIZE.z + 0.06), Vector3(0.0, top_y + 0.015, 0.0), _iron)
-	for side: int in [-1, 1]:
-		_build_cook_ring(Vector3(COOK_RING_X, top_y + 0.036, side * COOK_RING_Z), side)
+	_cylinder(0.11, 0.012, Vector3(0.05, top_y + 0.036, -0.14), _material(Color(0.2, 0.2, 0.21), 0.6, 0.7))  # cooking ring
 	## Ember bed and logs inside: one log per fuel unit, stacked two by two.
 	_box(Vector3(SIZE.x - 0.12, 0.012, SIZE.z - 0.12), Vector3(0.0, floor_y + WALL + 0.006, 0.0), _material(Color(0.055,0.047,0.04),1.0,0.0))
 	# Sparse coals instead of one uniformly emissive orange plate.
@@ -392,25 +386,6 @@ func _build() -> void:
 	var flue: Vector3 = flue_base()
 	_cylinder(0.08, 0.06, flue, _iron)
 	_cylinder(FLUE_RADIUS, flue_length, flue + Vector3.UP * flue_length * 0.5, _iron)
-
-
-## Low cast-iron lids and dark circular seams; these are wood-stove plates, not gas flames.
-func _build_cook_ring(at: Vector3, side: int) -> void:
-	var suffix: String = "A" if side < 0 else "B"
-	var lid := _cylinder(COOK_RING_RADIUS, 0.012, at,
-		_material(Color(0.18, 0.18, 0.19), 0.88, 0.28))
-	lid.name = "CookRing%s" % suffix
-	var groove := TorusMesh.new()
-	groove.inner_radius = COOK_RING_RADIUS - 0.004
-	groove.outer_radius = COOK_RING_RADIUS + 0.010
-	groove.rings = 32
-	groove.ring_segments = 8
-	groove.material = _material(Color(0.055, 0.054, 0.055), 0.94, 0.2)
-	var seam := MeshInstance3D.new()
-	seam.name = "CookRing%sSeam" % suffix
-	seam.mesh = groove
-	seam.position = at + Vector3.UP * 0.004
-	add_child(seam)
 
 
 ## The room light sits in the fire and shines out through the door (+X). The

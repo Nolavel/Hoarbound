@@ -29,7 +29,7 @@ func on_world_ready(context: WorldContext) -> void:
 
 
 func _process(delta: float) -> void:
-	if _ground == null or not is_instance_valid(_player):
+	if not is_instance_valid(_ground) or not is_instance_valid(_player):
 		return
 	_refresh_left -= delta
 	if _refresh_left > 0.0:
@@ -41,6 +41,22 @@ func _process(delta: float) -> void:
 ## Places the stones of the walls within REACH_M of centre and drops those past FORGET_M.
 func refresh(centre: Vector2) -> void:
 	var ledger: PickupLedger = PickupLedger.find(get_tree())
+	# A collected stone can already be freed by the time the next refresh runs.
+	# Validate the raw Variant before assigning it to a typed Object variable.
+	for id: StringName in _spots.keys():
+		var entry: Variant = _spots[id]
+		if not is_instance_valid(entry):
+			_spots.erase(id)
+			continue
+		var pickup := entry as ItemPickup
+		# Keep a queued node registered until it actually leaves; never spawn a
+		# replacement while the old pickup is still in the scene this frame.
+		if pickup.is_queued_for_deletion():
+			continue
+		if (ledger != null and ledger.is_taken(id)) or Vector2(pickup.global_position.x, pickup.global_position.z).distance_to(centre) > FORGET_M:
+			pickup.queue_free()
+	if not is_instance_valid(_ground):
+		return
 	var area := Rect2(centre - Vector2.ONE * REACH_M, Vector2.ONE * REACH_M * 2.0)
 	for ring: PackedVector2Array in _ground.get_snow_obstacles_in_rect(area):
 		for spot: Vector2 in wall_spots(ring):
@@ -48,13 +64,6 @@ func refresh(centre: Vector2) -> void:
 			if _spots.has(id) or spot.distance_to(centre) > REACH_M or (ledger != null and ledger.is_taken(id)):
 				continue
 			_spots[id] = _place(id, spot)
-	for id: StringName in _spots.keys():
-		var pickup: ItemPickup = _spots[id]
-		if not is_instance_valid(pickup):
-			_spots.erase(id)
-		elif Vector2(pickup.global_position.x, pickup.global_position.z).distance_to(centre) > FORGET_M:
-			pickup.queue_free()
-			_spots.erase(id)
 
 
 ## Wall-foot points of one building outline that hold a stone, just outside the wall.

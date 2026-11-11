@@ -1,0 +1,9 @@
+# Dynamic dispatch baseline (ARCHITECTURE.md §16): has_method( and string .call( per file, outside
+# core/contracts/, tests/, tools/, addons/, archive/. Checked by tools/ci/check_dynamic_dispatch.py in `checks`.
+# A temporary debt record, not a norm: a line may only go down. Format: <count> <class A-F> <path>  # note
+# A optional lifecycle hook · B tools/diagnostics · C boundary · D discovery by name · E mandatory operation
+# between state owners · F untyped call on a known class or service (a typed reference would do).
+
+4 A world/world.gd  # composition-root optional hooks (prepare_world_content, apply_world_profile, on_world_ready)
+12 B native/hoarbound_native/ci_project/smoke.gd  # native library smoke test
+1 B scripts/experimental/gdextension_frost/gdextension_frost_lab.gd  # experimental native lab

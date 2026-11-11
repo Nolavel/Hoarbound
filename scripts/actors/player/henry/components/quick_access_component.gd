@@ -138,13 +138,14 @@ func draw(index: int) -> bool:
 ## The pocket whose item a hand shows right now, or "" (empty hands or a pack item).
 func get_held_source_zone() -> StringName:
 	var presenter: Node = _held_presenter()
-	return StringName(presenter.call(&"get_source_zone")) if presenter != null else &""
+	return HeldDrawCapability.source_zone(presenter) if presenter != null else &""
 
 
 func _held_presenter() -> Node:
-	for child: Node in get_parent().get_children():
-		if child.has_method(&"get_source_zone") and child.has_method(&"is_holding") and bool(child.call(&"is_holding")):
-			return child
+	var holding: Array[Node] = HeldReleaseCapability.holders(get_parent())
+	for hand: Node in HeldDrawCapability.hands(get_parent()):
+		if holding.has(hand):
+			return hand
 	return null
 
 
@@ -196,8 +197,8 @@ func _equip_selected() -> bool:
 	var item_id: StringName = zone["item_id"]
 	if item_id == &"":
 		return false
-	for child: Node in get_parent().get_children():
-		if child.has_method(&"equip_from_zone") and bool(child.call(&"equip_from_zone", item_id, zone["path"])):
+	for hand: Node in HeldDrawCapability.hands(get_parent()):
+		if HeldDrawCapability.draw(hand, item_id, zone["path"]):
 			if item_id == ROAD_FLARE_ID:
 				_show_held_flare_readout(false)
 			else:
@@ -208,9 +209,9 @@ func _equip_selected() -> bool:
 
 ## True when a hand already shows the item that pocket keeps; pressing again is a no-op.
 func _presented_from(path: StringName) -> bool:
-	for child: Node in get_parent().get_children():
-		if child.has_method(&"get_source_zone") and child.has_method(&"is_holding") \
-			and bool(child.call(&"is_holding")) and StringName(child.call(&"get_source_zone")) == path:
+	var holding: Array[Node] = HeldReleaseCapability.holders(get_parent())
+	for hand: Node in HeldDrawCapability.hands(get_parent()):
+		if holding.has(hand) and HeldDrawCapability.source_zone(hand) == path:
 			return true
 	return false
 
@@ -219,10 +220,11 @@ func _use_held_only() -> bool:
 	var parent := get_parent()
 	if parent == null:
 		return false
-	for child: Node in parent.get_children():
-		if not child.has_method(&"use_held") or not bool(child.call(&"use_held")):
+	for hand: Node in HeldDrawCapability.hands(parent):
+		if not HeldDrawCapability.use(hand):
 			continue
-		if child.has_method(&"is_burning") and bool(child.call(&"is_burning")):
+		var light := hand as HeldLightComponent
+		if light != null and light.is_burning():
 			_show_held_flare_readout(true)
 		else:
 			_hide_readout()
@@ -234,8 +236,9 @@ func _put_away_unlit_held() -> void:
 	var parent := get_parent()
 	if parent == null:
 		return
-	for child: Node in parent.get_children():
-		if child.has_method(&"put_away_unlit") and bool(child.call(&"put_away_unlit")):
+	## Only what can go back to storage is hidden; a burning flare stays in hand.
+	for holder: Node in HeldReleaseCapability.holders(parent):
+		if HeldReleaseCapability.can_release(holder) and HeldReleaseCapability.release(holder):
 			return
 
 

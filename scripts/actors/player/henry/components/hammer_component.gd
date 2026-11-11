@@ -15,6 +15,8 @@ var _source_zone: StringName = &""
 
 
 func _ready() -> void:
+	HeldReleaseCapability.publish(self, &"is_holding", &"is_holding", &"put_away_unlit")
+	HeldDrawCapability.publish(self, &"equip_from_zone", &"get_source_zone", &"use_from_quick_access")
 	if inventory == null:
 		inventory = InventoryComponent.find_in(get_parent())
 	if inventory != null:
@@ -87,6 +89,11 @@ func put_away() -> bool:
 	_source_zone = &""
 	hammer_stowed.emit()
 	return true
+
+
+## The hammer has no use from Quick Access (it swings when boards are worked).
+func use_from_quick_access() -> bool:
+	return false
 
 
 func release_held() -> bool:

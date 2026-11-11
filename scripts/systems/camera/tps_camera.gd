@@ -254,7 +254,7 @@ var _probe := TpsBoomProbe.new()
 var _auto := TpsAutoLook.new()
 var _fader := TpsCameraFader.new()
 var _capsule: CollisionShape3D
-var _input_systems: Node
+var _input_systems: InputSystemsService
 var _user_mouse_sensitivity_multiplier: float = 1.0
 var _user_invert_y: bool = false
 var _last_eye_distance: float = INF
@@ -302,7 +302,7 @@ func _ready() -> void:
 	_boom = far_distance
 	if metrics == null:
 		metrics = DEFAULT_METRICS
-	_input_systems = get_node_or_null(^"/root/InputSystems")
+	_input_systems = get_node_or_null(^"/root/InputSystems") as InputSystemsService
 	add_to_group(&"tps_camera_user_settings")
 	reload_user_settings()
 	if is_instance_valid(player):
@@ -401,11 +401,6 @@ func set_work_framing(focus: Vector3, eye: Vector3) -> void:
 
 
 ## Hands the view back to the follow rig; it eases there at work_framing_rate.
-func set_fixed_work_framing(focus: Vector3, eye: Vector3) -> void:
-	_rig_work.set_framing(focus, eye, Vector2(_yaw, _pitch_deg))
-	_rig_work.lock_look = true
-
-
 func clear_work_framing() -> void:
 	_rig_work.clear()
 
@@ -730,7 +725,7 @@ func _update_auto_look(delta: float, safe: Vector3, speed_ratio: float) -> void:
 			goal = _room_goal
 	else:
 		_room_active = false
-		var move_axis: Vector2 = _input_systems.call(&"get_move_axis") if _input_systems != null else Vector2.ZERO
+		var move_axis: Vector2 = _input_systems.get_move_axis() if _input_systems != null else Vector2.ZERO
 		var heading: float = atan2(-player.velocity.x, -player.velocity.z)
 		var recenter: float = _auto.recenter_offset(angle_difference(_yaw, heading), move_axis)
 		var lower: float = _whisker_room(safe, want, _yaw + recenter, -1.0)
@@ -812,7 +807,7 @@ func _update_fades(delta: float, camera: Vector3) -> void:
 func _apply_look_input() -> Vector2:
 	if _input_systems == null:
 		return Vector2.ZERO
-	var look: Vector2 = _input_systems.call(&"consume_look_delta")
+	var look: Vector2 = _input_systems.consume_look_delta()
 	if look.length_squared() > 1e-12 and (_auto_yaw != 0.0 or _auto_pitch_deg != 0.0):
 		_yaw = get_view_yaw()
 		_pitch_deg = get_view_pitch_deg()
@@ -879,9 +874,9 @@ static func _soft_step(value: float, step: float, limit: float, knee: float, wei
 func _apply_lean_and_shoulder_input(delta: float) -> void:
 	if _input_systems == null:
 		return
-	if _input_systems.call(&"consume_switch_shoulder"):
+	if _input_systems.consume_switch_shoulder():
 		_shoulder.toggle()
-	var axis: float = _input_systems.call(&"get_lean_axis")
+	var axis: float = _input_systems.get_lean_axis()
 	if axis != 0.0:
 		_lean = clampf(_lean + axis * lean_rate * delta, -1.0, 1.0)
 	else:
@@ -970,15 +965,13 @@ func _sync_helpers() -> void:
 
 
 func _player_speed_ratio() -> float:
-	if player.has_method(&"get_locomotion_speed_ratio"):
-		return float(player.call(&"get_locomotion_speed_ratio"))
-	return 0.0
+	return float(LocomotionReadoutCapability.read(player, &"speed_ratio", 0.0))
 
 
 func _set_look_capture(active: bool) -> void:
-	var input_systems: Node = get_node_or_null(^"/root/InputSystems")
-	if input_systems != null and input_systems.has_method(&"set_look_capture"):
-		input_systems.call(&"set_look_capture", active)
+	var input_systems := get_node_or_null(^"/root/InputSystems") as InputSystemsService
+	if input_systems != null:
+		input_systems.set_look_capture(active)
 
 
 ## Frame-rate independent exponential damping, as ADT's Smoothing.damp_factor.

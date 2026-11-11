@@ -50,6 +50,14 @@ const AXE_HANDLE := [Color(0.93, 0.66, 0.14), Color(0.27, 0.23, 0.18), Color(0.4
 const HAMMER_HANDLE := [Color(0.78, 0.16, 0.1), Color(0.24, 0.16, 0.13), Color(0.4, 0.2, 0.14), 0.28, 0.14, Color(0.95, 0.5, 0.4), 0.4, 0.0, 0.0]
 
 ## Shared readable props for world pickups and the meal table; no inventory state.
+## Whether make() draws `item_id` as itself (false: the plain parcel every unknown item gets).
+static func draws(item_id: StringName) -> bool:
+	var id: String = String(item_id)
+	return id.begins_with("water_flask") or id.begins_with("tinned_") or id.begins_with("spov_can") \
+		or id.contains("mug") or item_id in [&"tinder", &"knife", &"work_gloves", &"axe", &"hammer", &"empty_tin",
+		&"frying_pan", &"warm_water", &"snow_handful", &"stone", &"lighter"]
+
+
 static func make(item_id: StringName, _item_override: ItemResource = null) -> Node3D:
 	var holder := Node3D.new()
 	if String(item_id).begins_with("water_flask"):
@@ -126,24 +134,6 @@ static func make(item_id: StringName, _item_override: ItemResource = null) -> No
 		var pan: Node3D = FRYING_PAN_SCENE.instantiate()
 		StylizedEnvironmentMaterial.apply_to_tree(pan)
 		holder.add_child(pan)
-	elif item_id in [&"egg_raw", &"egg_fried", &"egg_fried_well", &"egg_fried_burnt"]:
-		if item_id == &"egg_raw":
-			var shell := SphereMesh.new()
-			shell.radius = 0.026
-			shell.height = 0.060
-			shell.radial_segments = 16
-			shell.rings = 8
-			_part(holder, shell, Vector3(0.0, 0.031, 0.0), Color(0.72, 0.58, 0.43))
-		else:
-			var white := CylinderMesh.new()
-			white.top_radius = 0.064
-			white.bottom_radius = 0.060
-			white.height = 0.005
-			_part(holder, white, Vector3(0.0, 0.005, 0.0), Color(0.23, 0.17, 0.12) if item_id == &"egg_fried_burnt" else (Color(0.66, 0.55, 0.38) if item_id == &"egg_fried_well" else Color(0.83, 0.81, 0.72)))
-			var yolk := SphereMesh.new()
-			yolk.radius = 0.017
-			yolk.height = 0.013
-			_part(holder, yolk, Vector3(0.0, 0.014, 0.0), Color(0.25, 0.15, 0.09) if item_id == &"egg_fried_burnt" else Color(0.84, 0.39, 0.10))
 	elif String(item_id).contains("mug") or item_id == &"warm_water":
 		holder.add_child(MUG_SCENE.instantiate())
 		if item_id != &"mug":
@@ -246,6 +236,8 @@ static func release(visual: Node) -> void:
 	for node: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
 		var mesh := node as MeshInstance3D
 		if mesh != null:
+			mesh.material_overlay = null
+			mesh.material_override = null
 			for surface: int in mesh.get_surface_override_material_count():
 				mesh.set_surface_override_material(surface, null)
 	visual.free()
@@ -284,4 +276,3 @@ static func _part(holder: Node3D, mesh: PrimitiveMesh, at: Vector3, colour: Colo
 	part.mesh = mesh
 	part.position = at
 	holder.add_child(part)
-

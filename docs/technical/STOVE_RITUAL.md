@@ -128,17 +128,6 @@ All geometry targets use the `StoveVisual` local frame and its world transform.
 The production visual root is 0.10 m below `HeatSource`; the fuel owner’s origin
 is not interchangeable with the geometry/contact frame.
 
-The two cooking plates sit toward Henry's near interaction edge of the stovetop,
-away from the rear flue. A frying pan on one plate points its handle toward Henry;
-the handle and pan body must leave the other plate clear for a second vessel.
-`Warmer` and `Warmer2` use matching positions and separate save keys.
-
-`EggCookingVisual` is a review-only presentation candidate driven by an explicit
-time value: shell crack and separation, albumen pour, yolk drop, then a small
-hot-edge ripple in the pan. `capture_egg_cooking.gd` records it in a Forward+
-studio using the production stove and pan. It is not yet connected to inventory,
-heat, food state, Henry's hand, or the 727 scene camera.
-
 The tinder arc and action share the same accessibility predicate: an actual held
 item or a worn Quick Access pocket, excluding pack-only ownership. Contact spends
 exactly that source via `HeldOwnership`; it never silently falls back to the pack.
@@ -187,15 +176,3 @@ not prove Forward+ production color or performance. Unsupported scene fog, exist
 room-light balance at late embers and scene-teardown warnings must be reported with
 the capture, not concealed by postprocessing. Visual acceptance still requires
 review of actual game-camera footage.
-
-## Pan and fried egg in codex (2026-11-04)
-
-`StoveWarmer` now serves its existing cooktop plate as a mutually exclusive vessel slot: F moves a real `frying_pan` instance (including its instance state) from inventory, then F spends one `egg_raw` when the stove burns. `HeatSource.heat_elapsed` alone advances cooking (0.08 effective game hours); fire-out pauses progress, the existing seven-second `EggCookingVisual` is just presentation, and F takes a real `egg_fried` into inventory. A second F takes back the empty pan. Each plate retains its previous save key and the existing warmable-tin/mug path; pan contents add optional fields to the same save data. No separate physics solver or recipe engine has been introduced. The placement/crack uses the ring's existing generic interaction animation; a dedicated hand-contact pose and production TPS composition are still art/animation follow-ups. A six-second close-up capture in the real 727 scene is driven by `capture_stove_egg_gameplay.gd` and `[cooking-preview]` in the existing checks workflow.
-
-## Fixed standing cooktop mode (codex)
-
-Aim at either cooking ring and press F: Henry walks to the standing work point without forced crouch. Production TPS camera uses the existing work rig, a higher, fixed-over-cooktops composition, and restores follow view on F exit. `InputSystems.claim_interact` arbitrates F against the crouched firebox ritual. The **same** `StoveInteractionRing` renders PAN/EGG/TAKE for the selected plate, RMB swaps between A/B, LMB performs one allowed game action; no click-through to Quick Access. Only `StoveWarmer` owns food, stove heat and saving; the ring reads its states. Egg shells separate into two visible halves, albumen pours through the gap, the yolk falls visibly and lands in the pan. Cooking preview CI uses the production framing constants and displays the context ring. The pan-to-hand choreography still uses generic interaction pose; fine hand IK will be authored separately.
-
-## PanCookingModel / MVP #280 (2026-11-04)
-
-The pan is an inventory-owned nonstackable instance, stove owns up to three independently heated egg portions. Each egg has its own `heat_h`, intro (real-time visual presentation), and 2D layout position. Cooking progresses only from the existing HeatSource `heat_elapsed` signal. Oil is optional, consumes one portion, and delays burning slightly; salt and pepper consume one pinch each and affect visuals only. Cooked, well-fried and burnt eggs are distinct inventory items. Recipe and seasonings persist under `pan_recipe`, with old `egg_state` data migrated on load. Existing vessel warming and the firebox ritual are unchanged. The same stove ring draws dynamic cooktop sectors; wheel chooses one, LMB confirms explicitly, RMB switches plates and F exits. No separate workflow or camera. SPoV cutting into honest portions remains a follow-up rather than consuming a 1070 kcal open can for one decorative slice.

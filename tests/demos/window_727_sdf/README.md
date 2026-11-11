@@ -51,3 +51,25 @@ V3 changes *only* the spatial-material optics behind the existing SDF front:
 This is an authored illusion, **not fluid mechanics**. The frost generated
 by `frost_pattern.gdshaderinc` remains identical, and `smooth_union` and
 original blob positions are unchanged. No direct binding to ThermalZone.
+
+## The game's glass (2026-11-10, Claude)
+
+The natural-thaw R&D that lived here became the game's glass: `shaders/environment/windows/frosted_glass.gdshader`
+with two baked frost tiles (see "Window Frost" in `docs/visual_fx_shaders.md`). The probe now opens on a **copy of
+the game's material** on the same real `FrontWindow1` pane, so it shows what ships; **V** switches to the unchanged
+V3 sheet for comparison. The test-only natural shader and its 2 m frost sheet are removed.
+
+History of the passes, for the record:
+
+1. First pass drew ferns with `frost_pattern` (16 cm cells): far too large on a 2.0 x 1.1 m pane, with an angular
+   base and centimetre-wide runs. The owner rejected it against a photo reference.
+2. Second pass baked one frost sheet at 1 mm per pixel for this pane and read the screen behind the glass to blur it.
+3. Game-ready pass: two tileable frost tiles laid in metres, so any pane size works; ice plates that slide to the
+   sill; no screen read, because a screen-reading pane hides snowfall and other transparents behind it.
+
+Previews: `docs/runtime_previews/window_frost/window_727_natural_thaw.png` (this pane, 0-100 %, close-ups, one frame
+in the 727 shell) and `window_frost_shapes.png` (six pane sizes).
+
+Stills: `xvfb-run godot --path . --rendering-driver vulkan --resolution 1600x900 --script
+res://tools/runtime/capture_window_727_thaw.gd -- <out dir> [natural|v3] [close]`.
+Check: `tests/systems/test_window_727_thaw_probe.gd`.

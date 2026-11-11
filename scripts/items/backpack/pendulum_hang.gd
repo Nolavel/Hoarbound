@@ -53,6 +53,9 @@ var hinge_axis: Vector3 = Vector3.ZERO
 ## Free hangers only: a fixed world direction to lean out along on contact (zero = the deepest
 ## point's normal); one steady direction keeps a hanger touching several things from chattering.
 var contact_out: Vector3 = Vector3.ZERO
+## Hinged hangers only: a world direction to turn toward when a contact pushes it about its pin (zero = whichever
+## way the contact's lever turns it); the pack by a container sends the pan out to its side, in sight.
+var hinge_out: Vector3 = Vector3.ZERO
 
 ## Frozen (the 3D inventory holds the pack still): it keeps its pose on its parent and skips the spring.
 var frozen: bool = false:
@@ -115,6 +118,22 @@ func _process(delta: float) -> void:
 		_keep_on_hinge(to_parent)
 		local = (to_parent * _dir).normalized()
 	basis = Basis(Quaternion(Vector3.DOWN, local))
+
+
+## Hangs straight down at once, at rest, square to its pin (a hard cut moved its parent: the pose the furniture
+## clearance planned, ContainerClearance.pack_shape). Call parents before the hangers on them.
+func rest_now() -> void:
+	if not is_inside_tree() or get_parent_node_3d() == null:
+		return
+	var to_parent: Basis = get_parent_node_3d().global_basis.orthonormalized().inverse()
+	_dir = Vector3.DOWN
+	_dir_speed = Vector3.ZERO
+	_keep_on_hinge(to_parent)
+	var local: Vector3 = (to_parent * _dir).normalized()
+	basis = Basis(Quaternion(Vector3.DOWN, local))
+	_last_position = global_position
+	_last_velocity = Vector3.ZERO
+	_has_last = true
 
 
 ## Adds to the swing's rate (rad/s, world space): a knock, such as being clipped back on.
@@ -271,7 +290,12 @@ func _clear_angle(points: PackedVector3Array, to_parent: Basis, pivot: Vector3, 
 		var lever: float = axis.cross((hit[1] as Vector3) - pivot).dot(normal)
 		if absf(lever) < MIN_LEVER_M:
 			return best
-		var next: float = clampf(blocked + depth / lever * OVERSHOOT, blocked - MAX_CONTACT_TILT, blocked + MAX_CONTACT_TILT)
+		var step: float = depth / lever * OVERSHOOT
+		if hinge_out != Vector3.ZERO:
+			## Turn the preferred way, whichever side the contact's lever would choose.
+			var way: float = signf((_dir.rotated(axis, 0.1) - _dir).dot(hinge_out))
+			step = absf(step) * (way if way != 0.0 else 1.0)
+		var next: float = clampf(blocked + step, blocked - MAX_CONTACT_TILT, blocked + MAX_CONTACT_TILT)
 		if (to_parent * _dir.rotated(axis, next)).angle_to(Vector3.DOWN) > limit:
 			return best
 		hit = _deepest_hit(points, to_parent, _dir.rotated(axis, next), pivot)

@@ -47,6 +47,8 @@ signal dev_waypoint_next_pressed()
 signal dev_waypoint_teleport_pressed()
 ## Debug weather edge (0: readout, then cycles the weather); only debug builds listen.
 signal dev_weather_cycle_pressed()
+## First Exit compass: mark the known house again, or clear that mark.
+signal recall_bearing_pressed()
 
 const ACTION_MOVE_FORWARD: StringName = &"move_forward"
 const ACTION_MOVE_BACKWARD: StringName = &"move_backward"
@@ -62,6 +64,7 @@ const ACTION_HLOD_TIERS_TOGGLE: StringName = &"toggle_hlod_tiers"
 const ACTION_DEV_WAYPOINT_NEXT: StringName = &"dev_waypoint_next"
 const ACTION_DEV_WAYPOINT_TELEPORT: StringName = &"dev_waypoint_teleport"
 const ACTION_DEV_WEATHER_CYCLE: StringName = &"dev_weather_cycle"
+const ACTION_RECALL_BEARING: StringName = &"recall_bearing"
 const ACTION_LEAN_LEFT: StringName = &"lean_left"
 const ACTION_LEAN_RIGHT: StringName = &"lean_right"
 const ACTION_SWITCH_SHOULDER: StringName = &"switch_shoulder"
@@ -78,7 +81,7 @@ var _shoulder_latch: bool = false
 
 
 func _ready() -> void:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
 	if state != null and state.has_signal(&"mode_changed"):
 		state.connect(&"mode_changed", func(_old: int, _new: int) -> void: _apply_mouse_mode())
 
@@ -118,6 +121,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		dev_waypoint_teleport_pressed.emit()
 	if _pressed(event, ACTION_DEV_WEATHER_CYCLE):
 		dev_weather_cycle_pressed.emit()
+	if _pressed(event, ACTION_RECALL_BEARING):
+		recall_bearing_pressed.emit()
 
 
 func _physics_process(delta: float) -> void:
@@ -135,15 +140,18 @@ func _physics_process(delta: float) -> void:
 ## none of the three interact signals fire. One owner decides what the key
 ## means, instead of subscribers racing each other for it.
 ##
-## The claimant implements as much of this as it needs, duck-typed:
-##   on_interact_claimed()                  key down    (required)
-##   on_interact_held(duration: float)       every physics frame while down
-##   on_interact_released(duration: float)   key up
+## The claimant publishes InteractClaimantCapability: claimed() on key down
+## (required), held(duration) each physics frame and released(duration) on key
+## up (both optional). Legacy on_interact_* names are adapted at the boundary.
 ## ============================================
 
 ## Takes ownership of the interact key. No arbitration: the last caller wins,
 ## which is why a claimant releases as soon as its reason to hold it ends.
+## A node that cannot take the key is refused and the owner is kept.
 func claim_interact(claimant: Node) -> void:
+	if not InteractClaimantCapability.ensure(claimant):
+		push_error("InputSystems: %s cannot claim the interact key" % claimant)
+		return
 	_interact_claimant = claimant
 
 
@@ -164,7 +172,7 @@ func _begin_interact() -> void:
 	_interact_duration = 0.0
 	_interact_active = true
 	if is_instance_valid(_interact_claimant):
-		_interact_claimant.call(&"on_interact_claimed")
+		InteractClaimantCapability.claimed(_interact_claimant)
 	else:
 		interact_pressed.emit()
 
@@ -173,8 +181,7 @@ func _end_interact() -> void:
 	if not _interact_active:
 		return
 	if is_instance_valid(_interact_claimant):
-		if _interact_claimant.has_method(&"on_interact_released"):
-			_interact_claimant.call(&"on_interact_released", _interact_duration)
+		InteractClaimantCapability.released(_interact_claimant, _interact_duration)
 	else:
 		interact_released.emit(_interact_duration)
 	_interact_active = false
@@ -192,8 +199,7 @@ func _tick_interact(delta: float) -> void:
 		return
 	_interact_duration += delta
 	if is_instance_valid(_interact_claimant):
-		if _interact_claimant.has_method(&"on_interact_held"):
-			_interact_claimant.call(&"on_interact_held", _interact_duration)
+		InteractClaimantCapability.held(_interact_claimant, _interact_duration)
 	else:
 		interact_held.emit(_interact_duration)
 
@@ -285,13 +291,13 @@ func _apply_mouse_mode() -> void:
 ## PlayerState is an autoload, but this file is also driven directly by tests
 ## where it may not exist, so both reads are guarded rather than assumed.
 func _is_gameplay_blocked() -> bool:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	return state != null and state.call(&"is_paused")
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	return state != null and state.is_paused()
 
 
 func _is_movement_blocked() -> bool:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	return state != null and state.call(&"is_movement_blocked")
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	return state != null and state.is_movement_blocked()
 
 
 func _pressed(event: InputEvent, action: StringName) -> bool:

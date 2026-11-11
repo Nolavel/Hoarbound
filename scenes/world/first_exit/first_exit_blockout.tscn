@@ -8,7 +8,6 @@
 [ext_resource type="Script" path="res://scripts/systems/survival/heat_source.gd" id="6_2bj3x"]
 [ext_resource type="Script" path="res://scripts/environment/stove/stove_visual.gd" id="7_kxeho"]
 [ext_resource type="Script" path="res://scripts/environment/stove/stove_warmer.gd" id="8_xu305"]
-[ext_resource type="Script" path="res://scripts/environment/stove/cooktop_interaction_controller.gd" id="9_cookt"]
 [ext_resource type="Script" path="res://scripts/environment/interactive/heat_source_feed.gd" id="9_f17uu"]
 [ext_resource type="Script" path="res://scripts/environment/interactive/cabinet.gd" id="10_rcqa7"]
 [ext_resource type="Script" path="res://scripts/environment/interactive/sleep_spot.gd" id="11_0xayn"]
@@ -6093,16 +6092,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
 script = ExtResource("7_kxeho")
 
 [node name="Warmer" type="Node3D" parent="ShelterHouse/House/ShelterZone/Stove" unique_id=1786227698]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.14, 0.69, -0.14)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.69, -0.14)
 script = ExtResource("8_xu305")
-
-[node name="Warmer2" type="Node3D" parent="ShelterHouse/House/ShelterZone/Stove"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.14, 0.69, 0.14)
-script = ExtResource("8_xu305")
-save_key = &"stove_warmer_2"
-
-[node name="CooktopInteraction" type="Node" parent="ShelterHouse/House/ShelterZone/Stove"]
-script = ExtResource("9_cookt")
 
 [node name="Body" type="StaticBody3D" parent="ShelterHouse/House/ShelterZone/Stove" unique_id=861530947]
 

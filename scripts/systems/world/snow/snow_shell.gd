@@ -1200,7 +1200,7 @@ func _sample_ground(at: Vector2) -> Vector2:
 		if streamed != null and not streamed.has_surface_at(at.x, at.y):
 			_field_ground_partial = true
 			_field_unknown_at = at
-	if _terrain != null and _city != null and bool(_city.call(&"has_snow_obstacle_at", at)):
+	if _terrain != null and _city != null and _city is KeyWestRealityGround and (_city as KeyWestRealityGround).has_snow_obstacle_at(at):
 		return Vector2(ground_y, 1.0)
 	if not is_inside_tree():
 		return Vector2(ground_y, 0.0)

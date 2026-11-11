@@ -32,7 +32,7 @@ const BONES: Dictionary = {
 
 ## Animation that knows its own foot contacts (Motion Matching's database labels)
 ## replaces the height guess while it drives the pose; it registers itself here.
-var contact_source: Object
+var contact_source: MotionMatchingLocomotion
 var _lifted: Dictionary = {Side.LEFT: true, Side.RIGHT: true}
 var _print_at: Array[Vector3] = [Vector3.INF, Vector3.INF]
 var _bone_index: Dictionary = {}
@@ -48,7 +48,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	_ensure_pose_probe(skeleton)
 	var speed: float = Vector2(body.velocity.x, body.velocity.z).length()
-	var driven: bool = contact_source != null and bool(contact_source.call(&"drives_foot_contacts"))
+	var driven: bool = contact_source != null and contact_source.drives_foot_contacts()
 	for side: int in Side.values():
 		var feet: Dictionary = _sample_pre_modifier_pose(skeleton, side)
 		if feet.is_empty():
@@ -64,7 +64,7 @@ func _physics_process(_delta: float) -> void:
 		var normal: Vector3 = contact["normal"]
 		var forward: Vector3 = (feet["toe"] as Vector3) - (feet["heel"] as Vector3)
 		if driven:
-			update_driven_foot(side, bool(contact_source.call(&"is_foot_planted", side)),
+			update_driven_foot(side, contact_source.is_foot_planted(side),
 				contact["position"], forward, body.is_on_floor(), speed, normal)
 			continue
 		var height: float = surface_clearance(ball, contact["ball_ground"], normal)

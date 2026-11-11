@@ -29,7 +29,6 @@ const HINT_PX: int = 11
 @export var center_drop_px: float = 100.0
 
 var _feed: HeatSourceFeed
-var _cooktop: CooktopInteractionController
 var _shown: bool = false
 var _alpha: float = 0.0
 var _refusal_left: Dictionary = {}
@@ -53,12 +52,6 @@ func bind(feed: HeatSourceFeed) -> void:
 		_feed.state_changed.connect(queue_redraw)
 
 
-func bind_cooktop(controller: CooktopInteractionController) -> void:
-	_cooktop = controller
-	_feed = null
-	queue_redraw()
-
-
 func set_shown(shown: bool) -> void:
 	_shown = shown
 	if shown:
@@ -71,8 +64,6 @@ func is_shown() -> bool:
 
 ## What one arc shows now: its state, fill 0..1 and tick count (fuel only); read from the game.
 func describe(arc: Arc) -> Dictionary:
-	if is_instance_valid(_cooktop):
-		return _cooktop_arc(arc)
 	var source: HeatSource = _feed.heat_source if _feed != null else null
 	if source == null:
 		return {"state": ArcState.INACTIVE, "fill": 0.0, "ticks": 0}
@@ -130,22 +121,11 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	if (_feed == null and not is_instance_valid(_cooktop)) or _alpha <= 0.001:
+	if _feed == null or _alpha <= 0.001:
 		return
 	var centre: Vector2 = _anchor()
-	if is_instance_valid(_cooktop):
-		var height: float = get_viewport_rect().size.y
-		centre.y = height * 0.75
-		ring_radius_px = height * 0.10
-		arc_width_px = maxf(5.0, height * 0.006)
-		_draw_cooktop_menu(centre)
-		return
 	for arc: Arc in [Arc.FUEL, Arc.TINDER, Arc.FIRE]:
 		_draw_arc(centre, arc, describe(arc))
-	if is_instance_valid(_cooktop):
-		var label: String = "PLATE A" if _cooktop.get_selected_index() == 0 else "PLATE B"
-		_text(centre, label, FONT_PX, Color(LINE, _alpha), true)
-		_text(centre + Vector2(0.0, ring_radius_px + 59.0), "LMB: ACT   RMB: SWITCH   F: EXIT", HINT_PX, Color(LINE, 0.83 * _alpha), true)
 	if _refusal_text != "" and _any_refusal():
 		_text(centre + Vector2(0.0, ring_radius_px + 46.0), _refusal_text, FONT_PX, Color(REFUSAL, _alpha), true)
 
@@ -197,18 +177,18 @@ func _draw_label(centre: Vector2, arc: Arc, state: ArcState, flash: float) -> vo
 	var names: Dictionary = {Arc.FUEL: "STOVE_RING_FUEL", Arc.TINDER: "STOVE_RING_TINDER", Arc.FIRE: "STOVE_RING_FIRE"}
 	var alpha: float = (0.45 if state == ArcState.INACTIVE else 0.95) * _alpha
 	var colour: Color = Color(REFUSAL, _alpha).lerp(Color(LINE, alpha), 1.0 - flash) if flash > 0.0 else Color(LINE, alpha)
-	var label: String = tr(names[arc]) if not is_instance_valid(_cooktop) else {Arc.FUEL: "PAN", Arc.TINDER: "EGG", Arc.FIRE: "TAKE"}[arc]
+	var label: String = tr(names[arc])
 	var mark: String = ""
 	if flash > 0.0:
 		mark = " ✕"
 	elif state == ArcState.DONE:
 		mark = " ✓"
-	if arc == Arc.FUEL and _feed != null:
+	if arc == Arc.FUEL:
 		var source: HeatSource = _feed.heat_source
 		label += "  %d/%d" % [source.get_loaded_log_count(), source.get_log_capacity()]
 	_text(at, label + mark, FONT_PX, colour, true)
 	var hint: String = ""
-	if _feed != null and (state == ArcState.AVAILABLE or (state == ArcState.ACTIVE and arc == Arc.FIRE)):
+	if state == ArcState.AVAILABLE or (state == ArcState.ACTIVE and arc == Arc.FIRE):
 		hint = {Arc.FUEL: "STOVE_RING_RMB", Arc.TINDER: "STOVE_RING_LMB", Arc.FIRE: "STOVE_RING_HOLD"}[arc]
 	if hint != "":
 		_text(at + Vector2(0.0, FONT_PX + 3.0), tr(hint), HINT_PX, Color(LINE, 0.7 * _alpha), true)
@@ -267,55 +247,3 @@ func _on_refused(reason: HeatSourceFeed.Refusal) -> void:
 	_refusal_left[arc] = REFUSAL_SECONDS
 	_refusal_text = tr(HeatSourceFeed.describe_refusal(reason))
 	queue_redraw()
-
-
-## Cooktop: sector count and text derive from the actual enabled physical actions.
-func _draw_cooktop_menu(centre: Vector2) -> void:
-	var actions: Array[Dictionary] = _cooktop.get_actions()
-	var size: int = actions.size()
-	var scale: float = clampf(get_viewport_rect().size.y / 540.0, 1.0, 2.2)
-	var large: int = roundi(14.0 * scale)
-	var small: int = roundi(11.0 * scale)
-	if size <= 0:
-		return
-	var active: StringName = _cooktop.get_selected_action()
-	var segment: float = 360.0 / float(size)
-	for i: int in range(size):
-		var action: Dictionary = actions[i]
-		var id: StringName = StringName(action.get("id", &""))
-		var available: bool = bool(action.get("enabled", false))
-		var selected: bool = available and id == active
-		var mid: float = -90.0 + float(i) * segment
-		var span := Vector2(mid - segment * 0.43, mid + segment * 0.43)
-		var color: Color = FIRE if selected else LINE
-		_line(centre, span, Color(color, _alpha * (1.0 if selected else (0.48 if available else 0.15))), arc_width_px + (2.0 if selected else 0.0))
-		var radius: float = ring_radius_px + 20.0
-		var pos: Vector2 = centre + Vector2(cos(deg_to_rad(mid)), sin(deg_to_rad(mid))) * radius
-		_text(pos, str(action.get("label", "")), small, Color(color, _alpha * (1.0 if selected else (0.7 if available else 0.25))), true)
-	var warmer: StoveWarmer = _cooktop.get_selected_warmer()
-	var count: int = warmer.get_egg_count() if warmer != null else 0
-	_text(centre + Vector2(0.0, -6.0), "PLATE A" if _cooktop.get_selected_index() == 0 else "PLATE B", large, Color(LINE, _alpha), true)
-	_text(centre + Vector2(0.0, 12.0), "%d / 3 EGGS" % count, small, Color(LINE, _alpha), true)
-	_text(centre + Vector2(0.0, ring_radius_px + 62.0), "WHEEL CHOOSE   LMB APPLY   RMB PLATE   F EXIT", small, Color(LINE, 0.83 * _alpha), true)
-
-
-## Shared stove ring, older describe(arc) compatibility for regression tests.
-func _cooktop_arc(arc: Arc) -> Dictionary:
-	var warmer: StoveWarmer = _cooktop.get_selected_warmer()
-	var inventory: InventoryComponent = _cooktop.get_inventory()
-	if warmer == null:
-		return {"state": ArcState.INACTIVE, "fill": 0.0, "ticks": 0}
-	var has_pan: bool = warmer.has_pan()
-	var egg: int = int(warmer.get_egg_state())
-	var burning: bool = warmer.source != null and warmer.source.is_burning()
-	match arc:
-		Arc.FUEL:
-			return {"state": ArcState.DONE if has_pan else (ArcState.AVAILABLE if inventory != null and inventory.has_item(&"frying_pan") else ArcState.INACTIVE), "fill": 1.0 if has_pan else 0.0, "ticks": 0}
-		Arc.TINDER:
-			if egg == StoveWarmer.EggState.COOKING:
-				return {"state": ArcState.ACTIVE, "fill": warmer.get_egg_progress_h() / StoveWarmer.EGG_COOK_HOURS, "ticks": 0}
-			if egg == StoveWarmer.EggState.READY:
-				return {"state": ArcState.DONE, "fill": 1.0, "ticks": 0}
-			return {"state": ArcState.AVAILABLE if has_pan and burning and inventory != null and inventory.has_item(&"egg_raw") else ArcState.INACTIVE, "fill": 0.0, "ticks": 0}
-		_:
-			return {"state": ArcState.AVAILABLE if has_pan and egg == StoveWarmer.EggState.READY else ArcState.INACTIVE, "fill": 0.0, "ticks": 0}

@@ -62,6 +62,8 @@ enum PickupSubtype {
 @export var focus_priority: float = 0.0
 ## Radius around the focus point that still counts as aimed at, metres.
 @export var focus_radius: float = 0.12
+## An icon the pickup marker draws above its F (the eye for "search"); null draws none.
+@export var marker_icon: Texture2D
 
 @export_group("Special awareness")
 ## Opt-in: Henry notices this rare object with a check mark. Never for ordinary loot.
@@ -588,8 +590,8 @@ func _load_interactable_scene() -> void:
 		add_child(loaded_interactable_node)
 		
 		# Получаем данные от загруженного объекта
-		if loaded_interactable_node.has_method("get_interaction_data"):
-			var data = loaded_interactable_node.get_interaction_data()
+		if InteractionDataCapability.ensure(loaded_interactable_node):
+			var data: Dictionary = InteractionDataCapability.data(loaded_interactable_node)
 			item_name = data.get("name", item_name)
 			description = data.get("description", description)
 			highlight_color = data.get("highlight_color", highlight_color)

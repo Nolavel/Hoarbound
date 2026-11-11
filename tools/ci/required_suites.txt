@@ -1,0 +1,9 @@
+# Suites the `checks` gate runs on every push and PR (ARCHITECTURE.md §16, rule 4): the contract
+# tests of cross-system seams. Unlike the report-only `suites` run, a failure here fails the gate.
+# One suite name per line; a reason may follow after '#'. Keep it to fast, stable contract suites.
+test_capability_contract  # SaveParticipantCapability: success, refused publish, dead provider, refused save
+test_hands_transaction  # HeldReleaseCapability: a refused take changes no holder, storage or world item
+test_held_release_callers  # sit, bedroll, pack, armful refuse whole; a pocket change hides only what can go back
+test_edge_glow_overlay  # Hub presentation state, outcome pulse, closed-state reset
+test_stone_scatter  # collected pickup lifetime, ledger and eviction/respawn
+test_runtime_visual_lifecycle  # stable rim, freed focus-mask nodes and empty optional item IDs

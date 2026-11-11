@@ -107,6 +107,8 @@ func _check_nodes() -> void:
 	for p: Array in _shelter.interior["outline_uv"]:
 		outline.append(Vector2(float(p[0]), float(p[1])))
 	for item: Dictionary in _shelter.interior["furniture"]:
+		if item["kind"] == "hut_mattress":
+			continue  # removed on purpose (owner, 2026-11-03): Henry lays his own bedroll
 		var node: Node3D = house.find_child(String(item["node"]), true, false) as Node3D
 		_check(node != null, "furniture %s missing" % item["node"])
 		if node != null:

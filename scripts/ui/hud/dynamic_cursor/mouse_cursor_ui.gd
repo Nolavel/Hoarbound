@@ -661,5 +661,5 @@ func _on_jump_performed() -> void:
 
 
 func _is_paused() -> bool:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	return state != null and bool(state.call(&"is_paused"))
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	return state != null and bool(state.is_paused())

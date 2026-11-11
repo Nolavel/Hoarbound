@@ -8,6 +8,8 @@
 ## passes fails the run, so the list never goes stale.
 ## A suite may ask for engine arguments on a line "## ci-args: <args>" (e.g. --fixed-fps 30 for one
 ## whose springs and scripted moves assume game-speed frames).
+## With suite names as arguments (test_x or test_x.gd) only those run, by the same verdict: the `checks`
+## gate runs tools/ci/required_suites.txt that way. Each named suite must exist.
 set -uo pipefail
 
 GODOT_BIN="${GODOT_BIN:-$HOME/.local/bin/godot}"
@@ -20,7 +22,20 @@ known_file="$PROJECT_DIR/tools/ci/known_failing_suites.txt"
 known=""
 [ -f "$known_file" ] && known="$(sed -e 's/#.*//' -e 's/[[:space:]]//g' "$known_file" | grep -v '^$' || true)"
 shopt -s nullglob
-for suite in "$PROJECT_DIR"/tests/systems/test_*.gd; do
+suites=("$PROJECT_DIR"/tests/systems/test_*.gd)
+if [ "$#" -gt 0 ]; then
+	suites=()
+	for wanted in "$@"; do
+		path="$PROJECT_DIR/tests/systems/${wanted%.gd}.gd"
+		if [ ! -f "$path" ]; then
+			echo "FAILED: $wanted (no such suite)"
+			status=1
+			continue
+		fi
+		suites+=("$path")
+	done
+fi
+for suite in "${suites[@]}"; do
 	name="$(basename "$suite")"
 	echo "== $name"
 	log="$(mktemp)"

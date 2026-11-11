@@ -6,27 +6,50 @@ extends Node3D
 
 const SPEC_PATH: String = "res://data/world/key_west/reality/landmarks/kw_727_fort_st.json"
 const GLB_PATH: String = "res://assets/world/key_west/landmarks/kw_727_fort_st.glb"
-const BASELINE: ShaderMaterial = preload("res://assets/world/key_west/landmarks/frosted_glass_727.tres")
 const SDF_SHADER: Shader = preload("res://tests/demos/window_727_sdf/sdf_frosted_glass_727.gdshader")
-const SDF_V2_SHADER: Shader = preload("res://tests/demos/window_727_sdf/sdf_frosted_glass_727_v2.gdshader")
+## The glass the game ships (frosted_glass.gdshader with its baked frost tiles); the probe scrubs a copy of it.
+const GAME_GLASS: ShaderMaterial = preload("res://assets/world/key_west/landmarks/frosted_glass_727.tres")
 const BACKDROP_SHADER: Shader = preload("res://tests/demos/window_727_sdf/diagnostic_backdrop.gdshader")
+const WHEEL_STEP: float = 0.02
 
 var _window: MeshInstance3D
-var _plain: ShaderMaterial
 var _sdf: ShaderMaterial
-var _sdf_v2: ShaderMaterial
+var _game: ShaderMaterial
 var _label: Label
+var _slider: HSlider
 var _valid: bool = false
 var _verified_triangles: int = 0
+var _leaving: bool = false
+var _esc_was_down: bool = false
+var _variant: StringName = &"natural"
 
 func _ready() -> void:
+	set_process_input(true)
+	set_process_unhandled_input(true)
+	# Ignore a key that is already held when the window appears.
+	_esc_was_down = Input.is_physical_key_pressed(KEY_ESCAPE) or Input.is_key_pressed(KEY_ESCAPE)
 	_valid = _load_real_pane()
-	if not _valid:
-		return
-	_make_diagnostic_background()
-	_make_camera()
-	_make_label()
-	set_test_time(0.0)
+	if _valid:
+		_make_diagnostic_background()
+		_make_camera()
+	_make_overlay()
+	var window := get_window()
+	if window != null and not window.window_input.is_connected(_on_window_input):
+		window.window_input.connect(_on_window_input)
+		window.grab_focus()
+	if _valid:
+		set_thaw(0.0)
+		print("WINDOW_727_SCRUB_READY thaw=0 esc=keycode+physical")
+	else:
+		_label.text = "WINDOW FAILED TO LOAD.  Esc leaves."
+
+func _process(_delta: float) -> void:
+	# Embedded editor play often delivers Escape as key state and never as
+	# ui_cancel, and the focused slider then swallows the action.
+	var down := Input.is_physical_key_pressed(KEY_ESCAPE) or Input.is_key_pressed(KEY_ESCAPE)
+	if down and not _esc_was_down:
+		_leave()
+	_esc_was_down = down
 
 func is_valid() -> bool:
 	return _valid
@@ -34,29 +57,138 @@ func is_valid() -> bool:
 func verified_triangles() -> int:
 	return _verified_triangles
 
-func set_test_time(seconds: float) -> void:
+
+## One vertex per corner, so a cleared pane does not draw each shared edge twice.
+func _weld_pane(vertices: PackedVector3Array, normals: PackedVector3Array, texcoords: PackedVector2Array, colours: PackedColorArray) -> Array:
+	var out_vertices := PackedVector3Array()
+	var out_normals := PackedVector3Array()
+	var out_uv := PackedVector2Array()
+	var out_colours := PackedColorArray()
+	var indices := PackedInt32Array()
+	for i: int in vertices.size():
+		var found := -1
+		for j: int in out_vertices.size():
+			if out_vertices[j].distance_squared_to(vertices[i]) > 1e-8:
+				continue
+			if out_uv[j].distance_squared_to(texcoords[i]) > 1e-8:
+				continue
+			found = j
+			break
+		if found < 0:
+			found = out_vertices.size()
+			out_vertices.append(vertices[i])
+			out_normals.append(normals[i])
+			out_uv.append(texcoords[i])
+			out_colours.append(colours[i])
+		indices.append(found)
+	return [out_vertices, out_normals, out_uv, out_colours, indices]
+
+## 0 is the whole pane frosted. 1 is the open thaw.
+func set_thaw(progress: float) -> void:
 	if not _valid:
 		return
-	# Six seconds: production baseline then SDF, same 36 warmth samples.
-	var second: bool = seconds >= 3.0
-	var progress: float = clampf(fmod(seconds * 12.0, 36.0) / 35.0, 0.0, 1.0)
-	_window.material_override = _sdf_v2 if second else _plain
-	_plain.set_shader_parameter(&"heated_warmth", progress)
+	progress = clampf(progress, 0.0, 1.0)
+	if _slider != null:
+		_slider.set_value_no_signal(progress)
+	_apply_thaw(progress)
+
+## &"natural" is the game's glass; &"v3" is the imported SDF sheet, for comparison (V toggles).
+func set_variant(variant: StringName) -> void:
+	if not _valid:
+		return
+	_variant = &"v3" if variant == &"v3" else &"natural"
+	_apply_thaw(_slider.value if _slider != null else 0.0)
+
+func set_test_time(seconds: float) -> void:
+	set_thaw(clampf(seconds / 6.0, 0.0, 1.0))
+
+func _apply_thaw(progress: float) -> void:
+	progress = clampf(progress, 0.0, 1.0)
+	_window.material_override = _sdf if _variant == &"v3" else _game
+	_game.set_shader_parameter(&"heated_warmth", progress)
+	_game.set_shader_parameter(&"unheated_warmth", progress)
 	_sdf.set_shader_parameter(&"heated_warmth", progress)
-	_sdf_v2.set_shader_parameter(&"heated_warmth", progress)
 	var radius: float = lerpf(0.001, 0.46, pow(progress, 0.85))
 	var blobs: Array[Vector4] = []
 	for point: Vector2 in [Vector2(0.35, 0.54), Vector2(0.62, 0.46), Vector2(0.49, 0.60)]:
 		blobs.append(Vector4(point.x, point.y, radius, 0.0))
 	while blobs.size() < 16:
 		blobs.append(Vector4.ZERO)
-	for variant: ShaderMaterial in [_sdf_v2, _sdf]:
-		variant.set_shader_parameter(&"blob_data", blobs)
-		variant.set_shader_parameter(&"blob_count", 3 if progress > 0.0 else 0)
-	_label.text = "727 FORT ST  /  FRONTWINDOW1     %s     THAW: %02d%%" % [
-		"A / MAIN FROST" if not second else "B / SDF THAW",
-		int(progress * 100.0)
-	]
+	_sdf.set_shader_parameter(&"blob_data", blobs)
+	_sdf.set_shader_parameter(&"blob_count", 3 if progress > 0.0 else 0)
+	_label.text = "727 FRONTWINDOW1   %s   WARMTH %02d%%" % ["GAME GLASS" if _variant == &"natural" else "V3 SDF SHEET", int(progress * 100.0)]
+
+func _is_escape(event: InputEvent) -> bool:
+	if event.is_action_pressed(&"ui_cancel"):
+		return true
+	if event is InputEventKey:
+		var key := event as InputEventKey
+		if key.pressed and not key.echo:
+			return key.keycode == KEY_ESCAPE or key.physical_keycode == KEY_ESCAPE
+	return false
+
+func _on_window_input(event: InputEvent) -> void:
+	if _is_escape(event):
+		_leave()
+
+func _leave() -> void:
+	if _leaving:
+		return
+	_leaving = true
+	print("WINDOW_727_LEAVE")
+	call_deferred("_quit_now")
+
+func _quit_now() -> void:
+	var tree := get_tree()
+	if tree == null:
+		return
+	# quit() alone does not dismiss an embedded editor game on this build.
+	tree.root.propagate_notification(NOTIFICATION_WM_CLOSE_REQUEST)
+	tree.quit()
+
+func _input(event: InputEvent) -> void:
+	if _is_escape(event):
+		get_viewport().set_input_as_handled()
+		_leave()
+	elif event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo \
+			and (event as InputEventKey).physical_keycode == KEY_V:
+		set_variant(&"v3" if _variant == &"natural" else &"natural")
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not event is InputEventMouseButton:
+		return
+	var button := event as InputEventMouseButton
+	if not button.pressed:
+		return
+	if button.button_index == MOUSE_BUTTON_WHEEL_UP:
+		_nudge_thaw(-WHEEL_STEP)
+	elif button.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		_nudge_thaw(WHEEL_STEP)
+	else:
+		return
+	get_viewport().set_input_as_handled()
+
+func _nudge_thaw(delta: float) -> void:
+	if _slider == null:
+		return
+	set_thaw(_slider.value + delta)
+
+func _on_slider_changed(value: float) -> void:
+	_apply_thaw(value)
+
+func _on_slider_gui_input(event: InputEvent) -> void:
+	if not event is InputEventMouseButton:
+		return
+	var button := event as InputEventMouseButton
+	if not button.pressed:
+		return
+	if button.button_index == MOUSE_BUTTON_WHEEL_UP:
+		_nudge_thaw(-WHEEL_STEP)
+	elif button.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		_nudge_thaw(WHEEL_STEP)
+	else:
+		return
+	_slider.accept_event()
 
 func _load_real_pane() -> bool:
 	var info: Variant = JSON.parse_string(FileAccess.get_file_as_string(SPEC_PATH))
@@ -138,23 +270,36 @@ func _load_real_pane() -> bool:
 					all_inside = false
 			if not all_inside:
 				continue
+			_verified_triangles += 1
+			# The solid is a 2 cm box: pane, back face, and four edge lips.
+			# The lips are the horizontal and vertical lines once the sheet clears.
+			var e1 := Vector2(planar[1].x - planar[0].x, planar[1].y - planar[0].y)
+			var e2 := Vector2(planar[2].x - planar[0].x, planar[2].y - planar[0].y)
+			var pane_area := absf(e1.x * e2.y - e1.y * e2.x) * 0.5
+			var face_z := (planar[0].z + planar[1].z + planar[2].z) / 3.0
+			if pane_area < 0.2 or face_z > centre.z:
+				continue
 			var n: Vector3 = (tri[1] - tri[0]).cross(tri[2] - tri[0]).normalized()
 			for corner: int in range(3):
 				vertices.append(tri[corner])
 				normals.append(n)
 				texcoords.append(source_uv[source_indices[k + corner]])
 				colours.append(source_color[source_indices[k + corner]])
-			_verified_triangles += 1
 	instance.queue_free()
 	if _verified_triangles != 12:
 		push_error("WINDOW_727_TEST_FAIL: only %d source glass triangles for FrontWindow1" % _verified_triangles)
 		return false
+	if vertices.size() != 6:
+		push_error("WINDOW_727_TEST_FAIL: pane face is %d vertices" % vertices.size())
+		return false
 	var mesh_arrays: Array = []
 	mesh_arrays.resize(Mesh.ARRAY_MAX)
-	mesh_arrays[Mesh.ARRAY_VERTEX] = vertices
-	mesh_arrays[Mesh.ARRAY_NORMAL] = normals
-	mesh_arrays[Mesh.ARRAY_TEX_UV] = texcoords
-	mesh_arrays[Mesh.ARRAY_COLOR] = colours
+	var welded: Array = _weld_pane(vertices, normals, texcoords, colours)
+	mesh_arrays[Mesh.ARRAY_VERTEX] = welded[0]
+	mesh_arrays[Mesh.ARRAY_NORMAL] = welded[1]
+	mesh_arrays[Mesh.ARRAY_TEX_UV] = welded[2]
+	mesh_arrays[Mesh.ARRAY_COLOR] = welded[3]
+	mesh_arrays[Mesh.ARRAY_INDEX] = welded[4]
 	var copied_mesh: ArrayMesh = ArrayMesh.new()
 	copied_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mesh_arrays)
 	_window = MeshInstance3D.new()
@@ -162,16 +307,15 @@ func _load_real_pane() -> bool:
 	_window.mesh = copied_mesh
 	_window.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_window)
-	_plain = BASELINE.duplicate(true) as ShaderMaterial
 	_sdf = ShaderMaterial.new()
 	_sdf.shader = SDF_SHADER
-	_sdf_v2 = ShaderMaterial.new()
-	_sdf_v2.shader = SDF_V2_SHADER
-	for variant: ShaderMaterial in [_plain, _sdf_v2, _sdf]:
-		variant.set_shader_parameter(&"growth_seed", 0.28)
-		variant.set_shader_parameter(&"melt_seed", 0.73)
-	for variant: ShaderMaterial in [_sdf_v2, _sdf]:
-		variant.set_shader_parameter(&"pane_aspect", width / height)
+	_sdf.set_shader_parameter(&"growth_seed", 0.28)
+	_sdf.set_shader_parameter(&"melt_seed", 0.73)
+	_sdf.set_shader_parameter(&"pane_aspect", width / height)
+	_game = GAME_GLASS.duplicate() as ShaderMaterial
+	_game.set_shader_parameter(&"growth_seed", 0.28)
+	_game.set_shader_parameter(&"melt_seed", 0.73)
+	_window.material_override = _game
 	print("WINDOW_727_REAL_GLASS_OK source=%s window=FrontWindow1 room=waiting width=%.2f height=%.2f centre_uv=(%.3f,%.3f) selected_triangles=%d" % [
 		GLB_PATH, width, height, centre.x, centre.z, _verified_triangles
 	])
@@ -208,11 +352,86 @@ func _make_diagnostic_background() -> void:
 	background.transform = Transform3D(basis, basis * Vector3(centre.x, centre.y, centre.z + 2.1))
 	add_child(background)
 
-func _make_label() -> void:
-	var overlay: CanvasLayer = CanvasLayer.new()
+func _make_overlay() -> void:
+	var overlay := CanvasLayer.new()
+	overlay.name = "FrostScrub"
 	add_child(overlay)
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(root)
 	_label = Label.new()
-	_label.position = Vector2(20.0, 14.0)
+	_label.position = Vector2(20.0, 16.0)
+	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_label.add_theme_color_override("font_color", Color(0.95, 0.97, 0.97))
 	_label.add_theme_font_size_override("font_size", 19)
-	overlay.add_child(_label)
+	root.add_child(_label)
+	var hint := Label.new()
+	hint.position = Vector2(20.0, 46.0)
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hint.text = "Left is the whole pane frosted. Right opens the thaw. V compares with the V3 sheet. Esc leaves."
+	hint.add_theme_color_override("font_color", Color(0.93, 0.95, 0.96))
+	hint.add_theme_font_size_override("font_size", 20)
+	root.add_child(hint)
+	var bar := ColorRect.new()
+	bar.color = Color(0.04, 0.05, 0.06, 0.88)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(bar)
+	bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	bar.offset_top = -78.0
+	bar.offset_bottom = 0.0
+	var frost_end := Label.new()
+	frost_end.text = "FROST"
+	frost_end.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frost_end.add_theme_color_override("font_color", Color(0.86, 0.91, 0.94))
+	frost_end.add_theme_font_size_override("font_size", 18)
+	root.add_child(frost_end)
+	frost_end.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	frost_end.offset_left = 18.0
+	frost_end.offset_top = -64.0
+	frost_end.offset_right = 110.0
+	frost_end.offset_bottom = -36.0
+	var thaw_end := Label.new()
+	thaw_end.text = "THAW"
+	thaw_end.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	thaw_end.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	thaw_end.add_theme_color_override("font_color", Color(0.86, 0.91, 0.94))
+	thaw_end.add_theme_font_size_override("font_size", 18)
+	root.add_child(thaw_end)
+	thaw_end.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	thaw_end.offset_left = -110.0
+	thaw_end.offset_top = -64.0
+	thaw_end.offset_right = -18.0
+	thaw_end.offset_bottom = -36.0
+	_slider = HSlider.new()
+	_slider.min_value = 0.0
+	_slider.max_value = 1.0
+	_slider.step = 0.001
+	_slider.value = 0.0
+	# Clicks still drag. Keyboard focus would eat Escape as "release focus".
+	_slider.focus_mode = Control.FOCUS_NONE
+	_slider.mouse_filter = Control.MOUSE_FILTER_STOP
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0.22, 0.26, 0.29)
+	track.set_corner_radius_all(4)
+	track.content_margin_top = 8.0
+	track.content_margin_bottom = 8.0
+	var filled := StyleBoxFlat.new()
+	filled.bg_color = Color(0.78, 0.88, 0.92)
+	filled.set_corner_radius_all(4)
+	var handle := Image.create(16, 34, false, Image.FORMAT_RGBA8)
+	handle.fill(Color(0.96, 0.98, 0.99))
+	var handle_tex := ImageTexture.create_from_image(handle)
+	_slider.add_theme_stylebox_override("slider", track)
+	_slider.add_theme_stylebox_override("grabber_area", filled)
+	_slider.add_theme_stylebox_override("grabber_area_highlight", filled)
+	_slider.add_theme_icon_override("grabber", handle_tex)
+	_slider.add_theme_icon_override("grabber_highlight", handle_tex)
+	root.add_child(_slider)
+	_slider.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_slider.offset_left = 118.0
+	_slider.offset_right = -118.0
+	_slider.offset_top = -58.0
+	_slider.offset_bottom = -18.0
+	_slider.value_changed.connect(_on_slider_changed)
+	_slider.gui_input.connect(_on_slider_gui_input)

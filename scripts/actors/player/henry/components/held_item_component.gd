@@ -60,6 +60,8 @@ var _raise: float = 0.0
 
 
 func _ready() -> void:
+	HeldReleaseCapability.publish(self, &"is_holding", &"is_holding", &"put_away_unlit")
+	HeldDrawCapability.publish(self, &"equip_from_zone", &"get_source_zone", &"use_held")
 	if inventory == null:
 		inventory = InventoryComponent.find_in(get_parent())
 	if equipment == null:
@@ -73,6 +75,8 @@ func _ready() -> void:
 
 
 func supports_item(item_id: StringName) -> bool:
+	if item_id == &"":
+		return false
 	var item: ItemResource = ItemCatalog.get_item(item_id)
 	return item != null and item.garment == null and not item.carried_in_hands \
 		and (item.size_class == ItemTraits.SizeClass.POCKET or item.one_hand_held) and item_id not in [&"hammer", &"road_flare"]
@@ -80,6 +84,8 @@ func supports_item(item_id: StringName) -> bool:
 
 ## Existing Hub Use route for authored large one-hand tools, not consumables.
 func can_use(item_id: StringName) -> bool:
+	if item_id == &"":
+		return false
 	var item: ItemResource = ItemCatalog.get_item(item_id)
 	return item != null and item.one_hand_held and supports_item(item_id) and not is_holding() and inventory != null and inventory.has_item(item_id)
 
@@ -163,7 +169,7 @@ func use_held() -> bool:
 		var next: StringName = item.opens_into if item.opens_into != &"" else \
 			(&"" if item.consumable.discard_leftover else item.consumable.leaves_behind_id)
 		if item.opens_into != &"":
-			get_parent().call(&"play_action_animation", &"fix")
+			InteractHostCapability.run(get_parent(), &"animate", [&"fix"])
 		if next != &"":
 			_item_id = next
 			if HeldOwnership.zone_item(equipment, _source_zone) != next:
@@ -306,7 +312,11 @@ func _sync_owned() -> void:
 
 
 func _show_hint(message: String = "") -> void:
-	var item: ItemResource = ItemCatalog.get_item(_item_id)
+	var item: ItemResource = ItemCatalog.get_item(_item_id) if _item_id != &"" else null
+	if item == null:
+		_message_left = 0.0
+		hint_changed.emit("")
+		return
 	var action: String = tr("HAND_TOOL_HINT")
 	if item.water_capacity_ml > 0:
 		action = tr("CONSUME_REFUSED_EMPTY_FLASK") if item.water_remaining_ml == 0 else "LMB · " + tr("FLASK_DRINK_ACTION")
@@ -368,9 +378,9 @@ func _advance_present(delta: float) -> void:
 	if _present_seconds >= LIGHTER_RAISE_SECONDS and not flame.is_lit():
 		flame.strike()
 		flame.set_lit(true)
-		var sound: Node = get_node_or_null(^"/root/SoundSystem")
+		var sound := get_node_or_null(^"/root/SoundSystem") as SoundSystemService
 		if sound != null:
-			sound.call(&"play", LIGHTER_STRIKE_EVENT, flame.global_position)
+			sound.play(LIGHTER_STRIKE_EVENT, flame.global_position)
 
 
 ## Fist a forearm before the chest on the holding side, thumb up: HandGrip holds the lighter's body upright in

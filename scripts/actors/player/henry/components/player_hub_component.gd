@@ -6,6 +6,8 @@ extends Node
 
 signal hub_opened
 signal hub_closed
+## Result of a completed 3D Hub action. Cancelling a drag has no result.
+signal action_result(success: bool)
 ## Emitted after an item moved between the pack and a Quick Access zone.
 signal contents_changed
 ## Emitted when a quick-stowed item has dropped into the pack.
@@ -25,22 +27,10 @@ const STOW_DROP_TIME: float = 0.32
 ## Where inspection stands the pack and Kenny, in Henry's space (he faces -Z).
 const INSPECT_PACK_SPOT: Vector3 = Vector3(0.0, -0.9, -0.75)
 const INSPECT_KENNY_SPOT: Vector3 = Vector3(0.7, -0.9, -0.3)
-## An open container this near ahead of Henry joins the held pack (its shelves), metres.
-const CONTAINER_REACH_M: float = 1.3
-## A visit (visit_container): the walk counts as arrived this near its spot and gives up after VISIT_WALK_S;
-## crouched (or standing at a tall one) the pack opens after VISIT_SETTLE_S, at most VISIT_CROUCH_S on, seconds.
-const VISIT_ARRIVE_M: float = 0.3
 ## A threat shuts the open Hub (Green Hell): damage, or falling faster than this, m/s (interrupt()).
 const INTERRUPT_FALL_SPEED: float = 2.0
-## The door clip (Chest_Open) is cut this long after F, once his hand is at the door, so he walks at once.
-const VISIT_REACH_S: float = 0.45
-## A walk that gets no nearer for VISIT_STALL_S (a wall or the furniture in the way) ends there: arrived when
-## within VISIT_STALL_ARRIVE_M of the spot, else called off.
-const VISIT_STALL_S: float = 0.25
-const VISIT_STALL_ARRIVE_M: float = 0.7
-const VISIT_WALK_S: float = 4.0
-const VISIT_SETTLE_S: float = 0.25
-const VISIT_CROUCH_S: float = 1.2
+## An open container this near ahead of Henry joins the held pack (its shelves), metres.
+const CONTAINER_REACH_M: float = 1.3
 ## Something put down from the open pack lands this far ahead of Henry, metres.
 const DROP_AHEAD_M: float = 0.7
 ## route_destination's answer when the item stays in the pack.
@@ -78,13 +68,6 @@ var _thermal_manager: ThermalManager
 var _front_hold: PackFrontHold
 ## The open container Henry stands at while the pack is held (its shelves join the inventory), or null.
 var container: ItemContainer
-## The container Henry is walking to or crouching at before the pack opens, its spot and the phase's time.
-var _visit: ItemContainer
-var _visit_spot: Dictionary = {}
-var _visit_walking: bool = false
-var _visit_s: float = 0.0
-var _visit_nearest: float = INF
-var _visit_stall_s: float = 0.0
 ## The Quick Access cards beside the held pack and the hands working in it (pack_in_hands mode).
 var _shelf: PackQuickShelf
 var _hands: PackHandling
@@ -108,78 +91,39 @@ func _ready() -> void:
 		equipment = body.get_node_or_null(^"EquipmentComponent") as EquipmentComponent
 
 
-## Henry walks to `shelves`' visit spot (ItemContainer.visit_spot), crouches at a low one, faces in, and the
-## pack opens beside it. WASD on the way calls it off.
+## Henry searches `shelves` where he stands (owner: he walks up himself): he faces it, crouches at a low one
+## and takes the pack off together, and the view cuts to the working frame (_cut_to_container).
 func visit_container(shelves: ItemContainer) -> bool:
 	var body := get_parent() as Player
 	if _open or body == null or not _can_open() or not shelves.is_reachable():
 		return false
-	_visit = shelves
-	_visit_spot = shelves.visit_spot(body.global_position)
-	_visit_walking = true
-	_visit_s = 0.0
-	_visit_nearest = INF
-	_visit_stall_s = 0.0
-	body.move_to_position(_visit_spot["at"])
+	var spot: Dictionary = shelves.visit_spot(body.global_position)
+	body.stop_moving()
+	body.face_work_target(shelves.front()[0])
+	if shelves.is_low(body.global_position.y - 1.0):  # the body's origin is the capsule centre
+		body.set_work_crouch(true)
+	if not _open_at(shelves, spot["side"]):
+		_end_visit()
+		return false
 	return true
 
 
-## A threat (damage, a fall; later thin ice and the like): the open Hub shuts at once and a visit is called off.
+## At a container, until the cut, the view eases toward the Tab view of Henry as he is now: he crouches while the
+## pack comes off, so a target fixed at the start would aim where his chest was standing.
+func _process(delta: float) -> void:
+	if not _open or not is_instance_valid(_camera) or not is_instance_valid(_front_hold) or container == null:
+		return
+	if _front_hold.is_container_cut():
+		return
+	var ease: float = 1.0 - exp(-delta / maxf(camera_blend_time * 0.35, 0.01))
+	_camera.global_transform = _camera.global_transform.interpolate_with(get_camera_target(), ease)
+
+
+## A threat (damage, a fall; later thin ice and the like): the open Hub shuts at once.
 ## Time never stops in the Hub, so this is what makes an open pack a risk.
 func interrupt() -> void:
-	if _visit != null:
-		_end_visit()
 	if _open:
 		close()
-
-
-## Whether Henry is on his way to (or settling at) a container before the pack opens.
-func is_visiting() -> bool:
-	return _visit != null
-
-
-func _physics_process(delta: float) -> void:
-	var falling := get_parent() as CharacterBody3D
-	if (_open or _visit != null) and falling != null and falling.velocity.y < -INTERRUPT_FALL_SPEED:
-		interrupt()
-		return
-	if _visit == null:
-		return
-	var body := get_parent() as Player
-	if body == null or not is_instance_valid(_visit) or not _visit.is_reachable():
-		_end_visit()
-		return
-	_visit_s += delta
-	var at: Vector3 = _visit_spot["at"]
-	var off: float = Vector2(at.x - body.global_position.x, at.z - body.global_position.z).length()
-	if _visit_walking:
-		if body.is_action_locking() and _visit_s >= VISIT_REACH_S and _visual() != null:
-			_visual().stop_action()
-		if off < _visit_nearest - 0.01:
-			_visit_nearest = off
-			_visit_stall_s = 0.0
-		elif not body.is_action_locking():
-			_visit_stall_s += delta
-		var stalled: bool = _visit_stall_s >= VISIT_STALL_S
-		if body.is_walking_to_target() and _visit_s < VISIT_WALK_S and not stalled:
-			return
-		if off > (VISIT_STALL_ARRIVE_M if stalled else VISIT_ARRIVE_M):
-			_end_visit()  # WASD took over, or he could not get there
-			return
-		body.stop_moving()
-		_visit_walking = false
-		_visit_s = 0.0
-		body.face_work_target(_visit_spot["face"])
-		var floor_y: float = body.global_position.y - 1.0  # the body's origin is the capsule centre
-		if _visit.is_low(floor_y):
-			body.set_work_crouch(true)
-		return
-	var settled: bool = not body.is_work_crouching() or body.is_crouching()
-	if (settled and _visit_s >= VISIT_SETTLE_S) or _visit_s >= VISIT_CROUCH_S:
-		var shelves: ItemContainer = _visit
-		var side: float = _visit_spot["side"]
-		_visit = null
-		_open_at(shelves, side)
 
 
 ## The container view's angle: the owner's framing camera, else container_view_fov, degrees.
@@ -188,11 +132,17 @@ func _container_fov() -> float:
 	return framing.camera_fov if framing != null else container_view_fov
 
 
+func _physics_process(_delta: float) -> void:
+	var falling := get_parent() as CharacterBody3D
+	if _open and falling != null and falling.velocity.y < -INTERRUPT_FALL_SPEED:
+		interrupt()
+
+
+## He stands up from a container's crouch (the pack closed, or it could not open).
 func _end_visit() -> void:
 	var body := get_parent() as Player
 	if body != null and body.is_work_crouching():
 		body.set_work_crouch(false)
-	_visit = null
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -212,17 +162,19 @@ func is_open() -> bool:
 	return _open
 
 
+## World pickup's visible stow animation, not a second pickup state.
+func is_stowing_pickup() -> bool:
+	return _stows_in_flight > 0
+
+
 func toggle() -> bool:
-	if _visit != null:
-		_end_visit()
-		return false
 	return close() if _open else open()
 
 
 ## Enters the Hub. Refused mid-fall, while carrying in both hands or mid-action. By an open container within
 ## reach Henry first steps over to it (visit_container) and the pack opens there.
 func open() -> bool:
-	if _open or _visit != null:
+	if _open:
 		return false
 	var body := get_parent() as Node3D
 	if pack_in_hands and body != null and not _opening_inspection:
@@ -263,6 +215,8 @@ func _open_at(shelves: ItemContainer, side: float) -> bool:
 		## The ring cursor and hands: take from the pack or a pocket, put it in the other, G puts it down.
 		var layer := CanvasLayer.new()
 		layer.name = "PackCursorLayer"
+		## Keep the ring, readout and weight above the fullscreen Hub glow (layer 1).
+		layer.layer = 3
 		add_child(layer)
 		var ring := PackCursor.new()
 		layer.add_child(ring)
@@ -271,6 +225,11 @@ func _open_at(shelves: ItemContainer, side: float) -> bool:
 		add_child(_hands)
 		_hands.setup(self, pack.get_straps(), _shelf, _camera, ring, container)
 		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+		if container != null:
+			## At a container the game view stays while he takes the pack off; the frame and its UI come at the cut.
+			_shelf.visible = false
+			_hands.enabled = false
+			_front_hold.settled.connect(_cut_to_container, CONNECT_ONE_SHOT)
 	hub_opened.emit()
 	return true
 
@@ -625,7 +584,7 @@ func use_item(item_id: StringName) -> bool:
 	if user == null:
 		return false
 	close()
-	return bool(user.call(&"use", item_id))
+	return ItemUserCapability.use(user, item_id)
 
 
 ## Uses a pocketed item: it passes through the pack to its user and goes back
@@ -653,7 +612,7 @@ func _user_for(item_id: StringName) -> Node:
 	if body == null or inventory == null or not inventory.has_item(item_id):
 		return null
 	for child: Node in body.get_children():
-		if child != self and child.has_method(&"can_use") and bool(child.call(&"can_use", item_id)):
+		if child != self and ItemUserCapability.can_use(child, item_id):
 			return child
 	return null
 
@@ -663,7 +622,8 @@ func get_camera_target() -> Transform3D:
 	var body := get_parent() as Node3D
 	var pack: PackRig = _pack()
 	if is_instance_valid(_front_hold):
-		return _front_hold.container_view(_container_fov()) if is_instance_valid(_front_hold.container) else _front_hold.front_view(pack_view_fov)
+		## At a container: the Tab view while the pack comes off, the furniture's frame after the cut.
+		return _front_hold.container_view(_container_fov()) if is_instance_valid(_front_hold.container) and _front_hold.is_container_cut() else _front_hold.front_view(pack_view_fov)
 	if _inspecting and pack != null and pack.is_inside_tree():
 		## Beside Henry, past his left shoulder, looking down into the open pack on the floor.
 		var basis: Basis = body.global_transform.basis.orthonormalized()
@@ -752,20 +712,7 @@ func _can_open() -> bool:
 
 
 func _stow_safe_held_items() -> bool:
-	var body: Node = get_parent()
-	if body == null:
-		return true
-	for child: Node in body.get_children():
-		if child.has_method(&"is_burning") and bool(child.call(&"is_burning")):
-			return false
-		if not child.has_method(&"is_holding") or not bool(child.call(&"is_holding")):
-			continue
-		if child.has_method(&"put_away_unlit") and bool(child.call(&"put_away_unlit")):
-			continue
-		if child.has_method(&"put_away") and bool(child.call(&"put_away")):
-			continue
-		return false
-	return true
+	return get_parent() == null or HeldReleaseCapability.release_all(get_parent())
 
 
 func _visual() -> HenryUALAnimation:
@@ -789,7 +736,7 @@ func _enter_camera() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "HubCamera"
 	_camera.top_level = true
-	_camera.fov = (_container_fov() if container != null else pack_view_fov) if is_instance_valid(_front_hold) else 50.0
+	_camera.fov = pack_view_fov if is_instance_valid(_front_hold) else 50.0
 	## It sees what the game camera sees: reserved layers (dev map labels, snow contact) stay out.
 	if _previous_camera != null:
 		_camera.cull_mask = _previous_camera.cull_mask
@@ -797,16 +744,42 @@ func _enter_camera() -> void:
 		_camera.attributes = _previous_camera.attributes
 		_camera.compositor = _previous_camera.compositor
 	body.add_child(_camera)
-	if is_instance_valid(_front_hold):
-		## The held pack in focus: everything else, Henry too, blurs (a stencil mask, not depth).
-		var blur := PackFocusBlur.new()
-		blur.name = "PackFocusBlur"
-		_camera.add_child(blur)
-		blur.setup(_pack(), container.get_parent() as Node3D if container != null else null)
 	var target: Transform3D = get_camera_target()
 	_camera.global_transform = _previous_camera.global_transform if _previous_camera != null else target
 	_camera.make_current()
+	## At a container the pack comes off as by Tab (the same view, so its turn off his back shows); the frame,
+	## its blur and UI come at the cut (_cut_to_container).
+	if is_instance_valid(_front_hold) and container != null:
+		return  # the Tab view follows him as he crouches (_process), then the cut
+	if is_instance_valid(_front_hold):
+		_add_focus_blur()
 	create_tween().set_trans(Tween.TRANS_SINE).tween_property(_camera, ^"global_transform", target, camera_blend_time)
+
+
+## The held pack in focus: everything else, Henry too, blurs (a stencil mask, not depth).
+func _add_focus_blur() -> void:
+	var blur := PackFocusBlur.new()
+	blur.name = "PackFocusBlur"
+	_camera.add_child(blur)
+	blur.setup(_pack(), container.get_parent() as Node3D if container != null else null)
+
+
+## The pack is off his back at a container: a hard cut to the working frame (owner), its blur and UI on.
+func _cut_to_container() -> void:
+	if not _open or not is_instance_valid(_camera) or container == null:
+		return
+	_camera.fov = _container_fov()
+	_camera.global_transform = get_camera_target()
+	_add_focus_blur()
+	## Outlines traced in this frame would use the view before the jump: the cards and ring wait one frame.
+	PackHandling.clear_outline_cache()
+	await get_tree().process_frame
+	if not _open:
+		return
+	if is_instance_valid(_shelf):
+		_shelf.visible = true
+	if is_instance_valid(_hands):
+		_hands.enabled = true
 
 
 func _exit_camera() -> void:

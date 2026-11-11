@@ -46,8 +46,12 @@ const CONTAINER_TIGHTEN: float = 1.15
 const CONTAINER_PACK_SHARE: float = 0.3
 const CONTAINER_PACK_LIFT: float = 0.3
 const CONTAINER_PACK_PLANE: float = 0.75
-## Henry is hidden once the swing is this far on (the blur has come up by then).
-const CONTAINER_HIDE_AT: float = 0.6
+## A container opening upward (a drawer, a chest) is looked down into at this angle, degrees.
+const CONTAINER_OPENS_UP_DEG: float = 55.0
+## The shelves the framing was authored on (the 727 cabinet's, width and height), metres.
+const CONTAINER_REF_SHELVES: Vector2 = Vector2(0.74, 0.81)
+## Looked down into, the pack's opening faces the view, tipped back at most this far (owner: its contents read).
+const CONTAINER_FACE_TIP_DEG: float = 50.0
 ## The front panel opens this far there, so it lies on the floor (fully open it would dip under), degrees.
 const CONTAINER_PANEL_DEG: float = 88.0
 ## The strap that stays over a shoulder while the pack is held (0 left, 1 right).
@@ -82,6 +86,15 @@ var container_side: float = 1.0
 var _container_view := Transform3D()
 var _container_pack := Transform3D()
 var _framing: ContainerFraming
+## Once the pack is off his back at a container, it is in its framed place by the furniture (the view cuts).
+var _container_cut: bool = false
+var _container_fov: float = 50.0
+## The next frame sets what hangs off the pack at rest (the cut just moved it).
+var _rest_hangers: bool = false
+## Doors held out of the pack's way (swung back on finish).
+var _held_doors: Array[Cabinet] = []
+## Each pinned hanger's own hinge_out while it turns out by a container (put back after).
+var _hanger_lean: Dictionary = {}
 var _home_parent: Node
 var _home_transform: Transform3D
 var _from: Transform3D
@@ -111,15 +124,43 @@ func start(henry: HenryUALAnimation, rig: PackRig) -> void:
 func begin_container(shelves: ItemContainer, side: float, fov: float) -> void:
 	container = shelves
 	container_side = side
+	_container_fov = fov
 	_framing = ContainerFraming.load_saved()
 	if _framing != null:
 		## The owner's framing (tests/scenes/container_framing_stage.tscn), mirrored for the pack on the left.
 		var front: Transform3D = ContainerFraming.front_of(container)
-		_container_view = front * ContainerFraming.on_side(_framing.camera, side)
-		_container_pack = front * ContainerFraming.on_side(_framing.pack, side)
+		## Authored on the 727 cabinet: a wider or taller one pushes the view and the pack out in proportion.
+		var box: AABB = container.shelves_box()
+		var grow: float = maxf(1.0, maxf(box.size.x / CONTAINER_REF_SHELVES.x, box.size.y / CONTAINER_REF_SHELVES.y))
+		var camera: Transform3D = ContainerFraming.on_side(_framing.camera, side)
+		var placed: Transform3D = ContainerFraming.on_side(_framing.pack, side)
+		camera.origin *= grow
+		placed.origin.x *= grow
+		_container_view = front * camera
+		_container_pack = front * placed
+		if container.opens_up:
+			## A drawer or a chest opens upward: the view looks down into it at CONTAINER_OPENS_UP_DEG from the same
+			## distance (from the framing's level view its front wall hides what lies on its floor).
+			var inside: Vector3 = container.global_transform * Vector3(box.get_center().x, box.position.y, box.get_center().z)
+			var aim: Vector3 = inside.lerp(_container_pack.origin, 0.5)
+			var away: Vector3 = _container_view.origin - aim
+			var flat: Vector3 = away.slide(Vector3.UP).normalized()
+			var drop: float = deg_to_rad(CONTAINER_OPENS_UP_DEG)
+			var eye: Vector3 = aim + (flat * cos(drop) + Vector3.UP * sin(drop)) * away.length()
+			_container_view = Transform3D(Basis.IDENTITY, eye).looking_at(aim, Vector3.UP)
 	else:
 		_frame_container(fov)
 	pack.get_canvas().set_opening(BackpackModel.ZIP_FULL_M, CONTAINER_PANEL_DEG)
+	## What hangs off it rests on the floor there instead of passing through: the floor under Henry (a kitchen
+	## cupboard hangs high on the wall, so the furniture's foot is not the floor).
+	pack.get_canvas().hang_floor_y = visual.global_position.y
+	pack.get_canvas().hang_obstacles = ContainerClearance.furniture_parts(container)
+	_lean_hangers_out()
+
+
+## Whether the pack is in its framed place by a container (after the cut).
+func is_container_cut() -> bool:
+	return _container_cut
 
 
 ## Swings the pack back on; `finished` fires when it is home and the hands are free.
@@ -127,8 +168,20 @@ func finish() -> void:
 	if _ending:
 		return
 	_ending = true
+	## Back from the furniture's frame, it goes on again from his hands as by Tab (the view has left already).
+	_container_cut = false
 	_from = held_transform()
 	visual.visible = true
+	pack.get_canvas().hang_floor_y = -INF
+	pack.get_canvas().hang_obstacles = []
+	for door: Cabinet in _held_doors:
+		if is_instance_valid(door):
+			door.release_hold()
+	_held_doors.clear()
+	for hang: PendulumHang in _hanger_lean:
+		if is_instance_valid(hang):
+			hang.hinge_out = _hanger_lean[hang]
+	_hanger_lean.clear()
 	pack.set_hangers_frozen(false)
 	pack.set_openness(PackRig.Openness.CLOSED)
 
@@ -148,7 +201,7 @@ func held_transform() -> Transform3D:
 	var frame: Array = _body_frame()
 	var chest: Vector3 = frame[0]
 	var forward: Vector3 = frame[1]
-	if container != null:
+	if container != null and _container_cut:
 		return _container_pack
 	var tip: float = deg_to_rad(TIP_DEG)
 	## The rig's -Z is its opening (outward on the back): it faces out ahead of Henry, tipped up; its top leans
@@ -172,6 +225,96 @@ func front_view(fov: float) -> Transform3D:
 ## The view at an open container: the furniture across one half of the frame, the pack across the other.
 func container_view(_fov: float) -> Transform3D:
 	return _container_view
+
+
+## Just before the cut, the working frame is fitted to this piece of furniture (owner: one system for every kind).
+## The owner's framing stands as authored unless something passes into something or hides: side doors on the
+## pack's side open all the way, the pack moves the least way clear of every part, the view turns until it sees
+## every item and the pack. Looked down into (a drawer, a chest), the pack's opening turns to the view.
+func _clear_container() -> void:
+	var size: Vector2 = container.get_viewport().get_visible_rect().size
+	var aspect: float = size.x / maxf(size.y, 1.0)
+	var floor_y: float = visual.global_position.y
+	var down: bool = container.opens_up
+	if down:
+		_face_view()
+	_open_doors_wide()
+	var parts: Array = ContainerClearance.furniture_parts(container)
+	var shape: Array = ContainerClearance.pack_shape(pack, CONTAINER_PANEL_DEG, _container_pack.basis)
+	_container_pack.origin = ContainerClearance.place_pack(_container_pack.origin, shape, parts, _ways_out(), floor_y)[0]
+	var targets: Array[Vector3] = []
+	for item: Dictionary in container.items:
+		var pickup: Node3D = item["pickup"]
+		if is_instance_valid(pickup):
+			targets.append(ContainerClearance.middle_of(pickup))
+	## Looking down, the whole open box is framed too; the owner's side framing crops the furniture on purpose.
+	var scenery: Array[Vector3] = []
+	var box: AABB = container.shelves_box()
+	for i: int in (8 if down else 0):
+		scenery.append(container.global_transform * box.get_endpoint(i))
+	## Twice when looking down: the view moves, the pack turns to it again and is placed clear again.
+	for _pass: int in (2 if down else 1):
+		var half: Vector3 = pack.size * 0.5
+		var framed: Array[Vector3] = [_container_pack.origin]
+		for corner: Vector3 in [Vector3(-half.x, -half.y, -half.z), Vector3(half.x, -half.y, -half.z),
+				Vector3(-half.x, half.y, -half.z), Vector3(half.x, half.y, -half.z)]:
+			framed.append(_container_pack * (corner * 0.9))
+		_container_view = ContainerClearance.aim_view(_container_view, targets, framed, scenery, parts,
+			ContainerClearance.placed(_container_pack.origin, shape), _container_fov, aspect, down)
+		if down:
+			_face_view()
+			shape = ContainerClearance.pack_shape(pack, CONTAINER_PANEL_DEG, _container_pack.basis)
+			_container_pack.origin = ContainerClearance.place_pack(_container_pack.origin, shape, parts, _ways_out(), floor_y)[0]
+	pack.get_canvas().hang_obstacles = parts
+
+
+## The pack turned so its opening (-Z) looks straight at the view, tipped back at most CONTAINER_FACE_TIP_DEG.
+func _face_view() -> void:
+	var to_eye: Vector3 = _container_view.origin - _container_pack.origin
+	var flat: Vector3 = to_eye.slide(Vector3.UP)
+	if flat.length() < 0.01:
+		return
+	var tip: float = minf(atan2(to_eye.y, flat.length()), deg_to_rad(CONTAINER_FACE_TIP_DEG))
+	var look: Vector3 = flat.normalized() * cos(tip) + Vector3.UP * sin(tip)
+	_container_pack.basis = Basis.looking_at(look, Vector3.UP)
+
+
+## Each open side door on the pack's side opens all the way (Cabinet.hold_max_deg, owner: doors open wider out of
+## our way, the pack stands before them); unseen at the hard cut, swung back when the pack goes on.
+func _open_doors_wide() -> void:
+	var middle: float = container.shelves_box().get_center().x
+	for opener: Opener in container.all_openers():
+		var door := opener as Cabinet
+		if door == null or not door.is_open() or door.door_hinge == null or not door.swing_axis.is_equal_approx(Vector3.UP):
+			continue
+		var hinge: Vector3 = container.global_transform.affine_inverse() * door.door_hinge.global_position
+		if signf(hinge.x - middle) != container_side:
+			continue
+		door.hold_at(signf(door.open_angle_deg) * door.hold_max_deg)
+		_held_doors.append(door)
+
+
+## The ways the pack may move off the furniture: toward the view first (before an open door), out in front, out to
+## its side, up, and between them (world).
+func _ways_out() -> Array[Vector3]:
+	var face: Array = container.front()
+	var side: Vector3 = (face[2] as Vector3) * container_side
+	var out: Vector3 = face[1]
+	var toward: Vector3 = (_container_view.origin - _container_pack.origin).normalized()
+	return [toward, out, side, Vector3.UP, (side + out).normalized(), (out + Vector3.UP).normalized()]
+
+
+## By a container what hangs on a pin (the pan, the mug) turns toward the view if it meets the floor
+## (PendulumHang.hinge_out): never under the open panel, never sideways onto the furniture.
+func _lean_hangers_out() -> void:
+	var placed: Transform3D = _container_pack
+	var toward_view: Vector3 = -placed.basis.z.slide(Vector3.UP).normalized()
+	for node: Node in pack.find_children("*", "PendulumHang", true, false):
+		var hang := node as PendulumHang
+		if hang.hinge_axis == Vector3.ZERO:
+			continue
+		_hanger_lean[hang] = hang.hinge_out
+		hang.hinge_out = toward_view
 
 
 ## Works out the container view and the pack's place: the view looks in at an angle and stands where the
@@ -294,14 +437,20 @@ func _process(delta: float) -> void:
 	elif _t < 1.0:
 		_t = minf(_t + delta / SWING_S, 1.0)
 		if _t >= 1.0:
+			if container != null:
+				## Off his back in his hands: now the pack is in its place by the furniture and Henry leaves the frame.
+				_clear_container()
+				_container_cut = true
+				_rest_hangers = true
+				if _framing == null or not _framing.show_henry:
+					visual.visible = false
 			settled.emit()
 	elif _still_s < HANG_SETTLE_S:
 		_still_s += delta
-		if _still_s >= HANG_SETTLE_S:
+		if _still_s >= HANG_SETTLE_S and container == null:
 			## Held still in his hands, nothing on it swings: the mug and the pan keep the pose they settled in.
+			## By a container they stay free, so they can lie on the floor (BackpackModel.hang_floor_y).
 			pack.set_hangers_frozen(true)
-	if container != null and not _ending and visual.visible and _t >= CONTAINER_HIDE_AT and (_framing == null or not _framing.show_henry):
-		visual.visible = false
 	var eased: float = smoothstep(0.0, 1.0, _t)
 	var home: Transform3D = _home_parent.global_transform * _home_transform if is_instance_valid(_home_parent) else _from
 	var start: Transform3D = home if not _ending else home
@@ -316,8 +465,13 @@ func _process(delta: float) -> void:
 		if exp(-JOLT_DECAY * _jolt_t) < 0.01:
 			_jolt_m = 0.0
 	pack.global_transform = at
-	if container == null:
-		_grip_sides(eased)
+	if _rest_hangers:
+		## The cut moved the pack at once: what hangs off it hangs at rest there, as the clearance planned it.
+		_rest_hangers = false
+		for node: Node in pack.find_children("*", "PendulumHang", true, false):
+			(node as PendulumHang).rest_now()
+	if container == null or not _container_cut:
+		_grip_sides(eased)  # his hands hold it as it comes off, until the cut to the furniture's frame
 	if _ending and _t <= 0.0:
 		_put_back()
 

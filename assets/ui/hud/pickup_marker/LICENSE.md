@@ -6,3 +6,12 @@
 - Retrieved: 2026-10-09
 - Licence: Apache License 2.0, full text in `APACHE-2.0.txt` next to this file.
 - Changes: the path fill is set to white (`#FFFFFF`) and the nominal size to 96 px, so the HUD can tint it. The geometry is unchanged.
+
+# Eye icon
+
+- File: `eye.svg`
+- Source: Google Material Symbols, icon `visibility`, Rounded style, filled (`visibility_fill1_48px.svg`)
+- Upstream: https://github.com/google/material-design-icons/blob/49d4db35df873165d6bd6ba09b063c7dafbac2f4/symbols/web/visibility/materialsymbolsrounded/visibility_fill1_48px.svg
+- Retrieved: 2026-11-05
+- Licence: Apache License 2.0, full text in `APACHE-2.0.txt` next to this file.
+- Changes: the path fill is set to white (`#FFFFFF`) and the nominal size to 96 px, so the HUD can tint it. The geometry is unchanged.

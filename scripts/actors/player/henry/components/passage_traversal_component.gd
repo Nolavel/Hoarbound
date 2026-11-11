@@ -211,11 +211,11 @@ func _authored_near(feet: Vector3) -> PassageInfo:
 		if not is_instance_valid(node):
 			continue
 		var spot := node as Node3D
-		if spot == null or not spot.has_method(&"get_passage_info"):
+		if spot == null or not PassageProviderCapability.ensure(spot):
 			continue
 		if spot.global_position.distance_squared_to(feet) > 64.0:
 			continue
-		var info := spot.call(&"get_passage_info") as PassageInfo
+		var info: PassageInfo = PassageProviderCapability.info(spot)
 		if info == null or not _in_zone(info, feet, 0.0):
 			continue
 		var along: float = absf(info.along_of(feet))

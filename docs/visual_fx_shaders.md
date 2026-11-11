@@ -35,6 +35,30 @@ owner (`QuickAccessUI`) and domain refusals (`EquipmentComponent.can_stow`)
 rather than making the shader decide inventory rules. Keep meaningful icons,
 text or motion alongside color for accessibility.
 
+## Fullscreen Hub action glow (Issue #282, revised owner scope)
+
+The reference shader and its five-color demo remain untouched. The new
+`ambient_edge_glow_overlay.gdshader` and `EdgeGlowOverlay` are a **single
+fullscreen** CanvasItem overlay, not an effect on slot cards. Enable only
+while Tab-Hub is open, including an open pack paired with a container
+(cabinet, chest, etc.). Never enable in ordinary gameplay or Quick Access.
+
+Presentation API: `set_hub_active(bool)`, `set_action_active(bool)`,
+`show_result(success)`, `set_reduced_motion(bool)`.
+Grey = idle, amber = selected/held/in progress (not success), green = confirmed
+success, red = confirmed refusal. Green/red are brief events; after the pulse
+the prior base state returns. Blue remains unused. Keep existing item/placement
+feedback and refusal reasons; color alone is not the authoritative outcome.
+
+The component is owned by GameplayUI and enabled only while real 3D PackHandling is enabled. The
+isolated preview and headless state test are visual/contract scaffolding.
+`tools/runtime/capture_edge_glow_overlay.gd` opens the real 3D Tab-Hub and 727
+cabinet in Key West Reality and captures scripted color states in live Godot.
+The glow is a pair of smooth elliptical caps with inward-facing apices;
+no horizon strip, noise tongues or screenshot compositing. This is a visual
+prototype, not a live transfer result test.
+PackHandling publishes completed/refused actions through PlayerHubComponent.action_result; GameplayUI observes taking/carrying and actual item hover, suppresses the compass layer during Hub, pickup gesture, committed pickup walk and pickup stow. Closing resets glow. Real pack/container transfer tests check outcome signals independently of scripted visual comparison.
+
 ## Fade Volume
 
 Reusable scene: `res://scenes/environment/visual_fx/FadeVolume.tscn`
@@ -274,44 +298,46 @@ Owner rule (2026-10-15):
 - **A house with content inside:** each pane keeps 60–80 % frost, fixed per window.
 - **A room a stove has warmed:** its panes clear down to 20 %, gradually, as the room warms.
 
-Pattern: `shaders/environment/windows/frost_pattern.gdshaderinc`, ported from the GDExtension frost lab (frost grows in
-from the pane edges, crystals at the front).
+Both window shaders draw frost from two baked tiles through `shaders/environment/windows/frost_tiles.gdshaderinc`
+(see "How the glass draws frost" below). The tiles are project shader globals (`window_frost_edge`,
+`window_frost_field`), so the baked city scenes pick them up with nothing bound and were not regenerated.
+`frost_pattern.gdshaderinc` now only lends its hash, noise and pane-size helpers; its 16 cm fern pattern is not drawn.
 - **Generated buildings:** the chunk builder adds a `windows` surface to each building mesh
   (`KeyWestChunkBuilder._window_row`).
   - Panes are 1.0 × 1.4 m with a 0.9 m sill, every 3.2 m along each straight facade (outline points within 0.35 m of
     a line form one facade), one row per storey.
   - Storeys come from `levels`, else from the measured wall height / 3.2 m.
   - Material: `frosted_window.gdshader`, opaque and lit like the walls. `COLOR.r` is the coverage
-    (`EMPTY_HOUSE_FROST` = 1), `COLOR.g` the pattern seed.
+    (`EMPTY_HOUSE_FROST` = 1), `COLOR.g` the pattern seed. Same frost as the landmark glass, without its thaw.
   - HLOD proxies leave the panes out.
 - **Enterable landmarks (727 Fort St):** the real `Glass` openings use `frosted_glass.gdshader` (see-through).
   - `tools/world/reality/landmark_glass_frost.py` writes per-pane data into the asset: `COLOR.r` = cold coverage 60–80 %
     (hash of the window name), `COLOR.g` = heated room, `COLOR.b` = seed, plus pane UVs.
   - `KeyWest727Shelter` feeds `heated_warmth` = heated offset / max heated offset of its `ShelterZone` on
     `warmth_changed`. Coverage = mix(cold, 0.2, warmth). The unheated clinic rooms stay at their cold coverage.
-- `test_window_frost` checks all three rules.
+  - **Full coverage.** From 80 % to 100 % coverage the middle of a pane packs with two more layers of crystals
+    and a full coat of film, so an empty house's pane is frosted right across with no clear glass.
+  - **How the glass draws frost (2026-11-10).** Two baked tiles at 1 mm per pixel, from
+    `tools/textures/bake_window_frost_sheet.py` into `assets/environment/windows/`:
+    - `frost_edge_strip.png`: fern feathers 4-28 cm long grown from a frame line. The shader lays it along each edge of
+      a pane in metres, so a pane of any size or proportion carries feathers of true size (smaller on a small pane, shorter
+      under the head than off the sill). The band's depth swells and thins along the edge.
+    - `frost_field.png`: rows of small feathers along scratches, fans from free specks, sparse hoar; laid across the pane.
+    - Scale follows K. Libbrecht's window-frost notes (branches of millimetres, nucleated along scratches).
+  - **How it thaws.** Each texel needs its own warmth: more by the frame, low on the pane, where the frost is thick. It
+    soaks to glassy ice, breaks into slush islands and clears. The upper pane leads; a band by the frame is left at full
+    warmth (`warm_coverage` sets how far the warmth runs, not an exact area).
+    - **Plates.** Thick soaked frost by the sill lets go as five-sided shards that slide down the pane, rest at its
+      bottom edge and melt. The shader draws nothing outside the pane, so no ice lies on the sill itself.
+    - **Runs.** One lane every 4.3 cm: 1-2 mm wide, 5-34 cm long, most of them short, ending in a hanging drop.
+    - **Beads.** The wet pane mists with fine beads, larger ones later; they dry off in the end.
+  - **No screen read.** The glass stays a plain alpha-blended pane, so snowfall and other transparents behind it stay
+    visible. The view through frost is therefore not blurred.
+  - Checks: `tools/runtime/capture_window_frost_shapes.gd` renders six pane sizes at five warmths;
+    `tests/scenes/window_727_sdf_probe.tscn` scrubs a copy of the game's glass on the real FrontWindow1 pane.
+  - Not measured: GPU cost on real hardware (rendered here on CPU only). Per fragment it is about 11 texture reads and
+    three short loops of three steps.
+- `test_window_frost` checks all three rules, that both frost tiles are shader globals with mipmaps, and that both
+  window shaders draw from them.
 
-
-
-## Universal SDF Blob Mask (independent UI module)
-
-`res://scripts/ui/effects/universal_blob_mask.gd` provides a `ColorRect`-based
-mask with up to 16 normalized circle SDFs (`Vector3(x, y, radius)`), batch
-`set_blobs()` or incremental `set_blob()`, resize-safe aspect correction,
-configurable smooth union, antialiased outlines, fill and fill+outline, plus
-alpha-masked content texture with optional inversion. It owns a separate
-`ShaderMaterial` per instance; no autoload or gameplay ownership changes.
-
-The shader is `res://shaders/ui/universal_blob_mask.gdshader`.
-To make a mask, add a `UniversalBlobMask` as a UI child, set its rect, then
-call `set_blobs([Vector3(0.3, 0.5, 0.1), ...])`. Radii and widths are in
-rect-height units; center coordinates are relative to the rect.
-`MASK` provides pixel alpha for the rect/texture, **not automatic clipping
-for unrelated Control children** (use a SubViewport composition for that).
-Budget is 16 full-screen distance checks/pixel in the worst case; prefer small
-UI rects over full-screen coverage for performance.
-
-Isolated demo: `res://tests/scenes/blob_mask_demo.tscn`.
-The `[blob-mask-preview]` marker in a Codex branch commit triggers a real
-6-second 30-FPS Godot capture in `checks.yml` (MP4 and three PNGs).
 

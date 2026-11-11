@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 35374)
-Total output lines: 1368
-
 # Changelog
 
 Short record of notable production changes. Newest first.
@@ -11,11 +8,168 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Fixed
 
+- Stone scatter no longer reads a freed pickup as a typed object during refresh; collected IDs stay collected and untaken stones can return after eviction. Added lifecycle regression to the required gate.
+- Hub carried-item rims reuse their material, focus masks track live instance IDs, and disposable item probes clear overrides before freeing. Empty readout/hand/stove requests return early; unknown nonempty catalog IDs still warn.
+
+### Changed
+
+- Every window now draws the baked millimetre frost, and a pane at full coverage is frosted right across.
+  - **Generated buildings.** `frosted_window.gdshader` draws the same frost as the landmark glass (no thaw: these houses stay cold). Its old 16 cm fern pattern is no longer drawn anywhere.
+  - **Full coverage.** From 80 % to 100 % coverage the middle of a pane packs with two more layers of crystals and a full coat of film. Before, a pane at 100 % kept a see-through middle and looked almost like one at 70 %.
+  - **Shared code and textures.** The frost lives in `frost_tiles.gdshaderinc`. Its two tiles are project shader globals (`window_frost_edge`, `window_frost_field`), so the baked city scenes pick them up unbound and were not regenerated.
+  - `capture_window_frost_shapes.gd` takes a coverage and `opaque`; a new preview shows 70 %, 100 %, 100 % thawing, and the opaque panes. `test_window_frost` checks the globals and both shaders.
+  - GPU cost in the streamed city is not measured: each opaque pane now does 7 texture reads in place of the procedural fern loops.
+
+- The see-through landmark glass (`frosted_glass.gdshader`, the 727 windows) has new frost and a new thaw. Its rule is unchanged: 60-80 % frost in the cold, a warmed room clears.
+  - **Any pane size.** Frost comes from two baked tiles at 1 mm per pixel (`assets/environment/windows/`, from `tools/textures/bake_window_frost_sheet.py`), laid in metres: a strip of fern feathers along each edge and a field of small crystals across the pane. A pane of any size or proportion carries crystals of true size.
+  - **Thaw.** Each texel thaws by its own need; it soaks to glassy ice, breaks into islands and clears. The wet pane mists with beads and sheds runs 1-2 mm wide.
+  - **Ice plates.** Thick soaked frost by the sill comes away as shards that slide down the pane, rest at its bottom edge and melt. Nothing is drawn on the sill itself.
+  - **No screen read**, so snowfall behind the glass stays visible; the view through frost is not blurred.
+  - The opaque panes of generated buildings (`frosted_window.gdshader`) are unchanged.
+  - The 727 probe now scrubs a copy of the game's glass; the test-only natural shader and its sheet are removed. New `tools/runtime/capture_window_frost_shapes.gd` renders six pane sizes.
+  - `test_window_frost` checks both tiles are bound with mipmaps (it fails with a tile removed). GPU cost on real hardware is not measured.
+
+- 727 window thaw probe, second pass after the owner's review against a photo reference. The natural thaw no longer draws `frost_pattern` ferns (16 cm cells: too large for the 2.0 x 1.1 m pane, with an angular base).
+  - Frost is a baked sheet at 1 mm per pixel (`frost_sheet_727.png`, from `tools/textures/bake_window_frost_sheet.py`): barbed feathers 2-28 cm long grown from the frame, along scratches and from free specks, with fine hoar. The scale follows K. Libbrecht's window-frost notes.
+  - Frost depth is uneven round the pane (deep off the sill), not a frame of one width.
+  - Runs are 1-2 mm wide and 5-34 cm long, most of them short; the wet pane mists with fine beads.
+  - The capture tool takes `close` for a 0.55 m wide view. The preview sheet is replaced.
+
+- The 727 FrontWindow1 thaw probe (issue #281, `tests/scenes/window_727_sdf_probe.tscn`) opens on a new test-only natural thaw shader, `natural_thaw_glass_727.gdshader`. **V** switches to the unchanged V3 sheet. Production glass and `frost_pattern.gdshaderinc` are untouched.
+  - Frost scatters the view behind it: the pane blurs the screen by frost thickness. Thick frost is white, thin frost blue, soaked frost grey-green. At 0 % the whole pane is frosted.
+  - Each texel thaws by its own need (warm spots, frame, height on the pane, thickness, noise). It soaks, breaks into slush islands, then clears. The upper pane leads and a band by the frame survives.
+  - Beads run down wandering lanes and cut clear tracks through the frost below. Cleared glass keeps water beads that bend the view.
+  - It is an authored illusion on one 0..1 value, unshaded, not yet judged under the real 727 lights.
+  - Added `tools/runtime/capture_window_727_thaw.gd` (stills per thaw step), `tests/systems/test_window_727_thaw_probe.gd`, and a preview sheet in `docs/runtime_previews/window_frost/`.
+
+- Removed three snow suites from the `snow-clipmap-preview` experiment, at the owner's request: test_snow_architecture_contract, test_snow_contact_pipeline and test_snow_surface_clipmap. They tested a snow architecture (multi-channel deformation, radial L0–L2 rings, no live contact writes) that `main` does not ship, so they were red on every branch. They were also dropped from `snow_architecture_gate.sh` and the snow job loops in `checks.yml`.
+
+- Four suites that were red on `main` are green again.
+  - test_shelter_workflow and test_quick_access still read the feedback label and readout that commit `54f88bde` moved into the gameplay UI. They now listen to `ConsumptionController.water_status_requested` and `QuickAccessComponent.readout_changed`. With the hide signal removed, test_quick_access fails.
+  - test_render_layers: render layer 21 had lost its `snow_tile_experiment` name in `project.godot`, though `RenderLayers.SNOW_TILE_EXPERIMENT` still draws on it. The name is restored.
+  - test_container_kinds runs at `--fixed-fps 30` in CI, as its run line says. Without it, the hangers swung on wall-clock deltas, and once a pan hung into the chest on `main`. That failure was not reproduced here (three runs passed under load), so this fix is untested against it.
+
+- Class D dynamic dispatch is closed (§16). The ratchet baseline is 17 calls in 3 files; all of them are class A (composition-root hooks) or class B (native and lab tools).
+  - `GroundSourceCapability` gives snow chunk cover the ground height and, optionally, the obstacle outlines. Key West ground and island terrain keep their legacy `get_height` / `get_snow_obstacles_in_rect` names.
+  - The new `CapabilityContract.bind` turns an operation into a Callable once, so the per-vertex height loop costs no lookup per call.
+  - `InteractionDataCapability` lets a scene loaded by an InteractiveArea give its name, description, colour and radius (the flashlight and the filter mask).
+  - `test_capability_contract` also covers the locomotion readout, the ground source and the interaction data. It fails when `bind` returns nothing; snow chunk cover then reports that the ground is not a source.
+
+- Class F dynamic dispatch is closed (§16). The ratchet baseline drops from 108 calls in 33 files to 21 calls in 5 files.
+  - The PlayerState and SoundSystem autoloads gain `class_name PlayerStateService` and `SoundSystemService`. All 29 untyped calls to them, and to `InputSystemsService`, are now typed. The stove and timed actions set `PlayerStateService.Mode` directly instead of looking the enum up by name.
+  - Body actions go through `InteractHostCapability`: animate, face, the action lock, and the new `hold` / `holding_still`. Test walkers still work, and a missing operation is skipped.
+  - Henry's animation and the camera read speed, crouch and view through the new `LocomotionReadoutCapability`. Test bodies keep their legacy names, which are adapted at the boundary.
+  - Other calls become typed references: foot contacts (`MotionMatchingLocomotion`), snow obstacles (`KeyWestRealityGround`), the time accelerator (`DayNightManager`) and the stove warmer prompt.
+  - `QuickAccessUI._zone_item` becomes public `zone_item`, since the focus motion reads it.
+
+- StreamingSystem and InputSystems find their participants through capabilities (`core/contracts/`). This is class D in §16. The ratchet baseline is now 108 calls in 33 files.
+  - `StreamSourceCapability`: chunks, activate, deactivate, and an optional ring0. The far view and the test sources keep their legacy `*_stream_*` names, which are adapted at the boundary.
+  - A source that cannot activate or deactivate is now refused whole at registration. It used to register chunks it could never load or unload.
+  - `InteractClaimantCapability`: claimed, plus optional held and released. The sleep prompt and the stove keep their `on_interact_*` names.
+  - `claim_interact` refuses a node that cannot take the key and keeps the current owner. Such a node used to take the key and fail on the next press.
+  - The two `PlayerState` reads left in InputSystems are class F (the autoload has no `class_name`).
+  - test_streaming and test_player_state cover the refusals and own-name providers. test_player_state fails with the refusal removed. Streaming, HLOD boundary, sleep prompt, fire and stove suites pass.
+
+- InteractComponent works its host through `InteractHostCapability` (`core/contracts/`). This is class D in §16.
+  - Every operation is optional (animate, attention origin and direction, face, walk to, stop, action locked). The host's legacy names are adapted at the boundary, so Henry and the test walkers are unchanged.
+  - Typing the host as `Player` broke the walker stubs in test_interaction and test_pickup_affordance, so a contract was used instead.
+  - `run` answers `[ok, result]`, so a missing operation is told apart from a false answer.
+  - The ratchet baseline is now 121 calls in 34 files. The one call left is class F, `is_movement_blocked` on the PlayerState autoload.
+  - `test_capability_contract` covers adaptation, partial hosts, mapped names and absent operations. It fails when `run` stops checking the operation.
+
+- More class D dynamic dispatch removed (§16). The ratchet baseline is now 140 calls in 34 files.
+  - The Hub hands an item to its user through `ItemUserCapability`. Six components use items (bedroll, hammer, held item, flare, snow scoop); their legacy `can_use`/`use` names are adapted at the boundary.
+  - Passage traversal reads doors and narrow passages through `PassageProviderCapability`.
+  - A swinging door steps only Henry (`as Player`) out of its arc; it used to ask any blocker for `move_to_position`.
+  - Inventory reads the burning flare's weight from `HeldLightComponent` by type. It is the only provider, so no abstraction is added for one (§13).
+  - `test_capability_contract` covers both new contracts.
+
+- The simulation clock advances its participants through `SimulationParticipantCapability` (`core/contracts/`), as saves already do. This is class D in §16.
+  - The legacy `advance_simulation` / `get_simulation_priority` names are adapted at the boundary, so weather, afflictions, snow, the held light and the bio monitor are unchanged.
+  - Any provider, a C++ weather included, may publish its own names.
+  - `CapabilityContract.has_operation` allows an optional operation; a missing priority defaults to 1000.
+  - `test_capability_contract` covers adaptation, the default, mapped names, refusal and priority order.
+  - The ratchet baseline is now 149 calls in 38 files.
+
+- Quick Access draws, names and uses what a hand shows through `HeldDrawCapability` (`core/contracts/`). The held item, the hammer and a flare publish it beside `HeldReleaseCapability`. This is the last class E dynamic dispatch (§16).
+  - `quick_access_component.gd` lost all 14 `has_method`/string `call` uses, and the ratchet baseline drops to 151 calls in 39 files.
+  - The hammer answers Quick Access use explicitly with false, as it did by lacking the method.
+  - The flare's burning readout asks `HeldLightComponent` by type.
+  - Quick Access, flare and hand suites fail identically before and after (two known flare-hint checks).
+
+- Containers ask any way in through one small seam, `Opener`: `is_open`, `is_swinging`, and a `toggled` signal (architecture step 6).
+  - `Cabinet` and `Drawer` extend it, and `ItemContainer.openers` is `Array[Opener]`. `is_reachable` no longer switches on `is Cabinet` / `is Drawer`.
+  - A new kind plugs in with no change to the container. `test_container_kinds` proves it with a sliding door, which the old type switch failed.
+  - `Cabinet.door_toggled` is now the shared `toggled`; nothing outside listened to it.
+
+### Added
+
+- Full-screen Hub action glow (#282): smaller soft top/bottom arcs, gray idle, amber item focus/taking/carrying, brief green/red real transfer results; compass hidden in Hub and during pickup gesture/approach/stow.
+- First Exit A compass (owner 2026-11-09, #293): a thin top tape that follows the camera's horizontal view, and one ochre mark for 727. No distance, no turn arrows, no lit route. The mark is armed once, on the Battery Osceola scenario start only; the developer shelter spawn does not arm it. Entering the 727 interior clears it, and leaving does not bring it back. R marks the known house again. Knowledge lives on `FirstExitBearings`, not on the HUD or on Henry, and survives sleep/save. Older saves without this key do not grow a new mission mark.
+- 727 shelter: a kitchen cupboard, a dresser and a chest in the waiting room, searchable with the pack like the waiting-room cabinet (owner).
+  - They are built by the new shared `FurnitureKit`, which the test row now uses too. Each stands 1 cm off its wall; the chest stands 17 cm off, room for its lid.
+  - Contents are game-invented: the cupboard holds a SPoV can and an empty tin; the dresser nails and tinder, with the bottom drawer empty; the chest a tin of pineapple.
+  - `test_727_furniture` checks the placement against the real shell's walls (ray gaps), and the search at each piece: no pack mesh in the furniture, the walls or the floor, and every item in sight.
+
+- CI ratchet on dynamic dispatch (ARCHITECTURE §16, architecture step 3).
+  - `tools/ci/check_dynamic_dispatch.py` counts `has_method(` and string `.call(` per game-code file against `tools/ci/dynamic_dispatch_baseline.txt`. Each file there has its count and class (A–F); class F, an untyped call on a known class or service, is new in §16.
+  - A file may not add a call, a new file may not start, and a file that removed some must lower its line.
+  - Baseline: 165 calls in 40 files. It runs in `checks` with its unit test.
+
+### Fixed
+
+- First Exit compass (#293): the bearings script no longer names `class_name World`, so loading the gameplay HUD does not cycle through it. CI jobs that install the .NET SDK pin `ubuntu-24.04` (`ubuntu-latest` is 26.04 and has no `dotnet-sdk-8.0`).
+- First Exit compass (#293): the debug clock is off in the game (`perfomance_visible_display` on the world clock), not only in the preview. The preview's inside-727 save now boots a new world through `pending_load_slot`.
+- Containers filled off-tree, like the 727 house, stacked every item in one spot. Off-tree an item measured as nothing, and that size was cached. They now lay out on entering the tree, and an off-tree size is never cached. `test_727_furniture` checks the items stand apart.
+- Pickups draw every item `SurvivalItemVisual` knows (empty tin, tinder, mug, pan…) instead of a 32 cm placeholder parcel; the parcel had hidden the SPoV can in the cupboard.
+- At the cut to a container's frame, what hangs off the pack hangs at rest (`PendulumHang.rest_now`). It no longer carries the swing from the pack's way off his back into the planned pose.
+- `test_key_west_727_shelter` expected the mattress the owner removed on 2026-11-03; it now skips it, and the suite passes again.
+- Taking an item into the hand (hold F) is now whole or nothing. With two things held, the first was put away before the second refused, so a refused take left a hand empty.
+  - The hand components publish the new `HeldReleaseCapability` (`core/contracts/`), whose `can_release` is each holder's own guard: the held item, the hammer, and a flare (only unlit and still owned by storage).
+  - `HandsTransaction.check()` asks every holder before anything changes. Storage takes the new item first, the one step that may still refuse; then the holders let go.
+  - `tests/systems/test_hands_transaction.gd` reproduced the defect on the old code, passes now, and gates `checks` with the capability contract.
+- The same partial release in four more places, fixed through one step, `HeldReleaseCapability.release_all`: every holder is asked first, and only when all can let go do they let go.
+  - Sitting down, laying the bedroll, opening the pack and taking an armful each emptied the first hand before a second hand refused. Each now refuses with every hand as it was.
+  - A Quick Access pocket change hides only what can go back to storage; a burning flare stays in hand.
+  - `tests/systems/test_held_release_callers.gd` covers all five on the real player. It failed four times on the old code, passes now, and gates `checks`.
+
+- CI `checks`: the filename gate failed on every branch because of an orphaned `tools/runtime/_boot_warn.gd.uid` left by an earlier commit; it is removed.
+- The capability contract now gates `checks` (ARCHITECTURE §16, rule 4).
+  - `tools/ci/required_suites.txt` lists the contract suites; `run_tests.sh <suite...>` runs them with the same verdict as the full run.
+  - `test_capability_contract` gained the refusal cases: a refused publish publishes nothing and keeps what was there; a freed provider answers nothing; a non-Dictionary capture refuses the whole save and the last good save stays; a slot without a participant's key leaves it untouched; a half-legacy provider is refused.
+  - Verified by breaking the contract on purpose twice; the suite failed both times (4 and 5 checks).
+
+- 3D inventory at furniture: the pack never passes into a cabinet, a drawer or a door, and every item inside shows (owner). Just before the cut the pack moves out until no part of it (body, open panel, what hangs) comes within 2 cm of the furniture. The view then turns up or aside and backs off until it sees each item past everything (`ContainerClearance`).
+  - Kitchen cupboard: the open panel went into the right door; drawers: the front panel hid what lay inside.
+  - One fitting for every kind of furniture (owner).
+    - The owner's framing stands as authored at the 727-like cabinet: the camera exactly, the pack within 3 cm. It had drifted from my pack turn, the camera backing off and a wide reserve under the pan.
+    - A side door on the pack's side opens all the way (175°), and the pack stands before it, nearer the camera.
+    - What hangs off the pack is checked as it really hangs at rest.
+    - Looking down into a drawer or chest, the pack's opening turns to the camera.
+
+- 3D inventory at a cabinet: the pan and other hangers no longer go through the floor or into the cabinet. Both are now obstacles for the hangers.
+  - Owner's framing: the camera turned a little right, the pack further right and a little higher (the pan hangs free), Henry out of the frame.
 - "Parameter material is null" errors when the game starts and around containers. Item models made only to be measured (pocket sizes, shelf layout, loose items) were freed before ever being drawn, while carrying shader overrides, which Godot 4.8-dev reports from the renderer.
   - `SurvivalItemVisual.release` drops the overrides first. Spawning Henry went from 44 errors to 0 on Vulkan.
 
 ### Changed
 
+- Architecture docs: a contract policy (ARCHITECTURE §16, RU too) and decision records (§17, `docs/technical/adr/`).
+  - §16 has a table of when to use a direct call, a signal, a command with a result, a capability or injection, and four rules for cross-system links.
+  - It classifies the existing `has_method` uses into kinds A–E; the current count is a temporary debt baseline.
+  - It works through two references: `SaveParticipantCapability` and `HandsTransaction` (its partial commit).
+  - The decision records: ADR 0001 no global ECS, ADR 0002 capabilities only at real seams, ADR 0003 GodotPhysics3D and native code after profiling.
+
+- Claude tooling: project skill `hoarbound-godot-studio` with review lenses for the engine, GDScript, C#, shaders and GDExtension, and procedures for code review, performance profiles, asset audits and test evidence. Adapted by selection from Claude Code Game Studios (MIT, attribution in the skill's `NOTICE.md`). Its hooks, settings and process are not adopted.
+
+- 3D inventory at furniture, owner's design: the second F (the eye) searches where Henry stands. He walks up himself, so he no longer walks to a point; he only faces it and crouches at low furniture.
+- Containers of every kind: several doors (`openers`), drawers (`Drawer`), lids on a horizontal hinge (`Cabinet.swing_axis`), shelves that open upward (`opens_up`: the frost and the eye on top, the view looking down into them).
+- Test row of furniture (`ContainerRow`, also in `TestScene`): a floor cabinet, a two-door kitchen cupboard on a wall, a dresser with three drawers, a floor chest; some hold things, some are empty. `test_container_kinds` runs the search on each.
+
+- 3D inventory at a cabinet, two presses of F (owner's design).
+  - The first F only opens the door. What is inside shows half-seen behind frost, and a search marker (F with an eye inside its ring) sits on the open face.
+  - The second F walks Henry over. He crouches as he takes the pack off, seen as by Tab, then the view cuts hard to the cabinet-and-pack frame.
+  - Shelf items are no longer taken by F directly.
 - 3D inventory (Hub): the silhouette of the garment that owns the hovered pocket (coat or trousers, not both) fades in, with a dot where that pocket is (owner), and fades out after.
 - Pockets have real inside sizes in cm and take only what fits by the item's model. The hammer, the axe and the pan no longer go into coat or trouser pockets (owner); tins, the knife and the lighter still do.
 - 3D inventory (Hub): small things in numbers (nails, tinder, flares, empty tins) lie in the pack as one bundle per stack, and the readout says how many ("Nails ×20"). 20 nails used to take 20 places.
@@ -153,9 +307,6 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - Stand: `tests/systems/test_pack_interior.gd`, which checks every item against the cloth as the
     shader draws it. Capture: `tools/runtime/capture_pack_interior.gd`, with the pack hanging and open.
 - Archived the sequential five-color UI edge-glow shader, self-contained Godot demo and 6-second capture script in the production repository as a visual reference; no inventory/runtime integration.
-- Added reusable UniversalBlobMask: 16 SDF circles, smooth union, fill/outline/alpha texture modes, isolated UI demo and six-second Godot capture in the existing checks workflow.
-
-- Added an isolated Gemini-inspired edge-glow shader preview with five-color animated top/bottom gradients, a six-second Godot capture, and a marker-gated reuse of the existing color-grade-blend CI workflow (no gameplay integration).
 - Added a Godot-native animation integration reference and the `/hoarbound-animation` Claude Code skill. Both point to Henry's existing AnimationTree/IK owners, GLB QA and the frozen Motion Matching acceptance gates; no runtime animation behavior changed.
 - Work in progress: the shoulder straps are now the school backpack's own pad, webbing and buckle
   (`tools/blender/build_pack_straps.py`). The mesh is straightened into strap space and bent on the GPU
@@ -711,7 +862,226 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   `snow_clearance_m` (0.25 m) above `SnowField.get_snow_top` under it.
   - **Launch:** `ThrowComponent.launch_direction` solves the low arc to the camera's aim point, and lobs at
     45 degrees when the point is out of reach.
-  - **In flight:** `ThrownItem` strikes its first c…5374 tokens truncated… different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
+  - **In flight:** `ThrownItem` strikes its first contact through the new `ThrowImpactCapability` (`core/contracts`).
+    Snow bursts and is gone; a stone rolls to rest on ground damping and becomes a pickup again.
+  - **Wall stones:** `StoneScatter` lays stones at the foot of house walls near Henry, from the building outlines.
+    About 7 % of 4 m wall spots hold one, hashed by position so a wall's stones never move. A taken one stays
+    taken through the `PickupLedger`.
+  - New item: `stone` (0.35 kg). Tests: `test_throw`, `test_stone_scatter`.
+- Snow by hand (#257, stage 1).
+  - **F on open snow** with nothing else in focus: Henry stoops (`pickup_right_low`). A held empty mug fills with snow
+    in hand, and a free hand takes a handful of snow (`snow_handful`, now actually produced in play).
+  - **Refused** indoors or where less than 3 cm of settled snow lies underfoot (`SnowField.get_depth`).
+  - **Signal:** `InteractComponent.interact_unclaimed` hands the unclaimed F to ground actions.
+  - **Visuals:** the mug shows a heap of snow above the rim, and the handful is a lumpy snow clump instead of the
+    placeholder parcel.
+  - Item Use on a packed mug still scoops as before. Test: `test_snow_scoop`. Capture: `tools/runtime/capture_snow_scoop.gd`.
+- 727 chimney and roof smoke (#252).
+  - **Root cause of the break:** the stove's flue had a fixed length (`FLUE_H` 1.7 m) and stopped at 3.08 m under the
+    3.66 m ceiling. The roof stack stood over the stove's centre, not over the flue, and was twice as thick.
+  - **One continuous flue:** `StoveVisual.flue_length` and `flue_base()` let the shelter run the flue into the ceiling
+    (`interior.ceiling_y`). The roof stack continues it on the same axis and radius up to roof + 0.8 m, with a cap.
+  - **`ChimneySmoke` on the cap:**
+    - it smokes only while the `HeatSource` burns, and its density follows the fire's intensity;
+    - `chimney_smoke.gdshader` pulls every puff toward the air's velocity: the weather's wind with its gust, plus the plume's rise;
+    - a gust therefore bends the whole plume at once. Godot's built-in damping cannot do this: it slows a particle
+      by a constant amount instead of pulling it toward the air.
+  - The road flare reuses the same noise-edged puff texture (`ChimneySmoke.puff_texture`).
+  - Test: chimney checks in `test_key_west_727_shelter`. Capture: `tools/runtime/capture_chimney_smoke.gd`.
+- Weather profile `clear` (no wind, no snowfall) for tests and captures. It is `manual_only`: it is set only by
+  `set_weather`, never drawn by the weather roll (`WeatherProfile.manual_only`, `_pick_weighted` skips it).
+- SPoV canned meat (owner's artist asset, `assets/source/spov_canned_meat/CanModel.rar`). `tools/blender/build_spov_can.py`
+  builds `assets/items/spov_can/SPoV_Can.glb`: 10.4 x 6.1 x 7.1 cm (a 340 g luncheon-meat tin, the artist's proportions
+  kept), 356 + 240 tris. The 40 lid-seam edges shared by three faces are split, and the pull ring is laid flat on the
+  recessed lid at one end. The painted label is matte paper: the source Metallic map marked the whole surface metal,
+  so the label is masked out of it. Items `spov_can` → `spov_can_open` follow the pineapple contract, with no tool
+  needed: the first Use pulls the ring, the next eats 1,070 kcal (340 g x 3.15 kcal/g). The open can hides the ring
+  and shows the meat. Owner: the emptied can is thrown on the floor. A new `ConsumableData.discard_leftover` tosses it
+  as a falling body (`ConsumptionController.leftover_discarded`) instead of keeping an inventory item. No ring-pull animation yet; opening plays the existing `fix` action. One can lies on the
+  bottom shelf of the 727 waiting-room cabinet, label to the door. The open-tin hint now names the ring or the knife
+  (`ConsumptionController.open_action_key`). Test: `tests/systems/test_spov_can.gd`. Capture:
+  `tools/runtime/capture_spov_can.gd`.
+- Held lighter flame on RMB (`present_held`). While RMB is held, Henry raises the lighter before his chest
+  (a second `StoveHandReach`, `PresentReach`, palm turned in), and after 0.3 s the flint wheel rolls and the flame lights.
+  The lighter stands upright in the fist while raised; on release its authored HeldFit returns. The flame burns while RMB
+  is held but goes out after 10 s anyway; a fresh press lights it again. The flame is now one node, `LighterFlame`,
+  shared by the held lighter and the stove act. Capture: `tools/runtime/capture_held_lighter.gd`.
+  Lowering fix (owner report: the hand jerked before letting go): the raised fist now keeps the hanging wrist
+  roll (thumb up), so the hand no longer turns over at half weight. The arm eases down over 0.4 s. The lighter
+  turns from upright back to its HeldFit in the hand's frame, so it no longer flips. Measured by a per-frame
+  trace of the hand bone's roll axis.
+- Authored lighter model (`assets/items/lighter/Lighter_game_ready.glb`, owner's asset) replaces the orange box
+  everywhere: world pickup, held prop and the stove lighting act. `LighterStrikeVFX` holds it with the grip at the
+  origin and the burner nozzle on its +Y axis; the flint wheel rolls on each strike. The flame is a tongue mesh with
+  the stove log-flame shading (blue root, yellow body, view-facing edge, faded tip, `lighter_flame.gdshader`). It
+  pivots on the nozzle and always burns world-up whatever the hand's tilt. At the stove the nozzle sits 12 mm under
+  the tinder so the flame's middle licks it. Close-up capture: `tools/runtime/capture_lighter.gd`.
+- Work gloves you can find and wear (#236, owner: the 727 cabinet). `tools/blender/build_henry_outfit.py` cuts
+  `Outfit_Gloves` from the hands and fingers, from the wrist up under the sleeve, in dark leather brown. They are
+  decimated to about 6,000 vertices and hide `Skin_Gloves` while worn. The pickup lies on the top shelf of the
+  727 cabinet beside the mug (`GlovesShelter`), with a blocky pair as its world prop. The outfit now rebuilds with
+  Blender 5.2 (`pip install bpy`); the previous meshes come out vertex for vertex.
+- Wall thermometer in the 727 waiting room (#236), just inside the lobby arch (`WallThermometer`, nail at 1.7 m, placed
+  from the landmark spec's furniture list). It is an ordinary glass thermometer on a board, hung by a wire loop from a nail, with a red column from −40 to +40 °C; the figure
+  (`THERMOMETER_READING`, °C only) sits on a grey gradient plate below it and fades out between 2.5 and 3 m from Henry.
+  It reads outdoor air plus its zone's warmth; the column and figure follow it smoothly. No interaction.
+- Stove fire per log, ported from the `codex` branch (Codex's work, finished here). Each log has its own
+  irregular geometry, char, flame and embers, plus weak ignition smoke. Henry's arm reaches in through
+  `StoveHandReach` to take, insert and release each item. Tinder comes only from a Quick Access pocket or
+  the hand, not the pack. Log poses and char origins survive save/load and refuel. `HeatSource` stays the
+  only authority on fuel and heat. Codex's 11 MB of capture media stayed on its branch.
+- Frostbite consequences (#236 stage 6, owner direction). Each body part gets frostnip, then frostbite, after
+  its cold load is held long enough (0.6 for 20 min; 0.85 for about 36 min). The stage heals in warmth
+  (frostbite over 6 h) and is saved. Six afflictions carry the effects:
+  - numb hands slow fine work, so the lighter hold grows from 3 s to about 5 s and laying fuel takes longer;
+  - frostbitten feet slow walking and allow no sprint;
+  - frostbite drains health (4–5 per game hour, through the new `PlayerHealthSystem.drain`, without hit feedback).
+  The modifiers reach movement, actions, fatigue and the stove through the new `StatusModifierCapability`;
+  the three existing string-call readers moved onto it. `test_frostbite` covers stages, healing, afflictions,
+  health, sprint, the lighter and gloves.
+- Work gloves: a `hands_outer` slot and the `work_gloves` garment (insulation 4 °C, windproof 0.6). There is no
+  visual mesh yet (needs a Blender outfit pass) and they are not placed in the world.
+
+- Body part library (#236): `BodyPartDefinition` / `BodyPartLibrary` (`core/body/`, `data/body/`) describe the
+  head, hands and feet. Each has its garment region, wind exposure, cold sensitivity, cold thresholds, HUD mask
+  and bones. `ExtremityCold` and the HUD silhouette read the library instead of hard-coded regions.
+  Wind now reaches each part by its own exposure and its cover's windproofing: the face takes the whole wind,
+  booted feet about a third. A new part is data only. `test_cold_readouts` covers the library, the wind split
+  and a data-only part.
+
+- Daily air temperature (#236 stage 5): `ThermalManager` uses `data/climate/air_temperature_day.tres` when no
+  curve is assigned (world.gd creates it in code, so it always ran flat at −18 °C). The air is coldest at
+  05:30 (−28 °C) and warmest at 14:30 (−8 °C), with weather offsets on top. `test_cold_readouts` checks the
+  extremes and the midnight wrap.
+
+- Vitals HUD rework (owner design, #236; spec in `docs/technical/VITALS_HUD.md`). The round progress rings
+  are replaced by gradient columns: a dark column fading upward and a state-tinted pigment over it that
+  empties from the top, with a thin edge line and rounded bottom. Green, yellow and red blend across each
+  threshold. The symbols stay half-tone until a vital nears critical. Trend chevrons sit above a rising
+  column and below a falling one, doubled for a fast change. Body temperature and `FEELS ±N°` sit beside
+  the warmth column. A faint front silhouette stands over it and frosts blue from the fingertips, toes and
+  crown with the new extremity cold load. The block moved toward the corner: smaller columns, a larger
+  health strip (260 × 16).
+- Extremity cold (`ExtremityCold`, `ThermalManager.get_extremity_cold`): a 0..1 load on the head, hands and
+  feet from felt cold, that region's garment insulation and its wetness (`EquipmentComponent.get_region_protection`).
+  It is saved, warm sleep clears it, and it is a warning layer only.
+
+- Floor snow prints (owner request): indoors Henry's boots leave white prints, the inverse of the snow print:
+  white where the tread's grooves packed with snow outside, broken into clumps (`BootSole.floor_print_image`,
+  the same lug pattern the snow shader presses). A step outside on snow fills the tread; each indoor step
+  leaves 20 % of what it holds, so about ten prints fade out step by step, and the tread melts empty in about
+  2 min in a 20 °C room. A print holds, then fades over its last half: 5 min in a 20 °C room, 25 min at
+  0 °C (`FloorSnowPrints`, `test_floor_snow_prints`). The decal is a cube one sole long with the sole's
+  shape in its texture: a thin, long decal box lost screen tiles of the print in Forward+ (seen on the 727
+  floor; godotengine/godot#73945). The two prints bake in ~34 ms at load.
+- Blizzard flow (`BlizzardFlow`, FUTURE_INTENT §10): blown snow as fog volumes on the wide streets
+  (pavement ≥ 7 m, Key West's top ~15 % of road length) that run with the wind (|cos| ≥ 0.6, street-canyon
+  channelling), up to six near Henry. Density is the blowing-snow extinction for the live 10 m wind, gusts
+  included: Tabler's visibility V = 1.126e8·U^-4.85 m (TRB SR185) through Koschmieder 3.912 / V, capped at
+  ~13 m visibility. It starts only past the snowpack's blowing threshold (5–10 m/s) with snow laid. Densest
+  at the street and thinning with a 3 m scale height (body height); ~12 m billows with gaps and a 5 m tear
+  octave advect downwind; volumes fade in and out over 2 s. Each billow core settles at the overcast it
+  scatters (the environment ambient: Godot scales fog EMISSION by density), so the flow reads lighter than
+  the air, not as dark bands as with a fixed 0.18 glow (measured at forced density). Flakes ride each
+  volume and the ground streamers run along the flow streets, on screen only. Street centrelines come from the road ribbons `KeyWestRealityGround` already paves
+  (`get_wide_streets`, `test_key_west_reality_ground`). The weather readout shows the flow.
+- Key West mug model (owner request): `SurvivalItemVisual` draws `assets/items/mug/Mug_game_ready.glb` for the
+  mug, mug of snow and warm water (held, world pickups, shelter cabinet) instead of the grey cylinder. The model is
+  real scale (13 x 8.7 x 10 cm, base at 0); snow and water are a disc inside the measured 4.4 cm inner wall.
+  Henry starts with the mug in the pack lid pocket instead of the pack, so one Quick Access pocket is free at start.
+- Weather debug (debug builds, Key West), one key, 0. The first press shows the profile, scheduler or pin,
+  blend, wind and drift gate, snowfall, visibility, cover, hour, sun beam, shelter state and the live streak,
+  ground-drift counts. Each next press pins calm, snowfall, windy, blizzard in turn; the one
+  after blizzard hands the weather back to the scheduler and hides the readout.
+- Rooms frame Henry low-left (owner note): any room uses the tight composition and the camera rises until his eyes
+  sit at mid-height (stove 29–30 % / 46–47 %, was 33 % / 37 %). Auto shoulder swap when the player's side is walled off
+  and the other is free, with delays, never in doorways or during mouse turns (Sifu, a Borderlands 4 camera mod;
+  Ghost Recon Breakpoint's complaints). Deoccluder-style hold measured worse and ships off. Open camera items are
+  listed in `docs/technical/TPS_CAMERA.md` → Open items.
+- Leeward wall drifts baked into the Key West wind map (owner request: the lee side of every house had
+  deeper drifts, the windward side less).
+  - `bake_key_west_snow_wind.py --reality`: ASCE 7-16 leeward drift per wall, height from the roof run along
+    the wind (0.3–1.1 m at full cover, capped at half the wall), tapering over 4 hd; windward banks halved.
+    `factor_max` 2.5 → 8.5. Chunk cover, clipmap rings and SnowField read the same map, so drifts are drawn
+    and waded alike.
+- Snow material and drift crests (testers: the snow read as jelly).
+  - Causes, from close-up frames on Duval Street: no detail under the 2 m lattice and the ~0.7 m ripple, a
+    near-uniform albedo (±3 %) and plastic specular, so shadowed snow was a flat blue fill; print floors drew
+    topographic rings (`sin(depth × 110)` strata over lumpy floors) and glints were view-independent
+    emission confetti. Deep trench walls showed agate rings; a debug render split albedo from normal and
+    put them in the albedo: the shared painterly pass seeds its pigment noise with the surface normal,
+    which on a curved trench wall sweeps through dozens of noise periods. Snow now passes the ground's up
+    vector to that pass in both layers.
+  - Now both layers share per-pixel grain on level snow (7 cm and 2.4 cm, each fading before a pixel spans
+    it), albedo patches and grain hollows, ice facets that flash toward the sun in `light()` (none in shadow,
+    none on packed floors), `SPECULAR` 0.3 and a cubic B-spline wind map for shading slopes. Print slopes use
+    a three-texel Sobel without the outline jag; deep pits darken with depth; a boot's outline and tread are
+    kept only on and around its sole, not where the wading body pressed deeper.
+  - Lee drifts keep a trough at the wall foot (the lee eddy) and crest 3 m out, with only a 1-2-1 pass so the
+    crest survives on the 2 m lattice; `factor_max` 8.5 so crests are not clipped.
+- Snowpack firmness (owner request: furrows belong to fresh wet snow; a dry cold pack is a crust that breaks
+  with difficulty, then the leg drops fast).
+  - `SnowPresentationSystem.firmness` (saved): snowfall buries the crust, dry cold and wind harden it over a
+    day, a thaw softens it. It sets the field's softness, crust strength and how deep and fast a broken crust
+    drops; only loose snow (firmness < 0.5) lets the wading body and dragging toe cut a trench.
+  - Tests in `test_snow_presentation`, `test_snow_resistance`, `test_snow_shell`; `snow-walk` CI runs both packs.
+    Duval Street walk: fresh pack 3 plunges (drift pockets only), crust pack 29 with clean-walled postholes.
+  - `snow-walk` reads the GPU print field under every standing boot (`SNOW_WALK_GHOSTS`) to chase the
+    "walks through drawn snow without a mark" report: 0 of 509 boots in over 5 cm of snow left no print on
+    this route, so the report is not reproduced here yet.
+- Snowpack and boot prints (owner request).
+  - `SnowResistance`: wind crust holds a boot until the step's load breaks it (strength varies in ~1.6 m patches,
+    running breaks more), drifts hide soft pockets where a leg plunges almost to the ground; a plunge dips the
+    stride and plays a crust snap. Collision stays on the ground. `test_snow_resistance`.
+  - Prints are Henry's army boot outsole (`BootSole`): heel block, arched shank, ball, round toe, in both the
+    persistent stamp and the contact soles. The packed field carries each print's sole uv, and `snow_ground` draws
+    the exact outline and the lug tread per pixel.
+  - `capture_snow_walk.gd` and the `snow-walk` job in `checks.yml`: TPS and leg-height videos of the walk.
+  - Independent review (Sonnet agent + `/code-review high`): prints shade per pixel in coarse rings, narrower morph
+    bands, no string `has_method`/`connect` seams, retry cap at the coast. It also caught that the wall lee ramps
+    never ran over the baked map; they are now out of the drawn base until the chunk bake carries them.
+- Henry is never see-through in play (owner rule). A body guard predicts where each mouse step would put the camera
+  and soft-stops turns that take it closer than 0.8–0.6 m to his eyes (turning out is free); walking into a wall
+  speeds up the shoulder lift; the framing offset follows the real camera distance; over the shoulder the view keeps
+  his eyes inside the frame. The fade remains only as an emergency at 0.45 m. 727 trace: faded frames 0 in every
+  phase (were up to 59). `docs/technical/TPS_CAMERA.md` → Body guard.
+- Shoulder lift in corners (owner request): with little room behind Henry the camera climbs over his shoulder (70° up
+  the orbit, view tilted 35°, pivot up to 0.3 m under the ceiling) instead of pressing into him. In the 727 corner his
+  head left the frame in 1 of 240 turn frames (was 51) and facing the corridor wall in none (was 25).
+  `docs/technical/TPS_CAMERA.md` → Shoulder lift.
+- Tight-space camera composition (owner reference): Henry at the frame's left (eyes at 27 %) in cramped rooms, after
+  Cinemachine Third Person Follow, Grossman's framing (NZGDC 2025) and Nesky (GDC 2014). Measured first with
+  `tools/runtime/trace_camera_tight.gd` in 727: the composition followed the view (0.50–0.80 at the stove during one
+  turn), a room search turned the camera 30° by itself, and the mouse stuck at −81° in the corridor. Now the
+  composition reads room all round Henry (0.58–0.59), the shoulder offset scales with the boom (no lens shift, aim and
+  walk share the centre), recompose eases with hysteresis, no automatic turns in tight spaces, and the doorway mouse
+  stop applies only while Henry passes a door. `docs/technical/TPS_CAMERA.md` → Tight-space composition.
+- Quick Access in tight spaces gathers in a cross at the screen centre (coats left/right, pack lid above, thigh below).
+  The old diagonal orbit took each pocket's side from its projected anchor, so two pockets could land in one corner
+  and overlap; places are now fixed and spaced from the real card sizes, and the cross is bounded as a whole.
+- Stove fire burns unevenly (owner request). It catches small and grows with the `HeatSource` warm-up
+  (0.08 -> 1 intensity, smoothstep): the firebox starts at 45%, the room light at 20%. At the nominal burn
+  two Perlin layers replace the old sine product: a slow swell (~0.35 Hz, a little brighter or dimmer, never
+  repeating) and fast flame jitter (~9 Hz); embers follow mostly the swell. Mean energies match the old ones.
+  `test_stove_visual` now checks a dim catch and a nominal warmed burn.
+- Interior shadow mode (owner request). Outdoors shadows keep the dry-brush edge. Under a shelter roof they
+  return to the earlier value-noise edge (4186533).
+  - `stylized_shadow_interior_mode` now feeds the shared shadow include and turns the brush mix down to 0.
+  - `ShelterGradeBinder` fades it with the LUT, on `sheltered_changed` over `shelter_blend_s`.
+  - 727 Fort St floor is dark old wood (`floor_old_wood_727.tres`), swapped for the glb `floor_vinyl` on import,
+    so the stove shadows read on it.
+- Colour grade crossfade (from Grok's `grok` branch).
+  - Grok's rules are kept:
+    - outdoor LUTs blend over ±0.5 h corridors at 05/07/17/21 h;
+    - Shelter fades in and out over 0.5 s;
+    - `blend_outdoor_profiles` and the capture tool.
+  - His fullscreen blend pass is replaced. It graded the linear pre-tonemap image with the Environment adjustment
+    off: a 0.22 mean colour pop at the start and end of every blend, and the painterly far wash was erased.
+  - Now `LutBlendCache` bakes in-between LUTs for every profile pair on worker threads (UE4 CombineLUTs approach).
+    The nearest of 16 steps goes into the Environment's own LUT; brightness, contrast and saturation lerp.
+  - Ends match the snaps within frame noise (0.005 / 0.002). Each step is below 0.005.
+  - `test_lut_blend_cache`; `docs/visual_fx_shaders.md` → Color Grade Blend.
+- Dev street spawn (owner request): `World` → Developer tools → **Dev Spawn Street** picks one of ten streets from different parts of the island (Whitehead, Duval, Truman, White, Flagler, South and North Roosevelt, Sigsbee Road, Stock Island 5th Street and College Road). In debug builds Henry starts mid-street there instead of the scenario spawn. `KeyWestDevWaypoints.teleport_to` holds him until the street's chunk is live, the same way F6 does, then faces him and the camera along the street. Points live in `routes/dev_street_spawns.json`. Each sits on the centreline at the spot farthest from building outlines, on land: the minimum ground within 8 m is 0.16–2.71 m NAVD88, above MHHW. `test_dev_street_spawns` checks the dropdown against the file and each point against its generated chunk (live ground above sea level, outside every outline), and that Henry is held there. `capture_dev_street_spawn` takes a third-person frame per street.
 
 ### Fixed
 
@@ -1149,4 +1519,3 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 ## Changelog rule
 
 Record outcomes, not the development session. Prefer one short bullet per meaningful change. Put implementation evidence, experiment history, benchmark dumps and long rationale in the relevant issue, PR or canonical document instead of duplicating them here.
-

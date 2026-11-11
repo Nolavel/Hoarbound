@@ -29,6 +29,8 @@ const WORLD_GROUP: StringName = &"world_pickup"
 ## Runtime state an item had when Henry put it down (a searchlight's charge); empty for a fresh item.
 @export var instance_state: Dictionary = {}
 
+## Set by an ItemContainer for what stands on its shelves: reached through the container's search, not F.
+var in_container: bool = false
 var _inventory: InventoryComponent
 
 
@@ -57,7 +59,7 @@ func get_interaction_channel() -> InteractionChannel:
 
 func can_interact() -> bool:
 	var work: WoodWorkComponent = _wood_work()
-	return super() and ItemCatalog.get_item(item_id) != null and (work == null or not work.is_chopping(self))
+	return super() and not in_container and ItemCatalog.get_item(item_id) != null and (work == null or not work.is_chopping(self))
 
 
 ## Why storage would refuse this pickup right now, or empty; checks only, no change.
@@ -113,9 +115,9 @@ func _on_interaction_performed() -> void:
 		return
 	## Ownership is settled now; camera movement during the clip cannot undo it.
 	var player: Node = get_tree().get_first_node_in_group(&"player")
-	if player != null and player.has_method(&"play_action_animation"):
+	if player != null:
 		var action: StringName = player_animation_action if player_animation_action != &"" else &"pickup"
-		player.call(&"play_action_animation", action)
+		InteractHostCapability.run(player, &"animate", [action])
 
 
 func _get_interaction_text() -> String:
@@ -202,12 +204,6 @@ func _make_placeholder() -> MeshInstance3D:
 			if mesh != body:
 				mesh.reparent(body, true)
 		return body
-	if String(item_id).begins_with("water_flask") or String(item_id).begins_with("tinned_pineapple") or String(item_id).begins_with("spov_can") or item_id in [&"knife", &"axe", &"tinned_stew", &"work_gloves", &"lighter", &"stone", &"egg_raw", &"egg_fried", &"egg_fried_well", &"egg_fried_burnt"]:
-		var holder: Node3D = SurvivalItemVisual.make(item_id)
-		if item_id == &"axe":
-			holder.rotation.x = PI * 0.5
-		add_child(holder)
-		return holder.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 	if item_id == ROAD_FLARE_ID:
 		return _make_road_flare()
 	if item_id == HAMMER_ID:
@@ -216,6 +212,13 @@ func _make_placeholder() -> MeshInstance3D:
 		return _make_nails()
 	if item_id == &"boards" or item_id == &"firewood":
 		return _make_wood_stack()
+	## Every item SurvivalItemVisual draws shows as itself (a tin, tinder, a mug), not as the parcel.
+	if SurvivalItemVisual.draws(item_id):
+		var holder: Node3D = SurvivalItemVisual.make(item_id)
+		if item_id == &"axe":
+			holder.rotation.x = PI * 0.5
+		add_child(holder)
+		return holder.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 	var crate := MeshInstance3D.new()
 	crate.name = "Placeholder"
 	var box := BoxMesh.new()
@@ -380,17 +383,7 @@ func _free_safe_held_item() -> bool:
 	var player: Node = get_tree().get_first_node_in_group(&"player")
 	if player == null:
 		return true
-	for child: Node in player.get_children():
-		if child.has_method(&"is_burning") and bool(child.call(&"is_burning")):
-			return false
-		if not child.has_method(&"is_holding") or not bool(child.call(&"is_holding")):
-			continue
-		if child.has_method(&"put_away_unlit") and bool(child.call(&"put_away_unlit")):
-			continue
-		if child.has_method(&"put_away") and bool(child.call(&"put_away")):
-			continue
-		return false
-	return true
+	return HeldReleaseCapability.release_all(player)
 
 
 func _get_inventory() -> InventoryComponent:
@@ -400,4 +393,3 @@ func _get_inventory() -> InventoryComponent:
 		return null
 	_inventory = InventoryComponent.find_in(get_tree().get_first_node_in_group("player"))
 	return _inventory
-

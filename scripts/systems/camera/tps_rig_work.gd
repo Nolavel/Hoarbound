@@ -6,7 +6,6 @@ extends TpsRigBehaviour
 
 ## Look target and preferred eye, world space; the control look it started from bounds the
 ## mouse orbit. The blend runs 0 (follow) to 1 (framed).
-var lock_look: bool = false
 var _work_active: bool = false
 var _work_focus: Vector3 = Vector3.ZERO
 var _work_eye: Vector3 = Vector3.ZERO
@@ -33,13 +32,10 @@ func set_framing(focus: Vector3, eye: Vector3, look: Vector2) -> void:
 
 func clear() -> void:
 	_work_active = false
-	lock_look = false
 
 
 ## Bounds the control look (yaw radians, pitch degrees) to the orbit round the start look.
 func clamp_look(look: Vector2) -> Vector2:
-	if lock_look and _work_active:
-		return _work_look0
 	var off: float = clampf(angle_difference(_work_look0.x, look.x), -deg_to_rad(rig.work_look_limit_deg.x), deg_to_rad(rig.work_look_limit_deg.x))
 	return Vector2(wrapf(_work_look0.x + off, -PI, PI),
 		clampf(look.y, _work_look0.y - rig.work_look_limit_deg.y, _work_look0.y + rig.work_look_limit_deg.y))

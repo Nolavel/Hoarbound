@@ -105,7 +105,7 @@ func _ready() -> void:
 	_get_inventory()
 	_actions_cache = TimeCostedActionSystem.find(get_tree())
 	super()
-	var state: Node = get_node_or_null(^"/root/PlayerState")
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
 	if state != null:
 		state.connect(&"mode_changed", _on_mode_changed)
 	if heat_source != null:
@@ -355,8 +355,8 @@ func _start_action(act: Act) -> Refusal:
 		if not _action_managed:
 			_clear_act()
 			return Refusal.BUSY
-	if _player != null and _player.has_method(&"face_work_target"):
-		_player.call(&"face_work_target", focus_anchor.global_position)
+	if _player != null:
+		InteractHostCapability.run(_player, &"face", [focus_anchor.global_position])
 	if _animation == null or not _begin_hand_action():
 		cancel_act(&"animation_unavailable")
 		return Refusal.BUSY
@@ -378,9 +378,9 @@ func attempt_lighter_strike(now_seconds: float = -1.0) -> int:
 	_strike_count += 1
 	if _lighter != null:
 		_lighter.strike(true)
-	var sound: Node = get_node_or_null(^"/root/SoundSystem")
+	var sound := get_node_or_null(^"/root/SoundSystem") as SoundSystemService
 	if sound != null:
-		sound.call(&"play", STRIKE_EVENT, _lighter.global_position if _lighter != null else global_position)
+		sound.play(STRIKE_EVENT, _lighter.global_position if _lighter != null else global_position)
 	_stage = Stage.HOLDING
 	_flame_held = true
 	_hold_seconds = 0.0
@@ -640,8 +640,8 @@ func _consume_owned_item(item_id: StringName) -> bool:
 
 
 func _ui_blocked() -> bool:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	return state != null and bool(state.call(&"is_paused"))
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	return state != null and bool(state.is_paused())
 
 
 func _get_inventory() -> InventoryComponent:
@@ -683,7 +683,7 @@ func _act_duration_seconds() -> float:
 
 
 func _resolve_player_mode(mode_name: StringName) -> int:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
 	return int(state.get_script().get_script_constant_map().get("Mode", {}).get(String(mode_name), -1)) if state != null else -1
 
 

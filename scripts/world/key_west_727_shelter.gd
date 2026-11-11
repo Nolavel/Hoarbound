@@ -17,6 +17,13 @@ const HUT_KINDS: Dictionary = {"hut_stove": "ShelterZone/Stove", "hut_mattress":
 const CABINET_CONTAINER_ID: StringName = &"727_waiting_cabinet"
 ## The cabinet's set-dressing props (ShelterCabinet) that are real items here: prop name -> item id.
 const CABINET_PROPS: Dictionary = {"CabinetProp_StewTin": &"tinned_stew", "CabinetProp_PineappleTin": &"tinned_pineapple"}
+## What the searchable furniture (FurnitureKit kinds in the plan) holds at a new game, by node; a dresser's by
+## drawer. Kept here, not in the generated plan, so a plan rebuild keeps it. Game-invented (owner may change).
+const FURNITURE_CONTENTS: Dictionary = {
+	"KitchenCupboard": [&"spov_can", &"empty_tin"],
+	"Dresser": {"top": [&"nails"], "middle": [&"tinder"], "bottom": []},
+	"Chest": [&"tinned_pineapple"],
+}
 const CLINIC_OFFSET_C: float = 4.0
 const CLINIC_WIND_EXPOSURE: float = 0.15
 const CLINIC_WINDOW_SEVERITY: float = 0.2
@@ -34,6 +41,10 @@ const BOX_COLOURS: Dictionary = {"counter": Color(0.62, 0.56, 0.48), "bench": Co
 var interior: Dictionary = {}
 ## The waiting-room cabinet's shelves, holding the supplies the layout puts on it (built by place_supplies).
 var cabinet_shelves: ItemContainer
+## The searchable furniture's containers by "<node>" or "<node>/<drawer>" (KitchenCupboard, Dresser/top, Chest).
+var furniture_containers: Dictionary = {}
+## Their ways in (doors, drawers, the lid) by "<node>/<name>".
+var furniture_openers: Dictionary = {}
 var _house: Node3D
 var _floor_y: float = 0.0
 var _glass_warmth: float = 0.0
@@ -264,6 +275,9 @@ func _place_furniture() -> void:
 		if kind == "wall_thermometer":
 			_place_thermometer(item, yaw)
 			continue
+		if kind in ["kitchen_cupboard", "dresser", "chest", "floor_cabinet"]:
+			_place_searchable(item, yaw)
+			continue
 		var size: Array = item["size"]
 		var extents: Vector3 = Vector3(float(size[0]), float(size[1]), float(size[2]))
 		var body: StaticBody3D = StaticBody3D.new()
@@ -282,6 +296,33 @@ func _place_furniture() -> void:
 		shape.shape = box
 		body.add_child(shape)
 		_house.add_child(body)
+
+
+## Searchable furniture from FurnitureKit at its plan place (origin on the floor), holding FURNITURE_CONTENTS.
+func _place_searchable(item: Dictionary, yaw: Basis) -> void:
+	var node_name: String = item["node"]
+	var id := StringName("727_" + node_name.to_snake_case())
+	var contents: Variant = FURNITURE_CONTENTS.get(node_name, [])
+	var items: Array[StringName] = []
+	if contents is Array:
+		items.assign(contents)
+	var built: Dictionary
+	match String(item["kind"]):
+		"kitchen_cupboard":
+			built = FurnitureKit.kitchen_cupboard(_house, node_name, id, items)
+		"dresser":
+			built = FurnitureKit.dresser(_house, node_name, id, contents if contents is Dictionary else {})
+		"chest":
+			built = FurnitureKit.chest(_house, node_name, id, items)
+		_:
+			built = FurnitureKit.floor_cabinet(_house, node_name, id, items)
+	var piece: Node3D = built["piece"]
+	piece.transform = Transform3D(yaw, plan_point(item["uv"], _floor_y))
+	piece.set_meta("reconstruction_class", "game_invented")
+	for key: String in built["containers"]:
+		furniture_containers[node_name if key == "shelves" else "%s/%s" % [node_name, key]] = built["containers"][key]
+	for key: String in built["openers"]:
+		furniture_openers["%s/%s" % [node_name, key]] = built["openers"][key]
 
 
 ## A wall thermometer reading the heated zone; "h" is its centre above the floor.

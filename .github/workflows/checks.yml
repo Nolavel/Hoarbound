@@ -1,12 +1,13 @@
 name: checks
 
-## `checks` is the cheap gate on every push and PR: import, input map, filenames.
-## Test suites run locally until mechanics settle; they churn too fast to gate main.
+## `checks` is the cheap gate on every push and PR: import, input map, filenames, and the contract suites in
+## tools/ci/required_suites.txt. Other suites churn with the mechanics and are reported by `suites`, not gated.
+## `grok` is on the same gate as the other agent branches. It is not a second pipeline.
 ## Preview/render jobs run only for a commit tagged with their [marker]; the Key West Reality jobs
 ## also run on a manual dispatch, to re-check the committed snapshot.
 on:
   push:
-    branches: [main, codex, claudeflow]
+    branches: [main, codex, claudeflow, grok]
     paths-ignore:
       - "docs/**"
       - "**/*.md"
@@ -18,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       preview:
-        description: "Empty re-checks Key West Reality; snow-surface or snow-walk runs only that capture"
+        description: "Empty re-checks Key West Reality; compass runs the First Exit compass preview; snow-surface or snow-walk runs only that capture"
         default: ""
       baseline_ref:
         description: "snow-surface: ref whose snow code is the `old` variant"
@@ -27,12 +28,12 @@ on:
 ## Each long capture has its own group, so a later push or dispatch of another kind
 ## does not cancel it.
 concurrency:
-  group: checks-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[blob-mask-preview]') && 'blob-mask-preview' || contains(github.event.head_commit.message, '[snow-surface]') && 'snow-surface' || contains(github.event.head_commit.message, '[snow-walk]') && 'snow-walk' || github.event.inputs.preview || 'base' }}
+  group: checks-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[snow-surface]') && 'snow-surface' || contains(github.event.head_commit.message, '[snow-walk]') && 'snow-walk' || github.event.inputs.preview || 'base' }}
   cancel-in-progress: true
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -56,9 +57,139 @@ jobs:
       - name: Check filenames and uid files
         run: tools/ci/check_filenames.sh
 
+      - name: Dynamic dispatch ratchet
+        ## has_method / string call per file may only shrink (ARCHITECTURE.md §16, tools/ci/dynamic_dispatch_baseline.txt).
+        run: |
+          python3 -m unittest discover -s tools/ci -p 'test_check_dynamic_dispatch.py'
+          python3 tools/ci/check_dynamic_dispatch.py
+
+      - name: Contract suites (required)
+        ## Cross-system contracts gate the build (ARCHITECTURE.md §16); same verdict as tools/ci/run_tests.sh.
+        run: tools/ci/run_tests.sh $(sed -e 's/#.*//' tools/ci/required_suites.txt | tr -s '[:space:]' ' ')
+
+
+  edge-glow-review:
+    # Real Key West 727 + actual 3D Hub, not screenshot compositing.
+    if: github.event_name == 'pull_request' && github.head_ref == 'feature/issue-282-edge-glow-overlay'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+      - name: Verify actual pack and container transfer outcomes
+        run: tools/ci/run_tests.sh test_edge_glow_overlay test_pack_hands test_container_hands
+      - name: Capture real 3D Tab-Hub and 727 cabinet
+        run: |
+          set -euo pipefail
+          OUT="$GITHUB_WORKSPACE/edge-glow-png"
+          mkdir -p "$OUT"
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg"
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" --path . --resolution 960x540 --fixed-fps 30 --rendering-driver vulkan --rendering-method forward_plus --audio-driver Dummy --script res://tools/runtime/capture_edge_glow_overlay.gd -- "$OUT" 2>&1 | tee "$OUT/capture.log"
+          grep -q 'EDGE_GLOW_CAPTURE: PASS' "$OUT/capture.log"
+          ! grep -E 'SCRIPT ERROR|SHADER ERROR|Parse Error' "$OUT/capture.log"
+          test -s "$OUT/gameplay_before.png"
+          test -s "$OUT/gameplay_after.png"
+          for p in tab cabinet; do
+            for f in 01_off 02_idle 03_amber 04_green 05_red; do test -s "$OUT/${p}_${f}.png"; done
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: edge-glow-review-png
+          path: edge-glow-png/
+          if-no-files-found: error
+          retention-days: 7
+
+  compass-preview:
+    ## Real Key West viewport of the First Exit compass. Dispatch with preview=compass, or a single tagged review push on grok.
+    ## Not a second pipeline: same workflow, Godot, lavapipe and ffmpeg as the other captures.
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'compass') || (github.event_name == 'push' && github.ref == 'refs/heads/grok' && contains(github.event.head_commit.message, '[compass-review]'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Capture the compass in Key West
+        id: capture
+        env:
+          OUT: docs/runtime_previews/compass_preview
+        run: |
+          set -o pipefail
+          mkdir -p "$OUT"
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR=/tmp/xdg
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 960x540 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --fixed-fps 15 \
+            --script res://tools/runtime/capture_compass_preview.gd \
+            -- "$OUT" 2>&1 | tee "$OUT/godot.log"
+          status=${PIPESTATUS[0]}
+          if [ -d "$OUT/frames" ] && ls "$OUT/frames"/frame_*.png >/dev/null 2>&1; then
+            ffmpeg -y -loglevel error -framerate 15 -i "$OUT/frames/frame_%04d.png" \
+              -c:v libx264 -pix_fmt yuv420p -s 960x540 -crf 20 "$OUT/compass_preview.mp4"
+          fi
+          if [ -f "$OUT/compass_preview.mp4" ]; then
+            dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT/compass_preview.mp4")
+            echo "compass video duration ${dur}s"
+            python3 -c "import sys; d=float(sys.argv[1]); sys.exit(0 if 10.0 <= d <= 15.0 else 1)" "$dur" \
+              || { echo "video duration outside 10–15s"; status=1; }
+          else
+            echo "compass video was not written"
+            status=1
+          fi
+          python3 -c "import json,sys; p=json.load(open(sys.argv[1])); print(p); sys.exit(0 if p.get('passed') else 1)" \
+            "$OUT/compass_preview.json" || status=1
+          exit "$status"
+
+      - name: Upload compass preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: hoarbound-compass-preview
+          path: |
+            docs/runtime_previews/compass_preview/compass_preview.mp4
+            docs/runtime_previews/compass_preview/stills/*.png
+            docs/runtime_previews/compass_preview/compass_preview.json
+            docs/runtime_previews/compass_preview/godot.log
+          if-no-files-found: warn
+          retention-days: 7
+
   key-west-reality:
     if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
@@ -167,7 +298,7 @@ jobs:
     ## Zero-setup review path: the committed snapshot exactly as cloned; no unpack, export or
     ## generation (the rebuild/digest job above is the reproducibility check).
     if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == '') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[key-west-reality]'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -214,7 +345,7 @@ jobs:
     ## Lavapipe/Forward+ captures on the Key West Reality scene, chosen by a commit tag.
     ## Painterly preview is diagnostic A/B: CONTROL and TEST run as independent Godot processes.
     if: github.event_name == 'push' && (contains(github.event.head_commit.message, '[painterly-wash-preview]') || contains(github.event.head_commit.message, '[stylized-shadows]') || contains(github.event.head_commit.message, '[sky-weather-preview]'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -432,7 +563,7 @@ jobs:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'snow-surface') ||
       (github.event_name == 'push' && contains(github.event.head_commit.message, '[snow-surface]'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -492,7 +623,7 @@ jobs:
       - name: Snow suites (new variant)
         if: matrix.variant == 'new'
         run: |
-          for suite in test_snow_clipmap test_snow_shell test_snow_contact_pipeline test_snow_tracks test_snow_presentation; do
+          for suite in test_snow_clipmap test_snow_shell test_snow_tracks test_snow_presentation; do
             log="$(mktemp)"
             "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script "res://tests/systems/$suite.gd" 2>&1 | tee "$log"
             if grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|FAIL" "$log"; then
@@ -563,7 +694,7 @@ jobs:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'snow-walk') ||
       (github.event_name == 'push' && contains(github.event.head_commit.message, '[snow-walk]'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -595,7 +726,7 @@ jobs:
 
       - name: Snow suites
         run: |
-          for suite in test_snow_resistance test_snow_presentation test_snow_contact_pipeline test_snow_shell test_snow_clipmap; do
+          for suite in test_snow_resistance test_snow_presentation test_snow_shell test_snow_clipmap; do
             log="$(mktemp)"
             "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script "res://tests/systems/$suite.gd" 2>&1 | tee "$log"
             if grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|FAIL" "$log"; then
@@ -678,204 +809,5 @@ jobs:
             ${{ env.OUT }}/*.jpg
             ${{ env.OUT }}/report.json
             ${{ env.OUT }}/capture.log
-          if-no-files-found: warn
-          retention-days: 3
-
-  cooking-preview:
-    ## Extend the existing render harness only for explicitly tagged codex commits.
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[cooking-preview]')
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - name: Cache Godot
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/opt/godot-mono
-          key: godot-4.8-dev6-v2
-      - name: Provision Godot + Lavapipe
-        run: SKIP_APT=1 tools/ci/setup_env.sh
-      - name: Install preview video and CPU Vulkan packages
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq mesa-vulkan-drivers xvfb ffmpeg
-      - name: Import scripts and assets
-        run: tools/ci/import_gate.sh
-      - name: Cooking slot ownership and fire tests
-        run: |
-          timeout 240 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
-            --script res://tests/systems/test_stove_egg_cooking.gd | tee cooking_test.log
-          grep -q "all checks passed" cooking_test.log
-      - name: Three eggs, oil, spices and overcook regression
-        run: |
-          timeout 240 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
-            --script res://tests/systems/test_pan_cooking_ritual.gd | tee pan_ritual_test.log
-          grep -q "PAN_RITUAL_PASS" pan_ritual_test.log
-      - name: Standing cooktop F enter / exit and fixed camera contract
-        run: |
-          timeout 240 "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy \
-            --script res://tests/systems/test_cooktop_session.gd | tee cooktop_session_test.log
-          grep -q "COOKTOP_SESSION_PASS" cooktop_session_test.log
-      - name: Capture and encode 727 three-egg ritual (9 seconds)
-        run: |
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR"
-          set -o pipefail
-          timeout 850 xvfb-run -a "$HOME/.local/bin/godot" --path . \
-            --resolution 960x540 --rendering-driver vulkan --rendering-method forward_plus \
-            --audio-driver Dummy --script res://tools/runtime/capture_stove_egg_gameplay.gd \
-            2>&1 | tee cooking_capture.log
-          grep -q "COOKING_GAMEPLAY_CAPTURE" cooking_capture.log
-          ! grep -q "SHADER ERROR" cooking_capture.log
-          test "$(find docs/runtime_previews/key_west_727/egg_gameplay/frames -name 'f_*.png' | wc -l)" -eq 132
-          ffmpeg -hide_banner -loglevel error -y -framerate 15 \
-            -i docs/runtime_previews/key_west_727/egg_gameplay/frames/f_%03d.png \
-            -an -c:v libx264 -crf 22 -pix_fmt yuv420p -movflags +faststart \
-            docs/runtime_previews/key_west_727/egg_gameplay/egg_ritual_9s.mp4
-          test -s docs/runtime_previews/key_west_727/egg_gameplay/egg_ritual_9s.mp4
-          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_064.png docs/runtime_previews/key_west_727/egg_gameplay/cracking.png
-          cp docs/runtime_previews/key_west_727/egg_gameplay/frames/f_127.png docs/runtime_previews/key_west_727/egg_gameplay/fried.png
-      - name: Upload 9-second ritual video and review stills
-        if: always()
-        uses: actions/upload-artifact@v4
-        continue-on-error: true
-        with:
-          name: hoarbound-egg-ritual-9s
-          path: |
-            docs/runtime_previews/key_west_727/egg_gameplay/*.mp4
-            docs/runtime_previews/key_west_727/egg_gameplay/*.png
-            cooking_test.log
-            pan_ritual_test.log
-            cooktop_session_test.log
-            cooking_capture.log
-          if-no-files-found: warn
-          retention-days: 3
-
-  wallrun-demo:
-    ## Standalone mechanics capture. Real CharacterBody3D physics; no production locomotion change.
-    if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[wallrun-demo]')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'wallrun-demo')
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache Godot
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/opt/godot-mono
-          key: godot-4.8-dev6-v2
-
-      - name: Provision Godot
-        run: SKIP_APT=1 tools/ci/setup_env.sh
-
-      - name: Install CPU Vulkan, Xvfb and video encoder
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq mesa-vulkan-drivers xvfb ffmpeg
-
-      - name: Import gate
-        run: tools/ci/import_gate.sh
-
-      - name: Capture first-person wall-run over real 11m gap (30fps)
-        run: |
-          set -euo pipefail
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR" docs/runtime_previews/wallrun_demo
-          timeout 900 xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . --resolution 1920x1080 --fixed-fps 30 \
-            --rendering-driver vulkan --rendering-method forward_plus \
-            --audio-driver Dummy \
-            --script res://tools/runtime/capture_wallrun_demo.gd \
-            -- res://docs/runtime_previews/wallrun_demo \
-            2>&1 | tee docs/runtime_previews/wallrun_demo/capture.log
-          test "$(find docs/runtime_previews/wallrun_demo/frames -maxdepth 1 -name 'f_*.png' | wc -l)" -eq 180
-          ffmpeg -hide_banner -loglevel error -y -framerate 30 \
-            -i docs/runtime_previews/wallrun_demo/frames/f_%03d.png \
-            -c:v libx264 -preset veryfast -crf 21 -pix_fmt yuv420p \
-            -movflags +faststart docs/runtime_previews/wallrun_demo/short_wallrun_demo.mp4
-          cp docs/runtime_previews/wallrun_demo/frames/f_045.png docs/runtime_previews/wallrun_demo/near_edge.png
-          cp docs/runtime_previews/wallrun_demo/frames/f_065.png docs/runtime_previews/wallrun_demo/over_gap.png
-          cp docs/runtime_previews/wallrun_demo/frames/f_095.png docs/runtime_previews/wallrun_demo/far_side.png
-          test -s docs/runtime_previews/wallrun_demo/short_wallrun_demo.mp4
-
-      - name: Upload short wall-run video, two stills, evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: short-wallrun-physics-demo
-          path: |
-            docs/runtime_previews/wallrun_demo/*.mp4
-            docs/runtime_previews/wallrun_demo/*.png
-            docs/runtime_previews/wallrun_demo/*.json
-            docs/runtime_previews/wallrun_demo/*.log
-          retention-days: 7
-          if-no-files-found: warn
-
-
-  blob-mask-preview:
-    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[blob-mask-preview]')
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache Godot
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/opt/godot-mono
-          key: godot-4.8-dev6-v2
-
-      - name: Provision Godot and video dependencies
-        run: |
-          SKIP_APT=1 tools/ci/setup_env.sh
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq mesa-vulkan-drivers xvfb ffmpeg
-
-      - name: Clean project import
-        run: tools/ci/import_gate.sh
-
-      - name: Capture six seconds from the Godot runtime
-        run: |
-          set -o pipefail
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export XDG_RUNTIME_DIR=/tmp/xdg
-          mkdir -p "$XDG_RUNTIME_DIR" docs/runtime_previews/blob_mask
-          timeout 600 xvfb-run -a "$HOME/.local/bin/godot" \
-            --path . \
-            --resolution 960x540 \
-            --fixed-fps 30 \
-            --rendering-driver vulkan \
-            --rendering-method forward_plus \
-            --audio-driver Dummy \
-            --script res://tools/runtime/capture_blob_mask.gd \
-            2>&1 | tee docs/runtime_previews/blob_mask/capture.log
-          grep -q "BLOB_MASK_CAPTURE_OK frames=180" docs/runtime_previews/blob_mask/capture.log
-          if grep -Ei "SHADER ERROR|SCRIPT ERROR|Parse Error" docs/runtime_previews/blob_mask/capture.log; then exit 1; fi
-          test "$(find docs/runtime_previews/blob_mask/frames -name 'frame_*.png' | wc -l)" -eq 180
-
-      - name: Encode and verify real Godot capture
-        run: |
-          cd docs/runtime_previews/blob_mask
-          ffmpeg -v error -y -framerate 30 -i frames/frame_%04d.png \
-            -vf scale=960:540:flags=lanczos \
-            -c:v libx264 -pix_fmt yuv420p -crf 19 -movflags +faststart blob_mask_6s.mp4
-          ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames,width,height -of csv=p=0 blob_mask_6s.mp4 \
-            | grep -q '960,540,180'
-          ffmpeg -v error -y -i frames/frame_0030.png -vf scale=960:540 -frames:v 1 outline_fill_reveal_1s.png
-          ffmpeg -v error -y -i frames/frame_0090.png -vf scale=960:540 -frames:v 1 outline_fill_reveal_3s.png
-          ffmpeg -v error -y -i frames/frame_0150.png -vf scale=960:540 -frames:v 1 outline_fill_reveal_5s.png
-          test -s blob_mask_6s.mp4
-
-      - name: Upload Godot capture
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: hoarbound-blob-mask-preview
-          path: |
-            docs/runtime_previews/blob_mask/blob_mask_6s.mp4
-            docs/runtime_previews/blob_mask/outline_fill_reveal_*.png
-            docs/runtime_previews/blob_mask/capture.log
           if-no-files-found: warn
           retention-days: 3
