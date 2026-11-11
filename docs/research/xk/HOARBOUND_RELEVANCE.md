@@ -1,65 +1,65 @@
-# xk research — questions worth testing in Hoarbound
+# Материалы xk: вопросы для критического анализа Hoarbound
 
-> **Critical prompts, not a second GDD.** Nothing in this file is a feature request, accepted design decision, implementation instruction or playtest result. The purpose is to help agents challenge assumptions **without importing xk's taste as Hoarbound canon**.
+> **Это не второй GDD.** Ни один пункт ниже не считается принятой задачей, геймдизайнерским решением или доказанным результатом плейтеста. Цель документа — помочь агентам замечать спорные места и проверять гипотезы, **не превращая вкусы и опыт xk в канон Hoarbound**.
 
-Read [INDEX.md](INDEX.md) for source topics and [SOURCE.md](SOURCE.md) for provenance. Confirm current gameplay in GitHub and any production decisions in Miro before proposing changes.
+Темы источника перечислены в [INDEX.md](INDEX.md), происхождение и ограничения — в [SOURCE.md](SOURCE.md). Прежде чем предлагать изменения, сверять текущую реализацию с GitHub, а актуальные производственные решения — с Miro.
 
-## First Exit A — comprehension without hand-holding
+## First Exit A — понятность без ведения за руку
 
-**Possible question:** Can an unfamiliar player understand the next plausible *action* (shelter, weather pressure, equipment) without the game prescribing an optimal route? Where do diegetic cues work, and where is the player simply stuck?
+**Вопрос для проверки.** Понимает ли новый игрок, какое действие вообще возможно дальше (добраться до убежища, укрыться от погоды, использовать снаряжение), если игра не подсказывает ему оптимальный маршрут? Где работают естественные подсказки окружения, а где игрок просто не считывает доступные взаимодействия?
 
-- Cross-check: [experience pillars](../../game_design/EXPERIENCE_PILLARS.md), [First Exit contract](../../game_design/VERTICAL_SLICE.md), [GDD snapshot](../../GDD.md).
-- External lens: [game design — player learning / readability](https://github.com/Dis1re/xk_streamparser/blob/main/notes/01_геймдизайн.md), [production — playtests](https://github.com/Dis1re/xk_streamparser/blob/main/notes/05_производство_и_процесс.md).
-- Evidence to seek: observations from fresh-player runs, not agent intuition. Distinguish *intentional uncertainty* from *unreadable interaction*.
+- **Сверить с проектом:** [принципы игрового опыта](../../game_design/EXPERIENCE_PILLARS.md), [scope First Exit](../../game_design/VERTICAL_SLICE.md), [срез состояния систем](../../GDD.md).
+- **Внешний взгляд:** [обучение игрока и читаемость](https://github.com/Dis1re/xk_streamparser/blob/main/notes/01_геймдизайн.md), [плейтесты](https://github.com/Dis1re/xk_streamparser/blob/main/notes/05_производство_и_процесс.md).
+- **Искать подтверждение:** наблюдения за первым прохождением незнакомого с игрой человека. Не путать **намеренную неопределённость** с непонятным управлением.
 
-## Survival decisions — systems that alter behaviour
+## Survival-системы — решения вместо обслуживания шкал
 
-**Possible question:** Do weather, exposure, fatigue, inventory and fuel cause actual choices and improvisation, rather than only repeated upkeep? Is a decision understandable **after** its consequences without displaying excessive HUD instruction?
+**Вопрос для проверки.** Действительно ли холод, ветер, усталость, инвентарь и топливо заставляют выбирать и импровизировать? Или игрок лишь повторяет привычные действия ради поддержания показателей? Можно ли после последствия понять причину выбора без навязчивых инструкций в HUD?
 
-- Cross-check: [experience pillars](../../game_design/EXPERIENCE_PILLARS.md) and current owners in [GDD](../../GDD.md).
-- External lens: [game design — systems, choices and difficulty](https://github.com/Dis1re/xk_streamparser/blob/main/notes/01_геймдизайн.md).
-- Evidence to seek: moments when players voluntarily change route, loadout or schedule because of world state; do not add mechanics just to increase complexity.
+- **Сверить с проектом:** [принципы игрового опыта](../../game_design/EXPERIENCE_PILLARS.md) и реальные владельцы состояний в [GDD](../../GDD.md).
+- **Внешний взгляд:** [системы, сложность и выборы](https://github.com/Dis1re/xk_streamparser/blob/main/notes/01_геймдизайн.md).
+- **Искать подтверждение:** самостоятельные изменения маршрута, нагрузки и планов игрока из-за состояния мира. Не добавлять сложность ради количества механик.
 
-## Shelters and spatial memory — clarity through place
+## Убежища и пространственная память — узнаваемость места
 
-**Possible question:** Do Fort Street, recognizable landmarks and the character of shelters help players learn the city without a quest-arrow system? Does shelter comfort feel earned by danger and work?
+**Вопрос для проверки.** Помогают ли Fort Street, характерные ориентиры и различия между убежищами изучать город без системы указателей к заданиям? Ощущается ли уют как заслуженная передышка после холода и труда?
 
-- Cross-check: [Key West design doctrine](../../world/KEY_WEST_DESIGN_DOCTRINE.md), [experience pillars](../../game_design/EXPERIENCE_PILLARS.md).
-- External lens: [game design — levels, pacing and narrative/world](https://github.com/Dis1re/xk_streamparser/blob/main/notes/01_геймдизайн.md).
-- Evidence to seek: wayfinding observations and players' own spatial descriptions. **Do not** take generic HUD/navigation advice as permission to replace the approved diegetic approach.
+- **Сверить с проектом:** [доктрина Ки-Уэста](../../world/KEY_WEST_DESIGN_DOCTRINE.md), [принципы игрового опыта](../../game_design/EXPERIENCE_PILLARS.md).
+- **Внешний взгляд:** [уровни, темп, нарратив и мир](https://github.com/Dis1re/xk_streamparser/blob/main/notes/01_геймдизайн.md).
+- **Искать подтверждение:** поведение при поиске пути и то, как сами игроки описывают расположение мест. **Общие советы по HUD и навигации не разрешают отменять** принятый подход к навигации через окружение.
 
-## Backpack and physical interaction — meaningful friction
+## Рюкзак и физическое взаимодействие — осмысленное трение
 
-**Possible question:** Which gestures make item selection and storage feel physical and legible, and which merely delay player intent? Can sound and spatial feedback communicate failure or success before adding more text?
+**Вопрос для проверки.** Какие действия с предметами создают ощущение физического присутствия и понятны с первого раза, а какие лишь задерживают намерение игрока? Способны ли звук и пространственная обратная связь объяснить успех или неудачу без дополнительных текстовых сообщений?
 
-- Cross-check: [experience pillars](../../game_design/EXPERIENCE_PILLARS.md), [architecture](../../technical/ARCHITECTURE.md), existing inventory implementation.
-- External lens: [game design — game feel and readability](https://github.com/Dis1re/xk_streamparser/blob/main/notes/01_геймдизайн.md).
-- Evidence to seek: repeated pickup/storage attempts, misreads and cancellation behaviour. A reference is **not** an implementation specification.
+- **Сверить с проектом:** [принципы игрового опыта](../../game_design/EXPERIENCE_PILLARS.md), [архитектура](../../technical/ARCHITECTURE.md), существующая реализация инвентаря.
+- **Внешний взгляд:** [ощущения от игры и читаемость](https://github.com/Dis1re/xk_streamparser/blob/main/notes/01_геймдизайн.md).
+- **Искать подтверждение:** повторные попытки положить или достать вещь, ошибки восприятия, поведение при отмене действия. Внешний пример **не является техническим заданием**.
 
-## Prototype and testing — falsifiable questions
+## Прототип и плейтесты — проверяемые гипотезы
 
-**Possible question:** What single hypothesis must each First Exit playtest verify? Can observers separate control confusion, survival misunderstanding and a deliberate creative choice?
+**Вопрос для проверки.** Какую одну гипотезу должен проверить конкретный плейтест First Exit? Можем ли мы отделить проблемы управления, непонимание survival-систем и намеренную художественную недосказанность?
 
-- Cross-check: [First Exit scope](../../game_design/VERTICAL_SLICE.md) and the owner's current test plan/production priorities.
-- External lens: [production — prototype and playtests](https://github.com/Dis1re/xk_streamparser/blob/main/notes/05_производство_и_процесс.md).
-- Evidence to seek: observed actions, points of hesitation and exact questions players ask, not only favorable impressions. A suggestion becomes a task only through the normal owner-approved workflow.
+- **Сверить с проектом:** [scope First Exit](../../game_design/VERTICAL_SLICE.md), актуальный план тестов и приоритеты автора.
+- **Внешний взгляд:** [прототипы и плейтесты](https://github.com/Dis1re/xk_streamparser/blob/main/notes/05_производство_и_процесс.md).
+- **Искать подтверждение:** реальные действия, задержки и вопросы игроков, а не только их общее впечатление. Предложение превращается в задачу лишь через обычное согласование с автором.
 
-## Steam and positioning — later-stage critical review
+## Steam и позиционирование — на более позднем этапе
 
-**Possible question:** When the game has representative footage and a tested loop, does its store presentation communicate *systemic survival in frozen Key West* to its intended audience? Are marketing forecasts based on current external data?
+**Вопрос для проверки.** Когда появятся показательный игровой материал и проверенный цикл, сможет ли страница игры объяснить целевой аудитории идею **системного выживания в замёрзшем Ки-Уэсте**? На чём основаны прогнозы маркетинговых результатов?
 
-- Cross-check: [PRD](../../../PRD.md), [First Exit contract](../../game_design/VERTICAL_SLICE.md), current owner roadmap.
-- External lens: [marketing and Steam](https://github.com/Dis1re/xk_streamparser/blob/main/notes/02_маркетинг_и_steam.md), [outdated or qualified advice](https://github.com/Dis1re/xk_streamparser/blob/main/notes/99_устаревшие_советы.md).
-- Evidence to seek: real player/store feedback and independently verified current Steam guidance. Stream-era percentages and anecdotes are **not** targets or forecasts for Hoarbound.
+- **Сверить с проектом:** [PRD](../../../PRD.md), [scope First Exit](../../game_design/VERTICAL_SLICE.md), актуальный план автора.
+- **Внешний взгляд:** [маркетинг и Steam](https://github.com/Dis1re/xk_streamparser/blob/main/notes/02_маркетинг_и_steam.md), [устаревшие и уточнённые советы](https://github.com/Dis1re/xk_streamparser/blob/main/notes/99_устаревшие_советы.md).
+- **Искать подтверждение:** реальные наблюдения аудитории и независимая проверка актуальных правил Steam. Исторические проценты из стримов **не являются прогнозом или KPI Hoarbound**.
 
-## Required form of an agent's critique
+## Формат критического заключения агента
 
-For any external argument that affects a recommendation, write:
+Если внешний аргумент влияет на рекомендацию, указывать:
 
-1. **Hoarbound fact** — link to a canonical document, current code or observed playtest.
-2. **External viewpoint** — the exact upstream note, and stream/timecode when available; mark uncertainty or guest attribution.
-3. **Tension or opportunity** — how the viewpoints differ, including why the outside suggestion might be inappropriate.
-4. **Proposed test** — smallest observation or experiment that could distinguish the alternatives.
-5. **Decision status** — *hypothesis only* until the author accepts it. Do not record it in Miro/GDD as approved on the basis of this file.
+1. **Факт Hoarbound:** ссылка на канонический документ, актуальный код или наблюдение плейтеста.
+2. **Внешний тезис:** конкретный раздел базы, по возможности — выпуск и таймкод. Отмечать неуверенность и авторство гостя.
+3. **Противоречие или возможность:** в чём расхождение и почему совет может не подойти именно этой игре.
+4. **Способ проверки:** минимальное наблюдение или эксперимент, который поможет выбрать между гипотезами.
+5. **Статус:** **«только гипотеза»**, пока автор не примет решение. Не записывать её в Miro или GDD как утверждённую.
 
-Owner-approved intent wins over imported advice. Conflict is a reason to **ask for a decision**, not to silently substitute the outside viewpoint.
+Решения автора имеют приоритет над внешними рекомендациями. Если есть противоречие, агент должен его обозначить, а не молча заменить одну позицию другой.

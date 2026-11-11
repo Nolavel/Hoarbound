@@ -99,6 +99,7 @@ rule changes) and `global.json` (take `main`'s).
 - Code comments: **English only**, `##` doc-comment style, **max 2 lines**.
 - `#` inline comments only for a short trailing note; never a comment block.
 - Docs, changelog and commit messages: English.
+- Exception: `docs/research/xk/{INDEX,SOURCE,HOARBOUND_RELEVANCE}.md` is intentionally written in Russian for human review. Keep the source links and technical identifiers intact.
 - Player-facing strings go through localisation, never hardcoded Russian.
 
 ## GDScript style

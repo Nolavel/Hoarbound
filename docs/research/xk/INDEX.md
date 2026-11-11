@@ -1,31 +1,31 @@
-# xk stream research — external reading index
+# Стримы xk — указатель внешней исследовательской базы
 
-> **Optional critical-thinking reference, not Hoarbound game-design canon.** This directory indexes an independently maintained analysis of xk's development streams. It must never become a source of production requirements or override the author's decisions.
+> **Дополнительный источник для критического анализа, а не геймдизайнерский канон Hoarbound.** Здесь собраны ссылки на независимые конспекты стримов разработчика xk. Внешние советы не становятся требованиями проекта и не заменяют решения автора.
 
-**Upstream:** [Dis1re/xk_streamparser](https://github.com/Dis1re/xk_streamparser) · [Thematic knowledge base](https://github.com/Dis1re/xk_streamparser/blob/main/notes/00_оглавление.md) · [Per-session notes](https://github.com/Dis1re/xk_streamparser/tree/main/streams).
+**Оригинал:** [Dis1re/xk_streamparser](https://github.com/Dis1re/xk_streamparser) · [тематическое оглавление](https://github.com/Dis1re/xk_streamparser/blob/main/notes/00_оглавление.md) · [конспекты отдельных стримов](https://github.com/Dis1re/xk_streamparser/tree/main/streams).
 
-The upstream is incomplete, may contain speech-to-text or AI interpretation errors, and covers talks by xk **and guests**. For provenance, limitations and the reviewed upstream revision, see [SOURCE.md](SOURCE.md). For *questions* we might explore in Hoarbound, see [HOARBOUND_RELEVANCE.md](HOARBOUND_RELEVANCE.md).
+База ещё не охватывает все стримы. Автоматические субтитры и нейросетевой анализ могут содержать ошибки; в обсуждениях выступает не только xk, но и гости. Происхождение материалов и ограничения описаны в [SOURCE.md](SOURCE.md). Вопросы, которые полезно проверить применительно к Hoarbound, собраны в [HOARBOUND_RELEVANCE.md](HOARBOUND_RELEVANCE.md).
 
-## Find the right topic
+## Поиск по темам
 
-| Question | Upstream notes |
+| Что нужно исследовать | Раздел исходной базы |
 | --- | --- |
-| Player comprehension, onboarding, difficulty, gameplay loops, level readability, pacing and narrative | [01 — Game design](https://github.com/Dis1re/xk_streamparser/blob/main/notes/01_геймдизайн.md) |
-| Steam positioning, demo, wishlists, festivals, release communication | [02 — Marketing and Steam](https://github.com/Dis1re/xk_streamparser/blob/main/notes/02_маркетинг_и_steam.md) |
-| Publishers, pitch, contracts, budgets and commercial constraints | [03 — Publishers and business](https://github.com/Dis1re/xk_streamparser/blob/main/notes/03_издатели_и_бизнес.md) |
-| AI capabilities, limitations and game-industry commentary | [04 — AI and market](https://github.com/Dis1re/xk_streamparser/blob/main/notes/04_AI_и_рынок.md) |
-| Prototypes, playtesting, team workflow, finishing and release | [05 — Production and process](https://github.com/Dis1re/xk_streamparser/blob/main/notes/05_производство_и_процесс.md) |
-| Books, articles and references mentioned in streams | [07 — Books, articles, people](https://github.com/Dis1re/xk_streamparser/blob/main/notes/07_книги_статьи_люди.md) |
-| Advice that was revised, qualified or superseded | [99 — Outdated and contextual advice](https://github.com/Dis1re/xk_streamparser/blob/main/notes/99_устаревшие_советы.md) |
+| Обучение игрока, сложность, игровой цикл, читаемость уровней, темп, нарратив | [01 — Геймдизайн](https://github.com/Dis1re/xk_streamparser/blob/main/notes/01_геймдизайн.md) |
+| Позиционирование в Steam, демо, вишлисты, фестивали, трейлеры и релиз | [02 — Маркетинг и Steam](https://github.com/Dis1re/xk_streamparser/blob/main/notes/02_маркетинг_и_steam.md) |
+| Издатели, питч, контракты, бюджеты, бизнес-ограничения | [03 — Издатели и бизнес](https://github.com/Dis1re/xk_streamparser/blob/main/notes/03_издатели_и_бизнес.md) |
+| Возможности и ограничения ИИ, мнения о рынке и профессии | [04 — ИИ и рынок](https://github.com/Dis1re/xk_streamparser/blob/main/notes/04_AI_и_рынок.md) |
+| Прототипы, плейтесты, процессы, команда, доведение игры до релиза | [05 — Производство и процесс](https://github.com/Dis1re/xk_streamparser/blob/main/notes/05_производство_и_процесс.md) |
+| Книги, статьи, авторы и другие упоминавшиеся источники | [07 — Книги, статьи, люди](https://github.com/Dis1re/xk_streamparser/blob/main/notes/07_книги_статьи_люди.md) |
+| Советы, которые автор позднее изменил, уточнил или пересмотрел | [99 — Устаревшие советы](https://github.com/Dis1re/xk_streamparser/blob/main/notes/99_устаревшие_советы.md) |
 
-Other topics and the complete upstream navigation are linked from its [table of contents](https://github.com/Dis1re/xk_streamparser/blob/main/notes/00_оглавление.md).
+Полный перечень разделов, включая не связанные непосредственно с разработкой, см. в [оригинальном оглавлении](https://github.com/Dis1re/xk_streamparser/blob/main/notes/00_оглавление.md).
 
-## Agent reading protocol
+## Порядок работы для агентов
 
-1. Start with the **specific task** and the relevant Hoarbound production/design documents; use this index only if an outside perspective could expose an assumption, tradeoff or testable hypothesis.
-2. Open the **relevant upstream chapter**, not the entire collection. Follow its date, session number and timestamp to the [session notes](https://github.com/Dis1re/xk_streamparser/tree/main/streams); consult the original video where a claim materially affects a recommendation.
-3. Separate **xk's view**, **a guest's view**, **the summarizer's interpretation**, and **our own hypothesis**. Treat dated market numbers and personal anecdotes as context, not universal evidence.
-4. Contrast the idea with Hoarbound's approved [experience pillars](../../game_design/EXPERIENCE_PILLARS.md), [First Exit scope](../../game_design/VERTICAL_SLICE.md), [world doctrine](../../world/KEY_WEST_DESIGN_DOCTRINE.md), current runtime and the owner's latest decisions.
-5. Report the finding as **useful / not applicable / uncertain**, with the precise external link and a proposed way to test it. **Do not implement, rewrite GDD or change scope from this source alone.**
+1. **Отталкиваться от задачи и документов Hoarbound.** Обращаться к базе, только когда внешний взгляд может вскрыть спорное предположение, альтернативу или проверяемую гипотезу.
+2. **Открывать нужный раздел, а не весь архив.** При необходимости переходить к [конспекту конкретного стрима](https://github.com/Dis1re/xk_streamparser/tree/main/streams) по дате, номеру выпуска и таймкоду. Для значимых выводов сверять контекст с оригинальным видео.
+3. **Разделять происхождение утверждений:** позиция xk, слова гостя, интерпретация составителя конспекта и собственное предположение агента — не одно и то же. Числа о рынке и личный опыт нельзя автоматически считать универсальными закономерностями.
+4. **Сопоставлять тезис с проектом:** проверять [принципы игрового опыта](../../game_design/EXPERIENCE_PILLARS.md), [пределы First Exit](../../game_design/VERTICAL_SLICE.md), [доктрину Ки-Уэста](../../world/KEY_WEST_DESIGN_DOCTRINE.md), фактическую реализацию и последние решения автора.
+5. **Выдавать оценку:** «применимо / неприменимо / недостаточно данных», обязательно с точной ссылкой и способом проверки. **Нельзя самостоятельно менять GDD, scope или игровую реализацию только на основании внешнего совета.**
 
-This index **links** to the author's work rather than copying their 1,603 claims or storing transcripts locally.
+Здесь хранятся **ссылки**, а не копия 1603 тезисов или полные транскрипты.
