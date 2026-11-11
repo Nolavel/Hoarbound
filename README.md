@@ -48,6 +48,10 @@ The ordered build sequence and one-year plan live in [`docs/BUILD_PLAN.md`](docs
 - [`AGENTS.md`](AGENTS.md) — repository and agent workflow rules
 - [`CONTRIBUTING_DECOMPOSITION.md`](CONTRIBUTING_DECOMPOSITION.md) — issue / milestone decomposition rules
 
+### External research (non-authoritative)
+
+- [xk stream analysis — research index](docs/research/xk/INDEX.md) — timecoded third-party viewpoints, source/provenance and Hoarbound-specific questions for critical review. **Not a design contract.**
+
 ## Status
 
 **Active development — vertical slice.**
