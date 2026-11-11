@@ -92,3 +92,6 @@ The 727-only hardcoded metadata was replaced by an authored, **small** Navigatio
 For the eventual mental map (#294): the map can read `known_targets()` and call `select_target(id)`. The future map itself determines whether selection is appropriate; world events call `discover_target(id)`. Neither view can invent locations or mark arrival by proximity. This refactor does **not** implement the M menu, automatic discovery, random POI loading or a new UI.
 
 Minimal regression under existing `test_first_exit_bearings` checks two distinct Reality anchors, no auto-disclosure, invalid/unknown rejection, switch in both directions using the *unmodified* CompassStrip class, per-target proximity reset, arrival isolation, selected-target completion, R, and save/load. Reuse the `[compass-quick]` tag on the existing checks workflow, no new CI pipeline/heavy render.
+
+
+**Authoring entrypoint:** `data/world/key_west/navigation/catalog.json` is the sole ordered list of allowed `NavigationTarget` resource paths. Adding an author-approved location adds its `.tres` and a line in the JSON manifest, **not a GDScript change**. `NavigationCatalog` fails closed for duplicate paths/IDs/roles, unmatched canonical Reality features, missing anchors or invalid threshold ordering. This file is an allow-list, not an automatic exporter of buildings or a fog-of-war generator.

@@ -1,0 +1,7 @@
+{
+  "description": "Author-approved navigation targets for First Exit / Key West. This is not all Reality Library buildings. Adding a target requires an authored .tres resource and canonical world-role binding, but no GDScript edits.",
+  "targets": [
+    "res://data/world/key_west/navigation/fort_st_shelter.tres",
+    "res://data/world/key_west/navigation/battery_osceola.tres"
+  ]
+}
