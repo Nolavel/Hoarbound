@@ -22,6 +22,8 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 @export_range(0.0, 1.0, 0.05) var direct_tight_shoulder: float = 0.35
 ## Boom shares between which the shoulder squeezes and the view widens.
 @export var direct_squeeze_shares: Vector2 = Vector2(0.35, 0.9)
+## Boom shares between which a pressed camera comes up from the shoulder joints to Henry's eye line.
+@export var direct_eye_line_shares: Vector2 = Vector2(0.3, 0.75)
 ## Field of view added with the boom fully pressed in, degrees.
 @export_range(0.0, 20.0, 0.5) var direct_tight_fov_deg: float = 8.0
 ## The view widens and narrows at this rate, so a wall snap never jumps the lens, 1/s.
@@ -614,6 +616,11 @@ func _update_direct_rig(delta: float) -> void:
 	var free: float = smoothstep(direct_squeeze_shares.x, direct_squeeze_shares.y, _rig_collision.get_boom_share())
 	frame.side = _shoulder.update(delta) * lerpf(tight_shoulder_fraction, 1.0, roominess) * lerpf(direct_tight_shoulder, 1.0, free) \
 			+ _lean * lean_camera_offset
+	## Pressed right up to him, the camera comes up from his shoulder joints to his eye line (0.22 m): at
+	## shoulder height a camera 0.3 m behind his eyes lost his head off the top of the frame.
+	var pressed: float = 1.0 - smoothstep(direct_eye_line_shares.x, direct_eye_line_shares.y, _rig_collision.get_boom_share())
+	var rise: float = maxf(_eye_height() - get_pivot_height(), 0.0) * pressed
+	frame.pivot += Vector3.UP * rise
 	_last_pivot = frame.pivot
 	_last_lift_pitch = 0.0
 	_last_side = frame.side
@@ -622,6 +629,14 @@ func _update_direct_rig(delta: float) -> void:
 	_direct_fov = lerpf(_direct_fov, direct_tight_fov_deg * (1.0 - free), damp(direct_fov_rate, delta)) if _has_position else 0.0
 	_apply_fov_offset(_direct_fov)
 	_rig_collision.apply(frame)
+	## With no room behind him the rise would stand the camera in his head: it gives the rise back to stay
+	## body_fade_end from his eyes, and his head leaves the top of the frame instead.
+	var eye: Vector3 = get_eye_position()
+	var flat: float = Vector2(frame.camera.x - eye.x, frame.camera.z - eye.z).length()
+	var clear: float = body_fade_end + 0.01
+	if flat < clear and frame.camera.y <= eye.y:
+		var below: float = sqrt(clear * clear - flat * flat)
+		frame.camera.y -= clampf(below - (eye.y - frame.camera.y), 0.0, rise)
 	_has_position = true
 	_noise_time += delta
 	_sway_deg = _noise.get_noise_1d(_noise_time * 20.0) * breathing_amplitude_deg * (0.4 + tension)

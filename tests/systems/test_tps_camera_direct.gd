@@ -5,7 +5,8 @@ extends SceneTree
 ## - the view is exactly the look the player set: nothing turns or tilts it, at rest or pressed;
 ## - the camera stands behind that view, never lifted over Henry to look down on him;
 ## - it never enters a wall, and no wall stands between it and his eyes;
-## - pressed close he turns see-through but is never hidden (no first-person view);
+## - pressed close he turns see-through but is never hidden (no first-person view), and his eyes stay inside
+##   the frame at every step (pressed 0.3 m from them, a camera at shoulder height lost his head off the top);
 ## - the lens widens and narrows smoothly, never in a jump;
 ## - a doorway never carries Henry on by itself (PassageTraversalComponent.carry_through is off).
 ## Run: godot --headless --path . --script res://tests/systems/test_tps_camera_direct.gd
@@ -18,6 +19,8 @@ const PITCH_DEG: float = -10.0
 ## Breathing sways the drawn pitch by up to breathing_amplitude_deg * 0.4.
 const VIEW_TOLERANCE_DEG: float = 0.6
 const MAX_FOV_RATE_DEG_S: float = 45.0
+## Flat distance from his eyes to the camera past which they must be in frame, metres.
+const ROOM_FOR_EYES: float = 0.3
 
 var _failures: int = 0
 var _frame: int = 0
@@ -27,6 +30,7 @@ var _player: CharacterBody3D
 var _last_fov: float = -1.0
 var _worst_fov_rate: float = 0.0
 var _closest: float = INF
+var _seen_eyes: int = 0
 var _most_faded: float = 0.0
 
 
@@ -97,14 +101,23 @@ func _sample() -> void:
 	_check(is_equal_approx(_camera.get_view_yaw(), _camera.get_yaw()), "yaw %d: an automatic offset is on the view" % yaw)
 	## Behind the view, not over Henry: the boom climbs by the look's own pitch and no more.
 	var rise: float = at.y - (_player.global_position.y + _camera.get_pivot_height())
-	var most: float = _camera.far_distance * sin(deg_to_rad(-PITCH_DEG)) + 0.1
+	## Pressed, it may come up to his eye line (0.22 m over the shoulder joints), no higher.
+	var most: float = _camera.far_distance * sin(deg_to_rad(-PITCH_DEG)) + 0.1 + (_camera.metrics.standing_eye - _camera.get_pivot_height())
 	_check(rise <= most, "yaw %d: the camera rose %.2f m over the shoulder (most %.2f)" % [yaw, rise, most])
 	_check(at.z < WALL_FACE_Z and absf(at.x) < HALF_WIDTH, "yaw %d: camera in a wall at (%.2f, %.2f)" % [yaw, at.x, at.z])
 	var query := PhysicsRayQueryParameters3D.create(eye, at)
 	query.exclude = [_player.get_rid()]
 	_check(root.get_world_3d().direct_space_state.intersect_ray(query).is_empty(), "yaw %d: a wall stands between Henry's eyes and the camera" % yaw)
 	_check(not _camera.is_body_hidden(), "yaw %d: Henry was hidden; it went first-person" % yaw)
+	var seen: Vector3 = _camera.global_transform.affine_inverse() * eye
+	var half: Vector2 = _camera.half_tangents()
 	var distance: float = eye.distance_to(at)
+	## With room behind his head his eyes stay in frame; with none the camera keeps out of his head instead.
+	var behind: float = Vector2(at.x - eye.x, at.z - eye.z).length()
+	_check(behind < ROOM_FOR_EYES or (seen.z < 0.0 and absf(seen.x) <= -seen.z * half.x and absf(seen.y) <= -seen.z * half.y),
+		"yaw %d: Henry's eyes are out of the frame (%.2f, %.2f at depth %.2f)" % [yaw, seen.x, seen.y, -seen.z])
+	_seen_eyes += int(behind >= ROOM_FOR_EYES)
+	_check(distance >= _camera.body_fade_end - 0.005, "yaw %d: the camera stands in his head, %.2f m from his eyes" % [yaw, distance])
 	_closest = minf(_closest, distance)
 	_most_faded = maxf(_most_faded, _camera.get_body_fade())
 	_check(distance >= _camera.direct_fade_distances.x or _camera.get_body_fade() > 0.0,
@@ -113,6 +126,7 @@ func _sample() -> void:
 
 func _finish() -> void:
 	_check(_worst_fov_rate <= MAX_FOV_RATE_DEG_S, "the lens jumped: %.0f deg/s" % _worst_fov_rate)
+	_check(_seen_eyes > 0, "the camera never had room behind his head: the eyes-in-frame check proved nothing")
 	_check(_closest < _camera.direct_fade_distances.x, "the dead end never pressed the camera (closest %.2f m): the test proves nothing" % _closest)
 	print("tps camera direct: closest %.2f m, most faded %.2f, lens rate %.0f deg/s" % [_closest, _most_faded, _worst_fov_rate])
 	if _failures > 0:

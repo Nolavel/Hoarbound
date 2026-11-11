@@ -17,6 +17,8 @@ const NEAR_PROBE_RADIUS: float = 0.08
 ## A pop: the camera jumps against Henry by more than this in one frame, faster than POP_SPEED.
 const POP_LIMIT: float = 0.15
 const POP_SPEED: float = 6.0
+## The direct rig snaps onto a wall that cuts its boom; feelers and travel leads must leave that snap under this.
+const POP_LIMIT_DIRECT: float = 0.25
 ## Fastest the FOV may change, degrees per second.
 const FOV_RATE_LIMIT: float = 45.0
 ## Henry starts this far outside the door plane and walks until this far inside.
@@ -66,6 +68,8 @@ var _last_rel: Vector3 = Vector3.INF
 var _last_fov: float = -1.0
 var _last_control: float = 0.0
 var _mouse_this_frame: bool = false
+## "rig=direct" runs the same scenarios on the direct rig, where a pressed Henry may turn see-through.
+var _direct: bool = false
 
 
 func _initialize() -> void:
@@ -73,7 +77,9 @@ func _initialize() -> void:
 	if args.size() > 0:
 		_label = args[0]
 	for i: int in range(1, args.size()):
-		if args[i].begins_with("pivot="):
+		if args[i] == "rig=direct":
+			_direct = true
+		elif args[i].begins_with("pivot="):
 			_pivot_share = float(args[i].trim_prefix("pivot="))
 		else:
 			_selected.append(args[i])
@@ -92,8 +98,8 @@ func _run() -> void:
 	await _ticks(120)
 	_player = _scene.find_child("Player", true, false) as Player
 	_cam = _scene.find_child("PlayerCamera", true, false) as TpsCamera
-	_cam.direct_rig = false
-	(_player.get_node(^"PassageTraversalComponent") as PassageTraversalComponent).carry_through = true
+	_cam.direct_rig = _direct
+	(_player.get_node(^"PassageTraversalComponent") as PassageTraversalComponent).carry_through = not _direct
 	var skeletons: Array[Node] = _player.find_children("*", "Skeleton3D", true, false)
 	if not skeletons.is_empty():
 		_skeleton = skeletons[0] as Skeleton3D
@@ -164,12 +170,15 @@ func _stop_short() -> void:
 
 
 ## W released just past the door plane: the traversal carries Henry clear of the frame.
+## On the direct rig nothing carries him: he stops where the key was let go.
 func _release_inside() -> void:
 	await _place(-START_OUT, 0.0, 0.0, -10.0)
 	_begin(&"release_inside")
 	await _hold(&"move_forward", func() -> bool: return _along() >= 0.05, 8.0)
 	await _settle_sampled(240)
-	_end(&"release_inside", true, 1.0)
+	if _direct:
+		_check(_along() < CLEAR_OF_PLANE, "release_inside: Henry was walked on to %.2f m with no key held" % _along())
+	_end(&"release_inside", not _direct, 1.0)
 
 
 ## W into the door, S from the door plane: Henry goes back out the way he came.
@@ -454,14 +463,15 @@ func _sample(moused: bool) -> void:
 	_last_rel = rel
 	var fov_rate: float = absf(_cam.fov - _last_fov) / maxf(_probe.delta, 1e-4)
 	_last_fov = _cam.fov
-	var popped: bool = step > POP_LIMIT and step / maxf(_probe.delta, 1e-4) > POP_SPEED
+	var popped: bool = step > (POP_LIMIT_DIRECT if _direct else POP_LIMIT) and step / maxf(_probe.delta, 1e-4) > POP_SPEED
 	var control: float = _cam.get_yaw()
 	var auto_turned: bool = not moused and absf(angle_difference(control, _last_control)) > 1e-5
 	_last_control = control
 	var inside: bool = _point_inside(render)
 	var near: bool = _near_clipped(render)
 	var occluded: bool = _segment_blocked(render, head)
-	var on_screen: bool = _cam.is_position_in_frustum(head) and _cam.is_position_in_frustum(henry)
+	## Pressed to half a metre no lens holds a whole man: the direct rig answers for his head only.
+	var on_screen: bool = _cam.is_position_in_frustum(head) and (_direct or _cam.is_position_in_frustum(henry))
 	var share: float = _height_share(head)
 	_stats["frames"] += 1
 	if fade > 0.0:
@@ -503,7 +513,10 @@ func _end(tag: StringName, traversed: bool, expect_side: float) -> void:
 	stats.erase("share_sum")
 	stats.erase("share_sq")
 	var name: String = String(tag)
-	_check(stats["faded"] == 0, "%s: Henry dithered in %d frames (max %.2f)" % [name, stats["faded"], stats["max_fade"]])
+	if _direct:
+		_check(float(stats["max_fade"]) <= _cam.direct_fade_max + 0.01, "%s: Henry faded to %.2f, past the direct rig's limit" % [name, stats["max_fade"]])
+	else:
+		_check(stats["faded"] == 0, "%s: Henry dithered in %d frames (max %.2f)" % [name, stats["faded"], stats["max_fade"]])
 	_check(stats["inside"] == 0, "%s: camera inside geometry in %d frames" % [name, stats["inside"]])
 	_check(stats["near_clip"] == 0, "%s: near plane clipped in %d frames" % [name, stats["near_clip"]])
 	_check(stats["occluded"] == 0, "%s: head hidden behind geometry in %d frames" % [name, stats["occluded"]])

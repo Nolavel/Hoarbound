@@ -17,6 +17,9 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - The camera always stands behind the view and only the mouse turns the view. No lift over the shoulder, no swing round Henry, no auto-look, no recentre behind a walking Henry (owner's call), no view tilt.
   - Walls only shorten the boom. The shoulder squeezes and the lens widens up to 8° as the boom is pressed. A close Henry turns see-through (to 80 % at most) instead of the camera climbing. The mouse is never slowed near him.
   - A doorway no longer takes the controls (`PassageTraversalComponent.carry_through` is off): released keys stop Henry and sideways keys steer. He is still eased onto the centre line while the player pushes through.
+  - Doorways on the direct rig: the camera no longer jumps when a jamb or lintel cuts its boom (largest one-frame step 1.97 m -> 0.18 m in door D1 of the 727). Its feelers are now sphere sweeps of the boom's own radius, and two sweeps from where the shoulder will be in 0.3 and 0.5 s warn of what Henry walks the boom into. New `test_doorway_camera_direct`.
+  - Fixed in the shared boom blend: the clamp to the centre sweep and the ease to the feelers were exclusive branches, so the feelers' warning was never applied to a boom resting on the centre sweep.
+  - Pressed, the camera comes up from the shoulder joints to Henry's eye line so his head stays in frame; with his back on a wall it stays 0.2 m from his eyes instead of standing in his head.
   - The old guided rig stays behind `direct_rig = false` until this one is accepted in play; its three suites switch it on explicitly. New `test_tps_camera_direct` guards the direct rig.
   - The stove's work frame keeps its late fade (the early fade dimmed Henry there; `test_stove_ritual` caught it).
 

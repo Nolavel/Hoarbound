@@ -43,6 +43,27 @@ Mistakes*):
   Henry, sideways keys still steer. He is still eased onto the centre line while the player pushes through, so a
   1 m wide capsule does not catch on a jamb. The camera does not close its frame at a door.
 
+- **The boom is warned before a wall cuts it.** A wall on the boom still snaps it in, so three warnings ease it
+  in first: ten sphere feelers round the boom (yaw ±7/16/32°, pitch ±10/22°, `TpsRigCollision.DIRECT_FEELERS`)
+  for a turning view, and two sweeps from where the shoulder will be in 0.3 and 0.5 s
+  (`DIRECT_LEADS`) for a jamb or lintel Henry is walking the boom into. The feelers are spheres of the boom's
+  own radius: the old thin rays passed a jamb edge the boom's sphere then struck.
+- **Pressed, the camera comes up to his eye line.** Between boom shares `direct_eye_line_shares` (0.75..0.3) the
+  pivot rises from his shoulder joints by 0.22 m, so a camera 0.3 m behind him holds his head in frame. With no
+  room behind his head at all (his back on a wall) it gives that rise back to stay `body_fade_end` (0.2 m) from
+  his eyes: there his head leaves the top of the frame, which no camera behind the view can avoid.
+
+Doorway trace on the direct rig, D1 of the 727 (`test_doorway_camera_direct`), before and after the warnings:
+
+| | Before | After |
+|---|---|---|
+| Largest one-frame camera step, yaw swing in the door | 1.97 m | 0.18 m |
+| Largest one-frame step, pitch swing under the lintel | 1.19 m | 0.18 m |
+| Largest one-frame step, standing sweep | 0.33 m | 0.15 m |
+
+One cause was a bug in the shared blend, not tuning: the clamp to the centre sweep and the ease to the feelers
+were exclusive branches, so a boom resting on the centre sweep (always a hair over it) never eased at all.
+
 What stays from the old rig: follow lag and intent lead, the openness rods that shorten the boom indoors, wall
 collision, stance heights, manual shoulder swap and lean, thin-prop fades, the stove's work framing.
 
@@ -50,7 +71,8 @@ collision, stance heights, manual shoulder swap and lean, thin-prop fades, the s
 until the direct rig is accepted in play; then it and its behaviours (`TpsRigPassage`, `TpsRigShoulderLift`,
 `TpsRigShotChoice`, `TpsRigRecompose`, `TpsRigComposition`, `TpsRigAutoSwap`, auto-look) should be deleted, not
 kept as a second camera. `test_tps_camera`, `test_doorway_camera` and `test_passage_traversal` guard that old rig
-and switch it on explicitly. Everything below this section describes the old rig unless it is in the list above.
+and switch it on explicitly. `test_tps_camera_direct`, `test_tps_camera_orbit` and `test_doorway_camera_direct`
+guard the direct rig. Everything below this section describes the old rig unless it is in the list above.
 
 Check: `tests/systems/test_tps_camera_direct.gd` (a 1.3 m dead end with a wall 0.4 m behind Henry, a full sweep
 with rests): the view equals the look set, the camera never rises over him, never enters a wall, never hides
