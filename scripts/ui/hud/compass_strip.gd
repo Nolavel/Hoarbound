@@ -18,6 +18,11 @@ const INK: Color = Color(0.95, 0.92, 0.86, 1.0)
 const HEADING_FONT: Font = preload("res://assets/fonts/IM Fell English SC/IMFellEnglishSC-Regular.ttf")
 const PROXIMITY_FONT: Font = preload("res://assets/fonts/Averia Libre _ Averia Gruesa Libre _ Averia Serif Libre _ Averia Sans Libre/AveriaLibre-Bold.ttf")
 const SIGNAL_FONT: Font = preload("res://assets/fonts/Special Elite/SpecialElite-Regular.ttf")
+const STREET_FONT: Font = preload("res://assets/fonts/Averia Libre _ Averia Gruesa Libre _ Averia Serif Libre _ Averia Sans Libre/AveriaLibre-Regular.ttf")
+## Identity is an independent, quiet loop: open-bottom house, then street.
+const IDENTITY_HOUSE_SEC: float = 4.5
+const IDENTITY_CYCLE_SEC: float = 6.0
+const IDENTITY_FADE_SEC: float = 0.18
 
 ## Cooler mineral chalk / mellow honey / restrained copper, not warning-red.
 const COLD_COLOR: Color = Color("#B2C1BF")
@@ -40,6 +45,7 @@ var _bearings: FirstExitBearings
 var _shown: float = 0.0
 var _have_bearing: bool = false
 var _ambient_clock: float = 0.0
+var _identity_clock: float = 0.0
 var _last_proximity: int = -1
 var _marker_rel: float = 0.0
 var _have_marker: bool = false
@@ -66,6 +72,7 @@ func on_world_ready(context: WorldContext) -> void:
 	_marker_target_id = ""
 	_rear_edge = 0
 	_ambient_clock = 0.0
+	_identity_clock = 0.0
 	_last_proximity = -1
 
 
@@ -89,6 +96,7 @@ func _tick_marker(delta: float) -> void:
 		_marker_target_id = ""
 		_rear_edge = 0
 		_pulse_elapsed = PULSE_DURATION_SEC
+		_identity_clock = 0.0
 		_last_proximity = -1
 		return
 	var from := Vector2(_player.global_position.x, _player.global_position.z)
@@ -102,6 +110,7 @@ func _tick_marker(delta: float) -> void:
 		_ambient_clock = 0.0
 	if not _have_marker or _marker_target_id != _bearings.active_target_id:
 		_marker_target_id = _bearings.active_target_id
+		_identity_clock = 0.0
 		_marker_rel = target_rel
 		_marker_color = desired
 		_have_marker = true
@@ -128,6 +137,7 @@ func _tick_marker(delta: float) -> void:
 				_pulse_elapsed = 0.0
 	_pulse_elapsed = minf(PULSE_DURATION_SEC, _pulse_elapsed + delta)
 	_ambient_clock += delta
+	_identity_clock = fposmod(_identity_clock + delta, IDENTITY_CYCLE_SEC)
 	## Keep an off-strip side stable at +/-180 degrees (target exactly behind).
 	if absf(_marker_rel) < PI - REAR_LOCK_RAD:
 		_rear_edge = -1 if _marker_rel < 0.0 else 1
@@ -263,7 +273,8 @@ func _draw_tape(x0: float, width: float, base_y: float, slot: Dictionary) -> voi
 		var bottom := Vector2(x, base_y)
 		draw_line(top, bottom, Color(0.04, 0.035, 0.03, 0.8), 3.0)
 		draw_line(top, bottom, ink, 1.5)
-		if not on_cardinal or absf(x - mark_x) < 22.0:
+		## The wider street label needs more breathing room than the old 727.
+		if not on_cardinal or absf(x - mark_x) < 44.0:
 			continue
 		var letter: String = CARDINALS[cardinal]
 		var at := Vector2(x - _text_width(letter, 26) * 0.5, base_y - 22.0)
@@ -313,12 +324,44 @@ func _draw_marker(x0: float, width: float, base_y: float, slot: Dictionary) -> v
 		draw_polyline(chevron, Color(0.04, 0.04, 0.04, 0.80), 3.5)
 		draw_polyline(chevron, color, 1.5, true)
 
-	## One search word, one baseline. The landmark identifier is not a
-	## second status. No cross-fade that can show two words at once.
-	var label: String = _bearings.active_label()
-	_marker_text(label, Vector2(x, base_y - 30.0), 21, color, 0)
+	## Upper identity slot is independent of the single lower search word.
+	## Never expose the internal landmark number as a player-facing label.
+	_draw_identity(clampf(x, x0 + 12.0, x0 + width - 12.0), base_y, color)
 	var style: int = 1 if _bearings.trend_state == FirstExitBearings.Trend.STABLE else 2
 	_marker_text(_display_word(), Vector2(x, base_y + 44.0), 16, color, style)
+
+
+func _identity_is_street() -> bool:
+	return _identity_clock >= IDENTITY_HOUSE_SEC
+
+
+func _identity_opacity() -> float:
+	var start: float = IDENTITY_HOUSE_SEC if _identity_is_street() else 0.0
+	var finish: float = IDENTITY_CYCLE_SEC if _identity_is_street() else IDENTITY_HOUSE_SEC
+	## Fade out fully before switching, then fade in the new symbol.
+	## A house and a word never occupy the slot simultaneously.
+	return clampf(minf(_identity_clock - start, finish - _identity_clock) / IDENTITY_FADE_SEC, 0.0, 1.0)
+
+
+func _draw_identity(x: float, base_y: float, color: Color) -> void:
+	var ink: Color = color
+	ink.a *= _identity_opacity()
+	if ink.a <= 0.0:
+		return
+	var street: String = _bearings.active_street_label()
+	if _identity_is_street() and not street.is_empty():
+		_marker_text(street, Vector2(x, base_y - 30.0), 17, ink, 3)
+		return
+	## Open-bottom house silhouette: two walls joined by a pitched roof.
+	## Draw it in the same ink as the marker, with a dark outline for snow.
+	var mid := Vector2(x, base_y - 35.0)
+	var shape := PackedVector2Array([
+		mid + Vector2(-9.0, 8.0), mid + Vector2(-9.0, -1.0),
+		mid + Vector2(0.0, -9.0),
+		mid + Vector2(9.0, -1.0), mid + Vector2(9.0, 8.0),
+	])
+	draw_polyline(shape, Color(0.035, 0.04, 0.044, ink.a * 0.93), 4.0, true)
+	draw_polyline(shape, ink, 2.0, true)
 
 
 func _marker_text(value: String, mid: Vector2, font_px: int, color: Color, style: int) -> void:
@@ -336,6 +379,8 @@ func _marker_text(value: String, mid: Vector2, font_px: int, color: Color, style
 func _font_for(value: String, style: int) -> Font:
 	if style == 0:
 		return HEADING_FONT
+	if style == 3:
+		return STREET_FONT
 	## All of the project's authored font files are Latin-only. Do not render
 	## missing Cyrillic glyphs as squares. Native fallback is temporary.
 	if TranslationServer.get_locale().begins_with("ru"):

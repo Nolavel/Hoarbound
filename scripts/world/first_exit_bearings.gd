@@ -14,6 +14,8 @@ const SAVE_SCRIPT: GDScript = preload("res://scripts/systems/save/save_manager.g
 ## Visible half-width of the compass tape. One scale, shared with the HUD.
 const HALF_ARC_RAD: float = TAU / 360.0 * 50.0
 const LABEL_727: String = "727"
+## Player-facing street name is separate from the internal landmark label.
+const STREET_727: String = "Fort St."
 
 ## First Exit A proximity is qualitative, not a displayed distance or path.
 ## Thresholds are deliberately tuning candidates for the 727 playtest.
@@ -284,6 +286,10 @@ func has_active_target() -> bool:
 
 func active_label() -> String:
 	return String(_labels.get(active_target_id, ""))
+
+
+func active_street_label() -> String:
+	return STREET_727 if has_active_target() and active_target_id == _shelter_id else ""
 
 
 func active_xz() -> Vector2:

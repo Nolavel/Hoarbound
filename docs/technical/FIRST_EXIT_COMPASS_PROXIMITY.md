@@ -7,7 +7,7 @@ Owner design decision: 2026-11-11, extending issue #293. Applicable **only** to 
 
 The tape still follows camera yaw (not Henry's body) and reveals the bearing to a **known** place. The player still selects their own route through road, shore and ruins; no route choice, street turn, map reveal, numerical meters or pathfinding is exposed. Proximity is *Euclidean XZ distance to the canonical Fort Street entrance bearing anchor*; it is **not** proof of path accessibility or of an entrance through a wall.
 
-One status word, five possible values. Color and ring cadence always describe absolute proximity; the single status word describes the current most useful message. Normally COLD / WARM / HOT; a validated movement event temporarily replaces it with WARMER / COLDER (RU ХОЛОДНО / ТЕПЛО / ГОРЯЧО / ТЕПЛЕЕ / ХОЛОДНЕЕ). Never display both proximity and trend words together. The 727 identifier stays separate.
+One status word, five possible values. Color and ring cadence always describe absolute proximity; the single status word describes the current most useful message. Normally COLD / WARM / HOT; a validated movement event temporarily replaces it with WARMER / COLDER (RU ХОЛОДНО / ТЕПЛО / ГОРЯЧО / ТЕПЛЕЕ / ХОЛОДНЕЕ). Never display both proximity and trend words together. The internal 727 identifier is not displayed; the upper slot alternates a shelter icon and the street name.
 
 The tape retains its bearing, circular marker and edge chevron beyond ±50°. Hub/Tab and pickup suppression remain handled by `GameplayUI`.
 
@@ -26,7 +26,7 @@ Separate time constants: compass tape 0.08 s (unchanged), marker 0.22 s; max mar
 ## Code / responsibilities
 
 - `scripts/world/first_exit_bearings.gd` remains the sole owner of known/visited/active-target and derives categorical proximity and trend from the real player and fixed landmark coordinates. It updates independently of HUD visibility. `proximity_state`, `trend_state`, and monotonically increasing `trend_serial` are transient only. Do not save progress/smoothing/cooldown.
-- `scripts/ui/hud/compass_strip.gd` draws the label, proximity word and state color; interpolates marker angle/color and handles one-shot pulse/edge behavior. It does not own target knowledge, compute distances or drive world state.
+- `scripts/ui/hud/compass_strip.gd` draws the shelter identity, single search word and state color; interpolates marker angle/color and handles one-shot pulse/edge behavior. It does not own target knowledge, compute distances or drive world state.
 - `scenes/ui/hud/gameplay_ui.tscn`, `scripts/ui/hud/gameplay_ui.gd`, player scene, original thermal probe / arrival event, main UI visibility contract and main game scene are unchanged.
 - `first_exit_landmarks.geojson` continues to supply `bearing_local_xz` (Fort Street entrance); loaded world chunks do not determine bearing.
 - Changing the active target, loading a save, or teleporting resets transient proximity/trend. `known`, `visited`, `active_target_id`, R recall and arrival clearing retain their existing save/lifecycle semantics.
@@ -59,6 +59,20 @@ The initial marker was visually rejected as flat. A later two-word prototype was
 
 The central marker is now a small drawn circle with an ink-outline and dot, a faint soft halo, **periodic expanding/fading ring** (cold period 5.8 s, warm 3.8 s, hot 2.6 s) and one-shot outward approach / inward retreat ripples. Off-strip direction remains a clear chevron beside the circle. No perpetual attention-grabbing scale pumping. Color palette moved from muted grey to higher-contrast mineral chalk `#B2C1BF`, honey `#E1B777` and warm copper `#F0A177`, avoiding status-danger red.
 
-Typography: `IMFellEnglishSC-Regular.ttf` (project default) for 727/cardinals, `AveriaLibre-Bold.ttf` for English proximity, `SpecialElite-Regular.ttf` for English movement feedback. The fonts in `assets/fonts` are **Latin-only** (verified cmap), so a temporary engine fallback draws Cyrillic, rather than rendering missing glyph boxes. Follow-up artwork can supply a native Cyrillic-capable companion if Russian becomes a shipping locale.
+Typography: `IMFellEnglishSC-Regular.ttf` (project default) for cardinals, `AveriaLibre-Bold.ttf` for English proximity, `SpecialElite-Regular.ttf` for English movement feedback. The fonts in `assets/fonts` are **Latin-only** (verified cmap), so a temporary engine fallback draws Cyrillic, rather than rendering missing glyph boxes. Follow-up artwork can supply a native Cyrillic-capable companion if Russian becomes a shipping locale.
 
 Quick visual gate produces six cheap real Godot Control PNGs, including a Russian `ХОЛОДНЕЕ` retreat case, plus focused headless tests; it does not verify full-world visibility or motion feel. Claude remains responsible for production scene acceptance.
+
+
+## Player-facing shelter identity (owner decision, 2026-11-11)
+
+The internal label 727 remains for existing data and diagnostics, but is no longer drawn. The upper slot normally shows an open-bottom, pitched-roof house outline. Every six seconds it briefly switches to the plain mixed-case street name `Fort St.` (Averia Libre Regular, existing asset). House interval 4.5 s, street interval 1.5 s, sequential 0.18 s fades at the boundaries: no house/text overlap. The clock is local presentation only, independent of absolute proximity, progress, and camera rotation; starts again when the target is acquired or cleared. Color, circle, edge direction, rings, and the one-word lower slot are unchanged. The canonical address/anchor, target ID, save data and arrival logic remain unchanged.
+
+The existing quick CI additionally captures 90 frames at 12 fps (7.5 s) of the actual Control on a neutral dark backdrop, then checks that the house/street/house cycle completes. This is a UI-only preview, not a real-world camera/lighting acceptance test. The existing six stills remain available.
+
+
+### Arrival gate for integration
+
+The compass is not a mission banner: on a fresh physical overlap with a thermal area under `KeyWest727Shelter`, the owner records the visit and clears the target. Both identity variants, the circle, expanding rings, edge chevron and the lower word disappear together; the ordinary cardinal tape remains. HOT outside does not complete the objective. Leaving the completed site, waiting through another identity cycle, or restoring the completed save cannot resurrect the marker. Explicit R recall remains the existing intentional re-pin operation; the pre-existing contract for an explicitly pinned save inside the shelter remains unchanged.
+
+The quick gate now exercises the real Area3D probe signal against a minimal physics fixture using production `ThermalZone` and `KeyWest727Shelter` types, then compares the actual rendered viewport bytes against the bare-tape baseline at identical yaw. It checks arrival during house, street and off-strip street phases and after a cycle, save-data round trip and exit. This is not the authored 727 interior geometry or a full Key West walkthrough; those remain separate scene QA.
