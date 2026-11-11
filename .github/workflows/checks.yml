@@ -847,6 +847,11 @@ jobs:
           for image in 01_cold 02_warm_edge 03_hot; do test -s "$OUT/$image.png"; done
           grep -q 'COMPASS_IDENTITY_LOOP: PASS' "$OUT/capture.log"
           test -s "$OUT/identity_frames/frame_089.png"
+          grep -q 'COMPASS_ARRIVAL_ALL: PASS' "$OUT/capture.log"
+          for phase in house street edge_street; do
+            test -s "$OUT/arrival_${phase}_before.png"
+            test -s "$OUT/arrival_${phase}_after.png"
+          done
       - name: Upload minimal marker screenshots
         if: always()
         uses: actions/upload-artifact@v4
