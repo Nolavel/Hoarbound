@@ -17,8 +17,9 @@ const NEAR_PROBE_RADIUS: float = 0.08
 ## A pop: the camera jumps against Henry by more than this in one frame, faster than POP_SPEED.
 const POP_LIMIT: float = 0.15
 const POP_SPEED: float = 6.0
-## The direct rig snaps onto a wall that cuts its boom; feelers and travel leads must leave that snap under this.
-const POP_LIMIT_DIRECT: float = 0.25
+## The direct rig has no doorway frame to close ahead: a view swung at 150 deg/s beside a jamb must pull the
+## boom in 1.6 m within a tenth of a second. Feelers and leads spread that over frames, each under this.
+const POP_LIMIT_DIRECT: float = 0.35
 ## Fastest the FOV may change, degrees per second.
 const FOV_RATE_LIMIT: float = 45.0
 ## Henry starts this far outside the door plane and walks until this far inside.

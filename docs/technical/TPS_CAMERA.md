@@ -33,7 +33,8 @@ Mistakes*):
 - **The shoulder squeezes as the boom is pressed.** Between boom shares `direct_squeeze_shares` (0.35..0.9) the
   offset falls to `direct_tight_shoulder` (35 %), so a pressed camera sits close behind the shoulder.
 - **A close Henry turns see-through instead of the camera climbing.** He starts to fade with the camera
-  `direct_fade_distances.x` (0.9 m) from his eyes and stops at `direct_fade_max` (80 %) at 0.45 m: he stays a
+  `direct_fade_distances.x` (0.7 m) from his eyes and stops at `direct_fade_max` (80 %) at 0.4 m (the start sits
+  under the 0.75 m the rig settles at in a crawl space, so walking straight never ghosts him): he stays a
   ghost in frame and the view never reads as first person. An authored work frame (the stove) keeps the old
   late fade.
 - **The lens widens a little when pressed**: up to `direct_tight_fov_deg` (8°), eased at `direct_fov_rate`, so
@@ -43,11 +44,12 @@ Mistakes*):
   Henry, sideways keys still steer. He is still eased onto the centre line while the player pushes through, so a
   1 m wide capsule does not catch on a jamb. The camera does not close its frame at a door.
 
-- **The boom is warned before a wall cuts it.** A wall on the boom still snaps it in, so three warnings ease it
-  in first: ten sphere feelers round the boom (yaw ±7/16/32°, pitch ±10/22°, `TpsRigCollision.DIRECT_FEELERS`)
-  for a turning view, and two sweeps from where the shoulder will be in 0.3 and 0.5 s
-  (`DIRECT_LEADS`) for a jamb or lintel Henry is walking the boom into. The feelers are spheres of the boom's
-  own radius: the old thin rays passed a jamb edge the boom's sphere then struck.
+- **The boom is warned before a wall cuts it.** A wall on the boom still snaps it in, so warnings ease it in
+  first: ten sphere feelers round the boom (yaw ±7/16/32°, pitch ±10/22°, `TpsRigCollision.DIRECT_FEELERS`)
+  for what stands near it, and two sweeps 0.3 and 0.5 s ahead (`DIRECT_LEADS`), taken from where the shoulder
+  will be and along where the view will point by their measured rates, for a jamb or lintel Henry walks or
+  turns the boom into. The feelers are spheres of the boom's own radius: the old thin rays passed a jamb edge
+  the boom's sphere then struck.
 - **Pressed, the camera comes up to his eye line.** Between boom shares `direct_eye_line_shares` (0.75..0.3) the
   pivot rises from his shoulder joints by 0.22 m, so a camera 0.3 m behind him holds his head in frame. With no
   room behind his head at all (his back on a wall) it gives that rise back to stay `body_fade_end` (0.2 m) from
@@ -72,13 +74,23 @@ Mistakes*):
   shoulder by default, invert Y. `TpsCamera.reload_user_settings()` applies them; the default shoulder moves
   the camera only when the choice itself changes, so it never undoes a swap made in play.
 
+- **Tight places with the real Henry** (`test_tps_camera_direct_spaces`): crouched through a 1.4 m wide,
+  1.45 m high crawl space with a full turn inside, and up a 31° stair ramp between walls: no frame inside or
+  behind geometry, eyes always in frame, largest step 0.08 m and 0.17 m. Box steps of 0.17 m stop Henry: stairs
+  need ramp colliders, which is a movement fact, not a camera one.
+
 Doorway trace on the direct rig, D1 of the 727 (`test_doorway_camera_direct`), before and after the warnings:
 
 | | Before | After |
 |---|---|---|
-| Largest one-frame camera step, yaw swing in the door | 1.97 m | 0.18 m |
-| Largest one-frame step, pitch swing under the lintel | 1.19 m | 0.18 m |
-| Largest one-frame step, standing sweep | 0.33 m | 0.15 m |
+| Largest one-frame camera step, yaw swing in the door | 1.97 m | 0.31 m |
+| Largest one-frame step, pitch swing under the lintel | 1.19 m | 0.26 m |
+| Largest one-frame step, standing sweep | 0.33 m | 0.08 m |
+
+The steps left are not snaps but the start of an ease: the test's mouse starts a 150°/s swing at once beside
+the jamb, so the boom has 1.6 m to give up within a tenth of a second, and it does so over several frames. A
+cap that comes down at a steady speed was tried and was worse (0.60 m): it reacts later to a sudden swing.
+The suite runs at `--fixed-fps 60` and allows 0.35 m.
 
 One cause was a bug in the shared blend, not tuning: the clamp to the centre sweep and the ease to the feelers
 were exclusive branches, so a boom resting on the centre sweep (always a hair over it) never eased at all.

@@ -36,7 +36,7 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## The view widens and narrows at this rate, so a wall snap never jumps the lens, 1/s.
 @export var direct_fov_rate: float = 4.0
 ## Henry starts to turn see-through with the camera this close to his eyes, and is at direct_fade_max at the second, metres.
-@export var direct_fade_distances: Vector2 = Vector2(0.9, 0.45)
+@export var direct_fade_distances: Vector2 = Vector2(0.7, 0.4)
 ## Most of Henry the camera may fade: he stays a ghost in frame, the view never reads as first person.
 @export_range(0.0, 1.0, 0.05) var direct_fade_max: float = 0.8
 @export_group("Look")
