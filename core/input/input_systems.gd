@@ -68,6 +68,8 @@ const ACTION_RECALL_BEARING: StringName = &"recall_bearing"
 const ACTION_LEAN_LEFT: StringName = &"lean_left"
 const ACTION_LEAN_RIGHT: StringName = &"lean_right"
 const ACTION_SWITCH_SHOULDER: StringName = &"switch_shoulder"
+const ACTION_CAMERA_BEHIND: StringName = &"camera_behind"
+const LOOK_ACTIONS: Array[StringName] = [&"look_left", &"look_right", &"look_up", &"look_down"]
 ## Radians of camera turn per pixel of mouse travel.
 const MOUSE_SENSITIVITY: float = 0.003
 
@@ -78,6 +80,9 @@ var _interact_active: bool = false
 var _look_accum: Vector2 = Vector2.ZERO
 var _look_capture: bool = false
 var _shoulder_latch: bool = false
+var _behind_latch: bool = false
+var _stick_look := StickLook.new()
+var _stick_accum: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -93,6 +98,15 @@ func _input(event: InputEvent) -> void:
 		_look_accum += (event as InputEventMouseMotion).screen_relative * MOUSE_SENSITIVITY
 
 
+## The look stick turns at a speed, so it is integrated per rendered frame beside the mouse's travel.
+func _process(delta: float) -> void:
+	if not _look_capture or _is_gameplay_blocked() or not InputMap.has_action(LOOK_ACTIONS[0]):
+		_stick_look.reset()
+		return
+	var raw: Vector2 = Input.get_vector(LOOK_ACTIONS[0], LOOK_ACTIONS[1], LOOK_ACTIONS[2], LOOK_ACTIONS[3], 0.0)
+	_stick_accum += _stick_look.update(raw, delta) * delta
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	## A paused tree already stops most of this, but the cancel key must still
 	## reach the menu that is open, so the gate is per-action rather than a
@@ -105,6 +119,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		jump_pressed.emit()
 	if _pressed(event, ACTION_SWITCH_SHOULDER):
 		_shoulder_latch = true
+	if _pressed(event, ACTION_CAMERA_BEHIND):
+		_behind_latch = true
 	if _pressed(event, ACTION_INTERACT):
 		_begin_interact()
 	elif _released(event, ACTION_INTERACT):
@@ -262,12 +278,31 @@ func consume_switch_shoulder() -> bool:
 	return pressed
 
 
+## True once per press of "camera behind Henry"; reading it clears the latch.
+func consume_camera_behind() -> bool:
+	var pressed: bool = _behind_latch
+	_behind_latch = false
+	return pressed
+
+
 ## Mouse look since the last call, in radians; the look camera is its one reader.
 ## Zero while paused or not captured.
 func consume_look_delta() -> Vector2:
 	var delta: Vector2 = Vector2.ZERO if _is_gameplay_blocked() else _look_accum
 	_look_accum = Vector2.ZERO
 	return delta
+
+
+## Stick look since the last call, in radians (x right, y down); the look camera is its one reader.
+func consume_stick_look() -> Vector2:
+	var turn: Vector2 = Vector2.ZERO if _is_gameplay_blocked() else _stick_accum
+	_stick_accum = Vector2.ZERO
+	return turn
+
+
+## The curve of the look stick, for settings and tuning.
+func get_stick_look() -> StickLook:
+	return _stick_look
 
 
 ## A mouse-look camera asks for the pointer; menus get it back while open.

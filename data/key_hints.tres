@@ -97,6 +97,14 @@ modes = Array[int]([0])
 contexts = Array[int]([0])
 sort_order = 50
 
+[sub_resource type="Resource" id="camera_behind"]
+script = ExtResource("1_entry")
+action_name = &"camera_behind"
+description = "Camera behind Henry"
+modes = Array[int]([0])
+contexts = Array[int]([0])
+sort_order = 55
+
 [sub_resource type="Resource" id="hub_drag"]
 script = ExtResource("1_entry")
 action_name = &"fire"
@@ -148,4 +156,4 @@ sort_order = 30
 
 [resource]
 script = ExtResource("2_catalog")
-entries = Array[ExtResource("1_entry")]([SubResource("move"), SubResource("sprint"), SubResource("jump"), SubResource("crouch"), SubResource("lay_bedroll"), SubResource("lean"), SubResource("interact"), SubResource("hub"), SubResource("quick_cycle"), SubResource("quick_use"), SubResource("shoulder"), SubResource("hub_drag"), SubResource("hub_close"), SubResource("sit_move"), SubResource("sit_interact"), SubResource("sit_hub"), SubResource("sit_escape")])
+entries = Array[ExtResource("1_entry")]([SubResource("move"), SubResource("sprint"), SubResource("jump"), SubResource("crouch"), SubResource("lay_bedroll"), SubResource("lean"), SubResource("interact"), SubResource("hub"), SubResource("quick_cycle"), SubResource("quick_use"), SubResource("shoulder"), SubResource("camera_behind"), SubResource("hub_drag"), SubResource("hub_close"), SubResource("sit_move"), SubResource("sit_interact"), SubResource("sit_hub"), SubResource("sit_escape")])

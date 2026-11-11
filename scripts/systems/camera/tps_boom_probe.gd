@@ -9,7 +9,11 @@ extends RefCounted
 const MAX_PASSES: int = 16
 
 ## A collider whose second-largest extent is under this is thin: posts, planks, trunks.
-var thin_extent: float = 0.6
+var thin_extent: float = 0.6:
+	set(value):
+		if not is_equal_approx(value, thin_extent):
+			_thin_by_owner.clear()
+		thin_extent = value
 var collision_mask: int = 0xFFFFFFFF
 var radius: float = 0.2
 ## Colliders the casts of this frame passed through, by instance id.
