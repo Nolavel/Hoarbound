@@ -25,6 +25,8 @@ For reviewing a diff, a performance investigation, an asset/licence sweep or che
 
 Cross-language contract rule: public cross-system seams use capabilities under `core/contracts/`. GDScript, C#, and C++/GDExtension implementations stay private behind the same Godot-visible contract. Do not add new scattered `has_method()` / string-`call()` protocols outside the contract/adapters boundary. GDExtension/C++ may replace a GDScript implementation only after profiling shows a real bottleneck, and the public capability contract and its consumers must remain unchanged.
 
+Optional external game-design critique: [docs/research/xk/INDEX.md](docs/research/xk/INDEX.md). Its Hoarbound relevance map is a set of **testable questions**, not canonical game design. Read the relevant upstream notes selectively, verify consequential claims, and defer all product decisions to the author and approved documents (see `AGENTS.md`).
+
 ## Branch
 
 - Claude owns `claudeflow` — **one branch, always**. Never create additional
