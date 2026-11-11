@@ -83,6 +83,14 @@ func _capture() -> void:
 			bearings._sample_distance(d, 0.25)
 		for i: int in 5:
 			await process_frame
+		## Still-frame review: show the transient ring near its full expansion.
+		## Runtime animation remains untouched; only capture clock is adjusted.
+		if bool(entry["pulse"]):
+			strip._pulse_elapsed = 0.42
+			strip._text_signal_age = 0.42
+			strip.queue_redraw()
+			await process_frame
+			await process_frame
 		if int(bearings.proximity_state) != int(entry["expected"]):
 			push_error("COMPASS_QUICK: wrong proximity for " + str(entry["file"]))
 			_failed = true

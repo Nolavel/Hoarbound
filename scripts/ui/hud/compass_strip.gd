@@ -275,7 +275,7 @@ func _draw_marker(x0: float, width: float, base_y: float, slot: Dictionary) -> v
 	var x: float = _x_of(x0, width, float(slot["u"])) if on_strip else (
 		x0 + 15.0 if int(slot["edge"]) < 0 else x0 + width - 15.0
 	)
-	var mid := Vector2(x, base_y - 7.0)
+	var mid := Vector2(x, base_y + 1.0)
 
 	## Three translucent ink layers, not a flat polygon / warning beacon.
 	## This halo makes the marker legible on pale snow and in dark interiors.
@@ -311,7 +311,7 @@ func _draw_marker(x0: float, width: float, base_y: float, slot: Dictionary) -> v
 	var label: String = _bearings.active_label()
 	_marker_text(label, Vector2(x, base_y - 30.0), 21, color, 0)
 	var proximity: String = _proximity_text()
-	_marker_text(proximity, Vector2(x, base_y + 29.0), 16, color, 1)
+	_marker_text(proximity, Vector2(x, base_y + 44.0), 16, color, 1)
 	if _text_signal_age < TREND_TEXT_SEC:
 		var trend_word: String = _trend_text()
 		if trend_word != "":
@@ -320,7 +320,7 @@ func _draw_marker(x0: float, width: float, base_y: float, slot: Dictionary) -> v
 				fade = (TREND_TEXT_SEC - _text_signal_age) / 0.65
 			var signal_color: Color = color
 			signal_color.a *= 0.96 * clampf(fade, 0.0, 1.0)
-			_marker_text(trend_word, Vector2(x, base_y + 48.0), 15, signal_color, 2)
+			_marker_text(trend_word, Vector2(x, base_y + 64.0), 15, signal_color, 2)
 
 
 func _marker_text(value: String, mid: Vector2, font_px: int, color: Color, style: int) -> void:
