@@ -38,6 +38,9 @@ extends Node
 @export var idle_release_time: float = 0.5
 ## A carried Henry who stops moving this long gives up the traversal, seconds.
 @export var stall_time: float = 0.5
+## Carry Henry through a doorway once he is over its threshold (keys let go still walk him on, sideways
+## keys are dropped). Off: he is only eased onto the centre line while the player pushes through.
+@export var carry_through: bool = false
 
 var body: CharacterBody3D
 
@@ -122,7 +125,7 @@ func steer(world_dir: Vector3, may_commit: bool = true) -> Vector3:
 	var length: float = world_dir.length()
 	_intent = world_dir
 	_may_commit = may_commit
-	if not may_commit:
+	if not may_commit or not carry_through:
 		_commit = 0.0
 	if _info == null or not _engaged:
 		return world_dir

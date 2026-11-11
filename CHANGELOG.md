@@ -11,7 +11,55 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - Stone scatter no longer reads a freed pickup as a typed object during refresh; collected IDs stay collected and untaken stones can return after eviction. Added lifecycle regression to the required gate.
 - Hub carried-item rims reuse their material, focus masks track live instance IDs, and disposable item probes clear overrides before freeing. Empty readout/hand/stove requests return early; unknown nonempty catalog IDs still warn.
 
+### Added
+
+- `StepStairs` (`scripts/world/props/step_stairs.gd`): a flight of stairs Henry can walk. Visible steps are generated over one wedge collider, because `CharacterBody3D` has no step-up and a 0.17 m box step stops him. Set step count, riser, tread and width; `build_steps = false` keeps only the collider under an authored mesh. New `test_step_stairs`.
+
 ### Changed
+
+- TPS camera: a direct rig is the default (`TpsCamera.direct_rig`). The owner found the camera awkward in narrow spaces; a trace in the 727 corridor and restroom showed it rising over Henry to look down, standing inside his coat, and holding him across the frame.
+  - The camera always stands behind the view and only the mouse turns the view. No lift over the shoulder, no swing round Henry, no auto-look, no recentre behind a walking Henry (owner's call), no view tilt.
+  - Walls only shorten the boom. The shoulder squeezes and the lens widens up to 8° as the boom is pressed. A close Henry turns see-through (to 80 % at most) instead of the camera climbing. The mouse is never slowed near him.
+  - A doorway no longer takes the controls (`PassageTraversalComponent.carry_through` is off): released keys stop Henry and sideways keys steer. He is still eased onto the centre line while the player pushes through.
+  - Doorways on the direct rig: the camera no longer jumps when a jamb or lintel cuts its boom (largest one-frame step 1.97 m -> 0.31 m in door D1 of the 727, the rest being the start of an ease under a sudden 150 deg/s swing). Its feelers are now sphere sweeps of the boom's own radius, and two sweeps 0.3 and 0.5 s ahead, by the shoulder's travel and the view's turn rate, warn of what Henry walks or turns the boom into. New `test_doorway_camera_direct`.
+  - Fixed in the shared boom blend: the clamp to the centre sweep and the ease to the feelers were exclusive branches, so the feelers' warning was never applied to a boom resting on the centre sweep.
+  - Pressed, the camera comes up from the shoulder joints to Henry's eye line so his head stays in frame; with his back on a wall it stays 0.2 m from his eyes instead of standing in his head.
+  - Pillars, trunks and furniture 0.25 m thick or more now turn the direct camera in front of them, eased by the feelers, instead of turning see-through (`direct_thin_extent`); thinner posts still fade. New `test_tps_camera_pillar`.
+  - New key V (`camera_behind`): turns the camera behind Henry; mouse motion cancels the turn. It is the only recentre on the direct rig. New `test_tps_camera_behind`.
+  - Gamepad look: the right stick turns the view through `StickLook` (radial dead zone, squared response, a ramp of extra turn speed at the rim); R3 is `camera_behind`. Walking and other actions are not on the pad yet. New `test_stick_look`.
+  - Settings: stick sensitivity, field of view (-10..+15°), camera distance (75..130 %) and a left-shoulder default join mouse sensitivity and invert Y; the panel grew to fit them. `CameraUserSettings` is table-driven and keeps keys it is not asked to write. New `test_camera_user_settings`.
+  - Henry no longer crawls 30 % see-through: the direct rig's fade now starts at 0.7 m from his eyes, under the 0.75 m it settles at in a crawl space. New `test_tps_camera_direct_spaces` walks the real Henry crouched through a crawl space and up a stair ramp.
+  - The old guided rig stays behind `direct_rig = false` until this one is accepted in play; its three suites switch it on explicitly. New `test_tps_camera_direct` guards the direct rig.
+  - The stove's work frame keeps its late fade (the early fade dimmed Henry there; `test_stove_ritual` caught it).
+
+- Every window now draws the baked millimetre frost, and a pane at full coverage is frosted right across.
+  - **Generated buildings.** `frosted_window.gdshader` draws the same frost as the landmark glass (no thaw: these houses stay cold). Its old 16 cm fern pattern is no longer drawn anywhere.
+  - **Full coverage.** From 80 % to 100 % coverage the middle of a pane packs with two more layers of crystals and a full coat of film. Before, a pane at 100 % kept a see-through middle and looked almost like one at 70 %.
+  - **Shared code and textures.** The frost lives in `frost_tiles.gdshaderinc`. Its two tiles are project shader globals (`window_frost_edge`, `window_frost_field`), so the baked city scenes pick them up unbound and were not regenerated.
+  - `capture_window_frost_shapes.gd` takes a coverage and `opaque`; a new preview shows 70 %, 100 %, 100 % thawing, and the opaque panes. `test_window_frost` checks the globals and both shaders.
+  - GPU cost in the streamed city is not measured: each opaque pane now does 7 texture reads in place of the procedural fern loops.
+
+- The see-through landmark glass (`frosted_glass.gdshader`, the 727 windows) has new frost and a new thaw. Its rule is unchanged: 60-80 % frost in the cold, a warmed room clears.
+  - **Any pane size.** Frost comes from two baked tiles at 1 mm per pixel (`assets/environment/windows/`, from `tools/textures/bake_window_frost_sheet.py`), laid in metres: a strip of fern feathers along each edge and a field of small crystals across the pane. A pane of any size or proportion carries crystals of true size.
+  - **Thaw.** Each texel thaws by its own need; it soaks to glassy ice, breaks into islands and clears. The wet pane mists with beads and sheds runs 1-2 mm wide.
+  - **Ice plates.** Thick soaked frost by the sill comes away as shards that slide down the pane, rest at its bottom edge and melt. Nothing is drawn on the sill itself.
+  - **No screen read**, so snowfall behind the glass stays visible; the view through frost is not blurred.
+  - The opaque panes of generated buildings (`frosted_window.gdshader`) are unchanged.
+  - The 727 probe now scrubs a copy of the game's glass; the test-only natural shader and its sheet are removed. New `tools/runtime/capture_window_frost_shapes.gd` renders six pane sizes.
+  - `test_window_frost` checks both tiles are bound with mipmaps (it fails with a tile removed). GPU cost on real hardware is not measured.
+
+- 727 window thaw probe, second pass after the owner's review against a photo reference. The natural thaw no longer draws `frost_pattern` ferns (16 cm cells: too large for the 2.0 x 1.1 m pane, with an angular base).
+  - Frost is a baked sheet at 1 mm per pixel (`frost_sheet_727.png`, from `tools/textures/bake_window_frost_sheet.py`): barbed feathers 2-28 cm long grown from the frame, along scratches and from free specks, with fine hoar. The scale follows K. Libbrecht's window-frost notes.
+  - Frost depth is uneven round the pane (deep off the sill), not a frame of one width.
+  - Runs are 1-2 mm wide and 5-34 cm long, most of them short; the wet pane mists with fine beads.
+  - The capture tool takes `close` for a 0.55 m wide view. The preview sheet is replaced.
+
+- The 727 FrontWindow1 thaw probe (issue #281, `tests/scenes/window_727_sdf_probe.tscn`) opens on a new test-only natural thaw shader, `natural_thaw_glass_727.gdshader`. **V** switches to the unchanged V3 sheet. Production glass and `frost_pattern.gdshaderinc` are untouched.
+  - Frost scatters the view behind it: the pane blurs the screen by frost thickness. Thick frost is white, thin frost blue, soaked frost grey-green. At 0 % the whole pane is frosted.
+  - Each texel thaws by its own need (warm spots, frame, height on the pane, thickness, noise). It soaks, breaks into slush islands, then clears. The upper pane leads and a band by the frame survives.
+  - Beads run down wandering lanes and cut clear tracks through the frost below. Cleared glass keeps water beads that bend the view.
+  - It is an authored illusion on one 0..1 value, unshaded, not yet judged under the real 727 lights.
+  - Added `tools/runtime/capture_window_727_thaw.gd` (stills per thaw step), `tests/systems/test_window_727_thaw_probe.gd`, and a preview sheet in `docs/runtime_previews/window_frost/`.
 
 - Removed three snow suites from the `snow-clipmap-preview` experiment, at the owner's request: test_snow_architecture_contract, test_snow_contact_pipeline and test_snow_surface_clipmap. They tested a snow architecture (multi-channel deformation, radial L0–L2 rings, no live contact writes) that `main` does not ship, so they were red on every branch. They were also dropped from `snow_architecture_gate.sh` and the snow job loops in `checks.yml`.
 

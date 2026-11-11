@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="NavigationTargetLibrary" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/navigation/navigation_library.gd" id="1_library"]
+[ext_resource type="Script" path="res://scripts/world/navigation/navigation_target.gd" id="2_target"]
+[ext_resource type="Resource" path="res://data/world/key_west/navigation/fort_st_shelter.tres" id="3_fort"]
+[ext_resource type="Resource" path="res://data/world/key_west/navigation/battery_osceola.tres" id="4_battery"]
+
+[resource]
+script = ExtResource("1_library")
+targets = Array[ExtResource("2_target")]([ExtResource("3_fort"), ExtResource("4_battery")])

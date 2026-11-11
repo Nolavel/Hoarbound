@@ -811,3 +811,52 @@ jobs:
             ${{ env.OUT }}/capture.log
           if-no-files-found: warn
           retention-days: 3
+
+  compass-quick-png:
+    ## A deliberately lightweight UI-only capture for #293 / PR #310:
+    ## real CompassStrip drawing, no streaming world or CPU Vulkan.
+    ## Triggers only on a tagged codex push; reuses the existing checks workflow.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/codex' && contains(github.event.head_commit.message, '[compass-quick]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+      - name: Provision Godot without the 3D renderer stack
+        run: SKIP_APT=1 tools/ci/setup_env.sh
+      - name: Import scripts and register class_name symbols
+        run: tools/ci/import_gate.sh
+      - name: Targeted First Exit functionality tests
+        run: tools/ci/run_tests.sh test_first_exit_bearings
+      - name: Produce real CompassStrip PNG (2D Compatibility renderer)
+        run: |
+          set -euo pipefail
+          command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri; }
+          OUT="$GITHUB_WORKSPACE/compass-light-png"
+          mkdir -p "$OUT"
+          timeout 120 xvfb-run -a "$HOME/.local/bin/godot" --path . \
+            --resolution 960x180 --rendering-driver opengl3 --rendering-method gl_compatibility \
+            --audio-driver Dummy --fixed-fps 30 \
+            --script res://tools/runtime/capture_compass_light.gd -- "$OUT" \
+            2>&1 | tee "$OUT/capture.log"
+          grep -q 'COMPASS_QUICK_CAPTURE: PASS' "$OUT/capture.log"
+          ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR' "$OUT/capture.log"
+          for image in 01_cold 02_warm_edge 03_hot; do test -s "$OUT/$image.png"; done
+          grep -q 'COMPASS_IDENTITY_LOOP: PASS' "$OUT/capture.log"
+          test -s "$OUT/identity_frames/frame_089.png"
+          grep -q 'COMPASS_ARRIVAL_ALL: PASS' "$OUT/capture.log"
+          for phase in house street edge_street; do
+            test -s "$OUT/arrival_${phase}_before.png"
+            test -s "$OUT/arrival_${phase}_after.png"
+          done
+      - name: Upload minimal marker screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-compass-light-png
+          path: compass-light-png/
+          if-no-files-found: warn
+          retention-days: 7

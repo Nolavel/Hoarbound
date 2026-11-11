@@ -7,6 +7,10 @@ MENU_SETTINGS,Settings,Настройки
 SETTINGS_TITLE,Settings,Настройки
 SETTINGS_MOUSE_SENSITIVITY,Mouse sensitivity,Чувствительность мыши
 SETTINGS_INVERT_Y,Invert Y,Инверсия Y
+SETTINGS_STICK_SENSITIVITY,Stick sensitivity,Чувствительность стика
+SETTINGS_FIELD_OF_VIEW,Field of view,Поле зрения
+SETTINGS_CAMERA_DISTANCE,Camera distance,Дистанция камеры
+SETTINGS_LEFT_SHOULDER,Camera over the left shoulder,Камера над левым плечом
 SETTINGS_BACK,Back,Назад
 SETTINGS_ACCEPT,Accept,Принять
 MENU_NO_SAVE,No sleep saved yet,Сохранённого сна пока нет

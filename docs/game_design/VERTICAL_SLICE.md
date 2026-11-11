@@ -90,7 +90,7 @@ Required run:
 9. sleep and save;
 10. reload into a coherent world state.
 
-The thin compass (#293) is a bearing toward 727, not a route and not a map. It does not name a street or a distance. Arrival inside 727 clears the mark. The road / shore / ruins choice stays the player's.
+The thin compass (#293) is a camera-relative bearing toward 727, not a route and not a map. The proposed 2026-11-11 enhancement communicates approximate proximity (cold / warm / hot) and movement trend using brief marker feedback, never meters or street directions. Arrival inside 727 still clears the mark. The road / shore / ruins choice stays the player's. Details and provisional tuning are in `docs/technical/FIRST_EXIT_COMPASS_PROXIMITY.md`.
 
 If a required step needs a debug teleport, console call, TestScene shortcut or manual state repair, it remains a blocker.
 

@@ -11,6 +11,105 @@ method is assembled from what they presented, plus the shipped open
 implementations it reduces to: Epic's Lyra, Unity Cinemachine and Daedalic's
 Unreal Fest sample.
 
+## Direct rig (2026-11-11): the default
+
+The owner found the camera stupid and awkward in narrow spaces. A trace in the 727 corridor and restroom
+showed why: with Henry standing still and the mouse turning a full circle, the camera rose over him and looked
+down at the floor for most of the turn, stood inside his coat in one frame, and held him across the middle of
+the frame. The cause was not one bug. About ten behaviours each moved the camera by themselves (lift to 70°
+over the shoulder, a swing of ±40° round Henry, auto-look after 0.9 s of rest, shoulder swap, soft stops and an
+orbit cone in doorways), and a doorway took Henry's controls. Each was tuned by traces; together the player
+could not tell what the camera would do next.
+
+`TpsCamera.direct_rig` (on by default) replaces that with the scheme shipped third-person games use in tight
+interiors (The Last of Us Part II, Resident Evil 4 Remake, God of War; rules as in Nesky, *50 Game Camera
+Mistakes*):
+
+- **The camera always stands behind the view, and only the mouse turns the view.** Orbit = view. No lift, no
+  swing, no auto-look, no recentre, no view tilt to keep his eyes in frame. Owner's call: recentring behind a
+  walking Henry is off.
+- **Walls only shorten the boom**, with the same Lyra blend as before: the centre sweep snaps in, the feelers
+  ease in, a release eases out.
+- **The shoulder squeezes as the boom is pressed.** Between boom shares `direct_squeeze_shares` (0.35..0.9) the
+  offset falls to `direct_tight_shoulder` (35 %), so a pressed camera sits close behind the shoulder.
+- **A close Henry turns see-through instead of the camera climbing.** He starts to fade with the camera
+  `direct_fade_distances.x` (0.7 m) from his eyes and stops at `direct_fade_max` (80 %) at 0.4 m (the start sits
+  under the 0.75 m the rig settles at in a crawl space, so walking straight never ghosts him): he stays a
+  ghost in frame and the view never reads as first person. An authored work frame (the stove) keeps the old
+  late fade.
+- **The lens widens a little when pressed**: up to `direct_tight_fov_deg` (8°), eased at `direct_fov_rate`, so
+  a wall snap never jumps it.
+- **The mouse is never slowed.** The body guard that scaled a mouse turn near Henry is off.
+- **A doorway never takes the controls.** `PassageTraversalComponent.carry_through` is off: released keys stop
+  Henry, sideways keys still steer. He is still eased onto the centre line while the player pushes through, so a
+  1 m wide capsule does not catch on a jamb. The camera does not close its frame at a door.
+
+- **The boom is warned before a wall cuts it.** A wall on the boom still snaps it in, so warnings ease it in
+  first: ten sphere feelers round the boom (yaw ±7/16/32°, pitch ±10/22°, `TpsRigCollision.DIRECT_FEELERS`)
+  for what stands near it, and two sweeps 0.3 and 0.5 s ahead (`DIRECT_LEADS`), taken from where the shoulder
+  will be and along where the view will point by their measured rates, for a jamb or lintel Henry walks or
+  turns the boom into. The feelers are spheres of the boom's own radius: the old thin rays passed a jamb edge
+  the boom's sphere then struck.
+- **Pressed, the camera comes up to his eye line.** Between boom shares `direct_eye_line_shares` (0.75..0.3) the
+  pivot rises from his shoulder joints by 0.22 m, so a camera 0.3 m behind him holds his head in frame. With no
+  room behind his head at all (his back on a wall) it gives that rise back to stay `body_fade_end` (0.2 m) from
+  his eyes: there his head leaves the top of the frame, which no camera behind the view can avoid.
+
+- **Pillars turn the boom, posts fade.** On the direct rig a collider fades only under
+  `direct_thin_extent` (0.25 m in its middle axis; the old rig's limit is 0.6 m). A thicker pillar, trunk or
+  cabinet stops the boom, and the feelers ease the camera in front of it and back out as the view turns past:
+  round a 0.4 m pillar 1.3 m behind Henry the boom goes 2.7 -> 0.8 -> 2.7 m with no frame step over 0.11 m
+  (`test_tps_camera_pillar`). Outer feelers weigh little (32°: 0.25, 16°: 0.6) so the dip is a curve, not a step.
+- **One recentre, on a key.** `camera_behind` (V) eases the view to where Henry faces at `behind_rate` and to
+  `behind_pitch_deg`; any mouse motion takes the view back at once (`test_tps_camera_behind`). Nothing recentres
+  without the key.
+
+- **Look stick.** The pad's right stick turns the view through `StickLook` (`core/input/stick_look.gd`): a
+  radial dead zone (0.15, rim 0.95), speed = travel² for fine aim, 200°/s yaw and 120°/s pitch at full travel,
+  and up to +60 % after 0.2 s held at the rim. `InputSystems` integrates it per rendered frame; it shares the
+  mouse's Y inversion but has its own sensitivity. Only look and `camera_behind` (R3) are on the pad: walking
+  and the other actions have no pad bindings yet.
+- **Player settings** (`CameraUserSettings`, the Settings panel): mouse and stick sensitivity (25..200 %),
+  field of view (-10..+15° on the authored lens), camera distance (75..130 % of the boom), camera over the left
+  shoulder by default, invert Y. `TpsCamera.reload_user_settings()` applies them; the default shoulder moves
+  the camera only when the choice itself changes, so it never undoes a swap made in play.
+
+- **Tight places with the real Henry** (`test_tps_camera_direct_spaces`): crouched through a 1.4 m wide,
+  1.45 m high crawl space with a full turn inside, and up a 31° stair ramp between walls: no frame inside or
+  behind geometry, eyes always in frame, largest step 0.08 m and 0.17 m. Box steps of 0.17 m stop Henry, so a
+  flight is built with `StepStairs` (see `WORLD_ARCHITECTURE.md`).
+
+Doorway trace on the direct rig, D1 of the 727 (`test_doorway_camera_direct`), before and after the warnings:
+
+| | Before | After |
+|---|---|---|
+| Largest one-frame camera step, yaw swing in the door | 1.97 m | 0.31 m |
+| Largest one-frame step, pitch swing under the lintel | 1.19 m | 0.26 m |
+| Largest one-frame step, standing sweep | 0.33 m | 0.08 m |
+
+The steps left are not snaps but the start of an ease: the test's mouse starts a 150°/s swing at once beside
+the jamb, so the boom has 1.6 m to give up within a tenth of a second, and it does so over several frames. A
+cap that comes down at a steady speed was tried and was worse (0.60 m): it reacts later to a sudden swing.
+The suite runs at `--fixed-fps 60` and allows 0.35 m.
+
+One cause was a bug in the shared blend, not tuning: the clamp to the centre sweep and the ease to the feelers
+were exclusive branches, so a boom resting on the centre sweep (always a hair over it) never eased at all.
+
+What stays from the old rig: follow lag and intent lead, the openness rods that shorten the boom indoors, wall
+collision, stance heights, manual shoulder swap and lean, thin-prop fades, the stove's work framing.
+
+**The old guided rig is still in the code behind `direct_rig = false`** (with `carry_through = true`). It stays
+until the direct rig is accepted in play; then it and its behaviours (`TpsRigPassage`, `TpsRigShoulderLift`,
+`TpsRigShotChoice`, `TpsRigRecompose`, `TpsRigComposition`, `TpsRigAutoSwap`, auto-look) should be deleted, not
+kept as a second camera. `test_tps_camera`, `test_doorway_camera` and `test_passage_traversal` guard that old rig
+and switch it on explicitly. `test_tps_camera_direct`, `test_tps_camera_orbit` and `test_doorway_camera_direct`
+guard the direct rig. Everything below this section describes the old rig unless it is in the list above.
+
+Check: `tests/systems/test_tps_camera_direct.gd` (a 1.3 m dead end with a wall 0.4 m behind Henry, a full sweep
+with rests): the view equals the look set, the camera never rises over him, never enters a wall, never hides
+him, and the lens never jumps. Known cost: in that dead end the camera ends 0.23 m from his eyes with him 80 %
+faded; there is no room for anything else without passing through a wall.
+
 ## What the player gets
 
 - **Mouse look lands in the same rendered frame.** Look is never filtered and is

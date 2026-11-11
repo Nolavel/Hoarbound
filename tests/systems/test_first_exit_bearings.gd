@@ -15,8 +15,12 @@ func _process(_delta: float) -> bool:
 func _run() -> void:
 	_check_bearings()
 	_check_slot()
+	_check_proximity()
+	_check_search_semantics()
+	_check_identity_cycle()
 	_check_camera()
 	_check_catalog()
+	_check_navigation_registry()
 	_check_lifecycle()
 	_check_zones()
 	_check_settled_load_inside()
@@ -49,6 +53,133 @@ func _check_slot() -> void:
 	_check(not bool(behind["on_strip"]) and int(behind["edge"]) == -1, "a target behind did not pin left")
 
 
+func _check_proximity() -> void:
+	var bearings := FirstExitBearings.new()
+	bearings.begin_play(true)
+	bearings._sample_distance(360.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.COLD, "360 m not cold")
+	bearings._sample_distance(280.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.WARM, "280 m not warm")
+	bearings._sample_distance(290.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.WARM, "warm changed inside hysteresis")
+	bearings._sample_distance(295.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.COLD, "295 m not cold")
+	bearings._sample_distance(60.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.HOT, "60 m not hot")
+	bearings._sample_distance(70.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.HOT, "hot changed inside hysteresis")
+	bearings._sample_distance(75.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.WARM, "75 m not warm")
+	bearings._reset_proximity_feedback()
+	bearings._sample_distance(360.0, 0.25)
+	var before: int = bearings.trend_serial
+	bearings._sample_distance(357.0, 0.25)
+	_check(bearings.trend_serial == before, "under 8 m caused feedback")
+	bearings._sample_distance(351.0, 0.25)
+	_check(bearings.trend_serial == before + 1 and bearings.trend_state == FirstExitBearings.Trend.APPROACHING,
+		"approaching by 9 m did not pulse")
+	bearings._sample_distance(330.0, 0.25)
+	_check(bearings.trend_serial == before + 1, "cooldown let extra pulse through")
+	bearings._sample_distance(329.0, 6.0)
+	_check(bearings.trend_serial == before + 1, "cooldown replayed stale movement")
+	bearings._sample_distance(338.0, 0.25)
+	_check(bearings.trend_serial == before + 2 and bearings.trend_state == FirstExitBearings.Trend.MOVING_AWAY,
+		"moving away by 9 m did not pulse")
+	bearings.recall()
+	_check(not bearings.has_active_target(), "recall did not clear target for proximity")
+	_check(bearings.trend_state == FirstExitBearings.Trend.STABLE, "recall kept old trend")
+	bearings._sample_distance(10.0, 0.25)
+	_check(not bearings._proximity_initialized, "no-target sample changed proximity")
+	bearings.recall()
+	bearings._sample_distance(50.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.HOT and bearings.trend_serial == before + 2,
+		"recalled target did not initialize silently")
+	bearings.load_save_data(bearings.get_save_data())
+	_check(not bearings._proximity_initialized and bearings.trend_state == FirstExitBearings.Trend.STABLE,
+		"save/load did not reset transient feedback")
+	bearings.free()
+
+
+func _check_search_semantics() -> void:
+	var bearings := FirstExitBearings.new()
+	bearings.begin_play(true)
+	var strip := CompassStrip.new()
+	strip._bearings = bearings
+	var locale: String = TranslationServer.get_locale()
+	TranslationServer.set_locale("ru")
+	bearings._sample_distance(400.0, 0.25)
+	_check(strip._display_word() == "ХОЛОДНО", "initial cold word")
+	bearings._sample_distance(391.0, 0.25)
+	var serial: int = bearings.trend_serial
+	_check(strip._display_word() == "ТЕПЛЕЕ", "approach replaces cold")
+	bearings._sample_distance(391.3, 0.25)
+	_check(strip._display_word() == "ТЕПЛЕЕ", "tiny reversal should not flicker")
+	bearings._sample_distance(392.0, 0.25)
+	_check(strip._display_word() == "ХОЛОДНО", "reversal must cancel warmer before cooldown")
+	bearings._sample_distance(400.0, 0.25)
+	_check(bearings.trend_serial == serial + 1 and strip._display_word() == "ХОЛОДНЕЕ",
+		"opposite direction must bypass repeat cooldown")
+	bearings._sample_distance(400.0, 0.25)
+	bearings._sample_distance(400.0, 0.25)
+	_check(strip._display_word() == "ХОЛОДНО", "stopping must cancel colder within two samples")
+	bearings._sample_distance(409.0, 0.25)
+	_check(bearings.trend_serial == serial + 1, "same direction after stop must respect cooldown")
+
+	bearings._reset_proximity_feedback()
+	bearings._sample_distance(300.0, 0.25)
+	bearings._sample_distance(290.0, 0.25)
+	_check(strip._display_word() == "ТЕПЛЕЕ", "pre-band approach")
+	bearings._sample_distance(280.0, 0.25)
+	_check(strip._display_word() == "ТЕПЛО", "band crossing must override warmer")
+	bearings._sample_distance(270.0, 0.25)
+	_check(strip._display_word() == "ТЕПЛО", "new band needs reading time")
+	bearings._sample_distance(250.0, 1.25)
+	_check(strip._display_word() == "ТЕПЛО", "no delayed event from band hold")
+	bearings._sample_distance(60.0, 0.25)
+	_check(strip._display_word() == "ГОРЯЧО", "hot overrides all progress")
+	bearings._sample_distance(75.0, 0.25)
+	_check(strip._display_word() == "ТЕПЛО", "hot exit shows warm, not colder")
+
+	bearings._reset_proximity_feedback()
+	bearings._sample_distance(400.0, 0.25)
+	bearings._sample_distance(391.0, 0.25)
+	serial = bearings.trend_serial
+	## Continued movement during cooldown cannot keep a stale word alive.
+	for i: int in 10:
+		bearings._sample_distance(390.0 - float(i), 0.25)
+	_check(strip._display_word() == "ХОЛОДНО" and bearings.trend_serial == serial, "word expiry / repeat cooldown")
+	bearings.load_save_data(bearings.get_save_data())
+	bearings._sample_distance(40.0, 0.25)
+	_check(strip._display_word() == "ГОРЯЧО", "load initializes current band without old word")
+	TranslationServer.set_locale(locale)
+	strip.free()
+	bearings.free()
+
+
+func _check_identity_cycle() -> void:
+	var bearings := FirstExitBearings.new()
+	bearings.begin_play(true)
+	var strip := CompassStrip.new()
+	strip._bearings = bearings
+	_check(bearings.active_street_label() == "Fort St.", "shelter street identity")
+	_check(bearings.active_label() == "727", "internal landmark label changed")
+	strip._identity_clock = 1.0
+	_check(not strip._identity_is_street() and is_equal_approx(strip._identity_opacity(), 1.0), "house rest phase")
+	strip._identity_clock = CompassStrip.IDENTITY_HOUSE_SEC - 0.09
+	_check(not strip._identity_is_street() and strip._identity_opacity() < 0.6, "house fades before street")
+	strip._identity_clock = CompassStrip.IDENTITY_HOUSE_SEC
+	_check(strip._identity_is_street() and is_zero_approx(strip._identity_opacity()), "no overlapping identity at switch")
+	strip._identity_clock = 5.1
+	_check(strip._identity_is_street() and is_equal_approx(strip._identity_opacity(), 1.0), "street rest phase")
+	strip._identity_clock = CompassStrip.IDENTITY_CYCLE_SEC - 0.09
+	_check(strip._identity_is_street() and strip._identity_opacity() < 0.6, "street fades before house")
+	bearings.recall()
+	strip._tick_marker(0.1)
+	_check(bearings.active_street_label().is_empty() and is_zero_approx(strip._identity_clock), "clear resets identity clock")
+	strip.free()
+	bearings.free()
+
+
 func _check_camera() -> void:
 	var camera := Camera3D.new()
 	root.add_child(camera)
@@ -65,6 +196,102 @@ func _check_catalog() -> void:
 	var xz: Vector2 = bearings.shelter_xz()
 	_check(xz.distance_to(Vector2(-3538.75, 1594.38)) < 0.01, "bearing point is %s, not the entrance" % xz)
 	_check(xz.distance_to(Vector2(-3531.78, 1590.28)) > 5.0, "bearing point fell back to the footprint centroid")
+	bearings.free()
+
+
+
+func _check_navigation_registry() -> void:
+	## Two author-approved real landmark bindings, not two fictitious points.
+	var bearings := FirstExitBearings.new()
+	bearings.begin_play(true)
+	var shelter: String = bearings.shelter_id()
+	var bunker: String = bearings.target_id_for_role(FirstExitBearings.BUNKER_ROLE)
+	var shelter_resource: NavigationTarget = bearings.get_target(shelter)
+	var bunker_resource: NavigationTarget = bearings.get_target(bunker)
+	_check(shelter_resource != null and bunker_resource != null and shelter != bunker,
+		"navigation catalog must bind two distinct authored targets")
+	if shelter_resource == null or bunker_resource == null:
+		bearings.free()
+		return
+	_check(bunker_resource.bearing_xz.distance_to(Vector2(-4052.73, 1924.69)) < 0.01,
+		"Battery Osceola anchor diverged from canonical Reality role")
+	_check(shelter_resource.bearing_xz.distance_to(Vector2(-3538.75, 1594.38)) < 0.01,
+		"Fort Street entrance anchor diverged from canonical Reality role")
+	_check(shelter_resource.internal_label == "727" and shelter_resource.compass_title == "Fort St.",
+		"727 resource lost authored metadata")
+	_check(bunker_resource.compass_title == "Battery Osceola",
+		"second real landmark has wrong HUD title")
+	_check(bearings.known_targets().size() == 1 and not bearings.is_known(bunker),
+		"catalog leaked a second location into Henry's knowledge")
+	_check(not bearings.select_target(bunker) and bearings.active_target_id == shelter,
+		"unknown real landmark could be navigated before discovery")
+	_check(not bearings.discover_target("fake:building") and not bearings.mark_arrived("fake:building"),
+		"unknown catalog IDs were accepted")
+
+	var strip := CompassStrip.new()
+	var player := Node3D.new()
+	var camera := Camera3D.new()
+	root.add_child(player)
+	root.add_child(camera)
+	strip._bearings = bearings
+	strip._player = player
+	strip._camera = camera
+	player.global_position = Vector3(shelter_resource.bearing_xz.x, 0.0, shelter_resource.bearing_xz.y + 150.0)
+	bearings._sample_distance(150.0, 0.25)
+	strip._shown = FirstExitBearings.camera_bearing(camera)
+	strip._tick_marker(0.25)
+	_check(strip._marker_target_id == shelter and bearings.proximity_state == FirstExitBearings.Proximity.WARM,
+		"initial shelter HUD marker not bound")
+
+	_check(bearings.discover_target(bunker) and bearings.known_targets().size() == 2,
+		"discovery does not expose both resources to a future mental map")
+	_check(bearings.select_target(bunker), "cannot select discovered Battery Osceola")
+	_check(not bearings._proximity_initialized and bearings.trend_state == FirstExitBearings.Trend.STABLE,
+		"target switch retained stale proximity/trend")
+	bearings._sample_distance(450.0, 0.25)
+	strip._tick_marker(0.25)
+	_check(strip._marker_target_id == bunker and bearings.active_street_label() == "Battery Osceola",
+		"unchanged CompassStrip cannot render another authored target")
+	_check(bearings.active_xz().distance_to(bunker_resource.bearing_xz) < 0.01,
+		"active compass bearing still points at Fort Street")
+	var from_xz: Vector2 = Vector2(player.global_position.x, player.global_position.z)
+	var expected: float = FirstExitBearings.relative_bearing(strip._shown,
+		FirstExitBearings.bearing_of(from_xz, bunker_resource.bearing_xz))
+	_check(absf(wrapf(strip._marker_rel - expected, -PI, PI)) < 0.001,
+		"unchanged CompassStrip points to the wrong location after switch")
+	_check(bearings._proximity_initialized, "second landmark proximity not initialized")
+	_check(bearings.mark_arrived(shelter) and bearings.active_target_id == bunker,
+		"arrival at inactive shelter erased another active selection")
+	_check(bearings._proximity_initialized and bearings.active_street_label() == "Battery Osceola",
+		"unrelated landmark arrival reset selected target movement")
+	_check(bearings.is_visited(shelter) and bearings.is_known(shelter),
+		"arrival did not mark inactive location visited")
+
+	var save: Dictionary = bearings.get_save_data()
+	var loaded := FirstExitBearings.new()
+	loaded.load_save_data(save)
+	_check(loaded.active_target_id == bunker and loaded.is_known(bunker) and loaded.is_visited(shelter),
+		"multi-target selection failed legacy save-key round trip")
+	_check(loaded.select_target(shelter) and loaded.active_street_label() == "Fort St.",
+		"load cannot switch back to Fort St.")
+	loaded.clear_target()
+	_check(loaded.active_target_id.is_empty() and not loaded.has_active_target(),
+		"clearing navigation did not clear target")
+	_check(loaded.mark_arrived(bunker) and loaded.is_visited(bunker) and loaded.active_target_id.is_empty(),
+		"generic arrival/visit did not work for second target")
+	loaded.select_target(bunker)
+	_check(loaded.mark_arrived(bunker) and loaded.active_target_id.is_empty(),
+		"arriving at active Battery Osceola did not clear its marker")
+	loaded.free()
+
+	## R remains a *home* shortcut, never a generic next-target cycler.
+	bearings.recall()
+	_check(bearings.active_target_id == shelter, "recall with another target must select home")
+	bearings.recall()
+	_check(not bearings.has_active_target(), "recall with home selected must clear home")
+	strip.free()
+	player.free()
+	camera.free()
 	bearings.free()
 
 
