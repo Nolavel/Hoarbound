@@ -11,8 +11,10 @@ var occluder_transparency: float = 0.7
 var max_visual_extent: float = 1.5
 var fade_in_time: float = 0.12
 var fade_out_time: float = 0.35
-## Meshes without the stylized shader blend as a whole, so they never go further.
-var body_fallback_max: float = 0.7
+## Meshes without the stylized shader (the pack, what hangs on it) cannot dither by fragment: one within
+## the first distance of the camera goes with the body, one past the second stays solid, metres. A whole
+## mesh blended halfway showed the pack's insides.
+var body_fallback_reach: Vector2 = Vector2(0.45, 1.0)
 
 ## Faded occluder visuals by instance id: [GeometryInstance3D, amount, own transparency].
 var _faded: Dictionary = {}
@@ -62,17 +64,17 @@ func set_body(root: Node, layers: int) -> void:
 	_body.clear()
 
 
-## 0 shows Henry, 1 removes him; stylized materials dither, others blend.
-func update_body(amount: float, delta: float) -> void:
+## 0 shows Henry, 1 removes what of him is at `camera`; stylized materials dither, others go by distance.
+func update_body(amount: float, delta: float, camera: Vector3 = Vector3.ZERO) -> void:
 	_body_refresh -= delta
-	if is_equal_approx(amount, _body_amount) and _body_refresh > 0.0:
+	if amount <= 0.0 and _body_amount <= 0.0 and _body_refresh > 0.0:
 		return
 	if _body.is_empty() or _body_refresh <= 0.0:
 		_collect_body()
 		_body_refresh = 1.0
 	for geo: GeometryInstance3D in _body:
 		if is_instance_valid(geo):
-			_apply_body(geo, amount)
+			_apply_body(geo, amount, camera)
 	_body_amount = amount
 
 
@@ -90,11 +92,14 @@ func _collect_body() -> void:
 			_body.append(geo)
 
 
-func _apply_body(geo: GeometryInstance3D, amount: float) -> void:
+func _apply_body(geo: GeometryInstance3D, amount: float, camera: Vector3) -> void:
 	if _is_stylized(geo):
 		geo.set_instance_shader_parameter(&"camera_fade", amount)
-	else:
-		geo.transparency = minf(amount, body_fallback_max)
+		return
+	var local: Vector3 = geo.global_transform.affine_inverse() * camera
+	var box: AABB = geo.get_aabb()
+	var nearest: Vector3 = geo.global_transform * local.clamp(box.position, box.end)
+	geo.transparency = amount * (1.0 - smoothstep(body_fallback_reach.x, body_fallback_reach.y, camera.distance_to(nearest)))
 
 
 static func _is_stylized(geo: GeometryInstance3D) -> bool:

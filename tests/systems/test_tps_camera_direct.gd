@@ -5,7 +5,7 @@ extends SceneTree
 ## - the view is exactly the look the player set: nothing turns or tilts it, at rest or pressed;
 ## - the camera stands behind that view, never lifted over Henry to look down on him;
 ## - it never enters a wall, and no wall stands between it and his eyes;
-## - pressed close he turns see-through but is never hidden (no first-person view), and his eyes stay inside
+## - jammed against him it removes what of him stands at the lens, and with room behind his eyes stay inside
 ##   the frame at every step (pressed 0.3 m from them, a camera at shoulder height lost his head off the top);
 ## - the lens widens and narrows smoothly, never in a jump;
 ## - a doorway never carries Henry on by itself (PassageTraversalComponent.carry_through is off).
@@ -107,7 +107,6 @@ func _sample() -> void:
 	var query := PhysicsRayQueryParameters3D.create(eye, at)
 	query.exclude = [_player.get_rid()]
 	_check(root.get_world_3d().direct_space_state.intersect_ray(query).is_empty(), "yaw %d: a wall stands between Henry's eyes and the camera" % yaw)
-	_check(not _camera.is_body_hidden(), "yaw %d: Henry was hidden; it went first-person" % yaw)
 	var seen: Vector3 = _camera.global_transform.affine_inverse() * eye
 	var half: Vector2 = _camera.half_tangents()
 	var distance: float = eye.distance_to(at)

@@ -39,7 +39,7 @@ this one: it answers the mouse. Do not bring a behaviour back from the archive w
    ten sphere feelers (`DIRECT_FEELERS`) and three lead sweeps (`DIRECT_LEADS`, by the shoulder's travel
    and the view's turn rate) ease the boom in before a wall cuts it; after a wall clears the boom holds
    `direct_out_hold` (0.35 s) and eases out over `direct_out_time` (0.6 s).
-6. **Rise**: with the boom under `direct_rise_lengths` (0.9..0.35 m) the camera comes up from his shoulder
+6. **Rise**: with the boom under `direct_rise_lengths` (2.0..1.0 m) the camera comes up from his shoulder
    joints toward his eye line (0.22 m), added after the walls so it cannot feed back; it is given back
    where it would stand the camera within `body_fade_end` of his eyes.
 7. **Work frame** (`TpsRigWork`): an authored frame (the stove) blends over the result.
@@ -63,8 +63,12 @@ the distance axis first and keeps the shoulder offset, with damping into and out
 framing of God of War (2018) and The Last of Us Part II: the character off-centre, the camera close over
 the shoulder indoors, a fade only at contact.
 
+**A 1.5 m corridor stays a poor view** (render, 2026-11-11): Henry with his pack fills the left 45 % of
+the frame and the right wall, 0.4 m from the lens, most of the rest. Holding him left costs that there.
+
 **Not solved, by geometry:** with his back flat on a wall there is no room behind his head. The camera
-stands beside it, he leaves the frame's left edge and what is left of him at the lens is faded. A camera
+stands beside it, he leaves the frame's left edge and what of him is at the lens is removed. In the render
+of that pose the pack's shoulder straps still draw: not fixed. A camera
 that rose over him there is what the archived rig did.
 
 ## Henry's body (`HenryMetrics`)
@@ -133,7 +137,10 @@ passes at most 16 such colliders (`MAX_PASSES`); the next one counts as a wall.
 - **Henry:** `camera_fade` is an instance uniform in `stylized_environment_body.gdshaderinc`, a 4x4 Bayer
   screen-door discard, so the material stays opaque and his shadow dithers with him. It ramps from 0 with
   the camera `direct_fade_distances.x` (0.36 m) from his body's axis (crown to knees) to `direct_fade_max`
-  (80 %) at 0.22 m. Each fragment is weighted by its own distance to the camera, so his legs stay. An
+  (1) at 0.22 m. Each fragment is weighted by its own distance to the camera, so his legs stay. Meshes
+  without that shader (the pack and what hangs on it) cannot dither by fragment: one within 0.45 m of the
+  camera goes with the body and one past 1 m stays solid (`body_fallback_reach`). At 80 % and a whole-mesh
+  blend the render showed a ghost with the pack's insides; a part of him at the lens now goes entirely. An
   authored work frame fades by distance to his eyes instead (`body_fade_start`, `body_fade_end`).
 - **Occluders:** thin colliders on the camera-to-eyes line, and thin ones the camera sphere sits in, get
   `GeometryInstance3D.transparency` 0.7.

@@ -71,7 +71,6 @@ func _sample() -> void:
 		"yaw %d: camera collapsed to %.2f m from the eyes" % [yaw, distance])
 	_check(distance >= _camera.body_fade_start or _camera.get_body_fade() > 0.0,
 		"yaw %d: camera %.2f m from the eyes with Henry drawn in full" % [yaw, distance])
-	_check(not _camera.is_body_hidden(), "yaw %d: Henry was hidden; it went first-person" % yaw)
 
 
 func _finish() -> void:

@@ -23,7 +23,7 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 @export var direct_side_in_rate: float = 16.0
 @export var direct_side_edge: float = 0.7
 ## Boom lengths between which a close camera rises from his shoulder joints to his eye line, metres.
-@export var direct_rise_lengths: Vector2 = Vector2(0.35, 0.9)
+@export var direct_rise_lengths: Vector2 = Vector2(1.0, 2.0)
 ## A boom a wall shortened holds for this long after the wall clears, then eases out over this time, seconds.
 @export var direct_out_hold: float = 0.35
 @export var direct_out_time: float = 0.6
@@ -36,8 +36,9 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 @export var direct_thin_extent: float = 0.25
 ## Henry starts to turn see-through with the camera this close to his body's axis, and is at direct_fade_max at the second, metres.
 @export var direct_fade_distances: Vector2 = Vector2(0.36, 0.22)
-## Most of Henry the camera may fade: he stays a ghost in frame, the view never reads as first person.
-@export_range(0.0, 1.0, 0.05) var direct_fade_max: float = 0.8
+## Most of Henry the camera may fade. 1: what of him stands at the lens goes entirely; a part-faded body
+## showed its insides. Parts over a metre from the camera always stay.
+@export_range(0.0, 1.0, 0.05) var direct_fade_max: float = 1.0
 @export_group("Look")
 @export var look_sensitivity_x: float = 0.65
 @export var look_sensitivity_y: float = 0.65
@@ -530,7 +531,7 @@ func _update_fades(delta: float, camera: Vector3) -> void:
 	var close: float = clampf(inverse_lerp(direct_fade_distances.x, direct_fade_distances.y, camera.distance_to(near)), 0.0, direct_fade_max)
 	var framed: float = clampf(inverse_lerp(body_fade_start, body_fade_end, camera.distance_to(eye)), 0.0, 1.0)
 	var fade: float = lerpf(close, framed, get_work_framing_blend())
-	_fader.update_body(fade, delta)
+	_fader.update_body(fade, delta, camera)
 	_probe.passed.clear()
 	_probe.overlaps(camera)
 	_probe.ray(camera, eye - camera)
