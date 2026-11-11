@@ -23,7 +23,14 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## Boom shares between which the shoulder squeezes and the view widens.
 @export var direct_squeeze_shares: Vector2 = Vector2(0.35, 0.9)
 ## Boom shares between which a pressed camera comes up from the shoulder joints to Henry's eye line.
+## The "camera behind Henry" key turns the view to his facing at this rate (1/s) and to this pitch; any mouse
+## motion takes the view back at once. It is the only recentre on the direct rig, and only on that key.
+@export var behind_rate: float = 9.0
+@export var behind_pitch_deg: float = -10.0
 @export var direct_eye_line_shares: Vector2 = Vector2(0.3, 0.75)
+## On the direct rig only colliders thinner than this fade; pillars and trunks over it turn the boom in
+## front of them, eased by the feelers.
+@export var direct_thin_extent: float = 0.25
 ## Field of view added with the boom fully pressed in, degrees.
 @export_range(0.0, 20.0, 0.5) var direct_tight_fov_deg: float = 8.0
 ## The view widens and narrows at this rate, so a wall snap never jumps the lens, 1/s.
@@ -280,6 +287,8 @@ var _last_eye_distance: float = INF
 var _fov_offset: float = 0.0
 ## Field of view the direct rig adds for a pressed boom, eased.
 var _direct_fov: float = 0.0
+var _behind_active: bool = false
+var _behind_yaw: float = 0.0
 ## Last rig inputs, for the body guard's prediction: pivot, orbit pitch lift (degrees).
 var _last_pivot: Vector3 = Vector3.ZERO
 var _last_lift_pitch: float = 0.0
@@ -603,6 +612,7 @@ func _update_direct_rig(delta: float) -> void:
 	frame.pivot += Vector3.UP * get_pivot_height()
 	frame.safe = _safe_origin()
 	_clear_auto_look()
+	_turn_behind(delta)
 	frame.view_yaw = _yaw
 	frame.view_pitch = _pitch_deg
 	frame.orbit_yaw = _yaw
@@ -648,6 +658,26 @@ func _update_direct_rig(delta: float) -> void:
 	global_basis = frame.view
 	_last_eye_distance = frame.camera.distance_to(get_eye_position())
 	_update_fades(delta, frame.camera)
+
+
+## Starts the turn of the "camera behind Henry" key, to where he faces now. Direct rig only.
+func turn_behind() -> void:
+	if not direct_rig or player == null:
+		return
+	_behind_yaw = player.global_rotation.y
+	_behind_active = true
+
+
+## The "camera behind Henry" key: the control yaw and pitch ease to his facing, then the key's turn is over.
+func _turn_behind(delta: float) -> void:
+	if not _behind_active:
+		return
+	var goal: float = _behind_yaw
+	var step: float = damp(behind_rate, delta)
+	_yaw = lerp_angle(_yaw, goal, step)
+	_pitch_deg = lerpf(_pitch_deg, clampf(behind_pitch_deg, pitch_min_deg, pitch_max_deg), step)
+	if absf(angle_difference(_yaw, goal)) < deg_to_rad(0.3) and absf(_pitch_deg - behind_pitch_deg) < 0.3:
+		_behind_active = false
 
 
 ## Distance from the eyes a camera would get on a boom from `shoulder`, walls applied,
@@ -892,6 +922,8 @@ func _apply_look_input() -> Vector2:
 	if _input_systems == null:
 		return Vector2.ZERO
 	var look: Vector2 = _input_systems.consume_look_delta()
+	if look.length_squared() > 1e-12:
+		_behind_active = false
 	if look.length_squared() > 1e-12 and (_auto_yaw != 0.0 or _auto_pitch_deg != 0.0):
 		_yaw = get_view_yaw()
 		_pitch_deg = get_view_pitch_deg()
@@ -962,6 +994,8 @@ func _apply_lean_and_shoulder_input(delta: float) -> void:
 		return
 	if _input_systems.consume_switch_shoulder():
 		_shoulder.toggle()
+	if _input_systems.consume_camera_behind():
+		turn_behind()
 	var axis: float = _input_systems.get_lean_axis()
 	if axis != 0.0:
 		_lean = clampf(_lean + axis * lean_rate * delta, -1.0, 1.0)
@@ -1043,7 +1077,7 @@ func _look_up_scale(pitch_deg: float) -> float:
 func _sync_helpers() -> void:
 	_probe.radius = collision_radius
 	_probe.collision_mask = collision_mask
-	_probe.thin_extent = thin_extent
+	_probe.thin_extent = direct_thin_extent if direct_rig else thin_extent
 	_auto.cooldown = auto_look_cooldown
 	_auto.recenter_enabled = auto_recenter
 	_auto.whisker_max_deg = whisker_max_deg

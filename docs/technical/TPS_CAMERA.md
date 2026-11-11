@@ -53,6 +53,15 @@ Mistakes*):
   room behind his head at all (his back on a wall) it gives that rise back to stay `body_fade_end` (0.2 m) from
   his eyes: there his head leaves the top of the frame, which no camera behind the view can avoid.
 
+- **Pillars turn the boom, posts fade.** On the direct rig a collider fades only under
+  `direct_thin_extent` (0.25 m in its middle axis; the old rig's limit is 0.6 m). A thicker pillar, trunk or
+  cabinet stops the boom, and the feelers ease the camera in front of it and back out as the view turns past:
+  round a 0.4 m pillar 1.3 m behind Henry the boom goes 2.7 -> 0.8 -> 2.7 m with no frame step over 0.11 m
+  (`test_tps_camera_pillar`). Outer feelers weigh little (32°: 0.25, 16°: 0.6) so the dip is a curve, not a step.
+- **One recentre, on a key.** `camera_behind` (V) eases the view to where Henry faces at `behind_rate` and to
+  `behind_pitch_deg`; any mouse motion takes the view back at once (`test_tps_camera_behind`). Nothing recentres
+  without the key.
+
 Doorway trace on the direct rig, D1 of the 727 (`test_doorway_camera_direct`), before and after the warnings:
 
 | | Before | After |

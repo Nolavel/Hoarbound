@@ -9,8 +9,8 @@ const FEELERS: Array = [[16.0, 0.0, 0.75], [-16.0, 0.0, 0.75], [32.0, 0.0, 0.5],
 	[0.0, 20.0, 1.0], [0.0, -20.0, 0.5]]
 
 ## The direct rig's feelers: sphere sweeps like the boom's own, so they meet a jamb edge before it does.
-const DIRECT_FEELERS: Array = [[7.0, 0.0, 1.0], [-7.0, 0.0, 1.0], [16.0, 0.0, 0.8], [-16.0, 0.0, 0.8],
-	[32.0, 0.0, 0.5], [-32.0, 0.0, 0.5], [0.0, 10.0, 1.0], [0.0, -10.0, 1.0], [0.0, 22.0, 0.6], [0.0, -22.0, 0.6]]
+const DIRECT_FEELERS: Array = [[7.0, 0.0, 1.0], [-7.0, 0.0, 1.0], [16.0, 0.0, 0.6], [-16.0, 0.0, 0.6],
+	[32.0, 0.0, 0.25], [-32.0, 0.0, 0.25], [0.0, 10.0, 1.0], [0.0, -10.0, 1.0], [0.0, 22.0, 0.6], [0.0, -22.0, 0.6]]
 
 ## Seconds ahead along the shoulder's own travel the direct rig sweeps the boom from, and their weights:
 ## angle feelers warn of a turn, these warn of a lintel or jamb Henry is walking the boom into.

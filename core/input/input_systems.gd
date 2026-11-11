@@ -68,6 +68,7 @@ const ACTION_RECALL_BEARING: StringName = &"recall_bearing"
 const ACTION_LEAN_LEFT: StringName = &"lean_left"
 const ACTION_LEAN_RIGHT: StringName = &"lean_right"
 const ACTION_SWITCH_SHOULDER: StringName = &"switch_shoulder"
+const ACTION_CAMERA_BEHIND: StringName = &"camera_behind"
 ## Radians of camera turn per pixel of mouse travel.
 const MOUSE_SENSITIVITY: float = 0.003
 
@@ -78,6 +79,7 @@ var _interact_active: bool = false
 var _look_accum: Vector2 = Vector2.ZERO
 var _look_capture: bool = false
 var _shoulder_latch: bool = false
+var _behind_latch: bool = false
 
 
 func _ready() -> void:
@@ -105,6 +107,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		jump_pressed.emit()
 	if _pressed(event, ACTION_SWITCH_SHOULDER):
 		_shoulder_latch = true
+	if _pressed(event, ACTION_CAMERA_BEHIND):
+		_behind_latch = true
 	if _pressed(event, ACTION_INTERACT):
 		_begin_interact()
 	elif _released(event, ACTION_INTERACT):
@@ -259,6 +263,13 @@ func get_lean_axis() -> float:
 func consume_switch_shoulder() -> bool:
 	var pressed: bool = _shoulder_latch
 	_shoulder_latch = false
+	return pressed
+
+
+## True once per press of "camera behind Henry"; reading it clears the latch.
+func consume_camera_behind() -> bool:
+	var pressed: bool = _behind_latch
+	_behind_latch = false
 	return pressed
 
 

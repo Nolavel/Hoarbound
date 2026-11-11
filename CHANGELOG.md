@@ -20,6 +20,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - Doorways on the direct rig: the camera no longer jumps when a jamb or lintel cuts its boom (largest one-frame step 1.97 m -> 0.18 m in door D1 of the 727). Its feelers are now sphere sweeps of the boom's own radius, and two sweeps from where the shoulder will be in 0.3 and 0.5 s warn of what Henry walks the boom into. New `test_doorway_camera_direct`.
   - Fixed in the shared boom blend: the clamp to the centre sweep and the ease to the feelers were exclusive branches, so the feelers' warning was never applied to a boom resting on the centre sweep.
   - Pressed, the camera comes up from the shoulder joints to Henry's eye line so his head stays in frame; with his back on a wall it stays 0.2 m from his eyes instead of standing in his head.
+  - Pillars, trunks and furniture 0.25 m thick or more now turn the direct camera in front of them, eased by the feelers, instead of turning see-through (`direct_thin_extent`); thinner posts still fade. New `test_tps_camera_pillar`.
+  - New key V (`camera_behind`): turns the camera behind Henry; mouse motion cancels the turn. It is the only recentre on the direct rig. New `test_tps_camera_behind`.
   - The old guided rig stays behind `direct_rig = false` until this one is accepted in play; its three suites switch it on explicitly. New `test_tps_camera_direct` guards the direct rig.
   - The stove's work frame keeps its late fade (the early fade dimmed Henry there; `test_stove_ritual` caught it).
 
