@@ -13,6 +13,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- External xk stream research is indexed under `docs/research/xk/` for optional game-design critique, with provenance, relevance questions, and links from `README.md`, `AGENTS.md`, and `CLAUDE.md`; it is not a source of product requirements.
 - `StepStairs` (`scripts/world/props/step_stairs.gd`): a flight of stairs Henry can walk. Visible steps are generated over one wedge collider, because `CharacterBody3D` has no step-up and a 0.17 m box step stops him. Set step count, riser, tread and width; `build_steps = false` keeps only the collider under an authored mesh. New `test_step_stairs`.
 
 ### Changed
