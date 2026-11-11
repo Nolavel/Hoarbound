@@ -20,6 +20,7 @@ func _run() -> void:
 	_check_identity_cycle()
 	_check_camera()
 	_check_catalog()
+	_check_navigation_registry()
 	_check_lifecycle()
 	_check_zones()
 	_check_settled_load_inside()
@@ -195,6 +196,94 @@ func _check_catalog() -> void:
 	var xz: Vector2 = bearings.shelter_xz()
 	_check(xz.distance_to(Vector2(-3538.75, 1594.38)) < 0.01, "bearing point is %s, not the entrance" % xz)
 	_check(xz.distance_to(Vector2(-3531.78, 1590.28)) > 5.0, "bearing point fell back to the footprint centroid")
+	bearings.free()
+
+
+
+func _check_navigation_registry() -> void:
+	## Two author-approved real landmark bindings, not two fictitious points.
+	var bearings := FirstExitBearings.new()
+	bearings.begin_play(true)
+	var shelter: String = bearings.shelter_id()
+	var bunker: String = bearings.target_id_for_role(FirstExitBearings.BUNKER_ROLE)
+	var shelter_resource: NavigationTarget = bearings.get_target(shelter)
+	var bunker_resource: NavigationTarget = bearings.get_target(bunker)
+	_check(shelter_resource != null and bunker_resource != null and shelter != bunker,
+		"navigation catalog must bind two distinct authored targets")
+	if shelter_resource == null or bunker_resource == null:
+		bearings.free()
+		return
+	_check(bunker_resource.bearing_xz.distance_to(Vector2(-4052.73, 1924.69)) < 0.01,
+		"Battery Osceola anchor diverged from canonical Reality role")
+	_check(shelter_resource.bearing_xz.distance_to(Vector2(-3538.75, 1594.38)) < 0.01,
+		"Fort Street entrance anchor diverged from canonical Reality role")
+	_check(shelter_resource.internal_label == "727" and shelter_resource.compass_title == "Fort St.",
+		"727 resource lost authored metadata")
+	_check(bunker_resource.compass_title == "Battery Osceola",
+		"second real landmark has wrong HUD title")
+	_check(bearings.known_targets().size() == 1 and not bearings.is_known(bunker),
+		"catalog leaked a second location into Henry's knowledge")
+	_check(not bearings.select_target(bunker) and bearings.active_target_id == shelter,
+		"unknown real landmark could be navigated before discovery")
+	_check(not bearings.discover_target("fake:building") and not bearings.mark_arrived("fake:building"),
+		"unknown catalog IDs were accepted")
+
+	var strip := CompassStrip.new()
+	var player := Node3D.new()
+	var camera := Camera3D.new()
+	root.add_child(player)
+	root.add_child(camera)
+	strip._bearings = bearings
+	strip._player = player
+	strip._camera = camera
+	player.global_position = Vector3(shelter_resource.bearing_xz.x, 0.0, shelter_resource.bearing_xz.y + 150.0)
+	bearings._sample_distance(150.0, 0.25)
+	strip._shown = FirstExitBearings.camera_bearing(camera)
+	strip._tick_marker(0.25)
+	_check(strip._marker_target_id == shelter and bearings.proximity_state == FirstExitBearings.Proximity.WARM,
+		"initial shelter HUD marker not bound")
+
+	_check(bearings.discover_target(bunker) and bearings.known_targets().size() == 2,
+		"discovery does not expose both resources to a future mental map")
+	_check(bearings.select_target(bunker), "cannot select discovered Battery Osceola")
+	_check(not bearings._proximity_initialized and bearings.trend_state == FirstExitBearings.Trend.STABLE,
+		"target switch retained stale proximity/trend")
+	bearings._sample_distance(450.0, 0.25)
+	strip._tick_marker(0.25)
+	_check(strip._marker_target_id == bunker and bearings.active_street_label() == "Battery Osceola",
+		"unchanged CompassStrip cannot render another authored target")
+	_check(bearings.active_xz().distance_to(bunker_resource.bearing_xz) < 0.01,
+		"active compass bearing still points at Fort Street")
+	_check(bearings.mark_arrived(shelter) and bearings.active_target_id == bunker,
+		"arrival at inactive shelter erased another active selection")
+	_check(bearings.is_visited(shelter) and bearings.is_known(shelter),
+		"arrival did not mark inactive location visited")
+
+	var save: Dictionary = bearings.get_save_data()
+	var loaded := FirstExitBearings.new()
+	loaded.load_save_data(save)
+	_check(loaded.active_target_id == bunker and loaded.is_known(bunker) and loaded.is_visited(shelter),
+		"multi-target selection failed legacy save-key round trip")
+	_check(loaded.select_target(shelter) and loaded.active_street_label() == "Fort St.",
+		"load cannot switch back to Fort St.")
+	loaded.clear_target()
+	_check(loaded.active_target_id.is_empty() and not loaded.has_active_target(),
+		"clearing navigation did not clear target")
+	_check(loaded.mark_arrived(bunker) and loaded.is_visited(bunker) and loaded.active_target_id.is_empty(),
+		"generic arrival/visit did not work for second target")
+	loaded.select_target(bunker)
+	_check(loaded.mark_arrived(bunker) and loaded.active_target_id.is_empty(),
+		"arriving at active Battery Osceola did not clear its marker")
+	loaded.free()
+
+	## R remains a *home* shortcut, never a generic next-target cycler.
+	bearings.recall()
+	_check(bearings.active_target_id == shelter, "recall with another target must select home")
+	bearings.recall()
+	_check(not bearings.has_active_target(), "recall with home selected must clear home")
+	strip.free()
+	player.free()
+	camera.free()
 	bearings.free()
 
 
