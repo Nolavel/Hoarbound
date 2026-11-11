@@ -281,6 +281,10 @@ var _fader := TpsCameraFader.new()
 var _capsule: CollisionShape3D
 var _input_systems: InputSystemsService
 var _user_mouse_sensitivity_multiplier: float = 1.0
+var _user_stick_sensitivity_multiplier: float = 1.0
+var _user_distance_scale: float = 1.0
+var _user_fov_offset: float = 0.0
+var _user_left_shoulder: bool = false
 var _user_invert_y: bool = false
 var _last_eye_distance: float = INF
 ## FOV this camera added for a doorway; others may set the base FOV meanwhile.
@@ -350,6 +354,16 @@ func reload_user_settings() -> void:
 	var values: Dictionary = CAMERA_USER_SETTINGS.load_camera()
 	_user_mouse_sensitivity_multiplier = float(values["mouse_sensitivity_multiplier"])
 	_user_invert_y = bool(values["invert_y"])
+	_user_stick_sensitivity_multiplier = float(values["stick_sensitivity_multiplier"])
+	_user_distance_scale = float(values["distance_scale"])
+	## The player's lens rides on the authored one; the pressed-boom widening rides on both.
+	fov += float(values["fov_offset_deg"]) - _user_fov_offset
+	_user_fov_offset = float(values["fov_offset_deg"])
+	## A default, not a lock: it moves the camera only when the choice itself changes.
+	if bool(values["left_shoulder"]) != _user_left_shoulder:
+		_user_left_shoulder = bool(values["left_shoulder"])
+		if _shoulder.is_right() == _user_left_shoulder:
+			_shoulder.toggle()
 
 
 ## Runs every rendered frame: look is applied as it arrives, Henry is followed
@@ -568,7 +582,7 @@ func _update_rig(delta: float) -> void:
 	frame.view_yaw = get_view_yaw()
 	frame.view_pitch = get_view_pitch_deg()
 	_update_aim(delta)
-	frame.want = (_boom + _rig_follow.get_pullback()) * _look_up_scale(frame.view_pitch) * lerpf(1.0, aim_boom_scale, _aim)
+	frame.want = (_boom + _rig_follow.get_pullback()) * _look_up_scale(frame.view_pitch) * lerpf(1.0, aim_boom_scale, _aim) * _user_distance_scale
 	var roominess: float = clampf(inverse_lerp(near_distance, far_distance, _boom), 0.0, 1.0)
 	var shoulder_now: float = _shoulder.update(delta)
 	shoulder_now *= _rig_swap.update(frame, shoulder_now)
@@ -620,7 +634,7 @@ func _update_direct_rig(delta: float) -> void:
 	frame.lift = 0.0
 	frame.framing = 0.0
 	_update_aim(delta)
-	frame.want = (_boom + _rig_follow.get_pullback()) * _look_up_scale(frame.view_pitch) * lerpf(1.0, aim_boom_scale, _aim)
+	frame.want = (_boom + _rig_follow.get_pullback()) * _look_up_scale(frame.view_pitch) * lerpf(1.0, aim_boom_scale, _aim) * _user_distance_scale
 	var roominess: float = clampf(inverse_lerp(near_distance, far_distance, _boom), 0.0, 1.0)
 	## Pressed by a wall (last frame's share, so it never feeds itself), the shoulder gives way to the centre.
 	var free: float = smoothstep(direct_squeeze_shares.x, direct_squeeze_shares.y, _rig_collision.get_boom_share())
@@ -922,9 +936,11 @@ func _apply_look_input() -> Vector2:
 	if _input_systems == null:
 		return Vector2.ZERO
 	var look: Vector2 = _input_systems.consume_look_delta()
-	if look.length_squared() > 1e-12:
+	## The stick comes as radians already turned; it shares the mouse's inversion, not its sensitivity.
+	var stick: Vector2 = _input_systems.consume_stick_look() * _user_stick_sensitivity_multiplier
+	if look.length_squared() + stick.length_squared() > 1e-12:
 		_behind_active = false
-	if look.length_squared() > 1e-12 and (_auto_yaw != 0.0 or _auto_pitch_deg != 0.0):
+	if look.length_squared() + stick.length_squared() > 1e-12 and (_auto_yaw != 0.0 or _auto_pitch_deg != 0.0):
 		_yaw = get_view_yaw()
 		_pitch_deg = get_view_pitch_deg()
 		_clear_auto_look()
@@ -939,6 +955,8 @@ func _apply_look_input() -> Vector2:
 		* pitch_sensitivity_ratio
 		* y_sign
 	)
+	yaw_step -= stick.x * x_sign
+	pitch_step -= rad_to_deg(stick.y) * y_sign
 	## The direct rig never slows the mouse: a camera that comes close fades Henry instead.
 	if not direct_rig:
 		yaw_step *= _body_guard(yaw_step, 0.0)
@@ -968,7 +986,7 @@ func _apply_look_input() -> Vector2:
 		var bounded: Vector2 = _rig_work.clamp_look(Vector2(_yaw, _pitch_deg))
 		_yaw = bounded.x
 		_pitch_deg = bounded.y
-	return look
+	return look + stick
 
 
 ## Moves `value` up by `step` toward a soft stop at `limit`: free until `knee` short of

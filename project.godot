@@ -770,6 +770,50 @@ switch_shoulder={
 "script": null
 )]
 }
+look_left={
+"deadzone": 0.05,
+"events": [Object(InputEventJoypadMotion,
+"resource_local_to_scene": false,
+"resource_name": "",
+"device": -1,
+"axis": 2,
+"axis_value": -1.0,
+"script": null
+)]
+}
+look_right={
+"deadzone": 0.05,
+"events": [Object(InputEventJoypadMotion,
+"resource_local_to_scene": false,
+"resource_name": "",
+"device": -1,
+"axis": 2,
+"axis_value": 1.0,
+"script": null
+)]
+}
+look_up={
+"deadzone": 0.05,
+"events": [Object(InputEventJoypadMotion,
+"resource_local_to_scene": false,
+"resource_name": "",
+"device": -1,
+"axis": 3,
+"axis_value": -1.0,
+"script": null
+)]
+}
+look_down={
+"deadzone": 0.05,
+"events": [Object(InputEventJoypadMotion,
+"resource_local_to_scene": false,
+"resource_name": "",
+"device": -1,
+"axis": 3,
+"axis_value": 1.0,
+"script": null
+)]
+}
 camera_behind={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,
@@ -788,6 +832,14 @@ camera_behind={
 "unicode": 118,
 "location": 0,
 "echo": false,
+"script": null
+), Object(InputEventJoypadButton,
+"resource_local_to_scene": false,
+"resource_name": "",
+"device": -1,
+"button_index": 8,
+"pressure": 0.0,
+"pressed": true,
 "script": null
 )]
 }

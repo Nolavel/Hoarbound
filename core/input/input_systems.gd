@@ -69,6 +69,7 @@ const ACTION_LEAN_LEFT: StringName = &"lean_left"
 const ACTION_LEAN_RIGHT: StringName = &"lean_right"
 const ACTION_SWITCH_SHOULDER: StringName = &"switch_shoulder"
 const ACTION_CAMERA_BEHIND: StringName = &"camera_behind"
+const LOOK_ACTIONS: Array[StringName] = [&"look_left", &"look_right", &"look_up", &"look_down"]
 ## Radians of camera turn per pixel of mouse travel.
 const MOUSE_SENSITIVITY: float = 0.003
 
@@ -80,6 +81,8 @@ var _look_accum: Vector2 = Vector2.ZERO
 var _look_capture: bool = false
 var _shoulder_latch: bool = false
 var _behind_latch: bool = false
+var _stick_look := StickLook.new()
+var _stick_accum: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -93,6 +96,15 @@ func _ready() -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and _look_capture and not _is_gameplay_blocked():
 		_look_accum += (event as InputEventMouseMotion).screen_relative * MOUSE_SENSITIVITY
+
+
+## The look stick turns at a speed, so it is integrated per rendered frame beside the mouse's travel.
+func _process(delta: float) -> void:
+	if not _look_capture or _is_gameplay_blocked() or not InputMap.has_action(LOOK_ACTIONS[0]):
+		_stick_look.reset()
+		return
+	var raw: Vector2 = Input.get_vector(LOOK_ACTIONS[0], LOOK_ACTIONS[1], LOOK_ACTIONS[2], LOOK_ACTIONS[3], 0.0)
+	_stick_accum += _stick_look.update(raw, delta) * delta
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -279,6 +291,18 @@ func consume_look_delta() -> Vector2:
 	var delta: Vector2 = Vector2.ZERO if _is_gameplay_blocked() else _look_accum
 	_look_accum = Vector2.ZERO
 	return delta
+
+
+## Stick look since the last call, in radians (x right, y down); the look camera is its one reader.
+func consume_stick_look() -> Vector2:
+	var turn: Vector2 = Vector2.ZERO if _is_gameplay_blocked() else _stick_accum
+	_stick_accum = Vector2.ZERO
+	return turn
+
+
+## The curve of the look stick, for settings and tuning.
+func get_stick_look() -> StickLook:
+	return _stick_look
 
 
 ## A mouse-look camera asks for the pointer; menus get it back while open.

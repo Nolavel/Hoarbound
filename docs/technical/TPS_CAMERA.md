@@ -62,6 +62,16 @@ Mistakes*):
   `behind_pitch_deg`; any mouse motion takes the view back at once (`test_tps_camera_behind`). Nothing recentres
   without the key.
 
+- **Look stick.** The pad's right stick turns the view through `StickLook` (`core/input/stick_look.gd`): a
+  radial dead zone (0.15, rim 0.95), speed = travel² for fine aim, 200°/s yaw and 120°/s pitch at full travel,
+  and up to +60 % after 0.2 s held at the rim. `InputSystems` integrates it per rendered frame; it shares the
+  mouse's Y inversion but has its own sensitivity. Only look and `camera_behind` (R3) are on the pad: walking
+  and the other actions have no pad bindings yet.
+- **Player settings** (`CameraUserSettings`, the Settings panel): mouse and stick sensitivity (25..200 %),
+  field of view (-10..+15° on the authored lens), camera distance (75..130 % of the boom), camera over the left
+  shoulder by default, invert Y. `TpsCamera.reload_user_settings()` applies them; the default shoulder moves
+  the camera only when the choice itself changes, so it never undoes a swap made in play.
+
 Doorway trace on the direct rig, D1 of the 727 (`test_doorway_camera_direct`), before and after the warnings:
 
 | | Before | After |
