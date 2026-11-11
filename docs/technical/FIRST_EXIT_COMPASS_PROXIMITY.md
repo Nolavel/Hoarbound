@@ -7,23 +7,21 @@ Owner design decision: 2026-11-11, extending issue #293. Applicable **only** to 
 
 The tape still follows camera yaw (not Henry's body) and reveals the bearing to a **known** place. The player still selects their own route through road, shore and ruins; no route choice, street turn, map reveal, numerical meters or pathfinding is exposed. Proximity is *Euclidean XZ distance to the canonical Fort Street entrance bearing anchor*; it is **not** proof of path accessibility or of an entrance through a wall.
 
-Two separate signals:
-1. **Proximity**: persistent word below the marker and its pigment. COLD / WARM / HOT (Russian locale: ХОЛОДНО / ТЕПЛО / ГОРЯЧО). Color is never the sole carrier.
-2. **Progress**: brief signed feedback when Henry has actually changed distance by >= 8 m; approach = 8% increase then settle, retreat = 8% decrease then settle. No pop for camera rotation, idle or small sideways steps. No endless pulsing or numerical display.
+One status word, five possible values. Color and ring cadence always describe absolute proximity; the single status word describes the current most useful message. Normally COLD / WARM / HOT; a validated movement event temporarily replaces it with WARMER / COLDER (RU ХОЛОДНО / ТЕПЛО / ГОРЯЧО / ТЕПЛЕЕ / ХОЛОДНЕЕ). Never display both proximity and trend words together. The 727 identifier stays separate.
 
-Current layout keeps the thin compass and one '727' marker; an on-strip diamond becomes an edge chevron beyond ±50°. Words stay clamped inside the 400 px compass area. Hub/Tab and pickup suppression remain handled by `GameplayUI`.
+The tape retains its bearing, circular marker and edge chevron beyond ±50°. Hub/Tab and pickup suppression remain handled by `GameplayUI`.
 
 ## Tuning defaults (NOT canonical geography)
 
 | Proximity | Enter while approaching | Leave while retreating | Pigment |
 | --- | --- | --- | --- |
-| COLD | > 295 m after warm | WARM at <= 280 m | `#8999A0` |
-| WARM | <= 280 m | COLD at >= 295 m; HOT at <= 65 m | `#C9A05F` |
-| HOT | <= 65 m | WARM at >= 75 m | `#DE7950` |
+| COLD | > 295 m after warm | WARM at <= 280 m | `#B2C1BF` |
+| WARM | <= 280 m | COLD at >= 295 m; HOT at <= 65 m | `#E1B777` |
+| HOT | <= 65 m | WARM at >= 75 m | `#F0A177` |
 
 Initial target selection evaluates current distance directly (no stale default state); large teleports do likewise. Level transitions have hysteresis. Color blends with 0.5 s exponential time constant.
 
-Separate time constants: compass tape 0.08 s (unchanged), marker 0.22 s; max marker yaw lag 8°. A latch within ±8° around the directly-behind angle prevents side-chevrons from flickering at ±180°. Pulse lasts 0.65 s. Proximity sampling runs in the world owner every 0.25 s; trend pulses require >= 8 m net distance change and have a 6 s cooldown. Distance accrued during cooldown is discarded at its end to prevent stale pulses. These numbers are deliberately **initial A/B parameters** for Claude.
+Separate time constants: compass tape 0.08 s (unchanged), marker 0.22 s; max marker yaw lag 8°. A latch within ±8° around the directly-behind angle prevents side-chevrons from flickering at ±180°. Movement ring lasts 0.95 s. Proximity sampling is 4 Hz. A validated 8 m directional change earns a movement word for at most 2.5 s. Same-direction repeats have a 6 s cooldown; progress earned during repeat cooldown is discarded, not replayed. Reversal of 0.75 m from the current radial extreme cancels the old word immediately at the next sample; the opposite word requires 8 m of new progress and ignores the previous direction's cooldown. Radial idle (<=0.32 m/s for 0.5 s) cancels the word, even when walking tangentially. Band changes cancel progress and have 1.25 s reading priority; progress restarts after the hold. These are tuning candidates for Claude.
 
 ## Code / responsibilities
 
@@ -33,18 +31,18 @@ Separate time constants: compass tape 0.08 s (unchanged), marker 0.22 s; max mar
 - `first_exit_landmarks.geojson` continues to supply `bearing_local_xz` (Fort Street entrance); loaded world chunks do not determine bearing.
 - Changing the active target, loading a save, or teleporting resets transient proximity/trend. `known`, `visited`, `active_target_id`, R recall and arrival clearing retain their existing save/lifecycle semantics.
 
-## Acceptance for Claude (CI unavailable / no Actions budget)
+## Acceptance for Claude (lightweight CI + real-world review)
 
 1. Godot 4.x project import / script parse and `tests/systems/test_first_exit_bearings.gd` headless run, including new threshold/hysteresis/trend/cooldown/reset checks. Green checks are not sufficient for visual acceptance.
 2. In real `scenes/world/key_west/key_west_reality.tscn`, launch the scenario with `spawn_at_shelter=false` (capture-only override). Battery Osceola starts around 620 m from 727: COLD + valid bearing. Travel toward 727: approach feedback before WARM; crossing 280 m changes color/word; 65 m changes to HOT; no completion by distance alone.
-3. Walk away > 8 m after cooldown: retreat feedback. Move sideways < 8 m net, rotate camera or stand still: *no* progress pulse.
+3. Reverse while WARMER is visible: cancel after 0.75 m radial reversal, then show COLDER after 8 m without waiting for the previous direction cooldown. Stop or move tangentially: return to the band word within 0.5 s of radial idle. Move sideways < 8 m net, rotate camera or stand still: *no* progress pulse.
 4. Cross thresholds back and forth, including 280/295 and 65/75 m. No state flicker; no color/text contradiction. Test respawn/teleport and loading a save near 727: no giant fake progress event.
 5. Rotate past yaw 359→0°, through ±50° visible boundaries, and exactly behind ±180°. Marker never disappears, jumps erratically or reports the wrong side from tiny camera jitter. Check marker vs tape lag during fast turn, with its <= 8° upper bound.
 6. On actual entry into 727, mark clears even though HOT was displayed earlier; leaving does not re-arm; R recalls an already-known location. Validate new-world save/load after visit and with manually re-marked home.
 7. Inspect 960x540 and 1920x1080 (blizzard-white snow, dim 727), both English and Russian locale if available: text legible, edge chevron and label unclipped, no overlap with temperature, HUD, pickup feedback, no blue glare.
 8. Check no active target still yields plain N/E/S/W tape, Hub/Tab suppresses layer, pickup suppresses layer, other world profiles do not grow this navigation system.
 
-Existing capture harness `tools/runtime/capture_compass_preview.gd` and existing `.github/workflows/` checks should be reused **when the owner restores Actions budget**; do not create or dispatch another pipeline as part of this change. Claude may execute local engine tests and provide screenshots/video separately.
+Existing capture harness `tools/runtime/capture_compass_preview.gd` and existing `.github/workflows/` checks should be reused **for real-scene acceptance**; do not create or dispatch another pipeline as part of this change. Claude may execute local engine tests and provide screenshots/video separately.
 
 ## Refusal criteria / risks
 
@@ -57,10 +55,10 @@ The persistent `codex` branch had diverged significantly from `main` before this
 
 ## Artistic revision, owner feedback (2026-11-11)
 
-The initial marker was visually rejected as flat and lacking the movement words. The replacement UI has **two simultaneous text channels**: always-visible proximity (COLD / WARM / HOT; RU ХОЛОДНО / ТЕПЛО / ГОРЯЧО), plus a 2.5-second transient movement word on actual progress (WARMER / COLDER; RU ТЕПЛЕЕ / ХОЛОДНЕЕ), independent of the persistent proximity band. Progress is still based on >=8 m movement and 6 s cooldown.
+The initial marker was visually rejected as flat. A later two-word prototype was also rejected: the approved interaction is **one word at a time**, with absolute proximity conveyed by color and ring cadence even when a transient movement word replaces it. Crossing a band wins over progress; stop, reversal, recall, load and teleport invalidate stale words.
 
 The central marker is now a small drawn circle with an ink-outline and dot, a faint soft halo, **periodic expanding/fading ring** (cold period 5.8 s, warm 3.8 s, hot 2.6 s) and one-shot outward approach / inward retreat ripples. Off-strip direction remains a clear chevron beside the circle. No perpetual attention-grabbing scale pumping. Color palette moved from muted grey to higher-contrast mineral chalk `#B2C1BF`, honey `#E1B777` and warm copper `#F0A177`, avoiding status-danger red.
 
 Typography: `IMFellEnglishSC-Regular.ttf` (project default) for 727/cardinals, `AveriaLibre-Bold.ttf` for English proximity, `SpecialElite-Regular.ttf` for English movement feedback. The fonts in `assets/fonts` are **Latin-only** (verified cmap), so a temporary engine fallback draws Cyrillic, rather than rendering missing glyph boxes. Follow-up artwork can supply a native Cyrillic-capable companion if Russian becomes a shipping locale.
 
-Quick visual gate produces five cheap real Godot Control PNGs, including a Russian `ХОЛОДНЕЕ` retreat case, plus focused headless tests; it does not verify full-world visibility or motion feel. Claude remains responsible for production scene acceptance.
+Quick visual gate produces six cheap real Godot Control PNGs, including a Russian `ХОЛОДНЕЕ` retreat case, plus focused headless tests; it does not verify full-world visibility or motion feel. Claude remains responsible for production scene acceptance.

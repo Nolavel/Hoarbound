@@ -3,7 +3,7 @@ extends SceneTree
 ## Lightweight real CompassStrip capture: no Key West chunks, Vulkan, world 3D or ffmpeg.
 ## Executed only by an explicitly tagged push on codex, using the existing checks workflow.
 ## Writes six 960x180 PNGs with actual production Control._draw() output.
-## Static captures include both proximity and the transient WARMER/COLDER feedback.
+## Each capture shows exactly one status word (absolute or movement).
 
 const OUT_SIZE := Vector2i(960, 180)
 var _failed: bool = false
@@ -89,7 +89,6 @@ func _capture() -> void:
 		## Runtime animation remains untouched; only capture clock is adjusted.
 		if bool(entry["pulse"]):
 			strip._pulse_elapsed = 0.42
-			strip._text_signal_age = 0.42
 			strip.queue_redraw()
 			await process_frame
 			await process_frame
@@ -103,10 +102,10 @@ func _capture() -> void:
 				push_error("COMPASS_QUICK: expected movement event " + str(entry["file"]))
 				_failed = true
 			var expected_text: String = ("ХОЛОДНЕЕ" if is_retreat else "ТЕПЛЕЕ") if bool(entry.get("ru", false)) else ("COLDER" if is_retreat else "WARMER")
-			if strip._trend_text() != expected_text:
-				push_error("COMPASS_QUICK: missing trend text " + str(entry["file"]))
+			if strip._display_word() != expected_text:
+				push_error("COMPASS_QUICK: wrong sole trend word " + str(entry["file"]))
 				_failed = true
-		elif strip._text_signal_age < CompassStrip.TREND_TEXT_SEC:
+		elif strip._display_word() != strip._proximity_text() or not strip._trend_text().is_empty():
 			push_error("COMPASS_QUICK: stale trend text " + str(entry["file"]))
 			_failed = true
 		var picture: Image = viewport.get_texture().get_image()

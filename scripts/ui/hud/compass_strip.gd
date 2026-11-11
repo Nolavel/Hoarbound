@@ -28,7 +28,6 @@ const MARKER_MAX_LAG_RAD: float = PI * 8.0 / 180.0
 const REAR_LOCK_RAD: float = PI * 8.0 / 180.0
 const COLOR_SMOOTH_SEC: float = 0.5
 const PULSE_DURATION_SEC: float = 0.95
-const TREND_TEXT_SEC: float = 2.5
 const RING_EXPAND_SEC: float = 1.25
 const RING_EVENT_SEC: float = 0.95
 const COLD_RHYTHM_SEC: float = 5.8
@@ -41,7 +40,6 @@ var _bearings: FirstExitBearings
 var _shown: float = 0.0
 var _have_bearing: bool = false
 var _ambient_clock: float = 0.0
-var _text_signal_age: float = TREND_TEXT_SEC
 var _last_proximity: int = -1
 var _marker_rel: float = 0.0
 var _have_marker: bool = false
@@ -68,7 +66,6 @@ func on_world_ready(context: WorldContext) -> void:
 	_marker_target_id = ""
 	_rear_edge = 0
 	_ambient_clock = 0.0
-	_text_signal_age = TREND_TEXT_SEC
 	_last_proximity = -1
 
 
@@ -92,7 +89,6 @@ func _tick_marker(delta: float) -> void:
 		_marker_target_id = ""
 		_rear_edge = 0
 		_pulse_elapsed = PULSE_DURATION_SEC
-		_text_signal_age = TREND_TEXT_SEC
 		_last_proximity = -1
 		return
 	var from := Vector2(_player.global_position.x, _player.global_position.z)
@@ -111,7 +107,6 @@ func _tick_marker(delta: float) -> void:
 		_have_marker = true
 		_rear_edge = 0
 		_pulse_elapsed = PULSE_DURATION_SEC
-		_text_signal_age = TREND_TEXT_SEC
 		_pulse_trend = FirstExitBearings.Trend.STABLE
 		_seen_trend_serial = _bearings.trend_serial
 	else:
@@ -125,15 +120,13 @@ func _tick_marker(delta: float) -> void:
 		## remains unchanged. Never keep the old direction word after reload.
 		if _bearings.trend_state == FirstExitBearings.Trend.STABLE:
 			_pulse_elapsed = PULSE_DURATION_SEC
-			_text_signal_age = TREND_TEXT_SEC
 			_pulse_trend = FirstExitBearings.Trend.STABLE
 		if _seen_trend_serial != _bearings.trend_serial:
 			_seen_trend_serial = _bearings.trend_serial
-			_pulse_trend = int(_bearings.trend_state)
-			_pulse_elapsed = 0.0
-			_text_signal_age = 0.0
+			if _bearings.trend_state != FirstExitBearings.Trend.STABLE:
+				_pulse_trend = int(_bearings.trend_state)
+				_pulse_elapsed = 0.0
 	_pulse_elapsed = minf(PULSE_DURATION_SEC, _pulse_elapsed + delta)
-	_text_signal_age = minf(TREND_TEXT_SEC, _text_signal_age + delta)
 	_ambient_clock += delta
 	## Keep an off-strip side stable at +/-180 degrees (target exactly behind).
 	if absf(_marker_rel) < PI - REAR_LOCK_RAD:
@@ -163,12 +156,18 @@ func _proximity_text() -> String:
 
 
 func _trend_text() -> String:
-	if _pulse_trend == FirstExitBearings.Trend.STABLE:
+	if _bearings.trend_state == FirstExitBearings.Trend.STABLE:
 		return ""
 	var ru: bool = TranslationServer.get_locale().begins_with("ru")
-	if _pulse_trend == FirstExitBearings.Trend.APPROACHING:
+	if _bearings.trend_state == FirstExitBearings.Trend.APPROACHING:
 		return "ТЕПЛЕЕ" if ru else "WARMER"
 	return "ХОЛОДНЕЕ" if ru else "COLDER"
+
+
+## Only this single word is drawn. Color/rhythm remain absolute proximity.
+func _display_word() -> String:
+	var movement: String = _trend_text()
+	return _proximity_text() if movement.is_empty() else movement
 
 
 func _rhythm_sec() -> float:
@@ -314,21 +313,12 @@ func _draw_marker(x0: float, width: float, base_y: float, slot: Dictionary) -> v
 		draw_polyline(chevron, Color(0.04, 0.04, 0.04, 0.80), 3.5)
 		draw_polyline(chevron, color, 1.5, true)
 
-	## Hoarbound typography hierarchy: old-style serif identifier,
-	## heavier hand-worn proximity, quieter transient search feedback.
+	## One search word, one baseline. The landmark identifier is not a
+	## second status. No cross-fade that can show two words at once.
 	var label: String = _bearings.active_label()
 	_marker_text(label, Vector2(x, base_y - 30.0), 21, color, 0)
-	var proximity: String = _proximity_text()
-	_marker_text(proximity, Vector2(x, base_y + 44.0), 16, color, 1)
-	if _text_signal_age < TREND_TEXT_SEC:
-		var trend_word: String = _trend_text()
-		if trend_word != "":
-			var fade: float = 1.0
-			if _text_signal_age > TREND_TEXT_SEC - 0.65:
-				fade = (TREND_TEXT_SEC - _text_signal_age) / 0.65
-			var signal_color: Color = color
-			signal_color.a *= 0.96 * clampf(fade, 0.0, 1.0)
-			_marker_text(trend_word, Vector2(x, base_y + 64.0), 15, signal_color, 2)
+	var style: int = 1 if _bearings.trend_state == FirstExitBearings.Trend.STABLE else 2
+	_marker_text(_display_word(), Vector2(x, base_y + 44.0), 16, color, style)
 
 
 func _marker_text(value: String, mid: Vector2, font_px: int, color: Color, style: int) -> void:
