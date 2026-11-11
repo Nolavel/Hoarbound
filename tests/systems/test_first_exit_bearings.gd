@@ -15,6 +15,8 @@ func _process(_delta: float) -> bool:
 func _run() -> void:
 	_check_bearings()
 	_check_slot()
+	_check_proximity()
+	_check_search_semantics()
 	_check_camera()
 	_check_catalog()
 	_check_lifecycle()
@@ -47,6 +49,109 @@ func _check_slot() -> void:
 	_check(not bool(past["on_strip"]) and int(past["edge"]) == 1, "just outside 50 degrees did not pin right")
 	var behind: Dictionary = FirstExitBearings.marker_slot(deg_to_rad(-120.0))
 	_check(not bool(behind["on_strip"]) and int(behind["edge"]) == -1, "a target behind did not pin left")
+
+
+func _check_proximity() -> void:
+	var bearings := FirstExitBearings.new()
+	bearings.begin_play(true)
+	bearings._sample_distance(360.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.COLD, "360 m not cold")
+	bearings._sample_distance(280.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.WARM, "280 m not warm")
+	bearings._sample_distance(290.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.WARM, "warm changed inside hysteresis")
+	bearings._sample_distance(295.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.COLD, "295 m not cold")
+	bearings._sample_distance(60.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.HOT, "60 m not hot")
+	bearings._sample_distance(70.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.HOT, "hot changed inside hysteresis")
+	bearings._sample_distance(75.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.WARM, "75 m not warm")
+	bearings._reset_proximity_feedback()
+	bearings._sample_distance(360.0, 0.25)
+	var before: int = bearings.trend_serial
+	bearings._sample_distance(357.0, 0.25)
+	_check(bearings.trend_serial == before, "under 8 m caused feedback")
+	bearings._sample_distance(351.0, 0.25)
+	_check(bearings.trend_serial == before + 1 and bearings.trend_state == FirstExitBearings.Trend.APPROACHING,
+		"approaching by 9 m did not pulse")
+	bearings._sample_distance(330.0, 0.25)
+	_check(bearings.trend_serial == before + 1, "cooldown let extra pulse through")
+	bearings._sample_distance(329.0, 6.0)
+	_check(bearings.trend_serial == before + 1, "cooldown replayed stale movement")
+	bearings._sample_distance(338.0, 0.25)
+	_check(bearings.trend_serial == before + 2 and bearings.trend_state == FirstExitBearings.Trend.MOVING_AWAY,
+		"moving away by 9 m did not pulse")
+	bearings.recall()
+	_check(not bearings.has_active_target(), "recall did not clear target for proximity")
+	_check(bearings.trend_state == FirstExitBearings.Trend.STABLE, "recall kept old trend")
+	bearings._sample_distance(10.0, 0.25)
+	_check(not bearings._proximity_initialized, "no-target sample changed proximity")
+	bearings.recall()
+	bearings._sample_distance(50.0, 0.25)
+	_check(bearings.proximity_state == FirstExitBearings.Proximity.HOT and bearings.trend_serial == before + 2,
+		"recalled target did not initialize silently")
+	bearings.load_save_data(bearings.get_save_data())
+	_check(not bearings._proximity_initialized and bearings.trend_state == FirstExitBearings.Trend.STABLE,
+		"save/load did not reset transient feedback")
+	bearings.free()
+
+
+func _check_search_semantics() -> void:
+	var bearings := FirstExitBearings.new()
+	bearings.begin_play(true)
+	var strip := CompassStrip.new()
+	strip._bearings = bearings
+	var locale: String = TranslationServer.get_locale()
+	TranslationServer.set_locale("ru")
+	bearings._sample_distance(400.0, 0.25)
+	_check(strip._display_word() == "ХОЛОДНО", "initial cold word")
+	bearings._sample_distance(391.0, 0.25)
+	var serial: int = bearings.trend_serial
+	_check(strip._display_word() == "ТЕПЛЕЕ", "approach replaces cold")
+	bearings._sample_distance(391.3, 0.25)
+	_check(strip._display_word() == "ТЕПЛЕЕ", "tiny reversal should not flicker")
+	bearings._sample_distance(392.0, 0.25)
+	_check(strip._display_word() == "ХОЛОДНО", "reversal must cancel warmer before cooldown")
+	bearings._sample_distance(400.0, 0.25)
+	_check(bearings.trend_serial == serial + 1 and strip._display_word() == "ХОЛОДНЕЕ",
+		"opposite direction must bypass repeat cooldown")
+	bearings._sample_distance(400.0, 0.25)
+	bearings._sample_distance(400.0, 0.25)
+	_check(strip._display_word() == "ХОЛОДНО", "stopping must cancel colder within two samples")
+	bearings._sample_distance(409.0, 0.25)
+	_check(bearings.trend_serial == serial + 1, "same direction after stop must respect cooldown")
+
+	bearings._reset_proximity_feedback()
+	bearings._sample_distance(300.0, 0.25)
+	bearings._sample_distance(290.0, 0.25)
+	_check(strip._display_word() == "ТЕПЛЕЕ", "pre-band approach")
+	bearings._sample_distance(280.0, 0.25)
+	_check(strip._display_word() == "ТЕПЛО", "band crossing must override warmer")
+	bearings._sample_distance(270.0, 0.25)
+	_check(strip._display_word() == "ТЕПЛО", "new band needs reading time")
+	bearings._sample_distance(250.0, 1.25)
+	_check(strip._display_word() == "ТЕПЛО", "no delayed event from band hold")
+	bearings._sample_distance(60.0, 0.25)
+	_check(strip._display_word() == "ГОРЯЧО", "hot overrides all progress")
+	bearings._sample_distance(75.0, 0.25)
+	_check(strip._display_word() == "ТЕПЛО", "hot exit shows warm, not colder")
+
+	bearings._reset_proximity_feedback()
+	bearings._sample_distance(400.0, 0.25)
+	bearings._sample_distance(391.0, 0.25)
+	serial = bearings.trend_serial
+	## Continued movement during cooldown cannot keep a stale word alive.
+	for i: int in 10:
+		bearings._sample_distance(390.0 - float(i), 0.25)
+	_check(strip._display_word() == "ХОЛОДНО" and bearings.trend_serial == serial, "word expiry / repeat cooldown")
+	bearings.load_save_data(bearings.get_save_data())
+	bearings._sample_distance(40.0, 0.25)
+	_check(strip._display_word() == "ГОРЯЧО", "load initializes current band without old word")
+	TranslationServer.set_locale(locale)
+	strip.free()
+	bearings.free()
 
 
 func _check_camera() -> void:

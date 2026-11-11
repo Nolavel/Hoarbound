@@ -44,7 +44,7 @@ Expected route:
 
 Battery Osceola and 727 Fort Street are the canonical First Exit endpoints as of the owner decision on 2026-10-10. The former custom Fort Street hut remains in the world but is no longer the primary shelter destination. Issue #211 owns the remaining generator/runtime migration.
 
-The thin First Exit compass (owner 2026-11-09, #293) is in this slice. It shows a camera bearing to 727 and clears on arrival. It is not a route, a distance, or a major HUD redesign.
+The thin First Exit compass (owner 2026-11-09, #293; 2026-11-11 proposed proximity enhancement) is in this slice. It shows a camera bearing to 727, qualitative closeness (cold / warm / hot), and restrained feedback on real approach or retreat. It clears on arrival. It provides neither numeric distance nor GPS route and is not a major HUD redesign. See `docs/technical/FIRST_EXIT_COMPASS_PROXIMITY.md`.
 
 Coastal thin ice is intentionally deferred to a later Coast / Thin Ice slice.
 

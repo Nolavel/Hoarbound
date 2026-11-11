@@ -15,6 +15,46 @@ const SAVE_SCRIPT: GDScript = preload("res://scripts/systems/save/save_manager.g
 const HALF_ARC_RAD: float = TAU / 360.0 * 50.0
 const LABEL_727: String = "727"
 
+## First Exit A proximity is qualitative, not a displayed distance or path.
+## Thresholds are deliberately tuning candidates for the 727 playtest.
+enum Proximity { COLD, WARM, HOT }
+enum Trend { STABLE, APPROACHING, MOVING_AWAY }
+
+const PROXIMITY_SAMPLE_SEC: float = 0.25
+const WARM_ENTER_M: float = 280.0
+const WARM_EXIT_M: float = 295.0
+const HOT_ENTER_M: float = 65.0
+const HOT_EXIT_M: float = 75.0
+const TREND_STEP_M: float = 8.0
+const TREND_COOLDOWN_SEC: float = 6.0
+const TREND_WORD_SEC: float = 2.5
+## Radial motion, not camera heading or total walking speed.
+const RADIAL_IDLE_SPEED_MPS: float = 0.32
+const RADIAL_IDLE_SEC: float = 0.5
+const REVERSAL_M: float = 0.75
+const BAND_PRIORITY_SEC: float = 1.25
+const TELEPORT_STEP_M: float = 30.0
+
+## Renderers can read the current level and event sequence; save data does not.
+var proximity_state: Proximity = Proximity.COLD
+var trend_state: Trend = Trend.STABLE
+var trend_serial: int = 0
+var _proximity_initialized: bool = false
+var _proximity_target_id: String = ""
+var _sample_elapsed: float = 0.0
+var _distance_reference: float = 0.0
+var _has_distance_reference: bool = false
+var _trend_cooldown_left: float = 0.0
+var _trend_word_left: float = 0.0
+var _last_event_direction: int = 0
+var _motion_direction: int = 0 # +1 approach, -1 retreat
+var _motion_extreme: float = 0.0
+var _previous_distance: float = 0.0
+var _radial_idle_elapsed: float = 0.0
+var _band_priority_left: float = 0.0
+var _last_player_xz: Vector2 = Vector2.ZERO
+var _has_last_player_xz: bool = false
+
 var known: Dictionary = {}
 var visited: Dictionary = {}
 var active_target_id: String = ""
@@ -82,6 +122,152 @@ func _is_scenario_start() -> bool:
 	return spawned is Dictionary and (spawned as Dictionary).is_empty()
 
 
+## The authoritative navigation owner samples movement even when the HUD is hidden.
+## Never derive this state from camera yaw, frame rate or the drawn marker.
+func _process(delta: float) -> void:
+	if _player == null or not has_active_target():
+		return
+	if active_target_id != _proximity_target_id:
+		_reset_proximity_feedback()
+	_sample_elapsed += maxf(delta, 0.0)
+	## Sample immediately on a new/loaded target; afterwards keep the 4 Hz cadence.
+	if _proximity_initialized and _sample_elapsed < PROXIMITY_SAMPLE_SEC:
+		return
+	var elapsed: float = _sample_elapsed
+	_sample_elapsed = 0.0
+	var from := Vector2(_player.global_position.x, _player.global_position.z)
+	if _has_last_player_xz and from.distance_to(_last_player_xz) > TELEPORT_STEP_M:
+		## Teleports / respawns must never look like exceptional approach/retreat.
+		_reset_proximity_feedback()
+	_last_player_xz = from
+	_has_last_player_xz = true
+	_sample_distance(from.distance_to(active_xz()), elapsed)
+
+
+## Called only by the owner; public meters are never sent to the HUD.
+## Kept deterministic for headless threshold, cooldown and direction tests.
+func _sample_distance(distance_m: float, elapsed: float) -> void:
+	if not has_active_target() or is_nan(distance_m) or is_inf(distance_m):
+		return
+	var d: float = maxf(distance_m, 0.0)
+	var previous_band: Proximity = proximity_state
+	if not _proximity_initialized:
+		proximity_state = Proximity.HOT if d <= HOT_ENTER_M else Proximity.WARM if d <= WARM_ENTER_M else Proximity.COLD
+		_proximity_initialized = true
+	else:
+		match proximity_state:
+			Proximity.COLD:
+				if d <= HOT_ENTER_M:
+					proximity_state = Proximity.HOT
+				elif d <= WARM_ENTER_M:
+					proximity_state = Proximity.WARM
+			Proximity.WARM:
+				if d <= HOT_ENTER_M:
+					proximity_state = Proximity.HOT
+				elif d >= WARM_EXIT_M:
+					proximity_state = Proximity.COLD
+			Proximity.HOT:
+				if d >= WARM_EXIT_M:
+					proximity_state = Proximity.COLD
+				elif d >= HOT_EXIT_M:
+					proximity_state = Proximity.WARM
+
+	## One authoritative, expiring movement message. Repeat cooldown applies
+	## to the SAME direction only; it must not conceal a genuine reversal.
+	var dt: float = maxf(elapsed, 0.0)
+	var cooldown_was_active: bool = _trend_cooldown_left > 0.0
+	_trend_cooldown_left = maxf(0.0, _trend_cooldown_left - dt)
+	_trend_word_left = maxf(0.0, _trend_word_left - dt)
+	if _trend_word_left <= 0.0:
+		trend_state = Trend.STABLE
+	if not _has_distance_reference:
+		_reanchor_motion(d)
+		_has_distance_reference = true
+		return
+
+	var step: float = _previous_distance - d
+	_previous_distance = d
+
+	## A new band always wins over a same-sample movement event. Hold it
+	## long enough to read, and start fresh after the priority interval.
+	if previous_band != proximity_state:
+		_cancel_trend()
+		_band_priority_left = BAND_PRIORITY_SEC
+		_reanchor_motion(d)
+		return
+	if _band_priority_left > 0.0:
+		_band_priority_left = maxf(0.0, _band_priority_left - dt)
+		_reanchor_motion(d)
+		return
+
+	if absf(step) <= RADIAL_IDLE_SPEED_MPS * dt:
+		_radial_idle_elapsed += dt
+		if _radial_idle_elapsed >= RADIAL_IDLE_SEC:
+			_cancel_trend()
+			_reanchor_motion(d)
+		return
+	_radial_idle_elapsed = 0.0
+
+	var direction: int = 1 if step > 0.0 else -1
+	if _motion_direction == 0:
+		_motion_direction = direction
+		_motion_extreme = _distance_reference
+	if direction == _motion_direction:
+		_motion_extreme = minf(_motion_extreme, d) if direction > 0 else maxf(_motion_extreme, d)
+	else:
+		## Ignore tiny radial jitter, but invalidate the old word as soon
+		## as a meaningful reversal is observed (even during cooldown).
+		if absf(d - _motion_extreme) < REVERSAL_M:
+			return
+		_cancel_trend()
+		_motion_direction = direction
+		_distance_reference = _motion_extreme
+		_motion_extreme = d
+
+	if direction == _last_event_direction and cooldown_was_active:
+		## Drop progress earned during repeat cooldown; do not replay it.
+		_distance_reference = d
+		return
+
+	var progress: float = (_distance_reference - d) * float(direction)
+	if progress >= TREND_STEP_M:
+		trend_state = Trend.APPROACHING if direction > 0 else Trend.MOVING_AWAY
+		trend_serial += 1
+		_last_event_direction = direction
+		_trend_cooldown_left = TREND_COOLDOWN_SEC
+		_trend_word_left = TREND_WORD_SEC
+		_distance_reference = d
+
+
+func _cancel_trend() -> void:
+	trend_state = Trend.STABLE
+	_trend_word_left = 0.0
+
+
+func _reanchor_motion(d: float) -> void:
+	_distance_reference = d
+	_previous_distance = d
+	_motion_extreme = d
+	_motion_direction = 0
+	_radial_idle_elapsed = 0.0
+
+
+func _reset_proximity_feedback() -> void:
+	_proximity_target_id = active_target_id
+	proximity_state = Proximity.COLD
+	trend_state = Trend.STABLE
+	_proximity_initialized = false
+	_has_distance_reference = false
+	_trend_cooldown_left = 0.0
+	_trend_word_left = 0.0
+	_last_event_direction = 0
+	_motion_direction = 0
+	_radial_idle_elapsed = 0.0
+	_band_priority_left = 0.0
+	_sample_elapsed = 0.0
+	_has_last_player_xz = false
+
+
 func shelter_id() -> String:
 	_ensure_catalog()
 	return _shelter_id
@@ -146,6 +332,7 @@ func recall() -> void:
 	if _shelter_id == "" or not known.has(_shelter_id):
 		return
 	active_target_id = "" if active_target_id == _shelter_id else _shelter_id
+	_reset_proximity_feedback()
 	bearings_changed.emit()
 
 
@@ -186,6 +373,7 @@ func load_save_data(data: Dictionary) -> void:
 	intro_assigned = bool(data.get("intro_assigned", false)) or not visited.is_empty()
 	var active: String = String(data.get("active_target_id", ""))
 	active_target_id = active if active != "" and known.has(active) else ""
+	_reset_proximity_feedback()
 	bearings_changed.emit()
 
 
@@ -197,6 +385,7 @@ func apply_absent_save() -> void:
 	visited.clear()
 	_grant_shelter()
 	active_target_id = ""
+	_reset_proximity_feedback()
 	intro_assigned = true
 	_inside_727 = false
 	bearings_changed.emit()
@@ -223,6 +412,7 @@ func _assign_intro() -> void:
 	if _shelter_id == "" or not known.has(_shelter_id):
 		return
 	active_target_id = _shelter_id
+	_reset_proximity_feedback()
 	intro_assigned = true
 	bearings_changed.emit()
 
@@ -235,6 +425,7 @@ func _arrive_727() -> void:
 	_mark_visited(_shelter_id)
 	if active_target_id == _shelter_id:
 		active_target_id = ""
+		_reset_proximity_feedback()
 	intro_assigned = true
 	bearings_changed.emit()
 
