@@ -313,14 +313,14 @@ func _draw_marker(x0: float, width: float, base_y: float, slot: Dictionary) -> v
 	var proximity: String = _proximity_text()
 	_marker_text(proximity, Vector2(x, base_y + 29.0), 16, color, 1)
 	if _text_signal_age < TREND_TEXT_SEC:
-		var signal: String = _trend_text()
-		if signal != "":
+		var trend_word: String = _trend_text()
+		if trend_word != "":
 			var fade: float = 1.0
 			if _text_signal_age > TREND_TEXT_SEC - 0.65:
 				fade = (TREND_TEXT_SEC - _text_signal_age) / 0.65
 			var signal_color: Color = color
 			signal_color.a *= 0.96 * clampf(fade, 0.0, 1.0)
-			_marker_text(signal, Vector2(x, base_y + 48.0), 15, signal_color, 2)
+			_marker_text(trend_word, Vector2(x, base_y + 48.0), 15, signal_color, 2)
 
 
 func _marker_text(value: String, mid: Vector2, font_px: int, color: Color, style: int) -> void:
