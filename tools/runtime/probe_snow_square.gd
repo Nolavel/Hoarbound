@@ -18,10 +18,16 @@ func _run() -> void:
 	var shell := SnowShell.active as DeterministicSnowShell
 	for node: Node in _world.find_children("*", "CanvasLayer", true, false):
 		(node as CanvasLayer).visible = false
-	_place()
-	await _wait_streamed()
-	shell.recentre_to(Vector2(_player.global_position.x, _player.global_position.z))
-	await _wait_frames(30)
+	var from_shelter: bool = OS.get_cmdline_user_args().has("shelter")
+	if from_shelter:
+		## The game's own start: the 727 spawn, no forced recentre (World.spawn_at_shelter).
+		await _wait_frames(600)
+		_yaw = _player.global_rotation.y + PI
+	else:
+		_place()
+		await _wait_streamed()
+		shell.recentre_to(Vector2(_player.global_position.x, _player.global_position.z))
+		await _wait_frames(30)
 	if _camera.has_method(&"set_look"):
 		_camera.call(&"set_look", _yaw, -16.0)
 	Input.action_press(&"move_forward", 1.0)
@@ -61,5 +67,6 @@ func _run() -> void:
 	for c: Vector2 in [shell.field.origin, shell.field.origin + Vector2(shell.window_m, shell.window_m)]:
 		corners.append(cam.unproject_position(Vector3(c.x, p.y, c.y)))
 	print("SNOW_SQUARE_CORNERS %s" % [corners])
+	print("SNOW_SQUARE start=%s" % ("shelter" if from_shelter else "street"))
 	print("SNOW_SQUARE origin=%s window=%.1f henry=%s near_half=%.2f" % [shell.field.origin, shell.window_m, p, shell.near_half_m])
 	quit(0)
