@@ -24,7 +24,6 @@ var _inventory: InventoryComponent
 var _caption: Label
 var _status: Label
 var _report: Array[String] = []
-var _max_pickup_weight: float = 0.0
 var _segment: String = ""
 var _aim_point: Vector3 = Vector3.ZERO
 var _hammer: HammerComponent
@@ -57,7 +56,6 @@ func _run() -> void:
 	await _stove_wins()
 	for line: String in _report:
 		print("[PickupGestureCapture] " + line)
-	print("[PickupGestureCapture] max shoulder override weight with no world target held by framing: %.4f" % _max_pickup_weight)
 	quit(0)
 
 
@@ -296,16 +294,12 @@ func _seconds(seconds: float) -> void:
 
 
 func _status_update() -> void:
-	## Framing holds a lost world target 0.25 s; only weight with no world target held could come from a pickup.
-	var framing := _camera.get_node_or_null(^"InteractionFraming") as TpsInteractionFraming
-	if _interact.get_world_target() == null and (framing == null or not is_instance_valid(framing._held_target)):
-		_max_pickup_weight = maxf(_max_pickup_weight, _camera._shoulder.get_interaction_weight())
 	var v: Dictionary = _marker.get_visual_state()
 	_caption.text = _segment
-	_status.text = "pickup: %s   gesture: %s   hold: %s  %.0f%%\nring: %s   hand: %s   world: %s\ncarried weight: %.2f kg   shoulder override weight: %.3f" % [
+	_status.text = "pickup: %s   gesture: %s   hold: %s  %.0f%%\nring: %s   hand: %s   world: %s\ncarried weight: %.2f kg" % [
 		_name(_interact.get_pickup_target()), _name(_interact.get_gesture_target()), _interact.is_gesture_holding(),
 		_interact.get_gesture_progress() * 100.0, v["mode"], _hand_name(), _name(_interact.get_world_target()),
-		_inventory.get_total_weight(), _camera._shoulder.get_interaction_weight()]
+		_inventory.get_total_weight()]
 	if _weight_note != "":
 		_status.text += "\n" + _weight_note
 	if is_instance_valid(_watched_flare):

@@ -1,10 +1,10 @@
 extends SceneTree
 
-## Production shelter doorway (Key West, 1.5 x 2.25 m): through every normal traversal
-## Henry is never dithered, stays on screen and unoccluded, the camera stays out of walls,
-## nothing pops, and only the mouse turns the control yaw.
-## Guards the legacy guided rig (TpsCamera.direct_rig off): it stays behind that flag until the direct rig is
-## accepted in play. The direct rig's own guarantees are in test_tps_camera_direct.
+## Production shelter doorway (Key West, 1.5 x 2.25 m): through every normal traversal Henry's head stays
+## in frame and unoccluded, he fades no further than the rig's limit, the camera stays out of walls, no
+## frame step passes 0.3 m, only the mouse turns the yaw, and a released key leaves him where he stands.
+## Fixed frames: the steps it measures sit near their limit and must not depend on the runner's speed.
+## ci-args: --fixed-fps 60
 ## Run: godot --headless --path . --script res://tests/systems/test_doorway_camera.gd [-- <label> [pivot=<share>] [scenario...]]
 ## With a label, rows and a summary go to user://traces/tps_doorway/<label>/; add --fixed-fps 144 for frame-exact traces.
 
@@ -14,12 +14,11 @@ const OUT_ROOT: String = "user://traces/tps_doorway"
 const MOUSE_SENSITIVITY: float = 0.003
 ## Sphere around the render origin that covers the near-plane corners, metres.
 const NEAR_PROBE_RADIUS: float = 0.08
-## A pop: the camera jumps against Henry by more than this in one frame, faster than POP_SPEED.
-const POP_LIMIT: float = 0.15
+## A pop: the camera jumps against Henry by more than this in one frame, faster than POP_SPEED. The rig has
+## no doorway frame to close ahead: a view swung at 150 deg/s beside a jamb must pull the boom in 1.6 m
+## within a tenth of a second. Feelers and leads spread that over frames, each under this.
+const POP_LIMIT: float = 0.3
 const POP_SPEED: float = 6.0
-## The direct rig has no doorway frame to close ahead: a view swung at 150 deg/s beside a jamb must pull the
-## boom in 1.6 m within a tenth of a second. Feelers and leads spread that over frames, each under this.
-const POP_LIMIT_DIRECT: float = 0.35
 ## Fastest the FOV may change, degrees per second.
 const FOV_RATE_LIMIT: float = 45.0
 ## Henry starts this far outside the door plane and walks until this far inside.
@@ -69,8 +68,6 @@ var _last_rel: Vector3 = Vector3.INF
 var _last_fov: float = -1.0
 var _last_control: float = 0.0
 var _mouse_this_frame: bool = false
-## "rig=direct" runs the same scenarios on the direct rig, where a pressed Henry may turn see-through.
-var _direct: bool = false
 
 
 func _initialize() -> void:
@@ -78,9 +75,7 @@ func _initialize() -> void:
 	if args.size() > 0:
 		_label = args[0]
 	for i: int in range(1, args.size()):
-		if args[i] == "rig=direct":
-			_direct = true
-		elif args[i].begins_with("pivot="):
+		if args[i].begins_with("pivot="):
 			_pivot_share = float(args[i].trim_prefix("pivot="))
 		else:
 			_selected.append(args[i])
@@ -99,8 +94,6 @@ func _run() -> void:
 	await _ticks(120)
 	_player = _scene.find_child("Player", true, false) as Player
 	_cam = _scene.find_child("PlayerCamera", true, false) as TpsCamera
-	_cam.direct_rig = _direct
-	(_player.get_node(^"PassageTraversalComponent") as PassageTraversalComponent).carry_through = not _direct
 	var skeletons: Array[Node] = _player.find_children("*", "Skeleton3D", true, false)
 	if not skeletons.is_empty():
 		_skeleton = skeletons[0] as Skeleton3D
@@ -170,16 +163,14 @@ func _stop_short() -> void:
 	_stats_note(&"stop_short", "drift_after_release_m", drift)
 
 
-## W released just past the door plane: the traversal carries Henry clear of the frame.
-## On the direct rig nothing carries him: he stops where the key was let go.
+## W released just past the door plane: nothing carries Henry on, he stops where the key was let go.
 func _release_inside() -> void:
 	await _place(-START_OUT, 0.0, 0.0, -10.0)
 	_begin(&"release_inside")
 	await _hold(&"move_forward", func() -> bool: return _along() >= 0.05, 8.0)
 	await _settle_sampled(240)
-	if _direct:
-		_check(_along() < CLEAR_OF_PLANE, "release_inside: Henry was walked on to %.2f m with no key held" % _along())
-	_end(&"release_inside", not _direct, 1.0)
+	_check(_along() < CLEAR_OF_PLANE, "release_inside: Henry was walked on to %.2f m with no key held" % _along())
+	_end(&"release_inside", false, 1.0)
 
 
 ## W into the door, S from the door plane: Henry goes back out the way he came.
@@ -269,14 +260,14 @@ func _crouch() -> void:
 	await _ticks(SETTLE_TICKS)
 
 
-## The leaf stands 40 degrees open; Henry pushes it on the way through.
+## The leaf stands 40 degrees open; Henry pushes it on the way out (the 727 front door swings outwards).
 func _half_open() -> void:
 	_open_door(signf(float(_door.get("open_angle_deg"))) * 40.0)
-	await _place(-START_OUT, 0.0, 0.0, -10.0)
+	await _place(END_IN, 0.0, PI, -10.0)
 	_begin(&"half_open")
-	await _hold(&"move_forward", func() -> bool: return _along() >= END_IN, 12.0)
+	await _hold(&"move_forward", func() -> bool: return _along() <= -START_OUT, 12.0)
 	await _settle_sampled(60)
-	_end(&"half_open", true, 1.0)
+	_end(&"half_open", true, -1.0)
 
 
 ## Standing in the door plane, the mouse sweeps a full turn each way at three pitches.
@@ -464,7 +455,7 @@ func _sample(moused: bool) -> void:
 	_last_rel = rel
 	var fov_rate: float = absf(_cam.fov - _last_fov) / maxf(_probe.delta, 1e-4)
 	_last_fov = _cam.fov
-	var popped: bool = step > (POP_LIMIT_DIRECT if _direct else POP_LIMIT) and step / maxf(_probe.delta, 1e-4) > POP_SPEED
+	var popped: bool = step > POP_LIMIT and step / maxf(_probe.delta, 1e-4) > POP_SPEED
 	var control: float = _cam.get_yaw()
 	var auto_turned: bool = not moused and absf(angle_difference(control, _last_control)) > 1e-5
 	_last_control = control
@@ -472,7 +463,11 @@ func _sample(moused: bool) -> void:
 	var near: bool = _near_clipped(render)
 	var occluded: bool = _segment_blocked(render, head)
 	## Pressed to half a metre no lens holds a whole man: the direct rig answers for his head only.
-	var on_screen: bool = _cam.is_position_in_frustum(head) and (_direct or _cam.is_position_in_frustum(henry))
+	## Headless draws a square frame and the rig holds Henry off-centre, so his head is judged at 16:9.
+	## Pressed to half a metre no lens holds a whole man: the rig answers for his head only.
+	var seen: Vector3 = _cam.global_transform.affine_inverse() * head
+	var half: float = tan(deg_to_rad(_cam.fov * 0.5))
+	var on_screen: bool = seen.z < 0.0 and absf(seen.x) <= -seen.z * half * 16.0 / 9.0 and absf(seen.y) <= -seen.z * half
 	var share: float = _height_share(head)
 	_stats["frames"] += 1
 	if fade > 0.0:
@@ -497,7 +492,7 @@ func _sample(moused: bool) -> void:
 			"view_yaw": rad_to_deg(_cam.global_rotation.y), "control_yaw": rad_to_deg(control),
 			"pitch": rad_to_deg(_cam.global_rotation.x), "fov": _cam.fov, "boom": _cam.get_boom_length(),
 			"head_m": render.distance_to(head), "fade": fade,
-			"passage": float(_cam.call(&"get_passage_blend")) if _cam.has_method(&"get_passage_blend") else 0.0, "inside": inside, "near_clip": near,
+			"inside": inside, "near_clip": near,
 			"occluded": occluded, "on_screen": on_screen, "step_m": step, "height_share": share})
 
 
@@ -514,10 +509,7 @@ func _end(tag: StringName, traversed: bool, expect_side: float) -> void:
 	stats.erase("share_sum")
 	stats.erase("share_sq")
 	var name: String = String(tag)
-	if _direct:
-		_check(float(stats["max_fade"]) <= _cam.direct_fade_max + 0.01, "%s: Henry faded to %.2f, past the direct rig's limit" % [name, stats["max_fade"]])
-	else:
-		_check(stats["faded"] == 0, "%s: Henry dithered in %d frames (max %.2f)" % [name, stats["faded"], stats["max_fade"]])
+	_check(float(stats["max_fade"]) <= _cam.direct_fade_max + 0.01, "%s: Henry faded to %.2f, past the rig's limit" % [name, stats["max_fade"]])
 	_check(stats["inside"] == 0, "%s: camera inside geometry in %d frames" % [name, stats["inside"]])
 	_check(stats["near_clip"] == 0, "%s: near plane clipped in %d frames" % [name, stats["near_clip"]])
 	_check(stats["occluded"] == 0, "%s: head hidden behind geometry in %d frames" % [name, stats["occluded"]])

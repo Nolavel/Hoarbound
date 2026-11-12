@@ -177,6 +177,9 @@ func _place_door(zone: ThermalZone) -> void:
 	door.transform = Transform3D(_facing(o["outward_uv"]), plan_point(o["centre_uv"], _floor_y + float(o["y1"] - o["y0"]) * 0.5))
 	door.opening_size = Vector2(float(o["width_m"]), float(o["y1"]) - float(o["y0"]))
 	door.wall_thickness_m = float(interior["wall_thickness_m"])
+	## The clinic's front door swings out, as public buildings' entrances do: from inside Henry walks into
+	## the leaf's back and pushes it open. Owner's call 2026-11-12; a drift outside may one day hold it shut.
+	door.open_angle_deg = -absf(door.open_angle_deg)
 	var breach: Node3D = zone.get_node(^"Door") as Node3D
 	breach.transform = (Transform3D(Basis(), Vector3(0.0, _zone_y(), 0.0)).affine_inverse()
 		* door.transform * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO))

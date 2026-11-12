@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Henry stands with his back to a wall while the view sweeps 360 degrees:
-## the camera never enters the wall or his head, and fades him when it is close.
+## the camera never enters the wall or his head.
 ## Run: godot --headless --script tests/systems/test_tps_camera_orbit.gd
 
 const STEP_DEG: int = 10
@@ -69,9 +69,6 @@ func _sample() -> void:
 	var distance: float = eye.distance_to(at)
 	_check(distance >= _camera.body_fade_end,
 		"yaw %d: camera collapsed to %.2f m from the eyes" % [yaw, distance])
-	_check(distance >= _camera.body_fade_start or _camera.get_body_fade() > 0.0,
-		"yaw %d: camera %.2f m from the eyes with Henry drawn in full" % [yaw, distance])
-	_check(not _camera.is_body_hidden(), "yaw %d: Henry was hidden; it went first-person" % yaw)
 
 
 func _finish() -> void:

@@ -16,7 +16,9 @@ var _ic: InteractComponent
 var _marker: PickupMarkerUI
 var _camera: TpsCamera
 var _inventory: InventoryComponent
-var _max_shoulder_weight: float = 0.0
+## Shoulder offset the camera asked for at the start; a pickup ring must never change it.
+var _shoulder_start: float = INF
+var _shoulder_moved: float = 0.0
 var _idle_key_point: Vector2 = Vector2.INF
 
 
@@ -56,7 +58,7 @@ func _run() -> void:
 	await _check_storage_refusal()
 	await _check_hold_refusal()
 	await _check_world_suppresses()
-	_check(_max_shoulder_weight == 0.0, "the pickup ring moved the camera shoulder (weight %.4f)" % _max_shoulder_weight)
+	_check(_shoulder_moved < 0.001, "the pickup ring moved the camera shoulder by %.3f m" % _shoulder_moved)
 	print("test_pickup_marker_ui: %s" % ("PASS" if _failures == 0 else "%d FAILED" % _failures))
 	quit(0 if _failures == 0 else 1)
 
@@ -266,7 +268,10 @@ func _settle(seconds: float, hold_at: float = -1.0) -> void:
 
 func _sample_shoulder() -> void:
 	if _ic.get_world_target() == null:
-		_max_shoulder_weight = maxf(_max_shoulder_weight, _camera._shoulder.get_interaction_weight())
+		var shoulder: float = _camera._shoulder.update(0.0)
+		if _shoulder_start == INF:
+			_shoulder_start = shoulder
+		_shoulder_moved = maxf(_shoulder_moved, absf(shoulder - _shoulder_start))
 
 
 func _spawn_ahead(item_id: StringName) -> ItemPickup:

@@ -7,9 +7,9 @@ extends RefCounted
 var delta: float = 0.0
 ## Henry's safe point: casts start here so they never begin inside a wall.
 var safe: Vector3 = Vector3.ZERO
-## Orbit centre: followed feet, raised to the shoulder, lifted and composed on the way.
+## Orbit centre: followed feet, raised to the shoulder joints.
 var pivot: Vector3 = Vector3.ZERO
-## Where the player looks (mouse plus automatic offset), and where the camera body orbits.
+## Where the player looks, and where the camera body orbits (the same on the direct rig).
 var view_yaw: float = 0.0
 var view_pitch: float = 0.0
 var orbit_yaw: float = 0.0
@@ -18,10 +18,6 @@ var orbit_pitch: float = 0.0
 var want: float = 0.0
 ## Lateral offset of the shoulder point from the pivot, metres.
 var side: float = 0.0
-## Share of the tight-space composition this frame keeps after a doorway takes its own.
-var framing: float = 0.0
-## Shoulder lift share this frame, after a doorway takes its own.
-var lift: float = 0.0
 var right: Vector3 = Vector3.RIGHT
 var back: Vector3 = Vector3.BACK
 ## Shoulder point after walls, and the camera position on the boom from it.
