@@ -37,6 +37,15 @@ func _run() -> void:
 		mats.append(shell._surface)
 	for m: ShaderMaterial in mats:
 		m.set_shader_parameter(&"debug_height", true)
+	for env_node: Node in _world.find_children("*", "WorldEnvironment", true, false):
+		var env: Environment = (env_node as WorldEnvironment).environment
+		if env != null:
+			env.fog_enabled = false
+			env.volumetric_fog_enabled = false
+			env.glow_enabled = false
+	for p: Node in _world.find_children("*", "GPUParticles3D", true, false) + _world.find_children("*", "CPUParticles3D", true, false):
+		(p as Node3D).visible = false
+	(_player as Node3D).visible = false
 	var start: Vector3 = _player.global_position
 	var fwd := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
 	var cam := Camera3D.new()
