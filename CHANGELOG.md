@@ -10,6 +10,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 - `release-smoke` fails when the .NET assemblies folder is missing. The 0.312b zips shipped without `data_Hoarbound_*`, and the mono runtime refused to start.
 - Snow ice glints fade out on the near clipmap before the 6.25 m handoff, and the chunk cover no longer draws them. The owner's Intel HD 620 frames showed a band of streaked glints starting at the square handoff. Not yet verified on that GPU.
+- Snow regression evidence on the current code (lavapipe): the October witness (`capture_snow_surface.gd` + `analyze_snow_surface.py`) gives 0 px over 2 mm in every band (10.1M before a2b7f37f), max 0.06 mm over a 10 m walk. The near lattice matches the streamed ground at a real 727 start at 4 FPS (`probe_snow_lattice.gd`, 0/441 stale). The owner's Intel HD 620 still shows the defect.
 - Snow regression probes (`tools/runtime/probe_snow_height_walk.gd`, `probe_snow_packed_walk.gd`; fixed points in `probe_snow_window_lag.gd`): the CPU snow field stays still at fixed points (0.00 cm over 7 window moves). The GPU packed field is under investigation.
 
 ### Changed
