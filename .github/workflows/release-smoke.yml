@@ -1,8 +1,10 @@
 name: release-smoke
 
 ## Manual tester build: exports Windows and Linux and publishes them as a GitHub Release.
-## Run it from Actions → release-smoke → Run workflow; the tag is v<version>.
+## Runs from Actions → Run workflow once on main, or on a claudeflow push tagged [release-smoke].
 on:
+  push:
+    branches: [claudeflow]
   workflow_dispatch:
     inputs:
       version:
@@ -21,11 +23,12 @@ concurrency:
 
 jobs:
   release:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release-smoke]')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      VERSION: ${{ github.event.inputs.version }}
-      TITLE: ${{ github.event.inputs.title }}
+      VERSION: ${{ github.event.inputs.version || '0.312' }}
+      TITLE: ${{ github.event.inputs.title || 'Smoke Test November' }}
     steps:
       - uses: actions/checkout@v4
 
