@@ -18,6 +18,8 @@ const COLD_HINT_KEY: String = "BEDROLL_TOO_COLD"
 const UNROLL_S: float = 1.2
 const PLACE_DISTANCE: float = 1.3
 const MAX_PLACE_DISTANCE: float = 3.0
+## How near the laid mat C rolls it up.
+const PACK_REACH_M: float = 2.5
 const RAY_LENGTH: float = 6.0
 const MAX_SLOPE_DEG: float = 14.0
 ## The mat lies on the floor Henry stands on, not on furniture: the stove top is 0.7 m up.
@@ -50,12 +52,14 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	## C shows the bedroll's ghost on the floor (or puts it away again); F lays it out there.
+	## C shows the bedroll's ghost on the floor (or puts it away, or rolls up the laid mat); F lays it out.
 	if event.is_action_pressed(LAY_ACTION) and not event.is_echo():
 		if is_placing():
 			cancel_placement()
 			get_viewport().set_input_as_handled()
 		elif can_use(ITEM_ID) and begin_placement():
+			get_viewport().set_input_as_handled()
+		elif pack_up_nearby():
 			get_viewport().set_input_as_handled()
 		return
 	if not is_placing():
@@ -242,6 +246,15 @@ func _prepare_hands() -> bool:
 	if not _can_free_hands():
 		return false
 	return HeldReleaseCapability.release_all(get_parent())
+
+
+## C beside the laid mat rolls it up again, the same as F on its Pack prompt.
+func pack_up_nearby() -> bool:
+	var body := get_parent() as Node3D
+	if not is_laid() or body == null or body.global_position.distance_to(_laid.global_position) > PACK_REACH_M:
+		return false
+	var pack := _laid.get_node_or_null(^"Pack") as ItemPickup
+	return pack != null and pack.pick_up()
 
 
 func is_laid() -> bool:

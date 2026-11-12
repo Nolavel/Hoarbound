@@ -67,7 +67,7 @@ var _profile_content: Node3D
 
 
 func _ready() -> void:
-	## Apply before the first rendered world frame. With no user config this is LOW.
+	## Apply before the first rendered world frame. With no user config this is HIGH.
 	GRAPHICS_QUALITY.apply(get_tree(), GRAPHICS_QUALITY.load_quality())
 	_profile = world_profile if world_profile != null else WorldProfileCatalog.load_selected()
 	if _profile != null and _profile.prewarm_before_first_frame:

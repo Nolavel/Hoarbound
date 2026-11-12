@@ -73,6 +73,8 @@ var _shelf: PackQuickShelf
 var _hands: PackHandling
 ## Set while full inspection opens the Hub: it sets the pack down instead of taking it in hand.
 var _opening_inspection: bool = false
+## Dropped on the Tab hand card: {id, zone}; drawn into the hand when the Hub closes.
+var _hand_pick: Dictionary = {}
 
 
 ## A UI composition root owns the presentation panel, not Henry.
@@ -323,7 +325,39 @@ func close() -> bool:
 		_panel.hide_hub()
 	Input.mouse_mode = _previous_mouse_mode
 	hub_closed.emit()
+	_draw_hand_pick()
 	return true
+
+
+## The Tab hand card: this item goes into Henry's hand as the Hub closes (zone "" = the main compartment).
+func request_hand(item_id: StringName, zone_path: StringName = &"") -> void:
+	_hand_pick = {"id": item_id, "zone": zone_path}
+
+
+func get_hand_request() -> Dictionary:
+	return _hand_pick.duplicate()
+
+
+func _draw_hand_pick() -> bool:
+	var pick: Dictionary = _hand_pick
+	_hand_pick = {}
+	var body: Node = get_parent()
+	if pick.is_empty() or body == null:
+		return false
+	var item_id: StringName = pick["id"]
+	if StringName(pick["zone"]) != &"":
+		var quick := body.get_node_or_null(^"QuickAccessComponent") as QuickAccessComponent
+		var zones: Array[Dictionary] = get_quick_access_zones()
+		for i: int in range(zones.size()):
+			if quick != null and zones[i]["path"] == pick["zone"] and zones[i]["item_id"] == item_id:
+				return quick.draw(i)
+		return false
+	HeldReleaseCapability.release_all(body)
+	var hammer := body.get_node_or_null(^"HammerComponent") as HammerComponent
+	if hammer != null and hammer.can_use(item_id):
+		return hammer.use(item_id)
+	var held := body.get_node_or_null(^"HeldItemComponent") as HeldItemComponent
+	return held != null and held.present_owned(item_id)
 
 
 ## Pack contents: id, count, name, weight and size class per stack.

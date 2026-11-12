@@ -358,7 +358,12 @@ func _release() -> void:
 		else:
 			moved = hub.move_to_container(container, id) == &""
 	elif hovered_hand and from_slot >= 0:
-		shelf.choose(from_slot)  # into the hand: it becomes the pick, staying in its pocket till the pack goes on
+		shelf.choose(from_slot)  # stays in its pocket; drawn into the hand when the Hub closes
+		hub.request_hand(id, shelf.slots[from_slot]["path"])
+		hub.action_result.emit(true)
+	elif hovered_hand and from_item >= 0:
+		hub.request_hand(id)
+		hub.action_result.emit(true)
 	elif hovered_slot >= 0 and hovered_slot != from_slot:
 		attempted = true
 		var why: StringName = shelf.refusal(hovered_slot, id)

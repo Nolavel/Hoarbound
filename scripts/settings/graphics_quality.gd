@@ -10,7 +10,7 @@ const KEY_QUALITY: String = "quality"
 const LOW: StringName = &"low"
 const MEDIUM: StringName = &"medium"
 const HIGH: StringName = &"high"
-const DEFAULT_QUALITY: StringName = LOW
+const DEFAULT_QUALITY: StringName = HIGH
 const ORDER: Array[StringName] = [LOW, MEDIUM, HIGH]
 
 const PROFILES: Dictionary = {
@@ -62,7 +62,7 @@ static func load_quality() -> StringName:
 	if error == ERR_FILE_NOT_FOUND:
 		return DEFAULT_QUALITY
 	if error != OK:
-		push_warning("GraphicsQuality: cannot read %s (error %d); using LOW" % [CONFIG_PATH, error])
+		push_warning("GraphicsQuality: cannot read %s (error %d); using the default" % [CONFIG_PATH, error])
 		return DEFAULT_QUALITY
 	return normalize(config.get_value(SECTION, KEY_QUALITY, String(DEFAULT_QUALITY)))
 

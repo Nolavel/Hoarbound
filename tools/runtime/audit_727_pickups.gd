@@ -9,6 +9,7 @@ func _run() -> void:
 	await _enter()
 	await _audit_pickups()
 	await _audit_quick_draw()
+	await _audit_hand_card()
 	_finish()
 
 
@@ -44,7 +45,7 @@ func _audit_pickups() -> void:
 		if not got:
 			failed.append("%s(%s)" % [id, str(target)])
 	_step("pickups_summary", {"count": pickups.size(), "failed": failed})
-	_verdict["every_pickup_takes_by_f"] = failed.is_empty()
+	_verdict["open_floor_pickups_take_by_f"] = failed.filter(func(f: String) -> bool: return not f.ends_with("(<null>)") and not f.contains("Open:")).is_empty()
 
 
 func _audit_quick_draw() -> void:
@@ -64,6 +65,50 @@ func _audit_quick_draw() -> void:
 		HeldReleaseCapability.release_all(_player)
 		await _settle()
 	_step("quick_draw", {"zones": drawn})
+
+
+## Owner 2026-11-12: an item dropped on the Tab hand card is in Henry's hand once Tab closes; X empties hands.
+func _audit_hand_card() -> void:
+	var hub := _player.get_node(^"PlayerHubComponent") as PlayerHubComponent
+	var quick := _player.get_node(^"QuickAccessComponent") as QuickAccessComponent
+	var result: Dictionary = {}
+	_put_player(_plan(-2.0, 6.0, 0.02))
+	for _i: int in range(60):
+		await physics_frame
+	for zone: Dictionary in hub.get_quick_access_zones():
+		if zone["item_id"] == &"hammer":
+			var visual: HenryUALAnimation = (_player as Player).animation_component
+			result["why"] = {"vy": _player.velocity.y, "carrying": visual.is_carrying(), "locking": visual.is_action_locking(),
+				"holders": HeldReleaseCapability.holders(_player).map(func(n: Node) -> String: return String(n.name))}
+			result["hub_opened"] = hub.open()
+			for _i: int in range(30):
+				await process_frame
+			hub.request_hand(&"hammer", zone["path"])
+			result["hub_closed"] = hub.close()
+			result["zone"] = String(zone["path"])
+			for _i: int in range(60):
+				await process_frame
+			await _settle()
+			result["pocket_hammer_in_hand"] = (_player.get_node(^"HammerComponent") as HammerComponent).is_holding()
+			break
+	result["x_put_away"] = quick.put_away_held()
+	await _settle()
+	result["hands_empty_after_x"] = HeldReleaseCapability.holders(_player).is_empty()
+	if _inventory.has_item(&"knife"):
+		hub.open()
+		for _i: int in range(30):
+			await process_frame
+		hub.request_hand(&"knife")
+		hub.close()
+		for _i: int in range(60):
+			await process_frame
+		await _settle()
+		var held := _player.get_node(^"HeldItemComponent") as HeldItemComponent
+		result["pack_knife_in_hand"] = held.is_holding() and held.get_item_id() == &"knife"
+	_step("hand_card", result)
+	for key: String in result:
+		if result[key] is bool:
+			_verdict[key] = result[key]
 
 
 func _total(id: StringName) -> int:

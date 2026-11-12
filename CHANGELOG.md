@@ -6,6 +6,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed
+
+- Smoke test 0.312b (owner, 2026-11-12):
+  - Graphics quality defaults to HIGH when no settings file exists (it was LOW).
+  - An item dropped on the Tab hand card is now drawn into Henry's hand when Tab closes. Pocket items go through Quick Access, pack items are presented from storage. The card only marked the selection before.
+  - X (`put_away_held`) empties Henry's hands back into storage.
+  - C beside a laid bedroll rolls it up.
+  - Exported builds write `logs/hoarbound_<time>.log` beside the executable (`BuildLog` autoload, last five kept). The log records the version, OS, GPU and driver.
+
 ### Fixed
 
 - Bedroll placement judged height from Henry's capsule centre, a metre above his soles: the 727 floor was always refused and the stove top accepted. It now measures from the soles with a 0.3 m step; the real-727 probe (`tools/runtime/probe_727_bedroll.gd`) lays it on the floor, refuses the stove, opens the sleep dialog and rolls it up.

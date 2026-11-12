@@ -96,6 +96,19 @@ func _sleep_and_pack(bedroll: BedrollComponent) -> void:
 	_step("press_pack", {"focused": str(interact.get_active_target()), "bedroll_before": before,
 		"bedroll_after": _inventory.get_count(&"bedroll"), "still_laid": bedroll.is_laid()})
 	_verdict["bedroll_packs_up"] = not bedroll.is_laid() and _inventory.get_count(&"bedroll") > before
+	## C beside the laid mat rolls it up (owner, 2026-11-12).
+	await _aim(_floor_at(target + (_house.global_basis.z * -1.4)), target)
+	bedroll.begin_placement()
+	await process_frame
+	bedroll.confirm_placement()
+	await _settle()
+	var press := InputEventAction.new()
+	press.action = BedrollComponent.LAY_ACTION
+	press.pressed = true
+	bedroll._input(press)
+	await _settle()
+	_step("press_c", {"still_laid": bedroll.is_laid(), "bedroll": _inventory.get_count(&"bedroll")})
+	_verdict["c_rolls_up"] = not bedroll.is_laid() and _inventory.has_item(&"bedroll")
 
 
 func _diagnose(bedroll: BedrollComponent) -> Dictionary:
