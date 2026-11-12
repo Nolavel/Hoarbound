@@ -1,0 +1,95 @@
+name: release-smoke
+
+## Manual tester build: exports Windows and Linux and publishes them as a GitHub Release.
+## Run it from Actions → release-smoke → Run workflow; the tag is v<version>.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Build version (major.MDD)"
+        default: "0.312"
+      title:
+        description: "Release name after Hoarbound"
+        default: "Smoke Test November"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-smoke
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ github.event.inputs.version }}
+      TITLE: ${{ github.event.inputs.title }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Cache export templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/4.8.dev6.mono
+          key: godot-templates-4.8-dev6-mono-v1
+
+      - name: Provision Godot
+        run: SKIP_APT=1 tools/ci/setup_env.sh
+
+      - name: Export templates (Windows + Linux only)
+        run: |
+          dir="$HOME/.local/share/godot/export_templates/4.8.dev6.mono"
+          if [ ! -f "$dir/windows_release_x86_64.exe" ]; then
+            mkdir -p "$dir"
+            curl -sSL -o /tmp/tpl.tpz https://github.com/godotengine/godot-builds/releases/download/4.8-dev6/Godot_v4.8-dev6_mono_export_templates.tpz
+            unzip -q -j /tmp/tpl.tpz 'templates/version.txt' 'templates/windows_release_x86_64*' 'templates/linux_release.x86_64' -d "$dir"
+            rm /tmp/tpl.tpz
+          fi
+          ls -la "$dir"
+
+      - name: Import and unpack Reality data
+        run: |
+          tools/ci/import_gate.sh
+          python3 tools/world/reality/export_pack.py unpack
+
+      - name: Export Windows and Linux
+        run: |
+          mkdir -p ../build/windows ../build/linux
+          godot --headless --path . --export-release "Windows Desktop" ../build/windows/Hoarbound.exe
+          godot --headless --path . --export-release "Linux" ../build/linux/Hoarbound.x86_64
+          test -s ../build/windows/Hoarbound.pck && test -s ../build/linux/Hoarbound.pck
+
+      - name: Package
+        run: |
+          name="Hoarbound-${TITLE// /-}-${VERSION}"
+          for plat in windows linux; do
+            d=../build/$plat
+            printf 'Hoarbound %s %s\nCommit: %s\nBuilt: %s\n' "$TITLE" "$VERSION" "$GITHUB_SHA" "$(date -u +%FT%TZ)" > $d/BUILD_INFO.txt
+            cp tools/ci/release/README_TESTER.txt $d/
+          done
+          (cd ../build/windows && zip -qr9 "$GITHUB_WORKSPACE/$name-win64.zip" .)
+          (cd ../build/linux && chmod +x Hoarbound.x86_64 && zip -qr9 "$GITHUB_WORKSPACE/$name-linux-x86_64.zip" .)
+          sha256sum *.zip > SHA256SUMS.txt
+          ls -la *.zip
+          echo "NAME=$name" >> "$GITHUB_ENV"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${VERSION}" "$NAME-win64.zip" "$NAME-linux-x86_64.zip" SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Hoarbound — ${TITLE} ${VERSION}" \
+            --notes "Tester build from \`${GITHUB_SHA::8}\` (${GITHUB_REF_NAME}). Windows: unzip, run Hoarbound.exe. Linux: unzip, run ./Hoarbound.x86_64. See README_TESTER.txt."

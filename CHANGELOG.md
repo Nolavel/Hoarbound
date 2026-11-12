@@ -6,6 +6,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added
+
+- `release-smoke` workflow (manual): exports Windows and Linux on CI and publishes a pre-release `v0.312` "Hoarbound — Smoke Test November 0.312" with zips and SHA256SUMS. Version 0.312 set in `project.godot` and the Windows file metadata.
+
 ### Fixed
 
 - Stone scatter no longer reads a freed pickup as a typed object during refresh; collected IDs stay collected and untaken stones can return after eviction. Added lifecycle regression to the required gate.

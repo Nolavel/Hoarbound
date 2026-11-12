@@ -11,6 +11,8 @@ config_version=5
 [application]
 
 config/name="Hoarbound"
+config/version="0.312"
+config/description="Hoarbound Smoke Test November"
 config/tags=[]
 run/main_scene="res://scenes/world/key_west/key_west_reality.tscn"
 run/main_scene.template="res://scenes/ui/menu/title_menu.tscn"
