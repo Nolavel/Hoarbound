@@ -14,6 +14,8 @@ const USE_ACTION: StringName = &"quick_use"
 ## Existing LMB action. While an item is physically in hand it becomes the
 ## natural held-item Use trigger; Hub still owns raw LMB for drag/drop.
 const HELD_USE_ACTION: StringName = &"fire"
+## X: everything in Henry's hands goes back where it came from (a burning flare is dropped with G).
+const PUT_AWAY_ACTION: StringName = &"put_away_held"
 const ROAD_FLARE_ID: StringName = &"road_flare"
 const DIRECT_ACTIONS: Array[StringName] = [&"select item slot 1", &"select item slot 2",
 	&"select item slot 3", &"select item slot 4"]
@@ -40,6 +42,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		select(_index - 1)
 	elif _pressed(event, USE_ACTION):
 		use_selected()
+	elif _pressed(event, PUT_AWAY_ACTION):
+		if put_away_held():
+			get_viewport().set_input_as_handled()
 	elif _pressed(event, HELD_USE_ACTION):
 		if _use_held_only():
 			get_viewport().set_input_as_handled()
@@ -108,6 +113,16 @@ func use_selected() -> bool:
 	else:
 		_show_readout(zone)
 	return used
+
+
+## Empties Henry's hands back into storage; false when nothing was held or a holder cannot let go.
+func put_away_held() -> bool:
+	var parent: Node = get_parent()
+	if parent == null or HeldReleaseCapability.holders(parent).is_empty():
+		return false
+	var ok: bool = HeldReleaseCapability.release_all(parent)
+	_hide_readout()
+	return ok
 
 
 ## Draws one pocket into the hand. An item shown from another coat pocket trades places with

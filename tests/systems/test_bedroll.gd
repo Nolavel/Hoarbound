@@ -34,6 +34,7 @@ func _process(_delta: float) -> bool:
 			_bedroll.load_save_data({"x": 1.0, "y": 0.0, "z": 2.0, "yaw": 0.5})
 			_check(_bedroll.is_laid(), "loading a save did not restore the laid bedroll")
 			_test_use_flow()
+			_test_feet_level()
 			_finish()
 	return false
 
@@ -104,3 +105,21 @@ func _test_use_flow() -> void:
 	_check(bedroll.is_laid() and not inventory.has_item(&"bedroll"), "the placed bedroll was not laid and spent")
 	var ahead: Vector3 = bedroll.get_laid_bedroll().global_position - body.global_position
 	_check(ahead.dot(-body.global_transform.basis.z) > 1.0, "the bedroll was laid behind Henry, not in front")
+
+
+## Owner smoke 2026-11-12: placement measured height from the capsule centre, so the floor (1 m below)
+## was refused and the stove top (0.7 m above the soles) accepted. Height is judged from the soles.
+func _test_feet_level() -> void:
+	var body := CharacterBody3D.new()
+	var col := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.height = 1.8
+	col.shape = capsule
+	col.position = Vector3(0.0, 0.9, 0.0)
+	body.add_child(col)
+	root.add_child(body)
+	body.global_position = Vector3(0.0, 2.0, 0.0)
+	var feet: Vector3 = BedrollComponent._feet_of(body)
+	_check(is_equal_approx(feet.y, 2.0), "the soles were not found at the capsule bottom: %.2f" % feet.y)
+	_check(BedrollComponent.MAX_STEP_M < 0.7, "a step tolerance of %.2f m lets the mat onto the stove top" % BedrollComponent.MAX_STEP_M)
+	body.free()

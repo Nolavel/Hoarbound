@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Henry walks, turns into wall drifts and runs on Duval Street: TPS, leg-height and boot-print
-## frames for the snow-walk CI job. Args: <out_dir> [firmness 0..1]; Vulkan, --fixed-fps 30.
+## frames for the snow-walk CI job. Args: <out_dir> [firmness 0..1] [quality]; Vulkan, --fixed-fps 30.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const STREET_DATA: String = "res://data/world/key_west/reality/routes/dev_street_spawns.json"
@@ -30,8 +30,8 @@ var _travel: Vector3 = Vector3.FORWARD
 
 
 func _initialize() -> void:
-	ProjectSettings.set_setting("hfn/graphics/quality", "high")
 	var args: PackedStringArray = OS.get_cmdline_user_args()
+	ProjectSettings.set_setting("hfn/graphics/quality", args[2] if args.size() > 2 else "high")
 	if args.is_empty():
 		_fail("output directory required")
 		return

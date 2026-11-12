@@ -6,6 +6,25 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed
+
+- Smoke test 0.312b (owner, 2026-11-12):
+  - Graphics quality defaults to HIGH when no settings file exists (it was LOW).
+  - An item dropped on the Tab hand card is now drawn into Henry's hand when Tab closes. Pocket items go through Quick Access, pack items are presented from storage. The card only marked the selection before.
+  - X (`put_away_held`) empties Henry's hands back into storage.
+  - C beside a laid bedroll rolls it up.
+  - Exported builds write `logs/hoarbound_<time>.log` beside the executable (`BuildLog` autoload, last five kept). The log records the version, OS, GPU and driver.
+
+### Fixed
+
+- Bedroll placement judged height from Henry's capsule centre, a metre above his soles: the 727 floor was always refused and the stove top accepted. It now measures from the soles with a 0.3 m step; the real-727 probe (`tools/runtime/probe_727_bedroll.gd`) lays it on the floor, refuses the stove, opens the sleep dialog and rolls it up.
+- Smoke-test tooling: `tools/runtime/audit_727_pickups.gd` takes every 727 pickup by a real F tap and draws every Quick Access pocket; `tools/runtime/probe_snow_window_lag.gd` walks Duval Street at a given `--fixed-fps` and logs the snow window rim and foot plants per metre.
+- Holding F on an item that is never shown in a hand (road flare, hammer) refused with a cross; it now takes the item to its pocket, as a tap does.
+
+### Added
+
+- `release-smoke` workflow (manual): exports Windows and Linux on CI and publishes a pre-release `v0.312` "Hoarbound — Smoke Test November 0.312" with zips and SHA256SUMS. Version 0.312 set in `project.godot` and the Windows file metadata.
+
 ### Fixed
 
 - Stone scatter no longer reads a freed pickup as a typed object during refresh; collected IDs stay collected and untaken stones can return after eviction. Added lifecycle regression to the required gate.
@@ -17,6 +36,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - `StepStairs` (`scripts/world/props/step_stairs.gd`): a flight of stairs Henry can walk. Visible steps are generated over one wedge collider, because `CharacterBody3D` has no step-up and a 0.17 m box step stops him. Set step count, riser, tread and width; `build_steps = false` keeps only the collider under an authored mesh. New `test_step_stairs`.
 
 ### Changed
+
+- First Exit A, Gate A (#42): a repeatable Windows Desktop x86_64 export (`export_presets.cfg`, with a Linux preset beside it for running the same pack here). The packs leave out `tests/`, `docs/`, `archive/`, editor add-ons and every `tools/` folder but `tools/StatsDisplay`, which the world preloads. The MCP game helper is stripped by its own export plugin.
+  - Fixed: an exported game started without the 727's interior, spawn point, First Exit sites and compass landmarks. `data/world/key_west/reality` carries a `.gdignore`, so no export ever saw the JSON the game reads there. `addons/reality_editor/reality_export_plugin.gd` ships exactly that runtime subset (9 files).
+  - Exported builds open on the title menu (`run/main_scene.template`): New game starts at the 727, Continue loads the last sleep. Before, a relaunched build always started a new game and Continue was only reachable through Esc, Quit to title. The editor's F5 still opens the world directly.
+  - Verified on the exported pack itself (run with `--main-pack`): Henry spawns 4.6 m from the 727 door, and `loop_key_west_727.gd` passes every step through to reload.
 
 - Owner's play notes 2026-11-12:
   - The 727's front door swings outwards, as public buildings' entrances do. From inside Henry presses F and walks out pushing the leaf; before, it opened inwards and walking out from the lobby he pushed it shut. `test_doorway_camera`'s half-open scenario now pushes the leaf on the way out.
