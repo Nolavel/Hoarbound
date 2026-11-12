@@ -27,7 +27,7 @@ this one: it answers the mouse. Do not bring a behaviour back from the archive w
    pulls back a little at a sprint.
 2. **Pivot**: the followed feet raised to his shoulder joints (`HenryMetrics`).
 3. **Boom length wanted**: by openness (rods across the camera's half of the circle and one up:
-   `near_distance` 0.95 m in the tightest space, `far_distance` 3.0 m in the open), shortened looking up,
+   `near_distance` 0.95 m in the tightest space, `far_distance` 2.2 m in the open), shortened looking up,
    by an aim (`aim_boom_scale`, on a spring stepped at 120 Hz) and scaled by the player's setting.
 4. **Shoulder offset**: `direct_side_per_metre` (0.4) of the boom's own eased length, at most
    `shoulder_offset * direct_side_scale` (1.19 m) and at least `direct_side_min` (0.34 m). Closer than
@@ -88,6 +88,37 @@ by default. What the frames show:
 - Hiding the pack over his shoulder (`close_shoulder`) reads wrong: what hangs on it floats. Keep it for
   the jam only.
 - In the open he is small and low at a 3 m boom; at 2.2 m (`reference`) he reads like the owner's reference.
+
+## Owner's decision and the continuous route (2026-11-12)
+
+- **`far_distance` 2.2 m** (was 3.0), alone: shoulder offset and lens unchanged. In the open Henry reads
+  like the owner's reference. Indoors the openness rods keep the boom short anyway: in five spots of the 727
+  the camera comes 0.05..0.15 m closer and his head stays at 0.34..0.36 of the frame's width.
+- **Corridor:** no automatic wall clearance and no lens change (`centre_close` moved him too far to the
+  centre). `direct_wall_clearance`, `direct_tight_fov_deg` and `gear_hide_distance` stay off.
+- **Continuous route** (`trace_camera_route.gd -- <out> route=continuous [video]`): corridor along its
+  north wall, a full mouse turn at its east end, the doorway into the stove room, across it to the lobby,
+  out of the front door into the open, with no teleport. The trace steps the camera itself to time it.
+
+| Leg | Actual boom | Fastest change | Body faded | Largest frame step |
+|---|---|---|---|---|
+| corridor along the wall, walking | 0.76..1.07 m | 0.9 m/s | 0 frames | 0.10 m |
+| full turn at the corridor's end, 0.25 m off a wall | 0.15..0.97 m | 1.4 m/s | 88 of 240 | 0.06 m |
+| doorway into the stove room | 0.74..1.19 m | 0.9 m/s | 0 | 0.11 m |
+| stove room to the lobby | 1.02..1.21 m | 0.4 m/s | 0 | 0.15 m |
+| out of the front door into the open | 0.85..2.10 m | 1.6 m/s | 0 | 0.10 m |
+
+The view never turned by itself (mouse deviation 0 deg over 1 271 frames); no step over 0.3 m. Out of the
+front door the boom dips to 0.85 m in the frame, then opens to 2.0 m over about four seconds. The openness
+rods leave 3..5 cm wiggles in the boom as walls pass; no in-out pumping larger than that.
+
+**CPU, measured on this route** (cloud CPU, headless, the camera's own `_process`): mean 0.84 ms, 95th
+percentile 1.7 ms, worst 2.7 ms per frame. The boom's sphere sweeps are about 0.8 ms of it. No new queries
+are added until a profile on the owner's machine shows a need.
+
+**Found on the route, not the camera's:** the front door opens inwards. Walking out from the lobby Henry
+crosses the leaf's arc and pushes it shut, and pulling it open from inside shoves him aside. The route
+swings it outwards for its own run (`_open_doors`); in the game this is still open.
 
 ## Why these choices (owner's play test, 2026-11-11)
 

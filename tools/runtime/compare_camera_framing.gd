@@ -17,16 +17,12 @@ const SPOTS: Array = [
 	["exam_room", Vector2(-7.4, -5.0), Vector2(-4.5, -4.0)],
 	["stove_room", Vector2(2.6, 9.4), Vector2(-1.2, 6.4)],
 ]
-## Preset name -> TpsCamera properties.
+## Preset name -> TpsCamera properties. Each preset sets every knob, so a run never inherits the last one.
 const PRESETS: Dictionary = {
-	"current": {"far_distance": 3.0, "direct_wall_clearance": 0.28, "direct_side_min": 0.34,
+	"far_3.0": {"far_distance": 3.0, "direct_wall_clearance": 0.28, "direct_side_min": 0.34,
 		"direct_side_per_metre": 0.4, "direct_tight_fov_deg": 0.0, "gear_hide_distance": 0.0},
-	"close_shoulder": {"far_distance": 3.0, "direct_wall_clearance": 0.5, "direct_side_min": 0.26,
-		"direct_side_per_metre": 0.4, "direct_tight_fov_deg": 6.0, "gear_hide_distance": 0.6},
-	"reference": {"far_distance": 2.2, "direct_wall_clearance": 0.5, "direct_side_min": 0.3,
-		"direct_side_per_metre": 0.45, "direct_tight_fov_deg": 6.0, "gear_hide_distance": 0.0},
-	"centre_close": {"far_distance": 3.0, "direct_wall_clearance": 0.5, "direct_side_min": 0.1,
-		"direct_side_per_metre": 0.12, "direct_tight_fov_deg": 6.0, "gear_hide_distance": 0.6},
+	"far_2.2": {"far_distance": 2.2, "direct_wall_clearance": 0.28, "direct_side_min": 0.34,
+		"direct_side_per_metre": 0.4, "direct_tight_fov_deg": 0.0, "gear_hide_distance": 0.0},
 }
 
 var _out: String = "user://shots/camera_framing_compare"

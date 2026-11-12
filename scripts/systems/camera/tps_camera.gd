@@ -91,7 +91,7 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 @export_group("Adaptive distance")
 ## Boom length in the tightest space and in the open.
 @export var near_distance: float = 0.95
-@export var far_distance: float = 3.0
+@export var far_distance: float = 2.2
 ## Rods across the camera's half of the circle judge the room behind Henry, every frame.
 @export_range(3, 15) var probe_count: int = 7
 @export var probe_length: float = 4.0
