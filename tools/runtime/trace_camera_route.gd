@@ -151,13 +151,9 @@ func _bind() -> bool:
 
 
 ## The shelter's doors wide open, as a player leaves them: a cracked leaf would stop Henry walking through.
-## The continuous route walks out of the front door, which opens inwards: from the lobby Henry crosses the
-## leaf's arc and pushes it shut. For this route alone it swings outwards and lies on the porch.
 func _open_doors() -> void:
 	for door: HingedDoor in _world.find_children("*", "HingedDoor", true, false):
 		if _house.is_ancestor_of(door):
-			if _continuous:
-				door.open_angle_deg = -absf(door.open_angle_deg)
 			door.load_door_save_data({"latched": false, "angle_deg": door.open_angle_deg})
 
 

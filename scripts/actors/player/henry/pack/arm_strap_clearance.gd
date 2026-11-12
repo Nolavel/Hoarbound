@@ -16,7 +16,11 @@ const EASE_OUT: float = 3.0
 const MAX_TURN_DEG: float = 8.0
 
 var straps: PackShoulderStraps
-## Per arm [right, left]: sleeve radius round the bone, and the turn now applied (radians).
+## How fast the turn's axis follows the push, 1/s. The deepest strap point changes from frame to frame as
+## the arm swings; an axis taken from it raw swung the arm about 45 degrees a frame (the walk's twitch).
+const AXIS_RATE: float = 6.0
+
+## Per arm [right, left]: sleeve radius round the bone, the turn now applied (radians) and its eased axis.
 var _radius: Array[float] = [0.06, 0.06]
 var _turn: Array[float] = [0.0, 0.0]
 var _axis: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
@@ -84,6 +88,8 @@ func _process_modification() -> void:
 		var deepest: float = 0.0
 		var push := Vector3.ZERO
 		var lever: float = length
+		## Every point the sleeve meets pushes, by its depth: one direction that moves smoothly as they change.
+		var push_sum := Vector3.ZERO
 		for world: Vector3 in points:
 			var p: Vector3 = to_rig * world
 			if p.distance_to(a) > length + NEAR_M:
@@ -93,6 +99,8 @@ func _process_modification() -> void:
 			if float(hit[2]) < SHOULDER_SHARE:
 				continue
 			var depth: float = _radius[side] + PackShoulderStraps.THICK_M - float(hit[0])
+			if depth > 0.0:
+				push_sum += ((hit[1] as Vector3) - p).normalized() * depth
 			if depth > deepest:
 				deepest = depth
 				push = (hit[1] as Vector3) - p
@@ -100,14 +108,16 @@ func _process_modification() -> void:
 		overlap[side] = deepest
 		## The turn that carries the arm's touching point `deepest` further off along the push.
 		var want: float = 0.0
-		if deepest > 0.0 and push.length_squared() > 1e-10:
+		if deepest > 0.0 and push_sum.length_squared() > 1e-10:
 			var along: Vector3 = (b - a) / length
-			var axis: Vector3 = along.cross(push.normalized())
+			var axis: Vector3 = along.cross(push_sum.normalized())
 			if axis.length_squared() > 1e-8:
-				_axis[side] = axis.normalized()
+				axis = axis.normalized()
+				var ease: float = 1.0 - exp(-AXIS_RATE * delta)
+				_axis[side] = axis if _axis[side] == Vector3.ZERO or _axis[side].dot(axis) < -0.5 and _turn[side] < 0.001 \
+						else _axis[side].slerp(axis, ease).normalized()
 				want = minf(asin(clampf(deepest / lever, 0.0, 1.0)), deg_to_rad(MAX_TURN_DEG))
-		## In at once (never through the strap), back out slowly (no flicker as the arm swings).
-		## Eased both ways (no snap that reads as a twitch); out faster than back in.
+		## Out faster than back in; eased both ways, so nothing snaps.
 		_turn[side] = move_toward(_turn[side], want, (EASE_OUT if want > _turn[side] else EASE_BACK) * delta)
 		if _turn[side] > 0.0001 and _axis[side] != Vector3.ZERO:
 			pose.basis = Basis(_axis[side], _turn[side]) * pose.basis

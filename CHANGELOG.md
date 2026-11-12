@@ -18,6 +18,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- Owner's play notes 2026-11-12:
+  - The 727's front door swings outwards, as public buildings' entrances do. From inside Henry presses F and walks out pushing the leaf; before, it opened inwards and walking out from the lobby he pushed it shut. `test_doorway_camera`'s half-open scenario now pushes the leaf on the way out.
+  - Henry's camera fade no longer shows a 4x4 grid: the dissolve uses interleaved gradient noise (Jimenez 2014), pixel-fine with no repeating pattern. A solid cut-away was tried and rejected: it opened his layered clothes and the inside of his head.
+  - Fixed: Henry's hands twitched while walking with the pack on. `ArmStrapClearance` rebuilt the arm's turn axis from the single deepest strap point every frame, and as that point jumped the axis swung about 45 degrees a frame (right hand: 20 velocity flips in 6 s). The push is now the depth-weighted sum over every point met and the axis eases at 6/s; the hands move as smoothly as the walk clip. New `test_arm_strap_smooth`.
+
 - TPS camera after the owner's play test of the direct rig (2026-11-11):
   - Henry stands left of the centre in every space: the shoulder offset now follows the boom's length (0.4 m per metre) instead of being squeezed toward the centre when pressed. His chest holds about 0.35 of a 16:9 frame's width in the open, a 1.5 m corridor and a 3 m room. New `test_tps_camera_framing`.
   - He turns see-through only with the camera jammed against him. The fade is measured from 0.36 m to his body's axis instead of from 0.7 m to his eyes: beside him the camera sees past him and he stays solid.

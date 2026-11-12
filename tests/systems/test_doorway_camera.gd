@@ -260,14 +260,14 @@ func _crouch() -> void:
 	await _ticks(SETTLE_TICKS)
 
 
-## The leaf stands 40 degrees open; Henry pushes it on the way through.
+## The leaf stands 40 degrees open; Henry pushes it on the way out (the 727 front door swings outwards).
 func _half_open() -> void:
 	_open_door(signf(float(_door.get("open_angle_deg"))) * 40.0)
-	await _place(-START_OUT, 0.0, 0.0, -10.0)
+	await _place(END_IN, 0.0, PI, -10.0)
 	_begin(&"half_open")
-	await _hold(&"move_forward", func() -> bool: return _along() >= END_IN, 12.0)
+	await _hold(&"move_forward", func() -> bool: return _along() <= -START_OUT, 12.0)
 	await _settle_sampled(60)
-	_end(&"half_open", true, 1.0)
+	_end(&"half_open", true, -1.0)
 
 
 ## Standing in the door plane, the mouse sweeps a full turn each way at three pitches.
