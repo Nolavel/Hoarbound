@@ -8,6 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed (0.312c)
 
+- Snow in exported builds: `SnowField.load_wind_field()` checked the imported PNG with `FileAccess.file_exists`. An export ships only the `.ctex`, so it returned false, `use_baked_baseline` stayed off, and the snow drew its moving-window fallback, while the editor (with the source PNG) worked. It now uses `ResourceLoader.exists`. `tools/ci/check_export_snow.gd` runs on the exported pack in `release-smoke`. Found by Codex; confirmed with `--main-pack` from an empty directory (0.312b pack: loaded=false; fixed pack: loaded=true). Owner hardware confirmation is pending.
 - Fixed the missing .NET assemblies in the release zips (0.312 and 0.312b). The workflow exported `VERSION=0.312b` as an environment variable, MSBuild read it as the project's `Version`, and NuGet rejected it, so `dotnet publish` inside the Godot export failed. The variables are now `HB_VERSION`/`HB_TITLE`. Release notes come from `tools/ci/release/RELEASE_NOTES.md`, with known limitations listed.
 - Graphics quality defaults to LOW again when no settings file exists. On the owner's HD 620, HIGH ran at 3-5 FPS against 9-11 on LOW; MEDIUM and HIGH stay selectable.
 - The unverified snow-glint handoff experiment is reverted out of the release path. The snow surface movement on Intel HD 620 remains OPEN.
