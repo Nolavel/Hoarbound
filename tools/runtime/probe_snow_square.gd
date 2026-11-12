@@ -41,5 +41,25 @@ func _run() -> void:
 		await _wait_frames(3)
 		await RenderingServer.frame_post_draw
 		_save(root.get_texture().get_image(), "%s.png" % s[0])
+	for env_node: Node in _world.find_children("*", "WorldEnvironment", true, false):
+		var env: Environment = (env_node as WorldEnvironment).environment
+		if env != null:
+			env.fog_enabled = false
+			env.volumetric_fog_enabled = false
+	cam.global_position = p + Vector3(0.0, 30.0, 0.01)
+	cam.look_at(p, Vector3.FORWARD)
+	await _wait_frames(3)
+	await RenderingServer.frame_post_draw
+	_save(root.get_texture().get_image(), "top_nofog.png")
+	shell._mesh.visible = false
+	shell.set_process(false)
+	await _wait_frames(3)
+	await RenderingServer.frame_post_draw
+	_save(root.get_texture().get_image(), "top_nofog_nolocal.png")
+	var vp: Vector2 = Vector2(root.get_visible_rect().size)
+	var corners: Array = []
+	for c: Vector2 in [shell.field.origin, shell.field.origin + Vector2(shell.window_m, shell.window_m)]:
+		corners.append(cam.unproject_position(Vector3(c.x, p.y, c.y)))
+	print("SNOW_SQUARE_CORNERS %s" % [corners])
 	print("SNOW_SQUARE origin=%s window=%.1f henry=%s near_half=%.2f" % [shell.field.origin, shell.window_m, p, shell.near_half_m])
 	quit(0)
