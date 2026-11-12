@@ -18,6 +18,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed
 
+- First Exit A, Gate A (#42): a repeatable Windows Desktop x86_64 export (`export_presets.cfg`, with a Linux preset beside it for running the same pack here). The packs leave out `tests/`, `docs/`, `archive/`, editor add-ons and every `tools/` folder but `tools/StatsDisplay`, which the world preloads. The MCP game helper is stripped by its own export plugin.
+  - Fixed: an exported game started without the 727's interior, spawn point, First Exit sites and compass landmarks. `data/world/key_west/reality` carries a `.gdignore`, so no export ever saw the JSON the game reads there. `addons/reality_editor/reality_export_plugin.gd` ships exactly that runtime subset (9 files).
+  - Verified on the exported pack itself (run with `--main-pack`): Henry spawns 4.6 m from the 727 door, and `loop_key_west_727.gd` passes every step through to reload.
+
 - Owner's play notes 2026-11-12:
   - The 727's front door swings outwards, as public buildings' entrances do. From inside Henry presses F and walks out pushing the leaf; before, it opened inwards and walking out from the lobby he pushed it shut. `test_doorway_camera`'s half-open scenario now pushes the leaf on the way out.
   - Henry's camera fade no longer shows a 4x4 grid: the dissolve uses interleaved gradient noise (Jimenez 2014), pixel-fine with no repeating pattern. A solid cut-away was tried and rejected: it opened his layered clothes and the inside of his head.

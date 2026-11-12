@@ -8,14 +8,18 @@ const FOLLOW_INTERVAL_S: float = 0.5
 const FOLLOW_MAX_M: float = 600.0
 
 const CAPTURE_SCRIPT: GDScript = preload("res://addons/reality_editor/capture_demo.gd")
+const EXPORT_PLUGIN: GDScript = preload("res://addons/reality_editor/reality_export_plugin.gd")
 
 var _dock: RealityEditorDock
 ## Scrolls the dock, so its tall form never pushes the editor past the screen.
 var _scroll: ScrollContainer
 var _since: float = 0.0
+var _export: EditorExportPlugin
 
 
 func _enter_tree() -> void:
+	_export = EXPORT_PLUGIN.new()
+	add_export_plugin(_export)
 	_dock = RealityEditorDock.new()
 	_dock.undo_redo = get_undo_redo()
 	_dock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -31,6 +35,9 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if _export != null:
+		remove_export_plugin(_export)
+		_export = null
 	if _dock == null:
 		return
 	remove_control_from_docks(_scroll)
