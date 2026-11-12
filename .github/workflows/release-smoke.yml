@@ -71,6 +71,14 @@ jobs:
           tools/ci/import_gate.sh
           python3 tools/world/reality/export_pack.py unpack
 
+      - name: .NET publish (the build the export runs, with its errors shown)
+        run: |
+          dotnet --info | head -n 20
+          for rid in win-x64 linux-x64; do
+            dotnet publish Hoarbound.csproj -c ExportRelease -r "$rid" --self-contained true -v minimal \
+              -p:GodotTargetPlatform=$([ "$rid" = win-x64 ] && echo windows || echo linuxbsd) -o "../build/dotnet-$rid"
+          done
+
       - name: Export Windows and Linux
         run: |
           mkdir -p ../build/windows ../build/linux
