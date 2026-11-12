@@ -90,6 +90,14 @@ jobs:
             fi
           done
 
+      - name: Exported pack loads the baked snow wind field
+        ## FileAccess cannot see imported PNGs in an export: 0.312b drew the snow's moving-window fallback.
+        run: |
+          mkdir -p /tmp/empty && cd /tmp/empty
+          godot --headless --main-pack "$GITHUB_WORKSPACE/../build/linux/Hoarbound.pck" \
+            --script "$GITHUB_WORKSPACE/tools/ci/check_export_snow.gd" 2>&1 | tee /tmp/export_snow.log
+          grep -q "loaded=true" /tmp/export_snow.log
+
       - name: Package
         run: |
           name="Hoarbound-${HB_TITLE// /-}-${HB_VERSION}"
