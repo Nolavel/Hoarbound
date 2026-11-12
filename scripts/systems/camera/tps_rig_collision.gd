@@ -6,8 +6,8 @@ extends TpsRigBehaviour
 
 ## Feelers round the boom: yaw and pitch offsets (degrees), weight. Sphere sweeps like the boom's own, so
 ## they meet a jamb edge before it does.
-const DIRECT_FEELERS: Array = [[7.0, 0.0, 1.0], [-7.0, 0.0, 1.0], [16.0, 0.0, 0.6], [-16.0, 0.0, 0.6],
-	[32.0, 0.0, 0.25], [-32.0, 0.0, 0.25], [0.0, 10.0, 1.0], [0.0, -10.0, 1.0], [0.0, 22.0, 0.6], [0.0, -22.0, 0.6]]
+const DIRECT_FEELERS: Array = [[7.0, 0.0, 1.0], [16.0, 0.0, 0.6], [-16.0, 0.0, 0.6], [-7.0, 0.0, 1.0],
+	[32.0, 0.0, 0.25], [0.0, 10.0, 1.0], [0.0, -10.0, 1.0], [-32.0, 0.0, 0.25], [0.0, 22.0, 0.6], [0.0, -22.0, 0.6]]
 
 ## Seconds ahead, by the shoulder's travel and the view's turn rate, the direct rig sweeps the boom at, and
 ## their weights: fixed feelers warn of what is near the boom, these of what he walks or turns it into.
@@ -73,10 +73,12 @@ func _blend_boom(delta: float, shoulder: Vector3, back: Vector3, want: float) ->
 			_dist_pct = lerpf(_dist_pct, this_frame, TpsCamera.damp(1.0 / rig.direct_out_time, delta))
 	else:
 		_out_hold = rig.direct_out_hold
-		## The clamp and the ease are not exclusive: a boom resting on the centre sweep still heeds feelers.
-		_dist_pct = minf(_dist_pct, hard_pct)
-		if _dist_pct > soft_pct:
-			_dist_pct = lerpf(_dist_pct, soft_pct, TpsCamera.damp(1.0 / rig.blend_in_time, delta))
+		## Only contact snaps: the boom's sphere may not enter the wall. The margin off the wall and the
+		## feelers' warnings are eased to, both every frame, so a snap is never longer than it must be.
+		var contact_pct: float = clampf(shares.z / maxf(want, 0.001), hard_pct, 1.0)
+		_dist_pct = minf(_dist_pct, contact_pct)
+		if _dist_pct > this_frame:
+			_dist_pct = lerpf(_dist_pct, this_frame, TpsCamera.damp(1.0 / rig.blend_in_time, delta))
 	return _dist_pct
 
 

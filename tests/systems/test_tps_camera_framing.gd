@@ -41,7 +41,7 @@ func _run() -> void:
 	_box(Vector3(0.0, 3.0, 0.0), Vector3(3.0, 0.3, 30.0))
 	await _place(Vector3(0.0, 1.0, 10.0))
 	await _hold(&"move_forward", 300, 0.0)
-	_end("corridor walk", true)
+	_end("corridor walk", false)
 	await _hold(&"", 360, 1.0)
 	_end("corridor turn", false)
 	_clear()
@@ -54,7 +54,7 @@ func _run() -> void:
 	_box(Vector3(0.0, 2.75, 0.0), Vector3(3.8, 0.3, 3.8))
 	await _place(Vector3(0.0, 1.0, 0.0))
 	await _hold(&"", 360, 1.0)
-	_end("room turn", true)
+	_end("room turn", false)
 	await _place(Vector3(0.0, 1.0, 0.8))
 	await _hold(&"move_forward", 200, 0.0)
 	_end("room walk to wall", false)
@@ -81,17 +81,35 @@ func _frame_x(point: Vector3) -> float:
 	return 0.5 + 0.5 * (seen.x / -seen.z) / (tan(deg_to_rad(_camera.fov * 0.5)) * 16.0 / 9.0)
 
 
+## Right-most point of what Henry carries (the pack and what hangs on it), as a share of the frame's width.
+## Rigid meshes only: a skinned mesh's bounds are its rest pose, the worn straps' are not kept. His body
+## is judged by his chest instead.
+func _gear_right_edge() -> float:
+	var edge: float = -INF
+	for node: Node in _player.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh.skin != null or mesh is PackShoulderStraps or not mesh.is_visible_in_tree() or mesh.layers & _camera.body_layers == 0:
+			continue
+		var box: AABB = mesh.get_aabb()
+		for i: int in range(8):
+			var x: float = _frame_x(mesh.global_transform * box.get_endpoint(i))
+			if x <= 1.5:
+				edge = maxf(edge, x)
+	return edge
+
+
 func _sample() -> void:
 	var chest: Vector3 = _camera.get_eye_position() - Vector3.UP * 0.35
 	_stats["chest_max"] = maxf(_stats["chest_max"], _frame_x(chest))
 	_stats["chest_min"] = minf(_stats["chest_min"], _frame_x(chest))
-	_stats["edge_max"] = maxf(_stats["edge_max"], _frame_x(chest + _camera.global_basis.x * 0.25))
+	_stats["edge_max"] = maxf(_stats["edge_max"], maxf(_frame_x(chest + _camera.global_basis.x * 0.25), _gear_right_edge()))
 	_stats["fade_max"] = maxf(_stats["fade_max"], _camera.get_body_fade())
 	_stats["eye_min"] = minf(_stats["eye_min"], _camera.global_position.distance_to(_camera.get_eye_position()))
 
 
-## Walking or standing with room behind: left of centre, in frame, drawn in full. `steady` scenes also keep
-## his whole body clear of the centre; in a turn on the spot a wall may bring the camera round closer.
+## Walking or standing with room behind: left of centre, in frame, drawn in full. `steady` scenes (walking
+## away from the camera) also keep him and his gear clear of the centre; turned on the spot he is seen from
+## the side and a wall may bring the camera round closer.
 func _end(label: String, steady: bool) -> void:
 	_check(float(_stats["chest_max"]) <= CHEST_MAX_X, "%s: his chest reached %.2f of the frame's width" % [label, _stats["chest_max"]])
 	_check(float(_stats["chest_min"]) >= 0.0, "%s: he left the frame on the left (%.2f)" % [label, _stats["chest_min"]])

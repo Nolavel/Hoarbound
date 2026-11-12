@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Production shelter doorway (Key West, 1.5 x 2.25 m): through every normal traversal Henry's head stays
 ## in frame and unoccluded, he fades no further than the rig's limit, the camera stays out of walls, no
-## frame step passes 0.4 m, only the mouse turns the yaw, and a released key leaves him where he stands.
+## frame step passes 0.3 m, only the mouse turns the yaw, and a released key leaves him where he stands.
 ## Fixed frames: the steps it measures sit near their limit and must not depend on the runner's speed.
 ## ci-args: --fixed-fps 60
 ## Run: godot --headless --path . --script res://tests/systems/test_doorway_camera.gd [-- <label> [pivot=<share>] [scenario...]]
@@ -17,7 +17,7 @@ const NEAR_PROBE_RADIUS: float = 0.08
 ## A pop: the camera jumps against Henry by more than this in one frame, faster than POP_SPEED. The rig has
 ## no doorway frame to close ahead: a view swung at 150 deg/s beside a jamb must pull the boom in 1.6 m
 ## within a tenth of a second. Feelers and leads spread that over frames, each under this.
-const POP_LIMIT: float = 0.4
+const POP_LIMIT: float = 0.3
 const POP_SPEED: float = 6.0
 ## Fastest the FOV may change, degrees per second.
 const FOV_RATE_LIMIT: float = 45.0

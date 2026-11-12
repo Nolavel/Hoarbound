@@ -26,7 +26,7 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 @export var direct_rise_lengths: Vector2 = Vector2(1.0, 2.0)
 ## A boom a wall shortened holds for this long after the wall clears, then eases out over this time, seconds.
 @export var direct_out_hold: float = 0.35
-@export var direct_out_time: float = 0.6
+@export var direct_out_time: float = 0.4
 ## The "camera behind Henry" key turns the view to his facing at this rate (1/s) and to this pitch; any mouse
 ## motion takes the view back at once. It is the only recentre on the direct rig, and only on that key.
 @export var behind_rate: float = 9.0

@@ -11,10 +11,10 @@ var occluder_transparency: float = 0.7
 var max_visual_extent: float = 1.5
 var fade_in_time: float = 0.12
 var fade_out_time: float = 0.35
-## Meshes without the stylized shader (the pack, what hangs on it) cannot dither by fragment: one within
-## the first distance of the camera goes with the body, one past the second stays solid, metres. A whole
-## mesh blended halfway showed the pack's insides.
-var body_fallback_reach: Vector2 = Vector2(0.45, 1.0)
+## Meshes without the stylized shader (the pack and what hangs on it) cannot dither by fragment, and a
+## mesh blended halfway shows its insides. They go together, all or none: out when the nearest of them is
+## within the first distance of the camera, back when it is past the second, metres.
+var body_fallback_reach: Vector2 = Vector2(0.45, 0.6)
 
 ## Faded occluder visuals by instance id: [GeometryInstance3D, amount, own transparency].
 var _faded: Dictionary = {}
@@ -23,6 +23,8 @@ var _body_layers: int = 0
 var _body: Array[GeometryInstance3D] = []
 var _body_amount: float = 0.0
 var _body_refresh: float = 0.0
+## True while the unshaded gear on his body is taken out of the picture.
+var _gear_hidden: bool = false
 
 
 ## Eases the visuals of these colliders toward see-through and the rest back.
@@ -72,9 +74,14 @@ func update_body(amount: float, delta: float, camera: Vector3 = Vector3.ZERO) ->
 	if _body.is_empty() or _body_refresh <= 0.0:
 		_collect_body()
 		_body_refresh = 1.0
+	var nearest: float = INF
+	for geo: GeometryInstance3D in _body:
+		if is_instance_valid(geo) and not _is_stylized(geo):
+			nearest = minf(nearest, _distance_to(geo, camera))
+	_gear_hidden = amount >= 0.5 and nearest < (body_fallback_reach.y if _gear_hidden else body_fallback_reach.x)
 	for geo: GeometryInstance3D in _body:
 		if is_instance_valid(geo):
-			_apply_body(geo, amount, camera)
+			_apply_body(geo, amount)
 	_body_amount = amount
 
 
@@ -92,14 +99,18 @@ func _collect_body() -> void:
 			_body.append(geo)
 
 
-func _apply_body(geo: GeometryInstance3D, amount: float, camera: Vector3) -> void:
+func _apply_body(geo: GeometryInstance3D, amount: float) -> void:
 	if _is_stylized(geo):
 		geo.set_instance_shader_parameter(&"camera_fade", amount)
-		return
-	var local: Vector3 = geo.global_transform.affine_inverse() * camera
+	else:
+		geo.transparency = 1.0 if _gear_hidden else 0.0
+
+
+## Distance from `point` to the mesh's bounds, metres.
+static func _distance_to(geo: GeometryInstance3D, point: Vector3) -> float:
+	var local: Vector3 = geo.global_transform.affine_inverse() * point
 	var box: AABB = geo.get_aabb()
-	var nearest: Vector3 = geo.global_transform * local.clamp(box.position, box.end)
-	geo.transparency = amount * (1.0 - smoothstep(body_fallback_reach.x, body_fallback_reach.y, camera.distance_to(nearest)))
+	return point.distance_to(geo.global_transform * local.clamp(box.position, box.end))
 
 
 static func _is_stylized(geo: GeometryInstance3D) -> bool:

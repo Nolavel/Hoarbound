@@ -12,6 +12,9 @@ What it did that the live camera does not:
 - crossed to the other shoulder by itself when one side was walled off;
 - closed its frame before a doorway, held the orbit in the doorway's cone, eased the mouse into soft stops
   there, and carried Henry through once he had crossed the door plane (`carry_through`);
+- widened the shoulder or crossed to the other one by itself when the mechanism under the crosshair stood
+  behind Henry on screen (`tps_interaction_framing.gd`, archived 2026-11-12: in door D1 it fired on hundreds
+  of frames and crossed shoulders with no key pressed);
 - moved the boom onto the centre line (recompose) and held Henry's eyes at a fixed place in the frame in
   tight rooms (composition); slowed the mouse near his body (body guard).
 
