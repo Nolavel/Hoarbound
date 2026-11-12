@@ -20,6 +20,8 @@ const PLACE_DISTANCE: float = 1.3
 const MAX_PLACE_DISTANCE: float = 3.0
 const RAY_LENGTH: float = 6.0
 const MAX_SLOPE_DEG: float = 14.0
+## The mat lies on the floor Henry stands on, not on furniture: the stove top is 0.7 m up.
+const MAX_STEP_M: float = 0.3
 const BEDROLL_SIZE: Vector3 = Vector3(0.75, 0.005, 1.9)
 ## The placement ghost: the open bedroll itself, grey and see-through; reddish where it cannot lie.
 const VALID_COLOR: Color = Color(0.72, 0.74, 0.76, 0.4)
@@ -185,8 +187,9 @@ func _raycast_placement() -> Dictionary:
 	facing = facing.normalized() if facing.length() > 0.01 else Vector3.FORWARD
 	var xf := Transform3D(Basis(Vector3.UP, atan2(facing.x, facing.z)), point + normal * 0.025)
 	var slope_ok: bool = normal.dot(Vector3.UP) >= cos(deg_to_rad(MAX_SLOPE_DEG))
-	var distance_ok: bool = body.global_position.distance_to(point) <= MAX_PLACE_DISTANCE
-	var height_ok: bool = absf(point.y - body.global_position.y) <= 0.65
+	var feet: Vector3 = _feet_of(body)
+	var distance_ok: bool = feet.distance_to(point) <= MAX_PLACE_DISTANCE
+	var height_ok: bool = absf(point.y - feet.y) <= MAX_STEP_M
 	var clearance := BoxShape3D.new()
 	clearance.size = Vector3(BEDROLL_SIZE.x * 0.94, 0.14, BEDROLL_SIZE.z * 0.94)
 	var shape_query := PhysicsShapeQueryParameters3D.new()
@@ -203,6 +206,15 @@ func _raycast_placement() -> Dictionary:
 	## A bedroll is for sleeping where it is warm: indoors, in a heated room.
 	var warm: bool = ThermalZone.is_warm_at(body.get_world_3d(), point + Vector3.UP * 0.3)
 	return {"transform": xf, "valid": slope_ok and distance_ok and height_ok and clear and warm, "cold": not warm}
+
+
+## Henry's soles from his capsule; his origin is the capsule centre, a metre above the floor.
+static func _feet_of(body: CharacterBody3D) -> Vector3:
+	for child: Node in body.get_children():
+		var col := child as CollisionShape3D
+		if col != null and col.shape is CapsuleShape3D and not col.disabled:
+			return body.global_transform * (col.position - Vector3.UP * (col.shape as CapsuleShape3D).height * 0.5)
+	return body.global_position
 
 
 func _front_transform() -> Transform3D:
