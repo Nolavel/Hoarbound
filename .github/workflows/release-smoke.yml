@@ -9,10 +9,14 @@ on:
     inputs:
       version:
         description: "Build version (major.MDD)"
-        default: "0.312b"
+        default: "0.312c"
       title:
         description: "Release name after Hoarbound"
         default: "Smoke Test November"
+      publish:
+        description: "Publish the pre-release (false: build and check only)"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -27,7 +31,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      VERSION: ${{ github.event.inputs.version || '0.312b' }}
+      VERSION: ${{ github.event.inputs.version || '0.312c' }}
       TITLE: ${{ github.event.inputs.title || 'Smoke Test November' }}
     steps:
       - uses: actions/checkout@v4
@@ -73,6 +77,8 @@ jobs:
           godot --headless --path . --export-release "Windows Desktop" ../build/windows/Hoarbound.exe 2>&1 | tee ../build/export_windows.log | grep -v "Storing File" | tail -n 60
           godot --headless --path . --export-release "Linux" ../build/linux/Hoarbound.x86_64 2>&1 | tee ../build/export_linux.log | grep -v "Storing File" | tail -n 60
           test -s ../build/windows/Hoarbound.pck && test -s ../build/linux/Hoarbound.pck
+          echo "--- .NET lines of the export logs"
+          grep -ihE "dotnet|\.net|msbuild|publish|assembl|error" ../build/export_windows.log ../build/export_linux.log | grep -v "Storing File" | head -n 80 || true
           ## The mono runtime refuses to start without its assemblies (0.312b shipped without them).
           for d in ../build/windows/data_Hoarbound_windows_x86_64 ../build/linux/data_Hoarbound_linuxbsd_x86_64; do
             if [ ! -d "$d" ] || [ -z "$(ls -A "$d")" ]; then
@@ -96,7 +102,19 @@ jobs:
           ls -la *.zip
           echo "NAME=$name" >> "$GITHUB_ENV"
 
+      - name: Upload build for inspection
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-smoke-${{ env.VERSION }}
+          path: |
+            ${{ env.NAME }}-win64.zip
+            ${{ env.NAME }}-linux-x86_64.zip
+            SHA256SUMS.txt
+          retention-days: 3
+
       - name: Publish release
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.publish != 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

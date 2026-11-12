@@ -6,6 +6,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (0.312c)
+
+- Graphics quality defaults to LOW again when no settings file exists. On the owner's HD 620, HIGH ran at 3-5 FPS against 9-11 on LOW; MEDIUM and HIGH stay selectable.
+- The unverified snow-glint handoff experiment is reverted out of the release path. The snow surface movement on Intel HD 620 remains OPEN.
+- `release-smoke` takes a `publish` input: false builds, checks and uploads the zips as a workflow artifact without a release. The export logs' .NET lines are printed.
+
 ### Fixed (WIP, claudeflow)
 
 - `release-smoke` fails when the .NET assemblies folder is missing. The 0.312b zips shipped without `data_Hoarbound_*`, and the mono runtime refused to start.

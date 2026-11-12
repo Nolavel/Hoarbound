@@ -407,7 +407,7 @@ void fragment() {
 	// Sun flashes off ice facets; a pressed print has crushed them.
 	vec4 facet = snow_glint_facet(v_world.xz, n, footprint);
 	v_glint_n = normalize((VIEW_MATRIX * vec4(facet.xyz, 0.0)).xyz);
-	v_glint = facet.w * (1.0 - smoothstep(0.01, 0.06, packed_height)) * snow_glint_reach(v_world.xz);
+	v_glint = facet.w * (1.0 - smoothstep(0.01, 0.06, packed_height));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	// Pigment on the ground plane: the painterly noise is seeded by the normal, which on a
 	// curved trench wall sweeps it through dozens of periods (agate rings).
