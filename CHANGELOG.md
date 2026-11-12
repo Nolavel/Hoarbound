@@ -9,6 +9,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 ### Fixed
 
 - Bedroll placement judged height from Henry's capsule centre, a metre above his soles: the 727 floor was always refused and the stove top accepted. It now measures from the soles with a 0.3 m step; the real-727 probe (`tools/runtime/probe_727_bedroll.gd`) lays it on the floor, refuses the stove, opens the sleep dialog and rolls it up.
+- Smoke-test tooling: `tools/runtime/audit_727_pickups.gd` takes every 727 pickup by a real F tap and draws every Quick Access pocket; `tools/runtime/probe_snow_window_lag.gd` walks Duval Street at a given `--fixed-fps` and logs the snow window rim and foot plants per metre.
 - Holding F on an item that is never shown in a hand (road flare, hammer) refused with a cross; it now takes the item to its pocket, as a tap does.
 
 ### Added

@@ -24,6 +24,8 @@ func _run() -> void:
 		_camera.call(&"set_look", _yaw, -16.0)
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	var seconds: float = float(args[3]) if args.size() > 3 else 30.0
+	var plants: Array[int] = [0]
+	shell._sensor.foot_planted.connect(func(_s: int, _p: Vector3, _n: Vector3, _f: Vector3, _v: float) -> void: plants[0] += 1)
 	Input.action_press(&"move_forward", 1.0)
 	var min_rim: float = INF
 	var outside_frames: int = 0
@@ -46,6 +48,6 @@ func _run() -> void:
 		worst_rebuild_frames = maxi(worst_rebuild_frames, rebuild_run)
 	_release()
 	var walked: float = Vector2(_player.global_position.x - start.x, _player.global_position.z - start.z).length()
-	print("SNOW_LAG frames=%d walked_m=%.1f min_rim_m=%.2f outside_frames=%d longest_rebuild_frames=%d" % [
-		frames, walked, min_rim, outside_frames, worst_rebuild_frames])
+	print("SNOW_LAG frames=%d walked_m=%.1f min_rim_m=%.2f outside_frames=%d longest_rebuild_frames=%d plants=%d plants_per_m=%.2f" % [
+		frames, walked, min_rim, outside_frames, worst_rebuild_frames, plants[0], plants[0] / maxf(walked, 0.1)])
 	quit(0)
