@@ -70,9 +70,17 @@ jobs:
       - name: Export Windows and Linux
         run: |
           mkdir -p ../build/windows ../build/linux
-          godot --headless --path . --export-release "Windows Desktop" ../build/windows/Hoarbound.exe
-          godot --headless --path . --export-release "Linux" ../build/linux/Hoarbound.x86_64
+          godot --headless --path . --export-release "Windows Desktop" ../build/windows/Hoarbound.exe 2>&1 | tee ../build/export_windows.log | grep -v "Storing File" | tail -n 60
+          godot --headless --path . --export-release "Linux" ../build/linux/Hoarbound.x86_64 2>&1 | tee ../build/export_linux.log | grep -v "Storing File" | tail -n 60
           test -s ../build/windows/Hoarbound.pck && test -s ../build/linux/Hoarbound.pck
+          ## The mono runtime refuses to start without its assemblies (0.312b shipped without them).
+          for d in ../build/windows/data_Hoarbound_windows_x86_64 ../build/linux/data_Hoarbound_linuxbsd_x86_64; do
+            if [ ! -d "$d" ] || [ -z "$(ls -A "$d")" ]; then
+              echo "::error::.NET assemblies missing: $d"
+              grep -iE "dotnet|\.NET|msbuild|error" ../build/export_windows.log | grep -v "Storing File" | head -n 40
+              exit 1
+            fi
+          done
 
       - name: Package
         run: |

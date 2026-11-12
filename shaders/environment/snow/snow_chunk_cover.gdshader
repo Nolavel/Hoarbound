@@ -42,9 +42,9 @@ void fragment() {
 	ALBEDO = hfn_painterly_surface_color(albedo, v_world, vec3(0.0, 1.0, 0.0), 0.38);
 	ROUGHNESS = 0.9;
 	SPECULAR = 0.3;
-	vec4 facet = snow_glint_facet(v_world.xz, n, footprint);
-	v_glint_n = normalize((VIEW_MATRIX * vec4(facet.xyz, 0.0)).xyz);
-	v_glint = facet.w;
+	// No glints out here: they fade out on the clipmap before the handoff (snow_glint_reach).
+	v_glint_n = NORMAL;
+	v_glint = 0.0;
 	if (debug_height) {
 		ALBEDO = vec3(0.0);
 		ROUGHNESS = 1.0;

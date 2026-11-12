@@ -264,6 +264,15 @@ float snow_lod_distance(vec2 xz) {
 	return max(d.x, d.y);
 }
 
+// Ice glints live only on the near clipmap and fade out well before its square handoff:
+// the chunk cover never draws them, so the handoff shows no edge (detail fades before LOD).
+float snow_glint_reach(vec2 xz) {
+	if (snow_lod.w <= 0.5 || snow_lod.z <= 0.0) {
+		return 0.0;
+	}
+	return 1.0 - smoothstep(snow_lod.z * 0.55, snow_lod.z * 0.85, snow_lod_distance(xz));
+}
+
 // Capture-only: the drawn height as emission, 4 m / 25 cm / 16 mm periods in RGB.
 // The sRGB encode is undone so an 8-bit readback stores each period linearly.
 vec3 snow_debug_height(float y) {
