@@ -22,6 +22,10 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## boom: there his head stands at the frame's edge.
 @export var direct_side_in_rate: float = 16.0
 @export var direct_side_edge: float = 0.7
+## The lens stands at least this far from a wall beside it, metres: a wall at the lens fills half the frame.
+@export var direct_wall_clearance: float = 0.28
+## Field of view added in the tightest space (by the eased openness, never by a wall's snap), degrees.
+@export_range(0.0, 15.0, 0.5) var direct_tight_fov_deg: float = 0.0
 ## Boom lengths between which a close camera rises from his shoulder joints to his eye line, metres.
 @export var direct_rise_lengths: Vector2 = Vector2(1.0, 2.0)
 ## A boom a wall shortened holds for this long after the wall clears, then eases out over this time, seconds.
@@ -125,6 +129,9 @@ const CAMERA_USER_SETTINGS: GDScript = preload("res://scripts/settings/camera_us
 ## second is also the closest the camera may stand to his eyes. The shader spares parts over a metre away.
 @export var body_fade_start: float = 0.45
 @export var body_fade_end: float = 0.2
+## The pack and what hangs on it are taken out of the picture with the lens this close to them, metres,
+## whether or not his body fades: over his shoulder the pack would fill the frame. 0: only when jammed.
+@export var gear_hide_distance: float = 0.0
 ## How see-through a thin occluder between camera and Henry becomes.
 @export_range(0.0, 1.0, 0.05) var occluder_transparency: float = 0.7
 
@@ -168,6 +175,7 @@ var _last_eye_distance: float = INF
 ## Shoulder offset and rise toward the eye line in use, eased, metres.
 var _direct_side: float = 0.0
 var _direct_rise: float = 0.0
+var _tight_fov: float = 0.0
 var _behind_active: bool = false
 var _behind_yaw: float = 0.0
 var _aim: float = 0.0
@@ -414,7 +422,7 @@ func _update_rig(delta: float) -> void:
 	var side_goal: float = clampf(behind * direct_side_per_metre, floor_side, shoulder_offset * direct_side_scale)
 	var room: float = _rig_collision.lateral_room(frame.safe, frame.pivot, frame.right, side_goal * signf(handed))
 	if room < side_goal - 0.001:
-		side_goal = maxf(room - 0.08, 0.0)
+		side_goal = maxf(room - (direct_wall_clearance - collision_radius), 0.0)
 	var side_rate: float = direct_side_in_rate if side_goal < _direct_side else direct_side_rate
 	_direct_side = lerpf(_direct_side, side_goal, damp(side_rate, delta)) if _has_position else side_goal
 	frame.side = handed * _direct_side + _lean * lean_camera_offset
@@ -425,6 +433,9 @@ func _update_rig(delta: float) -> void:
 	_last_side = frame.side
 	frame.right = Vector3(cos(frame.orbit_yaw), 0.0, -sin(frame.orbit_yaw))
 	frame.back = back_dir(frame.orbit_yaw, frame.orbit_pitch)
+	var tight_fov: float = direct_tight_fov_deg * (1.0 - clampf(inverse_lerp(near_distance, far_distance, _boom), 0.0, 1.0))
+	fov += tight_fov - _tight_fov
+	_tight_fov = tight_fov
 	_rig_collision.apply(frame)
 	## Jammed on every side, the rise would stand the camera in his head: it is given back first.
 	var eye: Vector3 = get_eye_position()
@@ -659,6 +670,7 @@ func _sync_helpers() -> void:
 	_probe.collision_mask = collision_mask
 	_probe.thin_extent = direct_thin_extent
 	_fader.occluder_transparency = occluder_transparency
+	_fader.gear_hide_distance = gear_hide_distance
 
 
 func _player_speed_ratio() -> float:

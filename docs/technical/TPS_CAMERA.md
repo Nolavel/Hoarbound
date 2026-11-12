@@ -49,6 +49,46 @@ The shoulder offset and the rise read last frame's eased boom length. That is th
 and it is damped (3 1/s out, 16 1/s in); the earlier squeeze-by-boom-share and lens widening were removed
 because they made the frame breathe with every wall.
 
+## Framing study in the real 727 (2026-11-12, open: the owner chooses)
+
+The owner's rule for the frame: in ordinary rooms Henry stands in the left third with his head, shoulder
+and upper back readable; in a tight place the camera comes close over his shoulder and still shows his head
+and shoulder; he is never pushed to a corner of the frame or out of it; the look stays the mouse's.
+
+`tools/runtime/compare_camera_framing.gd` walks Henry forward at five spots of the 727 and saves one frame
+and one row of shot-quality numbers per preset (`docs/runtime_previews/tps_camera/compare_727.jpg`,
+`compare_open.jpg`). Judged at 16:9, walking:
+
+| Spot | Preset | Head at (share of width) | Head and shoulder in frame | Camera to eyes | Frame nearer than 1 m | Centre sees |
+|---|---|---|---|---|---|---|
+| corridor | current | 0.34 | yes | 1.02 m | 26 % | 5.6 m |
+| corridor | centre_close | 0.47 | yes | 1.10 m | 5 % | 7.2 m |
+| along a wall | current | 0.34 | yes | 1.13 m | 0 % | 5.8 m |
+| restroom | current | 0.34 | yes | 1.09 m | 0 % | 5.8 m |
+| exam room | current | 0.36 | yes | 1.30 m | 0 % | 2.0 m |
+| stove room | current | 0.35 | yes | 1.17 m | 0 % | 7.4 m |
+
+Cinemachine Deoccluder's three strategies against this geometry:
+
+- **Pull Camera Forward** is what the rig does (Lyra's blend along the boom). Rooms of the 727 leave 1.0 to
+  1.3 m behind Henry while he walks, which is already a close over-the-shoulder frame. It fits.
+- **Preserve Camera Height** matters only where pulling in would drop the camera: the rig rises to his eye
+  line as the boom shortens, which covers it. Nothing more to gain in rooms with flat 2.6 m ceilings.
+- **Preserve Camera Distance** finds another place at the same distance, which means leaving the line
+  behind the view: a swing round Henry or a lift over him. That is the archived guided rig and the
+  owner's rule excludes it.
+
+So the candidates worth scoring differ only in the shoulder offset and the lens, not in where the boom
+points. `direct_wall_clearance`, `direct_tight_fov_deg` and `gear_hide_distance` exist for that and are off
+by default. What the frames show:
+
+- Indoors the current frame already matches the rule: left third, head, shoulder and pack readable.
+- The one weak spot is a wall beside the lens (26 % of the frame in the corridor). Centring Henry removes
+  the wall and puts his back over the middle of the frame; that trade is the owner's.
+- Hiding the pack over his shoulder (`close_shoulder`) reads wrong: what hangs on it floats. Keep it for
+  the jam only.
+- In the open he is small and low at a 3 m boom; at 2.2 m (`reference`) he reads like the owner's reference.
+
 ## Why these choices (owner's play test, 2026-11-11)
 
 | Complaint | Measured in the 727 (headless `trace_camera_tight`) | Cause | Change |

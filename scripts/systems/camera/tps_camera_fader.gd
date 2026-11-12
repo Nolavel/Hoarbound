@@ -9,6 +9,8 @@ var occluder_transparency: float = 0.7
 ## Meshes wider than this in their middle axis are never faded: a building
 ## must not vanish because a pipe on it crossed the view.
 var max_visual_extent: float = 1.5
+## The unshaded gear also goes with the lens this close to it, whatever the body's fade; 0 is off.
+var gear_hide_distance: float = 0.0
 var fade_in_time: float = 0.12
 var fade_out_time: float = 0.35
 ## Meshes without the stylized shader (the pack and what hangs on it) cannot dither by fragment, and a
@@ -69,7 +71,7 @@ func set_body(root: Node, layers: int) -> void:
 ## 0 shows Henry, 1 removes what of him is at `camera`; stylized materials dither, others go by distance.
 func update_body(amount: float, delta: float, camera: Vector3 = Vector3.ZERO) -> void:
 	_body_refresh -= delta
-	if amount <= 0.0 and _body_amount <= 0.0 and _body_refresh > 0.0:
+	if amount <= 0.0 and _body_amount <= 0.0 and _body_refresh > 0.0 and gear_hide_distance <= 0.0:
 		return
 	if _body.is_empty() or _body_refresh <= 0.0:
 		_collect_body()
@@ -78,7 +80,8 @@ func update_body(amount: float, delta: float, camera: Vector3 = Vector3.ZERO) ->
 	for geo: GeometryInstance3D in _body:
 		if is_instance_valid(geo) and not _is_stylized(geo):
 			nearest = minf(nearest, _distance_to(geo, camera))
-	_gear_hidden = amount >= 0.5 and nearest < (body_fallback_reach.y if _gear_hidden else body_fallback_reach.x)
+	_gear_hidden = (amount >= 0.5 and nearest < (body_fallback_reach.y if _gear_hidden else body_fallback_reach.x)) \
+			or nearest < gear_hide_distance + (0.15 if _gear_hidden else 0.0)
 	for geo: GeometryInstance3D in _body:
 		if is_instance_valid(geo):
 			_apply_body(geo, amount)
