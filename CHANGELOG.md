@@ -6,6 +6,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Verified
+
+- Continue after a relaunch (#42 Gate A), checked across two processes:
+  - **Run 1:** `loop_key_west_727.gd --stop-after-sleep` on the exported pack plays the 727 loop to the sleep save and writes `expected.json`.
+  - **Run 2:** `tools/runtime/continue_after_relaunch.tscn` runs in a new process. It opens the real title menu, Continue is enabled, presses it, and compares the world: boards, fire, taken pickups, kit counts, and Henry inside the 727.
+  - **Result:** PASS. A tampered expectation fails with exit code 1.
+  - The snapshot moved to `tools/runtime/shelter_snapshot.gd`, shared with the in-process loop, which still passes.
+- Lighter from a coat pocket to the hand works, alone and straight after a held flare. The earlier audit's failure came from the harness order, not the game.
+
 ### Changed (0.312c)
 
 - Snow in exported builds: `SnowField.load_wind_field()` checked the imported PNG with `FileAccess.file_exists`. An export ships only the `.ctex`, so it returned false, `use_baked_baseline` stayed off, and the snow drew its moving-window fallback, while the editor (with the source PNG) worked. It now uses `ResourceLoader.exists`. `tools/ci/check_export_snow.gd` runs on the exported pack in `release-smoke`. Found by Codex; confirmed with `--main-pack` from an empty directory (0.312b pack: loaded=false; fixed pack: loaded=true). Owner hardware confirmation is pending.
