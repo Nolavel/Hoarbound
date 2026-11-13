@@ -1,11 +1,16 @@
 extends SceneTree
 
 ## Scenes moved out of code must draw what the code built (RUNTIME_CONSTRUCTION_AUDIT.md).
-## Each fixture was snapshotted from the old code-built tree before the move.
+## Each fixture was snapshotted from the old code-built tree before the move; an optional
+## third entry names the node to compare inside a larger scene.
 ## Run: godot --headless --script tests/systems/test_authored_scene_parity.gd
 
 const CASES: Array = [
 	["res://scenes/environment/thermometer/wall_thermometer.tscn", "res://tests/fixtures/scene_parity/wall_thermometer.json"],
+	["res://scenes/environment/stove/stove_log.tscn", "res://tests/fixtures/scene_parity/stove_log.json"],
+	## The stove inside the shelter: its room light, door control and tinder need the HeatSource.
+	["res://scenes/world/first_exit/first_exit_blockout.tscn", "res://tests/fixtures/scene_parity/stove_visual_in_shelter.json",
+		"ShelterHouse/House/ShelterZone/Stove/StoveVisual"],
 ]
 
 var _failures: int = 0
@@ -15,7 +20,8 @@ func _process(_delta: float) -> bool:
 	for pair: Array in CASES:
 		var node := (load(pair[0]) as PackedScene).instantiate() as Node3D
 		root.add_child(node)
-		var problems: Array[String] = SceneParity.diff(SceneParity.load_file(pair[1]), SceneParity.snapshot(node))
+		var target: Node3D = node.get_node(NodePath(pair[2])) as Node3D if pair.size() > 2 else node
+		var problems: Array[String] = SceneParity.diff(SceneParity.load_file(pair[1]), SceneParity.snapshot(target))
 		for problem: String in problems.slice(0, 8):
 			push_error("authored_scene_parity: %s: %s" % [pair[0].get_file(), problem])
 		_failures += problems.size()

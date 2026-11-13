@@ -107,6 +107,8 @@ static func _resource(resource: Resource) -> Variant:
 	if resource == null:
 		return null
 	var out: Dictionary = {"class": resource.get_class()}
+	if resource is Mesh and not resource is PrimitiveMesh:
+		return _mesh_digest(resource as Mesh)
 	if resource is ShaderMaterial:
 		var shader_material := resource as ShaderMaterial
 		out["shader"] = shader_material.shader.resource_path if shader_material.shader != null else ""
@@ -115,13 +117,36 @@ static func _resource(resource: Resource) -> Variant:
 			params[uniform["name"]] = _plain(shader_material.get_shader_parameter(uniform["name"]))
 		out["params"] = params
 		return out
+	## Only what differs from a fresh instance, so a fixture lists what was actually set.
+	var fresh: Object = ClassDB.instantiate(resource.get_class()) if ClassDB.can_instantiate(resource.get_class()) else null
 	for property: Dictionary in resource.get_property_list():
 		if not (int(property["usage"]) & PROPERTY_USAGE_STORAGE):
 			continue
 		var name: String = property["name"]
 		if name.begins_with("resource_") or name == "script":
 			continue
-		out[name] = _plain(resource.get(name))
+		var value: Variant = resource.get(name)
+		if fresh != null and not (value is Object) and typeof(value) == typeof(fresh.get(name)) and value == fresh.get(name):
+			continue
+		out[name] = _plain(value)
+	return out
+
+
+## Generated meshes compare by shape, not bytes: surfaces, vertex count, bounds and rounded vertices.
+static func _mesh_digest(mesh: Mesh) -> Dictionary:
+	var out: Dictionary = {"class": mesh.get_class(), "surfaces": mesh.get_surface_count()}
+	var aabb: AABB = mesh.get_aabb()
+	out["aabb"] = [aabb.position.x, aabb.position.y, aabb.position.z, aabb.size.x, aabb.size.y, aabb.size.z]
+	var count: int = 0
+	var digest: PackedStringArray = []
+	for surface: int in range(mesh.get_surface_count()):
+		var vertices: PackedVector3Array = mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]
+		count += vertices.size()
+		for v: Vector3 in vertices:
+			digest.append("%.3f,%.3f,%.3f" % [v.x, v.y, v.z])
+		out["material_%d" % surface] = _resource(mesh.surface_get_material(surface))
+	out["vertices"] = count
+	out["hash"] = ";".join(digest).md5_text()
 	return out
 
 

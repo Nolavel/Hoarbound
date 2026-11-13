@@ -1,0 +1,92 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/environment/stove/stove_log_visual.gd" id="1_laljn"]
+[ext_resource type="Shader" path="res://shaders/environment/stove/log_wood.gdshader" id="2_2ws1q"]
+[ext_resource type="ArrayMesh" path="res://assets/models/stove/stove_log_wood.res" id="3_nlwo8"]
+[ext_resource type="Shader" path="res://shaders/environment/stove/log_flame.gdshader" id="4_o3vru"]
+[ext_resource type="ArrayMesh" path="res://assets/models/stove/stove_log_flame.res" id="5_wicgw"]
+[ext_resource type="Shader" path="res://shaders/environment/stove/log_smoke.gdshader" id="6_onkpw"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5sbwc"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("2_2ws1q")
+shader_parameter/ignition_source = null
+shader_parameter/burn_progress = 0.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4mte6"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("4_o3vru")
+shader_parameter/ignition_source = null
+shader_parameter/burn_progress = 0.0
+shader_parameter/animation_seconds = null
+shader_parameter/root_x = -0.82
+shader_parameter/root_z = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_on77q"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("4_o3vru")
+shader_parameter/ignition_source = null
+shader_parameter/burn_progress = 0.0
+shader_parameter/animation_seconds = null
+shader_parameter/root_x = 0.03
+shader_parameter/root_z = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_o5cm1"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("4_o3vru")
+shader_parameter/ignition_source = null
+shader_parameter/burn_progress = 0.0
+shader_parameter/animation_seconds = null
+shader_parameter/root_x = 0.83
+shader_parameter/root_z = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8td23"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("6_onkpw")
+shader_parameter/burn_progress = 0.0
+shader_parameter/animation_seconds = null
+
+[sub_resource type="SphereMesh" id="SphereMesh_6ghow"]
+radius = 0.18
+height = 2.0
+radial_segments = 8
+rings = 6
+
+[node name="StoveLog" type="Node3D" unique_id=1696807161]
+script = ExtResource("1_laljn")
+
+[node name="Body" type="Node3D" parent="." unique_id=650656652]
+transform = Transform3D(-7.614242e-09, 0, 0.13513513, 0, 0.13513513, 0, -0.17419355, 0, -5.9069443e-09, 0, 0, 0)
+
+[node name="Wood" type="MeshInstance3D" parent="Body" unique_id=1322462347]
+material_override = SubResource("ShaderMaterial_5sbwc")
+mesh = ExtResource("3_nlwo8")
+
+[node name="Flame0" type="MeshInstance3D" parent="Body" unique_id=478589265]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.82, 0.21, 0.4)
+material_override = SubResource("ShaderMaterial_4mte6")
+cast_shadow = 0
+mesh = ExtResource("5_wicgw")
+
+[node name="Flame1" type="MeshInstance3D" parent="Body" unique_id=2039089661]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.03, 0.21, 0.4)
+material_override = SubResource("ShaderMaterial_on77q")
+cast_shadow = 0
+mesh = ExtResource("5_wicgw")
+
+[node name="Flame2" type="MeshInstance3D" parent="Body" unique_id=823184174]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.83, 0.21, 0.4)
+material_override = SubResource("ShaderMaterial_o5cm1")
+cast_shadow = 0
+mesh = ExtResource("5_wicgw")
+
+[node name="Smoke" type="MeshInstance3D" parent="Body" unique_id=166983180]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8, 1.2, 0)
+material_override = SubResource("ShaderMaterial_8td23")
+cast_shadow = 0
+mesh = SubResource("SphereMesh_6ghow")
