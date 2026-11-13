@@ -16,6 +16,8 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Verified
 
+- #209/#288: `quit(1)` now exits 1 in this project, the #209 repro included. That issue was filed on 2026-10-09; the vendored Jenova GDExtension, its prime suspect, was removed on 2026-10-14 (`16e55a8f`).
+- `run_tests.sh` now fails a suite that exits 0 without any pass line, and ends every suite with `HB_SUITE_RESULT: PASS|FAIL|KNOWN_FAIL <suite>`. `test_first_exit_entry_traversal` now prints its PASS. Checked with throwaway suites: quit(1) fails, a silent exit 0 fails, an explicit PASS passes.
 - Continue after a relaunch (#42 Gate A), checked across two processes:
   - **Run 1:** `loop_key_west_727.gd --stop-after-sleep` on the exported pack plays the 727 loop to the sleep save and writes `expected.json`.
   - **Run 2:** `tools/runtime/continue_after_relaunch.tscn` runs in a new process. It opens the real title menu, Continue is enabled, presses it, and compares the world: boards, fire, taken pickups, kit counts, and Henry inside the 727.
