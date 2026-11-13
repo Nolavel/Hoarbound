@@ -6,6 +6,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed
+
+- Hints where testers got stuck:
+  - A held item's hint ends with `X · Put away   G · Drop`.
+  - The laid bedroll's prompt reads "Roll up the bedroll (F or C)".
+  - The empty tin's hint no longer sends the player to the Hub.
+  - The road flare's Quick Access readouts were hardcoded English and are now localised (`FLARE_*` keys).
+
 ### Verified
 
 - Continue after a relaunch (#42 Gate A), checked across two processes:

@@ -66,7 +66,7 @@ DRAWER_OPEN,Pull the drawer out,Выдвинуть ящик
 DRAWER_CLOSE,Push the drawer in,Задвинуть ящик
 SLEEP_PROMPT,Sleep,Спать
 SLEEP_DIALOG_KEYS,Wheel or ← →  hours      [ F ]  sleep and save      [ Esc ]  cancel,Колесо или ← →  часы      [ F ]  спать и сохранить      [ Esc ]  отмена
-BEDROLL_PACK,Roll up the bedroll,Свернуть спальник
+BEDROLL_PACK,Roll up the bedroll (F or C),Свернуть спальник (F или C)
 HUB_PACK,Backpack,Рюкзак
 HUB_QUICK_ACCESS,Quick access,Быстрый доступ
 HUB_TO_POCKET,Into pocket,В карман
@@ -167,7 +167,7 @@ CAN_RING_OPEN_ACTION,Pull the ring to open,Открыть за кольцо
 FLASK_HELD_MARK,%d ml,%d мл
 HAND_EAT_ACTION,Eat contents,Съесть содержимое
 HAND_TOOL_HINT,Use this tool through a world interaction,Используйте предмет при взаимодействии с объектом
-EMPTY_TIN_HELD_HINT,Empty tin; change pocket or open the Hub to put it away,Пустая банка · смените карман или откройте рюкзак чтобы убрать
+EMPTY_TIN_HELD_HINT,Empty tin,Пустая банка
 AXE_BOARD_HINT,Aim at loose boards and press F to chop them,Наведите на лежащие доски и нажмите F чтобы расколоть
 WOOD_DROP_HINT,G · Put down %d × %s,G · Положить %d × %s
 WOOD_DROP_BLOCKED,No clear floor in front; move away from obstacles,Нет свободного пола впереди · отойдите от препятствия
@@ -291,3 +291,8 @@ Wool sweater,Wool sweater,Шерстяной свитер
 Work trousers,Work trousers,Рабочие штаны
 Worn boots,Worn boots,Поношенные ботинки
 Worn coat,Worn coat,Поношенная куртка
+HELD_PUT_AWAY_HINT,X · Put away   G · Drop,X · Убрать   G · Бросить
+FLARE_LIGHT_ACTION,Light the flare,Зажечь фальшфейер
+FLARE_DROP_ACTION,Drop the flare,Бросить фальшфейер
+FLARE_BURNING,Road flare — burning,Фальшфейер — горит
+FLARE_UNLIT,Road flare — unlit,Фальшфейер — не зажжён
