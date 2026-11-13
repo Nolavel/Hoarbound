@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tools/runtime/continue_after_relaunch.gd" id="1"]
+
+[node name="ContinueAfterRelaunch" type="Node"]
+script = ExtResource("1")

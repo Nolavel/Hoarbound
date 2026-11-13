@@ -94,7 +94,7 @@ func _finish() -> void:
 		push_error("first exit entry traversal: %d check(s) failed" % _failures)
 		quit(1)
 		return
-	print("first exit entry traversal: Henry climbed the veranda and entered")
+	print("first exit entry traversal: PASS (Henry climbed the veranda and entered)")
 	quit(0)
 
 

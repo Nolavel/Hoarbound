@@ -6,6 +6,30 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (LOW tier)
+
+- On LOW, streamed vegetation (the `Vegetation` chunk part, including parts streamed in later) casts no shadow, and the sun's shadow is drawn in one split instead of two. Each split re-draws the scene, and the shadow pass was about 1.2M of 3.05M primitives a frame. MEDIUM and HIGH restore the authored shadow mode and the vegetation shadows. `test_graphics_quality_tiers` fails on the old code. Measured on a LOW Duval Street frame (lavapipe): primitives 3.05M -> 2.15M (-30 %), draw calls 724 -> 586 (-19 %). The CPU rasteriser's frame time barely moves (1178 -> 1137 ms) because it is pixel-bound; the FPS gain on an integrated GPU still needs the owner's HD 620.
+
+### Changed
+
+- Hints where testers got stuck:
+  - A held item's hint ends with `X · Put away   G · Drop`.
+  - The laid bedroll's prompt reads "Roll up the bedroll (F or C)".
+  - The empty tin's hint no longer sends the player to the Hub.
+  - The road flare's Quick Access readouts were hardcoded English and are now localised (`FLARE_*` keys).
+
+### Verified
+
+- LOW tier cost on Duval Street at 1920x1080 (`probe_low_tier_cost.gd`, lavapipe, relative): 1165 ms as is, 1234 ms without volumetric fog (noise), 1137 ms without sun shadows (-2 %). Neither effect is the LOW bottleneck. The owner's HD 620 log shows 4-5M primitives and up to 1500 draw calls a frame. The probe now counts the primitives each world group draws. A LOW frame draws 3.05M primitives and 724 draw calls. Hiding a group frees: streamed chunks 1.60M (vegetation 1.11M, buildings 0.84M, terrain 0.51M); the sun's shadow pass about 1.20M; Henry with his gear 0.65M; the 727 profile content 0.53M. The groups overlap through the shadow pass.
+- #209/#288: `quit(1)` now exits 1 in this project, the #209 repro included. That issue was filed on 2026-10-09; the vendored Jenova GDExtension, its prime suspect, was removed on 2026-10-14 (`16e55a8f`).
+- `run_tests.sh` now fails a suite that exits 0 without any pass line, and ends every suite with `HB_SUITE_RESULT: PASS|FAIL|KNOWN_FAIL <suite>`. `test_first_exit_entry_traversal` now prints its PASS. Checked with throwaway suites: quit(1) fails, a silent exit 0 fails, an explicit PASS passes.
+- Continue after a relaunch (#42 Gate A), checked across two processes:
+  - **Run 1:** `loop_key_west_727.gd --stop-after-sleep` on the exported pack plays the 727 loop to the sleep save and writes `expected.json`.
+  - **Run 2:** `tools/runtime/continue_after_relaunch.tscn` runs in a new process. It opens the real title menu, Continue is enabled, presses it, and compares the world: boards, fire, taken pickups, kit counts, and Henry inside the 727.
+  - **Result:** PASS. A tampered expectation fails with exit code 1.
+  - The snapshot moved to `tools/runtime/shelter_snapshot.gd`, shared with the in-process loop, which still passes.
+- Lighter from a coat pocket to the hand works, alone and straight after a held flare. The earlier audit's failure came from the harness order, not the game.
+
 ### Changed (0.312c)
 
 - Snow in exported builds: `SnowField.load_wind_field()` checked the imported PNG with `FileAccess.file_exists`. An export ships only the `.ctex`, so it returned false, `use_baked_baseline` stayed off, and the snow drew its moving-window fallback, while the editor (with the source PNG) worked. It now uses `ResourceLoader.exists`. `tools/ci/check_export_snow.gd` runs on the exported pack in `release-smoke`. Found by Codex; confirmed with `--main-pack` from an empty directory (0.312b pack: loaded=false; fixed pack: loaded=true). Owner hardware confirmation is pending.

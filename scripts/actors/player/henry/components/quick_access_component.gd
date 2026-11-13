@@ -267,7 +267,7 @@ func _show_readout(zone: Dictionary) -> void:
 	var held: ItemResource = ItemCatalog.get_item(zone["item_id"]) if zone["item_id"] != &"" else null
 	var message := "%s: %s" % [tr(zone["name"]), tr(held.display_name) if held != null else tr("HUB_EMPTY")]
 	if zone["item_id"] == ROAD_FLARE_ID and not _flare_is_burning():
-		message += "\n%s  Use selected item — light flare" % _action_label(USE_ACTION)
+		message += "\n%s  %s" % [_action_label(USE_ACTION), tr("FLARE_LIGHT_ACTION")]
 	_readout_left = READOUT_TIME
 	readout_changed.emit(message)
 
@@ -275,12 +275,9 @@ func _show_readout(zone: Dictionary) -> void:
 func _show_held_flare_readout(burning: bool) -> void:
 	if not is_inside_tree():
 		return
-	var state := "burning" if burning else "unlit"
-	var verb := "drop flare" if burning else "light flare"
 	_readout_left = READOUT_TIME
-	readout_changed.emit("Road flare — %s\n%s  Use held item — %s" % [
-		state, _action_label(HELD_USE_ACTION), verb
-	])
+	readout_changed.emit("%s\n%s  %s" % [tr("FLARE_BURNING" if burning else "FLARE_UNLIT"),
+		_action_label(HELD_USE_ACTION), tr("FLARE_DROP_ACTION" if burning else "FLARE_LIGHT_ACTION")])
 
 
 func _hide_readout() -> void:
