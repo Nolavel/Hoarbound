@@ -41,37 +41,6 @@ const float HFN_CAMERA_FADE_FAR = 1.1;
 // garment_press_max metres) and whether its normal faces out (G); garment_press turns it on.
 uniform float garment_press : hint_range(0.0, 1.0) = 0.0;
 uniform float garment_press_max = 0.03;
-// Rime on clothing, 0 none to 1 crusted: it settles first on up-facing folds (shoulders, hat, forearms)
-// and spreads in model-space patches so it rides with the body. ClothingFrost drives it.
-uniform float garment_frost : hint_range(0.0, 1.0) = 0.0;
-uniform vec3 garment_frost_color : source_color = vec3(0.84, 0.89, 0.95);
-
-float hfn_frost_hash(vec3 p) {
-	p = fract(p * 0.3183099 + 0.1);
-	p *= 17.0;
-	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-}
-
-float hfn_frost_noise(vec3 p) {
-	vec3 i = floor(p);
-	vec3 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(mix(hfn_frost_hash(i), hfn_frost_hash(i + vec3(1, 0, 0)), f.x),
-			mix(hfn_frost_hash(i + vec3(0, 1, 0)), hfn_frost_hash(i + vec3(1, 1, 0)), f.x), f.y),
-		mix(mix(hfn_frost_hash(i + vec3(0, 0, 1)), hfn_frost_hash(i + vec3(1, 0, 1)), f.x),
-			mix(hfn_frost_hash(i + vec3(0, 1, 1)), hfn_frost_hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
-}
-
-// Share of this fragment under rime: a powdery veil that keeps the cloth readable underneath, denser on
-// up-facing folds (shoulders, hat, forearms) and in broad drifts, salted with fine crystal grains.
-float hfn_garment_frost_weight(vec3 model_pos, vec3 world_normal) {
-	float facing_up = smoothstep(-0.4, 0.9, world_normal.y);
-	float drift = hfn_frost_noise(model_pos * 6.0);
-	float veil = garment_frost * mix(0.3, 1.0, facing_up) * mix(0.55, 1.0, drift);
-	float grain = hfn_frost_noise(model_pos * 140.0) * 0.6 + hfn_frost_noise(model_pos * 60.0) * 0.4;
-	float crystals = smoothstep(1.0 - veil * 0.8, 1.05 - veil * 0.8, grain);
-	return clamp(veil * 0.5 + crystals * veil * 0.5, 0.0, 0.75);
-}
 #endif
 
 varying vec3 stylized_noise_pos;
@@ -130,13 +99,6 @@ void fragment() {
 	if (use_normal_texture) {
 		NORMAL_MAP = texture(normal_texture, uv).rgb;
 		NORMAL_MAP_DEPTH = normal_scale;
-	}
-#endif
-#ifndef HFN_STATIC_WORLD
-	if (garment_frost > 0.0) {
-		float rime = hfn_garment_frost_weight(stylized_noise_pos, stylized_world_normal);
-		ALBEDO = mix(ALBEDO, garment_frost_color, rime);
-		ROUGHNESS = mix(ROUGHNESS, 0.7, rime);
 	}
 #endif
 	EMISSION = emission_color * emission_energy;

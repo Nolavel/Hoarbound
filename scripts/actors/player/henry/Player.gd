@@ -307,9 +307,6 @@ func on_world_ready(context: WorldContext) -> void:
 	var breath := get_node_or_null(^"BreathVapor") as BreathVapor
 	if breath != null:
 		breath.set_systems(thermal, context.get_system(WEATHER_SCRIPT) as WeatherController)
-	var frost := get_node_or_null(^"ClothingFrostComponent") as ClothingFrostComponent
-	if frost != null:
-		frost.set_systems(thermal, context.get_system(WEATHER_SCRIPT) as WeatherController)
 	var boot_snow := get_node_or_null(^"BootSnowComponent") as BootSnowComponent
 	if boot_snow != null:
 		boot_snow.set_thermal(thermal)

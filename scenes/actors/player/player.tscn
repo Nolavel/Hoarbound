@@ -32,7 +32,6 @@
 [ext_resource type="Script" path="res://scripts/actors/player/henry/components/strike_component.gd" id="99_strike"]
 [ext_resource type="Script" path="res://scripts/actors/player/henry/components/hand_snow_melt.gd" id="99_melt"]
 [ext_resource type="PackedScene" uid="uid://dbn8dbx2j0huj" path="res://scenes/actors/player/breath_vapor.tscn" id="99_breath"]
-[ext_resource type="Script" uid="uid://xiriuh7a3ddl" path="res://scripts/actors/player/henry/components/clothing_frost_component.gd" id="99_frost"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_0w3ce"]
 radius = 0.5
@@ -124,10 +123,6 @@ script = ExtResource("99_steam")
 [node name="BreathVapor" parent="." node_paths=PackedStringArray("visual", "movement") instance=ExtResource("99_breath")]
 visual = NodePath("../HenryUALVisual")
 movement = NodePath("../MovementController")
-
-[node name="ClothingFrostComponent" type="Node" parent="." node_paths=PackedStringArray("visual")]
-script = ExtResource("99_frost")
-visual = NodePath("../HenryUALVisual")
 
 [node name="BedrollComponent" type="Node" parent="." node_paths=PackedStringArray("inventory")]
 script = ExtResource("98_bedroll")
