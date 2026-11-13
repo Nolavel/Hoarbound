@@ -101,19 +101,9 @@ func save_to_slot(slot: int, metadata: Dictionary = {}) -> bool:
 	if not _is_valid_slot(slot):
 		return _fail_save(slot, "slot %d is out of range" % slot)
 
-	var participants: Array[Node] = _get_participants()
-	if participants.is_empty():
-		return _fail_save(slot, "no save participants; refusing to write an empty save")
-
-	var payload: Dictionary = {}
-	for node: Node in participants:
-		var id: String = _resolve_id(node)
-		if payload.has(id):
-			return _fail_save(slot, "duplicate save id '%s'" % id)
-		var data: Variant = SaveParticipantCapability.capture(node)
-		if typeof(data) != TYPE_DICTIONARY:
-			return _fail_save(slot, "participant '%s' did not return a Dictionary" % id)
-		payload[id] = data
+	var payload: Dictionary = capture_payload()
+	if payload.is_empty():
+		return _fail_save(slot, _last_error)
 
 	var document: Dictionary = {
 		"version": SAVE_VERSION,
@@ -136,15 +126,39 @@ func load_from_slot(slot: int) -> bool:
 		load_failed.emit(slot, _last_error)
 		return false
 
-	var payload: Dictionary = document.get("payload", {})
+	apply_payload(document.get("payload", {}))
+	_last_error = ""
+	load_completed.emit(slot)
+	return true
+
+
+## Every participant's state keyed by save id; empty (with get_last_error) on failure.
+## Also used by input tapes to start a replay from the recorded world.
+func capture_payload() -> Dictionary:
+	var participants: Array[Node] = _get_participants()
+	if participants.is_empty():
+		_last_error = "no save participants; refusing to write an empty save"
+		return {}
+	var payload: Dictionary = {}
+	for node: Node in participants:
+		var id: String = _resolve_id(node)
+		if payload.has(id):
+			_last_error = "duplicate save id '%s'" % id
+			return {}
+		var data: Variant = SaveParticipantCapability.capture(node)
+		if typeof(data) != TYPE_DICTIONARY:
+			_last_error = "participant '%s' did not return a Dictionary" % id
+			return {}
+		payload[id] = data
+	return payload
+
+
+## Restores every participant present in `payload`.
+func apply_payload(payload: Dictionary) -> void:
 	for node: Node in _get_participants():
 		var id: String = _resolve_id(node)
 		if payload.has(id):
 			SaveParticipantCapability.restore(node, payload[id])
-
-	_last_error = ""
-	load_completed.emit(slot)
-	return true
 
 
 ## Reads and migrates a slot without applying it; empty means unreadable.

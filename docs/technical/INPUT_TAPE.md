@@ -14,6 +14,7 @@ A red badge shows while recording.
 
 The tape stores:
 - the scene and Henry's start transform;
+- the world's save payload and a fresh global RNG seed (see the finding below);
 - the camera's start yaw and pitch;
 - every gameplay **action** event (press, release, strength) at its physics frame, so keyboard and
   gamepad give the same tape and the key layout does not matter;
@@ -48,33 +49,36 @@ are saved as PNG; for real pixels, run under `xvfb-run` with Vulkan. With `--exp
   `checks` replays `tests/fixtures/input_tapes/ice_lab_shore_demo.json` with a 5 cm tolerance.
 - `test_input_tape` covers the JSON round trip and the recorder's filtering.
 
-## Finding: snow makes Henry's speed depend on the CPU
+## Finding: the weather roll, not the CPU, moved the route
 
-On TestScene the same tape ended in very different places.
+On TestScene the same tape first ended in three different places: 6.82, 4.83 and 4.01 m out.
 
-| Run | End of route | Snow speed factor at frames 0 / 90 / 180 |
-|---|---|---|
-| idle CPU | 6.82 m from start | 0.90 / 0.90 / 0.78 |
-| 4 cores busy | 4.01 m from start | 0.72 / 0.68 / 0.47 |
+**First reading, wrong and withdrawn.** I blamed the snow field's wall-clock rebuild budget, because
+one fast run was idle and one slow run had a busy CPU.
 
-**Cause.** `SnowField.step_rebuild()` and `SnowChunkCover` advance by a **wall-clock** budget
-(`Time.get_ticks_usec()`), not per frame. On a busy or slow CPU the field under Henry is less complete
-at the same physics frame. `MovementController.snow_speed_multiplier` reads it, so gameplay speed
-follows the hardware.
+**Measured cause.** `WeatherController` picks profiles with the global `randf()`, which Godot seeds
+randomly on every launch. Different weather gives a different settled snow cover, a different depth
+under Henry and so a different snow speed factor. Fixing the global seed proves it:
 
-That is a determinism defect in the simulation. It may also matter for the HD 620 laptop: there,
-Henry's speed and the snow around him would depend on how fast the CPU finishes the rebuild.
+| `--seed` | End of route |
+|---|---|
+| 1 | 4.03 / 4.01 m |
+| 2 | 4.84 / 4.82 m |
+| 3 | 6.82 m |
 
-**Not fixed here:** snow work waits for the owner's HD 620 confirmation. Possible fix, for the owner to decide:
-- keep the per-frame wall-clock budget for presentation only;
-- make what the simulation reads (depth for speed and sinking) independent of how far the rebuild has
-  got. For example, sample the last finished field until the new one is live, and never a half-built one.
+Same seed, idle or loaded CPU: within 2 cm. The snow rebuild budget does not change gameplay: the
+field image swaps only when it is complete.
 
-## Known limits
+**Fix.** At F9 the tape now stores:
+- `world`: the full save payload (`SaveManager.capture_payload()`), covering weather, snow, tracks,
+  thermal, inventory and containers;
+- `rng_seed`: a fresh global seed the recorder sets.
 
-- Nothing outside the input is restored: weather, time of day, the save state and streaming timing.
-  Record from a fresh start or a known save, and compare like with like.
-- Henry's start is set directly. A tape that starts mid-air or inside a door frame replays from there.
+The replay restores both (`SaveManager.apply_payload()`) before it moves Henry. A TestScene tape
+re-recorded this way ended 4.79–4.80 m out on three runs with a random launch seed each. Without the
+world snapshot the same runs spread 2.8 m.
+
+The ice-lab shore route in `checks` has no weather and stays bit-exact.
 
 ## Report bundle (F10)
 

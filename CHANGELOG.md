@@ -28,10 +28,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - **F9 records a route** in any scene with Henry: gameplay actions per physics frame, plus the camera look. Exported builds save it to `tapes/` beside the exe; the tester README says to send it with the log.
 - `tools/runtime/replay_input_tape.tscn` replays a tape with the real autoloads and writes the path, the end point, frame times and optional shots. `--expect` makes it a check.
 - `checks` now replays a shore route in the ice lab and fails if it ends more than 5 cm from where it did. Without snow the replay is bit-exact, even with all 4 cores busy.
-- **Finding, not fixed:** on TestScene the same tape ends 6.8 m out on an idle CPU and 4.0 m out with all cores busy.
-  - Cause: the snow field rebuilds against a wall-clock budget, and Henry's snow speed factor reads it (0.90 vs 0.72 at the start).
-  - So gameplay speed depends on the CPU.
-  - Recorded in `docs/technical/INPUT_TAPE.md` for the owner's decision; snow work is on hold.
+- **The tape restores the world, not only the input.** At F9 it stores the full save payload and a fresh global RNG seed, and the replay restores both.
+  - Cause, measured: `WeatherController` rolls weather with the launch-seeded global `randf()`.
+  - So the same TestScene route ended 4.0, 4.8 or 6.8 m out depending only on the seed.
+  - With the snapshot, three random-seed runs agree within 4 cm.
+  - An earlier note blaming the snow field's wall-clock budget was wrong and is withdrawn.
+  - `SaveManager` gained `capture_payload()` and `apply_payload()`; slot saving uses them unchanged.
 - `test_input_tape` covers the format and the recorder.
 - Evidence:
   - a replay re-recorded by the recorder gave identical events and frames;

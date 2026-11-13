@@ -33,6 +33,8 @@ func _run() -> void:
 	var shots: Array[int] = []
 	for part: String in String(_args.get("shots", "")).split(",", false):
 		shots.append(int(part))
+	if _args.has("seed"):
+		seed(int(_args["seed"]))
 	get_tree().change_scene_to_file(tape.scene)
 	var player: CharacterBody3D = null
 	for _i: int in range(1200):
@@ -45,6 +47,11 @@ func _run() -> void:
 		return
 	for _i: int in range(int(_args.get("settle", "90"))):
 		await get_tree().physics_frame
+	var saves: Array[Node] = get_tree().root.find_children("*", "SaveManager", true, false)
+	if not tape.world.is_empty() and not saves.is_empty():
+		(saves[0] as SaveManager).apply_payload(tape.world)
+	if tape.rng_seed != 0:
+		seed(tape.rng_seed)
 	player.global_transform = tape.start_transform
 	player.velocity = Vector3.ZERO
 	var camera := get_viewport().get_camera_3d() as TpsCamera
@@ -108,7 +115,15 @@ func _speed_factors(player: Node) -> Array:
 	var movement := player.get_node_or_null(^"MovementController") as MovementController
 	if movement == null:
 		return []
-	return [movement.snow_speed_multiplier, movement.get_load_speed_multiplier(), movement.get_status_speed_multiplier()]
+	var factors: Array = [movement.snow_speed_multiplier, movement.get_load_speed_multiplier(), movement.get_status_speed_multiplier()]
+	var shell := get_tree().get_first_node_in_group(&"snow_shell") as SnowShell
+	if shell == null:
+		for found: Node in get_tree().root.find_children("*", "SnowShell", true, false):
+			shell = found as SnowShell
+	if shell != null and shell.field != null:
+		var p: Vector3 = (player as Node3D).global_position
+		factors.append_array([shell.field.get_depth(p.x, p.z), shell.field.is_rebuilding(), shell.get(&"_live_cover"), shell.call(&"_cover")])
+	return factors
 
 
 func _stats(values: PackedFloat32Array) -> Dictionary:

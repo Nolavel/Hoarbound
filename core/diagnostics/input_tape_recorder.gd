@@ -43,6 +43,12 @@ func start() -> bool:
 	_camera = get_viewport().get_camera_3d() as TpsCamera
 	if _camera != null:
 		_tape.start_look = Vector2(_camera.get_yaw(), _camera.get_view_pitch_deg())
+	var saves: Array[Node] = get_tree().root.find_children("*", "SaveManager", true, false)
+	if not saves.is_empty():
+		_tape.world = (saves[0] as SaveManager).capture_payload()
+	## Reseeding is harmless to play and makes every later random roll repeatable.
+	_tape.rng_seed = randi()
+	seed(_tape.rng_seed)
 	_actions = InputTape.tracked_actions()
 	_frame0 = Engine.get_physics_frames()
 	_last_look = Vector2.INF

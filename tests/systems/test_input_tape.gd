@@ -35,6 +35,8 @@ func _test_round_trip() -> void:
 	tape.start_look = Vector2(0.7, -10.0)
 	tape.events = [[5, "move_forward", true, 1.0], [40, "move_forward", false, 0.0]]
 	tape.looks = [[0, 0.7, -10.0], [12, 0.9, -11.0]]
+	tape.world = {"weather": {"profile_id": "blizzard", "remaining_h": 2.5}}
+	tape.rng_seed = 424242
 	var path: String = OS.get_temp_dir().path_join("hb_tape_test.json")
 	_check(tape.save(path) == OK, "tape did not save")
 	var back: InputTape = InputTape.load_file(path)
@@ -44,6 +46,8 @@ func _test_round_trip() -> void:
 	_check(back.scene == tape.scene, "scene lost")
 	_check(back.start_transform.origin.is_equal_approx(tape.start_transform.origin), "start origin lost")
 	_check(is_equal_approx(back.start_transform.basis.get_euler().y, 0.7), "start yaw lost")
+	_check(back.rng_seed == 424242, "rng seed lost")
+	_check(String((back.world.get("weather", {}) as Dictionary).get("profile_id", "")) == "blizzard", "world snapshot lost")
 	_check(back.length_frames() == 40, "length %d, expected 40" % back.length_frames())
 	_check(InputTape.from_dict({"version": 99}) == null, "a future version was accepted")
 

@@ -14,6 +14,10 @@ var physics_fps: int = 60
 var build: String = ""
 var start_transform: Transform3D = Transform3D.IDENTITY
 var start_look: Vector2 = Vector2.ZERO
+## Save payload of the world when recording started (weather, snow, clock, inventory...).
+var world: Dictionary = {}
+## Global RNG seed set when recording started, so random rolls after it repeat.
+var rng_seed: int = 0
 ## [frame, action, pressed, strength]
 var events: Array = []
 ## [frame, yaw, pitch_deg]
@@ -46,6 +50,7 @@ func to_dict() -> Dictionary:
 	return {
 		"version": VERSION, "scene": scene, "physics_fps": physics_fps, "build": build,
 		"start": {"origin": [o.x, o.y, o.z], "yaw": start_transform.basis.get_euler().y, "look": [start_look.x, start_look.y]},
+		"world": world, "rng_seed": rng_seed,
 		"events": events, "looks": looks,
 	}
 
@@ -63,6 +68,8 @@ static func from_dict(data: Dictionary) -> InputTape:
 	tape.start_transform = Transform3D(Basis(Vector3.UP, float(start.get("yaw", 0.0))), Vector3(o[0], o[1], o[2]))
 	var look: Array = start.get("look", [0, 0])
 	tape.start_look = Vector2(look[0], look[1])
+	tape.world = data.get("world", {})
+	tape.rng_seed = int(data.get("rng_seed", 0))
 	tape.events = data.get("events", [])
 	tape.looks = data.get("looks", [])
 	return tape
