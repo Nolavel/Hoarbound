@@ -1,6 +1,6 @@
 # Runtime construction audit — what should become an authored scene
 
-Date: 2026-11-13. Base: main `63cbc9f8`. Status: **wall thermometer and stove done**; the rest of the order below is open.
+Date: 2026-11-13. Base: main `63cbc9f8`. Status: **wall thermometer, stove and road flare done**; the rest of the order below is open.
 
 ## Why
 
@@ -115,7 +115,7 @@ Each heavy script was then read to decide whether it builds:
 
 1. ~~`wall_thermometer`~~ — done, see above.
 2. ~~`stove_visual` together with the stove satellites~~ — done (stove_warmer and lighter_flame remain for a later pass).
-3. `held_flare`.
+3. ~~`held_flare`~~ — done with the Emberline model (`HeldFlare.tscn`, `assets/items/road_flare/`).
 4. `furniture_kit`.
 5. `key_west_727_shelter` — 727 becomes an editable interior scene. This is the biggest gain.
 6. `item_pickup` visuals and UI panels, opportunistically.

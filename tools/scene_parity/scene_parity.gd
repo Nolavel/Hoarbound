@@ -8,12 +8,13 @@ const POSITION_EPS: float = 0.0005
 const VALUE_EPS: float = 0.001
 
 
-## One entry per visual descendant: type, transform relative to root, mesh, material, text.
-static func snapshot(root: Node3D) -> Array:
+## One entry per visual descendant: type, transform relative to root, mesh, material, text,
+## particle, light and fog settings. Subtrees named in `exclude` are left out (an intended change).
+static func snapshot(root: Node3D, exclude: Array = []) -> Array:
 	var entries: Array = []
 	for node: Node in root.find_children("*", "", true, false):
 		var visual := node as VisualInstance3D
-		if visual == null:
+		if visual == null or _excluded(root, node, exclude):
 			continue
 		var entry: Dictionary = {"type": visual.get_class(), "xform": _xform(root.global_transform.affine_inverse() * visual.global_transform)}
 		if visual is GeometryInstance3D:
@@ -23,6 +24,20 @@ static func snapshot(root: Node3D) -> Array:
 			entry["mesh"] = _resource(mesh)
 			if mesh is PrimitiveMesh:
 				entry["material"] = _resource((mesh as PrimitiveMesh).material)
+		if visual is GPUParticles3D:
+			var p := visual as GPUParticles3D
+			entry["particles"] = [p.amount, p.lifetime, p.randomness, p.fixed_fps, p.local_coords, p.explosiveness,
+				int(p.transform_align), p.one_shot]
+			entry["process"] = _resource(p.process_material)
+			entry["draw"] = _resource(p.draw_pass_1)
+		if visual is Light3D:
+			var light := visual as Light3D
+			entry["light"] = [_color(light.light_color), light.shadow_enabled, light.light_volumetric_fog_energy]
+			if light is OmniLight3D:
+				entry["omni"] = [(light as OmniLight3D).omni_range, (light as OmniLight3D).omni_attenuation]
+		if visual is FogVolume:
+			var fog := visual as FogVolume
+			entry["fog"] = {"size": _plain(fog.size), "shape": int(fog.shape), "material": _resource(fog.material)}
 		if visual is Label3D:
 			var label := visual as Label3D
 			entry["text"] = label.text
@@ -88,6 +103,15 @@ static func _same(a: Variant, b: Variant) -> bool:
 	return a == b
 
 
+static func _excluded(root: Node, node: Node, exclude: Array) -> bool:
+	var at: Node = node
+	while at != null and at != root:
+		if exclude.has(String(at.name)):
+			return true
+		at = at.get_parent()
+	return false
+
+
 static func _key(entry: Dictionary) -> String:
 	var x: Array = entry["xform"]
 	return "%s|%.3f|%.3f|%.3f|%s" % [entry["type"], x[9], x[10], x[11], entry.get("text", "")]
@@ -109,6 +133,9 @@ static func _resource(resource: Resource) -> Variant:
 	var out: Dictionary = {"class": resource.get_class()}
 	if resource is Mesh and not resource is PrimitiveMesh:
 		return _mesh_digest(resource as Mesh)
+	if resource is Image or resource is ImageTexture:
+		var image: Image = resource as Image if resource is Image else (resource as ImageTexture).get_image()
+		return {"class": "Image", "size": [image.get_width(), image.get_height()], "md5": image.get_data().hex_encode().md5_text()}
 	if resource is ShaderMaterial:
 		var shader_material := resource as ShaderMaterial
 		out["shader"] = shader_material.shader.resource_path if shader_material.shader != null else ""
