@@ -76,6 +76,10 @@ const SESSION_TITLE_PX: int = 20
 var is_over_target: bool = false
 var _color: Color = Color.WHITE
 var _stamina_ratio: float = 1.0
+## 0..1: how much the arcs show breath coming back after a run (faint, still, filling).
+var _recover_show: float = 0.0
+var _exhausted: bool = false
+var _pulse_time: float = 0.0
 var _sprint_progress: float = 0.0
 var _was_sprinting: bool = false
 var _dot_alpha: float = 0.0
@@ -180,12 +184,17 @@ func _update_movement(delta: float) -> void:
 	_sprint_progress = clampf(movement_controller.get_sprint_blend(), 0.0, 1.0)
 	if stamina_manager != null:
 		_stamina_ratio = stamina_manager.get_stamina_ratio()
+		_exhausted = stamina_manager.is_exhausted()
+	## After a run the arcs stay, faint and still, filling as Henry catches his breath; gone when full.
+	var catching_breath: bool = not sprinting and _stamina_ratio < 0.995
+	_recover_show = move_toward(_recover_show, 1.0 if catching_breath else 0.0, delta * (3.0 if catching_breath else 1.5))
+	_pulse_time += delta
 	_dot_alpha = lerpf(_dot_alpha, 1.0 if moving else 0.0, clampf(8.0 * delta, 0.0, 1.0))
 	if sprinting != _was_sprinting:
 		_fade_arcs(sprinting)
 	_was_sprinting = sprinting
 	if not (_arcs_tween and _arcs_tween.is_running()):
-		var target: float = _sprint_progress * _stamina_ratio
+		var target: float = maxf(_sprint_progress, _recover_show * 0.7)
 		_arcs_alpha = lerpf(_arcs_alpha, target, clampf(6.0 * delta, 0.0, 1.0))
 	if sprinting:
 		_arc_angle = wrapf(_arc_angle + sprint_animation_speed * delta * (0.5 + _sprint_progress * 0.5), 0.0, TAU)
@@ -208,11 +217,14 @@ func _fade_arcs(starting: bool) -> void:
 	if starting:
 		_arcs_tween.tween_property(self, ^"_arcs_alpha", 1.0, 0.2)
 	else:
-		_arcs_tween.tween_property(self, ^"_arcs_alpha", 0.0, 0.4)
+		_arcs_tween.tween_property(self, ^"_arcs_alpha", 0.7 if _stamina_ratio < 0.995 else 0.0, 0.4)
 
 
-## Stamina colour: pale blue when full, through yellow and orange to red.
+## Stamina colour: pale blue when full, through yellow and orange to red; out of breath, a dim
+## red that breathes slowly until sprint is back.
 func _stamina_color(base: Color) -> Color:
+	if _exhausted:
+		return Color(0.85, 0.22, 0.18).lerp(Color(0.55, 0.16, 0.14), 0.5 + 0.5 * sin(_pulse_time * 3.0))
 	var r: float = _stamina_ratio
 	if r > 0.5:
 		return base.lerp(Color(1.0, 1.0, 0.0), (1.0 - r) * 2.0)
@@ -221,14 +233,20 @@ func _stamina_color(base: Color) -> Color:
 	return Color(1.0, 0.5, 0.0).lerp(Color(1.0, 0.0, 0.0), (0.25 - r) * 4.0)
 
 
-## Four quarter arcs that shrink with stamina and spin while sprinting.
+## Four quarter arcs over a faint track: the arcs fill with stamina and spin while sprinting.
+## Brightness never drops with the tank, so a low or empty tank reads loudest; winded, the track breathes red.
 func _draw_sprint_arcs(center: Vector2) -> void:
-	var color: Color = _stamina_color(sprint_arc_color)
-	color.a *= _stamina_ratio * _arcs_alpha
-	var length: float = PI * 0.5 * _sprint_progress * _stamina_ratio
+	var fill: Color = _stamina_color(sprint_arc_color)
+	fill.a *= _arcs_alpha
+	var track: Color = fill
+	track.a = _arcs_alpha * (0.35 + 0.25 * sin(_pulse_time * 3.0) if _exhausted else 0.22)
+	var quarter: float = PI * 0.5 - 0.18
+	var length: float = quarter * clampf(_stamina_ratio, 0.0, 1.0)
 	for i: int in range(4):
-		var start: float = float(i) * PI * 0.5 + _arc_angle
-		draw_arc(center, cursor_radius + 4.0, start, start + length, 12, color, sprint_arc_thickness, true)
+		var start: float = float(i) * PI * 0.5 + _arc_angle + 0.09
+		draw_arc(center, cursor_radius + 4.0, start, start + quarter, 12, track, sprint_arc_thickness, true)
+		if length > 0.01:
+			draw_arc(center, cursor_radius + 4.0, start, start + length, 12, fill, sprint_arc_thickness, true)
 
 
 ## Charging: a pulsing arc under the ring. Released: it closes to a circle.

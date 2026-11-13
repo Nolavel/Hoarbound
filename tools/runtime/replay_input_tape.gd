@@ -81,7 +81,7 @@ func _run() -> void:
 			if camera != null:
 				camera.set_look(float(tape.looks[next_look][1]), float(tape.looks[next_look][2]))
 			next_look += 1
-		if frame % 30 == 0:
+		if frame % int(_args.get("sample", "30")) == 0:
 			var p: Vector3 = player.global_position
 			path.append([frame, p.x, p.y, p.z, Vector2(player.velocity.x, player.velocity.z).length(), _speed_factors(player)])
 		if shots.has(frame):
@@ -115,7 +115,8 @@ func _speed_factors(player: Node) -> Array:
 	var movement := player.get_node_or_null(^"MovementController") as MovementController
 	if movement == null:
 		return []
-	var factors: Array = [movement.snow_speed_multiplier, movement.get_load_speed_multiplier(), movement.get_status_speed_multiplier()]
+	var factors: Array = [movement.snow_speed_multiplier, movement.get_load_speed_multiplier(), movement.get_status_speed_multiplier(),
+		movement.get_stamina_ratio(), movement.is_sprint_available()]
 	var shell := get_tree().get_first_node_in_group(&"snow_shell") as SnowShell
 	if shell == null:
 		for found: Node in get_tree().root.find_children("*", "SnowShell", true, false):
