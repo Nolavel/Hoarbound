@@ -77,13 +77,13 @@ jobs:
         ## Cross-system contracts gate the build (ARCHITECTURE.md §16); same verdict as tools/ci/run_tests.sh.
         run: tools/ci/run_tests.sh $(sed -e 's/#.*//' tools/ci/required_suites.txt | tr -s '[:space:]' ' ')
 
-      - name: Input tape replay (TestScene demo route)
+      - name: Input tape replay (ice lab shore route)
         ## The same recorded input must still end the route where it did (tools/runtime/replay_input_tape.gd).
         run: |
           "${GODOT_BIN:-$HOME/.local/bin/godot}" --headless --path . --audio-driver Dummy --fixed-fps 60 \
             res://tools/runtime/replay_input_tape.tscn -- \
-            --tape="$PWD/tests/fixtures/input_tapes/testscene_demo.json" --out=/tmp/replay \
-            --expect="$PWD/tests/fixtures/input_tapes/testscene_demo.expected.json" --tolerance=0.25
+            --tape="$PWD/tests/fixtures/input_tapes/ice_lab_shore_demo.json" --out=/tmp/replay \
+            --expect="$PWD/tests/fixtures/input_tapes/ice_lab_shore_demo.expected.json" --tolerance=0.05
 
 
   edge-glow-review:

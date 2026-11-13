@@ -7,7 +7,7 @@ extends RefCounted
 const VERSION: int = 1
 ## Actions a tape never carries: menus, the recorder's own key and developer cheats.
 const SKIPPED_PREFIXES: Array[String] = ["ui_", "dev_"]
-const SKIPPED_ACTIONS: Array[StringName] = [&"pause", &"toggle_dev_map", &"toggle_hlod_tiers"]
+const SKIPPED_ACTIONS: Array[StringName] = [&"pause", &"toggle_dev_map", &"toggle_hlod_tiers", &"report_bundle"]
 
 var scene: String = ""
 var physics_fps: int = 60

@@ -76,7 +76,7 @@ func _run() -> void:
 			next_look += 1
 		if frame % 30 == 0:
 			var p: Vector3 = player.global_position
-			path.append([frame, p.x, p.y, p.z])
+			path.append([frame, p.x, p.y, p.z, Vector2(player.velocity.x, player.velocity.z).length(), _speed_factors(player)])
 		if shots.has(frame):
 			await RenderingServer.frame_post_draw
 			get_viewport().get_texture().get_image().save_png(out.path_join("shot_%05d.png" % frame))
@@ -101,6 +101,14 @@ func _run() -> void:
 	var drift: float = final_position.distance_to(Vector3(want[0], want[1], want[2]))
 	var tolerance: float = float(_args.get("tolerance", "0.25"))
 	_finish(drift <= tolerance, "route ended %.3f m from the expected end (tolerance %.2f)" % [drift, tolerance])
+
+
+## Why Henry moved as fast as he did: snow, carried load and status multipliers.
+func _speed_factors(player: Node) -> Array:
+	var movement := player.get_node_or_null(^"MovementController") as MovementController
+	if movement == null:
+		return []
+	return [movement.snow_speed_multiplier, movement.get_load_speed_multiplier(), movement.get_status_speed_multiplier()]
 
 
 func _stats(values: PackedFloat32Array) -> Dictionary:

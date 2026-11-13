@@ -27,6 +27,7 @@ BuildLog="*res://core/diagnostics/build_log.gd"
 PlayerState="*res://core/player_state/player_state.gd"
 InputSystems="*res://core/input/input_systems.gd"
 TapeRecorder="*res://scenes/ui/debug/input_tape_recorder.tscn"
+TesterReport="*res://scenes/ui/debug/tester_report.tscn"
 SoundSystem="*res://core/audio/sound_system.gd"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 
@@ -1272,6 +1273,27 @@ dev_input_tape={
 "pressed": false,
 "keycode": 0,
 "physical_keycode": 4194340,
+"key_label": 0,
+"unicode": 0,
+"location": 0,
+"echo": false,
+"script": null
+)]
+}
+report_bundle={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,
+"resource_local_to_scene": false,
+"resource_name": "",
+"device": -1,
+"window_id": 0,
+"alt_pressed": false,
+"shift_pressed": false,
+"ctrl_pressed": false,
+"meta_pressed": false,
+"pressed": false,
+"keycode": 0,
+"physical_keycode": 4194341,
 "key_label": 0,
 "unicode": 0,
 "location": 0,

@@ -16,15 +16,26 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - `test_authored_scene_parity`;
   - `tools/ci/check_runtime_construction.py`, a `checks` ratchet: content built in code per file may only shrink, and a new file may not start building content in code.
 
+### Added (tester report)
+
+- **F10 saves a report zip** to `reports/` beside the exe. It holds system info, `BUILD_INFO`, settings, the log tail, the newest route tape, Henry's place and a screenshot.
+- After a session that crashed or was killed, the next start saves the report on its own: `BuildLog` now marks a clean exit with `SESSION END`.
+- Checked on a Linux export: after `kill -9` the next run bundled the dead session; after a clean run nothing was saved.
+- `test_report_bundle`. The tester README describes F9 and F10.
+
 ### Added (input tape)
 
 - **F9 records a route** in any scene with Henry: gameplay actions per physics frame, plus the camera look. Exported builds save it to `tapes/` beside the exe; the tester README says to send it with the log.
 - `tools/runtime/replay_input_tape.tscn` replays a tape with the real autoloads and writes the path, the end point, frame times and optional shots. `--expect` makes it a check.
-- `checks` now replays a TestScene demo route and fails if it ends more than 0.25 m from where it did.
+- `checks` now replays a shore route in the ice lab and fails if it ends more than 5 cm from where it did. Without snow the replay is bit-exact, even with all 4 cores busy.
+- **Finding, not fixed:** on TestScene the same tape ends 6.8 m out on an idle CPU and 4.0 m out with all cores busy.
+  - Cause: the snow field rebuilds against a wall-clock budget, and Henry's snow speed factor reads it (0.90 vs 0.72 at the start).
+  - So gameplay speed depends on the CPU.
+  - Recorded in `docs/technical/INPUT_TAPE.md` for the owner's decision; snow work is on hold.
 - `test_input_tape` covers the format and the recorder.
 - Evidence:
   - a replay re-recorded by the recorder gave identical events and frames;
-  - two replays ended 7 mm apart. See `docs/technical/INPUT_TAPE.md`.
+  - see `docs/technical/INPUT_TAPE.md`.
 
 ### Added (CI)
 

@@ -308,3 +308,5 @@ ICE_STAGE_CREAKING,The ice creaks — you can still turn back,Лёд скрип�
 ICE_STAGE_CRACKING,The ice cracks — turn back now,Лёд трещит — назад немедленно
 ICE_STAGE_BROKEN,The ice gives way,Лёд проломился
 INPUT_TAPE_RECORDING,● Recording route (F9 to stop),● Запись маршрута (F9 — стоп)
+REPORT_SAVED,Report saved: %s,Отчёт сохранён: %s
+REPORT_CRASH_SAVED,The last session did not close cleanly. Report saved: %s,Прошлый запуск завершился аварийно. Отчёт сохранён: %s
