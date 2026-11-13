@@ -8,7 +8,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Changed (LOW tier)
 
-- On LOW, streamed vegetation (the `Vegetation` chunk part, including parts streamed in later) casts no shadow, and the sun's shadow is drawn in one split instead of two. Each split re-draws the scene, and the shadow pass was about 1.2M of 3.05M primitives a frame. MEDIUM and HIGH restore the authored shadow mode and the vegetation shadows. `test_graphics_quality_tiers` fails on the old code. Measured gain: pending.
+- On LOW, streamed vegetation (the `Vegetation` chunk part, including parts streamed in later) casts no shadow, and the sun's shadow is drawn in one split instead of two. Each split re-draws the scene, and the shadow pass was about 1.2M of 3.05M primitives a frame. MEDIUM and HIGH restore the authored shadow mode and the vegetation shadows. `test_graphics_quality_tiers` fails on the old code. Measured on a LOW Duval Street frame (lavapipe): primitives 3.05M -> 2.15M (-30 %), draw calls 724 -> 586 (-19 %). The CPU rasteriser's frame time barely moves (1178 -> 1137 ms) because it is pixel-bound; the FPS gain on an integrated GPU still needs the owner's HD 620.
 
 ### Changed
 
