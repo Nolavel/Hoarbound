@@ -6,6 +6,29 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (stamina: smoother and readable)
+
+- **What was wrong (measured in a replayed route: 30 s of running, then a walk, then standing):**
+  - holding Shift on an empty tank blocked recovery, so the tank stayed at 0 for 18 s of walking;
+  - recovery waited 5 s, then took 33 s to fill, the same walking or standing;
+  - the run snapped from 4.5 to 1.5 m/s;
+  - the cursor arcs faded with the tank, so they were nearly invisible at 19 % and not drawn at all at 0.
+- **Now:**
+  - **Empty tank.** Henry is winded until breath is back to 35 %: no sprint flicker, and Shift no longer blocks recovery.
+  - **Recovery.** It starts after 1 s and eases in over 0.8 s.
+  - **Pace by activity.** Full pace standing (empty to full in about 12 s), 0.55 walking, 0.75 sneaking, 0 in the air; it slows with fatigue down to 0.6.
+  - **Winded jog.** The winded fade is on (`winded_sprint_share` 0.4), so a run tapers into a laboured jog.
+  - **Cursor arcs.** They sit on a faint track, with their length as the tank. They stay and fill while Henry catches his breath, and the track breathes red while he is winded.
+- **Replay before and after:** sprint back at 29 s instead of 40 s, full at 55 s instead of 74 s.
+- **Tests:** `test_stamina_recovery` fails on the old code. `test_sprint_fatigue` now expects the winded jog.
+- `tools/runtime/capture_stamina_cursor.gd` renders the five cursor states. The replay report now carries the stamina share and the sprint permission.
+
+### Docs
+
+- `docs/research/xk/APPLIED_2026-11-13_STAMINA_COLD_INVENTORY.md`: the xk theses applied to stamina, the cold readout, and the pack and inventory, with the checks behind each one.
+  - The cold readout and the inventory were verified; nothing needed changing.
+  - Linking cold to stamina recovery is left as a proposal for the owner.
+
 ### Changed (road flare: the Emberline model)
 
 - **The road flare is now the Emberline signal flare from the owner's reference sheet.** It is built at real scale by `tools/blender/build_road_flare.py` into `assets/items/road_flare/RoadFlare.glb`. The parts, from the burning end:
