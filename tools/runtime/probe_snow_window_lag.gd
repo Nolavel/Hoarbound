@@ -26,6 +26,21 @@ func _run() -> void:
 	var seconds: float = float(args[3]) if args.size() > 3 else 30.0
 	var plants: Array[int] = [0]
 	shell._sensor.foot_planted.connect(func(_s: int, _p: Vector3, _n: Vector3, _f: Vector3, _v: float) -> void: plants[0] += 1)
+	## Fixed world points off the walk line: the snow top there must not move while Henry walks.
+	var fwd := Vector3(-sin(_yaw), 0.0, -cos(_yaw))
+	var side := Vector3(fwd.z, 0.0, -fwd.x)
+	var probes: Array[Vector2] = []
+	for a: float in [-2.0, 0.0, 3.0, 6.0, 9.0]:
+		for b: float in [-5.0, -3.0, -1.8, 1.8, 3.0, 5.0]:
+			var w: Vector3 = _player.global_position + fwd * a + side * b
+			probes.append(Vector2(w.x, w.z))
+	var first: Array[float] = []
+	var worst: Array[float] = []
+	for q: Vector2 in probes:
+		first.append(shell.field._sample(q.x, q.y).x)
+		worst.append(0.0)
+	var rebuilds: int = 0
+	var was_origin: Vector2 = shell.field.origin
 	Input.action_press(&"move_forward", 1.0)
 	var min_rim: float = INF
 	var outside_frames: int = 0
@@ -45,9 +60,18 @@ func _run() -> void:
 		min_rim = minf(min_rim, rim)
 		outside_frames += 1 if rim < 0.0 else 0
 		rebuild_run = rebuild_run + 1 if shell.field.is_rebuilding() else 0
+		if shell.field.origin != was_origin:
+			was_origin = shell.field.origin
+			rebuilds += 1
+		for k: int in range(probes.size()):
+			var top: float = shell.field._sample(probes[k].x, probes[k].y).x
+			if top > -1.0e9 and first[k] > -1.0e9:
+				worst[k] = maxf(worst[k], absf(top - first[k]))
 		worst_rebuild_frames = maxi(worst_rebuild_frames, rebuild_run)
 	_release()
 	var walked: float = Vector2(_player.global_position.x - start.x, _player.global_position.z - start.z).length()
+	worst.sort()
+	print("SNOW_FIXED_POINTS window_moves=%d max_top_change_cm=%.2f median_cm=%.2f" % [rebuilds, worst[-1] * 100.0, worst[worst.size() / 2] * 100.0])
 	print("SNOW_LAG frames=%d walked_m=%.1f min_rim_m=%.2f outside_frames=%d longest_rebuild_frames=%d plants=%d plants_per_m=%.2f" % [
 		frames, walked, min_rim, outside_frames, worst_rebuild_frames, plants[0], plants[0] / maxf(walked, 0.1)])
 	quit(0)

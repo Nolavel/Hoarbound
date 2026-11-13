@@ -6,6 +6,21 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (0.312c)
+
+- Snow in exported builds: `SnowField.load_wind_field()` checked the imported PNG with `FileAccess.file_exists`. An export ships only the `.ctex`, so it returned false, `use_baked_baseline` stayed off, and the snow drew its moving-window fallback, while the editor (with the source PNG) worked. It now uses `ResourceLoader.exists`. `tools/ci/check_export_snow.gd` runs on the exported pack in `release-smoke`. Found by Codex; confirmed with `--main-pack` from an empty directory (0.312b pack: loaded=false; fixed pack: loaded=true). Owner hardware confirmation is pending.
+- Fixed the missing .NET assemblies in the release zips (0.312 and 0.312b). The workflow exported `VERSION=0.312b` as an environment variable, MSBuild read it as the project's `Version`, and NuGet rejected it, so `dotnet publish` inside the Godot export failed. The variables are now `HB_VERSION`/`HB_TITLE`. Release notes come from `tools/ci/release/RELEASE_NOTES.md`, with known limitations listed.
+- Graphics quality defaults to LOW again when no settings file exists. On the owner's HD 620, HIGH ran at 3-5 FPS against 9-11 on LOW; MEDIUM and HIGH stay selectable.
+- The unverified snow-glint handoff experiment is reverted out of the release path. The snow surface movement on Intel HD 620 remains OPEN.
+- `release-smoke` takes a `publish` input: false builds, checks and uploads the zips as a workflow artifact without a release. The export logs' .NET lines are printed.
+
+### Fixed (WIP, claudeflow)
+
+- `release-smoke` fails when the .NET assemblies folder is missing. The 0.312b zips shipped without `data_Hoarbound_*`, and the mono runtime refused to start.
+- Snow ice glints fade out on the near clipmap before the 6.25 m handoff, and the chunk cover no longer draws them. The owner's Intel HD 620 frames showed a band of streaked glints starting at the square handoff. Not yet verified on that GPU.
+- Snow regression evidence on the current code (lavapipe): the October witness (`capture_snow_surface.gd` + `analyze_snow_surface.py`) gives 0 px over 2 mm in every band (10.1M before a2b7f37f), max 0.06 mm over a 10 m walk. The near lattice matches the streamed ground at a real 727 start at 4 FPS (`probe_snow_lattice.gd`, 0/441 stale). The owner's Intel HD 620 still shows the defect.
+- Snow regression probes (`tools/runtime/probe_snow_height_walk.gd`, `probe_snow_packed_walk.gd`; fixed points in `probe_snow_window_lag.gd`): the CPU snow field stays still at fixed points (0.00 cm over 7 window moves). The GPU packed field is under investigation.
+
 ### Changed
 
 - Smoke test 0.312b (owner, 2026-11-12):

@@ -9,10 +9,14 @@ on:
     inputs:
       version:
         description: "Build version (major.MDD)"
-        default: "0.312b"
+        default: "0.312c"
       title:
         description: "Release name after Hoarbound"
         default: "Smoke Test November"
+      publish:
+        description: "Publish the pre-release (false: build and check only)"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -26,9 +30,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release-smoke]')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    ## Not VERSION/TITLE: MSBuild reads environment variables as properties, and Version=0.312c broke
+    ## the .NET restore inside the export (0.312 and 0.312b shipped without assemblies).
     env:
-      VERSION: ${{ github.event.inputs.version || '0.312b' }}
-      TITLE: ${{ github.event.inputs.title || 'Smoke Test November' }}
+      HB_VERSION: ${{ github.event.inputs.version || '0.312c' }}
+      HB_TITLE: ${{ github.event.inputs.title || 'Smoke Test November' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -70,16 +76,34 @@ jobs:
       - name: Export Windows and Linux
         run: |
           mkdir -p ../build/windows ../build/linux
-          godot --headless --path . --export-release "Windows Desktop" ../build/windows/Hoarbound.exe
-          godot --headless --path . --export-release "Linux" ../build/linux/Hoarbound.x86_64
+          godot --headless --path . --export-release "Windows Desktop" ../build/windows/Hoarbound.exe 2>&1 | tee ../build/export_windows.log | grep -v "Storing File" | tail -n 60
+          godot --headless --path . --export-release "Linux" ../build/linux/Hoarbound.x86_64 2>&1 | tee ../build/export_linux.log | grep -v "Storing File" | tail -n 60
           test -s ../build/windows/Hoarbound.pck && test -s ../build/linux/Hoarbound.pck
+          echo "--- .NET lines of the export logs"
+          grep -ihE "dotnet|\.net|msbuild|publish|assembl|error" ../build/export_windows.log ../build/export_linux.log | grep -v "Storing File" | head -n 80 || true
+          ## The mono runtime refuses to start without its assemblies (0.312b shipped without them).
+          for d in ../build/windows/data_Hoarbound_windows_x86_64 ../build/linux/data_Hoarbound_linuxbsd_x86_64; do
+            if [ ! -d "$d" ] || [ -z "$(ls -A "$d")" ]; then
+              echo "::error::.NET assemblies missing: $d"
+              grep -iE "dotnet|\.NET|msbuild|error" ../build/export_windows.log | grep -v "Storing File" | head -n 40
+              exit 1
+            fi
+          done
+
+      - name: Exported pack loads the baked snow wind field
+        ## FileAccess cannot see imported PNGs in an export: 0.312b drew the snow's moving-window fallback.
+        run: |
+          mkdir -p /tmp/empty && cd /tmp/empty
+          godot --headless --main-pack "$GITHUB_WORKSPACE/../build/linux/Hoarbound.pck" \
+            --script "$GITHUB_WORKSPACE/tools/ci/check_export_snow.gd" 2>&1 | tee /tmp/export_snow.log
+          grep -q "loaded=true" /tmp/export_snow.log
 
       - name: Package
         run: |
-          name="Hoarbound-${TITLE// /-}-${VERSION}"
+          name="Hoarbound-${HB_TITLE// /-}-${HB_VERSION}"
           for plat in windows linux; do
             d=../build/$plat
-            printf 'Hoarbound %s %s\nCommit: %s\nBuilt: %s\n' "$TITLE" "$VERSION" "$GITHUB_SHA" "$(date -u +%FT%TZ)" > $d/BUILD_INFO.txt
+            printf 'Hoarbound %s %s\nCommit: %s\nBuilt: %s\n' "$HB_TITLE" "$HB_VERSION" "$GITHUB_SHA" "$(date -u +%FT%TZ)" > $d/BUILD_INFO.txt
             cp tools/ci/release/README_TESTER.txt $d/
           done
           (cd ../build/windows && zip -qr9 "$GITHUB_WORKSPACE/$name-win64.zip" .)
@@ -88,11 +112,24 @@ jobs:
           ls -la *.zip
           echo "NAME=$name" >> "$GITHUB_ENV"
 
+      - name: Upload build for inspection
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-smoke-${{ env.HB_VERSION }}
+          path: |
+            ${{ env.NAME }}-win64.zip
+            ${{ env.NAME }}-linux-x86_64.zip
+            SHA256SUMS.txt
+          retention-days: 3
+
       - name: Publish release
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.publish != 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${VERSION}" "$NAME-win64.zip" "$NAME-linux-x86_64.zip" SHA256SUMS.txt \
+          { printf 'Commit `%s` (%s).\n\n' "$GITHUB_SHA" "$GITHUB_REF_NAME"; cat tools/ci/release/RELEASE_NOTES.md; } > notes.md
+          gh release create "v${HB_VERSION}" "$NAME-win64.zip" "$NAME-linux-x86_64.zip" SHA256SUMS.txt \
             --target "$GITHUB_SHA" --prerelease \
-            --title "Hoarbound — ${TITLE} ${VERSION}" \
-            --notes "Tester build from \`${GITHUB_SHA::8}\` (${GITHUB_REF_NAME}). Windows: unzip, run Hoarbound.exe. Linux: unzip, run ./Hoarbound.x86_64. See README_TESTER.txt."
+            --title "Hoarbound — ${HB_TITLE} ${HB_VERSION}" \
+            --notes-file notes.md

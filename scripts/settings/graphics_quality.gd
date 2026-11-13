@@ -10,7 +10,7 @@ const KEY_QUALITY: String = "quality"
 const LOW: StringName = &"low"
 const MEDIUM: StringName = &"medium"
 const HIGH: StringName = &"high"
-const DEFAULT_QUALITY: StringName = HIGH
+const DEFAULT_QUALITY: StringName = LOW
 const ORDER: Array[StringName] = [LOW, MEDIUM, HIGH]
 
 const PROFILES: Dictionary = {
