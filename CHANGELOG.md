@@ -6,6 +6,27 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added (rime on clothing)
+
+- **What:** Henry's clothes and hat frost over outdoors.
+  - The rime is a powdery veil that leaves the cloth readable, salted with fine crystal grains.
+  - It settles first on up-facing folds (shoulders, hat, forearms), in broad drifts, and spreads to the sides as it thickens.
+  - The face stays bare.
+- **Source:** the garment-frost idea in Nolavel/Hoarbound#213, made without the GPU mask atlas:
+  - one amount per body drives a model-space mask in the shared character shader (`garment_frost`), so the rime rides with the body;
+  - static world shaders compile it out.
+- **Growth and melt** (`ClothingFrostComponent`):
+  - **Growth** needs outdoor air below −2 °C. Rime builds in about 5 minutes of still −25 °C air, more than three times faster in a blizzard (snowfall and wind).
+  - **Shelter:** in a cold room it holds.
+  - **Melt:** it melts in about 45 s beside a fire, or over minutes in air above 0 °C.
+  - The amount is presentation only; nothing reads it back.
+- **Not yet, owner's call:**
+  - melting rime does not wet the clothes;
+  - the amount is not saved, so after a load it builds again from bare.
+- **Tests and capture:**
+  - `test_clothing_frost`: none above freezing, faster in a blizzard, held in a cold shelter, melted by a fire, the shader has the rime, the face stays bare;
+  - `tools/runtime/capture_clothing_frost.gd`: rime 0, 0.4 and 0.85, front and back.
+
 ### Added (breath vapor)
 
 - **What:** Henry's breath now condenses at his mouth in cold air, one puff per exhale. It is an authored scene, `scenes/actors/player/breath_vapor.tscn`, so the puff can be tuned in the editor.
