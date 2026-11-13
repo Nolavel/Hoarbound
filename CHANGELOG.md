@@ -16,6 +16,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Verified
 
+- LOW tier cost on Duval Street at 1920x1080 (`probe_low_tier_cost.gd`, lavapipe, relative): 1165 ms as is, 1234 ms without volumetric fog (noise), 1137 ms without sun shadows (-2 %). Neither effect is the LOW bottleneck. The owner's HD 620 log shows 4-5M primitives and up to 1500 draw calls a frame. The probe now counts the primitives each world group draws.
 - #209/#288: `quit(1)` now exits 1 in this project, the #209 repro included. That issue was filed on 2026-10-09; the vendored Jenova GDExtension, its prime suspect, was removed on 2026-10-14 (`16e55a8f`).
 - `run_tests.sh` now fails a suite that exits 0 without any pass line, and ends every suite with `HB_SUITE_RESULT: PASS|FAIL|KNOWN_FAIL <suite>`. `test_first_exit_entry_traversal` now prints its PASS. Checked with throwaway suites: quit(1) fails, a silent exit 0 fails, an explicit PASS passes.
 - Continue after a relaunch (#42 Gate A), checked across two processes:
