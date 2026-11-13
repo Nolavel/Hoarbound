@@ -1,6 +1,6 @@
 # Runtime construction audit — what should become an authored scene
 
-Date: 2026-11-13. Base: main `63cbc9f8`. Status: **pilot done** (wall thermometer); the rest of the order below is open.
+Date: 2026-11-13. Base: main `63cbc9f8`. Status: **wall thermometer and stove done**; the rest of the order below is open.
 
 ## Why
 
@@ -84,10 +84,37 @@ Each heavy script was then read to decide whether it builds:
    - `test_wall_thermometer` passes;
    - `capture_thermometer.gd` was rendered in the real 727 before and after. The frames differ only in the FPS overlay and Henry's idle pose; the thermometer pixels are identical.
 
+## Stove (done)
+
+- `scenes/environment/stove/stove_log.tscn`:
+  - `Body` holds `Wood`, `Flame0`–`Flame2` and `Smoke`;
+  - the generated wood and flame meshes are saved as `assets/models/stove/stove_log_{wood,flame}.res`, so a modelled log can replace them;
+  - the shader materials are local to each log.
+- `scenes/environment/stove/stove_visual.tscn`:
+  - legs, ash pan, vents, firebox walls, door frame and cooktop;
+  - cooking ring, ember bed, `Coals` (12 coals);
+  - `FuelLog0`–`FuelLog3` as instances of the log scene;
+  - the `Glow` light;
+  - `DoorHinge` with the door, bars and knob;
+  - `FlueCollar` and `FluePipe`.
+
+  The ember material and the pipe mesh are local to each stove.
+- **What stays in code** (6 constructions, in the ratchet baseline):
+  - the flue length the 727 sets, applied in `_ready` to the authored pipe;
+  - the room light placed on the HeatSource's `flame_light`;
+  - the door control, which needs the HeatSource's Feed;
+  - the tinder, from `SurvivalItemVisual`. It moves with the item visuals.
+- `first_exit_blockout.tscn` and its builder instance the stove scene. The builder now keeps an instanced scene's insides when it sets owners.
+- **Evidence:**
+  - parity fixtures for the log and for the stove inside the shelter (72 visuals: logs, coals, door, tinder);
+  - they fail if one coal moves 1 cm;
+  - all stove, shelter and 727 suites pass;
+  - `capture_stove.gd` before/after.
+
 ## Suggested order
 
 1. ~~`wall_thermometer`~~ — done, see above.
-2. `stove_visual` together with the stove satellites.
+2. ~~`stove_visual` together with the stove satellites~~ — done (stove_warmer and lighter_flame remain for a later pass).
 3. `held_flare`.
 4. `furniture_kit`.
 5. `key_west_727_shelter` — 727 becomes an editable interior scene. This is the biggest gain.

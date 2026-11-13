@@ -6,6 +6,22 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (authored scenes: stove)
+
+- **The stove and its logs are authored scenes now:** `scenes/environment/stove/stove_visual.tscn` and `stove_log.tscn`.
+  - Everything is named and editable in the editor: legs, ash pan, firebox, door with bars, cooktop, coals, the four fuel logs, the glow light and the flue.
+  - The generated log meshes moved to `assets/models/stove/*.res`, so a modelled log can replace them.
+  - The scripts keep only the behaviour.
+  - What still depends on data stays in code: the flue length set by the 727, the room light, the door control that needs the Feed, and the tinder.
+- **The shelter template instances the stove scene,** and so does its builder. When the builder sets owners, it now leaves an instanced scene's insides alone.
+- **Evidence:**
+  - parity fixtures for the log and for the stove inside the shelter (72 visuals);
+  - they fail if one coal moves 1 cm;
+  - the stove, shelter and 727 suites pass;
+  - the ratchet dropped 12 constructions;
+  - `capture_stove_still.gd` renders the cold stove with three logs and tinder laid, and the burning stove with its door open, pixel-identical before and after.
+- `SceneParity` now compares generated meshes by shape (vertex hash and bounds) and materials by non-default values; the fixtures were regenerated from the old code.
+
 ### Changed (authored scenes)
 
 - **The 727 wall thermometer is now an authored scene,** `scenes/environment/thermometer/wall_thermometer.tscn`, editable in the editor. The script keeps only the behaviour.

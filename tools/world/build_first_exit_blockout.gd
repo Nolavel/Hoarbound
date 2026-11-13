@@ -22,7 +22,7 @@ const CABINET_SCRIPT: String = "res://scripts/environment/interactive/cabinet.gd
 const HINGED_DOOR_SCRIPT: String = "res://scripts/environment/interactive/hinged_door.gd"
 const SLEEP_SPOT_SCRIPT: String = "res://scripts/environment/interactive/sleep_spot.gd"
 const STOVE_WARMER_SCRIPT: String = "res://scripts/environment/stove/stove_warmer.gd"
-const STOVE_VISUAL_SCRIPT: String = "res://scripts/environment/stove/stove_visual.gd"
+const STOVE_VISUAL_SCENE: String = "res://scenes/environment/stove/stove_visual.tscn"
 const MEAL_TABLE_SCRIPT: String = "res://scripts/environment/interactive/meal_table.gd"
 const REST_SPOT_SCRIPT: String = "res://scripts/environment/interactive/rest_spot.gd"
 const WEATHER_BEAT_SCRIPT: String = "res://scripts/world/weather_beat.gd"
@@ -601,9 +601,8 @@ func _shelter_gameplay(house: Node3D, w: float, d: float, h: float,
 	stove.position = Vector3(-w * 0.5 + 0.9, floor_y + 0.1 - zone.position.y, -d * 0.2)
 	_add(zone, stove)
 	stove.set(&"heats_zone", zone)
-	var iron := Node3D.new()
+	var iron := (load(STOVE_VISUAL_SCENE) as PackedScene).instantiate() as Node3D
 	iron.name = "StoveVisual"
-	iron.set_script(load(STOVE_VISUAL_SCRIPT))
 	iron.position.y = -0.1  # the HeatSource sits 0.1 m up; the legs stand on the floor
 	_add(stove, iron)
 	var warmer := Node3D.new()  # the cooking ring: warm a tin or snow, then eat it off the stove
@@ -1160,9 +1159,16 @@ func _add_body(inst: MeshInstance3D, shape: Shape3D) -> void:
 
 func _add(parent: Node, child: Node) -> void:
 	parent.add_child(child, true)
-	child.owner = _root
-	for descendant: Node in child.find_children("*", "", true, false):
-		descendant.owner = _root
+	_own(child)
+
+
+## Owns generated nodes; an instanced scene (the stove) keeps its own insides.
+func _own(node: Node) -> void:
+	node.owner = _root
+	if node.scene_file_path != "":
+		return
+	for child: Node in node.get_children():
+		_own(child)
 
 
 ## Generated prompts own their UI and shape, so PackedScene cannot lose child overrides.

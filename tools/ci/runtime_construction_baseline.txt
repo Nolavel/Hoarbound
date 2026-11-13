@@ -35,8 +35,7 @@
 3 scripts/environment/stove/chimney_smoke.gd
 6 scripts/environment/stove/lighter_flame.gd
 2 scripts/environment/stove/stove_interaction_controller.gd
-6 scripts/environment/stove/stove_log_visual.gd
-12 scripts/environment/stove/stove_visual.gd
+6 scripts/environment/stove/stove_visual.gd  # left: door control (needs the Feed) and the tinder flame (item visuals)
 12 scripts/environment/stove/stove_warmer.gd
 2 scripts/experimental/motion_matching/motion_retarget_diagnostic.gd
 23 scripts/experimental/soft_container_lab.gd  # procedural: lab

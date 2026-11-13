@@ -855,7 +855,7 @@ func _begin_hand_action() -> bool:
 		_prop_basis = visual.global_basis*Basis.from_euler(_placement["rotation"])
 		_grip_offset = Vector3(-0.04,0.055,0.265)
 		_contact_palm = visual.to_global(_placement["position"]+Vector3.UP*LOG_INSERT_CLEARANCE)+_prop_basis*_grip_offset
-		_transfer_prop = StoveVisual.LOG_VISUAL.new()
+		_transfer_prop = StoveVisual.LOG_SCENE.instantiate()
 		add_child(_transfer_prop)
 		_animation.reserve_stove_carry(true)
 	elif _act == Act.TINDER:
