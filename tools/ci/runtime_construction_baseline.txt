@@ -1,0 +1,95 @@
+# Runtime construction baseline (RUNTIME_CONSTRUCTION_AUDIT.md): visual/physics/UI .new() per file.
+# Checked by tools/ci/check_runtime_construction.py in `checks`. A line may only go down.
+# Format: <count> <path>  # note ('procedural: why' when the construction is the procedure).
+14 scripts/actors/player/henry/Controllers/HenryUALAnimation.gd  # procedural: modifier/IK stack; animation skill forbids reshaping
+1 scripts/actors/player/henry/Controllers/RotationController.gd
+1 scripts/actors/player/henry/Player.gd
+7 scripts/actors/player/henry/components/bedroll_component.gd
+7 scripts/actors/player/henry/components/boot_snow_component.gd
+4 scripts/actors/player/henry/components/drying_steam_component.gd
+2 scripts/actors/player/henry/components/hand_grip.gd
+3 scripts/actors/player/henry/components/held_light_component.gd
+1 scripts/actors/player/henry/components/pickup_affordance.gd
+2 scripts/actors/player/henry/components/snow_scoop_component.gd
+1 scripts/actors/player/henry/components/strike_component.gd
+5 scripts/actors/player/henry/components/throw_component.gd
+3 scripts/actors/player/henry/components/wood_work_component.gd
+13 scripts/actors/player/henry/embodied/embodied_interaction_lab.gd  # procedural: lab
+2 scripts/actors/player/henry/embodied/embodied_interaction_lab_player.gd
+22 scripts/actors/player/henry/held/held_flare.gd
+7 scripts/actors/player/henry/held/held_prop_factory.gd
+9 scripts/actors/player/henry/held/held_searchlight.gd
+5 scripts/actors/player/henry/pack/pack_rig.gd
+1 scripts/actors/player/henry/pack/pack_shoulder_straps.gd
+7 scripts/environment/interactive/breach_board_up.gd
+12 scripts/environment/interactive/furniture_kit.gd
+1 scripts/environment/interactive/heat_source_feed.gd
+5 scripts/environment/interactive/hinged_door.gd
+3 scripts/environment/interactive/interactive_area.gd
+5 scripts/environment/interactive/item_container.gd
+30 scripts/environment/interactive/item_pickup.gd
+11 scripts/environment/interactive/meal_table.gd
+25 scripts/environment/interactive/survival_item_visual.gd
+2 scripts/environment/interactive/table_salvage.gd
+4 scripts/environment/interactive/thrown_item.gd
+3 scripts/environment/stove/chimney_smoke.gd
+6 scripts/environment/stove/lighter_flame.gd
+2 scripts/environment/stove/stove_interaction_controller.gd
+6 scripts/environment/stove/stove_log_visual.gd
+12 scripts/environment/stove/stove_visual.gd
+12 scripts/environment/stove/stove_warmer.gd
+2 scripts/experimental/motion_matching/motion_retarget_diagnostic.gd
+23 scripts/experimental/soft_container_lab.gd  # procedural: lab
+31 scripts/items/backpack/backpack_model.gd  # procedural: pocket geometry and pendulums, pinned by BACKPACK_RIG.md
+6 scripts/items/backpack/carabiner.gd  # procedural: simulation state
+3 scripts/items/backpack/pack_focus_blur.gd
+2 scripts/items/backpack/pack_handling.gd
+9 scripts/items/backpack/pack_quick_shelf.gd
+5 scripts/items/backpack/pack_straps.gd
+1 scripts/systems/camera/tps_boom_probe.gd
+2 scripts/systems/motion_matching/motion_matching_debug_view.gd
+4 scripts/systems/survival/breach_draft.gd
+3 scripts/systems/survival/consumption_controller.gd
+6 scripts/systems/survival/shelter_breach.gd
+3 scripts/systems/survival/thermal_manager.gd
+1 scripts/systems/world/DayNightManager.gd
+2 scripts/systems/world/materials/stylized_environment_material.gd
+1 scripts/systems/world/snow/footprint_system.gd
+2 scripts/systems/world/snow/snow_chunk_cover.gd
+21 scripts/systems/world/snow/snow_shell.gd  # procedural: clipmap meshes from runtime data
+2 scripts/systems/world/snow/world_snow_tile_prototype.gd
+2 scripts/systems/world/snow/world_snow_tile_surface.gd
+5 scripts/systems/world/terrain/island_terrain.gd
+4 scripts/systems/world/weather/snowfall_vfx.gd
+10 scripts/ui/debug/dev_diorama_map.gd  # procedural: debug tool
+2 scripts/ui/debug/weather_debug.gd
+1 scripts/ui/effects/edge_glow_overlay.gd
+3 scripts/ui/hud/action_prompt/action_prompt_3d.gd
+1 scripts/ui/hud/dynamic_cursor/mouse_cursor_ui.gd
+8 scripts/ui/hud/input_hints/key_hints_panel.gd
+1 scripts/ui/hud/player_feedback_ui.gd
+7 scripts/ui/hud/player_hub_panel.gd
+2 scripts/ui/hud/quick_access/quick_access_ui.gd
+2 scripts/ui/hud/vitals/health_strip.gd
+8 scripts/ui/hud/vitals/vital_cluster.gd
+15 scripts/ui/menu/camera_settings_panel.gd
+5 scripts/ui/menu/pause_menu.gd
+5 scripts/ui/menu/title_menu.gd
+4 scripts/vfx/blizzard_flow.gd
+1 scripts/vfx/floor_snow_prints.gd
+9 scripts/vfx/snow_lift.gd
+4 scripts/vfx/snow_splat.gd
+2 scripts/vfx/wind_streak.gd
+4 scripts/world/editor/key_west_reality_editor_view.gd
+1 scripts/world/first_exit/shelter_cabinet.gd
+14 scripts/world/key_west_727_shelter.gd
+5 scripts/world/key_west_dev_waypoints.gd
+1 scripts/world/key_west_reality_far.gd
+1 scripts/world/key_west_reality_ground.gd
+2 scripts/world/key_west_reality_hlod.gd
+4 scripts/world/props/step_stairs.gd
+2 scripts/world/props/winter_tree_meshes.gd
+2 scripts/world/stone_scatter.gd
+3 scripts/world/test/container_row.gd
+7 scripts/world/window_breakage.gd
+1 world/world.gd

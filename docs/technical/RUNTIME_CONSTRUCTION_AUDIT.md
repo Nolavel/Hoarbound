@@ -1,6 +1,6 @@
 # Runtime construction audit — what should become an authored scene
 
-Date: 2026-11-13. Base: main `63cbc9f8`. Status: **analysis, no code moved yet.**
+Date: 2026-11-13. Base: main `63cbc9f8`. Status: **pilot done** (wall thermometer); the rest of the order below is open.
 
 ## Why
 
@@ -55,9 +55,38 @@ Each heavy script was then read to decide whether it builds:
 4. **One script per PR**, with a render of the affected scene (CLAUDE.md, definition of done).
 5. **Ratchet.** Add a CI count of visual `.new()` calls per file, like the dynamic-dispatch ratchet. Moved files must not grow back, and new code must not add any.
 
+## Tools (in place)
+
+- `tools/scene_parity/scene_parity.gd` (`SceneParity`). It snapshots what a tree draws, independent of node names:
+  - visual type and transform;
+  - mesh and material properties;
+  - Label3D text and font settings.
+
+  `snapshot.gd` writes one, from a scene or from a script's code-built tree.
+- `tests/systems/test_authored_scene_parity.gd` compares each moved scene with the snapshot taken from the old code. Add a line to `CASES` for every move.
+- `tools/ci/check_runtime_construction.py` and `runtime_construction_baseline.txt` form the ratchet, which runs in `checks`:
+  - visual `.new()` calls per file may only go down;
+  - a new file may not start building content in code;
+  - lines marked `procedural` are the category B scripts.
+
+## Pilot: wall thermometer (done)
+
+1. Snapshotted the code-built thermometer (36 visuals) into `tests/fixtures/scene_parity/wall_thermometer.json`.
+2. Packed the same tree, with readable node names, into `scenes/environment/thermometer/wall_thermometer.tscn`:
+   - `Mount`: nail and wire;
+   - `Board`, `Tube`, `Bulb`, `Column`;
+   - `Scale`: ticks and figures;
+   - `ReadingPlate`, `Reading`;
+   - markers `ScaleBottom` and `ScaleTop`. The column travels between them, so moving them in the editor re-scales it.
+3. `wall_thermometer.gd` lost its 13 constructions and about 145 lines. It keeps only the behaviour (column, reading, fade). `WallThermometer.instantiate()` replaces `new()` in the 727 shelter and the test.
+4. Evidence:
+   - the parity test passes, and fails if one tick moves 1 cm;
+   - `test_wall_thermometer` passes;
+   - `capture_thermometer.gd` was rendered in the real 727 before and after. The frames differ only in the FPS overlay and Henry's idle pose; the thermometer pixels are identical.
+
 ## Suggested order
 
-1. `wall_thermometer` — the pilot, to prove the parity test.
+1. ~~`wall_thermometer`~~ — done, see above.
 2. `stove_visual` together with the stove satellites.
 3. `held_flare`.
 4. `furniture_kit`.

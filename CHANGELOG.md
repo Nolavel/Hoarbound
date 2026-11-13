@@ -6,6 +6,26 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (authored scenes)
+
+- **The 727 wall thermometer is now an authored scene,** `scenes/environment/thermometer/wall_thermometer.tscn`, editable in the editor. The script keeps only the behaviour.
+  - It moved with a parity check against a snapshot of the old code-built tree; the snapshot is a fixture.
+  - Before/after renders in the real 727 match on the thermometer.
+- **New tools for the next moves:**
+  - `SceneParity`, to snapshot a tree and diff it against the old build;
+  - `test_authored_scene_parity`;
+  - `tools/ci/check_runtime_construction.py`, a `checks` ratchet: content built in code per file may only shrink, and a new file may not start building content in code.
+
+### Added (CI)
+
+- `tools/ci/check_scene_refs.py`, the scene audit and UID doctor, runs without Godot in `checks`. It catches:
+  - broken `ext_resource` lines;
+  - stale uids, where the path exists but the uid is wrong;
+  - stale paths, where the uid resolves but the file moved;
+  - duplicate and orphaned uids.
+
+  `--fix` rewrites only unambiguous lines. Nested preview projects under `docs/` are skipped. The repository is clean today, and the unit tests run on a throwaway git repo.
+
 ### Added (thin ice, isolated lab only)
 
 - `tests/scenes/ice_lab.tscn`: Henry walks out from a shore onto 64 x 64 m of bay ice (`bay_ice.tres`). Poles mark 8, 16 and 26 m from shore. The game's own scenes are untouched.
