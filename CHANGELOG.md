@@ -16,6 +16,16 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - `test_authored_scene_parity`;
   - `tools/ci/check_runtime_construction.py`, a `checks` ratchet: content built in code per file may only shrink, and a new file may not start building content in code.
 
+### Added (input tape)
+
+- **F9 records a route** in any scene with Henry: gameplay actions per physics frame, plus the camera look. Exported builds save it to `tapes/` beside the exe; the tester README says to send it with the log.
+- `tools/runtime/replay_input_tape.tscn` replays a tape with the real autoloads and writes the path, the end point, frame times and optional shots. `--expect` makes it a check.
+- `checks` now replays a TestScene demo route and fails if it ends more than 0.25 m from where it did.
+- `test_input_tape` covers the format and the recorder.
+- Evidence:
+  - a replay re-recorded by the recorder gave identical events and frames;
+  - two replays ended 7 mm apart. See `docs/technical/INPUT_TAPE.md`.
+
 ### Added (CI)
 
 - `tools/ci/check_scene_refs.py`, the scene audit and UID doctor, runs without Godot in `checks`. It catches:

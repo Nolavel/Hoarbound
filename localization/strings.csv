@@ -307,3 +307,4 @@ ICE_STAGE_SOLID,The ice holds,Лёд держит
 ICE_STAGE_CREAKING,The ice creaks — you can still turn back,Лёд скрипит — ещё можно вернуться
 ICE_STAGE_CRACKING,The ice cracks — turn back now,Лёд трещит — назад немедленно
 ICE_STAGE_BROKEN,The ice gives way,Лёд проломился
+INPUT_TAPE_RECORDING,● Recording route (F9 to stop),● Запись маршрута (F9 — стоп)
