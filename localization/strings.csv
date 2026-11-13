@@ -296,3 +296,14 @@ FLARE_LIGHT_ACTION,Light the flare,Зажечь фальшфейер
 FLARE_DROP_ACTION,Drop the flare,Бросить фальшфейер
 FLARE_BURNING,Road flare — burning,Фальшфейер — горит
 FLARE_UNLIT,Road flare — unlit,Фальшфейер — не зажжён
+ICE_LAB_TITLE,Thin ice lab,Лаборатория тонкого льда
+ICE_LAB_HELP,"Walk out from the shore · Shift sprint · Ctrl crouch · R restart","Идите от берега · Shift — бег · Ctrl — присесть · R — заново"
+ICE_LAB_ON_SHORE,On the shore,На берегу
+ICE_LAB_IN_WATER,In the water — the cold bites,В воде — холод пробирает
+ICE_LAB_CLIMB_HINT,F · Climb out,F · Выбраться
+ICE_LAB_INTEGRITY,Ice,Лёд
+ICE_LAB_SHORE,From shore,От берега
+ICE_STAGE_SOLID,The ice holds,Лёд держит
+ICE_STAGE_CREAKING,The ice creaks — you can still turn back,Лёд скрипит — ещё можно вернуться
+ICE_STAGE_CRACKING,The ice cracks — turn back now,Лёд трещит — назад немедленно
+ICE_STAGE_BROKEN,The ice gives way,Лёд проломился

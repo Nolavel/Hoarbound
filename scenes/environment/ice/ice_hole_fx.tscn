@@ -1,0 +1,87 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/systems/ice/ice_hole_fx.gd" id="1_fx"]
+
+[sub_resource type="StandardMaterial3D" id="ShardMaterial"]
+albedo_color = Color(0.5, 0.6, 0.68, 1)
+roughness = 0.3
+
+[sub_resource type="CylinderMesh" id="ShardMesh"]
+material = SubResource("ShardMaterial")
+top_radius = 0.3
+bottom_radius = 0.27
+height = 0.07
+radial_segments = 5
+rings = 1
+
+[sub_resource type="ParticleProcessMaterial" id="SplashProcess"]
+direction = Vector3(0, 1, 0)
+spread = 38.0
+initial_velocity_min = 2.0
+initial_velocity_max = 4.2
+gravity = Vector3(0, -9.8, 0)
+scale_min = 0.6
+scale_max = 1.4
+emission_shape = 6
+emission_ring_axis = Vector3(0, 1, 0)
+emission_ring_height = 0.05
+emission_ring_radius = 0.6
+emission_ring_inner_radius = 0.2
+
+[sub_resource type="Gradient" id="DropFalloff"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="DropTexture"]
+gradient = SubResource("DropFalloff")
+width = 32
+height = 32
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.5, 0)
+
+[sub_resource type="StandardMaterial3D" id="DropMaterial"]
+albedo_texture = SubResource("DropTexture")
+shading_mode = 0
+albedo_color = Color(0.86, 0.92, 0.96, 0.85)
+transparency = 1
+billboard_mode = 3
+
+[sub_resource type="QuadMesh" id="DropMesh"]
+material = SubResource("DropMaterial")
+size = Vector2(0.09, 0.09)
+
+[node name="IceHoleFx" type="Node3D" node_paths=PackedStringArray("shards", "splash")]
+script = ExtResource("1_fx")
+shards = [NodePath("Shards/ShardA"), NodePath("Shards/ShardB"), NodePath("Shards/ShardC"), NodePath("Shards/ShardD"), NodePath("Shards/ShardE")]
+splash = NodePath("Splash")
+
+[node name="Shards" type="Node3D" parent="."]
+
+[node name="ShardA" type="MeshInstance3D" parent="Shards"]
+transform = Transform3D(1.289, 0.000, -0.545, 0.047, 0.993, 0.110, 0.309, -0.096, 0.732, 0.62, -0.09, 0.18)
+mesh = SubResource("ShardMesh")
+
+[node name="ShardB" type="MeshInstance3D" parent="Shards"]
+transform = Transform3D(-0.323, 0.000, -0.946, -0.094, 0.995, 0.032, 0.659, 0.070, -0.225, -0.35, -0.1, 0.55)
+mesh = SubResource("ShardMesh")
+
+[node name="ShardC" type="MeshInstance3D" parent="Shards"]
+transform = Transform3D(-1.199, 0.000, -0.050, 0.007, 0.984, -0.179, 0.045, -0.197, -1.081, -0.6, -0.08, -0.25)
+mesh = SubResource("ShardMesh")
+
+[node name="ShardD" type="MeshInstance3D" parent="Shards"]
+transform = Transform3D(-0.246, 0.000, 0.761, 0.142, 0.989, 0.046, -0.565, 0.090, -0.182, 0.15, -0.11, -0.66)
+mesh = SubResource("ShardMesh")
+
+[node name="ShardE" type="MeshInstance3D" parent="Shards"]
+transform = Transform3D(0.921, 0.000, 0.917, -0.056, 0.997, 0.057, -0.633, -0.072, 0.636, 0.48, -0.09, -0.42)
+mesh = SubResource("ShardMesh")
+
+[node name="Splash" type="GPUParticles3D" parent="."]
+emitting = false
+amount = 70
+lifetime = 0.9
+one_shot = true
+explosiveness = 0.92
+process_material = SubResource("SplashProcess")
+draw_pass_1 = SubResource("DropMesh")

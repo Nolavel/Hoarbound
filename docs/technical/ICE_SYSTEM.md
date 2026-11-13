@@ -154,17 +154,44 @@ about eight seconds. The bay is for crossing, not for stopping on.
 
 ## 8. Not built yet
 
-- **No visuals or audio.** The field emits everything a shader mask and a
-  three-layer creak/crack bus need (`load_tile_changed`, `stage_changed`,
-  `tile_broke`); nothing consumes them. Per `THERMAL_MODEL.md` §5, that is the
-  expensive half and it is deliberately last.
-- **No swim state.** `ColdWaterImmersion` owns the timing and the cold, but the
-  character controller has no in-water movement, and `climb_out()` does not yet
-  place the player at the hole's edge — `get_entry_position()` is there for
-  whoever wires it.
+- **Visuals and audio exist only in the isolated lab** (`tests/scenes/ice_lab.tscn`,
+  §9). No game scene uses `IceField` yet; Coast / Thin Ice is a later slice.
+- **No swim state.** `ColdWaterImmersion` owns the timing and the cold. In the
+  lab Henry stands chest-deep on a lake bed inside the hole and the lab director
+  places him on the rim; the character controller still has no in-water movement.
 - **Broken tiles do not persist.** The ice is not a save participant yet, so
   holes vanish on load. `IceField` needs the save contract.
-- **Crouch does not exist.** See §5 — the gentle crossing is unavailable until
-  a crouch action and controller state are added.
+- **Crouch exists now** (`MovementController.is_crouching()`, Ctrl), and
+  `IceGaitBinder` reports `CROUCH` from it; §5 is out of date on this point.
 - **No wind direction or snow cover.** Thin ice hidden under fresh snow is the
   obvious next twist, and the weather profiles already carry snowfall density.
+
+## 9. The lab — cracks, hole and sound (isolated)
+
+`tests/scenes/ice_lab.tscn` is a standalone scene with Henry, a shore and 64 × 64 m
+of bay ice. It is the only place the presentation below runs.
+
+| Stage | What the player gets | Owner |
+|---|---|---|
+| `CREAKING` | groan loop, louder with load — **nothing drawn** | `IceCrackPresenter` |
+| `CRACKING` | cracks from the load point, a crack sound and a camera shake per growth step | presenter + `thin_ice.gdshader` |
+| `BROKEN` | jagged hole under Henry, shards, splash, fall to chest-deep water | presenter, `ice_hole_fx.tscn`, `IceLabDirector` |
+
+- **Data and presentation stay separate.** The presenter reads `IceField` signals
+  and never writes to it. Crack growth is presentation memory: it only grows, so
+  cracks stay visible after the ice recovers.
+- **Maps.** A window of `window_tiles`² texels: the crack map holds growth and
+  the crack origin, the hole map holds the hole flag and its centre. The shader
+  draws cracks from the 3 × 3 neighbouring tiles in world space, so there is no
+  tile seam.
+- **One hole outline.** `IceHoleShape.radius_at()` defines it and the shader
+  mirrors it with integer-only phases. The fall-in check and the drawing agree.
+- **Sounds** are deterministic placeholders from `tools/audio/synth_ice_sfx.py`.
+- **Evidence.** `test_ice_crack_presenter.gd`, and the stills from
+  `tools/runtime/capture_ice_lab.gd`.
+
+Before this goes into the game:
+- the window must follow the player, as the snow window does;
+- the camera shake belongs in the TPS camera solver, not in a lab node;
+- real recordings must replace the placeholder sounds;
+- the ice needs a save participant in the game world.

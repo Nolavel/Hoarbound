@@ -6,6 +6,33 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added (thin ice, isolated lab only)
+
+- `tests/scenes/ice_lab.tscn`: Henry walks out from a shore onto 64 x 64 m of bay ice (`bay_ice.tres`). Poles mark 8, 16 and 26 m from shore. The game's own scenes are untouched.
+- `IceCrackPresenter` turns the existing `IceField` ladder into what the player sees and hears. It only reads the field.
+  - **CREAKING** is audio only: a groan loop that grows with the load.
+  - **CRACKING** draws cracks from the point under Henry: spokes, then broken rings. Each growth step plays a crack and asks for a short camera shake. Cracks never heal, even when the ice recovers.
+  - **BROKEN** opens a jagged hole under Henry, with floating shards and a splash (`scenes/environment/ice/ice_hole_fx.tscn`, authored).
+  - Technique: the cracks are a fixed pattern revealed outwards from the load point as the ice weakens; the lines are anti-aliased against the pixel size so they do not shimmer.
+  - The lines are drawn in world space from the 3 x 3 neighbouring tiles, so there is no tile seam.
+- `thin_ice.gdshader` keeps the production frozen-sea colour and stylized shadow and adds the crack and hole maps. `IceHoleShape` gives the hole outline to both the collision check and the shader, using integer phases so the two agree.
+- **Falling in:** Henry drops through the hole to a lake bed, chest-deep, and is held inside the hole. After the thrash delay, F climbs out onto the rim on his side. Walking into an old hole drops him in again. The lab has no clock, so the thermal effects are not exercised.
+- **Placeholder sounds:** `tools/audio/synth_ice_sfx.py` synthesises them deterministically: a crack is a falling dispersive chirp (the "pew" of floating ice), the creak is a stick-slip groan, and the break adds a splash. They are to be replaced by real recordings.
+- `test_ice_crack_presenter` checks that:
+  - creaking draws nothing;
+  - the first crack is visible;
+  - cracks start under the load and never heal;
+  - one hole opens under Henry and is not re-opened;
+  - the outline fits Henry;
+  - holes restored from a save appear without a splash.
+
+  It fails when creaking is allowed to draw cracks.
+- `tools/runtime/capture_ice_lab.gd` renders the beats with the real renderer: solid, first cracks, spreading, through, climbed out, and the hole from above.
+
+### Docs
+
+- `docs/technical/RUNTIME_CONSTRUCTION_AUDIT.md`: which scripts build node trees in code and should become authored scenes (727 shelter, furniture kit, stove, held flare, thermometer, item visuals, UI panels), which should stay procedural, and a safe one-script-per-PR migration with a parity snapshot and a CI ratchet.
+
 ### Changed (LOW tier)
 
 - On LOW, streamed vegetation (the `Vegetation` chunk part, including parts streamed in later) casts no shadow, and the sun's shadow is drawn in one split instead of two. Each split re-draws the scene, and the shadow pass was about 1.2M of 3.05M primitives a frame. MEDIUM and HIGH restore the authored shadow mode and the vegetation shadows. `test_graphics_quality_tiers` fails on the old code. Measured on a LOW Duval Street frame (lavapipe): primitives 3.05M -> 2.15M (-30 %), draw calls 724 -> 586 (-19 %). The CPU rasteriser's frame time barely moves (1178 -> 1137 ms) because it is pixel-bound; the FPS gain on an integrated GPU still needs the owner's HD 620.
