@@ -330,7 +330,7 @@ func _place_searchable(item: Dictionary, yaw: Basis) -> void:
 
 ## A wall thermometer reading the heated zone; "h" is its centre above the floor.
 func _place_thermometer(item: Dictionary, yaw: Basis) -> void:
-	var thermometer := WallThermometer.new()
+	var thermometer := WallThermometer.instantiate()
 	thermometer.name = String(item["node"])
 	thermometer.zone = _house.get_node(^"ShelterZone") as ThermalZone
 	thermometer.transform = Transform3D(yaw, plan_point(item["uv"], _floor_y + float(item.get("h", 1.5))))

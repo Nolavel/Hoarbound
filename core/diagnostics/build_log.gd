@@ -4,6 +4,9 @@ extends Node
 
 const FOLDER: String = "logs"
 const KEEP: int = 5
+## Marks logs that end with SESSION_END on a clean exit; older logs never had it.
+const SESSION_HEADER: String = "session: v2"
+const SESSION_END: String = "SESSION END"
 
 
 class FileLogger extends Logger:
@@ -28,6 +31,9 @@ class FileLogger extends Logger:
 		_lock.unlock()
 
 
+## The newest earlier log that never reached a clean exit (a crash or a kill), or "".
+var previous_unclean_log: String = ""
+
 var _logger: FileLogger
 
 
@@ -38,12 +44,14 @@ func _init() -> void:
 	if DirAccess.make_dir_recursive_absolute(dir) != OK:
 		return
 	_prune(dir)
+	previous_unclean_log = find_unclean(dir)
 	var stamp: String = Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
 	var file: FileAccess = FileAccess.open(dir.path_join("hoarbound_%s.log" % stamp), FileAccess.WRITE)
 	if file == null:
 		return
 	file.store_line("Hoarbound %s | %s | %s" % [ProjectSettings.get_setting("application/config/version", "?"),
 		OS.get_name(), Time.get_datetime_string_from_system()])
+	file.store_line(SESSION_HEADER)
 	_logger = FileLogger.new(file)
 	OS.add_logger(_logger)
 
@@ -57,7 +65,28 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	if _logger != null:
+		_logger._write(SESSION_END)
 		OS.remove_logger(_logger)
+
+
+## Newest log in a folder that started a v2 session but has no clean-exit line.
+static func find_unclean(dir: String) -> String:
+	var newest: String = ""
+	var newest_time: int = -1
+	for name: String in DirAccess.get_files_at(dir):
+		if name.get_extension() != "log":
+			continue
+		var full: String = dir.path_join(name)
+		var modified: int = FileAccess.get_modified_time(full)
+		if modified > newest_time:
+			newest_time = modified
+			newest = full
+	if newest == "":
+		return ""
+	var text: String = FileAccess.get_file_as_string(newest)
+	if not text.contains(SESSION_HEADER) or text.strip_edges().ends_with(SESSION_END):
+		return ""
+	return newest
 
 
 ## Keeps the newest KEEP logs.

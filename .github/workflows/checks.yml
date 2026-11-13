@@ -63,9 +63,27 @@ jobs:
           python3 -m unittest discover -s tools/ci -p 'test_check_dynamic_dispatch.py'
           python3 tools/ci/check_dynamic_dispatch.py
 
+      - name: Scene references and UIDs
+        ## Broken / stale ext_resource paths and uids, duplicate and orphaned uids (no Godot needed).
+        run: |
+          python3 -m unittest discover -s tools/ci -p 'test_check_scene_refs.py'
+          python3 tools/ci/check_scene_refs.py
+
+      - name: Runtime construction ratchet
+        ## Content built in code per file may only shrink (docs/technical/RUNTIME_CONSTRUCTION_AUDIT.md).
+        run: python3 tools/ci/check_runtime_construction.py
+
       - name: Contract suites (required)
         ## Cross-system contracts gate the build (ARCHITECTURE.md §16); same verdict as tools/ci/run_tests.sh.
         run: tools/ci/run_tests.sh $(sed -e 's/#.*//' tools/ci/required_suites.txt | tr -s '[:space:]' ' ')
+
+      - name: Input tape replay (ice lab shore route)
+        ## The same recorded input must still end the route where it did (tools/runtime/replay_input_tape.gd).
+        run: |
+          "${GODOT_BIN:-$HOME/.local/bin/godot}" --headless --path . --audio-driver Dummy --fixed-fps 60 \
+            res://tools/runtime/replay_input_tape.tscn -- \
+            --tape="$PWD/tests/fixtures/input_tapes/ice_lab_shore_demo.json" --out=/tmp/replay \
+            --expect="$PWD/tests/fixtures/input_tapes/ice_lab_shore_demo.expected.json" --tolerance=0.05
 
 
   edge-glow-review:
