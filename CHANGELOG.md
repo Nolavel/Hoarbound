@@ -6,6 +6,20 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added (breath vapor)
+
+- **What:** Henry's breath now condenses at his mouth in cold air, one puff per exhale. It is an authored scene, `scenes/actors/player/breath_vapor.tscn`, so the puff can be tuned in the editor.
+- **Source:** the lips are placed in Head-bone space. They were measured from the head mesh's midline, and the mouth is read after the head-look pose is final.
+- **Rhythm** follows effort:
+  - about 14 breaths a minute at rest, up to about 45 when panting;
+  - the exhale is faster when panting;
+  - after a sprint, or with the tank low, the panting settles over several breaths instead of snapping back.
+- **Density** follows the air around his face: the room when inside, the outdoors otherwise. The breath appears below 7 °C (common visible breath is below about 45 °F, Library of Congress *Everyday Mysteries*) and is full at −15 °C.
+- **Wind:** the puff drifts with the wind and rises slowly. Puffs stay where they were breathed, so a running Henry leaves them behind.
+- **Tests and capture:**
+  - `test_breath_vapor`: no breath at +12 °C, faint at +5 °C, rest versus panting rhythm and speed, slow settling;
+  - `tools/runtime/capture_breath_vapor.gd`: rest and panting close-ups, panting at game-camera distance, and none at +10 °C.
+
 ### Changed (stamina: smoother and readable)
 
 - **What was wrong (measured in a replayed route: 30 s of running, then a walk, then standing):**
