@@ -22,6 +22,8 @@ const PROFILES: Dictionary = {
 		"snow_near_half_m": 1.5,
 		"snow_sim_hz": 4.0,
 		"snow_particle_density": 0.50,
+		"vegetation_shadows": false,
+		"sun_shadow_splits": 1,
 	},
 	"medium": {
 		"render_scale": 0.77,
@@ -31,6 +33,8 @@ const PROFILES: Dictionary = {
 		"snow_near_half_m": 2.25,
 		"snow_sim_hz": 8.0,
 		"snow_particle_density": 0.75,
+		"vegetation_shadows": true,
+		"sun_shadow_splits": 2,
 	},
 	"high": {
 		"render_scale": 1.0,
@@ -40,6 +44,8 @@ const PROFILES: Dictionary = {
 		"snow_near_half_m": 2.75,
 		"snow_sim_hz": 15.0,
 		"snow_particle_density": 1.0,
+		"vegetation_shadows": true,
+		"sun_shadow_splits": 2,
 	},
 }
 
@@ -102,7 +108,7 @@ static func apply(tree: SceneTree, value: Variant) -> Dictionary:
 
 	if tree != null and tree.root != null:
 		tree.root.scaling_3d_scale = float(profile["render_scale"])
-		_apply_directional_shadow_distance(tree.root, float(profile["shadow_distance_m"]))
+		_apply_directional_shadow_distance(tree.root, float(profile["shadow_distance_m"]), int(profile["sun_shadow_splits"]))
 		tree.call_group(&"graphics_quality_consumer", &"apply_graphics_quality", quality, profile)
 
 	var use_16_bits: bool = bool(ProjectSettings.get_setting(
@@ -112,8 +118,14 @@ static func apply(tree: SceneTree, value: Variant) -> Dictionary:
 	return profile
 
 
-static func _apply_directional_shadow_distance(node: Node, distance_m: float) -> void:
+## LOW draws the sun's shadow in one split: the shadow pass re-draws the scene once per split.
+static func _apply_directional_shadow_distance(node: Node, distance_m: float, splits: int = 2) -> void:
 	if node is DirectionalLight3D:
-		(node as DirectionalLight3D).directional_shadow_max_distance = distance_m
+		var sun := node as DirectionalLight3D
+		sun.directional_shadow_max_distance = distance_m
+		if not sun.has_meta(&"authored_shadow_mode"):
+			sun.set_meta(&"authored_shadow_mode", sun.directional_shadow_mode)
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL if splits <= 1 \
+			else int(sun.get_meta(&"authored_shadow_mode"))
 	for child: Node in node.get_children():
-		_apply_directional_shadow_distance(child, distance_m)
+		_apply_directional_shadow_distance(child, distance_m, splits)

@@ -6,6 +6,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (LOW tier)
+
+- On LOW, streamed vegetation (the `Vegetation` chunk part, including parts streamed in later) casts no shadow, and the sun's shadow is drawn in one split instead of two. Each split re-draws the scene, and the shadow pass was about 1.2M of 3.05M primitives a frame. MEDIUM and HIGH restore the authored shadow mode and the vegetation shadows. `test_graphics_quality_tiers` fails on the old code. Measured gain: pending.
+
 ### Changed
 
 - Hints where testers got stuck:

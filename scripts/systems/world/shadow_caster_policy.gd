@@ -28,6 +28,10 @@ const SHADOW_OFF_NAMES: Dictionary = {
 	&"Ring0Massing": true,
 }
 
+const GRAPHICS: GDScript = preload("res://scripts/settings/graphics_quality.gd")
+## Streamed chunk part whose palms and trees lose their shadows on LOW (GraphicsQuality vegetation_shadows).
+const VEGETATION_NODE: StringName = &"Vegetation"
+
 const SHADOW_OFF_PREFIXES: Array[String] = [
 	"Ring0_",      # Island-wide far road ribbons.
 	"Surface_",    # Streamed local road ribbons.
@@ -35,7 +39,12 @@ const SHADOW_OFF_PREFIXES: Array[String] = [
 ]
 
 
+var _vegetation_shadows: bool = true
+
+
 func _ready() -> void:
+	add_to_group(&"graphics_quality_consumer")
+	_vegetation_shadows = bool(GRAPHICS.current_profile().get("vegetation_shadows", true))
 	var tree := get_tree()
 	if not tree.node_added.is_connected(_on_node_added):
 		tree.node_added.connect(_on_node_added)
@@ -65,8 +74,22 @@ func _on_node_added(node: Node) -> void:
 	_apply(node)
 
 
+## GraphicsQuality.apply: LOW drops the vegetation's shadows, the other tiers restore them.
+func apply_graphics_quality(_quality: StringName, profile: Dictionary) -> void:
+	var wanted: bool = bool(profile.get("vegetation_shadows", true))
+	if wanted == _vegetation_shadows:
+		return
+	_vegetation_shadows = wanted
+	_apply_existing()
+
+
 func _apply(node: Node) -> void:
 	if not node is GeometryInstance3D:
+		return
+	var parent := node.get_parent()
+	if parent != null and parent.name == VEGETATION_NODE:
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if _vegetation_shadows \
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		return
 	if not _should_disable_shadow(node):
 		return
