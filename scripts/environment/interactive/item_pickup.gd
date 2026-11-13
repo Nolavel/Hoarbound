@@ -13,6 +13,8 @@ signal pickup_refused(item_id: StringName)
 const PLACEHOLDER_SIZE: Vector3 = Vector3(0.32, 0.16, 0.22)
 const PLACEHOLDER_COLOR: Color = Color(0.42, 0.3, 0.2)
 const ROAD_FLARE_ID: StringName = &"road_flare"
+## Authored Emberline flare (tools/blender/build_road_flare.py), body along +Y, vents at the top.
+const ROAD_FLARE_MODEL: PackedScene = preload("res://assets/items/road_flare/RoadFlare.glb")
 const HAMMER_ID: StringName = &"hammer"
 const NAILS_ID: StringName = &"nails"
 const TOO_HEAVY_KEY: String = "PICKUP_REFUSED_TOO_HEAVY"
@@ -234,39 +236,21 @@ func _make_placeholder() -> MeshInstance3D:
 
 ## The starting light must read as a flare, not as the generic brown loot box.
 ## It matches the unlit tube dimensions used by HeldFlare and lies in the snow.
+## The Emberline flare model lying on its side, the pull ring towards +X.
 func _make_road_flare() -> MeshInstance3D:
-	var tube := MeshInstance3D.new()
-	tube.name = "RoadFlareVisual"
-	var tube_mesh := CylinderMesh.new()
-	tube_mesh.top_radius = 0.014
-	tube_mesh.bottom_radius = 0.016
-	tube_mesh.height = 0.22
-	tube_mesh.radial_segments = 12
-	tube.mesh = tube_mesh
-	var body_material := StandardMaterial3D.new()
-	body_material.albedo_color = Color(0.19, 0.035, 0.026, 1.0)
-	body_material.metallic = 0.18
-	body_material.roughness = 0.58
-	tube.material_override = body_material
-	tube.rotation.z = PI * 0.5
-	tube.position.y = 0.02
-	add_child(tube)
-
-	var cap := MeshInstance3D.new()
-	cap.name = "StrikerCap"
-	var cap_mesh := CylinderMesh.new()
-	cap_mesh.top_radius = 0.018
-	cap_mesh.bottom_radius = 0.018
-	cap_mesh.height = 0.025
-	cap_mesh.radial_segments = 12
-	cap.mesh = cap_mesh
-	var cap_material := StandardMaterial3D.new()
-	cap_material.albedo_color = Color(0.055, 0.045, 0.04, 1.0)
-	cap_material.roughness = 0.9
-	cap.material_override = cap_material
-	cap.position.y = 0.122
-	tube.add_child(cap)
-	return tube
+	var model: Node3D = ROAD_FLARE_MODEL.instantiate()
+	var mesh := model.find_child("RoadFlare", true, false) as MeshInstance3D
+	if mesh == null:
+		push_error("Road flare pickup: model has no RoadFlare mesh")
+		model.free()
+		return null
+	mesh.get_parent().remove_child(mesh)
+	model.free()
+	mesh.name = "RoadFlareVisual"
+	mesh.rotation.z = PI * 0.5
+	mesh.position.y = 0.0196  # the hex collar's corner radius: it rests on its flats
+	add_child(mesh)
+	return mesh
 
 
 func _make_hammer() -> MeshInstance3D:

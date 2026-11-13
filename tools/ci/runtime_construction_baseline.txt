@@ -16,7 +16,6 @@
 3 scripts/actors/player/henry/components/wood_work_component.gd
 13 scripts/actors/player/henry/embodied/embodied_interaction_lab.gd  # procedural: lab
 2 scripts/actors/player/henry/embodied/embodied_interaction_lab_player.gd
-22 scripts/actors/player/henry/held/held_flare.gd
 7 scripts/actors/player/henry/held/held_prop_factory.gd
 9 scripts/actors/player/henry/held/held_searchlight.gd
 5 scripts/actors/player/henry/pack/pack_rig.gd
@@ -27,7 +26,7 @@
 5 scripts/environment/interactive/hinged_door.gd
 3 scripts/environment/interactive/interactive_area.gd
 5 scripts/environment/interactive/item_container.gd
-30 scripts/environment/interactive/item_pickup.gd
+24 scripts/environment/interactive/item_pickup.gd
 11 scripts/environment/interactive/meal_table.gd
 25 scripts/environment/interactive/survival_item_visual.gd
 2 scripts/environment/interactive/table_salvage.gd

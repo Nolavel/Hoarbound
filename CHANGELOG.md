@@ -6,6 +6,30 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (road flare: the Emberline model)
+
+- **The road flare is now the Emberline signal flare from the owner's reference sheet.** It is built at real scale by `tools/blender/build_road_flare.py` into `assets/items/road_flare/RoadFlare.glb`. The parts, from the burning end:
+  - a ten-sided metal cap with five vents;
+  - a red band;
+  - a worn red tube with two labels: the front one EMBERLINE · SIGNAL FLARE with a mountain mark and hazard stripes, the back one ⚠ SIGNAL FLARE · PULL · IGNITE · SIGNAL, reading from the ring end;
+  - a knurled black grip;
+  - a red band, a chamfered hex collar and a dark end cap;
+  - a red clip with a rivet and a steel pull ring.
+
+  The textures are drawn by the same script: hand-painted red with chips, paper labels, knurl albedo with a normal map, and worn gunmetal. The body keeps the old 22 cm length, so Henry's grip fit is unchanged.
+- **`HeldFlare.tscn` is now an authored scene.** It holds:
+  - the model as `Body`;
+  - the `Tip` with the hot core, the light, the local scattering fog and the flame, spark, fragment and smoke layers.
+
+  The generated particle textures were saved as `assets/items/road_flare/fx/*.res`. The script lost about 280 lines of construction and keeps the burn and flicker behaviour.
+- **The flare body casts no shadow.** Its own light sits 8 mm above the cap, so the body threw a dark cone onto the ground. The old cylinder did the same.
+- **The flare lying in the world** (`ItemPickup`) uses the same model, resting on the flats of its hex collar.
+- **Evidence:**
+  - a parity fixture of the light, fog and particle layers, snapshotted from the old code under Vulkan, passes with the body excluded on purpose;
+  - all flare, held-item, quick-access and pickup suites pass;
+  - `tools/runtime/capture_road_flare.gd` renders a product view of both labels, the flare in snow, and the flare burning at night.
+- `SceneParity` now records particle, light and fog settings, and compares textures and images by pixel hash. The stove fixture was refreshed to add the light fields; its geometry had already matched.
+
 ### Changed (authored scenes: stove)
 
 - **The stove and its logs are authored scenes now:** `scenes/environment/stove/stove_visual.tscn` and `stove_log.tscn`.
