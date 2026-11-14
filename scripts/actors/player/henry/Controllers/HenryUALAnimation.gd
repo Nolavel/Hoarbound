@@ -160,6 +160,8 @@ const BASE_LAYERS: Array[StringName] = [&"Outfit_Sweater", &"Outfit_Collar", &"H
 const HAT_FIT_FILE: String = "res://assets/characters/henry/knit_hat/hat_fit.json"
 const LEGACY_HAT_PARTS: Array[StringName] = [&"Outfit_Beanie", &"Outfit_BeanieCuff"]
 const KNIT_HAT_PARTS: Array[StringName] = [&"KnitHat_Crown", &"KnitHat_Cuff", &"KnitHat_Pom"]
+## Cheek flush and brow masks in the head's UV, baked by tools/art/bake_henry_face_masks.gd.
+const FACE_MASKS: Texture2D = preload("res://assets/characters/henry/face/henry_face_masks.png")
 ## How much fully soaked clothing darkens.
 @export_range(0.0, 1.0, 0.05) var wet_darkening: float = 0.45
 ## Kenny's faded plush, lighter than the pack so the silhouette separates.
@@ -1291,6 +1293,9 @@ func _style_garment_mesh(mesh_inst: MeshInstance3D, part: StringName, use_source
 				material.set_shader_parameter("metallic", source.metallic)
 				material.set_shader_parameter("use_orm_ao", source.ao_enabled and source.ao_texture == source.roughness_texture)
 		material.set_meta(&"dry_color", dry)
+		if part == &"Henry_Head":
+			material.set_shader_parameter("use_face_mask", true)
+			material.set_shader_parameter("face_mask_texture", FACE_MASKS)
 		mesh_inst.set_surface_override_material(surface, material)
 		_garment_materials["%s:%d" % [part, surface]] = material
 

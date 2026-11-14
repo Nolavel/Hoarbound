@@ -42,6 +42,12 @@ const float HFN_CAMERA_FADE_FAR = 1.1;
 uniform float garment_press : hint_range(0.0, 1.0) = 0.0;
 uniform float garment_press_max = 0.03;
 #include "res://shaders/environment/materials/garment_frost.gdshaderinc"
+// Henry's face in the cold: a mask in the head's UV (R cheeks and nose tip, G brows) takes a flush and
+// breath rime. ClothingFrostComponent sets both per instance.
+uniform bool use_face_mask = false;
+uniform sampler2D face_mask_texture : hint_default_black, filter_linear;
+instance uniform float face_flush : hint_range(0.0, 1.0) = 0.0;
+instance uniform float face_frost : hint_range(0.0, 1.0) = 0.0;
 #endif
 
 varying vec3 stylized_noise_pos;
@@ -109,6 +115,15 @@ void fragment() {
 	}
 #endif
 #ifndef HFN_STATIC_WORLD
+	if (use_face_mask) {
+		vec2 face = texture(face_mask_texture, UV).rg;
+		vec3 flushed = ALBEDO * vec3(1.22, 0.66, 0.64) + vec3(0.05, 0.0, 0.0);
+		ALBEDO = mix(ALBEDO, flushed, clamp(face.r * face_flush * 1.5, 0.0, 0.95));
+		float brow_grain = hfn_gf_noise(stylized_model_pos * 420.0) * 0.6 + hfn_gf_noise(stylized_model_pos * 160.0) * 0.4;
+		float brow_reach = clamp(face.g * 1.4, 0.0, 1.0) * face_frost;
+		float brow_rime = smoothstep(1.0 - brow_reach, 1.1 - brow_reach, brow_grain) * 0.8 + brow_reach * 0.4;
+		ALBEDO = mix(ALBEDO, HFN_GARMENT_FROST_COLOR, clamp(brow_rime * smoothstep(0.04, 0.25, face.g), 0.0, 0.9));
+	}
 	if (garment_frost > 0.0) {
 		float frost_metal = METALLIC;
 		hfn_apply_garment_frost(ALBEDO, ROUGHNESS, frost_metal, stylized_model_pos, stylized_world_normal, METALLIC);

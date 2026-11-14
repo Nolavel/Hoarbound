@@ -129,6 +129,7 @@ func _collect_gear() -> void:
 func apply_to_gear(amount: float) -> void:
 	if _gear.is_empty():
 		_collect_gear()
+	_apply_to_face(amount)
 	for geo: GeometryInstance3D in _gear:
 		if not is_instance_valid(geo):
 			continue
@@ -139,6 +140,18 @@ func apply_to_gear(amount: float) -> void:
 			geo.material_overlay = OVERLAY
 		elif amount <= 0.0 and geo.material_overlay == OVERLAY:
 			geo.material_overlay = null
+
+
+## The face: breath rime on the brows with the rest of the rime, and cheeks flushed by the cold on the head
+## (or the rime still on him, which fades as he warms).
+func _apply_to_face(amount: float) -> void:
+	var body: Node = get_parent()
+	var head := body.find_child("Henry_Head", true, false) as GeometryInstance3D if body != null else null
+	if head == null:
+		return
+	var head_cold: float = _thermal.get_extremity_cold(&"head") if _thermal != null else 0.0
+	head.set_instance_shader_parameter(&"face_frost", amount)
+	head.set_instance_shader_parameter(&"face_flush", clampf(maxf(head_cold, amount), 0.0, 1.0))
 
 
 ## A mesh whose every surface is an opaque, lit StandardMaterial3D (shader materials carry rime themselves).

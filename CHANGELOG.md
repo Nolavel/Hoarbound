@@ -6,6 +6,33 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (Key West: the blizzard holds)
+
+- Key West Reality starts in the blizzard (wind, snowfall, cold) and now stays in it.
+  - Before, the scheduler moved on after 0.75–2 game hours (a few real minutes), usually to calm or snowfall.
+  - The new `WorldProfile.hold_initial_weather` turns the scheduler off for a world, and Reality sets it.
+  - A save made in other weather loads back into the blizzard.
+- `test_weather_hold`: Reality is still in the blizzard after 72 game hours and after loading a calm save. Without the hold, the weather still moves on.
+
+### Release (0.314a pre-release)
+
+- The version is now 0.314a in `project.godot`, in the export presets (0.314.0.0) and in the `release-smoke` defaults.
+- The release notes and the tester readme cover the changes since 0.312c, including the held blizzard. The snow defect stays OPEN until it is confirmed on an HD 620.
+
+### Added (cold on Henry's face: flushed cheeks, rime on the brows)
+
+- **What:** in the cold Henry's cheeks and the tip of his nose redden, and breath rime settles on his brows as fine white crystals.
+  - The flush follows the cold load on the head (`ExtremityCold`) or the rime still on him, whichever is higher, so it fades as he warms with the rest of the rime.
+  - The brow rime follows the rime amount.
+- **How:** a mask in the head's UV space, `assets/characters/henry/face/henry_face_masks.png`:
+  - R holds the cheeks and the nose tip, G the brows;
+  - `tools/art/bake_henry_face_masks.gd` bakes it from the head mesh in Head-bone space, with the regions measured from the face's midline;
+  - the PNG can be retouched by hand.
+- **Shader:** the character shader reads the mask when `use_face_mask` is on. Only Henry's head turns it on. The values come per instance from `ClothingFrostComponent`.
+- **Check:**
+  - `test_clothing_frost` now checks the flush, the brow rime and the mask on the head;
+  - `tools/runtime/capture_henry_face.gd` renders the face three-quarter front at no cold, 0.4 and 0.85.
+
 ### Added (rime on clothing, the pack and its gear)
 
 - **What:** Henry's clothes, hat, pack and the gear on it frost over outdoors. The gear covers:

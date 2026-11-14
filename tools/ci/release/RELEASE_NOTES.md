@@ -5,12 +5,25 @@ Pre-release for external smoke testing: **not a finished build**.
 - Linux: unzip and run `./Hoarbound.x86_64`.
 - Graphics default to LOW. MEDIUM and HIGH are in the settings menu.
 - Logs are written to `logs/` beside the executable. Please send the newest `hoarbound_*.log` with your report.
+- F10 saves a report zip (log, settings, system, last route, screenshot) to `reports/`. F9 records the route you play to `tapes/` so we can replay it.
 
 **Known limitations**
-- OPEN: the snow surface around Henry visibly shifted in height as he walked, with a square boundary (seen on Intel HD 620). A likely cause is fixed in this build: exported games did not load the baked snow wind field and fell back to a moving snow window, while the editor worked. That fix is checked on the exported pack. It has NOT yet been confirmed on the hardware where the defect was seen, so treat the issue as open and report it if you see it.
-- Low frame rates on integrated GPUs: about 9-11 FPS on LOW on an HD 620.
+- OPEN: the snow surface around Henry visibly shifted in height as he walked, with a square boundary (seen on Intel HD 620). A likely cause was fixed in 0.312c: exports now load the baked snow wind field. It has NOT yet been confirmed on the hardware where the defect was seen, so report it if you see it.
+- Low frame rates on integrated GPUs. LOW now draws about 30 % fewer primitives on Duval Street, but this has not been re-measured on an HD 620.
 
-**Changes since 0.312b**
-- Exports now load the baked snow wind field (`ResourceLoader.exists` instead of `FileAccess.file_exists` on an imported PNG).
-- The .NET assemblies are back in both archives. 0.312 and 0.312b failed to start with ".NET assemblies not found".
-- The default graphics quality is LOW again.
+**Changes since 0.312c**
+- **Blizzard by default:** Key West stays in the blizzard (wind, snowfall, cold) instead of clearing after a few minutes.
+- **Cold you can see.**
+  - **Breath:** Henry's breath steams at his mouth in the cold, faster and stronger when he is out of breath, and drifts with the wind.
+  - **Rime:** his clothes, hat, pack and the gear on it frost over outdoors. He starts the game frosted and thaws gradually by the stove or in a warm room. The rime is saved.
+  - **Face:** cheeks and the nose tip redden in the cold, and rime settles on the brows.
+- **Stamina:**
+  - breath comes back sooner and faster when standing;
+  - an emptied tank keeps Henry winded until he recovers, with no sprint stutter;
+  - the run tapers into a jog;
+  - the cursor arcs now show the tank while he catches his breath.
+- **Road flare:** a new model, and the flare is now an editable scene.
+- **Stove:** the stove and its logs are now editable scenes, with the same look.
+- **Hints:** X puts away and G drops a held item, and the bedroll takes F or C. Flare readouts are localised.
+- **LOW graphics:** no vegetation shadows and one sun shadow split.
+- **For testers:** F9 route recording and the F10 report, also written automatically after a crashed session.

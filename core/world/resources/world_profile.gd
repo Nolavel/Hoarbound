@@ -20,6 +20,8 @@ extends Resource
 
 @export_group("Initial weather")
 @export var initial_weather_profile_id: StringName = &""
+## The initial weather holds for good: the scheduler does not move on to the next profile.
+@export var hold_initial_weather: bool = false
 @export_range(-1.0, 360.0, 0.1) var wind_direction_override_deg: float = -1.0
 @export var prewarm_before_first_frame: bool = false
 
