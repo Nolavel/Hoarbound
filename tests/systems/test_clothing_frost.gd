@@ -25,6 +25,7 @@ func _run() -> void:
 	_test_no_rime_above_freezing()
 	_test_grows_faster_in_a_blizzard()
 	_test_holds_in_a_cold_shelter_and_melts_by_fire()
+	_test_warm_room_thaws_gradually()
 	_test_shader_has_the_rime()
 	await _test_gear_frosts_but_not_the_face()
 	if _failures > 0:
@@ -74,11 +75,26 @@ func _test_holds_in_a_cold_shelter_and_melts_by_fire() -> void:
 	var crusted: float = frost.get_frost()
 	_run_for(frost, 120.0, -10.0, true, false, 0.0, 0.0)
 	_check(is_equal_approx(frost.get_frost(), crusted), "rime changed in a -10 °C shelter (%.2f to %.2f)" % [crusted, frost.get_frost()])
-	_run_for(frost, 20.0, -10.0, true, true, 0.0, 0.0)
-	_check(frost.get_frost() < crusted and frost.get_frost() > 0.0, "the fire should be melting it, not done in 20 s (%.2f)" % frost.get_frost())
 	_run_for(frost, 30.0, -10.0, true, true, 0.0, 0.0)
-	_check(frost.get_frost() == 0.0, "rime still on after 50 s by the fire (%.2f)" % frost.get_frost())
+	_check(frost.get_frost() < crusted and frost.get_frost() > 0.3, "by the fire it should thaw gradually, not at once (%.2f after 30 s)" % frost.get_frost())
+	_run_for(frost, 90.0, -10.0, true, true, 0.0, 0.0)
+	_check(frost.get_frost() == 0.0, "rime still on after 2 min by the fire (%.2f)" % frost.get_frost())
 	frost.free()
+
+
+func _test_warm_room_thaws_gradually() -> void:
+	var mild := ClothingFrostComponent.new()
+	mild.set_frost_value(0.85)
+	_run_for(mild, 60.0, 5.0, true, false, 0.0, 0.0)
+	_check(mild.get_frost() > 0.55, "a +5 °C room took the rime too fast (%.2f after 1 min)" % mild.get_frost())
+	var warm := ClothingFrostComponent.new()
+	warm.set_frost_value(0.85)
+	_run_for(warm, 60.0, 15.0, true, false, 0.0, 0.0)
+	_check(warm.get_frost() < mild.get_frost() - 0.1, "a warmer room should thaw faster (%.2f vs %.2f)" % [warm.get_frost(), mild.get_frost()])
+	_run_for(mild, 300.0, 5.0, true, false, 0.0, 0.0)
+	_check(mild.get_frost() == 0.0, "a +5 °C room left rime after 6 min (%.2f)" % mild.get_frost())
+	mild.free()
+	warm.free()
 
 
 func _test_shader_has_the_rime() -> void:
@@ -96,6 +112,13 @@ func _test_gear_frosts_but_not_the_face() -> void:
 	for _i: int in range(10):
 		await process_frame
 	var frost := player.get_node(^"ClothingFrostComponent") as ClothingFrostComponent
+	_check(is_equal_approx(frost.get_frost(), 0.85), "Henry should start frosted at 0.85, got %.2f" % frost.get_frost())
+	_check(SaveParticipantCapability.get_key(frost) == &"clothing_frost", "the rime is not a save participant")
+	frost.set_frost(0.33)
+	var saved: Variant = SaveParticipantCapability.capture(frost)
+	frost.set_frost(0.9)
+	SaveParticipantCapability.restore(frost, saved as Dictionary)
+	_check(is_equal_approx(frost.get_frost(), 0.33), "the rime did not come back from a save (%.2f)" % frost.get_frost())
 	frost.set_frost(0.7)
 	var frosted: Dictionary = {}
 	var face_frosted: bool = false

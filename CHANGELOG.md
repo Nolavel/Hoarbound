@@ -20,18 +20,22 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
   - **One shared include,** `garment_frost.gdshaderinc`. It is used by the character shader and by the pack canvas, carabiner, worn-tool and strap shaders, and static world shaders compile it out.
   - **Per-instance amount:** the include reads an instance uniform, so a mug on the pack frosts while the same mug lying in the world does not.
   - **Plain materials:** gear on a plain `StandardMaterial3D` takes the rime as a mesh overlay, only while that slot is free. The pack's rim and the focus blur keep priority.
-- **Growth and melt** (`ClothingFrostComponent`):
-  - **Growth** needs outdoor air below −2 °C. Rime builds in about 5 minutes of still −25 °C air, more than three times faster in a blizzard (snowfall and wind).
-  - **Shelter:** in a cold room it holds.
-  - **Melt:** it melts in about 45 s beside a fire, or over minutes in air above 0 °C.
-  - The amount is presentation only; nothing reads it back.
-- **Not yet, owner's call:**
-  - melting rime does not wet the clothes;
-  - the amount is not saved, so after a load it builds again from bare.
+- **Start:** Henry starts frosted at 0.85, as if he has just come in from the night. It is the scene default, `ClothingFrostComponent.initial_frost`.
+- **Growth** (`ClothingFrostComponent`):
+  - it needs outdoor air below −2 °C;
+  - rime builds in about 5 minutes of still −25 °C air, more than three times faster in a blizzard (snowfall and wind).
+- **Shelter:** in a cold room the rime holds.
+- **Thaw** is gradual and follows warmth:
+  - by a fire, 0.85 clears in about 1.6 minutes;
+  - in room air at +5 °C it takes about 4.5 minutes, faster as the room warms (up to 3×);
+  - the last thin traces in the folds go slowest.
+- **Saved:** the rime is a save participant (`clothing_frost`), so a load brings back the rime Henry had.
+- **Not yet, owner's call:** melting rime does not wet the clothes.
 - **Tests and capture:**
-  - `test_clothing_frost`: none above freezing, faster in a blizzard, held in a cold shelter, melted by a fire, every gear shader takes the rime, named gear is frosted, the face stays bare, overlays leave when the rime melts;
+  - `test_clothing_frost`: none above freezing, faster in a blizzard, held in a cold shelter, gradual thaw by a fire and faster in a warmer room, a 0.85 start, a save round trip, every gear shader takes the rime, named gear is frosted, the face stays bare, overlays leave when the rime melts;
   - `test_backpack_rig` (`--fixed-fps 30`) passes;
-  - `tools/runtime/capture_clothing_frost.gd`: rime 0, 0.4 and 0.85, front and back.
+  - `tools/runtime/capture_clothing_frost.gd`: rime 0, 0.4 and 0.85, front and back;
+  - `TestScene` renders Henry frosted from the start.
 
 ### Added (breath vapor)
 
