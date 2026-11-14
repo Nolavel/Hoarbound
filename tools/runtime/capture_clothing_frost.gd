@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Henry's clothes at rime 0, 0.4 and 0.85, front and back three-quarter, in the same cold light.
+## Henry's clothes, pack and gear at rime 0, 0.4 and 0.85, front and back three-quarter, in the same cold light.
 ## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 960x540 --script res://tools/runtime/capture_clothing_frost.gd -- <out dir>
 
 const PLAYER: String = "res://scenes/actors/player/player.tscn"
@@ -53,7 +53,7 @@ func _run() -> void:
 	var side: Vector3 = Vector3.UP.cross(forward)
 	var chest: Vector3 = player.global_position + Vector3.UP * 0.45
 	for level: float in LEVELS:
-		player.animation_component.set_frost(level)
+		frost.set_frost(level)
 		for view: String in ["front", "back"]:
 			var dir: Vector3 = forward if view == "front" else -forward
 			camera.look_at_from_position(chest + dir * 1.5 + side * 0.7 + Vector3.UP * 0.45, chest, Vector3.UP)

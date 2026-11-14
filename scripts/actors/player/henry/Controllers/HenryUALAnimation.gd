@@ -1367,14 +1367,6 @@ func set_wetness(wetness: float) -> void:
 		material.set_shader_parameter("albedo_color", dry.darkened(wet_darkening * _wetness))
 
 
-## Rime on the clothes and hat, 0 none to 1 crusted; the face stays bare.
-func set_frost(frost: float) -> void:
-	var amount: float = clampf(frost, 0.0, 1.0)
-	for key: String in _garment_materials:
-		if not key.begins_with("Henry_Head"):
-			(_garment_materials[key] as ShaderMaterial).set_shader_parameter("garment_frost", amount)
-
-
 ## Shows a garment's mesh only while that garment is worn.
 func _bind_equipment() -> void:
 	if player == null:

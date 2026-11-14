@@ -125,9 +125,8 @@ script = ExtResource("99_steam")
 visual = NodePath("../HenryUALVisual")
 movement = NodePath("../MovementController")
 
-[node name="ClothingFrostComponent" type="Node" parent="." node_paths=PackedStringArray("visual")]
+[node name="ClothingFrostComponent" type="Node" parent="."]
 script = ExtResource("99_frost")
-visual = NodePath("../HenryUALVisual")
 
 [node name="BedrollComponent" type="Node" parent="." node_paths=PackedStringArray("inventory")]
 script = ExtResource("98_bedroll")

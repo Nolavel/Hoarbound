@@ -115,6 +115,8 @@ varying vec3 v_pack_normal;
 varying float v_edge;
 varying float v_crease;
 varying float v_stretch;
+varying vec3 v_frost_normal;
+#include "res://shaders/environment/materials/garment_frost.gdshaderinc"
 
 float hash3(vec3 p) {
 	p = fract(p * 0.3183099 + 0.1);
@@ -156,6 +158,7 @@ void vertex() {
 	vec3 p = (to_pack * vec4(VERTEX, 1.0)).xyz;
 	vec3 n = normalize(mat3(to_pack) * NORMAL);
 	v_pack = p;
+	v_frost_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	// On a rounded edge the normal leans between two axes: that is where canvas rubs pale.
 	vec3 an = abs(n);
 	v_edge = smoothstep(0.08, 0.26, 1.0 - max(an.x, max(an.y, an.z)));
@@ -357,9 +360,14 @@ void fragment() {
 		colour *= 1.0 + 0.12 * v_stretch;
 		colour = hfn_painterly_surface_color(colour, v_pack * painterly_scale, v_pack_normal, 1.0);
 	}
+	float canvas_metal = metal * 0.6;
+	float canvas_rough = mix(roughness_value, 0.45, metal);
+	if (FRONT_FACING) {
+		hfn_apply_garment_frost(colour, canvas_rough, canvas_metal, v_pack, v_frost_normal, metal);
+	}
 	ALBEDO = colour;
-	METALLIC = metal * 0.6;
-	ROUGHNESS = mix(roughness_value, 0.45, metal);
+	METALLIC = canvas_metal;
+	ROUGHNESS = canvas_rough;
 }
 
 void light() {
