@@ -6,6 +6,20 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added (cold on Henry's face: flushed cheeks, rime on the brows)
+
+- **What:** in the cold Henry's cheeks and the tip of his nose redden, and breath rime settles on his brows as fine white crystals.
+  - The flush follows the cold load on the head (`ExtremityCold`) or the rime still on him, whichever is higher, so it fades as he warms with the rest of the rime.
+  - The brow rime follows the rime amount.
+- **How:** a mask in the head's UV space, `assets/characters/henry/face/henry_face_masks.png`:
+  - R holds the cheeks and the nose tip, G the brows;
+  - `tools/art/bake_henry_face_masks.gd` bakes it from the head mesh in Head-bone space, with the regions measured from the face's midline;
+  - the PNG can be retouched by hand.
+- **Shader:** the character shader reads the mask when `use_face_mask` is on. Only Henry's head turns it on. The values come per instance from `ClothingFrostComponent`.
+- **Check:**
+  - `test_clothing_frost` now checks the flush, the brow rime and the mask on the head;
+  - `tools/runtime/capture_henry_face.gd` renders the face three-quarter front at no cold, 0.4 and 0.85.
+
 ### Added (rime on clothing, the pack and its gear)
 
 - **What:** Henry's clothes, hat, pack and the gear on it frost over outdoors. The gear covers:

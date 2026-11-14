@@ -135,7 +135,14 @@ func _test_gear_frosts_but_not_the_face() -> void:
 			overlays += 1
 	for name: String in ["Outfit_Jacket", "KnitHat_Crown", "Shell", "FrontPanel", "Pan_Body", "Ring", "Thermos_Body", "PackShoulderStraps", "Mug_KW_LOD0"]:
 		_check(frosted.has(name), "%s took no rime" % name)
-	_check(not face_frosted, "Henry's face took the rime")
+	_check(not face_frosted, "Henry's skin took the cloth rime")
+	var head := player.find_child("Henry_Head", true, false) as GeometryInstance3D
+	var flush: Variant = head.get_instance_shader_parameter(&"face_flush")
+	var brows: Variant = head.get_instance_shader_parameter(&"face_frost")
+	_check(flush != null and float(flush) >= 0.7, "the cheeks did not flush with the cold (%s)" % str(flush))
+	_check(brows != null and is_equal_approx(float(brows), 0.7), "the brows took no breath rime (%s)" % str(brows))
+	var head_material := (head as MeshInstance3D).get_active_material(0) as ShaderMaterial
+	_check(head_material != null and head_material.get_shader_parameter("use_face_mask") == true, "the face mask is not on Henry's head")
 	_check(overlays > 0, "no plain-material gear got the rime overlay")
 	frost.set_frost(0.0)
 	var left: int = 0
