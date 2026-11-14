@@ -12,6 +12,7 @@ Pre-release for external smoke testing: **not a finished build**.
 - Low frame rates on integrated GPUs. LOW now draws about 30 % fewer primitives on Duval Street, but this has not been re-measured on an HD 620.
 
 **Changes since 0.312c**
+- **Blizzard by default:** Key West stays in the blizzard (wind, snowfall, cold) instead of clearing after a few minutes.
 - **Cold you can see.**
   - **Breath:** Henry's breath steams at his mouth in the cold, faster and stronger when he is out of breath, and drifts with the wind.
   - **Rime:** his clothes, hat, pack and the gear on it frost over outdoors. He starts the game frosted and thaws gradually by the stove or in a warm room. The rime is saved.

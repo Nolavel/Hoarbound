@@ -6,10 +6,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (Key West: the blizzard holds)
+
+- Key West Reality starts in the blizzard (wind, snowfall, cold) and now stays in it.
+  - Before, the scheduler moved on after 0.75–2 game hours (a few real minutes), usually to calm or snowfall.
+  - The new `WorldProfile.hold_initial_weather` turns the scheduler off for a world, and Reality sets it.
+  - A save made in other weather loads back into the blizzard.
+- `test_weather_hold`: Reality is still in the blizzard after 72 game hours and after loading a calm save. Without the hold, the weather still moves on.
+
 ### Release (0.314a pre-release)
 
 - The version is now 0.314a in `project.godot`, in the export presets (0.314.0.0) and in the `release-smoke` defaults.
-- The release notes and the tester readme cover the changes since 0.312c. The snow defect stays OPEN until it is confirmed on an HD 620.
+- The release notes and the tester readme cover the changes since 0.312c, including the held blizzard. The snow defect stays OPEN until it is confirmed on an HD 620.
 
 ### Added (cold on Henry's face: flushed cheeks, rime on the brows)
 

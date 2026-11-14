@@ -56,6 +56,8 @@ var _wind_direction_override_deg: float = -1.0
 
 ## Profile an authored beat asked to follow the current one; empty lets the scheduler pick.
 var _then_id: StringName = &""
+## Set by a world profile that holds its initial weather for good (Key West Reality's blizzard).
+var _hold_initial: bool = false
 
 
 func _ready() -> void:
@@ -68,6 +70,9 @@ func apply_world_profile(profile: WorldProfile) -> void:
 		return
 	if profile.initial_weather_profile_id != &"":
 		starting_profile_id = profile.initial_weather_profile_id
+		if profile.hold_initial_weather:
+			scheduler_enabled = false
+			_hold_initial = true
 	_wind_direction_override_deg = profile.wind_direction_override_deg
 
 
@@ -150,6 +155,8 @@ func get_save_data() -> Dictionary:
 ## Restores the active profile, snapping rather than blending into it.
 func load_save_data(data: Dictionary) -> void:
 	var id := StringName(String(data.get("profile_id", "")))
+	if _hold_initial:
+		id = starting_profile_id  # a held world keeps its weather even under an older save
 	var profile: WeatherProfile = _find_profile(id)
 	if profile != null:
 		_activate(profile, true)

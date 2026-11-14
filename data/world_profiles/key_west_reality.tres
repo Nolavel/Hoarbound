@@ -10,6 +10,7 @@ world_data_path = "res://scenes/world/key_west/generated/world_data.tres"
 content_scene_path = "res://scenes/world/key_west/key_west_reality_content.tscn"
 spawn_marker_name = &"SpawnPoint"
 initial_weather_profile_id = &"blizzard"
+hold_initial_weather = true
 wind_direction_override_deg = 8.0
 snow_wind_field_path = "res://data/world/key_west/snow_wind_reality.png"
 prewarm_before_first_frame = true
