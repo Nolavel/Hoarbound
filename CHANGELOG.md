@@ -6,6 +6,11 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Release (0.314a pre-release)
+
+- The version is now 0.314a in `project.godot`, in the export presets (0.314.0.0) and in the `release-smoke` defaults.
+- The release notes and the tester readme cover the changes since 0.312c. The snow defect stays OPEN until it is confirmed on an HD 620.
+
 ### Added (cold on Henry's face: flushed cheeks, rime on the brows)
 
 - **What:** in the cold Henry's cheeks and the tip of his nose redden, and breath rime settles on his brows as fine white crystals.

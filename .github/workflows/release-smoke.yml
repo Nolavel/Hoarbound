@@ -9,7 +9,7 @@ on:
     inputs:
       version:
         description: "Build version (major.MDD)"
-        default: "0.312c"
+        default: "0.314a"
       title:
         description: "Release name after Hoarbound"
         default: "Smoke Test November"
@@ -33,7 +33,7 @@ jobs:
     ## Not VERSION/TITLE: MSBuild reads environment variables as properties, and Version=0.312c broke
     ## the .NET restore inside the export (0.312 and 0.312b shipped without assemblies).
     env:
-      HB_VERSION: ${{ github.event.inputs.version || '0.312c' }}
+      HB_VERSION: ${{ github.event.inputs.version || '0.314a' }}
       HB_TITLE: ${{ github.event.inputs.title || 'Smoke Test November' }}
     steps:
       - uses: actions/checkout@v4
