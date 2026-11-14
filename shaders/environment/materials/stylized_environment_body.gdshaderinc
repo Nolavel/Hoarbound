@@ -41,10 +41,14 @@ const float HFN_CAMERA_FADE_FAR = 1.1;
 // garment_press_max metres) and whether its normal faces out (G); garment_press turns it on.
 uniform float garment_press : hint_range(0.0, 1.0) = 0.0;
 uniform float garment_press_max = 0.03;
+#include "res://shaders/environment/materials/garment_frost.gdshaderinc"
 #endif
 
 varying vec3 stylized_noise_pos;
 varying vec3 stylized_world_normal;
+#ifndef HFN_STATIC_WORLD
+varying vec3 stylized_model_pos;
+#endif
 
 void vertex() {
 	// HFN_VERTEX_EXTRA: optional per-family vertex step (e.g. snow_stems lifts stems with the snow).
@@ -58,6 +62,9 @@ void vertex() {
 #endif
 	stylized_noise_pos = shadow_noise_in_model_space ? VERTEX : (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	stylized_world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+#ifndef HFN_STATIC_WORLD
+	stylized_model_pos = VERTEX;
+#endif
 }
 
 void fragment() {
@@ -99,6 +106,13 @@ void fragment() {
 	if (use_normal_texture) {
 		NORMAL_MAP = texture(normal_texture, uv).rgb;
 		NORMAL_MAP_DEPTH = normal_scale;
+	}
+#endif
+#ifndef HFN_STATIC_WORLD
+	if (garment_frost > 0.0) {
+		float frost_metal = METALLIC;
+		hfn_apply_garment_frost(ALBEDO, ROUGHNESS, frost_metal, stylized_model_pos, stylized_world_normal, METALLIC);
+		METALLIC = frost_metal;
 	}
 #endif
 	EMISSION = emission_color * emission_energy;

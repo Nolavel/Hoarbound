@@ -6,6 +6,7 @@ class_name Player
 signal movement_stopped
 
 const THERMAL_SCRIPT: GDScript = preload("res://scripts/systems/survival/thermal_manager.gd")
+const WEATHER_SCRIPT: GDScript = preload("res://scripts/systems/world/WeatherController.gd")
 ## Eye height above the body origin, which is the capsule centre 1 m above the feet.
 const EYE_ABOVE_ORIGIN: float = 0.62
 ## Furthest point the player's aim names as Henry's look target, metres.
@@ -303,6 +304,12 @@ func on_world_ready(context: WorldContext) -> void:
 	if steam != null:
 		steam.set_thermal(context.get_system(THERMAL_SCRIPT) as ThermalManager)
 	var thermal := context.get_system(THERMAL_SCRIPT) as ThermalManager
+	var breath := get_node_or_null(^"BreathVapor") as BreathVapor
+	if breath != null:
+		breath.set_systems(thermal, context.get_system(WEATHER_SCRIPT) as WeatherController)
+	var frost := get_node_or_null(^"ClothingFrostComponent") as ClothingFrostComponent
+	if frost != null:
+		frost.set_systems(thermal, context.get_system(WEATHER_SCRIPT) as WeatherController)
 	var boot_snow := get_node_or_null(^"BootSnowComponent") as BootSnowComponent
 	if boot_snow != null:
 		boot_snow.set_thermal(thermal)

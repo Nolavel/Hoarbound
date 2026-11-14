@@ -6,6 +6,51 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added (rime on clothing, the pack and its gear)
+
+- **What:** Henry's clothes, hat, pack and the gear on it frost over outdoors. The gear covers:
+  - the bedroll, pan, thermos, axe and hammer;
+  - carabiners, straps and buckles;
+  - the mug and the tin.
+- **Look:**
+  - **On cloth:** a powdery veil that leaves the weave readable, salted with crystal grains. It settles first on up-facing folds (shoulders, hat, the pack's top and the bedroll), in broad drifts.
+  - **On metal and hard plastic:** an even matt bloom of finer crystals.
+  - The face stays bare.
+- **Source:** the garment-frost idea in Nolavel/Hoarbound#213, made without the GPU mask atlas.
+  - **One shared include,** `garment_frost.gdshaderinc`. It is used by the character shader and by the pack canvas, carabiner, worn-tool and strap shaders, and static world shaders compile it out.
+  - **Per-instance amount:** the include reads an instance uniform, so a mug on the pack frosts while the same mug lying in the world does not.
+  - **Plain materials:** gear on a plain `StandardMaterial3D` takes the rime as a mesh overlay, only while that slot is free. The pack's rim and the focus blur keep priority.
+- **Start:** Henry starts frosted at 0.85, as if he has just come in from the night. It is the scene default, `ClothingFrostComponent.initial_frost`.
+- **Growth** (`ClothingFrostComponent`):
+  - it needs outdoor air below −2 °C;
+  - rime builds in about 5 minutes of still −25 °C air, more than three times faster in a blizzard (snowfall and wind).
+- **Shelter:** in a cold room the rime holds.
+- **Thaw** is gradual and follows warmth:
+  - by a fire, 0.85 clears in about 1.6 minutes;
+  - in room air at +5 °C it takes about 4.5 minutes, faster as the room warms (up to 3×);
+  - the last thin traces in the folds go slowest.
+- **Saved:** the rime is a save participant (`clothing_frost`), so a load brings back the rime Henry had.
+- **Not yet, owner's call:** melting rime does not wet the clothes.
+- **Tests and capture:**
+  - `test_clothing_frost`: none above freezing, faster in a blizzard, held in a cold shelter, gradual thaw by a fire and faster in a warmer room, a 0.85 start, a save round trip, every gear shader takes the rime, named gear is frosted, the face stays bare, overlays leave when the rime melts;
+  - `test_backpack_rig` (`--fixed-fps 30`) passes;
+  - `tools/runtime/capture_clothing_frost.gd`: rime 0, 0.4 and 0.85, front and back;
+  - `TestScene` renders Henry frosted from the start.
+
+### Added (breath vapor)
+
+- **What:** Henry's breath now condenses at his mouth in cold air, one puff per exhale. It is an authored scene, `scenes/actors/player/breath_vapor.tscn`, so the puff can be tuned in the editor.
+- **Source:** the lips are placed in Head-bone space. They were measured from the head mesh's midline, and the mouth is read after the head-look pose is final.
+- **Rhythm** follows effort:
+  - about 14 breaths a minute at rest, up to about 45 when panting;
+  - the exhale is faster when panting;
+  - after a sprint, or with the tank low, the panting settles over several breaths instead of snapping back.
+- **Density** follows the air around his face: the room when inside, the outdoors otherwise. The breath appears below 7 °C (common visible breath is below about 45 °F, Library of Congress *Everyday Mysteries*) and is full at −15 °C.
+- **Wind:** the puff drifts with the wind and rises slowly. Puffs stay where they were breathed, so a running Henry leaves them behind.
+- **Tests and capture:**
+  - `test_breath_vapor`: no breath at +12 °C, faint at +5 °C, rest versus panting rhythm and speed, slow settling;
+  - `tools/runtime/capture_breath_vapor.gd`: rest and panting close-ups, panting at game-camera distance, and none at +10 °C.
+
 ### Changed (stamina: smoother and readable)
 
 - **What was wrong (measured in a replayed route: 30 s of running, then a walk, then standing):**
