@@ -12,7 +12,7 @@ shader_parameter/fade_start = 0.35
 shader_parameter/fade_end = 0.97
 shader_parameter/fade_direction = 4
 shader_parameter/fade_curve = 1.0
-shader_parameter/reveal = 0.0
+shader_parameter/reveal = 1.0
 shader_parameter/reveal_softness = 0.16
 shader_parameter/corner_radius = 0.08
 
@@ -29,7 +29,7 @@ script = ExtResource("1_script")
 size = Vector2i(512, 112)
 transparent_bg = true
 disable_3d = true
-render_target_update_mode = 4
+render_target_update_mode = 1
 
 [node name="Card" type="Control" parent="BannerViewport"]
 layout_mode = 3
@@ -93,8 +93,9 @@ color = Color(1, 1, 1, 1)
 
 [node name="Billboard" type="Sprite3D" parent="."]
 visible = false
-billboard = 1
-pixel_size = 0.00185
+billboard = 0
+double_sided = false
+pixel_size = 0.00043
 texture_filter = 1
 no_depth_test = false
 shaded = false
