@@ -1,12 +1,16 @@
 class_name BackpackLoadBanner
 extends Node3D
 
-## Diegetic carry-load badge lying flat on the pack's outer panel (#42 record 02, item 4: small, on his back,
-## as Splinter Cell's light meter). Its texture comes from a transparent SubViewport.
+## World-owned diegetic carry-load readout. Its texture comes from a transparent
+## SubViewport; the physical anchor remains on the backpack's deforming handle.
 const SHOW_SECONDS: float = 4.2
+const FOLLOW_SPEED: float = 9.0
 const APPEAR_SPEED: float = 9.0
 const LOAD_SPEED: float = 7.0
 const MIN_CAMERA_DISTANCE: float = 0.95
+const CLEARANCE_TOWARD_CAMERA: float = 0.30
+const HEIGHT_ABOVE_HANDLE: float = 0.07
+const SIDE_OFFSET: float = 0.25
 const NORMAL_COLOR: Color = Color(0.72, 0.71, 0.63, 0.94)
 const HEAVY_COLOR: Color = Color(0.87, 0.68, 0.38, 0.96)
 
@@ -28,7 +32,9 @@ var _shown_kg: float = 0.0
 var _maximum_kg: float = 0.0
 var _visible_left: float = 0.0
 var _appearance: float = 0.0
+var _position_ready: bool = false
 var _refresh_queued: bool = false
+var _side: float = 1.0
 
 
 func bind_player(player: Player, quick: QuickAccessUI) -> void:
@@ -93,30 +99,43 @@ func _process(delta: float) -> void:
 	_visible_left = maxf(0.0, _visible_left - delta)
 
 	var camera := get_viewport().get_camera_3d()
-	var canvas := _pack_canvas()
-	var can_show := _visible_left > 0.0 and camera != null and canvas != null
+	var anchor := _load_anchor()
+	var can_show := _visible_left > 0.0 and camera != null and anchor != null
 	can_show = can_show and (_hub == null or not _hub.is_open())
 	can_show = can_show and (_quick == null or not _quick.is_open())
 	var camera_factor: float = 1.0
-	if canvas != null:
-		## Laid on the cloth every frame, fading out too, so it rides the pack with no lag or stand-off.
-		global_transform = canvas.get_badge_transform()
 	if can_show:
-		var to_camera: Vector3 = camera.global_position - global_position
-		if to_camera.length() < MIN_CAMERA_DISTANCE or to_camera.dot(global_basis.z) <= 0.0:
+		var distance: float = camera.global_position.distance_to(anchor.global_position)
+		if distance < MIN_CAMERA_DISTANCE:
 			can_show = false
 		if camera is TpsCamera:
 			camera_factor = 1.0 - smoothstep(0.55, 0.85, (camera as TpsCamera).get_composition())
 		if camera_factor < 0.05:
 			can_show = false
+		var view_size: Vector2 = get_viewport().get_visible_rect().size
+		var anchor_screen: Vector2 = camera.unproject_position(anchor.global_position)
+		if camera.is_position_behind(anchor.global_position) or not Rect2(view_size * 0.08, view_size * 0.84).has_point(anchor_screen):
+			can_show = false
+		if can_show:
+			if anchor_screen.x > view_size.x * 0.76:
+				_side = -1.0
+			elif anchor_screen.x < view_size.x * 0.56:
+				_side = 1.0
+			var direction: Vector3 = (camera.global_position - anchor.global_position).normalized()
+			var destination: Vector3 = anchor.global_position + Vector3.UP * HEIGHT_ABOVE_HANDLE
+			destination += camera.global_basis.x * (_side * SIDE_OFFSET) + direction * CLEARANCE_TOWARD_CAMERA
+			if not _position_ready:
+				global_position = destination
+				_position_ready = true
+			else:
+				global_position = global_position.lerp(destination, 1.0 - exp(-FOLLOW_SPEED * maxf(delta, 0.0)))
 	_appearance = lerpf(_appearance, 1.0 if can_show else 0.0, 1.0 - exp(-APPEAR_SPEED * maxf(delta, 0.0)))
 	(_background.material as ShaderMaterial).set_shader_parameter(&"reveal", _appearance)
 	_surface.modulate = Color(1.0, 1.0, 1.0, _appearance * camera_factor)
 	_surface.visible = _surface.modulate.a > 0.015
 
 
-## The worn pack's canvas, or null when the pack is off his back.
-func _pack_canvas() -> BackpackModel:
+func _load_anchor() -> Node3D:
 	if _visual == null or _visual.is_pack_down():
 		return null
 	if _equipment != null and _equipment.get_equipped(&"pack") == &"":
@@ -124,7 +143,8 @@ func _pack_canvas() -> BackpackModel:
 	var rig: PackRig = _visual.get_pack_rig()
 	if rig == null or not rig.is_visible_in_tree():
 		return null
-	return rig.get_canvas()
+	var canvas: BackpackModel = rig.get_canvas()
+	return canvas.get_load_anchor() if canvas != null else null
 
 
 func _update_text_and_fill() -> void:

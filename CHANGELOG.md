@@ -6,15 +6,6 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
-### Changed (the load readout is a small badge on the pack, #42 record 02, item 4)
-
-- **Before:** a camera-facing card about 0.95 m wide that eased after a point 25 cm beside the pack's handle and 30 cm toward the camera. It hung in the air and covered the view.
-- **Now:** a 16 × 7 cm badge lies flat on the pack's outer panel, as Splinter Cell's light meter does on Sam's back.
-  - It is laid on the cloth every frame through the same bulge model the handle uses (`BackpackModel.get_badge_transform`), so it rides the pack with no lag. Henry's body hides it from the front.
-  - The card is a large "8.3 / 30 kg" over a thick fill bar, on an almost opaque ground; the title is dropped so the numbers read at TPS distance.
-  - When it shows is unchanged: 4 s after the weight changes, and never with the Hub or Quick Access open.
-- **Test:** `test_load_badge` checks that the badge is flat on the panel and within the pack's outline, at most 20 cm wide, not a billboard, and follows its spot.
-
 ### Fixed (rime slid over Henry's clothes as he moved, #42 record 02, item 10)
 
 - **Cause:** skinning runs before `vertex()`, so a skinned `VERTEX` is already posed. Rime noise sampled there followed the pose, not the cloth.
