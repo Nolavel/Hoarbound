@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       preview:
-        description: "Empty re-checks Key West Reality; compass runs the First Exit compass preview; snow-surface or snow-walk runs only that capture"
+        description: "Empty re-checks Key West Reality; compass, stretch-scale, snow-surface or snow-walk runs only that capture"
         default: ""
       baseline_ref:
         description: "snow-surface: ref whose snow code is the `old` variant"
@@ -28,7 +28,7 @@ on:
 ## Each long capture has its own group, so a later push or dispatch of another kind
 ## does not cancel it.
 concurrency:
-  group: checks-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[snow-surface]') && 'snow-surface' || contains(github.event.head_commit.message, '[snow-walk]') && 'snow-walk' || github.event.inputs.preview || 'base' }}
+  group: checks-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[stretch-scale]') && 'stretch-scale' || contains(github.event.head_commit.message, '[snow-surface]') && 'snow-surface' || contains(github.event.head_commit.message, '[snow-walk]') && 'snow-walk' || github.event.inputs.preview || 'base' }}
   cancel-in-progress: true
 
 jobs:
@@ -878,3 +878,76 @@ jobs:
           path: compass-light-png/
           if-no-files-found: warn
           retention-days: 7
+
+  stretch-scale:
+    ## Real Key West viewport at several window sizes. Same checks workflow, Godot and lavapipe.
+    ## Dispatch with preview=stretch-scale, or one tagged push on grok. Does not change project.godot.
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.preview == 'stretch-scale') || (github.event_name == 'push' && github.ref == 'refs/heads/grok' && contains(github.event.head_commit.message, '[stretch-scale]'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+
+      - name: Install ffmpeg and Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg python3-pil
+
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+
+      - name: Capture stretch modes from the real viewport
+        id: capture
+        env:
+          OUT: stretch-scale-png
+        run: |
+          set +e
+          mkdir -p "$OUT"
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR="${RUNNER_TEMP:-/tmp}/xdg"
+          mkdir -p "$XDG_RUNTIME_DIR"
+          timeout 75m xvfb-run -a -s "-screen 0 3840x2160x24" "$HOME/.local/bin/godot" \
+            --path . \
+            --resolution 3840x2160 \
+            --position 0,0 \
+            --rendering-driver vulkan \
+            --rendering-method forward_plus \
+            --audio-driver Dummy \
+            --fixed-fps 30 \
+            --script res://tools/runtime/capture_stretch_scale.gd \
+            -- "$GITHUB_WORKSPACE/$OUT" 2>&1 | tee "$OUT/godot.log"
+          status=${PIPESTATUS[0]}
+          python3 tools/ci/stretch_sheets.py "$GITHUB_WORKSPACE/$OUT" | tee -a "$OUT/godot.log"
+          sheet=$?
+          if [ "$status" -eq 0 ] && [ "$sheet" -ne 0 ]; then status=$sheet; fi
+          if grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR' "$OUT/godot.log"; then
+            echo "stretch capture hit a script or shader error"
+            status=1
+          fi
+          grep -n 'STRETCH_RENDERER\|STRETCH_SHOT\|STRETCH_DONE\|STRETCH_VALIDATE' "$OUT/godot.log" || true
+          exit "$status"
+
+      - name: Upload stretch-scale PNGs
+        if: always()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: hoarbound-stretch-scale
+          path: |
+            stretch-scale-png/**/*.png
+            stretch-scale-png/**/*.jpg
+            stretch-scale-png/manifest.json
+            stretch-scale-png/godot.log
+          if-no-files-found: warn
+          retention-days: 14
+
