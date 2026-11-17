@@ -158,9 +158,10 @@ tool **before acting**. Following the method from memory does not count:
 | Reviewing a diff | `hoarbound-godot-studio` (project skill) |
 | Creating or changing a skill | `superpowers:writing-skills` |
 
-**Grill Me (`grill-me`, `grilling`, `grill-with-docs`) runs only when the owner asks for it in so many words.**
-Never before coding, while planning, in ordinary discussion or after a task. Claude's own critique still runs
-every time. If a skill is not installed in the session, say so once and follow its method by hand. This charter
+**When in doubt, ask the owner. Always.** An unsure call about the game, the design or a seam is never settled
+silently. Ask the question; when a decision tree is large, offer Grill Me (`grill-me`, `grilling`,
+`grill-with-docs`). Grill Me itself starts on the owner's request or consent, not on its own. Claude's own critique
+still runs every time. If a skill is not installed in the session, say so once and follow its method by hand. This charter
 and `AGENTS.md` win over any skill where they disagree.
 
 **Sources of truth.** GitHub `main` is the truth for what is implemented. Miro *Hoarbound Production Desk* is
