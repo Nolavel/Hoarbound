@@ -151,12 +151,17 @@ left inside its item (mirroring the shader's wrap).
 ## Backpack load banner (`BackpackLoadBanner`)
 
 The world-owned `GameplayUI/BackpackLoadBanner` renders the existing
-`BG_frame.gdshader` in a transparent 2D SubViewport on a camera-facing Sprite3D.
-Its 3D anchor is the deformed canvas handle (`BackpackModel.get_load_anchor()`),
-not a Control node under Henry. The bar displays `InventoryComponent.get_total_weight()`
-relative to `max_carry_weight`; this is *carried load* (pack, pockets, Kenny and hands),
-not the pack's geometric volume fill. `weight_changed` and equipment slot changes
-trigger a 4.2-second reveal; continuous presentation follows the
-moving handle with damping. The banner yields to Quick Access, the Hub and
-very tight TPS camera compositions. The 2D fill shader receives a separate
-fraction parameter so the gradient background's `reveal` remains an entrance effect.
+`BG_frame.gdshader` in a transparent 2D SubViewport, but its Sprite3D is **not a
+billboard**. It is a ~22 cm × 4.8 cm panel attached to the outer flat cloth of
+`BackpackModel` at pack-space (0, 0.34, 0.22), offset 6 mm from the cloth.
+The transform comes directly from the model's `canvas_point()` and current
+`global_transform`, including animation/sway: no camera-facing offsets or lag.
+It is one-sided and depth-tested; it hides from edge/front views and tight TPS
+compositions. A worn pack only: Hub, Quick Access and pack-down suppress it.
+The bar displays `InventoryComponent.get_total_weight()` relative to
+`max_carry_weight` (pack, pockets, Kenny and hands), not geometric fill.
+A weight/equipment change triggers a 4.2 s reveal. Its SubViewport updates
+**once on data changes** (`UPDATE_ONCE`), not every frame; sprite modulate
+animates the fade. The existing fill shader still draws the weight fraction.
+Spatial checks: `test_backpack_load_banner.gd`; render fixture:
+`tools/runtime/capture_backpack_load_banner.gd`.
