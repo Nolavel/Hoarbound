@@ -102,6 +102,8 @@ var _commit_stall: float = 0.0
 var _commit_hands: HandsTransaction = null
 var _gesture: PickupGesture = null
 var _gesture_hands: HandsTransaction = null
+## An item F was held on that no hand presenter shows (a flare, the hammer): once stored, its pocket draws it.
+var _hold_to_hand: StringName = &""
 ## Target -> [affordance, Henry position, target position, solve time ms].
 var _affordances: Dictionary = {}
 ## Full affordance solves run so far; a budget probe for tests.
@@ -185,6 +187,7 @@ func is_active_target_in_reach() -> bool:
 func try_interact() -> void:
 	if _is_blocked():
 		return
+	_hold_to_hand = &""
 	detect_target()
 	var world: InteractiveArea = get_world_target()
 	if world != null:
@@ -223,6 +226,7 @@ func hold_interact(duration: float) -> void:
 			if refusal == HandsTransaction.Refusal.NO_PRESENTER:
 				_gesture = null
 				_gesture_hands = null
+				_hold_to_hand = (target as ItemPickup).item_id
 				_take_pickup(target, null)
 				return
 			if refusal != HandsTransaction.Refusal.NONE:
@@ -348,7 +352,10 @@ func _act_on_pickup(pickup: InteractiveArea, hands: HandsTransaction) -> void:
 			pickup_gesture_finished.emit(pickup, &"refused_storage")
 		elif not _is_available(pickup):
 			pickup_stored.emit(item_id, destination)
+			if item_id == _hold_to_hand:
+				_draw_stored_to_hand(item_id, destination)
 			pickup_gesture_finished.emit(pickup, &"stored")
+		_hold_to_hand = &""
 		return
 	var refusal: HandsTransaction.Refusal = hands.commit()
 	if refusal != HandsTransaction.Refusal.NONE:
@@ -361,6 +368,22 @@ func _act_on_pickup(pickup: InteractiveArea, hands: HandsTransaction) -> void:
 	interaction_performed.emit(pickup)
 	pickup_stored.emit(item_id, destination)
 	pickup_gesture_finished.emit(pickup, &"hands")
+
+
+## Owner's play test: F held on a flare stored it but left the hand empty while the Hub showed it in hand.
+## Held F means "in hand": the pocket it went to draws it, as its Quick Access key does.
+func _draw_stored_to_hand(item_id: StringName, zone_path: StringName) -> void:
+	var hub := _player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent
+	var quick := _player.get_node_or_null(^"QuickAccessComponent") as QuickAccessComponent
+	if hub == null or quick == null or zone_path == PlayerHubComponent.PACK_DESTINATION:
+		return
+	## Settled now, not after the stow flight lands (as a hand pickup does, HandsTransaction).
+	hub.route_now(item_id)
+	var zones: Array[Dictionary] = hub.get_quick_access_zones()
+	for i: int in zones.size():
+		if zones[i]["path"] == zone_path and zones[i]["item_id"] == item_id:
+			quick.draw(i)
+			return
 
 
 func _perform(target: InteractiveArea) -> void:

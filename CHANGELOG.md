@@ -6,6 +6,27 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed (a flare taken with held F is in Henry's hand, and stays there through a Hub visit; owner's local test, 2026-11-17)
+
+- **Problem:** holding F on a flare stored it in its coat pocket, but the hand stayed empty. Meanwhile the Hub's hand card showed it "in hand".
+  - The hand card shows the Quick Access pick, not what is really held.
+  - A Hub visit also emptied the hand: it puts every held item away as it opens and on close drew back only a pick made on the hand card.
+- **Fix:**
+  - A held F on an item no hand presenter shows (flare, hammer) now settles it in its pocket at once and draws it through that pocket's Quick Access key, as the key itself does.
+  - The Hub records what was in the hand as it opens and draws it back as it closes, unless the hand card picks another item.
+- **Test:** `test_pickup_gesture` holds F on a flare, then opens and closes the Hub. It failed on the old code at each half ("left the hand empty"; "gone after the Hub").
+
+### Fixed (Henry no longer spins while aiming a snowball; owner's local test, 2026-11-17)
+
+- **Problem:** with a snowball in hand, RMB turned Henry round and round, and the log showed `look_at() failed` from `face_work_target`.
+- **Cause:** a feedback loop. He faced side-on to the hand's own throw line, and the hand moves as he turns. With the aim near his feet, each turn moved the line and turned him again.
+- **Fix:**
+  - He now stands side-on to the camera's heading, as TPS aim modes turn the body by the control yaw (Unreal's "Use Controller Rotation Yaw").
+  - `face_work_target` ignores a target closer than 5 cm. `look_at`'s own equality test grows with Key West's coordinates (about 3 cm there) and is what logged the error.
+- **Test:** `test_throw_aim_facing` aims at 10°, 45° and 70° down at Key West's coordinates.
+  - Old code: 40° of turn at 45° down, plus the `look_at` error.
+  - New code: 0.0° at every pitch, and no error.
+
 ### Added (a soft key light on Henry and the pack in the Hub and at a search, #42 record 02, item 5)
 
 - **Problem:** in the TAB view and at a cabinet search, Henry and the pack took only the room's light. In the 727 their mean brightness was 35–61 out of 255, and they merged with the dark room.

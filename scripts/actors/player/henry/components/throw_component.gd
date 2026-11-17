@@ -114,8 +114,13 @@ func _process(delta: float) -> void:
 	_velocity = aim_velocity()
 	var body := get_parent() as Node3D
 	if body != null and InteractHostCapability.offers(body, &"face"):
-		var toward := Vector3(_velocity.x, 0.0, _velocity.z)
-		InteractHostCapability.run(body, &"face", [body.global_position + toward.rotated(Vector3.UP, -deg_to_rad(SIDE_ON_DEG))])
+		## Side-on to the camera's heading, as TPS aim modes turn the body by the control yaw: facing the hand's own
+		## throw line fed back on itself (the hand moves as he turns) and spun him round with the aim at his feet.
+		var camera: Camera3D = get_viewport().get_camera_3d()
+		var toward: Vector3 = -camera.global_basis.z if camera != null else _velocity
+		toward.y = 0.0
+		if toward.length() > 0.01:
+			InteractHostCapability.run(body, &"face", [body.global_position + toward.normalized().rotated(Vector3.UP, -deg_to_rad(SIDE_ON_DEG))])
 	_draw_arc(_release_point(), _velocity)
 
 
