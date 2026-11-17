@@ -29,6 +29,8 @@ var _frost: float = 0.0
 var _shown: float = -1.0
 var _gear: Array[GeometryInstance3D] = []
 var _gear_refresh: float = 0.0
+## Each skinned mesh with its rest-pose positions added in CUSTOM0, by the mesh it was built from.
+static var _rest_meshes: Dictionary = {}
 
 
 ## Given by Player once the world's systems exist.
@@ -134,6 +136,7 @@ func apply_to_gear(amount: float) -> void:
 		if not is_instance_valid(geo):
 			continue
 		geo.set_instance_shader_parameter(&"garment_frost", amount)
+		_tie_to_cloth(geo)
 		if not _takes_overlay(geo):
 			continue
 		if amount > 0.0 and geo.material_overlay == null:
@@ -150,8 +153,48 @@ func _apply_to_face(amount: float) -> void:
 	if head == null:
 		return
 	var head_cold: float = _thermal.get_extremity_cold(&"head") if _thermal != null else 0.0
+	_tie_to_cloth(head)
 	head.set_instance_shader_parameter(&"face_frost", amount)
 	head.set_instance_shader_parameter(&"face_flush", clampf(maxf(head_cold, amount), 0.0, 1.0))
+
+
+## A skinned mesh samples its rime in its rest pose (CUSTOM0), so the rime rides the cloth as the pose moves.
+static func _tie_to_cloth(geo: GeometryInstance3D) -> void:
+	var mesh_inst := geo as MeshInstance3D
+	if mesh_inst == null or mesh_inst.skin == null or mesh_inst.mesh == null:
+		return
+	if not _rest_meshes.values().has(mesh_inst.mesh):
+		mesh_inst.mesh = with_rest_positions(mesh_inst.mesh)
+	geo.set_instance_shader_parameter(&"garment_frost_rest", 1.0)
+
+
+## `mesh` again with each vertex's own position also in CUSTOM0 (skinning leaves it as it is); materials,
+## names and blend shapes kept. Built once per mesh. Precedent: Unreal's PreSkinnedLocalPosition.
+static func with_rest_positions(mesh: Mesh) -> Mesh:
+	if _rest_meshes.has(mesh):
+		return _rest_meshes[mesh]
+	var built := ArrayMesh.new()
+	built.resource_name = mesh.resource_name
+	for shape: int in mesh.get_blend_shape_count():
+		built.add_blend_shape(mesh.get_blend_shape_name(shape))
+	var source := mesh as ArrayMesh
+	if source != null:
+		built.blend_shape_mode = source.blend_shape_mode
+		built.custom_aabb = source.custom_aabb
+	for surface: int in mesh.get_surface_count():
+		var arrays: Array = mesh.surface_get_arrays(surface)
+		var rest := PackedFloat32Array()
+		for point: Vector3 in arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array:
+			rest.append_array([point.x, point.y, point.z])
+		arrays[Mesh.ARRAY_CUSTOM0] = rest
+		var shapes: Array = mesh.surface_get_blend_shape_arrays(surface)
+		built.add_surface_from_arrays(mesh.surface_get_primitive_type(surface), arrays, shapes, {},
+			Mesh.ARRAY_CUSTOM_RGB_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+		built.surface_set_material(surface, mesh.surface_get_material(surface))
+		if source != null:
+			built.surface_set_name(surface, source.surface_get_name(surface))
+	_rest_meshes[mesh] = built
+	return built
 
 
 ## A mesh whose every surface is an opaque, lit StandardMaterial3D (shader materials carry rime themselves).

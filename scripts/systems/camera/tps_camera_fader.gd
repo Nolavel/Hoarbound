@@ -105,8 +105,12 @@ func _collect_body() -> void:
 func _apply_body(geo: GeometryInstance3D, amount: float) -> void:
 	if _is_stylized(geo):
 		geo.set_instance_shader_parameter(&"camera_fade", amount)
-	else:
-		geo.transparency = 1.0 if _gear_hidden else 0.0
+		return
+	## Hidden as shadows-only, not transparency 1: no transparent-pass pipelines to compile on first use.
+	if not geo.has_meta(&"fade_cast_shadow"):
+		geo.set_meta(&"fade_cast_shadow", geo.cast_shadow)
+	var own: GeometryInstance3D.ShadowCastingSetting = geo.get_meta(&"fade_cast_shadow")
+	geo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if _gear_hidden else own
 
 
 ## Distance from `point` to the mesh's bounds, metres.

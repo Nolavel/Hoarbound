@@ -956,3 +956,43 @@ jobs:
           path: native-ui-final/${{ matrix.id }}/
           if-no-files-found: warn
           retention-days: 14
+
+  backpack-load-review:
+    ## Targeted real-geometry visual QA; same checks workflow, no city streaming.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/codex' && contains(github.event.head_commit.message, '[backpack-load-review]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+      - name: Provision Godot
+        run: SKIP_APT=1 tools/ci/setup_env.sh
+      - name: Import scripts
+        run: tools/ci/import_gate.sh
+      - name: Load indicator spatial contract
+        run: tools/ci/run_tests.sh test_backpack_load_banner
+      - name: Capture real Henry and panel (Compatibility)
+        run: |
+          set -euo pipefail
+          command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri; }
+          OUT="$GITHUB_WORKSPACE/backpack-load-png"
+          mkdir -p "$OUT"
+          timeout 180 xvfb-run -a "$HOME/.local/bin/godot" --path . \
+            --resolution 1280x720 --rendering-driver opengl3 --rendering-method gl_compatibility \
+            --audio-driver Dummy --fixed-fps 30 \
+            --script res://tools/runtime/capture_backpack_load_banner.gd -- "$OUT" \
+            2>&1 | tee "$OUT/capture.log"
+          grep -q 'BACKPACK_LOAD_CAPTURE: PASS' "$OUT/capture.log"
+          ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR' "$OUT/capture.log"
+          for image in 01_rear 02_three_quarter 03_far; do test -s "$OUT/$image.png"; done
+      - name: Upload load gauge PNGs and diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-backpack-load-review
+          path: backpack-load-png/
+          if-no-files-found: warn
+          retention-days: 7

@@ -6,6 +6,123 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (the load gauge sits on the pack, #42 record 02, item 4: Codex's version, owner's choice)
+
+- Codex's `bc2dac2a` is taken over Claude's badge (reverted in `3a98e944`):
+  - the gauge lies on the real exterior canvas through `BackpackModel.canvas_point()`; it is no billboard, has no camera-facing offset and no smoothing;
+  - it shows only from behind;
+  - its SubViewport redraws only when the value changes, and nothing runs while it is dormant.
+  - Tests: `test_backpack_load_banner`; capture: `capture_backpack_load_banner.gd`.
+- **Claude's fix on top:** the gauge's transform is now set every frame while the pack is worn, also during the fade-out. It used to stop following during the fade and stood where it was in the world as Henry walked off.
+
+### Fixed (rime slid over Henry's clothes as he moved, #42 record 02, item 10)
+
+- **Cause:** skinning runs before `vertex()`, so a skinned `VERTEX` is already posed. Rime noise sampled there followed the pose, not the cloth.
+  - **Proof:** in a bone-locked view of the forearm, the plaid stayed put while the rime blotches changed completely between two arm poses.
+- **Fix:** each skinned mesh Henry wears is rebuilt once with its rest-pose positions in `CUSTOM0`, which skinning leaves untouched; the rime and the brow rime sample there. The same technique is Unreal's PreSkinnedLocalPosition.
+  - Materials, surface names and blend shapes are kept. Rigid gear keeps model space.
+  - A UV-based attempt was rejected: overlapping and mirrored islands gave the wrong scale, and several meshes have no UVs.
+- **After, same rig:** the body is turned 60° about the vertical, so the up-facing share is unchanged. The forearm's mean difference between poses went 8.1 → 3.7, and changed pixels 3.9 % → 1.2 %; the blotches stay on the same weave.
+- **Test:** `test_frost_rest_pose`. On the old code no mesh is tied to the cloth.
+
+### Fixed (CI: two camera-framing suites red on `main` after the canvas_items change)
+
+- `test_container_kinds` and `test_tps_camera_direct_spaces` failed on `main` itself (`17da04fb`):
+  - `floor_cabinet: the view left the owner's framing by 0.70 m`;
+  - `crawl: his eyes out of the frame in 33 frames`.
+- **Cause:** headless resets the window to 64×64 after the first frame, so `root.size = 1920×1080` did not hold. With aspect "expand" the view turned square (1920×1920).
+- **Fix:** the suites set `content_scale_aspect = KEEP`, which holds the 1920×1080 base whatever the window. Both pass.
+
+### Added (performance: see-through warm-up under the startup card, #173)
+
+- **Measured on lavapipe, same view:** the first time occluders between the camera and Henry turn see-through (`transparency = 0.7`), 15–16 render pipelines compile. The frame stalls for 5.2 s, or 22.8 s when the shader is not yet in the disk cache. The second time nothing compiles.
+- **Fix:** `SeeThroughWarmup` in `key_west_reality.tscn`.
+  - It waits until the rest of the boot work is done, then picks the thin meshes within 40 m of the camera that the fader could fade.
+  - For each distinct (material, vertex format) it draws one speck-sized see-through copy ahead of the camera for a few frames, then frees it.
+  - It is a `BootLoadCapability` provider, so the startup card stays up meanwhile. The originals are not touched.
+- **After, same view:** the first see-through fade compiles **0** world pipelines; its first frame is 1.35 s against an ordinary 1.15 s.
+- **Cost:** the warm-up drew 212 copies under the card. That took 10.6 s on lavapipe, which compiles on the CPU, and 0.1 s headless. It is not yet measured on a real GPU.
+- **Not covered:** chunks streamed in after boot still compile on their first fade.
+- **Test:** `test_see_through_warmup` checks that there is one copy per distinct (material, format), that wide, far and Henry's meshes are skipped, that copies are see-through as the fader makes them and are freed, and that the card waits for the warm-up.
+
+### Fixed (performance: a long freeze the first time the camera came against Henry, #42 record 02 / #173)
+
+- **Measured on lavapipe:** one fixed view in the 727 yard, A/B in one process, only the body fade switched.
+  - **Steady cost of the fade:** within noise (±5 %) both for the stylized dither and for hiding the gear.
+  - **First hide of the gear in a session:** **32 render pipelines** compiled for the transparent pass and one **20.7 s frame**. Gear is the 43 meshes of the pack and kit outside the stylized shader, which went to `transparency = 1`.
+  - The second hide compiled none, so this is a one-off hitch. It is the likely source of the tester's 4 s freeze when the low ceiling in the house pushed the camera into Henry; that is not yet confirmed on Windows.
+- **Fix:** the gear is hidden as **shadows only** (`cast_shadow = SHADOWS_ONLY`) and restored to its own setting.
+  - It keeps its shadow, needs no new pipeline and is not drawn in the colour pass.
+  - Same view: **0** compilations, a first frame of 1.7 s against an ordinary 1.25–1.3 s, and 86 fewer draw calls while hidden.
+- **Test:** `test_body_fade_pipelines` checks that hidden gear is shadows-only and never transparent, and that it comes back as it was. On the old code it fails for all 43 meshes.
+
+### Fixed (an open cabinet answered F with "close" while the view was on its shelves, #42 record 03)
+
+- **Reproduced in the real 727 with Henry's TPS camera:**
+  - **What happened:** with the view on the open shelves of any of the four pieces of furniture, F went to something else:
+    - the kitchen cupboard's open right door;
+    - the chest's lid;
+    - the neighbouring closed drawer of the dresser, which F would have opened.
+  - **Why:**
+    - an open leaf is a world target, and a world target always outranks the search (a pickup-channel target);
+    - from over the shoulder, the aim lands nearer the swung-open door than the middle of the shelves (about 7° against 13°).
+- **Fix:** F goes to what the aim meets first along its ray.
+  - The leaf itself (the door, the lid, or a drawer's front and handle) takes F.
+  - Open shelves offering a search take F, and so do a neighbour's open shelves.
+  - Aiming straight at an open leaf still shuts it.
+  - Code: `Opener.accepts_focus`, `Opener.get_leaf`, `ItemContainer.aim_distance_to_shelves`.
+  - The kit's drawer front and bar now hang under its handle, so the handle is aimed at by its real meshes.
+- **Test:** `test_open_container_focus` runs in the 727 shell with Henry's camera.
+  - It checks that the view on the shelves makes F search and the view on each leaf makes F shut it.
+  - On the old code all four views on the shelves fail.
+
+### Fixed (the picked-up flare was "nowhere": it sat in the coat pocket drawn as a grey box, #42 record 02)
+
+- **Checked in the real 727:** F on the shelter's flare puts it in the left coat pocket, because the flare prefers Quick Access. In the open Hub that pocket's card showed the plain parcel, which every unknown item gets.
+- **Why:** `SurvivalItemVisual.make()`, which draws the pocket cards, had no road flare. Only the world pickup and the held flare used the Emberline model.
+- **Fix:** it draws the authored `RoadFlare.glb`, so the card, a thrown flare and any other caller show the flare itself.
+- **Test:** `test_quick_item_visuals` checks that every item the game routes into a pocket by itself is drawn as itself. On the old code it fails for `road_flare`.
+- **Not yet drawn, each still shown as the parcel:**
+  - small items: `nails`, `thermal_shirt`, `knit_hat`;
+  - large items: `searchlight`, `bedroll`.
+
+### Fixed (boot log and dead debug labels, #42 record 01)
+
+- `[Boot] ground paved and covered` now prints how long the ground took, with the session time beside it. The 376 s and 1529 s in the 0.314a log were session times, not load times.
+- The player scene no longer asks for the speed and stamina debug labels, which were removed long ago. The two warnings on every world start are gone.
+
+### Fixed (performance: the open Hub held the game at ~22 FPS)
+
+- **What was measured:**
+  - **Windows 0.314a log** (GTX 1050 Ti, 19 Hub openings): with the pack open the game sat at about 22–23 FPS on both LOW and HIGH, while the main GPU time went *down* (18.5 → 17.7 ms) and the script process time doubled (≈20 → 43–49 ms). The frame waited on the CPU, which also fits the tester's 15–30 FPS on an RTX 4070.
+  - **Locally, headless:** the frame took 7.2 ms with the Hub closed and 53.7 ms open. Switching off `_process` on one of 60 scripted nodes at a time, only `PackHandling` (6.9 ms) or `PackFrontHold` (7.8 ms) took the cost away.
+- **Cause (proved with counters):**
+  - the quick shelf's hover test traced the exact screen outline of every item on the pack every frame: 5 outlines a frame, about 4,900 triangles each, rasterised in GDScript, 44 ms a frame;
+  - the outline cache never hit: the held pack drifts 0.3–0.55 px a frame, and the cache compared poses exactly.
+- **Fix:**
+  - the cursor is tested against each item's screen box first; only an item under it has its outline traced;
+  - a drift under half an outline-grid cell shifts the cached outline instead of tracing it again;
+  - the container's pick does the same.
+- **After:** the Hub-open frame is 7.0 ms; hovering any item on the pack is 6.9 ms with no re-traces. Picking each item at its aim point gives the same slot as before.
+- **Test:** `test_hub_outline_cost` checks:
+  - 30 sub-pixel drifts trace at most twice, and the shifted outline matches a fresh trace within a grid cell;
+  - the open Hub traces under 0.5 outlines a frame (the old code traced 5.0);
+  - every item on the pack is picked at its aim point.
+
+### Changed (PerfJSON v4)
+
+- **PerfMeta** now records the graphics preset, 3D scale and mode, MSAA and screen-space AA, the shadow atlas, the window and stretch mode, a debug or release build, editor or export, the game version and `BUILD_INFO.txt`.
+  - The legacy `snow_quality` is renamed `snow_quality_legacy`. It always read "high" and made LOW runs look like HIGH.
+- **Each PerfJSON sample** adds:
+  - `frame_ms_p95`, `frame_ms_p99` and the worst frame's tick;
+  - pipeline compilations per kind since the last sample;
+  - the state: Hub open, paused, Henry's fade;
+  - with the Hub open, the outline counters.
+- **Process and physics:** `process_ms` and `physics_ms` are averaged over the sample, with a max.
+  - v3 printed one frame's monitor value.
+  - Godot's monitors themselves move slowly (an 11.6 ms process monitor beside 7 ms frames), so they are not per-frame truth: use `frame_ms*`. This explains the 2026-11-15 log's physics_ms of 30–90 ms at unchanged FPS.
+- The Quick Access gradient views are named `QuickShelfGradient0/1`, so PerfJSON shows them by name.
+
 ### Changed (Key West: the blizzard holds)
 
 - Key West Reality starts in the blizzard (wind, snowfall, cold) and now stays in it.

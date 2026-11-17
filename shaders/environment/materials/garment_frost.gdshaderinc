@@ -1,6 +1,9 @@
 // Rime on what Henry wears and carries, 0 none to 1 crusted. Set per instance by ClothingFrostComponent,
 // so a mug on his pack frosts while the same mug lying in the world does not. Characters only.
 instance uniform float garment_frost : hint_range(0.0, 1.0) = 0.0;
+// 1: the mesh carries its rest-pose positions in CUSTOM0 (ClothingFrostComponent, skinned gear). Skinning runs
+// before vertex(), so a skinned VERTEX moves with the pose and rime sampled there would slide over the cloth.
+instance uniform float garment_frost_rest = 0.0;
 
 const vec3 HFN_GARMENT_FROST_COLOR = vec3(0.84, 0.89, 0.95);
 
@@ -18,6 +21,11 @@ float hfn_gf_noise(vec3 p) {
 			mix(hfn_gf_hash(i + vec3(0, 1, 0)), hfn_gf_hash(i + vec3(1, 1, 0)), f.x), f.y),
 		mix(mix(hfn_gf_hash(i + vec3(0, 0, 1)), hfn_gf_hash(i + vec3(1, 0, 1)), f.x),
 			mix(hfn_gf_hash(i + vec3(0, 1, 1)), hfn_gf_hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+
+// Where rime is sampled, from vertex(): the rest pose when skinned, so it rides the cloth; else model space.
+vec3 hfn_garment_frost_pos(vec3 vertex, vec4 custom0) {
+	return garment_frost_rest > 0.5 ? custom0.xyz : vertex;
 }
 
 // Share of a fragment under rime. Cloth (film 0): a powdery veil that keeps the weave readable, denser on

@@ -19,9 +19,9 @@ var _last: Vector3 = Vector3.INF
 
 
 func _initialize() -> void:
-	## Run narrow-space frustum checks at the real gameplay aspect ratio.
-	## Headless default 100x100 must not become a square native canvas.
-	root.size = Vector2i(1920, 1080)
+	## Narrow-space frustum checks at the 16:9 gameplay view. Headless resets the window to 64x64 after the first
+	## frame, and aspect "expand" then makes the view square; "keep" holds the 1920x1080 base whatever the window.
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
 	_run.call_deferred()
 
 

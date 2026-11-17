@@ -286,6 +286,11 @@ static func aim_direction(camera: Camera3D) -> Vector3:
 	return direction
 
 
+## Widest a mesh may be in its middle axis and still be faded see-through as an occluder, metres.
+func occluder_max_extent() -> float:
+	return _fader.max_visual_extent
+
+
 ## Aims the camera directly, for spawn and tests.
 func set_look(yaw: float, pitch_deg: float) -> void:
 	_yaw = yaw
