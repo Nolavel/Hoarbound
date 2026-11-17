@@ -104,13 +104,13 @@ inventory = NodePath("../InventoryComponent")
 equipment = NodePath("../EquipmentComponent")
 character_light = NodePath("HubCharacterLight")
 
-[node name="HubCharacterLight" type="OmniLight3D" parent="PlayerHubComponent"]
+[node name="HubCharacterLight" type="AreaLight3D" parent="PlayerHubComponent"]
 visible = false
 light_color = Color(1, 0.94, 0.86, 1)
 light_energy = 1.2
 light_cull_mask = 16
-omni_range = 3.0
-omni_attenuation = 1.2
+area_size = Vector2(0.6, 0.4)
+area_range = 3.0
 
 [node name="QuickAccessComponent" type="Node" parent="." node_paths=PackedStringArray("hub")]
 script = ExtResource("99_quick")

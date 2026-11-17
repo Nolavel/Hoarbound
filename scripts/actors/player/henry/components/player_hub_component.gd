@@ -42,8 +42,8 @@ const CHARACTER_LIGHT_FADE_S: float = 0.35
 
 @export var inventory: InventoryComponent
 @export var equipment: EquipmentComponent
-## Key light on Henry and the pack while the Hub is open: its cull mask holds only their render layer
-## (henry_render), as Unreal's lighting channels, so the room around stays as dark as it is.
+## Soft key light (an AreaLight3D panel) on Henry and the pack while the Hub is open; its cull mask holds only
+## their render layer (henry_render), as Unreal's lighting channels, so the room around stays as dark as it is.
 @export var character_light: Light3D
 @export_group("Camera")
 ## Metres out from the pack, to its side and above it, the Hub camera stands.
@@ -141,7 +141,8 @@ func _update_character_light(delta: float) -> void:
 	_light_level = move_toward(_light_level, 1.0 if lit else 0.0, delta / CHARACTER_LIGHT_FADE_S)
 	character_light.visible = _light_level > 0.0
 	if lit:
-		character_light.global_position = _camera.global_transform * CHARACTER_LIGHT_OFFSET
+		## The panel faces where the lens looks, from just beside it.
+		character_light.global_transform = _camera.global_transform * Transform3D(Basis.IDENTITY, CHARACTER_LIGHT_OFFSET)
 	character_light.light_energy = _light_energy * _light_level
 
 
