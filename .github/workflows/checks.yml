@@ -878,3 +878,77 @@ jobs:
           path: compass-light-png/
           if-no-files-found: warn
           retention-days: 7
+
+  stretch-independent-ab:
+    # Review-only experiment: isolated Godot process per mode/resolution/scale.
+    # No gameplay settings or project.godot change; tests may FAIL to expose bad sizing.
+    if: github.event_name == 'pull_request' && github.head_ref == 'diagnostics/stretch-independent-ab'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: 'hud-720-vp', group: 'hud', mode: 'viewport', size: '1280x720', scale: '0.77' }
+          - { id: 'hud-720-ci', group: 'hud', mode: 'canvas_items', size: '1280x720', scale: '0.77' }
+          - { id: 'hud-1080-vp', group: 'hud', mode: 'viewport', size: '1920x1080', scale: '0.77' }
+          - { id: 'hud-1080-ci', group: 'hud', mode: 'canvas_items', size: '1920x1080', scale: '0.77' }
+          - { id: 'hud-1080-native-vp', group: 'hud', mode: 'viewport', size: '1920x1080', scale: '1.0' }
+          - { id: 'hud-1080-native-ci', group: 'hud', mode: 'canvas_items', size: '1920x1080', scale: '1.0' }
+          - { id: 'hud-1440-vp', group: 'hud', mode: 'viewport', size: '2560x1440', scale: '0.77' }
+          - { id: 'hud-1440-ci', group: 'hud', mode: 'canvas_items', size: '2560x1440', scale: '0.77' }
+          - { id: 'hud-wide-vp', group: 'hud', mode: 'viewport', size: '2560x1080', scale: '0.77' }
+          - { id: 'hud-wide-ci', group: 'hud', mode: 'canvas_items', size: '2560x1080', scale: '0.77' }
+          - { id: 'hud-4k-vp', group: 'hud', mode: 'viewport', size: '3840x2160', scale: '0.77' }
+          - { id: 'hud-4k-ci', group: 'hud', mode: 'canvas_items', size: '3840x2160', scale: '0.77' }
+          - { id: 'inventory-1080-vp', group: 'inventory', mode: 'viewport', size: '1920x1080', scale: '0.77' }
+          - { id: 'inventory-1080-ci', group: 'inventory', mode: 'canvas_items', size: '1920x1080', scale: '0.77' }
+          - { id: 'interior-1080-vp', group: 'interior', mode: 'viewport', size: '1920x1080', scale: '0.77' }
+          - { id: 'interior-1080-ci', group: 'interior', mode: 'canvas_items', size: '1920x1080', scale: '0.77' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+      - name: Provision Godot and CPU Vulkan
+        run: tools/ci/setup_env.sh
+      - name: Install ffmpeg and Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg python3-pil
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+      - name: Render exactly one fresh process and validate native resolution
+        env:
+          CASE_ID: ${{ matrix.id }}
+          CASE_GROUP: ${{ matrix.group }}
+          CASE_MODE: ${{ matrix.mode }}
+          CASE_SIZE: ${{ matrix.size }}
+          CASE_SCALE: ${{ matrix.scale }}
+        run: |
+          set -o pipefail
+          OUT="$GITHUB_WORKSPACE/stretch-independent-ab/$CASE_ID"
+          mkdir -p "$OUT"
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR="${RUNNER_TEMP:-/tmp}/xdg"
+          mkdir -p "$XDG_RUNTIME_DIR"
+          timeout 45m xvfb-run -a -s "-screen 0 3840x2160x24" "$HOME/.local/bin/godot" \
+            --path . --resolution "$CASE_SIZE" --position 0,0 \
+            --rendering-driver vulkan --rendering-method forward_plus \
+            --audio-driver Dummy --fixed-fps 30 \
+            --script res://tools/runtime/capture_stretch_scale.gd \
+            -- "$OUT" "$CASE_MODE" "$CASE_GROUP" "$CASE_SCALE" "$CASE_SIZE" \
+            2>&1 | tee "$OUT/godot.log"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then echo "Godot exit=$status"; exit "$status"; fi
+          if grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR' "$OUT/godot.log"; then exit 1; fi
+          python3 tools/ci/verify_stretch_independent.py "$OUT" "$CASE_MODE" "$CASE_GROUP" "$CASE_SIZE" "$CASE_SCALE"
+      - name: Upload native PNG, manifest, and validation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stretch-ab-${{ matrix.id }}
+          path: stretch-independent-ab/${{ matrix.id }}/
+          if-no-files-found: warn
+          retention-days: 7
