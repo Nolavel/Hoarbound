@@ -11,6 +11,7 @@ const LOW: StringName = &"low"
 const MEDIUM: StringName = &"medium"
 const HIGH: StringName = &"high"
 const DEFAULT_QUALITY: StringName = LOW
+const NATIVE_BUDGET: GDScript = preload("res://scripts/settings/native_resolution_policy.gd")
 const ORDER: Array[StringName] = [LOW, MEDIUM, HIGH]
 
 const PROFILES: Dictionary = {
@@ -107,7 +108,7 @@ static func apply(tree: SceneTree, value: Variant) -> Dictionary:
 	ProjectSettings.set_setting("hfn/snow/quality", "high")
 
 	if tree != null and tree.root != null:
-		tree.root.scaling_3d_scale = float(profile["render_scale"])
+		tree.root.scaling_3d_scale = NATIVE_BUDGET.scale_for(tree.root.size, float(profile["render_scale"]), tree.root.content_scale_mode)
 		_apply_directional_shadow_distance(tree.root, float(profile["shadow_distance_m"]), int(profile["sun_shadow_splits"]))
 		tree.call_group(&"graphics_quality_consumer", &"apply_graphics_quality", quality, profile)
 

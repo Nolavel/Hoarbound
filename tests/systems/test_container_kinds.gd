@@ -36,6 +36,10 @@ var _row: ContainerRow
 
 
 func _initialize() -> void:
+	## These camera/framing assertions were authored for the 1920x1080 gameplay
+	## view. Headless Godot otherwise boots a 100x100 display: under canvas_items
+	## that becomes a square 3D frustum, not the actual 16:9 player viewport.
+	root.size = Vector2i(1920, 1080)
 	_run()
 
 
