@@ -156,6 +156,9 @@ func pick(origin: Vector3, direction: Vector3) -> int:
 	for k: int in slots.size():
 		var visual: Node3D = visual_of(k) if slots[k]["on_pack"] else null
 		if visual != null and visual.is_visible_in_tree():
+			## The box first: only an item under the cursor has its outline traced.
+			if not PackHandling.screen_bounds(visual, camera).grow(2.0).has_point(screen):
+				continue
 			var outline: PackedVector2Array = PackHandling.screen_outline(visual, camera)
 			if outline.size() >= 3 and Geometry2D.is_point_in_polygon(screen, outline):
 				var box: Rect2 = Rect2(outline[0], Vector2.ZERO)
@@ -468,6 +471,7 @@ func _stand_on(card: MeshInstance3D, id: StringName) -> Node3D:
 ## each card tints it.
 func _gradient_viewport(direction: int) -> SubViewport:
 	var view := SubViewport.new()
+	view.name = "QuickShelfGradient%d" % direction  # named so PerfJSON can tell the Hub's views apart
 	view.size = Vector2i(128, 128)
 	view.transparent_bg = true
 	view.render_target_update_mode = SubViewport.UPDATE_ONCE

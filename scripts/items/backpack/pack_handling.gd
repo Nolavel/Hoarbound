@@ -75,6 +75,11 @@ var _snap_s: float = 0.0
 ## Sampled triangles per mesh resource, and each visual's last outline with the pose it was traced in.
 static var _triangle_cache: Dictionary = {}
 static var _outline_cache: Dictionary = {}
+## Outline cost since the last outline_stats(true): calls, cache misses, triangles traced and time.
+static var _outline_calls: int = 0
+static var _outline_misses: int = 0
+static var _outline_tris: int = 0
+static var _outline_usec: int = 0
 
 
 ## Hands for `quick_hub`'s pack (`pack_straps`) and quick pockets (`quick_shelf`), seen through `view`, the ring
@@ -524,34 +529,122 @@ static func clear_outline_cache() -> void:
 	_outline_cache.clear()
 
 
-## The silhouette of `visual` as `camera` sees it (viewport pixels): its triangles rasterised into a grid of
-## OUTLINE_GRID cells across, the filled region's boundary traced (Moore neighbourhood). Cached while still.
+## The silhouette of `visual` as `camera` sees it (viewport pixels), traced on a grid OUTLINE_GRID cells across;
+## a drift under half a cell shifts the cached outline instead of tracing it again.
 static func screen_outline(visual: Node3D, camera: Camera3D) -> PackedVector2Array:
 	var key: int = visual.get_instance_id()
-	var pose: Array = [visual.global_transform, camera.global_transform, camera.fov]
-	if _outline_cache.has(key) and _same_pose(_outline_cache[key][0], pose):
-		return _outline_cache[key][1]
+	var corners: PackedVector2Array = _screen_corners(visual, camera)
+	_outline_calls += 1
+	if corners.is_empty():
+		return PackedVector2Array()
+	## A held pack drifts a fraction of a pixel a frame: within half a grid cell the traced outline is shifted,
+	## not traced again (it was re-traced every frame, 44 ms with the Hub open; #173).
+	if _outline_cache.has(key):
+		var entry: Array = _outline_cache[key]
+		var shift: Vector2 = _corner_shift(entry[0], corners)
+		if is_equal_approx(float(entry[2]), camera.fov) and shift.x >= 0.0:
+			var moved := PackedVector2Array()
+			var offset: Vector2 = _corner_mean(corners) - _corner_mean(entry[0])
+			for point: Vector2 in entry[1]:
+				moved.append(point + offset)
+			return moved
+	var started: int = Time.get_ticks_usec()
+	_outline_misses += 1
 	var projected := PackedVector2Array()
-	for node: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
-		var mesh := node as MeshInstance3D
-		if mesh == null or mesh.mesh == null or not mesh.is_visible_in_tree():
-			continue
+	for mesh: MeshInstance3D in _outline_meshes(visual):
 		var at: Transform3D = mesh.global_transform
-		var corners: PackedVector3Array = _sampled_triangles(mesh.mesh)
-		for i: int in range(0, corners.size(), 3):
-			var a: Vector3 = at * corners[i]
-			var b: Vector3 = at * corners[i + 1]
-			var c: Vector3 = at * corners[i + 2]
+		var triangles: PackedVector3Array = _sampled_triangles(mesh.mesh)
+		for i: int in range(0, triangles.size(), 3):
+			var a: Vector3 = at * triangles[i]
+			var b: Vector3 = at * triangles[i + 1]
+			var c: Vector3 = at * triangles[i + 2]
 			if camera.is_position_behind(a) or camera.is_position_behind(b) or camera.is_position_behind(c):
 				continue
 			projected.append_array([camera.unproject_position(a), camera.unproject_position(b), camera.unproject_position(c)])
 	var outline: PackedVector2Array = _trace_silhouette(projected)
-	_outline_cache[key] = [pose, outline]
+	_outline_cache[key] = [corners, outline, camera.fov]
+	_outline_tris += projected.size() / 3
+	_outline_usec += Time.get_ticks_usec() - started
 	return outline
 
 
-static func _same_pose(a: Array, b: Array) -> bool:
-	return (a[0] as Transform3D).is_equal_approx(b[0]) and (a[1] as Transform3D).is_equal_approx(b[1]) and is_equal_approx(a[2], b[2])
+## The screen rectangle (viewport pixels) holding `visual`'s meshes: eight projected box corners, cheap enough
+## to test a cursor against before tracing the outline. Empty when the box is behind the camera.
+static func screen_bounds(visual: Node3D, camera: Camera3D) -> Rect2:
+	var corners: PackedVector2Array = _screen_corners(visual, camera)
+	if corners.is_empty():
+		return Rect2()
+	var box := Rect2(corners[0], Vector2.ZERO)
+	for point: Vector2 in corners:
+		box = box.expand(point)
+	return box
+
+
+## Projected corners of the box round `visual`'s visible meshes; empty when any corner is behind the camera.
+static func _screen_corners(visual: Node3D, camera: Camera3D) -> PackedVector2Array:
+	var meshes: Array[MeshInstance3D] = _outline_meshes(visual)
+	if meshes.is_empty():
+		return PackedVector2Array()
+	var box: AABB = meshes[0].global_transform * meshes[0].get_aabb()
+	for mesh: MeshInstance3D in meshes:
+		box = box.merge(mesh.global_transform * mesh.get_aabb())
+	var corners := PackedVector2Array()
+	for i: int in 8:
+		var point: Vector3 = box.get_endpoint(i)
+		if camera.is_position_behind(point):
+			return PackedVector2Array()
+		corners.append(camera.unproject_position(point))
+	return corners
+
+
+## How far the box moved on screen since `old`: x is -1 when any corner moved more than half an outline
+## cell (or the box changed shape), else the largest corner move in pixels.
+static func _corner_shift(old: PackedVector2Array, now: PackedVector2Array) -> Vector2:
+	if old.size() != now.size():
+		return Vector2(-1.0, 0.0)
+	var low: Vector2 = now[0]
+	var high: Vector2 = now[0]
+	for point: Vector2 in now:
+		low = low.min(point)
+		high = high.max(point)
+	var half_cell: float = maxf(maxf(high.x - low.x, high.y - low.y) / OUTLINE_GRID, 1.0) * 0.5
+	var mean_move: Vector2 = _corner_mean(now) - _corner_mean(old)
+	var largest: float = 0.0
+	for i: int in now.size():
+		## The box must have slid, not turned or scaled: each corner moves with the mean.
+		if (now[i] - old[i] - mean_move).length() > half_cell or (now[i] - old[i]).length() > half_cell * 2.0:
+			return Vector2(-1.0, 0.0)
+		largest = maxf(largest, (now[i] - old[i]).length())
+	return Vector2(largest, 0.0)
+
+
+static func _corner_mean(corners: PackedVector2Array) -> Vector2:
+	var sum := Vector2.ZERO
+	for point: Vector2 in corners:
+		sum += point
+	return sum / maxf(corners.size(), 1.0)
+
+
+## The visible meshes an outline is traced from: `visual` and the meshes under it.
+static func _outline_meshes(visual: Node3D) -> Array[MeshInstance3D]:
+	var found: Array[MeshInstance3D] = []
+	for node: Node in [visual] + visual.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh != null and mesh.mesh != null and mesh.is_visible_in_tree():
+			found.append(mesh)
+	return found
+
+
+## Outline cost counters for PerfJSON; reset starts a new window.
+static func outline_stats(reset: bool = false) -> Dictionary:
+	var stats: Dictionary = {"calls": _outline_calls, "misses": _outline_misses, "tris": _outline_tris,
+		"ms": snappedf(_outline_usec / 1000.0, 0.01)}
+	if reset:
+		_outline_calls = 0
+		_outline_misses = 0
+		_outline_tris = 0
+		_outline_usec = 0
+	return stats
 
 
 ## Triangles (three points each) rasterised into a cell grid, and the outer boundary of the filled cells as a

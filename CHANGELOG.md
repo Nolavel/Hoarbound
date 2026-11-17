@@ -6,6 +6,38 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed (performance: the open Hub held the game at ~22 FPS)
+
+- **What was measured:**
+  - **Windows 0.314a log** (GTX 1050 Ti, 19 Hub openings): with the pack open the game sat at about 22–23 FPS on both LOW and HIGH, while the main GPU time went *down* (18.5 → 17.7 ms) and the script process time doubled (≈20 → 43–49 ms). The frame waited on the CPU, which also fits the tester's 15–30 FPS on an RTX 4070.
+  - **Locally, headless:** the frame took 7.2 ms with the Hub closed and 53.7 ms open. Switching off `_process` on one of 60 scripted nodes at a time, only `PackHandling` (6.9 ms) or `PackFrontHold` (7.8 ms) took the cost away.
+- **Cause (proved with counters):**
+  - the quick shelf's hover test traced the exact screen outline of every item on the pack every frame: 5 outlines a frame, about 4,900 triangles each, rasterised in GDScript, 44 ms a frame;
+  - the outline cache never hit: the held pack drifts 0.3–0.55 px a frame, and the cache compared poses exactly.
+- **Fix:**
+  - the cursor is tested against each item's screen box first; only an item under it has its outline traced;
+  - a drift under half an outline-grid cell shifts the cached outline instead of tracing it again;
+  - the container's pick does the same.
+- **After:** the Hub-open frame is 7.0 ms; hovering any item on the pack is 6.9 ms with no re-traces. Picking each item at its aim point gives the same slot as before.
+- **Test:** `test_hub_outline_cost` checks:
+  - 30 sub-pixel drifts trace at most twice, and the shifted outline matches a fresh trace within a grid cell;
+  - the open Hub traces under 0.5 outlines a frame (the old code traced 5.0);
+  - every item on the pack is picked at its aim point.
+
+### Changed (PerfJSON v4)
+
+- **PerfMeta** now records the graphics preset, 3D scale and mode, MSAA and screen-space AA, the shadow atlas, the window and stretch mode, a debug or release build, editor or export, the game version and `BUILD_INFO.txt`.
+  - The legacy `snow_quality` is renamed `snow_quality_legacy`. It always read "high" and made LOW runs look like HIGH.
+- **Each PerfJSON sample** adds:
+  - `frame_ms_p95`, `frame_ms_p99` and the worst frame's tick;
+  - pipeline compilations per kind since the last sample;
+  - the state: Hub open, paused, Henry's fade;
+  - with the Hub open, the outline counters.
+- **Process and physics:** `process_ms` and `physics_ms` are averaged over the sample, with a max.
+  - v3 printed one frame's monitor value.
+  - Godot's monitors themselves move slowly (an 11.6 ms process monitor beside 7 ms frames), so they are not per-frame truth: use `frame_ms*`. This explains the 2026-11-15 log's physics_ms of 30–90 ms at unchanged FPS.
+- The Quick Access gradient views are named `QuickShelfGradient0/1`, so PerfJSON shows them by name.
+
 ### Changed (Key West: the blizzard holds)
 
 - Key West Reality starts in the blizzard (wind, snowfall, cold) and now stays in it.

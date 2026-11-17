@@ -217,6 +217,8 @@ func pick(screen: Vector2, camera: Camera3D) -> int:
 		var pickup: ItemPickup = items[i]["pickup"]
 		if not is_instance_valid(pickup) or not pickup.is_visible_in_tree():
 			continue
+		if not PackHandling.screen_bounds(pickup, camera).grow(2.0).has_point(screen):
+			continue
 		var outline: PackedVector2Array = PackHandling.screen_outline(pickup, camera)
 		if outline.size() < 3 or not Geometry2D.is_point_in_polygon(screen, outline):
 			continue

@@ -3,6 +3,14 @@ extends Control
 @export_range(0.1, 2.0, 0.05) var update_interval: float = 0.25
 
 const CONSOLE_INTERVAL_S: float = 1.0
+## PerfJSON v4: frame percentiles, pipeline compiles and the player's state (Hub, pause, fade). process/physics
+## are Godot's monitors averaged here, but they move slowly themselves: per-frame truth is frame_ms*.
+const SCHEMA: String = "hoarbound_perf_v4"
+const PIPELINE_MONITORS: Array[int] = [
+	Performance.PIPELINE_COMPILATIONS_CANVAS, Performance.PIPELINE_COMPILATIONS_MESH,
+	Performance.PIPELINE_COMPILATIONS_SURFACE, Performance.PIPELINE_COMPILATIONS_DRAW,
+	Performance.PIPELINE_COMPILATIONS_SPECIALIZATION,
+]
 const VIEWPORT_REFRESH_INTERVAL_S: float = 5.0
 const BYTES_PER_MIB: float = 1024.0 * 1024.0
 
@@ -22,6 +30,13 @@ var _last_wall_usec: int = 0
 var _show_panel: bool = true
 var _print_runtime_debug_stats: bool = false
 var _measured_viewports: Array[Viewport] = []
+var _process_sum_ms: float = 0.0
+var _process_max_ms: float = 0.0
+var _physics_sum_ms: float = 0.0
+var _physics_max_ms: float = 0.0
+var _frame_samples_ms := PackedFloat32Array()
+var _worst_frame_tick_ms: int = 0
+var _pipelines_seen: Array[int] = []
 
 
 func _ready() -> void:
@@ -99,6 +114,15 @@ func _process(delta: float) -> void:
 		_console_frame_max_ms = maxf(_console_frame_max_ms, wall_delta_s * 1000.0)
 		_console_sim_delta_min_ms = minf(_console_sim_delta_min_ms, maxf(delta, 0.0) * 1000.0)
 		_console_sim_delta_max_ms = maxf(_console_sim_delta_max_ms, maxf(delta, 0.0) * 1000.0)
+		var process_ms: float = Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
+		var physics_ms: float = Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
+		_process_sum_ms += process_ms
+		_process_max_ms = maxf(_process_max_ms, process_ms)
+		_physics_sum_ms += physics_ms
+		_physics_max_ms = maxf(_physics_max_ms, physics_ms)
+		if wall_delta_s * 1000.0 >= _console_frame_max_ms:
+			_worst_frame_tick_ms = Time.get_ticks_msec()
+		_frame_samples_ms.append(wall_delta_s * 1000.0)
 		_viewport_refresh_elapsed += wall_delta_s
 		if _console_elapsed >= CONSOLE_INTERVAL_S:
 			_print_console_snapshot()
@@ -126,8 +150,14 @@ func _update_visible_snapshot() -> void:
 func _start_console_capture() -> void:
 	_refresh_measured_viewports()
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var root_viewport: Viewport = get_tree().root
+	var window_size: Vector2i = DisplayServer.window_get_size()
 	var meta: Dictionary = {
-		"schema": "hoarbound_perf_v3",
+		"schema": SCHEMA,
+		"game_version": str(ProjectSettings.get_setting("application/config/version", "")),
+		"build_info": _build_info(),
+		"debug_build": OS.is_debug_build(),
+		"editor": OS.has_feature("editor"),
 		"engine": Engine.get_version_info().get("string", "unknown"),
 		"display_server": DisplayServer.get_name(),
 		"rendering_method": RenderingServer.get_current_rendering_method(),
@@ -136,13 +166,22 @@ func _start_console_capture() -> void:
 		"gpu_vendor": RenderingServer.get_video_adapter_vendor(),
 		"gpu_api": RenderingServer.get_video_adapter_api_version(),
 		"viewport_px": [int(viewport_size.x), int(viewport_size.y)],
+		"window_px": [window_size.x, window_size.y],
+		"stretch_mode": str(ProjectSettings.get_setting("display/window/stretch/mode", "")),
+		"graphics_quality": str(ProjectSettings.get_setting("hfn/graphics/quality", "")),
+		"scaling_3d_mode": int(root_viewport.scaling_3d_mode),
+		"scaling_3d_scale": _rounded(root_viewport.scaling_3d_scale, 3),
+		"msaa_3d": int(root_viewport.msaa_3d),
+		"screen_space_aa": int(root_viewport.screen_space_aa),
+		"directional_shadow_atlas": int(ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size", 0)),
 		"refresh_hz": DisplayServer.screen_get_refresh_rate(),
 		"vsync_mode": int(DisplayServer.window_get_vsync_mode()),
 		"engine_max_fps": Engine.max_fps,
 		"physics_ticks_per_second": Engine.physics_ticks_per_second,
 		"max_physics_steps_per_frame": int(ProjectSettings.get_setting("physics/common/max_physics_steps_per_frame", 8)),
 		"time_scale": Engine.time_scale,
-		"snow_quality": str(ProjectSettings.get_setting("hfn/snow/quality", "high")),
+		## Legacy SnowShell switch: always "high" since the LOW/MEDIUM/HIGH presets; read graphics_quality instead.
+		"snow_quality_legacy": str(ProjectSettings.get_setting("hfn/snow/quality", "high")),
 		"measured_viewports": _measured_viewports.size(),
 	}
 	print("[PerfMeta] %s" % JSON.stringify(meta))
@@ -172,8 +211,10 @@ func _print_console_snapshot() -> void:
 			sample["update_mode"] = int((viewport as SubViewport).render_target_update_mode)
 		viewport_samples.append(sample)
 	var frames: float = maxf(float(_console_frames), 1.0)
+	var sorted_frames: PackedFloat32Array = _frame_samples_ms.duplicate()
+	sorted_frames.sort()
 	var data: Dictionary = {
-		"schema": "hoarbound_perf_v3",
+		"schema": SCHEMA,
 		"ticks_msec": Time.get_ticks_msec(),
 		"sample_s": _rounded(_console_elapsed, 4),
 		"wall_sample_s": _rounded(_console_elapsed, 4),
@@ -188,8 +229,15 @@ func _print_console_snapshot() -> void:
 		"simulation_delta_avg_ms": _rounded(_console_simulation_elapsed * 1000.0 / frames, 3),
 		"simulation_delta_min_ms": _rounded(_console_sim_delta_min_ms, 3),
 		"simulation_delta_max_ms": _rounded(_console_sim_delta_max_ms, 3),
-		"process_ms": _rounded(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, 3),
-		"physics_ms": _rounded(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, 3),
+		"frame_ms_p95": _rounded(_percentile(sorted_frames, 0.95), 3),
+		"frame_ms_p99": _rounded(_percentile(sorted_frames, 0.99), 3),
+		"worst_frame_tick_ms": _worst_frame_tick_ms,
+		"process_ms": _rounded(_process_sum_ms / frames, 3),
+		"process_ms_max": _rounded(_process_max_ms, 3),
+		"physics_ms": _rounded(_physics_sum_ms / frames, 3),
+		"physics_ms_max": _rounded(_physics_max_ms, 3),
+		"pipeline_compiles": _pipeline_compiles_since_last(),
+		"state": _game_state(),
 		"render_setup_cpu_ms": _rounded(RenderingServer.get_frame_setup_time_cpu(), 3),
 		"render_cpu_all_viewports_ms": _rounded(render_cpu_total_ms, 3),
 		"render_gpu_all_viewports_ms": _rounded(render_gpu_total_ms, 3),
@@ -217,6 +265,50 @@ func _print_console_snapshot() -> void:
 	_console_frame_max_ms = 0.0
 	_console_sim_delta_min_ms = INF
 	_console_sim_delta_max_ms = 0.0
+	_process_sum_ms = 0.0
+	_process_max_ms = 0.0
+	_physics_sum_ms = 0.0
+	_physics_max_ms = 0.0
+	_frame_samples_ms.clear()
+
+
+## Pipeline compilations since the previous sample, per kind (canvas, mesh, surface, draw, specialization).
+func _pipeline_compiles_since_last() -> Array[int]:
+	var now: Array[int] = []
+	for monitor: int in PIPELINE_MONITORS:
+		now.append(int(Performance.get_monitor(monitor)))
+	var delta: Array[int] = []
+	for i: int in now.size():
+		delta.append(now[i] - (_pipelines_seen[i] if i < _pipelines_seen.size() else 0))
+	_pipelines_seen = now
+	return delta
+
+
+## What the player was doing at the end of the sample, so A/B intervals can be cut by state.
+func _game_state() -> Dictionary:
+	var state: Dictionary = {"paused": get_tree().paused}
+	var player: Node = get_tree().get_first_node_in_group(&"player")
+	var hub := player.get_node_or_null(^"PlayerHubComponent") as PlayerHubComponent if player != null else null
+	state["hub_open"] = hub != null and hub.is_open()
+	var camera := get_viewport().get_camera_3d() as TpsCamera
+	state["henry_fade"] = _rounded(camera.get_body_fade(), 2) if camera != null else 0.0
+	if hub != null and hub.is_open():
+		state["outline"] = PackHandling.outline_stats(true)
+	return state
+
+
+## BUILD_INFO.txt beside an exported build (version, commit, build time), else empty.
+func _build_info() -> String:
+	var path: String = OS.get_executable_path().get_base_dir().path_join("BUILD_INFO.txt")
+	if OS.has_feature("editor") or not FileAccess.file_exists(path):
+		return ""
+	return FileAccess.get_file_as_string(path).strip_edges().replace("\n", " | ")
+
+
+static func _percentile(sorted: PackedFloat32Array, share: float) -> float:
+	if sorted.is_empty():
+		return 0.0
+	return sorted[clampi(int(ceil(share * sorted.size())) - 1, 0, sorted.size() - 1)]
 
 
 func _refresh_measured_viewports() -> void:
