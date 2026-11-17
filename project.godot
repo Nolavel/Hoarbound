@@ -11,19 +11,19 @@ config_version=5
 [application]
 
 config/name="Hoarbound"
-config/version="0.314a"
 config/description="Hoarbound Smoke Test November"
+config/version="0.314a"
 config/tags=[]
 run/main_scene="res://scenes/world/key_west/key_west_reality.tscn"
-run/main_scene.template="res://scenes/ui/menu/title_menu.tscn"
 config/features=PackedStringArray("4.8", "C#", "Forward Plus")
 boot_splash/bg_color=Color(0.0627451, 0.0627451, 0.0627451, 1)
 boot_splash/show_image=false
 config/icon="res://icon.svg"
+run/main_scene.template="res://scenes/ui/menu/title_menu.tscn"
 
 [autoload]
-NativeUiBudgetController="*res://scripts/settings/native_ui_budget_controller.gd"
 
+NativeUiBudgetController="*res://scripts/settings/native_ui_budget_controller.gd"
 BuildLog="*res://core/diagnostics/build_log.gd"
 PlayerState="*res://core/player_state/player_state.gd"
 InputSystems="*res://core/input/input_systems.gd"
