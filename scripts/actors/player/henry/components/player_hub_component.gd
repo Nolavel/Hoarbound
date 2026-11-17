@@ -35,9 +35,16 @@ const CONTAINER_REACH_M: float = 1.3
 const DROP_AHEAD_M: float = 0.7
 ## route_destination's answer when the item stays in the pack.
 const PACK_DESTINATION: StringName = &"pack"
+## The Hub's key light stands this far right of, above and behind the lens (camera space), metres.
+const CHARACTER_LIGHT_OFFSET: Vector3 = Vector3(0.45, 0.4, 0.1)
+## Seconds the key light takes to come up or go down with the Hub.
+const CHARACTER_LIGHT_FADE_S: float = 0.35
 
 @export var inventory: InventoryComponent
 @export var equipment: EquipmentComponent
+## Key light on Henry and the pack while the Hub is open: its cull mask holds only their render layer
+## (henry_render), as Unreal's lighting channels, so the room around stays as dark as it is.
+@export var character_light: Light3D
 @export_group("Camera")
 ## Metres out from the pack, to its side and above it, the Hub camera stands.
 @export var camera_back: float = 1.3
@@ -56,6 +63,8 @@ var pack: PackRig
 var _open: bool = false
 var _stows_in_flight: int = 0
 var _camera: Camera3D
+var _light_level: float = 0.0
+var _light_energy: float = 0.0
 var _previous_camera: Camera3D
 var _panel: PlayerHubPanel
 var _inspecting: bool = false
@@ -113,12 +122,27 @@ func visit_container(shelves: ItemContainer) -> bool:
 ## At a container, until the cut, the view eases toward the Tab view of Henry as he is now: he crouches while the
 ## pack comes off, so a target fixed at the start would aim where his chest was standing.
 func _process(delta: float) -> void:
+	_update_character_light(delta)
 	if not _open or not is_instance_valid(_camera) or not is_instance_valid(_front_hold) or container == null:
 		return
 	if _front_hold.is_container_cut():
 		return
 	var ease: float = 1.0 - exp(-delta / maxf(camera_blend_time * 0.35, 0.01))
 	_camera.global_transform = _camera.global_transform.interpolate_with(get_camera_target(), ease)
+
+
+## The key light comes up with the Hub over the lens and goes down after it closes.
+func _update_character_light(delta: float) -> void:
+	if character_light == null:
+		return
+	if _light_energy <= 0.0:
+		_light_energy = character_light.light_energy
+	var lit: bool = _open and is_instance_valid(_camera)
+	_light_level = move_toward(_light_level, 1.0 if lit else 0.0, delta / CHARACTER_LIGHT_FADE_S)
+	character_light.visible = _light_level > 0.0
+	if lit:
+		character_light.global_position = _camera.global_transform * CHARACTER_LIGHT_OFFSET
+	character_light.light_energy = _light_energy * _light_level
 
 
 ## A threat (damage, a fall; later thin ice and the like): the open Hub shuts at once.
