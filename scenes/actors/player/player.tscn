@@ -31,6 +31,8 @@
 [ext_resource type="Script" path="res://scripts/actors/player/henry/components/throw_component.gd" id="99_throw"]
 [ext_resource type="Script" path="res://scripts/actors/player/henry/components/strike_component.gd" id="99_strike"]
 [ext_resource type="Script" path="res://scripts/actors/player/henry/components/hand_snow_melt.gd" id="99_melt"]
+[ext_resource type="PackedScene" uid="uid://dbn8dbx2j0huj" path="res://scenes/actors/player/breath_vapor.tscn" id="99_breath"]
+[ext_resource type="Script" uid="uid://xiriuh7a3ddl" path="res://scripts/actors/player/henry/components/clothing_frost_component.gd" id="99_frost"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_0w3ce"]
 radius = 0.5
@@ -53,13 +55,9 @@ script = ExtResource("3_4fuql")
 [node name="MovementController" type="Node3D" parent="." node_paths=PackedStringArray("stamina_manager")]
 script = ExtResource("5_ep65o")
 stamina_manager = NodePath("StaminaManager")
-debug_show_speed = true
-debug_label_path = NodePath("DebugLBL2")
 
 [node name="StaminaManager" type="Node3D" parent="MovementController"]
 script = ExtResource("6_oh6um")
-debug_show_stamina = true
-debug_label_path = NodePath("../DebugLBL")
 
 [node name="PlayerHealthSystem" type="Node3D" parent="."]
 script = ExtResource("8_re6ll")
@@ -118,6 +116,13 @@ inventory = NodePath("../InventoryComponent")
 
 [node name="DryingSteamComponent" type="Node3D" parent="."]
 script = ExtResource("99_steam")
+
+[node name="BreathVapor" parent="." node_paths=PackedStringArray("visual", "movement") instance=ExtResource("99_breath")]
+visual = NodePath("../HenryUALVisual")
+movement = NodePath("../MovementController")
+
+[node name="ClothingFrostComponent" type="Node" parent="."]
+script = ExtResource("99_frost")
 
 [node name="BedrollComponent" type="Node" parent="." node_paths=PackedStringArray("inventory")]
 script = ExtResource("98_bedroll")

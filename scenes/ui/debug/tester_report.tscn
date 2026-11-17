@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://core/diagnostics/tester_report.gd" id="1_report"]
+
+[node name="TesterReport" type="CanvasLayer" node_paths=PackedStringArray("note")]
+layer = 100
+script = ExtResource("1_report")
+note = NodePath("Note")
+
+[node name="Note" type="Label" parent="."]
+visible = false
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -900.0
+offset_top = -60.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.92, 0.9, 0.84, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.08, 0.08, 1)
+theme_override_constants/outline_size = 6
+horizontal_alignment = 2
+autowrap_mode = 3

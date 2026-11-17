@@ -1,11 +1,10 @@
 extends SceneTree
 
-## Narrow doorway as a short traversal. A 1.2 m unmarked door is the stress case: W held
-## 35 degrees off carries Henry through its centre, the camera never breaks or takes the yaw,
-## a key released past the threshold still carries him clear, and a corridor is no doorway.
-## Authored NarrowPassages across the doorway standard (1.45-1.60 x 2.20-2.30 m) never fade him.
-## Guards the legacy guided rig (TpsCamera.direct_rig off): it stays behind that flag until the direct rig is
-## accepted in play. The direct rig's own guarantees are in test_tps_camera_direct.
+## PassageTraversalComponent with carry_through on (off in the game: the owner's call, a doorway never takes
+## the controls). A 1.2 m unmarked door is the stress case: W held 35 degrees off carries Henry through its
+## centre, the yaw stays the player's, a key released past the threshold still carries him clear, and a
+## corridor is no doorway. Authored NarrowPassages across the doorway standard (1.45-1.60 x 2.20-2.30 m)
+## are used and the camera stays out of their walls.
 ## Run: godot --headless --script tests/systems/test_passage_traversal.gd
 
 const CONTROL_YAW_DEG: float = 35.0
@@ -16,7 +15,6 @@ var _failures: int = 0
 var _player: Player
 var _camera: TpsCamera
 var _walls: Node3D
-var _base_fov: float = 70.0
 
 
 func _initialize() -> void:
@@ -32,7 +30,6 @@ func _run() -> void:
 	root.add_child(_player)
 	_camera = (load("res://scenes/game/systems/camera/tps_camera.tscn") as PackedScene).instantiate() as TpsCamera
 	_camera.player = _player
-	_camera.direct_rig = false
 	root.add_child(_camera)
 	(_player.get_node(^"PassageTraversalComponent") as PassageTraversalComponent).carry_through = true
 	await _place(Vector3(0.8, 1.0, 2.6))
@@ -51,37 +48,21 @@ func _run() -> void:
 
 
 func _through_the_door() -> void:
-	_base_fov = _camera.fov
 	Input.action_press(&"move_forward")
 	var crossed: bool = false
-	var compressed: bool = false
-	var hidden: int = 0
 	for i: int in range(600):
 		await physics_frame
-		hidden += int(_camera.is_body_hidden())
 		var at: Vector3 = _player.global_position
 		if not crossed and at.z <= 0.0:
 			crossed = true
 			_check(absf(at.x) < 0.3, "Henry crossed the door plane %.2f m off its centre" % at.x)
-			## The camera body is held in the doorway's cone; the view keeps Henry in frame.
-			_check(_player_on_screen(), "mid-door Henry is off the screen")
-			_check(_camera.get_body_fade() < 0.35, "mid-door Henry is faded %.2f" % _camera.get_body_fade())
-		## The frame is closed before the door and opens back out softly after it.
-		var share: float = _camera.get_passage_blend()
-		if not compressed and at.z <= 0.4:
-			compressed = true
-			_check(share >= 0.8, "0.4 m before the door the frame is only %.2f closed" % share)
 		if at.z < -1.15:
-			_check(share >= 0.3, "just past the exit the frame already snapped open (%.2f)" % share)
 			break
 	Input.action_release(&"move_forward")
-	_check(hidden == 0, "the 1.2 m door hid Henry in %d frames" % hidden)
 	_check(crossed and _player.global_position.z < -1.0,
 		"W held 35 deg off the door left Henry at z=%.2f, not through" % _player.global_position.z)
 	_check(is_equal_approx(_camera.get_yaw(), deg_to_rad(CONTROL_YAW_DEG)),
 		"the doorway moved the control yaw to %.1f deg" % rad_to_deg(_camera.get_yaw()))
-	_check(_camera.fov - _base_fov <= _camera.passage_fov_deg + _camera.recompose_fov_deg + 0.01,
-		"the doorway widened the FOV by %.1f deg" % (_camera.fov - _base_fov))
 
 
 ## Half into the door, S held instead: Henry is carried back out the way he came.
@@ -126,8 +107,8 @@ func _release_inside() -> void:
 	_check(not passage.is_committed(), "the traversal still carries Henry after clearing the door")
 
 
-## An authored NarrowPassage over a doorway of the standard: W straight through, Henry
-## never dithered, the camera never inside a wall, Henry clear of the frame at the end.
+## An authored NarrowPassage over a doorway of the standard: W straight through, the camera never
+## inside a wall, Henry clear of the frame at the end.
 func _authored_standard(width: float, height: float) -> void:
 	_clear_walls()
 	_door_walls(width, height, 0.2)
@@ -139,14 +120,12 @@ func _authored_standard(width: float, height: float) -> void:
 	await _place(Vector3(0.0, 1.0, 2.6))
 	var passage := _player.get_node(^"PassageTraversalComponent") as PassageTraversalComponent
 	var label: String = "%.2f x %.2f" % [width, height]
-	var faded: int = 0
 	var inside: int = 0
 	var authored: bool = false
 	Input.action_press(&"move_forward")
 	for i: int in range(600):
 		await physics_frame
 		await process_frame
-		faded += int(_camera.get_body_fade() > 0.0)
 		inside += int(_inside_wall(_camera.get_camera_transform().origin))
 		var info: PassageInfo = passage.get_passage()
 		authored = authored or (info != null and info.authored)
@@ -154,7 +133,6 @@ func _authored_standard(width: float, height: float) -> void:
 			break
 	Input.action_release(&"move_forward")
 	_check(authored, "%s: the authored passage was never used" % label)
-	_check(faded == 0, "%s: Henry dithered in %d frames" % [label, faded])
 	_check(inside == 0, "%s: camera inside a wall in %d frames" % [label, inside])
 	_check(_player.global_position.z < -2.0, "%s: Henry stopped at z=%.2f" % [label, _player.global_position.z])
 	marker.free()
@@ -206,11 +184,6 @@ func _box(center: Vector3, size: Vector3) -> void:
 	body.add_child(shape)
 	body.position = center
 	_walls.add_child(body)
-
-
-func _player_on_screen() -> bool:
-	var origin: Vector3 = _player.get_global_transform_interpolated().origin
-	return _camera.is_position_in_frustum(origin) and _camera.is_position_in_frustum(_camera.get_eye_position())
 
 
 func _inside_wall(point: Vector3) -> bool:

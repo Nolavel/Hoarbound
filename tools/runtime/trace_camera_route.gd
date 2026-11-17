@@ -4,7 +4,10 @@ extends SceneTree
 ## the mouse steering the camera at the next waypoint), with a full mouse turn at each stop.
 ## Per frame it logs eyes in frame, body fade, camera jumps, wall share and mouse deviation;
 ## report.json sums them per leg and for the whole route against the #240 criteria.
-## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1280x720 --fixed-fps 30 --script res://tools/runtime/trace_camera_route.gd -- [out_dir]
+## `route=continuous` walks one unbroken route instead: corridor, a full mouse turn, the door into the stove
+## room, along its wall, out of the front door into the open. `video` keeps 3D drawing for --write-movie.
+## The camera is stepped from here so its own CPU time per frame is measured (report.json, "_cpu").
+## Run: xvfb-run godot --path . --rendering-driver vulkan --resolution 1280x720 --fixed-fps 30 --script res://tools/runtime/trace_camera_route.gd -- [out_dir] [route=continuous] [video]
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const WARMUP_FRAMES: int = 300
@@ -22,7 +25,7 @@ const WALL_NEAR_M: float = 0.6
 const JUMP_M: float = 0.3
 const EYE_MARGIN: float = 0.02
 ## Legs: [name, waypoints (u, v) in the shelter plan, turn a full circle at the end].
-const LEGS: Array = [
+const ROUTE_LEGS: Array = [
 	["street_to_door", [Vector2(6.23, 5.4), Vector2(6.23, 3.6)], false],
 	["door_to_lobby", [Vector2(6.23, 2.4), Vector2(4.6, 1.6)], false],
 	["arch_to_stove", [Vector2(2.4, 1.8), Vector2(1.2, 4.6), Vector2(0.4, 6.6)], true],
@@ -31,6 +34,16 @@ const LEGS: Array = [
 	["exam_to_restroom", [Vector2(-4.5, -2.3), Vector2(-4.5, -0.7), Vector2(-11.1, -0.7), Vector2(-11.1, 0.6), Vector2(-11.1, 1.7)], true],
 	["restroom_to_stove", [Vector2(-11.1, 0.6), Vector2(-11.1, -0.7), Vector2(-1.0, -0.7), Vector2(-1.0, 0.7), Vector2(-1.0, 2.6), Vector2(0.4, 6.6)], true],
 ]
+## The continuous route: starts at the corridor's west end, 0.25 m off its north wall, and never teleports.
+const CONTINUOUS_START: Vector2 = Vector2(-10.5, -1.2)
+const CONTINUOUS_LEGS: Array = [
+	["corridor_along_wall", [Vector2(-2.0, -1.2)], true],
+	["door_to_room", [Vector2(-1.0, -0.7), Vector2(-1.0, 0.7), Vector2(-1.0, 2.6), Vector2(0.4, 6.0)], false],
+	["room_to_lobby", [Vector2(1.2, 4.6), Vector2(2.4, 1.8), Vector2(4.6, 1.6)], false],
+	["out_to_open", [Vector2(6.23, 1.7), Vector2(6.23, 3.6), Vector2(6.23, 5.4), Vector2(6.23, 9.0), Vector2(6.23, 16.0)], false],
+]
+
+var LEGS: Array = ROUTE_LEGS
 
 var _out: String = "user://shots/camera_route_trace"
 var _world: Node3D
@@ -53,27 +66,38 @@ var _prev_cam: Vector3 = Vector3.INF
 var _teleport_frames: int = 0
 var _rows: Array[Dictionary] = []
 var _csv: FileAccess
+var _continuous: bool = false
+var _video: bool = false
+## The camera's own processing time, microseconds per frame.
+var _cpu: PackedInt64Array = PackedInt64Array()
 
 
 func _initialize() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
 	if args.size() > 0:
 		_out = args[0]
+	_continuous = args.has("route=continuous")
+	_video = args.has("video")
+	if _continuous:
+		LEGS = CONTINUOUS_LEGS
 	DirAccess.make_dir_recursive_absolute(_abs(_out))
 	_world = (load(SCENE) as PackedScene).instantiate() as Node3D
 	_world.set(&"spawn_at_shelter", true)
 	root.add_child(_world)
 	## The numbers need physics and the camera, not pixels: 3D draws only for the saved shots.
-	root.disable_3d = true
+	root.disable_3d = not _video
 
 
-func _process(_delta: float) -> bool:
+func _process(delta: float) -> bool:
 	_frame += 1
 	if _frame < WARMUP_FRAMES:
 		return false
 	if _camera == null and not _bind():
 		quit(1)
 		return true
+	var t0: int = Time.get_ticks_usec()
+	_camera._process(delta)
+	_cpu.append(Time.get_ticks_usec() - t0)
 	_phase_frame += 1
 	match _phase:
 		"":
@@ -89,7 +113,9 @@ func _process(_delta: float) -> bool:
 		return true
 	if _phase != "":
 		_record()
-		if _phase_frame % 90 == 89:
+		if _video:
+			pass
+		elif _phase_frame % 90 == 89:
 			root.disable_3d = false
 		elif _phase_frame % 90 == 0:
 			_shot("%02d_%s_%s_%04d" % [_leg, LEGS[_leg][0], _phase, _phase_frame])
@@ -107,12 +133,28 @@ func _bind() -> bool:
 	_house = shelter.get_node(^"House") as Node3D
 	_floor_y = float(shelter.interior["floor_y"])
 	_space = _player.get_world_3d().direct_space_state
-	for door: HingedDoor in _world.find_children("*", "HingedDoor", true, false):
-		if _house.is_ancestor_of(door) and not door.is_open():
-			door.interact()
+	_open_doors()
+	## The trace steps the camera itself, between this frame's look input and the draw.
+	_camera.set_process(false)
+	if _continuous:
+		var start: Vector3 = _plan(CONTINUOUS_START)
+		var face: Vector3 = _plan((CONTINUOUS_LEGS[0][1] as Array)[0])
+		_player.global_position = Vector3(start.x, _player.global_position.y, start.z)
+		_player.velocity = Vector3.ZERO
+		_player.reset_physics_interpolation()
+		_camera.set_look(atan2(-(face.x - start.x), -(face.z - start.z)), -10.0)
+		_camera.snap_to_target()
+		_teleport_frames = 4
 	_csv = FileAccess.open(_abs(_out).path_join("trace.csv"), FileAccess.WRITE)
 	_csv.store_line("leg,phase,frame,eye_sx,eye_sy,eye_in,body_fade,cam_step,wall_share,body_share,mouse_dev_deg,pitch,boom,side,lift,room,cam_x,cam_y,cam_z,view_yaw,fov,recompose,composition,swap,shoulder_pct,boom_share,passage_blend,passage_x,passage_side")
 	return true
+
+
+## The shelter's doors wide open, as a player leaves them: a cracked leaf would stop Henry walking through.
+func _open_doors() -> void:
+	for door: HingedDoor in _world.find_children("*", "HingedDoor", true, false):
+		if _house.is_ancestor_of(door):
+			door.load_door_save_data({"latched": false, "angle_deg": door.open_angle_deg})
 
 
 func _next_leg() -> void:
@@ -138,6 +180,8 @@ func _walk() -> void:
 	if distance < REACH_M or _since_progress > STUCK_FRAMES:
 		if _since_progress > STUCK_FRAMES:
 			_stuck.append("%s#%d" % [LEGS[_leg][0], _point])
+			var at: Vector3 = _house.global_transform.affine_inverse() * _player.global_position
+			print("camera route: stuck at u=%.2f v=%.2f heading to %s" % [at.x, at.z, points[_point]])
 			_player.global_position = Vector3(target.x, _player.global_position.y, target.z)
 			_player.velocity = Vector3.ZERO
 			## A teleport, as the dev waypoints do it: the camera is placed, not chased.
@@ -187,13 +231,13 @@ func _record() -> void:
 	var row: Dictionary = {"leg": LEGS[_leg][0], "phase": _phase, "frame": _phase_frame, "eye_sx": eye.x, "eye_sy": eye.y,
 		"eye_in": eye_in, "body_fade": float(state.get("body_fade", _camera.get_body_fade())), "cam_step": step,
 		"wall_share": _wall_share(size), "body_share": _body_share(size), "mouse_dev_deg": dev, "pitch": float(state.pitch), "boom": float(state.boom),
-		"side": float(state.side), "lift": float(state.lift), "room": str(state.get("room", ""))}
+		"side": float(state.side), "lift": float(float(state.get("lift", 0.0))), "room": float(state.get("room", 0.0))}
 	_rows.append(row)
 	_csv.store_line("%s,%s,%d,%.4f,%.4f,%d,%.3f,%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.3f,%s,%.6f,%.6f,%.6f,%.6f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.3f,%.1f" % [row.leg, row.phase, row.frame,
 		row.eye_sx, row.eye_sy, int(eye_in), row.body_fade, step, row.wall_share, row.body_share, dev, row.pitch, row.boom, row.side,
-		row.lift, row.room, cam.x, cam.y, cam.z, float(state.view_yaw), _camera.fov, float(state.recompose),
-		float(state.composition), float(state.swap), float(state.shoulder_pct), float(state.boom_share),
-		float(state.passage_blend), float(state.passage_x), float(state.passage_side)])
+		float(row.get("lift", 0.0)), float(row.get("room", 0.0)), cam.x, cam.y, cam.z, float(state.view_yaw), _camera.fov, float(float(state.get("recompose", 0.0))),
+		float(float(state.get("composition", 0.0))), float(float(state.get("swap", 0.0))), float(state.shoulder_pct), float(state.boom_share),
+		float(float(state.get("passage_blend", 0.0))), float(state.get("passage_x", 0.0)), float(state.get("passage_side", 0.0))])
 
 
 ## Share of a screen grid whose rays hit geometry within WALL_NEAR_M of the lens; Henry is excluded.
@@ -237,6 +281,15 @@ func _finish() -> void:
 	var total: Dictionary = report["_route"]
 	report["_criteria"] = {"eyes_in_frame_pct >= 99": total.eyes_in_frame_pct >= 99.0,
 		"faded_pct <= 0.5": total.faded_pct <= 0.5, "jumps_over_0.3m == 0": total.jumps_over_0_3m == 0}
+	var sorted: PackedInt64Array = _cpu.duplicate()
+	sorted.sort()
+	var cpu_sum: int = 0
+	for value: int in sorted:
+		cpu_sum += value
+	var n: int = maxi(sorted.size(), 1)
+	report["_cpu"] = {"frames": sorted.size(), "mean_us": cpu_sum / n,
+		"p95_us": sorted[int(n * 0.95)] if sorted.size() > 0 else 0, "max_us": sorted[n - 1] if sorted.size() > 0 else 0}
+	print("camera route: cpu ", JSON.stringify(report["_cpu"]))
 	var file: FileAccess = FileAccess.open(_abs(_out).path_join("report.json"), FileAccess.WRITE)
 	file.store_string(JSON.stringify(report, "  "))
 	file.close()

@@ -30,6 +30,7 @@ var _pave_jobs: Dictionary = {}
 var _streets: Dictionary = {}
 ## Chunks live at boot whose paving or cover is unfinished: built at full speed under the startup card.
 var _boot_keys: Dictionary = {}
+var _boot_started_ms: int = 0
 
 
 func _ready() -> void:
@@ -76,7 +77,8 @@ func _rush(key: Vector2i, window: Vector4, centre: Vector2) -> bool:
 
 func _settle_boot(key: Vector2i) -> void:
 	if not _snow_jobs.has(key) and not _pave_jobs.has(key) and _boot_keys.erase(key) and _boot_keys.is_empty():
-		print("[Boot] ground paved and covered at %.1f s" % (Time.get_ticks_msec() / 1000.0))
+		print("[Boot] ground paved and covered in %.1f s (%.1f s into the session)" % [
+			(Time.get_ticks_msec() - _boot_started_ms) / 1000.0, Time.get_ticks_msec() / 1000.0])
 
 
 func _nearest(keys: Array, centre: Vector2) -> Vector2i:
@@ -101,6 +103,7 @@ func on_world_ready(context: WorldContext) -> void:
 			_index(chunk)
 	for key: Vector2i in _snow_jobs.keys() + _pave_jobs.keys():
 		_boot_keys[key] = true
+	_boot_started_ms = Time.get_ticks_msec()
 	BootLoadCapability.publish(self, self, &"has_boot_work")
 
 

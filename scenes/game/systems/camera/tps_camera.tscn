@@ -1,7 +1,6 @@
-[gd_scene load_steps=7 format=3 uid="uid://dputwp1am8vfu"]
+[gd_scene load_steps=6 format=3 uid="uid://dputwp1am8vfu"]
 
 [ext_resource type="Script" path="res://scripts/systems/camera/tps_camera.gd" id="1_tps"]
-[ext_resource type="Script" path="res://scripts/systems/camera/tps_interaction_framing.gd" id="2_interaction"]
 [ext_resource type="Script" path="res://scripts/systems/camera/painterly_atmosphere_pass.gd" id="3_atmosphere"]
 [ext_resource type="Shader" path="res://shaders/environment/painterly_distance_wash.gdshader" id="4_wash"]
 
@@ -18,9 +17,6 @@ flip_faces = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 3)
 fov = 70.0
 script = ExtResource("1_tps")
-
-[node name="InteractionFraming" type="Node" parent="."]
-script = ExtResource("2_interaction")
 
 [node name="PainterlyAtmosphere" type="MeshInstance3D" parent="."]
 position = Vector3(0, 0, -1)

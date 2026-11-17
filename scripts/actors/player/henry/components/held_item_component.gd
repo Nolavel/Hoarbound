@@ -339,6 +339,8 @@ func _show_hint(message: String = "") -> void:
 	elif _item_id == &"lighter":
 		action = "RMB · " + tr("LIGHTER_FLAME_ACTION")
 	var text := "%s\n%s" % [tr(item.display_name), message if message != "" else action]
+	## How to empty the hands again (X, QuickAccessComponent) and how to set it down (G).
+	text += "\n" + tr("HELD_PUT_AWAY_HINT")
 	if item.water_capacity_ml > 0:
 		text += "\n" + item.get_status_text()
 	_message_left = 3.0 if message != "" else 0.0

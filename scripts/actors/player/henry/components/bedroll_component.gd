@@ -18,8 +18,12 @@ const COLD_HINT_KEY: String = "BEDROLL_TOO_COLD"
 const UNROLL_S: float = 1.2
 const PLACE_DISTANCE: float = 1.3
 const MAX_PLACE_DISTANCE: float = 3.0
+## How near the laid mat C rolls it up.
+const PACK_REACH_M: float = 2.5
 const RAY_LENGTH: float = 6.0
 const MAX_SLOPE_DEG: float = 14.0
+## The mat lies on the floor Henry stands on, not on furniture: the stove top is 0.7 m up.
+const MAX_STEP_M: float = 0.3
 const BEDROLL_SIZE: Vector3 = Vector3(0.75, 0.005, 1.9)
 ## The placement ghost: the open bedroll itself, grey and see-through; reddish where it cannot lie.
 const VALID_COLOR: Color = Color(0.72, 0.74, 0.76, 0.4)
@@ -48,12 +52,14 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	## C shows the bedroll's ghost on the floor (or puts it away again); F lays it out there.
+	## C shows the bedroll's ghost on the floor (or puts it away, or rolls up the laid mat); F lays it out.
 	if event.is_action_pressed(LAY_ACTION) and not event.is_echo():
 		if is_placing():
 			cancel_placement()
 			get_viewport().set_input_as_handled()
 		elif can_use(ITEM_ID) and begin_placement():
+			get_viewport().set_input_as_handled()
+		elif pack_up_nearby():
 			get_viewport().set_input_as_handled()
 		return
 	if not is_placing():
@@ -185,8 +191,9 @@ func _raycast_placement() -> Dictionary:
 	facing = facing.normalized() if facing.length() > 0.01 else Vector3.FORWARD
 	var xf := Transform3D(Basis(Vector3.UP, atan2(facing.x, facing.z)), point + normal * 0.025)
 	var slope_ok: bool = normal.dot(Vector3.UP) >= cos(deg_to_rad(MAX_SLOPE_DEG))
-	var distance_ok: bool = body.global_position.distance_to(point) <= MAX_PLACE_DISTANCE
-	var height_ok: bool = absf(point.y - body.global_position.y) <= 0.65
+	var feet: Vector3 = _feet_of(body)
+	var distance_ok: bool = feet.distance_to(point) <= MAX_PLACE_DISTANCE
+	var height_ok: bool = absf(point.y - feet.y) <= MAX_STEP_M
 	var clearance := BoxShape3D.new()
 	clearance.size = Vector3(BEDROLL_SIZE.x * 0.94, 0.14, BEDROLL_SIZE.z * 0.94)
 	var shape_query := PhysicsShapeQueryParameters3D.new()
@@ -203,6 +210,15 @@ func _raycast_placement() -> Dictionary:
 	## A bedroll is for sleeping where it is warm: indoors, in a heated room.
 	var warm: bool = ThermalZone.is_warm_at(body.get_world_3d(), point + Vector3.UP * 0.3)
 	return {"transform": xf, "valid": slope_ok and distance_ok and height_ok and clear and warm, "cold": not warm}
+
+
+## Henry's soles from his capsule; his origin is the capsule centre, a metre above the floor.
+static func _feet_of(body: CharacterBody3D) -> Vector3:
+	for child: Node in body.get_children():
+		var col := child as CollisionShape3D
+		if col != null and col.shape is CapsuleShape3D and not col.disabled:
+			return body.global_transform * (col.position - Vector3.UP * (col.shape as CapsuleShape3D).height * 0.5)
+	return body.global_position
 
 
 func _front_transform() -> Transform3D:
@@ -230,6 +246,15 @@ func _prepare_hands() -> bool:
 	if not _can_free_hands():
 		return false
 	return HeldReleaseCapability.release_all(get_parent())
+
+
+## C beside the laid mat rolls it up again, the same as F on its Pack prompt.
+func pack_up_nearby() -> bool:
+	var body := get_parent() as Node3D
+	if not is_laid() or body == null or body.global_position.distance_to(_laid.global_position) > PACK_REACH_M:
+		return false
+	var pack := _laid.get_node_or_null(^"Pack") as ItemPickup
+	return pack != null and pack.pick_up()
 
 
 func is_laid() -> bool:

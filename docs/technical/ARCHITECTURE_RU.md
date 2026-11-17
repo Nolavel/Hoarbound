@@ -243,7 +243,7 @@ Interaction должен двигаться к pipeline с явными отве
 
 `Player intent -> Base camera target -> Context modifiers -> Collision / occlusion -> Presentation smoothing -> Final camera`
 
-Shoulder state, passage framing, interaction framing, auto-look и похожие механики должны становиться modifiers / inputs этого pipeline, а не независимыми системами, каждая из которых немного двигает камеру.
+Shoulder state, interaction framing и похожие механики — это modifiers / inputs этого pipeline, а не независимые системы, каждая из которых немного двигает камеру. Действующая TPS-камера — прямая (`docs/technical/TPS_CAMERA.md`); прежняя «ведомая» камера с passage framing и auto-look лежит в архиве `archive/tps_camera_guided/`.
 
 Несколько подсистем не должны независимо владеть финальным camera transform.
 

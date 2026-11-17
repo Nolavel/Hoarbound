@@ -2,7 +2,8 @@
 ## Runs every headless test suite under tests/systems and fails on the first
 ## suite that reports a failure. A suite that hangs is killed and counts as failed.
 ## The exit code is only one signal: a suite also fails on a script error, a
-## reported failed check, or an error with no pass line.
+## reported failed check, an error with no pass line, or no pass line at all (a silent suite is not green).
+## Each suite ends with one machine-readable line: HB_SUITE_RESULT: PASS|FAIL|KNOWN_FAIL <suite>.
 ## tools/ci/known_failing_suites.txt lists suites that are known to fail, one per
 ## line with its reason after a '#'. They are reported, not counted; one that
 ## passes fails the run, so the list never goes stale.
@@ -45,19 +46,24 @@ for suite in "${suites[@]}"; do
 	code=${PIPESTATUS[0]}
 	failed=0
 	if [ "$code" -ne 0 ] || grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|[0-9]+ FAILED|FAIL:" "$log" \
-		|| { grep -q "at: push_error" "$log" && ! grep -qE "passed|PASS" "$log"; }; then
+		|| ! grep -qE "passed|PASS" "$log"; then
 		failed=1
 	fi
 	if printf '%s\n' "$known" | grep -qx "$name"; then
 		if [ "$failed" -eq 1 ]; then
 			echo "KNOWN FAILING: $name (see tools/ci/known_failing_suites.txt)"
+			echo "HB_SUITE_RESULT: KNOWN_FAIL $name"
 		else
 			echo "FAILED: $name now passes; remove it from tools/ci/known_failing_suites.txt"
+			echo "HB_SUITE_RESULT: FAIL $name"
 			status=1
 		fi
 	elif [ "$failed" -eq 1 ]; then
 		echo "FAILED: $name (exit $code)"
+		echo "HB_SUITE_RESULT: FAIL $name"
 		status=1
+	else
+		echo "HB_SUITE_RESULT: PASS $name"
 	fi
 	rm -f "$log"
 done

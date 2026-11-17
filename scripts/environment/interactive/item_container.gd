@@ -53,6 +53,8 @@ func _ready() -> void:
 	_search = ContainerSearch.new()
 	_search.container = self
 	add_child(_search)
+	for opener: Opener in all_openers():
+		opener.search = _search
 	## Filled before it entered the tree (a house built off-tree): laid out now, when items can be measured.
 	if not items.is_empty():
 		_layout()
@@ -200,6 +202,23 @@ func all_openers() -> Array[Opener]:
 	return out
 
 
+## Its search (the second F on its open face).
+func get_search() -> ContainerSearch:
+	return _search
+
+
+## Whether its search is offered now: open, something inside, Henry near.
+func offers_search() -> bool:
+	return _search != null and _search.can_interact()
+
+
+## How far along an aim from `from` it meets its shelves; INF when it misses them.
+func aim_distance_to_shelves(from: Vector3, direction: Vector3) -> float:
+	var inverse: Transform3D = global_transform.affine_inverse()
+	var hit: Variant = shelves_box().grow(GAP_M).intersects_ray(inverse * from, inverse.basis * direction)
+	return from.distance_to(global_transform * (hit as Vector3)) if hit != null else INF
+
+
 ## The shelves' whole space, this node's space.
 func shelves_box() -> AABB:
 	var box := AABB()
@@ -216,6 +235,8 @@ func pick(screen: Vector2, camera: Camera3D) -> int:
 	for i: int in items.size():
 		var pickup: ItemPickup = items[i]["pickup"]
 		if not is_instance_valid(pickup) or not pickup.is_visible_in_tree():
+			continue
+		if not PackHandling.screen_bounds(pickup, camera).grow(2.0).has_point(screen):
 			continue
 		var outline: PackedVector2Array = PackHandling.screen_outline(pickup, camera)
 		if outline.size() < 3 or not Geometry2D.is_point_in_polygon(screen, outline):

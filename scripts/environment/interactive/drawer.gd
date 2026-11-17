@@ -45,6 +45,11 @@ func is_swinging() -> bool:
 	return _tween != null and _tween.is_running()
 
 
+## Its handle, aimed at to push it back in (null: the old aim rule, F shuts it from anywhere on it).
+func get_leaf() -> Node3D:
+	return handle
+
+
 func can_interact() -> bool:
 	return super() and slide != null and not is_swinging()
 

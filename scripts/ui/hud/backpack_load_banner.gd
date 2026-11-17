@@ -99,10 +99,11 @@ func _process(delta: float) -> void:
 	can_show = can_show and (_hub == null or not _hub.is_open())
 	can_show = can_show and (_quick == null or not _quick.is_open())
 	var camera_factor: float = 1.0
-	if can_show:
-		## Transform is from the deforming BackpackModel, including sway and skeletal motion.
-		## No billboard, camera-facing offset, or smoothing that could make it float.
+	if canvas != null:
+		## Transform is from the deforming BackpackModel, including sway and skeletal motion; set while it fades out
+		## too, else the gauge stays where it was in the world as Henry walks off. No billboard or smoothing.
 		_surface.global_transform = panel_transform(canvas)
+	if can_show:
 		var at: Vector3 = _surface.global_position
 		if camera.global_position.distance_to(at) < MIN_CAMERA_DISTANCE:
 			can_show = false

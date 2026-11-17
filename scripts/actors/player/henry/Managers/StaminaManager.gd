@@ -12,8 +12,14 @@ signal jump_performed()
 @export_group("Параметры стамины")
 @export var max_stamina: float = 100.0
 @export var stamina_deplete_rate: float = 5.0  # стамина в секунду при использовании
-@export var stamina_recover_rate: float = 3.0  # стамина в секунду при восстановлении
-@export var stamina_recover_delay: float = 5.0  # секунды до начала восстановления
+## Breath regained per second standing still once recovery is in full swing: 0 -> full in ~12 s.
+@export var stamina_recover_rate: float = 8.5
+## Seconds after the last exertion before breath starts coming back.
+@export var stamina_recover_delay: float = 1.0
+## Seconds over which recovery eases in after the delay, so it never starts with a jump.
+@export var stamina_recover_ease_s: float = 0.8
+## Once emptied, sprint stays off until breath is back to this share: no stutter at the bottom.
+@export_range(0.0, 1.0, 0.05) var exhausted_until_ratio: float = 0.35
 @export var min_stamina_for_action: float = 1.0  # минимум стамины для выполнения действия
 @export var jump_stamina_cost: float = 5.0  # 10% от максимальной стамины
 
@@ -27,6 +33,10 @@ var current_stamina: float = 1.0
 var stamina_recover_timer: float = 0.0
 var is_consuming_stamina: bool = false
 var was_depleted: bool = false
+## How fast breath comes back right now, set each physics frame by MovementController
+## from what Henry is doing (1 standing, less walking, 0 in the air), times his energy.
+var recovery_scale: float = 1.0
+var _exhausted: bool = false
 var _debug_label: Label = null
 
 func _ready() -> void:
@@ -69,21 +79,24 @@ func _update_stamina(delta: float) -> void:
 		# Проверяем истощение стамины
 		if current_stamina == 0.0 and not was_depleted:
 			was_depleted = true
+			_exhausted = true
 			stamina_depleted.emit()
 	else:
-		# Восстанавливаем стамину после задержки
+		## Breath comes back after a short pause, easing in, at a pace set by what Henry is doing.
 		if current_stamina < max_stamina:
 			stamina_recover_timer += delta
-			
-			if stamina_recover_timer >= stamina_recover_delay:
+			var ease: float = smoothstep(0.0, maxf(stamina_recover_ease_s, 0.001), stamina_recover_timer - stamina_recover_delay)
+			if ease > 0.0:
 				var was_zero = current_stamina == 0.0
-				current_stamina += stamina_recover_rate * delta
+				current_stamina += stamina_recover_rate * maxf(recovery_scale, 0.0) * ease * delta
 				current_stamina = min(current_stamina, max_stamina)
 				
 				# Сигнал о восстановлении стамины
 				if was_zero and current_stamina > 0.0:
 					was_depleted = false
 					stamina_recovered.emit()
+	if _exhausted and current_stamina >= max_stamina * exhausted_until_ratio:
+		_exhausted = false
 	
 	# Уведомления об изменениях
 	if abs(current_stamina - previous_stamina) > 0.001:
@@ -130,9 +143,14 @@ func stop_consuming_stamina() -> void:
 func has_stamina_for_action() -> bool:
 	return current_stamina >= min_stamina_for_action
 
-## Проверить, разрешен ли спринт
+## Проверить, разрешен ли спринт: not while catching breath after running dry.
 func is_sprint_allowed() -> bool:
-	return current_stamina > 0.0
+	return current_stamina > 0.0 and not _exhausted
+
+
+## True from running dry until breath is back to `exhausted_until_ratio`.
+func is_exhausted() -> bool:
+	return _exhausted
 
 ## Получить текущую стамину (0.0 - 1.0)
 func get_stamina_ratio() -> float:
@@ -156,7 +174,8 @@ func restore_stamina(amount: float = -1.0) -> void:
 	if was_depleted and current_stamina > 0.0:
 		was_depleted = false
 		stamina_recovered.emit()
-	
+	if current_stamina >= max_stamina * exhausted_until_ratio:
+		_exhausted = false
 	stamina_changed.emit(current_stamina, max_stamina)
 
 ## Мгновенно потратить стамину
@@ -167,8 +186,9 @@ func consume_stamina(amount: float) -> bool:
 		
 		if current_stamina == 0.0 and not was_depleted:
 			was_depleted = true
+			_exhausted = true
 			stamina_depleted.emit()
-		
+		stamina_recover_timer = 0.0
 		stamina_changed.emit(current_stamina, max_stamina)
 		return true
 	
@@ -197,4 +217,5 @@ func set_stamina_parameters(
 
 ## Проверить, восстанавливается ли стамина сейчас
 func is_recovering() -> bool:
-	return not is_consuming_stamina and current_stamina < max_stamina and stamina_recover_timer >= stamina_recover_delay
+	return not is_consuming_stamina and current_stamina < max_stamina and stamina_recover_timer >= stamina_recover_delay \
+		and recovery_scale > 0.0

@@ -56,6 +56,7 @@ func _run() -> void:
 	await _check_tap_pack_route()
 	await _check_searchlight_pack_and_hand_route()
 	await _check_tap_pocket_route()
+	await _check_hold_unholdable_stores()
 	await _check_hold_threshold_and_hands()
 	await _check_hold_cancel()
 	await _check_swap_old_held()
@@ -114,6 +115,18 @@ func _check_tap_pocket_route() -> void:
 	var destination: StringName = _last_stored()[1] if not _last_stored().is_empty() else &""
 	_check(destination != PlayerHubComponent.PACK_DESTINATION and destination != &"", "the hammer was not routed to a pocket")
 	_check(_pocket_has(&"hammer"), "the hammer did not land in its pocket")
+	await _reset()
+
+
+## Owner smoke 2026-11-12: holding F on an unlit flare refused with a cross; it now goes to its pocket.
+func _check_hold_unholdable_stores() -> void:
+	var flare: ItemPickup = await _spawn_ahead(&"road_flare")
+	_ic.try_interact()
+	_ic.hold_interact(0.2)
+	_ic.hold_interact(0.6)
+	await _frames(70)
+	_check(not _results.has(&"refused_hands"), "holding F on a flare refused instead of taking it")
+	_check(_inventory.get_count(&"road_flare") == 1 or _pocket_has(&"road_flare"), "holding F on a flare did not take it")
 	await _reset()
 
 

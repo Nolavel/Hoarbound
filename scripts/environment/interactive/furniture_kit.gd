@@ -83,6 +83,12 @@ static func dresser(parent: Node3D, piece_name: String, id: StringName, drawer_i
 		handle.name = "Handle"
 		handle.position = Vector3(0.0, -0.02, 0.27)
 		slide.add_child(handle)
+		## Its front and bar move under the handle: aimed at, they are the drawer's leaf (Opener.get_leaf).
+		for front: Node in slide.get_children().slice(-3, -1):
+			var piece_mesh := front as MeshInstance3D
+			slide.remove_child(piece_mesh)
+			piece_mesh.position -= handle.position
+			handle.add_child(piece_mesh)
 		var drawer := Drawer.new()
 		drawer.name = "Pull" + String(row[0]).capitalize()
 		drawer.slide = slide

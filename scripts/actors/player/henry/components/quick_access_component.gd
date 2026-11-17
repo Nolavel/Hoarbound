@@ -14,6 +14,8 @@ const USE_ACTION: StringName = &"quick_use"
 ## Existing LMB action. While an item is physically in hand it becomes the
 ## natural held-item Use trigger; Hub still owns raw LMB for drag/drop.
 const HELD_USE_ACTION: StringName = &"fire"
+## X: everything in Henry's hands goes back where it came from (a burning flare is dropped with G).
+const PUT_AWAY_ACTION: StringName = &"put_away_held"
 const ROAD_FLARE_ID: StringName = &"road_flare"
 const DIRECT_ACTIONS: Array[StringName] = [&"select item slot 1", &"select item slot 2",
 	&"select item slot 3", &"select item slot 4"]
@@ -40,6 +42,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		select(_index - 1)
 	elif _pressed(event, USE_ACTION):
 		use_selected()
+	elif _pressed(event, PUT_AWAY_ACTION):
+		if put_away_held():
+			get_viewport().set_input_as_handled()
 	elif _pressed(event, HELD_USE_ACTION):
 		if _use_held_only():
 			get_viewport().set_input_as_handled()
@@ -108,6 +113,16 @@ func use_selected() -> bool:
 	else:
 		_show_readout(zone)
 	return used
+
+
+## Empties Henry's hands back into storage; false when nothing was held or a holder cannot let go.
+func put_away_held() -> bool:
+	var parent: Node = get_parent()
+	if parent == null or HeldReleaseCapability.holders(parent).is_empty():
+		return false
+	var ok: bool = HeldReleaseCapability.release_all(parent)
+	_hide_readout()
+	return ok
 
 
 ## Draws one pocket into the hand. An item shown from another coat pocket trades places with
@@ -252,7 +267,7 @@ func _show_readout(zone: Dictionary) -> void:
 	var held: ItemResource = ItemCatalog.get_item(zone["item_id"]) if zone["item_id"] != &"" else null
 	var message := "%s: %s" % [tr(zone["name"]), tr(held.display_name) if held != null else tr("HUB_EMPTY")]
 	if zone["item_id"] == ROAD_FLARE_ID and not _flare_is_burning():
-		message += "\n%s  Use selected item — light flare" % _action_label(USE_ACTION)
+		message += "\n%s  %s" % [_action_label(USE_ACTION), tr("FLARE_LIGHT_ACTION")]
 	_readout_left = READOUT_TIME
 	readout_changed.emit(message)
 
@@ -260,12 +275,9 @@ func _show_readout(zone: Dictionary) -> void:
 func _show_held_flare_readout(burning: bool) -> void:
 	if not is_inside_tree():
 		return
-	var state := "burning" if burning else "unlit"
-	var verb := "drop flare" if burning else "light flare"
 	_readout_left = READOUT_TIME
-	readout_changed.emit("Road flare — %s\n%s  Use held item — %s" % [
-		state, _action_label(HELD_USE_ACTION), verb
-	])
+	readout_changed.emit("%s\n%s  %s" % [tr("FLARE_BURNING" if burning else "FLARE_UNLIT"),
+		_action_label(HELD_USE_ACTION), tr("FLARE_DROP_ACTION" if burning else "FLARE_LIGHT_ACTION")])
 
 
 func _hide_readout() -> void:

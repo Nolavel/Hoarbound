@@ -1,0 +1,6 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://shaders/items/garment_frost_overlay.gdshader" id="1_frost"]
+
+[resource]
+shader = ExtResource("1_frost")
