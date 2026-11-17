@@ -7,7 +7,10 @@ extends SceneTree
 ##
 ## Run: xvfb-run -s "-screen 0 3840x2160x24" godot --path . --resolution 3840x2160
 ##   --position 0,0 --rendering-driver vulkan --rendering-method forward_plus
-##   --audio-driver Dummy --fixed-fps 30 --script res://tools/runtime/capture_stretch_scale.gd -- <out_dir>
+##   --audio-driver Dummy --fixed-fps 30 --script res://tools/runtime/capture_native_ui_final.gd
+##   -- <out_dir> canvas_items hud 0.77 1920x1080 clarity
+## Optional clarity mode captures production/native A/B in ONE frozen world.
+## Only the capture harness overrides scaling; no production setting is saved.
 
 const SCENE: String = "res://scenes/world/key_west/key_west_reality.tscn"
 const BEARINGS_SCRIPT: GDScript = preload("res://scripts/world/first_exit_bearings.gd")
@@ -36,6 +39,11 @@ var _case_mode: String = "viewport"
 var _case_group: String = "hud"
 var _case_size: Vector2i = BASE
 var _case_scale: float = 0.77
+var _clarity: bool = false
+var _variant: String = "production"
+var _native_override: bool = false
+var _project_stretch: String = ""
+var _production_scale: float = 1.0
 
 
 
@@ -43,7 +51,7 @@ func _initialize() -> void:
 	# A/B isolation: EVERY mode, resolution, and 3D scale gets a NEW Godot process.
 	# No process begins at 4K and then shrinks its viewport for subsequent images.
 	var args := OS.get_cmdline_user_args()
-	if args.size() != 5:
+	if args.size() != 5 and args.size() != 6:
 		push_error("Usage: -- <out_dir> <viewport|canvas_items> <hud|interior|inventory> <scale3d> <WIDTHxHEIGHT>")
 		quit(2)
 		return
@@ -54,6 +62,8 @@ func _initialize() -> void:
 	_case_mode = args[1]
 	_case_group = args[2]
 	_case_scale = float(args[3])
+	_clarity = args.size() == 6 and args[5] == "clarity"
+	_project_stretch = String(ProjectSettings.get_setting("display/window/stretch/mode", "disabled"))
 	var dimensions := args[4].split("x")
 	if dimensions.size() != 2:
 		push_error("Bad resolution: " + args[4])
@@ -71,6 +81,12 @@ func _initialize() -> void:
 	_project_aspect = root.content_scale_aspect
 	_project_3d_mode = root.scaling_3d_mode
 	_project_3d_scale = root.scaling_3d_scale
+	if _clarity:
+		seed(727)
+		if _case_mode != "canvas_items" or RenderingServer.get_current_rendering_method() != "forward_plus":
+			push_error("Clarity evidence requires native canvas_items and Forward+; no renderer fallback")
+			quit(2)
+			return
 	# Set before world instantiation; subsequent shots NEVER toggle stretch mode.
 	root.content_scale_size = BASE
 	root.content_scale_mode = Window.CONTENT_SCALE_MODE_VIEWPORT if _case_mode == "viewport" else Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
@@ -113,8 +129,33 @@ func _run() -> void:
 	# Let rendering settle on the requested root viewport after any camera/UI move.
 	for _i: int in 8:
 		await process_frame
+	if _clarity:
+		# Stop particles, animation and weather between variants, including delta-independent callbacks.
+		_production_scale = root.scaling_3d_scale
+		paused = true
+		await _clarity_pair()
+		var good: bool = _shots.size() == (4 if _case_group == "hud" and _case_size == BASE else 2)
+		for shot: Dictionary in _shots:
+			good = good and bool(shot["ok"])
+		_finish(0 if good and _notes.is_empty() else 1)
+		return
 	await _shot(_case_group, _case_mode, _case_size, _case_scale)
 	_finish(0 if _shots.size() == 1 and bool(_shots[0]["ok"]) else 1)
+
+
+func _clarity_pair() -> void:
+	var original_aa: Viewport.ScreenSpaceAA = root.screen_space_aa
+	for name: String in ["A_production", "B_native"]:
+		_variant = name
+		_native_override = name == "B_native"
+		await _shot(_case_group, _case_mode, _case_size, _case_scale)
+	if _case_group == "hud" and _case_size == BASE:
+		root.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+		for name: String in ["C_production_no_fxaa", "D_native_no_fxaa"]:
+			_variant = name
+			_native_override = name == "D_native_no_fxaa"
+			await _shot(_case_group, _case_mode, _case_size, _case_scale)
+	root.screen_space_aa = original_aa
 
 
 func _interior(world: Node) -> void:
@@ -221,6 +262,8 @@ func _shot(group: String, mode_name: String, size: Vector2i, scale3d: float) -> 
 	for flag: String in _ui_flags():
 		ui.append(flag)
 	var row := {
+		"variant": _variant,
+		"quality": String(GraphicsQuality.current_quality()),
 		"group": group,
 		"mode": mode_name,
 		"requested": [size.x, size.y],
@@ -232,6 +275,11 @@ func _shot(group: String, mode_name: String, size: Vector2i, scale3d: float) -> 
 		"scale_mode": int(root.content_scale_mode),
 		"scale3d_mode": int(root.scaling_3d_mode),
 		"scale3d": root.scaling_3d_scale,
+		"estimated_3d_size": [int(floor(float(internal_size.x) * root.scaling_3d_scale)), int(floor(float(internal_size.y) * root.scaling_3d_scale))],
+		"screen_space_aa": int(root.screen_space_aa),
+		"msaa_3d": int(root.msaa_3d),
+		"taa": root.use_taa,
+		"fsr_sharpness": root.fsr_sharpness,
 		"estimated_3d_pixels": float(internal_size.x * internal_size.y) * root.scaling_3d_scale * root.scaling_3d_scale,
 		"budget_3d_pixels": float(BASE.x * BASE.y) * scale3d * scale3d,
 		"fov": (_view if _view != null else _camera).fov,
@@ -275,6 +323,11 @@ func _apply_window(size: Vector2i, mode_name: String, scale3d: float) -> bool:
 		DisplayServer.window_set_size(size)
 		DisplayServer.window_set_position(Vector2i.ZERO)
 		await process_frame
+	if _clarity:
+		# Resolve the production policy after resize, then override only 3D scale for B/D.
+		root.scaling_3d_scale = 1.0 if _native_override else _production_scale
+		for _i: int in 4:
+			await process_frame
 	return DisplayServer.window_get_size() == size
 
 
@@ -300,6 +353,8 @@ func _grab_presented(path: String, size: Vector2i) -> bool:
 
 func _shot_path(group: String, mode_name: String, size: Vector2i, scale3d: float) -> String:
 	var name := "%dx%d.png" % [size.x, size.y]
+	if _clarity:
+		return _out.path_join(_variant).path_join(name)
 	if group == "scale3d":
 		name = "%dx%d_s%03d.png" % [size.x, size.y, int(round(scale3d * 100.0))]
 		return _out.path_join("scale3d").path_join(name)
@@ -504,7 +559,9 @@ func _finish(code: int) -> void:
 		public_shots.append(_public_row(shot))
 	var report := {
 		"base": [BASE.x, BASE.y],
-		"project_stretch": "viewport",
+		"project_stretch": _project_stretch,
+		"clarity": _clarity,
+		"frozen_scene": _clarity and paused,
 		"case_mode": _case_mode,
 		"case_group": _case_group,
 		"case_size": [_case_size.x, _case_size.y],
@@ -527,3 +584,4 @@ func _finish(code: int) -> void:
 		file.close()
 	print("STRETCH_DONE passed=%s notes=%s" % [code == 0, " | ".join(_notes)])
 	quit(code)
+
