@@ -129,6 +129,23 @@ A change is done when: the project imports clean, `tools/ci/render.sh` produces 
 non-black frame of the affected scene, no new errors appear in the boot log, and
 `CHANGELOG.md` has an entry.
 
+## Process skills (mandatory when installed)
+
+When the superpowers and mattpocock-skills plugins are available, Claude loads the matching skill
+with the Skill tool **before acting**. Following the method from memory does not count:
+
+| Situation | Skill |
+|---|---|
+| Any bug, failing test or unexpected behaviour | `superpowers:systematic-debugging` |
+| Any fix or new behaviour (test fails on the old code first) | `superpowers:test-driven-development` |
+| Before saying "done", "fixed" or "passing", or before a commit or PR | `superpowers:verification-before-completion` |
+| A new feature or design with open choices | `superpowers:brainstorming` |
+| The owner asks to stress-test a plan ("grill me") | `mattpocock-skills:grilling` |
+| Reviewing a diff | `hoarbound-godot-studio` (project skill) |
+
+If a skill is not installed in the session, say so once and follow its method by hand.
+This charter and `AGENTS.md` win over any skill where they disagree.
+
 ## Working method (bugs and visuals)
 
 1. **Measure before fixing.** Reproduce the defect and capture evidence first:
