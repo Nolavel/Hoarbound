@@ -9,7 +9,7 @@ varying vec3 v_frost_pos;
 varying vec3 v_frost_normal;
 
 void vertex() {
-	v_frost_pos = VERTEX;
+	v_frost_pos = hfn_garment_frost_pos(VERTEX, CUSTOM0);
 	v_frost_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 

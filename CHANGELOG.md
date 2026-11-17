@@ -6,6 +6,24 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed (rime slid over Henry's clothes as he moved, #42 record 02, item 10)
+
+- **Cause:** skinning runs before `vertex()`, so a skinned `VERTEX` is already posed. Rime noise sampled there followed the pose, not the cloth.
+  - **Proof:** in a bone-locked view of the forearm, the plaid stayed put while the rime blotches changed completely between two arm poses.
+- **Fix:** each skinned mesh Henry wears is rebuilt once with its rest-pose positions in `CUSTOM0`, which skinning leaves untouched; the rime and the brow rime sample there. The same technique is Unreal's PreSkinnedLocalPosition.
+  - Materials, surface names and blend shapes are kept. Rigid gear keeps model space.
+  - A UV-based attempt was rejected: overlapping and mirrored islands gave the wrong scale, and several meshes have no UVs.
+- **After, same rig:** the body is turned 60° about the vertical, so the up-facing share is unchanged. The forearm's mean difference between poses went 8.1 → 3.7, and changed pixels 3.9 % → 1.2 %; the blotches stay on the same weave.
+- **Test:** `test_frost_rest_pose`. On the old code no mesh is tied to the cloth.
+
+### Fixed (CI: two camera-framing suites red on `main` after the canvas_items change)
+
+- `test_container_kinds` and `test_tps_camera_direct_spaces` failed on `main` itself (`17da04fb`):
+  - `floor_cabinet: the view left the owner's framing by 0.70 m`;
+  - `crawl: his eyes out of the frame in 33 frames`.
+- **Cause:** headless resets the window to 64×64 after the first frame, so `root.size = 1920×1080` did not hold. With aspect "expand" the view turned square (1920×1920).
+- **Fix:** the suites set `content_scale_aspect = KEEP`, which holds the 1920×1080 base whatever the window. Both pass.
+
 ### Added (performance: see-through warm-up under the startup card, #173)
 
 - **Measured on lavapipe, same view:** the first time occluders between the camera and Henry turn see-through (`transparency = 0.7`), 15–16 render pipelines compile. The frame stalls for 5.2 s, or 22.8 s when the shader is not yet in the disk cache. The second time nothing compiles.

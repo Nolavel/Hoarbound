@@ -69,7 +69,7 @@ void vertex() {
 	stylized_noise_pos = shadow_noise_in_model_space ? VERTEX : (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	stylized_world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 #ifndef HFN_STATIC_WORLD
-	stylized_model_pos = VERTEX;
+	stylized_model_pos = hfn_garment_frost_pos(VERTEX, CUSTOM0);
 #endif
 }
 
