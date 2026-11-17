@@ -9,6 +9,8 @@ const SNOW_COLOUR := Color(0.92, 0.94, 0.97)
 ## Authored worn lighter: real scale, base at y = 0, burner nozzle above LIGHTER_NOZZLE.
 const LIGHTER_SCENE: PackedScene = preload("res://assets/items/lighter/Lighter_game_ready.glb")
 const LIGHTER_NOZZLE := Vector3(-0.0066, 0.0778, 0.0)
+## Authored Emberline road flare (tools/blender/build_road_flare.py): body along +Y, vents at the top.
+const ROAD_FLARE_SCENE: PackedScene = preload("res://assets/items/road_flare/RoadFlare.glb")
 ## Authored SPoV canned meat (tools/blender/build_spov_can.py): 10.4 x 6.1 x 7.1 cm, base at
 ## y = 0, length along X, label front towards +Z, pull ring on the lid at the +X end.
 const SPOV_CAN_SCENE: PackedScene = preload("res://assets/items/spov_can/SPoV_Can.glb")
@@ -55,7 +57,7 @@ static func draws(item_id: StringName) -> bool:
 	var id: String = String(item_id)
 	return id.begins_with("water_flask") or id.begins_with("tinned_") or id.begins_with("spov_can") \
 		or id.contains("mug") or item_id in [&"tinder", &"knife", &"work_gloves", &"axe", &"hammer", &"empty_tin",
-		&"frying_pan", &"warm_water", &"snow_handful", &"stone", &"lighter"]
+		&"frying_pan", &"warm_water", &"snow_handful", &"stone", &"lighter", &"road_flare"]
 
 
 static func make(item_id: StringName, _item_override: ItemResource = null) -> Node3D:
@@ -172,6 +174,8 @@ static func make(item_id: StringName, _item_override: ItemResource = null) -> No
 		_part(holder, knob, Vector3(0.022, 0.034, -0.012), Color(0.38, 0.37, 0.35))
 	elif item_id == &"lighter":
 		holder.add_child(LIGHTER_SCENE.instantiate())
+	elif item_id == &"road_flare":
+		holder.add_child(ROAD_FLARE_SCENE.instantiate())
 	elif item_id in [&"spov_can", &"spov_can_open", &"spov_can_empty"]:
 		var can: Node3D = SPOV_CAN_SCENE.instantiate()
 		holder.add_child(can)

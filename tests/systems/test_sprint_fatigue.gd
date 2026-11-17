@@ -1,7 +1,7 @@
 extends SceneTree
 
-## The default fatigue tuning keeps the old sprint; with the proposed values
-## exhausted Henry builds up slower and winded his top speed fades.
+## Default tuning: a winded sprint fades to a laboured jog (adopted 2026-11-13); the exhausted
+## build-up is still the old one. With the proposed values exhausted Henry builds up slower.
 ## Run: godot --headless --script tests/systems/test_sprint_fatigue.gd
 
 ## Proposed tuning awaiting the author: exhausted build-up factor, winded
@@ -37,7 +37,7 @@ func _run() -> void:
 	_report("default", rested, exhausted, winded)
 	_check(absf(rested[1] - full) < 0.1, "rested sprint does not reach %.2f m/s" % full)
 	_check(absf(exhausted[0] - rested[0]) < 0.05, "the default tuning changes the exhausted build-up")
-	_check(absf(winded[1] - full) < 0.1, "the default tuning slows a winded sprint")
+	_check(winded[1] < full * 0.8 and winded[1] > movement.walk_speed * 1.2, "the default winded sprint is not a laboured jog")
 
 	movement.exhausted_sprint_ramp_factor = PROPOSED[0]
 	movement.winded_stamina_ratio = PROPOSED[1]

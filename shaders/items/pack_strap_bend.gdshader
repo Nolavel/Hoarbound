@@ -26,8 +26,12 @@ uniform float texture_mean = 0.0055;
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D metal_rough_texture : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D normal_texture : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+#include "res://shaders/environment/materials/garment_frost.gdshaderinc"
+varying vec3 v_frost_pos;
+varying vec3 v_frost_normal;
 
 void vertex() {
+	v_frost_pos = VERTEX + vec3(UV2.x * 3.7, 0.0, 0.0);
 	int side = UV2.x > 0.5 ? 1 : 0;
 	int base = side * MAX_FRAMES;
 	int count = side == 0 ? frame_count_0 : frame_count_1;
@@ -60,6 +64,7 @@ void vertex() {
 	NORMAL = normalize(across * n.x + out_dir * n.y + along * n.z);
 	TANGENT = normalize(across * tg.x + out_dir * tg.y + along * tg.z);
 	BINORMAL = normalize(across * bn.x + out_dir * bn.y + along * bn.z);
+	v_frost_normal = NORMAL;
 	if (count < 2) {
 		VERTEX = vec3(0.0, -1000.0, 0.0);
 	}
@@ -68,8 +73,12 @@ void vertex() {
 void fragment() {
 	vec4 mr = texture(metal_rough_texture, UV);
 	vec3 detail = texture(albedo_texture, UV).rgb / texture_mean;
-	ALBEDO = clamp(strap_colour * mix(vec3(1.0), detail, 0.6), 0.0, 1.0);
-	ROUGHNESS = mr.g;
-	METALLIC = mr.b;
+	vec3 strap_albedo = clamp(strap_colour * mix(vec3(1.0), detail, 0.6), 0.0, 1.0);
+	float strap_rough = mr.g;
+	float strap_metal = mr.b;
+	hfn_apply_garment_frost(strap_albedo, strap_rough, strap_metal, v_frost_pos, v_frost_normal, 0.0);
+	ALBEDO = strap_albedo;
+	ROUGHNESS = strap_rough;
+	METALLIC = strap_metal;
 	NORMAL_MAP = texture(normal_texture, UV).rgb;
 }

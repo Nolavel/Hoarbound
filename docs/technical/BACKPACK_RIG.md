@@ -87,7 +87,7 @@ mirrored onto the `_r` bones. Each anchor's Y axis is the coat's outward normal 
 | Side-pocket flask | the olive-drab thermos (`Thermos.glb`, 7.5 cm across, 24 cm tall, no printed mark) stands in the left pocket; its lid hinges on the -X side of the collar | — |
 | Frying pan on the left rod | `pack_carabiner_left` → carabiner 0. The pan hangs by its oval eye (`PAN_EYE` (0.25, 0.045, 0) in its model, 5 mm sag), handle up, the rod through the eye along the carabiner's X. It is a hinge like the mug | eye on the rod, pan never in the pack |
 | Mug on the rod | the handle's upper bend (2.2 cm below the rim, 1.2 cm inside its outer edge) sits on the rod at the ring's bottom; the hole (mug Z) runs along the rod; hung on a pin it turns about the hole until its centre of mass (area-weighted shell centroid of its mesh) is straight under the rod, so it hangs tilted, rim outward | centre of mass plumb under the rod |
-| Arm off the strap | `ArmStrapClearance` (worn only) treats the sleeve as a capsule round the upper arm, its radius the median distance of the jacket's upper-arm vertices from the bone. Strap points from the last drawn frames that the capsule meets (beyond the shoulder joint's first 30%) turn the arm at the shoulder by asin(overlap / lever), applied at once and easing back at 1.5 rad/s, capped at 25° | the sleeve never swallows the strap under the arm |
+| Arm off the strap | `ArmStrapClearance` (worn only) treats the sleeve as a capsule round the upper arm, its radius the lower quartile of the jacket's upper-arm vertex distances from the bone. Strap points from the last drawn frames that the capsule meets (beyond the shoulder joint's first 30%) turn the arm at the shoulder by asin(deepest overlap / lever), capped at 8°, out at 3 rad/s and back at 1 rad/s. The push direction is the depth-weighted sum over every point met, and the turn's axis eases toward it at 6/s: an axis rebuilt from the single deepest point each frame swung the arm and made the hands twitch while walking (`test_arm_strap_smooth`) | the sleeve never swallows the strap under the arm; the hands move as smoothly as the walk clip |
 | Clipped item contact | `PendulumHang` leans what hangs off the pack instead of through it: signed distance to the body (box rounded 0.06), each pocket's cloth as placed this frame, and the tool handles as vertical capsules from their bottom to the rim; contact points one per 2 cm cell, each the vertex nearest its cell's mean (vertex clustering: no corner gaps, ≤ 1.45 cm from any vertex on the mug); a 6 mm margin (a 1.4 cm handle dips ~5 mm between points); a hanger counts every other point of what hangs from it; inelastic, with friction (half the swing's rate kept per touching frame) | never inside the pack or the tools |
 | Mug hinge | the mug only turns about the rod (`hinge_axis`). Outside the obstacle last frame (within the margin counts): it stops where its own swing meets it (conservative advancement, bisection along the frame's swing) and goes no deeper than it was or half the 1.5 mm slop; deeper than the slop, it backs out the way it came, at most 0.02 rad a frame (a grazing contact needs degrees per mm, so it never jumps). Started inside (the pack moved into it): Newton steps on the deepest point's depth (position-based contact) find a clear turn, bisection backs it off to the least one, within its 90° limit; wedged, the least-deep turn tried. Only points within 6 cm of the obstacle join after the first pass | hole along the rod always; no frame-to-frame chatter in the held, tipped pack |
 | Contents refresh | `PackRig._refresh_contents` redoes only the outside places whose item changed (`remove_slot_item`, `unhang_item`); unchanged ones keep their node, pose and freeze | no flicker on a change |
@@ -151,12 +151,17 @@ left inside its item (mirroring the shader's wrap).
 ## Backpack load banner (`BackpackLoadBanner`)
 
 The world-owned `GameplayUI/BackpackLoadBanner` renders the existing
-`BG_frame.gdshader` in a transparent 2D SubViewport on a camera-facing Sprite3D.
-Its 3D anchor is the deformed canvas handle (`BackpackModel.get_load_anchor()`),
-not a Control node under Henry. The bar displays `InventoryComponent.get_total_weight()`
-relative to `max_carry_weight`; this is *carried load* (pack, pockets, Kenny and hands),
-not the pack's geometric volume fill. `weight_changed` and equipment slot changes
-trigger a 4.2-second reveal; continuous presentation follows the
-moving handle with damping. The banner yields to Quick Access, the Hub and
-very tight TPS camera compositions. The 2D fill shader receives a separate
-fraction parameter so the gradient background's `reveal` remains an entrance effect.
+`BG_frame.gdshader` in a transparent 2D SubViewport, but its Sprite3D is **not a
+billboard**. It is a ~22 cm × 4.8 cm panel attached to the outer flat cloth of
+`BackpackModel` at pack-space (0, 0.34, 0.22), offset 6 mm from the cloth.
+The transform comes directly from the model's `canvas_point()` and current
+`global_transform`, including animation/sway: no camera-facing offsets or lag.
+It is one-sided and depth-tested; it hides from edge/front views and tight TPS
+compositions. A worn pack only: Hub, Quick Access and pack-down suppress it.
+The bar displays `InventoryComponent.get_total_weight()` relative to
+`max_carry_weight` (pack, pockets, Kenny and hands), not geometric fill.
+A weight/equipment change triggers a 4.2 s reveal. Its SubViewport updates
+**once on data changes** (`UPDATE_ONCE`), not every frame; sprite modulate
+animates the fade. The existing fill shader still draws the weight fraction.
+Spatial checks: `test_backpack_load_banner.gd`; render fixture:
+`tools/runtime/capture_backpack_load_banner.gd`.

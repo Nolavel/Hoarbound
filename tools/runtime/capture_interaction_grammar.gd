@@ -23,7 +23,6 @@ var _interact: InteractComponent
 var _caption: Label
 var _status: Label
 var _report: Array[String] = []
-var _max_pickup_weight: float = 0.0
 var _segment: String = ""
 
 
@@ -40,7 +39,6 @@ func _run() -> void:
 	await _fenced_tin()
 	for line: String in _report:
 		print("[InteractionGrammarCapture] " + line)
-	print("[InteractionGrammarCapture] max shoulder override weight in pickup-only segments 1, 3, 4: %.4f" % _max_pickup_weight)
 	quit(0)
 
 
@@ -122,12 +120,9 @@ func _stove_wins_f() -> void:
 	_report.append("stove under view: world=%s pickup=%s pickup_actionable=%s" % [
 		_name(_interact.get_world_target()), _name(_interact.get_pickup_target()), _interact.is_pickup_actionable()])
 	_segment = "2  View leaves the stove: prompt closes, [F] returns on the tin"
-	## The stove's own framing fades out here; that is world framing, so it is not counted.
-	var fade_start: float = _camera._shoulder.get_interaction_weight()
 	for step: int in range(FPS * 3):
 		_aim_at(feed.focus_anchor.global_position.lerp(tin.get_focus_point(_player.global_position), minf(1.0, float(step) / float(FPS))))
 		await _frame(false)
-	_report.append("stove framing weight %.3f faded to %.3f after the view left it" % [fade_start, _camera._shoulder.get_interaction_weight()])
 	_report.append("tin under view: world=%s pickup=%s pickup_actionable=%s" % [
 		_name(_interact.get_world_target()), _name(_interact.get_pickup_target()), _interact.is_pickup_actionable()])
 	tin.queue_free()
@@ -199,14 +194,11 @@ func _aim_at(point: Vector3) -> void:
 
 func _frame(pickup_segment: bool) -> void:
 	await process_frame
-	if pickup_segment and _interact.get_world_target() == null:
-		_max_pickup_weight = maxf(_max_pickup_weight, _camera._shoulder.get_interaction_weight())
 	_caption.text = _segment
-	_status.text = "pickup: %s   [F] shown: %s   committed: %s\nworld: %s   central prompt: %s\nshoulder override weight: %.3f" % [
+	_status.text = "pickup: %s   [F] shown: %s   committed: %s\nworld: %s   central prompt: %s" % [
 		_name(_interact.get_pickup_target()), _interact.is_pickup_actionable() or _interact.get_committed_target() != null,
 		_name(_interact.get_committed_target()), _name(_interact.get_world_target()),
-		_interact.get_world_target() != null and _interact.get_world_target().prompt_shown,
-		_camera._shoulder.get_interaction_weight()]
+		_interact.get_world_target() != null and _interact.get_world_target().prompt_shown]
 
 
 func _seconds(seconds: float) -> void:

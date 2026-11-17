@@ -6,6 +6,386 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (the load gauge sits on the pack, #42 record 02, item 4: Codex's version, owner's choice)
+
+- Codex's `bc2dac2a` is taken over Claude's badge (reverted in `3a98e944`):
+  - the gauge lies on the real exterior canvas through `BackpackModel.canvas_point()`; it is no billboard, has no camera-facing offset and no smoothing;
+  - it shows only from behind;
+  - its SubViewport redraws only when the value changes, and nothing runs while it is dormant.
+  - Tests: `test_backpack_load_banner`; capture: `capture_backpack_load_banner.gd`.
+- **Claude's fix on top:** the gauge's transform is now set every frame while the pack is worn, also during the fade-out. It used to stop following during the fade and stood where it was in the world as Henry walked off.
+
+### Fixed (rime slid over Henry's clothes as he moved, #42 record 02, item 10)
+
+- **Cause:** skinning runs before `vertex()`, so a skinned `VERTEX` is already posed. Rime noise sampled there followed the pose, not the cloth.
+  - **Proof:** in a bone-locked view of the forearm, the plaid stayed put while the rime blotches changed completely between two arm poses.
+- **Fix:** each skinned mesh Henry wears is rebuilt once with its rest-pose positions in `CUSTOM0`, which skinning leaves untouched; the rime and the brow rime sample there. The same technique is Unreal's PreSkinnedLocalPosition.
+  - Materials, surface names and blend shapes are kept. Rigid gear keeps model space.
+  - A UV-based attempt was rejected: overlapping and mirrored islands gave the wrong scale, and several meshes have no UVs.
+- **After, same rig:** the body is turned 60° about the vertical, so the up-facing share is unchanged. The forearm's mean difference between poses went 8.1 → 3.7, and changed pixels 3.9 % → 1.2 %; the blotches stay on the same weave.
+- **Test:** `test_frost_rest_pose`. On the old code no mesh is tied to the cloth.
+
+### Fixed (CI: two camera-framing suites red on `main` after the canvas_items change)
+
+- `test_container_kinds` and `test_tps_camera_direct_spaces` failed on `main` itself (`17da04fb`):
+  - `floor_cabinet: the view left the owner's framing by 0.70 m`;
+  - `crawl: his eyes out of the frame in 33 frames`.
+- **Cause:** headless resets the window to 64×64 after the first frame, so `root.size = 1920×1080` did not hold. With aspect "expand" the view turned square (1920×1920).
+- **Fix:** the suites set `content_scale_aspect = KEEP`, which holds the 1920×1080 base whatever the window. Both pass.
+
+### Added (performance: see-through warm-up under the startup card, #173)
+
+- **Measured on lavapipe, same view:** the first time occluders between the camera and Henry turn see-through (`transparency = 0.7`), 15–16 render pipelines compile. The frame stalls for 5.2 s, or 22.8 s when the shader is not yet in the disk cache. The second time nothing compiles.
+- **Fix:** `SeeThroughWarmup` in `key_west_reality.tscn`.
+  - It waits until the rest of the boot work is done, then picks the thin meshes within 40 m of the camera that the fader could fade.
+  - For each distinct (material, vertex format) it draws one speck-sized see-through copy ahead of the camera for a few frames, then frees it.
+  - It is a `BootLoadCapability` provider, so the startup card stays up meanwhile. The originals are not touched.
+- **After, same view:** the first see-through fade compiles **0** world pipelines; its first frame is 1.35 s against an ordinary 1.15 s.
+- **Cost:** the warm-up drew 212 copies under the card. That took 10.6 s on lavapipe, which compiles on the CPU, and 0.1 s headless. It is not yet measured on a real GPU.
+- **Not covered:** chunks streamed in after boot still compile on their first fade.
+- **Test:** `test_see_through_warmup` checks that there is one copy per distinct (material, format), that wide, far and Henry's meshes are skipped, that copies are see-through as the fader makes them and are freed, and that the card waits for the warm-up.
+
+### Fixed (performance: a long freeze the first time the camera came against Henry, #42 record 02 / #173)
+
+- **Measured on lavapipe:** one fixed view in the 727 yard, A/B in one process, only the body fade switched.
+  - **Steady cost of the fade:** within noise (±5 %) both for the stylized dither and for hiding the gear.
+  - **First hide of the gear in a session:** **32 render pipelines** compiled for the transparent pass and one **20.7 s frame**. Gear is the 43 meshes of the pack and kit outside the stylized shader, which went to `transparency = 1`.
+  - The second hide compiled none, so this is a one-off hitch. It is the likely source of the tester's 4 s freeze when the low ceiling in the house pushed the camera into Henry; that is not yet confirmed on Windows.
+- **Fix:** the gear is hidden as **shadows only** (`cast_shadow = SHADOWS_ONLY`) and restored to its own setting.
+  - It keeps its shadow, needs no new pipeline and is not drawn in the colour pass.
+  - Same view: **0** compilations, a first frame of 1.7 s against an ordinary 1.25–1.3 s, and 86 fewer draw calls while hidden.
+- **Test:** `test_body_fade_pipelines` checks that hidden gear is shadows-only and never transparent, and that it comes back as it was. On the old code it fails for all 43 meshes.
+
+### Fixed (an open cabinet answered F with "close" while the view was on its shelves, #42 record 03)
+
+- **Reproduced in the real 727 with Henry's TPS camera:**
+  - **What happened:** with the view on the open shelves of any of the four pieces of furniture, F went to something else:
+    - the kitchen cupboard's open right door;
+    - the chest's lid;
+    - the neighbouring closed drawer of the dresser, which F would have opened.
+  - **Why:**
+    - an open leaf is a world target, and a world target always outranks the search (a pickup-channel target);
+    - from over the shoulder, the aim lands nearer the swung-open door than the middle of the shelves (about 7° against 13°).
+- **Fix:** F goes to what the aim meets first along its ray.
+  - The leaf itself (the door, the lid, or a drawer's front and handle) takes F.
+  - Open shelves offering a search take F, and so do a neighbour's open shelves.
+  - Aiming straight at an open leaf still shuts it.
+  - Code: `Opener.accepts_focus`, `Opener.get_leaf`, `ItemContainer.aim_distance_to_shelves`.
+  - The kit's drawer front and bar now hang under its handle, so the handle is aimed at by its real meshes.
+- **Test:** `test_open_container_focus` runs in the 727 shell with Henry's camera.
+  - It checks that the view on the shelves makes F search and the view on each leaf makes F shut it.
+  - On the old code all four views on the shelves fail.
+
+### Fixed (the picked-up flare was "nowhere": it sat in the coat pocket drawn as a grey box, #42 record 02)
+
+- **Checked in the real 727:** F on the shelter's flare puts it in the left coat pocket, because the flare prefers Quick Access. In the open Hub that pocket's card showed the plain parcel, which every unknown item gets.
+- **Why:** `SurvivalItemVisual.make()`, which draws the pocket cards, had no road flare. Only the world pickup and the held flare used the Emberline model.
+- **Fix:** it draws the authored `RoadFlare.glb`, so the card, a thrown flare and any other caller show the flare itself.
+- **Test:** `test_quick_item_visuals` checks that every item the game routes into a pocket by itself is drawn as itself. On the old code it fails for `road_flare`.
+- **Not yet drawn, each still shown as the parcel:**
+  - small items: `nails`, `thermal_shirt`, `knit_hat`;
+  - large items: `searchlight`, `bedroll`.
+
+### Fixed (boot log and dead debug labels, #42 record 01)
+
+- `[Boot] ground paved and covered` now prints how long the ground took, with the session time beside it. The 376 s and 1529 s in the 0.314a log were session times, not load times.
+- The player scene no longer asks for the speed and stamina debug labels, which were removed long ago. The two warnings on every world start are gone.
+
+### Fixed (performance: the open Hub held the game at ~22 FPS)
+
+- **What was measured:**
+  - **Windows 0.314a log** (GTX 1050 Ti, 19 Hub openings): with the pack open the game sat at about 22–23 FPS on both LOW and HIGH, while the main GPU time went *down* (18.5 → 17.7 ms) and the script process time doubled (≈20 → 43–49 ms). The frame waited on the CPU, which also fits the tester's 15–30 FPS on an RTX 4070.
+  - **Locally, headless:** the frame took 7.2 ms with the Hub closed and 53.7 ms open. Switching off `_process` on one of 60 scripted nodes at a time, only `PackHandling` (6.9 ms) or `PackFrontHold` (7.8 ms) took the cost away.
+- **Cause (proved with counters):**
+  - the quick shelf's hover test traced the exact screen outline of every item on the pack every frame: 5 outlines a frame, about 4,900 triangles each, rasterised in GDScript, 44 ms a frame;
+  - the outline cache never hit: the held pack drifts 0.3–0.55 px a frame, and the cache compared poses exactly.
+- **Fix:**
+  - the cursor is tested against each item's screen box first; only an item under it has its outline traced;
+  - a drift under half an outline-grid cell shifts the cached outline instead of tracing it again;
+  - the container's pick does the same.
+- **After:** the Hub-open frame is 7.0 ms; hovering any item on the pack is 6.9 ms with no re-traces. Picking each item at its aim point gives the same slot as before.
+- **Test:** `test_hub_outline_cost` checks:
+  - 30 sub-pixel drifts trace at most twice, and the shifted outline matches a fresh trace within a grid cell;
+  - the open Hub traces under 0.5 outlines a frame (the old code traced 5.0);
+  - every item on the pack is picked at its aim point.
+
+### Changed (PerfJSON v4)
+
+- **PerfMeta** now records the graphics preset, 3D scale and mode, MSAA and screen-space AA, the shadow atlas, the window and stretch mode, a debug or release build, editor or export, the game version and `BUILD_INFO.txt`.
+  - The legacy `snow_quality` is renamed `snow_quality_legacy`. It always read "high" and made LOW runs look like HIGH.
+- **Each PerfJSON sample** adds:
+  - `frame_ms_p95`, `frame_ms_p99` and the worst frame's tick;
+  - pipeline compilations per kind since the last sample;
+  - the state: Hub open, paused, Henry's fade;
+  - with the Hub open, the outline counters.
+- **Process and physics:** `process_ms` and `physics_ms` are averaged over the sample, with a max.
+  - v3 printed one frame's monitor value.
+  - Godot's monitors themselves move slowly (an 11.6 ms process monitor beside 7 ms frames), so they are not per-frame truth: use `frame_ms*`. This explains the 2026-11-15 log's physics_ms of 30–90 ms at unchanged FPS.
+- The Quick Access gradient views are named `QuickShelfGradient0/1`, so PerfJSON shows them by name.
+
+### Changed (Key West: the blizzard holds)
+
+- Key West Reality starts in the blizzard (wind, snowfall, cold) and now stays in it.
+  - Before, the scheduler moved on after 0.75–2 game hours (a few real minutes), usually to calm or snowfall.
+  - The new `WorldProfile.hold_initial_weather` turns the scheduler off for a world, and Reality sets it.
+  - A save made in other weather loads back into the blizzard.
+- `test_weather_hold`: Reality is still in the blizzard after 72 game hours and after loading a calm save. Without the hold, the weather still moves on.
+
+### Release (0.314a pre-release)
+
+- The version is now 0.314a in `project.godot`, in the export presets (0.314.0.0) and in the `release-smoke` defaults.
+- The release notes and the tester readme cover the changes since 0.312c, including the held blizzard. The snow defect stays OPEN until it is confirmed on an HD 620.
+
+### Added (cold on Henry's face: flushed cheeks, rime on the brows)
+
+- **What:** in the cold Henry's cheeks and the tip of his nose redden, and breath rime settles on his brows as fine white crystals.
+  - The flush follows the cold load on the head (`ExtremityCold`) or the rime still on him, whichever is higher, so it fades as he warms with the rest of the rime.
+  - The brow rime follows the rime amount.
+- **How:** a mask in the head's UV space, `assets/characters/henry/face/henry_face_masks.png`:
+  - R holds the cheeks and the nose tip, G the brows;
+  - `tools/art/bake_henry_face_masks.gd` bakes it from the head mesh in Head-bone space, with the regions measured from the face's midline;
+  - the PNG can be retouched by hand.
+- **Shader:** the character shader reads the mask when `use_face_mask` is on. Only Henry's head turns it on. The values come per instance from `ClothingFrostComponent`.
+- **Check:**
+  - `test_clothing_frost` now checks the flush, the brow rime and the mask on the head;
+  - `tools/runtime/capture_henry_face.gd` renders the face three-quarter front at no cold, 0.4 and 0.85.
+
+### Added (rime on clothing, the pack and its gear)
+
+- **What:** Henry's clothes, hat, pack and the gear on it frost over outdoors. The gear covers:
+  - the bedroll, pan, thermos, axe and hammer;
+  - carabiners, straps and buckles;
+  - the mug and the tin.
+- **Look:**
+  - **On cloth:** a powdery veil that leaves the weave readable, salted with crystal grains. It settles first on up-facing folds (shoulders, hat, the pack's top and the bedroll), in broad drifts.
+  - **On metal and hard plastic:** an even matt bloom of finer crystals.
+  - The face stays bare.
+- **Source:** the garment-frost idea in Nolavel/Hoarbound#213, made without the GPU mask atlas.
+  - **One shared include,** `garment_frost.gdshaderinc`. It is used by the character shader and by the pack canvas, carabiner, worn-tool and strap shaders, and static world shaders compile it out.
+  - **Per-instance amount:** the include reads an instance uniform, so a mug on the pack frosts while the same mug lying in the world does not.
+  - **Plain materials:** gear on a plain `StandardMaterial3D` takes the rime as a mesh overlay, only while that slot is free. The pack's rim and the focus blur keep priority.
+- **Start:** Henry starts frosted at 0.85, as if he has just come in from the night. It is the scene default, `ClothingFrostComponent.initial_frost`.
+- **Growth** (`ClothingFrostComponent`):
+  - it needs outdoor air below −2 °C;
+  - rime builds in about 5 minutes of still −25 °C air, more than three times faster in a blizzard (snowfall and wind).
+- **Shelter:** in a cold room the rime holds.
+- **Thaw** is gradual and follows warmth:
+  - by a fire, 0.85 clears in about 1.6 minutes;
+  - in room air at +5 °C it takes about 4.5 minutes, faster as the room warms (up to 3×);
+  - the last thin traces in the folds go slowest.
+- **Saved:** the rime is a save participant (`clothing_frost`), so a load brings back the rime Henry had.
+- **Not yet, owner's call:** melting rime does not wet the clothes.
+- **Tests and capture:**
+  - `test_clothing_frost`: none above freezing, faster in a blizzard, held in a cold shelter, gradual thaw by a fire and faster in a warmer room, a 0.85 start, a save round trip, every gear shader takes the rime, named gear is frosted, the face stays bare, overlays leave when the rime melts;
+  - `test_backpack_rig` (`--fixed-fps 30`) passes;
+  - `tools/runtime/capture_clothing_frost.gd`: rime 0, 0.4 and 0.85, front and back;
+  - `TestScene` renders Henry frosted from the start.
+
+### Added (breath vapor)
+
+- **What:** Henry's breath now condenses at his mouth in cold air, one puff per exhale. It is an authored scene, `scenes/actors/player/breath_vapor.tscn`, so the puff can be tuned in the editor.
+- **Source:** the lips are placed in Head-bone space. They were measured from the head mesh's midline, and the mouth is read after the head-look pose is final.
+- **Rhythm** follows effort:
+  - about 14 breaths a minute at rest, up to about 45 when panting;
+  - the exhale is faster when panting;
+  - after a sprint, or with the tank low, the panting settles over several breaths instead of snapping back.
+- **Density** follows the air around his face: the room when inside, the outdoors otherwise. The breath appears below 7 °C (common visible breath is below about 45 °F, Library of Congress *Everyday Mysteries*) and is full at −15 °C.
+- **Wind:** the puff drifts with the wind and rises slowly. Puffs stay where they were breathed, so a running Henry leaves them behind.
+- **Tests and capture:**
+  - `test_breath_vapor`: no breath at +12 °C, faint at +5 °C, rest versus panting rhythm and speed, slow settling;
+  - `tools/runtime/capture_breath_vapor.gd`: rest and panting close-ups, panting at game-camera distance, and none at +10 °C.
+
+### Changed (stamina: smoother and readable)
+
+- **What was wrong (measured in a replayed route: 30 s of running, then a walk, then standing):**
+  - holding Shift on an empty tank blocked recovery, so the tank stayed at 0 for 18 s of walking;
+  - recovery waited 5 s, then took 33 s to fill, the same walking or standing;
+  - the run snapped from 4.5 to 1.5 m/s;
+  - the cursor arcs faded with the tank, so they were nearly invisible at 19 % and not drawn at all at 0.
+- **Now:**
+  - **Empty tank.** Henry is winded until breath is back to 35 %: no sprint flicker, and Shift no longer blocks recovery.
+  - **Recovery.** It starts after 1 s and eases in over 0.8 s.
+  - **Pace by activity.** Full pace standing (empty to full in about 12 s), 0.55 walking, 0.75 sneaking, 0 in the air; it slows with fatigue down to 0.6.
+  - **Winded jog.** The winded fade is on (`winded_sprint_share` 0.4), so a run tapers into a laboured jog.
+  - **Cursor arcs.** They sit on a faint track, with their length as the tank. They stay and fill while Henry catches his breath, and the track breathes red while he is winded.
+- **Replay before and after:** sprint back at 29 s instead of 40 s, full at 55 s instead of 74 s.
+- **Tests:** `test_stamina_recovery` fails on the old code. `test_sprint_fatigue` now expects the winded jog.
+- `tools/runtime/capture_stamina_cursor.gd` renders the five cursor states. The replay report now carries the stamina share and the sprint permission.
+
+### Docs
+
+- `docs/research/xk/APPLIED_2026-11-13_STAMINA_COLD_INVENTORY.md`: the xk theses applied to stamina, the cold readout, and the pack and inventory, with the checks behind each one.
+  - The cold readout and the inventory were verified; nothing needed changing.
+  - Linking cold to stamina recovery is left as a proposal for the owner.
+
+### Changed (road flare: the Emberline model)
+
+- **The road flare is now the Emberline signal flare from the owner's reference sheet.** It is built at real scale by `tools/blender/build_road_flare.py` into `assets/items/road_flare/RoadFlare.glb`. The parts, from the burning end:
+  - a ten-sided metal cap with five vents;
+  - a red band;
+  - a worn red tube with two labels: the front one EMBERLINE · SIGNAL FLARE with a mountain mark and hazard stripes, the back one ⚠ SIGNAL FLARE · PULL · IGNITE · SIGNAL, reading from the ring end;
+  - a knurled black grip;
+  - a red band, a chamfered hex collar and a dark end cap;
+  - a red clip with a rivet and a steel pull ring.
+
+  The textures are drawn by the same script: hand-painted red with chips, paper labels, knurl albedo with a normal map, and worn gunmetal. The body keeps the old 22 cm length, so Henry's grip fit is unchanged.
+- **`HeldFlare.tscn` is now an authored scene.** It holds:
+  - the model as `Body`;
+  - the `Tip` with the hot core, the light, the local scattering fog and the flame, spark, fragment and smoke layers.
+
+  The generated particle textures were saved as `assets/items/road_flare/fx/*.res`. The script lost about 280 lines of construction and keeps the burn and flicker behaviour.
+- **The flare body casts no shadow.** Its own light sits 8 mm above the cap, so the body threw a dark cone onto the ground. The old cylinder did the same.
+- **The flare lying in the world** (`ItemPickup`) uses the same model, resting on the flats of its hex collar.
+- **Evidence:**
+  - a parity fixture of the light, fog and particle layers, snapshotted from the old code under Vulkan, passes with the body excluded on purpose;
+  - all flare, held-item, quick-access and pickup suites pass;
+  - `tools/runtime/capture_road_flare.gd` renders a product view of both labels, the flare in snow, and the flare burning at night.
+- `SceneParity` now records particle, light and fog settings, and compares textures and images by pixel hash. The stove fixture was refreshed to add the light fields; its geometry had already matched.
+
+### Changed (authored scenes: stove)
+
+- **The stove and its logs are authored scenes now:** `scenes/environment/stove/stove_visual.tscn` and `stove_log.tscn`.
+  - Everything is named and editable in the editor: legs, ash pan, firebox, door with bars, cooktop, coals, the four fuel logs, the glow light and the flue.
+  - The generated log meshes moved to `assets/models/stove/*.res`, so a modelled log can replace them.
+  - The scripts keep only the behaviour.
+  - What still depends on data stays in code: the flue length set by the 727, the room light, the door control that needs the Feed, and the tinder.
+- **The shelter template instances the stove scene,** and so does its builder. When the builder sets owners, it now leaves an instanced scene's insides alone.
+- **Evidence:**
+  - parity fixtures for the log and for the stove inside the shelter (72 visuals);
+  - they fail if one coal moves 1 cm;
+  - the stove, shelter and 727 suites pass;
+  - the ratchet dropped 12 constructions;
+  - `capture_stove_still.gd` renders the cold stove with three logs and tinder laid, and the burning stove with its door open, pixel-identical before and after.
+- `SceneParity` now compares generated meshes by shape (vertex hash and bounds) and materials by non-default values; the fixtures were regenerated from the old code.
+
+### Changed (authored scenes)
+
+- **The 727 wall thermometer is now an authored scene,** `scenes/environment/thermometer/wall_thermometer.tscn`, editable in the editor. The script keeps only the behaviour.
+  - It moved with a parity check against a snapshot of the old code-built tree; the snapshot is a fixture.
+  - Before/after renders in the real 727 match on the thermometer.
+- **New tools for the next moves:**
+  - `SceneParity`, to snapshot a tree and diff it against the old build;
+  - `test_authored_scene_parity`;
+  - `tools/ci/check_runtime_construction.py`, a `checks` ratchet: content built in code per file may only shrink, and a new file may not start building content in code.
+
+### Added (tester report)
+
+- **F10 saves a report zip** to `reports/` beside the exe. It holds system info, `BUILD_INFO`, settings, the log tail, the newest route tape, Henry's place and a screenshot.
+- After a session that crashed or was killed, the next start saves the report on its own: `BuildLog` now marks a clean exit with `SESSION END`.
+- Checked on a Linux export: after `kill -9` the next run bundled the dead session; after a clean run nothing was saved.
+- `test_report_bundle`. The tester README describes F9 and F10.
+
+### Added (input tape)
+
+- **F9 records a route** in any scene with Henry: gameplay actions per physics frame, plus the camera look. Exported builds save it to `tapes/` beside the exe; the tester README says to send it with the log.
+- `tools/runtime/replay_input_tape.tscn` replays a tape with the real autoloads and writes the path, the end point, frame times and optional shots. `--expect` makes it a check.
+- `checks` now replays a shore route in the ice lab and fails if it ends more than 5 cm from where it did. Without snow the replay is bit-exact, even with all 4 cores busy.
+- **The tape restores the world, not only the input.** At F9 it stores the full save payload and a fresh global RNG seed, and the replay restores both.
+  - Cause, measured: `WeatherController` rolls weather with the launch-seeded global `randf()`.
+  - So the same TestScene route ended 4.0, 4.8 or 6.8 m out depending only on the seed.
+  - With the snapshot, three random-seed runs agree within 4 cm.
+  - An earlier note blaming the snow field's wall-clock budget was wrong and is withdrawn.
+  - `SaveManager` gained `capture_payload()` and `apply_payload()`; slot saving uses them unchanged.
+- `test_input_tape` covers the format and the recorder.
+- Evidence:
+  - a replay re-recorded by the recorder gave identical events and frames;
+  - see `docs/technical/INPUT_TAPE.md`.
+
+### Added (CI)
+
+- `tools/ci/check_scene_refs.py`, the scene audit and UID doctor, runs without Godot in `checks`. It catches:
+  - broken `ext_resource` lines;
+  - stale uids, where the path exists but the uid is wrong;
+  - stale paths, where the uid resolves but the file moved;
+  - duplicate and orphaned uids.
+
+  `--fix` rewrites only unambiguous lines. Nested preview projects under `docs/` are skipped. The repository is clean today, and the unit tests run on a throwaway git repo.
+
+### Added (thin ice, isolated lab only)
+
+- `tests/scenes/ice_lab.tscn`: Henry walks out from a shore onto 64 x 64 m of bay ice (`bay_ice.tres`). Poles mark 8, 16 and 26 m from shore. The game's own scenes are untouched.
+- `IceCrackPresenter` turns the existing `IceField` ladder into what the player sees and hears. It only reads the field.
+  - **CREAKING** is audio only: a groan loop that grows with the load.
+  - **CRACKING** draws cracks from the point under Henry: spokes, then broken rings. Each growth step plays a crack and asks for a short camera shake. Cracks never heal, even when the ice recovers.
+  - **BROKEN** opens a jagged hole under Henry, with floating shards and a splash (`scenes/environment/ice/ice_hole_fx.tscn`, authored).
+  - Technique: the cracks are a fixed pattern revealed outwards from the load point as the ice weakens; the lines are anti-aliased against the pixel size so they do not shimmer.
+  - The lines are drawn in world space from the 3 x 3 neighbouring tiles, so there is no tile seam.
+- `thin_ice.gdshader` keeps the production frozen-sea colour and stylized shadow and adds the crack and hole maps. `IceHoleShape` gives the hole outline to both the collision check and the shader, using integer phases so the two agree.
+- **Falling in:** Henry drops through the hole to a lake bed, chest-deep, and is held inside the hole. After the thrash delay, F climbs out onto the rim on his side. Walking into an old hole drops him in again. The lab has no clock, so the thermal effects are not exercised.
+- **Placeholder sounds:** `tools/audio/synth_ice_sfx.py` synthesises them deterministically: a crack is a falling dispersive chirp (the "pew" of floating ice), the creak is a stick-slip groan, and the break adds a splash. They are to be replaced by real recordings.
+- `test_ice_crack_presenter` checks that:
+  - creaking draws nothing;
+  - the first crack is visible;
+  - cracks start under the load and never heal;
+  - one hole opens under Henry and is not re-opened;
+  - the outline fits Henry;
+  - holes restored from a save appear without a splash.
+
+  It fails when creaking is allowed to draw cracks.
+- `tools/runtime/capture_ice_lab.gd` renders the beats with the real renderer: solid, first cracks, spreading, through, climbed out, and the hole from above.
+
+### Docs
+
+- `docs/technical/RUNTIME_CONSTRUCTION_AUDIT.md`: which scripts build node trees in code and should become authored scenes (727 shelter, furniture kit, stove, held flare, thermometer, item visuals, UI panels), which should stay procedural, and a safe one-script-per-PR migration with a parity snapshot and a CI ratchet.
+
+### Changed (LOW tier)
+
+- On LOW, streamed vegetation (the `Vegetation` chunk part, including parts streamed in later) casts no shadow, and the sun's shadow is drawn in one split instead of two. Each split re-draws the scene, and the shadow pass was about 1.2M of 3.05M primitives a frame. MEDIUM and HIGH restore the authored shadow mode and the vegetation shadows. `test_graphics_quality_tiers` fails on the old code. Measured on a LOW Duval Street frame (lavapipe): primitives 3.05M -> 2.15M (-30 %), draw calls 724 -> 586 (-19 %). The CPU rasteriser's frame time barely moves (1178 -> 1137 ms) because it is pixel-bound; the FPS gain on an integrated GPU still needs the owner's HD 620.
+
+### Changed
+
+- Hints where testers got stuck:
+  - A held item's hint ends with `X · Put away   G · Drop`.
+  - The laid bedroll's prompt reads "Roll up the bedroll (F or C)".
+  - The empty tin's hint no longer sends the player to the Hub.
+  - The road flare's Quick Access readouts were hardcoded English and are now localised (`FLARE_*` keys).
+
+### Verified
+
+- LOW tier cost on Duval Street at 1920x1080 (`probe_low_tier_cost.gd`, lavapipe, relative): 1165 ms as is, 1234 ms without volumetric fog (noise), 1137 ms without sun shadows (-2 %). Neither effect is the LOW bottleneck. The owner's HD 620 log shows 4-5M primitives and up to 1500 draw calls a frame. The probe now counts the primitives each world group draws. A LOW frame draws 3.05M primitives and 724 draw calls. Hiding a group frees: streamed chunks 1.60M (vegetation 1.11M, buildings 0.84M, terrain 0.51M); the sun's shadow pass about 1.20M; Henry with his gear 0.65M; the 727 profile content 0.53M. The groups overlap through the shadow pass.
+- #209/#288: `quit(1)` now exits 1 in this project, the #209 repro included. That issue was filed on 2026-10-09; the vendored Jenova GDExtension, its prime suspect, was removed on 2026-10-14 (`16e55a8f`).
+- `run_tests.sh` now fails a suite that exits 0 without any pass line, and ends every suite with `HB_SUITE_RESULT: PASS|FAIL|KNOWN_FAIL <suite>`. `test_first_exit_entry_traversal` now prints its PASS. Checked with throwaway suites: quit(1) fails, a silent exit 0 fails, an explicit PASS passes.
+- Continue after a relaunch (#42 Gate A), checked across two processes:
+  - **Run 1:** `loop_key_west_727.gd --stop-after-sleep` on the exported pack plays the 727 loop to the sleep save and writes `expected.json`.
+  - **Run 2:** `tools/runtime/continue_after_relaunch.tscn` runs in a new process. It opens the real title menu, Continue is enabled, presses it, and compares the world: boards, fire, taken pickups, kit counts, and Henry inside the 727.
+  - **Result:** PASS. A tampered expectation fails with exit code 1.
+  - The snapshot moved to `tools/runtime/shelter_snapshot.gd`, shared with the in-process loop, which still passes.
+- Lighter from a coat pocket to the hand works, alone and straight after a held flare. The earlier audit's failure came from the harness order, not the game.
+
+### Changed (0.312c)
+
+- Snow in exported builds: `SnowField.load_wind_field()` checked the imported PNG with `FileAccess.file_exists`. An export ships only the `.ctex`, so it returned false, `use_baked_baseline` stayed off, and the snow drew its moving-window fallback, while the editor (with the source PNG) worked. It now uses `ResourceLoader.exists`. `tools/ci/check_export_snow.gd` runs on the exported pack in `release-smoke`. Found by Codex; confirmed with `--main-pack` from an empty directory (0.312b pack: loaded=false; fixed pack: loaded=true). Owner hardware confirmation is pending.
+- Fixed the missing .NET assemblies in the release zips (0.312 and 0.312b). The workflow exported `VERSION=0.312b` as an environment variable, MSBuild read it as the project's `Version`, and NuGet rejected it, so `dotnet publish` inside the Godot export failed. The variables are now `HB_VERSION`/`HB_TITLE`. Release notes come from `tools/ci/release/RELEASE_NOTES.md`, with known limitations listed.
+- Graphics quality defaults to LOW again when no settings file exists. On the owner's HD 620, HIGH ran at 3-5 FPS against 9-11 on LOW; MEDIUM and HIGH stay selectable.
+- The unverified snow-glint handoff experiment is reverted out of the release path. The snow surface movement on Intel HD 620 remains OPEN.
+- `release-smoke` takes a `publish` input: false builds, checks and uploads the zips as a workflow artifact without a release. The export logs' .NET lines are printed.
+
+### Fixed (WIP, claudeflow)
+
+- `release-smoke` fails when the .NET assemblies folder is missing. The 0.312b zips shipped without `data_Hoarbound_*`, and the mono runtime refused to start.
+- Snow ice glints fade out on the near clipmap before the 6.25 m handoff, and the chunk cover no longer draws them. The owner's Intel HD 620 frames showed a band of streaked glints starting at the square handoff. Not yet verified on that GPU.
+- Snow regression evidence on the current code (lavapipe): the October witness (`capture_snow_surface.gd` + `analyze_snow_surface.py`) gives 0 px over 2 mm in every band (10.1M before a2b7f37f), max 0.06 mm over a 10 m walk. The near lattice matches the streamed ground at a real 727 start at 4 FPS (`probe_snow_lattice.gd`, 0/441 stale). The owner's Intel HD 620 still shows the defect.
+- Snow regression probes (`tools/runtime/probe_snow_height_walk.gd`, `probe_snow_packed_walk.gd`; fixed points in `probe_snow_window_lag.gd`): the CPU snow field stays still at fixed points (0.00 cm over 7 window moves). The GPU packed field is under investigation.
+
+### Changed
+
+- Smoke test 0.312b (owner, 2026-11-12):
+  - Graphics quality defaults to HIGH when no settings file exists (it was LOW).
+  - An item dropped on the Tab hand card is now drawn into Henry's hand when Tab closes. Pocket items go through Quick Access, pack items are presented from storage. The card only marked the selection before.
+  - X (`put_away_held`) empties Henry's hands back into storage.
+  - C beside a laid bedroll rolls it up.
+  - Exported builds write `logs/hoarbound_<time>.log` beside the executable (`BuildLog` autoload, last five kept). The log records the version, OS, GPU and driver.
+
+### Fixed
+
+- Bedroll placement judged height from Henry's capsule centre, a metre above his soles: the 727 floor was always refused and the stove top accepted. It now measures from the soles with a 0.3 m step; the real-727 probe (`tools/runtime/probe_727_bedroll.gd`) lays it on the floor, refuses the stove, opens the sleep dialog and rolls it up.
+- Smoke-test tooling: `tools/runtime/audit_727_pickups.gd` takes every 727 pickup by a real F tap and draws every Quick Access pocket; `tools/runtime/probe_snow_window_lag.gd` walks Duval Street at a given `--fixed-fps` and logs the snow window rim and foot plants per metre.
+- Holding F on an item that is never shown in a hand (road flare, hammer) refused with a cross; it now takes the item to its pocket, as a tap does.
+
+### Added
+
+- `release-smoke` workflow (manual): exports Windows and Linux on CI and publishes a pre-release `v0.312` "Hoarbound — Smoke Test November 0.312" with zips and SHA256SUMS. Version 0.312 set in `project.godot` and the Windows file metadata.
+
 ### Fixed
 
 - Stone scatter no longer reads a freed pickup as a typed object during refresh; collected IDs stay collected and untaken stones can return after eviction. Added lifecycle regression to the required gate.
@@ -13,9 +393,36 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ### Added
 
+- External xk stream research is indexed under `docs/research/xk/` for optional game-design critique, with provenance, relevance questions, and links from `README.md`, `AGENTS.md`, and `CLAUDE.md`; it is not a source of product requirements.
 - `StepStairs` (`scripts/world/props/step_stairs.gd`): a flight of stairs Henry can walk. Visible steps are generated over one wedge collider, because `CharacterBody3D` has no step-up and a 0.17 m box step stops him. Set step count, riser, tread and width; `build_steps = false` keeps only the collider under an authored mesh. New `test_step_stairs`.
 
 ### Changed
+
+- First Exit A, Gate A (#42): a repeatable Windows Desktop x86_64 export (`export_presets.cfg`, with a Linux preset beside it for running the same pack here). The packs leave out `tests/`, `docs/`, `archive/`, editor add-ons and every `tools/` folder but `tools/StatsDisplay`, which the world preloads. The MCP game helper is stripped by its own export plugin.
+  - Fixed: an exported game started without the 727's interior, spawn point, First Exit sites and compass landmarks. `data/world/key_west/reality` carries a `.gdignore`, so no export ever saw the JSON the game reads there. `addons/reality_editor/reality_export_plugin.gd` ships exactly that runtime subset (9 files).
+  - Exported builds open on the title menu (`run/main_scene.template`): New game starts at the 727, Continue loads the last sleep. Before, a relaunched build always started a new game and Continue was only reachable through Esc, Quit to title. The editor's F5 still opens the world directly.
+  - Verified on the exported pack itself (run with `--main-pack`): Henry spawns 4.6 m from the 727 door, and `loop_key_west_727.gd` passes every step through to reload.
+
+- Owner's play notes 2026-11-12:
+  - The 727's front door swings outwards, as public buildings' entrances do. From inside Henry presses F and walks out pushing the leaf; before, it opened inwards and walking out from the lobby he pushed it shut. `test_doorway_camera`'s half-open scenario now pushes the leaf on the way out.
+  - Henry's camera fade no longer shows a 4x4 grid: the dissolve uses interleaved gradient noise (Jimenez 2014), pixel-fine with no repeating pattern. A solid cut-away was tried and rejected: it opened his layered clothes and the inside of his head.
+  - Fixed: Henry's hands twitched while walking with the pack on. `ArmStrapClearance` rebuilt the arm's turn axis from the single deepest strap point every frame, and as that point jumped the axis swung about 45 degrees a frame (right hand: 20 velocity flips in 6 s). The push is now the depth-weighted sum over every point met and the axis eases at 6/s; the hands move as smoothly as the walk clip. New `test_arm_strap_smooth`.
+
+- TPS camera after the owner's play test of the direct rig (2026-11-11):
+  - Henry stands left of the centre in every space: the shoulder offset now follows the boom's length (0.4 m per metre) instead of being squeezed toward the centre when pressed. His chest holds about 0.35 of a 16:9 frame's width in the open, a 1.5 m corridor and a 3 m room. New `test_tps_camera_framing`.
+  - He turns see-through only with the camera jammed against him. The fade is measured from 0.36 m to his body's axis instead of from 0.7 m to his eyes: beside him the camera sees past him and he stays solid.
+  - Less pumping against walls: no lens widening by boom length, a shortened boom holds 0.35 s and eases out over 0.6 s, the shoulder's sideways room is read ahead so a jamb closes it in before it cuts it, and lead sweeps start 0.1 m off a wall Henry walks at (they started in contact with it and read no room).
+  - Jammed against Henry, the camera now removes what of him stands at the lens instead of an 80 % ghost: the render showed the pack's insides through it. Meshes without the dither shader go by their distance to the camera. Close in, the camera rides at his eye line from 1 m of boom. Renders in `docs/runtime_previews/tps_camera/`.
+  - After Codex's review of `86fe2b71` (2026-11-12): `TpsInteractionFraming` is archived with the guided rig. It widened the shoulder or crossed to the other one by itself when a mechanism under the crosshair stood behind Henry; in door D1 it fired on hundreds of frames with no key pressed.
+  - The gear on Henry's body without the dither shader (pack, straps, what hangs on it) now goes together, all or none, instead of each mesh blending by its own distance: no half-transparent pack, no straps left hanging.
+  - Only contact snaps the boom; the margin off the wall is eased to. Largest frame step in door D1 is 0.27 m and `test_doorway_camera` is back at the 0.3 m limit of #240. A released boom eases out over 0.4 s (was 0.6 s: 95 % took over two seconds).
+  - `test_tps_camera_framing` also measures the gear he really carries, not only a chest point: in a 1.5 m corridor its right edge is at 0.56 of the frame, past the centre. Not fixed here.
+  - Measured: one camera frame costs 1.0 ms mean, 2.5 ms worst turning in the real 727 headless; 0.8 ms of it is the boom's sphere sweeps (centre, ten feelers, leads). Sweeping half the feelers a frame cut it to 0.7 ms but brought a 0.63 m step back in the door, so it was not kept.
+  - Framing study for the owner's rule (left third in rooms, close over the shoulder in tight places, head and shoulder always readable): `tools/runtime/compare_camera_framing.gd` saves frames and shot-quality numbers per preset in the real 727. New `TpsCamera` exports `direct_wall_clearance`, `direct_tight_fov_deg` and `gear_hide_distance`, off by default until the owner chooses.
+  - Owner's call after the framing study: the boom in the open is 2.2 m (was 3.0) so Henry reads larger, as in the reference; nothing else changed with it. Indoors the 727 frame barely moves (0.05..0.15 m closer).
+  - `trace_camera_route.gd -- <out> route=continuous [video]`: one unbroken route through the 727 (corridor, a full mouse turn, the doorway, the stove room, out of the front door into the open) that also times the camera's own CPU (mean 0.84 ms, worst 2.7 ms headless). Found on it: the front door opens inwards and Henry walking out from the lobby pushes it shut.
+  - Fixed: right mouse with a stone in hand could throw the camera metres away. The aim spring's explicit step is unstable over a frame longer than 73 ms; it is now stepped at 120 Hz. New `test_tps_camera_hitch`.
+  - The guided rig (lift, swing, auto-look, doorway framing, auto shoulder swap, recompose, composition, body guard) is moved whole to `archive/tps_camera_guided/` with its tests and design record; `TpsCamera` is the direct rig only (1143 -> 675 lines). `test_passage_traversal` now guards `PassageTraversalComponent` alone; `test_doorway_camera` is the direct suite at fixed 60 fps.
 
 - TPS camera: a direct rig is the default (`TpsCamera.direct_rig`). The owner found the camera awkward in narrow spaces; a trace in the 727 corridor and restroom showed it rising over Henry to look down, standing inside his coat, and holding him across the frame.
   - The camera always stands behind the view and only the mouse turns the view. No lift over the shoulder, no swing round Henry, no auto-look, no recentre behind a walking Henry (owner's call), no view tilt.

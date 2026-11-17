@@ -28,9 +28,14 @@ class_name MovementController
 @export_range(1.0, 4.0, 0.1) var exhausted_sprint_ramp_factor: float = 1.0
 ## Below this stamina share Henry is winded and his top sprint fades (proposed 0.3).
 @export_range(0.0, 1.0, 0.05) var winded_stamina_ratio: float = 0.3
-## Share of the sprint's extra speed left on an empty tank. 1 keeps the old
-## sprint; 0.4, a laboured jog, is proposed and awaits the author's decision.
-@export_range(0.0, 1.0, 0.05) var winded_sprint_share: float = 1.0
+## Share of the sprint's extra speed left on an empty tank: 0.4, a laboured jog, so the run
+## fades out instead of snapping to a walk (owner, 2026-11-13: smoother stamina).
+@export_range(0.0, 1.0, 0.05) var winded_sprint_share: float = 0.4
+## Breath comes back at this share of the standing rate while walking, and while sneaking.
+@export_range(0.0, 1.0, 0.05) var walking_recover_share: float = 0.55
+@export_range(0.0, 1.0, 0.05) var crouch_recover_share: float = 0.75
+## Recovery share left with no energy: a tired Henry catches his breath slower.
+@export_range(0.0, 1.0, 0.05) var tired_recover_share: float = 0.6
 
 # === ПАРАМЕТРЫ ПРЫЖКА НА УДЕРЖАНИЕ ===
 @export_group("Прыжок на удержание")
@@ -194,6 +199,8 @@ func process_movement(
 			stamina_manager.start_consuming_stamina()
 	elif stamina_manager and stamina_manager.is_consuming_stamina:
 		stamina_manager.stop_consuming_stamina()
+	if stamina_manager:
+		stamina_manager.recovery_scale = get_recovery_share(on_floor_now, has_input)
 
 	if should_sprint:
 		var up_rate: float = delta / (sprint_ramp_time * get_sprint_ramp_factor())
@@ -370,6 +377,24 @@ func get_sprint_ramp_factor() -> float:
 func get_sprint_ceiling(sprint_multiplier: float) -> float:
 	var breath: float = clampf(get_stamina_ratio() / maxf(winded_stamina_ratio, 0.001), 0.0, 1.0)
 	return 1.0 + (sprint_multiplier - 1.0) * lerpf(winded_sprint_share, 1.0, breath)
+
+
+## How fast breath comes back now, of the standing rate: 0 airborne, less on the move, less when tired.
+func get_recovery_share(on_floor: bool, moving: bool) -> float:
+	if not on_floor:
+		return 0.0
+	var share: float = 1.0
+	if moving:
+		share = crouch_recover_share if _crouching else walking_recover_share
+	if _fatigue == null and get_parent() != null:
+		_fatigue = get_parent().get_node_or_null(^"FatigueComponent") as FatigueComponent
+	var energy: float = _fatigue.progress() if _fatigue != null else 1.0
+	return share * lerpf(tired_recover_share, 1.0, energy)
+
+
+## True after running dry, until breath is back to the manager's threshold.
+func is_stamina_exhausted() -> bool:
+	return stamina_manager != null and stamina_manager.is_exhausted()
 
 
 func get_stamina_ratio() -> float:

@@ -68,9 +68,9 @@ func _run() -> void:
 	var readout: Array[String] = [""]  # the last text the gameplay UI was given
 	quick.readout_changed.connect(func(text: String) -> void: readout[0] = text)
 	quick.select(1)
-	_check(readout[0].contains("Use selected item"), "selected unlit flare did not show the existing Use Selected Item hint")
+	_check(readout[0].contains(TranslationServer.translate("FLARE_LIGHT_ACTION")), "selected unlit flare did not show the light-it hint")
 	_check(quick.use_selected(), "the pocketed flare was not used")
-	_check(not readout[0].contains("Use selected item"), "flare use left a stale ignition hint on screen")
+	_check(not readout[0].contains(TranslationServer.translate("FLARE_LIGHT_ACTION")), "flare use left a stale ignition hint on screen")
 	_check(int(user.get(&"uses")) == 1, "the item user was not called once")
 	_check(_zone_item(hub, path) == &"", "the used flare is still in its pocket")
 	_check(inventory.get_count(&"road_flare") == 1, "using the pocketed flare touched the pack's flare")

@@ -63,9 +63,27 @@ jobs:
           python3 -m unittest discover -s tools/ci -p 'test_check_dynamic_dispatch.py'
           python3 tools/ci/check_dynamic_dispatch.py
 
+      - name: Scene references and UIDs
+        ## Broken / stale ext_resource paths and uids, duplicate and orphaned uids (no Godot needed).
+        run: |
+          python3 -m unittest discover -s tools/ci -p 'test_check_scene_refs.py'
+          python3 tools/ci/check_scene_refs.py
+
+      - name: Runtime construction ratchet
+        ## Content built in code per file may only shrink (docs/technical/RUNTIME_CONSTRUCTION_AUDIT.md).
+        run: python3 tools/ci/check_runtime_construction.py
+
       - name: Contract suites (required)
         ## Cross-system contracts gate the build (ARCHITECTURE.md §16); same verdict as tools/ci/run_tests.sh.
         run: tools/ci/run_tests.sh $(sed -e 's/#.*//' tools/ci/required_suites.txt | tr -s '[:space:]' ' ')
+
+      - name: Input tape replay (ice lab shore route)
+        ## The same recorded input must still end the route where it did (tools/runtime/replay_input_tape.gd).
+        run: |
+          "${GODOT_BIN:-$HOME/.local/bin/godot}" --headless --path . --audio-driver Dummy --fixed-fps 60 \
+            res://tools/runtime/replay_input_tape.tscn -- \
+            --tape="$PWD/tests/fixtures/input_tapes/ice_lab_shore_demo.json" --out=/tmp/replay \
+            --expect="$PWD/tests/fixtures/input_tapes/ice_lab_shore_demo.expected.json" --tolerance=0.05
 
 
   edge-glow-review:
@@ -858,5 +876,123 @@ jobs:
         with:
           name: hoarbound-compass-light-png
           path: compass-light-png/
+          if-no-files-found: warn
+          retention-days: 7
+
+  native-ui-final:
+    # Native UI A/B while keeping 3D pixel budgets <= previous 1080p per quality tier.
+    if: github.event_name == 'pull_request' && github.head_ref == 'feature/native-ui-fixed-3d-budget'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: 'hud-720-native', group: 'hud', mode: 'canvas_items', size: '1280x720', tier: '0.67' }
+          - { id: 'hud-1080-old', group: 'hud', mode: 'viewport', size: '1920x1080', tier: '0.67' }
+          - { id: 'hud-1080-native', group: 'hud', mode: 'canvas_items', size: '1920x1080', tier: '0.67' }
+          - { id: 'hud-1440-old', group: 'hud', mode: 'viewport', size: '2560x1440', tier: '0.67' }
+          - { id: 'hud-1440-native', group: 'hud', mode: 'canvas_items', size: '2560x1440', tier: '0.67' }
+          - { id: 'hud-wide-old', group: 'hud', mode: 'viewport', size: '2560x1080', tier: '0.67' }
+          - { id: 'hud-wide-native', group: 'hud', mode: 'canvas_items', size: '2560x1080', tier: '0.67' }
+          - { id: 'hud-4k-old', group: 'hud', mode: 'viewport', size: '3840x2160', tier: '0.67' }
+          - { id: 'hud-4k-native', group: 'hud', mode: 'canvas_items', size: '3840x2160', tier: '0.67' }
+          - { id: 'hud-1080-medium', group: 'hud', mode: 'canvas_items', size: '1920x1080', tier: '0.77' }
+          - { id: 'hud-4k-medium', group: 'hud', mode: 'canvas_items', size: '3840x2160', tier: '0.77' }
+          - { id: 'hud-4k-high', group: 'hud', mode: 'canvas_items', size: '3840x2160', tier: '1.0' }
+          - { id: 'inventory-old', group: 'inventory', mode: 'viewport', size: '1920x1080', tier: '0.67' }
+          - { id: 'inventory-native', group: 'inventory', mode: 'canvas_items', size: '1920x1080', tier: '0.67' }
+          - { id: 'interior-old', group: 'interior', mode: 'viewport', size: '1920x1080', tier: '0.67' }
+          - { id: 'interior-native', group: 'interior', mode: 'canvas_items', size: '1920x1080', tier: '0.67' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+      - name: Provision Vulkan llvmpipe
+        run: tools/ci/setup_env.sh
+      - name: Install ffmpeg Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg python3-pil
+      - name: Import project
+        run: tools/ci/import_gate.sh
+      - name: Pure pixel-budget regression test
+        run: |
+          set -o pipefail
+          "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script res://tests/systems/test_native_resolution_budget.gd | tee budget.log
+          grep -q "NATIVE_BUDGET_TEST: PASS" budget.log
+      - name: Capture actual Key West in a fresh process
+        env:
+          CASE_ID: ${{ matrix.id }}
+          CASE_GROUP: ${{ matrix.group }}
+          CASE_MODE: ${{ matrix.mode }}
+          CASE_SIZE: ${{ matrix.size }}
+          CASE_TIER: ${{ matrix.tier }}
+        run: |
+          set -o pipefail
+          OUT="$GITHUB_WORKSPACE/native-ui-final/$CASE_ID"
+          mkdir -p "$OUT"
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR="${RUNNER_TEMP:-/tmp}/xdg"
+          mkdir -p "$XDG_RUNTIME_DIR"
+          timeout 50m xvfb-run -a -s "-screen 0 3840x2160x24" "$HOME/.local/bin/godot" \
+            --path . --resolution "$CASE_SIZE" --position 0,0 \
+            --rendering-driver vulkan --rendering-method forward_plus \
+            --audio-driver Dummy --fixed-fps 30 \
+            --script res://tools/runtime/capture_native_ui_final.gd \
+            -- "$OUT" "$CASE_MODE" "$CASE_GROUP" "$CASE_TIER" "$CASE_SIZE" \
+            2>&1 | tee "$OUT/godot.log"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then exit "$status"; fi
+          if grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR' "$OUT/godot.log"; then exit 1; fi
+          python3 tools/ci/validate_native_ui_final.py "$OUT" "$CASE_MODE" "$CASE_GROUP" "$CASE_SIZE" "$CASE_TIER"
+      - name: Archive native PNG and actual viewport measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-final-${{ matrix.id }}
+          path: native-ui-final/${{ matrix.id }}/
+          if-no-files-found: warn
+          retention-days: 14
+
+  backpack-load-review:
+    ## Targeted real-geometry visual QA; same checks workflow, no city streaming.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/codex' && contains(github.event.head_commit.message, '[backpack-load-review]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+      - name: Provision Godot
+        run: SKIP_APT=1 tools/ci/setup_env.sh
+      - name: Import scripts
+        run: tools/ci/import_gate.sh
+      - name: Load indicator spatial contract
+        run: tools/ci/run_tests.sh test_backpack_load_banner
+      - name: Capture real Henry and panel (Compatibility)
+        run: |
+          set -euo pipefail
+          command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri; }
+          OUT="$GITHUB_WORKSPACE/backpack-load-png"
+          mkdir -p "$OUT"
+          timeout 180 xvfb-run -a "$HOME/.local/bin/godot" --path . \
+            --resolution 1280x720 --rendering-driver opengl3 --rendering-method gl_compatibility \
+            --audio-driver Dummy --fixed-fps 30 \
+            --script res://tools/runtime/capture_backpack_load_banner.gd -- "$OUT" \
+            2>&1 | tee "$OUT/capture.log"
+          grep -q 'BACKPACK_LOAD_CAPTURE: PASS' "$OUT/capture.log"
+          ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR' "$OUT/capture.log"
+          for image in 01_rear 02_three_quarter 03_far; do test -s "$OUT/$image.png"; done
+      - name: Upload load gauge PNGs and diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-backpack-load-review
+          path: backpack-load-png/
           if-no-files-found: warn
           retention-days: 7

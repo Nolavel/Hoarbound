@@ -105,6 +105,16 @@ After the P0 loop closes, improve the slice without creating new subsystems:
 
 Prefer better placement, scale, pose, timing and feedback over broad new technology.
 
+## 6A. Ранний Windows smoke — старт у 727 (решение владельца 12.11.2026)
+
+**Текущий старт игры намеренно остаётся у 727 Fort Street** (`spawn_at_shelter=true`). Переход на Battery Osceola разрешён **только когда настоящий маршрут будет готов**, по отдельному решению владельца. Это не баг production-сцены и не P0.
+
+До полного First Exit нужен первый закрытый Windows x64 билд для проверки уже реализованных местных взаимодействий: запуск без Godot, управление, дверь и помещения 727, подбор/переноска, ремонт, печь/тепло, еда/вода, сон, save/Continue/reload. Новые механики и большой visual polish не входят в этот технический smoke. Внутренний профайлер не скрывать автоматически: его назначение в конкретной сборке решается отдельно.
+
+Документы: [Windows export и проверки](../playtest/FIRST_EXIT_A_WINDOWS_BUILD.md), [локальный протокол](../playtest/FIRST_EXIT_A_RUN.md), [операционная задача #42](https://github.com/Nolavel/Hoarbound/issues/42).
+
+**Полный** `Battery Osceola → route choice → 727` с погодным поворотом и 10–15-минутным человеческим прохождением остаётся отдельным будущим гейтом First Exit A (#78, #134, #80). Успех локальной проверки 727 не закрывает его.
+
 ## 7. First Exit A is done when
 
 - [ ] A new player completes Battery Osceola -> 727 Fort Street -> sleep/save in roughly 10–15 minutes.

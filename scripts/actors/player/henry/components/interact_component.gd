@@ -219,6 +219,12 @@ func hold_interact(duration: float) -> void:
 		PickupGesture.Outcome.ENTERED_HOLD:
 			_gesture_hands = HandsTransaction.new(_player, target as ItemPickup)
 			var refusal: HandsTransaction.Refusal = _gesture_hands.check()
+			## Never shown in a hand (flare, hammer): the hold takes it to its pocket, as a tap would.
+			if refusal == HandsTransaction.Refusal.NO_PRESENTER:
+				_gesture = null
+				_gesture_hands = null
+				_take_pickup(target, null)
+				return
 			if refusal != HandsTransaction.Refusal.NONE:
 				_refuse_hands(target, refusal)
 				return
