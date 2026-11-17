@@ -6,6 +6,23 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (the load gauge is just under the width of the pack's outer face; owner's local test, 2026-11-17)
+
+- **Problem:** the gauge was sized to the flat middle of the face (0.34 m minus two 6 cm roundings = 0.22 m), so it looked tiny on the pack.
+- **Fix:** `pixel_size` 0.00043 → 0.000586, so the gauge is 0.30 m wide, 2 cm inside each edge of the 0.34 m face.
+  - `test_backpack_load_banner` now holds it 3–6 cm under the face width.
+- **Checked:** `capture_backpack_load_banner.gd`, rear and three-quarter views. It lies on the face, with no gap and no overhang.
+
+### Fixed (sleep and waiting burn a lit flare; owner's local test, 2026-11-17)
+
+- **Problem:** a lit flare still burned after hours of sleep.
+- **Cause:** its burn counted only frame time. Sleep and waiting move the simulation clock in one jump, and the flare never heard of it.
+- **Fix:**
+  - The flare is now a `SimulationParticipantCapability` participant on the clock.
+  - Skipped hours burn it at its documented rating, `rated_game_hours` = 0.5: 75 real seconds equal 30 game minutes. Realtime steps are left to its own frame clock.
+- **Test:** `test_flare_sleep_burn`. A 6-minute wait leaves 60 of 75 s, and 3 hours of sleep leave it spent. On the old code both checks failed (75 s left; still burning).
+- **Not covered:** a flare left burning on the ground is not part of the save, as before.
+
 ### Fixed (a flare taken with held F is in Henry's hand, and stays there through a Hub visit; owner's local test, 2026-11-17)
 
 - **Problem:** holding F on a flare stored it in its coat pocket, but the hand stayed empty. Meanwhile the Hub's hand card showed it "in hand".
