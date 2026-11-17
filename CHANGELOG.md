@@ -6,6 +6,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (Claude must load its process skills, not follow them from memory)
+
+- **Problem:** superpowers and grill-me were installed, but Claude never loaded them in a whole session. The owner noticed.
+- **Fix:** `CLAUDE.md` gains a "Process skills" table. Each situation names the skill to load first:
+  - debugging, TDD, verification before "done", brainstorming;
+  - grilling on the owner's request;
+  - the project's review skill.
+
 ### Fixed (a hitch on every Tab; owner's report and #173, measured on the owner's HD 620, 2026-11-17)
 
 - **Problem:** every Hub open hitched, and the first one in a session hitched hard.
