@@ -6,6 +6,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (Claude asks whenever in doubt; owner's correction 2026-11-17)
+
+- `CLAUDE.md`: Grill Me was described as forbidden unless the owner asks. The rule is now "when in doubt, ask the owner, always": Claude asks the question, may offer Grill Me for a large decision tree, and starts it only with the owner's consent.
+
 ### Changed (Claude's working model and shared memory, owner's direction 2026-11-17)
 
 - **`CLAUDE.md` "Working model".** It replaces yesterday's skill table:
