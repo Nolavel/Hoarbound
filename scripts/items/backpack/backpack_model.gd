@@ -129,6 +129,9 @@ const LOOSE_MARGIN_M: float = 0.03
 const HANDLE_AT: Vector3 = Vector3(0.0, 0.514, 0.03)
 ## The lengthwise-folded mat rests across the canvas top, in front of the handle.
 const BEDROLL_AT: Vector3 = Vector3(0.0, 0.52, 0.14)
+## The load badge's height on the outer panel, up from the pack's base, and its stand-off from the cloth, metres.
+const BADGE_HEIGHT_M: float = 0.2
+const BADGE_STANDOFF_M: float = 0.006
 ## The maker's patch on the front panel, as the panel's UV rect (up its height, across its width).
 const PATCH_RECT: Vector4 = Vector4(0.55, 0.33, 0.67, 0.67)
 ## How far inside the mug handle's outer edge a carabiner rod rests, metres.
@@ -353,21 +356,27 @@ func open_panel_box(degrees: float) -> AABB:
 	return AABB(low, high - low)
 
 
-## The carabiner on the left (0) or right (1) side, for things clipped on later.
+## Where the load badge lies flat on the outer panel, on the cloth as it bulges now (world; +Z out of the panel).
+func get_badge_transform() -> Transform3D:
+	build()
+	var out: float = signf(_hinge_at.z - BODY.z * 0.5)
+	var normal := Vector3(0.0, 0.0, out)
+	## The panel's flat face (the hinge sits lower, on the rounded bottom edge), then the cloth's bulge.
+	var face := Vector3(0.0, BADGE_HEIGHT_M, BODY.z * 0.5 * (1.0 + out))
+	var at: Vector3 = _on_canvas(face, normal, BADGE_STANDOFF_M)
+	var facing := Basis.IDENTITY if out > 0.0 else Basis(Vector3.UP, PI)
+	return global_transform * Transform3D(facing, at)
+
+
 ## Where Quick Access pins the card of pack pocket `pocket_id` that sits outside the pack (the side
 ## pockets and sleeves, and the right carabiner the mug clips on); null for the rest.
-## Follows the deformed cloth top; UI reads its position but lives in GameplayUI.
-func get_load_anchor() -> Node3D:
-	build()
-	return _handle
-
-
 func get_quick_anchor(pocket_id: StringName) -> Node3D:
 	if pocket_id == &"pack_carabiner":
 		return get_carabiner(1)
 	return _quick_anchors.get(pocket_id) as Node3D
 
 
+## The carabiner on the left (0) or right (1) side, for things clipped on later.
 func get_carabiner(index: int) -> Carabiner:
 	build()
 	return _carabiners[index] if index >= 0 and index < _carabiners.size() else null
