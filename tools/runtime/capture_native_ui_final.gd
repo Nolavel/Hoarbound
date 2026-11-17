@@ -74,7 +74,7 @@ func _initialize() -> void:
 	# Set before world instantiation; subsequent shots NEVER toggle stretch mode.
 	root.content_scale_size = BASE
 	root.content_scale_mode = Window.CONTENT_SCALE_MODE_VIEWPORT if _case_mode == "viewport" else Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
-	root.content_scale_aspect = _project_aspect if _case_mode == "viewport" else Window.CONTENT_SCALE_ASPECT_EXPAND
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP if _case_mode == "viewport" else Window.CONTENT_SCALE_ASPECT_EXPAND
 	root.scaling_3d_mode = _project_3d_mode
 	ProjectSettings.set_setting("hfn/graphics/quality", "medium" if is_equal_approx(_case_scale, 0.77) else ("low" if is_equal_approx(_case_scale, 0.67) else "high"))
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
@@ -264,7 +264,7 @@ func _apply_window(size: Vector2i, mode_name: String, scale3d: float) -> bool:
 	root.content_scale_size = BASE
 	if mode_name == "viewport":
 		root.content_scale_mode = Window.CONTENT_SCALE_MODE_VIEWPORT
-		root.content_scale_aspect = _project_aspect
+		root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
 	else:
 		root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 		root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
