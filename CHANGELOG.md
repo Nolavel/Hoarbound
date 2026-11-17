@@ -6,6 +6,17 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed (performance: a long freeze the first time the camera came against Henry, #42 record 02 / #173)
+
+- **Measured on lavapipe:** one fixed view in the 727 yard, A/B in one process, only the body fade switched.
+  - **Steady cost of the fade:** within noise (±5 %) both for the stylized dither and for hiding the gear.
+  - **First hide of the gear in a session:** **32 render pipelines** compiled for the transparent pass and one **20.7 s frame**. Gear is the 43 meshes of the pack and kit outside the stylized shader, which went to `transparency = 1`.
+  - The second hide compiled none, so this is a one-off hitch. It is the likely source of the tester's 4 s freeze when the low ceiling in the house pushed the camera into Henry; that is not yet confirmed on Windows.
+- **Fix:** the gear is hidden as **shadows only** (`cast_shadow = SHADOWS_ONLY`) and restored to its own setting.
+  - It keeps its shadow, needs no new pipeline and is not drawn in the colour pass.
+  - Same view: **0** compilations, a first frame of 1.7 s against an ordinary 1.25–1.3 s, and 86 fewer draw calls while hidden.
+- **Test:** `test_body_fade_pipelines` checks that hidden gear is shadows-only and never transparent, and that it comes back as it was. On the old code it fails for all 43 meshes.
+
 ### Fixed (an open cabinet answered F with "close" while the view was on its shelves, #42 record 03)
 
 - **Reproduced in the real 727 with Henry's TPS camera:**
