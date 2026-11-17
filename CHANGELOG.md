@@ -6,6 +6,18 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added (performance: see-through warm-up under the startup card, #173)
+
+- **Measured on lavapipe, same view:** the first time occluders between the camera and Henry turn see-through (`transparency = 0.7`), 15–16 render pipelines compile. The frame stalls for 5.2 s, or 22.8 s when the shader is not yet in the disk cache. The second time nothing compiles.
+- **Fix:** `SeeThroughWarmup` in `key_west_reality.tscn`.
+  - It waits until the rest of the boot work is done, then picks the thin meshes within 40 m of the camera that the fader could fade.
+  - For each distinct (material, vertex format) it draws one speck-sized see-through copy ahead of the camera for a few frames, then frees it.
+  - It is a `BootLoadCapability` provider, so the startup card stays up meanwhile. The originals are not touched.
+- **After, same view:** the first see-through fade compiles **0** world pipelines; its first frame is 1.35 s against an ordinary 1.15 s.
+- **Cost:** the warm-up drew 212 copies under the card. That took 10.6 s on lavapipe, which compiles on the CPU, and 0.1 s headless. It is not yet measured on a real GPU.
+- **Not covered:** chunks streamed in after boot still compile on their first fade.
+- **Test:** `test_see_through_warmup` checks that there is one copy per distinct (material, format), that wide, far and Henry's meshes are skipped, that copies are see-through as the fader makes them and are freed, and that the card waits for the warm-up.
+
 ### Fixed (performance: a long freeze the first time the camera came against Henry, #42 record 02 / #173)
 
 - **Measured on lavapipe:** one fixed view in the 727 yard, A/B in one process, only the body fade switched.
