@@ -6,6 +6,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (the load gauge sits on the pack, #42 record 02, item 4: Codex's version, owner's choice)
+
+- Codex's `bc2dac2a` is taken over Claude's badge (reverted in `3a98e944`):
+  - the gauge lies on the real exterior canvas through `BackpackModel.canvas_point()`; it is no billboard, has no camera-facing offset and no smoothing;
+  - it shows only from behind;
+  - its SubViewport redraws only when the value changes, and nothing runs while it is dormant.
+  - Tests: `test_backpack_load_banner`; capture: `capture_backpack_load_banner.gd`.
+- **Claude's fix on top:** the gauge's transform is now set every frame while the pack is worn, also during the fade-out. It used to stop following during the fade and stood where it was in the world as Henry walked off.
+
 ### Fixed (rime slid over Henry's clothes as he moved, #42 record 02, item 10)
 
 - **Cause:** skinning runs before `vertex()`, so a skinned `VERTEX` is already posed. Rime noise sampled there followed the pose, not the cloth.
