@@ -98,10 +98,19 @@ script = ExtResource("91_inv")
 equipment = NodePath("../EquipmentComponent")
 starter_item_ids = Array[StringName]([&"tinned_stew", &"bedroll"])
 
-[node name="PlayerHubComponent" type="Node" parent="." node_paths=PackedStringArray("inventory", "equipment")]
+[node name="PlayerHubComponent" type="Node" parent="." node_paths=PackedStringArray("inventory", "equipment", "character_light")]
 script = ExtResource("99_hub")
 inventory = NodePath("../InventoryComponent")
 equipment = NodePath("../EquipmentComponent")
+character_light = NodePath("HubCharacterLight")
+
+[node name="HubCharacterLight" type="AreaLight3D" parent="PlayerHubComponent"]
+visible = false
+light_color = Color(1, 0.94, 0.86, 1)
+light_energy = 4.0
+light_cull_mask = 16
+area_size = Vector2(0.6, 0.4)
+area_range = 3.0
 
 [node name="QuickAccessComponent" type="Node" parent="." node_paths=PackedStringArray("hub")]
 script = ExtResource("99_quick")

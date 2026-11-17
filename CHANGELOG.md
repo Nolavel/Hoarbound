@@ -6,6 +6,17 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added (a soft key light on Henry and the pack in the Hub and at a search, #42 record 02, item 5)
+
+- **Problem:** in the TAB view and at a cabinet search, Henry and the pack took only the room's light. In the 727 their mean brightness was 35–61 out of 255, and they merged with the dark room.
+- **Technique:** a light that reaches only the character, as Unreal's lighting channels do. In Godot this is the light's `light_cull_mask` against the render layers.
+  - Henry, the pack and all the gear are already on `henry_render` (layer 5, mask 16), the layer the camera fader uses. No world mesh is on it, checked in the live scene.
+- **Fix:** `HubCharacterLight`, an authored `AreaLight3D` panel (60 × 40 cm, cull mask 16, no shadows) in `player.tscn`.
+  - While the Hub is open, it stands just right of and above the lens, facing where the camera looks.
+  - It fades in and out over 0.35 s with the Hub. The room keeps its own light.
+- **Measured on lavapipe, cabinet search in the 727, panel energy 5:** Henry and the pack 61 → 113 mean luma; the cabinet and room are unlit by it. The shipped energy is 4: at 5 the pack looked washed.
+- **Not yet done from the same item:** world meshes (the stove) intruding on the view, and profiling the inventory scene's own cost.
+
 ### Changed (the load gauge sits on the pack, #42 record 02, item 4: Codex's version, owner's choice)
 
 - Codex's `bc2dac2a` is taken over Claude's badge (reverted in `3a98e944`):

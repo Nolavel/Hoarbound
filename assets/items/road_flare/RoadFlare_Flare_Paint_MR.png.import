@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cgcdeu0tm1m4y"
-path="res://.godot/imported/RoadFlare_Flare_Paint_MR.png-28c945332b0c0b797a3abf6016ac7015.ctex"
+path.s3tc="res://.godot/imported/RoadFlare_Flare_Paint_MR.png-28c945332b0c0b797a3abf6016ac7015.s3tc.ctex"
+path.etc2="res://.godot/imported/RoadFlare_Flare_Paint_MR.png-28c945332b0c0b797a3abf6016ac7015.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b43fc93749f251602e4a2a630323155f"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/items/road_flare/RoadFlare_Flare_Paint_MR.png"
-dest_files=["res://.godot/imported/RoadFlare_Flare_Paint_MR.png-28c945332b0c0b797a3abf6016ac7015.ctex"]
+dest_files=["res://.godot/imported/RoadFlare_Flare_Paint_MR.png-28c945332b0c0b797a3abf6016ac7015.s3tc.ctex", "res://.godot/imported/RoadFlare_Flare_Paint_MR.png-28c945332b0c0b797a3abf6016ac7015.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/high_quality_mode=0
 compress/lossy_quality=0.7
@@ -43,4 +45,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
