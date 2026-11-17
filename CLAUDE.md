@@ -129,22 +129,58 @@ A change is done when: the project imports clean, `tools/ci/render.sh` produces 
 non-black frame of the affected scene, no new errors appear in the boot log, and
 `CHANGELOG.md` has an entry.
 
-## Process skills (mandatory when installed)
+## Working model: designer → technical director → programmer
 
-When the superpowers and mattpocock-skills plugins are available, Claude loads the matching skill
-with the Skill tool **before acting**. Following the method from memory does not count:
+For any non-trivial task Claude works through three lenses, in order, inside one workflow (no separate agents).
+For a small, obvious fix the three may take a few sentences.
+
+1. **Game designer: why does the game need it?** Name the player problem, the small intention it serves and what
+   the player will notice. Check the result against `docs/game_design/EXPERIENCE_PILLARS.md` (the §22 filter) and
+   `VERTICAL_SLICE.md`. Compare with proven approaches (The Long Dark first: rhythm, risk, small decisions). When
+   a fact is missing, look it up in open sources and bring it back. Challenge a weak or contradictory request
+   before building it; the owner may have forgotten a constraint too.
+2. **Technical director: how should it work?** Name the state owner and every seam the change touches
+   (`docs/technical/ARCHITECTURE.md` §5, §6, §8, §16). Prefer extending an existing system. Check the Godot 4.8
+   class reference and recent releases for a built-in before writing one. State the CPU/GPU/memory cost on the
+   low-end target. Propose an alternative when the game idea is technically poor.
+3. **Programmer: build the agreed decision.** Follow the architecture, avoid refactors and abstractions nobody
+   asked for, prove it with a test that fails on the old code, then compare the behaviour with the design intent.
+
+The lenses run on the superpowers process skills. When they are installed, load the matching skill with the Skill
+tool **before acting**. Following the method from memory does not count:
 
 | Situation | Skill |
 |---|---|
+| A new feature, a design with open choices, or a gameplay change (lenses 1–2) | `superpowers:brainstorming`, then `superpowers:writing-plans` |
 | Any bug, failing test or unexpected behaviour | `superpowers:systematic-debugging` |
-| Any fix or new behaviour (test fails on the old code first) | `superpowers:test-driven-development` |
+| Any fix or new behaviour | `superpowers:test-driven-development` |
 | Before saying "done", "fixed" or "passing", or before a commit or PR | `superpowers:verification-before-completion` |
-| A new feature or design with open choices | `superpowers:brainstorming` |
-| The owner asks to stress-test a plan ("grill me") | `mattpocock-skills:grilling` |
 | Reviewing a diff | `hoarbound-godot-studio` (project skill) |
+| Creating or changing a skill | `superpowers:writing-skills` |
 
-If a skill is not installed in the session, say so once and follow its method by hand.
-This charter and `AGENTS.md` win over any skill where they disagree.
+**Grill Me (`grill-me`, `grilling`, `grill-with-docs`) runs only when the owner asks for it in so many words.**
+Never before coding, while planning, in ordinary discussion or after a task. Claude's own critique still runs
+every time. If a skill is not installed in the session, say so once and follow its method by hand. This charter
+and `AGENTS.md` win over any skill where they disagree.
+
+**Sources of truth.** GitHub `main` is the truth for what is implemented. Miro *Hoarbound Production Desk* is
+the truth for game decisions, priorities and expected behaviour; check it before a gameplay change. When they
+disagree, do not pick one silently: name the gap and find the owner's latest direct decision. Old chats,
+memory and skills never override it.
+
+## Memory and experience
+
+Auto memory is machine-local and absent in cloud sessions, so shared memory lives in the repository:
+`.claude/rules/`. `00-index.md` always loads; topic files load through `paths:` when their code is touched.
+
+- Every entry is tagged **VERIFIED** (with its evidence: test, commit, issue), **ASSUMPTION** or **TEMPORARY**,
+  and dated. No guesses stored as facts.
+- After a substantive task, the PR body ends with a five-line retro: what worked, what was wrong, what is
+  simpler next time, what was learned, what memory changed (or "nothing").
+- Memory and skills change only through a PR to `main`. A new project skill needs a method that proved
+  itself on at least two real tasks and does not duplicate superpowers. Prune stale or duplicate rules when
+  touching them.
+- None of this is model training: experience exists only as written, checked files.
 
 ## Working method (bugs and visuals)
 

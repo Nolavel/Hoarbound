@@ -6,6 +6,20 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (Claude's working model and shared memory, owner's direction 2026-11-17)
+
+- **`CLAUDE.md` "Working model".** It replaces yesterday's skill table:
+  - three lenses in order: game designer → technical director → programmer;
+  - the lenses run on superpowers skills, loaded before acting;
+  - Grill Me runs only when the owner asks for it;
+  - Miro and GitHub are the sources of truth, and a gap between them is never settled silently.
+- **`CLAUDE.md` "Memory and experience".** Auto memory is machine-local and absent in cloud sessions, so shared memory lives in `.claude/rules/`.
+  - Entries are tagged VERIFIED / ASSUMPTION / TEMPORARY.
+  - A substantive PR ends with a five-line retro.
+  - New skills only after a method proves itself twice.
+- **`.claude/rules/`.** An always-loaded index and three path-scoped topic files: hands/Hub/storage, time/sleep/save, headless Godot.
+  - Every path and identifier they cite was checked against the code.
+
 ### Changed (Claude must load its process skills, not follow them from memory)
 
 - **Problem:** superpowers and grill-me were installed, but Claude never loaded them in a whole session. The owner noticed.
