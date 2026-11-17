@@ -1,0 +1,82 @@
+[gd_scene format=3 uid="uid://dbn8dbx2j0huj"]
+
+[ext_resource type="Script" uid="uid://vqihvrhs0hcb" path="res://scripts/actors/player/henry/components/breath_vapor.gd" id="1_breath"]
+
+[sub_resource type="Curve" id="Curve_grow"]
+_data = [Vector2(0, 0.25), 0.0, 2.4, 0, 0, Vector2(1, 1), 0.3, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_grow"]
+curve = SubResource("Curve_grow")
+
+[sub_resource type="Gradient" id="Gradient_fade"]
+offsets = PackedFloat32Array(0, 0.12, 0.45, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 0.34, 1, 1, 1, 0.16, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_fade"]
+gradient = SubResource("Gradient_fade")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_breath"]
+resource_local_to_scene = true
+emission_shape = 1
+emission_sphere_radius = 0.012
+direction = Vector3(0, -0.25, 1)
+spread = 9.0
+initial_velocity_min = 0.26
+initial_velocity_max = 0.38
+angle_min = -180.0
+angle_max = 180.0
+gravity = Vector3(0, 0.05, 0)
+damping_min = 0.35
+damping_max = 0.55
+scale_min = 0.85
+scale_max = 1.25
+scale_curve = SubResource("CurveTexture_grow")
+color_ramp = SubResource("GradientTexture1D_fade")
+turbulence_enabled = true
+turbulence_noise_strength = 0.4
+turbulence_noise_scale = 1.6
+turbulence_influence_min = 0.04
+turbulence_influence_max = 0.09
+
+[sub_resource type="Gradient" id="Gradient_soft"]
+offsets = PackedFloat32Array(0, 0.55, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.45, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_soft"]
+gradient = SubResource("Gradient_soft")
+width = 64
+height = 64
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_breath"]
+transparency = 1
+cull_mode = 2
+shading_mode = 2
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.93, 0.95, 0.98, 1)
+albedo_texture = SubResource("GradientTexture2D_soft")
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_breath"]
+material = SubResource("StandardMaterial3D_breath")
+size = Vector2(0.16, 0.16)
+
+[node name="BreathVapor" type="Node3D"]
+script = ExtResource("1_breath")
+
+[node name="Puff" type="GPUParticles3D" parent="."]
+emitting = false
+amount = 56
+lifetime = 1.7
+visibility_aabb = AABB(-2, -2, -2, 4, 4, 4)
+local_coords = false
+draw_order = 3
+process_material = SubResource("ParticleProcessMaterial_breath")
+draw_pass_1 = SubResource("QuadMesh_breath")

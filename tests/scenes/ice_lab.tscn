@@ -1,0 +1,242 @@
+[gd_scene load_steps=30 format=3]
+
+[ext_resource type="Script" path="res://scripts/experimental/ice_lab_director.gd" id="1_director"]
+[ext_resource type="PackedScene" path="res://scenes/actors/player/player.tscn" id="2_henry"]
+[ext_resource type="PackedScene" path="res://scenes/game/systems/camera/tps_camera.tscn" id="3_camera"]
+[ext_resource type="Script" path="res://scripts/systems/ice/ice_field.gd" id="4_field"]
+[ext_resource type="Resource" path="res://resources/ice/bay_ice.tres" id="5_profile"]
+[ext_resource type="Script" path="res://scripts/systems/ice/ice_gait_binder.gd" id="6_binder"]
+[ext_resource type="Script" path="res://scripts/systems/ice/cold_water_immersion.gd" id="7_immersion"]
+[ext_resource type="Script" path="res://scripts/systems/ice/ice_crack_presenter.gd" id="8_presenter"]
+[ext_resource type="Shader" path="res://shaders/environment/ice/thin_ice.gdshader" id="9_ice_shader"]
+[ext_resource type="PackedScene" path="res://scenes/environment/ice/ice_hole_fx.tscn" id="10_hole_fx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/environment/ice/ice_creak_loop.wav" id="11_creak"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/environment/ice/ice_crack_1.wav" id="12_crack1"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/environment/ice/ice_crack_2.wav" id="13_crack2"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/environment/ice/ice_crack_3.wav" id="14_crack3"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/environment/ice/ice_break_splash.wav" id="15_break"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMaterial"]
+sky_top_color = Color(0.42, 0.52, 0.64, 1)
+sky_horizon_color = Color(0.74, 0.78, 0.82, 1)
+ground_bottom_color = Color(0.3, 0.33, 0.36, 1)
+ground_horizon_color = Color(0.74, 0.78, 0.82, 1)
+
+[sub_resource type="Sky" id="Sky"]
+sky_material = SubResource("SkyMaterial")
+
+[sub_resource type="Environment" id="Environment"]
+background_mode = 2
+sky = SubResource("Sky")
+ambient_light_source = 3
+ambient_light_energy = 0.7
+tonemap_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="SnowMaterial"]
+albedo_color = Color(0.86, 0.88, 0.9, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="ShoreMesh"]
+material = SubResource("SnowMaterial")
+size = Vector3(20, 1, 64)
+
+[sub_resource type="BoxShape3D" id="ShoreShape"]
+size = Vector3(20, 1, 64)
+
+[sub_resource type="ShaderMaterial" id="IceMaterial"]
+render_priority = 0
+shader = ExtResource("9_ice_shader")
+
+[sub_resource type="PlaneMesh" id="IceMesh"]
+size = Vector2(64, 64)
+
+[sub_resource type="BoxShape3D" id="IceShape"]
+size = Vector3(64, 0.3, 64)
+
+[sub_resource type="StandardMaterial3D" id="WaterMaterial"]
+albedo_color = Color(0.03, 0.06, 0.09, 1)
+roughness = 0.06
+metallic_specular = 0.8
+
+[sub_resource type="PlaneMesh" id="WaterMesh"]
+material = SubResource("WaterMaterial")
+size = Vector2(64, 64)
+
+[sub_resource type="BoxShape3D" id="BedShape"]
+size = Vector3(64, 0.2, 64)
+
+[sub_resource type="StandardMaterial3D" id="PoleSolid"]
+albedo_color = Color(0.35, 0.6, 0.35, 1)
+
+[sub_resource type="StandardMaterial3D" id="PoleWarn"]
+albedo_color = Color(0.8, 0.65, 0.25, 1)
+
+[sub_resource type="StandardMaterial3D" id="PoleDanger"]
+albedo_color = Color(0.75, 0.25, 0.2, 1)
+
+[sub_resource type="CylinderMesh" id="PoleMeshSolid"]
+material = SubResource("PoleSolid")
+top_radius = 0.05
+bottom_radius = 0.05
+height = 1.6
+
+[sub_resource type="CylinderMesh" id="PoleMeshWarn"]
+material = SubResource("PoleWarn")
+top_radius = 0.05
+bottom_radius = 0.05
+height = 1.6
+
+[sub_resource type="CylinderMesh" id="PoleMeshDanger"]
+material = SubResource("PoleDanger")
+top_radius = 0.05
+bottom_radius = 0.05
+height = 1.6
+
+[node name="IceLab" type="Node3D" node_paths=PackedStringArray("henry", "camera", "ice_body", "ice_field", "immersion", "presenter", "spawn", "stage_label", "detail_label", "hint_label")]
+script = ExtResource("1_director")
+henry = NodePath("Henry")
+camera = NodePath("PlayerCamera")
+ice_body = NodePath("Ice")
+ice_field = NodePath("IceField")
+immersion = NodePath("ColdWaterImmersion")
+presenter = NodePath("IceCrackPresenter")
+spawn = NodePath("Spawn")
+stage_label = NodePath("UILayer/Margin/VBox/Stage")
+detail_label = NodePath("UILayer/Margin/VBox/Detail")
+hint_label = NodePath("UILayer/ClimbHint")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.5, -0.65, 0.57, 0, 0.66, 0.75, -0.87, -0.37, 0.33, 0, 20, 0)
+light_energy = 1.1
+shadow_enabled = true
+directional_shadow_max_distance = 60.0
+
+[node name="Shore" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, -0.5, 32)
+
+[node name="Mesh" type="MeshInstance3D" parent="Shore"]
+mesh = SubResource("ShoreMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Shore"]
+shape = SubResource("ShoreShape")
+
+[node name="Ice" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32, -0.15, 32)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ice"]
+shape = SubResource("IceShape")
+
+[node name="IceSurface" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32, 0, 32)
+material_override = SubResource("IceMaterial")
+mesh = SubResource("IceMesh")
+
+[node name="Water" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32, -0.1, 32)
+mesh = SubResource("WaterMesh")
+
+[node name="LakeBed" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32, -1.45, 32)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="LakeBed"]
+shape = SubResource("BedShape")
+
+[node name="Poles" type="Node3D" parent="."]
+
+[node name="SolidEnds8m" type="MeshInstance3D" parent="Poles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0.8, 30)
+mesh = SubResource("PoleMeshSolid")
+
+[node name="Thinning16m" type="MeshInstance3D" parent="Poles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0.8, 30)
+mesh = SubResource("PoleMeshWarn")
+
+[node name="Thinnest26m" type="MeshInstance3D" parent="Poles"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0.8, 30)
+mesh = SubResource("PoleMeshDanger")
+
+[node name="IceField" type="Node3D" parent="." node_paths=PackedStringArray("tracked_body")]
+script = ExtResource("4_field")
+profile = ExtResource("5_profile")
+shore_polygon = PackedVector2Array(-20, 0, 0, 0, 0, 64, -20, 64)
+tracked_body = NodePath("../Henry")
+
+[node name="IceGaitBinder" type="Node" parent="." node_paths=PackedStringArray("ice_field", "character_body")]
+script = ExtResource("6_binder")
+ice_field = NodePath("../IceField")
+character_body = NodePath("../Henry")
+
+[node name="ColdWaterImmersion" type="Node" parent="." node_paths=PackedStringArray("ice_field")]
+script = ExtResource("7_immersion")
+ice_field = NodePath("../IceField")
+
+[node name="IceCrackPresenter" type="Node" parent="." node_paths=PackedStringArray("ice_field", "ice_surface", "creak_player", "crack_player", "break_player")]
+script = ExtResource("8_presenter")
+ice_field = NodePath("../IceField")
+ice_surface = NodePath("../IceSurface")
+hole_fx_scene = ExtResource("10_hole_fx")
+window_tiles = 16
+creak_player = NodePath("CreakLoop")
+crack_player = NodePath("Crack")
+crack_streams = Array[AudioStream]([ExtResource("12_crack1"), ExtResource("13_crack2"), ExtResource("14_crack3")])
+break_player = NodePath("Break")
+
+[node name="CreakLoop" type="AudioStreamPlayer3D" parent="IceCrackPresenter"]
+stream = ExtResource("11_creak")
+unit_size = 6.0
+bus = &"Master"
+
+[node name="Crack" type="AudioStreamPlayer3D" parent="IceCrackPresenter"]
+unit_size = 10.0
+bus = &"Master"
+
+[node name="Break" type="AudioStreamPlayer3D" parent="IceCrackPresenter"]
+stream = ExtResource("15_break")
+unit_size = 14.0
+bus = &"Master"
+
+[node name="Spawn" type="Marker3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -4, 0.1, 32)
+
+[node name="Henry" parent="." instance=ExtResource("2_henry")]
+
+[node name="PlayerCamera" parent="." node_paths=PackedStringArray("player") instance=ExtResource("3_camera")]
+player = NodePath("../Henry")
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+
+[node name="Margin" type="MarginContainer" parent="UILayer"]
+offset_right = 640.0
+offset_bottom = 140.0
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 18
+
+[node name="VBox" type="VBoxContainer" parent="UILayer/Margin"]
+
+[node name="Title" type="Label" parent="UILayer/Margin/VBox"]
+text = "ICE_LAB_TITLE"
+
+[node name="Help" type="Label" parent="UILayer/Margin/VBox"]
+text = "ICE_LAB_HELP"
+
+[node name="Stage" type="Label" parent="UILayer/Margin/VBox"]
+text = "ICE_STAGE_SOLID"
+
+[node name="Detail" type="Label" parent="UILayer/Margin/VBox"]
+
+[node name="ClimbHint" type="Label" parent="UILayer"]
+visible = false
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -120.0
+offset_top = -90.0
+offset_right = 120.0
+offset_bottom = -60.0
+horizontal_alignment = 1
+text = "ICE_LAB_CLIMB_HINT"

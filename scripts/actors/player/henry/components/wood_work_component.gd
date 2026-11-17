@@ -48,7 +48,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func drop_carried() -> bool:
-	if not _carry.is_carrying() or _work_left > 0.0 or _body.call(&"is_holding_still"):
+	if not _carry.is_carrying() or _work_left > 0.0 or InteractHostCapability.run(_body, &"holding_still")[1] == true:
 		return false
 	var placement: Dictionary = find_drop_placement()
 	if not bool(placement.get("valid", false)):
@@ -147,8 +147,8 @@ func begin_chop(pickup: ItemPickup) -> bool:
 		return false
 	_chopping = pickup
 	_work_left = CHOP_SECONDS
-	_body.call(&"hold_still", CHOP_SECONDS)
-	_body.call(&"play_action_animation", &"fix")
+	InteractHostCapability.run(_body, &"hold", [CHOP_SECONDS])
+	InteractHostCapability.run(_body, &"animate", [&"fix"])
 	_message(tr("WOOD_CHOP_WORK"))
 
 	var actions: TimeCostedActionSystem = _actions()

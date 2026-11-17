@@ -6,7 +6,9 @@ extends Node3D
 ## glows, a cooktop and a flue. Front is +X, where the feed prompt stands.
 
 ## Log slots built; the source's full load decides how many can show (6 h / 2 h = 3).
-const LOG_VISUAL: GDScript = preload("res://scripts/environment/stove/stove_log_visual.gd")
+const LOG_SCENE: PackedScene = preload("res://scenes/environment/stove/stove_log.tscn")
+## The authored stove body (stove_visual.tscn); tune its look in the editor, not here.
+const SCENE_PATH: String = "res://scenes/environment/stove/stove_visual.tscn"
 const MAX_LOGS: int = 4
 ## Seconds a caught log takes to grow from first flame to its full burn.
 const CATCH_SECONDS: float = 6.0
@@ -87,7 +89,11 @@ var _door_tween: Tween
 func _ready() -> void:
 	if source == null:
 		source = get_parent() as HeatSource
-	_build()
+	if not has_node(^"Coals"):
+		push_error("StoveVisual: use StoveVisual.instantiate() (stove_visual.tscn), not the bare script")
+		set_process(false)
+		return
+	_bind_scene()
 	_flicker_noise = FastNoiseLite.new()
 	_flicker_noise.noise_type = FastNoiseLite.TYPE_PERLIN
 	_flicker_noise.frequency = 0.01
@@ -327,65 +333,25 @@ func _update_log_stages(delta: float) -> void:
 		_embers.emission_energy_multiplier = EMBER_EMISSION_ENERGY * _cooling_seconds/6.0 * 0.25
 
 
-func _build() -> void:
-	_iron = _material(Color(0.13, 0.13, 0.14), 0.75, 0.6)
-	_embers = _material(Color(0.9, 0.35, 0.1), 0.9, 0.0)
-	_embers.emission = Color(1.0, 0.16, 0.015)
-	var hx: float = SIZE.x * 0.5
-	var hz: float = SIZE.z * 0.5
-	for sx: float in [-1.0, 1.0]:
-		for sz: float in [-1.0, 1.0]:
-			_box(Vector3(0.05, LEG_H, 0.05), Vector3(sx * (hx - 0.05), LEG_H * 0.5, sz * (hz - 0.05)), _iron)
-	## Ash pan: a drawer under the firebox with the draught vent in front.
-	var ash_y: float = LEG_H + ASH_H * 0.5
-	_box(Vector3(SIZE.x, ASH_H, SIZE.z), Vector3(0.0, ash_y, 0.0), _iron)
-	for i: int in range(3):
-		_box(Vector3(0.01, 0.025, 0.09), Vector3(hx + 0.004, ash_y, (i - 1) * 0.12), _material(Color(0.03, 0.03, 0.03), 1.0, 0.0))
-	_box(Vector3(0.03, 0.02, 0.14), Vector3(hx + 0.02, ash_y - 0.035, 0.0), _iron)  # drawer pull
-	## Firebox: floor, back, sides, a front frame around the door opening, cooktop.
-	var floor_y: float = LEG_H + ASH_H
-	var top_y: float = floor_y + BOX_H
-	var mid_y: float = floor_y + BOX_H * 0.5
-	_box(Vector3(SIZE.x, WALL, SIZE.z), Vector3(0.0, floor_y + WALL * 0.5, 0.0), _iron)
-	_box(Vector3(WALL, BOX_H, SIZE.z), Vector3(-hx + WALL * 0.5, mid_y, 0.0), _iron)
-	for sz: float in [-1.0, 1.0]:
-		_box(Vector3(SIZE.x, BOX_H, WALL), Vector3(0.0, mid_y, sz * (hz - WALL * 0.5)), _iron)
-	var post: float = (SIZE.z - DOOR_W) * 0.5
-	for sz: float in [-1.0, 1.0]:
-		_box(Vector3(WALL, BOX_H, post), Vector3(hx - WALL * 0.5, mid_y, sz * (hz - post * 0.5)), _iron)
-	var sill: float = (BOX_H - DOOR_H) * 0.5
-	_box(Vector3(WALL, sill, DOOR_W), Vector3(hx - WALL * 0.5, floor_y + sill * 0.5, 0.0), _iron)
-	_box(Vector3(WALL, sill, DOOR_W), Vector3(hx - WALL * 0.5, top_y - sill * 0.5, 0.0), _iron)
-	_box(Vector3(SIZE.x + 0.06, 0.03, SIZE.z + 0.06), Vector3(0.0, top_y + 0.015, 0.0), _iron)
-	_cylinder(0.11, 0.012, Vector3(0.05, top_y + 0.036, -0.14), _material(Color(0.2, 0.2, 0.21), 0.6, 0.7))  # cooking ring
-	## Ember bed and logs inside: one log per fuel unit, stacked two by two.
-	_box(Vector3(SIZE.x - 0.12, 0.012, SIZE.z - 0.12), Vector3(0.0, floor_y + WALL + 0.006, 0.0), _material(Color(0.055,0.047,0.04),1.0,0.0))
-	# Sparse coals instead of one uniformly emissive orange plate.
-	for i: int in range(12):
-		var x: float = (float(i / 4)-1.0)*0.12 + 0.013*sin(float(i)*3.1)
-		var z: float = (float(i % 4)-1.5)*0.13 + 0.01*cos(float(i)*2.7)
-		var coal := _cylinder(0.016,0.012,Vector3(x,floor_y+WALL+0.012,z),_embers)
-		coal.scale = Vector3(1.0+0.2*sin(float(i)),1.0,0.7+0.2*cos(float(i)))
+## Takes the authored parts; only what depends on data (flue length, room light) is set here.
+func _bind_scene() -> void:
+	_embers = (($Coals/Coal00 as MeshInstance3D).mesh as PrimitiveMesh).material as StandardMaterial3D
+	_iron = (($FluePipe as MeshInstance3D).mesh as PrimitiveMesh).material as StandardMaterial3D
 	for i: int in range(MAX_LOGS):
-		var layer: int = i / 2
-		var side: float = 1.0 if i % 2 == 0 else -1.0
-		var log_node: Node3D = LOG_VISUAL.new()
-		log_node.name = "FuelLog%d" % i
-		log_node.position = Vector3(side * 0.09 + 0.04, floor_y + WALL + 0.06 + layer * 0.07, 0.0)
-		add_child(log_node)
-		_logs.append(log_node)
-	_glow = OmniLight3D.new()
-	_glow.light_color = Color(1.0, 0.5, 0.2)
-	_glow.omni_range = FIREBOX_LIGHT_RANGE
-	_glow.position = Vector3(hx + 0.15, mid_y, 0.0)  # spills out through the door slots
-	add_child(_glow)
+		_logs.append(get_node("FuelLog%d" % i) as Node3D)
+	_glow = $Glow
+	_door = $DoorHinge
+	var pipe := $FluePipe as MeshInstance3D
+	(pipe.mesh as CylinderMesh).height = flue_length
+	pipe.position = flue_base() + Vector3.UP * flue_length * 0.5
 	if source != null and source.flame_light != null:
-		_place_room_light(source.flame_light, Vector3(hx - 0.15, floor_y + 0.24, 0.0))
-	_build_door(Vector3(hx + 0.01, floor_y + sill, -DOOR_W * 0.5))
-	## Flue: a collar on the cooktop at the back, a pipe to the roof.
-	var flue: Vector3 = flue_base()
-	_cylinder(0.08, 0.06, flue, _iron)
-	_cylinder(FLUE_RADIUS, flue_length, flue + Vector3.UP * flue_length * 0.5, _iron)
+		var floor_y: float = LEG_H + ASH_H
+		_place_room_light(source.flame_light, Vector3(SIZE.x * 0.5 - 0.15, floor_y + 0.24, 0.0))
+
+
+## A stove built from the authored scene.
+static func instantiate() -> StoveVisual:
+	return (load(SCENE_PATH) as PackedScene).instantiate() as StoveVisual
 
 
 ## The room light sits in the fire and shines out through the door (+X). The
@@ -402,51 +368,6 @@ func _place_room_light(light: Light3D, fire: Vector3) -> void:
 		var omni := light as OmniLight3D
 		omni.omni_range = maxf(omni.omni_range, ROOM_LIGHT_RANGE)
 		omni.omni_attenuation = ROOM_LIGHT_FALLOFF
-
-
-## A door hinged on its -Z edge: solid lower half, vertical bars above with gaps
-## the fire shows through, and a knob.
-func _build_door(hinge_at: Vector3) -> void:
-	var hinge := Node3D.new()
-	hinge.name = "DoorHinge"
-	_door = hinge
-	hinge.position = hinge_at
-	add_child(hinge)
-	var lower: float = DOOR_H * 0.45
-	_box(Vector3(0.025, lower, DOOR_W), Vector3(0.0, lower * 0.5, DOOR_W * 0.5), _iron, hinge)
-	_box(Vector3(0.025, 0.04, DOOR_W), Vector3(0.0, DOOR_H - 0.02, DOOR_W * 0.5), _iron, hinge)
-	var bars: int = 6
-	var bar_w: float = 0.035
-	var gap_h: float = DOOR_H - lower - 0.04
-	for i: int in range(bars):
-		var z: float = bar_w * 0.5 + i * (DOOR_W - bar_w) / float(bars - 1)
-		_box(Vector3(0.025, gap_h, bar_w), Vector3(0.0, lower + gap_h * 0.5, z), _iron, hinge)
-	_cylinder(0.018, 0.04, Vector3(0.03, DOOR_H * 0.5, DOOR_W - 0.05), _material(Color(0.5, 0.45, 0.35), 0.5, 0.8), hinge)
-
-
-func _box(size: Vector3, at: Vector3, material: Material, parent: Node3D = self) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	mesh.material = material
-	var node := MeshInstance3D.new()
-	node.mesh = mesh
-	node.position = at
-	parent.add_child(node)
-	return node
-
-
-func _cylinder(radius: float, height: float, at: Vector3, material: Material, parent: Node3D = self) -> MeshInstance3D:
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = radius
-	mesh.bottom_radius = radius
-	mesh.height = height
-	mesh.radial_segments = 12
-	mesh.material = material
-	var node := MeshInstance3D.new()
-	node.mesh = mesh
-	node.position = at
-	parent.add_child(node)
-	return node
 
 
 func _material(albedo: Color, roughness: float, metallic: float) -> StandardMaterial3D:

@@ -1,11 +1,8 @@
 class_name Drawer
-extends InteractiveArea
+extends Opener
 
 ## A drawer that slides out of its furniture (a dresser's): F pulls it out or pushes it in. What it holds is an
 ## ItemContainer under `slide`, opening upward, that moves with it.
-
-## Emitted when the drawer starts to move, true when it comes out.
-signal toggled(open: bool)
 
 const OPEN_KEY: String = "DRAWER_OPEN"
 const CLOSE_KEY: String = "DRAWER_CLOSE"
@@ -44,8 +41,12 @@ func get_focus_point(observer: Vector3) -> Vector3:
 	return super(observer)
 
 
+func is_swinging() -> bool:
+	return _tween != null and _tween.is_running()
+
+
 func can_interact() -> bool:
-	return super() and slide != null and not (_tween != null and _tween.is_running())
+	return super() and slide != null and not is_swinging()
 
 
 func _on_interaction_performed() -> void:

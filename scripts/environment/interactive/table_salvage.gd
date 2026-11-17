@@ -58,8 +58,8 @@ func _on_interaction_performed() -> void:
 	_work_left = WORK_SECONDS
 	var player: Node = _player()
 	if player != null:
-		player.call(&"hold_still", WORK_SECONDS)
-		player.call(&"play_action_animation", &"fix")
+		InteractHostCapability.run(player, &"hold", [WORK_SECONDS])
+		InteractHostCapability.run(player, &"animate", [&"fix"])
 	_hammer().swing()
 
 	var actions: TimeCostedActionSystem = _actions()

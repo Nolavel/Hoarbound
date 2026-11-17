@@ -28,6 +28,8 @@ class Job extends RefCounted:
 	## Any height source with get_height(x, z): IslandTerrain or KeyWestRealityGround.
 	var terrain: Object
 	var city: Object
+	## GroundSourceCapability height, bound once for the whole grid.
+	var height: Callable
 	var origin: Vector2
 	var size_m: float
 	var n: int
@@ -78,6 +80,9 @@ static func begin(terrain: Object, origin: Vector2, size_m: float, city: Object 
 	var job := Job.new()
 	job.terrain = terrain
 	job.city = city
+	job.height = GroundSourceCapability.height_sampler(terrain)
+	if not job.height.is_valid():
+		push_error("SnowChunkCover: %s is no GroundSourceCapability" % terrain)
 	job.origin = origin
 	job.size_m = size_m
 	job.n = int(size_m / STEP_M) + 1
@@ -86,9 +91,9 @@ static func begin(terrain: Object, origin: Vector2, size_m: float, city: Object 
 	job.uvs.resize(count)
 	job.normals.resize(count)
 	job.open.resize(count)
-	job.exact_obstacles = city != null and city.has_method(&"get_snow_obstacles_in_rect")
+	job.exact_obstacles = city != null and GroundSourceCapability.offers_obstacles(city)
 	if job.exact_obstacles:
-		var source_contours: Array = city.call(&"get_snow_obstacles_in_rect", Rect2(origin, Vector2.ONE * size_m))
+		var source_contours: Array = GroundSourceCapability.obstacles_in_rect(city, Rect2(origin, Vector2.ONE * size_m))
 		for contour: PackedVector2Array in source_contours:
 			job.contours.append(contour)
 	return job
@@ -208,7 +213,7 @@ static func _index_obstacle(job: Job, contour: PackedVector2Array) -> void:
 static func _sample_row(job: Job, j: int) -> void:
 	for i: int in range(job.n):
 		var at: Vector2 = job.origin + Vector2(i, j) * STEP_M
-		var h: float = float(job.terrain.call(&"get_height", at.x, at.y))
+		var h: float = float(job.height.call(at.x, at.y)) if job.height.is_valid() else 0.0
 		var shore: float = smoothstep(SEA_LEVEL_M + SHORE_M.x, SEA_LEVEL_M + SHORE_M.y, h)
 		var k: int = j * job.n + i
 		job.verts[k] = Vector3(at.x, h, at.y)

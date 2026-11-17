@@ -6,7 +6,7 @@
 [ext_resource type="Script" path="res://scripts/systems/survival/shelter_breach.gd" id="4_iw5uy"]
 [ext_resource type="Script" path="res://scripts/environment/interactive/breach_board_up.gd" id="5_k1cjx"]
 [ext_resource type="Script" path="res://scripts/systems/survival/heat_source.gd" id="6_2bj3x"]
-[ext_resource type="Script" path="res://scripts/environment/stove/stove_visual.gd" id="7_kxeho"]
+[ext_resource type="PackedScene" path="res://scenes/environment/stove/stove_visual.tscn" id="7_kxeho"]
 [ext_resource type="Script" path="res://scripts/environment/stove/stove_warmer.gd" id="8_xu305"]
 [ext_resource type="Script" path="res://scripts/environment/interactive/heat_source_feed.gd" id="9_f17uu"]
 [ext_resource type="Script" path="res://scripts/environment/interactive/cabinet.gd" id="10_rcqa7"]
@@ -6087,9 +6087,8 @@ flame_light = NodePath("Flame")
 starts_burning = false
 warmup_seconds = 20.0
 
-[node name="StoveVisual" type="Node3D" parent="ShelterHouse/House/ShelterZone/Stove" unique_id=1791832887]
+[node name="StoveVisual" parent="ShelterHouse/House/ShelterZone/Stove" unique_id=1791832887 instance=ExtResource("7_kxeho")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
-script = ExtResource("7_kxeho")
 
 [node name="Warmer" type="Node3D" parent="ShelterHouse/House/ShelterZone/Stove" unique_id=1786227698]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.69, -0.14)

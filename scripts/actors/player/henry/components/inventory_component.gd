@@ -186,8 +186,9 @@ func _held_physical_weight() -> float:
 	if body == null:
 		return total
 	for child: Node in body.get_children():
-		if child.has_method(&"get_held_physical_weight"):
-			total += float(child.call(&"get_held_physical_weight"))
+		var light := child as HeldLightComponent
+		if light != null:
+			total += light.get_held_physical_weight()
 	return total
 
 

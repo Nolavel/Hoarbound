@@ -65,6 +65,12 @@ static func has(owner: Object, capability: StringName) -> bool:
 	return typeof(provider) == TYPE_OBJECT and is_instance_valid(provider)
 
 
+## Whether `capability` on `owner` maps `operation` (an optional operation may be left out at publish).
+static func has_operation(owner: Object, capability: StringName, operation: StringName) -> bool:
+	var operations: Variant = _descriptor(owner, capability).get(OPERATIONS_KEY, {})
+	return typeof(operations) == TYPE_DICTIONARY and (operations as Dictionary).has(operation)
+
+
 static func invoke(
 	owner: Object,
 	capability: StringName,
@@ -93,6 +99,17 @@ static func invoke(
 
 	var method: StringName = StringName(str(operations[operation]))
 	return provider.callv(method, arguments)
+
+
+## `operation` as a Callable bound to its provider, for a hot loop; empty when it is not published.
+static func bind(owner: Object, capability: StringName, operation: StringName) -> Callable:
+	var descriptor: Dictionary = _descriptor(owner, capability)
+	var provider: Variant = descriptor.get(PROVIDER_KEY)
+	var operations: Variant = descriptor.get(OPERATIONS_KEY, {})
+	if typeof(provider) != TYPE_OBJECT or not is_instance_valid(provider) or typeof(operations) != TYPE_DICTIONARY \
+			or not (operations as Dictionary).has(operation):
+		return Callable()
+	return Callable(provider as Object, StringName(str(operations[operation])))
 
 
 static func unpublish(owner: Object, capability: StringName) -> void:

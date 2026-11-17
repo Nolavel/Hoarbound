@@ -16,6 +16,8 @@ fails the build when two actions share a key without an entry in
 | C | `lay_bedroll` | Bedroll: a grey see-through bedroll appears on the floor in front of Henry; F lays it out (it unrolls, ready to sleep on), C or Esc puts it away. Only in a warm room |
 | Q / E | `lean_left` / `lean_right` | Lean (reserved; Q/E never carry item actions) |
 | Z | `switch_shoulder` | Camera shoulder |
+| V / pad R3 | `camera_behind` | Turn the camera behind Henry (the only recentre; mouse or stick motion cancels it) |
+| Pad right stick | `look_left/right/up/down` | Camera look (`StickLook`: dead zone, curve, rim ramp) |
 | F | `interact` | Context action, see below |
 | Tab | `open hub` | Player Hub: pack on Henry, pockets, Use |
 | Wheel | `quick_next` / `quick_prev` | Pick a pocket (quick access) |

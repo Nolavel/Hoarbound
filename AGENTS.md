@@ -98,6 +98,12 @@ Handover rules:
 - [docs/game_design/VERTICAL_SLICE.md](docs/game_design/VERTICAL_SLICE.md) — текущий scope First Exit A.
 - [docs/art/ART_DIRECTION.md](docs/art/ART_DIRECTION.md) — production visual source of truth. Rendering, materials, assets, lighting and visual experiments must preserve this contract unless the author explicitly changes it.
 
+## External game-design research (optional, non-authoritative)
+
+- [docs/research/xk/INDEX.md](docs/research/xk/INDEX.md) is an index to timecoded third-party xk stream analysis; [HOARBOUND_RELEVANCE.md](docs/research/xk/HOARBOUND_RELEVANCE.md) contains **questions to test**, not approved design.
+- Consult only relevant external sections when reviewing player comprehension, gameplay loops, playtests, scope or Steam positioning. Do **not** load the entire archive by default.
+- Cite the original note and verify its stream/timecode for consequential claims. External opinion never overrides owner decisions, Miro production priorities, canonical design contracts or observed runtime. Never turn a research note into a gameplay requirement without the author approving it.
+
 ## Mandatory product-context reading
 
 The product documents are not optional background reading.

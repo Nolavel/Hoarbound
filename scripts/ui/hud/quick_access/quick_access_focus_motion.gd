@@ -64,7 +64,7 @@ func _toward_henry_sign(path: StringName) -> float:
 func _apply_empty_icon(path: StringName) -> void:
 	if _empty_circle == null:
 		return
-	var item_id := StringName(_ui.call("_zone_item", path))
+	var item_id := _ui.zone_item(path)
 	if item_id != &"":
 		return
 	var icon := _icon(path)

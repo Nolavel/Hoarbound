@@ -257,11 +257,11 @@ func _enter_player_mode(mode: int) -> void:
 	_previous_player_mode = -1
 	if mode < 0:
 		return
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	if state == null or not state.has_method(&"is_paused") or bool(state.call(&"is_paused")):
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	if state == null or state.is_paused():
 		return
-	_previous_player_mode = int(state.get("mode"))
-	state.call(&"set_mode", mode)
+	_previous_player_mode = int(state.mode)
+	state.set_mode(mode as PlayerStateService.Mode)
 
 
 func _release_control() -> void:
@@ -269,7 +269,7 @@ func _release_control() -> void:
 		simulation_clock.pop_realtime_block()
 	_owns_realtime_block = false
 	if _previous_player_mode >= 0 and is_inside_tree():
-		var state: Node = get_node_or_null(^"/root/PlayerState")
-		if state != null and state.has_method(&"is_paused") and not bool(state.call(&"is_paused")):
-			state.call(&"set_mode", _previous_player_mode)
+		var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+		if state != null and not state.is_paused():
+			state.set_mode(_previous_player_mode as PlayerStateService.Mode)
 	_previous_player_mode = -1

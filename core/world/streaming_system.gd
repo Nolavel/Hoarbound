@@ -202,18 +202,13 @@ func initialize_runtime_only(container: Node3D, player: Node3D) -> void:
 		scan(_player.global_position)
 
 
-## Registers generated chunks without converting them into PackedScenes.
-## The source must implement:
-##   get_stream_chunks() -> Array[Dictionary{id, position, radius}]
-##   activate_stream_chunk(id, container) -> Node3D
-##   deactivate_stream_chunk(id)
-## Optional:
-##   build_stream_ring0(container)
+## Registers generated chunks without converting them into PackedScenes. The source publishes
+## StreamSourceCapability (chunks, activate, deactivate; ring0 optional); legacy names are adapted.
 func register_runtime_source(source: Node) -> int:
-	if source == null or not source.has_method(&"get_stream_chunks"):
-		push_error("StreamingSystem: runtime source has no get_stream_chunks()")
+	if not StreamSourceCapability.ensure(source):
+		push_error("StreamingSystem: runtime source is not a whole StreamSourceCapability")
 		return 0
-	var descriptors: Variant = source.call(&"get_stream_chunks")
+	var descriptors: Variant = StreamSourceCapability.chunks(source)
 	if not descriptors is Array:
 		push_error("StreamingSystem: runtime source returned non-array descriptors")
 		return 0
@@ -272,8 +267,7 @@ func _build_runtime_source_ring0(source: Node) -> void:
 	var key: int = source.get_instance_id()
 	if _runtime_ring0_built.has(key):
 		return
-	if source.has_method(&"build_stream_ring0"):
-		source.call(&"build_stream_ring0", _container)
+	StreamSourceCapability.build_ring0(source, _container)
 	_runtime_ring0_built[key] = true
 
 
@@ -522,11 +516,7 @@ func _activate(id: StringName) -> void:
 		if not is_instance_valid(source) or _container == null:
 			_set_state(id, CellState.UNLOADED)
 			return
-		if not source.has_method(&"activate_stream_chunk"):
-			push_warning("StreamingSystem: runtime source cannot activate '%s'" % id)
-			_set_state(id, CellState.UNLOADED)
-			return
-		var instance := source.call(&"activate_stream_chunk", id, _container) as Node3D
+		var instance: Node3D = StreamSourceCapability.activate(source, id, _container)
 		if instance == null:
 			_set_state(id, CellState.UNLOADED)
 			return
@@ -632,8 +622,8 @@ func _is_within_unload_band(id: StringName) -> bool:
 func _free_instance(id: StringName) -> void:
 	if _runtime_chunks.has(id):
 		var source := _runtime_sources.get(id) as Node
-		if is_instance_valid(source) and source.has_method(&"deactivate_stream_chunk"):
-			source.call(&"deactivate_stream_chunk", id)
+		if is_instance_valid(source):
+			StreamSourceCapability.deactivate(source, id)
 		_instances.erase(id)
 		return
 	var instance: Node = _instances.get(id)

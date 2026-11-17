@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="NavigationTarget" format=3]
+
+[ext_resource type="Script" path="res://scripts/world/navigation/navigation_target.gd" id="1_target"]
+
+[resource]
+script = ExtResource("1_target")
+id = "kw:first_exit:battery_osceola"
+feature_id = "kw:building:osm:w524088621"
+world_role = "first_exit_start_bunker"
+internal_label = "Battery Osceola"
+compass_title = "Battery Osceola"
+kind = 0
+arrival_policy = 0
+warm_enter_m = 280.0
+warm_exit_m = 295.0
+hot_enter_m = 65.0
+hot_exit_m = 75.0

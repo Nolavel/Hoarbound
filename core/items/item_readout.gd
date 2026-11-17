@@ -10,6 +10,8 @@ const SIZE_KEYS: Array[String] = ["HUB_SIZE_POCKET", "HUB_SIZE_CARRIED", "HUB_SI
 ## {"name": String, "weight": String, "detail": String, "kg": float} for `item_id`, or {} for an unknown id. A
 ## bundle (ItemResource.bundles) with `count` above 1 names how many: "Nails ×20".
 static func describe(item_id: StringName, count: int = 1) -> Dictionary:
+	if item_id == &"":
+		return {}
 	var item: ItemResource = ItemCatalog.get_item(item_id)
 	if item == null:
 		return {}

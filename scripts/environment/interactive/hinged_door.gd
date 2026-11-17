@@ -602,8 +602,9 @@ func _blocker_radius() -> float:
 ## A leaf swinging towards Henry from `from` to `to`: if he stands in the arc it
 ## sweeps, he takes the shortest step out of it and the leaf follows.
 func _step_clear_of_arc(from: float, to: float) -> void:
-	if not is_instance_valid(blocker) or not blocker.has_method(&"move_to_position"):
-		return
+	var henry := blocker as Player
+	if not is_instance_valid(henry):
+		return  # only Henry steps out of a swinging leaf
 	var v: Vector2 = _to_plane(blocker.global_position)
 	var r: float = v.length()
 	var radius: float = _blocker_radius()
@@ -633,7 +634,7 @@ func _step_clear_of_arc(from: float, to: float) -> void:
 	var at: Vector2 = v + step * length
 	var target: Vector3 = _frame() * Vector3(at.x, 0.0, -at.y)
 	target.y = blocker.global_position.y
-	blocker.call(&"move_to_position", target)
+	henry.move_to_position(target)
 
 
 func _henry_position() -> Vector3:

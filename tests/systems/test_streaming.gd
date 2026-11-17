@@ -46,6 +46,45 @@ class RuntimeSource:
 		active.erase(id)
 
 
+## Lists a chunk it could never unload (no deactivate): registration must refuse it whole.
+class HalfSource:
+	extends Node
+
+	func get_stream_chunks() -> Array:
+		return [{"id": &"half_test", "position": Vector3.ZERO, "radius": 30.0}]
+
+	func activate_stream_chunk(_id: StringName, container: Node3D) -> Node3D:
+		var instance := Node3D.new()
+		container.add_child(instance)
+		return instance
+
+
+## Publishes StreamSourceCapability under its own names.
+class MappedSource:
+	extends Node
+
+	var active: Dictionary = {}
+
+	func _init() -> void:
+		StreamSourceCapability.publish(self, &"list_cells", &"show_cell", &"hide_cell")
+
+	func list_cells() -> Array:
+		return [{"id": &"mapped_test", "position": Vector3.ZERO, "radius": 30.0}]
+
+	func show_cell(id: StringName, container: Node3D) -> Node3D:
+		var instance := Node3D.new()
+		container.add_child(instance)
+		active[id] = instance
+		return instance
+
+	func hide_cell(id: StringName) -> void:
+		var instance := active.get(id) as Node3D
+		if is_instance_valid(instance):
+			instance.get_parent().remove_child(instance)
+			instance.free()
+		active.erase(id)
+
+
 ## Many cells of mixed radii, for the grid scan and transient-set checks.
 class ScatterSource:
 	extends Node
@@ -100,6 +139,7 @@ func _run() -> void:
 	_test_reset_clears_everything()
 	_test_runtime_source_uses_same_state_machine()
 	_test_grid_scan_matches_the_bands()
+	_test_runtime_source_contract()
 	if _failures > 0:
 		push_error("streaming: %d check(s) failed" % _failures)
 		quit(1)
@@ -471,6 +511,32 @@ func _test_runtime_source_uses_same_state_machine() -> void:
 
 	system.reset()
 	for node: Node in [system, source, player, container]:
+		_dispose(node)
+
+
+## A source missing deactivate registers nothing (it used to register and leave active content it could not
+## drop); a source with its own names streams through the contract.
+func _test_runtime_source_contract() -> void:
+	var container := Node3D.new()
+	root.add_child(container)
+	var half := HalfSource.new()
+	var mapped := MappedSource.new()
+	root.add_child(half)
+	root.add_child(mapped)
+	var system := StreamingSystem.new()
+	root.add_child(system)
+	_check(system.register_runtime_source(half) == 0, "a source that cannot deactivate was registered")
+	_check(system.get_runtime_chunk_count() == 0, "a refused source left chunks behind")
+	_check(system.register_runtime_source(mapped) == 1, "a source with its own names was refused")
+	system.initialize_runtime_only(container, null)
+	system.scan(Vector3.ZERO)
+	system.pump()
+	_check(mapped.active.has(&"mapped_test"), "a mapped source's chunk did not activate")
+	system.scan(Vector3(1000.0, 0.0, 1000.0))
+	system.pump()
+	_check(mapped.active.is_empty(), "a mapped source's chunk did not deactivate")
+	system.reset()
+	for node: Node in [system, half, mapped, container]:
 		_dispose(node)
 
 

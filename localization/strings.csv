@@ -7,6 +7,10 @@ MENU_SETTINGS,Settings,Настройки
 SETTINGS_TITLE,Settings,Настройки
 SETTINGS_MOUSE_SENSITIVITY,Mouse sensitivity,Чувствительность мыши
 SETTINGS_INVERT_Y,Invert Y,Инверсия Y
+SETTINGS_STICK_SENSITIVITY,Stick sensitivity,Чувствительность стика
+SETTINGS_FIELD_OF_VIEW,Field of view,Поле зрения
+SETTINGS_CAMERA_DISTANCE,Camera distance,Дистанция камеры
+SETTINGS_LEFT_SHOULDER,Camera over the left shoulder,Камера над левым плечом
 SETTINGS_BACK,Back,Назад
 SETTINGS_ACCEPT,Accept,Принять
 MENU_NO_SAVE,No sleep saved yet,Сохранённого сна пока нет
@@ -62,7 +66,7 @@ DRAWER_OPEN,Pull the drawer out,Выдвинуть ящик
 DRAWER_CLOSE,Push the drawer in,Задвинуть ящик
 SLEEP_PROMPT,Sleep,Спать
 SLEEP_DIALOG_KEYS,Wheel or ← →  hours      [ F ]  sleep and save      [ Esc ]  cancel,Колесо или ← →  часы      [ F ]  спать и сохранить      [ Esc ]  отмена
-BEDROLL_PACK,Roll up the bedroll,Свернуть спальник
+BEDROLL_PACK,Roll up the bedroll (F or C),Свернуть спальник (F или C)
 HUB_PACK,Backpack,Рюкзак
 HUB_QUICK_ACCESS,Quick access,Быстрый доступ
 HUB_TO_POCKET,Into pocket,В карман
@@ -163,7 +167,7 @@ CAN_RING_OPEN_ACTION,Pull the ring to open,Открыть за кольцо
 FLASK_HELD_MARK,%d ml,%d мл
 HAND_EAT_ACTION,Eat contents,Съесть содержимое
 HAND_TOOL_HINT,Use this tool through a world interaction,Используйте предмет при взаимодействии с объектом
-EMPTY_TIN_HELD_HINT,Empty tin; change pocket or open the Hub to put it away,Пустая банка · смените карман или откройте рюкзак чтобы убрать
+EMPTY_TIN_HELD_HINT,Empty tin,Пустая банка
 AXE_BOARD_HINT,Aim at loose boards and press F to chop them,Наведите на лежащие доски и нажмите F чтобы расколоть
 WOOD_DROP_HINT,G · Put down %d × %s,G · Положить %d × %s
 WOOD_DROP_BLOCKED,No clear floor in front; move away from obstacles,Нет свободного пола впереди · отойдите от препятствия
@@ -287,3 +291,22 @@ Wool sweater,Wool sweater,Шерстяной свитер
 Work trousers,Work trousers,Рабочие штаны
 Worn boots,Worn boots,Поношенные ботинки
 Worn coat,Worn coat,Поношенная куртка
+HELD_PUT_AWAY_HINT,X · Put away   G · Drop,X · Убрать   G · Бросить
+FLARE_LIGHT_ACTION,Light the flare,Зажечь фальшфейер
+FLARE_DROP_ACTION,Drop the flare,Бросить фальшфейер
+FLARE_BURNING,Road flare — burning,Фальшфейер — горит
+FLARE_UNLIT,Road flare — unlit,Фальшфейер — не зажжён
+ICE_LAB_TITLE,Thin ice lab,Лаборатория тонкого льда
+ICE_LAB_HELP,"Walk out from the shore · Shift sprint · Ctrl crouch · R restart","Идите от берега · Shift — бег · Ctrl — присесть · R — заново"
+ICE_LAB_ON_SHORE,On the shore,На берегу
+ICE_LAB_IN_WATER,In the water — the cold bites,В воде — холод пробирает
+ICE_LAB_CLIMB_HINT,F · Climb out,F · Выбраться
+ICE_LAB_INTEGRITY,Ice,Лёд
+ICE_LAB_SHORE,From shore,От берега
+ICE_STAGE_SOLID,The ice holds,Лёд держит
+ICE_STAGE_CREAKING,The ice creaks — you can still turn back,Лёд скрипит — ещё можно вернуться
+ICE_STAGE_CRACKING,The ice cracks — turn back now,Лёд трещит — назад немедленно
+ICE_STAGE_BROKEN,The ice gives way,Лёд проломился
+INPUT_TAPE_RECORDING,● Recording route (F9 to stop),● Запись маршрута (F9 — стоп)
+REPORT_SAVED,Report saved: %s,Отчёт сохранён: %s
+REPORT_CRASH_SAVED,The last session did not close cleanly. Report saved: %s,Прошлый запуск завершился аварийно. Отчёт сохранён: %s

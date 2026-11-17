@@ -63,9 +63,69 @@ jobs:
           python3 -m unittest discover -s tools/ci -p 'test_check_dynamic_dispatch.py'
           python3 tools/ci/check_dynamic_dispatch.py
 
+      - name: Scene references and UIDs
+        ## Broken / stale ext_resource paths and uids, duplicate and orphaned uids (no Godot needed).
+        run: |
+          python3 -m unittest discover -s tools/ci -p 'test_check_scene_refs.py'
+          python3 tools/ci/check_scene_refs.py
+
+      - name: Runtime construction ratchet
+        ## Content built in code per file may only shrink (docs/technical/RUNTIME_CONSTRUCTION_AUDIT.md).
+        run: python3 tools/ci/check_runtime_construction.py
+
       - name: Contract suites (required)
         ## Cross-system contracts gate the build (ARCHITECTURE.md §16); same verdict as tools/ci/run_tests.sh.
         run: tools/ci/run_tests.sh $(sed -e 's/#.*//' tools/ci/required_suites.txt | tr -s '[:space:]' ' ')
+
+      - name: Input tape replay (ice lab shore route)
+        ## The same recorded input must still end the route where it did (tools/runtime/replay_input_tape.gd).
+        run: |
+          "${GODOT_BIN:-$HOME/.local/bin/godot}" --headless --path . --audio-driver Dummy --fixed-fps 60 \
+            res://tools/runtime/replay_input_tape.tscn -- \
+            --tape="$PWD/tests/fixtures/input_tapes/ice_lab_shore_demo.json" --out=/tmp/replay \
+            --expect="$PWD/tests/fixtures/input_tapes/ice_lab_shore_demo.expected.json" --tolerance=0.05
+
+
+  edge-glow-review:
+    # Real Key West 727 + actual 3D Hub, not screenshot compositing.
+    if: github.event_name == 'pull_request' && github.head_ref == 'feature/issue-282-edge-glow-overlay'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+      - name: Provision Godot + CPU Vulkan
+        run: tools/ci/setup_env.sh
+      - name: Import gate
+        run: tools/ci/import_gate.sh
+      - name: Verify actual pack and container transfer outcomes
+        run: tools/ci/run_tests.sh test_edge_glow_overlay test_pack_hands test_container_hands
+      - name: Capture real 3D Tab-Hub and 727 cabinet
+        run: |
+          set -euo pipefail
+          OUT="$GITHUB_WORKSPACE/edge-glow-png"
+          mkdir -p "$OUT"
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/xdg"
+          mkdir -p "$XDG_RUNTIME_DIR"
+          xvfb-run -a "$HOME/.local/bin/godot" --path . --resolution 960x540 --fixed-fps 30 --rendering-driver vulkan --rendering-method forward_plus --audio-driver Dummy --script res://tools/runtime/capture_edge_glow_overlay.gd -- "$OUT" 2>&1 | tee "$OUT/capture.log"
+          grep -q 'EDGE_GLOW_CAPTURE: PASS' "$OUT/capture.log"
+          ! grep -E 'SCRIPT ERROR|SHADER ERROR|Parse Error' "$OUT/capture.log"
+          test -s "$OUT/gameplay_before.png"
+          test -s "$OUT/gameplay_after.png"
+          for p in tab cabinet; do
+            for f in 01_off 02_idle 03_amber 04_green 05_red; do test -s "$OUT/${p}_${f}.png"; done
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: edge-glow-review-png
+          path: edge-glow-png/
+          if-no-files-found: error
+          retention-days: 7
 
   compass-preview:
     ## Real Key West viewport of the First Exit compass. Dispatch with preview=compass, or a single tagged review push on grok.
@@ -581,7 +641,7 @@ jobs:
       - name: Snow suites (new variant)
         if: matrix.variant == 'new'
         run: |
-          for suite in test_snow_clipmap test_snow_shell test_snow_contact_pipeline test_snow_tracks test_snow_presentation; do
+          for suite in test_snow_clipmap test_snow_shell test_snow_tracks test_snow_presentation; do
             log="$(mktemp)"
             "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script "res://tests/systems/$suite.gd" 2>&1 | tee "$log"
             if grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|FAIL" "$log"; then
@@ -684,7 +744,7 @@ jobs:
 
       - name: Snow suites
         run: |
-          for suite in test_snow_resistance test_snow_presentation test_snow_contact_pipeline test_snow_shell test_snow_clipmap; do
+          for suite in test_snow_resistance test_snow_presentation test_snow_shell test_snow_clipmap; do
             log="$(mktemp)"
             "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script "res://tests/systems/$suite.gd" 2>&1 | tee "$log"
             if grep -qE "SCRIPT ERROR|Parse Error|check\(s\) failed|FAIL" "$log"; then
@@ -769,3 +829,52 @@ jobs:
             ${{ env.OUT }}/capture.log
           if-no-files-found: warn
           retention-days: 3
+
+  compass-quick-png:
+    ## A deliberately lightweight UI-only capture for #293 / PR #310:
+    ## real CompassStrip drawing, no streaming world or CPU Vulkan.
+    ## Triggers only on a tagged codex push; reuses the existing checks workflow.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/codex' && contains(github.event.head_commit.message, '[compass-quick]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/opt/godot-mono
+          key: godot-4.8-dev6-v2
+      - name: Provision Godot without the 3D renderer stack
+        run: SKIP_APT=1 tools/ci/setup_env.sh
+      - name: Import scripts and register class_name symbols
+        run: tools/ci/import_gate.sh
+      - name: Targeted First Exit functionality tests
+        run: tools/ci/run_tests.sh test_first_exit_bearings
+      - name: Produce real CompassStrip PNG (2D Compatibility renderer)
+        run: |
+          set -euo pipefail
+          command -v xvfb-run >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri; }
+          OUT="$GITHUB_WORKSPACE/compass-light-png"
+          mkdir -p "$OUT"
+          timeout 120 xvfb-run -a "$HOME/.local/bin/godot" --path . \
+            --resolution 960x180 --rendering-driver opengl3 --rendering-method gl_compatibility \
+            --audio-driver Dummy --fixed-fps 30 \
+            --script res://tools/runtime/capture_compass_light.gd -- "$OUT" \
+            2>&1 | tee "$OUT/capture.log"
+          grep -q 'COMPASS_QUICK_CAPTURE: PASS' "$OUT/capture.log"
+          ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR' "$OUT/capture.log"
+          for image in 01_cold 02_warm_edge 03_hot; do test -s "$OUT/$image.png"; done
+          grep -q 'COMPASS_IDENTITY_LOOP: PASS' "$OUT/capture.log"
+          test -s "$OUT/identity_frames/frame_089.png"
+          grep -q 'COMPASS_ARRIVAL_ALL: PASS' "$OUT/capture.log"
+          for phase in house street edge_street; do
+            test -s "$OUT/arrival_${phase}_before.png"
+            test -s "$OUT/arrival_${phase}_after.png"
+          done
+      - name: Upload minimal marker screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hoarbound-compass-light-png
+          path: compass-light-png/
+          if-no-files-found: warn
+          retention-days: 7

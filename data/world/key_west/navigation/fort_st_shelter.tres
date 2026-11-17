@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="NavigationTarget" format=3]
+
+[ext_resource type="Script" path="res://scripts/world/navigation/navigation_target.gd" id="1_target"]
+
+[resource]
+script = ExtResource("1_target")
+id = "kw:building:osm:w339414849"
+feature_id = "kw:building:osm:w339414849"
+world_role = "first_exit_primary_shelter"
+internal_label = "727"
+compass_title = "Fort St."
+kind = 0
+arrival_policy = 1
+warm_enter_m = 280.0
+warm_exit_m = 295.0
+hot_enter_m = 65.0
+hot_exit_m = 75.0

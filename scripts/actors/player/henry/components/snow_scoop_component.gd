@@ -87,11 +87,11 @@ func try_scoop() -> bool:
 		scoop_refused.emit(target["refusal"])
 		return false
 	var body: Node = get_parent()
-	if body.has_method(&"is_action_locking") and body.call(&"is_action_locking"):
+	var locked: Array = InteractHostCapability.run(body, &"action_locked")
+	if locked[0] and bool(locked[1]):
 		return false
 	_busy = true
-	if body.has_method(&"play_action_animation"):
-		body.call(&"play_action_animation", STOOP_ACTION)
+	InteractHostCapability.run(body, &"animate", [STOOP_ACTION])
 	if is_inside_tree():
 		await get_tree().create_timer(CONTACT_SECONDS).timeout
 	_busy = false

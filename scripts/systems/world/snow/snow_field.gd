@@ -110,7 +110,9 @@ func _init() -> void:
 ## Loads a baked wind field (PNG + JSON beside it); false when absent.
 func load_wind_field(png_path: String) -> bool:
 	var meta_path: String = png_path.get_basename() + ".json"
-	if not FileAccess.file_exists(png_path) or not FileAccess.file_exists(meta_path):
+	## The PNG is an imported resource: an export ships only its .ctex, so FileAccess sees nothing there.
+	if not ResourceLoader.exists(png_path) or not FileAccess.file_exists(meta_path):
+		push_error("SnowField: wind field missing (%s): snow falls back to the moving window" % png_path)
 		return false
 	var meta: Variant = JSON.parse_string(FileAccess.get_file_as_string(meta_path))
 	if typeof(meta) != TYPE_DICTIONARY:

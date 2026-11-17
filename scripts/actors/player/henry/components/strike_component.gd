@@ -144,9 +144,9 @@ func _sweep(from_s: float, to_s: float, share: float) -> void:
 	_last_bowl = bowl
 	if _clip_s >= to_s:
 		_hit_done = true
-		var sound: Node = get_node_or_null(^"/root/SoundSystem")
+		var sound := get_node_or_null(^"/root/SoundSystem") as SoundSystemService
 		if sound != null and _hits > 0:
-			sound.call(&"play", QUICK_HIT_EVENT if _state == State.QUICK else HEAVY_HIT_EVENT, bowl)
+			sound.play(QUICK_HIT_EVENT if _state == State.QUICK else HEAVY_HIT_EVENT, bowl)
 		struck.emit(held_strike_impulse() * share, _hits)
 
 

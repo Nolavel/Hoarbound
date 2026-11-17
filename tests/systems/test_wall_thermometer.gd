@@ -42,7 +42,7 @@ func _setup() -> void:
 	_henry = Node3D.new()
 	_henry.add_to_group(&"player")
 	root.add_child(_henry)
-	_thermometer = WallThermometer.new()
+	_thermometer = WallThermometer.instantiate()
 	_thermometer.zone = _zone
 	_thermometer.follow_rate = 1000.0
 	root.add_child(_thermometer)

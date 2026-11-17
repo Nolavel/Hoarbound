@@ -68,6 +68,8 @@ const ACTION_RECALL_BEARING: StringName = &"recall_bearing"
 const ACTION_LEAN_LEFT: StringName = &"lean_left"
 const ACTION_LEAN_RIGHT: StringName = &"lean_right"
 const ACTION_SWITCH_SHOULDER: StringName = &"switch_shoulder"
+const ACTION_CAMERA_BEHIND: StringName = &"camera_behind"
+const LOOK_ACTIONS: Array[StringName] = [&"look_left", &"look_right", &"look_up", &"look_down"]
 ## Radians of camera turn per pixel of mouse travel.
 const MOUSE_SENSITIVITY: float = 0.003
 
@@ -78,10 +80,13 @@ var _interact_active: bool = false
 var _look_accum: Vector2 = Vector2.ZERO
 var _look_capture: bool = false
 var _shoulder_latch: bool = false
+var _behind_latch: bool = false
+var _stick_look := StickLook.new()
+var _stick_accum: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
 	if state != null and state.has_signal(&"mode_changed"):
 		state.connect(&"mode_changed", func(_old: int, _new: int) -> void: _apply_mouse_mode())
 
@@ -91,6 +96,15 @@ func _ready() -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and _look_capture and not _is_gameplay_blocked():
 		_look_accum += (event as InputEventMouseMotion).screen_relative * MOUSE_SENSITIVITY
+
+
+## The look stick turns at a speed, so it is integrated per rendered frame beside the mouse's travel.
+func _process(delta: float) -> void:
+	if not _look_capture or _is_gameplay_blocked() or not InputMap.has_action(LOOK_ACTIONS[0]):
+		_stick_look.reset()
+		return
+	var raw: Vector2 = Input.get_vector(LOOK_ACTIONS[0], LOOK_ACTIONS[1], LOOK_ACTIONS[2], LOOK_ACTIONS[3], 0.0)
+	_stick_accum += _stick_look.update(raw, delta) * delta
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -105,6 +119,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		jump_pressed.emit()
 	if _pressed(event, ACTION_SWITCH_SHOULDER):
 		_shoulder_latch = true
+	if _pressed(event, ACTION_CAMERA_BEHIND):
+		_behind_latch = true
 	if _pressed(event, ACTION_INTERACT):
 		_begin_interact()
 	elif _released(event, ACTION_INTERACT):
@@ -140,15 +156,18 @@ func _physics_process(delta: float) -> void:
 ## none of the three interact signals fire. One owner decides what the key
 ## means, instead of subscribers racing each other for it.
 ##
-## The claimant implements as much of this as it needs, duck-typed:
-##   on_interact_claimed()                  key down    (required)
-##   on_interact_held(duration: float)       every physics frame while down
-##   on_interact_released(duration: float)   key up
+## The claimant publishes InteractClaimantCapability: claimed() on key down
+## (required), held(duration) each physics frame and released(duration) on key
+## up (both optional). Legacy on_interact_* names are adapted at the boundary.
 ## ============================================
 
 ## Takes ownership of the interact key. No arbitration: the last caller wins,
 ## which is why a claimant releases as soon as its reason to hold it ends.
+## A node that cannot take the key is refused and the owner is kept.
 func claim_interact(claimant: Node) -> void:
+	if not InteractClaimantCapability.ensure(claimant):
+		push_error("InputSystems: %s cannot claim the interact key" % claimant)
+		return
 	_interact_claimant = claimant
 
 
@@ -169,7 +188,7 @@ func _begin_interact() -> void:
 	_interact_duration = 0.0
 	_interact_active = true
 	if is_instance_valid(_interact_claimant):
-		_interact_claimant.call(&"on_interact_claimed")
+		InteractClaimantCapability.claimed(_interact_claimant)
 	else:
 		interact_pressed.emit()
 
@@ -178,8 +197,7 @@ func _end_interact() -> void:
 	if not _interact_active:
 		return
 	if is_instance_valid(_interact_claimant):
-		if _interact_claimant.has_method(&"on_interact_released"):
-			_interact_claimant.call(&"on_interact_released", _interact_duration)
+		InteractClaimantCapability.released(_interact_claimant, _interact_duration)
 	else:
 		interact_released.emit(_interact_duration)
 	_interact_active = false
@@ -197,8 +215,7 @@ func _tick_interact(delta: float) -> void:
 		return
 	_interact_duration += delta
 	if is_instance_valid(_interact_claimant):
-		if _interact_claimant.has_method(&"on_interact_held"):
-			_interact_claimant.call(&"on_interact_held", _interact_duration)
+		InteractClaimantCapability.held(_interact_claimant, _interact_duration)
 	else:
 		interact_held.emit(_interact_duration)
 
@@ -261,12 +278,31 @@ func consume_switch_shoulder() -> bool:
 	return pressed
 
 
+## True once per press of "camera behind Henry"; reading it clears the latch.
+func consume_camera_behind() -> bool:
+	var pressed: bool = _behind_latch
+	_behind_latch = false
+	return pressed
+
+
 ## Mouse look since the last call, in radians; the look camera is its one reader.
 ## Zero while paused or not captured.
 func consume_look_delta() -> Vector2:
 	var delta: Vector2 = Vector2.ZERO if _is_gameplay_blocked() else _look_accum
 	_look_accum = Vector2.ZERO
 	return delta
+
+
+## Stick look since the last call, in radians (x right, y down); the look camera is its one reader.
+func consume_stick_look() -> Vector2:
+	var turn: Vector2 = Vector2.ZERO if _is_gameplay_blocked() else _stick_accum
+	_stick_accum = Vector2.ZERO
+	return turn
+
+
+## The curve of the look stick, for settings and tuning.
+func get_stick_look() -> StickLook:
+	return _stick_look
 
 
 ## A mouse-look camera asks for the pointer; menus get it back while open.
@@ -290,13 +326,13 @@ func _apply_mouse_mode() -> void:
 ## PlayerState is an autoload, but this file is also driven directly by tests
 ## where it may not exist, so both reads are guarded rather than assumed.
 func _is_gameplay_blocked() -> bool:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	return state != null and state.call(&"is_paused")
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	return state != null and state.is_paused()
 
 
 func _is_movement_blocked() -> bool:
-	var state: Node = get_node_or_null(^"/root/PlayerState")
-	return state != null and state.call(&"is_movement_blocked")
+	var state := get_node_or_null(^"/root/PlayerState") as PlayerStateService
+	return state != null and state.is_movement_blocked()
 
 
 func _pressed(event: InputEvent, action: StringName) -> bool:

@@ -16,7 +16,7 @@ var pack: Node3D
 var shelves: Node3D
 var _blur: ShaderMaterial
 var _scan_s: float = 0.0
-var _masked: Array[GeometryInstance3D] = []
+var _masked: Dictionary = {}  # instance id -> true; never retain a freed Node
 
 
 ## Blurs all but `held_pack`, `beside` (an open container) and the camera's own children; a child of the camera.
@@ -48,7 +48,15 @@ func _process(delta: float) -> void:
 
 func _on_node_added(node: Node) -> void:
 	if node is GeometryInstance3D and _covers(node):
-		_mask_one.call_deferred(node)
+		_mask_deferred.call_deferred(node.get_instance_id())
+
+
+func _mask_deferred(id: int) -> void:
+	if not is_instance_id_valid(id):
+		return
+	var node := instance_from_id(id) as Node
+	if is_instance_valid(node) and node.is_inside_tree() and not node.is_queued_for_deletion() and _covers(node):
+		_mask_one(node)
 
 
 ## Whether `node` belongs to the pack or to the camera's other children (what stays sharp).
@@ -64,7 +72,10 @@ func _covers(node: Node) -> bool:
 func _exit_tree() -> void:
 	if get_tree().node_added.is_connected(_on_node_added):
 		get_tree().node_added.disconnect(_on_node_added)
-	for geometry: GeometryInstance3D in _masked:
+	for id: int in _masked.keys():
+		if not is_instance_id_valid(id):
+			continue
+		var geometry := instance_from_id(id) as GeometryInstance3D
 		if is_instance_valid(geometry) and geometry.material_overlay != null and geometry.material_overlay.has_meta(&"focus_mask"):
 			geometry.material_overlay = geometry.material_overlay.next_pass
 	_masked.clear()
@@ -72,6 +83,9 @@ func _exit_tree() -> void:
 
 ## Every mesh of the pack and of the camera's other children writes the stencil (once each).
 func _mask_all() -> void:
+	for id: int in _masked.keys():
+		if not is_instance_id_valid(id):
+			_masked.erase(id)
 	var roots: Array[Node] = []
 	if is_instance_valid(pack):
 		roots.append(pack)
@@ -98,7 +112,7 @@ func _mask_one(node: Node) -> void:
 	if own != null and own.shader == CANVAS_SHADER:
 		return
 	geometry.material_overlay = _mask(geometry.material_overlay)
-	_masked.append(geometry)
+	_masked[geometry.get_instance_id()] = true
 
 
 ## An unseen overlay writing STENCIL_REF where the mesh shows; what was its overlay draws after it.

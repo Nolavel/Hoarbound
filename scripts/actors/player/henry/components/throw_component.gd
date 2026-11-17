@@ -113,9 +113,9 @@ func _process(delta: float) -> void:
 	_spring_aim(delta)
 	_velocity = aim_velocity()
 	var body := get_parent() as Node3D
-	if body != null and body.has_method(&"face_work_target"):
+	if body != null and InteractHostCapability.offers(body, &"face"):
 		var toward := Vector3(_velocity.x, 0.0, _velocity.z)
-		body.call(&"face_work_target", body.global_position + toward.rotated(Vector3.UP, -deg_to_rad(SIDE_ON_DEG)))
+		InteractHostCapability.run(body, &"face", [body.global_position + toward.rotated(Vector3.UP, -deg_to_rad(SIDE_ON_DEG))])
 	_draw_arc(_release_point(), _velocity)
 
 
@@ -229,8 +229,7 @@ func _swing_back(point: Vector3) -> void:
 
 func _play_throw() -> void:
 	var body: Node = get_parent()
-	if body.has_method(&"play_action_animation"):
-		body.call(&"play_action_animation", THROW_CLIP)
+	InteractHostCapability.run(body, &"animate", [THROW_CLIP])
 
 
 ## RMB let go without a throw: the held wind-up eases back down.

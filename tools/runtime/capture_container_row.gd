@@ -66,8 +66,8 @@ func _run() -> void:
 	await _save("row_open.png")
 	var hub := player.get_node(^"PlayerHubComponent") as PlayerHubComponent
 	## Each searched alone: everything else shut first (an open drawer above hides the one below).
-	for way: InteractiveArea in row.openers.values():
-		if (way is Cabinet and (way as Cabinet).is_open()) or (way is Drawer and (way as Drawer).is_open()):
+	for way: Opener in row.openers.values():
+		if way.is_open():
 			way.interact()
 	await _frames(45)
 	for entry: Array in SEARCHED:

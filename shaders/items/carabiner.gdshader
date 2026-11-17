@@ -11,6 +11,9 @@ uniform bool knurled = false;
 uniform float chip_m = 0.006;
 
 varying vec3 v_local;
+#include "res://shaders/environment/materials/garment_frost.gdshaderinc"
+varying vec3 v_frost_pos;
+varying vec3 v_frost_normal;
 
 float hash(vec3 p) {
 	p = fract(p * 0.3183099 + 0.1);
@@ -28,6 +31,8 @@ float noise(vec3 p) {
 
 void vertex() {
 	v_local = VERTEX;
+	v_frost_pos = VERTEX;
+	v_frost_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
 void fragment() {
@@ -48,6 +53,7 @@ void fragment() {
 		colour *= 1.0 - groove * 0.55;
 		rough = mix(rough, 0.85, groove);
 	}
+	hfn_apply_garment_frost(colour, rough, metallic, v_frost_pos, v_frost_normal, 1.0);
 	ALBEDO = colour;
 	METALLIC = metallic;
 	ROUGHNESS = rough;

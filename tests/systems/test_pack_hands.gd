@@ -20,6 +20,9 @@ var _player: Player
 var _hub: PlayerHubComponent
 var _inventory: InventoryComponent
 var _hands: PackHandling
+var _ui: GameplayUI
+var _glow: EdgeGlowOverlay
+var _results: Array[bool] = []
 
 
 func _initialize() -> void:
@@ -41,6 +44,23 @@ func _run() -> void:
 	await _frames(30)
 	_inventory = _player.get_node(^"InventoryComponent") as InventoryComponent
 	_hub = _player.get_node(^"PlayerHubComponent") as PlayerHubComponent
+	_ui = (load("res://scenes/ui/hud/gameplay_ui.tscn") as PackedScene).instantiate() as GameplayUI
+	_ui.bind_player(_player)
+	root.add_child(_ui)
+	_glow = _ui.get_node(^"HubFeedback/EdgeGlowOverlay") as EdgeGlowOverlay
+	_hub.action_result.connect(func(success: bool) -> void: _results.append(success))
+	_check(not _glow.visible and (_ui.get_node(^"Compass") as CanvasLayer).visible, "gameplay UI before Hub is wrong")
+	var stow := Node3D.new()
+	root.add_child(stow)
+	_hub.stow_visual(stow)
+	await _frames(2)
+	_check(_hub.is_stowing_pickup() and not (_ui.get_node(^"Compass") as CanvasLayer).visible and not _glow.visible, "pickup stow did not suppress only the compass")
+	for _i: int in 120:
+		if not _hub.is_stowing_pickup():
+			break
+		await _frames(1)
+	await _frames(2)
+	_check(not _hub.is_stowing_pickup() and (_ui.get_node(^"Compass") as CanvasLayer).visible, "pickup stow did not restore compass")
 	var equipment := _player.get_node(^"EquipmentComponent") as EquipmentComponent
 	for entry: Dictionary in _inventory.get_entries():
 		if entry["id"] != &"bedroll":
@@ -59,6 +79,7 @@ func _run() -> void:
 	if _hands == null:
 		_finish()
 		return
+	_check(_glow.visible and not (_ui.get_node(^"Compass") as CanvasLayer).visible, "Hub glow or compass visibility wrong")
 	var shelf: PackQuickShelf = _hub.get_quick_shelf()
 	var straps: PackStraps = _hands.straps
 	var left_card: int = _slot(shelf, coat_left)
@@ -76,14 +97,20 @@ func _run() -> void:
 	_check(is_equal_approx(_hands.cursor.load_kg, _inventory.get_total_weight()) and _hands.cursor.load_max_kg > 0.0,
 		"the load bar does not show what Henry carries")
 	await _grab()
+	await _frames(2)
+	_check(_glow.get_feedback_state() == EdgeGlowOverlay.STATE_ACTIVE, "held tin did not activate glow")
 	await _glide(_pack_screen(straps))
 	_hands.press(PackHandling.GRAB_ACTION, false)
-	await _frames(20)
+	await _frames(2)
+	var success_tint: Color = (_glow.material as ShaderMaterial).get_shader_parameter(&"glow_color")
+	_check(success_tint.g > success_tint.r and success_tint.g > success_tint.b, "real successful transfer did not turn glow green")
+	await _frames(18)
 	_check(_inventory.get_count(&"spov_can") == 6 and StringName(shelf.slots[left_card]["item_id"]) == &"",
 		"the tin did not go from the coat pocket into the pack")
 	_check(straps.items.size() == strapped + 1, "the straps do not hold the tin (%d, had %d)" % [straps.items.size(), strapped])
 	_check(thermos_before == null or thermos_before == _hub.pack.get_pocket_visual(&"pack_side_left"),
 		"putting a tin in rebuilt the thermos outside (it would flicker)")
+	_check(_results == [true], "successful transfer did not publish exactly one result")
 	print("pack hands: coat pocket -> pack, %d under the straps" % straps.items.size())
 
 	## A tin out of the pack onto the empty coat pocket's card.
@@ -107,6 +134,7 @@ func _run() -> void:
 	await _frames(20)
 	_check(StringName(shelf.slots[left_card]["item_id"]) == &"spov_can" and _inventory.get_count(&"spov_can") == 5,
 		"the tin did not go from the pack into the coat pocket")
+	_check(_results == [true, true], "successful return or cancelled grab published wrong result")
 	print("pack hands: pack -> coat pocket")
 
 	## The full coat pocket refuses the axe; it stays in its sleeve.
@@ -119,6 +147,8 @@ func _run() -> void:
 		await _frames(5)
 		_check(StringName(shelf.slots[sleeve_card]["item_id"]) == &"axe", "the refused axe left its sleeve")
 		_check(_hands.cursor.warning == tr(PackQuickShelf.FULL), "the full pocket showed no reason")
+		var refusal_tint: Color = (_glow.material as ShaderMaterial).get_shader_parameter(&"glow_color")
+		_check(refusal_tint.r > refusal_tint.g and refusal_tint.r > refusal_tint.b, "real refusal did not turn glow red")
 		## The pack refuses it as too big.
 		await _aim(_card_screen(shelf, sleeve_card))
 		await _grab()
@@ -127,6 +157,7 @@ func _run() -> void:
 		await _frames(5)
 		_check(StringName(shelf.slots[sleeve_card]["item_id"]) == &"axe", "the axe went into the pack")
 		_check(_hands.cursor.warning == tr(PackStraps.TOO_BIG), "the pack showed no reason for the axe")
+		_check(_results == [true, true, false, false], "refusals did not publish exactly one result each")
 		print("pack hands: the axe was refused by a full pocket and by the pack")
 	else:
 		_check(false, "no sleeve card holds the axe")
@@ -166,6 +197,7 @@ func _run() -> void:
 	_hands.press(PackHandling.USE_ACTION, true)
 	await _frames(40)
 	_check(not _hub.is_open() and _hub.get_pack_hands() == null, "eating did not close the pack")
+	_check(not _glow.visible and (_ui.get_node(^"Compass") as CanvasLayer).visible, "closing Hub left glow or hid compass")
 	print("pack hands: RMB on the open tin closed the pack to eat")
 
 	## Pad: a flick steps the ring to the next target that way; from the coat pocket's card rightward it lands on

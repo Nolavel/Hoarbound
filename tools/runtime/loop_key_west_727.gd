@@ -26,12 +26,18 @@ var _house: Node3D
 var _steps: Array[Dictionary] = []
 var _verdict: Dictionary = {}
 var _expected: Dictionary = {}
+## Stop after the sleep save and write expected.json: continue_after_relaunch.gd checks it in a new process.
+var _stop_after_sleep: bool = false
+## Beside this script, so a run against an exported pack (tools/ is not in it) still finds it.
+var SNAPSHOT: GDScript = load((get_script() as Script).resource_path.get_base_dir().path_join("shelter_snapshot.gd"))
 
 
 func _initialize() -> void:
 	for arg: String in OS.get_cmdline_user_args():
 		if arg.begins_with("--out="):
 			_out = arg.get_slice("=", 1)
+		elif arg == "--stop-after-sleep":
+			_stop_after_sleep = true
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out))
 	_run.call_deferred()
 
@@ -49,7 +55,12 @@ func _run() -> void:
 	await _warm_and_dry()
 	await _eat()
 	await _sleep()
-	await _reload()
+	if _stop_after_sleep:
+		var file: FileAccess = FileAccess.open(ProjectSettings.globalize_path(_out.path_join("expected.json")), FileAccess.WRITE)
+		file.store_string(JSON.stringify(_expected))
+		file.close()
+	else:
+		await _reload()
 	_finish()
 
 
@@ -266,29 +277,14 @@ func _reload() -> void:
 	for _i: int in range(20):
 		await physics_frame
 	var got: Dictionary = _snapshot()
-	var diffs: Array[String] = []
-	for key: String in _expected:
-		if str(_expected[key]) != str(got[key]):
-			diffs.append("%s: saved %s, reloaded %s" % [key, _expected[key], got[key]])
+	var diffs: Array[String] = SNAPSHOT.diff(_expected, got)
 	_step("reload", {"saved": _expected, "reloaded": got, "diffs": diffs})
 	_verdict["reload_matches"] = diffs.is_empty()
 
 
 ## Persistent state the reload must reproduce.
 func _snapshot() -> Dictionary:
-	var zone: ThermalZone = _house.get_node(^"ShelterZone") as ThermalZone
-	var boards: Dictionary = {}
-	for breach: ShelterBreach in zone.get_breaches():
-		boards[String(breach.name)] = snappedf(breach.get_coverage_fraction(), 0.01)
-	var source: HeatSource = (_house.get_node(^"ShelterZone/Stove/Feed") as HeatSourceFeed).heat_source
-	var taken: Array[String] = []
-	for name: String in KIT + BOARD_STACKS + ["FirewoodShelter"]:
-		if _world.find_child(name, true, false) == null:
-			taken.append(name)
-	var p: Vector3 = _house.to_local(_player.global_position)
-	return {"boards": boards, "fire_burning": source.is_burning(), "fire_hours": snappedf(source.get_remaining_hours(), 0.1),
-		"taken": taken, "hammer": _inventory.get_count(&"hammer"), "nails": _inventory.get_count(&"nails"),
-		"stew": _inventory.get_count(&"tinned_stew"), "player_in_727": absf(p.x) < 14.0 and absf(p.z) < 11.0}
+	return SNAPSHOT.take(_world, _player)
 
 
 func _pick(node_name: String) -> bool:

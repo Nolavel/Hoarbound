@@ -20,6 +20,9 @@ uniform float roughness_wear = 0.85;
 
 varying vec3 v_local;
 varying vec3 v_normal;
+#include "res://shaders/environment/materials/garment_frost.gdshaderinc"
+varying vec3 v_frost_pos;
+varying vec3 v_frost_normal;
 
 float hash3(vec3 p) {
 	p = fract(p * 0.3183099 + 0.1);
@@ -38,6 +41,8 @@ float noise3(vec3 p) {
 void vertex() {
 	v_local = VERTEX;
 	v_normal = NORMAL;
+	v_frost_pos = VERTEX;
+	v_frost_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
 void fragment() {
@@ -58,7 +63,10 @@ void fragment() {
 	float rubbed = step(0.55, hash3(cell + 17.0)) * edge * rub;
 	colour = mix(colour, rub_colour, rubbed);
 	float worn = max(a, b);
+	float metal_out = mix(metallic_base, metallic_wear, worn) + rubbed * 0.4;
+	float rough_out = mix(roughness_base, roughness_wear, worn) - rubbed * 0.2;
+	hfn_apply_garment_frost(colour, rough_out, metal_out, v_frost_pos, v_frost_normal, 1.0);
 	ALBEDO = colour;
-	METALLIC = mix(metallic_base, metallic_wear, worn) + rubbed * 0.4;
-	ROUGHNESS = mix(roughness_base, roughness_wear, worn) - rubbed * 0.2;
+	METALLIC = metal_out;
+	ROUGHNESS = rough_out;
 }

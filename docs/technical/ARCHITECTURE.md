@@ -91,6 +91,8 @@ Avoid mirrored state such as UI, Player, inventory and world object each storing
 
 When two systems need the same information, one owns it and the other observes or requests it.
 
+This rule forbids **independent sources of truth**, not local read-only caches or derived views. A consumer may retain a slice, computed flag, or cache of another subsystem's state, but may not independently mutate the underlying gameplay fact. The view must have defined initialization, update, and invalidation rules; the authoritative owner remains the sole owner of the original state.
+
 ## 6. Commands and contracts over reach-through
 
 Cross-system communication should use narrow contracts rather than knowledge of another subsystem's internal scene tree.
@@ -241,7 +243,7 @@ Camera behaviour should have one final owner and one ordered pipeline:
 
 `Player intent -> Base camera target -> Context modifiers -> Collision / occlusion -> Presentation smoothing -> Final camera`
 
-Shoulder state, passage framing, interaction framing, auto-look and similar behaviours should become modifiers or inputs to that pipeline rather than independent systems competing to move the camera.
+Shoulder state, interaction framing and similar behaviours are modifiers or inputs to that pipeline rather than independent systems competing to move the camera. The live TPS camera is the direct rig (`docs/technical/TPS_CAMERA.md`); the guided rig with passage framing and auto-look is archived in `archive/tps_camera_guided/`.
 
 Multiple subsystems must not independently own the final camera transform.
 
@@ -337,6 +339,18 @@ Four rules hold for every cross-system link:
 3. **A contract describes behaviour, not method names.** It states its arguments, its result, the refusals it may return, its side effects, and the state guaranteed after a refusal. A command that touches several owners either validates everyone before changing anyone and cannot fail after that, or defines compensation (undo) for a participant that refuses mid-way.
 4. **A new cross-system link ships with its proof.** At minimum: the success path, a refusal, and the state after the refusal. A missing dependency is tested when the link is mandatory. Contract suites listed in `tools/ci/required_suites.txt` gate every push and PR in `checks`; the other suites are reported by `suites`.
 
+### Reading and delivering state
+
+Choose how to exchange information based on changes meaningful to the consumer, not every internal update of the owner. Multiple approaches are valid:
+
+- **Meaningful events.** The owner or an adapter can deliver changes that affect the consumer without broadcasting every raw update.
+- **Local slice / cache.** The consumer can read a prepared value or flag without repeatedly querying the owner; the cache is not an independent source of truth.
+- **Direct query.** The consumer reads from the owner when that is simpler, cheaper, or when a current value is needed.
+
+The owner, an adapter, or the consumer may filter, transform, and deliver data, depending on responsibility and actual cost. Do not make the owner aware of every consumer's internal rules.
+
+For event-driven and cached views, define initial synchronization, update ordering, and invalidation. When an object is created or restored, a save is loaded, a chunk unloads and reloads, or a data source reconnects, the cache must obtain a current snapshot or undergo an equivalent validation. The absence of a new event does not prove a cache is current unless continuous delivery is guaranteed.
+
 ### Dynamic dispatch: what is allowed
 
 Existing `has_method()` / string-`call()` uses are classified, not counted:
@@ -346,10 +360,10 @@ Existing `has_method()` / string-`call()` uses are classified, not counted:
 | A. Optional lifecycle hook called by a composition root | `world/world.gd` `on_world_ready`, `apply_world_profile` | Allowed. The hook is optional by design. |
 | B. Tools, tests, diagnostics, editor code | capture tools, test harnesses | Allowed. Not production gameplay. |
 | C. Boundary mechanics | `core/contracts/`, language adapters | Allowed. This is where reflection lives. |
-| D. Discovery of participants by method name | `SimulationClock` (`advance_simulation`) | Debt. It migrates to an explicit registration or capability when the system is next touched. |
-| E. A mandatory gameplay operation between state owners | (none left for the hands: `HandsTransaction`, `RestComponent`, `BedrollComponent`, `PlayerHubComponent`, `ItemPickup` and `QuickAccessComponent` free hands through `HeldReleaseCapability`) | Debt with a risk when it appears: a silent skip or a partial commit can corrupt game state. |
+| D. Discovery of participants by method name | None left in game code. Every participant seam is a capability in `core/contracts/`, with legacy method names adapted at the boundary. A hot loop binds an operation once with `CapabilityContract.bind`, as `SnowChunkCover` does for ground height. | Closed. A new participant seam starts as a capability. |
+| E. A mandatory gameplay operation between state owners | (none left: hands are freed through `HeldReleaseCapability` and drawn and used from Quick Access through `HeldDrawCapability`) | Debt with a risk when it appears: a silent skip or a partial commit can corrupt game state. |
 
-| F. An untyped call on a known class or service | `state.call(&"is_paused")`, `_sound.call(&"play", ...)`, `player.call(&"play_action_animation", ...)` | Debt, low risk. A typed reference (`as PlayerStateMachine`, `as SoundSystem`, `as Player`) removes it when the file is touched. |
+| F. An untyped call on a known class or service | `state.call(&"is_paused")`, `_sound.call(&"play", ...)`, `player.call(&"play_action_animation", ...)` | Closed: none left in game code. Use a typed reference (`as PlayerStateService`, `as SoundSystemService`, `as InputSystemsService`); a body that tests replace with a stub goes through a capability (`InteractHostCapability`, `LocomotionReadoutCapability`). |
 
 The current count outside `core/contracts/`, `tests/`, `tools/`, `addons/` and `archive/` is a **temporary debt baseline**, not a norm: `tools/ci/dynamic_dispatch_baseline.txt` lists each file with its count and class, and `tools/ci/check_dynamic_dispatch.py` holds it as a ratchet in `checks`. A file may not add a call, a new file may not start, and a file that removed some must lower its line. The target is to remove classes D, E and F deliberately, not to make the number go down. Baseline at introduction (2026-11-10): 165 calls in 40 files (A 4, B 13, D 50, E 14, F 84).
 

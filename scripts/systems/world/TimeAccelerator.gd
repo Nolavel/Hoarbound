@@ -26,8 +26,9 @@ var start_game_time: float = 0.0
 var end_game_time: float = 0.0
 
 func start_acceleration(base_speed: float):
-	if get_parent().has_method("get_current_hour_float"):
-		start_game_time = get_parent().get_current_hour_float()
+	var day_night := get_parent() as DayNightManager
+	if day_night != null:
+		start_game_time = day_night.get_current_hour_float()
 	game_hours_per_second = base_speed
 	is_accelerating = true
 	elapsed_real_time = 0.0
@@ -41,8 +42,9 @@ func _process(delta: float) -> void:
 	var accelerated_game_hours = delta * game_hours_per_second * acceleration_factor
 	consumed_game_hours += accelerated_game_hours
 	if elapsed_real_time >= duration_seconds:
-		if get_parent().has_method("get_current_hour_float"):
-			end_game_time = get_parent().get_current_hour_float()
+		var day_night := get_parent() as DayNightManager
+		if day_night != null:
+			end_game_time = day_night.get_current_hour_float()
 		is_accelerating = false
 		emit_signal("acceleration_ended", consumed_game_hours)
 		

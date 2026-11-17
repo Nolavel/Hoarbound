@@ -64,6 +64,8 @@ func find_warmable(inventory: InventoryComponent) -> StringName:
 
 ## Takes one warmable item from the pack and sets it on the ring.
 func put(inventory: InventoryComponent, item_id: StringName) -> bool:
+	if inventory == null or item_id == &"":
+		return false
 	var item: ItemResource = ItemCatalog.get_item(item_id)
 	if _state != State.EMPTY or item == null or item.warms_into == &"" or not inventory.try_remove(item_id):
 		return false
@@ -254,7 +256,7 @@ func _refresh() -> void:
 	if _steam != null:
 		_steam.emitting = _state == State.READY
 	if _prompt != null:
-		_prompt.call(&"refresh_label")
+		(_prompt as StoveWarmerPrompt).refresh_label()
 
 
 ## A tin on the ring for stew; a small pot for snow and water.

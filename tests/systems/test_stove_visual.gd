@@ -19,7 +19,7 @@ func _process(_delta: float) -> bool:
 		var room_light := OmniLight3D.new()
 		stove.add_child(room_light)
 		stove.flame_light = room_light
-		var visual := StoveVisual.new()
+		var visual := StoveVisual.instantiate()
 		stove.add_child(visual)
 		root.add_child(stove)
 		_check(visual.get_visible_log_count() == 0 and not visual.is_glowing(), "a cold empty stove shows logs or glow")

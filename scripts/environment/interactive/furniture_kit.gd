@@ -167,7 +167,7 @@ static func _container(parent: Node3D, id: StringName, shelves: Array[AABB], way
 	container.container_id = id
 	container.shelves = shelves
 	container.opens_up = up
-	for way: InteractiveArea in ways:
+	for way: Opener in ways:
 		container.openers.append(way)
 	parent.add_child(container)
 	for item_id: StringName in start:

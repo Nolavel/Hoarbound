@@ -104,7 +104,7 @@ func _is_crouching() -> bool:
 	_resolve_movement_controller()
 	if movement_controller != null:
 		return movement_controller.is_crouching()
-	var input_systems: Node = get_node_or_null(^"/root/InputSystems")
-	if input_systems != null and input_systems.has_method(&"is_crouching"):
-		return bool(input_systems.call(&"is_crouching"))
+	var input_systems := get_node_or_null(^"/root/InputSystems") as InputSystemsService
+	if input_systems != null:
+		return input_systems.is_crouching()
 	return false

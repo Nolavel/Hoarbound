@@ -160,6 +160,8 @@ const BASE_LAYERS: Array[StringName] = [&"Outfit_Sweater", &"Outfit_Collar", &"H
 const HAT_FIT_FILE: String = "res://assets/characters/henry/knit_hat/hat_fit.json"
 const LEGACY_HAT_PARTS: Array[StringName] = [&"Outfit_Beanie", &"Outfit_BeanieCuff"]
 const KNIT_HAT_PARTS: Array[StringName] = [&"KnitHat_Crown", &"KnitHat_Cuff", &"KnitHat_Pom"]
+## Cheek flush and brow masks in the head's UV, baked by tools/art/bake_henry_face_masks.gd.
+const FACE_MASKS: Texture2D = preload("res://assets/characters/henry/face/henry_face_masks.png")
 ## How much fully soaked clothing darkens.
 @export_range(0.0, 1.0, 0.05) var wet_darkening: float = 0.45
 ## Kenny's faded plush, lighter than the pack so the silhouette separates.
@@ -312,8 +314,8 @@ func update_animation_blend(_delta: float) -> void:
 	animation_tree.set("parameters/hold_pose/blend_amount", _hold_pose)
 
 	_blend_position = 0.0
-	if player.has_method("get_locomotion_speed_ratio"):
-		_blend_position = float(player.call("get_locomotion_speed_ratio"))
+	if LocomotionReadoutCapability.offers(player, &"speed_ratio"):
+		_blend_position = float(LocomotionReadoutCapability.read(player, &"speed_ratio"))
 	else:
 		var planar_speed: float = Vector2(player.velocity.x, player.velocity.z).length()
 		_blend_position = clampf(planar_speed / 4.5, 0.0, 1.0)
@@ -330,8 +332,7 @@ func update_animation_blend(_delta: float) -> void:
 	animation_tree.set("parameters/base/Grounded/loco/blend_position", _blend_position)
 	animation_tree.set("parameters/base/Grounded/pace/scale", pace)
 	var crouch_blend: float = 0.0
-	if player.has_method("get_crouch_speed_ratio"):
-		crouch_blend = float(player.call("get_crouch_speed_ratio"))
+	crouch_blend = float(LocomotionReadoutCapability.read(player, &"crouch_ratio", 0.0))
 	animation_tree.set("parameters/base/Crouch/blend_position", crouch_blend)
 	if _has_carry_state():
 		animation_tree.set("parameters/base/CrouchCarry/idle/blend_position", crouch_blend)
@@ -376,7 +377,7 @@ func update_animation_state(jump_started: bool, landed: bool, impact_speed: floa
 		_air_state = &"AirLoop"
 		_state_playback.travel(&"AirLoop")
 		return
-	var crouching: bool = player.has_method("is_crouching") and bool(player.call("is_crouching"))
+	var crouching: bool = bool(LocomotionReadoutCapability.read(player, &"crouching", false))
 	if crouching:
 		## A load in the arms stays held while crouched: carry arms over the crouch legs.
 		_state_playback.travel(&"CrouchCarry" if _carried != null and _has_carry_state() else &"Crouch")
@@ -745,7 +746,7 @@ func update_head_look(delta: float) -> void:
 	if _head_lookat == null or player == null:
 		return
 	var planar_speed: float = Vector2(player.velocity.x, player.velocity.z).length()
-	var want: bool = (planar_speed < head_look_idle_speed or look_with_light) and player.has_method(&"get_view_direction")
+	var want: bool = (planar_speed < head_look_idle_speed or look_with_light) and LocomotionReadoutCapability.offers(player, &"view_direction")
 	var eye: Vector3 = _head_bone_position()
 	var direction: Vector3 = -player.global_transform.basis.z
 	if want:
@@ -892,9 +893,9 @@ func _update_attention(delta: float) -> void:
 
 
 func _update_look_depth(delta: float, stale: bool) -> void:
-	if player == null or not player.has_method(&"get_view_ray"):
+	if player == null or not LocomotionReadoutCapability.offers(player, &"view_ray"):
 		return
-	var depth: float = float((player.call(&"get_view_ray") as Array)[2])
+	var depth: float = float((LocomotionReadoutCapability.read(player, &"view_ray") as Array)[2])
 	if stale or _look_depth <= 0.0:
 		_look_depth = depth
 		return
@@ -912,12 +913,12 @@ func _attention_goal() -> Vector3:
 	facing.y = 0.0
 	facing = facing.normalized() if facing.length() > 0.001 else Vector3.FORWARD
 	var view: Vector3
-	if player.has_method(&"get_view_ray"):
-		var ray: Array = player.call(&"get_view_ray")
+	if LocomotionReadoutCapability.offers(player, &"view_ray"):
+		var ray: Array = LocomotionReadoutCapability.read(player, &"view_ray")
 		var depth: float = _look_depth if _attention_fresh() and _look_depth > 0.0 else float(ray[2])
 		view = (ray[0] as Vector3) + (ray[1] as Vector3) * depth - _raw_attention_origin()
-	elif player.has_method(&"get_view_direction"):
-		view = player.call(&"get_view_direction")
+	elif LocomotionReadoutCapability.offers(player, &"view_direction"):
+		view = LocomotionReadoutCapability.read(player, &"view_direction")
 	else:
 		return facing
 	view.y = 0.0
@@ -1292,6 +1293,9 @@ func _style_garment_mesh(mesh_inst: MeshInstance3D, part: StringName, use_source
 				material.set_shader_parameter("metallic", source.metallic)
 				material.set_shader_parameter("use_orm_ao", source.ao_enabled and source.ao_texture == source.roughness_texture)
 		material.set_meta(&"dry_color", dry)
+		if part == &"Henry_Head":
+			material.set_shader_parameter("use_face_mask", true)
+			material.set_shader_parameter("face_mask_texture", FACE_MASKS)
 		mesh_inst.set_surface_override_material(surface, material)
 		_garment_materials["%s:%d" % [part, surface]] = material
 

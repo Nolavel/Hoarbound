@@ -6,6 +6,8 @@ extends Node
 
 signal hub_opened
 signal hub_closed
+## Result of a completed 3D Hub action. Cancelling a drag has no result.
+signal action_result(success: bool)
 ## Emitted after an item moved between the pack and a Quick Access zone.
 signal contents_changed
 ## Emitted when a quick-stowed item has dropped into the pack.
@@ -71,6 +73,8 @@ var _shelf: PackQuickShelf
 var _hands: PackHandling
 ## Set while full inspection opens the Hub: it sets the pack down instead of taking it in hand.
 var _opening_inspection: bool = false
+## Dropped on the Tab hand card: {id, zone}; drawn into the hand when the Hub closes.
+var _hand_pick: Dictionary = {}
 
 
 ## A UI composition root owns the presentation panel, not Henry.
@@ -160,6 +164,11 @@ func is_open() -> bool:
 	return _open
 
 
+## World pickup's visible stow animation, not a second pickup state.
+func is_stowing_pickup() -> bool:
+	return _stows_in_flight > 0
+
+
 func toggle() -> bool:
 	return close() if _open else open()
 
@@ -208,6 +217,8 @@ func _open_at(shelves: ItemContainer, side: float) -> bool:
 		## The ring cursor and hands: take from the pack or a pocket, put it in the other, G puts it down.
 		var layer := CanvasLayer.new()
 		layer.name = "PackCursorLayer"
+		## Keep the ring, readout and weight above the fullscreen Hub glow (layer 1).
+		layer.layer = 3
 		add_child(layer)
 		var ring := PackCursor.new()
 		layer.add_child(ring)
@@ -314,7 +325,39 @@ func close() -> bool:
 		_panel.hide_hub()
 	Input.mouse_mode = _previous_mouse_mode
 	hub_closed.emit()
+	_draw_hand_pick()
 	return true
+
+
+## The Tab hand card: this item goes into Henry's hand as the Hub closes (zone "" = the main compartment).
+func request_hand(item_id: StringName, zone_path: StringName = &"") -> void:
+	_hand_pick = {"id": item_id, "zone": zone_path}
+
+
+func get_hand_request() -> Dictionary:
+	return _hand_pick.duplicate()
+
+
+func _draw_hand_pick() -> bool:
+	var pick: Dictionary = _hand_pick
+	_hand_pick = {}
+	var body: Node = get_parent()
+	if pick.is_empty() or body == null:
+		return false
+	var item_id: StringName = pick["id"]
+	if StringName(pick["zone"]) != &"":
+		var quick := body.get_node_or_null(^"QuickAccessComponent") as QuickAccessComponent
+		var zones: Array[Dictionary] = get_quick_access_zones()
+		for i: int in range(zones.size()):
+			if quick != null and zones[i]["path"] == pick["zone"] and zones[i]["item_id"] == item_id:
+				return quick.draw(i)
+		return false
+	HeldReleaseCapability.release_all(body)
+	var hammer := body.get_node_or_null(^"HammerComponent") as HammerComponent
+	if hammer != null and hammer.can_use(item_id):
+		return hammer.use(item_id)
+	var held := body.get_node_or_null(^"HeldItemComponent") as HeldItemComponent
+	return held != null and held.present_owned(item_id)
 
 
 ## Pack contents: id, count, name, weight and size class per stack.
@@ -575,7 +618,7 @@ func use_item(item_id: StringName) -> bool:
 	if user == null:
 		return false
 	close()
-	return bool(user.call(&"use", item_id))
+	return ItemUserCapability.use(user, item_id)
 
 
 ## Uses a pocketed item: it passes through the pack to its user and goes back
@@ -603,7 +646,7 @@ func _user_for(item_id: StringName) -> Node:
 	if body == null or inventory == null or not inventory.has_item(item_id):
 		return null
 	for child: Node in body.get_children():
-		if child != self and child.has_method(&"can_use") and bool(child.call(&"can_use", item_id)):
+		if child != self and ItemUserCapability.can_use(child, item_id):
 			return child
 	return null
 
