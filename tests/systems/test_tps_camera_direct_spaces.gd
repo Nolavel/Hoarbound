@@ -19,6 +19,9 @@ var _last: Vector3 = Vector3.INF
 
 
 func _initialize() -> void:
+	## Run narrow-space frustum checks at the real gameplay aspect ratio.
+	## Headless default 100x100 must not become a square native canvas.
+	root.size = Vector2i(1920, 1080)
 	_run.call_deferred()
 
 
