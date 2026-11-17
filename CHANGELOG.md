@@ -6,6 +6,41 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed (an open cabinet answered F with "close" while the view was on its shelves, #42 record 03)
+
+- **Reproduced in the real 727 with Henry's TPS camera:**
+  - **What happened:** with the view on the open shelves of any of the four pieces of furniture, F went to something else:
+    - the kitchen cupboard's open right door;
+    - the chest's lid;
+    - the neighbouring closed drawer of the dresser, which F would have opened.
+  - **Why:**
+    - an open leaf is a world target, and a world target always outranks the search (a pickup-channel target);
+    - from over the shoulder, the aim lands nearer the swung-open door than the middle of the shelves (about 7° against 13°).
+- **Fix:** F goes to what the aim meets first along its ray.
+  - The leaf itself (the door, the lid, or a drawer's front and handle) takes F.
+  - Open shelves offering a search take F, and so do a neighbour's open shelves.
+  - Aiming straight at an open leaf still shuts it.
+  - Code: `Opener.accepts_focus`, `Opener.get_leaf`, `ItemContainer.aim_distance_to_shelves`.
+  - The kit's drawer front and bar now hang under its handle, so the handle is aimed at by its real meshes.
+- **Test:** `test_open_container_focus` runs in the 727 shell with Henry's camera.
+  - It checks that the view on the shelves makes F search and the view on each leaf makes F shut it.
+  - On the old code all four views on the shelves fail.
+
+### Fixed (the picked-up flare was "nowhere": it sat in the coat pocket drawn as a grey box, #42 record 02)
+
+- **Checked in the real 727:** F on the shelter's flare puts it in the left coat pocket, because the flare prefers Quick Access. In the open Hub that pocket's card showed the plain parcel, which every unknown item gets.
+- **Why:** `SurvivalItemVisual.make()`, which draws the pocket cards, had no road flare. Only the world pickup and the held flare used the Emberline model.
+- **Fix:** it draws the authored `RoadFlare.glb`, so the card, a thrown flare and any other caller show the flare itself.
+- **Test:** `test_quick_item_visuals` checks that every item the game routes into a pocket by itself is drawn as itself. On the old code it fails for `road_flare`.
+- **Not yet drawn, each still shown as the parcel:**
+  - small items: `nails`, `thermal_shirt`, `knit_hat`;
+  - large items: `searchlight`, `bedroll`.
+
+### Fixed (boot log and dead debug labels, #42 record 01)
+
+- `[Boot] ground paved and covered` now prints how long the ground took, with the session time beside it. The 376 s and 1529 s in the 0.314a log were session times, not load times.
+- The player scene no longer asks for the speed and stamina debug labels, which were removed long ago. The two warnings on every world start are gone.
+
 ### Fixed (performance: the open Hub held the game at ~22 FPS)
 
 - **What was measured:**

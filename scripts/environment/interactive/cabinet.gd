@@ -50,6 +50,11 @@ func get_focus_point(observer: Vector3) -> Vector3:
 	return super(observer)
 
 
+## Its door (or lid) on the hinge, aimed at to shut it.
+func get_leaf() -> Node3D:
+	return door_hinge
+
+
 ## Refuses while the door is still swinging, so repeated presses stay sane.
 func can_interact() -> bool:
 	return super() and door_hinge != null and not is_swinging()

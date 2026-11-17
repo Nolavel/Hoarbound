@@ -55,13 +55,9 @@ script = ExtResource("3_4fuql")
 [node name="MovementController" type="Node3D" parent="." node_paths=PackedStringArray("stamina_manager")]
 script = ExtResource("5_ep65o")
 stamina_manager = NodePath("StaminaManager")
-debug_show_speed = true
-debug_label_path = NodePath("DebugLBL2")
 
 [node name="StaminaManager" type="Node3D" parent="MovementController"]
 script = ExtResource("6_oh6um")
-debug_show_stamina = true
-debug_label_path = NodePath("../DebugLBL")
 
 [node name="PlayerHealthSystem" type="Node3D" parent="."]
 script = ExtResource("8_re6ll")
