@@ -107,7 +107,7 @@ character_light = NodePath("HubCharacterLight")
 [node name="HubCharacterLight" type="AreaLight3D" parent="PlayerHubComponent"]
 visible = false
 light_color = Color(1, 0.94, 0.86, 1)
-light_energy = 1.2
+light_energy = 4.0
 light_cull_mask = 16
 area_size = Vector2(0.6, 0.4)
 area_range = 3.0
