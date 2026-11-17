@@ -8,6 +8,8 @@ extends Node
 const OVERLAY: ShaderMaterial = preload("res://assets/materials/frost/garment_frost_overlay.tres")
 ## Bare skin and helper meshes under Henry that never frost.
 const SKIP_PREFIXES: Array[String] = ["Henry_Head", "Skin_", "Mannequin", "BootSnow", "ThrowLanding"]
+## Meta on a node whose meshes stay clear of rime: what lies inside the pack's main compartment.
+const SHELTERED_META: StringName = &"sheltered_from_frost"
 
 ## Outdoor air at or above this grows no rime.
 @export var forms_below_c: float = -2.0
@@ -123,8 +125,27 @@ func _collect_gear() -> void:
 		var skip: bool = false
 		for prefix: String in SKIP_PREFIXES:
 			skip = skip or String(geo.name).begins_with(prefix)
-		if not skip:
+		if not skip and _is_sheltered(geo, body):
+			_clear_rime(geo)
+		elif not skip:
 			_gear.append(geo)
+
+
+## True when `geo` lies in the pack (a SHELTERED_META node between it and Henry).
+static func _is_sheltered(geo: Node, body: Node) -> bool:
+	var node: Node = geo
+	while node != null and node != body:
+		if node.has_meta(SHELTERED_META):
+			return true
+		node = node.get_parent()
+	return false
+
+
+## Drops any rime `geo` was given before it went into the pack.
+static func _clear_rime(geo: GeometryInstance3D) -> void:
+	geo.set_instance_shader_parameter(&"garment_frost", 0.0)
+	if geo.material_overlay == OVERLAY:
+		geo.material_overlay = null
 
 
 ## Sets the rime on every piece of gear; plain-material meshes get it as an overlay while the slot is free.

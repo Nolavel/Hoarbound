@@ -6,6 +6,34 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed (a hitch on every Tab; owner's report and #173, measured on the owner's HD 620, 2026-11-17)
+
+- **Problem:** every Hub open hitched, and the first one in a session hitched hard.
+- **Measured:** `tools/runtime/probe_hub_open.gd`, 727 yard, real Vulkan on HD 620, 1920×1080, HIGH.
+  - Each open compiled 8 surface and about 10 specialization pipelines.
+  - The first open compiled about 113 specializations; its worst frame was 705 ms against a 250 ms median.
+- **Cause, by A/B one factor at a time:**
+  - **Repeated compiles:** `PackFocusBlur` made a fresh blur `ShaderMaterial` and a fresh stencil `StandardMaterial3D` per mesh on every open. With the blur removed, repeat opens compiled 0. The masks gave 6 of the 8 compiles and the quad gave 2.
+  - **First open:** the Hub key light (`AreaLight3D`). Without it the first open compiled 10 specializations, not 113. Rime made no difference.
+- **Fix:**
+  - The blur quad, its material and the masks are shared and kept across visits. A mask is shared when what it draws before is none or a saved resource.
+  - `PackHandling` now swaps the mask for one drawn before the outline; it no longer edits a shared mask's `next_pass`.
+  - `PlayerHubComponent` lights the key light at energy 0.001 for 3 frames under the startup card, as a `BootLoadCapability` provider.
+- **Result, same probe:** repeat opens compile 0. The first open compiles 9 surface and 15 specialization pipelines (the blur's first draw), and its worst frame is 489 ms.
+- **Not covered:**
+  - The probe ran a debug build from the editor's project, not an exported release.
+  - The 9 first-time blur pipelines remain.
+  - Chunks streamed in after boot are not warmed for the key light.
+
+### Fixed (no rime on what lies inside the pack; owner's request, 2026-11-17)
+
+- **Problem:** items in the pack's main compartment took Henry's rime, as if they were outdoors.
+- **Fix:**
+  - `BackpackModel` marks main-compartment and loose items with `ClothingFrostComponent.SHELTERED_META`.
+  - `ClothingFrostComponent` skips anything under that mark and clears rime it carried in.
+  - Items in the outer side pockets and on the carabiners still frost.
+- **Test:** `test_clothing_frost` adds a stew loose and a thermos to the side pocket. On the old code the stew took rime and the overlay (4 failed checks).
+
 ### Changed (the load gauge is just under the width of the pack's outer face; owner's local test, 2026-11-17)
 
 - **Problem:** the gauge was sized to the flat middle of the face (0.34 m minus two 6 cm roundings = 0.22 m), so it looked tiny on the pack.

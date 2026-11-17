@@ -17,20 +17,26 @@ var shelves: Node3D
 var _blur: ShaderMaterial
 var _scan_s: float = 0.0
 var _masked: Dictionary = {}  # instance id -> true; never retain a freed Node
+## Kept across Hub visits so each open reuses compiled pipelines (fresh ones recompiled 8 per open on HD 620).
+static var _shared_quad: QuadMesh
+static var _shared_blur: ShaderMaterial
+static var _shared_masks: Dictionary = {}  # instance id of the overlay a mask draws before (0: none) -> mask
 
 
 ## Blurs all but `held_pack`, `beside` (an open container) and the camera's own children; a child of the camera.
 func setup(held_pack: Node3D, beside: Node3D = null) -> void:
 	pack = held_pack
 	shelves = beside
-	var quad := QuadMesh.new()
-	quad.size = Vector2(2.0, 2.0)
-	mesh = quad
+	if _shared_quad == null:
+		_shared_quad = QuadMesh.new()
+		_shared_quad.size = Vector2(2.0, 2.0)
+		_shared_blur = ShaderMaterial.new()
+		_shared_blur.shader = BLUR_SHADER
+		_shared_blur.render_priority = -127
+	mesh = _shared_quad
 	extra_cull_margin = 16384.0
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_blur = ShaderMaterial.new()
-	_blur.shader = BLUR_SHADER
-	_blur.render_priority = -127
+	_blur = _shared_blur
 	_blur.set_shader_parameter(&"strength", 0.0)
 	material_override = _blur
 	create_tween().tween_method(func(value: float) -> void: _blur.set_shader_parameter(&"strength", value), 0.0, 1.0, FADE_S)
@@ -115,8 +121,18 @@ func _mask_one(node: Node) -> void:
 	_masked[geometry.get_instance_id()] = true
 
 
+## The stencil mask to draw before `after` (null: nothing). Never edit its next_pass: masks are shared.
+static func mask_over(after: Material) -> StandardMaterial3D:
+	return _mask(after)
+
+
 ## An unseen overlay writing STENCIL_REF where the mesh shows; what was its overlay draws after it.
+## Shared by every mesh and visit when `after` is none or a saved resource; a per-item one gets its own.
 static func _mask(after: Material) -> StandardMaterial3D:
+	var shared: bool = after == null or after.resource_path != ""
+	var key: int = after.get_instance_id() if after != null else 0
+	if shared and _shared_masks.has(key):
+		return _shared_masks[key]
 	var mask := StandardMaterial3D.new()
 	mask.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mask.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -130,4 +146,6 @@ static func _mask(after: Material) -> StandardMaterial3D:
 	mask.render_priority = -128
 	mask.next_pass = after
 	mask.set_meta(&"focus_mask", true)
+	if shared:
+		_shared_masks[key] = mask
 	return mask

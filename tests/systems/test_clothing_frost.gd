@@ -150,4 +150,40 @@ func _test_gear_frosts_but_not_the_face() -> void:
 		if (node as GeometryInstance3D).material_overlay == ClothingFrostComponent.OVERLAY:
 			left += 1
 	_check(left == 0, "%d rime overlays stayed after the rime melted" % left)
+	_test_pack_contents_stay_clear(player, frost)
 	player.queue_free()
+
+
+## What lies inside the pack's main compartment takes no rime, even if it carried some in; a side pocket's does.
+func _test_pack_contents_stay_clear(player: Player, frost: ClothingFrostComponent) -> void:
+	var packs: Array[Node] = player.find_children("*", "BackpackModel", true, false)
+	var pack := packs[0] as BackpackModel if not packs.is_empty() else null
+	_check(pack != null, "Henry has no BackpackModel")
+	if pack == null:
+		return
+	pack.clear_items()
+	_check(pack.add_loose(&"tinned_stew"), "the stew did not go into the pack")
+	_check(pack.add_item(&"thermos", &"side_left"), "the thermos did not go into the side pocket")
+	var inside: Array[GeometryInstance3D] = []
+	var pocket: Array[GeometryInstance3D] = []
+	for item: Node in pack.get_node(^"Contents").get_children():
+		for node: Node in [item] + item.find_children("*", "GeometryInstance3D", true, false):
+			var geo := node as GeometryInstance3D
+			if geo == null:
+				continue
+			if item.has_meta(ClothingFrostComponent.SHELTERED_META):
+				geo.set_instance_shader_parameter(&"garment_frost", 0.5)
+				inside.append(geo)
+			else:
+				pocket.append(geo)
+	_check(not inside.is_empty() and not pocket.is_empty(), "the pack items drew no meshes")
+	frost.set_frost(0.7)
+	for geo: GeometryInstance3D in inside:
+		var value: Variant = geo.get_instance_shader_parameter(&"garment_frost")
+		_check(value == null or float(value) == 0.0, "%s inside the pack took rime (%s)" % [geo.name, str(value)])
+		_check(geo.material_overlay != ClothingFrostComponent.OVERLAY, "%s inside the pack got the rime overlay" % geo.name)
+	var pocket_frosted: bool = false
+	for geo: GeometryInstance3D in pocket:
+		var value: Variant = geo.get_instance_shader_parameter(&"garment_frost")
+		pocket_frosted = pocket_frosted or (value != null and is_equal_approx(float(value), 0.7))
+	_check(pocket_frosted, "the thermos in the outer side pocket took no rime")

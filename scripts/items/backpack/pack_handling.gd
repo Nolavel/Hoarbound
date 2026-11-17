@@ -810,6 +810,6 @@ static func _rim(visual: Node3D, colour: Color) -> void:
 			var overlay: Material = (mesh as MeshInstance3D).material_overlay
 			if overlay != null and overlay.has_meta(&"focus_mask"):
 				if overlay.next_pass != rim:
-					overlay.next_pass = rim
+					(mesh as MeshInstance3D).material_overlay = PackFocusBlur.mask_over(rim)
 			elif overlay != rim:
 				(mesh as MeshInstance3D).material_overlay = rim

@@ -39,6 +39,9 @@ const PACK_DESTINATION: StringName = &"pack"
 const CHARACTER_LIGHT_OFFSET: Vector3 = Vector3(0.45, 0.4, 0.1)
 ## Seconds the key light takes to come up or go down with the Hub.
 const CHARACTER_LIGHT_FADE_S: float = 0.35
+## The boot warm-up of the key light: its energy (all but dark) and the frames it shines.
+const LIGHT_WARM_ENERGY: float = 0.001
+const LIGHT_WARM_FRAMES: int = 3
 
 @export var inventory: InventoryComponent
 @export var equipment: EquipmentComponent
@@ -65,6 +68,7 @@ var _stows_in_flight: int = 0
 var _camera: Camera3D
 var _light_level: float = 0.0
 var _light_energy: float = 0.0
+var _light_warming: bool = true
 var _previous_camera: Camera3D
 var _panel: PlayerHubPanel
 var _inspecting: bool = false
@@ -100,6 +104,41 @@ func _ready() -> void:
 		inventory = InventoryComponent.find_in(body)
 	if equipment == null and body != null:
 		equipment = body.get_node_or_null(^"EquipmentComponent") as EquipmentComponent
+	if character_light != null:
+		BootLoadCapability.publish(self, self, &"is_light_warming")
+		_warm_character_light.call_deferred()
+
+
+## True until the key light's pipelines are warmed under the startup card (BootLoadCapability).
+func is_light_warming() -> bool:
+	return _light_warming
+
+
+## Under the startup card the key light shines a few frames, all but dark, by the game camera: its pipeline
+## variants then compile there, not on the first Tab (HD 620: 113 of them, a 0.7 s frame).
+func _warm_character_light() -> void:
+	while _other_boot_work():
+		await get_tree().process_frame
+	var camera: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	if camera != null and not _open:
+		var energy: float = character_light.light_energy
+		character_light.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY, CHARACTER_LIGHT_OFFSET)
+		character_light.light_energy = LIGHT_WARM_ENERGY
+		character_light.visible = true
+		for _i: int in LIGHT_WARM_FRAMES:
+			await get_tree().process_frame
+		character_light.light_energy = energy
+		character_light.visible = false
+	_light_warming = false
+
+
+## Boot work other than this and the see-through warm-up (which itself waits for this one).
+func _other_boot_work() -> bool:
+	for node: Node in get_tree().get_nodes_in_group(BootLoadCapability.GROUP):
+		if node != self and not node is SeeThroughWarmup and CapabilityContract.has(node, BootLoadCapability.ID) \
+				and bool(CapabilityContract.invoke(node, BootLoadCapability.ID, BootLoadCapability.PENDING)):
+			return true
+	return false
 
 
 ## Henry searches `shelves` where he stands (owner: he walks up himself): he faces it, crouches at a low one
@@ -133,7 +172,7 @@ func _process(delta: float) -> void:
 
 ## The key light comes up with the Hub over the lens and goes down after it closes.
 func _update_character_light(delta: float) -> void:
-	if character_light == null:
+	if character_light == null or _light_warming:
 		return
 	if _light_energy <= 0.0:
 		_light_energy = character_light.light_energy

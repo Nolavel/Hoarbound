@@ -425,6 +425,8 @@ func add_item(item_id: StringName, slot: StringName, along: float = 0.0, insert:
 					at.x += side * ((them.end.x - whole.position.x) if side > 0.0 else (whole.end.x - them.position.x)) + side * 0.001
 		axis = Vector2(at.x, at.z + bow)
 	visual.transform = Transform3D(basis, at)
+	if sleeve < 0:
+		visual.set_meta(ClothingFrostComponent.SHELTERED_META, true)
 	_contents.add_child(visual)
 	_items.append({"id": item_id, "slot": slot, "node": visual, "box": Transform3D(basis, at) * box, "seat": at,
 		"ellipse": ellipse, "axis": axis, "tool": head_bottom >= 0.0})
@@ -474,6 +476,7 @@ func add_loose(item_id: StringName) -> bool:
 			best_y = floor_y
 			best = Vector3(x, floor_y - placed.position.y, z)
 	visual.transform = Transform3D(basis, best)
+	visual.set_meta(ClothingFrostComponent.SHELTERED_META, true)
 	_contents.add_child(visual)
 	_items.append({"id": item_id, "slot": &"", "node": visual, "box": Transform3D(basis, best) * box})
 	_refresh_proxies()
