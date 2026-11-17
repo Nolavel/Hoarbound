@@ -19,7 +19,9 @@ func _run() -> void:
 	_check("one-sided", not badge.double_sided)
 	_check("depth test enabled", not badge.no_depth_test)
 	var physical_width: float = badge.pixel_size * float(viewport.size.x)
-	_check("inside flat cloth width", physical_width <= BackpackModel.BODY.x - BackpackModel.ROUND_M * 2.0 + 0.001)
+	## Owner's local test: just under the pack's outer face, not shrunk to its flat middle.
+	_check("just under the outer face width (%.3f m)" % physical_width, physical_width <= BackpackModel.BODY.x - 0.03
+		and physical_width >= BackpackModel.BODY.x - 0.06)
 	_check("panel centred on pack and below top", absf(BackpackLoadBanner.PANEL_POSITION.x) < 0.001
 		and BackpackLoadBanner.PANEL_POSITION.y > 0.1
 		and BackpackLoadBanner.PANEL_POSITION.y < BackpackModel.BODY.y - 0.1)

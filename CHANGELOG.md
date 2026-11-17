@@ -6,6 +6,44 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (the load gauge is just under the width of the pack's outer face; owner's local test, 2026-11-17)
+
+- **Problem:** the gauge was sized to the flat middle of the face (0.34 m minus two 6 cm roundings = 0.22 m), so it looked tiny on the pack.
+- **Fix:** `pixel_size` 0.00043 → 0.000586, so the gauge is 0.30 m wide, 2 cm inside each edge of the 0.34 m face.
+  - `test_backpack_load_banner` now holds it 3–6 cm under the face width.
+- **Checked:** `capture_backpack_load_banner.gd`, rear and three-quarter views. It lies on the face, with no gap and no overhang.
+
+### Fixed (sleep and waiting burn a lit flare; owner's local test, 2026-11-17)
+
+- **Problem:** a lit flare still burned after hours of sleep.
+- **Cause:** its burn counted only frame time. Sleep and waiting move the simulation clock in one jump, and the flare never heard of it.
+- **Fix:**
+  - The flare is now a `SimulationParticipantCapability` participant on the clock.
+  - Skipped hours burn it at its documented rating, `rated_game_hours` = 0.5: 75 real seconds equal 30 game minutes. Realtime steps are left to its own frame clock.
+- **Test:** `test_flare_sleep_burn`. A 6-minute wait leaves 60 of 75 s, and 3 hours of sleep leave it spent. On the old code both checks failed (75 s left; still burning).
+- **Not covered:** a flare left burning on the ground is not part of the save, as before.
+
+### Fixed (a flare taken with held F is in Henry's hand, and stays there through a Hub visit; owner's local test, 2026-11-17)
+
+- **Problem:** holding F on a flare stored it in its coat pocket, but the hand stayed empty. Meanwhile the Hub's hand card showed it "in hand".
+  - The hand card shows the Quick Access pick, not what is really held.
+  - A Hub visit also emptied the hand: it puts every held item away as it opens and on close drew back only a pick made on the hand card.
+- **Fix:**
+  - A held F on an item no hand presenter shows (flare, hammer) now settles it in its pocket at once and draws it through that pocket's Quick Access key, as the key itself does.
+  - The Hub records what was in the hand as it opens and draws it back as it closes, unless the hand card picks another item.
+- **Test:** `test_pickup_gesture` holds F on a flare, then opens and closes the Hub. It failed on the old code at each half ("left the hand empty"; "gone after the Hub").
+
+### Fixed (Henry no longer spins while aiming a snowball; owner's local test, 2026-11-17)
+
+- **Problem:** with a snowball in hand, RMB turned Henry round and round, and the log showed `look_at() failed` from `face_work_target`.
+- **Cause:** a feedback loop. He faced side-on to the hand's own throw line, and the hand moves as he turns. With the aim near his feet, each turn moved the line and turned him again.
+- **Fix:**
+  - He now stands side-on to the camera's heading, as TPS aim modes turn the body by the control yaw (Unreal's "Use Controller Rotation Yaw").
+  - `face_work_target` ignores a target closer than 5 cm. `look_at`'s own equality test grows with Key West's coordinates (about 3 cm there) and is what logged the error.
+- **Test:** `test_throw_aim_facing` aims at 10°, 45° and 70° down at Key West's coordinates.
+  - Old code: 40° of turn at 45° down, plus the `look_at` error.
+  - New code: 0.0° at every pitch, and no error.
+
 ### Added (a soft key light on Henry and the pack in the Hub and at a search, #42 record 02, item 5)
 
 - **Problem:** in the TAB view and at a cabinet search, Henry and the pack took only the room's light. In the 727 their mean brightness was 35–61 out of 255, and they merged with the dark room.

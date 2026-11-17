@@ -127,6 +127,16 @@ func _check_hold_unholdable_stores() -> void:
 	await _frames(70)
 	_check(not _results.has(&"refused_hands"), "holding F on a flare refused instead of taking it")
 	_check(_inventory.get_count(&"road_flare") == 1 or _pocket_has(&"road_flare"), "holding F on a flare did not take it")
+	## Owner smoke 2026-11-17: the flare was stored but never reached the hand, and a Hub visit lost it too.
+	var light := _player.get_node(^"HeldLightComponent") as HeldLightComponent
+	_check(light.is_holding(), "holding F on a flare left the hand empty")
+	var hub := _player.get_node(^"PlayerHubComponent") as PlayerHubComponent
+	hub.open()
+	await _frames(60)
+	hub.close()
+	await _frames(60)
+	_check(light.is_holding(), "the flare in hand was gone after the Hub opened and closed")
+	HeldReleaseCapability.release_all(_player)
 	await _reset()
 
 

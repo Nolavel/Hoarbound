@@ -271,7 +271,9 @@ func is_holding_still() -> bool:
 func face_work_target(target: Vector3) -> void:
 	var at: Vector3 = target
 	at.y = global_position.y
-	if global_position.distance_squared_to(at) > 0.0001:
+	## look_at refuses a target it finds equal to the origin, and its tolerance grows with the coordinates
+	## (some 3 cm out at Key West's thousands of metres): a near target is no direction, so keep the facing.
+	if global_position.distance_squared_to(at) > 0.0025 and not global_position.is_equal_approx(at):
 		look_at(at, Vector3.UP)
 
 

@@ -213,9 +213,13 @@ func open() -> bool:
 
 ## Enters the Hub, at `shelves` (null: none) with the pack held on `side` of it.
 func _open_at(shelves: ItemContainer, side: float) -> bool:
+	var in_hand: Dictionary = _held_now()
 	if _open or not _can_open() or not _stow_safe_held_items():
 		_end_visit()
 		return false
+	## What the Hub took out of his hand goes back into it as it closes, unless the hand card picks another.
+	if _hand_pick.is_empty():
+		_hand_pick = in_hand
 	_previous_mouse_mode = Input.mouse_mode
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_open = true
@@ -768,6 +772,24 @@ func _can_open() -> bool:
 		return false
 	var visual: HenryUALAnimation = _visual()
 	return visual == null or not (visual.is_carrying() or visual.is_action_locking())
+
+
+## What Henry holds now as a hand pick ({id, zone}; zone "" for the main compartment), or {} for empty hands.
+func _held_now() -> Dictionary:
+	var body: Node = get_parent()
+	if body == null:
+		return {}
+	var held := body.get_node_or_null(^"HeldItemComponent") as HeldItemComponent
+	if held != null and held.is_holding():
+		return {"id": held.get_item_id(), "zone": held.get_source_zone()}
+	var quick := body.get_node_or_null(^"QuickAccessComponent") as QuickAccessComponent
+	var zone: StringName = quick.get_held_source_zone() if quick != null else &""
+	if zone == &"":
+		return {}
+	for entry: Dictionary in get_quick_access_zones():
+		if entry["path"] == zone and entry["item_id"] != &"":
+			return {"id": entry["item_id"], "zone": zone}
+	return {}
 
 
 func _stow_safe_held_items() -> bool:

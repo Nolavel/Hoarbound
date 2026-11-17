@@ -27,6 +27,8 @@ const WEATHER_CONTROLLER_SCRIPT: GDScript = preload(
 ## Exit's 24-hour clock takes 3600 real seconds, so 75 real seconds here equal
 ## 30 minutes in Henry's world.
 @export_range(5.0, 300.0, 1.0) var burn_duration_s: float = 75.0
+## The same burn in Henry's world hours: sleep and waiting burn it at this rate.
+@export_range(0.05, 4.0, 0.05) var rated_game_hours: float = 0.5
 ## Fixed seed keeps local previews reproducible. Set 0 to randomise.
 @export var flare_seed: int = 1337
 
@@ -121,6 +123,10 @@ func _ready() -> void:
 		ignite()
 	else:
 		_apply_burning_state()
+	SimulationParticipantCapability.publish(self, &"advance_simulation")
+	var clock := get_tree().get_first_node_in_group(&"simulation_clock") as SimulationClock
+	if clock != null:
+		clock.register_participant(self)
 
 
 func on_world_ready(context: WorldContext) -> void:
@@ -179,15 +185,18 @@ func get_current_energy() -> float:
 	return _current_energy if _burning else 0.0
 
 
+## Owner's local test: a flare still burned after hours of sleep. Skipped hours burn it; realtime is _process's.
+func advance_simulation(hours: float, context: SimulationStepContext) -> void:
+	if not _burning or context == null or context.reason == SimulationClock.REALTIME_REASON:
+		return
+	_burn(hours / maxf(rated_game_hours, 0.001) * burn_duration_s)
+
+
 func _process(delta: float) -> void:
 	if not _burning:
 		return
 
-	_burn_elapsed_s += delta
-	if burn_duration_s > 0.0 and _burn_elapsed_s >= burn_duration_s:
-		_spent = true
-		extinguish()
-		spent.emit()
+	if _burn(delta):
 		return
 
 	_change_timer_s -= delta
@@ -209,6 +218,17 @@ func _process(delta: float) -> void:
 	if _wind_timer_s <= 0.0:
 		_wind_timer_s = wind_sample_interval_s
 		_update_smoke_wind()
+
+
+## Adds burn time; true once it ran out and the flare went spent.
+func _burn(seconds: float) -> bool:
+	_burn_elapsed_s += seconds
+	if burn_duration_s <= 0.0 or _burn_elapsed_s < burn_duration_s:
+		return false
+	_spent = true
+	extinguish()
+	spent.emit()
+	return true
 
 
 func _pick_next_energy() -> void:
