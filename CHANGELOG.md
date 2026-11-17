@@ -6,6 +6,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (Claude must load its process skills, not follow them from memory)
+
+- **Problem:** superpowers and grill-me were installed, but Claude never loaded them in a whole session. The owner noticed.
+- **Fix:** `CLAUDE.md` gains a "Process skills" table. Each situation names the skill to load first:
+  - debugging, TDD, verification before "done", brainstorming;
+  - grilling on the owner's request;
+  - the project's review skill.
+
 ### Changed (the load gauge is just under the width of the pack's outer face; owner's local test, 2026-11-17)
 
 - **Problem:** the gauge was sized to the flat middle of the face (0.34 m minus two 6 cm roundings = 0.22 m), so it looked tiny on the pack.
