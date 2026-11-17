@@ -919,7 +919,10 @@ jobs:
       - name: Import project
         run: tools/ci/import_gate.sh
       - name: Pure pixel-budget regression test
-        run: "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script res://tests/systems/test_native_resolution_budget.gd | tee budget.log
+        run: |
+          set -o pipefail
+          "$HOME/.local/bin/godot" --headless --path . --audio-driver Dummy --script res://tests/systems/test_native_resolution_budget.gd | tee budget.log
+          grep -q "NATIVE_BUDGET_TEST: PASS" budget.log
       - name: Capture actual Key West in a fresh process
         env:
           CASE_ID: ${{ matrix.id }}
