@@ -223,7 +223,7 @@ static func _outline(id: StringName) -> AABB:
 		return _outlines[id]
 	var visual: Node3D = SurvivalItemVisual.make(id)
 	var box: AABB = BackpackModel._local_bounds(visual)
-	visual.queue_free()
+	SurvivalItemVisual.release(visual)
 	_outlines[id] = box
 	return box
 

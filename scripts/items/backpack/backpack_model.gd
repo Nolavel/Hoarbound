@@ -381,6 +381,7 @@ func add_item(item_id: StringName, slot: StringName, along: float = 0.0, insert:
 	var visual: Node3D = SurvivalItemVisual.make(item_id)
 	var box: AABB = _local_bounds(visual)
 	if box.size == Vector3.ZERO:
+		SurvivalItemVisual.release(visual)
 		return false
 	var rest: Array = SLOTS[slot]
 	var centre: Vector3 = rest[0]

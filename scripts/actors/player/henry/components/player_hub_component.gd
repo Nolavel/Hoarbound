@@ -644,7 +644,7 @@ func _on_stow_landed(visual: Node3D, item_id: StringName = &"") -> void:
 ## Where a picked-up item settles: the first free Quick Access pocket that fits a
 ## preferred item, else the pack. Pockets and pack both carry its weight.
 func route_destination(item_id: StringName) -> StringName:
-	var item: ItemResource = ItemCatalog.get_item(item_id)
+	var item: ItemResource = ItemCatalog.get_item(item_id) if item_id != &"" else null  # a search has no item
 	if item == null or not item.prefer_quick_access or equipment == null:
 		return PACK_DESTINATION
 	for zone: Dictionary in get_quick_access_zones():

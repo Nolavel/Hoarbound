@@ -69,6 +69,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - **Cost (lavapipe, same loading):** +12 to +68 draw calls and +0.6 to +1.5 % primitives at the seven audit viewpoints. HD 620 still needs its gate run.
 - **Rule:** `.claude/rules/key-west-reconstruction.md` records the owner's screenshot-request rule and the documented-geometry rule.
 
+### Fixed (renderer "material is null" and empty item id warnings, play-test log 2026-11-18)
+
+- `PackStraps._outline()` measured an item visual and dropped it with `queue_free()` without ever drawing it. With the Hub open, the first carry of each item kind raised four "Parameter material is null" renderer errors (Godot 4.8-dev). It now uses `SurvivalItemVisual.release()`.
+- `BackpackModel.add_item()` leaked the visual when the item had empty bounds. It now releases it.
+- `PlayerHubComponent.route_destination()` looked up an empty id for a non-item interaction (a container search), which warned `ItemCatalog: unknown item id ''` on every search.
+
 ### Changed (Claude asks whenever in doubt; owner's correction 2026-11-17)
 
 - `CLAUDE.md`: Grill Me was described as forbidden unless the owner asks. The rule is now "when in doubt, ask the owner, always": Claude asks the question, may offer Grill Me for a large decision tree, and starts it only with the owner's consent.
