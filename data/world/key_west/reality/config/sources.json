@@ -469,7 +469,7 @@
       "name": "City of Key West Legistar file 20-6136 \u2014 727 Fort Street Major Development Plan, staff report",
       "provider": "City of Key West Planning Department",
       "url": "https://keywest.legistar.com/LegislationDetail.aspx?GUID=42AF0AD0-6B9A-40FF-99CA-713E1AC0DB49&ID=4665854",
-      "access": "Facts transcribed by Codex from the staff report (Drive doc 'Codex source delivery \u2014 Key West blocked sources \u2014 2026-10-10'); attachments Site Plans / Planning Package / Historic Planner not yet obtained",
+      "access": "Staff report facts transcribed by Codex (2026-10-10); attachments Site Plans, Planning Package and Historic Planner read 2026-11-18 through webapi.legistar.com (receipt)",
       "license": "Public record (Florida Chapter 119); facts only, no plan sheets stored",
       "attribution": "City of Key West",
       "requires_attribution": false,
@@ -480,6 +480,25 @@
       "temporal_epoch": "2020 staff report; building 1948",
       "feature_classes_used": [
         "727 Fort Street: year built, storeys, construction, floor area, site area, existing height, parcel RE#"
+      ],
+      "status": "integrated"
+    },
+    {
+      "source_id": "city_kw_legistar_22_3575",
+      "name": "City of Key West Legistar 22-3575 \u2014 918 Fort Street Major Development Plan (Lofts at Bahama Village), with 22-3623 staff reports and 25-4377 condominium declaration",
+      "provider": "City of Key West Planning Department; Planning Board 2022-12-19",
+      "url": "https://webapi.legistar.com/v1/keywest/matters/23312/attachments",
+      "access": "Attachments read 2026-11-18 through webapi.legistar.com; plan sheets georeferenced to OSM street centrelines (config/documented_buildings.json)",
+      "license": "Public record (Florida Chapter 119); drawings \u00a9 PQH Group / Michael Flaugh: facts and derived coordinates only, no plan sheets stored",
+      "attribution": "City of Key West",
+      "requires_attribution": false,
+      "share_alike": false,
+      "authority_level": "local_government",
+      "crs": "plan sheets without CRS; georeferenced to EPSG:32617",
+      "positional_accuracy_m": "about 2 (as designed, not surveyed)",
+      "temporal_epoch": "approved 2022-12-19; built 2023-2025; opened 2025-10-30",
+      "feature_classes_used": [
+        "Lofts at Bahama Village buildings A, B, C: outline, storeys, height cap, roof form and materials"
       ],
       "status": "integrated"
     }
