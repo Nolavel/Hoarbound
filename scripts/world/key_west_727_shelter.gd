@@ -196,6 +196,7 @@ func _place_door(zone: ThermalZone) -> void:
 
 
 ## Swaps the hut's plank leaf for the storefront leaf: its mesh, glass and a collision box of its size.
+## The glass frosts through the leaf's import (window_glass -> frosted_glass_727.tres), as the shell's panes do.
 func _fit_storefront_leaf(door: HingedDoor) -> void:
 	var leaf: MeshInstance3D = door.door_hinge.get_node(^"DoorLeaf") as MeshInstance3D
 	var source: Node3D = ENTRANCE_LEAF.instantiate() as Node3D
@@ -205,7 +206,6 @@ func _fit_storefront_leaf(door: HingedDoor) -> void:
 	frame.remove_child(glass)
 	leaf.add_child(glass)
 	glass.owner = null
-	glass.material_override = FROSTED_GLASS
 	source.free()
 	var bounds: AABB = leaf.mesh.get_aabb()
 	door.door_hinge.position.x = -door.opening_size.x * 0.5

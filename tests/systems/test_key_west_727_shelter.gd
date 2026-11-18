@@ -128,7 +128,7 @@ func _check_nodes() -> void:
 	var leaf: MeshInstance3D = door.door_hinge.get_node_or_null(^"DoorLeaf") as MeshInstance3D
 	var glass: MeshInstance3D = leaf.get_node_or_null(^"DoorGlass") as MeshInstance3D if leaf != null else null
 	_check(leaf != null and absf(leaf.get_aabb().size.x - (storefront * 0.5 - 0.01)) < 0.01, "the leaf is not the storefront leaf")
-	_check(glass != null and glass.material_override == KeyWest727Shelter.FROSTED_GLASS, "the leaf's glass does not frost like the windows")
+	_check(glass != null and glass.get_active_material(0) == KeyWest727Shelter.FROSTED_GLASS, "the leaf's glass does not frost like the windows")
 	var main: Dictionary = {}
 	for o: Dictionary in _shelter.interior["openings"]:
 		if o["name"] == "MainDoor":

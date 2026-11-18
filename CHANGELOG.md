@@ -6,6 +6,10 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed (727 storefront leaf: renderer error at exit)
+
+- The storefront leaf's glass took the frost material through `material_override` in code. At exit the instance outlived that material and Godot logged "Parameter material is null" (main scene and the shelter suites). The leaf's import now maps `window_glass` to `frosted_glass_727.tres`, as the shell's panes do; the override is gone and the log is clean.
+
 ### Changed (Key West: 727 storefront entrance, 717 wayfinding post, roof snow)
 
 - **Entrance as drawn:** the hut's plank door is replaced by the A2.01 NW storefront: 8'-0" x 8'-0", two leaves of 2 x 2 lites in dark bronze. The Fort Street leaf opens (HingedDoor, hinged on its outer jamb, still swinging out); the other is fixed glass, a heated-room pane down to the floor with an invisible stop behind it. The leaf's glass frosts like the windows. The ramp now spans the whole storefront. Built by `tools/blender/build_727_exterior.py` as `kw_727_entrance_leaf.glb`.
