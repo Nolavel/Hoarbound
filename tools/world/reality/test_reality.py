@@ -363,5 +363,51 @@ class StaticSnow(unittest.TestCase):
         self.assertIsNone(static_snow.roof_cap(self._gable(75.0), self._Wind([1.0, 0.0]), self._cfg()))
 
 
+class DocumentedBuildings(unittest.TestCase):
+    """Lofts at Bahama Village from Legistar 22-3575: the record's numbers pin the georeference."""
+
+    FORT_CROSSING = (418468.23, 2715428.26)  # OSM node 5577506219, Fort St x Allen Ave
+    FORT_TO_PETRONIA = (418494.04, 2715391.98)  # OSM node 3239061938
+
+    def _features(self):
+        from reality import documented
+        return documented.features(ids.IdRegistry())
+
+    def test_lofts_area_matches_record(self):
+        area_sqft = sum(f.geom.area for f in self._features()) / 0.3048 ** 2
+        self.assertAlmostEqual(area_sqft, 52870, delta=52870 * 0.06)
+
+    def test_fort_facades_sit_behind_the_right_of_way(self):
+        fort = shapely.LineString([self.FORT_CROSSING, self.FORT_TO_PETRONIA])
+        fort = shapely.affinity.scale(fort, 6.0, 6.0)  # the centreline beyond both nodes
+        for f in self._features():
+            if f.feature_id.endswith(("_a_fort", "_c_south", "_c_north")):
+                self.assertTrue(4.5 <= f.geom.distance(fort) <= 7.5, f"{f.feature_id}: {f.geom.distance(fort):.2f} m")
+
+    def test_lofts_stand_across_fort_street_from_727(self):
+        import numpy as np
+        a, b = np.asarray(self.FORT_CROSSING), np.asarray(self.FORT_TO_PETRONIA)
+
+        def side(p) -> float:
+            d, q = b - a, np.asarray(p) - a
+            return float(np.sign(d[0] * q[1] - d[1] * q[0]))
+        shelter = (418493.22, 2715412.72)  # 727 Fort St centroid, east of Fort St
+        for f in self._features():
+            self.assertEqual(side(f.geom.centroid.coords[0]), -side(shelter), f.feature_id)
+
+    def test_records_carry_provenance(self):
+        feats = self._features()
+        self.assertEqual(len(feats), 5)
+        for f in feats:
+            self.assertTrue(f.feature_id.startswith("kw:building:doc:legistar_22_3575_"))
+            self.assertEqual((f.geometry_source, f.geometry_method, f.geometry_recon), ("city_kw_legistar_22_3575", "approved_site_plan_georeferenced", "derived"))
+            self.assertEqual((f.geometry_confidence, f.geometry_accuracy_m, f.valid_from), (0.6, 2.0, "2025-10-30"))
+            self.assertIn("as_designed_not_surveyed", f.flags)
+            self.assertIn("Legistar 22-3575", f.geometry_record)
+            roof = f.selected("roof_documented").value
+            self.assertLess(roof["eave_m"], roof["top_m"])
+            self.assertLessEqual(roof["top_m"], 10.67 - 0.36 + 1e-6)  # 35 ft over the crown, stored above the sidewalk
+
+
 if __name__ == "__main__":
     unittest.main()

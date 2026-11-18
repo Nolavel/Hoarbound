@@ -1,0 +1,218 @@
+{
+ "schema": "kw_reality.documented_buildings.v1",
+ "description": "Buildings taken from public planning records when no survey source has them yet. Geometry is the approved plan georeferenced to street centrelines: as designed, not surveyed. A survey or newer imagery that disagrees wins.",
+ "georef": {
+  "crs": "EPSG:32617",
+  "sheet": "22-3575 package page 88 (landscape site plan) rendered at 200 dpi, crop x 80..1960, y 150..1240",
+  "origin_en": [
+   418468.23,
+   2715428.26
+  ],
+  "origin_px": [
+   1189.5,
+   487.0
+  ],
+  "origin_note": "Fort St x Allen Ave centreline crossing: OSM node 5577506219 (ways 1058448895 v3, 1058367479 v3); on the sheet Fort St right-of-way line x 1170 + 15 ft half of the 30 ft right of way, Allen Ave midway between the parcel lines",
+  "down_axis_en": [
+   0.5797,
+   -0.8149
+  ],
+  "down_axis_note": "Fort St towards Petronia: OSM nodes 5577506219 -> 3239061938",
+  "metres_per_px": 0.2345,
+  "scale_note": "sheet scale bar 200 ft = 260 px (1 in = 50 ft)"
+ },
+ "heights": {
+  "datum": "crown of Fort Street (sheets: NGVD29 6 ft 10 in); stored above the crown",
+  "crown_to_sidewalk_m": 0.36,
+  "first_floor_above_crown_m": 0.43,
+  "record": "elevation sheets A201 (A), B and C: 1st floor 8'-3\", 2nd 17'-9\", T.O.P-1 27'-3\", 3rd 27'-3\", T.O.P-2 36'-7\", roof 41'-10\" NGVD29; 35 ft cap"
+ },
+ "record_facts": {
+  "building_area_sqft": 52870,
+  "units": {
+   "A": 74,
+   "B": 24,
+   "C": 28
+  }
+ },
+ "buildings": [
+  {
+   "source_id": "city_kw_legistar_22_3575",
+   "geometry_method": "approved_site_plan_georeferenced",
+   "reconstruction_class": "derived",
+   "confidence": 0.6,
+   "geometry_accuracy_m": 2.0,
+   "valid_from": "2025-10-30",
+   "flags": [
+    "as_designed_not_surveyed"
+   ],
+   "key": "legistar_22_3575",
+   "address": "918 Fort Street",
+   "name": "Lofts at Bahama Village",
+   "construction": "concrete and CMU; stucco and cementitious lap siding",
+   "masses": [
+    {
+     "key": "a_fort",
+     "name": "Building A, Fort Street wing",
+     "plan_px": [
+      [
+       1075,
+       512
+      ],
+      [
+       1163,
+       512
+      ],
+      [
+       1163,
+       835
+      ],
+      [
+       1075,
+       835
+      ]
+     ],
+     "geometry_record": "Legistar 22-3575 (918 Fort St MDP, Planning Board 2022-12-19), sheet A201 east elevation",
+     "levels": 2,
+     "eave_above_crown_m": 6.22,
+     "top_above_crown_m": 10.67,
+     "roof": {
+      "form": "hip_flat_top",
+      "pitch": 0.4166666666666667,
+      "pitch_note": "5:12 inferred; the sheets dimension rise, not pitch",
+      "material": "5V-crimp metal"
+     },
+     "note": "Two-storey porch facade on Fort St (HARC); the rear massing behind it is not dimensioned on the sheets read: ask for a view from the south parking"
+    },
+    {
+     "key": "a_allen",
+     "name": "Building A, Allen Avenue wing",
+     "plan_px": [
+      [
+       806,
+       512
+      ],
+      [
+       1075,
+       512
+      ],
+      [
+       1075,
+       598
+      ],
+      [
+       806,
+       598
+      ]
+     ],
+     "geometry_record": "Legistar 22-3575 (918 Fort St MDP, Planning Board 2022-12-19), sheet A201 north and west elevations; owner panorama 2026-11-18 (visual)",
+     "levels": 3,
+     "eave_above_crown_m": 9.07,
+     "top_above_crown_m": 10.67,
+     "roof": {
+      "form": "hip_flat_top",
+      "pitch": 0.4166666666666667,
+      "pitch_note": "5:12 inferred; the sheets dimension rise, not pitch",
+      "material": "5V-crimp metal"
+     }
+    },
+    {
+     "key": "b",
+     "name": "Building B",
+     "plan_px": [
+      [
+       848,
+       682
+      ],
+      [
+       1010,
+       682
+      ],
+      [
+       1010,
+       765
+      ],
+      [
+       848,
+       765
+      ]
+     ],
+     "geometry_record": "Legistar 22-3575 (918 Fort St MDP, Planning Board 2022-12-19), B elevation sheet",
+     "levels": 3,
+     "eave_above_crown_m": 9.07,
+     "top_above_crown_m": 10.67,
+     "roof": {
+      "form": "hip_flat_top",
+      "pitch": 0.4166666666666667,
+      "pitch_note": "5:12 inferred; the sheets dimension rise, not pitch",
+      "material": "5V-crimp metal"
+     }
+    },
+    {
+     "key": "c_south",
+     "name": "Building C, Allen Avenue end (710 Fort St condominiums)",
+     "plan_px": [
+      [
+       1076,
+       408.6
+      ],
+      [
+       1163,
+       408.6
+      ],
+      [
+       1163,
+       462
+      ],
+      [
+       1076,
+       462
+      ]
+     ],
+     "geometry_record": "Legistar 22-3575 (918 Fort St MDP, Planning Board 2022-12-19), C east elevation: two storeys over 22.8 % of the length from Allen Ave",
+     "levels": 2,
+     "eave_above_crown_m": 6.22,
+     "top_above_crown_m": 10.67,
+     "roof": {
+      "form": "hip_flat_top",
+      "pitch": 0.4166666666666667,
+      "pitch_note": "5:12 inferred; the sheets dimension rise, not pitch",
+      "material": "5V-crimp metal"
+     }
+    },
+    {
+     "key": "c_north",
+     "name": "Building C, Diesel Plant end (710 Fort St condominiums)",
+     "plan_px": [
+      [
+       1076,
+       228
+      ],
+      [
+       1163,
+       228
+      ],
+      [
+       1163,
+       408.6
+      ],
+      [
+       1076,
+       408.6
+      ]
+     ],
+     "geometry_record": "Legistar 22-3575 (918 Fort St MDP, Planning Board 2022-12-19), C east elevation; owner panorama Geraldine/Fort 2026-11-18 (visual)",
+     "levels": 3,
+     "eave_above_crown_m": 9.07,
+     "top_above_crown_m": 10.67,
+     "roof": {
+      "form": "hip_flat_top",
+      "pitch": 0.4166666666666667,
+      "pitch_note": "5:12 inferred; the sheets dimension rise, not pitch",
+      "material": "5V-crimp metal"
+     }
+    }
+   ]
+  }
+ ]
+}
