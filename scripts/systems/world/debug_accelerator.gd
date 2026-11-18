@@ -30,9 +30,9 @@ func _process(delta):
 	if accelerator.is_accelerating:
 		start_button.disabled = true
 		stop_button.disabled = false
-		duration_label.text = "⏱ Duration: %.2f сек" % accelerator.duration_seconds
+		duration_label.text = "⏱ Duration: %.2f s" % accelerator.duration_seconds
 		factor_label.text = "⚡ Accelerate: x%.2f" % accelerator.acceleration_factor
-		elapsed_label.text = "⏳ Elapsed: %.2f сек" % accelerator.elapsed_real_time
+		elapsed_label.text = "⏳ Elapsed: %.2f s" % accelerator.elapsed_real_time
 	else:
 		start_button.disabled = false
 		stop_button.disabled = true
@@ -63,6 +63,6 @@ func _on_time_update(current_hour: float):
 		if minutes_passed >= 60.0:
 			var hours = int(minutes_passed / 60.0)
 			var mins = int(fmod(minutes_passed, 60.0))
-			consumed_label.text = "🕒 %dч %dм" % [hours, mins]
+			consumed_label.text = "🕒 %dh %dm" % [hours, mins]
 		else:
-			consumed_label.text = "🕒 %dм" % int(minutes_passed)
+			consumed_label.text = "🕒 %dm" % int(minutes_passed)

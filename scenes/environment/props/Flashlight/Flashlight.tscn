@@ -13,7 +13,7 @@ data = PackedVector3Array(0, 0.1, 0.055, 0.0054, 0.1, 0.0547, 0, 0.06, 0.054, 0.
 [node name="Flashlight" type="Node3D" node_paths=PackedStringArray("flashlight_mesh")]
 script = ExtResource("1_dlggk")
 flashlight_mesh = NodePath("FlashlightMesh")
-description = "Компактный светодиодный фонарик"
+description = "Compact LED flashlight"
 highlight_color = Color(0.116667, 1, 0, 0.45098)
 circle_radius = 0.5
 

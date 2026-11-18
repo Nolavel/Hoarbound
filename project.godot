@@ -1327,6 +1327,7 @@ recall_bearing={
 
 [internationalization]
 
+locale/test="en"
 locale/translations=PackedStringArray("res://localization/strings.en.translation", "res://localization/strings.ru.translation")
 
 [layer_names]

@@ -2,8 +2,8 @@ extends Node3D
 class_name FlashlightPickup
 
 @export var flashlight_mesh: MeshInstance3D
-@export var flashlight_name: String = "Нагрудный фонарик"
-@export var description: String = "Описание отсутствует"
+@export var flashlight_name: String = "Chest flashlight"
+@export var description: String = "No description"
 @export var highlight_color: Color = Color(1.0, 1.0, 0.0, 0.45)  # Цвет круга
 @export var circle_radius: float = 1.0 
 
