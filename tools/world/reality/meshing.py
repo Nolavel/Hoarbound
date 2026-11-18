@@ -166,7 +166,11 @@ def building_shell(s: Surfaces, poly, base_y: float, height: float | None, heigh
     cap = base_y + (height if top_known else 3.0)
     flat_cap = base_y + flat_top if (flat_top is not None and not height_is_authoritative) else cap
     roof_source = "flat_cap_placeholder" if not top_known else "flat_cap_measured_height"
-    model = documented_model(poly, documented_roof, base_y) if documented_roof else None
+    flat_doc = bool(documented_roof) and documented_roof["form"] == "flat"
+    if flat_doc:
+        flat_cap = base_y + documented_roof["top_m"]
+        roof_source = "documented_flat"
+    model = documented_model(poly, documented_roof, base_y) if documented_roof and not flat_doc else None
     measurable = documented_roof is None and roof_relief is not None and roof_relief >= FLAT_RELIEF_M
     win = s.dsm_window(poly) if measurable else None
     if win is not None:

@@ -270,6 +270,43 @@ def append_features(path: Path, features: list[Feature]) -> dict:
     return {"inserted": sorted(set(ids_new) - set(replaced)), "replaced": sorted(replaced), "overlaps": overlaps}
 
 
+def _gpkg_blob_geometry(blob):
+    """Shapely geometry of a GeoPackage geometry blob (header + WKB), or None."""
+    if blob is None:
+        return None
+    envelope = {0: 0, 1: 32, 2: 48, 3: 48, 4: 64}[(blob[3] >> 1) & 7]
+    return shapely.from_wkb(bytes(blob[8 + envelope:]))
+
+
+def _register_gpkg_functions(con: sqlite3.Connection) -> None:
+    """The ST_* functions GeoPackage rtree triggers call on UPDATE (plain sqlite3 lacks them)."""
+    def bound(i):
+        return lambda blob: None if blob is None else float(_gpkg_blob_geometry(blob).bounds[i])
+    con.create_function("ST_IsEmpty", 1, lambda blob: 1 if blob is None or _gpkg_blob_geometry(blob).is_empty else 0)
+    for name, i in (("ST_MinX", 0), ("ST_MinY", 1), ("ST_MaxX", 2), ("ST_MaxY", 3)):
+        con.create_function(name, 1, bound(i))
+
+
+def close_features(path: Path, closings: list[dict]) -> list[str]:
+    """Sets valid_to on features another source replaces (e.g. a demolished building); returns the ids found.
+
+    Rows stay in the library as history; the exporter leaves out what is not in the world on its date.
+    """
+    con = sqlite3.connect(path)
+    _register_gpkg_functions(con)
+    found = []
+    for c in closings:
+        fid = c["feature_id"]
+        family = con.execute("SELECT family FROM feature_index WHERE feature_id = ?", (fid,)).fetchone()
+        if family is None:
+            continue
+        con.execute(f'UPDATE "{family[0]}" SET valid_to = ? WHERE feature_id = ?', (c["valid_to"], fid))
+        found.append(fid)
+    con.commit()
+    con.close()
+    return found
+
+
 def _write_tables(path: Path, features: list[Feature], excluded: list, override_layer: dict, meta: dict) -> None:
     """Aspatial tables. Bulky provenance is normalised into *_store tables + lookups; the
     public names (attribute, source_link, identity_map) are SQL views with the full columns."""

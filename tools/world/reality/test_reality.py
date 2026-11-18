@@ -371,7 +371,7 @@ class DocumentedBuildings(unittest.TestCase):
 
     def _features(self):
         from reality import documented
-        return documented.features(ids.IdRegistry())
+        return [f for f in documented.features(ids.IdRegistry()) if ":legistar_22_3575_" in f.feature_id]
 
     def test_lofts_area_matches_record(self):
         area_sqft = sum(f.geom.area for f in self._features()) / 0.3048 ** 2
@@ -410,6 +410,56 @@ class DocumentedBuildings(unittest.TestCase):
             self.assertLessEqual(roof["top_m"], 10.67 - 0.36 + 1e-6)  # 35 ft over the crown, stored above the sidewalk
 
 
+class DocumentedDouglass(unittest.TestCase):
+    """Frederick Douglass Community Center and Gym from Legistar 21-7769 (sheet A1.1.1, 1 in = 10 ft)."""
+
+    FORT_OLIVIA = (418562.45, 2715290.52)  # OSM node 99079687
+    CITY_5038_EAST = (418636.97, 2715346.79)  # east-most vertex, City of Key West footprint OBJECTID 5038 (2017)
+
+    def _features(self):
+        from reality import documented
+        return {f.feature_id.rsplit("_21_7769_", 1)[1]: f for f in documented.features(ids.IdRegistry()) if ":legistar_21_7769_" in f.feature_id}
+
+    def test_centre_floor_area_matches_record(self):
+        f = self._features()
+        area_sqft = (f["centre_low"].geom.area + f["centre_hall"].geom.area) / 0.3048 ** 2
+        self.assertAlmostEqual(area_sqft, 9587, delta=9587 * 0.08)
+
+    def test_georeference_agrees_with_the_city_footprint(self):
+        import numpy as np
+        from reality import documented
+        georef = [b for b in documented.load()["buildings"] if b["key"] == "legistar_21_7769"][0]["georef"]
+        survey_line = np.asarray(documented.georeference([[5074.0, 1343.0], [5074.0, 3195.0], [5075.0, 3195.0]], georef).exterior.coords)[0]
+        city_east = np.array(self.CITY_5038_EAST)
+        along_olivia = np.asarray(georef["right_axis_en"], float)
+        self.assertLess(abs(float((city_east - survey_line) @ along_olivia)), 0.5, "sheet x 5074 is the surveyed east face 2.15 ft off Emma St")
+
+    def test_existing_gym_is_left_to_lidar(self):
+        from reality import documented
+        f = self._features()
+        self.assertEqual(sorted(k for k, v in f.items() if v.feature_id in documented.lidar_masses(list(f.values()))), ["gym", "gym_west"])
+        self.assertIsNone(f["gym"].selected("height_m"))
+        self.assertIn("existing_per_site_plan", f["gym"].flags)
+        self.assertNotIn("as_designed_not_surveyed", f["gym"].flags)
+
+    def test_old_merged_outline_is_superseded(self):
+        from reality import documented
+        s = {e["feature_id"]: e for e in documented.supersessions()}
+        self.assertEqual(s["kw:building:osm:w339414847"]["valid_to"], "2023-09-18")
+
+
+class ExportWorldDate(unittest.TestCase):
+    """The world is built as it stood on the world date: later buildings and demolished ones stay out."""
+
+    def test_in_world(self):
+        from reality import editor_export
+        self.assertTrue(editor_export.in_world("2025-10-30", None, "2025-12-31"))
+        self.assertTrue(editor_export.in_world(None, None, "2025-12-31"))
+        self.assertFalse(editor_export.in_world(None, "2023-09-18", "2025-12-31"))
+        self.assertFalse(editor_export.in_world("2026-02-01", None, "2025-12-31"))
+        self.assertTrue(editor_export.in_world("1948", None, "2025-12-31"))
+
+
 class DocumentedRoof(unittest.TestCase):
     """A roof from the elevation sheets goes through the same shell as a lidar-fitted one."""
 
@@ -433,6 +483,14 @@ class DocumentedRoof(unittest.TestCase):
 
     def test_roof_source_names_the_documents(self):
         self.assertEqual(self._shell(self.ROOF)["roof_source"], "documented_hip_flat_top")
+
+    def test_flat_roof_sits_at_the_documented_top(self):
+        import numpy as np
+        shell = self._shell({"form": "flat", "eave_m": 5.6, "top_m": 5.6})
+        v = np.asarray(shell["roof_v"]).reshape(-1, 3)
+        self.assertAlmostEqual(float(v[:, 1].min()), 6.6, places=2)
+        self.assertAlmostEqual(float(v[:, 1].max()), 6.6, places=2)
+        self.assertEqual(shell["roof_source"], "documented_flat")
 
     def test_roof_never_passes_the_documented_top(self):
         import numpy as np
@@ -460,7 +518,7 @@ class LibraryPatch(unittest.TestCase):
 
     def _documented(self):
         from reality import documented
-        return documented.features(ids.IdRegistry())
+        return [f for f in documented.features(ids.IdRegistry()) if ":legistar_22_3575_" in f.feature_id]
 
     def _counts(self, path):
         import sqlite3
@@ -491,6 +549,18 @@ class LibraryPatch(unittest.TestCase):
             report = library.append_features(path, self._documented())
             self.assertEqual(self._counts(path), first)
             self.assertEqual(len(report["replaced"]), 5)
+
+    def test_supersession_closes_the_old_feature(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._mini_library(tmp)
+            entry = {"feature_id": "kw:building:osm:w2", "valid_to": "2023-09-18", "reason": "test"}
+            self.assertEqual(library.close_features(path, [entry]), ["kw:building:osm:w2"])
+            self.assertEqual(library.close_features(path, [entry]), ["kw:building:osm:w2"])
+            _, cols = library.read_layer("buildings", path)
+            closed = dict(zip(cols["feature_id"], cols["valid_to"]))
+            self.assertEqual(closed["kw:building:osm:w2"], "2023-09-18")
+            self.assertIsNone(closed["kw:building:osm:w1"])
 
     def test_overlap_is_reported(self):
         import tempfile

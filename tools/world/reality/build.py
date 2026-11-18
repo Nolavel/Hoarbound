@@ -282,11 +282,19 @@ def bind_facts(features: list[Feature]) -> dict:
     return dict(stats)
 
 
-def documented_buildings(features: list[Feature], idreg: ids.IdRegistry) -> dict:
-    """Buildings from planning records (config/documented_buildings.json), newer than every survey source."""
+def documented_buildings(features: list[Feature], idreg: ids.IdRegistry, dem: lidar.DemCrop) -> dict:
+    """Buildings from planning records (config/documented_buildings.json); closes the features they replace."""
     new = documented.features(idreg)
+    measured = [f for f in new if f.feature_id in documented.lidar_masses(new)]
+    building_measurements(measured, dem)
+    by_id = {f.feature_id: f for f in features}
+    closed = []
+    for c in documented.supersessions():
+        if c["feature_id"] in by_id:
+            by_id[c["feature_id"]].valid_to = c["valid_to"]
+            closed.append(c["feature_id"])
     features.extend(new)
-    return {"masses": len(new), "ids": [f.feature_id for f in new]}
+    return {"masses": len(new), "ids": [f.feature_id for f in new], "lidar_measured": len(measured), "closed": closed}
 
 
 def chunk_and_local(features: list[Feature]) -> None:
@@ -342,7 +350,7 @@ def run() -> None:
     stats["usa_structures_vs_lidar_alignment"] = lidar.alignment_offset(g19, dem, usa_fp, shapely.box(x0, y0, x1, y1))
     _log("alignment", stats["vector_vs_lidar_alignment"], stats["usa_structures_vs_lidar_alignment"])
     stats["documentary_facts"] = bind_facts(features)
-    stats["documented_buildings"] = documented_buildings(features, idreg)
+    stats["documented_buildings"] = documented_buildings(features, idreg, dem)
     conflate.select_attributes(features)
     chunk_and_local(features)
     ov_layer = overrides.load()

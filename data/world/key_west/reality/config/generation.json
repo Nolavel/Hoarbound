@@ -1,6 +1,8 @@
 {
   "schema": "kw_reality.generation.v1",
   "description": "Editor generator settings. Priority corridors are generated first and at higher fidelity; the rest of the island follows with the same rules at a coarser sampling step. Fidelity changes sampling, never which real features exist.",
+  "world_date": "2025-12-31",
+  "world_date_note": "Owner 2026-11-18: the geography is the city no earlier than late 2025; the exact world date follows the lore. Features with valid_from after it, or valid_to on or before it, are not generated.",
   "priority_corridors": [
     {
       "name": "first_exit",

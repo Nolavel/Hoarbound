@@ -501,6 +501,25 @@
         "Lofts at Bahama Village buildings A, B, C: outline, storeys, height cap, roof form and materials"
       ],
       "status": "integrated"
+    },
+    {
+      "source_id": "city_kw_legistar_21_7769",
+      "name": "City of Key West Legistar 21-7769 \u2014 111 Olivia Street Major Development Plan (Frederick Douglass Community Center), with 21-6693 demolition and 25-4273 completion report",
+      "provider": "City of Key West Planning Department; Planning Board 2022-01-20",
+      "url": "https://webapi.legistar.com/v1/keywest/matters/21522/attachments",
+      "access": "Attachments read 2026-11-18 through webapi.legistar.com; sheet A1.1.1 georeferenced to OSM centrelines of Fort, Olivia and Emma streets (config/documented_buildings.json)",
+      "license": "Public record (Florida Chapter 119); drawings \u00a9 K2M Design: facts and derived coordinates only, no plan sheets stored",
+      "attribution": "City of Key West",
+      "requires_attribution": false,
+      "share_alike": false,
+      "authority_level": "local_government",
+      "crs": "plan sheets without CRS; georeferenced to EPSG:32617",
+      "positional_accuracy_m": "about 1 (as designed, not surveyed; the existing gym from the boundary survey)",
+      "temporal_epoch": "approved 2022-01-20; built 2023-2025",
+      "feature_classes_used": [
+        "Frederick Douglass Community Center: outline, roof and parapet heights; Douglass Gym outline (existing)"
+      ],
+      "status": "integrated"
     }
   ]
 }

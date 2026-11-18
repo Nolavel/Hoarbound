@@ -8,6 +8,7 @@ is drawn, mesh-ready geometry whose every height says where it came from.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import time
 from collections import Counter, defaultdict
@@ -48,6 +49,21 @@ def _xz(coords) -> list[float]:
 
 def _parts(g):
     return list(g.geoms) if hasattr(g, "geoms") else [g]
+
+
+def _date(value: str | None) -> str | None:
+    """First ISO-like date in a free-text value ("before 1920" -> "1920-01-01"); None when there is none."""
+    m = re.search(r"\d{4}(-\d{2})?(-\d{2})?", value or "")
+    if not m:
+        return None
+    parts = m.group(0).split("-")
+    return "-".join(parts + ["01"] * (3 - len(parts)))
+
+
+def in_world(valid_from: str | None, valid_to: str | None, world_date: str) -> bool:
+    """True when a feature stands on the world date: built by then and not yet removed."""
+    start, end = _date(valid_from), _date(valid_to)
+    return (start is None or start <= world_date) and (end is None or end > world_date)
 
 
 def _selected(con, name: str) -> dict[str, tuple]:
@@ -155,6 +171,9 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
         for i, g in enumerate(geoms):
             cid = cols["chunk_id"][i]
             fid = cols["feature_id"][i]
+            if not in_world(cols["valid_from"][i], cols["valid_to"][i], gen["world_date"]):
+                stats["not_in_world_on_date"] += 1
+                continue
             edit = base_edits.get(fid)
             if edit is not None and edit["op"] == "remove":
                 stats["edit_removed"] += 1

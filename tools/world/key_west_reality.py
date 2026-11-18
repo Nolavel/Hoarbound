@@ -47,14 +47,20 @@ def cmd_documented(apply: bool) -> None:
     import shutil
     import tempfile
 
-    from reality import documented, ids, library, paths
+    from reality import conflate, documented, ids, library, paths
     library.ensure()
     feats = documented.features(ids.IdRegistry())
+    measured = [f for f in feats if f.feature_id in documented.lidar_masses(feats)]
+    if measured:  # existing buildings drawn on a plan: heights and roofs from the 2019 lidar (raw cache needed)
+        from reality import build, lidar
+        build.building_measurements(measured, lidar.DemCrop())
+        conflate.select_attributes(measured)
     with tempfile.TemporaryDirectory() as tmp:
         target = paths.LIBRARY if apply else Path(tmp) / "dry_run.gpkg"
         if not apply:
             shutil.copyfile(paths.LIBRARY, target)
         report = library.append_features(target, feats)
+        report["closed"] = library.close_features(target, documented.supersessions())
     report["applied"] = apply
     (paths.REPORTS / "documented_buildings.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=1))

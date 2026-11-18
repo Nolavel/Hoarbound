@@ -1,40 +1,6 @@
 {
- "schema": "kw_reality.documented_buildings.v1",
+ "schema": "kw_reality.documented_buildings.v2",
  "description": "Buildings taken from public planning records when no survey source has them yet. Geometry is the approved plan georeferenced to street centrelines: as designed, not surveyed. A survey or newer imagery that disagrees wins.",
- "georef": {
-  "crs": "EPSG:32617",
-  "sheet": "22-3575 package page 88 (landscape site plan) rendered at 200 dpi, crop x 80..1960, y 150..1240",
-  "origin_en": [
-   418468.23,
-   2715428.26
-  ],
-  "origin_px": [
-   1189.5,
-   487.0
-  ],
-  "origin_note": "Fort St x Allen Ave centreline crossing: OSM node 5577506219 (ways 1058448895 v3, 1058367479 v3); on the sheet Fort St right-of-way line x 1170 + 15 ft half of the 30 ft right of way, Allen Ave midway between the parcel lines",
-  "down_axis_en": [
-   0.5797,
-   -0.8149
-  ],
-  "down_axis_note": "Fort St towards Petronia: OSM nodes 5577506219 -> 3239061938",
-  "metres_per_px": 0.2345,
-  "scale_note": "sheet scale bar 200 ft = 260 px (1 in = 50 ft)"
- },
- "heights": {
-  "datum": "crown of Fort Street (sheets: NGVD29 6 ft 10 in); stored above the crown",
-  "crown_to_sidewalk_m": 0.36,
-  "first_floor_above_crown_m": 0.43,
-  "record": "elevation sheets A201 (A), B and C: 1st floor 8'-3\", 2nd 17'-9\", T.O.P-1 27'-3\", 3rd 27'-3\", T.O.P-2 36'-7\", roof 41'-10\" NGVD29; 35 ft cap"
- },
- "record_facts": {
-  "building_area_sqft": 52870,
-  "units": {
-   "A": 74,
-   "B": 24,
-   "C": 28
-  }
- },
  "buildings": [
   {
    "source_id": "city_kw_legistar_22_3575",
@@ -75,15 +41,15 @@
      ],
      "geometry_record": "Legistar 22-3575 (918 Fort St MDP, Planning Board 2022-12-19), sheet A201 east elevation",
      "levels": 2,
-     "eave_above_crown_m": 6.22,
-     "top_above_crown_m": 10.67,
      "roof": {
       "form": "hip_flat_top",
       "pitch": 0.4166666666666667,
       "pitch_note": "5:12 inferred; the sheets dimension rise, not pitch",
       "material": "5V-crimp metal"
      },
-     "note": "Two-storey porch facade on Fort St (HARC); the rear massing behind it is not dimensioned on the sheets read: ask for a view from the south parking"
+     "note": "Two-storey porch facade on Fort St (HARC); the rear massing behind it is not dimensioned on the sheets read: ask for a view from the south parking",
+     "eave_above_datum_m": 6.22,
+     "top_above_datum_m": 10.67
     },
     {
      "key": "a_allen",
@@ -108,14 +74,14 @@
      ],
      "geometry_record": "Legistar 22-3575 (918 Fort St MDP, Planning Board 2022-12-19), sheet A201 north and west elevations; owner panorama 2026-11-18 (visual)",
      "levels": 3,
-     "eave_above_crown_m": 9.07,
-     "top_above_crown_m": 10.67,
      "roof": {
       "form": "hip_flat_top",
       "pitch": 0.4166666666666667,
       "pitch_note": "5:12 inferred; the sheets dimension rise, not pitch",
       "material": "5V-crimp metal"
-     }
+     },
+     "eave_above_datum_m": 9.07,
+     "top_above_datum_m": 10.67
     },
     {
      "key": "b",
@@ -140,14 +106,14 @@
      ],
      "geometry_record": "Legistar 22-3575 (918 Fort St MDP, Planning Board 2022-12-19), B elevation sheet",
      "levels": 3,
-     "eave_above_crown_m": 9.07,
-     "top_above_crown_m": 10.67,
      "roof": {
       "form": "hip_flat_top",
       "pitch": 0.4166666666666667,
       "pitch_note": "5:12 inferred; the sheets dimension rise, not pitch",
       "material": "5V-crimp metal"
-     }
+     },
+     "eave_above_datum_m": 9.07,
+     "top_above_datum_m": 10.67
     },
     {
      "key": "c_south",
@@ -172,14 +138,14 @@
      ],
      "geometry_record": "Legistar 22-3575 (918 Fort St MDP, Planning Board 2022-12-19), C east elevation: two storeys over 22.8 % of the length from Allen Ave",
      "levels": 2,
-     "eave_above_crown_m": 6.22,
-     "top_above_crown_m": 10.67,
      "roof": {
       "form": "hip_flat_top",
       "pitch": 0.4166666666666667,
       "pitch_note": "5:12 inferred; the sheets dimension rise, not pitch",
       "material": "5V-crimp metal"
-     }
+     },
+     "eave_above_datum_m": 6.22,
+     "top_above_datum_m": 10.67
     },
     {
      "key": "c_north",
@@ -204,14 +170,285 @@
      ],
      "geometry_record": "Legistar 22-3575 (918 Fort St MDP, Planning Board 2022-12-19), C east elevation; owner panorama Geraldine/Fort 2026-11-18 (visual)",
      "levels": 3,
-     "eave_above_crown_m": 9.07,
-     "top_above_crown_m": 10.67,
      "roof": {
       "form": "hip_flat_top",
       "pitch": 0.4166666666666667,
       "pitch_note": "5:12 inferred; the sheets dimension rise, not pitch",
       "material": "5V-crimp metal"
+     },
+     "eave_above_datum_m": 9.07,
+     "top_above_datum_m": 10.67
+    }
+   ],
+   "georef": {
+    "crs": "EPSG:32617",
+    "sheet": "22-3575 package page 88 (landscape site plan) rendered at 200 dpi, crop x 80..1960, y 150..1240",
+    "origin_en": [
+     418468.23,
+     2715428.26
+    ],
+    "origin_px": [
+     1189.5,
+     487.0
+    ],
+    "origin_note": "Fort St x Allen Ave centreline crossing: OSM node 5577506219 (ways 1058448895 v3, 1058367479 v3); on the sheet Fort St right-of-way line x 1170 + 15 ft half of the 30 ft right of way, Allen Ave midway between the parcel lines",
+    "down_axis_en": [
+     0.5797,
+     -0.8149
+    ],
+    "down_axis_note": "Fort St towards Petronia: OSM nodes 5577506219 -> 3239061938",
+    "metres_per_px": 0.2345,
+    "scale_note": "sheet scale bar 200 ft = 260 px (1 in = 50 ft)"
+   },
+   "heights": {
+    "datum": "crown of Fort Street (sheets: NGVD29 6 ft 10 in)",
+    "datum_to_base_m": 0.36,
+    "base": "sidewalk (8 ft 0 in NGVD29)",
+    "record": "elevation sheets A201 (A), B and C: 1st floor 8'-3\", 2nd 17'-9\", T.O.P-1 27'-3\", 3rd 27'-3\", T.O.P-2 36'-7\", roof 41'-10\" NGVD29; 35 ft cap"
+   },
+   "supersedes": [],
+   "record_facts": {
+    "building_area_sqft": 52870,
+    "units": {
+     "A": 74,
+     "B": 24,
+     "C": 28
+    }
+   }
+  },
+  {
+   "source_id": "city_kw_legistar_21_7769",
+   "key": "legistar_21_7769",
+   "address": "111 Olivia Street",
+   "name": "Frederick Douglass Community Center and Gym",
+   "construction": "concrete and CMU; struck stucco and EIFS; metal canopies (sheet A3.1.1)",
+   "geometry_method": "approved_site_plan_georeferenced",
+   "reconstruction_class": "derived",
+   "confidence": 0.6,
+   "geometry_accuracy_m": 1.0,
+   "valid_from": "2025-08-07",
+   "source_epoch": "2022-01-20",
+   "flags": [
+    "as_designed_not_surveyed"
+   ],
+   "valid_note": "valid_from: the CRA report of 2025-08-07 (Legistar 25-4273) lists punch-list items of the finished centre; the exact opening date is not in the records read",
+   "georef": {
+    "crs": "EPSG:32617",
+    "sheet": "21-7769 '2022.01.17 Final Planning Set' page 17 (A1.1.1, 1 in = 10 ft) rendered at 150 dpi",
+    "origin_en": [
+     418562.45,
+     2715290.52
+    ],
+    "origin_px": [
+     492.2,
+     3527.3
+    ],
+    "origin_note": "Fort St x Olivia St centreline crossing, OSM node 99079687; on the sheet the property lines plus half of each 30 ft right of way",
+    "right_axis_en": [
+     0.82968,
+     0.55824
+    ],
+    "right_axis_note": "Olivia St towards Emma St: OSM nodes 99079687 -> 99096250 (Emma x Olivia), 101.46 m; the sheet gives 332.8 ft between the two centrelines",
+    "metres_per_px": 0.02033
+   },
+   "heights": {
+    "datum": "NGVD29 (sheet A3.1.1)",
+    "datum_to_base_m": 1.556,
+    "base": "lowest adjacent grade 5 ft 1.25 in NGVD29",
+    "record": "A3.1.1: first floor 9'-6\", T/O roof 23'-6\", T/O parapet hall 37'-1 1/4\" NGVD29"
+   },
+   "supersedes": [
+    {
+     "feature_id": "kw:building:osm:w339414847",
+     "valid_to": "2023-09-18",
+     "reason": "OSM outline (2022-05) merges the Douglass Gym with the Annex, demolished for the new centre (Legistar 21-6693 demolition, 21-7769 MDP; groundbreaking 2023-09-18). Replaced by the documented gym and centre masses."
+    }
+   ],
+   "record_facts": {
+    "floor_area_sqft": 9587,
+    "storeys": 1,
+    "site_coverage_after_sqft": 24193
+   },
+   "masses": [
+    {
+     "key": "centre_low",
+     "name": "Frederick Douglass Community Center",
+     "levels": 1,
+     "plan_px": [
+      [
+       1235.7,
+       1802.9
+      ],
+      [
+       1941.8,
+       1802.9
+      ],
+      [
+       1941.8,
+       1767.0
+      ],
+      [
+       2938.0,
+       1767.0
+      ],
+      [
+       2938.0,
+       2383.2
+      ],
+      [
+       2904.6,
+       2383.2
+      ],
+      [
+       2904.6,
+       2532.1
+      ],
+      [
+       3053.5,
+       2532.1
+      ],
+      [
+       3053.5,
+       2963.4
+      ],
+      [
+       2886.6,
+       2963.4
+      ],
+      [
+       2886.6,
+       3035.3
+      ],
+      [
+       1556.7,
+       3035.3
+      ],
+      [
+       1556.7,
+       2937.8
+      ],
+      [
+       1235.7,
+       2937.8
+      ]
+     ],
+     "minus_px": [
+      [
+       1941.8,
+       1767.0
+      ],
+      [
+       2938.0,
+       1767.0
+      ],
+      [
+       2938.0,
+       2383.2
+      ],
+      [
+       1941.8,
+       2383.2
+      ]
+     ],
+     "geometry_record": "Legistar 21-7769 final planning set, sheet A1.1.1 (site plan)",
+     "eave_above_datum_m": 7.163,
+     "top_above_datum_m": 7.163,
+     "roof": {
+      "form": "flat",
+      "material": "membrane behind a parapet",
+      "note": "parapet height of the low wing not dimensioned on the sheets read; top of roof used"
      }
+    },
+    {
+     "key": "centre_hall",
+     "name": "Frederick Douglass Community Center, main hall",
+     "levels": 1,
+     "plan_px": [
+      [
+       1941.8,
+       1767.0
+      ],
+      [
+       2938.0,
+       1767.0
+      ],
+      [
+       2938.0,
+       2383.2
+      ],
+      [
+       1941.8,
+       2383.2
+      ]
+     ],
+     "geometry_record": "Legistar 21-7769 final planning set, sheets A1.1.1 and A3.1.1 (hall parapet)",
+     "eave_above_datum_m": 11.309,
+     "top_above_datum_m": 11.309,
+     "roof": {
+      "form": "flat",
+      "material": "membrane behind a parapet with metal coping"
+     }
+    },
+    {
+     "key": "gym",
+     "name": "Frederick Douglass Gym (historic)",
+     "heights": "lidar_2019",
+     "valid_from": null,
+     "flags": [
+      "existing_per_site_plan"
+     ],
+     "geometry_accuracy_m": 0.5,
+     "confidence": 0.8,
+     "plan_px": [
+      [
+       3823.8,
+       1343.3
+      ],
+      [
+       4984.3,
+       1343.3
+      ],
+      [
+       4984.3,
+       3194.5
+      ],
+      [
+       3823.8,
+       3194.5
+      ]
+     ],
+     "geometry_record": "Legistar 21-7769 final planning set, sheet A1.1.1 ('existing Frederick Douglass Gym', from the boundary survey)"
+    },
+    {
+     "key": "gym_west",
+     "name": "Frederick Douglass Gym, west aisle",
+     "heights": "lidar_2019",
+     "valid_from": null,
+     "flags": [
+      "existing_per_site_plan"
+     ],
+     "geometry_accuracy_m": 0.5,
+     "confidence": 0.7,
+     "plan_px": [
+      [
+       3536.2,
+       1343.3
+      ],
+      [
+       3823.8,
+       1343.3
+      ],
+      [
+       3823.8,
+       3194.5
+      ],
+      [
+       3536.2,
+       3194.5
+      ]
+     ],
+     "geometry_record": "Legistar 21-7769 final planning set, sheet A1.1.1 (existing strip along the gym's west wall)",
+     "note": "Drawn as existing next to the gym; its roof form is unknown: ask for a view from the Olivia St courtyard"
     }
    ]
   }

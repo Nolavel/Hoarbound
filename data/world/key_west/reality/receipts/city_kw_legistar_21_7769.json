@@ -1,0 +1,57 @@
+{
+ "source_id": "city_kw_legistar_21_7769",
+ "retrieved_at": "2026-11-18T12:00:00+00:00",
+ "delivered_by": "Claude via webapi.legistar.com",
+ "artifacts": [
+  {
+   "name": "final_planning_set",
+   "record": "21-7769 attachment 64102 '2022.01.17 Final Planning Set' (25 pages; A1.1.1 site plan, A3.1.1 elevations)",
+   "url": "https://legistar1.granicus.com/KeyWest/attachments/65c0c29e-62d5-4cf0-a52c-f87ebe45e7bd.pdf",
+   "bytes": 26300748,
+   "sha256": "d549b5ec5e78e543b2b38a6aedbabdc1a16ae9ab7985fe20bbfb1d56e4bc8e38"
+  },
+  {
+   "name": "staff_report",
+   "record": "21-7769 attachment 64100 'Staff Report' (Planning Board 2022-01-20)",
+   "url": "https://legistar1.granicus.com/KeyWest/attachments/460980fc-2dc5-4528-8745-4f3e4e4028d8.pdf",
+   "bytes": 1724490,
+   "sha256": "d35a4098f02d037d1d96518dbe3445056ecbff698a84b48af56d221946933987"
+  },
+  {
+   "name": "harc_coa",
+   "record": "21-7769 attachment 64350 'HARC Approval and Signed COAs'",
+   "url": "https://legistar1.granicus.com/KeyWest/attachments/2bbacea5-8372-4225-9237-af327bad0b3e.pdf",
+   "bytes": 849681,
+   "sha256": "6cc0491f7dbe934b2b18d60ebbc08c96c139d806871b2f49113ee1507c3a8614"
+  },
+  {
+   "name": "demolition_21_6693",
+   "record": "21-6693 attachment 57440 'Demolition' of the non-historic Annex",
+   "url": "https://legistar1.granicus.com/KeyWest/attachments/33fb851c-4a49-4181-9c1c-935f4ad0ff23.pdf",
+   "bytes": 11162801,
+   "sha256": "6de0bda4af7073dc587d66c37d862f3bfcffc38bc14811bae20af7459938cc19"
+  },
+  {
+   "name": "completion_25_4273",
+   "record": "25-4273 (2025-08-07): CRA report lists punch-list items of the finished Frederick Douglass Community Center",
+   "url": "https://webapi.legistar.com/v1/keywest/matters/27593"
+  }
+ ],
+ "facts": {
+  "address": "111 Olivia Street (RE# 00014720-000000)",
+  "new_building": "one-story community center, 9,587 sq ft, facing Olivia St; main hall with a higher parapet",
+  "kept": "historic Frederick Douglass Gym (renovated after the 2015 MDP)",
+  "demolished": "the Annex at the rear of the lot (21-6693)",
+  "site_coverage_sqft": {
+   "existing": 20924,
+   "proposed": 24193
+  },
+  "heights_ngvd29": {
+   "lowest_adjacent_grade": "5'-1 1/4\"",
+   "first_floor": "9'-6\"",
+   "top_of_roof": "23'-6\"",
+   "top_of_hall_parapet": "37'-1 1/4\""
+  },
+  "groundbreaking": "2023-09-18 (Florida Keys Weekly)"
+ }
+}
