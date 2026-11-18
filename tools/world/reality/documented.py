@@ -48,7 +48,7 @@ def features(idreg: ids.IdRegistry) -> list[Feature]:
                         geometry_source=b["source_id"], geometry_record=m["geometry_record"],
                         geometry_method=b["geometry_method"], geometry_recon=b["reconstruction_class"],
                         geometry_confidence=b["confidence"], geometry_accuracy_m=b["geometry_accuracy_m"],
-                        name=m["name"], valid_from=b["valid_from"], flags=set(b["flags"]))
+                        name=m["name"], valid_from=b["valid_from"], source_epoch=b["source_epoch"], flags=set(b["flags"]))
             f.links.append(Link(b["source_id"], "documented_buildings", native, "geometry", "identity"))
             r = roof(m, doc["heights"])
 

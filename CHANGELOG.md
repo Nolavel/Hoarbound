@@ -6,6 +6,15 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added (Key West: Lofts at Bahama Village opposite 727, from planning records)
+
+- **Problem:** the owner saw no buildings opposite 727. The audit showed every library building reached the game, but the library itself lacked the 126-unit complex built in 2023–2025 at 918 Fort St; every survey source predates it.
+- **Fix:** a documented-buildings source. Five masses (A Fort and Allen wings, B, C two parts) come from Legistar 22-3575: site plan georeferenced to OSM centrelines, heights from the elevation sheets (35 ft cap), flagged `as_designed_not_surveyed`.
+- **Pipeline:** `key_west_reality.py documented [--apply]` adds them to the committed library without the raw cache; roofs from documents go through `building_shell`; lidar can be fetched for chosen chunks only.
+- **Regenerated:** chunks −8:3 and −7:3 and HLOD clusters c128_−28_12, c128_−29_12. Untouched chunks were re-exported identically first. 993 other clusters kept.
+- **Cost (lavapipe, same loading):** +12 to +68 draw calls and +0.6 to +1.5 % primitives at the seven audit viewpoints. HD 620 still needs its gate run.
+- **Rule:** `.claude/rules/key-west-reconstruction.md` records the owner's screenshot-request rule and the documented-geometry rule.
+
 ### Changed (Claude asks whenever in doubt; owner's correction 2026-11-17)
 
 - `CLAUDE.md`: Grill Me was described as forbidden unless the owner asks. The rule is now "when in doubt, ask the owner, always": Claude asks the question, may offer Grill Me for a large decision tree, and starts it only with the owner's consent.

@@ -402,6 +402,7 @@ class DocumentedBuildings(unittest.TestCase):
             self.assertTrue(f.feature_id.startswith("kw:building:doc:legistar_22_3575_"))
             self.assertEqual((f.geometry_source, f.geometry_method, f.geometry_recon), ("city_kw_legistar_22_3575", "approved_site_plan_georeferenced", "derived"))
             self.assertEqual((f.geometry_confidence, f.geometry_accuracy_m, f.valid_from), (0.6, 2.0, "2025-10-30"))
+            self.assertEqual(f.source_epoch, "2022-12-19", "the node contract needs the plan's epoch")
             self.assertIn("as_designed_not_surveyed", f.flags)
             self.assertIn("Legistar 22-3575", f.geometry_record)
             roof = f.selected("roof_documented").value

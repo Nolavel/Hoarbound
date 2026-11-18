@@ -379,6 +379,38 @@ python3 tools/world/key_west_reality.py pack       # only when promoting a new l
 Nothing regenerates the world automatically; the change report is the input to a
 selective editor regeneration.
 
+### Documented buildings (planning records)
+
+Some real buildings are newer than every survey source. Lofts at Bahama Village (918 Fort St,
+opposite 727) was built in 2023–2025: the 2017 city footprints, 2019 lidar, January 2023 NAIP,
+OSM and Overture 2026-09 all lack it. Such buildings come from public planning records.
+
+- `config/documented_buildings.json` keeps each mass as plan-sheet pixels plus one georeference
+  (origin and axis from OSM street centrelines, sheet scale), and the heights from the elevation
+  sheets above the crown of the road. `documented.py` turns them into ordinary library features.
+- Provenance: `geometry_source` is the registered planning source (`sources.json` + receipt),
+  `geometry_record` names the Legistar file and sheet, method `approved_site_plan_georeferenced`,
+  class `derived`, confidence 0.6, accuracy 2 m, `valid_from` the opening date, `source_epoch`
+  the approval date, flag `as_designed_not_surveyed`. A later survey that disagrees wins.
+- Roofs: the attribute `roof_documented` (eave, top, pitch) is built by `building_shell` as a hip
+  clipped flat at the documented top; `roof_source` reads `documented_<form>`.
+- The full `build` adds them after the documentary facts. Without the raw cache:
+
+```
+python3 tools/world/key_west_reality.py documented            # dry run: reports/documented_buildings.json
+python3 tools/world/key_west_reality.py documented --apply    # append to the library and re-pack it
+python3 tools/world/reality/export_pack.py unpack
+python3 tools/world/key_west_reality.py export-editor --chunk=-8:3 --chunk=-7:3
+python3 tools/world/reality/export_pack.py pack
+xvfb-run godot --path . --rendering-driver vulkan --script tools/world/reality_gen/generate_key_west_chunks_cli.gd -- -8:3 -7:3 --record-digest
+godot --headless --path . --script tools/world/reality_gen/build_key_west_hlod_cli.gd -- --dirty --check --record-digest
+```
+
+  The export needs the DEM crop and the lidar tiles of those chunks only:
+  `acquire.noaa_dem()` and `acquire.noaa_lidar(["noaa_lidar_9081"], chunks=[...])`. Restore the two
+  receipts afterwards; they describe the full cache. Re-export one untouched chunk first and compare
+  it with the archive: it must be identical apart from `exported_at`.
+
 ## 13. Storage policy
 
 | level | path | in git |
