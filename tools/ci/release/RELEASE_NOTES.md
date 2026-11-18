@@ -1,20 +1,68 @@
-Pre-release for external smoke testing: **not a finished build**.
+Hoarbound 0.318a — ноябрьская тестовая сборка
 
-**Install**
-- Windows: unzip the whole archive and run `Hoarbound.exe`. Keep `data_Hoarbound_windows_x86_64` beside it.
-- Linux: unzip and run `./Hoarbound.x86_64`.
-- Graphics default to LOW. MEDIUM and HIGH are in the settings menu.
-- Logs are written to `logs/` beside the executable. Please send the newest `hoarbound_*.log` with your report.
-- F10 saves a report zip (log, settings, system, last route, screenshot) to `reports/`. F9 records the route you play to `tapes/` so we can replay it.
+Ранняя версия игры для проверки производительности, механик и визуальных эффектов.
 
-**Known limitations**
-- OPEN: the snow surface around Henry visibly shifted in height as he walked, with a square boundary (seen on Intel HD 620). A likely cause was fixed in 0.312c: exports now load the baked snow wind field. It has NOT yet been confirmed on the hardware where the defect was seen, so report it if you see it.
-- Low frame rates on integrated GPUs. LOW now draws about 30 % fewer primitives on Duval Street, but this has not been re-measured on an HD 620.
+Это не законченная игра. Возможны ошибки, низкая производительность и недоработанные механики.
 
-**Changes since 0.314a**
-- **English throughout:** the game now runs in English whatever the system language.
-- **727 Fort Street, the real building:** rebuilt from the City of Key West 2020 permit drawings. The entrance is the glass double storefront on the side street, with a ramp under the steel canopy; new windows, wood-pattern bands, planters, the "KEY WEST HEALTH CENTER" sign, closed service doors at both ends, roof units, and snow on the roof, canopies and planters. The rooms inside keep their game layout. The compass, the start point and the supplies follow the new entrance.
-- **The street around 727:** the Lofts at Bahama Village (opposite 727) and the new Frederick Douglass Community Center stand where they were built; six merged blocks are now the fifteen separate buildings of the City footprints; a wayfinding post stands at 717 Fort Street.
-- **Fixes from play tests:** Henry no longer spins while aiming a snowball; a flare taken with held F is in his hand and stays there through a Hub visit; sleep and waiting burn a lit flare; no rime on what lies inside the pack; the load gauge fits the pack; an open cabinet answers F with "search" while you look at its shelves.
-- **Performance:** no more hitch on every Tab, the open Hub no longer holds the game at ~22 FPS, and a long freeze the first time the camera came up against Henry is gone.
-- **Saves:** broken-window records from older saves whose 727 window has moved are dropped instead of floating in the air.
+**Запуск**
+
+Windows: распакуйте архив целиком и запустите "Hoarbound.exe". Не удаляйте папку "data_Hoarbound_windows_x86_64".
+
+Linux: распакуйте архив и запустите "Hoarbound.x86_64".
+
+По умолчанию установлено низкое качество графики (LOW). В настройках доступны MEDIUM и HIGH.
+
+Игра начинается у входа в здание 727 Fort Street (прототип).
+
+**Что изменилось с версии 0.314a**
+
+Язык
+
+- Игра полностью на английском языке, независимо от языка системы.
+
+Здание 727 Fort Street
+
+- Здание перестроено по настоящим чертежам разрешения 2020 года (City of Key West): контур, окна, витрины, стальной козырёк, деревянные полосы на фасаде, клумбы, вывеска "KEY WEST HEALTH CENTER", служебные двери в торцах, оборудование на крыше.
+- Вход теперь там же, где в реальности: стеклянная двустворчатая дверь сбоку крыла, под козырьком, с пандусом. Открывается створка со стороны Fort Street, её стекло покрывается инеем, как окна.
+- На крыше, козырьках и клумбах лежит снег.
+- Комнаты внутри сохранили игровую планировку. Компас, место появления и припасы перенесены к новому входу.
+
+Улица вокруг 727
+
+- Напротив 727 появился жилой комплекс Lofts at Bahama Village, рядом — новый Frederick Douglass Community Center, оба по утверждённым проектам.
+- Шесть слитых кварталов разделены на 15 отдельных зданий по городским контурам.
+- У дома 717 Fort Street стоит указатель (Truman Waterfront, Ft Zach, Beach, Amphitheater).
+
+Исправления по тестам
+
+- Генри больше не крутится при прицеливании снежком.
+- Фальшфейер, взятый удержанием F, остаётся в руке, в том числе после открытия рюкзака.
+- Сон и ожидание сжигают горящий фальшфейер.
+- Предметы внутри рюкзака больше не покрываются инеем.
+- Открытый шкаф отвечает на F поиском, когда вы смотрите на полки.
+
+Производительность
+
+- Нет рывка при каждом открытии рюкзака (Tab).
+- Открытый рюкзак больше не держит игру на ~22 FPS.
+- Убрано долгое замирание, когда камера впервые подходила вплотную к Генри.
+
+Сохранения
+
+- Записи о разбитых стёклах из старых сохранений, чьи окна в 727 сдвинулись, больше не висят в воздухе.
+
+**Известные проблемы**
+
+- На интегрированных видеокартах возможен низкий FPS. Производительность на Intel HD 620 повторно не измерялась.
+- Ранее наблюдалась деформация снежной поверхности возле Генри с заметной квадратной границей. Предполагаемая причина исправлена в 0.312c, но результат ещё не подтверждён на разных ПК.
+
+**Как сообщить об ошибке**
+
+Опишите проблему и по возможности приложите скриншот или видео.
+
+- F9 — запись маршрута и действий игрока в папку "tapes/".
+- F10 — ZIP-отчёт в папке "reports/" со снимком экрана, логами, настройками и сведениями о системе. После аварийного завершения отчёт создаётся автоматически.
+
+Логи находятся в папке "logs/" рядом с игрой. Приложите последний файл "hoarbound_*.log".
+
+Спасибо за участие в тестировании!

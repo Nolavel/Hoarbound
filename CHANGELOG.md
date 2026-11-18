@@ -10,7 +10,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 - The game runs in English whatever the system language: `internationalization/locale/test="en"` (the built-in override, used by exported projects). The Russian translation stays in `localization/strings.csv` for later.
 - Hardcoded Russian text left in code is English now: the interactive fallback name and description, the day-period names of the weather debug panel, the debug accelerator, and the legacy flashlight and AFM props.
-- `tools/ci/release/README_TESTER.txt` is in English; `RELEASE_NOTES.md` lists the changes since 0.314a.
+- `tools/ci/release/README_TESTER.txt` (inside the build) is in English. `RELEASE_NOTES.md`, the GitHub release page, stays in Russian like the earlier releases (owner's request) and lists the changes since 0.314a.
 
 ### Fixed (727 storefront leaf: renderer error at exit)
 
