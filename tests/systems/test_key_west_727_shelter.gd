@@ -29,6 +29,7 @@ func _process(_delta: float) -> bool:
 	_check_openings()
 	_check_shell_materials()
 	_check_chimney()
+	_check_exterior()
 	if _failures > 0:
 		push_error("727 shelter: %d check(s) failed" % _failures)
 		quit(1)
@@ -36,6 +37,32 @@ func _process(_delta: float) -> bool:
 		print("727 shelter: all checks passed")
 		quit(0)
 	return true
+
+
+## The 2020 permit exterior (canopy, planters, sign, parapet) hangs on the house plan; planters are solid and
+## nothing solid stands in the MainDoor ramp. The walls carry SW 7691 (sRGB 227, 201, 161).
+func _check_exterior() -> void:
+	var house: Node3D = _shelter.get_node(^"House") as Node3D
+	var exterior: Node3D = house.get_node_or_null(^"Exterior") as Node3D
+	_check(exterior != null, "no Exterior under House")
+	if exterior == null:
+		return
+	for part: String in ["CanopyFront", "Sign", "Parapet", "PlanterFront"]:
+		_check(exterior.find_child(part + "*", true, false) != null, "exterior has no %s" % part)
+	_check(not exterior.find_children("*", "StaticBody3D", true, false).is_empty(), "planters have no collision")
+	var space: PhysicsDirectSpaceState3D = root.get_world_3d().direct_space_state
+	var ramp: Dictionary = _shelter.interior["entry_ramp"]
+	var at: Vector3 = house.to_global(Vector3(float(ramp["from_uv"][0]), 1.0, float(ramp["from_uv"][1]) + 0.5))
+	var query: PhysicsPointQueryParameters3D = PhysicsPointQueryParameters3D.new()
+	query.position = at
+	_check(space.intersect_point(query).is_empty(), "something solid stands at the MainDoor ramp foot")
+	var wall: StandardMaterial3D = null
+	for mesh: MeshInstance3D in _shell.find_children("*", "MeshInstance3D", true, false):
+		for i: int in mesh.mesh.get_surface_count():
+			var m: Material = mesh.mesh.surface_get_material(i)
+			if m != null and m.resource_name == "masonry_stucco":
+				wall = m as StandardMaterial3D
+	_check(wall != null and wall.albedo_color.to_rgba32() >> 8 == 0xE3C9A1, "walls are not SW 7691: %s" % [wall.albedo_color.to_html(false) if wall else "none"])
 
 
 ## One flue from the stove collar through the ceiling and roof; smoke on the cap only while it burns.

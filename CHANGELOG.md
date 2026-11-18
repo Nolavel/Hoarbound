@@ -6,6 +6,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (Key West: 727 Fort St exterior as built after the 2020 permit, step A)
+
+- **Exterior dressing:** the steel canopy (underside at 10'-6", 5 ft deep, wrapping both projection sides), its tie rods, the parapet to 16'-2", the wood-pattern accent strips, the planters and the "KEY WEST HEALTH CENTER" sign. Sources: sheets A2.01 and A1.03 of Legistar 20-6136; built by `tools/blender/build_727_exterior.py` (Blender 5.2 as a Python module) from the parts in `tools/world/reality/facade_727.py`.
+- **Walls:** SW 7691 (sRGB 227, 201, 161) from the A2.01 paint schedule, written into the shell's wall material. Other glb buffers are unchanged.
+- **Unchanged until step B:** the outline, the door and the windows stay the game's. One accent strip would cover the game's MainDoor and is deferred; the planters leave the door ramp clear.
+- **Estimated, not scheduled:** the wood-tile and sign colours and the letter height come from the 2025 panorama. The canopy depth of structure and parapet thickness are inferred. All are marked in the code.
+- `landmark_glass_frost.py` gains a `__main__` guard so its glb helpers can be imported.
+
 ### Added (Key West: reviewed City of Key West footprints around 727)
 
 - **Merged outlines split:** 6 OSM outlines each covered 2–4 separate buildings. They become 15 city footprints (2017 layer, "public information"), confirmed by lidar 2019/2016 and NAIP 2023. Their roofs now resolve (the two apartment blocks south-east of 727 were flat boxes).

@@ -1079,7 +1079,7 @@
  "pipeline_version": "1.0.0",
  "built_at": "2026-10-10T23:19:23+00:00",
  "asset": "assets/world/key_west/landmarks/kw_727_fort_st.glb",
- "asset_sha256": "729e642207e45ef1ee79f36383bf5db9f93fcbe1f344766a74376577da573d48",
+ "asset_sha256": "1ff60e1cce5e54df5a0b6562d3fa6b3ee88e795293b71dd68d48e0f244e62b12",
  "triangles": 1256,
  "window_frost": {
   "tool": "tools/world/reality/landmark_glass_frost.py",
@@ -1175,5 +1175,53 @@
    }
   },
   "built_at": "2026-10-15T08:57:16+00:00"
+ },
+ "exterior": {
+  "tool": "tools/blender/build_727_exterior.py (parts: tools/world/reality/facade_727.py)",
+  "asset": "assets/world/key_west/landmarks/kw_727_exterior.glb",
+  "asset_sha256": "7730d7f82fd8c588873cc128cc05ad23d95b40b18c887a54f7db01863c5452f4",
+  "record": "Legistar 20-6136 permit set 2020, sheets A2.01 (elevations, paint schedule) and A1.03 (plan)",
+  "wall_paint": {
+   "material": "masonry_stucco",
+   "sw": "SW 7691",
+   "srgb": [
+    227,
+    201,
+    161
+   ],
+   "linear": [
+    0.7682,
+    0.5841,
+    0.3564,
+    1.0
+   ]
+  },
+  "parts": [
+   "CanopyFront",
+   "CanopyWest",
+   "CanopyEast",
+   "PlanterFront",
+   "PlanterWest",
+   "PlanterProjectionEast",
+   "PlanterEastA",
+   "PlanterEastB",
+   "CanopyRod1",
+   "CanopyRod2",
+   "CanopyRod3",
+   "CanopyRod4",
+   "CanopyRod5",
+   "Parapet",
+   "Sign",
+   "AccentStripW1",
+   "AccentStripW2",
+   "AccentStripW3",
+   "AccentStripE1",
+   "AccentStripE3"
+  ],
+  "deferred": [
+   "AccentStripE2"
+  ],
+  "unchanged": "outline, door and windows stay the game's until the outline step",
+  "built_at": "2026-11-18T04:45:08+00:00"
  }
 }

@@ -111,4 +111,5 @@ def main() -> None:
     print(json.dumps({"windows": len(windows), "vertices": int(len(pos)), "per_window": per_window}))
 
 
-main()
+if __name__ == "__main__":
+    main()

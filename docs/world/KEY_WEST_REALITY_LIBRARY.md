@@ -484,6 +484,14 @@ end in `-col`, so Godot builds their collision.
 | Floor | highest DEM ground inside the walls + 0.1 m = ring + 0.66 m | inferred | the DEM under the slab rises to +0.56 m |
 | Openings, plan, furniture | clinic plan, hut door and window standard | **game_invented** | Legistar attachments not delivered |
 
+**Exterior as built (2020 permit, step A).** `tools/world/reality/facade_727.py` lists the exterior parts
+on the game outline from Legistar 20-6136 sheets A2.01 and A1.03: canopy, tie rods, parapet (16'-2"),
+accent strips, planters and the sign. Each part names its sheet. `tools/blender/build_727_exterior.py`
+builds them into `assets/world/key_west/landmarks/kw_727_exterior.glb` in the plan frame, and
+`KeyWest727Shelter` places it under its House node. `facade_727.apply()` paints the shell walls SW 7691
+and records both assets in the spec (`exterior`) and the manifest. Parts that would cover a game opening
+are `deferred` to step B, which moves the outline, door and windows to the drawings.
+
 **Enterable shelter.** `tools/world/reality/shelter_727.py` hollows the measured shell.
 - Fixed elements:
   - 0.25 m walls; 0.12 m partitions;

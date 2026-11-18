@@ -5,6 +5,8 @@ extends Node3D
 
 const TEMPLATE: PackedScene = preload("res://scenes/world/first_exit/first_exit_blockout.tscn")
 const SPEC_PATH: String = "res://data/world/key_west/reality/landmarks/kw_727_fort_st.json"
+## The 2020 permit exterior (canopy, planters, sign, parapet) in the plan frame: tools/blender/build_727_exterior.py.
+const EXTERIOR: PackedScene = preload("res://assets/world/key_west/landmarks/kw_727_exterior.glb")
 ## Hut ShelterZone space: the zone origin sits this far above the finished floor.
 const ZONE_ABOVE_FLOOR: float = 1.175
 const ZONE_BOX_HEIGHT: float = 2.55
@@ -91,6 +93,9 @@ func build() -> void:
 	window_proto.free()
 	_place_furniture()
 	_add_stove_pipe(float(doc["elements"]["roof_top_navd88_m"]["above_ground_m"]))
+	var exterior: Node3D = EXTERIOR.instantiate() as Node3D
+	exterior.name = "Exterior"
+	_house.add_child(exterior)
 	StylizedEnvironmentMaterial.apply_to_tree(_house)
 	ShelterCabinet.add_cabinet_fade_volume(_house)
 	add_child(_house)

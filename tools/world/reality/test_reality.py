@@ -4,6 +4,7 @@ python3 -m unittest tools/world/reality/test_reality.py
 """
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -527,6 +528,62 @@ class CityFootprints(unittest.TestCase):
             reason = con.execute("SELECT reason FROM excluded WHERE source_record_id = 'kw:building:osm:w9'").fetchone()[0]
             con.close()
             self.assertIn("citykw:1", reason)
+
+
+class Facade727(unittest.TestCase):
+    """727 Fort St exterior after the 2020 permit set (A2.01 elevations, A1.03 plan); outline and openings unchanged."""
+
+    def _parts(self):
+        from reality import facade_727
+        spec = json.loads((Path(__file__).resolve().parents[3] / "data/world/key_west/reality/landmarks/kw_727_fort_st.json").read_text())
+        roof = shapely.Polygon(spec["interior"]["outline_uv"]).buffer(0.45, join_style="mitre")
+        return {p["name"]: p for p in facade_727.parts(spec, roof)}, spec
+
+    def test_canopy_follows_the_permit_set(self):
+        parts, _ = self._parts()
+        front = parts["CanopyFront"]
+        self.assertAlmostEqual(front["box"][0][1], 3.2, places=2)  # underside 10'-6" over ground (A2.01)
+        self.assertAlmostEqual(front["box"][1][2] - 10.324, 5 * 0.3048, places=2)  # 5 ft past the front wall (A1.03)
+        self.assertAlmostEqual(front["box"][0][0], -5.882 - 4.9 * 0.3048, places=2)
+        self.assertAlmostEqual(front["box"][1][0], 3.71 + 4.9 * 0.3048, places=2)
+
+    def test_parapet_tops_at_16_ft_2_in(self):
+        parts, _ = self._parts()
+        self.assertAlmostEqual(parts["Parapet"]["top_y"], 4.93, places=2)
+
+    def test_nothing_blocks_the_game_openings(self):
+        parts, spec = self._parts()
+        ramp = spec["interior"]["entry_ramp"]
+        door = shapely.box(ramp["to_uv"][0] - 1.2, ramp["to_uv"][1], ramp["from_uv"][0] + 1.2, ramp["from_uv"][1] + 1.0)
+        for p in parts.values():
+            if p.get("collision"):
+                (u0, y0, v0), (u1, y1, v1) = p["box"]
+                if y1 > 0.3 and y0 < 2.91:  # anything between the ground and the door head
+                    self.assertFalse(shapely.box(u0, v0, u1, v1).intersects(door), p["name"])
+        for p in parts.values():
+            if p["name"].startswith("AccentStrip"):
+                (u0, _, v0), (u1, _, v1) = p["box"]
+                for o in spec["interior"]["openings"]:
+                    on_wall = abs(o["centre_uv"][1] - v0) < 0.2 and o["outward_uv"] == [0, 1]
+                    half = o["width_m"] / 2
+                    self.assertFalse(on_wall and u0 < o["centre_uv"][0] + half and u1 > o["centre_uv"][0] - half, (p["name"], o["name"]))
+
+    def test_accent_strips_keep_their_spacing_from_the_projection(self):
+        parts, _ = self._parts()
+        from reality import facade_727
+        strips = sorted((p for p in parts.values() if p["name"].startswith("AccentStrip")), key=lambda p: p["box"][0][0])
+        self.assertEqual(len(strips), 5, "the strip over the game's MainDoor waits for the outline step")
+        self.assertIn("AccentStripE2", [d["name"] for d in facade_727.deferred(self._parts()[1])])
+        self.assertAlmostEqual(-5.882 - strips[2]["box"][1][0], (24.1 - 23.09) * 0.3048, places=2)
+        self.assertAlmostEqual(strips[3]["box"][0][0] - 3.71, (57.04 - 56.1) * 0.3048, places=2)
+
+    def test_wall_paint_is_sw_7691_in_linear_light(self):
+        from reality import facade_727
+        self.assertEqual(facade_727.linear((227, 201, 161)), [0.7682, 0.5841, 0.3564])
+
+    def test_sign_text_is_the_built_one(self):
+        parts, _ = self._parts()
+        self.assertEqual(parts["Sign"]["text"], "KEY WEST HEALTH CENTER")
 
 
 class DocumentedRoof(unittest.TestCase):
