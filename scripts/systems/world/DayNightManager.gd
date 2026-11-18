@@ -30,15 +30,15 @@ const SNOW_FILL_PER_SUN: float = 0.3
 ## How fast the sun follows the weather, per second.
 const SNOW_SUN_RESPONSE: float = 0.5
 
-const PERIOD_RU: Array[String] = [
-	"Полночь",
-	"Рассвет",
-	"Утро",
-	"Полдень",
-	"День",
-	"Вечер",
-	"Сумерки",
-	"Ночь",
+const PERIOD_NAMES: Array[String] = [
+	"Midnight",
+	"Dawn",
+	"Morning",
+	"Noon",
+	"Day",
+	"Evening",
+	"Dusk",
+	"Night",
 ]
 
 const PERIOD_EN: Array[String] = [
@@ -602,7 +602,7 @@ func _emit_time_signals(game_hour: float) -> void:
 		_format_time(game_hour),
 		is_day,
 		current_day,
-		PERIOD_RU[int(period)]
+		PERIOD_NAMES[int(period)]
 	)
 
 

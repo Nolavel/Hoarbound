@@ -40,8 +40,8 @@ enum PickupSubtype {
 @export_group("Настройки взаимодействия")
 @export var interaction_type: InteractionType = InteractionType.OTHER
 @export var pickup_subtype: PickupSubtype = PickupSubtype.JUNK
-@export var item_name: String = "Неизвестный объект"
-@export var description: String = "Описание отсутствует"
+@export var item_name: String = "Unknown object"
+@export var description: String = "No description"
 
 # === ЗАГРУЖАЕМЫЕ РЕСУРСЫ ===
 @export_group("Загружаемые ресурсы")
@@ -464,9 +464,9 @@ func get_interaction_prompt_data() -> Dictionary:
 		action = action.substr(prefix.length()).strip_edges()
 
 	var detail := ""
-	if description != "" and description != "Описание отсутствует":
+	if description != "" and description != "No description":
 		detail = description.strip_edges()
-	if detail == "" and item_name != "" and item_name != "Неизвестный объект" and item_name != action:
+	if detail == "" and item_name != "" and item_name != "Unknown object" and item_name != action:
 		detail = item_name.strip_edges()
 	if detail == "":
 		match interaction_type:

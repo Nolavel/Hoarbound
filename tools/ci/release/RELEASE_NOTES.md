@@ -11,19 +11,10 @@ Pre-release for external smoke testing: **not a finished build**.
 - OPEN: the snow surface around Henry visibly shifted in height as he walked, with a square boundary (seen on Intel HD 620). A likely cause was fixed in 0.312c: exports now load the baked snow wind field. It has NOT yet been confirmed on the hardware where the defect was seen, so report it if you see it.
 - Low frame rates on integrated GPUs. LOW now draws about 30 % fewer primitives on Duval Street, but this has not been re-measured on an HD 620.
 
-**Changes since 0.312c**
-- **Blizzard by default:** Key West stays in the blizzard (wind, snowfall, cold) instead of clearing after a few minutes.
-- **Cold you can see.**
-  - **Breath:** Henry's breath steams at his mouth in the cold, faster and stronger when he is out of breath, and drifts with the wind.
-  - **Rime:** his clothes, hat, pack and the gear on it frost over outdoors. He starts the game frosted and thaws gradually by the stove or in a warm room. The rime is saved.
-  - **Face:** cheeks and the nose tip redden in the cold, and rime settles on the brows.
-- **Stamina:**
-  - breath comes back sooner and faster when standing;
-  - an emptied tank keeps Henry winded until he recovers, with no sprint stutter;
-  - the run tapers into a jog;
-  - the cursor arcs now show the tank while he catches his breath.
-- **Road flare:** a new model, and the flare is now an editable scene.
-- **Stove:** the stove and its logs are now editable scenes, with the same look.
-- **Hints:** X puts away and G drops a held item, and the bedroll takes F or C. Flare readouts are localised.
-- **LOW graphics:** no vegetation shadows and one sun shadow split.
-- **For testers:** F9 route recording and the F10 report, also written automatically after a crashed session.
+**Changes since 0.314a**
+- **English throughout:** the game now runs in English whatever the system language.
+- **727 Fort Street, the real building:** rebuilt from the City of Key West 2020 permit drawings. The entrance is the glass double storefront on the side street, with a ramp under the steel canopy; new windows, wood-pattern bands, planters, the "KEY WEST HEALTH CENTER" sign, closed service doors at both ends, roof units, and snow on the roof, canopies and planters. The rooms inside keep their game layout. The compass, the start point and the supplies follow the new entrance.
+- **The street around 727:** the Lofts at Bahama Village (opposite 727) and the new Frederick Douglass Community Center stand where they were built; six merged blocks are now the fifteen separate buildings of the City footprints; a wayfinding post stands at 717 Fort Street.
+- **Fixes from play tests:** Henry no longer spins while aiming a snowball; a flare taken with held F is in his hand and stays there through a Hub visit; sleep and waiting burn a lit flare; no rime on what lies inside the pack; the load gauge fits the pack; an open cabinet answers F with "search" while you look at its shelves.
+- **Performance:** no more hitch on every Tab, the open Hub no longer holds the game at ~22 FPS, and a long freeze the first time the camera came up against Henry is gone.
+- **Saves:** broken-window records from older saves whose 727 window has moved are dropped instead of floating in the air.

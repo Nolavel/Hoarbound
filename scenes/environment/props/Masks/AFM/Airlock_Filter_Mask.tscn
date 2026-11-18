@@ -12,7 +12,7 @@ points = PackedVector3Array(-0.064, -0.0257222, -0.01, 0.064, 0.0262778, 0.01, 0
 script = ExtResource("1_on05g")
 afm_mesh = NodePath("AFM_Mesh")
 afm_name = "Airlock Filter Mask"
-description = " Дыхательный аппарат AFM"
+description = "AFM breathing apparatus"
 highlight_color = Color(0.116667, 1, 0, 0.45098)
 circle_radius = 0.5
 

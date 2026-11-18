@@ -6,6 +6,12 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Release (0.318a pre-release, English throughout; owner's request 2026-11-18)
+
+- The game runs in English whatever the system language: `internationalization/locale/test="en"` (the built-in override, used by exported projects). The Russian translation stays in `localization/strings.csv` for later.
+- Hardcoded Russian text left in code is English now: the interactive fallback name and description, the day-period names of the weather debug panel, the debug accelerator, and the legacy flashlight and AFM props.
+- `tools/ci/release/README_TESTER.txt` is in English; `RELEASE_NOTES.md` lists the changes since 0.314a.
+
 ### Fixed (727 storefront leaf: renderer error at exit)
 
 - The storefront leaf's glass took the frost material through `material_override` in code. At exit the instance outlived that material and Godot logged "Parameter material is null" (main scene and the shelter suites). The leaf's import now maps `window_glass` to `frosted_glass_727.tres`, as the shell's panes do; the override is gone and the log is clean.
