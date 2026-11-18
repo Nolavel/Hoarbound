@@ -222,10 +222,19 @@ def _rasterize_tile(url: str, bounds: tuple[float, float, float, float], cell: f
     return {"url": url, "points": int(len(x)), "header_points": int(header.point_count), "cached": False}
 
 
-def noaa_lidar(only: list[str] | None = None, workers: int = 6) -> None:
+def noaa_lidar(only: list[str] | None = None, workers: int = 6, chunks: list[str] | None = None) -> None:
+    """Tiles over library land; with chunks ("-7:3"), only tiles touching those chunks (plus 64 m) for a partial export."""
     import pyogrio
 
     land = _library_land_mask()
+    if chunks:
+        size = frame.chunk_size()
+        boxes = []
+        for cid in chunks:
+            cx, cz = (int(v) for v in cid.split(":"))
+            (e0, n0), (e1, n1) = frame.local_to_projected(cx * size, (cz + 1) * size), frame.local_to_projected((cx + 1) * size, cz * size)
+            boxes.append(shapely.box(e0, n0, e1, n1).buffer(64.0))
+        land = land.intersection(shapely.union_all(boxes))
     for source_id, spec in LIDAR.items():
         if only and source_id not in only:
             continue
@@ -266,6 +275,11 @@ def _library_land_mask():
     import pyogrio
 
     path = paths.RAW / "extent" / "extent_zones.gpkg"
+    if not path.exists():  # partial setup without the extent stage: the library's own land layer
+        from . import library
+        geoms, cols = library.read_layer("land")
+        keep = [g for g, scope in zip(geoms, cols["scope"]) if scope == "reality"]
+        return shapely.union_all(keep).buffer(60.0)
     meta, _, geom, fields = pyogrio.raw.read(path, layer="land_in_scope")
     return shapely.union_all(shapely.from_wkb(geom)).buffer(60.0)
 
