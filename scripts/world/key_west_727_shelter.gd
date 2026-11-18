@@ -239,14 +239,17 @@ func _place_windows(zone: ThermalZone, clinic: ThermalZone, proto: Node3D) -> vo
 		if o["kind"] != "window":
 			continue
 		var window: Node3D
-		if heated.get(o["room"], false) and hut_index < HUT_WINDOWS.size():
+		var warm: bool = heated.get(o["room"], false)
+		if warm and hut_index < HUT_WINDOWS.size():
 			window = zone.get_node(NodePath(HUT_WINDOWS[hut_index])) as Node3D
 			hut_index += 1
 		else:
+			## Heated rooms past the hut's four panes keep the hut severity and leak into the heated zone.
 			window = proto.duplicate() as Node3D
 			_remap_node_refs(proto, window)
-			(window as ShelterBreach).severity = CLINIC_WINDOW_SEVERITY
-			clinic.add_child(window)
+			if not warm:
+				(window as ShelterBreach).severity = CLINIC_WINDOW_SEVERITY
+			(zone if warm else clinic).add_child(window)
 		window.name = String(o["name"])
 		var pane := window as ShelterBreach
 		pane.glazed = true

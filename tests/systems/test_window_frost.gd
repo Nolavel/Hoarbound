@@ -7,6 +7,7 @@ extends SceneTree
 const CLUSTER_DIR: String = "res://scenes/world/key_west/generated/clusters"
 const DUVAL_CHUNK: Vector2i = Vector2i(-7, 2)
 const LANDMARK: String = "res://assets/world/key_west/landmarks/kw_727_fort_st.glb"
+const SPEC: String = "res://data/world/key_west/reality/landmarks/kw_727_fort_st.json"
 
 var _failures: int = 0
 
@@ -62,8 +63,21 @@ func _check_landmark_glass() -> void:
 		for c: Color in colors:
 			_check(c.r >= 0.6 - 0.001 and c.r <= 0.8 + 0.001, "727 pane frost %.3f is outside 60-80 %%" % c.r)
 			heated += 1 if c.g > 0.5 else 0
-		_check(heated == 4 * 36, "expected the 4 heated-room windows, found %d heated vertices" % heated)
+		var expected: int = _heated_windows()
+		_check(heated == expected * 36, "expected the %d heated-room windows, found %d heated vertices" % [expected, heated])
 	house.free()
+
+
+## Windows of the spec's heated rooms (waiting room and lobby: 7 after the 2020 permit layout).
+func _heated_windows() -> int:
+	var spec: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SPEC))
+	var heated: Dictionary = {}
+	for room: Dictionary in spec["interior"]["rooms"]:
+		heated[room["id"]] = bool(room["heated"])
+	var count: int = 0
+	for o: Dictionary in spec["interior"]["openings"]:
+		count += 1 if o["kind"] == "window" and heated.get(o["room"], false) else 0
+	return count
 
 
 func _check_warmth() -> void:

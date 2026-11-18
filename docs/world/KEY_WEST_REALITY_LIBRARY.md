@@ -478,19 +478,28 @@ end in `-col`, so Godot builds their collision.
 | Element | Value | Class | From |
 |---|---|---|---|
 | Roof | flat, 4.71 m above the lidar ground ring (5.94 m NAVD88) | measured | 2019 DSM, 1,185 roof cells; 2016 gives 4.76 m |
-| Parapet | none (edge 1 cm above the interior) | measured | 2019 DSM edge ring |
-| Roof outline | OSM trace + about 2 m roof run-out at both notches (418 m²) | cross_verified | per-edge lidar profiles, both epochs |
-| Walls | OSM trace inset 0.45 m = 343.1 m² = City record 3,693 sq ft | cross_verified | eave run-outs measured 0–0.6 m |
+| Parapet | to 16'-2" over ground, in the exterior asset | documented | A2.01 (the 2019 DSM predates it) |
+| Walls and roof outline | A1.02 exterior scaled by its bar: main 26.46 × 10.96 m, wing 9.95 × 5.27 m (342.4 m²; City record 343.1 m²) | documented | Legistar 20-6136 A1.02; no eaves after 2020 (A2.01, 2024 orthophoto) |
+| Position | outline placed by best overlap (IoU 0.91) with the measured walls (OSM trace inset to the City area) | cross_verified | OSM trace, City record, lidar |
 | Floor | highest DEM ground inside the walls + 0.1 m = ring + 0.66 m | inferred | the DEM under the slab rises to +0.56 m |
-| Openings, plan, furniture | clinic plan, hut door and window standard | **game_invented** | Legistar attachments not delivered |
+| Entrance, windows | NW side of the wing; 3 storefront groups, 1 side window, 6 narrow windows; none at the back | documented | A2.01 elevations; the door keeps the 1.5 m game width (storefront: 8 ft) |
+| Rooms, furniture | clinic plan on the permit walls | **game_invented** | owner 2026-11-18: game function over the clinic plan |
 
-**Exterior as built (2020 permit, step A).** `tools/world/reality/facade_727.py` lists the exterior parts
-on the game outline from Legistar 20-6136 sheets A2.01 and A1.03: canopy, tie rods, parapet (16'-2"),
-accent strips, planters and the sign. Each part names its sheet. `tools/blender/build_727_exterior.py`
-builds them into `assets/world/key_west/landmarks/kw_727_exterior.glb` in the plan frame, and
-`KeyWest727Shelter` places it under its House node. `facade_727.apply()` paints the shell walls SW 7691
-and records both assets in the spec (`exterior`) and the manifest. Parts that would cover a game opening
-are `deferred` to step B, which moves the outline, door and windows to the drawings.
+**Exterior as built (2020 permit).** `tools/world/reality/facade_727.py` lists the exterior parts on
+the spec's permit layout (`interior.layout.faces`) from Legistar 20-6136 sheets A2.01 and A1.03: canopy,
+tie rods, parapet (16'-2"), the wood-pattern bands framing the six narrow windows, planters and the sign.
+Each part names its sheet. `tools/blender/build_727_exterior.py` builds them into
+`assets/world/key_west/landmarks/kw_727_exterior.glb` in the plan frame and refuses a part that stands
+in front of an opening (`facade_727.covered`). `KeyWest727Shelter` places it under its House node.
+`facade_727.apply()` paints the shell walls SW 7691 and records both assets in the spec and the manifest.
+
+**Rebuilding 727.** The shell is generated, then authored by three scripts, so the manifest marks it
+`artist_modified`. After a change to the layout, one command replays everything in order:
+`key_west_reality.py shelter-727 --blender-python <python with bpy>` rebuilds the shell, adds the
+glass frost, builds the exterior, paints the walls and refreshes the 727 sockets and yard pickups in
+`overrides/first_exit_gameplay.json` (`first_exit_sites.refresh_shelter`; the other sites stay put).
+Then re-export chunk −7:3, regenerate its scene and the dirty HLOD clusters.
+Deferred: the service doors at both ends of the main block (A2.01) are not modelled.
 
 **Enterable shelter.** `tools/world/reality/shelter_727.py` hollows the measured shell.
 - Fixed elements:
@@ -499,9 +508,11 @@ are `deferred` to step B, which moves the outline, door and windows to the drawi
   - a 2.4 m entry ramp (about 1:7; Henry has no step-up);
   - glass panes;
   - `-col` collision everywhere except the glass.
-- Openings use the First Exit hut standards: door 1.5 × 2.25 m (`HingedDoor.opening_size`),
-  windows 2.0 × 1.1 m with a 0.8 m sill.
-- The main door sits under the measured east porch roof, facing Fort Street.
+- The door uses the First Exit hut standard 1.5 × 2.25 m (`HingedDoor.opening_size`); the windows
+  take their A2.01 widths, sill 1.06 m and head 2.60 m.
+- The main door is the permit entrance on the wing's NW side, its ramp under the west canopy.
+- Rooms, partitions, openings and furniture hang on named layout lines (`Layout.lines()`: W, E,
+  B, F, PW, PE, P), so a change of the outline moves them with their walls.
 - The layout is a small community clinic, in line with the CHI Key West programme (medical,
   dental, pharmacy):
   - lobby with reception and a heated waiting room in the Fort Street wing (the shelter zone);
@@ -515,11 +526,12 @@ and the plan frame (`plan_yaw_rad`).
 `KeyWest727Shelter` (in `key_west_reality_content.tscn`) is persistent, not streamed, like
 the legacy hut. It moves the hut's own nodes onto that plan:
 - the door with its breach;
-- `ShelterZone` with the stove, cabinet, mattress, rest crate and the four window breaches;
+- `ShelterZone` with the stove, cabinet, mattress, rest crate and the four hut window breaches,
+  plus copies for the other heated windows (7 in all: waiting room and lobby);
 - both benches.
 
 It also adds:
-- an unheated `ClinicZone` with copies of the window breach for the other 12 windows;
+- an unheated `ClinicZone` with copies of the window breach for the 3 restroom windows;
 - clinic furniture boxes;
 - a stove pipe through the roof;
 - a `ShelterSpawnPoint`.

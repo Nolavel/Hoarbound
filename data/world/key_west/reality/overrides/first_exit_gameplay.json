@@ -143,23 +143,23 @@
   },
   "BoardsShelterYard": {
    "xz": [
-    -3529.66,
-    1592.96
+    -3538.82,
+    1580.07
    ],
-   "y": 1.92,
+   "y": 1.96,
    "site": "727_yard",
    "feature_id": "kw:building:osm:w339414849",
-   "reason": "outside the 727 office front, beside the entry ramp"
+   "reason": "outside 727 under the west canopy, beside the entry ramp"
   },
   "FirewoodShelterYard": {
    "xz": [
-    -3529.11,
-    1593.8
+    -3539.69,
+    1578.73
    ],
-   "y": 1.89,
+   "y": 1.93,
    "site": "727_yard",
    "feature_id": "kw:building:osm:w339414849",
-   "reason": "outside the 727 office front, beside the entry ramp"
+   "reason": "outside 727 under the west canopy, beside the entry ramp"
   }
  },
  "shelter_sockets": {
@@ -286,7 +286,7 @@
   "StewShelterTest": {
    "room": "storage",
    "uv": [
-    12.6,
+    11.91,
     -3.6
    ],
    "h": 0.8,
@@ -296,7 +296,7 @@
   "FlaskShelterTest": {
    "room": "storage",
    "uv": [
-    12.6,
+    11.91,
     -3.0
    ],
    "h": 0.8,
@@ -306,7 +306,7 @@
   "PineappleShelterTest": {
    "room": "storage",
    "uv": [
-    12.6,
+    11.91,
     -2.4
    ],
    "h": 0.8,
@@ -316,8 +316,8 @@
   "FirewoodShelter": {
    "room": "lobby",
    "uv": [
-    4.3,
-    2.3
+    4.8,
+    3.25
    ],
    "h": 0.0,
    "yaw_deg": 0,
@@ -333,30 +333,10 @@
    "yaw_deg": 0,
    "on": "ReceptionCounter"
   },
-  "GlovesShelter": {
-   "room": "waiting",
-   "uv": [
-    2.92,
-    8.66
-   ],
-   "h": 0.375,
-   "yaw_deg": 90,
-   "on": "Cabinet"
-  },
-  "SPoVCanShelter": {
-   "room": "waiting",
-   "uv": [
-    2.85,
-    8.78
-   ],
-   "h": 0.0,
-   "yaw_deg": -84,
-   "on": "Cabinet"
-  },
   "BedrollShelterTest": {
    "room": "office",
    "uv": [
-    12.9,
+    12.2,
     1.0
    ],
    "h": 0.0,
@@ -372,6 +352,26 @@
    "h": 1.05,
    "yaw_deg": 0,
    "on": "ReceptionCounter"
+  },
+  "GlovesShelter": {
+   "room": "waiting",
+   "uv": [
+    -4.93,
+    8.43
+   ],
+   "h": 0.375,
+   "yaw_deg": 90,
+   "on": "Cabinet"
+  },
+  "SPoVCanShelter": {
+   "room": "waiting",
+   "uv": [
+    -4.93,
+    8.43
+   ],
+   "h": 0.0,
+   "yaw_deg": -84,
+   "on": "Cabinet"
   }
  }
 }

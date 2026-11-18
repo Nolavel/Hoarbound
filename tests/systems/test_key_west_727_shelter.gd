@@ -47,9 +47,11 @@ func _check_exterior() -> void:
 	_check(exterior != null, "no Exterior under House")
 	if exterior == null:
 		return
-	for part: String in ["CanopyFront", "Sign", "Parapet", "PlanterFront"]:
+	for part: String in ["Canopy", "CanopyRods", "Planters", "AccentBands", "Parapet", "Sign"]:
 		_check(exterior.find_child(part + "*", true, false) != null, "exterior has no %s" % part)
 	_check(not exterior.find_children("*", "StaticBody3D", true, false).is_empty(), "planters have no collision")
+	var meshes: int = exterior.find_children("*", "MeshInstance3D", true, false).size()
+	_check(meshes <= 6, "exterior is %d meshes; merge parts per material (one draw call each)" % meshes)
 	var space: PhysicsDirectSpaceState3D = root.get_world_3d().direct_space_state
 	var ramp: Dictionary = _shelter.interior["entry_ramp"]
 	var at: Vector3 = house.to_global(Vector3(float(ramp["from_uv"][0]), 1.0, float(ramp["from_uv"][1]) + 0.5))
@@ -127,9 +129,18 @@ func _check_nodes() -> void:
 		windows += 1 if o["kind"] == "window" else 0
 	var breaches: int = zone.get_breaches().size() + clinic.get_breaches().size()
 	_check(breaches == windows + 1, "expected %d breaches (windows + door), got %d" % [windows + 1, breaches])
-	for breach: ShelterBreach in clinic.get_breaches():
-		_check(breach.boarded_visual != null and breach.is_ancestor_of(breach.boarded_visual),
-			"%s boards point outside the copy" % breach.name)
+	var heated: Dictionary = {}
+	for room: Dictionary in _shelter.interior["rooms"]:
+		heated[room["id"]] = bool(room["heated"])
+	for o: Dictionary in _shelter.interior["openings"]:
+		if o["kind"] != "window":
+			continue
+		var owner_zone: ThermalZone = zone if heated.get(o["room"], false) else clinic
+		var breach := owner_zone.get_node_or_null(NodePath(String(o["name"]))) as ShelterBreach
+		_check(breach != null, "%s does not leak into its room's zone" % o["name"])
+		if breach != null:
+			_check(breach.boarded_visual != null and breach.is_ancestor_of(breach.boarded_visual),
+				"%s boards point outside the copy" % breach.name)
 	var outline: PackedVector2Array = PackedVector2Array()
 	for p: Array in _shelter.interior["outline_uv"]:
 		outline.append(Vector2(float(p[0]), float(p[1])))

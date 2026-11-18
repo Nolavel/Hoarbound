@@ -20588,8 +20588,8 @@
     ]
    },
    "bucket_triangles": {
-    "snow_roof": 8587,
-    "walls": 4710
+    "snow_roof": 8587.0,
+    "walls": 4710.0
    },
    "build_version": "kw_hlod.1",
    "builder_version": "kw_chunk_builder.12",
@@ -20601,10 +20601,10 @@
    "cluster_id": "c128_-27_11",
    "detail_cell": "kw_bld_c128_-27_11",
    "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-27_11.scn",
-   "detail_triangles": 13297,
+   "detail_triangles": 13297.0,
    "grid": [
-    -27,
-    11
+    -27.0,
+    11.0
    ],
    "materials": [
     "snow_roof",
@@ -20612,8 +20612,8 @@
    ],
    "proxy_digest": "2f2c45fd5321e03b",
    "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-27_11.res",
-   "snow_roof_triangles": 8587,
-   "source_count": 51,
+   "snow_roof_triangles": 8587.0,
+   "source_count": 51.0,
    "source_hash": "5a07719ed7726c96",
    "source_ids": [
     "kw:building:citykw:5104",
@@ -20668,8 +20668,8 @@
     "kw:building:usa_structures:32248819",
     "kw:building:usa_structures:32249067"
    ],
-   "surfaces": 2,
-   "triangles": 13297
+   "surfaces": 2.0,
+   "triangles": 13297.0
   },
   {
    "bounds": {
@@ -20685,8 +20685,8 @@
     ]
    },
    "bucket_triangles": {
-    "snow_roof": 7935,
-    "walls": 3594
+    "snow_roof": 7935.0,
+    "walls": 3594.0
    },
    "build_version": "kw_hlod.1",
    "builder_version": "kw_chunk_builder.12",
@@ -20698,10 +20698,10 @@
    "cluster_id": "c128_-27_12",
    "detail_cell": "kw_bld_c128_-27_12",
    "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-27_12.scn",
-   "detail_triangles": 11529,
+   "detail_triangles": 11529.0,
    "grid": [
-    -27,
-    12
+    -27.0,
+    12.0
    ],
    "materials": [
     "snow_roof",
@@ -20709,8 +20709,8 @@
    ],
    "proxy_digest": "da284f4c2c7e9c02",
    "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-27_12.res",
-   "snow_roof_triangles": 7935,
-   "source_count": 34,
+   "snow_roof_triangles": 7935.0,
+   "source_count": 34.0,
    "source_hash": "d4dab52499eccb37",
    "source_ids": [
     "kw:building:citykw:10004",
@@ -20748,8 +20748,8 @@
     "kw:building:osm:w585507141",
     "kw:building:osm:w585507142"
    ],
-   "surfaces": 2,
-   "triangles": 11529
+   "surfaces": 2.0,
+   "triangles": 11529.0
   },
   {
    "bounds": {
@@ -20765,8 +20765,8 @@
     ]
    },
    "bucket_triangles": {
-    "snow_roof": 8580,
-    "walls": 3868
+    "snow_roof": 8580.0,
+    "walls": 3868.0
    },
    "build_version": "kw_hlod.1",
    "builder_version": "kw_chunk_builder.12",
@@ -20778,10 +20778,10 @@
    "cluster_id": "c128_-27_13",
    "detail_cell": "kw_bld_c128_-27_13",
    "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-27_13.scn",
-   "detail_triangles": 12448,
+   "detail_triangles": 12448.0,
    "grid": [
-    -27,
-    13
+    -27.0,
+    13.0
    ],
    "materials": [
     "snow_roof",
@@ -20789,8 +20789,8 @@
    ],
    "proxy_digest": "6bca155e7423e2ab",
    "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-27_13.res",
-   "snow_roof_triangles": 8580,
-   "source_count": 31,
+   "snow_roof_triangles": 8580.0,
+   "source_count": 31.0,
    "source_hash": "ebe593962ead75ee",
    "source_ids": [
     "kw:building:citykw:5028",
@@ -20825,8 +20825,8 @@
     "kw:building:usa_structures:146835",
     "kw:building:usa_structures:32248048"
    ],
-   "surfaces": 2,
-   "triangles": 12448
+   "surfaces": 2.0,
+   "triangles": 12448.0
   },
   {
    "bounds": {
@@ -21696,9 +21696,9 @@
     ]
    },
    "bucket_triangles": {
-    "roof_lidar": 2,
-    "snow_roof": 12986,
-    "walls": 3468
+    "roof_lidar": 2.0,
+    "snow_roof": 12986.0,
+    "walls": 3468.0
    },
    "build_version": "kw_hlod.1",
    "builder_version": "kw_chunk_builder.12",
@@ -21710,10 +21710,10 @@
    "cluster_id": "c128_-28_12",
    "detail_cell": "kw_bld_c128_-28_12",
    "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-28_12.scn",
-   "detail_triangles": 16456,
+   "detail_triangles": 16456.0,
    "grid": [
-    -28,
-    12
+    -28.0,
+    12.0
    ],
    "materials": [
     "roof_lidar",
@@ -21722,8 +21722,8 @@
    ],
    "proxy_digest": "996b70045e8120d5",
    "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-28_12.res",
-   "snow_roof_triangles": 12986,
-   "source_count": 29,
+   "snow_roof_triangles": 12986.0,
+   "source_count": 29.0,
    "source_hash": "8222f59b83f53d4b",
    "source_ids": [
     "kw:building:citykw:9530",
@@ -21756,8 +21756,8 @@
     "kw:building:osm:w585507689",
     "kw:building:osm:w585507690"
    ],
-   "surfaces": 3,
-   "triangles": 16456
+   "surfaces": 3.0,
+   "triangles": 16456.0
   },
   {
    "bounds": {

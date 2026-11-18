@@ -181,15 +181,63 @@ class Shelter727(unittest.TestCase):
         self.assertAlmostEqual(5.0 * math.cos(a) + 2.0 * math.sin(a), x, places=6)
         self.assertAlmostEqual(-5.0 * math.sin(a) + 2.0 * math.cos(a), z, places=6)
 
-    def test_openings_follow_the_hut_standard(self):
+    def _layout(self):
         from reality import shelter_727
-        self.assertEqual(shelter_727._opening_y("door", 0.5), (0.5, 2.75))
-        y0, y1 = shelter_727._opening_y("window", 0.5)
-        self.assertAlmostEqual(y1 - y0, 1.1)
-        self.assertAlmostEqual(y0 - 0.5, 0.8)
-        door = next(o for o in shelter_727.OPENINGS if o[0] == "MainDoor")
-        r = shelter_727._opening_rect(door)
-        self.assertAlmostEqual(r.bounds[2] - r.bounds[0], 1.5)
+        return shelter_727.Layout(-13.24, 4.16)
+
+    def test_drawing_outline_matches_the_city_record_area(self):
+        self.assertAlmostEqual(self._layout().outline().area, 343.1, delta=343.1 * 0.01)  # 3,693 sq ft
+
+    def test_fit_recovers_a_shifted_outline(self):
+        import shapely.affinity
+        from reality import shelter_727
+        target = shapely.affinity.translate(shelter_727.Layout(-13.0, 4.0).outline(), 0.0, 0.0)
+        fit = shelter_727.fit_layout(target)
+        self.assertAlmostEqual(fit.a, -13.0, places=1)
+        self.assertAlmostEqual(fit.front, 4.0, places=1)
+
+    def test_main_door_is_the_permit_entrance(self):
+        from reality import shelter_727
+        lay = self._layout()
+        door = shelter_727.opening("MainDoor", lay)
+        self.assertEqual((door.axis, door.outward, door.room), ("u", (-1, 0), "waiting"))
+        self.assertAlmostEqual(door.along, lay.front + 2.78, places=2)  # A2.01 NW elevation: storefront 2.78 m past the main front
+        self.assertAlmostEqual(door.width, 1.5)
+
+    def test_windows_follow_the_2020_elevations(self):
+        from reality import shelter_727
+        lay = self._layout()
+        windows = [o for o in shelter_727.openings(lay) if o.kind == "window"]
+        by_room = {}
+        for w in windows:
+            by_room.setdefault(w.room, []).append(w.name)
+            self.assertAlmostEqual(w.y0, 1.06, places=2)  # sill and head over ground, A2.01
+            self.assertAlmostEqual(w.y1, 2.60, places=2)
+        self.assertEqual(sorted(by_room["waiting"]), ["FrontWindow1", "FrontWindow2", "FrontWindow3", "SideWindowEast"])
+        self.assertEqual(len(by_room["lobby"]), 3)
+        self.assertNotIn("dental", by_room, "the back elevation has no windows")
+        self.assertAlmostEqual(next(w for w in windows if w.name == "FrontWindow1").width, 2.46, places=2)
+
+    def test_wall_thermometer_hangs_in_the_heated_room(self):
+        from reality import shelter_727
+        lay = shelter_727.Layout(-13.24, 4.16)
+        t = next(f for f in shelter_727.furniture(lay) if f["kind"] == "wall_thermometer")
+        self.assertEqual((t["room"], t["h"]), ("waiting", 1.7))
+
+    def test_rooms_furniture_and_openings_fit_the_new_walls(self):
+        import shapely
+        from reality import shelter_727
+        lay = self._layout()
+        inner = lay.outline().buffer(-shelter_727.WALL_T, join_style="mitre")
+        rooms = dict((rid, shapely.box(*r)) for rid, _, r in shelter_727.rooms(lay))
+        for rid, box in rooms.items():
+            self.assertGreater(box.intersection(inner).area / box.area, 0.97, rid)
+        for f in shelter_727.furniture(lay):
+            self.assertTrue(rooms[f["room"]].buffer(0.01).contains(shapely.Point(f["uv"])), f["node"])
+        shell = lay.outline().difference(inner)
+        for o in shelter_727.openings(lay):
+            if o.kind in ("door", "window"):
+                self.assertTrue(shelter_727._opening_rect(o).intersects(shell), o.name)
 
 
 class Stems(unittest.TestCase):
@@ -530,52 +578,104 @@ class CityFootprints(unittest.TestCase):
             self.assertIn("citykw:1", reason)
 
 
+class Shelter727Sockets(unittest.TestCase):
+    """First Exit pickups in and beside 727 sit in their rooms, on their furniture, and clear of the entrance."""
+
+    def _spec(self):
+        return json.loads((Path(__file__).resolve().parents[3] / "data/world/key_west/reality/landmarks/kw_727_fort_st.json").read_text())
+
+    def test_every_raised_socket_rests_on_furniture(self):
+        from reality import first_exit_sites
+        sockets = first_exit_sites._shelter_sockets(self._spec()["interior"])
+        for name, s in sockets.items():
+            if s["h"] > 0.0:
+                self.assertIsNotNone(s["on"], f"{name} floats {s['h']} m over the floor")
+        cabinet = next(f for f in self._spec()["interior"]["furniture"] if f["node"] == "Cabinet")
+        for name in ("GlovesShelter", "SPoVCanShelter"):
+            self.assertEqual((sockets[name]["on"], sockets[name]["uv"]), ("Cabinet", cabinet["uv"]), name)
+
+    def test_floating_socket_is_refused(self):
+        from reality import first_exit_sites
+        spec = self._spec()
+        saved = dict(first_exit_sites.SHELTER_SOCKETS)
+        try:
+            first_exit_sites.SHELTER_SOCKETS = {"Probe": ("storage", 9.0, -4.5, 0.80, 0)}
+            with self.assertRaises(SystemExit):
+                first_exit_sites._shelter_sockets(spec["interior"])
+        finally:
+            first_exit_sites.SHELTER_SOCKETS = saved
+
+    def test_yard_is_outside_beside_the_ramp_and_off_the_walk(self):
+        from reality import facade_727, first_exit_sites
+        spec = self._spec()
+        walls = shapely.Polygon(spec["interior"]["outline_uv"])
+        ramp = spec["interior"]["entry_ramp"]
+        walk = shapely.LineString([ramp["from_uv"], ramp["to_uv"]]).buffer(0.75, cap_style="flat")
+        planters = [shapely.box(p["box"][0][0], p["box"][0][2], p["box"][1][0], p["box"][1][2])
+                    for p in facade_727.parts(spec, walls) if p["name"].startswith("Planter")]
+        for name, uv in first_exit_sites.SHELTER_YARD.items():
+            spot = shapely.Point(uv).buffer(0.3)
+            self.assertFalse(spot.intersects(walls), name)
+            self.assertFalse(spot.intersects(walk), name)
+            self.assertFalse(any(spot.intersects(p) for p in planters), name)
+            self.assertLess(shapely.Point(uv).distance(walk), 2.0, f"{name} is not beside the ramp")
+
+
 class Facade727(unittest.TestCase):
-    """727 Fort St exterior after the 2020 permit set (A2.01 elevations, A1.03 plan); outline and openings unchanged."""
+    """727 Fort St exterior after the 2020 permit set (A2.01 elevations, A1.03 plan) on the permit outline."""
 
     def _parts(self):
         from reality import facade_727
         spec = json.loads((Path(__file__).resolve().parents[3] / "data/world/key_west/reality/landmarks/kw_727_fort_st.json").read_text())
-        roof = shapely.Polygon(spec["interior"]["outline_uv"]).buffer(0.45, join_style="mitre")
+        roof = shapely.Polygon(spec["interior"]["outline_uv"])
         return {p["name"]: p for p in facade_727.parts(spec, roof)}, spec
 
     def test_canopy_follows_the_permit_set(self):
-        parts, _ = self._parts()
+        parts, spec = self._parts()
+        g = spec["interior"]["layout"]["faces"]
         front = parts["CanopyFront"]
         self.assertAlmostEqual(front["box"][0][1], 3.2, places=2)  # underside 10'-6" over ground (A2.01)
-        self.assertAlmostEqual(front["box"][1][2] - 10.324, 5 * 0.3048, places=2)  # 5 ft past the front wall (A1.03)
-        self.assertAlmostEqual(front["box"][0][0], -5.882 - 4.9 * 0.3048, places=2)
-        self.assertAlmostEqual(front["box"][1][0], 3.71 + 4.9 * 0.3048, places=2)
+        self.assertAlmostEqual(front["box"][1][2] - g["P"], 5 * 0.3048, places=2)  # 5 ft past the wing front (A1.03)
+        self.assertAlmostEqual(front["box"][0][0], g["PW"] - 4.9 * 0.3048, places=2)
+        self.assertAlmostEqual(front["box"][1][0], g["PE"] + 4.9 * 0.3048, places=2)
 
     def test_parapet_tops_at_16_ft_2_in(self):
         parts, _ = self._parts()
         self.assertAlmostEqual(parts["Parapet"]["top_y"], 4.93, places=2)
 
-    def test_nothing_blocks_the_game_openings(self):
+    def test_nothing_blocks_the_openings_or_the_ramp(self):
+        from reality import facade_727
         parts, spec = self._parts()
+        self.assertEqual(facade_727.covered(spec, list(parts.values())), [])
         ramp = spec["interior"]["entry_ramp"]
-        door = shapely.box(ramp["to_uv"][0] - 1.2, ramp["to_uv"][1], ramp["from_uv"][0] + 1.2, ramp["from_uv"][1] + 1.0)
+        (fu, fv), (tu, tv) = ramp["from_uv"], ramp["to_uv"]
+        walk = shapely.LineString([(fu, fv), (tu, tv)]).buffer(0.75, cap_style="flat")
         for p in parts.values():
             if p.get("collision"):
                 (u0, y0, v0), (u1, y1, v1) = p["box"]
                 if y1 > 0.3 and y0 < 2.91:  # anything between the ground and the door head
-                    self.assertFalse(shapely.box(u0, v0, u1, v1).intersects(door), p["name"])
-        for p in parts.values():
-            if p["name"].startswith("AccentStrip"):
-                (u0, _, v0), (u1, _, v1) = p["box"]
-                for o in spec["interior"]["openings"]:
-                    on_wall = abs(o["centre_uv"][1] - v0) < 0.2 and o["outward_uv"] == [0, 1]
-                    half = o["width_m"] / 2
-                    self.assertFalse(on_wall and u0 < o["centre_uv"][0] + half and u1 > o["centre_uv"][0] - half, (p["name"], o["name"]))
+                    self.assertFalse(shapely.box(u0, v0, u1, v1).intersects(walk), p["name"])
 
-    def test_accent_strips_keep_their_spacing_from_the_projection(self):
-        parts, _ = self._parts()
+    def test_accent_bands_frame_the_narrow_windows(self):
         from reality import facade_727
-        strips = sorted((p for p in parts.values() if p["name"].startswith("AccentStrip")), key=lambda p: p["box"][0][0])
-        self.assertEqual(len(strips), 5, "the strip over the game's MainDoor waits for the outline step")
-        self.assertIn("AccentStripE2", [d["name"] for d in facade_727.deferred(self._parts()[1])])
-        self.assertAlmostEqual(-5.882 - strips[2]["box"][1][0], (24.1 - 23.09) * 0.3048, places=2)
-        self.assertAlmostEqual(strips[3]["box"][0][0] - 3.71, (57.04 - 56.1) * 0.3048, places=2)
+        parts, spec = self._parts()
+        narrow = [o for o in spec["interior"]["openings"] if o["name"].startswith("NarrowWindow")]
+        self.assertEqual(len(narrow), 6)
+        for o in narrow:
+            n = o["name"].removeprefix("NarrowWindow")
+            left, right = parts[f"AccentStrip{n}L"]["box"], parts[f"AccentStrip{n}R"]["box"]
+            self.assertAlmostEqual((left[0][0] + right[1][0]) / 2, o["centre_uv"][0], places=3)
+            self.assertAlmostEqual(right[1][0] - left[0][0], facade_727.STRIP_W, places=3)
+            self.assertAlmostEqual(parts[f"AccentStrip{n}B"]["box"][1][1], o["y0"], places=3)
+            self.assertAlmostEqual(parts[f"AccentStrip{n}T"]["box"][0][1], o["y1"], places=3)
+
+    def test_covered_sees_a_box_in_front_of_a_window(self):
+        from reality import facade_727
+        _, spec = self._parts()
+        o = next(o for o in spec["interior"]["openings"] if o["name"] == "FrontWindow2")
+        (cu, cv), dv = o["centre_uv"], o["outward_uv"][1]
+        crate = facade_727._box("Crate", "wood_tile", cu - 0.3, 0.0, cv + 0.2 * dv, cu + 0.3, 2.0, cv + 0.6 * dv, "test")
+        self.assertEqual(facade_727.covered(spec, [crate]), [("Crate", "FrontWindow2")])
 
     def test_wall_paint_is_sw_7691_in_linear_light(self):
         from reality import facade_727

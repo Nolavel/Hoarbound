@@ -52,15 +52,18 @@ SHELTER_SOCKETS = {
     "HammerShelter": ("storage", 9.95, -5.6, 0.80, 0), "NailsShelter": ("storage", 10.35, -5.6, 0.80, 0),
     "LighterShelterTest": ("storage", 10.75, -5.6, 0.80, 0), "KnifeShelterTest": ("storage", 11.1, -5.6, 0.80, 0),
     "AxeShelterTest": ("storage", 11.4, -5.6, 0.80, 0),
-    "StewShelterTest": ("storage", 12.6, -3.6, 0.80, 0), "FlaskShelterTest": ("storage", 12.6, -3.0, 0.80, 0),
-    "PineappleShelterTest": ("storage", 12.6, -2.4, 0.80, 0),
-    "FirewoodShelter": ("lobby", 4.3, 2.3, 0.0, 0), "RoadFlareShelterTest": ("lobby", 8.15, 1.2, 1.05, 0),
-    "BedrollShelterTest": ("office", 12.9, 1.0, 0.0, 0),
+    "StewShelterTest": ("storage", 11.91, -3.6, 0.80, 0), "FlaskShelterTest": ("storage", 11.91, -3.0, 0.80, 0),
+    "PineappleShelterTest": ("storage", 11.91, -2.4, 0.80, 0),
+    "FirewoodShelter": ("lobby", 4.8, 3.25, 0.0, 0), "RoadFlareShelterTest": ("lobby", 8.15, 1.2, 1.05, 0),
+    "BedrollShelterTest": ("office", 12.2, 1.0, 0.0, 0), "SearchlightShelter": ("lobby", 8.15, 2.15, 1.05, 0),
 }
+## Supplies stored in the waiting-room cabinet: (shelf h, yaw). Godot puts them on its ItemContainer shelves.
+CABINET_SOCKETS = {"GlovesShelter": (0.375, 90), "SPoVCanShelter": (0.0, -84)}
 ## Hut furniture that is not in the spec's sized list: (u, v, half_u, half_v, top) in plan space.
 HUT_TOPS = {"ToolBench": (0.95, 0.325, 0.80), "SupplyBench": (0.325, 0.95, 0.80)}
-## Outside the office front facade (plan v = 3.08), clear of the entry ramp at u = 6.23.
-SHELTER_YARD = {"BoardsShelterYard": (8.8, 4.7), "FirewoodShelterYard": (9.8, 4.7)}
+## Under the west canopy between the main-front planters (v 4.62) and the entry ramp (v 6.19-7.69).
+SHELTER_YARD = {"BoardsShelterYard": (-7.0, 5.4), "FirewoodShelterYard": (-8.6, 5.4)}
+YARD_REASON = "outside 727 under the west canopy, beside the entry ramp"
 SOCKET_MARGIN_M = 0.25
 
 
@@ -160,14 +163,10 @@ def run() -> dict:
     put("FirewoodShedN1", q, "shed", fid, "second outbuilding-sized building nearest 727 (template: shed)")
     fid, g, q = site(sxz, house, 2)
     put("TinderCollapsedN3", q, "house", fid, "third building nearest 727 (template: collapsed house N3)")
-    spec = json.loads((paths.REALITY / "landmarks" / "kw_727_fort_st.json").read_text(encoding="utf-8"))
+    spec = _spec_727()
     sockets = _shelter_sockets(spec["interior"])
-    o = spec["origin_local"]
-    yaw7 = float(spec["interior"]["plan_yaw_rad"])
-    for name, (u, v) in SHELTER_YARD.items():
-        x = o[0] + u * np.cos(yaw7) + v * np.sin(yaw7)
-        z = o[2] - u * np.sin(yaw7) + v * np.cos(yaw7)
-        put(name, (x, z), "727_yard", LANDMARK_727, "outside the 727 office front, beside the entry ramp")
+    for name, xz in _yard_xz(spec).items():
+        put(name, xz, "727_yard", LANDMARK_727, YARD_REASON)
     doc = {"schema": "kw_reality.first_exit_gameplay.v1", "built_at": receipts.now_utc(),
            "recon": "game_authored_override",
            "note": "Game objects on measured geometry. Battery Osceola has no separate footprint in any reachable "
@@ -186,8 +185,37 @@ def run() -> dict:
     return doc
 
 
+def refresh_shelter() -> dict:
+    """Rewrites only the 727 sockets and yard pickups of the gameplay file, after a 727 layout change.
+
+    The other sites stay as placed: re-picking them against a newer library would move them silently.
+    """
+    s = meshing.Surfaces()
+    oe, on = frame.origin()
+    spec = _spec_727()
+    doc = json.loads(OUT.read_text(encoding="utf-8"))
+    doc["shelter_sockets"] = _shelter_sockets(spec["interior"])
+    for name, (x, z) in _yard_xz(spec).items():
+        doc["pickups"][name] = {"xz": _r((x, z)), "y": round(float(s.ground_at(np.array([[x + oe, on - z]]))[0]) + PICKUP_LIFT_M, 2),
+                                "site": "727_yard", "feature_id": LANDMARK_727, "reason": YARD_REASON}
+    OUT.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
+    return {"sockets": len(doc["shelter_sockets"]), "yard": {k: doc["pickups"][k]["xz"] for k in SHELTER_YARD}}
+
+
+def _spec_727() -> dict:
+    return json.loads((paths.REALITY / "landmarks" / "kw_727_fort_st.json").read_text(encoding="utf-8"))
+
+
+def _yard_xz(spec: dict) -> dict:
+    """SHELTER_YARD plan spots in local x/z (the landmark node maps plan u/v by Basis(UP, yaw))."""
+    o = spec["origin_local"]
+    yaw = float(spec["interior"]["plan_yaw_rad"])
+    return {name: (o[0] + u * np.cos(yaw) + v * np.sin(yaw), o[2] - u * np.sin(yaw) + v * np.cos(yaw))
+            for name, (u, v) in SHELTER_YARD.items()}
+
+
 def _shelter_sockets(interior: dict) -> dict:
-    """Validates the interior sockets: inside their room, and on top of any furniture they overlap."""
+    """Validates the interior sockets: inside their room, resting on the floor or on the furniture they overlap."""
     rooms = {r["id"]: r["rect_uv"] for r in interior["rooms"]}
     boxes = []
     for f in interior["furniture"]:
@@ -212,7 +240,12 @@ def _shelter_sockets(interior: dict) -> dict:
                 if not (u0 <= u <= u1 and v0 <= v <= v1 and top <= h <= top + 0.3):
                     raise SystemExit(f"socket {name} collides with {node}")
                 on = node
+        if h > 0.0 and on is None:
+            raise SystemExit(f"socket {name} floats {h} m over the floor")
         out[name] = {"room": room, "uv": [u, v], "h": h, "yaw_deg": yaw, "on": on}
+    cabinet = next(f for f in interior["furniture"] if f["node"] == "Cabinet")
+    for name, (h, yaw) in CABINET_SOCKETS.items():
+        out[name] = {"room": cabinet["room"], "uv": list(cabinet["uv"]), "h": h, "yaw_deg": yaw, "on": "Cabinet"}
     return out
 
 

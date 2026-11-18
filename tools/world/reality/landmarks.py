@@ -15,7 +15,6 @@ import struct
 import numpy as np
 import pyogrio
 import shapely
-import shapely.affinity
 import triangle
 from scipy import ndimage
 
@@ -23,25 +22,27 @@ from . import PIPELINE_VERSION, frame, lidar, meshing, paths, receipts, shelter_
 from .assets import MANIFEST, _current_hash
 
 ## Per asset, so a change to one landmark does not rewrite the others' binaries.
-LANDMARK_VERSIONS = {"kw_727_fort_st": "kw_landmark.2", "kw_fort_zachary_taylor": "kw_landmark.1"}
+LANDMARK_VERSIONS = {"kw_727_fort_st": "kw_landmark.3", "kw_fort_zachary_taylor": "kw_landmark.1"}
 ASSET_DIR = paths.ROOT / "assets/world/key_west/landmarks"
 SPEC_DIR = paths.REALITY / "landmarks"
 ROOF_BAND_M = (4.3, 5.2)  # 727: flat roof plane above ground, separates roof from canopy
-NOTCH_ROOF_MIN_M = 1.0  # roof run-out beyond an edge that counts as a roofed notch, not an eave
 MATERIALS = {"masonry_stucco": (0.86, 0.83, 0.76, 1.0), "roof_membrane": (0.55, 0.55, 0.53, 1.0),
              "fort_brick": (0.62, 0.45, 0.36, 1.0), "interior_plaster": (0.80, 0.79, 0.74, 1.0),
              "floor_vinyl": (0.52, 0.50, 0.45, 1.0), "ceiling_tile": (0.88, 0.88, 0.85, 1.0),
              "window_glass": (0.30, 0.40, 0.46, 0.35)}
 
 
-def run() -> dict:
+def run(only: str | None = None, replay: bool = False) -> dict:
+    """Writes the landmarks; replay=True also overwrites an artist-modified asset whose passes the caller re-runs."""
     s = meshing.Surfaces()
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
     SPEC_DIR.mkdir(parents=True, exist_ok=True)
     out = {}
     for name, fn in (("kw_727_fort_st", _shelter_727), ("kw_fort_zachary_taylor", _fort_taylor)):
+        if only and name != only:
+            continue
         spec, nodes = fn(s)
-        if not _may_write(spec["feature_id"]):
+        if not replay and not _may_write(spec["feature_id"]):
             out[name] = "skipped: artist-owned asset in manifest"
             continue
         glb = ASSET_DIR / f"{name}.glb"
@@ -70,7 +71,11 @@ def _origin(poly, ground_y: float) -> tuple[np.ndarray, list[float]]:
 
 
 def _shelter_727(s: meshing.Surfaces):
-    """Walls = OSM roof trace inset by the eave width that reproduces the official floor area."""
+    """Walls and roof = the 2020 permit outline (shelter_727.Layout), placed on the measured walls.
+
+    The measured walls (OSM roof trace inset to the City floor area) fix the plan frame and the
+    position; the permit set gives the shape. The roof stops at the walls: no eaves since 2020.
+    """
     fid = "kw:building:osm:w339414849"
     facts = _facts(fid)
     fp = shapely.orient_polygons(_library_polygon(fid))
@@ -79,20 +84,17 @@ def _shelter_727(s: meshing.Surfaces):
     roof_rel, roof_n, epochs = _roof_plane(fp, ring_ground)
     floor_area = float(facts["floor_area_m2"])
     eave = _inset_for_area(fp, floor_area)
-    walls = fp.buffer(-eave, join_style="mitre")
-    edges = _edge_runouts(fp, ring_ground)
-    notch = [e for e in edges if e["runout_m"] is not None and e["runout_m"] >= NOTCH_ROOF_MIN_M]
-    roof = shapely.union_all([fp] + [_edge_strip(fp, e["i"], e["runout_m"]) for e in notch])
-    roof = shapely.orient_polygons(roof.buffer(0))
+    measured = fp.buffer(-eave, join_style="mitre")
     centre, origin = _origin(fp, ring_ground)
     top = roof_rel
-    fascia = 0.3  # presentation thickness of the roof slab edge (inferred)
-    roof_mesh = _prism(roof, centre, top - fascia, top)
-    plan = shelter_727.Plan(walls, origin)
+    fascia = 0.3  # roof slab depth (inferred)
+    plan = shelter_727.Plan(measured, origin)
+    walls = shapely.orient_polygons(plan.to_projected(plan.walls))
+    roof_mesh = _prism(walls, centre, top - fascia, top)
     interior, shell_nodes = shelter_727.build(plan, top - fascia, ring_ground, s.ground_at)
     floor = interior["floor_y"]
     spec = {
-        "landmark": "727 Fort Street (First Exit primary shelter) - measured exterior, enterable game interior",
+        "landmark": "727 Fort Street (First Exit primary shelter) - permit-set exterior, enterable game interior",
         "presentation": "measured_exterior_enterable",
         "feature_id": fid,
         "override_id": "kw_override:first_exit:shelter:727_fort_st", "origin_local": origin,
@@ -101,22 +103,23 @@ def _shelter_727(s: meshing.Surfaces):
             "roof_top_navd88_m": {"value": round(ring_ground + top, 3), "recon": "measured",
                                   "method": "median of 2019 DSM roof-band cells minus lidar ground ring", "above_ground_m": round(top, 3),
                                   "cells": roof_n, "epochs": epochs},
-            "roof_outline": {"recon": "cross_verified", "method": "OSM trace (roof incl. eaves) + lidar roof run-out at notch edges",
-                             "area_m2": round(roof.area, 1), "notch_roofs": notch},
-            "walls": {"recon": "cross_verified", "inset_m": round(eave, 3), "area_m2": round(walls.area, 1),
-                      "method": "OSM trace inset until the area equals the City record (3,693 sq ft)",
-                      "check_lidar_eave_runouts_m": [e["runout_m"] for e in edges if e not in notch]},
+            "roof_outline": {"recon": "documented", "method": "the walls: no eaves or side roofs after the 2020 renovation (A2.01, 2024 orthophoto)",
+                             "area_m2": round(walls.area, 1)},
+            "walls": {"recon": "documented", "area_m2": round(walls.area, 1),
+                      "method": "A1.02 existing plan, exterior scaled by its bar (main 26.46 x 10.96 m, wing 9.95 x 5.27 m); "
+                                "placed by best overlap with the measured walls",
+                      "record_area_m2": floor_area, "measured_walls": {"inset_m": round(eave, 3), "area_m2": round(measured.area, 1),
+                                                                        "method": "OSM trace inset until the area equals the City record"}},
             "floor_above_ground_m": {"value": floor, "recon": "inferred",
                                      "note": "not in any record; set over the highest DEM ground inside the walls"},
             "roof_fascia_m": {"value": fascia, "recon": "inferred"},
-            "openings": {"recon": "game_invented", "note": "see interior; the Legistar plan attachments were not delivered"},
+            "openings": {"recon": "documented", "note": "entrance and windows from the A2.01 elevations; the door keeps the game standard width"},
         },
         "interior": interior,
         "conflicts": [{
             "attribute": "height", "documentary": {"value_m": 6.86, "source": "city_kw_legistar_20_6136", "text": "existing height 22 ft 6 in"},
             "measured": {"value_m": round(top, 2), "sources": ["noaa_lidar_9081 2019", "noaa_lidar_6246 2016"]},
-            "resolution": "geometry follows the two lidar epochs (flat roof, no parapet); the record's height datum is unstated. "
-                          "Proposed 26 ft 4 in (2020) may describe a later state - needs post-2020 evidence."}],
+            "resolution": "the roof follows the two lidar epochs; the 2020 parapet tops at 16'-2\" (A2.01) in the exterior asset."}],
         "ground_ring_navd88_m": round(ring_ground, 3),
     }
     nodes = shell_nodes + [{"name": "Roof-col", "surfaces": [dict(roof_mesh, material="roof_membrane")]}]
@@ -228,43 +231,6 @@ def _inset_for_area(fp, area: float) -> float:
         else:
             hi = mid
     return (lo + hi) / 2
-
-
-def _edge_runouts(fp, ground: float) -> list[dict]:
-    """Per-edge distance the lidar roof plane runs past the traced outline (median of 9 profiles)."""
-    dsm, X, Y, minx, maxy, c = _local_grid(fp, 8)
-    nd = dsm - ground
-    co = np.asarray(fp.exterior.coords)
-    out = []
-    for i in range(len(co) - 1):
-        a, b = co[i], co[i + 1]
-        length = float(np.linalg.norm(b - a))
-        t = (b - a) / length
-        n = np.array([t[1], -t[0]])  # outward for a counter-clockwise exterior
-        offs = []
-        for f in np.linspace(0.15, 0.85, 9):
-            d = np.arange(-2.0, 3.01, 0.1)
-            pts = a + t * length * f + np.outer(d, n)
-            h = nd[np.clip(((maxy - pts[:, 1]) / c).astype(int), 0, nd.shape[0] - 1), np.clip(((pts[:, 0] - minx) / c).astype(int), 0, nd.shape[1] - 1)]
-            roof = (h > ROOF_BAND_M[0]) & (h < ROOF_BAND_M[1])
-            if not roof[d < 0].any():
-                continue
-            k = 0
-            while k < len(d) and (d[k] < 0 or roof[k]):
-                k += 1
-            if k < len(d) and h[k] < ROOF_BAND_M[0]:
-                offs.append(float(d[k - 1]))
-        out.append({"i": i, "length_m": round(length, 2), "runout_m": round(float(np.median(offs)), 2) if len(offs) >= 3 else None,
-                    "profiles": len(offs)})
-    return out
-
-
-def _edge_strip(fp, i: int, depth: float):
-    co = np.asarray(fp.exterior.coords)
-    a, b = co[i], co[i + 1]
-    t = (b - a) / np.linalg.norm(b - a)
-    n = np.array([t[1], -t[0]])
-    return shapely.Polygon([a, b, b + n * depth, a + n * depth]).difference(fp)
 
 
 def _tri_polygon(poly) -> tuple[np.ndarray, np.ndarray]:

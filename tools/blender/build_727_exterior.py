@@ -112,17 +112,43 @@ def _text(part: dict, mat) -> None:
 	obj.data.materials.append(mat)
 
 
+## One mesh per material and collision role: 38 parts would be 38 draw calls, these are 6.
+MERGED = {("canopy_steel", True): "Canopy-col", ("canopy_steel", False): "CanopyRods", ("wood_tile", True): "Planters-col",
+	("wood_tile", False): "AccentBands", ("wall_paint", False): "Parapet", ("sign_red", False): "Sign"}
+
+
+def _merge(parts: list) -> None:
+	for (material, collision), name in MERGED.items():
+		names = [p["name"] + ("-col" if collision and p["kind"] == "box" else "") for p in parts
+			if p["material"] == material and bool(p["collision"]) == collision]
+		objs = [bpy.data.objects[n] for n in names]
+		if not objs:
+			continue
+		bpy.ops.object.select_all(action="DESELECT")
+		for o in objs:
+			o.select_set(True)
+		bpy.context.view_layer.objects.active = objs[0]
+		if len(objs) > 1:
+			bpy.ops.object.join()
+		objs[0].name = name
+		objs[0].data.name = name
+
+
 def main() -> None:
 	bpy.ops.wm.read_factory_settings(use_empty=True)
 	spec = json.load(open(SPEC, encoding="utf-8"))
 	roof = facade_727.roof_outline_from_glb(SHELL, spec["interior"]["plan_yaw_rad"])
 	mats = {k: _material(k, v) for k, v in facade_727.MATERIALS.items()}
 	build = {"box": _box, "rod": _rod, "prism": _prism, "text": _text}
-	for part in facade_727.parts(spec, roof):
+	parts = facade_727.parts(spec, roof)
+	blocked = facade_727.covered(spec, parts)
+	if blocked:
+		raise SystemExit(f"exterior parts block openings: {blocked}")
+	for part in parts:
 		build[part["kind"]](part, mats[part["material"]])
+	_merge(parts)
 	bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True, export_apply=True)
-	print("727 exterior:", OUT, len(facade_727.parts(spec, roof)), "parts; deferred:",
-		[p["name"] for p in facade_727.deferred(spec, roof)])
+	print("727 exterior:", OUT, len(parts), "parts")
 
 
 if __name__ == "__main__":

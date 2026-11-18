@@ -6,6 +6,21 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (Key West: 727 Fort St walls, entrance and windows from the 2020 permit, step B)
+
+- **Outline:** the walls and the roof follow the A1.02 exterior scaled by its bar (main 26.46 × 10.96 m, Fort Street wing 9.95 × 5.27 m; 342.4 m² against the City record 343.1 m²), placed by best overlap with the measured walls (IoU 0.91). The roof no longer runs past the walls: the eaves and notch roofs were gone after 2020.
+- **Entrance:** the main door moves to the real entrance on the wing's NW side, with its ramp under the west canopy. The game door keeps its 1.5 m width (the storefront is 8 ft). The First Exit compass bearing, the yard pickups and the spawn follow it.
+- **Windows:** as in A2.01: three storefront groups on the wing front and one on its SE side, six narrow windows on the main front, none at the back. Seven heated windows (waiting room, lobby) leak into the shelter zone; heated rooms past the hut's four panes get copies of its pane.
+- **Rooms and furniture:** the game clinic stays, clipped to the new walls; rooms, partitions, openings and furniture hang on named layout lines. Pickups on the supply bench moved with it; the bench check now refuses a pickup that floats.
+- **Exterior:** the wood-pattern bands frame the narrow windows (cut around them), the deferred band is back, the planters run unbroken east of the wing. Wood-tile colour sampled from the A2.01 swatch (sRGB 114, 72, 51).
+- **Saves:** a saved broken pane whose 727 window has gone or moved is dropped on load instead of hanging in the air.
+- **Tooling:** `key_west_reality.py shelter-727` rebuilds the shell and replays its passes (frost, exterior, paint, sockets) in one go. Hand-placed sockets in `first_exit_gameplay.json` (gloves, SPoV can, searchlight) are now in the generator.
+- **Route and gate:** the gate route's `727_fort_st_entrance` is the ramp foot from the spec, no longer a point 2.5 m off the wall facing Fort Street (only the two 727 legs change). The gate walks in through the NW door, the waiting room and the arch to the lobby; it enters and is sheltered.
+- **Draw calls:** the exterior is merged into one mesh per material and collision role (6 instead of 38). Views of the block draw no more than after step A, except the close front view (+50 calls, 1.7 %, with 14 % fewer primitives).
+- **Kept:** the wall thermometer (it lived only in the old spec file) is now in the generator, beside the lobby arch.
+- **Tests:** `test_open_container_focus` and `test_727_furniture` stood Henry with his origin (the capsule centre) 5 cm over the floor, half inside it. The old floor mesh happened to push him out; they now stand him on it. Tests that pinned the hut windows (4 heated, 2.0 × 1.1 m) or the old bearing now read the spec or the permit values.
+- **Deferred:** the service doors at both ends of the main block are not modelled. The gate's walk from the shelter spawn to the bunker start meets a neighbour's wall once (auto-recovered); not compared with the old spawn.
+
 ### Changed (Key West: 727 Fort St exterior as built after the 2020 permit, step A)
 
 - **Exterior dressing:** the steel canopy (underside at 10'-6", 5 ft deep, wrapping both projection sides), its tie rods, the parapet to 16'-2", the wood-pattern accent strips, the planters and the "KEY WEST HEALTH CENTER" sign. Sources: sheets A2.01 and A1.03 of Legistar 20-6136; built by `tools/blender/build_727_exterior.py` (Blender 5.2 as a Python module) from the parts in `tools/world/reality/facade_727.py`.

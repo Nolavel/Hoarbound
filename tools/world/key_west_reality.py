@@ -10,6 +10,9 @@
   asset ...                   register/lock an authored asset; --rebase-check after source updates
   override-bridge-init        one-time: author the severed-bridge game override from real geometry
   landmarks                   measured First Exit landmark assets (glTF) + asset manifest records
+  shelter-727                 rebuild the 727 shell from the permit layout and replay its passes
+                              (glass frost, Blender exterior, wall paint), then its First Exit sockets and yard;
+                              --blender-python names bpy's Python
   route-gate                  walkable First Exit + Old Town test route for the production gate
   first-exit-sites            bunker door, spawn and loot sites for the Reality First Exit (game-authored)
   traversal-check             no generated collider on a mapped road, path or footway
@@ -25,6 +28,7 @@ Needs: pyarrow, pyogrio, shapely, pyproj, rasterio, laspy[lazrs], numpy, Pillow.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -109,6 +113,7 @@ def main() -> None:
     parser.add_argument("--asset-id")
     parser.add_argument("--blend", help="asset: authored .blend path")
     parser.add_argument("--scene", help="asset: Godot scene path")
+    parser.add_argument("--blender-python", help="shelter-727: Python with the bpy module (default: this one)")
     parser.add_argument("--apply", action="store_true", help="documented: write the buildings into the library and re-pack it")
     parser.add_argument("--rebase-check", action="store_true", help="asset: mark authored assets with changed sources needs_rebase")
     args = parser.parse_args()
@@ -158,6 +163,8 @@ def main() -> None:
     elif args.command == "landmarks":
         from reality import landmarks
         landmarks.run()
+    elif args.command == "shelter-727":
+        cmd_shelter_727(args.blender_python)
     elif args.command == "blender-shell":
         from reality import blender_shell
         if not args.feature_id:
@@ -186,6 +193,21 @@ def main() -> None:
         library.pack()
     else:
         parser.error(f"unknown command {args.command}")
+
+
+def cmd_shelter_727(blender_python: str | None) -> None:
+    """The 727 asset is generated, then authored by three scripts; a new layout replays all of them in order."""
+    import subprocess
+    from reality import facade_727, landmarks, paths
+    glb = landmarks.ASSET_DIR / "kw_727_fort_st.glb"
+    spec = landmarks.SPEC_DIR / "kw_727_fort_st.json"
+    landmarks.run(only="kw_727_fort_st", replay=True)
+    subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "reality/landmark_glass_frost.py"), str(glb), str(spec)], check=True)
+    subprocess.run([blender_python or sys.executable, str(paths.ROOT / "tools/blender/build_727_exterior.py")], check=True)
+    print(json.dumps(facade_727.apply(spec, glb, landmarks.ASSET_DIR / "kw_727_exterior.glb",
+                                      paths.AUTHORING / "asset_manifest.json")["parts"]))
+    from reality import first_exit_sites
+    print(json.dumps(first_exit_sites.refresh_shelter()))
 
 
 if __name__ == "__main__":
