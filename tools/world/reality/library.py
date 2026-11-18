@@ -287,6 +287,31 @@ def _register_gpkg_functions(con: sqlite3.Connection) -> None:
         con.create_function(name, 1, bound(i))
 
 
+def remove_features(path: Path, removals: list[dict]) -> list[str]:
+    """Deletes features a better source shows to be wrong (e.g. merged outlines) and records each in `excluded`.
+
+    Unlike close_features this is not history: the outline never matched one real building.
+    """
+    con = sqlite3.connect(path)
+    _register_gpkg_functions(con)
+    cur = con.cursor()
+    done = []
+    for r in removals:
+        row = cur.execute("SELECT fid, family, class FROM feature_index WHERE feature_id = ?", (r["feature_id"],)).fetchone()
+        if row is None:
+            continue
+        fid_int, family, cls = row
+        for table in ("attribute_store", "link_store", "feature_index"):
+            cur.execute(f"DELETE FROM {table} WHERE fid = ?", (fid_int,))
+        cur.execute(f'DELETE FROM "{family}" WHERE feature_id = ?', (r["feature_id"],))
+        cur.execute("DELETE FROM excluded WHERE source_record_id = ? AND source_id = ?", (r["feature_id"], r["source_id"]))
+        cur.execute("INSERT INTO excluded VALUES (?,?,?,?,?)", (r["source_id"], family, r["feature_id"], cls, r["reason"]))
+        done.append(r["feature_id"])
+    con.commit()
+    con.close()
+    return done
+
+
 def close_features(path: Path, closings: list[dict]) -> list[str]:
     """Sets valid_to on features another source replaces (e.g. a demolished building); returns the ids found.
 

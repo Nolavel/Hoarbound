@@ -1,0 +1,186 @@
+{
+ "schema": "kw_reality.city_footprints.v1",
+ "description": "Reviewed City of Key West footprints (2017). Only 'accept' enters the library; 'split' removes merged outlines; 'rejected' and 'uncertain' stay out with their reason. Hashes refuse a record that changed after review.",
+ "source_id": "city_of_key_west_gis",
+ "observed_at": "2017-11-06",
+ "area_local": [
+  -3731.78,
+  1390.28,
+  -3331.78,
+  1790.28
+ ],
+ "area_note": "400 x 400 m audit square around 727 Fort St (owner 2026-11-18)",
+ "reviewed": "2026-11-18: lidar 2019/2016 footprint statistics plus a visual check of NAIP 2023-01-16 at 0.3 m",
+ "accept": {
+  "9951": {
+   "kind": "missing",
+   "evidence": "lidar 2019 support 0.543, p95 4.57 m; 2016 p95 5.43 m; NAIP 2023-01-16: roof visible"
+  },
+  "9990": {
+   "kind": "missing",
+   "evidence": "lidar 2019 support 0.932, p95 3.29 m; 2016 p95 15.32 m; NAIP 2023-01-16: low roof visible"
+  },
+  "10004": {
+   "kind": "missing",
+   "evidence": "lidar 2019 support 0.573, p95 5.46 m; 2016 p95 6.29 m; NAIP 2023-01-16: roof partly visible"
+  },
+  "9534": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.804, p95 8.76 m; 2016 p95 8.74 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "9535": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.813, p95 8.34 m; 2016 p95 8.34 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "9536": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.829, p95 10.82 m; 2016 p95 11.07 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "9537": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.803, p95 8.92 m; 2016 p95 8.99 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "9530": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.804, p95 8.95 m; 2016 p95 9.0 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "9531": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.804, p95 8.32 m; 2016 p95 8.48 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "9532": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.816, p95 8.68 m; 2016 p95 8.83 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "9533": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.783, p95 9.0 m; 2016 p95 9.06 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "5159": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.846, p95 4.15 m; 2016 p95 8.32 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "5104": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.999, p95 7.09 m; 2016 p95 7.15 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "5142": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.984, p95 6.58 m; 2016 p95 7.61 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "5028": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.99, p95 8.78 m; 2016 p95 8.8 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "9527": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.973, p95 8.07 m; 2016 p95 8.27 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "9528": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.987, p95 8.87 m; 2016 p95 8.89 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "9945": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 0.996, p95 6.46 m; 2016 p95 14.14 m; NAIP 2023-01-16: separate roof visible"
+  },
+  "9946": {
+   "kind": "split_part",
+   "evidence": "lidar 2019 support 1.0, p95 15.97 m; 2016 p95 17.25 m; NAIP 2023-01-16: separate roof visible"
+  }
+ },
+ "split": {
+  "kw:building:osm:w547777381": {
+   "into": [
+    "9534",
+    "9535",
+    "9536",
+    "9537"
+   ],
+   "reason": "one OSM outline over 4 separate city footprints; NAIP 2023 shows separate roofs"
+  },
+  "kw:building:osm:w547777382": {
+   "into": [
+    "9530",
+    "9531",
+    "9532",
+    "9533"
+   ],
+   "reason": "one OSM outline over 4 separate city footprints; NAIP 2023 shows separate roofs"
+  },
+  "kw:building:osm:w548608060": {
+   "into": [
+    "5159"
+   ],
+   "reason": "one OSM outline over 2 separate city footprints; NAIP 2023 shows separate roofs"
+  },
+  "kw:building:osm:w548608068": {
+   "into": [
+    "5104",
+    "5142"
+   ],
+   "reason": "one OSM outline over 2 separate city footprints; NAIP 2023 shows separate roofs"
+  },
+  "kw:building:osm:w585504736": {
+   "into": [
+    "5028",
+    "9527",
+    "9528"
+   ],
+   "reason": "one OSM outline over 3 separate city footprints; NAIP 2023 shows separate roofs"
+  },
+  "kw:building:osm:w585508591": {
+   "into": [
+    "9945",
+    "9946"
+   ],
+   "reason": "one OSM outline over 2 separate city footprints; NAIP 2023 shows separate roofs"
+  }
+ },
+ "rejected": {
+  "9960": "parking lot in NAIP 2023; lidar 2019 support 0.057: gone before 2019",
+  "9987": "lidar 2019 p95 0.38 m, support 0.009: gone before 2019 (2016 had 10.85 m)",
+  "9986": "part of merged w548608060; lidar 2019 support 0.0: gone before 2019"
+ },
+ "uncertain": {
+  "9947": "under tree canopy: lidar p95 10.87 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
+  "9950": "under tree canopy: lidar p95 9.53 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
+  "9953": "under tree canopy: lidar p95 10.4 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
+  "9955": "lidar 2019 support 0.267: building not confirmed",
+  "9956": "under tree canopy: lidar p95 11.47 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
+  "9962": "under tree canopy: lidar p95 10.15 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
+  "9963": "under tree canopy: lidar p95 11.42 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
+  "9964": "under tree canopy: lidar p95 14.03 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
+  "9965": "under tree canopy: lidar p95 14.75 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
+  "9985": "lidar 2019 support 0.154: building not confirmed",
+  "9988": "under tree canopy: lidar p95 14.8 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
+  "9989": "lidar 2019 support 0.173: building not confirmed",
+  "10003": "under tree canopy: lidar p95 7.4 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
+  "9954": "overlaps the OSM shed kw:building:osm:w585507684 (5.9 of its 10.4 m2); which outline is right is not settled by NAIP 2023"
+ },
+ "hashes": {
+  "9951": "c08fc5a01f9288ff",
+  "9990": "fe098947e2da794b",
+  "10004": "e1a51139960effd8",
+  "9534": "b8cb6d3c02ed3b1b",
+  "9535": "d301995cb50b2f36",
+  "9536": "1f68f32cd068a269",
+  "9537": "a2426f7c56e233f9",
+  "9530": "ccedc948324e7742",
+  "9531": "9d3f4b7757e1d3ad",
+  "9532": "c797256afe165fb1",
+  "9533": "0d7b7bad1aff4781",
+  "5159": "ff8391b40d10ee27",
+  "5104": "6973da41b8ca7b0a",
+  "5142": "3808bd4956640fed",
+  "5028": "fde87f073c86d74d",
+  "9527": "908ad6396c663fb3",
+  "9528": "a04141d32f4a2705",
+  "9945": "3feb13c3e93807d5",
+  "9946": "8e0612dac4fc1243"
+ },
+ "known_issues": {
+  "9945": "lidar p95 14.1 m over a 5.4 m roof median: tree canopy over the roof (flag height_canopy_suspect)",
+  "9946": "lidar p95 16.6 m, roof relief 11.4 m: tree canopy over the roof (flag height_canopy_suspect)"
+ }
+}

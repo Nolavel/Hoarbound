@@ -288,19 +288,22 @@
     },
     {
       "source_id": "city_of_key_west_gis",
-      "name": "City of Key West GIS open data",
+      "name": "City of Key West GIS \u2014 Building Footprints (FEMA coordinator layer 'Building_Footprints___Key_West')",
       "provider": "City of Key West",
-      "url": "https://www.cityofkeywest-fl.gov/ (ArcGIS Hub)",
-      "access": "BLOCKED by the build environment egress policy",
-      "license": "UNVERIFIED",
-      "attribution": "unknown",
-      "requires_attribution": null,
-      "share_alike": null,
+      "url": "https://services3.arcgis.com/aIpcLPHSEqH4LbLl/arcgis/rest/services/Building_Footprints___Key_West/FeatureServer/0",
+      "access": "ArcGIS REST query (receipt); reviewed records only (config/city_footprints.json)",
+      "license": "'Public information' (ArcGIS item 5febfbb32c7e49cb8bdeb91741fd25da, City of Key West FEMA Coordinator)",
+      "attribution": "City of Key West",
+      "requires_attribution": false,
+      "share_alike": false,
       "authority_level": "local_government",
-      "crs": "unknown",
-      "feature_classes_used": [],
-      "status": "blocked_in_build_env",
-      "reason": "Candidate for street lights, utilities, stormwater, historic district. Not ingested."
+      "crs": "queried in EPSG:32617",
+      "feature_classes_used": [
+        "building footprints in the 727 audit square: missing outbuildings and parts of merged outlines"
+      ],
+      "status": "integrated",
+      "positional_accuracy_m": "unknown; matches OSM within about 1 m where both exist",
+      "temporal_epoch": "last edit 2017-11-06"
     },
     {
       "source_id": "fgdl",

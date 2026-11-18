@@ -1,0 +1,20 @@
+{
+ "source_id": "city_of_key_west_gis",
+ "artifacts": [
+  {
+   "name": "building_footprints",
+   "url": "https://services3.arcgis.com/aIpcLPHSEqH4LbLl/arcgis/rest/services/Building_Footprints___Key_West/FeatureServer/0/query?where=1%3D1&geometry=418293.22%2C2715212.72%2C418693.22%2C2715612.72&geometryType=esriGeometryEnvelope&inSR=32617&spatialRel=esriSpatialRelIntersects&outFields=%2A&outSR=32617&f=geojson&resultRecordCount=2000",
+   "bytes": 113182,
+   "sha256": "565e0df96fb2d861b42037b8ce38206bcb378b6c7a06314246d01bf798f4eafe",
+   "local_path": "data/world/key_west/reality/raw_cache/city_of_key_west_gis/building_footprints.geojson",
+   "query_bbox_local": [
+    -3731.78,
+    1390.28,
+    -3331.78,
+    1790.28
+   ],
+   "records": 192
+  }
+ ],
+ "retrieved_at": "2026-11-18T04:22:13+00:00"
+}

@@ -17,6 +17,7 @@
   editor-index                search index (address, size, footprint) for the Godot Reality editor dock
   blender-shell --feature-id  one building's measured shell (glTF) and sizes for modelling in Blender
   documented [--apply]        buildings from planning records: overlap report; --apply adds them to the committed library
+  city-footprints [--apply]   reviewed City of Key West footprints (config/city_footprints.json), same flow
   all                         acquire -> extent -> acquire (extent-bound) -> build -> validate -> report -> preview
 
 Needs: pyarrow, pyogrio, shapely, pyproj, rasterio, laspy[lazrs], numpy, Pillow.
@@ -63,6 +64,34 @@ def cmd_documented(apply: bool) -> None:
         report["closed"] = library.close_features(target, documented.supersessions())
     report["applied"] = apply
     (paths.REPORTS / "documented_buildings.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=1))
+    if apply:
+        library.pack()
+
+
+def cmd_city_footprints(apply: bool) -> None:
+    """Applies the reviewed city footprints to the committed library; lidar heights need the raw cache of their chunks."""
+    import json
+    import shutil
+    import tempfile
+
+    from reality import build, city_footprints, conflate, ids, library, lidar, paths
+    library.ensure()
+    decisions = city_footprints.load()
+    if not city_footprints.RAW.exists():
+        city_footprints.acquire(decisions["area_local"])
+    feats = city_footprints.features(ids.IdRegistry(), city_footprints.records(), decisions)
+    build.building_measurements(feats, lidar.DemCrop())
+    conflate.select_attributes(feats)
+    with tempfile.TemporaryDirectory() as tmp:
+        target = paths.LIBRARY if apply else Path(tmp) / "dry_run.gpkg"
+        if not apply:
+            shutil.copyfile(paths.LIBRARY, target)
+        removed = library.remove_features(target, city_footprints.removals(decisions))
+        report = library.append_features(target, feats)
+    report.update({"removed": removed, "applied": apply,
+                   "heights": {f.feature_id: (f.selected("height_m").value if f.selected("height_m") else None) for f in feats}})
+    (paths.REPORTS / "city_footprints.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=1))
     if apply:
         library.pack()
@@ -137,6 +166,8 @@ def main() -> None:
     elif args.command == "editor-index":
         from reality import editor_index
         editor_index.run()
+    elif args.command == "city-footprints":
+        cmd_city_footprints(args.apply)
     elif args.command == "documented":
         cmd_documented(args.apply)
     elif args.command == "export-editor":

@@ -477,6 +477,58 @@ class WaysOnWorldDate(unittest.TestCase):
             self.assertEqual(traversal.buildings_on_ways(set()), {})
 
 
+class CityFootprints(unittest.TestCase):
+    """City of Key West footprints: only owner-reviewed decisions reach the library."""
+
+    def _decisions(self):
+        return {"source_id": "city_of_key_west_gis", "observed_at": "2017-11-06",
+                "accept": {"1": {"evidence": "test"}, "2": {"evidence": "test"}},
+                "split": {"kw:building:osm:w9": {"into": ["1", "2"], "reason": "two houses in one outline"}},
+                "hashes": {}}
+
+    def _records(self):
+        a = shapely.box(418000.0, 2715000.0, 418010.0, 2715010.0)
+        b = shapely.box(418012.0, 2715000.0, 418022.0, 2715010.0)
+        c = shapely.box(418040.0, 2715000.0, 418050.0, 2715010.0)
+        return {"1": a, "2": b, "3": c}
+
+    def test_only_accepted_records_become_features(self):
+        from reality import city_footprints
+        feats = city_footprints.features(ids.IdRegistry(), self._records(), self._decisions())
+        self.assertEqual(sorted(f.feature_id for f in feats), ["kw:building:citykw:1", "kw:building:citykw:2"])
+        f = feats[0]
+        self.assertEqual((f.geometry_source, f.geometry_method, f.observed_at), ("city_of_key_west_gis", "official_footprint", "2017-11-06"))
+
+    def test_changed_source_record_is_refused(self):
+        from reality import city_footprints
+        from reality.model import geometry_hash
+        d = self._decisions()
+        d["hashes"] = {"1": geometry_hash(self._records()["1"]), "2": "changed"}
+        with self.assertRaises(SystemExit):
+            city_footprints.features(ids.IdRegistry(), self._records(), d)
+
+    def test_split_removes_the_merged_outline_and_records_why(self):
+        import sqlite3
+        import tempfile
+        from reality import build, city_footprints
+        from reality.model import Feature
+        merged = Feature("kw:building:osm:w9", "buildings", "building", shapely.box(417999.0, 2714999.0, 418023.0, 2715011.0),
+                         "overture_2026_09_23_1", "w9", "identity", "derived", 0.8)
+        build.chunk_and_local([merged])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "lib.gpkg"
+            library.write_layer(path, "buildings", [merged], append=False)
+            library._write_tables(path, [merged], [], {"features": [], "assets": []}, {"schema_version": "test"})
+            removed = library.remove_features(path, city_footprints.removals(self._decisions()))
+            self.assertEqual(removed, ["kw:building:osm:w9"])
+            _, cols = library.read_layer("buildings", path)
+            self.assertEqual(list(cols["feature_id"]), [])
+            con = sqlite3.connect(path)
+            reason = con.execute("SELECT reason FROM excluded WHERE source_record_id = 'kw:building:osm:w9'").fetchone()[0]
+            con.close()
+            self.assertIn("citykw:1", reason)
+
+
 class DocumentedRoof(unittest.TestCase):
     """A roof from the elevation sheets goes through the same shell as a lidar-fitted one."""
 
