@@ -6,6 +6,13 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added (Key West: Frederick Douglass Community Center, world date)
+
+- **Douglass lot (111 Olivia St)** from Legistar 21-7769: the new one-storey centre (low wing at 23'-6", main hall parapet at 37'-1 1/4" NGVD29) and the historic gym, whose outline comes from the boundary survey and whose heights come from the 2019 lidar.
+  - The 2022 OSM outline, which merged the gym with the demolished Annex, and the old parking under the centre are closed with `valid_to` 2023-09-18. They stay in the library as history.
+- **World date:** `config/generation.json` `world_date` 2025-12-31 (owner: no earlier than late 2025). The exporter and the ways-through-buildings check skip features that are not standing on that date.
+- The georeference matches the City of Key West footprint within 0.1 m at the surveyed east face.
+
 ### Added (Key West: Lofts at Bahama Village opposite 727, from planning records)
 
 - **Problem:** the owner saw no buildings opposite 727. The audit showed every library building reached the game, but the library itself lacked the 126-unit complex built in 2023–2025 at 918 Fort St; every survey source predates it.

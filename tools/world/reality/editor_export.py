@@ -18,6 +18,7 @@ import shapely
 
 from . import PIPELINE_VERSION, config, edits, frame, library, meshing, overrides, paths, receipts, regen, static_snow, traversal, vegetation
 
+in_world = config.in_world
 EXPORT_VERSION = "kw_reality.editor_chunk.v2"
 FAMILIES = ("buildings", "building_parts", "roads", "bridges", "coastal_structures", "barriers", "power", "utilities",
             "street_furniture", "transit", "airport", "trees", "vegetation_areas", "water", "land_use")
@@ -49,21 +50,6 @@ def _xz(coords) -> list[float]:
 
 def _parts(g):
     return list(g.geoms) if hasattr(g, "geoms") else [g]
-
-
-def _date(value: str | None) -> str | None:
-    """First ISO-like date in a free-text value ("before 1920" -> "1920-01-01"); None when there is none."""
-    m = re.search(r"\d{4}(-\d{2})?(-\d{2})?", value or "")
-    if not m:
-        return None
-    parts = m.group(0).split("-")
-    return "-".join(parts + ["01"] * (3 - len(parts)))
-
-
-def in_world(valid_from: str | None, valid_to: str | None, world_date: str) -> bool:
-    """True when a feature stands on the world date: built by then and not yet removed."""
-    start, end = _date(valid_from), _date(valid_to)
-    return (start is None or start <= world_date) and (end is None or end > world_date)
 
 
 def _selected(con, name: str) -> dict[str, tuple]:

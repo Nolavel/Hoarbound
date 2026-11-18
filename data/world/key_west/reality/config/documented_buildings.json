@@ -262,6 +262,56 @@
      "feature_id": "kw:building:osm:w339414847",
      "valid_to": "2023-09-18",
      "reason": "OSM outline (2022-05) merges the Douglass Gym with the Annex, demolished for the new centre (Legistar 21-6693 demolition, 21-7769 MDP; groundbreaking 2023-09-18). Replaced by the documented gym and centre masses."
+    },
+    {
+     "feature_id": "kw:road:overture:bffe46dc-c5e0-491f-88db-76736d675596",
+     "valid_to": "2023-09-18",
+     "reason": "Parking of the pre-2023 lot (OSM 2022-05/10) under the new centre's footprint (Legistar 21-7769 site plan)."
+    },
+    {
+     "feature_id": "kw:transit:osm:w548608048",
+     "valid_to": "2023-09-18",
+     "reason": "Parking of the pre-2023 lot (OSM 2022-05/10) under the new centre's footprint (Legistar 21-7769 site plan)."
+    },
+    {
+     "feature_id": "kw:transit:osm:w1058456729",
+     "valid_to": "2023-09-18",
+     "reason": "Parking of the pre-2023 lot (OSM 2022-05/10) under the new centre's footprint (Legistar 21-7769 site plan)."
+    },
+    {
+     "feature_id": "kw:transit:osm:w1058456730",
+     "valid_to": "2023-09-18",
+     "reason": "Parking of the pre-2023 lot (OSM 2022-05/10) under the new centre's footprint (Legistar 21-7769 site plan)."
+    },
+    {
+     "feature_id": "kw:transit:osm:w1058456731",
+     "valid_to": "2023-09-18",
+     "reason": "Parking of the pre-2023 lot (OSM 2022-05/10) under the new centre's footprint (Legistar 21-7769 site plan)."
+    },
+    {
+     "feature_id": "kw:transit:osm:w1058456732",
+     "valid_to": "2023-09-18",
+     "reason": "Parking of the pre-2023 lot (OSM 2022-05/10) under the new centre's footprint (Legistar 21-7769 site plan)."
+    },
+    {
+     "feature_id": "kw:transit:osm:w1058456785",
+     "valid_to": "2023-09-18",
+     "reason": "Parking of the pre-2023 lot (OSM 2022-05/10) under the new centre's footprint (Legistar 21-7769 site plan)."
+    },
+    {
+     "feature_id": "kw:transit:osm:w1058456786",
+     "valid_to": "2023-09-18",
+     "reason": "Parking of the pre-2023 lot (OSM 2022-05/10) under the new centre's footprint (Legistar 21-7769 site plan)."
+    },
+    {
+     "feature_id": "kw:transit:osm:w1058456787",
+     "valid_to": "2023-09-18",
+     "reason": "Parking of the pre-2023 lot (OSM 2022-05/10) under the new centre's footprint (Legistar 21-7769 site plan)."
+    },
+    {
+     "feature_id": "kw:transit:osm:w1058456788",
+     "valid_to": "2023-09-18",
+     "reason": "Parking of the pre-2023 lot (OSM 2022-05/10) under the new centre's footprint (Legistar 21-7769 site plan)."
     }
    ],
    "record_facts": {

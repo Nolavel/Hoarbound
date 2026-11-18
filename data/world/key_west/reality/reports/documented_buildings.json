@@ -1,12 +1,42 @@
 {
  "inserted": [],
  "replaced": [
+  "kw:building:doc:legistar_21_7769_centre_hall",
+  "kw:building:doc:legistar_21_7769_centre_low",
+  "kw:building:doc:legistar_21_7769_gym",
+  "kw:building:doc:legistar_21_7769_gym_west",
   "kw:building:doc:legistar_22_3575_a_allen",
   "kw:building:doc:legistar_22_3575_a_fort",
   "kw:building:doc:legistar_22_3575_b",
   "kw:building:doc:legistar_22_3575_c_north",
   "kw:building:doc:legistar_22_3575_c_south"
  ],
- "overlaps": {},
+ "overlaps": {
+  "kw:building:doc:legistar_21_7769_centre_low": [
+   "kw:building:osm:w339414847"
+  ],
+  "kw:building:doc:legistar_21_7769_centre_hall": [
+   "kw:building:osm:w339414847"
+  ],
+  "kw:building:doc:legistar_21_7769_gym": [
+   "kw:building:osm:w339414847"
+  ],
+  "kw:building:doc:legistar_21_7769_gym_west": [
+   "kw:building:osm:w339414847"
+  ]
+ },
+ "closed": [
+  "kw:building:osm:w339414847",
+  "kw:road:overture:bffe46dc-c5e0-491f-88db-76736d675596",
+  "kw:transit:osm:w548608048",
+  "kw:transit:osm:w1058456729",
+  "kw:transit:osm:w1058456730",
+  "kw:transit:osm:w1058456731",
+  "kw:transit:osm:w1058456732",
+  "kw:transit:osm:w1058456785",
+  "kw:transit:osm:w1058456786",
+  "kw:transit:osm:w1058456787",
+  "kw:transit:osm:w1058456788"
+ ],
  "applied": true
 }

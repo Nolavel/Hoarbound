@@ -460,6 +460,23 @@ class ExportWorldDate(unittest.TestCase):
         self.assertTrue(editor_export.in_world("1948", None, "2025-12-31"))
 
 
+class WaysOnWorldDate(unittest.TestCase):
+    """A way that no longer exists on the world date (a demolished parking aisle) removes no building."""
+
+    def test_closed_way_does_not_remove_a_building(self):
+        from unittest import mock
+        from reality import traversal
+        building = shapely.box(0.0, 0.0, 20.0, 20.0)
+        aisle = shapely.LineString([(-5.0, 10.0), (25.0, 10.0)])
+        layers = {"buildings": ([building], {"feature_id": ["kw:building:doc:x"], "valid_from": [None], "valid_to": [None]}),
+                  "roads": ([aisle], {"feature_id": ["kw:road:x"], "class": ["service"], "attrs_json": ["{}"],
+                                      "valid_from": [None], "valid_to": [None]})}
+        with mock.patch.object(traversal.library, "read_layer", lambda fam: layers[fam]):
+            self.assertEqual(traversal.buildings_on_ways(set()), {"kw:building:doc:x": ["kw:road:x"]})
+            layers["roads"][1]["valid_to"][0] = "2023-09-18"
+            self.assertEqual(traversal.buildings_on_ways(set()), {})
+
+
 class DocumentedRoof(unittest.TestCase):
     """A roof from the elevation sheets goes through the same shell as a lidar-fitted one."""
 

@@ -393,7 +393,15 @@ OSM and Overture 2026-09 all lack it. Such buildings come from public planning r
   class `derived`, confidence 0.6, accuracy 2 m, `valid_from` the opening date, `source_epoch`
   the approval date, flag `as_designed_not_surveyed`. A later survey that disagrees wins.
 - Roofs: the attribute `roof_documented` (eave, top, pitch) is built by `building_shell` as a hip
-  clipped flat at the documented top; `roof_source` reads `documented_<form>`.
+  clipped flat at the documented top, or as a flat roof at the top; `roof_source` reads `documented_<form>`.
+- Each building keeps its own georeference and height datum (sidewalk, lowest grade). A mass marked
+  `"heights": "lidar_2019"` (a building that already stood, drawn on the plan) takes its heights and
+  roof from the lidar like any surveyed footprint.
+- `supersedes` closes older library features the record replaces (`valid_to`), such as a demolished
+  annex or the parking under a new building. Rows stay as history.
+- **World date.** `config/generation.json` `world_date` is the day the generated world shows. The
+  exporter and the ways-through-buildings check skip features not standing on it (`valid_from` after,
+  or `valid_to` on or before).
 - The full `build` adds them after the documentary facts. Without the raw cache:
 
 ```

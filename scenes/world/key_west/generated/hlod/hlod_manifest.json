@@ -20673,8 +20673,8 @@
    "bounds": {
     "max": [
      -3324.15,
-     10.26,
-     1684.83
+     10.66,
+     1672.32
     ],
     "min": [
      -3482.65,
@@ -20683,8 +20683,8 @@
     ]
    },
    "bucket_triangles": {
-    "snow_roof": 6834.0,
-    "walls": 3908.0
+    "snow_roof": 6813.0,
+    "walls": 3870.0
    },
    "build_version": "kw_hlod.1",
    "builder_version": "kw_chunk_builder.12",
@@ -20696,7 +20696,7 @@
    "cluster_id": "c128_-27_12",
    "detail_cell": "kw_bld_c128_-27_12",
    "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-27_12.scn",
-   "detail_triangles": 10742.0,
+   "detail_triangles": 10683.0,
    "grid": [
     -27.0,
     12.0
@@ -20705,13 +20705,14 @@
     "snow_roof",
     "walls"
    ],
-   "proxy_digest": "9939f34c165cd04d",
+   "proxy_digest": "6ba685257179a207",
    "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-27_12.res",
-   "snow_roof_triangles": 6834.0,
-   "source_count": 31.0,
-   "source_hash": "44e4ee9547fb9802",
+   "snow_roof_triangles": 6813.0,
+   "source_count": 32.0,
+   "source_hash": "575a7ec8af206a51",
    "source_ids": [
-    "kw:building:osm:w339414847",
+    "kw:building:doc:legistar_21_7769_gym",
+    "kw:building:doc:legistar_21_7769_gym_west",
     "kw:building:osm:w339414853",
     "kw:building:osm:w339439046",
     "kw:building:osm:w475307585",
@@ -20744,24 +20745,24 @@
     "kw:building:osm:w585507142"
    ],
    "surfaces": 2.0,
-   "triangles": 10742.0
+   "triangles": 10683.0
   },
   {
    "bounds": {
     "max": [
      -3312.11,
-     10.34,
+     11.67,
      1799.68
     ],
     "min": [
-     -3455.92,
+     -3469.58,
      0.66,
-     1656.05
+     1655.03
     ]
    },
    "bucket_triangles": {
-    "snow_roof": 8317.0,
-    "walls": 3342.0
+    "snow_roof": 8512,
+    "walls": 3740
    },
    "build_version": "kw_hlod.1",
    "builder_version": "kw_chunk_builder.12",
@@ -20773,21 +20774,23 @@
    "cluster_id": "c128_-27_13",
    "detail_cell": "kw_bld_c128_-27_13",
    "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-27_13.scn",
-   "detail_triangles": 11659.0,
+   "detail_triangles": 12252,
    "grid": [
-    -27.0,
-    13.0
+    -27,
+    13
    ],
    "materials": [
     "snow_roof",
     "walls"
    ],
-   "proxy_digest": "44444155dfaf535b",
+   "proxy_digest": "1b680b4bc6bc6f0f",
    "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-27_13.res",
-   "snow_roof_triangles": 8317.0,
-   "source_count": 26.0,
-   "source_hash": "79f3f16dc8d194ee",
+   "snow_roof_triangles": 8512,
+   "source_count": 28,
+   "source_hash": "ed958033c7d6984e",
    "source_ids": [
+    "kw:building:doc:legistar_21_7769_centre_hall",
+    "kw:building:doc:legistar_21_7769_centre_low",
     "kw:building:osm:w461402963",
     "kw:building:osm:w543178593",
     "kw:building:osm:w543178603",
@@ -20815,8 +20818,8 @@
     "kw:building:usa_structures:146835",
     "kw:building:usa_structures:32248048"
    ],
-   "surfaces": 2.0,
-   "triangles": 11659.0
+   "surfaces": 2,
+   "triangles": 12252
   },
   {
    "bounds": {
@@ -21686,8 +21689,8 @@
     ]
    },
    "bucket_triangles": {
-    "snow_roof": 7767,
-    "walls": 3006
+    "snow_roof": 7767.0,
+    "walls": 3006.0
    },
    "build_version": "kw_hlod.1",
    "builder_version": "kw_chunk_builder.12",
@@ -21699,10 +21702,10 @@
    "cluster_id": "c128_-28_12",
    "detail_cell": "kw_bld_c128_-28_12",
    "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-28_12.scn",
-   "detail_triangles": 10773,
+   "detail_triangles": 10773.0,
    "grid": [
-    -28,
-    12
+    -28.0,
+    12.0
    ],
    "materials": [
     "snow_roof",
@@ -21710,8 +21713,8 @@
    ],
    "proxy_digest": "b1e45fc43f04060e",
    "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-28_12.res",
-   "snow_roof_triangles": 7767,
-   "source_count": 23,
+   "snow_roof_triangles": 7767.0,
+   "source_count": 23.0,
    "source_hash": "02dc704eccda3b34",
    "source_ids": [
     "kw:building:doc:legistar_22_3575_a_fort",
@@ -21738,8 +21741,8 @@
     "kw:building:osm:w585507689",
     "kw:building:osm:w585507690"
    ],
-   "surfaces": 2,
-   "triangles": 10773
+   "surfaces": 2.0,
+   "triangles": 10773.0
   },
   {
    "bounds": {
@@ -22553,8 +22556,8 @@
     ]
    },
    "bucket_triangles": {
-    "snow_roof": 5092,
-    "walls": 920
+    "snow_roof": 5092.0,
+    "walls": 920.0
    },
    "build_version": "kw_hlod.1",
    "builder_version": "kw_chunk_builder.12",
@@ -22566,10 +22569,10 @@
    "cluster_id": "c128_-29_12",
    "detail_cell": "kw_bld_c128_-29_12",
    "detail_scene": "res://scenes/world/key_west/generated/clusters/Cluster_c128_-29_12.scn",
-   "detail_triangles": 6012,
+   "detail_triangles": 6012.0,
    "grid": [
-    -29,
-    12
+    -29.0,
+    12.0
    ],
    "materials": [
     "snow_roof",
@@ -22577,8 +22580,8 @@
    ],
    "proxy_digest": "3ddfd96d8739450c",
    "proxy_path": "res://scenes/world/key_west/generated/hlod/HLOD_c128_-29_12.res",
-   "snow_roof_triangles": 5092,
-   "source_count": 4,
+   "snow_roof_triangles": 5092.0,
+   "source_count": 4.0,
    "source_hash": "734994e77fa3df66",
    "source_ids": [
     "kw:building:doc:legistar_22_3575_a_allen",
@@ -22586,8 +22589,8 @@
     "kw:building:overture:ca9210fb-3045-48e9-9b9e-ca2e084f6b4e",
     "kw:building:usa_structures:147018"
    ],
-   "surfaces": 2,
-   "triangles": 6012
+   "surfaces": 2.0,
+   "triangles": 6012.0
   },
   {
    "bounds": {
@@ -59308,10 +59311,10 @@
  "schema": "kw_reality.hlod_manifest.v1",
  "totals": {
   "clusters": 995,
-  "detail_triangles": 1808713,
-  "sources": 13219,
+  "detail_triangles": 1809247,
+  "sources": 13222,
   "surfaces": 2072,
-  "triangles": 1808713
+  "triangles": 1809247
  },
  "winter": {
   "roof_snow_max_slope_from": "static_snow.slope_zero_deg",
