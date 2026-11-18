@@ -419,6 +419,15 @@ godot --headless --path . --script tools/world/reality_gen/build_key_west_hlod_c
   receipts afterwards; they describe the full cache. Re-export one untouched chunk first and compare
   it with the archive: it must be identical apart from `exported_at`.
 
+### Reviewed city footprints
+
+`config/city_footprints.json` applies the City of Key West building footprints (2017) record by record,
+only inside its `area_local` (the 727 audit square for now). `accept` adds a record with its evidence
+(lidar 2019/2016 statistics, NAIP 2023, the 2024 orthophoto as a visual check), `split` removes a merged
+library outline into the `excluded` table, `rejected` and `uncertain` stay out with a reason, and
+`hashes` refuse a record whose geometry changed after review. `key_west_reality.py city-footprints
+[--apply]` works on the committed library; the full build runs the same stage.
+
 ## 13. Storage policy
 
 | level | path | in git |

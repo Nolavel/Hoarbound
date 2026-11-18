@@ -10,19 +10,19 @@
   1790.28
  ],
  "area_note": "400 x 400 m audit square around 727 Fort St (owner 2026-11-18)",
- "reviewed": "2026-11-18: lidar 2019/2016 footprint statistics plus a visual check of NAIP 2023-01-16 at 0.3 m",
+ "reviewed": "2026-11-18: lidar 2019/2016 footprint statistics; NAIP 2023-01-16 (0.3 m); Esri World Imagery = Monroe County BOCC orthophoto 2024-11-01 (7.6 cm), visual check only",
  "accept": {
   "9951": {
    "kind": "missing",
-   "evidence": "lidar 2019 support 0.543, p95 4.57 m; 2016 p95 5.43 m; NAIP 2023-01-16: roof visible"
+   "evidence": "lidar 2019 support 0.543, p95 4.57 m; 2016 p95 5.43 m; NAIP 2023-01-16: roof visible; 2024 orthophoto: roof visible"
   },
   "9990": {
    "kind": "missing",
-   "evidence": "lidar 2019 support 0.932, p95 3.29 m; 2016 p95 15.32 m; NAIP 2023-01-16: low roof visible"
+   "evidence": "lidar 2019 support 0.932, p95 3.29 m; 2016 p95 15.32 m; NAIP 2023-01-16: low roof visible; 2024 orthophoto: in deep shadow"
   },
   "10004": {
    "kind": "missing",
-   "evidence": "lidar 2019 support 0.573, p95 5.46 m; 2016 p95 6.29 m; NAIP 2023-01-16: roof partly visible"
+   "evidence": "lidar 2019 support 0.573, p95 5.46 m; 2016 p95 6.29 m; NAIP 2023-01-16: roof partly visible; 2024 orthophoto: roof visible"
   },
   "9534": {
    "kind": "split_part",
@@ -138,25 +138,25 @@
   }
  },
  "rejected": {
-  "9960": "parking lot in NAIP 2023; lidar 2019 support 0.057: gone before 2019",
+  "9960": "parking lot in NAIP 2023; lidar 2019 support 0.057: gone before 2019; 2024 orthophoto: Lofts building C construction site",
   "9987": "lidar 2019 p95 0.38 m, support 0.009: gone before 2019 (2016 had 10.85 m)",
-  "9986": "part of merged w548608060; lidar 2019 support 0.0: gone before 2019"
+  "9986": "part of merged w548608060; lidar 2019 support 0.0: gone before 2019; 2024 orthophoto: lawn and a slab"
  },
  "uncertain": {
-  "9947": "under tree canopy: lidar p95 10.87 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
-  "9950": "under tree canopy: lidar p95 9.53 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
-  "9953": "under tree canopy: lidar p95 10.4 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
-  "9955": "lidar 2019 support 0.267: building not confirmed",
-  "9956": "under tree canopy: lidar p95 11.47 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
-  "9962": "under tree canopy: lidar p95 10.15 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
-  "9963": "under tree canopy: lidar p95 11.42 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
-  "9964": "under tree canopy: lidar p95 14.03 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
-  "9965": "under tree canopy: lidar p95 14.75 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
-  "9985": "lidar 2019 support 0.154: building not confirmed",
-  "9988": "under tree canopy: lidar p95 14.8 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
-  "9989": "lidar 2019 support 0.173: building not confirmed",
-  "10003": "under tree canopy: lidar p95 7.4 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed",
-  "9954": "overlaps the OSM shed kw:building:osm:w585507684 (5.9 of its 10.4 m2); which outline is right is not settled by NAIP 2023"
+  "9947": "under tree canopy: lidar p95 10.87 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed; 2024 orthophoto: canopy, no roof visible",
+  "9950": "roof visible in the 2024 orthophoto; height not measurable under the canopy",
+  "9953": "under tree canopy: lidar p95 10.4 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed; 2024 orthophoto: canopy, no roof visible",
+  "9955": "no roof in the 2024 orthophoto (bare ground): probably gone",
+  "9956": "under tree canopy: lidar p95 11.47 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed; 2024 orthophoto: canopy, no roof visible",
+  "9962": "roof visible in the 2024 orthophoto; height not measurable under the canopy",
+  "9963": "under tree canopy: lidar p95 11.42 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed; 2024 orthophoto: canopy, no roof visible",
+  "9964": "under tree canopy: lidar p95 14.03 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed; 2024 orthophoto: canopy, no roof visible",
+  "9965": "under tree canopy: lidar p95 14.75 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed; 2024 orthophoto: canopy, no roof visible",
+  "9985": "lidar 2019 support 0.154: building not confirmed; 2024 orthophoto: canopy, no roof visible",
+  "9988": "under tree canopy: lidar p95 14.8 m is the canopy, NAIP 2023 shows no roof; height and presence unconfirmed; 2024 orthophoto: canopy, no roof visible",
+  "9989": "lidar 2019 support 0.173: building not confirmed; 2024 orthophoto: canopy, no roof visible",
+  "10003": "no roof in the 2024 orthophoto (bare ground): probably gone",
+  "9954": "2024 orthophoto shows a structure here, but it overlaps the OSM shed kw:building:osm:w585507684; which outline is right is not settled"
  },
  "hashes": {
   "9951": "c08fc5a01f9288ff",

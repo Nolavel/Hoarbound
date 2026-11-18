@@ -523,6 +523,25 @@
         "Frederick Douglass Community Center: outline, roof and parapet heights; Douglass Gym outline (existing)"
       ],
       "status": "integrated"
+    },
+    {
+      "source_id": "esri_world_imagery",
+      "name": "Esri World Imagery basemap (here: Monroe County BOCC 2024 orthophotography, 7.6 cm, 2024-11-01, release 2025.R08)",
+      "provider": "Esri; imagery contributed by Monroe County BOCC",
+      "url": "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer",
+      "access": "MapServer export/identify for visual checks",
+      "license": "Esri terms of use (https://goto.arcgisonline.com/maps/World_Imagery); used as a visual reference only, no geometry or attributes extracted",
+      "attribution": "Esri, Vantor, Earthstar Geographics, Monroe County BOCC",
+      "requires_attribution": true,
+      "share_alike": false,
+      "authority_level": "commercial_basemap",
+      "crs": "EPSG:3857",
+      "positional_accuracy_m": "not stated",
+      "temporal_epoch": "2024-11-01 at 727 Fort St",
+      "feature_classes_used": [
+        "visual presence checks of reviewed footprints"
+      ],
+      "status": "visual_reference_only"
     }
   ]
 }

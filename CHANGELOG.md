@@ -6,6 +6,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Added (Key West: reviewed City of Key West footprints around 727)
+
+- **Merged outlines split:** 6 OSM outlines each covered 2–4 separate buildings. They become 15 city footprints (2017 layer, "public information"), confirmed by lidar 2019/2016 and NAIP 2023. Their roofs now resolve (the two apartment blocks south-east of 727 were flat boxes).
+- **Missing outbuildings:** 4 of 19 added (roof visible, lidar height plausible). 3 records were rejected as gone before 2019. 12 stay out as uncertain (under canopy, overlapping, or no roof in the 2024 orthophoto), each with its reason in `config/city_footprints.json`.
+- **2024 orthophoto:** Esri World Imagery here is the Monroe County 2024 orthophoto (7.6 cm, 2024-11-01). It is registered as a visual reference only; nothing is extracted from it.
+- **Known issue:** two split parts (9945, 9946) carry lidar heights polluted by tree canopy (flag `height_canopy_suspect`), as the library does everywhere today.
+- **Regenerated:** chunks −7:2, −7:3 and 4 HLOD clusters. Re-exporting −7:2 before the change matched the archive. +47 to +126 draw calls at the five check viewpoints (lavapipe).
+
 ### Added (Key West: Frederick Douglass Community Center, world date)
 
 - **Douglass lot (111 Olivia St)** from Legistar 21-7769: the new one-storey centre (low wing at 23'-6", main hall parapet at 37'-1 1/4" NGVD29) and the historic gym, whose outline comes from the boundary survey and whose heights come from the 2019 lidar.
