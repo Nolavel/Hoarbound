@@ -13,7 +13,7 @@ import shapely.geometry
 from scipy import ndimage
 from shapely.strtree import STRtree
 
-from . import PIPELINE_VERSION, SCHEMA_VERSION, config, conflate, frame, ids, library, lidar, overrides, paths, receipts
+from . import PIPELINE_VERSION, SCHEMA_VERSION, city_footprints, config, conflate, documented, frame, ids, library, lidar, overrides, paths, receipts
 from .model import Attr, Excluded, Feature, Link
 from .normalize_overture import OvertureNormalizer
 from .normalize_usgs import UsgsNormalizer
@@ -282,6 +282,34 @@ def bind_facts(features: list[Feature]) -> dict:
     return dict(stats)
 
 
+def documented_buildings(features: list[Feature], idreg: ids.IdRegistry, dem: lidar.DemCrop) -> dict:
+    """Buildings from planning records (config/documented_buildings.json); closes the features they replace."""
+    new = documented.features(idreg)
+    measured = [f for f in new if f.feature_id in documented.lidar_masses(new)]
+    building_measurements(measured, dem)
+    by_id = {f.feature_id: f for f in features}
+    closed = []
+    for c in documented.supersessions():
+        if c["feature_id"] in by_id:
+            by_id[c["feature_id"]].valid_to = c["valid_to"]
+            closed.append(c["feature_id"])
+    features.extend(new)
+    return {"masses": len(new), "ids": [f.feature_id for f in new], "lidar_measured": len(measured), "closed": closed}
+
+
+def reviewed_city_footprints(features: list[Feature], idreg: ids.IdRegistry, dem: lidar.DemCrop, excluded: list) -> dict:
+    """Reviewed City of Key West footprints (config/city_footprints.json): adds them, drops the outlines they split."""
+    decisions = city_footprints.load()
+    new = city_footprints.features(idreg, city_footprints.records(), decisions)
+    building_measurements(new, dem)
+    gone = {r["feature_id"]: r for r in city_footprints.removals(decisions)}
+    for f in [f for f in features if f.feature_id in gone]:
+        features.remove(f)
+        excluded.append(Excluded(gone[f.feature_id]["source_id"], f.family, f.feature_id, f.cls, gone[f.feature_id]["reason"]))
+    features.extend(new)
+    return {"added": len(new), "removed": sorted(gone)}
+
+
 def chunk_and_local(features: list[Feature]) -> None:
     for f in features:
         p = frame.representative_point(f.geom)
@@ -335,6 +363,8 @@ def run() -> None:
     stats["usa_structures_vs_lidar_alignment"] = lidar.alignment_offset(g19, dem, usa_fp, shapely.box(x0, y0, x1, y1))
     _log("alignment", stats["vector_vs_lidar_alignment"], stats["usa_structures_vs_lidar_alignment"])
     stats["documentary_facts"] = bind_facts(features)
+    stats["documented_buildings"] = documented_buildings(features, idreg, dem)
+    stats["city_footprints"] = reviewed_city_footprints(features, idreg, dem, excluded)
     conflate.select_attributes(features)
     chunk_and_local(features)
     ov_layer = overrides.load()

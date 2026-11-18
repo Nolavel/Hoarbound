@@ -1,0 +1,50 @@
+{
+ "source_id": "city_kw_legistar_22_3575",
+ "retrieved_at": "2026-11-18T09:40:00+00:00",
+ "delivered_by": "Claude via webapi.legistar.com",
+ "artifacts": [
+  {
+   "name": "package_22_3575",
+   "record": "22-3575 attachment 68520 '918 Fort Street' (106 pages; sheet 88 landscape site plan, AS100.A architectural site plan, elevations)",
+   "url": "https://legistar1.granicus.com/KeyWest/attachments/47d3f38c-3c4b-4ffe-9f22-4ccf240a35d1.pdf",
+   "bytes": 31743524,
+   "sha256": "b15be60bcf8d3ead4458b918e6286912598031e299079cccdff575b623a671e8"
+  },
+  {
+   "name": "mdp_staff_report_22_3623",
+   "record": "22-3623 attachment 68559 'MDP Staff Report' (Planning Board 2022-12-19)",
+   "url": "https://legistar1.granicus.com/KeyWest/attachments/be150296-5c22-4f39-a1f8-c10c7b858497.pdf",
+   "bytes": 1340698,
+   "sha256": "60d8c7c3d3147a47974323f3074a30381cb01883f7bcbe86bd960ee2d43d0e05"
+  },
+  {
+   "name": "minor_modification_23_5059",
+   "record": "23-5059 attachment 73503: relocation of bicycle racks only; buildings unchanged",
+   "url": "https://legistar1.granicus.com/KeyWest/attachments/7a9d9110-5511-41f0-a9b7-efccd1b4bfa8.pdf",
+   "bytes": 13643332,
+   "sha256": "c416352b713b65be18c2f56dfd759e16a616266e92488f2665d50870f7410838"
+  },
+  {
+   "name": "condominium_25_4377",
+   "record": "25-4377: Declaration of Condominium, 28 units at 710 Fort Street (building C), passed 2025-09-11",
+   "url": "https://webapi.legistar.com/v1/keywest/matters/27696"
+  }
+ ],
+ "facts": {
+  "address": "918 Fort Street (RE# 00001630-000801); building C units 710 Fort Street",
+  "units": {
+   "A": 74,
+   "B": 24,
+   "C": 28
+  },
+  "building_area_sqft": 52870,
+  "site_area_sqft": 137950,
+  "height_cap_ft": 35,
+  "height_datum": "crown of the road",
+  "storeys": "A two-storey facade on Fort Street with two-storey porches; B three storeys; C two storeys at Fort/Allen rising to 35 ft towards the Diesel Plant",
+  "roof": "gables with a flat centre for mechanical equipment; 5V-crimp metal",
+  "walls": "concrete and CMU; stucco and cementitious lap siding",
+  "openings": "single-hung vinyl impact 1/1 windows; aluminium-glass doors; solid shutters; stucco lower porch columns, PVC upper columns, metal railings",
+  "opened": "2025-10-30 (owner, municipal record)"
+ }
+}

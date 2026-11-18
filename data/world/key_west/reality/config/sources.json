@@ -288,19 +288,22 @@
     },
     {
       "source_id": "city_of_key_west_gis",
-      "name": "City of Key West GIS open data",
+      "name": "City of Key West GIS \u2014 Building Footprints (FEMA coordinator layer 'Building_Footprints___Key_West')",
       "provider": "City of Key West",
-      "url": "https://www.cityofkeywest-fl.gov/ (ArcGIS Hub)",
-      "access": "BLOCKED by the build environment egress policy",
-      "license": "UNVERIFIED",
-      "attribution": "unknown",
-      "requires_attribution": null,
-      "share_alike": null,
+      "url": "https://services3.arcgis.com/aIpcLPHSEqH4LbLl/arcgis/rest/services/Building_Footprints___Key_West/FeatureServer/0",
+      "access": "ArcGIS REST query (receipt); reviewed records only (config/city_footprints.json)",
+      "license": "'Public information' (ArcGIS item 5febfbb32c7e49cb8bdeb91741fd25da, City of Key West FEMA Coordinator)",
+      "attribution": "City of Key West",
+      "requires_attribution": false,
+      "share_alike": false,
       "authority_level": "local_government",
-      "crs": "unknown",
-      "feature_classes_used": [],
-      "status": "blocked_in_build_env",
-      "reason": "Candidate for street lights, utilities, stormwater, historic district. Not ingested."
+      "crs": "queried in EPSG:32617",
+      "feature_classes_used": [
+        "building footprints in the 727 audit square: missing outbuildings and parts of merged outlines"
+      ],
+      "status": "integrated",
+      "positional_accuracy_m": "unknown; matches OSM within about 1 m where both exist",
+      "temporal_epoch": "last edit 2017-11-06"
     },
     {
       "source_id": "fgdl",
@@ -469,7 +472,7 @@
       "name": "City of Key West Legistar file 20-6136 \u2014 727 Fort Street Major Development Plan, staff report",
       "provider": "City of Key West Planning Department",
       "url": "https://keywest.legistar.com/LegislationDetail.aspx?GUID=42AF0AD0-6B9A-40FF-99CA-713E1AC0DB49&ID=4665854",
-      "access": "Facts transcribed by Codex from the staff report (Drive doc 'Codex source delivery \u2014 Key West blocked sources \u2014 2026-10-10'); attachments Site Plans / Planning Package / Historic Planner not yet obtained",
+      "access": "Staff report facts transcribed by Codex (2026-10-10); attachments Site Plans, Planning Package and Historic Planner read 2026-11-18 through webapi.legistar.com (receipt)",
       "license": "Public record (Florida Chapter 119); facts only, no plan sheets stored",
       "attribution": "City of Key West",
       "requires_attribution": false,
@@ -482,6 +485,63 @@
         "727 Fort Street: year built, storeys, construction, floor area, site area, existing height, parcel RE#"
       ],
       "status": "integrated"
+    },
+    {
+      "source_id": "city_kw_legistar_22_3575",
+      "name": "City of Key West Legistar 22-3575 \u2014 918 Fort Street Major Development Plan (Lofts at Bahama Village), with 22-3623 staff reports and 25-4377 condominium declaration",
+      "provider": "City of Key West Planning Department; Planning Board 2022-12-19",
+      "url": "https://webapi.legistar.com/v1/keywest/matters/23312/attachments",
+      "access": "Attachments read 2026-11-18 through webapi.legistar.com; plan sheets georeferenced to OSM street centrelines (config/documented_buildings.json)",
+      "license": "Public record (Florida Chapter 119); drawings \u00a9 PQH Group / Michael Flaugh: facts and derived coordinates only, no plan sheets stored",
+      "attribution": "City of Key West",
+      "requires_attribution": false,
+      "share_alike": false,
+      "authority_level": "local_government",
+      "crs": "plan sheets without CRS; georeferenced to EPSG:32617",
+      "positional_accuracy_m": "about 2 (as designed, not surveyed)",
+      "temporal_epoch": "approved 2022-12-19; built 2023-2025; opened 2025-10-30",
+      "feature_classes_used": [
+        "Lofts at Bahama Village buildings A, B, C: outline, storeys, height cap, roof form and materials"
+      ],
+      "status": "integrated"
+    },
+    {
+      "source_id": "city_kw_legistar_21_7769",
+      "name": "City of Key West Legistar 21-7769 \u2014 111 Olivia Street Major Development Plan (Frederick Douglass Community Center), with 21-6693 demolition and 25-4273 completion report",
+      "provider": "City of Key West Planning Department; Planning Board 2022-01-20",
+      "url": "https://webapi.legistar.com/v1/keywest/matters/21522/attachments",
+      "access": "Attachments read 2026-11-18 through webapi.legistar.com; sheet A1.1.1 georeferenced to OSM centrelines of Fort, Olivia and Emma streets (config/documented_buildings.json)",
+      "license": "Public record (Florida Chapter 119); drawings \u00a9 K2M Design: facts and derived coordinates only, no plan sheets stored",
+      "attribution": "City of Key West",
+      "requires_attribution": false,
+      "share_alike": false,
+      "authority_level": "local_government",
+      "crs": "plan sheets without CRS; georeferenced to EPSG:32617",
+      "positional_accuracy_m": "about 1 (as designed, not surveyed; the existing gym from the boundary survey)",
+      "temporal_epoch": "approved 2022-01-20; built 2023-2025",
+      "feature_classes_used": [
+        "Frederick Douglass Community Center: outline, roof and parapet heights; Douglass Gym outline (existing)"
+      ],
+      "status": "integrated"
+    },
+    {
+      "source_id": "esri_world_imagery",
+      "name": "Esri World Imagery basemap (here: Monroe County BOCC 2024 orthophotography, 7.6 cm, 2024-11-01, release 2025.R08)",
+      "provider": "Esri; imagery contributed by Monroe County BOCC",
+      "url": "https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer",
+      "access": "MapServer export/identify for visual checks",
+      "license": "Esri terms of use (https://goto.arcgisonline.com/maps/World_Imagery); used as a visual reference only, no geometry or attributes extracted",
+      "attribution": "Esri, Vantor, Earthstar Geographics, Monroe County BOCC",
+      "requires_attribution": true,
+      "share_alike": false,
+      "authority_level": "commercial_basemap",
+      "crs": "EPSG:3857",
+      "positional_accuracy_m": "not stated",
+      "temporal_epoch": "2024-11-01 at 727 Fort St",
+      "feature_classes_used": [
+        "visual presence checks of reviewed footprints"
+      ],
+      "status": "visual_reference_only"
     }
   ]
 }

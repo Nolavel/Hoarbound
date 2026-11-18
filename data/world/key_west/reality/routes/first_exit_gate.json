@@ -1,6 +1,6 @@
 {
  "schema": "kw_reality.gate_route.v1",
- "built_at": "2026-10-13T12:13:28+00:00",
+ "built_at": "2026-11-18T07:05:02+00:00",
  "kind": "game_test_route (not reality)",
  "frame": "local metres x east, z south",
  "cell_m": 2.0,
@@ -19,8 +19,8 @@
   {
    "name": "727_fort_st_entrance",
    "xz": [
-    -3538.75,
-    1594.38
+    -3540.73,
+    1579.95
    ]
   },
   {
@@ -61,8 +61,8 @@
   {
    "name": "727_fort_st_return",
    "xz": [
-    -3538.75,
-    1594.38
+    -3540.73,
+    1579.95
    ]
   }
  ],
@@ -70,47 +70,47 @@
   {
    "from": "battery_osceola_start",
    "to": "727_fort_st_entrance",
-   "length_m": 763.9,
+   "length_m": 757.9,
    "first_point": 0
   },
   {
    "from": "727_fort_st_entrance",
    "to": "fort_x_petronia",
-   "length_m": 16.5,
+   "length_m": 38.9,
    "first_point": 62
   },
   {
    "from": "fort_x_petronia",
    "to": "petronia_x_duval",
    "length_m": 529.8,
-   "first_point": 65
+   "first_point": 66
   },
   {
    "from": "petronia_x_duval",
    "to": "duval_x_front",
    "length_m": 1009.4,
-   "first_point": 122
+   "first_point": 123
   },
   {
    "from": "duval_x_front",
    "to": "front_x_whitehead",
    "length_m": 173.3,
-   "first_point": 272
+   "first_point": 273
   },
   {
    "from": "front_x_whitehead",
    "to": "whitehead_x_petronia",
    "length_m": 908.2,
-   "first_point": 300
+   "first_point": 301
   },
   {
    "from": "whitehead_x_petronia",
    "to": "727_fort_st_return",
-   "length_m": 402.1,
-   "first_point": 378
+   "length_m": 424.6,
+   "first_point": 379
   }
  ],
- "length_m": 3803.2,
+ "length_m": 3842.1,
  "points": [
   [
    -4051.05,
@@ -289,8 +289,8 @@
    1591.33
   ],
   [
-   -3693.05,
-   1585.33
+   -3699.05,
+   1587.33
   ],
   [
    -3691.05,
@@ -313,16 +313,12 @@
    1633.33
   ],
   [
-   -3633.05,
-   1631.33
-  ],
-  [
    -3627.05,
    1625.33
   ],
   [
-   -3625.05,
-   1625.33
+   -3619.05,
+   1621.33
   ],
   [
    -3613.05,
@@ -353,20 +349,28 @@
    1579.33
   ],
   [
-   -3555.05,
+   -3551.05,
    1579.33
   ],
   [
-   -3539.05,
-   1595.33
+   -3547.05,
+   1583.33
   ],
   [
-   -3539.05,
-   1601.33
+   -3541.05,
+   1579.33
   ],
   [
-   -3533.05,
-   1607.33
+   -3543.05,
+   1579.33
+  ],
+  [
+   -3547.05,
+   1583.33
+  ],
+  [
+   -3547.05,
+   1593.33
   ],
   [
    -3533.05,
@@ -1805,8 +1809,24 @@
    1605.33
   ],
   [
-   -3539.05,
-   1595.33
+   -3537.05,
+   1599.33
+  ],
+  [
+   -3537.05,
+   1597.33
+  ],
+  [
+   -3547.05,
+   1585.33
+  ],
+  [
+   -3547.05,
+   1583.33
+  ],
+  [
+   -3541.05,
+   1579.33
   ]
  ],
  "landmark_727_roof_navd88_m": 5.942

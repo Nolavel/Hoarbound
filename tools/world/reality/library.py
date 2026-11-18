@@ -129,52 +129,11 @@ def write(features: list[Feature], edges: list, excluded: list, override_layer: 
         tmp.unlink()
     out.parent.mkdir(parents=True, exist_ok=True)
     crs = frame.frame()["projected_crs"]
-    by_family = defaultdict(list)
+    by_family: dict[str, list[Feature]] = defaultdict(list)
     for f in features:
         by_family[f.family].append(f)
-    first = True
-    for family in sorted(by_family):
-        rows = sorted(by_family[family], key=lambda f: f.feature_id)
-        data = {c: [] for c in COLUMNS}
-        geoms = []
-        for f in rows:
-            data["feature_id"].append(f.feature_id)
-            data["class"].append(f.cls)
-            data["subclass"].append(f.subclass)
-            data["name"].append(f.name)
-            data["scope"].append(f.scope)
-            data["zone"].append(f.zone)
-            data["chunk_id"].append(f._chunk)
-            data["local_x"].append(f._local[0])
-            data["local_z"].append(f._local[1])
-            data["reconstruction_class"].append(f.geometry_recon)
-            data["confidence"].append(float(f.geometry_confidence))
-            data["geometry_source"].append(f.geometry_source)
-            data["geometry_record"].append(f.geometry_record)
-            data["geometry_method"].append(f.geometry_method)
-            data["geometry_accuracy_m"].append(f.geometry_accuracy_m)
-            data["geometry_hash"].append(geometry_hash(f.geom))
-            data["observed_at"].append(f.observed_at)
-            data["source_epoch"].append(f.source_epoch)
-            data["valid_from"].append(f.valid_from)
-            data["valid_to"].append(f.valid_to)
-            data["last_verified"].append(f.last_verified)
-            data["source_count"].append(len({l.source_id for l in f.links}))
-            data["flags"].append(",".join(sorted(f.flags)) or None)
-            data["attrs_json"].append(json.dumps(_selected_attrs(f), ensure_ascii=False, sort_keys=True, default=str))
-            geoms.append(f.geom)
-        arrays = []
-        for c in COLUMNS:
-            vals = data[c]
-            if c in ("local_x", "local_z", "confidence", "geometry_accuracy_m"):
-                arrays.append(np.array([np.nan if v is None else v for v in vals], dtype=np.float64))
-            elif c == "source_count":
-                arrays.append(np.array(vals, dtype=np.int32))
-            else:
-                arrays.append(np.array([None if v is None else str(v) for v in vals], dtype=object))
-        pyogrio.raw.write(tmp, shapely.to_wkb(np.array(geoms, dtype=object)), arrays, COLUMNS, layer=family,
-                          driver="GPKG", crs=crs, geometry_type="Unknown", append=not first)
-        first = False
+    for i, family in enumerate(sorted(by_family)):
+        write_layer(tmp, family, by_family[family], append=i > 0)
     if edges:
         pyogrio.raw.write(tmp, shapely.to_wkb(np.array([e.geom for e in edges], dtype=object)),
                           [np.array([e.edge_id for e in edges], dtype=object), np.array([e.network for e in edges], dtype=object),
@@ -198,6 +157,179 @@ def write(features: list[Feature], edges: list, excluded: list, override_layer: 
         PREVIOUS.parent.mkdir(parents=True, exist_ok=True)
         out.replace(PREVIOUS)
     tmp.replace(out)
+
+
+def write_layer(path: Path, family: str, features: list[Feature], append: bool) -> None:
+    """One feature family as a spatial layer (rows sorted by feature_id); append adds to an existing file or layer."""
+    rows = sorted(features, key=lambda f: f.feature_id)
+    data = {c: [] for c in COLUMNS}
+    for f in rows:
+        for c, v in zip(COLUMNS, (f.feature_id, f.cls, f.subclass, f.name, f.scope, f.zone, f._chunk, f._local[0], f._local[1],
+                                  f.geometry_recon, float(f.geometry_confidence), f.geometry_source, f.geometry_record,
+                                  f.geometry_method, f.geometry_accuracy_m, geometry_hash(f.geom), f.observed_at, f.source_epoch,
+                                  f.valid_from, f.valid_to, f.last_verified, len({l.source_id for l in f.links}),
+                                  ",".join(sorted(f.flags)) or None,
+                                  json.dumps(_selected_attrs(f), ensure_ascii=False, sort_keys=True, default=str))):
+            data[c].append(v)
+    arrays = []
+    for c in COLUMNS:
+        vals = data[c]
+        if c in ("local_x", "local_z", "confidence", "geometry_accuracy_m"):
+            arrays.append(np.array([np.nan if v is None else v for v in vals], dtype=np.float64))
+        elif c == "source_count":
+            arrays.append(np.array(vals, dtype=np.int32))
+        else:
+            arrays.append(np.array([None if v is None else str(v) for v in vals], dtype=object))
+    pyogrio.raw.write(path, shapely.to_wkb(np.array([f.geom for f in rows], dtype=object)), arrays, COLUMNS, layer=family,
+                      driver="GPKG", crs=frame.frame()["projected_crs"], geometry_type="Unknown", append=append)
+
+
+def _store_rows(fid_int: int, f: Feature, names: dict, provs: dict, kinds: dict) -> tuple[tuple, list, list]:
+    """feature_index row, attribute_store rows and link_store rows of one feature; grows the lookup dicts."""
+    idx = (fid_int, f.feature_id, f.family, f.cls, f._chunk, f.scope, geometry_hash(f.geom), f.geometry_record, f.observed_at)
+    attrs, links, seen = [], [], set()
+    for a in f.attrs:
+        nid = names.setdefault(a.name, len(names) + 1)
+        pid = provs.setdefault((a.source_id, a.method, a.recon, a.unit, a.source_epoch, a.note), len(provs) + 1)
+        rec = None if a.source_record_id in (f.geometry_record, f"footprint:{f.feature_id}") else a.source_record_id
+        obs = None if a.observed_at == f.observed_at else a.observed_at
+        attrs.append((fid_int, nid, a.value_json(), pid, round(float(a.confidence), 3), int(a.selected), rec, obs))
+    for link in f.links:
+        key = (link.source_id, link.source_layer, link.role, link.match_method, link.source_record_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        kid = kinds.setdefault((link.source_id, link.source_layer, link.role, link.match_method), len(kinds) + 1)
+        links.append((fid_int, kid, link.source_record_id, link.match_score, link.source_version))
+    return idx, attrs, links
+
+
+def _source_row(sid: str, s: dict) -> tuple:
+    rec = receipts.load(sid)
+    return (sid, s["name"], s["provider"], s["url"], s["license"], s.get("attribution"),
+            None if s.get("requires_attribution") is None else int(s["requires_attribution"]),
+            None if s.get("share_alike") is None else int(s["share_alike"]), s.get("authority_level"), s.get("crs"),
+            str(s.get("positional_accuracy_m")), s.get("temporal_epoch"), s["status"], json.dumps(s.get("feature_classes_used")),
+            rec.get("retrieved_at"), json.dumps(rec) if rec.get("artifacts") else None)
+
+
+def append_features(path: Path, features: list[Feature]) -> dict:
+    """Adds features to an existing library in place, replacing earlier rows with the same ids.
+
+    Used for documented buildings when the raw cache is absent; a full build produces the same rows.
+    Returns {"inserted", "replaced", "overlaps": {new id: existing ids of the same family it overlaps}}.
+    """
+    from .build import chunk_and_local
+
+    chunk_and_local(features)
+    ids_new = [f.feature_id for f in features]
+    families = sorted({f.family for f in features})
+    con = sqlite3.connect(path)
+    cur = con.cursor()
+    marks = ",".join("?" * len(ids_new))
+    old = [r[0] for r in cur.execute(f"SELECT fid FROM feature_index WHERE feature_id IN ({marks})", ids_new)]
+    replaced = [r[0] for r in cur.execute(f"SELECT feature_id FROM feature_index WHERE feature_id IN ({marks})", ids_new)]
+    for table in ("attribute_store", "link_store", "feature_index"):
+        cur.executemany(f"DELETE FROM {table} WHERE fid = ?", [(i,) for i in old])
+    for family in families:
+        cur.execute(f'DELETE FROM "{family}" WHERE feature_id IN ({marks})', ids_new)
+    con.commit()
+    con.close()
+    overlaps = {}
+    for family in families:
+        geoms, cols = read_layer(family, path)
+        tree = shapely.STRtree(geoms)
+        for f in features:
+            if f.family != family:
+                continue
+            hits = [cols["feature_id"][i] for i in tree.query(f.geom, predicate="intersects")
+                    if geoms[i].intersection(f.geom).area > 1.0]
+            if hits:
+                overlaps[f.feature_id] = sorted(hits)
+        write_layer(path, family, [f for f in features if f.family == family], append=True)
+    con = sqlite3.connect(path)
+    cur = con.cursor()
+    names = {n: i for i, n in cur.execute("SELECT name_id, name FROM attribute_name")}
+    provs = {tuple(r[1:]): r[0] for r in cur.execute("SELECT * FROM provenance")}
+    kinds = {tuple(r[1:]): r[0] for r in cur.execute("SELECT * FROM link_kind")}
+    n0, p0, k0 = len(names), len(provs), len(kinds)
+    next_fid = (cur.execute("SELECT MAX(fid) FROM feature_index").fetchone()[0] or 0) + 1
+    for i, f in enumerate(sorted(features, key=lambda f: f.feature_id)):
+        idx, attrs, links = _store_rows(next_fid + i, f, names, provs, kinds)
+        cur.execute("INSERT INTO feature_index VALUES (?,?,?,?,?,?,?,?,?)", idx)
+        cur.executemany("INSERT INTO attribute_store VALUES (?,?,?,?,?,?,?,?)", attrs)
+        cur.executemany("INSERT INTO link_store VALUES (?,?,?,?,?)", links)
+    cur.executemany("INSERT INTO attribute_name VALUES (?,?)", [(v, k) for k, v in names.items() if v > n0])
+    cur.executemany("INSERT INTO provenance VALUES (?,?,?,?,?,?,?)", [(v, *k) for k, v in provs.items() if v > p0])
+    cur.executemany("INSERT INTO link_kind VALUES (?,?,?,?,?)", [(v, *k) for k, v in kinds.items() if v > k0])
+    sources = config.sources()
+    for sid in sorted({f.geometry_source for f in features}):
+        cur.execute("INSERT OR REPLACE INTO source VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", _source_row(sid, sources[sid]))
+    con.commit()
+    con.close()
+    return {"inserted": sorted(set(ids_new) - set(replaced)), "replaced": sorted(replaced), "overlaps": overlaps}
+
+
+def _gpkg_blob_geometry(blob):
+    """Shapely geometry of a GeoPackage geometry blob (header + WKB), or None."""
+    if blob is None:
+        return None
+    envelope = {0: 0, 1: 32, 2: 48, 3: 48, 4: 64}[(blob[3] >> 1) & 7]
+    return shapely.from_wkb(bytes(blob[8 + envelope:]))
+
+
+def _register_gpkg_functions(con: sqlite3.Connection) -> None:
+    """The ST_* functions GeoPackage rtree triggers call on UPDATE (plain sqlite3 lacks them)."""
+    def bound(i):
+        return lambda blob: None if blob is None else float(_gpkg_blob_geometry(blob).bounds[i])
+    con.create_function("ST_IsEmpty", 1, lambda blob: 1 if blob is None or _gpkg_blob_geometry(blob).is_empty else 0)
+    for name, i in (("ST_MinX", 0), ("ST_MinY", 1), ("ST_MaxX", 2), ("ST_MaxY", 3)):
+        con.create_function(name, 1, bound(i))
+
+
+def remove_features(path: Path, removals: list[dict]) -> list[str]:
+    """Deletes features a better source shows to be wrong (e.g. merged outlines) and records each in `excluded`.
+
+    Unlike close_features this is not history: the outline never matched one real building.
+    """
+    con = sqlite3.connect(path)
+    _register_gpkg_functions(con)
+    cur = con.cursor()
+    done = []
+    for r in removals:
+        row = cur.execute("SELECT fid, family, class FROM feature_index WHERE feature_id = ?", (r["feature_id"],)).fetchone()
+        if row is None:
+            continue
+        fid_int, family, cls = row
+        for table in ("attribute_store", "link_store", "feature_index"):
+            cur.execute(f"DELETE FROM {table} WHERE fid = ?", (fid_int,))
+        cur.execute(f'DELETE FROM "{family}" WHERE feature_id = ?', (r["feature_id"],))
+        cur.execute("DELETE FROM excluded WHERE source_record_id = ? AND source_id = ?", (r["feature_id"], r["source_id"]))
+        cur.execute("INSERT INTO excluded VALUES (?,?,?,?,?)", (r["source_id"], family, r["feature_id"], cls, r["reason"]))
+        done.append(r["feature_id"])
+    con.commit()
+    con.close()
+    return done
+
+
+def close_features(path: Path, closings: list[dict]) -> list[str]:
+    """Sets valid_to on features another source replaces (e.g. a demolished building); returns the ids found.
+
+    Rows stay in the library as history; the exporter leaves out what is not in the world on its date.
+    """
+    con = sqlite3.connect(path)
+    _register_gpkg_functions(con)
+    found = []
+    for c in closings:
+        fid = c["feature_id"]
+        family = con.execute("SELECT family FROM feature_index WHERE feature_id = ?", (fid,)).fetchone()
+        if family is None:
+            continue
+        con.execute(f'UPDATE "{family[0]}" SET valid_to = ? WHERE feature_id = ?', (c["valid_to"], fid))
+        found.append(fid)
+    con.commit()
+    con.close()
+    return found
 
 
 def _write_tables(path: Path, features: list[Feature], excluded: list, override_layer: dict, meta: dict) -> None:
@@ -246,22 +378,10 @@ def _write_tables(path: Path, features: list[Feature], excluded: list, override_
     names, provs, kinds = {}, {}, {}
     idx_rows, attr_rows, link_rows = [], [], []
     for fid_int, f in enumerate(sorted(features, key=lambda f: f.feature_id), start=1):
-        idx_rows.append((fid_int, f.feature_id, f.family, f.cls, f._chunk, f.scope, geometry_hash(f.geom), f.geometry_record, f.observed_at))
-        for a in f.attrs:
-            nid = names.setdefault(a.name, len(names) + 1)
-            pkey = (a.source_id, a.method, a.recon, a.unit, a.source_epoch, a.note)
-            pid = provs.setdefault(pkey, len(provs) + 1)
-            rec = None if a.source_record_id in (f.geometry_record, f"footprint:{f.feature_id}") else a.source_record_id
-            obs = None if a.observed_at == f.observed_at else a.observed_at
-            attr_rows.append((fid_int, nid, a.value_json(), pid, round(float(a.confidence), 3), int(a.selected), rec, obs))
-        seen = set()
-        for l in f.links:
-            key = (l.source_id, l.source_layer, l.role, l.match_method, l.source_record_id)
-            if key in seen:
-                continue
-            seen.add(key)
-            kid = kinds.setdefault((l.source_id, l.source_layer, l.role, l.match_method), len(kinds) + 1)
-            link_rows.append((fid_int, kid, l.source_record_id, l.match_score, l.source_version))
+        idx, attrs, links = _store_rows(fid_int, f, names, provs, kinds)
+        idx_rows.append(idx)
+        attr_rows.extend(attrs)
+        link_rows.extend(links)
     cur.executemany("INSERT INTO feature_index VALUES (?,?,?,?,?,?,?,?,?)", idx_rows)
     cur.executemany("INSERT INTO attribute_name VALUES (?,?)", [(v, k) for k, v in names.items()])
     cur.executemany("INSERT INTO provenance VALUES (?,?,?,?,?,?,?)", [(v, *k) for k, v in provs.items()])
@@ -269,14 +389,8 @@ def _write_tables(path: Path, features: list[Feature], excluded: list, override_
     cur.executemany("INSERT INTO link_kind VALUES (?,?,?,?,?)", [(v, *k) for k, v in kinds.items()])
     cur.executemany("INSERT INTO link_store VALUES (?,?,?,?,?)", link_rows)
     cur.executemany("INSERT INTO excluded VALUES (?,?,?,?,?)", [(e.source_id, e.source_layer, e.source_record_id, e.cls, e.reason) for e in excluded])
-    for sid, s in config.sources().items():
-        rec = receipts.load(sid)
-        cur.execute("INSERT INTO source VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (sid, s["name"], s["provider"], s["url"], s["license"], s.get("attribution"),
-                     None if s.get("requires_attribution") is None else int(s["requires_attribution"]),
-                     None if s.get("share_alike") is None else int(s["share_alike"]), s.get("authority_level"), s.get("crs"),
-                     str(s.get("positional_accuracy_m")), s.get("temporal_epoch"), s["status"], json.dumps(s.get("feature_classes_used")),
-                     rec.get("retrieved_at"), json.dumps(rec) if rec.get("artifacts") else None))
+    for sid, src in config.sources().items():
+        cur.execute("INSERT INTO source VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", _source_row(sid, src))
     for a in override_layer["assets"]:
         cur.execute("INSERT INTO generated_asset VALUES (?,?,?,?,?,?,?,?,?)",
                     tuple(a.get(k) for k in ("feature_id", "asset_id", "authoring_state", "source_geometry_hash", "last_generator_version",

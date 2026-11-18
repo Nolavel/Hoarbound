@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 
 from . import paths
@@ -30,3 +31,23 @@ def extent() -> dict:
 def acquisition_bbox() -> tuple[float, float, float, float]:
     b = extent_rules()["acquisition_bbox_lonlat"]
     return float(b["west"]), float(b["south"]), float(b["east"]), float(b["north"])
+
+
+def _date(value: str | None) -> str | None:
+    """First ISO-like date in a free-text value ("before 1920" -> "1920-01-01"); None when there is none."""
+    m = re.search(r"\d{4}(-\d{2})?(-\d{2})?", value or "")
+    if not m:
+        return None
+    parts = m.group(0).split("-")
+    return "-".join(parts + ["01"] * (3 - len(parts)))
+
+
+def in_world(valid_from: str | None, valid_to: str | None, world_date: str) -> bool:
+    """True when a feature stands on the world date: built by then and not yet removed."""
+    start, end = _date(valid_from), _date(valid_to)
+    return (start is None or start <= world_date) and (end is None or end > world_date)
+
+
+def world_date() -> str:
+    """The date the generated world shows (config/generation.json world_date)."""
+    return load("generation.json")["world_date"]

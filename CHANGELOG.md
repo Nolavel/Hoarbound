@@ -6,6 +6,73 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Fixed (727 storefront leaf: renderer error at exit)
+
+- The storefront leaf's glass took the frost material through `material_override` in code. At exit the instance outlived that material and Godot logged "Parameter material is null" (main scene and the shelter suites). The leaf's import now maps `window_glass` to `frosted_glass_727.tres`, as the shell's panes do; the override is gone and the log is clean.
+
+### Changed (Key West: 727 storefront entrance, 717 wayfinding post, roof snow)
+
+- **Entrance as drawn:** the hut's plank door is replaced by the A2.01 NW storefront: 8'-0" x 8'-0", two leaves of 2 x 2 lites in dark bronze. The Fort Street leaf opens (HingedDoor, hinged on its outer jamb, still swinging out); the other is fixed glass, a heated-room pane down to the floor with an invisible stop behind it. The leaf's glass frosts like the windows. The ramp now spans the whole storefront. Built by `tools/blender/build_727_exterior.py` as `kw_727_entrance_leaf.glb`.
+- **717 Fort St wayfinding post** (owner's Street View): white post with TRUMAN WATERFRONT, Ft ZACH, BEACH and AMPHITHEATER boards facing Fort Street, arrows north-west. Placed 1 m past the front corner of 717 (OSM w585507158) towards 727, between the house and the carriageway, on the DEM ground; good to about 1.5 m. Sizes and colours are scaled from the photo.
+- **Static snow on 727:** the roof inside the parapet, the parapet ridge, canopies, service canopies, planters and roof units. Same rule as the generator's roof caps: settled depth 0.25 m x Ce from the city wind field (here 1.2, so 0.30 m); narrow tops take the repose ridge.
+- **Not built:** the bike rack by the west planter. The owner's shots do not show whether its hoops run along the wall or across it, nor whether there are 4 or 5.
+- The exterior is 15 meshes, one per material (the post adds five sign colours, plus snow and bronze).
+
+### Changed (Key West: 727 Fort St ends, back and side canopies from A2.01)
+
+- **Ends of the main block:** wood bands (NW 4, SE 3 plus the wide door panel) and a service door under a small steel canopy at each end, cut into its band. The SE end carries the relocated electric service (the meters in the owner's Street View from 101 Petronia St).
+- **Service doors stay closed** (owner 2026-11-18): a cream leaf outside, as built (the drawing scheduled SW 0072), and the same leaf on the inside face. No opening, no interaction, no heat path; lock, boards or breakage belong to the stage 2 house state.
+- **Side canopies:** three tie rods each (A2.01 NW/SE). **Back:** fibreglass gutter under the parapet, three 6 in PVC leaders, two roof units (their position across the roof is inferred).
+- **Inferred, marked in the code:** service canopy depth 0.9 m and its hangers (Street View, visual), gutter depth, the roof units' place across the roof, the equipment and door colours.
+- The exterior still draws as 8 merged meshes (one per material and collision role).
+
+### Changed (Key West: 727 Fort St walls, entrance and windows from the 2020 permit, step B)
+
+- **Outline:** the walls and the roof follow the A1.02 exterior scaled by its bar (main 26.46 × 10.96 m, Fort Street wing 9.95 × 5.27 m; 342.4 m² against the City record 343.1 m²), placed by best overlap with the measured walls (IoU 0.91). The roof no longer runs past the walls: the eaves and notch roofs were gone after 2020.
+- **Entrance:** the main door moves to the real entrance on the wing's NW side, with its ramp under the west canopy. The game door keeps its 1.5 m width (the storefront is 8 ft). The First Exit compass bearing, the yard pickups and the spawn follow it.
+- **Windows:** as in A2.01: three storefront groups on the wing front and one on its SE side, six narrow windows on the main front, none at the back. Seven heated windows (waiting room, lobby) leak into the shelter zone; heated rooms past the hut's four panes get copies of its pane.
+- **Rooms and furniture:** the game clinic stays, clipped to the new walls; rooms, partitions, openings and furniture hang on named layout lines. Pickups on the supply bench moved with it; the bench check now refuses a pickup that floats.
+- **Exterior:** the wood-pattern bands frame the narrow windows (cut around them), the deferred band is back, the planters run unbroken east of the wing. Wood-tile colour sampled from the A2.01 swatch (sRGB 114, 72, 51).
+- **Saves:** a saved broken pane whose 727 window has gone or moved is dropped on load instead of hanging in the air.
+- **Tooling:** `key_west_reality.py shelter-727` rebuilds the shell and replays its passes (frost, exterior, paint, sockets) in one go. Hand-placed sockets in `first_exit_gameplay.json` (gloves, SPoV can, searchlight) are now in the generator.
+- **Route and gate:** the gate route's `727_fort_st_entrance` is the ramp foot from the spec, no longer a point 2.5 m off the wall facing Fort Street (only the two 727 legs change). The gate walks in through the NW door, the waiting room and the arch to the lobby; it enters and is sheltered.
+- **Draw calls:** the exterior is merged into one mesh per material and collision role (6 instead of 38). Views of the block draw no more than after step A, except the close front view (+50 calls, 1.7 %, with 14 % fewer primitives).
+- **Kept:** the wall thermometer (it lived only in the old spec file) is now in the generator, beside the lobby arch.
+- **Tests:** `test_open_container_focus` and `test_727_furniture` stood Henry with his origin (the capsule centre) 5 cm over the floor, half inside it. The old floor mesh happened to push him out; they now stand him on it. Tests that pinned the hut windows (4 heated, 2.0 × 1.1 m) or the old bearing now read the spec or the permit values.
+- **Deferred:** the gate's walk from the shelter spawn to the bunker start meets a neighbour's wall once (auto-recovered); not compared with the old spawn.
+
+### Changed (Key West: 727 Fort St exterior as built after the 2020 permit, step A)
+
+- **Exterior dressing:** the steel canopy (underside at 10'-6", 5 ft deep, wrapping both projection sides), its tie rods, the parapet to 16'-2", the wood-pattern accent strips, the planters and the "KEY WEST HEALTH CENTER" sign. Sources: sheets A2.01 and A1.03 of Legistar 20-6136; built by `tools/blender/build_727_exterior.py` (Blender 5.2 as a Python module) from the parts in `tools/world/reality/facade_727.py`.
+- **Walls:** SW 7691 (sRGB 227, 201, 161) from the A2.01 paint schedule, written into the shell's wall material. Other glb buffers are unchanged.
+- **Unchanged until step B:** the outline, the door and the windows stay the game's. One accent strip would cover the game's MainDoor and is deferred; the planters leave the door ramp clear.
+- **Estimated, not scheduled:** the wood-tile and sign colours and the letter height come from the 2025 panorama. The canopy depth of structure and parapet thickness are inferred. All are marked in the code.
+- `landmark_glass_frost.py` gains a `__main__` guard so its glb helpers can be imported.
+
+### Added (Key West: reviewed City of Key West footprints around 727)
+
+- **Merged outlines split:** 6 OSM outlines each covered 2–4 separate buildings. They become 15 city footprints (2017 layer, "public information"), confirmed by lidar 2019/2016 and NAIP 2023. Their roofs now resolve (the two apartment blocks south-east of 727 were flat boxes).
+- **Missing outbuildings:** 4 of 19 added (roof visible, lidar height plausible). 3 records were rejected as gone before 2019. 12 stay out as uncertain (under canopy, overlapping, or no roof in the 2024 orthophoto), each with its reason in `config/city_footprints.json`.
+- **2024 orthophoto:** Esri World Imagery here is the Monroe County 2024 orthophoto (7.6 cm, 2024-11-01). It is registered as a visual reference only; nothing is extracted from it.
+- **Known issue:** two split parts (9945, 9946) carry lidar heights polluted by tree canopy (flag `height_canopy_suspect`), as the library does everywhere today.
+- **Regenerated:** chunks −7:2, −7:3 and 4 HLOD clusters. Re-exporting −7:2 before the change matched the archive. +47 to +126 draw calls at the five check viewpoints (lavapipe).
+
+### Added (Key West: Frederick Douglass Community Center, world date)
+
+- **Douglass lot (111 Olivia St)** from Legistar 21-7769: the new one-storey centre (low wing at 23'-6", main hall parapet at 37'-1 1/4" NGVD29) and the historic gym, whose outline comes from the boundary survey and whose heights come from the 2019 lidar.
+  - The 2022 OSM outline, which merged the gym with the demolished Annex, and the old parking under the centre are closed with `valid_to` 2023-09-18. They stay in the library as history.
+- **World date:** `config/generation.json` `world_date` 2025-12-31 (owner: no earlier than late 2025). The exporter and the ways-through-buildings check skip features that are not standing on that date.
+- The georeference matches the City of Key West footprint within 0.1 m at the surveyed east face.
+
+### Added (Key West: Lofts at Bahama Village opposite 727, from planning records)
+
+- **Problem:** the owner saw no buildings opposite 727. The audit showed every library building reached the game, but the library itself lacked the 126-unit complex built in 2023–2025 at 918 Fort St; every survey source predates it.
+- **Fix:** a documented-buildings source. Five masses (A Fort and Allen wings, B, C two parts) come from Legistar 22-3575: site plan georeferenced to OSM centrelines, heights from the elevation sheets (35 ft cap), flagged `as_designed_not_surveyed`.
+- **Pipeline:** `key_west_reality.py documented [--apply]` adds them to the committed library without the raw cache; roofs from documents go through `building_shell`; lidar can be fetched for chosen chunks only.
+- **Regenerated:** chunks −8:3 and −7:3 and HLOD clusters c128_−28_12, c128_−29_12. Untouched chunks were re-exported identically first. 993 other clusters kept.
+- **Cost (lavapipe, same loading):** +12 to +68 draw calls and +0.6 to +1.5 % primitives at the seven audit viewpoints. HD 620 still needs its gate run.
+- **Rule:** `.claude/rules/key-west-reconstruction.md` records the owner's screenshot-request rule and the documented-geometry rule.
+
 ### Fixed (renderer "material is null" and empty item id warnings, play-test log 2026-11-18)
 
 - `PackStraps._outline()` measured an item visual and dropped it with `queue_free()` without ever drawing it. With the Hub open, the first carry of each item kind raised four "Parameter material is null" renderer errors (Godot 4.8-dev). It now uses `SurvivalItemVisual.release()`.

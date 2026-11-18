@@ -5,13 +5,13 @@
  "schema_version": "kw_reality.v1",
  "gpkg": {
   "path": "data/world/key_west/reality/library/key_west_reality.gpkg",
-  "bytes": 133206016,
-  "sha256": "993f3a5e3720aa69a411f1dad69f6caff9507455683dc90cebc6d2b17794c232"
+  "bytes": 133279744,
+  "sha256": "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
  },
  "packed": {
   "path": "data/world/key_west/reality/library/key_west_reality.gpkg.xz",
-  "bytes": 24055224,
-  "sha256": "4641c66a9d8edc2df0213b7cf10f646548b34fe75fae928223ed62afc74df2a7",
+  "bytes": 24056220,
+  "sha256": "6467e682d768ca97d5720d3788588cdf27f86d08c64ad4a08d4f830550ddb57d",
   "codec": "xz preset 6"
  },
  "features_by_family": {
@@ -21,7 +21,7 @@
   "barriers": 268,
   "bridges": 46,
   "building_parts": 24,
-  "buildings": 13376,
+  "buildings": 13398,
   "coastal_structures": 509,
   "coastline": 96,
   "land": 333,

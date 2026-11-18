@@ -29,6 +29,7 @@ func _process(_delta: float) -> bool:
 	_check_openings()
 	_check_shell_materials()
 	_check_chimney()
+	_check_exterior()
 	if _failures > 0:
 		push_error("727 shelter: %d check(s) failed" % _failures)
 		quit(1)
@@ -36,6 +37,37 @@ func _process(_delta: float) -> bool:
 		print("727 shelter: all checks passed")
 		quit(0)
 	return true
+
+
+## The 2020 permit exterior (canopy, planters, sign, parapet) hangs on the house plan; planters are solid and
+## nothing solid stands in the MainDoor ramp. The walls carry SW 7691 (sRGB 227, 201, 161).
+func _check_exterior() -> void:
+	var house: Node3D = _shelter.get_node(^"House") as Node3D
+	var exterior: Node3D = house.get_node_or_null(^"Exterior") as Node3D
+	_check(exterior != null, "no Exterior under House")
+	if exterior == null:
+		return
+	for part: String in ["Canopy", "CanopySteel", "Planters", "AccentBands", "WallTrim", "Sign", "ServiceDoors", "Equipment"]:
+		_check(exterior.find_child(part + "*", true, false) != null, "exterior has no %s" % part)
+	_check(not exterior.find_children("*", "StaticBody3D", true, false).is_empty(), "planters have no collision")
+	var meshes: int = exterior.find_children("*", "MeshInstance3D", true, false).size()
+	## One mesh per material: 15 (the 717 wayfinding post brings five sign colours, plus snow and storefront bronze).
+	_check(meshes <= 15, "exterior is %d meshes; merge parts per material (one draw call each)" % meshes)
+	for part: String in ["Snow", "StorefrontBronze", "SignWhite"]:
+		_check(exterior.find_child(part + "*", true, false) != null, "exterior has no %s" % part)
+	var space: PhysicsDirectSpaceState3D = root.get_world_3d().direct_space_state
+	var ramp: Dictionary = _shelter.interior["entry_ramp"]
+	var at: Vector3 = house.to_global(Vector3(float(ramp["from_uv"][0]), 1.0, float(ramp["from_uv"][1]) + 0.5))
+	var query: PhysicsPointQueryParameters3D = PhysicsPointQueryParameters3D.new()
+	query.position = at
+	_check(space.intersect_point(query).is_empty(), "something solid stands at the MainDoor ramp foot")
+	var wall: StandardMaterial3D = null
+	for mesh: MeshInstance3D in _shell.find_children("*", "MeshInstance3D", true, false):
+		for i: int in mesh.mesh.get_surface_count():
+			var m: Material = mesh.mesh.surface_get_material(i)
+			if m != null and m.resource_name == "masonry_stucco":
+				wall = m as StandardMaterial3D
+	_check(wall != null and wall.albedo_color.to_rgba32() >> 8 == 0xE3C9A1, "walls are not SW 7691: %s" % [wall.albedo_color.to_html(false) if wall else "none"])
 
 
 ## One flue from the stove collar through the ceiling and roof; smoke on the cap only while it burns.
@@ -90,7 +122,25 @@ func _check_nodes() -> void:
 	_check(door != null and zone != null and clinic != null, "door or zones missing")
 	if door == null or zone == null or clinic == null:
 		return
-	_check(door.opening_size.is_equal_approx(Vector2(1.5, 2.25)), "door is not the hut standard: %s" % door.opening_size)
+	## A2.01 NW: 8'-0" x 8'-0" double storefront; the Fort Street leaf opens, hinged on its outer jamb.
+	var storefront: float = 8.0 * 0.3048
+	_check(door.opening_size.distance_to(Vector2(storefront * 0.5, storefront)) < 0.002, "door is not the storefront leaf: %s" % door.opening_size)
+	var leaf: MeshInstance3D = door.door_hinge.get_node_or_null(^"DoorLeaf") as MeshInstance3D
+	var glass: MeshInstance3D = leaf.get_node_or_null(^"DoorGlass") as MeshInstance3D if leaf != null else null
+	_check(leaf != null and absf(leaf.get_aabb().size.x - (storefront * 0.5 - 0.01)) < 0.01, "the leaf is not the storefront leaf")
+	_check(glass != null and glass.get_active_material(0) == KeyWest727Shelter.FROSTED_GLASS, "the leaf's glass does not frost like the windows")
+	var main: Dictionary = {}
+	for o: Dictionary in _shelter.interior["openings"]:
+		if o["name"] == "MainDoor":
+			main = o
+	var plan_inv: Transform3D = house.global_transform.affine_inverse()
+	var hinge_v: float = (plan_inv * door.door_hinge.global_position).z
+	_check(hinge_v > float(main["centre_uv"][1]) + 0.5, "the leaf is not hinged on its Fort Street jamb (v %.2f)" % hinge_v)
+	var closed_u: float = (plan_inv * leaf.global_transform * leaf.get_aabb().get_center()).x
+	door.door_hinge.rotation.y = deg_to_rad(door.open_angle_deg)
+	var open_u: float = (plan_inv * leaf.global_transform * leaf.get_aabb().get_center()).x
+	door.door_hinge.rotation.y = 0.0
+	_check(open_u < closed_u - 0.3, "the storefront leaf does not swing out (u %.2f -> %.2f)" % [closed_u, open_u])
 	_check(door.breach == zone.get_node_or_null(^"Door"), "door is not wired to the shelter breach")
 	_check(zone.get_node_or_null(^"Stove") is HeatSource, "stove missing from the heated zone")
 	_check(zone.is_interior and clinic.is_interior, "zones must count as indoors")
@@ -100,9 +150,18 @@ func _check_nodes() -> void:
 		windows += 1 if o["kind"] == "window" else 0
 	var breaches: int = zone.get_breaches().size() + clinic.get_breaches().size()
 	_check(breaches == windows + 1, "expected %d breaches (windows + door), got %d" % [windows + 1, breaches])
-	for breach: ShelterBreach in clinic.get_breaches():
-		_check(breach.boarded_visual != null and breach.is_ancestor_of(breach.boarded_visual),
-			"%s boards point outside the copy" % breach.name)
+	var heated: Dictionary = {}
+	for room: Dictionary in _shelter.interior["rooms"]:
+		heated[room["id"]] = bool(room["heated"])
+	for o: Dictionary in _shelter.interior["openings"]:
+		if o["kind"] != "window":
+			continue
+		var owner_zone: ThermalZone = zone if heated.get(o["room"], false) else clinic
+		var breach := owner_zone.get_node_or_null(NodePath(String(o["name"]))) as ShelterBreach
+		_check(breach != null, "%s does not leak into its room's zone" % o["name"])
+		if breach != null:
+			_check(breach.boarded_visual != null and breach.is_ancestor_of(breach.boarded_visual),
+				"%s boards point outside the copy" % breach.name)
 	var outline: PackedVector2Array = PackedVector2Array()
 	for p: Array in _shelter.interior["outline_uv"]:
 		outline.append(Vector2(float(p[0]), float(p[1])))
@@ -133,7 +192,10 @@ func _check_openings() -> void:
 		var hit_open: Dictionary = _ray(space, house, c + out * 1.0, c - out * 1.0)
 		_check(hit_open.is_empty(), "%s opening is blocked at %s" % [o["name"], c])
 		if o["kind"] == "door":
-			_check(not _ray(space, house, c + side + out, c + side - out).is_empty(), "%s has no wall beside it" % o["name"])
+			## The storefront's opening leaf has the fixed leaf on one side, the jamb wall on the other.
+			var walled: bool = not _ray(space, house, c + side + out, c + side - out).is_empty() \
+				or not _ray(space, house, c - side + out, c - side - out).is_empty()
+			_check(walled, "%s has no wall beside it" % o["name"])
 
 
 func _ray(space: PhysicsDirectSpaceState3D, house: Node3D, a: Vector3, b: Vector3) -> Dictionary:

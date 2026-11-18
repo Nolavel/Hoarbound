@@ -57,6 +57,20 @@ func _run() -> void:
 	_check(restored.get_pane_state(key) == WindowBreakage.PaneState.BROKEN, "pane damage did not survive the save")
 	_check(not breach.glazed, "a saved broken 727 pane came back glazed")
 	_check(restored.get_child_count() >= 3, "restored panes show no damage overlays")
+
+	## A save from before 727 moved its windows: a vanished breach and a breach that moved drop their records.
+	var breach_key: String = "breach:" + str(breach.get_path())
+	var stale: Dictionary = (saved["panes"] as Dictionary).duplicate(true)
+	stale["breach:/root/BackWindow1"] = stale[breach_key].duplicate(true)
+	breach.position = Vector3(14.0, 2.0, 0.0)
+	breach.set_glazed(true)
+	var later := WindowBreakage.new()
+	root.add_child(later)
+	later.load_save_data({"panes": stale})
+	_check(later.get_pane_state(&"breach:/root/BackWindow1") == WindowBreakage.PaneState.INTACT, "a vanished breach kept its pane record")
+	_check(later.get_pane_state(StringName(breach_key)) == WindowBreakage.PaneState.INTACT, "a moved breach kept the old pane record")
+	_check(breach.glazed, "a moved breach reopened from a stale record")
+	_check(later.get_pane_state(key) == WindowBreakage.PaneState.BROKEN, "a facade pane record was dropped with the stale ones")
 	print("test_window_breakage: %s" % ("PASS" if _failures == 0 else "%d FAILED" % _failures))
 	quit(1 if _failures > 0 else 0)
 

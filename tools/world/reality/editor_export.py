@@ -8,6 +8,7 @@ is drawn, mesh-ready geometry whose every height says where it came from.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import time
 from collections import Counter, defaultdict
@@ -17,6 +18,7 @@ import shapely
 
 from . import PIPELINE_VERSION, config, edits, frame, library, meshing, overrides, paths, receipts, regen, static_snow, traversal, vegetation
 
+in_world = config.in_world
 EXPORT_VERSION = "kw_reality.editor_chunk.v2"
 FAMILIES = ("buildings", "building_parts", "roads", "bridges", "coastal_structures", "barriers", "power", "utilities",
             "street_furniture", "transit", "airport", "trees", "vegetation_areas", "water", "land_use")
@@ -91,7 +93,7 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
     con = sqlite3.connect(paths.LIBRARY)
     epoch = dict(con.execute("SELECT feature_id, observed_at FROM feature_index").fetchall())
     hashes = dict(con.execute("SELECT feature_id, geometry_hash FROM feature_index").fetchall())
-    sel = {n: _selected(con, n) for n in ("height_m", "roof_median_height_m", "roof_relief_m", "ground_elevation_m")}
+    sel = {n: _selected(con, n) for n in ("height_m", "roof_median_height_m", "roof_relief_m", "ground_elevation_m", "roof_documented")}
     con.close()
     ov = overrides.load()
     corr = corridors(ov["features"])
@@ -155,6 +157,9 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
         for i, g in enumerate(geoms):
             cid = cols["chunk_id"][i]
             fid = cols["feature_id"][i]
+            if not in_world(cols["valid_from"][i], cols["valid_to"][i], gen["world_date"]):
+                stats["not_in_world_on_date"] += 1
+                continue
             edit = base_edits.get(fid)
             if edit is not None and edit["op"] == "remove":
                 stats["edit_removed"] += 1
@@ -323,8 +328,10 @@ def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_p
         h = sel["height_m"].get(fid)
         relief = sel["roof_relief_m"].get(fid)
         median = sel["roof_median_height_m"].get(fid)
+        doc_roof = sel["roof_documented"].get(fid)
         shell = meshing.building_shell(s, poly, base, float(h[0]) if h else None, bool(h and h[1] == "authoritative"),
-                                       float(relief[0]) if relief else None, spacing, float(median[0]) if median else None)
+                                       float(relief[0]) if relief else None, spacing, float(median[0]) if median else None,
+                                       doc_roof[0] if doc_roof else None)
         if not shell:
             stats["building_shell_failed"] += 1
             return {"kind": "marker", "p": _xz([poly.representative_point().coords[0]])}, {}

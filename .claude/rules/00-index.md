@@ -9,6 +9,7 @@ Change these files only through a PR to `main`; prune what is stale when you tou
 - `hands-hub-storage.md`: what Henry holds, Quick Access, the Hub, pockets and the pack.
 - `time-sleep-save.md`: the simulation clock, sleep and waiting, save and load.
 - `godot-headless.md`: running suites and probes in this repository.
+- `key-west-reconstruction.md`: sources, screenshots and documented buildings for the real Key West.
 
 ## Lessons that apply everywhere
 

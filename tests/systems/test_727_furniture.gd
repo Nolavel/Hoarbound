@@ -121,7 +121,9 @@ func _try(key: String, ways: Array, full: bool) -> void:
 	var search := shelves.get_node(^"Search") as ContainerSearch
 	var face: Array = shelves.front()
 	var stand: Vector3 = (face[0] as Vector3) + (face[1] as Vector3) * STAND_M
-	stand.y = _shelter.global_position.y + float(_shelter.interior["floor_y"]) + 0.05
+	## The player's origin is its capsule centre: stand him on the floor, not half inside it.
+	var capsule := (_player.get_node(^"Main_Collision") as CollisionShape3D).shape as CapsuleShape3D
+	stand.y = _shelter.global_position.y + float(_shelter.interior["floor_y"]) + capsule.height * 0.5 + 0.05
 	_player.global_position = stand
 	_player.velocity = Vector3.ZERO
 	_player.face_work_target(face[0])

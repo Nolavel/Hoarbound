@@ -194,7 +194,7 @@ func _check_catalog() -> void:
 	var bearings := FirstExitBearings.new()
 	_check(bearings.shelter_id() == "kw:building:osm:w339414849", "shelter id %s" % bearings.shelter_id())
 	var xz: Vector2 = bearings.shelter_xz()
-	_check(xz.distance_to(Vector2(-3538.75, 1594.38)) < 0.01, "bearing point is %s, not the entrance" % xz)
+	_check(xz.distance_to(Vector2(-3540.73, 1579.95)) < 0.01, "bearing point is %s, not the entrance" % xz)
 	_check(xz.distance_to(Vector2(-3531.78, 1590.28)) > 5.0, "bearing point fell back to the footprint centroid")
 	bearings.free()
 
@@ -215,8 +215,8 @@ func _check_navigation_registry() -> void:
 		return
 	_check(bunker_resource.bearing_xz.distance_to(Vector2(-4052.73, 1924.69)) < 0.01,
 		"Battery Osceola anchor diverged from canonical Reality role")
-	_check(shelter_resource.bearing_xz.distance_to(Vector2(-3538.75, 1594.38)) < 0.01,
-		"Fort Street entrance anchor diverged from canonical Reality role")
+	_check(shelter_resource.bearing_xz.distance_to(Vector2(-3540.73, 1579.95)) < 0.01,
+		"727 NW entrance anchor diverged from canonical Reality role")
 	_check(shelter_resource.internal_label == "727" and shelter_resource.compass_title == "Fort St.",
 		"727 resource lost authored metadata")
 	_check(bunker_resource.compass_title == "Battery Osceola",

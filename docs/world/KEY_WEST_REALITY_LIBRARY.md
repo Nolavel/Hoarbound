@@ -379,6 +379,55 @@ python3 tools/world/key_west_reality.py pack       # only when promoting a new l
 Nothing regenerates the world automatically; the change report is the input to a
 selective editor regeneration.
 
+### Documented buildings (planning records)
+
+Some real buildings are newer than every survey source. Lofts at Bahama Village (918 Fort St,
+opposite 727) was built in 2023–2025: the 2017 city footprints, 2019 lidar, January 2023 NAIP,
+OSM and Overture 2026-09 all lack it. Such buildings come from public planning records.
+
+- `config/documented_buildings.json` keeps each mass as plan-sheet pixels plus one georeference
+  (origin and axis from OSM street centrelines, sheet scale), and the heights from the elevation
+  sheets above the crown of the road. `documented.py` turns them into ordinary library features.
+- Provenance: `geometry_source` is the registered planning source (`sources.json` + receipt),
+  `geometry_record` names the Legistar file and sheet, method `approved_site_plan_georeferenced`,
+  class `derived`, confidence 0.6, accuracy 2 m, `valid_from` the opening date, `source_epoch`
+  the approval date, flag `as_designed_not_surveyed`. A later survey that disagrees wins.
+- Roofs: the attribute `roof_documented` (eave, top, pitch) is built by `building_shell` as a hip
+  clipped flat at the documented top, or as a flat roof at the top; `roof_source` reads `documented_<form>`.
+- Each building keeps its own georeference and height datum (sidewalk, lowest grade). A mass marked
+  `"heights": "lidar_2019"` (a building that already stood, drawn on the plan) takes its heights and
+  roof from the lidar like any surveyed footprint.
+- `supersedes` closes older library features the record replaces (`valid_to`), such as a demolished
+  annex or the parking under a new building. Rows stay as history.
+- **World date.** `config/generation.json` `world_date` is the day the generated world shows. The
+  exporter and the ways-through-buildings check skip features not standing on it (`valid_from` after,
+  or `valid_to` on or before).
+- The full `build` adds them after the documentary facts. Without the raw cache:
+
+```
+python3 tools/world/key_west_reality.py documented            # dry run: reports/documented_buildings.json
+python3 tools/world/key_west_reality.py documented --apply    # append to the library and re-pack it
+python3 tools/world/reality/export_pack.py unpack
+python3 tools/world/key_west_reality.py export-editor --chunk=-8:3 --chunk=-7:3
+python3 tools/world/reality/export_pack.py pack
+xvfb-run godot --path . --rendering-driver vulkan --script tools/world/reality_gen/generate_key_west_chunks_cli.gd -- -8:3 -7:3 --record-digest
+godot --headless --path . --script tools/world/reality_gen/build_key_west_hlod_cli.gd -- --dirty --check --record-digest
+```
+
+  The export needs the DEM crop and the lidar tiles of those chunks only:
+  `acquire.noaa_dem()` and `acquire.noaa_lidar(["noaa_lidar_9081"], chunks=[...])`. Restore the two
+  receipts afterwards; they describe the full cache. Re-export one untouched chunk first and compare
+  it with the archive: it must be identical apart from `exported_at`.
+
+### Reviewed city footprints
+
+`config/city_footprints.json` applies the City of Key West building footprints (2017) record by record,
+only inside its `area_local` (the 727 audit square for now). `accept` adds a record with its evidence
+(lidar 2019/2016 statistics, NAIP 2023, the 2024 orthophoto as a visual check), `split` removes a merged
+library outline into the `excluded` table, `rejected` and `uncertain` stay out with a reason, and
+`hashes` refuse a record whose geometry changed after review. `key_west_reality.py city-footprints
+[--apply]` works on the committed library; the full build runs the same stage.
+
 ## 13. Storage policy
 
 | level | path | in git |
@@ -429,11 +478,38 @@ end in `-col`, so Godot builds their collision.
 | Element | Value | Class | From |
 |---|---|---|---|
 | Roof | flat, 4.71 m above the lidar ground ring (5.94 m NAVD88) | measured | 2019 DSM, 1,185 roof cells; 2016 gives 4.76 m |
-| Parapet | none (edge 1 cm above the interior) | measured | 2019 DSM edge ring |
-| Roof outline | OSM trace + about 2 m roof run-out at both notches (418 m²) | cross_verified | per-edge lidar profiles, both epochs |
-| Walls | OSM trace inset 0.45 m = 343.1 m² = City record 3,693 sq ft | cross_verified | eave run-outs measured 0–0.6 m |
+| Parapet | to 16'-2" over ground, in the exterior asset | documented | A2.01 (the 2019 DSM predates it) |
+| Walls and roof outline | A1.02 exterior scaled by its bar: main 26.46 × 10.96 m, wing 9.95 × 5.27 m (342.4 m²; City record 343.1 m²) | documented | Legistar 20-6136 A1.02; no eaves after 2020 (A2.01, 2024 orthophoto) |
+| Position | outline placed by best overlap (IoU 0.91) with the measured walls (OSM trace inset to the City area) | cross_verified | OSM trace, City record, lidar |
 | Floor | highest DEM ground inside the walls + 0.1 m = ring + 0.66 m | inferred | the DEM under the slab rises to +0.56 m |
-| Openings, plan, furniture | clinic plan, hut door and window standard | **game_invented** | Legistar attachments not delivered |
+| Entrance, windows | NW side of the wing; 3 storefront groups, 1 side window, 6 narrow windows; none at the back | documented | A2.01 elevations; the door keeps the 1.5 m game width (storefront: 8 ft) |
+| Rooms, furniture | clinic plan on the permit walls | **game_invented** | owner 2026-11-18: game function over the clinic plan |
+
+**Exterior as built (2020 permit).** `tools/world/reality/facade_727.py` lists the exterior parts on
+the spec's permit layout (`interior.layout.faces`) from Legistar 20-6136 sheets A2.01 and A1.03: canopy,
+tie rods, parapet (16'-2"), the wood-pattern bands framing the six narrow windows, planters and the sign.
+Each part names its sheet. `tools/blender/build_727_exterior.py` builds them into
+`assets/world/key_west/landmarks/kw_727_exterior.glb` in the plan frame and refuses a part that stands
+in front of an opening (`facade_727.covered`). `KeyWest727Shelter` places it under its House node.
+`facade_727.apply()` paints the shell walls SW 7691 and records both assets in the spec and the manifest.
+
+**Rebuilding 727.** The shell is generated, then authored by three scripts, so the manifest marks it
+`artist_modified`. After a change to the layout, one command replays everything in order:
+`key_west_reality.py shelter-727 --blender-python <python with bpy>` rebuilds the shell, adds the
+glass frost, builds the exterior, paints the walls and refreshes the 727 sockets and yard pickups in
+`overrides/first_exit_gameplay.json` (`first_exit_sites.refresh_shelter`; the other sites stay put).
+Then re-export chunk −7:3, regenerate its scene and the dirty HLOD clusters.
+The ends and the back follow A2.01 too: wood bands and a service door under a small steel canopy at each end
+(NW: 4 bands; SE: 3 bands, the door panel and the relocated electric service), three tie rods on each side canopy,
+the back gutter with three PVC leaders and two roof units. The service doors are closed walls in the game (owner
+2026-11-18): a leaf outside and the same leaf inside, no opening and no interaction. Whether one is locked, nailed
+shut or broken is a stage 2 house-state decision.
+
+The entrance is the A2.01 storefront (8'-0" x 8'-0"): `MainDoor` is its Fort Street leaf on the game's HingedDoor
+(leaf asset `kw_727_entrance_leaf.glb`, hinged on the outer jamb), `EntranceFixedLeaf` the fixed glass, a window of
+the waiting room from the floor. The spec's `surroundings` block carries what lies outside the walls: the static
+snow depth (settled depth x Ce from the wind field) and the 717 Fort St wayfinding post (position from the 717
+footprint, ground from the DEM, about 1.5 m).
 
 **Enterable shelter.** `tools/world/reality/shelter_727.py` hollows the measured shell.
 - Fixed elements:
@@ -442,9 +518,11 @@ end in `-col`, so Godot builds their collision.
   - a 2.4 m entry ramp (about 1:7; Henry has no step-up);
   - glass panes;
   - `-col` collision everywhere except the glass.
-- Openings use the First Exit hut standards: door 1.5 × 2.25 m (`HingedDoor.opening_size`),
-  windows 2.0 × 1.1 m with a 0.8 m sill.
-- The main door sits under the measured east porch roof, facing Fort Street.
+- The door uses the First Exit hut standard 1.5 × 2.25 m (`HingedDoor.opening_size`); the windows
+  take their A2.01 widths, sill 1.06 m and head 2.60 m.
+- The main door is the permit entrance on the wing's NW side, its ramp under the west canopy.
+- Rooms, partitions, openings and furniture hang on named layout lines (`Layout.lines()`: W, E,
+  B, F, PW, PE, P), so a change of the outline moves them with their walls.
 - The layout is a small community clinic, in line with the CHI Key West programme (medical,
   dental, pharmacy):
   - lobby with reception and a heated waiting room in the Fort Street wing (the shelter zone);
@@ -458,11 +536,12 @@ and the plan frame (`plan_yaw_rad`).
 `KeyWest727Shelter` (in `key_west_reality_content.tscn`) is persistent, not streamed, like
 the legacy hut. It moves the hut's own nodes onto that plan:
 - the door with its breach;
-- `ShelterZone` with the stove, cabinet, mattress, rest crate and the four window breaches;
+- `ShelterZone` with the stove, cabinet, mattress, rest crate and the four hut window breaches,
+  plus copies for the other heated windows (7 in all: waiting room and lobby);
 - both benches.
 
 It also adds:
-- an unheated `ClinicZone` with copies of the window breach for the other 12 windows;
+- an unheated `ClinicZone` with copies of the window breach for the 3 restroom windows;
 - clinic furniture boxes;
 - a stove pipe through the roof;
 - a `ShelterSpawnPoint`.

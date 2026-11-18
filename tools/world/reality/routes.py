@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 
 import numpy as np
-import pyogrio
 import shapely
 import shapely.ops
 from scipy import ndimage, sparse
@@ -40,7 +39,7 @@ def run() -> dict:
     spawn = _spawn_point()
     streets = _streets()
     goals = [("battery_osceola_start", spawn)]
-    entrance = _entrance(streets["Fort Street"])
+    entrance = _entrance(lm)
     for name, cross in LEGS:
         goals.append((name, entrance if cross is None else _crossing(streets[cross[0]], streets[cross[1]])))
     xs = [p[0] for _, p in goals]
@@ -106,15 +105,11 @@ def _crossing(a, b) -> tuple[float, float]:
     return (c.x, c.y)
 
 
-def _entrance(fort_street) -> tuple[float, float]:
-    """Point 2.5 m outside the 727 wall that faces Fort Street (no opening is modelled)."""
-    meta, _, geoms, _ = pyogrio.raw.read(paths.LIBRARY, layer="buildings", where=f"feature_id='{LANDMARK_727}'")
-    fp = frame.to_local(shapely.from_wkb(geoms[0]))
-    p_wall, _ = shapely.ops.nearest_points(fp.exterior, fort_street)
-    c = fp.centroid
-    d = np.array([p_wall.x - c.x, p_wall.y - c.y])
-    d /= np.linalg.norm(d)
-    return (p_wall.x + d[0] * 2.5, p_wall.y + d[1] * 2.5)
+def _entrance(lm: dict) -> tuple[float, float]:
+    """The foot of the 727 entry ramp (the permit entrance on the wing's NW side), in local x/z."""
+    (u, v), o = lm["interior"]["entry_ramp"]["from_uv"], lm["origin_local"]
+    yaw = float(lm["interior"]["plan_yaw_rad"])
+    return (o[0] + u * np.cos(yaw) + v * np.sin(yaw), o[2] - u * np.sin(yaw) + v * np.cos(yaw))
 
 
 def _cost_grid(s: meshing.Surfaces, x0: float, z0: float, nx: int, nz: int) -> np.ndarray:

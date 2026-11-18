@@ -86,7 +86,7 @@ var _peak: Dictionary = {"static_mb": 0.0, "video_mb": 0.0, "nodes": 0, "draw_ca
 var _min_y: float = INF
 var _hitches: Array = []
 var _done: bool = false
-## Plan-frame walk through 727 (door, lobby, arch, waiting room and back), in world x/z.
+## Plan-frame walk through 727 (door, waiting room, arch, lobby and back), in world x/z.
 var _detour: Array[Vector2] = []
 var _detour_inside: int = -1
 var _entry: Dictionary = {}
@@ -305,7 +305,7 @@ func _arrive(leg: int) -> void:
 		root.get_texture().get_image().save_png(ProjectSettings.globalize_path(_out).path_join("arrive_%02d_%s.png" % [leg, info["to"]]))
 
 
-## Opens the 727 door and queues the walk in: ramp, door, lobby, arch, waiting room, and out.
+## Opens the 727 door and queues the walk in: ramp, door, waiting room, arch, lobby, and out.
 func _begin_entry() -> void:
 	var shelter: KeyWest727Shelter = _world.find_child("Shelter727", true, false) as KeyWest727Shelter
 	if shelter == null:
@@ -316,16 +316,20 @@ func _begin_entry() -> void:
 	door.load_door_save_data({"angle_deg": door.open_angle_deg - 5.0, "latched": false})
 	var plan: Dictionary = shelter.interior
 	var main: Dictionary = {}
+	var arch: Dictionary = {}
 	for o: Dictionary in plan["openings"]:
 		if o["name"] == "MainDoor":
 			main = o
+		elif o["name"] == "LobbyArch":
+			arch = o
 	var out: Vector2 = Vector2(float(main["outward_uv"][0]), float(main["outward_uv"][1]))
 	var sill: Vector2 = Vector2(float(main["centre_uv"][0]), float(main["centre_uv"][1]))
 	var foot: Vector2 = Vector2(float(plan["entry_ramp"]["from_uv"][0]), float(plan["entry_ramp"]["from_uv"][1]))
-	## Inside, Henry keeps to the lobby's back wall and meets the doorway square on: the open leaf
-	## (1.5 m, swung in, pushed by his body) sweeps the corner between the door and the arch.
-	var path: Array[Vector2] = [foot + out * 1.5, sill + out * 0.6, sill - out * 1.0, sill - out * 2.2, Vector2(4.6, 0.9),
-		Vector2(2.2, 1.6), Vector2(0.0, 4.6)]
+	var arch_at: Vector2 = Vector2(float(arch["centre_uv"][0]), float(arch["centre_uv"][1]))
+	var arch_out: Vector2 = Vector2(float(arch["outward_uv"][0]), float(arch["outward_uv"][1]))
+	## The NW door opens into the waiting room; Henry passes south of the stove and through the arch into the lobby.
+	var path: Array[Vector2] = [foot + out * 1.5, sill + out * 0.6, sill - out * 1.0, sill - out * 2.2, Vector2(-2.8, 3.2),
+		arch_at - arch_out * 1.2, arch_at + arch_out * 1.0]
 	_detour_inside = path.size() - 1
 	for k: int in range(path.size() - 2, -1, -1):
 		path.append(path[k])

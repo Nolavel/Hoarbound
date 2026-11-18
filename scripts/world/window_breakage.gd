@@ -18,6 +18,8 @@ const BREAK_AT: float = 5.0
 const PLANE_REACH_M: float = 0.25
 const EDGE_SLACK_M: float = 0.05
 const WINDOWS_SURFACE: String = "windows"
+## A saved breach pane further than this from its window belongs to an older layout.
+const STALE_BREACH_M: float = 0.25
 
 ## key -> {damage, state, impact (pane UV), seed}
 var _panes: Dictionary = {}
@@ -170,6 +172,14 @@ func _show(key: StringName, record: Dictionary) -> void:
 	shader_material.set_shader_parameter(&"pane_size", pane["size"])
 
 
+## A breach record whose window has gone or moved since the save (727 rebuilt on its permit plan) is dropped.
+func _breach_still_fits(key: StringName, centre: Vector3) -> bool:
+	if not String(key).begins_with("breach:"):
+		return true
+	var breach := get_node_or_null(NodePath(String(key).trim_prefix("breach:"))) as Node3D
+	return breach != null and breach.global_position.distance_to(centre) <= STALE_BREACH_M
+
+
 ## Glass shards falling from a broken pane, to both sides of it.
 func _shatter(pane: Dictionary) -> void:
 	var shards := GPUParticles3D.new()
@@ -244,6 +254,8 @@ func load_save_data(data: Dictionary) -> void:
 		if f.size() != 14:
 			continue
 		var key := StringName(str(raw))
+		if not _breach_still_fits(key, Vector3(f[0], f[1], f[2])):
+			continue
 		_panes[key] = {"damage": float(record.get("damage", 0.0)), "state": int(record.get("state", 0)),
 			"seed": float(record.get("seed", 0.0)), "impact": Vector2(float(impact[0]), float(impact[1])),
 			"frame": [Vector3(f[0], f[1], f[2]), Vector3(f[3], f[4], f[5]), Vector3(f[6], f[7], f[8]),

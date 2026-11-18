@@ -209,7 +209,8 @@ func _load_real_pane() -> bool:
 	var y1: float = float(source_opening["y1"])
 	var width: float = measured_width
 	var height: float = y1 - y0
-	if absf(width - 2.0) > 0.001 or absf(height - 1.1) > 0.001:
+	## FrontWindow1 is the west storefront group of the 2020 permit (A2.01): 2.46 m wide, sill 1.06 m, head 2.60 m.
+	if absf(width - 2.46) > 0.01 or absf(height - 1.54) > 0.01:
 		push_error("WINDOW_727_TEST_FAIL: unexpected spec window size")
 		return false
 	var uv_center: Array = source_opening["centre_uv"]
