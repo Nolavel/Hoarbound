@@ -104,7 +104,17 @@
   "door_standard": {
    "width_m": 1.5,
    "height_m": 2.25,
-   "source": "First Exit hut HingedDoor.opening_size"
+   "source": "First Exit hut HingedDoor.opening_size (interior doors)"
+  },
+  "entrance": {
+   "storefront_m": [
+    2.438,
+    2.438
+   ],
+   "active_leaf": "MainDoor",
+   "fixed_leaf": "EntranceFixedLeaf",
+   "hinge": "outer jamb, towards Fort Street",
+   "source": "A2.01 NW elevation, double storefront door 8'-0\" x 8'-0\", dark bronze anodized"
   },
   "window_source": "A2.01 elevations (2020 permit): sill 1.06 m, head 2.60 m over the ground",
   "rooms": [
@@ -248,15 +258,31 @@
     "room": "waiting",
     "centre_uv": [
      -5.615,
-     6.94
+     7.55
     ],
     "outward_uv": [
      -1,
      0
     ],
-    "width_m": 1.5,
+    "width_m": 1.219,
     "y0": 0.66,
-    "y1": 2.91
+    "y1": 3.098
+   },
+   {
+    "name": "EntranceFixedLeaf",
+    "kind": "window",
+    "room": "waiting",
+    "centre_uv": [
+     -5.615,
+     6.33
+    ],
+    "outward_uv": [
+     -1,
+     0
+    ],
+    "width_m": 1.219,
+    "y0": 0.66,
+    "y1": 3.098
    },
    {
     "name": "FrontWindow1",
@@ -1013,12 +1039,32 @@
   }
  ],
  "ground_ring_navd88_m": 1.23,
+ "surroundings": {
+  "snow": {
+   "flat_depth_m": 0.3,
+   "exposure": 1.2,
+   "shelter": 1.0,
+   "repose_deg": 50.0,
+   "settled_depth_m": 0.25,
+   "method": "static_snow config: settled depth x Ce from the city wind field (flat roofs: Cs 1, no unbalance)"
+  },
+  "signpost": {
+   "uv": [
+    -17.683,
+    13.875
+   ],
+   "ground_y": -0.18,
+   "accuracy_m": 1.5,
+   "anchor": "kw:building:osm:w585507158",
+   "method": "past the front corner of 717 Fort St (OSM) towards 727; seen in the owner's Street View (visual)"
+  }
+ },
  "landmark_version": "kw_landmark.3",
  "pipeline_version": "1.0.0",
- "built_at": "2026-11-18T08:13:01+00:00",
+ "built_at": "2026-11-18T09:58:06+00:00",
  "asset": "assets/world/key_west/landmarks/kw_727_fort_st.glb",
- "asset_sha256": "02d0b4304e253bb034da257d01dcd3b7305d73c1626df7f261beb80a2e90012e",
- "triangles": 1084,
+ "asset_sha256": "b81e4070cb182f37b6fdd79015f696ed4248f27683e1695a6b7c58e1bd061316",
+ "triangles": 1120,
  "window_frost": {
   "tool": "tools/world/reality/landmark_glass_frost.py",
   "cold_coverage_range": [
@@ -1027,6 +1073,12 @@
   ],
   "warm_coverage": 0.2,
   "windows": {
+   "EntranceFixedLeaf": {
+    "room": "waiting",
+    "heated": true,
+    "cold_coverage": 0.724,
+    "vertices": 36
+   },
    "FrontWindow1": {
     "room": "waiting",
     "heated": true,
@@ -1088,12 +1140,12 @@
     "vertices": 36
    }
   },
-  "built_at": "2026-11-18T08:13:01+00:00"
+  "built_at": "2026-11-18T09:58:06+00:00"
  },
  "exterior": {
   "tool": "tools/blender/build_727_exterior.py (parts: tools/world/reality/facade_727.py)",
   "asset": "assets/world/key_west/landmarks/kw_727_exterior.glb",
-  "asset_sha256": "415e6498f3879db861092ec05168789bc240999346ca1473ceb28a8d43ada067",
+  "asset_sha256": "6b21157efdb3565f7f5843899479a5bd9a54bee50d8cfbbc691073abe779c924",
   "record": "Legistar 20-6136 permit set 2020, sheets A2.01 (elevations, paint schedule) and A1.03 (plan)",
   "wall_paint": {
    "material": "masonry_stucco",
@@ -1183,8 +1235,42 @@
    "DrainLeader2",
    "DrainLeader3",
    "RoofUnit1",
-   "RoofUnit2"
+   "RoofUnit2",
+   "StorefrontHead",
+   "StorefrontJambW",
+   "StorefrontJambE",
+   "StorefrontMeeting",
+   "FixedLeafMullion",
+   "FixedLeafRail",
+   "FixedLeafBottom",
+   "FixedLeafStop",
+   "SignpostBase",
+   "SignpostPost",
+   "SignTrumanWaterfront",
+   "SignFtZach",
+   "SignFtZachText",
+   "SignBeach",
+   "SignBeachText",
+   "SignAmphitheater",
+   "SignAmphitheaterText",
+   "SignTrumanArrow",
+   "SignTruman1",
+   "SignTruman2",
+   "SignTruman3",
+   "SnowRoof",
+   "SnowParapet",
+   "SnowCanopyFront",
+   "SnowCanopyWest",
+   "SnowCanopyEast",
+   "SnowPlanterFront",
+   "SnowPlanterWest",
+   "SnowPlanterWingEast",
+   "SnowPlanterEast",
+   "SnowServiceCanopyNW",
+   "SnowServiceCanopySE",
+   "SnowRoofUnit1",
+   "SnowRoofUnit2"
   ],
-  "built_at": "2026-11-18T08:13:31+00:00"
+  "built_at": "2026-11-18T09:58:07+00:00"
  }
 }

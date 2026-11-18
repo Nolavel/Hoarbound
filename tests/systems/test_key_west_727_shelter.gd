@@ -51,7 +51,10 @@ func _check_exterior() -> void:
 		_check(exterior.find_child(part + "*", true, false) != null, "exterior has no %s" % part)
 	_check(not exterior.find_children("*", "StaticBody3D", true, false).is_empty(), "planters have no collision")
 	var meshes: int = exterior.find_children("*", "MeshInstance3D", true, false).size()
-	_check(meshes <= 8, "exterior is %d meshes; merge parts per material (one draw call each)" % meshes)
+	## One mesh per material: 15 (the 717 wayfinding post brings five sign colours, plus snow and storefront bronze).
+	_check(meshes <= 15, "exterior is %d meshes; merge parts per material (one draw call each)" % meshes)
+	for part: String in ["Snow", "StorefrontBronze", "SignWhite"]:
+		_check(exterior.find_child(part + "*", true, false) != null, "exterior has no %s" % part)
 	var space: PhysicsDirectSpaceState3D = root.get_world_3d().direct_space_state
 	var ramp: Dictionary = _shelter.interior["entry_ramp"]
 	var at: Vector3 = house.to_global(Vector3(float(ramp["from_uv"][0]), 1.0, float(ramp["from_uv"][1]) + 0.5))
@@ -119,7 +122,25 @@ func _check_nodes() -> void:
 	_check(door != null and zone != null and clinic != null, "door or zones missing")
 	if door == null or zone == null or clinic == null:
 		return
-	_check(door.opening_size.is_equal_approx(Vector2(1.5, 2.25)), "door is not the hut standard: %s" % door.opening_size)
+	## A2.01 NW: 8'-0" x 8'-0" double storefront; the Fort Street leaf opens, hinged on its outer jamb.
+	var storefront: float = 8.0 * 0.3048
+	_check(door.opening_size.distance_to(Vector2(storefront * 0.5, storefront)) < 0.002, "door is not the storefront leaf: %s" % door.opening_size)
+	var leaf: MeshInstance3D = door.door_hinge.get_node_or_null(^"DoorLeaf") as MeshInstance3D
+	var glass: MeshInstance3D = leaf.get_node_or_null(^"DoorGlass") as MeshInstance3D if leaf != null else null
+	_check(leaf != null and absf(leaf.get_aabb().size.x - (storefront * 0.5 - 0.01)) < 0.01, "the leaf is not the storefront leaf")
+	_check(glass != null and glass.material_override == KeyWest727Shelter.FROSTED_GLASS, "the leaf's glass does not frost like the windows")
+	var main: Dictionary = {}
+	for o: Dictionary in _shelter.interior["openings"]:
+		if o["name"] == "MainDoor":
+			main = o
+	var plan_inv: Transform3D = house.global_transform.affine_inverse()
+	var hinge_v: float = (plan_inv * door.door_hinge.global_position).z
+	_check(hinge_v > float(main["centre_uv"][1]) + 0.5, "the leaf is not hinged on its Fort Street jamb (v %.2f)" % hinge_v)
+	var closed_u: float = (plan_inv * leaf.global_transform * leaf.get_aabb().get_center()).x
+	door.door_hinge.rotation.y = deg_to_rad(door.open_angle_deg)
+	var open_u: float = (plan_inv * leaf.global_transform * leaf.get_aabb().get_center()).x
+	door.door_hinge.rotation.y = 0.0
+	_check(open_u < closed_u - 0.3, "the storefront leaf does not swing out (u %.2f -> %.2f)" % [closed_u, open_u])
 	_check(door.breach == zone.get_node_or_null(^"Door"), "door is not wired to the shelter breach")
 	_check(zone.get_node_or_null(^"Stove") is HeatSource, "stove missing from the heated zone")
 	_check(zone.is_interior and clinic.is_interior, "zones must count as indoors")
@@ -171,7 +192,10 @@ func _check_openings() -> void:
 		var hit_open: Dictionary = _ray(space, house, c + out * 1.0, c - out * 1.0)
 		_check(hit_open.is_empty(), "%s opening is blocked at %s" % [o["name"], c])
 		if o["kind"] == "door":
-			_check(not _ray(space, house, c + side + out, c + side - out).is_empty(), "%s has no wall beside it" % o["name"])
+			## The storefront's opening leaf has the fixed leaf on one side, the jamb wall on the other.
+			var walled: bool = not _ray(space, house, c + side + out, c + side - out).is_empty() \
+				or not _ray(space, house, c - side + out, c - side - out).is_empty()
+			_check(walled, "%s has no wall beside it" % o["name"])
 
 
 func _ray(space: PhysicsDirectSpaceState3D, house: Node3D, a: Vector3, b: Vector3) -> Dictionary:

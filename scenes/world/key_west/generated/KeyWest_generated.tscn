@@ -2250,7 +2250,7 @@
 [ext_resource type="PackedScene" path="res://scenes/world/key_west/generated/clusters/Cluster_c128_9_2.scn" id="2248_cd3lk"]
 [ext_resource type="PackedScene" path="res://scenes/world/key_west/generated/clusters/Cluster_c128_9_9.scn" id="2249_rf288"]
 
-[node name="KeyWest" type="Node3D" unique_id=252303556]
+[node name="KeyWest" type="Node3D" unique_id=1405865253]
 metadata/generator = "KeyWestChunkGenerator"
 
 [node name="Chunk_-10_-1" type="Node3D" parent="." unique_id=249655078 instance=ExtResource("1_g20gl")]
@@ -5983,12 +5983,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3328, 0, -1280)
 [node name="Winter" type="Node3D" parent="Chunk_-7_2" unique_id=1999927770 instance=ExtResource("495_miuh3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3328, 0, -1280)
 
-[node name="Chunk_-7_3" type="Node3D" parent="." unique_id=776918436 instance=ExtResource("496_ca2u7")]
+[node name="Chunk_-7_3" type="Node3D" parent="." unique_id=1021148666 instance=ExtResource("496_ca2u7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3328, 0, 1792)
 metadata/chunk_id = "-7:3"
 metadata/fidelity = "corridor"
 metadata/generator_version = "1.0.0"
-metadata/exported_at = "2026-11-18T08:14:45+00:00"
+metadata/exported_at = "2026-11-18T09:58:57+00:00"
 metadata/library = "data/world/key_west/reality/library/key_west_reality.gpkg"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
 metadata/frame = "x east, z south, y NAVD88 metres (config/frame.json); MSL = -0.265"
@@ -5999,28 +5999,28 @@ metadata/hlod_clusters = ["c128_-25_12", "c128_-25_13", "c128_-25_14", "c128_-25
 metadata/centre_local = [-3328.0, 1792.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 
-[node name="Buildings" type="Node3D" parent="Chunk_-7_3" unique_id=2084890494 instance=ExtResource("497_8fjut")]
+[node name="Buildings" type="Node3D" parent="Chunk_-7_3" unique_id=1204607989 instance=ExtResource("497_8fjut")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3328, 0, -1792)
 
-[node name="Roads" type="Node3D" parent="Chunk_-7_3" unique_id=1519002733 instance=ExtResource("498_a1p1r")]
+[node name="Roads" type="Node3D" parent="Chunk_-7_3" unique_id=731504988 instance=ExtResource("498_a1p1r")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3328, 0, -1792)
 
-[node name="Infrastructure" type="Node3D" parent="Chunk_-7_3" unique_id=1542587947 instance=ExtResource("499_h4g2f")]
+[node name="Infrastructure" type="Node3D" parent="Chunk_-7_3" unique_id=857185443 instance=ExtResource("499_h4g2f")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3328, 0, -1792)
 
-[node name="Coastal" type="Node3D" parent="Chunk_-7_3" unique_id=1768596737 instance=ExtResource("500_5nlpa")]
+[node name="Coastal" type="Node3D" parent="Chunk_-7_3" unique_id=1039324415 instance=ExtResource("500_5nlpa")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3328, 0, -1792)
 
-[node name="Vegetation" type="Node3D" parent="Chunk_-7_3" unique_id=1096675817 instance=ExtResource("501_mtfyf")]
+[node name="Vegetation" type="Node3D" parent="Chunk_-7_3" unique_id=1724694323 instance=ExtResource("501_mtfyf")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3328, 0, -1792)
 
-[node name="Barriers" type="Node3D" parent="Chunk_-7_3" unique_id=1445899061 instance=ExtResource("502_wfyip")]
+[node name="Barriers" type="Node3D" parent="Chunk_-7_3" unique_id=1066459198 instance=ExtResource("502_wfyip")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3328, 0, -1792)
 
-[node name="LandUse" type="Node3D" parent="Chunk_-7_3" unique_id=468156755 instance=ExtResource("503_7tu27")]
+[node name="LandUse" type="Node3D" parent="Chunk_-7_3" unique_id=709147365 instance=ExtResource("503_7tu27")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3328, 0, -1792)
 
-[node name="Winter" type="Node3D" parent="Chunk_-7_3" unique_id=681570344 instance=ExtResource("504_r7yo5")]
+[node name="Winter" type="Node3D" parent="Chunk_-7_3" unique_id=1072997190 instance=ExtResource("504_r7yo5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3328, 0, -1792)
 
 [node name="Chunk_-7_4" type="Node3D" parent="." unique_id=1624302052 instance=ExtResource("505_i6ygr")]
@@ -15069,7 +15069,7 @@ metadata/centre_local = [-3136.0, 1472.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w1424884265", "kw:building:osm:w337777089", "kw:building:osm:w339439042", "kw:building:osm:w495360162", "kw:building:osm:w548578073", "kw:building:osm:w548578074", "kw:building:osm:w548579683", "kw:building:osm:w548579684", "kw:building:osm:w548609216", "kw:building:osm:w548609217", "kw:building:osm:w598171368", "kw:building:osm:w598171369", "kw:building:osm:w598171370", "kw:building:osm:w598171378", "kw:building:osm:w598171379", "kw:building:osm:w598171380", "kw:building:osm:w598171381", "kw:building:osm:w598171382", "kw:building:osm:w598171383", "kw:building:osm:w598171384", "kw:building:osm:w598171385", "kw:building:osm:w598171386", "kw:building:osm:w598171387", "kw:building:osm:w598171388", "kw:building:osm:w598171389", "kw:building:osm:w598171397", "kw:building:osm:w598171398", "kw:building:osm:w598171400", "kw:building:osm:w598171402", "kw:building:osm:w689169224", "kw:building:osm:w689169225", "kw:building:osm:w689169226", "kw:building:usa_structures:147837")
 
-[node name="Cluster_c128_-25_12" type="Node3D" parent="." unique_id=830882314 instance=ExtResource("1541_5hv8u")]
+[node name="Cluster_c128_-25_12" type="Node3D" parent="." unique_id=2089696123 instance=ExtResource("1541_5hv8u")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3136, 0, 1600)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15081,7 +15081,7 @@ metadata/centre_local = [-3136.0, 1600.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w339414859", "kw:building:osm:w339414865", "kw:building:osm:w525619951", "kw:building:osm:w547777345", "kw:building:osm:w547777346", "kw:building:osm:w547777347", "kw:building:osm:w547777350", "kw:building:osm:w547777366", "kw:building:osm:w547777368", "kw:building:osm:w547777369", "kw:building:osm:w548578075", "kw:building:osm:w548578076", "kw:building:osm:w548578077", "kw:building:osm:w548578078", "kw:building:osm:w548578080", "kw:building:osm:w548578083", "kw:building:osm:w548578084", "kw:building:osm:w548578087", "kw:building:osm:w548578093", "kw:building:osm:w548578094", "kw:building:osm:w548579686", "kw:building:osm:w548579687", "kw:building:osm:w548579688", "kw:building:osm:w598171366", "kw:building:osm:w598173356", "kw:building:osm:w598173357", "kw:building:osm:w598173358", "kw:building:osm:w598173359", "kw:building:osm:w598173361", "kw:building:osm:w598173362", "kw:building:osm:w598173363", "kw:building:osm:w598173364", "kw:building:osm:w598173365", "kw:building:osm:w598173366", "kw:building:osm:w598173367", "kw:building:osm:w598173368", "kw:building:osm:w598173371", "kw:building:overture:22b84839-5568-4a27-a9cb-8550c940788b", "kw:building:usa_structures:32248452")
 
-[node name="Cluster_c128_-25_13" type="Node3D" parent="." unique_id=833648591 instance=ExtResource("1542_nc4pv")]
+[node name="Cluster_c128_-25_13" type="Node3D" parent="." unique_id=311883708 instance=ExtResource("1542_nc4pv")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3136, 0, 1728)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15093,7 +15093,7 @@ metadata/centre_local = [-3136.0, 1728.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w338225807", "kw:building:osm:w338225808", "kw:building:osm:w524259232", "kw:building:osm:w524259233", "kw:building:osm:w524259234", "kw:building:osm:w524259235", "kw:building:osm:w524259236", "kw:building:osm:w524259237", "kw:building:osm:w524259239", "kw:building:osm:w524259242", "kw:building:osm:w524259243", "kw:building:osm:w524259254", "kw:building:osm:w547291816", "kw:building:osm:w547291817", "kw:building:osm:w547291818", "kw:building:osm:w547777351", "kw:building:osm:w547777352", "kw:building:osm:w547777353", "kw:building:osm:w547777354", "kw:building:osm:w547777355", "kw:building:osm:w547777356", "kw:building:osm:w547777357", "kw:building:osm:w547777358", "kw:building:osm:w547777359", "kw:building:osm:w547777360", "kw:building:osm:w547777362", "kw:building:osm:w547777363", "kw:building:osm:w547777364", "kw:building:osm:w547777365", "kw:building:osm:w548596160", "kw:building:osm:w548596171", "kw:building:osm:w548596172", "kw:building:osm:w548596173", "kw:building:osm:w548596174", "kw:building:osm:w548596175", "kw:building:osm:w562920868", "kw:building:osm:w562920869", "kw:building:osm:w562920871", "kw:building:osm:w562920872", "kw:building:osm:w562920873", "kw:building:osm:w562920874", "kw:building:osm:w562920875", "kw:building:osm:w562920876", "kw:building:osm:w562920877", "kw:building:osm:w562920878", "kw:building:osm:w562920879", "kw:building:osm:w562920880", "kw:building:osm:w585503963", "kw:building:osm:w585503967", "kw:building:osm:w585503989", "kw:building:overture:f38d8583-1b0b-4719-b49e-63fb2f124cf9")
 
-[node name="Cluster_c128_-25_14" type="Node3D" parent="." unique_id=1063309714 instance=ExtResource("1543_hgdal")]
+[node name="Cluster_c128_-25_14" type="Node3D" parent="." unique_id=76778972 instance=ExtResource("1543_hgdal")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3136, 0, 1856)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15105,7 +15105,7 @@ metadata/centre_local = [-3136.0, 1856.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w476100751", "kw:building:osm:w476100752", "kw:building:osm:w476100813", "kw:building:osm:w523733516", "kw:building:osm:w524259227", "kw:building:osm:w524259228", "kw:building:osm:w524259229", "kw:building:osm:w524259230", "kw:building:osm:w524259231", "kw:building:osm:w524259246", "kw:building:osm:w524259251", "kw:building:osm:w524259252", "kw:building:osm:w524259253", "kw:building:osm:w529725367", "kw:building:osm:w529725369", "kw:building:osm:w543178599", "kw:building:osm:w547291814", "kw:building:osm:w547291815", "kw:building:osm:w548596167", "kw:building:osm:w548596168", "kw:building:usa_structures:145924")
 
-[node name="Cluster_c128_-25_15" type="Node3D" parent="." unique_id=1819131583 instance=ExtResource("1544_0gmm8")]
+[node name="Cluster_c128_-25_15" type="Node3D" parent="." unique_id=1132573922 instance=ExtResource("1544_0gmm8")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3136, 0, 1984)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15249,7 +15249,7 @@ metadata/centre_local = [-3264.0, 1472.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w339439045", "kw:building:osm:w339439050", "kw:building:osm:w548608074", "kw:building:osm:w548609184", "kw:building:osm:w548609185", "kw:building:osm:w548609186", "kw:building:osm:w548609187", "kw:building:osm:w548609188", "kw:building:osm:w548609189", "kw:building:osm:w548609190", "kw:building:osm:w548609191", "kw:building:osm:w548609194", "kw:building:osm:w548609195", "kw:building:osm:w548609196", "kw:building:osm:w548609197", "kw:building:osm:w548609198", "kw:building:osm:w548609199", "kw:building:osm:w548609200", "kw:building:osm:w548609201", "kw:building:osm:w548609203", "kw:building:osm:w548609206", "kw:building:osm:w548609207", "kw:building:osm:w548609208", "kw:building:osm:w548609209", "kw:building:osm:w548609210", "kw:building:osm:w548609214", "kw:building:osm:w548609218", "kw:building:osm:w689169227", "kw:building:osm:w689169228", "kw:building:osm:w689169229", "kw:building:osm:w689169230", "kw:building:osm:w689169231", "kw:building:osm:w689169232", "kw:building:osm:w689169233", "kw:building:osm:w689169234", "kw:building:osm:w689169235", "kw:building:osm:w689169236", "kw:building:osm:w689169237")
 
-[node name="Cluster_c128_-26_12" type="Node3D" parent="." unique_id=871715003 instance=ExtResource("1556_nkfvt")]
+[node name="Cluster_c128_-26_12" type="Node3D" parent="." unique_id=801426993 instance=ExtResource("1556_nkfvt")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3264, 0, 1600)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15261,7 +15261,7 @@ metadata/centre_local = [-3264.0, 1600.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w1424884266", "kw:building:osm:w339414855", "kw:building:osm:w339414857", "kw:building:osm:w548608076", "kw:building:osm:w548608077", "kw:building:osm:w548608078", "kw:building:osm:w548608079", "kw:building:osm:w548608080", "kw:building:osm:w548608082", "kw:building:osm:w548608083", "kw:building:osm:w548608084", "kw:building:osm:w548608085", "kw:building:osm:w548608086", "kw:building:osm:w548608094", "kw:building:osm:w548608095", "kw:building:osm:w548608096", "kw:building:osm:w548608097", "kw:building:osm:w548609183", "kw:building:osm:w585504752", "kw:building:osm:w585504753", "kw:building:osm:w585504754", "kw:building:osm:w585504755", "kw:building:osm:w585504756", "kw:building:osm:w585504757", "kw:building:osm:w585504758", "kw:building:osm:w585504759", "kw:building:osm:w585504760", "kw:building:osm:w585504761", "kw:building:osm:w585504762", "kw:building:osm:w585504763", "kw:building:osm:w585504764", "kw:building:osm:w585504765", "kw:building:osm:w585504766", "kw:building:osm:w585504767", "kw:building:osm:w585504768", "kw:building:osm:w585504769", "kw:building:osm:w585507124", "kw:building:osm:w585507125", "kw:building:osm:w585507126", "kw:building:osm:w585507127", "kw:building:osm:w585507128", "kw:building:osm:w585507138", "kw:building:osm:w585507139", "kw:building:osm:w598173354", "kw:building:osm:w598173373", "kw:building:osm:w598173374", "kw:building:osm:w598173375", "kw:building:osm:w598173376")
 
-[node name="Cluster_c128_-26_13" type="Node3D" parent="." unique_id=520237786 instance=ExtResource("1557_yem6v")]
+[node name="Cluster_c128_-26_13" type="Node3D" parent="." unique_id=31486570 instance=ExtResource("1557_yem6v")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3264, 0, 1728)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15273,7 +15273,7 @@ metadata/centre_local = [-3264.0, 1728.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w548596166", "kw:building:osm:w548596169", "kw:building:osm:w585503969", "kw:building:osm:w585503972", "kw:building:osm:w585503976", "kw:building:osm:w585503986", "kw:building:osm:w585503991", "kw:building:osm:w585503994", "kw:building:osm:w585503996", "kw:building:osm:w585503998", "kw:building:osm:w585504001", "kw:building:osm:w585504003", "kw:building:osm:w585504004", "kw:building:osm:w585504005", "kw:building:osm:w585504007", "kw:building:osm:w585504008", "kw:building:osm:w585504009", "kw:building:osm:w585504011", "kw:building:osm:w585504012", "kw:building:osm:w585504014", "kw:building:osm:w585504018", "kw:building:osm:w585504020", "kw:building:osm:w585504021", "kw:building:osm:w585504023", "kw:building:osm:w585504025", "kw:building:osm:w585504027", "kw:building:osm:w585504738", "kw:building:osm:w585504739", "kw:building:osm:w585504740", "kw:building:osm:w585504741", "kw:building:osm:w585504743", "kw:building:osm:w585504744", "kw:building:osm:w585504746", "kw:building:osm:w585504747", "kw:building:osm:w585504750", "kw:building:osm:w585504751", "kw:building:osm:w585507129", "kw:building:osm:w585507130", "kw:building:osm:w585507131", "kw:building:osm:w585507132", "kw:building:osm:w585507133", "kw:building:osm:w585507135")
 
-[node name="Cluster_c128_-26_14" type="Node3D" parent="." unique_id=204360161 instance=ExtResource("1558_yyxrh")]
+[node name="Cluster_c128_-26_14" type="Node3D" parent="." unique_id=1051963583 instance=ExtResource("1558_yyxrh")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3264, 0, 1856)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15285,7 +15285,7 @@ metadata/centre_local = [-3264.0, 1856.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w465788531", "kw:building:osm:w465788533", "kw:building:osm:w465788534", "kw:building:osm:w475307336", "kw:building:osm:w475308041", "kw:building:osm:w543178592", "kw:building:osm:w543178594", "kw:building:osm:w543178595", "kw:building:osm:w543178596", "kw:building:osm:w543178597", "kw:building:osm:w543178598", "kw:building:osm:w543178610", "kw:building:osm:w548596162", "kw:building:osm:w548596163", "kw:building:osm:w548596164", "kw:building:osm:w548596165", "kw:building:usa_structures:32247785", "kw:building:usa_structures:32247816")
 
-[node name="Cluster_c128_-26_15" type="Node3D" parent="." unique_id=940086390 instance=ExtResource("1559_1t2sc")]
+[node name="Cluster_c128_-26_15" type="Node3D" parent="." unique_id=1027223944 instance=ExtResource("1559_1t2sc")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3264, 0, 1984)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15417,7 +15417,7 @@ metadata/centre_local = [-3392.0, 1472.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:citykw:5104", "kw:building:citykw:5142", "kw:building:citykw:9945", "kw:building:citykw:9946", "kw:building:osm:w1424884264", "kw:building:osm:w339439044", "kw:building:osm:w339439048", "kw:building:osm:w339439049", "kw:building:osm:w525619980", "kw:building:osm:w548608066", "kw:building:osm:w548608067", "kw:building:osm:w548608071", "kw:building:osm:w548608072", "kw:building:osm:w548609204", "kw:building:osm:w548609205", "kw:building:osm:w585508573", "kw:building:osm:w585508575", "kw:building:osm:w585508576", "kw:building:osm:w585508577", "kw:building:osm:w585508578", "kw:building:osm:w585508579", "kw:building:osm:w585508580", "kw:building:osm:w585508582", "kw:building:osm:w585508583", "kw:building:osm:w585508584", "kw:building:osm:w585508585", "kw:building:osm:w585508586", "kw:building:osm:w585508587", "kw:building:osm:w585508588", "kw:building:osm:w585508589", "kw:building:osm:w585508590", "kw:building:osm:w585508592", "kw:building:osm:w585508593", "kw:building:osm:w585508594", "kw:building:osm:w585508595", "kw:building:osm:w585508596", "kw:building:osm:w585508597", "kw:building:osm:w585508598", "kw:building:osm:w585508599", "kw:building:osm:w585508600", "kw:building:osm:w585508605", "kw:building:osm:w585508606", "kw:building:osm:w585508607", "kw:building:osm:w585508608", "kw:building:osm:w585508609", "kw:building:osm:w585509928", "kw:building:osm:w585509929", "kw:building:osm:w585509930", "kw:building:osm:w585509931", "kw:building:usa_structures:32248819", "kw:building:usa_structures:32249067")
 
-[node name="Cluster_c128_-27_12" type="Node3D" parent="." unique_id=74297692 instance=ExtResource("1570_7lbwk")]
+[node name="Cluster_c128_-27_12" type="Node3D" parent="." unique_id=190299196 instance=ExtResource("1570_7lbwk")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3392, 0, 1600)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15429,7 +15429,7 @@ metadata/centre_local = [-3392.0, 1600.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:citykw:10004", "kw:building:citykw:5159", "kw:building:citykw:9536", "kw:building:citykw:9537", "kw:building:doc:legistar_21_7769_gym", "kw:building:doc:legistar_21_7769_gym_west", "kw:building:osm:w339414853", "kw:building:osm:w339439046", "kw:building:osm:w475307585", "kw:building:osm:w525619911", "kw:building:osm:w525620113", "kw:building:osm:w525620212", "kw:building:osm:w548608053", "kw:building:osm:w548608055", "kw:building:osm:w548608056", "kw:building:osm:w548608057", "kw:building:osm:w548608058", "kw:building:osm:w548608059", "kw:building:osm:w548608061", "kw:building:osm:w548608062", "kw:building:osm:w548608063", "kw:building:osm:w548608064", "kw:building:osm:w548608065", "kw:building:osm:w548608070", "kw:building:osm:w548608087", "kw:building:osm:w548608088", "kw:building:osm:w548608089", "kw:building:osm:w548608090", "kw:building:osm:w548608091", "kw:building:osm:w548608092", "kw:building:osm:w548608093", "kw:building:osm:w585507140", "kw:building:osm:w585507141", "kw:building:osm:w585507142")
 
-[node name="Cluster_c128_-27_13" type="Node3D" parent="." unique_id=213188185 instance=ExtResource("1571_vbpj5")]
+[node name="Cluster_c128_-27_13" type="Node3D" parent="." unique_id=2030248456 instance=ExtResource("1571_vbpj5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3392, 0, 1728)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15441,7 +15441,7 @@ metadata/centre_local = [-3392.0, 1728.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:citykw:5028", "kw:building:citykw:9527", "kw:building:citykw:9528", "kw:building:citykw:9990", "kw:building:doc:legistar_21_7769_centre_hall", "kw:building:doc:legistar_21_7769_centre_low", "kw:building:osm:w461402963", "kw:building:osm:w543178593", "kw:building:osm:w543178603", "kw:building:osm:w543178604", "kw:building:osm:w543178605", "kw:building:osm:w543178606", "kw:building:osm:w543178607", "kw:building:osm:w543178608", "kw:building:osm:w543178609", "kw:building:osm:w585504028", "kw:building:osm:w585504735", "kw:building:osm:w585507134", "kw:building:osm:w585507136", "kw:building:osm:w585507137", "kw:building:osm:w585507143", "kw:building:osm:w585507144", "kw:building:osm:w585507145", "kw:building:osm:w585507147", "kw:building:osm:w585507148", "kw:building:osm:w585507149", "kw:building:osm:w585507151", "kw:building:osm:w585507152", "kw:building:osm:w585507153", "kw:building:usa_structures:146835", "kw:building:usa_structures:32248048")
 
-[node name="Cluster_c128_-27_14" type="Node3D" parent="." unique_id=1412315424 instance=ExtResource("1572_phot0")]
+[node name="Cluster_c128_-27_14" type="Node3D" parent="." unique_id=666269277 instance=ExtResource("1572_phot0")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3392, 0, 1856)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15453,7 +15453,7 @@ metadata/centre_local = [-3392.0, 1856.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w461402962", "kw:building:osm:w464643514", "kw:building:osm:w478528427", "kw:building:osm:w543178590", "kw:building:osm:w543178591")
 
-[node name="Cluster_c128_-27_15" type="Node3D" parent="." unique_id=49469714 instance=ExtResource("1573_l07sx")]
+[node name="Cluster_c128_-27_15" type="Node3D" parent="." unique_id=399924599 instance=ExtResource("1573_l07sx")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3392, 0, 1984)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15609,7 +15609,7 @@ metadata/centre_local = [-3520.0, 1472.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w475308498", "kw:building:osm:w525619920", "kw:building:osm:w525620029", "kw:building:osm:w548450196", "kw:building:osm:w548450199", "kw:building:osm:w548450203", "kw:building:osm:w585507165", "kw:building:osm:w585507691", "kw:building:osm:w585507692", "kw:building:osm:w585507693", "kw:building:osm:w585507694", "kw:building:osm:w585507695", "kw:building:osm:w585507696", "kw:building:osm:w585507697", "kw:building:osm:w585507698", "kw:building:osm:w585507699", "kw:building:osm:w585507700", "kw:building:osm:w585507701", "kw:building:osm:w585507702", "kw:building:osm:w585507703", "kw:building:osm:w585507704", "kw:building:osm:w585507707", "kw:building:osm:w585507708", "kw:building:osm:w585507709", "kw:building:osm:w585507710", "kw:building:osm:w585507711", "kw:building:osm:w585508571", "kw:building:osm:w585508572", "kw:building:osm:w585508574", "kw:building:osm:w840010255", "kw:building:overture:7693db83-d7d7-4b80-bd20-99e4b220b486", "kw:building:usa_structures:147819")
 
-[node name="Cluster_c128_-28_12" type="Node3D" parent="." unique_id=885163470 instance=ExtResource("1586_17iep")]
+[node name="Cluster_c128_-28_12" type="Node3D" parent="." unique_id=534961895 instance=ExtResource("1586_17iep")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3520, 0, 1600)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15621,7 +15621,7 @@ metadata/centre_local = [-3520.0, 1600.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:citykw:9530", "kw:building:citykw:9531", "kw:building:citykw:9532", "kw:building:citykw:9533", "kw:building:citykw:9534", "kw:building:citykw:9535", "kw:building:citykw:9951", "kw:building:doc:legistar_22_3575_a_fort", "kw:building:doc:legistar_22_3575_b", "kw:building:doc:legistar_22_3575_c_south", "kw:building:osm:w585507154", "kw:building:osm:w585507155", "kw:building:osm:w585507156", "kw:building:osm:w585507158", "kw:building:osm:w585507159", "kw:building:osm:w585507160", "kw:building:osm:w585507161", "kw:building:osm:w585507162", "kw:building:osm:w585507163", "kw:building:osm:w585507164", "kw:building:osm:w585507166", "kw:building:osm:w585507683", "kw:building:osm:w585507684", "kw:building:osm:w585507685", "kw:building:osm:w585507686", "kw:building:osm:w585507687", "kw:building:osm:w585507688", "kw:building:osm:w585507689", "kw:building:osm:w585507690")
 
-[node name="Cluster_c128_-28_13" type="Node3D" parent="." unique_id=652677937 instance=ExtResource("1587_y7n62")]
+[node name="Cluster_c128_-28_13" type="Node3D" parent="." unique_id=1198332299 instance=ExtResource("1587_y7n62")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3520, 0, 1728)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15633,7 +15633,7 @@ metadata/centre_local = [-3520.0, 1728.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w543178602", "kw:building:usa_structures:32248150")
 
-[node name="Cluster_c128_-28_14" type="Node3D" parent="." unique_id=1782889916 instance=ExtResource("1588_55y12")]
+[node name="Cluster_c128_-28_14" type="Node3D" parent="." unique_id=293250441 instance=ExtResource("1588_55y12")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3520, 0, 1856)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"
@@ -15645,7 +15645,7 @@ metadata/centre_local = [-3520.0, 1856.0]
 metadata/placement = "instance at centre_local; children are offset by -centre"
 metadata/source_ids = PackedStringArray("kw:building:osm:w478528424")
 
-[node name="Cluster_c128_-28_15" type="Node3D" parent="." unique_id=349319583 instance=ExtResource("1589_8htgo")]
+[node name="Cluster_c128_-28_15" type="Node3D" parent="." unique_id=1410353212 instance=ExtResource("1589_8htgo")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3520, 0, 1984)
 metadata/chunk_id = "-7:3"
 metadata/library_sha256 = "309efcfbec400cc90f053d9ae6d8c7ca03db31ac6b28b541ab67a1bea0c63802"

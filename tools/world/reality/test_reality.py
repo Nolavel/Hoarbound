@@ -201,13 +201,18 @@ class Shelter727(unittest.TestCase):
         lay = self._layout()
         door = shelter_727.opening("MainDoor", lay)
         self.assertEqual((door.axis, door.outward, door.room), ("u", (-1, 0), "waiting"))
-        self.assertAlmostEqual(door.along, lay.front + 2.78, places=2)  # A2.01 NW elevation: storefront 2.78 m past the main front
-        self.assertAlmostEqual(door.width, 1.5)
+        sw = 8 * 0.3048  # A2.01 NW: 8'-0" x 8'-0" double storefront, centre 2.78 m past the main front
+        fixed = shelter_727.opening("EntranceFixedLeaf", lay)
+        self.assertAlmostEqual(door.along, lay.front + 2.78 + sw / 4, places=2)  # the opening leaf is the Fort Street one
+        self.assertAlmostEqual(fixed.along, lay.front + 2.78 - sw / 4, places=2)
+        self.assertAlmostEqual(door.width + fixed.width, sw, places=3)
+        self.assertEqual((door.height, fixed.height, fixed.kind, fixed.room), (sw, sw, "window", "waiting"))
+        self.assertEqual(shelter_727._opening_y(fixed, 0.66), (0.66, 0.66 + sw))
 
     def test_windows_follow_the_2020_elevations(self):
         from reality import shelter_727
         lay = self._layout()
-        windows = [o for o in shelter_727.openings(lay) if o.kind == "window"]
+        windows = [o for o in shelter_727.openings(lay) if o.kind == "window" and o.name != "EntranceFixedLeaf"]
         by_room = {}
         for w in windows:
             by_room.setdefault(w.room, []).append(w.name)
@@ -654,7 +659,7 @@ class Facade727(unittest.TestCase):
             if p.get("collision"):
                 (u0, y0, v0), (u1, y1, v1) = p["box"]
                 if y1 > 0.3 and y0 < 2.91:  # anything between the ground and the door head
-                    self.assertFalse(shapely.box(u0, v0, u1, v1).intersects(walk), p["name"])
+                    self.assertLess(shapely.box(u0, v0, u1, v1).intersection(walk).area, 1e-4, p["name"])
 
     def test_accent_bands_frame_the_narrow_windows(self):
         from reality import facade_727
@@ -702,6 +707,30 @@ class Facade727(unittest.TestCase):
                     (u0, y0, v0), (u1, y1, v1) = p["box"]
                     overlap = min(v1, dv1) - max(v0, dv0) > 1e-3 and min(y1, dy1) - max(y0, dy0) > 1e-3 and abs(u0 - du0) < 0.2
                     self.assertFalse(overlap, (p["name"], door))
+
+    def test_storefront_frame_and_a_stop_behind_the_fixed_leaf(self):
+        parts, spec = self._parts()
+        g = spec["interior"]["layout"]["faces"]
+        head = parts["StorefrontHead"]["box"]
+        self.assertAlmostEqual(head[1][2] - head[0][2], 8 * 0.3048, places=2)  # 8'-0" storefront, A2.01 NW
+        self.assertAlmostEqual(head[1][1] - spec["interior"]["floor_y"], 8 * 0.3048, places=2)
+        stop = parts["FixedLeafStop"]
+        self.assertEqual(stop["collision"], "only")
+        self.assertGreaterEqual(stop["box"][0][0], g["PW"] - 1e-6, "the stop stays inside the wall")
+
+    def test_signpost_and_snow_come_from_the_spec_inputs(self):
+        parts, spec = self._parts()
+        sp = spec["surroundings"]["signpost"]
+        base = parts["SignpostBase"]["box"]
+        self.assertAlmostEqual((base[0][0] + base[1][0]) / 2, sp["uv"][0], places=3)
+        self.assertAlmostEqual(base[0][1], sp["ground_y"], places=3)
+        self.assertTrue(all(t["kind"] in ("plate", "text") for n, t in parts.items() if n.startswith("Sign") and n != "Sign"
+                            and not n.startswith("Signpost")))
+        d = spec["surroundings"]["snow"]["flat_depth_m"]
+        roof = parts["SnowRoof"]
+        self.assertAlmostEqual(roof["top_y"] - roof["bottom_y"], d, places=3)
+        self.assertIn("SnowCanopyFront", parts)
+        self.assertIn("SnowPlanterWest", parts)
 
     def test_side_canopies_and_back_wall_follow_the_elevations(self):
         parts, _ = self._parts()

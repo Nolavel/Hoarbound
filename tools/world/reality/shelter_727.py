@@ -40,6 +40,9 @@ NARROW_WEST = ((3.25, 3.82), (4.80, 5.37), (6.33, 6.91))  # narrow windows on th
 NARROW_EAST = ((17.92, 18.49), (19.47, 20.04), (21.00, 21.58))  # and east of it
 SIDE_WINDOW = (2.63, 2.47)  # wing's SE side: centre back from the wing front, width (A2.01 SE elevation)
 ENTRANCE_FROM_MAIN_FRONT = 2.78  # storefront entrance on the wing's NW side, centre past the main front (A2.01 NW)
+## A2.01 NW: the entrance is an 8'-0" x 8'-0" double storefront door. The leaf towards Fort Street opens (hinged on
+## its outer jamb); the other leaf is fixed glass.
+STOREFRONT = (8.0 * 0.3048, 8.0 * 0.3048)
 
 
 @dataclass(frozen=True)
@@ -167,6 +170,7 @@ class Opening:
     width: float
     y0: float | None = None  # over the landmark ground; None: from the floor (doors, arches, doorways)
     y1: float | None = None
+    height: float | None = None  # from the floor, when y0 is None; None: the door standard
 
 
 def rooms(lay: Layout) -> list[tuple[str, str, tuple]]:
@@ -185,7 +189,10 @@ def openings(lay: Layout) -> list[Opening]:
     a, f = lay.a, lay.front
     wing_w, wing_e, wing_f = a + PROJ_LEFT, a + PROJ_LEFT + PROJ_W, f + PROJ_D
     mid = WALL_T / 2
-    out = [Opening("MainDoor", "door", "u", wing_w + mid, f + ENTRANCE_FROM_MAIN_FRONT, (-1, 0), "waiting", DOOR[0])]
+    sw, sh = STOREFRONT
+    entrance = f + ENTRANCE_FROM_MAIN_FRONT
+    out = [Opening("MainDoor", "door", "u", wing_w + mid, entrance + sw / 4, (-1, 0), "waiting", sw / 2, height=sh),
+           Opening("EntranceFixedLeaf", "window", "u", wing_w + mid, entrance - sw / 4, (-1, 0), "waiting", sw / 2, height=sh)]
     for k, (x0, x1) in enumerate(FRONT_GROUPS, 1):
         out.append(Opening(f"FrontWindow{k}", "window", "v", wing_f - mid, a + (x0 + x1) / 2, (0, 1), "waiting", x1 - x0, *WINDOW_Y))
     out.append(Opening("SideWindowEast", "window", "u", wing_e - mid, wing_f - SIDE_WINDOW[0], (1, 0), "waiting", SIDE_WINDOW[1], *WINDOW_Y))
@@ -275,7 +282,7 @@ def _opening_y(o: Opening, floor: float) -> tuple[float, float]:
     """Sill and head over the landmark ground: windows as drawn, doors and passages from the floor."""
     if o.y0 is not None:
         return o.y0, o.y1
-    return floor, floor + DOOR[1]
+    return floor, floor + (o.height or DOOR[1])
 
 
 def floor_height(plan: Plan, origin_y: float, ground_at) -> float:
@@ -313,9 +320,9 @@ def build(plan: Plan, wall_top: float, origin_y: float, ground_at) -> tuple[dict
             pane = _opening_rect(o).intersection(shell).centroid
             glass += _box_tris(plan, pane.x, pane.y, (0.02, y1 - y0, o.width) if o.axis == "u" else (o.width, y1 - y0, 0.02), y0)
     door = opening("MainDoor", lay)
-    sill = _opening_rect(door).intersection(shell).centroid
     du, dv = door.outward
-    out_edge = (sill.x + du * WALL_T / 2, sill.y + dv * WALL_T / 2)
+    ## The ramp serves the whole storefront, centred on it, not on the opening leaf.
+    out_edge = (door.at + du * WALL_T / 2, lay.front + ENTRANCE_FROM_MAIN_FRONT)
     foot = (out_edge[0] + du * RAMP_RUN_M, out_edge[1] + dv * RAMP_RUN_M)
     foot_proj = np.asarray(plan.to_projected(shapely.Point(foot)).coords)[:, :2]
     foot_y = float(ground_at(foot_proj)[0])
@@ -338,7 +345,10 @@ def build(plan: Plan, wall_top: float, origin_y: float, ground_at) -> tuple[dict
                    "fit_iou": round(plan.walls.intersection(plan.measured).area / plan.walls.union(plan.measured).area, 3)},
         "floor_y": floor, "floor_method": "max DEM ground inside the walls + %.2f m" % FLOOR_ABOVE_GROUND_M,
         "ceiling_y": round(ceiling, 3), "wall_thickness_m": WALL_T, "partition_thickness_m": PART_T,
-        "door_standard": {"width_m": DOOR[0], "height_m": DOOR[1], "source": "First Exit hut HingedDoor.opening_size"},
+        "door_standard": {"width_m": DOOR[0], "height_m": DOOR[1], "source": "First Exit hut HingedDoor.opening_size (interior doors)"},
+        "entrance": {"storefront_m": [round(STOREFRONT[0], 3), round(STOREFRONT[1], 3)], "active_leaf": "MainDoor",
+                     "fixed_leaf": "EntranceFixedLeaf", "hinge": "outer jamb, towards Fort Street",
+                     "source": "A2.01 NW elevation, double storefront door 8'-0\" x 8'-0\", dark bronze anodized"},
         "window_source": "A2.01 elevations (2020 permit): sill %.2f m, head %.2f m over the ground" % WINDOW_Y,
         "rooms": [{"id": rid, "name": label, "rect_uv": list(r), "heated": rid in HEATED,
                    "area_m2": round(_rect(*r).intersection(inner).area, 1)} for rid, label, r in room_rects],
@@ -407,7 +417,7 @@ def _ramp(plan: Plan, top: tuple[float, float], foot: tuple[float, float], door,
           floor: float) -> list[np.ndarray]:
     """Sloped slab from the ground at the foot up to the floor at the door sill."""
     du, dv = door.outward
-    side = np.array([-dv, du]) * (DOOR[0] / 2 + 0.1)
+    side = np.array([-dv, du]) * (STOREFRONT[0] / 2 + 0.1)
     corners = [np.array(foot) - side, np.array(foot) + side, np.array(top) + side, np.array(top) - side]
     pts = []
     for (u, v), y in zip(corners, [foot_rel_y, foot_rel_y, floor, floor]):

@@ -7,6 +7,8 @@ const TEMPLATE: PackedScene = preload("res://scenes/world/first_exit/first_exit_
 const SPEC_PATH: String = "res://data/world/key_west/reality/landmarks/kw_727_fort_st.json"
 ## The 2020 permit exterior (canopy, planters, sign, parapet) in the plan frame: tools/blender/build_727_exterior.py.
 const EXTERIOR: PackedScene = preload("res://assets/world/key_west/landmarks/kw_727_exterior.glb")
+## The storefront's opening leaf (A2.01 NW): bronze frame with DoorGlass, built by tools/blender/build_727_exterior.py.
+const ENTRANCE_LEAF: PackedScene = preload("res://assets/world/key_west/landmarks/kw_727_entrance_leaf.glb")
 ## Hut ShelterZone space: the zone origin sits this far above the finished floor.
 const ZONE_ABOVE_FLOOR: float = 1.175
 const ZONE_BOX_HEIGHT: float = 2.55
@@ -179,15 +181,42 @@ func _on_heated_warmth(_offset_c: float, zone: ThermalZone) -> void:
 func _place_door(zone: ThermalZone) -> void:
 	var o: Dictionary = _opening("MainDoor")
 	var door: HingedDoor = _house.get_node(^"HouseDoor") as HingedDoor
-	door.transform = Transform3D(_facing(o["outward_uv"]), plan_point(o["centre_uv"], _floor_y + float(o["y1"] - o["y0"]) * 0.5))
+	var base: Transform3D = Transform3D(_facing(o["outward_uv"]), plan_point(o["centre_uv"], _floor_y + float(o["y1"] - o["y0"]) * 0.5))
+	## Turned half round, the hut's hinge side lands on the storefront's outer jamb, towards Fort Street.
+	door.transform = base * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
 	door.opening_size = Vector2(float(o["width_m"]), float(o["y1"]) - float(o["y0"]))
 	door.wall_thickness_m = float(interior["wall_thickness_m"])
+	_fit_storefront_leaf(door)
 	## The clinic's front door swings out, as public buildings' entrances do: from inside Henry walks into
-	## the leaf's back and pushes it open. Owner's call 2026-11-12; a drift outside may one day hold it shut.
-	door.open_angle_deg = -absf(door.open_angle_deg)
+	## the leaf's back and pushes it open. Owner's call 2026-11-12; turned half round, outward is the positive angle.
+	door.open_angle_deg = absf(door.open_angle_deg)
 	var breach: Node3D = zone.get_node(^"Door") as Node3D
 	breach.transform = (Transform3D(Basis(), Vector3(0.0, _zone_y(), 0.0)).affine_inverse()
-		* door.transform * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO))
+		* base * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO))
+
+
+## Swaps the hut's plank leaf for the storefront leaf: its mesh, glass and a collision box of its size.
+func _fit_storefront_leaf(door: HingedDoor) -> void:
+	var leaf: MeshInstance3D = door.door_hinge.get_node(^"DoorLeaf") as MeshInstance3D
+	var source: Node3D = ENTRANCE_LEAF.instantiate() as Node3D
+	var frame: MeshInstance3D = source.get_node(^"DoorLeaf") as MeshInstance3D
+	var glass: MeshInstance3D = frame.get_node(^"DoorGlass") as MeshInstance3D
+	leaf.mesh = frame.mesh
+	frame.remove_child(glass)
+	leaf.add_child(glass)
+	glass.owner = null
+	glass.material_override = FROSTED_GLASS
+	source.free()
+	var bounds: AABB = leaf.mesh.get_aabb()
+	door.door_hinge.position.x = -door.opening_size.x * 0.5
+	leaf.position = Vector3(door.opening_size.x * 0.5, 0.0, 0.0)
+	var shape: CollisionShape3D = leaf.get_node(^"StaticBody3D/CollisionShape3D") as CollisionShape3D
+	var box: BoxShape3D = (shape.shape as BoxShape3D).duplicate() as BoxShape3D
+	box.size = Vector3(bounds.size.x, bounds.size.y, 0.045)
+	shape.shape = box
+	shape.position = bounds.get_center()
+	## Script-owned door subtrees skip the house pass; the frame takes the stylized look here.
+	StylizedEnvironmentMaterial.apply_to_tree(leaf)
 
 
 func _zone_y() -> float:

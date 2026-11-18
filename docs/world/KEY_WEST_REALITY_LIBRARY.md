@@ -505,6 +505,12 @@ the back gutter with three PVC leaders and two roof units. The service doors are
 2026-11-18): a leaf outside and the same leaf inside, no opening and no interaction. Whether one is locked, nailed
 shut or broken is a stage 2 house-state decision.
 
+The entrance is the A2.01 storefront (8'-0" x 8'-0"): `MainDoor` is its Fort Street leaf on the game's HingedDoor
+(leaf asset `kw_727_entrance_leaf.glb`, hinged on the outer jamb), `EntranceFixedLeaf` the fixed glass, a window of
+the waiting room from the floor. The spec's `surroundings` block carries what lies outside the walls: the static
+snow depth (settled depth x Ce from the wind field) and the 717 Fort St wayfinding post (position from the 717
+footprint, ground from the DEM, about 1.5 m).
+
 **Enterable shelter.** `tools/world/reality/shelter_727.py` hollows the measured shell.
 - Fixed elements:
   - 0.25 m walls; 0.12 m partitions;

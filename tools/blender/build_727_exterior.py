@@ -21,6 +21,7 @@ from reality import facade_727  # noqa: E402
 SPEC = os.path.join(ROOT, "data/world/key_west/reality/landmarks/kw_727_fort_st.json")
 SHELL = os.path.join(ROOT, "assets/world/key_west/landmarks/kw_727_fort_st.glb")
 OUT = os.path.join(ROOT, "assets/world/key_west/landmarks/kw_727_exterior.glb")
+LEAF_OUT = os.path.join(ROOT, "assets/world/key_west/landmarks/kw_727_entrance_leaf.glb")
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
 
 
@@ -60,7 +61,23 @@ def _box(part: dict, mat) -> None:
 	for f in ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)):
 		bm.faces.new([verts[i] for i in f])
 	bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-	_object(part["name"] + ("-col" if part["collision"] else ""), bm, mat)
+	_object(part["name"] + {True: "-col", "only": "-colonly"}.get(part["collision"], ""), bm, mat)
+
+
+def _plate(part: dict, mat) -> None:
+	"""A flat board: outline in the (u, y) plane, from v0 to v1 (it faces +v)."""
+	bm = bmesh.new()
+	ring = part["outline_uy"]
+	back = [bm.verts.new(_p(u, y, part["v0"])) for u, y in ring]
+	front = [bm.verts.new(_p(u, y, part["v1"])) for u, y in ring]
+	bm.faces.new(front)
+	bm.faces.new(list(reversed(back)))
+	n = len(ring)
+	for k in range(n):
+		j = (k + 1) % n
+		bm.faces.new([back[k], back[j], front[j], front[k]])
+	bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+	_object(part["name"], bm, mat)
 
 
 def _rod(part: dict, mat) -> None:
@@ -112,16 +129,21 @@ def _text(part: dict, mat) -> None:
 	obj.data.materials.append(mat)
 
 
-## One mesh per material and collision role: about 80 parts would be as many draw calls, these are 8.
+## One mesh per material and collision role, so about 120 parts draw in about 15 calls; other materials take their own name.
 MERGED = {("canopy_steel", True): "Canopy-col", ("canopy_steel", False): "CanopySteel", ("wood_tile", True): "Planters-col",
 	("wood_tile", False): "AccentBands", ("wall_paint", False): "WallTrim", ("sign_red", False): "Sign",
 	("door_paint", False): "ServiceDoors", ("equipment_grey", False): "Equipment"}
 
 
 def _merge(parts: list) -> None:
-	for (material, collision), name in MERGED.items():
+	groups = dict(MERGED)
+	for p in parts:
+		key = (p["material"], p["collision"] is True)
+		if p["collision"] != "only" and key not in groups:
+			groups[key] = "".join(w.title() for w in p["material"].split("_")) + ("-col" if key[1] else "")
+	for (material, collision), name in groups.items():
 		names = [p["name"] + ("-col" if collision and p["kind"] == "box" else "") for p in parts
-			if p["material"] == material and bool(p["collision"]) == collision]
+			if p["material"] == material and (p["collision"] is True) == collision and p["collision"] != "only"]
 		objs = [bpy.data.objects[n] for n in names]
 		if not objs:
 			continue
@@ -135,12 +157,68 @@ def _merge(parts: list) -> None:
 		objs[0].data.name = name
 
 
+LEAF_T = 0.045  # 1-3/4 in storefront leaf
+LEAF_STILE, LEAF_TOP, LEAF_BOTTOM, LEAF_BAR = 0.06, 0.06, 0.2, 0.045  # frame members (standard narrow-stile storefront; inferred)
+
+
+def _leaf_box(bm, x0, x1, y0, y1, z0, z1) -> None:
+	vs = [bm.verts.new((x, -z, y)) for x in (x0, x1) for y in (y0, y1) for z in (z0, z1)]
+	for f in ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)):
+		bm.faces.new([vs[i] for i in f])
+
+
+def _entrance_leaf(spec: dict) -> None:
+	"""The opening leaf of the storefront for HingedDoor: DoorLeaf (bronze frame, 2 x 2 lites, pulls) with DoorGlass.
+
+	Godot frame of the hut leaf: centred, x across the leaf, y up, z through it. The glass carries the frost data the
+	window panes get from landmark_glass_frost.py (UV 0..1 across the pane, COLOR = coverage, heated, seed).
+	"""
+	from reality import landmark_glass_frost as frost
+	bpy.ops.wm.read_factory_settings(use_empty=True)
+	bronze = _material("storefront_bronze", facade_727.STOREFRONT_BRONZE)
+	door = next(o for o in spec["interior"]["openings"] if o["name"] == "MainDoor")
+	w, h = float(door["width_m"]) - 0.01, float(door["y1"]) - float(door["y0"]) - 0.02
+	x0, x1, y0, y1, t = -w / 2, w / 2, -h / 2, h / 2, LEAF_T / 2
+	bm = bmesh.new()
+	_leaf_box(bm, x0, x0 + LEAF_STILE, y0, y1, -t, t)
+	_leaf_box(bm, x1 - LEAF_STILE, x1, y0, y1, -t, t)
+	_leaf_box(bm, x0, x1, y1 - LEAF_TOP, y1, -t, t)
+	_leaf_box(bm, x0, x1, y0, y0 + LEAF_BOTTOM, -t, t)
+	_leaf_box(bm, x0, x1, -LEAF_BAR / 2, LEAF_BAR / 2, -t, t)
+	_leaf_box(bm, -LEAF_BAR / 2, LEAF_BAR / 2, y0, y1, -t, t)
+	for z in (t, -t - 0.06):  # pulls on both faces, by the free edge (+x; the hinge is at -x)
+		_leaf_box(bm, x1 - 0.13, x1 - 0.1, -0.35, 0.35, z, z + 0.06)
+	bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+	_object("DoorLeaf", bm, bronze)
+	glass_mat = bpy.data.materials.new("window_glass")
+	gm = bpy.data.meshes.new("DoorGlass")
+	gx0, gx1, gy0, gy1 = x0 + LEAF_STILE, x1 - LEAF_STILE, y0 + LEAF_BOTTOM, y1 - LEAF_TOP
+	gt = 0.006
+	verts = [(x, -z, y) for x in (gx0, gx1) for y in (gy0, gy1) for z in (-gt, gt)]
+	gm.from_pydata(verts, [], [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)])
+	uv = gm.uv_layers.new(name="UVMap")
+	for loop in gm.loops:  # u across the pane, v = 0 at its top, as landmark_glass_frost.py gives the panes
+		x, _, y = verts[loop.vertex_index]
+		uv.data[loop.index].uv = ((x - gx0) / (gx1 - gx0), (gy1 - y) / (gy1 - gy0))
+	cover = frost.COVERAGE_RANGE[0] + (frost.COVERAGE_RANGE[1] - frost.COVERAGE_RANGE[0]) * frost._unit_hash("MainDoor")
+	col = gm.color_attributes.new("Color", "FLOAT_COLOR", "POINT")
+	for k in range(8):
+		col.data[k].color = (cover, 1.0, frost._unit_hash("MainDoor|seed"), 1.0)
+	gm.materials.append(glass_mat)
+	glass = bpy.data.objects.new("DoorGlass", gm)
+	bpy.context.collection.objects.link(glass)
+	glass.parent = bpy.data.objects["DoorLeaf"]
+	bpy.ops.export_scene.gltf(filepath=LEAF_OUT, export_format="GLB", export_yup=True, export_apply=True,
+		export_vertex_color="ACTIVE")
+	print("727 entrance leaf:", LEAF_OUT, round(w, 3), "x", round(h, 3))
+
+
 def main() -> None:
 	bpy.ops.wm.read_factory_settings(use_empty=True)
 	spec = json.load(open(SPEC, encoding="utf-8"))
 	roof = facade_727.roof_outline_from_glb(SHELL, spec["interior"]["plan_yaw_rad"])
 	mats = {k: _material(k, v) for k, v in facade_727.MATERIALS.items()}
-	build = {"box": _box, "rod": _rod, "prism": _prism, "text": _text}
+	build = {"box": _box, "rod": _rod, "prism": _prism, "text": _text, "plate": _plate}
 	parts = facade_727.parts(spec, roof)
 	blocked = facade_727.covered(spec, parts)
 	if blocked:
@@ -150,6 +228,7 @@ def main() -> None:
 	_merge(parts)
 	bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True, export_apply=True)
 	print("727 exterior:", OUT, len(parts), "parts")
+	_entrance_leaf(spec)
 
 
 if __name__ == "__main__":

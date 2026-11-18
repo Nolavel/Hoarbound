@@ -18,7 +18,7 @@ import shapely
 import triangle
 from scipy import ndimage
 
-from . import PIPELINE_VERSION, frame, lidar, meshing, paths, receipts, shelter_727
+from . import PIPELINE_VERSION, frame, lidar, meshing, paths, receipts, shelter_727, static_snow
 from .assets import MANIFEST, _current_hash
 
 ## Per asset, so a change to one landmark does not rewrite the others' binaries.
@@ -121,9 +121,36 @@ def _shelter_727(s: meshing.Surfaces):
             "measured": {"value_m": round(top, 2), "sources": ["noaa_lidar_9081 2019", "noaa_lidar_6246 2016"]},
             "resolution": "the roof follows the two lidar epochs; the 2020 parapet tops at 16'-2\" (A2.01) in the exterior asset."}],
         "ground_ring_navd88_m": round(ring_ground, 3),
+        "surroundings": _surroundings_727(s, plan, origin, ring_ground),
     }
     nodes = shell_nodes + [{"name": "Roof-col", "surfaces": [dict(roof_mesh, material="roof_membrane")]}]
     return spec, nodes
+
+
+## The wayfinding post beside 727 (owner's Street View from 717 Fort St): past the front corner of 717 towards 727,
+## between that corner and the Fort Street carriageway. Position good to about 1.5 m.
+SIGNPOST_HOUSE = "kw:building:osm:w585507158"  # 717 Fort Street
+SIGNPOST_PAST_CORNER_M = (1.0, 0.9)  # along u towards 727, along v towards Fort Street
+
+
+def _surroundings_727(s: meshing.Surfaces, plan, origin: list[float], ring_ground: float) -> dict:
+    """Inputs of the 727 exterior that come from outside the walls: static roof snow and the 717 wayfinding post."""
+    cfg = static_snow.settings()
+    wind = static_snow.WindField(cfg["wind_field"])
+    shelter = wind.shelter(origin[0], origin[2])
+    exposure = cfg["exposure_open"] + (cfg["exposure_sheltered"] - cfg["exposure_open"]) * shelter
+    house = plan.to_plan(frame.to_local(_library_polygon(SIGNPOST_HOUSE)))
+    corner = max(house.exterior.coords, key=lambda c: c[0] + c[1])  # the front corner facing 727
+    uv = (corner[0] + SIGNPOST_PAST_CORNER_M[0], corner[1] + SIGNPOST_PAST_CORNER_M[1])
+    at = np.asarray(plan.to_projected(shapely.Point(uv)).coords)[:, :2]
+    return {
+        "snow": {"flat_depth_m": round(cfg["settled_depth_m"] * exposure, 3), "exposure": round(exposure, 3), "shelter": round(shelter, 3),
+                 "repose_deg": cfg["repose_deg"], "settled_depth_m": cfg["settled_depth_m"],
+                 "method": "static_snow config: settled depth x Ce from the city wind field (flat roofs: Cs 1, no unbalance)"},
+        "signpost": {"uv": [round(uv[0], 3), round(uv[1], 3)], "ground_y": round(float(s.ground_at(at)[0]) - ring_ground, 3),
+                     "accuracy_m": 1.5, "anchor": SIGNPOST_HOUSE,
+                     "method": "past the front corner of 717 Fort St (OSM) towards 727; seen in the owner's Street View (visual)"},
+    }
 
 
 def _fort_taylor(s: meshing.Surfaces):

@@ -19,10 +19,19 @@ WALL_PAINT = (227, 201, 161)  # SW 7691 (sold as Biltmore Buff, now Pale Yellow)
 CANOPY_STEEL = (98, 63, 69)  # SW 0072 Deep Maroon: steel canopy, rods, exterior doors and frames
 WOOD_TILE = (114, 72, 51)  # "wood pattern" porcelain slats: sampled from the A2.01 material swatch
 SIGN_RED = (150, 32, 32)  # sign letters: estimated from the 2025 panorama
+STOREFRONT_BRONZE = (64, 52, 42)  # A2.01 schedule item 4: dark bronze anodized frames (anodizers' dark bronze, estimated)
+SNOW = (204, 212, 224)  # the generator's static snow colour (key_west_chunk_builder STATIC_SNOW_COLOR)
+SIGN_WHITE = (228, 228, 222)  # 717 wayfinding post: colours estimated from the owner's Street View (visual)
+SIGN_YELLOW = (232, 196, 60)
+SIGN_GREEN = (172, 196, 48)
+SIGN_ORANGE = (226, 160, 56)
+SIGN_INK = (64, 58, 52)
 DOOR_PAINT = (236, 226, 200)  # service doors as built: cream, not the scheduled SW 0072 (2025 Street View, visual)
 EQUIPMENT_GREY = (150, 152, 150)  # electric service and roof units: estimated
 MATERIALS = {"wall_paint": WALL_PAINT, "canopy_steel": CANOPY_STEEL, "wood_tile": WOOD_TILE, "sign_red": SIGN_RED,
-             "door_paint": DOOR_PAINT, "equipment_grey": EQUIPMENT_GREY}
+             "door_paint": DOOR_PAINT, "equipment_grey": EQUIPMENT_GREY, "storefront_bronze": STOREFRONT_BRONZE, "snow": SNOW,
+             "sign_white": SIGN_WHITE, "sign_yellow": SIGN_YELLOW, "sign_green": SIGN_GREEN, "sign_orange": SIGN_ORANGE,
+             "sign_ink": SIGN_INK}
 
 CANOPY_Y = 10.5 * FT  # A2.01 front elevation: underside of the canopy 10'-6" over ground (scaled)
 CANOPY_DEPTH = 5.0 * FT  # A1.03 plan: line of canopy 5'-0" past the walls
@@ -55,10 +64,14 @@ GUTTER_D = 0.2  # inferred
 ## A2.01 back elevation: two roof units behind the parapet (dashed), metres from the SE end; 1.23 m square, top 1 m over it.
 ROOF_UNITS = (7.31, 19.80)
 ROOF_UNIT_W = 1.23
+TEXT_ADVANCE = 0.95  # DejaVu Serif Bold capitals: mean advance in cap heights (fits a word to its board)
+FRAME_W = 0.05  # storefront frame face (2 in, standard storefront framing; inferred)
+FRAME_PROUD = 0.03
 SIGN_TEXT = "KEY WEST HEALTH CENTER"  # as built (2025 panorama); A2.01 drew a CHI sign "as per signage permit"
 SIGN_Y = 4.35  # centre of the A2.01 sign band (12'-8" to 16'-2"), scaled
 SIGN_CAP_H = 0.4  # letter height: estimated from the 2025 panorama
 COVER_REACH = 0.4  # a part this close in front of an opening blocks it
+REACH_FROM = 0.2  # measured from the wall's centre line: past the face and any frame on it
 
 
 def _box(name, material, u0, y0, v0, u1, y1, v1, source, collision=False) -> dict:
@@ -120,7 +133,8 @@ def parts(spec: dict, roof_outline) -> list[dict]:
     out.append({"name": "Sign", "kind": "text", "material": "sign_red", "collision": False, "text": SIGN_TEXT,
                 "centre": [round((w0 + w1) / 2, 4), SIGN_Y, round(p + 0.02, 4)], "cap_h": SIGN_CAP_H,
                 "source": "built sign per the 2025 panorama (visual); A2.01 sign band"})
-    return out + _strips(spec) + _side_rods(spec) + _ends(spec) + _back(spec, roof_top)
+    return (out + _strips(spec) + _side_rods(spec) + _ends(spec) + _back(spec, roof_top) + _storefront(spec)
+            + _signpost(spec) + _snow(spec, out, roof_outline, roof_top))
 
 
 def _side_rods(spec: dict) -> list[dict]:
@@ -198,6 +212,98 @@ def _back(spec: dict, roof_top: float) -> list[dict]:
     return out
 
 
+def _storefront(spec: dict) -> list[dict]:
+    """A2.01 NW: bronze frame of the double storefront, the fixed leaf's 2 x 2 lites and a stop behind its glass.
+
+    The opening leaf is its own asset (kw_727_entrance_leaf.glb) on the game's HingedDoor; this is what stays put.
+    """
+    ops = {o["name"]: o for o in spec["interior"]["openings"]}
+    door, fixed = ops["MainDoor"], ops["EntranceFixedLeaf"]
+    face, floor = _faces(spec)["PW"], spec["interior"]["floor_y"]
+    v_lo = fixed["centre_uv"][1] - fixed["width_m"] / 2
+    v_hi = door["centre_uv"][1] + door["width_m"] / 2
+    top = door["y1"]
+    u0, u1 = face - FRAME_PROUD, face
+    src = "A2.01 NW: 8'-0\" x 8'-0\" storefront, dark bronze anodized frame"
+    out = [_box("StorefrontHead", "storefront_bronze", u0, top - FRAME_W, v_lo, u1, top, v_hi, src),
+           _box("StorefrontJambW", "storefront_bronze", u0, floor, v_lo, u1, top, v_lo + FRAME_W, src),
+           _box("StorefrontJambE", "storefront_bronze", u0, floor, v_hi - FRAME_W, u1, top, v_hi, src),
+           _box("StorefrontMeeting", "storefront_bronze", u0, floor, fixed["centre_uv"][1] + fixed["width_m"] / 2 - FRAME_W / 2,
+                u1, top, fixed["centre_uv"][1] + fixed["width_m"] / 2 + FRAME_W / 2, src)]
+    fv = fixed["centre_uv"][1]
+    mid = (floor + top) / 2
+    out += [_box("FixedLeafMullion", "storefront_bronze", u0, floor, fv - FRAME_W / 2, u1, top, fv + FRAME_W / 2, "A2.01 NW: fixed leaf, 2 x 2 lites"),
+            _box("FixedLeafRail", "storefront_bronze", u0, mid - FRAME_W / 2, v_lo, u1, mid + FRAME_W / 2, fv + fixed["width_m"] / 2, "A2.01 NW: fixed leaf, 2 x 2 lites"),
+            _box("FixedLeafBottom", "storefront_bronze", u0, floor, v_lo, u1, floor + 0.2, fv + fixed["width_m"] / 2, "storefront bottom rail (inferred)")]
+    stop = _box("FixedLeafStop", "storefront_bronze", face, floor, v_lo, face + 0.25, top, fv + fixed["width_m"] / 2,
+                "keeps Henry out of the fixed leaf's floor-to-head glass")
+    stop["collision"] = "only"
+    return out + [stop]
+
+
+def _signpost(spec: dict) -> list[dict]:
+    """The wayfinding post beside 727 (owner's Street View from 717 Fort St): white post, four boards facing Fort Street.
+
+    Sizes are scaled from the photo by the post's base (about 0.3 m wide); the arrows point north-west along Fort Street.
+    """
+    at = spec["surroundings"]["signpost"]
+    (u, v), g = at["uv"], at["ground_y"]
+    src = "717 Fort St wayfinding post, owner's Street View 2025 (visual); position %s" % at["method"]
+    out = [_box("SignpostBase", "sign_white", u - 0.15, g, v - 0.12, u + 0.15, g + 0.5, v + 0.12, src),
+           _box("SignpostPost", "sign_white", u - 0.045, g + 0.5, v - 0.045, u + 0.045, g + 1.5, v + 0.045, src)]
+    face = v + 0.05
+    ## Boards from the top: (name, material, left, right, bottom, top, arrow tip on the left, text, text colour)
+    boards = (("TrumanWaterfront", "sign_white", -0.22, 0.32, 1.17, 1.48, False, None, None),
+              ("FtZach", "sign_green", -0.42, 0.26, 1.02, 1.15, True, "Ft ZACH", "sign_ink"),
+              ("Beach", "sign_orange", -0.40, 0.26, 0.86, 1.01, True, "BEACH", "sign_ink"),
+              ("Amphitheater", "sign_white", -0.24, 0.46, 0.68, 0.84, False, "AMPHITHEATER", "sign_ink"))
+    for name, mat, l, r, b, t, tip, text, ink in boards:
+        x0, x1, y0, y1 = u + l, u + r, g + b, g + t
+        ring = [[x0 + (0.1 if tip else 0.0), y0], [x1, y0], [x1, y1], [x0 + (0.1 if tip else 0.0), y1]]
+        if tip:
+            ring.insert(0, [x0, (y0 + y1) / 2])
+        out.append({"name": f"Sign{name}", "kind": "plate", "material": mat, "collision": False, "outline_uy": ring,
+                    "v0": round(face, 4), "v1": round(face + 0.025, 4), "source": src})
+        if text:
+            out.append({"name": f"Sign{name}Text", "kind": "text", "material": ink, "collision": False, "text": text,
+                        "centre": [round((x0 + x1) / 2 + (0.05 if tip else 0.0), 4), round((y0 + y1) / 2, 4), round(face + 0.03, 4)],
+                        "cap_h": round(min((y1 - y0) * 0.55, (x1 - x0 - 0.12) / (TEXT_ADVANCE * len(text))), 3), "source": src})
+    ## The Truman Waterfront board: a yellow arrow up and to the left, the words to its right.
+    x0, y0 = u - 0.20, g + 1.19
+    arrow = [[x0, y0 + 0.24], [x0 + 0.14, y0 + 0.24], [x0 + 0.09, y0 + 0.19], [x0 + 0.2, y0 + 0.06], [x0 + 0.16, y0 + 0.02],
+             [x0 + 0.05, y0 + 0.15], [x0, y0 + 0.10]]
+    out.append({"name": "SignTrumanArrow", "kind": "plate", "material": "sign_yellow", "collision": False, "outline_uy": arrow,
+                "v0": round(face + 0.025, 4), "v1": round(face + 0.032, 4), "source": src})
+    for k, word in enumerate(("TRUMAN", "WATER", "FRONT")):
+        out.append({"name": f"SignTruman{k + 1}", "kind": "text", "material": "sign_ink", "collision": False, "text": word,
+                    "centre": [round(u + 0.17, 4), round(g + 1.42 - 0.09 * k, 4), round(face + 0.03, 4)], "cap_h": 0.055, "source": src})
+    return out
+
+
+def _snow(spec: dict, base: list[dict], roof_outline, roof_top: float) -> list[dict]:
+    """Static winter snow on what holds it: the roof inside the parapet, the parapet top, canopies, planters, roof units.
+
+    Same rule as the generator's roof caps (static_snow): flat surfaces carry settled depth x Ce; narrow tops a ridge at repose.
+    """
+    snow = spec["surroundings"]["snow"]
+    d = snow["flat_depth_m"]
+    src = "static snow: " + snow["method"]
+    inner = roof_outline.buffer(-PARAPET_T, join_style="mitre")
+    ring = roof_outline.difference(inner)
+    rise = min(snow["settled_depth_m"], PARAPET_T / 2 * math.tan(math.radians(snow["repose_deg"])))
+    rings = lambda g: [list(map(lambda c: [round(c[0], 4), round(c[1], 4)], r.coords)) for r in [g.exterior, *g.interiors]]
+    out = [{"name": "SnowRoof", "kind": "prism", "material": "snow", "collision": False, "source": src, "polygon_uv": rings(inner),
+            "bottom_y": round(roof_top, 4), "top_y": round(roof_top + d, 4)},
+           {"name": "SnowParapet", "kind": "prism", "material": "snow", "collision": False, "source": src + "; ridge at repose",
+            "polygon_uv": rings(ring), "bottom_y": round(PARAPET_TOP, 4), "top_y": round(PARAPET_TOP + rise, 4)}]
+    holders = [p for p in base + _ends(spec) + _back(spec, roof_top)
+               if p["kind"] == "box" and (p["name"].startswith(("Canopy", "Planter", "ServiceCanopy", "RoofUnit")))]
+    for p in holders:
+        (u0, _, v0), (u1, y1, v1) = p["box"]
+        out.append(_box(f"Snow{p['name']}", "snow", u0, y1, v0, u1, y1 + d, v1, src))
+    return out
+
+
 def covered(spec: dict, part_list: list[dict]) -> list[tuple[str, str]]:
     """(part, opening) pairs where a box stands in front of an opening; the build refuses any."""
     hits = []
@@ -207,11 +313,11 @@ def covered(spec: dict, part_list: list[dict]) -> list[tuple[str, str]]:
         (cu, cv), (du, dv), hw = o["centre_uv"], o["outward_uv"], o["width_m"] / 2
         if du == 0 and dv == 0:
             continue
-        ## Footprint just outside the opening: along the wall +-hw, outward from the wall face up to COVER_REACH.
+        ## Footprint just outside the opening: along the wall +-hw, from past its frame out to COVER_REACH.
         if dv:
-            (a, b), (c, d) = (cu - hw, cu + hw), sorted((cv + 0.15 * dv, cv + (0.15 + COVER_REACH) * dv))
+            (a, b), (c, d) = (cu - hw, cu + hw), sorted((cv + REACH_FROM * dv, cv + (REACH_FROM + COVER_REACH) * dv))
         else:
-            (a, b), (c, d) = sorted((cu + 0.15 * du, cu + (0.15 + COVER_REACH) * du)), (cv - hw, cv + hw)
+            (a, b), (c, d) = sorted((cu + REACH_FROM * du, cu + (REACH_FROM + COVER_REACH) * du)), (cv - hw, cv + hw)
         reach = shapely.box(a, c, b, d)
         for p in part_list:
             if p["kind"] != "box":

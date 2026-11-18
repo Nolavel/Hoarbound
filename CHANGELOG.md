@@ -6,6 +6,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (Key West: 727 storefront entrance, 717 wayfinding post, roof snow)
+
+- **Entrance as drawn:** the hut's plank door is replaced by the A2.01 NW storefront: 8'-0" x 8'-0", two leaves of 2 x 2 lites in dark bronze. The Fort Street leaf opens (HingedDoor, hinged on its outer jamb, still swinging out); the other is fixed glass, a heated-room pane down to the floor with an invisible stop behind it. The leaf's glass frosts like the windows. The ramp now spans the whole storefront. Built by `tools/blender/build_727_exterior.py` as `kw_727_entrance_leaf.glb`.
+- **717 Fort St wayfinding post** (owner's Street View): white post with TRUMAN WATERFRONT, Ft ZACH, BEACH and AMPHITHEATER boards facing Fort Street, arrows north-west. Placed 1 m past the front corner of 717 (OSM w585507158) towards 727, between the house and the carriageway, on the DEM ground; good to about 1.5 m. Sizes and colours are scaled from the photo.
+- **Static snow on 727:** the roof inside the parapet, the parapet ridge, canopies, service canopies, planters and roof units. Same rule as the generator's roof caps: settled depth 0.25 m x Ce from the city wind field (here 1.2, so 0.30 m); narrow tops take the repose ridge.
+- **Not built:** the bike rack by the west planter. The owner's shots do not show whether its hoops run along the wall or across it, nor whether there are 4 or 5.
+- The exterior is 15 meshes, one per material (the post adds five sign colours, plus snow and bronze).
+
 ### Changed (Key West: 727 Fort St ends, back and side canopies from A2.01)
 
 - **Ends of the main block:** wood bands (NW 4, SE 3 plus the wide door panel) and a service door under a small steel canopy at each end, cut into its band. The SE end carries the relocated electric service (the meters in the owner's Street View from 101 Petronia St).
