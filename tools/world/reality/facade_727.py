@@ -19,7 +19,10 @@ WALL_PAINT = (227, 201, 161)  # SW 7691 (sold as Biltmore Buff, now Pale Yellow)
 CANOPY_STEEL = (98, 63, 69)  # SW 0072 Deep Maroon: steel canopy, rods, exterior doors and frames
 WOOD_TILE = (114, 72, 51)  # "wood pattern" porcelain slats: sampled from the A2.01 material swatch
 SIGN_RED = (150, 32, 32)  # sign letters: estimated from the 2025 panorama
-MATERIALS = {"wall_paint": WALL_PAINT, "canopy_steel": CANOPY_STEEL, "wood_tile": WOOD_TILE, "sign_red": SIGN_RED}
+DOOR_PAINT = (236, 226, 200)  # service doors as built: cream, not the scheduled SW 0072 (2025 Street View, visual)
+EQUIPMENT_GREY = (150, 152, 150)  # electric service and roof units: estimated
+MATERIALS = {"wall_paint": WALL_PAINT, "canopy_steel": CANOPY_STEEL, "wood_tile": WOOD_TILE, "sign_red": SIGN_RED,
+             "door_paint": DOOR_PAINT, "equipment_grey": EQUIPMENT_GREY}
 
 CANOPY_Y = 10.5 * FT  # A2.01 front elevation: underside of the canopy 10'-6" over ground (scaled)
 CANOPY_DEPTH = 5.0 * FT  # A1.03 plan: line of canopy 5'-0" past the walls
@@ -34,6 +37,24 @@ PLANTER_FRONT_D = 1.9 * FT  # A1.03: planter strip along the wing front (scaled)
 PLANTER_SIDE_D = 1.5 * FT  # A1.03: planter strips along the main front and the wing's east side (scaled)
 STRIP_W = 3.33 * FT  # A2.01: each wood-pattern band is about 3'-4" wide and frames one narrow window
 STRIP_PROUD = 0.03  # porcelain slats on the wall face
+ROD_SIDE_FT = (1.5, 8.7, 15.8)  # A2.01 NW/SE: side canopy rods, feet from the main front corner (scaled)
+## A2.01 side elevations, metres along each end of the main block (scaled; NW from the back corner, SE from the front one).
+END_BANDS = {"NW": ((3.68, 5.33), (6.57, 7.56), (8.12, 9.11), (9.67, 10.66)),
+             "SE": ((0.33, 1.33), (1.89, 2.87), (3.44, 4.42), (5.66, 8.34))}  # the last SE one is the door panel
+SERVICE_DOOR = {"NW": (3.90, 4.91), "SE": (6.08, 7.08)}  # door leaves; both scale to about 7'-0" high
+SERVICE_DOOR_H = 7.0 * FT
+SERVICE_CANOPY = {"NW": ((3.63, 5.37), 2.46), "SE": ((5.61, 8.39), 2.50)}  # span along the end, underside over ground
+SERVICE_CANOPY_DEPTH = 0.9  # not drawn in plan: inferred from the 2025 Street View (visual)
+ELECTRIC_SERVICE = ((7.36, 8.06), (1.24, 2.27))  # A2.01 SE "relocated el. service": along the end, over ground
+EQUIPMENT_PROUD = 0.25  # inferred
+DOOR_PROUD = 0.04  # leaf and frame over the wall face
+## A2.01 back elevation: three 6" PVC leaders (metres from the SE end) under a fibreglass collecting gutter.
+DRAIN_LEADERS = (0.21, 13.23, 26.17)
+GUTTER_Y = (3.99, 4.41)
+GUTTER_D = 0.2  # inferred
+## A2.01 back elevation: two roof units behind the parapet (dashed), metres from the SE end; 1.23 m square, top 1 m over it.
+ROOF_UNITS = (7.31, 19.80)
+ROOF_UNIT_W = 1.23
 SIGN_TEXT = "KEY WEST HEALTH CENTER"  # as built (2025 panorama); A2.01 drew a CHI sign "as per signage permit"
 SIGN_Y = 4.35  # centre of the A2.01 sign band (12'-8" to 16'-2"), scaled
 SIGN_CAP_H = 0.4  # letter height: estimated from the 2025 panorama
@@ -99,7 +120,82 @@ def parts(spec: dict, roof_outline) -> list[dict]:
     out.append({"name": "Sign", "kind": "text", "material": "sign_red", "collision": False, "text": SIGN_TEXT,
                 "centre": [round((w0 + w1) / 2, 4), SIGN_Y, round(p + 0.02, 4)], "cap_h": SIGN_CAP_H,
                 "source": "built sign per the 2025 panorama (visual); A2.01 sign band"})
-    return out + _strips(spec)
+    return out + _strips(spec) + _side_rods(spec) + _ends(spec) + _back(spec, roof_top)
+
+
+def _side_rods(spec: dict) -> list[dict]:
+    """A2.01 NW/SE: three tie rods on each side canopy, wing wall to the canopy's outer edge."""
+    g = _faces(spec)
+    top = CANOPY_Y + CANOPY_T
+    out = []
+    for side, wall, edge in (("W", g["PW"], g["PW"] - CANOPY_SIDE), ("E", g["PE"], g["PE"] + CANOPY_SIDE)):
+        for k, at in enumerate(ROD_SIDE_FT, 1):
+            v = g["F"] + at * FT
+            out.append({"name": f"CanopyRod{side}{k}", "kind": "rod", "material": "canopy_steel", "collision": False,
+                        "from": [round(wall, 4), round(ROD_FROM_Y, 4), round(v, 4)], "to": [round(edge, 4), round(top, 4), round(v, 4)],
+                        "radius": 0.03, "source": "A2.01 side elevations, canopy tie rods"})
+    return out
+
+
+def _ends(spec: dict) -> list[dict]:
+    """Both ends of the main block (A2.01 NW and SE): bands cut around a closed service door, its canopy, the SE meters.
+
+    The doors stay shut walls in the game (owner 2026-11-18); a matching leaf on the inside face keeps the two views agreeing.
+    """
+    g, lines, floor = _faces(spec), spec["interior"]["layout"]["lines"], spec["interior"]["floor_y"]
+    out = []
+    for end, face, inner, out_dir, to_v in (("NW", g["W"], lines["W"], -1.0, lambda d: g["B"] + d),
+                                            ("SE", g["E"], lines["E"], 1.0, lambda d: g["F"] - d)):
+        span = lambda a, b: sorted((to_v(a), to_v(b)))
+        d0, d1 = SERVICE_DOOR[end]
+        door_v = span(d0, d1)
+        skin = (face, face + out_dir * STRIP_PROUD)
+        for k, (a, b) in enumerate(END_BANDS[end], 1):
+            v0, v1 = span(a, b)
+            src = f"A2.01 {end} side elevation, wood-pattern band"
+            if v0 < door_v[1] and v1 > door_v[0]:
+                pieces = ((v0, door_v[0], 0.0), (door_v[1], v1, 0.0), (door_v[0], door_v[1], SERVICE_DOOR_H))
+                for tag, (pa, pb, y0) in zip("LRT", pieces):
+                    out.append(_box(f"EndBand{end}{k}{tag}", "wood_tile", skin[0], y0, pa, skin[1], PARAPET_TOP, pb, src))
+            else:
+                out.append(_box(f"EndBand{end}{k}", "wood_tile", skin[0], 0.0, v0, skin[1], PARAPET_TOP, v1, src))
+        src = f"A2.01 {end} side elevation, service door (closed in the game)"
+        out.append(_box(f"ServiceDoor{end}", "door_paint", face, 0.0, door_v[0], face + out_dir * DOOR_PROUD, SERVICE_DOOR_H, door_v[1], src))
+        out.append(_box(f"ServiceDoor{end}Inside", "door_paint", inner, floor, door_v[0], inner - out_dir * DOOR_PROUD,
+                        floor + SERVICE_DOOR_H, door_v[1], "inside face of the closed service door (game)"))
+        (c0, c1), under = SERVICE_CANOPY[end]
+        cv0, cv1 = span(c0, c1)
+        tip = face + out_dir * SERVICE_CANOPY_DEPTH
+        out.append(_box(f"ServiceCanopy{end}", "canopy_steel", face, under, cv0, tip, under + 0.12, cv1,
+                        f"A2.01 {end}: steel canopy over the service door; depth from the 2025 Street View"))
+        for k, v in enumerate((cv0 + 0.15, cv1 - 0.15), 1):
+            out.append({"name": f"ServiceCanopy{end}Rod{k}", "kind": "rod", "material": "canopy_steel", "collision": False,
+                        "from": [round(face, 4), round(under + 0.7, 4), round(v, 4)], "to": [round(tip, 4), round(under + 0.12, 4), round(v, 4)],
+                        "radius": 0.02, "source": "service canopy hangers, 2025 Street View (visual)"})
+    (e0, e1), (ey0, ey1) = ELECTRIC_SERVICE
+    ev = sorted((g["F"] - e0, g["F"] - e1))
+    out.append(_box("ElectricServiceSE", "equipment_grey", g["E"] + STRIP_PROUD, ey0, ev[0], g["E"] + EQUIPMENT_PROUD, ey1, ev[1],
+                    "A2.01 SE: relocated electric service; meters in the 2025 Street View"))
+    return out
+
+
+def _back(spec: dict, roof_top: float) -> list[dict]:
+    """A2.01 back elevation: gutter under the parapet, three PVC leaders, two roof units behind the parapet."""
+    g = _faces(spec)
+    b, e = g["B"], g["E"]
+    out = [_box("BackGutter", "wall_paint", g["W"], GUTTER_Y[0], b - GUTTER_D, e, GUTTER_Y[1], b,
+                "A2.01 back elevation: fibreglass collecting gutter; depth inferred")]
+    for k, at in enumerate(DRAIN_LEADERS, 1):
+        u = e - at
+        out.append({"name": f"DrainLeader{k}", "kind": "rod", "material": "wall_paint", "collision": False,
+                    "from": [round(u, 4), 0.0, round(b - 0.1, 4)], "to": [round(u, 4), GUTTER_Y[0], round(b - 0.1, 4)],
+                    "radius": 0.076, "source": "A2.01 back elevation: 6 in PVC drain leader"})
+    mid = (b + g["F"]) / 2
+    for k, at in enumerate(ROOF_UNITS, 1):
+        u, h = e - at, ROOF_UNIT_W / 2
+        out.append(_box(f"RoofUnit{k}", "equipment_grey", u - h, roof_top, mid - h, u + h, PARAPET_TOP + 1.0, mid + h,
+                        "A2.01 back elevation: roof unit (position along the block); across the roof inferred mid-depth"))
+    return out
 
 
 def covered(spec: dict, part_list: list[dict]) -> list[tuple[str, str]]:

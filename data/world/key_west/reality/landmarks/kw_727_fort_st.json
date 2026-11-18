@@ -1015,7 +1015,7 @@
  "ground_ring_navd88_m": 1.23,
  "landmark_version": "kw_landmark.3",
  "pipeline_version": "1.0.0",
- "built_at": "2026-11-18T07:13:56+00:00",
+ "built_at": "2026-11-18T08:13:01+00:00",
  "asset": "assets/world/key_west/landmarks/kw_727_fort_st.glb",
  "asset_sha256": "02d0b4304e253bb034da257d01dcd3b7305d73c1626df7f261beb80a2e90012e",
  "triangles": 1084,
@@ -1088,12 +1088,12 @@
     "vertices": 36
    }
   },
-  "built_at": "2026-11-18T07:13:57+00:00"
+  "built_at": "2026-11-18T08:13:01+00:00"
  },
  "exterior": {
   "tool": "tools/blender/build_727_exterior.py (parts: tools/world/reality/facade_727.py)",
   "asset": "assets/world/key_west/landmarks/kw_727_exterior.glb",
-  "asset_sha256": "f8f30d0073b95b19ed2811c5c061cbda7ad53e5e4d59870f2d56c5df9f2d1756",
+  "asset_sha256": "415e6498f3879db861092ec05168789bc240999346ca1473ceb28a8d43ada067",
   "record": "Legistar 20-6136 permit set 2020, sheets A2.01 (elevations, paint schedule) and A1.03 (plan)",
   "wall_paint": {
    "material": "masonry_stucco",
@@ -1148,8 +1148,43 @@
    "AccentStripE3L",
    "AccentStripE3R",
    "AccentStripE3B",
-   "AccentStripE3T"
+   "AccentStripE3T",
+   "CanopyRodW1",
+   "CanopyRodW2",
+   "CanopyRodW3",
+   "CanopyRodE1",
+   "CanopyRodE2",
+   "CanopyRodE3",
+   "EndBandNW1L",
+   "EndBandNW1R",
+   "EndBandNW1T",
+   "EndBandNW2",
+   "EndBandNW3",
+   "EndBandNW4",
+   "ServiceDoorNW",
+   "ServiceDoorNWInside",
+   "ServiceCanopyNW",
+   "ServiceCanopyNWRod1",
+   "ServiceCanopyNWRod2",
+   "EndBandSE1",
+   "EndBandSE2",
+   "EndBandSE3",
+   "EndBandSE4L",
+   "EndBandSE4R",
+   "EndBandSE4T",
+   "ServiceDoorSE",
+   "ServiceDoorSEInside",
+   "ServiceCanopySE",
+   "ServiceCanopySERod1",
+   "ServiceCanopySERod2",
+   "ElectricServiceSE",
+   "BackGutter",
+   "DrainLeader1",
+   "DrainLeader2",
+   "DrainLeader3",
+   "RoofUnit1",
+   "RoofUnit2"
   ],
-  "built_at": "2026-11-18T07:13:58+00:00"
+  "built_at": "2026-11-18T08:13:31+00:00"
  }
 }

@@ -499,7 +499,11 @@ in front of an opening (`facade_727.covered`). `KeyWest727Shelter` places it und
 glass frost, builds the exterior, paints the walls and refreshes the 727 sockets and yard pickups in
 `overrides/first_exit_gameplay.json` (`first_exit_sites.refresh_shelter`; the other sites stay put).
 Then re-export chunk −7:3, regenerate its scene and the dirty HLOD clusters.
-Deferred: the service doors at both ends of the main block (A2.01) are not modelled.
+The ends and the back follow A2.01 too: wood bands and a service door under a small steel canopy at each end
+(NW: 4 bands; SE: 3 bands, the door panel and the relocated electric service), three tie rods on each side canopy,
+the back gutter with three PVC leaders and two roof units. The service doors are closed walls in the game (owner
+2026-11-18): a leaf outside and the same leaf inside, no opening and no interaction. Whether one is locked, nailed
+shut or broken is a stage 2 house-state decision.
 
 **Enterable shelter.** `tools/world/reality/shelter_727.py` hollows the measured shell.
 - Fixed elements:

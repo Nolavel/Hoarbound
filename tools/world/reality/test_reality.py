@@ -677,6 +677,40 @@ class Facade727(unittest.TestCase):
         crate = facade_727._box("Crate", "wood_tile", cu - 0.3, 0.0, cv + 0.2 * dv, cu + 0.3, 2.0, cv + 0.6 * dv, "test")
         self.assertEqual(facade_727.covered(spec, [crate]), [("Crate", "FrontWindow2")])
 
+    def test_end_walls_carry_bands_and_a_closed_service_door(self):
+        parts, spec = self._parts()
+        g = spec["interior"]["layout"]["faces"]
+        nw, se = parts["ServiceDoorNW"]["box"], parts["ServiceDoorSE"]["box"]
+        self.assertAlmostEqual(nw[0][0], g["W"] - 0.04, places=2)  # leaf on the NW end face
+        self.assertAlmostEqual((nw[0][2] + nw[1][2]) / 2 - g["B"], 4.41, delta=0.05)  # A2.01 NW: 3.90-4.91 m from the back
+        self.assertAlmostEqual(g["F"] - (se[0][2] + se[1][2]) / 2, 6.58, delta=0.05)  # A2.01 SE: 6.08-7.08 m from the front
+        self.assertAlmostEqual(nw[1][1], 7 * 0.3048, places=2)
+        ends = [p for p in parts.values() if p["name"].startswith("EndBand")]
+        self.assertEqual(len({p["name"][:10] for p in ends}), 8, "4 bands NW, 3 bands and the door panel SE")
+        for name in ("ServiceCanopyNW", "ServiceCanopySE", "ElectricServiceSE", "ServiceDoorNWInside", "ServiceDoorSEInside"):
+            self.assertIn(name, parts)
+        inside = parts["ServiceDoorSEInside"]["box"]
+        self.assertAlmostEqual(inside[0][1], spec["interior"]["floor_y"], places=3)
+        self.assertAlmostEqual(inside[0][0], spec["interior"]["layout"]["lines"]["E"] - 0.04, places=2)
+
+    def test_bands_are_cut_around_the_service_doors(self):
+        parts, _ = self._parts()
+        for door in ("ServiceDoorNW", "ServiceDoorSE"):
+            (du0, dy0, dv0), (du1, dy1, dv1) = parts[door]["box"]
+            for p in parts.values():
+                if p["name"].startswith("EndBand"):
+                    (u0, y0, v0), (u1, y1, v1) = p["box"]
+                    overlap = min(v1, dv1) - max(v0, dv0) > 1e-3 and min(y1, dy1) - max(y0, dy0) > 1e-3 and abs(u0 - du0) < 0.2
+                    self.assertFalse(overlap, (p["name"], door))
+
+    def test_side_canopies_and_back_wall_follow_the_elevations(self):
+        parts, _ = self._parts()
+        self.assertEqual(sum(n.startswith("CanopyRodW") for n in parts), 3)
+        self.assertEqual(sum(n.startswith("CanopyRodE") for n in parts), 3)
+        self.assertEqual(sum(n.startswith("DrainLeader") for n in parts), 3)
+        self.assertIn("BackGutter", parts)
+        self.assertEqual(sum(n.startswith("RoofUnit") for n in parts), 2)
+
     def test_wall_paint_is_sw_7691_in_linear_light(self):
         from reality import facade_727
         self.assertEqual(facade_727.linear((227, 201, 161)), [0.7682, 0.5841, 0.3564])

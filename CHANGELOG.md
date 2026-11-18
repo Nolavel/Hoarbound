@@ -6,6 +6,14 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 
 ## Unreleased
 
+### Changed (Key West: 727 Fort St ends, back and side canopies from A2.01)
+
+- **Ends of the main block:** wood bands (NW 4, SE 3 plus the wide door panel) and a service door under a small steel canopy at each end, cut into its band. The SE end carries the relocated electric service (the meters in the owner's Street View from 101 Petronia St).
+- **Service doors stay closed** (owner 2026-11-18): a cream leaf outside, as built (the drawing scheduled SW 0072), and the same leaf on the inside face. No opening, no interaction, no heat path; lock, boards or breakage belong to the stage 2 house state.
+- **Side canopies:** three tie rods each (A2.01 NW/SE). **Back:** fibreglass gutter under the parapet, three 6 in PVC leaders, two roof units (their position across the roof is inferred).
+- **Inferred, marked in the code:** service canopy depth 0.9 m and its hangers (Street View, visual), gutter depth, the roof units' place across the roof, the equipment and door colours.
+- The exterior still draws as 8 merged meshes (one per material and collision role).
+
 ### Changed (Key West: 727 Fort St walls, entrance and windows from the 2020 permit, step B)
 
 - **Outline:** the walls and the roof follow the A1.02 exterior scaled by its bar (main 26.46 × 10.96 m, Fort Street wing 9.95 × 5.27 m; 342.4 m² against the City record 343.1 m²), placed by best overlap with the measured walls (IoU 0.91). The roof no longer runs past the walls: the eaves and notch roofs were gone after 2020.
@@ -19,7 +27,7 @@ The previous long-form development diary is preserved unchanged in [`archive/CHA
 - **Draw calls:** the exterior is merged into one mesh per material and collision role (6 instead of 38). Views of the block draw no more than after step A, except the close front view (+50 calls, 1.7 %, with 14 % fewer primitives).
 - **Kept:** the wall thermometer (it lived only in the old spec file) is now in the generator, beside the lobby arch.
 - **Tests:** `test_open_container_focus` and `test_727_furniture` stood Henry with his origin (the capsule centre) 5 cm over the floor, half inside it. The old floor mesh happened to push him out; they now stand him on it. Tests that pinned the hut windows (4 heated, 2.0 × 1.1 m) or the old bearing now read the spec or the permit values.
-- **Deferred:** the service doors at both ends of the main block are not modelled. The gate's walk from the shelter spawn to the bunker start meets a neighbour's wall once (auto-recovered); not compared with the old spawn.
+- **Deferred:** the gate's walk from the shelter spawn to the bunker start meets a neighbour's wall once (auto-recovered); not compared with the old spawn.
 
 ### Changed (Key West: 727 Fort St exterior as built after the 2020 permit, step A)
 

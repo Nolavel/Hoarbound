@@ -47,11 +47,11 @@ func _check_exterior() -> void:
 	_check(exterior != null, "no Exterior under House")
 	if exterior == null:
 		return
-	for part: String in ["Canopy", "CanopyRods", "Planters", "AccentBands", "Parapet", "Sign"]:
+	for part: String in ["Canopy", "CanopySteel", "Planters", "AccentBands", "WallTrim", "Sign", "ServiceDoors", "Equipment"]:
 		_check(exterior.find_child(part + "*", true, false) != null, "exterior has no %s" % part)
 	_check(not exterior.find_children("*", "StaticBody3D", true, false).is_empty(), "planters have no collision")
 	var meshes: int = exterior.find_children("*", "MeshInstance3D", true, false).size()
-	_check(meshes <= 6, "exterior is %d meshes; merge parts per material (one draw call each)" % meshes)
+	_check(meshes <= 8, "exterior is %d meshes; merge parts per material (one draw call each)" % meshes)
 	var space: PhysicsDirectSpaceState3D = root.get_world_3d().direct_space_state
 	var ramp: Dictionary = _shelter.interior["entry_ramp"]
 	var at: Vector3 = house.to_global(Vector3(float(ramp["from_uv"][0]), 1.0, float(ramp["from_uv"][1]) + 0.5))

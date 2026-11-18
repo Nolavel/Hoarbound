@@ -112,9 +112,10 @@ def _text(part: dict, mat) -> None:
 	obj.data.materials.append(mat)
 
 
-## One mesh per material and collision role: 38 parts would be 38 draw calls, these are 6.
-MERGED = {("canopy_steel", True): "Canopy-col", ("canopy_steel", False): "CanopyRods", ("wood_tile", True): "Planters-col",
-	("wood_tile", False): "AccentBands", ("wall_paint", False): "Parapet", ("sign_red", False): "Sign"}
+## One mesh per material and collision role: about 80 parts would be as many draw calls, these are 8.
+MERGED = {("canopy_steel", True): "Canopy-col", ("canopy_steel", False): "CanopySteel", ("wood_tile", True): "Planters-col",
+	("wood_tile", False): "AccentBands", ("wall_paint", False): "WallTrim", ("sign_red", False): "Sign",
+	("door_paint", False): "ServiceDoors", ("equipment_grey", False): "Equipment"}
 
 
 def _merge(parts: list) -> None:
