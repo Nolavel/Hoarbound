@@ -10,7 +10,7 @@ import numpy as np
 import shapely
 
 from . import config, ids
-from .model import Attr, Feature
+from .model import Attr, Feature, Link
 
 CONFIG = "documented_buildings.json"
 
@@ -49,6 +49,7 @@ def features(idreg: ids.IdRegistry) -> list[Feature]:
                         geometry_method=b["geometry_method"], geometry_recon=b["reconstruction_class"],
                         geometry_confidence=b["confidence"], geometry_accuracy_m=b["geometry_accuracy_m"],
                         name=m["name"], valid_from=b["valid_from"], flags=set(b["flags"]))
+            f.links.append(Link(b["source_id"], "documented_buildings", native, "geometry", "identity"))
             r = roof(m, doc["heights"])
 
             def fact(name, value, note=None):

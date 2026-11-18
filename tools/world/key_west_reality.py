@@ -16,6 +16,7 @@
   export-editor               per-chunk editor interchange for the Godot editor generator
   editor-index                search index (address, size, footprint) for the Godot Reality editor dock
   blender-shell --feature-id  one building's measured shell (glTF) and sizes for modelling in Blender
+  documented [--apply]        buildings from planning records: overlap report; --apply adds them to the committed library
   all                         acquire -> extent -> acquire (extent-bound) -> build -> validate -> report -> preview
 
 Needs: pyarrow, pyogrio, shapely, pyproj, rasterio, laspy[lazrs], numpy, Pillow.
@@ -40,6 +41,27 @@ def cmd_acquire(names: list[str]) -> None:
         getattr(acquire, name)()
 
 
+def cmd_documented(apply: bool) -> None:
+    """Applies config/documented_buildings.json to the committed library (no raw cache needed)."""
+    import json
+    import shutil
+    import tempfile
+
+    from reality import documented, ids, library, paths
+    library.ensure()
+    feats = documented.features(ids.IdRegistry())
+    with tempfile.TemporaryDirectory() as tmp:
+        target = paths.LIBRARY if apply else Path(tmp) / "dry_run.gpkg"
+        if not apply:
+            shutil.copyfile(paths.LIBRARY, target)
+        report = library.append_features(target, feats)
+    report["applied"] = apply
+    (paths.REPORTS / "documented_buildings.json").write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=1))
+    if apply:
+        library.pack()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("command")
@@ -52,6 +74,7 @@ def main() -> None:
     parser.add_argument("--asset-id")
     parser.add_argument("--blend", help="asset: authored .blend path")
     parser.add_argument("--scene", help="asset: Godot scene path")
+    parser.add_argument("--apply", action="store_true", help="documented: write the buildings into the library and re-pack it")
     parser.add_argument("--rebase-check", action="store_true", help="asset: mark authored assets with changed sources needs_rebase")
     args = parser.parse_args()
     if args.command == "acquire":
@@ -108,6 +131,8 @@ def main() -> None:
     elif args.command == "editor-index":
         from reality import editor_index
         editor_index.run()
+    elif args.command == "documented":
+        cmd_documented(args.apply)
     elif args.command == "export-editor":
         from reality import editor_export
         editor_export.run(args.chunk, route_only=args.route)

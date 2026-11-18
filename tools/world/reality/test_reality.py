@@ -409,5 +409,64 @@ class DocumentedBuildings(unittest.TestCase):
             self.assertLessEqual(roof["top_m"], 10.67 - 0.36 + 1e-6)  # 35 ft over the crown, stored above the sidewalk
 
 
+class LibraryPatch(unittest.TestCase):
+    """Documented buildings join a committed library without the raw cache."""
+
+    def _mini_library(self, tmp):
+        from reality import build
+        from reality.model import Feature
+        a_fort = [f for f in self._documented() if f.feature_id.endswith("_a_fort")][0].geom.centroid
+        old = Feature("kw:building:osm:w1", "buildings", "building", shapely.box(a_fort.x - 3, a_fort.y - 3, a_fort.x + 3, a_fort.y + 3),
+                      "overture_2026_09_23_1", "w1", "identity", "derived", 0.8)
+        far = Feature("kw:building:osm:w2", "buildings", "building", shapely.box(418000, 2715000, 418010, 2715010),
+                      "overture_2026_09_23_1", "w2", "identity", "derived", 0.8)
+        build.chunk_and_local([old, far])
+        path = Path(tmp) / "lib.gpkg"
+        library.write_layer(path, "buildings", [old, far], append=False)
+        library._write_tables(path, [old, far], [], {"features": [], "assets": []}, {"schema_version": "test"})
+        return path
+
+    def _documented(self):
+        from reality import documented
+        return documented.features(ids.IdRegistry())
+
+    def _counts(self, path):
+        import sqlite3
+        con = sqlite3.connect(path)
+        out = {"index": con.execute("SELECT COUNT(*) FROM feature_index").fetchone()[0],
+               "heights": con.execute("SELECT COUNT(*) FROM attribute WHERE feature_id LIKE 'kw:building:doc:%' AND name = 'height_m'").fetchone()[0],
+               "geometry_links": con.execute("SELECT COUNT(*) FROM source_link WHERE feature_id LIKE 'kw:building:doc:%' AND role = 'geometry'").fetchone()[0],
+               "source": con.execute("SELECT COUNT(*) FROM source WHERE source_id = 'city_kw_legistar_22_3575'").fetchone()[0]}
+        con.close()
+        _, cols = library.read_layer("buildings", path)
+        out["layer"] = len(cols["feature_id"])
+        return out
+
+    def test_patch_inserts_five_masses(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._mini_library(tmp)
+            report = library.append_features(path, self._documented())
+            self.assertEqual(len(report["inserted"]), 5)
+            self.assertEqual(self._counts(path), {"index": 7, "heights": 5, "geometry_links": 5, "source": 1, "layer": 7})
+
+    def test_patch_is_idempotent(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._mini_library(tmp)
+            library.append_features(path, self._documented())
+            first = self._counts(path)
+            report = library.append_features(path, self._documented())
+            self.assertEqual(self._counts(path), first)
+            self.assertEqual(len(report["replaced"]), 5)
+
+    def test_overlap_is_reported(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._mini_library(tmp)
+            report = library.append_features(path, self._documented())
+            self.assertEqual(report["overlaps"], {"kw:building:doc:legistar_22_3575_a_fort": ["kw:building:osm:w1"]})
+
+
 if __name__ == "__main__":
     unittest.main()

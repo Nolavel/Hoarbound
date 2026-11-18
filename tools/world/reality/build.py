@@ -13,7 +13,7 @@ import shapely.geometry
 from scipy import ndimage
 from shapely.strtree import STRtree
 
-from . import PIPELINE_VERSION, SCHEMA_VERSION, config, conflate, frame, ids, library, lidar, overrides, paths, receipts
+from . import PIPELINE_VERSION, SCHEMA_VERSION, config, conflate, documented, frame, ids, library, lidar, overrides, paths, receipts
 from .model import Attr, Excluded, Feature, Link
 from .normalize_overture import OvertureNormalizer
 from .normalize_usgs import UsgsNormalizer
@@ -282,6 +282,13 @@ def bind_facts(features: list[Feature]) -> dict:
     return dict(stats)
 
 
+def documented_buildings(features: list[Feature], idreg: ids.IdRegistry) -> dict:
+    """Buildings from planning records (config/documented_buildings.json), newer than every survey source."""
+    new = documented.features(idreg)
+    features.extend(new)
+    return {"masses": len(new), "ids": [f.feature_id for f in new]}
+
+
 def chunk_and_local(features: list[Feature]) -> None:
     for f in features:
         p = frame.representative_point(f.geom)
@@ -335,6 +342,7 @@ def run() -> None:
     stats["usa_structures_vs_lidar_alignment"] = lidar.alignment_offset(g19, dem, usa_fp, shapely.box(x0, y0, x1, y1))
     _log("alignment", stats["vector_vs_lidar_alignment"], stats["usa_structures_vs_lidar_alignment"])
     stats["documentary_facts"] = bind_facts(features)
+    stats["documented_buildings"] = documented_buildings(features, idreg)
     conflate.select_attributes(features)
     chunk_and_local(features)
     ov_layer = overrides.load()
