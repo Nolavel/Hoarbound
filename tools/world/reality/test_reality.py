@@ -409,6 +409,37 @@ class DocumentedBuildings(unittest.TestCase):
             self.assertLessEqual(roof["top_m"], 10.67 - 0.36 + 1e-6)  # 35 ft over the crown, stored above the sidewalk
 
 
+class DocumentedRoof(unittest.TestCase):
+    """A roof from the elevation sheets goes through the same shell as a lidar-fitted one."""
+
+    ROOF = {"form": "hip_flat_top", "eave_m": 6.0, "top_m": 9.0, "pitch": 5 / 12}
+
+    def _shell(self, roof):
+        from reality import meshing
+        poly = shapely.box(418000.0, 2715000.0, 418020.0, 2715040.0)  # 20 x 40 m
+        return meshing.building_shell(None, poly, 1.0, roof["top_m"], False, None, 1.0, documented_roof=roof)
+
+    def test_walls_stop_at_the_documented_eave(self):
+        tops = [t for ring in self._shell(self.ROOF)["ring_top_y"] for t in ring]
+        self.assertAlmostEqual(min(tops), 7.0, places=2)
+        self.assertAlmostEqual(max(tops), 7.0, places=2)
+
+    def test_roof_rises_at_the_pitch_to_a_flat_top(self):
+        import numpy as np
+        v = np.asarray(self._shell(self.ROOF)["roof_v"]).reshape(-1, 3)
+        self.assertAlmostEqual(v[:, 1].max(), 10.0, places=2)
+        self.assertGreater(int((np.abs(v[:, 1] - 10.0) < 1e-6).sum()), 3, "the centre stays flat at the top")
+
+    def test_roof_source_names_the_documents(self):
+        self.assertEqual(self._shell(self.ROOF)["roof_source"], "documented_hip_flat_top")
+
+    def test_roof_never_passes_the_documented_top(self):
+        import numpy as np
+        steep = dict(self.ROOF, pitch=3.0)
+        v = np.asarray(self._shell(steep)["roof_v"]).reshape(-1, 3)
+        self.assertLessEqual(v[:, 1].max(), 10.0 + 1e-6)
+
+
 class LibraryPatch(unittest.TestCase):
     """Documented buildings join a committed library without the raw cache."""
 

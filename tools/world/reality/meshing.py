@@ -142,10 +142,19 @@ def eval_roof_model(m: dict, xy: np.ndarray) -> np.ndarray:
 
 
 
+def documented_model(poly, roof: dict, base_y: float) -> dict:
+    """Roof model from planning records: a hip at the documented pitch from the eave, clipped flat at the top."""
+    centre, u, U, V = _axes(poly)
+    eave = base_y + roof["eave_m"]
+    return {"type": "hip", "coef": [eave + roof["pitch"] * V, roof["pitch"]], "centre": centre.tolist(), "u": u.tolist(),
+            "U": round(float(U), 2), "V": round(float(V), 2), "slope_deg": round(float(np.degrees(np.arctan(roof["pitch"]))), 1)}
+
+
 def building_shell(s: Surfaces, poly, base_y: float, height: float | None, height_is_authoritative: bool,
-                   roof_relief: float | None, spacing: float, flat_top: float | None = None) -> dict:
+                   roof_relief: float | None, spacing: float, flat_top: float | None = None,
+                   documented_roof: dict | None = None) -> dict:
     """Walls follow the roof edge; the roof is a model fitted to measured lidar cells
-    (flat / gable / hip / shed), or a flat cap when no lidar exists or no model fits."""
+    (flat / gable / hip / shed), a documented roof (planning records), or a flat cap."""
     poly = shapely.make_valid(poly)
     if poly.geom_type != "Polygon":
         poly = max(getattr(poly, "geoms", [poly]), key=lambda g: g.area if g.geom_type == "Polygon" else 0)
@@ -157,8 +166,9 @@ def building_shell(s: Surfaces, poly, base_y: float, height: float | None, heigh
     cap = base_y + (height if top_known else 3.0)
     flat_cap = base_y + flat_top if (flat_top is not None and not height_is_authoritative) else cap
     roof_source = "flat_cap_placeholder" if not top_known else "flat_cap_measured_height"
-    model = None
-    win = s.dsm_window(poly) if (roof_relief is not None and roof_relief >= FLAT_RELIEF_M) else None
+    model = documented_model(poly, documented_roof, base_y) if documented_roof else None
+    measurable = documented_roof is None and roof_relief is not None and roof_relief >= FLAT_RELIEF_M
+    win = s.dsm_window(poly) if measurable else None
     if win is not None:
         grid, valid, transform = win
         inner = poly.buffer(-0.5)
@@ -201,9 +211,9 @@ def building_shell(s: Surfaces, poly, base_y: float, height: float | None, heigh
     tv, ti = t["vertices"], t["triangles"]
     if model is not None:
         z = eval_roof_model(model, tv)
-        upper = cap if height_is_authoritative else np.inf
+        upper = base_y + documented_roof["top_m"] if documented_roof else (cap if height_is_authoritative else np.inf)
         z = np.clip(z, base_y + MIN_WALL_M, max(upper, base_y + MIN_WALL_M))
-        roof_source = f"lidar_model_{model['type']}"
+        roof_source = f"documented_{documented_roof['form']}" if documented_roof else f"lidar_model_{model['type']}"
     else:
         z = np.full(len(tv), flat_cap)
     n_ring = sum(len(rp) for rp in ring_pts)
@@ -218,7 +228,7 @@ def building_shell(s: Surfaces, poly, base_y: float, height: float | None, heigh
     out = {"rings": rings_local, "ring_top_y": tops, "base_y": round(base_y, 2), "roof_v": roof_v,
            "roof_i": ti.astype(int).ravel().tolist(), "roof_source": roof_source, "ring_vertex_count": n_ring}
     if model is not None:
-        out["roof_model"] = {k2: model[k2] for k2 in ("type", "rmse", "truncated_l1", "inlier_share", "slope_deg")}
+        out["roof_model"] = {k2: model[k2] for k2 in ("type", "rmse", "truncated_l1", "inlier_share", "slope_deg") if k2 in model}
     # Collision proxy: the source outline (not the densified render ring) capped at the median eave;
     # courtyards stay open, as the roof draws them.
     def _flat(ring) -> list:

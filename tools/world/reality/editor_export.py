@@ -91,7 +91,7 @@ def run(chunks: list[str] | None = None, route_only: bool = False) -> dict:
     con = sqlite3.connect(paths.LIBRARY)
     epoch = dict(con.execute("SELECT feature_id, observed_at FROM feature_index").fetchall())
     hashes = dict(con.execute("SELECT feature_id, geometry_hash FROM feature_index").fetchall())
-    sel = {n: _selected(con, n) for n in ("height_m", "roof_median_height_m", "roof_relief_m", "ground_elevation_m")}
+    sel = {n: _selected(con, n) for n in ("height_m", "roof_median_height_m", "roof_relief_m", "ground_elevation_m", "roof_documented")}
     con.close()
     ov = overrides.load()
     corr = corridors(ov["features"])
@@ -323,8 +323,10 @@ def _mesh_for(fam, cls, sub, g, fid, attrs, sel, s, gen, heights, hot, removed_p
         h = sel["height_m"].get(fid)
         relief = sel["roof_relief_m"].get(fid)
         median = sel["roof_median_height_m"].get(fid)
+        doc_roof = sel["roof_documented"].get(fid)
         shell = meshing.building_shell(s, poly, base, float(h[0]) if h else None, bool(h and h[1] == "authoritative"),
-                                       float(relief[0]) if relief else None, spacing, float(median[0]) if median else None)
+                                       float(relief[0]) if relief else None, spacing, float(median[0]) if median else None,
+                                       doc_roof[0] if doc_roof else None)
         if not shell:
             stats["building_shell_failed"] += 1
             return {"kind": "marker", "p": _xz([poly.representative_point().coords[0]])}, {}
