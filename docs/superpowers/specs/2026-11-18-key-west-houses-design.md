@@ -1,6 +1,6 @@
 # Key West houses: a data-driven house kit, first slice around 727
 
-Date: 2026-11-18. Owner: Nolavel. Stage 1 (geography: the city as built on the world date, 2025-12-31).
+Date: 2026-11-18. Owner: Nolavel. Status: approved by the owner 2026-11-18. Stage 1 (geography: the city as built on the world date, 2025-12-31).
 
 ## Intent
 
@@ -163,6 +163,11 @@ the address, the side and the view to take.
 Mesh details of posts and railings, the shader pattern for cladding and roof seams, the detection
 thresholds (tuned on documented houses), and the visibility ranking for the screenshot list.
 
-## Open for the owner
+## Owner decisions (2026-11-18)
 
-- Colour where no source shows the house: see the question in the conversation of 2026-11-18.
+- The design is approved.
+- Colour where no source shows the house: the HARC traditional palette (Guidelines p. 34: bodies white,
+  pastels, light gray, beige, buff; trim white or off-white; shutters white, black, gray, dark green;
+  metal roofs silver) plus, inside Bahama Village, the brighter Caribbean colours the same page allows,
+  on about a third of those houses. The colour is fixed per house (a hash of its feature id) and marked
+  `inferred`; a document or screenshot replaces it.
